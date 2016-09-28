@@ -10,7 +10,7 @@
 \\
 %
 \\
-\>\AgdaKeyword{infix} \AgdaNumber{5} \AgdaFixityOp{\_>>\_} \AgdaFixityOp{\_<<\_}\<%
+\>\AgdaKeyword{infix} \AgdaNumber{5} \AgdaDatatype{\_>>\_} \AgdaDatatype{\_<<\_}\<%
 \\
 %
 \\
@@ -20,4 +20,27 @@
 \\
 \>\<%
 \end{code}
+
+Let's try some infix declaration with surrounding text.
+
+\begin{code}%
+\>\AgdaKeyword{module} \AgdaModule{SurroundingText} \AgdaKeyword{where}\<%
+\\
+\>\<%
+\end{code}
+
+In the following, we declare the fixity of two operators.
+
+\begin{code}%
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{infix} \AgdaNumber{5} \AgdaPostulate{\_+\_} \AgdaPostulate{\_*\_}\<%
+\end{code}
+
+A fixity declaration can preceed the actual declaration of the names.
+
+\begin{code}%
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{postulate} \AgdaPostulate{\_+\_} \AgdaPostulate{\_*\_} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
 \end{document}

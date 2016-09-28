@@ -32,5 +32,5 @@ unquoteDecl = makeLoop
 it : ∀ {a} {A : Set a} {{_ : A}} → A
 it {{x}} = x
 
-loop : ⊥
-loop = unbox it
+-- loop : ⊥
+-- loop = unbox it

@@ -102,7 +102,7 @@ patternToTerm n p = case p of
                                      (n , [])
                              $ map namedArg args
     LitP l          -> Lit l
-    ProjP d         -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
+    ProjP _ d       -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
 
 nrBinds :: Num i => Pattern -> i
 nrBinds p = case p of
@@ -138,19 +138,20 @@ isInjectiveHere nam idx clause = do
    , text ("argumentNo=" ++ show idx)
    -- , prettyTCM (clausePats clause)
    ]
- case getBody clause of
+ case compiledClauseBody clause of
   Nothing -> return emptyC
   Just body -> do
-    let t    = patternToTerm idxR $ unArg $ fromMaybe __IMPOSSIBLE__ $
-                 unnumberPatVars (clausePats clause) !!! idx
+    let vars = unnumberPatVars $ namedClausePats clause
+    let t    = patternToTerm idxR $ namedArg $ fromMaybe __IMPOSSIBLE__ $
+                 vars !!! idx
         t'   = applySubst (substForDot $ namedClausePats clause) t
-        idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ unnumberPatVars $ clausePats clause
+        idxR = sum . map (nrBinds . namedArg) . drop (idx + 1) $ vars
     body' <- lift $ reduce body
     lift $ reportSLn "epic.injection" 40 "reduced body"
     injFs <- gets (injectiveFuns . importedModules)
     lift $ reportSLn "epic.injection" 40 "calculated injFs"
     res <- (t' <: body') `runReaderT` (Map.insert nam (InjectiveFun idx
-                                                      (length (clausePats clause))) injFs)
+                                                      (length (namedClausePats clause))) injFs)
     lift $ reportSDoc "epic.injection" 20 $ vcat
       [ text "isInjective:" <+> text (show nam)
       , text "at Index   :" <+> text (show idx)
@@ -256,7 +257,7 @@ instance Injectible a => Injectible [a] where
 instance Injectible a => Injectible (Elim' a) where
   e1 <: e2 =
     case (e1, e2) of
-      (Proj f1 , Proj f2 ) | f1 == f2 -> return $ Just []
+      (Proj _ f1, Proj _ f2) | f1==f2 -> return $ Just []
       (Apply a1, Apply a2)            -> a1 <: a2
       _                               -> return Nothing
 

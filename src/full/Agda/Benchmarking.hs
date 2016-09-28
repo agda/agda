@@ -81,6 +81,10 @@ data Phase
     -- ^ Subphase for 'Typing': occurs check for solving metas.
   | CheckLHS
     -- ^ Subphase for 'Typing': checking the LHS
+  | CheckRHS
+    -- ^ Subphase for 'Typing': checking the RHS
+  | TypeSig
+    -- ^ Subphase for 'Typing': checking a type signature
   | UnifyIndices
     -- ^ Subphase for 'CheckLHS': unification of the indices
   | InverseScopeLookup

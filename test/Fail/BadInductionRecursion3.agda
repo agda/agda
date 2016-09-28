@@ -15,7 +15,7 @@ mutual
 
   D′ : forall b -> Two b -> Set
   D′ ._ zero    = D
-  D′ ._ (suc n) = D′ _ n -> Bool
+  D′ ._ (suc n) = D′ _ n -> D
 
 _·_ : D -> D -> D
 d (suc zero) f · x = f x

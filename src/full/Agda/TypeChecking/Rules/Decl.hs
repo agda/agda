@@ -1,16 +1,18 @@
-{-# LANGUAGE CPP           #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State (modify, gets)
+import Control.Monad.State (modify, gets, get)
 import Control.Monad.Writer (tell)
 
 import qualified Data.Foldable as Fold
 import Data.List (genericLength)
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -64,12 +66,14 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Except
+import Agda.Utils.Functor
+import Agda.Utils.Function
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Except
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -143,15 +147,16 @@ checkDecl d = setCurrentRange d $ do
     reportSDoc "tc.decl" 10 $ prettyA d  -- Might loop, see e.g. Issue 1597
 
     -- Issue 418 fix: freeze metas before checking an abstract thing
-    when_ isAbstract freezeMetas
+    -- when_ isAbstract freezeMetas -- WAS IN PLACE 2012-2016, but too crude
+    -- applyWhen isAbstract withFreezeMetas $ do -- WRONG
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
-        none        m = m >> return Nothing
-        meta        m = m >> return (Just (return ()))
-        mutual i ds m = m >>= return . Just . uncurry (mutualChecks i d ds)
-        impossible  m = m >> return __IMPOSSIBLE__
-                       -- We're definitely inside a mutual block.
+        none        m = m $>  Nothing           -- skip all checks
+        meta        m = m $>  Just (return ())  -- do the usual checks
+        mutual i ds m = m <&> Just . uncurry (mutualChecks i d ds)
+        impossible  m = m $>  __IMPOSSIBLE__
+                        -- We're definitely inside a mutual block.
 
     let mi = Info.MutualInfo TerminationCheck True noRange
 
@@ -161,7 +166,7 @@ checkDecl d = setCurrentRange d $ do
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
       A.Section i x tel ds     -> meta $ checkSection i x tel ds
-      A.Apply i x modapp rd rm _adir -> meta $ checkSectionApplication i x modapp rd rm
+      A.Apply i x modapp ci _adir -> meta $ checkSectionApplication i x modapp ci
       A.Import i x _adir       -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
@@ -359,8 +364,15 @@ checkTermination_ mid d = Bench.billTo [Bench.Termination] $ do
       A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
         termErrs <- termDecl mid d
-        unless (null termErrs) $
-          typeError $ TerminationCheckFailed termErrs
+        -- If there are some termination errors, we collect them in
+        -- the state and mark the definition as non-terminating so
+        -- that it does not get unfolded
+        unless (null termErrs) $ do
+          termIssue <- TerminationIssue <$> get <*> buildClosure termErrs
+          warning termIssue
+          case Seq.viewl (A.allNames d) of
+            nm Seq.:< _ -> setTerminates nm False
+            _           -> return ()
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()
@@ -444,10 +456,27 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
         _ -> reportSLn "tc.proj.like" 25 $
                "mutual definitions are not considered for projection-likeness"
 
+-- | Freeze metas created by given computation if in abstract mode.
+whenAbstractFreezeMetasAfter :: Info.DefInfo -> TCM a -> TCM a
+whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
+  let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
+  if not pubAbs then m else do
+    (a, ms) <- metasCreatedBy m
+    xs <- freezeMetas' $ (`Set.member` ms)
+    reportSDoc "tc.decl.ax" 20 $ vcat
+      [ text "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ Set.toList ms)
+      , text "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
+      ]
+    return a
+
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
               Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
-checkAxiom funSig i info0 mp x e = do
+checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
+  -- Andreas, 2016-07-19 issues #418 #2102:
+  -- We freeze metas in type signatures of abstract definitions, to prevent
+  -- leakage of implementation details.
+
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max (getRelevance info0) <$> asks envRelevance
@@ -459,18 +488,6 @@ checkAxiom funSig i info0 mp x e = do
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
     , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
-
-  -- check macro type if necessary
-  when (Info.defMacro i == MacroDef) $ do
-    t' <- normalise t
-    TelV tel tr <- telView t'
-
-    let telList = telToList tel
-        resType = abstract (telFromList (drop (length telList - 1) telList)) tr
-    expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
-    equalType resType expectedType
-      `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
-                                                              , nest 2 $ prettyTCM expectedType ]
 
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
@@ -499,7 +516,7 @@ checkAxiom funSig i info0 mp x e = do
     useTerPragma $
       (defaultDefn info x t $
          case funSig of
-           A.FunSig   -> emptyFunction
+           A.FunSig   -> set funMacro (Info.defMacro i == MacroDef) emptyFunction
            A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
         { defArgOccurrences = occs
         , defPolarity       = pols
@@ -683,11 +700,6 @@ checkPragma r p =
                 addCoreType x dt'
                 sequence_ $ zipWith addCoreConstr cs cons'
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
-        A.NoSmashingPragma x -> do
-          def <- getConstInfo x
-          case theDef def of
-            Function{} -> markNoSmashing x
-            _          -> typeError $ GenericError "NO_SMASHING directive only works on functions"
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of
@@ -725,9 +737,10 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom funSig i info mp x e) =
+  Bench.billTo [Bench.Typing, Bench.TypeSig] $
     case Info.defAccess i of
         PublicAccess  -> inConcreteMode $ checkAxiom funSig i info mp x e
-        PrivateAccess -> inAbstractMode $ checkAxiom funSig i info mp x e
+        PrivateAccess{} -> inAbstractMode $ checkAxiom funSig i info mp x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 
@@ -783,22 +796,20 @@ checkSectionApplication
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
   -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
-  -> A.Ren QName         -- ^ Imported names (given as renaming).
-  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
+  -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
-checkSectionApplication i m1 modapp rd rm =
+checkSectionApplication i m1 modapp copyInfo =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
-  checkSectionApplication' i m1 modapp rd rm
+  checkSectionApplication' i m1 modapp copyInfo
 
 -- | Check an application of a section.
 checkSectionApplication'
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
   -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
-  -> A.Ren QName         -- ^ Imported names (given as renaming).
-  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
+  -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
-checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
+checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
@@ -848,16 +859,15 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
 
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
-      , nest 2 $ text "  defs:" <+> text (show rd)
-      , nest 2 $ text "  mods:" <+> text (show rm)
+      , nest 2 $ pretty copyInfo
       ]
     args <- instantiateFull $ vs ++ ts
     let n = size aTel
     etaArgs <- inTopContext $ addContext aTel getContextArgs
     addContext' aTel $
-      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) rd rm
+      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 
-checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
+checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
   let name = mnameToQName x
   tel' <- lookupSection x
   vs   <- freeVarsToApply name
@@ -908,7 +918,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       , nest 2 $ text "args    =" <+> text (show args)
       ]
     addSection m1
-    applySection m1 telInst x (vs ++ args) rd rm
+    applySection m1 telInst x (vs ++ args) copyInfo
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.

@@ -4,3 +4,9 @@ Termination checking failed for the following functions:
 Problematic calls:
   bad
     (at CoinductiveUnitRecord.agda:17,13-16)
+CoinductiveUnitRecord.agda:20,1-21,18
+Termination checking failed for the following functions:
+  bad'
+Problematic calls:
+  bad'
+    (at CoinductiveUnitRecord.agda:21,14-18)

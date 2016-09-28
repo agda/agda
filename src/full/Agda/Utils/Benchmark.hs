@@ -12,8 +12,10 @@ import qualified Control.Exception as E (evaluate)
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Foldable (foldMap)
 import Data.Functor
 import qualified Data.List as List
+import Data.Monoid
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -73,14 +75,25 @@ mapTimings f b = b { timings = f (timings b) }
 addCPUTime :: Ord a => Account a -> CPUTime -> Benchmark a -> Benchmark a
 addCPUTime acc t = mapTimings (Trie.insertWith (+) acc t)
 
--- | Print benchmark as two-column table with totals.
+-- | Print benchmark as three-column table with totals.
 instance (Ord a, Pretty a) => Pretty (Benchmark a) where
   pretty b = text $ Boxes.render table
     where
-    (accounts, times) = unzip $ Trie.toList $ timings b
+    trie = timings b
+    (accounts, times) = unzip $ Trie.toList trie
+    aggrTimes         = do
+      a <- accounts
+      let t = Trie.lookupTrie a trie
+          hasChildren =
+            case foldMap (:[]) t of
+              _:_:_ -> True
+              _     -> False
+      return $ if not (null a) && hasChildren
+               then Boxes.text $ "(" ++ prettyShow (getSum $ foldMap Sum t) ++ ")"
+               else Boxes.text ""
 
     -- Generate a table.
-    table = Boxes.hsep 1 Boxes.left [col1, col2]
+    table = Boxes.hsep 1 Boxes.left [col1, col2, col3]
 
     -- First column: Accounts.
     col1 = Boxes.vcat Boxes.left $
@@ -90,6 +103,9 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
     col2 = Boxes.vcat Boxes.right $
            map (Boxes.text . prettyShow) $
            sum times : times
+    -- Thid column: Aggregate times.
+    col3 = Boxes.vcat Boxes.right $
+           Boxes.text "" : aggrTimes
 
     showAccount [] = "Miscellaneous"
     showAccount ks = List.intercalate "." $ map prettyShow ks
@@ -169,6 +185,15 @@ billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
   old <- switchBenchmarking $ Strict.Just account
   -- Compute and switch back to old account.
   (liftIO . E.evaluate =<< m) `finally` switchBenchmarking old
+
+-- | Bill a CPS function to an account. Can't handle exceptions.
+billToCPS :: MonadBench a m => Account a -> ((b -> m c) -> m c) -> (b -> m c) -> m c
+billToCPS account f k = ifNotM (getsBenchmark benchmarkOn) (f k) $ do
+  -- Switch to new account.
+  old <- switchBenchmarking $ Strict.Just account
+  f $ \ x -> x `seq` do
+    _ <- switchBenchmarking old
+    k x
 
 -- | Bill a pure computation to a specific account.
 billPureTo :: MonadBench a m  => Account a -> c -> m c

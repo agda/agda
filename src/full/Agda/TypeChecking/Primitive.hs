@@ -22,6 +22,8 @@ import Data.Maybe
 import Data.Traversable (traverse)
 import Data.Monoid (mempty)
 
+import Numeric.IEEE ( IEEE(identicalIEEE) )
+
 import Agda.Interaction.Options
 
 import Agda.Syntax.Position
@@ -30,6 +32,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import qualified Agda.TypeChecking.Monad as TCM
@@ -109,6 +112,8 @@ instance PrimTerm QName   where primTerm _ = primQName
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
 instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
+instance PrimTerm Fixity' where primTerm _ = primFixity
+
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
@@ -178,6 +183,38 @@ instance ToTerm ArgInfo where
           Forced{}   -> irr
           UnusedArg  -> irr
       ]
+
+instance ToTerm Fixity' where
+  toTerm = (. theFixity) <$> toTerm
+
+instance ToTerm Fixity where
+  toTerm = do
+    lToTm  <- toTerm
+    aToTm  <- toTerm
+    fixity <- primFixityFixity
+    return $ \ Fixity{fixityAssoc = a, fixityLevel = l} ->
+      fixity `apply` [defaultArg (aToTm a), defaultArg (lToTm l)]
+
+instance ToTerm Associativity where
+  toTerm = do
+    lassoc <- primAssocLeft
+    rassoc <- primAssocRight
+    nassoc <- primAssocNon
+    return $ \ a ->
+      case a of
+        NonAssoc   -> nassoc
+        LeftAssoc  -> lassoc
+        RightAssoc -> rassoc
+
+instance ToTerm PrecedenceLevel where
+  toTerm = do
+    (iToTm :: Integer -> Term) <- toTerm
+    related   <- primPrecRelated
+    unrelated <- primPrecUnrelated
+    return $ \ p ->
+      case p of
+        Unrelated -> unrelated
+        Related n -> related `apply` [defaultArg $ iToTm n]
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
@@ -1448,21 +1485,31 @@ primitiveFunctions = Map.fromList
   , "primLevelMax"        |-> mkPrimLevelMax
 
   -- Floating point functions
-  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral :: Nat -> Double)
-  , "primFloatPlus"       |-> mkPrimFun2 ((+)          :: Op Double)
-  , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
-  , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
-  , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
-  , "primFloatEquality"   |-> mkPrimFun2 (floatEq      :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 (floatLt      :: Rel Double)
-  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt         :: Double -> Double)
-  , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
-  , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
-  , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)
-  , "primExp"             |-> mkPrimFun1 (exp          :: Fun Double)
-  , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)
-  , "primSin"             |-> mkPrimFun1 (sin          :: Fun Double)
-  , "primShowFloat"       |-> mkPrimFun1 (Str . floatShow :: Double -> Str)
+  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)
+  , "primFloatPlus"       |-> mkPrimFun2 ((+)             :: Op Double)
+  , "primFloatMinus"      |-> mkPrimFun2 ((-)             :: Op Double)
+  , "primFloatTimes"      |-> mkPrimFun2 ((*)             :: Op Double)
+  , "primFloatNegate"     |-> mkPrimFun1 (negate          :: Fun Double)
+  , "primFloatDiv"        |-> mkPrimFun2 ((/)             :: Op Double)
+  -- We use bitwise equality for comparing Double because
+  -- Haskell's Eq, which equates 0.0 and -0.0, allows to prove a
+  -- contradiction (see Issue #2169).
+  , "primFloatEquality"   |-> mkPrimFun2 (identicalIEEE   :: Rel Double)
+  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
+  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
+  , "primRound"           |-> mkPrimFun1 (round           :: Double -> Integer)
+  , "primFloor"           |-> mkPrimFun1 (floor           :: Double -> Integer)
+  , "primCeiling"         |-> mkPrimFun1 (ceiling         :: Double -> Integer)
+  , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
+  , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
+  , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
+  , "primCos"             |-> mkPrimFun1 (cos             :: Fun Double)
+  , "primTan"             |-> mkPrimFun1 (tan             :: Fun Double)
+  , "primASin"            |-> mkPrimFun1 (asin            :: Fun Double)
+  , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
+  , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
+  , "primATan2"           |-> mkPrimFun2 (atan2           :: Double -> Double -> Double)
+  , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
 
   -- Character functions
   , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
@@ -1495,6 +1542,7 @@ primitiveFunctions = Map.fromList
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
   , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
+  , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
@@ -1522,23 +1570,9 @@ primitiveFunctions = Map.fromList
   where
     (|->) = (,)
 
-
-floatEq :: Double -> Double -> Bool
-floatEq x y | isNaN x && isNaN y = True
-            | otherwise          = x == y
-
+-- The Ord instance for Literals does the right thing comparing floats.
 floatLt :: Double -> Double -> Bool
-floatLt x y
-  | isNegInf y = False
-  | isNegInf x = True
-  | isNaN x    = True
-  | otherwise  = x < y
-  where
-    isNegInf z = z < 0 && isInfinite z
-
-floatShow :: Double -> String
-floatShow x | isNegativeZero x = "0.0"
-            | otherwise        = show x
+floatLt x y = LitFloat noRange x < LitFloat noRange y
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =

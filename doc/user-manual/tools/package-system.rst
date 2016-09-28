@@ -7,6 +7,53 @@ Library Management
 Agda has a simple package management system to support working with multiple
 libraries in different locations. The central concept is that of a *library*.
 
+Example: Using the standard library
+-----------------------------------
+
+Before we go into details, here is a quick info for the impatient how
+to tell Agda about the location of the standard library, using the
+library management system.
+
+Assume you have downloaded the standard library into a directory which
+we will refer to by ``AGDA_STDLIB`` (absolute path).  A library file
+``standard-library.agda-lib`` should exist in this directory, with the
+following content:
+
+.. code-block:: none
+
+  name: standard-library
+  include: src
+
+To use the standard library by default in your Agda projects, you have
+to do two things:
+
+1. Create a file ``AGDA_DIR/libraries`` with the following content:
+
+   .. code-block:: none
+
+     AGDA_STDLIB/standard-library.agda-lib
+
+   (Of course, replace ``AGDA_STDLIB`` by the actual path.)
+
+   The ``AGDA_DIR`` defaults to ``~/.agda`` on unix-like systems and
+   ``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows.
+   (More on ``AGDA_DIR`` see below.)
+
+   Remark: The ``libraries`` file informs Agda about the libraries you want it to know.
+
+|
+
+2. Create a file ``AGDA_DIR/defaults`` with the following content:
+
+   .. code-block:: none
+
+     standard-library
+
+   Remark: The ``defaults`` file informs Agda which of the libraries it
+   found through ``libraries`` should be in the include path by default.
+
+That's the short version, if you want to know more, read on!
+
 Library files
 -------------
 
@@ -65,7 +112,7 @@ There are three ways a library gets used:
 - No explicit ``--library`` flag is given, and the current project root
   (of the Agda file that is being loaded) or one of its parent directories
   contains an ``.agda-lib`` file defining a library ``LIB``. This library is
-  used as if a ``--librarary=LIB`` option had been given, except that it is not
+  used as if a ``--library=LIB`` option had been given, except that it is not
   necessary for the library to be listed in the ``AGDA_DIR/libraries`` file.
 
 - No explicit ``--library`` flag, and no ``.agda-lib`` file in the project
@@ -75,7 +122,8 @@ There are three ways a library gets used:
   also added to the path.
 
   To disable default libraries, you can give the flag
-  ``--no-default-libraries``.
+  ``--no-default-libraries``. To disable using libraries altogether, use the
+  ``--no-libraries`` flag.
 
 Version numbers
 ---------------
@@ -93,4 +141,3 @@ For example, suppose you have the following libraries installed: ``mylib``,
 ``mylib-1.0``, ``otherlib-2.1``, and ``otherlib-2.3``. In this case, aside from
 the exact matches you can also say ``--library=otherlib`` to get
 ``otherlib-2.3``.
-

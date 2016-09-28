@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -42,9 +43,12 @@ import Agda.TypeChecking.Positivity.Occurrence as Occ
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.HashMap (HashMap)
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -107,7 +111,7 @@ conApp :: ConHead -> Args -> Elims -> Term
 conApp ch                  args []             = Con ch args
 conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
 conApp ch                  args (IApply{} : es) = __IMPOSSIBLE__
-conApp ch@(ConHead c _ fs) args (Proj f  : es) =
+conApp ch@(ConHead c _ fs) args (Proj o f : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
@@ -115,6 +119,24 @@ conApp ch@(ConHead c _ fs) args (Proj f  : es) =
       i = maybe failure id            $ elemIndex f fs
       v = maybe failure argToDontCare $ headMaybe $ drop i args
   in  applyE v es
+
+  -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
+  --     fallback = v
+  -- in  if not $ null es then applyE v es else
+  --     -- If we have no more eliminations, we can return v
+  --     if o == ProjSystem then fallback else
+  --       -- If the result is a projected term with ProjSystem,
+  --       -- we can can restore it to ProjOrigin o.
+  --       -- Otherwise, we get unpleasant printing with eta-expanded record metas.
+  --     caseMaybe (hasElims v) fallback $ \ (hd, es0) ->
+  --       caseMaybe (initLast es0) fallback $ \ (es1, e2) ->
+  --         case e2 of
+  --           -- We want to replace this ProjSystem by o.
+  --           Proj ProjSystem q -> hd (es1 ++ [Proj o q])
+  --             -- Andreas, 2016-07-21 for the whole testsuite
+  --             -- this case was never triggered!
+  --           _ -> fallback
+
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
       v = maybe failure unArg $ headMaybe $ drop i args
@@ -303,13 +325,86 @@ instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause r tel ps b t catchall) args =
+    -- This one is a little bit tricksy after the parameter refinement change.
+    -- It is assumed that we only apply a clause to "parameters", i.e.
+    -- arguments introduced by lambda lifting. The problem is that these aren't
+    -- necessarily the first elements of the clause telescope.
+    apply cls@(Clause r tel ps b t catchall) args
+      | length args > length ps = __IMPOSSIBLE__
+      | otherwise =
       Clause r
-             (apply tel args)
-             (apply ps args)
-             (apply b args)
-             (applySubst (parallelS (map unArg args)) t)
+             tel'
+             (applySubst rhoP $ drop (length args) ps)
+             (applySubst rho b)
+             (applySubst rho t)
              catchall
+      where
+        -- We have
+        --  Γ ⊢ args, for some outer context Γ
+        --  Δ ⊢ ps,   where Δ is the clause telescope (tel)
+        rargs = map unArg $ reverse args
+        rps   = reverse $ take (length args) ps
+        n     = size tel
+
+        -- This is the new telescope. Created by substituting the args into the
+        -- appropriate places in the old telescope. We know where those are by
+        -- looking at the deBruijn indices of the patterns.
+        tel' = newTel n tel rps rargs
+
+        -- We then have to create a substitution from the old telescope to the
+        -- new telescope that we can apply to dot patterns and the clause body.
+        rhoP :: PatternSubstitution
+        rhoP = mkSub DotP n rps rargs
+        rho  = mkSub id   n rps rargs
+
+        substP :: Nat -> Term -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+        substP i v = subst i (DotP v)
+
+        -- Building the substitution from the old telescope to the new. The
+        -- interesting case is when we have a variable pattern:
+        --  We need Δ′ ⊢ ρ : Δ
+        --  where Δ′ = newTel Δ (xⁱ : ps) (v : vs)
+        --           = newTel Δ[xⁱ:=v] ps[xⁱ:=v'] vs
+        --  Note that we need v' = raise (|Δ| - 1) v, to make Γ ⊢ v valid in
+        --  ΓΔ[xⁱ:=v].
+        --  A recursive call ρ′ = mkSub (substP i v' ps) vs gets us
+        --    Δ′ ⊢ ρ′ : Δ[xⁱ:=v]
+        --  so we just need Δ[xⁱ:=v] ⊢ σ : Δ and then ρ = ρ′ ∘ σ.
+        --  That's achieved by σ = singletonS i v'.
+        mkSub :: Subst a a => (Term -> a) -> Nat -> [NamedArg DeBruijnPattern] -> [Term] -> Substitution' a
+        mkSub _ _ [] [] = idS
+        mkSub tm n (p : ps) (v : vs) =
+          case namedArg p of
+            VarP (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
+              where v' = raise (n - 1) v
+            DotP{}  -> mkSub tm n ps vs
+            LitP{}  -> __IMPOSSIBLE__
+            ConP{}  -> __IMPOSSIBLE__
+            ProjP{} -> __IMPOSSIBLE__
+        mkSub _ _ _ _ = __IMPOSSIBLE__
+
+        -- The parameter patterns 'ps' are all variables or dot patterns. If they
+        -- are variables they can appear anywhere in the clause telescope. This
+        -- function constructs the new telescope with 'vs' substituted for 'ps'.
+        -- Example:
+        --    tel = (x : A) (y : B) (z : C) (w : D)
+        --    ps  = y@3 w@0
+        --    vs  = u v
+        --    newTel tel ps vs = (x : A) (z : C[u/y])
+        newTel n tel [] [] = tel
+        newTel n tel (p : ps) (v : vs) =
+          case namedArg p of
+            VarP (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
+            DotP{}              -> newTel n tel ps vs
+            LitP{}              -> __IMPOSSIBLE__
+            ConP{}              -> __IMPOSSIBLE__
+            ProjP{}             -> __IMPOSSIBLE__
+        newTel _ tel _ _ = __IMPOSSIBLE__
+
+        -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
+        subTel i v EmptyTel = __IMPOSSIBLE__
+        subTel 0 v (ExtendTel _ tel) = absApp tel v
+        subTel i v (ExtendTel a tel) = ExtendTel a $ subTel (i - 1) (raise 1 v) <$> tel
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
@@ -339,25 +434,35 @@ instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
-instance Apply ClauseBody where
-  apply  b       []       = b
-  apply (Bind b) (a:args) = lazyAbsApp b (unArg a) `apply` args
-  apply (Body v) args     = Body $ v `apply` args
-  apply  NoBody   _       = NoBody
-  applyE  b       []             = b
+-- <<<<<<< HEAD
+-- instance Apply ClauseBody where
+--   apply  b       []       = b
+--   apply (Bind b) (a:args) = lazyAbsApp b (unArg a) `apply` args
+--   apply (Body v) args     = Body $ v `apply` args
+--   apply  NoBody   _       = NoBody
+--   applyE  b       []             = b
 
-  applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
-  applyE (Bind b) (IApply x y a : es) = lazyAbsApp b a `applyE` es -- Andrea: TODO review after allowing copatterns for Path
-  applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
-  applyE (Body v) es             = Body $ v `applyE` es
-  applyE  NoBody   _             = NoBody
+--   applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
+--   applyE (Bind b) (IApply x y a : es) = lazyAbsApp b a `applyE` es -- Andrea: TODO review after allowing copatterns for Path
+--   applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
+--   applyE (Body v) es             = Body $ v `applyE` es
+--   applyE  NoBody   _             = NoBody
 
+-- =======
+-- >>>>>>> master
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
   apply (DDot v)           args = DDot  $ apply v args
   apply (DCon c vs)        args = DCon c $ vs ++ map (fmap DTerm) args
   apply (DDef c es)        args = DDef c $ es ++ map (Apply . fmap DTerm) args
-  apply (DWithApp v ws args') args = DWithApp v ws $ args' ++ args
+  apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
+
+  applyE (DTerm v)           es = DTerm $ applyE v es
+  applyE (DDot v)            es = DDot  $ applyE v es
+  applyE (DCon c vs)         es = DCon c $ vs ++ map (fmap DTerm) ws
+    where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
+  applyE (DWithApp v ws es') es = DWithApp v ws $ es' ++ es
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
@@ -376,6 +481,10 @@ instance Apply t => Apply (Maybe t) where
   applyE x es   = fmap (`applyE` es) x
 
 instance Apply v => Apply (Map k v) where
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
+
+instance Apply v => Apply (HashMap k v) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
 
@@ -522,7 +631,8 @@ instance Abstract PrimFun where
 instance Abstract Clause where
   abstract tel (Clause r tel' ps b t catchall) =
     Clause r (abstract tel tel')
-           (namedTelVars m tel ++ ps) (abstract tel b)
+           (namedTelVars m tel ++ ps)
+           b
            t -- nothing to do for t, since it lives under the telescope
            catchall
       where m = size tel + size tel'
@@ -553,10 +663,6 @@ instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
   abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
-instance Abstract ClauseBody where
-  abstract EmptyTel          b = b
-  abstract (ExtendTel _ tel) b = Bind $ fmap (`abstract` b) tel
-
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
 #else
@@ -568,6 +674,9 @@ instance Abstract t => Abstract (Maybe t) where
   abstract tel x = fmap (abstract tel) x
 
 instance Abstract v => Abstract (Map k v) where
+  abstract tel m = fmap (abstract tel) m
+
+instance Abstract v => Abstract (HashMap k v) where
   abstract tel m = fmap (abstract tel) m
 
 abstractArgs :: Abstract a => Args -> a -> a
@@ -618,6 +727,14 @@ consS u rho = seq u (u :# rho)
 singletonS :: DeBruijn a => Int -> a -> Substitution' a
 singletonS n u = map debruijnVar [0..n-1] ++# consS u (raiseS n)
   -- ALT: foldl (\ s i -> debruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
+
+-- | Single substitution without disturbing any deBruijn indices.
+--   @
+--             Γ, A, Δ ⊢ u : A
+--    ---------------------------------
+--   @Γ, A, Δ ⊢ inplace |Δ| u : Γ, A, Δ
+inplaceS :: Subst a a => Int -> a -> Substitution' a
+inplaceS k u = singletonS k u `composeS` liftS (k + 1) (raiseS 1)
 
 -- | Lift a substitution under k binders.
 liftS :: Int -> Substitution' a -> Substitution' a
@@ -701,6 +818,19 @@ lookupS rho i = case rho of
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
 
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
+renaming :: forall a. DeBruijn a => Empty -> Permutation -> Substitution' a
+renaming err p = prependS err gamma $ raiseS $ size p
+  where
+    gamma :: [Maybe a]
+    gamma = inversePermute p (debruijnVar :: Int -> a)
+    -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
+
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
+renamingR :: DeBruijn a => Permutation -> Substitution' a
+renamingR p@(Perm n _) = permute (reverseP p) (map debruijnVar [0..]) ++# raiseS n
+
+
 ---------------------------------------------------------------------------
 -- * Substitution and raising/shifting/weakening
 ---------------------------------------------------------------------------
@@ -734,6 +864,10 @@ strengthen err = applySubst (compactS err [Nothing])
 --   @substUnder n u == subst n (raise n u)@.
 substUnder :: Subst t a => Nat -> t -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
+
+-- | The permutation should permute the corresponding context. (right-to-left list)
+renameP :: Subst t a => Empty -> Permutation -> a -> a
+renameP err p = applySubst (renaming err p)
 
 instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm
@@ -800,7 +934,7 @@ instance Subst Term Pattern where
     DotP t       -> DotP $ applySubst rho t
     VarP s       -> p
     LitP l       -> p
-    ProjP _      -> p
+    ProjP{}      -> p
 
 instance Subst Term NLPat where
   applySubst rho p = case p of
@@ -809,7 +943,7 @@ instance Subst Term NLPat where
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
     PPi a b -> PPi (applySubst rho a) (applySubst rho b)
-    PSet l -> PSet $ applySubst rho l
+    PPlusLevel i u -> PPlusLevel i $ applySubst rho u
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applySubst rho u
 
@@ -834,7 +968,7 @@ instance Subst Term DisplayTerm where
   applySubst rho (DDot v)         = DDot  $ applySubst rho v
   applySubst rho (DCon c vs)      = DCon c $ applySubst rho vs
   applySubst rho (DDef c es)      = DDef c $ applySubst rho es
-  applySubst rho (DWithApp v vs ws) = uncurry3 DWithApp $ applySubst rho (v, vs, ws)
+  applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
 instance Subst t a => Subst t (Tele a) where
   applySubst rho  EmptyTel         = EmptyTel
@@ -896,11 +1030,6 @@ instance (Subst t a, Subst t b, Subst t c) => Subst t (a, b, c) where
 instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) where
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
-instance Subst Term ClauseBody where
-  applySubst rho (Body t) = Body $ applySubst rho t
-  applySubst rho (Bind b) = Bind $ applySubst rho b
-  applySubst _   NoBody   = NoBody
-
 instance Subst Term Candidate where
   applySubst rho (Candidate u t eti) = Candidate (applySubst rho u) (applySubst rho t) eti
 
@@ -915,22 +1044,46 @@ instance Subst Term EqualityView where
     (applySubst rho a)
     (applySubst rho b)
 
+instance DeBruijn DeBruijnPattern where
+  debruijnNamedVar n i  = VarP $ DBPatVar n i
+  debruijnView (VarP x) = Just $ dbPatVarIndex x
+  debruijnView _        = Nothing
+
+fromPatternSubstitution :: PatternSubstitution -> Substitution
+fromPatternSubstitution = fmap patternToTerm
+
+applyPatSubst :: (Subst Term a) => PatternSubstitution -> a -> a
+applyPatSubst = applySubst . fromPatternSubstitution
+
+instance Subst DeBruijnPattern DeBruijnPattern where
+  applySubst IdS p = p
+  applySubst rho p = case p of
+    VarP x       -> useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x
+    DotP u       -> DotP $ applyPatSubst rho u
+    ConP c ci ps -> ConP c ci $ applySubst rho ps
+    LitP x       -> p
+    ProjP{}      -> p
+    where
+      useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
+      useName n (VarP x) | isUnderscore (dbPatVarName x) = debruijnNamedVar n (dbPatVarIndex x)
+      useName _ x = x
+
 ---------------------------------------------------------------------------
 -- * Projections
 ---------------------------------------------------------------------------
 
--- | @projDropParsApply proj args = 'projDropPars' proj `'apply'` args@
+-- | @projDropParsApply proj o args = 'projDropPars' proj o `'apply'` args@
 --
 --   This function is an optimization, saving us from construction lambdas we
 --   immediately remove through application.
-projDropParsApply :: Projection -> Args -> Term
-projDropParsApply (Projection proper d _ _ lams) args =
+projDropParsApply :: Projection -> ProjOrigin -> Args -> Term
+projDropParsApply (Projection proper d _ _ lams) o args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
     Nothing -> if proper then Def d $ map Apply args else __IMPOSSIBLE__
     Just (pars, Arg i y) ->
-      let core = if proper then Lam i $ Abs y $ Var 0 [Proj d] else Def d []
+      let core = if proper then Lam i $ Abs y $ Var 0 [Proj o d] else Def d []
       -- Now drop pars many args
           (pars', args') = dropCommon pars args
       -- We only have to abstract over the parameters that exceed the arguments.
@@ -1127,40 +1280,11 @@ underLambdas n cont a v = loop n a v where
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
 
--- | Methods to retrieve the 'clauseBody'.
-class GetBody a where
-  getBody         :: a -> Maybe Term
-  -- ^ Returns the properly raised clause 'Body',
-  --   and 'Nothing' if 'NoBody'.
-  getBodyUnraised :: a -> Maybe Term
-  -- ^ Just grabs the body, without raising the de Bruijn indices.
-  --   This is useful if you want to consider the body in context 'clauseTel'.
-
-instance GetBody ClauseBody where
-  getBody NoBody   = Nothing
-  getBody (Body v) = Just v
-  getBody (Bind b) = getBody $ absBody b
-
-  -- Andreas, 2014-08-25:  The following 'optimization' is WRONG,
-  -- since it does not respect the order of Abs and NoAbs.
-  -- (They do not commute w.r.t. raise!!)
-  --
-  -- getBody = body 0
-  --   where
-  --     -- collect all shiftings and do them in the end in one go
-  --     body :: Int -> ClauseBody -> Maybe Term
-  --     body _ NoBody             = Nothing
-  --     body n (Body v)           = Just $ raise n v
-  --     body n (Bind (NoAbs _ v)) = body (n + 1) v
-  --     body n (Bind (Abs   _ v)) = body n v
-
-  getBodyUnraised NoBody   = Nothing
-  getBodyUnraised (Body v) = Just v
-  getBodyUnraised (Bind b) = getBodyUnraised $ unAbs b  -- Does not raise!
-
-instance GetBody Clause where
-  getBody         = getBody         . clauseBody
-  getBodyUnraised = getBodyUnraised . clauseBody
+-- | In compiled clauses, the variables in the clause body are relative to the
+--   pattern variables (including dot patterns) instead of the clause telescope.
+compiledClauseBody :: Clause -> Maybe Term
+compiledClauseBody cl = applySubst (renamingR perm) $ clauseBody cl
+  where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
 
 ---------------------------------------------------------------------------
 -- * Syntactic equality and order
@@ -1181,8 +1305,6 @@ deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)
 deriving instance Eq Candidate
 
-deriving instance (Subst t a, Eq a)  => Eq  (Elim' a)
-deriving instance (Subst t a, Ord a) => Ord (Elim' a)
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
@@ -1265,6 +1387,22 @@ instance (Subst t a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b
+
+instance (Subst t a, Eq a)  => Eq  (Elim' a) where
+  Apply  a == Apply  b = a == b
+  Proj _ x == Proj _ y = x == y
+  IApply x y r == IApply x' y' r' = x == x' && y == y' && r == r'
+  _ == _ = False
+
+instance (Subst t a, Ord a) => Ord (Elim' a) where
+  Apply  a `compare` Apply  b = a `compare` b
+  Proj _ x `compare` Proj _ y = x `compare` y
+  IApply x y r `compare` IApply x' y' r' = compare x x' `mappend` compare y y' `mappend` compare r r'
+  Apply{}  `compare` _        = LT
+  _        `compare` Apply{}  = GT
+  Proj{}   `compare` _        = LT
+  _        `compare` Proj{}   = GT
+
 
 ---------------------------------------------------------------------------
 -- * Level stuff

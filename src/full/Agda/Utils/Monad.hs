@@ -50,7 +50,9 @@ whenM c m = c >>= (`when_` m)
 unlessM :: Monad m => m Bool -> m a -> m ()
 unlessM c m = c >>= (`unless_` m)
 
--- whenJust, whenJustM moved to Utils.Maybe
+-- | Monadic guard.
+guardM :: (Monad m, MonadPlus m) => m Bool -> m ()
+guardM c = guard =<< c
 
 -- | Monadic if-then-else.
 ifM :: Monad m => m Bool -> m a -> m a -> m a

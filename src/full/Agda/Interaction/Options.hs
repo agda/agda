@@ -2,6 +2,7 @@
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
+    , IgnoreFlags(..)
     , PragmaOptions(..)
     , OptionsPragma
     , Flag, OptM, runOptM
@@ -42,7 +43,7 @@ import Data.List                ( isSuffixOf , intercalate )
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
-import System.Directory         ( doesDirectoryExist )
+import System.Directory         ( doesFileExist, doesDirectoryExist )
 
 import Text.EditDistance
 
@@ -76,6 +77,10 @@ isLiterate file = any (`isSuffixOf` file) literateExts
 
 type Verbosity = Trie String Int
 
+-- ignore or respect the flags --allow-unsolved-metas,
+-- --no-termination-check, --no-positivity-check?
+data IgnoreFlags = IgnoreFlags | RespectFlags
+
 data CommandLineOptions = Options
   { optProgramName      :: String
   , optInputFile        :: Maybe FilePath
@@ -85,7 +90,9 @@ data CommandLineOptions = Options
   , optOverrideLibrariesFile :: Maybe FilePath
   -- ^ Use this (if Just) instead of .agda/libraries
   , optDefaultLibs      :: Bool
-  -- ^ Use ~/.agda/defaults or look for .agda-lib file.
+  -- ^ Use ~/.agda/defaults
+  , optUseLibs          :: Bool
+  -- ^ look for .agda-lib files
   , optShowVersion      :: Bool
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
@@ -149,6 +156,9 @@ data PragmaOptions = PragmaOptions
   , optEta                       :: Bool
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
+  , optPostfixProjections        :: Bool
+      -- ^ Should system generated projections 'ProjSystem' be printed
+      --   postfix (True) or prefix (False).
   }
   deriving (Show,Eq)
 
@@ -179,6 +189,7 @@ defaultOptions = Options
   , optLibraries        = []
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs      = True
+  , optUseLibs          = True
   , optShowVersion      = False
   , optShowHelp         = False
   , optInteractive      = False
@@ -238,6 +249,7 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optRewriting                 = False
   , optCubical                   = False
+  , optPostfixProjections        = False
   }
 
 -- | The default termination depth.
@@ -438,6 +450,9 @@ rewritingFlag o = return $ o { optRewriting = True }
 cubicalFlag :: Flag PragmaOptions
 cubicalFlag o = return $ o { optCubical = True }
 
+postfixProjectionsFlag :: Flag PragmaOptions
+postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
+
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -493,9 +508,6 @@ uhcTraceLevelFlag i o = return $ o { optUHCTraceLevel = read i }
 uhcFlagsFlag :: String -> Flag CommandLineOptions
 uhcFlagsFlag s o = return $ o { optUHCFlags = optUHCFlags o ++ [s] }
 
-optimNoSmashing :: Flag CommandLineOptions
-optimNoSmashing o = return $ o {optOptimSmashing = False }
-
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
 
@@ -515,10 +527,16 @@ libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
-overrideLibrariesFileFlag s o = return $ o { optOverrideLibrariesFile = Just s }
+overrideLibrariesFileFlag s o = do
+  ifM (liftIO $ doesFileExist s)
+    {-then-} (return $ o { optOverrideLibrariesFile = Just s })
+    {-else-} (throwError $ "Libraries file not found: " ++ s)
 
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }
+
+noLibsFlag :: Flag CommandLineOptions
+noLibsFlag o = return $ o { optUseLibs = False }
 
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
@@ -553,7 +571,7 @@ standardOptions =
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
     , Option ['c']  ["compile", "ghc"] (NoArg compileGhcFlag)
-                    "compile program using the GHC backend (experimental)"
+                    "compile program using the GHC backend"
     , Option []     ["ghc-dont-call-ghc"] (NoArg ghcDontCallGhcFlag) "Don't call ghc, just write the GHC Haskell files."
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling using the GHC backend"
@@ -573,7 +591,6 @@ standardOptions =
     , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
     , Option []     ["uhc-flag"] (ReqArg uhcFlagsFlag "UHC-FLAG")
                     "give the flag UHC-FLAG to UHC when compiling using the UHC backend"
-    , Option []     ["no-smashing"] (NoArg optimNoSmashing) "Don't apply the smashing optimization."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
 
@@ -606,6 +623,8 @@ standardOptions =
                     "use library LIB"
     , Option []     ["library-file"] (ReqArg overrideLibrariesFileFlag "FILE")
                     "use FILE instead of the standard libraries file"
+    , Option []     ["no-libraries"] (NoArg noLibsFlag)
+                    "don't use any library files"
     , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
@@ -685,6 +704,8 @@ pragmaOptions =
                     "enable declaration and use of REWRITE rules"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths)"
+    , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
+                    "make postfix projection notation the default"
     ]
 
 -- | Used for printing usage info.

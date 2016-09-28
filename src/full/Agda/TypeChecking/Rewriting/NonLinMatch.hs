@@ -49,13 +49,15 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Level (unLevel, reallyUnLevelView)
+import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (primLevelSuc)
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records (isRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope (renameP, permuteTel)
+import Agda.TypeChecking.Telescope (permuteTel)
 
 import Agda.Utils.Either
 import Agda.Utils.Except
@@ -120,17 +122,25 @@ instance PatternFrom Term NLPat where
            Nothing -> done
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
-      Def f es -> PDef f <$> patternFrom k es
+      Def f es -> do
+        Def lsuc [] <- ignoreSharing <$> primLevelSuc
+        if f == lsuc
+        then case es of
+               [Apply arg] -> pLevelSuc <$> patternFrom k (unArg arg)
+               _           -> done
+        else PDef f <$> patternFrom k es
       Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
       Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
-      Sort s   ->
-        case s of
-          Type l -> PSet <$> (patternFrom k =<< reallyUnLevelView l)
-          _      -> done
+      Sort s   -> done
       Level l  -> __IMPOSSIBLE__
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
+
+pLevelSuc :: NLPat -> NLPat
+pLevelSuc p = case p of
+  PPlusLevel n p -> PPlusLevel (n+1) p
+  _              -> PPlusLevel 1 p
 
 instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
   patternFrom k (Abs name x)   = Abs name   <$> patternFrom (k+1) x
@@ -225,7 +235,7 @@ instance Match a b => Match (Elim' a) (Elim' b) where
      (Apply p, Apply v) -> match gamma k p v
      -- The types should ensure that the endpoints are the same.
      (IApply _ _ p,IApply _ _ v) -> match gamma k p v
-     (Proj x , Proj y ) -> if x == y then return () else
+     (Proj _ x, Proj _ y) -> if x == y then return () else
                              traceSDocNLM "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
                                , text " and " <+> prettyTCM y ]) mzero
@@ -242,11 +252,14 @@ instance Match a b => Match (Dom a) (Dom b) where
 instance Match a b => Match (Type' a) (Type' b) where
   match gamma k p v = match gamma k (unEl p) (unEl v)
 
-instance (Match a b, Subst t1 a, Subst t2 b) => Match (Abs a) (Abs b) where
+instance (Match a b, RaiseNLP a, Subst t2 b) => Match (Abs a) (Abs b) where
   match gamma k (Abs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p v
   match gamma k (Abs n p) (NoAbs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p (raise 1 v)
-  match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raise 1 p) v
+  match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raiseNLP 1 p) v
   match gamma k (NoAbs _ p) (NoAbs _ v) = match gamma k p v
+
+instance Match NLPat Level where
+  match gamma k p l = match gamma k p =<< liftRed (reallyUnLevelView l)
 
 instance Match NLPat Term where
   match gamma k p v = do
@@ -294,23 +307,37 @@ instance Match NLPat Term where
             case ok of
               Left b         -> block b
               Right Nothing  -> no (text "")
-              Right (Just v) -> tellSub i $ teleLam tel $ renameP perm v
+              Right (Just v) -> tellSub i $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of
           Def f' es
             | f == f'   -> match gamma k ps es
-            | otherwise -> no (text "")
           Con c vs
             | f == conName c -> match gamma k ps (Apply <$> vs)
-            | otherwise -> no (text "")
+            | otherwise -> do -- @c@ may be a record constructor
+                mr <- liftRed $ isRecordConstructor (conName c)
+                case mr of
+                  Just (r, def) | recEtaEquality def -> do
+                    let fs = recFields def
+                        qs = map (fmap $ \f -> PDef f (ps ++ [Proj ProjSystem f])) fs
+                    match gamma k qs vs
+                  _ -> no (text "")
           Lam i u -> do
-            let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PBoundVar 0 []])
+            let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PTerm (var 0)])
                 body  = absBody u
             match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
-          _ -> no (text "")
+          v' -> do -- @f@ may be a record constructor as well
+            mr <- liftRed $ isRecordConstructor f
+            case mr of
+              Just (r, def) | recEtaEquality def -> do
+                let fs  = recFields def
+                    ws  = map (fmap $ \f -> v `applyE` [Proj ProjSystem f]) fs
+                    qs = fromMaybe __IMPOSSIBLE__ $ allApplyElims ps
+                match gamma k qs ws
+              _ -> no (text "")
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
         match gamma k p' body
@@ -318,14 +345,27 @@ instance Match NLPat Term where
         Pi a b -> match gamma k pa a >> match gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
-      PSet p -> case ignoreSharing v of
-        Sort (Type l) -> do
-          l <- liftRed $ reallyUnLevelView l
-          match gamma k p l
-        MetaV m es -> matchingBlocked $ Blocked m ()
-        _ -> no (text "")
+      PPlusLevel n p' -> do
+        l <- liftRed $ levelView' v
+        case subLevel n l of
+          Just l' -> match gamma k p' l'
+          Nothing -> case ignoreSharing v of
+            MetaV m es -> matchingBlocked $ Blocked m ()
+            _          -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> match gamma k ps es
+        Con c vs -> do -- @c@ may be a record constructor
+          mr <- liftRed $ isRecordConstructor (conName c)
+          case mr of
+            Just (r, def) | recEtaEquality def -> do
+              let fs = recFields def
+                  qs = map (fmap $ \f -> PBoundVar i (ps ++ [Proj ProjSystem f])) fs
+              match gamma k qs vs
+            _ -> no (text "")
+        Lam info u -> do
+          let pbody = PBoundVar i (raiseNLP 1 ps ++ [Apply $ Arg info $ PTerm (var 0)])
+              body  = absBody u
+          match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PTerm u -> tellEq gamma k u v
@@ -440,7 +480,7 @@ instance RaiseNLP NLPat where
     PDef f ps -> PDef f $ raiseNLPFrom c k ps
     PLam i q -> PLam i $ raiseNLPFrom c k q
     PPi a b -> PPi (raiseNLPFrom c k a) (raiseNLPFrom c k b)
-    PSet l -> PSet $ raiseNLPFrom c k l
+    PPlusLevel i q -> PPlusLevel i (raiseNLPFrom c k q)
     PBoundVar i ps -> let j = if i < c then i else i + k
                       in PBoundVar j $ raiseNLPFrom c k ps
     PTerm u -> PTerm $ raiseFrom c k u

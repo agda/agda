@@ -14,11 +14,12 @@ module Agda.Syntax.Abstract
     , module Agda.Syntax.Abstract.Name
     ) where
 
-import Prelude hiding (foldl, foldr)
+import Prelude
 import Control.Arrow (first)
 import Control.Applicative
 
-import Data.Foldable as Fold
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 import Data.Map (Map)
 import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
@@ -27,6 +28,7 @@ import Data.Traversable
 import Data.Typeable (Typeable)
 import Data.Void
 
+import Agda.Syntax.Concrete.Name (NumHoles(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -41,8 +43,10 @@ import qualified Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -53,7 +57,7 @@ type Args = [NamedArg Expr]
 data Expr
   = Var  Name                          -- ^ Bound variable.
   | Def  QName                         -- ^ Constant: axiom, function, data or record type.
-  | Proj AmbiguousQName                -- ^ Projection (overloaded).
+  | Proj ProjOrigin AmbiguousQName     -- ^ Projection (overloaded).
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn QName                   -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
@@ -67,6 +71,7 @@ data Expr
     --   'metaNumber' to 'Nothing' while keeping the 'InteractionId'.
   | Underscore   MetaInfo
     -- ^ Meta variable for hidden argument (must be inferred locally).
+  | Dot ExprInfo Expr                  -- ^ @.e@, for postfix projection.
   | App  ExprInfo Expr (NamedArg Expr) -- ^ Ordinary (binary) application.
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
@@ -107,6 +112,24 @@ data Axiom
 -- | Renaming (generic).
 type Ren a = [(a, a)]
 
+data ScopeCopyInfo = ScopeCopyInfo
+  { renModules :: Ren ModuleName
+  , renNames   :: Ren QName }
+  deriving (Eq, Show)
+
+initCopyInfo :: ScopeCopyInfo
+initCopyInfo = ScopeCopyInfo
+  { renModules = []
+  , renNames   = []
+  }
+
+instance Pretty ScopeCopyInfo where
+  pretty i = vcat [ prRen "renModules =" (renModules i)
+                  , prRen "renNames   =" (renNames i) ]
+    where
+      prRen s r = sep [ text s, nest 2 $ vcat (map pr r) ]
+      pr (x, y) = pretty x <+> text "->" <+> pretty y
+
 data Declaration
   = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
@@ -117,7 +140,7 @@ data Declaration
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
   | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-  | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName) ImportDirective
+  | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Import     ModuleInfo ModuleName ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
@@ -182,7 +205,6 @@ data Pragma
   | CompiledJSPragma QName String
   | CompiledUHCPragma QName String
   | CompiledDataUHCPragma QName String [String]
-  | NoSmashingPragma QName
   | StaticPragma QName
   | InlinePragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr
@@ -194,8 +216,8 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
-  | LetApply ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName) ImportDirective
-    -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming dir@.
+  | LetApply ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
+    -- ^ @LetApply mi newM (oldM args) renamings dir@.
     -- The @ImportDirective@ is for highlighting purposes.
   | LetOpen ModuleInfo ModuleName ImportDirective
     -- ^ only for highlighting and abstractToConcrete
@@ -264,7 +286,13 @@ type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
 
 data RHS
-  = RHS Expr
+  = RHS
+    { rhsExpr     :: Expr
+    , rhsConcrete :: Maybe C.Expr
+      -- ^ We store the original concrete expression in case
+      --   we have to reproduce it during interactive case splitting.
+      --   'Nothing' for internally generated rhss.
+    }
   | AbsurdRHS
   | WithRHS QName [Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
@@ -278,7 +306,14 @@ data RHS
       -- ^ The where clauses are attached to the @RewriteRHS@ by
       ---  the scope checker (instead of to the clause).
     }
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show)
+
+instance Eq RHS where
+  RHS e _          == RHS e' _            = e == e'
+  AbsurdRHS        == AbsurdRHS           = True
+  WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
+  RewriteRHS a b c == RewriteRHS a' b' c' = and [ a == a', b == b', c == c' ]
+  _                == _                   = False
 
 -- | The lhs of a clause in spine view (inside-out).
 --   Projection patterns are contained in @spLhsPats@,
@@ -347,26 +382,32 @@ instance LHSToSpine LHS SpineLHS where
 lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
 lhsCoreToSpine (LHSProj d h ps) = (++ (p : ps)) <$> lhsCoreToSpine (namedArg h)
-  where p = updateNamedArg (const $ ProjP patNoRange d) h
+  where p = updateNamedArg (const $ ProjP patNoRange ProjPrefix d) h
 
-spineToLhsCore :: QNamed [NamedArg (Pattern' e)] -> LHSCore' e
+spineToLhsCore :: IsProjP e => QNamed [NamedArg (Pattern' e)] -> LHSCore' e
 spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
 
 -- | Add applicative patterns (non-projection patterns) to the right.
-lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreApp :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreApp (LHSHead f ps)   ps' = LHSHead f   $ ps ++ ps'
 lhsCoreApp (LHSProj d h ps) ps' = LHSProj d h $ ps ++ ps'
 
 -- | Add projection and applicative patterns to the right.
-lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreAddSpine :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreAddSpine core ps = case ps2 of
-    (Arg info (Named n (ProjP i d)) : ps2') ->
-       LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
-         `lhsCoreAddSpine` ps2'
     [] -> lhsCoreApp core ps
+    p@(Arg info (Named n (ProjP i o d))) : ps2' | let nh = numHoles d->
+      -- Andreas, 2016-06-13
+      -- If the projection was written prefix by the user
+      -- or it is fully applied an operator
+      -- we turn it to prefix projection form.
+      (if o == ProjPrefix || nh > 0 && nh <= 1 + length ps2' then
+        LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
+      else lhsCoreApp core $ ps1 ++ [p])
+        `lhsCoreAddSpine` ps2'
     _ -> __IMPOSSIBLE__
   where
-    (ps1, ps2) = break (isJust . isProjP . namedArg) ps
+    (ps1, ps2) = break (isJust . isProjP) ps
 
 -- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
@@ -393,7 +434,7 @@ mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 data Pattern' e
   = VarP Name
   | ConP ConPatInfo AmbiguousQName [NamedArg (Pattern' e)]
-  | ProjP PatInfo AmbiguousQName
+  | ProjP PatInfo ProjOrigin AmbiguousQName
     -- ^ Destructor pattern @d@.
   | DefP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
     -- ^ Defined pattern: function definition @f ps@.
@@ -414,27 +455,48 @@ type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
 
 instance IsProjP (Pattern' e) where
-  isProjP (ProjP _ d) = Just d
-  isProjP _           = Nothing
+  isProjP (ProjP _ o d) = Just (o, d)
+  isProjP _ = Nothing
+
+instance IsProjP Expr where
+  isProjP (Proj o ds)      = Just (o, ds)
+  isProjP (ScopedExpr _ e) = isProjP e
+  isProjP _ = Nothing
+
+class MaybePostfixProjP a where
+  maybePostfixProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
+
+instance IsProjP e => MaybePostfixProjP (Pattern' e) where
+  maybePostfixProjP (DotP _ e)    = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
+  maybePostfixProjP (ProjP _ o d) = Just (o, d)
+  maybePostfixProjP _ = Nothing
+
+instance MaybePostfixProjP a => MaybePostfixProjP (Arg a) where
+  maybePostfixProjP = maybePostfixProjP . unArg
+
+instance MaybePostfixProjP a => MaybePostfixProjP (Named n a) where
+  maybePostfixProjP = maybePostfixProjP . namedThing
 
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
 
 -- | Does not compare 'ScopeInfo' fields.
+--   Does not distinguish between prefix and postfix projections.
 
 instance Eq Expr where
   ScopedExpr _ a1         == ScopedExpr _ a2         = a1 == a2
 
   Var a1                  == Var a2                  = a1 == a2
   Def a1                  == Def a2                  = a1 == a2
-  Proj a1                 == Proj a2                 = a1 == a2
+  Proj _ a1               == Proj _ a2               = a1 == a2
   Con a1                  == Con a2                  = a1 == a2
   PatternSyn a1           == PatternSyn a2           = a1 == a2
   Macro a1                == Macro a2                = a1 == a2
   Lit a1                  == Lit a2                  = a1 == a2
   QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
   Underscore a1           == Underscore a2           = a1 == a2
+  Dot r1 e1               == Dot r2 e2               = (r1, e1) == (r2, e2)
   App a1 b1 c1            == App a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   WithApp a1 b1 c1        == WithApp a2 b2 c2        = (a1, b1, c1) == (a2, b2, c2)
   Lam a1 b1 c1            == Lam a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
@@ -468,7 +530,7 @@ instance Eq Declaration where
   Primitive a1 b1 c1             == Primitive a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Mutual a1 b1                   == Mutual a2 b2                   = (a1, b1) == (a2, b2)
   Section a1 b1 c1 d1            == Section a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  Apply a1 b1 c1 d1 e1 f1        == Apply a2 b2 c2 d2 e2 f2        = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
+  Apply a1 b1 c1 d1 e1           == Apply a2 b2 c2 d2 e2           = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   Import a1 b1 c1                == Import a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   Pragma a1 b1                   == Pragma a2 b2                   = (a1, b1) == (a2, b2)
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
@@ -511,11 +573,12 @@ instance HasRange TypedBinding where
 instance HasRange Expr where
     getRange (Var x)               = getRange x
     getRange (Def x)               = getRange x
-    getRange (Proj x)              = getRange x
+    getRange (Proj _ x)            = getRange x
     getRange (Con x)               = getRange x
     getRange (Lit l)               = getRange l
     getRange (QuestionMark i _)    = getRange i
     getRange (Underscore  i)       = getRange i
+    getRange (Dot i _)             = getRange i
     getRange (App i _ _)           = getRange i
     getRange (WithApp i _ _)       = getRange i
     getRange (Lam i _ _)           = getRange i
@@ -545,7 +608,7 @@ instance HasRange Declaration where
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
-    getRange (Apply      i _ _ _ _ _) = getRange i
+    getRange (Apply      i _ _ _ _)   = getRange i
     getRange (Import     i _ _      ) = getRange i
     getRange (Primitive  i _ _      ) = getRange i
     getRange (Pragma     i _        ) = getRange i
@@ -563,7 +626,7 @@ instance HasRange Declaration where
 instance HasRange (Pattern' e) where
     getRange (VarP x)            = getRange x
     getRange (ConP i _ _)        = getRange i
-    getRange (ProjP i _)         = getRange i
+    getRange (ProjP i _ _)       = getRange i
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
     getRange (AsP i _ _)         = getRange i
@@ -588,14 +651,14 @@ instance HasRange a => HasRange (Clause' a) where
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
-    getRange (RHS e)                  = getRange e
+    getRange (RHS e _)                = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
     getRange (RewriteRHS xes rhs wh)  = getRange (map snd xes, rhs, wh)
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
     getRange (LetPatBind  i _ _      ) = getRange i
-    getRange (LetApply i _ _ _ _ _   ) = getRange i
+    getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _ _         ) = getRange i
     getRange (LetDeclaredVariable x)   = getRange x
 
@@ -603,7 +666,7 @@ instance HasRange LetBinding where
 instance SetRange (Pattern' a) where
     setRange r (VarP x)             = VarP (setRange r x)
     setRange r (ConP i ns as)       = ConP (setRange r i) ns as
-    setRange r (ProjP _ ns)         = ProjP (PatRange r) ns
+    setRange r (ProjP _ o ns)       = ProjP (PatRange r) o ns
     setRange r (DefP _ ns as)       = DefP (PatRange r) ns as -- (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
@@ -627,11 +690,12 @@ instance KillRange TypedBinding where
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
   killRange (Def x)                = killRange1 Def x
-  killRange (Proj x)               = killRange1 Proj x
+  killRange (Proj o x)             = killRange1 (Proj o) x
   killRange (Con x)                = killRange1 Con x
   killRange (Lit l)                = killRange1 Lit l
   killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
   killRange (Underscore  i)        = killRange1 Underscore i
+  killRange (Dot i e)              = killRange2 Dot i e
   killRange (App i e1 e2)          = killRange3 App i e1 e2
   killRange (WithApp i e es)       = killRange3 WithApp i e es
   killRange (Lam i b e)            = killRange3 Lam i b e
@@ -661,9 +725,7 @@ instance KillRange Declaration where
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
-  killRange (Apply      i a b c d e   ) = killRange3 Apply      i a b c d (killRange e)
-   -- the arguments c and d of Apply are name maps, so nothing to kill
-   -- Andreas, 2016-01-24 really?
+  killRange (Apply      i a b c d     ) = killRange5 Apply      i a b c d
   killRange (Import     i a b         ) = killRange3 Import     i a b
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
@@ -682,10 +744,13 @@ instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
   killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
 
+instance KillRange ScopeCopyInfo where
+  killRange (ScopeCopyInfo a b) = killRange2 ScopeCopyInfo a b
+
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)            = killRange1 VarP x
   killRange (ConP i a b)        = killRange3 ConP i a b
-  killRange (ProjP i a)         = killRange2 ProjP i a
+  killRange (ProjP i o a)       = killRange3 ProjP i o a
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
   killRange (AsP i a b)         = killRange3 AsP i a b
@@ -713,14 +778,14 @@ instance KillRange NamedDotPattern where
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
-  killRange (RHS e)                  = killRange1 RHS e
+  killRange (RHS e c)                = killRange2 RHS e c
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
   killRange (RewriteRHS xes rhs wh)  = killRange3 RewriteRHS xes rhs wh
 
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
-  killRange (LetApply   i a b c d e ) = killRange3 LetApply i a b c d (killRange e)
+  killRange (LetApply   i a b c d   ) = killRange5 LetApply i a b c d
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
   killRange (LetDeclaredVariable x)   = killRange1 LetDeclaredVariable x
 
@@ -795,7 +860,7 @@ instance AllNames Clause where
   allNames (Clause _ _ rhs decls _) = allNames rhs >< allNames decls
 
 instance AllNames RHS where
-  allNames (RHS e)                   = allNames e
+  allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
   allNames (RewriteRHS qes rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
@@ -808,6 +873,7 @@ instance AllNames Expr where
   allNames Lit{}                   = Seq.empty
   allNames QuestionMark{}          = Seq.empty
   allNames Underscore{}            = Seq.empty
+  allNames (Dot _ e)               = allNames e
   allNames (App _ e1 e2)           = allNames e1 >< allNames e2
   allNames (WithApp _ e es)        = allNames e >< allNames es
   allNames (Lam _ b e)             = allNames b >< allNames e
@@ -844,11 +910,11 @@ instance AllNames TypedBinding where
   allNames (TLet _ lbs)  = allNames lbs
 
 instance AllNames LetBinding where
-  allNames (LetBind _ _ _ e1 e2)    = allNames e1 >< allNames e2
-  allNames (LetPatBind _ _ e)       = allNames e
-  allNames (LetApply _ _ app _ _ _) = allNames app
-  allNames LetOpen{}                = Seq.empty
-  allNames (LetDeclaredVariable _)  = Seq.empty
+  allNames (LetBind _ _ _ e1 e2)   = allNames e1 >< allNames e2
+  allNames (LetPatBind _ _ e)      = allNames e
+  allNames (LetApply _ _ app _ _)  = allNames app
+  allNames LetOpen{}               = Seq.empty
+  allNames (LetDeclaredVariable _) = Seq.empty
 
 instance AllNames ModuleApplication where
   allNames (SectionApp bindss _ es) = allNames bindss >< allNames es
@@ -890,7 +956,7 @@ nameExpr :: AbstractName -> Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
     mk DefName        x = Def x
-    mk FldName        x = Proj $ AmbQ [x]
+    mk FldName        x = Proj ProjSystem $ AmbQ [x]
     mk ConName        x = Con $ AmbQ [x]
     mk PatternSynName x = PatternSyn x
     mk MacroName      x = Macro x
@@ -908,7 +974,7 @@ patternToExpr :: Pattern -> Expr
 patternToExpr (VarP x)            = Var x
 patternToExpr (ConP _ c ps)       =
   Con c `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (ProjP _ ds)        = Proj ds
+patternToExpr (ProjP _ o ds)      = Proj o ds
 patternToExpr (DefP _ (AmbQ [f]) ps) =
   Def f `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (DefP _ (AmbQ _) ps) = __IMPOSSIBLE__
@@ -933,7 +999,7 @@ substPattern s p = case p of
   VarP z        -> fromMaybe p (lookup z s)
   ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern s))) ps)
   RecP i ps     -> RecP i (map (fmap (substPattern s)) ps)
-  ProjP i ds    -> p
+  ProjP{}       -> p
   WildP i       -> p
   DotP i e      -> DotP i (substExpr (map (fmap patternToExpr) s) e)
   AbsurdP i     -> p
@@ -979,6 +1045,7 @@ instance SubstExpr Expr where
     Lit _                 -> e
     QuestionMark{}        -> e
     Underscore   _        -> e
+    Dot i e               -> Dot i (substExpr s e)
     App  i e e'           -> App i (substExpr s e) (substExpr s e')
     WithApp i e es        -> WithApp i (substExpr s e) (substExpr s es)
     Lam  i lb e           -> Lam i lb (substExpr s e)

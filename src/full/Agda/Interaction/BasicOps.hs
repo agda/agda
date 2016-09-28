@@ -40,6 +40,7 @@ import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
@@ -53,6 +54,7 @@ import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
@@ -87,7 +89,7 @@ parseExprIn ii rng s = do
     e   <- parseExpr rng s
     concreteToAbstract (clScope mi) e
 
-giveExpr :: MetaId -> Expr -> TCM Expr
+giveExpr :: MetaId -> Expr -> TCM ()
 -- When translator from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
 giveExpr mi e = do
@@ -129,7 +131,11 @@ giveExpr mi e = do
               ]
             equalTerm t' v v'  -- Note: v' now lives in context of meta
           _ -> updateMeta mi v
-        reify v
+        wakeupConstraints mi
+        solveSizeConstraints DontDefaultToInfty
+        -- Double check.
+        vfull <- instantiateFull v
+        checkInternal vfull t'
 
 -- | Try to fill hole by expression.
 --
@@ -147,11 +153,10 @@ give ii mr e = liftTCM $ do
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
-  _ <- catchError (giveExpr mi e) $ \ err -> case err of
+  catchError (giveExpr mi e) $ \ err -> case err of
     -- Turn PatternErr into proper error:
-    PatternErr{} -> do
-      err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
-      typeError $ GenericError $ show err
+    PatternErr{} -> typeError . GenericDocError =<< do
+      withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
     _ -> throwError err
   removeInteractionPoint ii
   return e
@@ -190,7 +195,7 @@ refine ii mr e = do
         appMeta e = do
           let rng = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
           -- Make new interaction point
-          ii <- registerInteractionPoint rng Nothing
+          ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
                 , Info.metaScope = scope { scopePrecedence = ArgumentCtx }
@@ -299,7 +304,7 @@ reifyElimToExpr :: I.Elim -> TCM Expr
 reifyElimToExpr e = case e of
     I.IApply _ _ v -> appl "iapply" <$> reify (defaultArg $ v) -- TODO Andrea: endpoints?
     I.Apply v -> appl "apply" <$> reify v
-    I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
+    I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
     appl :: String -> Arg Expr -> Expr
     appl s v = A.App exprNoRange (A.Lit (LitString noRange s)) $ fmap unnamed v
@@ -343,7 +348,6 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               OfType tac <$> reify goal
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
-          InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
     reify (FindInScope m _b mcands) = FindInScopeOF
       <$> (reify $ MetaV m [])
@@ -474,7 +478,6 @@ getSolvedInteractionPoints all = concat <$> do
             unsol = return []
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m $ map Apply args)
-          InstS{}                        -> sol (Level $ Max [Plus 0 $ MetaLevel m $ map Apply args])
           Open{}                         -> unsol
           OpenIFS{}                      -> unsol
           BlockedConst{}                 -> unsol
@@ -529,7 +532,6 @@ typesOfHiddenMetas norm = liftTCM $ do
   openAndImplicit is x m =
     case mvInstantiation m of
       M.InstV{} -> False
-      M.InstS{} -> False
       M.Open    -> x `notElem` is
       M.OpenIFS -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> True

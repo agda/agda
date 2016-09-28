@@ -26,6 +26,6 @@ combineHashes :: [Hash] -> Hash
 combineHashes hs = H.asWord64 $ L.foldl' H.combine (H.hashWord8 0) $ L.map H.hash hs
 
 -- | Hashing a module name for unique identifiers.
-hashString :: String -> Integer
-hashString = fromIntegral . asWord64 . hash64
+hashString :: String -> Word64
+hashString = asWord64 . hash64
 

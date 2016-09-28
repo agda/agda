@@ -1,8 +1,0 @@
-------------------------------------------------------------------------
--- Release notes for Agda version 2.6.1
-------------------------------------------------------------------------
-
-TODO: replace X and Y by suitable numbers.
-Important changes since 2.5.X.Y:
-
-See a template in /doc/release-notes/template.txt

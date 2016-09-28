@@ -44,7 +44,6 @@
 (agda2-info-action "*Type-checking*" " Checking Common.Maybe (Maybe.agda). " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Maybe. " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Prelude. " t)
-(agda2-info-action "*Type-checking*" "Finished Issue1349. " t)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Unit → Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))

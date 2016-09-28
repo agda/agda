@@ -110,8 +110,8 @@ hsPrimOpApp op e e1 = HS.InfixApp e (hsPrimOp op) e1
 hsInt :: Integer -> HS.Exp
 hsInt n = HS.Lit (HS.Int n)
 
-hsTypedInt :: Integer -> HS.Exp
-hsTypedInt n = HS.ExpTypeSig dummy (HS.Lit (HS.Int n)) (HS.TyCon (hsName "Integer"))
+hsTypedInt :: Integral a => a -> HS.Exp
+hsTypedInt n = HS.ExpTypeSig dummy (HS.Lit (HS.Int $ fromIntegral n)) (HS.TyCon (hsName "Integer"))
 
 hspLet :: HS.Pat -> HS.Exp -> HS.Exp -> HS.Exp
 hspLet p e b =
@@ -237,13 +237,8 @@ dummy = error "MAlonzo : this dummy value should not have been eval'ed."
 -- Auxiliary definitions
 --------------------------------------------------
 
-#if MIN_VERSION_haskell_src_exts(1,17,0)
 emptyBinds :: Maybe HS.Binds
 emptyBinds = Nothing
-#else
-emptyBinds :: HS.Binds
-emptyBinds = HS.BDecls []
-#endif
 
 --------------------------------------------------
 -- Utilities for Haskell modules names

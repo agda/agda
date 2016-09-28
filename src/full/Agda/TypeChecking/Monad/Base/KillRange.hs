@@ -43,6 +43,7 @@ instance KillRange NLPat where
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
+  killRange (PPlusLevel x y) = killRange2 PPlusLevel x y
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
 
@@ -94,7 +95,7 @@ instance KillRange Polarity where
 instance KillRange DisplayTerm where
   killRange dt =
     case dt of
-      DWithApp dt dts args -> killRange3 DWithApp dt dts args
+      DWithApp dt dts es -> killRange3 DWithApp dt dts es
       DCon q dts        -> killRange2 DCon q dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v

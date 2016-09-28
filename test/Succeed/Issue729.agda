@@ -1,4 +1,6 @@
--- Andreas, 2012-11-22 abstract aliases
+-- Andreas, 2012-11-22 issue #729, abstract aliases
+-- Andreas, 2016-07-19 issue #2102, better fix of #418 helps!
+
 module Issue729 where
 
 abstract
@@ -11,12 +13,15 @@ abstract
   foo = x
     where x = B
 
-{- does not work yet
 mutual
- abstract
-  D = C
-  C = B
--}
+  abstract
+    D = C
+    C = B
+
+abstract
+  mutual
+    F = E
+    E = D
 
 -- other stuff
 

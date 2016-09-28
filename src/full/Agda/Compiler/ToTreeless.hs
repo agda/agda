@@ -31,6 +31,7 @@ import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.AsPatterns
+import Agda.Compiler.Treeless.Identity
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -42,6 +43,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -68,6 +70,14 @@ toTreeless' q =
       -- functions, since that would risk inlining to fail.
     ccToTreeless q cc
 
+-- | Does not require the name to refer to a function.
+cacheTreeless :: QName -> TCM ()
+cacheTreeless q = do
+  def <- theDef <$> getConstInfo q
+  case def of
+    Function{} -> () <$ toTreeless' q
+    _          -> return ()
+
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   let pbody b = pbody' "" b
@@ -88,6 +98,8 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
   body <- recoverAsPatterns body
   reportSDoc "treeless.opt.aspat" (30 + v) $ text "-- after @-pattern recovery"  $$ pbody body
+  body <- detectIdentityFunctions q body
+  reportSDoc "treeless.opt.id" (30 + v) $ text "-- after identity function detection"  $$ pbody body
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after third simplification"  $$ pbody body
   body <- eraseTerms q body
@@ -178,6 +190,7 @@ casetree cc = do
                 return $ C.CTData dtNm
               ([], (LitChar _ _):_)  -> return C.CTChar
               ([], (LitString _ _):_) -> return C.CTString
+              ([], (LitFloat _ _):_) -> return C.CTFloat
               ([], (LitQName _ _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
@@ -333,12 +346,12 @@ normaliseStatic v = pure v
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
   ifM (lift $ alwaysInline q) doinline $ do
+    lift $ cacheTreeless q
     def <- lift $ getConstInfo q
     case theDef def of
-      Function{ funInline = inline }
-        | inline    -> doinline
+      fun@Function{}
+        | fun ^. funInline -> doinline
         | otherwise -> do
-        _ <- lift $ toTreeless' q
         used <- lift $ getCompiledArgUse q
         let substUsed False _   = pure C.TErased
             substUsed True  arg = substArg arg
@@ -352,5 +365,14 @@ substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse substArg
 
 substArg :: Arg I.Term -> CC C.TTerm
-substArg x | isIrrelevant x = return C.TErased
-           | otherwise      = substTerm (unArg x)
+substArg x | erasable x = return C.TErased
+           | otherwise  = substTerm (unArg x)
+  where
+    erasable x =
+      case getRelevance x of
+        Irrelevant -> True
+        NonStrict  -> True
+        UnusedArg  -> True
+        Forced{}   -> False -- TODO: would like this to be True
+        Relevant   -> False
+

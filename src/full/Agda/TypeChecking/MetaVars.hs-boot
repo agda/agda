@@ -12,8 +12,9 @@ assignTerm        :: MetaId -> [Arg String] -> Term -> TCM ()
 etaExpandMetaSafe :: MetaId -> TCM ()
 assignV           :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
 assign            :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
-newIFSMeta        :: String -> Type -> TCM Term
-newValueMeta      :: RunMetaOccursCheck -> Type -> TCM Term
-newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM Term
+newIFSMeta        :: String -> Type -> TCM (MetaId, Term)
+newValueMeta      :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
+newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
+newNamedValueMeta':: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
 newTelMeta        :: Telescope -> TCM Args
 allMetas          :: TermLike a => a -> [MetaId]

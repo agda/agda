@@ -1,4 +1,4 @@
 Issue1986u.agda:21,1-22,2
 Incomplete pattern matching for p. Missing cases:
-  p snd
+  p .snd
 when checking the definition of p

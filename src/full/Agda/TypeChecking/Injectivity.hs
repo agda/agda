@@ -85,7 +85,7 @@ checkInjectivity f cs
     -- Is it pointless to use injectivity for this function?
     pointLess []      = True
     pointLess (_:_:_) = False
-    pointLess [cl] = not $ any (properlyMatching . unArg) $ clausePats cl
+    pointLess [cl] = not $ any (properlyMatching . namedArg) $ namedClausePats cl
         -- Andreas, 2014-06-12
         -- If we only have record patterns, it is also pointless.
         -- We need at least one proper match.
@@ -94,7 +94,7 @@ checkInjectivity f cs = do
   -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
   es <- catMaybes <$> do
     forM cs $ \ c -> do             -- produces a list ...
-      mapM ((,c) <.> headSymbol) $ getBodyUnraised c -- ... of maybes
+      mapM ((,c) <.> headSymbol) $ clauseBody c -- ... of maybes
   let (hs, ps) = unzip es
   reportSLn "tc.inj.check" 40 $ "  right hand sides: " ++ show hs
   if all isJust hs && distinct hs
@@ -104,7 +104,7 @@ checkInjectivity f cs = do
       reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
         for (Map.toList inv) $ \ (h, c) ->
           text (show h) <+> text "-->" <+>
-          fsep (punctuate comma $ map (prettyTCM . unArg) $ clausePats c)
+          fsep (punctuate comma $ map (prettyTCM . namedArg) $ namedClausePats c)
       return $ Inverse inv
     else return NotInjective
 
@@ -248,7 +248,7 @@ useInjectivity cmp a u v = do
       sub <- ask
       return $ applySubst sub v
 
-    metaElim (Arg _ (ProjP p)) = return $ Proj p
+    metaElim (Arg _ (ProjP o p))  = return $ Proj o p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs args = mapM (traverse $ metaPat . namedThing) args

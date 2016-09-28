@@ -257,8 +257,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t') $
-              Constructor (size tel) con d (Info.defAbstract i) Inductive cnames
-
+              Constructor (size tel) con d (Info.defAbstract i) Inductive cnames []
 
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do
@@ -319,7 +318,7 @@ defineCompData d con params names fsT t = do
             , namedClausePats = teleNamedArgs gamma
             , clauseRange = noRange
             , clauseCatchall = False
-            , clauseBody = abstract gamma $ Body $ Con con (map argN bodies)
+            , clauseBody = Just $ Con con (map argN bodies) -- abstract gamma $ Body $ Con con (map argN bodies)
             }
     addClauses compName [clause]
     setTerminates compName True
@@ -356,7 +355,7 @@ defineProjections dataname con params names fsT t = do
           , namedClausePats = [Named Nothing <$> conp]
           , clauseRange = noRange
           , clauseCatchall = False
-          , clauseBody = abstract fsT $ Body $ var i
+          , clauseBody = Just $ var i -- abstract fsT $ Body $
           }
       proj = Projection
         { projProper   = False

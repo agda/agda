@@ -66,6 +66,7 @@ module UHC.Agda.Builtins
   , primFloatPlus
   , primFloatMinus
   , primFloatTimes
+  , primFloatNegate
   , primFloatDiv
   , primFloatSqrt
   , primRound
@@ -74,12 +75,19 @@ module UHC.Agda.Builtins
   , primExp
   , primLog
   , primSin
+  , primCos
+  , primTan
+  , primASin
+  , primACos
+  , primATan
+  , primATan2
     -- Reflection
   , QName (..)
   , primMkQName
   , primQNameEquality
   , primQNameLess
   , primShowQName
+  , primQNameFixity
   , primMetaEquality
   , primMetaLess
   , primShowMeta
@@ -306,7 +314,6 @@ primToLower     = C.toLower
 
 primShowFloat :: Double -> String
 primShowFloat x
-  | isNegativeZero x = "0.0"
   | isNaN x          = "NaN"
   | isInfinite x     = if x < 0 then "-Infinity" else "Infinity"
   | otherwise        = reverse . dropZeroes . reverse $ show x
@@ -319,17 +326,31 @@ primShowFloat x
 primMkFloat :: String -> Double
 primMkFloat = read
 
+-- ASR (2016-09-15). Since Haskell's Eq, which equates 0.0 and -0.0,
+-- allows to prove a contradiction, we should use a bitwise equality
+-- for comparing Double. Since the @identicalIEEE@ function from the
+-- ieee754 package is not available in UHC, we use a function
+-- implemented by Ulf (see Issue #2169).
+-- PH (2016-09-22). It turns out that there are two kinds of NaN,
+-- NaN and -NaN. This two different NaNs should not be treated as equal.
+-- However, there is no straightforward way to distinguish those in
+-- UHC Haskell. For the time being, we will just disable this primitive for UHC.
+-- (see Issue #2194)
 primFloatEquality :: Double -> Double -> Bool
-primFloatEquality x y
-  | isNaN x && isNaN y = True
-  | otherwise          = x == y
+-- As this primitive is often pulled in by imports but rarely used,
+-- we only fail at runtime.
+primFloatEquality = error "Not implemented - see Issue #2194"
+-- primFloatEquality x y =
+--   isNaN x && isNaN y ||
+--   (x, isNegativeZero x) == (y, isNegativeZero y)
 
 primFloatLess :: Double -> Double -> Bool
 primFloatLess x y
-  | isNegInf y = False
-  | isNegInf x = True
-  | isNaN x    = True
-  | otherwise  = x < y
+  | isNegInf y                 = False
+  | isNegInf x                 = True
+  | isNaN x                    = True
+  | isNegativeZero x && x == y = True
+  | otherwise                  = x < y
   where
     isNegInf z = z < 0 && isInfinite z
 
@@ -344,6 +365,9 @@ primFloatMinus = (-)
 
 primFloatTimes :: Double -> Double -> Double
 primFloatTimes = (*)
+
+primFloatNegate :: Double -> Double
+primFloatNegate = negate
 
 primFloatDiv :: Double -> Double -> Double
 primFloatDiv = (/)
@@ -369,6 +393,24 @@ primLog = log
 primSin :: Double -> Double
 primSin = sin
 
+primCos :: Double -> Double
+primCos = cos
+
+primTan :: Double -> Double
+primTan = tan
+
+primASin :: Double -> Double
+primASin = asin
+
+primACos :: Double -> Double
+primACos = acos
+
+primATan :: Double -> Double
+primATan = atan
+
+primATan2 :: Double -> Double -> Double
+primATan2 = atan2
+
 -- ====================
 -- Reflection
 -- ====================
@@ -390,6 +432,9 @@ primQNameLess = (<)
 
 primShowQName :: QName -> String
 primShowQName = qnameString
+
+primQNameFixity :: QName -> a
+primQNameFixity = error "TODO: primQNameFixity"
 
 type Meta = Integer
 

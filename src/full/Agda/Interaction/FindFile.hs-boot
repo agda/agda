@@ -1,7 +1,10 @@
 module Agda.Interaction.FindFile where
 
-import Data.Map (Map)
+import Agda.Syntax.Common (Ranged)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
+import Agda.TypeChecking.Monad.Base (TCM)
 import Agda.Utils.FileName (AbsolutePath)
 
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
+moduleName :: AbsolutePath -> TCM TopLevelModuleName
+moduleName' :: AbsolutePath -> TCM (Ranged TopLevelModuleName)
+checkModuleName :: TopLevelModuleName -> AbsolutePath -> Maybe TopLevelModuleName -> TCM ()

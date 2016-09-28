@@ -5,6 +5,7 @@ module Agda.TypeChecking.ProjectionLike where
 import Control.Monad
 
 import qualified Data.Map as Map
+import Data.Monoid (Any(..), getAny)
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -12,7 +13,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Free (isBinderUsed)
+import Agda.TypeChecking.Free (runFree, IgnoreSorts(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
@@ -108,9 +109,9 @@ elimView loneProjToLambda v = do
   case pv of
     NoProjection{}        -> return v
     LoneProjectionLike f ai
-      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj f]
+      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
       | otherwise         -> return v
-    ProjectionView f a es -> (`applyE` (Proj f : es)) <$> elimView loneProjToLambda (unArg a)
+    ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView loneProjToLambda (unArg a)
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
@@ -136,7 +137,7 @@ makeProjection x = -- if True then return () else do
     ]
   case theDef defn of
     Function{funClauses = cls}
-      | any (isNothing . getBodyUnraised) cls ->
+      | any (isNothing . clauseBody) cls ->
         reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have absurd clauses"
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of
@@ -227,11 +228,12 @@ makeProjection x = -- if True then return () else do
           , onlyMatch n ps  -- projection-like functions are only allowed to match on the eliminatee
                             -- otherwise we may end up projecting from constructor applications, in
                             -- which case we can't reconstruct the dropped parameters
-          , checkBody n b ]
+          , checkBody m n b ]
       where
         Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl
-        b        = clauseBody cl
+        b        = compiledClauseBody cl
+        m        = size $ concatMap patternVars $ clausePats cl
 
 
     onlyMatch n ps = all (shallowMatch . namedArg) (take 1 ps1) &&
@@ -247,10 +249,8 @@ makeProjection x = -- if True then return () else do
         noMatch VarP{} = True
         noMatch DotP{} = True
 
-    checkBody 0 _          = True
-    checkBody _ NoBody     = __IMPOSSIBLE__ -- we check this earlier
-    checkBody n (Bind b)   = not (isBinderUsed b) && checkBody (n - 1) (unAbs b)
-    checkBody _ Body{}     = __IMPOSSIBLE__
+    checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
+      where badVar (x,_) = Any $ m-1-n < x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
     -- if @t@ is a function-type with domain @t 0 .. (n-1)@

@@ -1,2 +1,5 @@
+Failed to solve the following constraints:
+  [0] Is empty: D true tt
+      [ at Issue452.agda:24,5-7 ]
 Unsolved metas at the following locations:
   Issue452.agda:21,19-20

@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.Compiler.Treeless.Erase (eraseTerms) where
+module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where
 
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative
@@ -33,6 +33,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Memo
+import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 
@@ -49,6 +50,12 @@ type E = StateT ESt TCM
 
 runE :: E a -> TCM a
 runE m = evalStateT m (ESt Map.empty Map.empty)
+
+-- | Takes the name of the data/record type.
+computeErasedConstructorArgs :: QName -> TCM ()
+computeErasedConstructorArgs d = do
+  cs <- getConstructors d
+  runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> TTerm -> TCM TTerm
 eraseTerms q = runE . eraseTop q
@@ -135,7 +142,10 @@ eraseTerms q = runE . eraseTop q
 
     eraseAlt a = case a of
       TALit l b   -> TALit l   <$> erase b
-      TACon c a b -> TACon c a <$> erase b
+      TACon c a b -> do
+        rs <- map erasableR . fst <$> getFunInfo c
+        let sub = foldr (\ e -> if e then (TErased :#) . wkS 1 else liftS 1) idS $ reverse rs
+        TACon c a <$> erase (applySubst sub b)
       TAGuard g b -> TAGuard   <$> erase g <*> erase b
 
 -- | Doesn't have any type information (other than the name of the data type),
@@ -148,6 +158,15 @@ isComplete _ _ = pure False
 
 data TypeInfo = Empty | Erasable | NotErasable
   deriving (Eq, Show)
+
+sumTypeInfo :: [TypeInfo] -> TypeInfo
+sumTypeInfo is = foldr plus Empty is
+  where
+    plus Empty       r           = r
+    plus r           Empty       = r
+    plus Erasable    r           = r
+    plus r           Erasable    = r
+    plus NotErasable NotErasable = NotErasable
 
 erasableR :: Relevance -> Bool
 erasableR Relevant   = False
@@ -167,12 +186,21 @@ getFunInfo :: QName -> E FunInfo
 getFunInfo q = memo (funMap . key q) $ getInfo q
   where
     getInfo q = do
-      (rs, t) <- lift $ do
-        (tel, t) <- typeWithoutParams q
-        return (map getRelevance tel, t)
+      (rs, t) <- do
+        (tel, t) <- lift $ typeWithoutParams q
+        is <- mapM (getTypeInfo . snd . dget) tel
+        return (zipWith (mkR . getRelevance) tel is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
       lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ show q ++ ": " ++ show rs ++ " -> " ++ show h
+      lift $ setErasedConArgs q $ map erasableR rs
       return (rs, h)
+
+    -- Treat empty or erasable arguments as NonStrict (and thus erasable)
+    mkR :: Relevance -> TypeInfo -> Relevance
+    mkR Irrelevant _ = Irrelevant
+    mkR r NotErasable = r
+    mkR _ Empty       = NonStrict
+    mkR _ Erasable    = NonStrict
 
 telListView :: Type -> TCM (ListTel, Type)
 telListView t = do
@@ -189,17 +217,18 @@ typeWithoutParams q = do
   first (drop d) <$> telListView (defType def)
 
 getTypeInfo :: Type -> E TypeInfo
-getTypeInfo t = do
-  (tel, t) <- lift $ telListView t
+getTypeInfo t0 = do
+  (tel, t) <- lift $ telListView t0
   et <- case ignoreSharing $ I.unEl t of
     I.Def d _ -> typeInfo d
     Sort{}    -> return Erasable
     _         -> return NotErasable
   is <- mapM (getTypeInfo . snd . dget) tel
-  let e | et == Empty       = Empty
-        | any (== Empty) is = Erasable
+  let e | any (== Empty) is = Erasable
+        | null is           = et        -- TODO: guard should really be "all inhabited is"
+        | et == Empty       = Erasable
         | otherwise         = et
-  lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t <+> text ("is " ++ show e)
+  lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t0 <+> text ("is " ++ show e)
   return e
   where
     typeInfo :: QName -> E TypeInfo
@@ -216,6 +245,11 @@ getTypeInfo t = do
           is <- mapM (getTypeInfo . snd . dget) ts
           let er = and [ erasable i || erasableR r | (i, r) <- zip is rs ]
           return $ if er then Erasable else NotErasable
-        Just [] -> return Empty
-        _       -> return NotErasable
+        Just []      -> return Empty
+        Just (_:_:_) -> return NotErasable
+        Nothing ->
+          case I.theDef def of
+            I.Function{ funClauses = cs } ->
+              sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El Prop) . clauseBody) cs
+            _ -> return NotErasable
 

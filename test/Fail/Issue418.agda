@@ -1,4 +1,5 @@
--- {-# OPTIONS -v tc.meta:25 #-}
+-- {-# OPTIONS -v tc.decl.ax:25 #-}
+
 module Issue418 where
 
 data _≡_ (A : Set₁) : Set₁ → Set₂ where
@@ -18,4 +19,3 @@ abstract
 
 -- Andreas, 2011-05-30
 -- Meta-Variable should remain unsolved
-

@@ -17,6 +17,7 @@ primitive
   primFloatPlus     : Float → Float → Float
   primFloatMinus    : Float → Float → Float
   primFloatTimes    : Float → Float → Float
+  primFloatNegate   : Float → Float
   primFloatDiv      : Float → Float → Float
   primFloatSqrt     : Float → Float
   primRound         : Float → Int
@@ -25,4 +26,10 @@ primitive
   primExp           : Float → Float
   primLog           : Float → Float
   primSin           : Float → Float
+  primCos           : Float → Float
+  primTan           : Float → Float
+  primASin          : Float → Float
+  primACos          : Float → Float
+  primATan          : Float → Float
+  primATan2         : Float → Float → Float
   primShowFloat     : Float → String

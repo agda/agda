@@ -30,10 +30,22 @@ data AppView = Application Expr [NamedArg Expr]
 appView :: Expr -> AppView
 appView e =
   case e of
-    App i e1 arg | Application hd es <- appView e1
+    App _ e1 e2
+      | Dot _ e2' <- unScope $ namedArg e2
+      , Just f <- maybeProjTurnPostfix e2'
+                   -> Application f [defaultNamedArg e1]
+    App i e1 arg
+      | Application hd es <- appView e1
                    -> Application hd $ es ++ [arg]
     ScopedExpr _ e -> appView e
     _              -> Application e []
+
+maybeProjTurnPostfix :: Expr -> Maybe Expr
+maybeProjTurnPostfix e =
+  case e of
+    ScopedExpr i e' -> ScopedExpr i <$> maybeProjTurnPostfix e'
+    Proj _ x        -> return $ Proj ProjPostfix x
+    _               -> Nothing
 
 unAppView :: AppView -> Expr
 unAppView (Application h es) =
@@ -113,6 +125,7 @@ instance ExprLike Expr where
       Lit{}                   -> pure e0
       QuestionMark{}          -> pure e0
       Underscore{}            -> pure e0
+      Dot ei e                -> Dot ei <$> recurse e
       App ei e arg            -> App ei <$> recurse e <*> recurse arg
       WithApp ei e es         -> WithApp ei <$> recurse e <*> recurse es
       Lam ei b e              -> Lam ei <$> recurse b <*> recurse e
@@ -148,6 +161,7 @@ instance ExprLike Expr where
       Lit{}                -> m
       QuestionMark{}       -> m
       Underscore{}         -> m
+      Dot _ e              -> m `mappend` fold e
       App _ e e'           -> m `mappend` fold e `mappend` fold e'
       WithApp _ e es       -> m `mappend` fold e `mappend` fold es
       Lam _ b e            -> m `mappend` fold b `mappend` fold e
@@ -183,6 +197,7 @@ instance ExprLike Expr where
       Lit{}                   -> f e
       QuestionMark{}          -> f e
       Underscore{}            -> f e
+      Dot ei e                -> f =<< Dot ei <$> trav e
       App ei e arg            -> f =<< App ei <$> trav e <*> trav arg
       WithApp ei e es         -> f =<< WithApp ei <$> trav e <*> trav es
       Lam ei b e              -> f =<< Lam ei <$> trav b <*> trav e
@@ -300,7 +315,7 @@ instance ExprLike a => ExprLike (Clause' a) where
 instance ExprLike RHS where
   recurseExpr f rhs =
     case rhs of
-      RHS e                   -> RHS <$> rec e
+      RHS e c                 -> RHS <$> rec e <*> pure c
       AbsurdRHS{}             -> pure rhs
       WithRHS x es cs         -> WithRHS x <$> rec es <*> rec cs
       RewriteRHS xes rhs ds   -> RewriteRHS <$> rec xes <*> rec rhs <*> rec ds
@@ -329,7 +344,6 @@ instance ExprLike Pragma where
       CompiledJSPragma{}          -> pure p
       CompiledUHCPragma{}         -> pure p
       CompiledDataUHCPragma{}     -> pure p
-      NoSmashingPragma{}          -> pure p
       StaticPragma{}              -> pure p
       InlinePragma{}              -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
@@ -351,7 +365,7 @@ instance ExprLike Declaration where
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds
       Section i m tel ds        -> Section i m <$> rec tel <*> rec ds
-      Apply i m a rd rm d       -> (\ a -> Apply i m a rd rm d) <$> rec a
+      Apply i m a ci d          -> (\ a -> Apply i m a ci d) <$> rec a
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d

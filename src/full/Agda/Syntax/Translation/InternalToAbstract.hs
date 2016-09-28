@@ -61,6 +61,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
+import Agda.Interaction.Options ( optPostfixProjections )
+
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -97,8 +99,10 @@ nelims e (I.Apply arg : es) = do
   let hd | notVisible arg && dontShowImp = e
          | otherwise                     = A.App noExprInfo e arg
   nelims hd es
-nelims e (I.Proj d    : es) =
-  nelims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
+nelims e (I.Proj o@ProjPrefix d  : es) =
+  nelims (A.App noExprInfo (A.Proj o $ AmbQ [d]) $ defaultNamedArg e) es
+nelims e (I.Proj o d  : es) =
+  nelims (A.App noExprInfo e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
 
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e = nelims e . map (fmap unnamed)
@@ -142,8 +146,7 @@ instance Reify MetaId Expr where
                  , metaNameSuggestion = miNameSuggestion mi
                  }
           underscore = return $ A.Underscore mi'
-      ifNotM shouldReifyInteractionPoints underscore $ {- else -}
-        caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
+      caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
           return $ A.QuestionMark mi' ii
 
 -- Does not print with-applications correctly:
@@ -158,26 +161,24 @@ instance Reify DisplayTerm Expr where
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
-    DWithApp u us vs -> do
+    DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
-      apps (if null es then e else A.WithApp noExprInfo e es) =<< reify vs
+      elims (if null es then e else A.WithApp noExprInfo e es) =<< reify es0
 
 -- | @reifyDisplayForm f vs fallback@
 --   tries to rewrite @f vs@ with a display form for @f@.
 --   If successful, reifies the resulting display term,
 --   otherwise, does @fallback@.
-reifyDisplayForm :: QName -> I.Args -> TCM A.Expr -> TCM A.Expr
-reifyDisplayForm f vs fallback = do
-  ifNotM displayFormsEnabled fallback $ {- else -} do
-    caseMaybeM (liftTCM $ displayForm f vs) fallback reify
+reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr
+reifyDisplayForm f es fallback = do
+    caseMaybeM (liftTCM $ displayForm f es) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
 --   rewrite a lhs with a display form.
 --
 --   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
-reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
-  ifNotM displayFormsEnabled (return lhs) $ {- else -} do
+reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     let vs = [ setHiding h $ defaultArg $ I.var i
              | (i, h) <- zip [0..] $ map getHiding ps
              ]
@@ -189,7 +190,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- But apparently, it has no influence...
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
-      displayForm f vs
+      displayForm f $ map I.Apply vs
     reportSLn "reify.display" 60 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
@@ -216,8 +217,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- can serve as a valid left-hand side. That means checking that it is a
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
-    okDisplayForm (DWithApp d ds args) =
-      okDisplayForm d && all okDisplayTerm ds  && all okToDrop args
+    okDisplayForm (DWithApp d ds es) =
+      okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
       -- Andreas, 2016-05-03, issue #1950.
       -- We might drop trailing hidden trivial (=variable) patterns.
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
@@ -235,6 +236,10 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okDElim (I.IApply x y r) = okDisplayTerm r -- TODO Andrea: making sense?
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
+
+    okToDropE (I.Apply v) = okToDrop v
+    okToDropE I.Proj{}    = False
+    okToDropE (I.IApply x y r) = False  -- TODO Andrea: making sense?
 
     okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
       I.Var _ []   -> True
@@ -254,17 +259,18 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okTerm _            = False
 
     -- Flatten a dt into (parentName, parentElims, withArgs).
-    flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [DisplayTerm])
-    flattenWith (DWithApp d ds1 ds2) = case flattenWith d of
-      (f, es, ds0) -> (f, es, ds0 ++ ds1 ++ map (DTerm . unArg) ds2)
+    flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [I.Elim' DisplayTerm])
+    flattenWith (DWithApp d ds1 es2) =
+      let (f, es, ds0) = flattenWith d
+      in  (f, es, ds0 ++ map (I.Apply . defaultArg) ds1 ++ map (fmap DTerm) es2)
     flattenWith (DDef f es) = (f, es, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
     displayLHS ps wps d = case flattenWith d of
-      (f, vs, ds) -> do
-        ds <- mapM termToPat ds
+      (f, vs, es) -> do
+        ds <- mapM (namedArg <.> elimToPat) es
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
@@ -273,7 +279,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.IApply _ _ r) = argToPat (Arg defaultArgInfo r)
         elimToPat (I.Apply arg) = argToPat arg
-        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.ProjP patNoRange $ AmbQ [d]
+        elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
@@ -329,18 +335,18 @@ instance Reify Term Expr where
   reify v = reifyTerm True v
 
 reifyTerm :: Bool -> Term -> TCM Expr
-reifyTerm expandAnonDefs0 v = do
-  -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
-  -- (i.e. when we don't care about nice printing)
-  expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
-  v <- unSpine <$> instantiate v
+reifyTerm expandAnonDefs v = do
+  -- Andreas, 2016-07-21 if --postfix-projections
+  -- then we print system-generated projections as postfix, else prefix.
+  havePfp <- optPostfixProjections <$> pragmaOptions
+  let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
+  v <- unSpine' pred <$> instantiate v
   case v of
     I.Var n es   -> do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
+      reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c vs   -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
@@ -352,7 +358,7 @@ reifyTerm expandAnonDefs0 v = do
           xs <- getRecordFieldNames r
           vs <- map unArg <$> reify vs
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
-        False -> reifyDisplayForm x vs $ do
+        False -> reifyDisplayForm x (map I.Apply vs) $ do
           ci <- getConstInfo x
           let Constructor{conPars = np} = theDef ci
           -- if we are the the module that defines constructor x
@@ -431,10 +437,10 @@ reifyTerm expandAnonDefs0 v = do
     -- to improve error messages.
     -- Don't do this if we have just expanded into a display form,
     -- otherwise we loop!
-    reifyDef :: Bool -> QName -> I.Args -> TCM Expr
-    reifyDef True x vs =
-      ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x vs) $ do
-      r <- reduceDefCopy x vs
+    reifyDef :: Bool -> QName -> I.Elims -> TCM Expr
+    reifyDef True x es =
+      ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x es) $ do
+      r <- reduceDefCopy x es
       case r of
         YesReduction _ v -> do
           reportSLn "reify.anon" 60 $ unlines
@@ -447,18 +453,18 @@ reifyTerm expandAnonDefs0 v = do
           reportSLn "reify.anon" 60 $ unlines
             [ "no reduction on defined ident. in anonymous module"
             , "x  = " ++ show x
-            , "vs = " ++ show vs
+            , "es = " ++ show es
             ]
-          reifyDef' x vs
-    reifyDef _ x vs = reifyDef' x vs
+          reifyDef' x es
+    reifyDef _ x es = reifyDef' x es
 
-    reifyDef' :: QName -> I.Args -> TCM Expr
-    reifyDef' x@(QName _ name) vs = do
+    reifyDef' :: QName -> I.Elims -> TCM Expr
+    reifyDef' x@(QName _ name) es = do
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
-      let fallback = apps (A.Def x) =<< reify (drop n vs)
+      let fallback = elims (A.Def x) =<< reify (drop n es)
       caseMaybeM (tryMaybe $ getConstInfo x) fallback $ \ defn -> do
       let def = theDef defn
 
@@ -467,8 +473,8 @@ reifyTerm expandAnonDefs0 v = do
        Function{ funCompiled = Just Fail, funClauses = [cl] }
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
-                  let h = getHiding $ last (clausePats cl)
-                  apps (A.AbsurdLam noExprInfo h) =<< reify vs
+                  let h = getHiding $ last $ namedClausePats cl
+                  elims (A.AbsurdLam noExprInfo h) =<< reify es
 
       -- Otherwise (no absurd lambda):
        _ -> do
@@ -478,33 +484,18 @@ reifyTerm expandAnonDefs0 v = do
         -- as they are mutually recursive with their parent.
         -- Thus we do not have to consider padding them.
 
-        -- Check whether we have an extended lambda and display forms are on.
-        df <- displayFormsEnabled
+        -- Check whether we have an extended lambda.
         toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-             Function{ funExtLam = Just (ExtLamInfo h nh) } ->
-               let npars = toppars + h + nh
-               -- Andreas, 2016-07-06 Issue #2047
-               -- Check that we can actually drop the parameters
-               -- of the extended lambda.
-               -- This is only possible if the first @npars@ patterns
-               -- are variable patterns.
-               -- If we encounter a non-variable pattern, fall back
-               -- to printing without nice extended lambda syntax.
-                   ps = map namedArg $ take npars $ namedClausePats $
-                     fromMaybe __IMPOSSIBLE__ $ headMaybe (defClauses defn)
-                   isVarP I.VarP{} = True
-                   isVarP _ = False
-               in  if all isVarP ps then Just npars else Nothing
+             Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
              _ -> Nothing
         case extLam of
-          Just pars | df -> reifyExtLam x pars (defClauses defn) vs
+          Just pars -> reifyExtLam x pars (defClauses defn) es
 
-        -- Otherwise (ordinay function call):
+        -- Otherwise (ordinary function call):
           _ -> do
-
-           (pad, nvs :: [NamedArg Term]) <- case def of
+           (pad, nes :: [Elim' (Named_ Term)]) <- case def of
 
             Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
               -- This is tricky:
@@ -524,21 +515,21 @@ reifyTerm expandAnonDefs0 v = do
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
               let pad = for as $ \ dom@Dom{} -> Arg (domInfo dom) underscore
 
-              -- Now pad' ++ vs' = drop n (pad ++ vs)
+              -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
-                  vs'  = drop (max 0 (n - size pad)) vs
+                  es'  = drop (max 0 (n - size pad)) es
               -- Andreas, 2012-04-21: get rid of hidden underscores {_}
               -- Keep non-hidden arguments of the padding
               showImp <- showImplicitArguments
               return (filter visible pad',
                 if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden dom vs'
-                   else map (fmap unnamed) vs')
+                   then nameFirstIfHidden dom es'
+                   else map (fmap unnamed) es')
 
             -- If it is not a projection(-like) function, we need no padding.
-            _ -> return ([], map (fmap unnamed) $ drop n vs)
+            _ -> return ([], map (fmap unnamed) $ drop n es)
            let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
-           napps hd =<< reify nvs
+           nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
 
@@ -559,24 +550,28 @@ reifyTerm expandAnonDefs0 v = do
     -- patterns, we fall back to printing the internal function created for the
     -- extended lambda, instead trying to construct the nice syntax.
 
-    reifyExtLam :: QName -> Int -> [I.Clause] -> [Arg Term] -> TCM Expr
-    reifyExtLam x npars cls vs = do
-      reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
+    reifyExtLam :: QName -> Int -> [I.Clause] -> I.Elims -> TCM Expr
+    reifyExtLam x npars cls es = do
+      reportSLn "reify.def" 10 $ "reifying extended lambda " ++ show x
+      reportSLn "reify.def" 50 $ show $ nest 2 $ vcat
+        [ text "npars =" <+> pretty npars
+        , text "es    =" <+> fsep (map (prettyPrec 10) es)
+        , text "def   =" <+> vcat (map pretty cls) ]
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
-      let (pars, rest) = splitAt npars vs
+      let (pars, rest) = splitAt npars es
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
       -- (this is taken care of by @apply@).
-      cls <- mapM (reify . NamedClause x False . (`apply` pars)) cls
+      cls <- mapM (reify . NamedClause x False . (`applyE` pars)) cls
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      apps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
+      elims (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
-nameFirstIfHidden :: Dom (ArgName, t) -> [Arg a] -> [NamedArg a]
-nameFirstIfHidden dom (Arg info e : es) | isHidden info =
-  Arg info (Named (Just $ unranged $ fst $ unDom dom) e) :
+nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
+nameFirstIfHidden dom (I.Apply (Arg info e) : es) | isHidden info =
+  I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
   map (fmap unnamed) es
@@ -604,11 +599,6 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
 
 data NamedClause = NamedClause QName Bool I.Clause
   -- ^ Also tracks whether module parameters should be dropped from the patterns.
-
-instance Reify ClauseBody RHS where
-  reify NoBody     = return AbsurdRHS
-  reify (Body v)   = RHS <$> reify v
-  reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
@@ -673,7 +663,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           stripPat p = case p of
             A.VarP _      -> p
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
-            A.ProjP _ _   -> p
+            A.ProjP{}     -> p
             A.DefP _ _ _  -> p
             A.DotP _ e    -> p
             A.WildP _     -> p
@@ -735,7 +725,7 @@ instance BlankVars A.Pattern where
   blank bound p = case p of
     A.VarP _      -> p   -- do not blank pattern vars
     A.ConP c i ps -> A.ConP c i $ blank bound ps
-    A.ProjP _ _   -> p
+    A.ProjP{}     -> p
     A.DefP i f ps -> A.DefP i f $ blank bound ps
     A.DotP i e    -> A.DotP i $ blank bound e
     A.WildP _     -> p
@@ -751,11 +741,12 @@ instance BlankVars A.Expr where
     A.Var x                -> if x `Set.member` bound then e
                               else A.Underscore emptyMetaInfo
     A.Def _                -> e
-    A.Proj _               -> e
+    A.Proj{}               -> e
     A.Con _                -> e
     A.Lit _                -> e
     A.QuestionMark{}       -> e
     A.Underscore _         -> e
+    A.Dot i e              -> A.Dot i $ blank bound e
     A.App i e1 e2          -> uncurry (A.App i) $ blank bound (e1, e2)
     A.WithApp i e es       -> uncurry (A.WithApp i) $ blank bound (e, es)
     A.Lam i b e            -> let bound' = varsBoundIn b `Set.union` bound
@@ -788,7 +779,7 @@ instance BlankVars A.ModuleName where
   blank bound = id
 
 instance BlankVars RHS where
-  blank bound (RHS e)                = RHS $ blank bound e
+  blank bound (RHS e mc)             = RHS (blank bound e) mc
   blank bound AbsurdRHS              = AbsurdRHS
   blank bound (WithRHS _ es clauses) = __IMPOSSIBLE__ -- NZ
   blank bound (RewriteRHS xes rhs _) = __IMPOSSIBLE__ -- NZ
@@ -886,7 +877,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         t <- liftTCM $ reify v
         return $ A.DotP patNoRange t
       I.LitP l  -> return $ A.LitP l
-      I.ProjP d -> return $ A.ProjP patNoRange $ AmbQ [d]
+      I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do
         liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
         tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyPatterns ps
@@ -918,9 +909,9 @@ instance Reify (QNamed I.Clause) A.Clause where
   reify (QNamed f cl) = reify (NamedClause f True cl)
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f toDrop cl@(I.Clause _ tel ps body _ catchall)) = addContext tel $ do
+  reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
     reportSLn "reify.clause" 60 $ "reifying NamedClause, cl = " ++ show cl
-    ps  <- reifyPatterns ps
+    ps  <- reifyPatterns $ namedClausePats cl
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
     -- (e.g. for extended lambdas).
@@ -929,14 +920,15 @@ instance Reify NamedClause A.Clause where
       return $ dropParams nfv lhs
     lhs <- stripImps lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
-    rhs <- reify $ renameP (reverseP perm) <$> body
+    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
+       RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs [] catchall
+    let result = A.Clause (spineToLhs lhs) [] rhs [] (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where
+      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
       info = LHSRange noRange
-      perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
 
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do

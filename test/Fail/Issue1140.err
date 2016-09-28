@@ -3,3 +3,8 @@ Termination checking failed for the following functions:
   M.f
 Problematic calls:
   f (at Issue1140.agda:7,7-8)
+Issue1140.agda:10,3-11,8
+Termination checking failed for the following functions:
+  N.f
+Problematic calls:
+  f (at Issue1140.agda:11,7-8)

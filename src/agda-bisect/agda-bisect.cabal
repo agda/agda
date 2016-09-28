@@ -1,0 +1,16 @@
+name: agda-bisect
+synopsis: Git bisect wrapper script for the Agda code base
+version: 0.1
+cabal-version: >= 1.10
+author: Nils Anders Danielsson
+build-type: Simple
+
+executable agda-bisect
+  main-is:          Bisect.hs
+  build-depends:    ansi-wl-pprint >= 0.6.7.3 && < 0.7,
+                    base == 4.9.*,
+                    directory >= 1.2.6.2 && < 1.3,
+                    optparse-applicative == 0.13.*,
+                    process >= 1.4.2.0 && < 1.5
+  default-language: Haskell2010
+  ghc-options:      -threaded

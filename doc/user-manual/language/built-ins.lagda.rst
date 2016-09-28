@@ -10,6 +10,14 @@
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
+  data ⊥ : Set where
+
+  record _×_ (A B : Set) : Set where
+    constructor _,_
+    field proj₁ : A
+          proj₂ : B
+  open _×_ public
+
 .. _built-ins:
 
 *********
@@ -247,6 +255,7 @@ numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
     primFloatPlus     : Float → Float → Float
     primFloatMinus    : Float → Float → Float
     primFloatTimes    : Float → Float → Float
+    primFloatNegate   : Float → Float
     primFloatDiv      : Float → Float → Float
     primFloatEquality : Float → Float → Bool
     primFloatLess     : Float → Float → Bool
@@ -256,14 +265,22 @@ numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
     primExp           : Float → Float
     primLog           : Float → Float
     primSin           : Float → Float
+    primCos           : Float → Float
+    primTan           : Float → Float
+    primASin          : Float → Float
+    primACos          : Float → Float
+    primATan          : Float → Float
+    primATan2         : Float → Float → Float
     primShowFloat     : Float → String
 
 These are implemented by the corresponding Haskell functions with a few
 exceptions:
 
 - ``primFloatEquality NaN NaN`` returns ``true``.
+- ``primFloatEquality NaN (primFloatNegate NaN)`` returns ``false``.
+- ``primFloatEquality 0.0 -0.0`` returns ``false``.
 - ``primFloatLess`` sorts ``NaN`` below everything but negative infinity.
-- ``primShowFloat`` returns ``"0.0"`` on negative zero.
+- ``primFloatLess -0.0 0.0`` returns ``true``.
 
 This is to allow decidable equality and proof carrying comparisons on floating
 point numbers.
@@ -423,15 +440,20 @@ Universe levels
 :ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
 pragmas. In contrast to the ``Agda.Builtin`` modules, the ``Agda.Primitive`` module
 is auto-imported and thus it is not possible to change the level built-ins. For
-reference these are the bindings:
-
-.. code-block:: agda
+reference these are the bindings::
 
   postulate
     Level : Set
     lzero : Level
     lsuc  : Level → Level
     _⊔_   : Level → Level → Level
+
+..
+  This code cannot be typechecked because the identifiers are already bound
+  in Agda.Primitive and are auto-imported.
+
+.. code-block:: agda
+
   {-# BUILTIN LEVEL     Level #-}
   {-# BUILTIN LEVELZERO lzero #-}
   {-# BUILTIN LEVELSUC  lsuc  #-}
@@ -572,4 +594,3 @@ problems can be fixed with ``primForce``::
   pow : Nat → Nat → Nat
   pow zero    a = a
   pow (suc n) a =  pow n $! a + a
-

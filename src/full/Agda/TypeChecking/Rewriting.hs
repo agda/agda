@@ -410,7 +410,7 @@ instance NLPatVars NLPat where
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
       PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
-      PSet l    -> nlPatVars l
+      PPlusLevel _ p' -> nlPatVars p'
       PBoundVar _ es -> nlPatVars es
       PTerm{}   -> empty
 
@@ -434,7 +434,7 @@ instance KillCtxId NLPat where
     PDef f es      -> PDef f $ killCtxId es
     PLam i x       -> PLam i $ killCtxId x
     PPi a b        -> PPi (killCtxId a) (killCtxId b)
-    PSet l         -> PSet $ killCtxId l
+    PPlusLevel i u -> PPlusLevel i $ killCtxId u
     PBoundVar i es -> PBoundVar i $ killCtxId es
     PTerm _        -> p
 
@@ -453,7 +453,7 @@ instance GetMatchables NLPat where
       PDef f _       -> singleton f
       PLam _ x       -> empty
       PPi a b        -> empty
-      PSet l         -> empty
+      PPlusLevel _ _ -> empty
       PBoundVar i es -> empty
       PTerm _        -> empty -- should be safe (I hope)
 
@@ -468,6 +468,6 @@ instance Free' NLPat c where
     PDef _ es -> freeVars' es
     PLam _ u -> freeVars' u
     PPi a b -> freeVars' (a,b)
-    PSet l -> freeVars' l
+    PPlusLevel _ u -> freeVars' u
     PBoundVar _ es -> freeVars' es
     PTerm t -> freeVars' t

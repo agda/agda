@@ -27,7 +27,8 @@ data Exp =
   If Exp Exp Exp |
   BinOp Exp String Exp |
   PreOp String Exp |
-  Const String
+  Const String |
+  PlainJS String -- ^ Arbitrary JS code.
   deriving (Typeable, Show)
 
 -- Local identifiers are named by De Bruijn indices.

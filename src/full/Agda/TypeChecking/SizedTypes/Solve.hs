@@ -50,13 +50,18 @@
 
 module Agda.TypeChecking.SizedTypes.Solve where
 
+import Prelude hiding (null)
+
 import Control.Monad (unless)
+
 import Data.Foldable (Foldable, foldMap, forM_)
 import Data.Function
-import Data.List
+import Data.List hiding (null)
 import Data.Monoid (mappend)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Traversable as Trav
 import Data.Traversable (Traversable, forM)
 
 import Agda.Interaction.Options
@@ -96,11 +101,14 @@ import Agda.Utils.List
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+type CC = Closure TCM.Constraint
 
 -- | Flag to control the behavior of size solver.
 data DefaultToInfty
@@ -115,62 +123,79 @@ solveSizeConstraints flag =  do
   cs0 <- S.getSizeConstraints
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
-      [ text "Solving constraints" ] ++ map prettyTCM cs0
+      [ text $ "Solving constraints (" ++ show flag ++ ")"
+      ] ++ map prettyTCM cs0
   let -- Error for giving up
       cannotSolve = typeError . GenericDocError =<<
         vcat (text "Cannot solve size constraints" : map prettyTCM
                    cs0)
-  unless (null cs0) $ solveSizeConstraints_ cs0
+
+  constrainedMetas <- solveSizeConstraints_ flag cs0
 
   -- Andreas, issue 1862: do not default to ∞ always, could be too early.
   when (flag == DefaultToInfty) $ do
 
-  -- Set the unconstrained size metas to ∞.
-  ms <- S.getSizeMetas False -- do not get interaction metas
-  unless (null ms) $ do
-    inf <- primSizeInf
-    forM_ ms $ \ (m, t, tel) -> unlessM (isFrozen m) $ do
-      reportSDoc "tc.size.solve" 20 $
-        text "solution " <+> prettyTCM (MetaV m []) <+>
-        text " := "      <+> prettyTCM inf
-      assignMeta 0 m t (downFrom $ size tel) inf
+    -- let constrainedMetas = Set.fromList $ concat $
+    --       for cs0 $ \ Closure{ clValue = ValueCmp _ _ u v } ->
+    --         allMetas u ++ allMetas v
 
-  -- Double check.
-  unless (null cs0 && null ms) $ do
-    flip catchError (const cannotSolve) $
-      noConstraints $
-        forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+    -- Set the unconstrained size metas to ∞.
+    ms <- S.getSizeMetas False -- do not get interaction metas
+    unless (null ms) $ do
+      inf <- primSizeInf
+      forM_ ms $ \ (m, t, tel) -> do
+        unless (m `Set.member` constrainedMetas) $ do
+        unlessM (isFrozen m) $ do
+        reportSDoc "tc.size.solve" 20 $
+          text "solution " <+> prettyTCM (MetaV m []) <+>
+          text " := "      <+> prettyTCM inf
+        assignMeta 0 m t (downFrom $ size tel) inf
 
-solveSizeConstraints_ :: [Closure TCM.Constraint] -> TCM ()
-solveSizeConstraints_ cs0 = do
+  -- -- Double check.
+  -- unless (null cs0 && null ms) $ do
+  --   flip catchError (const cannotSolve) $
+  --     noConstraints $
+  --       forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+
+-- | Return the size metas occurring in the simplified constraints.
+--   A constraint like @↑ _j =< ∞ : Size@ simplifies to nothing,
+--   so @_j@ would not be in this set.
+solveSizeConstraints_ :: DefaultToInfty -> [CC] -> TCM (Set MetaId)
+solveSizeConstraints_ flag cs0 = do
   -- Pair constraints with their representation as size constraints.
   -- Discard constraints that do not have such a representation.
-  ccs <- catMaybes <$> do
-    forM cs0 $ \ c -> fmap (c,) <$> computeSizeConstraint c
+  ccs :: [(CC,HypSizeConstraint)] <- catMaybes <$> do
+    forM cs0 $ \ c0 -> fmap (c0,) <$> computeSizeConstraint c0
 
   -- Simplify constraints and check for obvious inconsistencies.
-  cs <- concat <$> do
-    forM ccs $ \ (c, HypSizeConstraint cxt hids hs sc) -> do
-      case simplify1 (\ c -> return [c]) sc of
+  ccs' <- concat <$> do
+    forM ccs $ \ (c0, HypSizeConstraint cxt hids hs sc) -> do
+      case simplify1 (\ sc -> return [sc]) sc of
         Left _ -> typeError . GenericDocError =<< do
-          text "Contradictory size constraint" <+> prettyTCM c
-        Right cs -> return $ HypSizeConstraint cxt hids hs <$> cs
+          text "Contradictory size constraint" <+> prettyTCM c0
+        Right cs -> return $ (c0,) . HypSizeConstraint cxt hids hs <$> cs
 
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
-  let (csNoM, csMs) = (`partitionMaybe` cs) $ \ c ->
-        fmap (c,) $ uncons $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
+  let (csNoM, csMs) = (`partitionMaybe` ccs') $ \ p@(c0, c) ->
+        fmap (p,) $ uncons $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
   -- @css@ are the clusters of constraints.
+      css :: [[(CC,HypSizeConstraint)]]
       css = cluster' csMs
   -- There should be no constraints that do not mention a meta?
   unless (null csNoM) __IMPOSSIBLE__
 
   -- Now, process the clusters.
-  forM_ css solveCluster
+  forM_ css $ solveCluster flag
 
-solveCluster :: [HypSizeConstraint] -> TCM ()
-solveCluster [] = __IMPOSSIBLE__
-solveCluster cs = do
+  return $ Set.mapMonotonic sizeMetaId $ flexs $ map (snd . fst) csMs
+
+-- | Solve a cluster of constraints sharing some metas.
+--
+solveCluster :: DefaultToInfty -> [(CC,HypSizeConstraint)] -> TCM ()
+solveCluster flag [] = __IMPOSSIBLE__
+solveCluster flag ccs = do
+  let cs = map snd ccs
   let err reason = typeError . GenericDocError =<< do
         vcat $
           [ text $ "Cannot solve size constraints" ] ++ map prettyTCM cs ++
@@ -257,16 +282,23 @@ solveCluster cs = do
   -- There cannot be negative cycles in hypotheses graph due to scoping.
   let hg = fromRight __IMPOSSIBLE__ $ hypGraph (rigids csF) hyps
 
-  -- Construct the constraint graph.
-  --    g :: Size.Graph NamedRigid Int Label
-  g <- either err return $ constraintGraph csF hg
-  reportSDoc "tc.size.solve" 40 $ vcat $
-    [ text "Constraint graph"
-    , text (show g)
-    ]
+  -- -- Construct the constraint graph.
+  -- --    g :: Size.Graph NamedRigid Int Label
+  -- g <- either err return $ constraintGraph csF hg
+  -- reportSDoc "tc.size.solve" 40 $ vcat $
+  --   [ text "Constraint graph"
+  --   , text (show g)
+  --   ]
 
-  sol :: Solution NamedRigid Int <- either err return $ solveGraph Map.empty hg g
-  either err return $ verifySolution hg csF sol
+  -- sol :: Solution NamedRigid Int <- either err return $ solveGraph Map.empty hg g
+  -- either err return $ verifySolution hg csF sol
+
+  -- Andreas, 2016-07-13, issue 2096.
+  -- Running the solver once might result in unsolvable left-over constraints.
+  -- We need to iterate the solver to detect this.
+  sol :: Solution NamedRigid Int <- either err return $
+    iterateSolver Map.empty hg csF Map.empty
+
   -- Convert solution to meta instantiation.
   forM_ (Map.assocs sol) $ \ (m, a) -> do
     unless (validOffset a) __IMPOSSIBLE__
@@ -293,6 +325,55 @@ solveCluster cs = do
     -- assignMeta' n x t (length xs) partialSubst u
     -- WRONG: assign DirEq x (map (defaultArg . var) xs) u
 
+  -- Possibly set remaining size metas to ∞ (issue 1862)
+  -- unless we have an interaction meta in the cluster (issue 2095).
+
+  ims <- Set.fromList <$> getInteractionMetas
+
+  --  ms = unsolved size metas from cluster
+  let ms = Set.fromList (map sizeMetaId metas) Set.\\  -- Some CPP or ghc does not like trailing backslash, thus, this comment!
+             Set.mapMonotonic MetaId (Map.keysSet sol)
+  --  Make sure they do not contain an interaction point
+  let noIP = Set.null $ Set.intersection ims ms
+
+  unless (null ms) $ reportSDoc "tc.size.solve" 30 $ fsep $
+    [ text "cluster did not solve these size metas: " ] ++ map prettyTCM (Set.toList ms)
+
+  solvedAll <- do
+    -- If no metas are left, we have solved this cluster completely.
+    if Set.null ms                then return True  else do
+    -- Otherwise, we can solve it completely if we are allowed to set to ∞.
+    if flag == DontDefaultToInfty then return False else do
+    -- Which is only the case when we have no interaction points in the cluster.
+    if not noIP                   then return False else do
+    -- Try to set all unconstrained size metas to ∞.
+    inf <- primSizeInf
+    and <$> do
+      forM (Set.toList ms) $ \ m -> do
+        -- If one variable is frozen, we cannot set it (and hence not all) to ∞
+        let no = do
+              reportSDoc "tc.size.solve" 30 $
+                prettyTCM (MetaV m []) <+> text "is frozen, cannot set it to ∞"
+              return False
+        ifM (isFrozen m) no $ {-else-} do
+          reportSDoc "tc.size.solve" 20 $
+            text "solution " <+> prettyTCM (MetaV m []) <+>
+            text " := "      <+> prettyTCM inf
+          t <- jMetaType . mvJudgement <$> lookupMeta m
+          TelV tel core <- telView t
+          unlessM (isJust <$> isSizeType core) __IMPOSSIBLE__
+          assignMeta 0 m t (downFrom $ size tel) inf
+          return True
+
+  -- Double check.
+  when solvedAll $ do
+    let cs0 = map fst ccs
+        -- Error for giving up
+        cannotSolve = typeError . GenericDocError =<<
+          vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
+    flip catchError (const cannotSolve) $
+      noConstraints $
+        forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
 getSizeHypotheses :: Context -> TCM [(CtxId, SizeConstraint)]

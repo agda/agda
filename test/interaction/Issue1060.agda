@@ -47,11 +47,11 @@ _∎ _ = relTo refl
 proof : true ≡ true
 proof =
   begin
-    {!!}
+    true
   ≡⟨ {!!} ⟩
     {!!} -- If you do C-c C-s, it will fill in the first and last boxes, but it will also fill this one in with an underscore!
   ≡⟨ {!!} ⟩
-    {!!}
+    {!true!}
   ∎
 
 -- C-c C-s should only solve for ?0 and ?4, not for ?2.

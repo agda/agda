@@ -95,7 +95,6 @@ tokens :-
 <pragma_>   "LINE"                     { keyword KwLINE }
 <pragma_>   "MEASURE"                  { keyword KwMEASURE }
 <pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
-<pragma_>   "NO_SMASHING"              { keyword KwNO_SMASHING }
 <pragma_>   "NO_TERMINATION_CHECK"     { keyword KwNO_TERMINATION_CHECK }
 <pragma_>   "NON_TERMINATING"          { keyword KwNON_TERMINATING }
 <pragma_>   "OPTIONS"                  { keyword KwOPTIONS }
@@ -207,7 +206,7 @@ tokens :-
 <0,code> "_"            { symbol SymUnderscore }
 <0,code> "?"            { symbol SymQuestionMark }
 <0,code> "|"            { symbol SymBar }
-<0,code> "(|"           { symbol SymOpenIdiomBracket }
+<0,code> "(|" /[$white] { symbol SymOpenIdiomBracket }
 <0,code> "|)"           { symbol SymCloseIdiomBracket }
 <0,code> "("            { symbol SymOpenParen }
 <0,code> ")"            { symbol SymCloseParen }

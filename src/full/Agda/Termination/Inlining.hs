@@ -74,9 +74,8 @@ inlineWithClauses :: QName -> Clause -> TCM [Clause]
 inlineWithClauses f cl = inTopContext $ do
   -- Clauses are relative to the empty context, so we operate @inTopContext@.
   let noInline = return [cl]
-  -- Get the clause body as-is (unraised).
-  -- The de Bruijn indices are then relative to the @clauseTel cl@.
-  body <- traverse instantiate $ getBodyUnraised cl
+  -- The de Bruijn indices of @body@ are relative to the @clauseTel cl@.
+  body <- traverse instantiate $ clauseBody cl
   case body of
     Just (Def wf els) ->
       caseMaybeM (isWithFunction wf) noInline $ \ f' ->
@@ -130,7 +129,7 @@ withExprClauses cl t args = {- addContext (clauseTel cl) $ -} loop t args where
     case unArg a of
       Var i [] -> rest  -- TODO: smarter criterion when to skip withExprClause
       v        ->
-        (cl { clauseBody = v <$ clauseBody cl
+        (cl { clauseBody = Just v
             , clauseType = Just $ defaultArg dom
             } :) <$> rest
     where
@@ -163,44 +162,21 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   -- figured out how to turn an application of the with-function into an
   -- application of the parent function in the display form.
   reportSDoc "term.with.inline" 70 $ text "inlining (raw) =" <+> text (show wcl)
-  let vs = clauseArgs wcl
-  Just disp <- displayForm wf vs
+  Just disp <- displayForm wf $ clauseElims wcl
   reportSDoc "term.with.inline" 70 $ text "display form (raw) =" <+> text (show disp)
   reportSDoc "term.with.inline" 40 $ text "display form =" <+> prettyTCM disp
   (pats, perm) <- dispToPats disp
 
-  -- Now we need to sort out the right hand side. We have
-  --    Γ  - clause telescope (same for with-clause and inlined clause)
-  --    Δw - variables bound in the patterns of the with clause
-  --    Δi - variables bound in the patterns of the inlined clause
-  --    Δw ⊢ clauseBody wcl
-  -- and we want
-  --    Δi ⊢ body
-  -- We can use the clause permutations to get there (renaming is bugged and
-  -- shouldn't need the reverseP):
-  --    applySubst (renaming $ reverseP $ clausePerm wcl) : Term Δw -> Term Γ
-  --    applySubst (renamingR perm)                       : Term Γ -> Term Δi
-  -- Finally we need to add the right number of Bind's to the body.
-  let body = rebindBody (permRange perm) $
-             applySubst (renamingR perm) .
-             applySubst (renaming $ reverseP $ fromMaybe __IMPOSSIBLE__ $ clausePerm wcl)
-              <$> clauseBody wcl
-  return wcl { namedClausePats = numberPatVars perm pats
-             , clauseBody      = body
-             , clauseType      = Nothing -- TODO: renaming of original clause type
-             }
+  -- Jesper, 2016-07-28: Since the with-clause and the inlined clause both
+  -- have the same clause telescope and the clause body is now relative to the
+  -- clause telescope, there is no more need to change the clause body.
+  return wcl { namedClausePats = numberPatVars __IMPOSSIBLE__ perm pats }
   where
     numVars  = size (clauseTel wcl)
 
-    rebindBody n b = bind n $ maybe NoBody Body $ getBodyUnraised b
-      where
-        bind 0 = id
-        bind n = Bind . Abs (stringToArgName $ "h" ++ show n') . bind n'
-          where n' = n - 1
-
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
     dispToPats (DWithApp (DDef _ es) ws zs) = do
-      let es' = es ++ map Apply (map defaultArg ws ++ map (fmap DTerm) zs)
+      let es' = es ++ map (Apply . defaultArg) ws ++ map (fmap DTerm) zs
       (ps, (j, ren)) <- (`runStateT` (0, [])) $ mapM (traverse dtermToPat) es'
       let perm = Perm j (map snd $ List.sort ren)
       return (map ePatToPat ps, perm)
@@ -217,8 +193,8 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
 
     ePatToPat :: Elim' Pattern -> NamedArg Pattern
     ePatToPat (Apply p) = fmap unnamed p
-    ePatToPat (Proj  d) = defaultNamedArg $ ProjP d
     ePatToPat (IApply x y p) = __IMPOSSIBLE__ -- TODO Andrea: path copatterns
+    ePatToPat (Proj o d) = defaultNamedArg $ ProjP o d
 
     dtermToPat :: DisplayTerm -> StateT (Int, [(Int, Int)]) TCM Pattern
     dtermToPat v =
@@ -228,7 +204,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
                               <$> mapM (traverse dtermToPat) vs
         DDef d es        -> do
           ifM (return (null es) `and2M` do isJust <$> lift (isProjection d))
-            {-then-} (return $ ProjP d)
+            {-then-} (return $ ProjP ProjPrefix d)
             {-else-} (DotP (dtermToTerm v) <$ skip)
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->
@@ -249,19 +225,19 @@ expandWithFunctionCall :: QName -> Elims -> TCM Term
 expandWithFunctionCall f es = do
   as <- displayFormArities f
   case as of
-    [a] | length vs >= a -> do
-      Just disp <- displayForm f vs
-      return $ dtermToTerm disp `applyE` es'
+    [a] | length es >= a -> do
+      Just disp <- displayForm f es
+      return $ dtermToTerm disp
+
     -- We might get an underapplied with function application (issue1598), in
     -- which case we have to eta expand. The resulting term is only used for
     -- termination checking, so we don't have to worry about getting hiding
     -- information right.
-    [a] | null es' -> do
-      let pad = a - length vs
-          vs' = raise pad vs ++ map (defaultArg . var) (downFrom pad)
-      Just disp <- displayForm f vs'
+    -- Andreas, 2016-07-20 let's pray that there no copatterns needed...
+    [a] -> do
+      let pad = a - length es
+          es' = raise pad es ++ map (Apply . defaultArg . var) (downFrom pad)
+      Just disp <- displayForm f es'
       let info = setOrigin Inserted defaultArgInfo
       return $ foldr (\_ -> Lam info . Abs "") (dtermToTerm disp) (replicate pad ())
     _ -> __IMPOSSIBLE__
-  where
-    (vs, es') = splitApplyElims es

@@ -45,7 +45,11 @@ applyPrim PRem a b | b /= 0    = Just (rem a b)
                    | otherwise = Nothing
 applyPrim PGeq _ _ = Nothing
 applyPrim PLt  _ _ = Nothing
-applyPrim PEq  _ _ = Nothing
+applyPrim PEqI _ _ = Nothing
+applyPrim PEqF _ _ = Nothing
+applyPrim PEqC _ _ = Nothing
+applyPrim PEqS _ _ = Nothing
+applyPrim PEqQ _ _ = Nothing
 applyPrim PIf  _ _ = Nothing
 applyPrim PSeq _ _ = Nothing
 

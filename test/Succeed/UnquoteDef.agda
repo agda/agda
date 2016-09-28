@@ -38,8 +38,14 @@ pattern `Bool = def (quote Bool) []
  ∷ clause (vArg (`suc (var "n")) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
  ∷ []
 
--- id : Nat → Nat
--- unquoteDef id = `idDef id
+-- Andreas, 2016-07-17
+-- Also testing effect of abstract on unquoteDef.
+
+abstract
+  id : Nat → Nat
+  unquoteDef id = defineFun id (`idDef id)
+  -- This raised the UselessAbstract error in error.
+  -- Should work.
 
 -- Now for the mutal ones
 `evenOdd : Term → QName → List Clause

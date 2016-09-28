@@ -72,7 +72,7 @@ recordPatternToProjections p =
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
-    proj p = (`applyE` [Proj $ unArg p])
+    proj p = (`applyE` [Proj ProjSystem $ unArg p])
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
@@ -246,7 +246,7 @@ replaceByProjections (Arg ai i) projs cc =
                     | otherwise = map unArg xs1
               x                 = Arg ai $ foldr1 appendArgNames names
               xs'               = xs0 ++ x : xs2
-              us                = map (\ p -> Var 0 [Proj p]) (reverse projs)
+              us                = map (\ p -> Var 0 [Proj ProjSystem p]) (reverse projs)
               -- go from level (i + n - 1) to index (subtract from |xs|-1)
               index             = length xs - (i + n)
           in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
@@ -493,7 +493,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the new RHS's context
       -- to terms in the new telescope's context.
-      lhsSubst' = renaming (reverseP newPerm)
+      lhsSubst' = {-'-} renaming __IMPOSSIBLE__ (reverseP newPerm)
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new telescope's context.
@@ -510,8 +510,8 @@ translateRecordPatterns clause = do
       -- New clause.
       c = clause
             { clauseTel       = newTel
-            , namedClausePats = numberPatVars newPerm $ applySubst lhsSubst ps
-            , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
+            , namedClausePats = numberPatVars __IMPOSSIBLE__ newPerm $ applySubst lhsSubst ps
+            , clauseBody      = applySubst lhsSubst $ clauseBody clause
             }
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
@@ -544,7 +544,7 @@ translateRecordPatterns clause = do
         [ text "delta =" <+> prettyTCM (clauseTel c)
         , text "ps    =" <+> text (show $ clausePats c)
         , text "body  =" <+> text (show $ clauseBody c)
-        , text "body  =" <+> prettyTCM (clauseBody c)
+        , text "body  =" <+> addContext (clauseTel c) (maybe (text "_|_") prettyTCM (clauseBody c))
         ]
       ]
 
@@ -736,7 +736,7 @@ recordTree (ConP c ci ps) | Just ConPImplicit <- conPRecord ci = do
       t <- reduce t
       fields <- getRecordTypeFields (unArg t)
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
-      let proj p = (`applyE` [Proj $ unArg p])
+      let proj p = (`applyE` [Proj ProjSystem $ unArg p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))
@@ -767,27 +767,3 @@ translateTel (Left _ : rest) (t : tel)    = Just t : translateTel rest tel
 translateTel []              []           = []
 translateTel (Left _ : _)    []           = __IMPOSSIBLE__
 translateTel []              (_ : _)      = __IMPOSSIBLE__
-
--- | Translates the clause body. The substitution should take things
--- in the context of the old RHS to the new RHS's context.
-
-translateBody :: Changes -> Substitution -> ClauseBody -> ClauseBody
-translateBody _                        s NoBody = NoBody
-translateBody (Right (n, x, _) : rest) s b      =
-  Bind $ Abs x $ translateBody rest s $ dropBinds n' b
-  where n' = sum $ map n [VarPat, DotPat]
-translateBody (Left _ : rest) s (Bind b)   = Bind $ fmap (translateBody rest s) b
-translateBody []              s (Body t)   = Body $ applySubst s t
-translateBody _               _ _          = __IMPOSSIBLE__
-
-------------------------------------------------------------------------
--- Helper functions
-
--- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' from @b@.
---
--- Precondition: @b@ has to start with @n@ occurrences of 'Bind'.
-
-dropBinds :: Nat -> ClauseBody -> ClauseBody
-dropBinds n b          | n == 0 = b
-dropBinds n (Bind b)   | n > 0  = dropBinds (pred n) (absBody b)
-dropBinds _ _                   = __IMPOSSIBLE__

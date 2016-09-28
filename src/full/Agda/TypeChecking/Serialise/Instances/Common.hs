@@ -299,11 +299,11 @@ instance EmbPrj Agda.Syntax.Fixity.Fixity where
     valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity' where
-  icod_ (Fixity' a b) = icode2' a b
+  icod_ (Fixity' a b _) = icode2' a b  -- discard theNameRange
 
   value = vcase valu where
-    valu [a,b] = valu2 Fixity' a b
-    valu _     = malformed
+    valu [a, b] = valu2 (\ f n -> Fixity' f n noRange) a b
+    valu _      = malformed
 
 instance EmbPrj GenPart where
   icod_ (BindHole a)   = icode1 0 a
@@ -459,6 +459,16 @@ instance EmbPrj ConPOrigin where
   value 0 = return ConPImplicit
   value 1 = return ConPCon
   value 2 = return ConPRec
+  value _ = malformed
+
+instance EmbPrj ProjOrigin where
+  icod_ ProjPrefix  = return 0
+  icod_ ProjPostfix = return 1
+  icod_ ProjSystem  = return 2
+
+  value 0 = return ProjPrefix
+  value 1 = return ProjPostfix
+  value 2 = return ProjSystem
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where

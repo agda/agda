@@ -45,17 +45,21 @@ traceCall :: MonadTCM tcm => Call -> tcm a -> tcm a
 traceCall mkCall m = do
   let call      = mkCall
       callRange = getRange call
-  -- Andreas, 2015-02-09 Make sure we do not set a range
-  -- outside the current file
-  verboseS "check.ranges" 10 $
+  -- Andreas, 2016-09-13 issue #2177
+  -- Since the fix of #2092 we may report an error outside the current file.
+  -- (For instance, if we import a module which then happens to have the
+  -- wrong name.)
+  -- Thus, we no longer crash, but just report the alien range.
+  -- -- Andreas, 2015-02-09 Make sure we do not set a range
+  -- -- outside the current file
+  verboseS "check.ranges" 90 $
     Strict.whenJust (rangeFile callRange) $ \f -> do
       currentFile <- asks envCurrentPath
       when (currentFile /= Just f) $ do
-        reportSLn "impossible" 10 $
+        reportSLn "check.ranges" 90 $
           prettyShow call ++
-          " is trying to set the current range to " ++ show callRange ++
+          " is setting the current range to " ++ show callRange ++
           " which is outside of the current file " ++ show currentFile
-        __IMPOSSIBLE__
   cl <- liftTCM $ buildClosure call
   let trace = local $ foldr (.) id $
         [ \e -> e { envCall = Just cl } | interestingCall cl ] ++

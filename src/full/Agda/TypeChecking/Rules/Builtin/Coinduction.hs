@@ -9,6 +9,7 @@ module Agda.TypeChecking.Rules.Builtin.Coinduction where
 import Control.Applicative
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -100,6 +101,7 @@ bindBuiltinSharp e =
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
                     , conComp   = Nothing
+                    , conErased = []
                     }
                 }
     return sharpE
@@ -132,7 +134,7 @@ bindBuiltinFlat e =
           , clauseTel       = tel
           , namedClausePats = [ argN $ Named Nothing $
               ConP sharpCon cpi [ argN $ Named Nothing $ debruijnNamedVar "x" 0 ] ]
-          , clauseBody      = Bind $ Abs "x" $ Body $ var 0
+          , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
           }
@@ -151,21 +153,11 @@ bindBuiltinFlat e =
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
-               , theDef = Function
-                   { funClauses    = [clause]
-                   , funCompiled   = Just $ cc
-                   , funTreeless   = Nothing
-                   , funInv        = NotInjective
-                   , funMutual     = []
-                   , funAbstr      = ConcreteDef
-                   , funDelayed    = NotDelayed
-                   , funProjection = Just projection
-                   , funSmashable  = False
-                   , funStatic     = False
-                   , funInline     = False
-                   , funTerminates = Just True
-                   , funExtLam     = Nothing
-                   , funWith       = Nothing
+               , theDef = emptyFunction
+                   { funClauses      = [clause]
+                   , funCompiled     = Just $ cc
+                   , funProjection   = Just projection
+                   , funTerminates   = Just True
                    , funCopatternLHS = isCopatternLHS [clause]
                    }
                 }

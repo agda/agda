@@ -56,7 +56,7 @@ etaExpand :: Term -> Compile TCM Term
 etaExpand def@(Def n ts) = do
     defs <- lift $ use $ stImports . sigDefinitions
     let f   = maybe __IMPOSSIBLE__ theDef (HM.lookup n defs)
-        len = length . clausePats . head .  funClauses $ f
+        len = length . namedClausePats . head .  funClauses $ f
         toEta :: Num a => a
         toEta = fromIntegral $ len - length ts
         term  = raise toEta def `applys` map var (downFrom toEta)
@@ -116,7 +116,4 @@ instance Evaluate Term where
     isStatic :: QName -> Compile TCM Bool
     isStatic q = do
       defs <- lift $ use $ stImports . sigDefinitions
-      return $ case fmap theDef $ HM.lookup q defs of
-          Nothing -> False
-          Just (f@Function{}) -> funStatic f
-          Just _              -> False
+      return $ maybe False (^. theDefLens . funStatic) $ HM.lookup q defs

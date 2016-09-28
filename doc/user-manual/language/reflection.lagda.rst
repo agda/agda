@@ -4,8 +4,6 @@
 
   open import language.built-ins
 
-  data ⊥ : Set where
-
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
 
@@ -300,6 +298,10 @@ following primitive operations::
     -- metavariable is solved.
     blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
+    -- Prevent current solutions of metavariables from being rolled back in
+    -- case 'blockOnMeta' is called.
+    commitTC : TC ⊤
+
     -- Backtrack and try the second argument if the first argument throws a
     -- type error.
     catchTC : ∀ {a} {A : Set a} → TC A → TC A → TC A
@@ -350,6 +352,9 @@ following primitive operations::
     -- Get the definition of a defined name. Replaces 'primNameDefinition'.
     getDefinition : Name → TC Definition
 
+    -- Check if a name refers to a macro
+    isMacro : Name → TC Bool
+
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
@@ -367,6 +372,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
   {-# BUILTIN AGDATCMGETTYPE            getType            #-}
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
+  {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
+  {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
 
 Metaprogramming
 ---------------
@@ -397,8 +404,8 @@ For example, the macro application ``f u v w`` where
 
   unquote (f (quoteTerm u) (quote v) w)
 
-where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns its
-representation in the ``Term`` data type, and ``unquote m`` runs a computation
+where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns the
+representation of its normal form in the ``Term`` data type, and ``unquote m`` runs a computation
 in the ``TC`` monad. Specifically, when checking ``unquote m : A`` for some
 type ``A`` the type checker proceeds as follows:
 
@@ -408,9 +415,18 @@ type ``A`` the type checker proceeds as follows:
   - Execute ``m qhole``.
   - Return (the now hopefully instantiated) ``hole``.
 
+Reflected macro calls are constructed using the ``def`` constructor, so given a
+macro ``g : Term → TC ⊤`` the term ``def (quote g) []`` unquotes to a macro
+call to ``g``.
+
 .. note::
    The ``quoteTerm`` and ``unquote`` primitives are available in the language,
    but it is recommended to avoid using them in favour of macros.
+
+.. note::
+   Since ``quoteTerm`` normalises the term before quoting some type information
+   may get lost. More specifically data constructor and projection parameters,
+   which are not stored by normalised terms.
 
 Limitations:
 
@@ -496,4 +512,3 @@ In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
 One advantage of ``unquoteDef`` over ``unquoteDecl`` is that
 ``unquoteDef`` is allowed in mutual blocks, allowing mutually
 recursion between generated definitions and hand-written definitions.
-

@@ -52,7 +52,6 @@
 (agda2-info-action "*Type-checking*" " Finished Common.Equality. " t)
 (agda2-info-action "*Type-checking*" " Checking Common.Product (Product.agda). " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Product. " t)
-(agda2-info-action "*Type-checking*" "Finished Issue635c. " t)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0)))

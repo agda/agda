@@ -38,8 +38,8 @@ collectNamesInElims = concatMap collectNamesInElim
 
 collectNamesInElim :: Elim -> [A.QName]
 collectNamesInElim (Apply a) = collectNamesInTerm $ Com.unArg a
+collectNamesInElim (Proj _ n)= [n]
 collectNamesInElim (IApply x y a) = concatMap collectNamesInTerm [x,y,a]
-collectNamesInElim (Proj n)  = [n]
 
 collectNamesInArgs :: Args -> [A.QName]
 collectNamesInArgs = concatMap (collectNamesInTerm . Com.unArg)

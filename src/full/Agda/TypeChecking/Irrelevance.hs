@@ -45,17 +45,13 @@ workOnTypes cont = do
   allowed <- optExperimentalIrrelevance <$> pragmaOptions
   verboseBracket "tc.irr" 20 "workOnTypes" $ workOnTypes' allowed cont
 
--- | Call me if --experimental-irrelevance is set.
-doWorkOnTypes :: TCM a -> TCM a
-doWorkOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes' True
-
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' allowed cont =
-  if allowed then
-    liftTCM $ modifyContext (modifyContextEntries $ mapRelevance $ irrToNonStrict) cont
-   else cont
+workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance f) cont
+  where
+    f | experimental = irrToNonStrict
+      | otherwise    = nonStrictToRel
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

@@ -67,6 +67,7 @@ primitive
   primFloatPlus      : Float -> Float -> Float
   primFloatMinus     : Float -> Float -> Float
   primFloatTimes     : Float -> Float -> Float
+  primFloatNegate    : Float -> Float
   primFloatDiv       : Float -> Float -> Float
   primFloatLess      : Float -> Float -> Bool
   primFloatSqrt      : Float -> Float
@@ -76,6 +77,12 @@ primitive
   primExp            : Float -> Float
   primLog            : Float -> Float
   primSin            : Float -> Float
+  primCos            : Float -> Float
+  primTan            : Float -> Float
+  primASin           : Float -> Float
+  primACos           : Float -> Float
+  primATan           : Float -> Float
+  primATan2          : Float -> Float -> Float
   primShowFloat      : Float -> String
 
     -- Character functions
@@ -124,10 +131,10 @@ sin : Float -> Float
 sin = primSin
 
 cos : Float -> Float
-cos x = sin (primFloatMinus (pi / 2.0) x)
+cos = primCos
 
 tan : Float -> Float
-tan x = sin x / cos x
+tan = primTan
 
 reverse : {A : Set} -> List A -> List A
 reverse xs = rev xs nil

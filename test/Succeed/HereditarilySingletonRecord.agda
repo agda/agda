@@ -1,4 +1,6 @@
 -- Modified: Andreas, 2011-04-11 freezing Metas
+-- Modified: Andreas, 2016-09-20 explicit eta-equality declaration
+
 module HereditarilySingletonRecord where
 
 data _≡_ {A : Set} (x : A) : A → Set where
@@ -37,6 +39,11 @@ mutual -- needed to avoid freezing
   one = _
 
   record HereditarilySingleton₂ : Set where
+    -- Andreas, 2016-09-20, after fixing issue #2197:
+    -- Since we are in a mutual block, eta-equality is not switched on
+    -- automatically while checking the mutual block (only after that).
+    -- Thus, we turn it on manually.
+    eta-equality
     field
       singleton : Unit one
 

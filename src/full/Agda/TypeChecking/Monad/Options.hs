@@ -16,12 +16,13 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Internal
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
-import Agda.Interaction.FindFile
+import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
@@ -82,7 +83,7 @@ setCommandLineOptions' relativeTo opts = do
           getIncludeDirs
         incs -> return incs
       modify $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
-             . Lens.setPragmaOptions (optPragmaOptions opts)
+      setPragmaOptions (optPragmaOptions opts)
       updateBenchmarkingStatus
 
 libToTCM :: LibM a -> TCM a
@@ -105,6 +106,7 @@ setLibraryIncludes o = do
 addDefaultLibraries :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
 addDefaultLibraries rel o
   | or [ not $ null $ optLibraries o
+       , not $ optUseLibs o
        , optShowVersion o ] = pure o
   | otherwise = do
   root <- getProjectRoot rel
@@ -133,41 +135,6 @@ setOptionsFromPragma ps = do
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
 
--- | Disable display forms.
-enableDisplayForms :: TCM a -> TCM a
-enableDisplayForms =
-  local $ \e -> e { envDisplayFormsEnabled = True }
-
--- | Disable display forms.
-disableDisplayForms :: TCM a -> TCM a
-disableDisplayForms =
-  local $ \e -> e { envDisplayFormsEnabled = False }
-
--- | Check if display forms are enabled.
-displayFormsEnabled :: TCM Bool
-displayFormsEnabled = asks envDisplayFormsEnabled
-
--- | Don't eta contract implicit
-dontEtaContractImplicit :: TCM a -> TCM a
-dontEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = False }
-
--- | Do eta contract implicit
-{-# SPECIALIZE doEtaContractImplicit :: TCM a -> TCM a #-}
-doEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
-doEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = True }
-
-{-# SPECIALIZE shouldEtaContractImplicit :: TCM Bool #-}
-shouldEtaContractImplicit :: MonadReader TCEnv m => m Bool
-shouldEtaContractImplicit = asks envEtaContractImplicit
-
--- | Don't reify interaction points
-dontReifyInteractionPoints :: TCM a -> TCM a
-dontReifyInteractionPoints =
-  local $ \e -> e { envReifyInteractionPoints = False }
-
-shouldReifyInteractionPoints :: TCM Bool
-shouldReifyInteractionPoints = asks envReifyInteractionPoints
-
 -- | Gets the include directories.
 --
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
@@ -193,7 +160,7 @@ data RelativeTo
 getProjectRoot :: RelativeTo -> TCM AbsolutePath
 getProjectRoot CurrentDir = liftIO (absolute =<< getCurrentDirectory)
 getProjectRoot (ProjectRoot f) = do
-  m <- moduleName' f
+  Ranged _ m <- moduleName' f
   return (projectRoot f m)
 
 -- | Makes the given directories absolute and stores them as include
@@ -212,11 +179,6 @@ setIncludeDirs incs relativeTo = do
   oldIncs <- gets Lens.getAbsoluteIncludePaths
 
   root <- getProjectRoot relativeTo
-  check <- case relativeTo of
-    CurrentDir -> return (return ())
-    ProjectRoot f -> do
-      m <- moduleName' f
-      return (checkModuleName m f)
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
@@ -245,7 +207,24 @@ setIncludeDirs incs relativeTo = do
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs
-  check
+
+  -- Andreas, 2016-07-11 (reconstructing semantics):
+  --
+  -- Check that the module name of the project root
+  -- is still correct wrt. to the changed include path.
+  --
+  -- E.g. if the include path was "/" and file "/A/B" was named "module A.B",
+  -- and then the include path changes to "/A/", the module name
+  -- becomes invalid; correct would then be "module B".
+
+  case relativeTo of
+    CurrentDir -> return ()
+    ProjectRoot f -> void $ moduleName f
+     -- Andreas, 2016-07-12 WAS:
+     -- do
+     --  Ranged _ m <- moduleName' f
+     --  checkModuleName m f Nothing
+
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =

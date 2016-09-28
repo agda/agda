@@ -126,7 +126,6 @@ isInstantiatedMeta i = do
   mv <- lookupMeta i
   return $ case mvInstantiation mv of
     InstV{} -> True
-    InstS{} -> True
     _       -> False
 
 -- | Run a computation if a certain verbosity level is activated.

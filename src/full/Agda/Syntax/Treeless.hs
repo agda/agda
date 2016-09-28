@@ -11,7 +11,7 @@ module Agda.Syntax.Treeless
     , module Agda.Syntax.Treeless
     ) where
 
-import Prelude
+import Control.Arrow (first, second)
 
 import Data.Map (Map)
 import Data.Typeable (Typeable)
@@ -57,8 +57,33 @@ data TTerm = TVar Int
 
 -- | Compiler-related primitives. This are NOT the same thing as primitives
 -- in Agda's surface or internal syntax!
-data TPrim = PAdd | PSub | PMul | PQuot | PRem | PGeq | PLt | PEq | PIf | PSeq
+-- Some of the primitives have a suffix indicating which type of arguments they take,
+-- using the following naming convention:
+-- Char | Type
+-- C    | Character
+-- F    | Float
+-- I    | Integer
+-- Q    | QName
+-- S    | String
+data TPrim
+  = PAdd
+  | PSub
+  | PMul
+  | PQuot
+  | PRem
+  | PGeq
+  | PLt
+  | PEqI
+  | PEqF
+  | PEqS
+  | PEqC
+  | PEqQ
+  | PIf
+  | PSeq
   deriving (Typeable, Show, Eq, Ord)
+
+isPrimEq :: TPrim -> Bool
+isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ]
 
 mkTApp :: TTerm -> Args -> TTerm
 mkTApp x           [] = x
@@ -71,6 +96,18 @@ tAppView = view
     view t = case t of
       TApp a bs -> view a ++ bs
       _         -> [t]
+
+tLetView :: TTerm -> ([TTerm], TTerm)
+tLetView (TLet e b) = first (e :) $ tLetView b
+tLetView e          = ([], e)
+
+tLamView :: TTerm -> (Int, TTerm)
+tLamView = go 0
+  where go n (TLam b) = go (n + 1) b
+        go n t        = (n, t)
+
+mkTLam :: Int -> TTerm -> TTerm
+mkTLam n b = foldr ($) b $ replicate n TLam
 
 -- | Introduces a new binding
 mkLet :: TTerm -> TTerm -> TTerm
@@ -94,6 +131,7 @@ tNegPlusK k n = tOp PSub (tInt (-k)) n
 
 plusKView :: TTerm -> Maybe (Integer, TTerm)
 plusKView (TApp (TPrim PAdd) [k, n]) | Just k <- intView k = Just (k, n)
+plusKView (TApp (TPrim PSub) [n, k]) | Just k <- intView k = Just (-k, n)
 plusKView _ = Nothing
 
 negPlusKView :: TTerm -> Maybe (Integer, TTerm)
@@ -106,10 +144,16 @@ tOp op a b = TApp (TPrim op) [a, b]
 tUnreachable :: TTerm
 tUnreachable = TError TUnreachable
 
+tIfThenElse :: TTerm -> TTerm -> TTerm -> TTerm
+tIfThenElse c i e = TApp (TPrim PIf) [c, i, e]
+
 data CaseType
   = CTData QName -- case on datatype
+  | CTNat
+  | CTInt
   | CTChar
   | CTString
+  | CTFloat
   | CTQName
   deriving (Typeable, Show, Eq, Ord)
 

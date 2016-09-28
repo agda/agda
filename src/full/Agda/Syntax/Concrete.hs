@@ -343,7 +343,10 @@ data Declaration
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]
   | Abstract    Range [Declaration]
-  | Private     Range [Declaration]
+  | Private     Range Origin [Declaration]
+    -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
+    --   temporarily, which should be treated different that user-declared
+    --   private blocks.  Thus the 'Origin'.
   | InstanceB   Range [Declaration]
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
@@ -383,7 +386,6 @@ data Pragma
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
   | HaskellCodePragma         Range String
-  | NoSmashingPragma          Range QName
   | StaticPragma              Range QName
   | InlinePragma              Range QName
   | ImportPragma              Range String
@@ -425,7 +427,7 @@ spanAllowedBeforeModule :: [Declaration] -> ([Declaration], [Declaration])
 spanAllowedBeforeModule = span isAllowedBeforeModule
   where
     isAllowedBeforeModule (Pragma OptionsPragma{}) = True
-    isAllowedBeforeModule (Private _ ds) = all isAllowedBeforeModule ds
+    isAllowedBeforeModule (Private _ _ ds) = all isAllowedBeforeModule ds
     isAllowedBeforeModule Import{}       = True
     isAllowedBeforeModule ModuleMacro{}  = True
     isAllowedBeforeModule Open{}         = True
@@ -615,7 +617,7 @@ instance HasRange Declaration where
   getRange (Import r _ _ _ _)      = r
   getRange (InstanceB r _)         = r
   getRange (Macro r _)             = r
-  getRange (Private r _)           = r
+  getRange (Private r _ _)         = r
   getRange (Postulate r _)         = r
   getRange (Primitive r _)         = r
   getRange (Module r _ _ _)        = r
@@ -652,7 +654,6 @@ instance HasRange Pragma where
   getRange (CompiledUHCPragma r _ _)         = r
   getRange (CompiledDataUHCPragma r _ _ _)   = r
   getRange (HaskellCodePragma r _)           = r
-  getRange (NoSmashingPragma r _)            = r
   getRange (StaticPragma r _)                = r
   getRange (InlinePragma r _)                = r
   getRange (ImportPragma r _)                = r
@@ -733,7 +734,7 @@ instance KillRange Declaration where
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
-  killRange (Private _ d)           = killRange1 (Private noRange) d
+  killRange (Private _ o d)         = killRange2 (Private noRange) o d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
   killRange (Macro _ d)             = killRange1 (Macro noRange) d
   killRange (Postulate _ t)         = killRange1 (Postulate noRange) t
@@ -829,7 +830,6 @@ instance KillRange Pragma where
   killRange (CompiledUHCPragma _ q s)         = killRange1 (\q -> CompiledUHCPragma noRange q s) q
   killRange (CompiledDataUHCPragma _ q s ss)  = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
   killRange (HaskellCodePragma _ s)           = HaskellCodePragma noRange s
-  killRange (NoSmashingPragma _ q)            = killRange1 (NoSmashingPragma noRange) q
   killRange (StaticPragma _ q)                = killRange1 (StaticPragma noRange) q
   killRange (InlinePragma _ q)                = killRange1 (InlinePragma noRange) q
   killRange (ImportPragma _ s)                = ImportPragma noRange s
@@ -932,7 +932,7 @@ instance NFData Declaration where
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
   rnf (Mutual _ a)            = rnf a
   rnf (Abstract _ a)          = rnf a
-  rnf (Private _ a)           = rnf a
+  rnf (Private _ _ a)         = rnf a
   rnf (InstanceB _ a)         = rnf a
   rnf (Macro _ a)             = rnf a
   rnf (Postulate _ a)         = rnf a
@@ -961,7 +961,6 @@ instance NFData Pragma where
   rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
   rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (HaskellCodePragma _ s)           = rnf s
-  rnf (NoSmashingPragma _ a)            = rnf a
   rnf (StaticPragma _ a)                = rnf a
   rnf (InlinePragma _ a)                = rnf a
   rnf (ImportPragma _ a)                = rnf a

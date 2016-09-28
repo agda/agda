@@ -22,7 +22,6 @@ import Agda.Syntax.Position
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Free
 
 import Agda.Utils.Functor
@@ -62,22 +61,6 @@ getOutputTypeName t = do
       Pi{}     -> __IMPOSSIBLE__
       Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
-
--- | The permutation should permute the corresponding context. (right-to-left list)
-renameP :: Subst t a => Permutation -> a -> a
-renameP p = applySubst (renaming p)
-
--- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming π) : Term Γ -> Term Δ@
-renaming :: forall a. DeBruijn a => Permutation -> Substitution' a
-renaming p = prependS __IMPOSSIBLE__ gamma $ raiseS $ size p
-  where
-    gamma :: [Maybe a]
-    gamma = inversePermute p (debruijnVar :: Int -> a)
-    -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
-
--- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
-renamingR :: DeBruijn a => Permutation -> Substitution' a
-renamingR p@(Perm n _) = permute (reverseP p) (map debruijnVar [0..]) ++# raiseS n
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Dom Type]
@@ -131,13 +114,25 @@ teleNamedArgs tel =
   | (i, Dom {domInfo = info, unDom = (name,_)}) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
+-- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)
+--   from the first telescope and the variable names from the second telescope.
+--
+--   Precondition: the two telescopes have the same length.
+tele2NamedArgs :: (DeBruijn a) => Telescope -> Telescope -> [NamedArg a]
+tele2NamedArgs tel0 tel =
+  [ Arg info (Named (Just $ Ranged noRange $ argNameToString argName) (debruijnNamedVar varName i))
+  | (i, Dom{domInfo = info, unDom = (argName,_)}, Dom{unDom = (varName,_)}) <- zip3 (downFrom $ size l) l0 l ]
+  where
+  l  = telToList tel
+  l0 = telToList tel0
+
 -- | Permute telescope: permutes or drops the types in the telescope according
 --   to the given permutation. Assumes that the permutation preserves the
 --   dependencies in the telescope.
 permuteTel :: Permutation -> Telescope -> Telescope
 permuteTel perm tel =
   let names = permute perm $ teleNames tel
-      types = permute perm $ renameP perm $ flattenTel tel
+      types = permute perm $ renameP __IMPOSSIBLE__ perm $ flattenTel tel
   in  unflattenTel names types
 
 -- | Recursively computes dependencies of a set of variables in a given
@@ -186,7 +181,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 
-    ts1   = renameP (reverseP perm) (permute perm ts0)
+    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -220,7 +215,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ is ++ isC
 
-    ts1   = renameP (reverseP perm) (permute perm ts0)
+    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -270,8 +265,8 @@ instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels
 
-    u'    = renameP perm u -- Γ' ⊢ u' : A'
-    us    = map (\i -> fromMaybe (DotP u') (debruijnVar <$> findIndex (i ==) is)) [ 0 .. n-1 ]
+    u1    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u1 : A'
+    us    = map (\i -> fromMaybe (DotP u1) (debruijnVar <$> findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0

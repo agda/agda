@@ -93,7 +93,7 @@ initialIFSCandidates t = do
           args <- freeVarsToApply q
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> projDropParsApply p args
+               Function{ funProjection = Just p } -> projDropParsApply p ProjSystem args
                -- Andreas, 2014-08-19: constructors cannot be declared as
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
@@ -163,7 +163,9 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
       -- constrained, then don’t do anything because it may loop.
-      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
+      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> do
+        reportSLn "tc.instance" 15 "aborting due to non-rigidly constrained metas"
+        return (Just (cands, Just m))) $ do
 
         mcands <- checkCandidates m t cands
         debugConstraints
@@ -266,7 +268,9 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     Def n args -> do
       TelV tel _ <- telView . defType =<< getConstInfo n
       let varOccs EmptyTel           = []
-          varOccs (ExtendTel _ btel) = occurrence 0 tel : varOccs tel
+          varOccs (ExtendTel a btel)
+            | getRelevance a == Irrelevant = WeaklyRigid : varOccs tel  -- #2171: ignore irrelevant arguments
+            | otherwise                    = occurrence 0 tel : varOccs tel
             where tel = unAbs btel
           rigid StronglyRigid = True
           rigid Unguarded     = True
@@ -289,8 +293,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
   where
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
     areThereNonRigidMetaArgs []             = return Nothing
-    areThereNonRigidMetaArgs (Proj _ : xs)  = areThereNonRigidMetaArgs xs
-
+    areThereNonRigidMetaArgs (Proj{}  : xs) = areThereNonRigidMetaArgs xs
     areThereNonRigidMetaArgs (Apply x : xs) = do
       ifJustM (isNonRigidMeta $ unArg x) (return . Just) (areThereNonRigidMetaArgs xs)
     areThereNonRigidMetaArgs (IApply x y v : xs) = areThereNonRigidMetaArgs $ map (Apply . defaultArg) [x, y, v] ++ xs -- TODO Andrea HACK
@@ -489,6 +492,6 @@ applyDroppingParameters t vs = do
         Just Projection{projIndex = n} -> do
           case drop n vs of
             []     -> return t
-            u : us -> (`apply` us) <$> applyDef f u
+            u : us -> (`apply` us) <$> applyDef ProjPrefix f u
         _ -> fallback
     _ -> fallback

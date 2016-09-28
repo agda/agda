@@ -145,6 +145,7 @@ lookupQName ambCon x = do
     [] -> do
       let y = qnameToConcrete x
       if isUnderscore y
+        -- -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
         then return y
         else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)
@@ -223,18 +224,23 @@ withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 
 -- Dealing with private definitions ---------------------------------------
 
+-- | Add @abstract@, @private@, @instance@ modifiers.
 withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withAbstractPrivate i m =
-    case (defAccess i, defAbstract i) of
-        (PublicAccess, ConcreteDef) -> m
-        (p,a)                       ->
-            do  ds <- m
-                return $ abst a $ priv p $ ds
+    priv (defAccess i)
+      . abst (defAbstract i)
+      . addInstanceB (defInstance i == InstanceDef)
+      <$> m
     where
-        priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
-        priv _ ds             = ds
-        abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
-        abst _ ds             = ds
+        priv (PrivateAccess UserWritten)
+                         ds = [ C.Private  (getRange ds) UserWritten ds ]
+        priv _           ds = ds
+        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
+        abst ConcreteDef ds = ds
+
+addInstanceB :: Bool -> [C.Declaration] -> [C.Declaration]
+addInstanceB True  ds = [ C.InstanceB (getRange ds) ds ]
+addInstanceB False ds = ds
 
 -- The To Concrete Class --------------------------------------------------
 
@@ -347,8 +353,10 @@ instance ToConcrete A.ModuleName C.QName where
 instance ToConcrete A.Expr C.Expr where
     toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
     toConcrete (Def x)            = Ident <$> toConcrete x
-    toConcrete (Proj (AmbQ (x:_)))= Ident <$> toConcrete x
-    toConcrete (Proj (AmbQ []))   = __IMPOSSIBLE__
+    toConcrete (Proj ProjPrefix (AmbQ (x:_))) = Ident <$> toConcrete x
+    toConcrete (Proj _          (AmbQ (x:_))) =
+      C.Dot (getRange x) . Ident <$> toConcrete x
+    toConcrete Proj{}             = __IMPOSSIBLE__
     toConcrete (A.Macro x)        = Ident <$> toConcrete x
     toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
     toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
@@ -370,6 +378,9 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
         prettyShow . NamedMeta (metaNameSuggestion i) . MetaId . metaId <$> metaNumber i
+
+    toConcrete (A.Dot i e) =
+      C.Dot (getRange i) <$> toConcrete e
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e
@@ -453,7 +464,7 @@ instance ToConcrete A.Expr C.Expr where
                            Irrelevant -> addDot a e
                            NonStrict  -> addDot a (addDot a e)
                            _          -> e
-            addDot a e = Dot (getRange a) e
+            addDot a e = C.Dot (getRange a) e
             mkArg (Arg info e) = case getHiding info of
                                           Hidden    -> HiddenArg   (getRange e) (unnamed e)
                                           Instance  -> InstanceArg (getRange e) (unnamed e)
@@ -558,8 +569,9 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =
         bindToConcrete x $ \x ->
-        do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e)
-           ret [ C.TypeSig info x t
+        do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
+           ret $ addInstanceB (getHiding info == Instance) $
+               [ C.TypeSig info x t
                , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                              e C.NoWhere False
                ]
@@ -568,7 +580,7 @@ instance ToConcrete LetBinding [C.Declaration] where
         p <- toConcrete p
         e <- toConcrete e
         ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere False ]
-    bindToConcrete (LetApply i x modapp _ _ _) ret = do
+    bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
@@ -626,7 +638,8 @@ declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
 instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
-    toConcrete (A.RHS e) = do
+    toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
+    toConcrete (A.RHS e Nothing) = do
       e <- toConcrete e
       return (C.RHS e, [], [], [])
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
@@ -750,7 +763,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       ds <- declsToConcrete ds
       return [ C.Module (getRange i) x (concat tel) ds ]
 
-  toConcrete (A.Apply i x modapp _ _ _) = do
+  toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp
@@ -825,7 +838,6 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.CompiledDataUHCPragma x crd crcs -> do
       x <- toConcrete x
       return $ C.CompiledDataUHCPragma r x crd crcs
-    A.NoSmashingPragma x -> C.NoSmashingPragma r <$> toConcrete x
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InlinePragma x -> C.InlinePragma r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
@@ -860,13 +872,14 @@ instance ToConcrete A.Pattern C.Pattern where
         return $ C.WildP (getRange i)
 
       A.ConP i (AmbQ []) args        -> __IMPOSSIBLE__
-      p@(A.ConP i xs@(AmbQ (x:_)) args) -> tryOp x (A.ConP i xs) args
+      A.ConP i xs@(AmbQ (x:_)) args  -> tryOp x (A.ConP i xs) args
 
-      A.ProjP i (AmbQ []) -> __IMPOSSIBLE__
-      p@(A.ProjP i xs@(AmbQ (x:_))) -> C.IdentP <$> toConcrete x
+      A.ProjP _ _ (AmbQ []) -> __IMPOSSIBLE__
+      A.ProjP i ProjPrefix xs@(AmbQ (x:_)) -> C.IdentP <$> toConcrete x
+      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) . C.Ident <$> toConcrete x
 
-      p@(A.DefP i (AmbQ []) _) -> __IMPOSSIBLE__
-      p@(A.DefP i xs@(AmbQ (x:_)) args) -> tryOp x (A.DefP i xs)  args
+      A.DefP i (AmbQ []) _ -> __IMPOSSIBLE__
+      A.DefP i xs@(AmbQ (x:_)) args -> tryOp x (A.DefP i xs)  args
 
       A.AsP i x p -> do
         (x, p) <- toConcreteCtx ArgumentCtx (x,p)
@@ -895,6 +908,7 @@ instance ToConcrete A.Pattern C.Pattern where
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
     where
+    tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern
     tryOp x f args = do
       -- Andreas, 2016-02-04, Issue #1792
       -- To prevent failing of tryToRecoverOpAppP for overapplied operators,
@@ -939,9 +953,10 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ opApp view
 
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
-      ProjP _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
       DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, ps)
-      _                      -> Nothing
+      _ -> __IMPOSSIBLE__
+      -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
+      -- _                      -> Nothing
 
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c)

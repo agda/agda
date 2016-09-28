@@ -38,8 +38,9 @@ tested-with:        GHC == 7.6.3
                     GHC == 8.0.1
 extra-source-files: src/full/undefined.h
                     README.md
-                    CHANGELOG
-                    stack.yaml
+                    CHANGELOG.md
+                    stack-7.8.4.yaml
+                    stack-8.0.1.yaml
 data-dir:           src/data
 data-files:         Agda.css
                     emacs-mode/*.el
@@ -71,6 +72,8 @@ data-files:         Agda.css
                     uhc-agda-base/uhc-agda-base.cabal
                     uhc-agda-base/src/UHC/Agda/*.hs
                     MAlonzo/src/MAlonzo/*.hs
+                    JS/agda-rts.js
+                    JS/biginteger.js
 
 source-repository head
   type:     git
@@ -98,7 +101,9 @@ library
   include-dirs:     src/full
 
   if flag(cpphs)
-    build-tools: cpphs >= 1.19
+    -- We don't write an upper bound because the `build-tools` field
+    -- can not be modified in Hackage.
+    build-tools: cpphs >= 1.20.2
     ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(uhc)
@@ -143,6 +148,7 @@ library
                 , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.1.3 && < 0.8
                 , haskell-src-exts >= 1.17 && < 1.18
+                , ieee754 >= 0.7.8 && < 0.8
                 , monadplus >= 1.4 && < 1.5
                 -- mtl-2.1 contains a severe bug.
                 --
@@ -212,11 +218,9 @@ library
                     Agda.Compiler.Epic.Smashing
                     Agda.Compiler.Epic.Static
                     Agda.Compiler.HaskellTypes
-                    Agda.Compiler.JS.Case
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax
                     Agda.Compiler.JS.Substitution
-                    Agda.Compiler.JS.Parser
                     Agda.Compiler.JS.Pretty
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
@@ -227,8 +231,10 @@ library
                     Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin
                     Agda.Compiler.Treeless.Compare
+                    Agda.Compiler.Treeless.EliminateLiteralPatterns
                     Agda.Compiler.Treeless.Erase
                     Agda.Compiler.Treeless.GuardsToPrims
+                    Agda.Compiler.Treeless.Identity
                     Agda.Compiler.Treeless.NormalizeNames
                     Agda.Compiler.Treeless.Pretty
                     Agda.Compiler.Treeless.Simplify
@@ -243,7 +249,6 @@ library
                     Agda.Compiler.UHC.Pragmas.Base
                     Agda.Compiler.UHC.Pragmas.Parse
                     Agda.Compiler.UHC.Primitives
-                    Agda.Compiler.UHC.Smashing
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
                     Agda.Interaction.SearchAbout
@@ -394,6 +399,7 @@ library
                     Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
                     Agda.TypeChecking.Reduce
+                    Agda.TypeChecking.Reduce.Fast
                     Agda.TypeChecking.Reduce.Monad
                     Agda.TypeChecking.Rewriting
                     Agda.TypeChecking.Rewriting.NonLinMatch
@@ -427,7 +433,6 @@ library
                     Agda.TypeChecking.SizedTypes.Utils
                     Agda.TypeChecking.SizedTypes.WarshallSolver
                     Agda.TypeChecking.Substitute
-                    Agda.TypeChecking.Substitute.Pattern
                     Agda.TypeChecking.SyntacticEquality
                     Agda.TypeChecking.Telescope
                     Agda.TypeChecking.Unquote
@@ -486,10 +491,17 @@ library
 
   other-modules:    Paths_Agda
 
+  -- Initially, we disable all the warnings.
+  ghc-options: -w
+               -Werror
+
+  -- This option must be the first one after disabling the warnings. See
+  -- Issue #2094.
+  if impl(ghc >= 8.0)
+    ghc-options: -Wunrecognised-warning-flags
+
   if impl(ghc >= 7.6.3)
-    ghc-options: -w
-                 -Werror
-                 -fwarn-deprecated-flags
+    ghc-options: -fwarn-deprecated-flags
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
@@ -538,7 +550,6 @@ library
     ghc-options: -Wmissing-pattern-synonym-signatures
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
-                 -Wunrecognised-warning-flags
                  -Wsemigroup
                  -Wunused-foralls
 
@@ -600,7 +611,7 @@ executable agda-ghc-names
                 , containers >= 0.5.0.0 && < 0.6
                 , filemanip >= 0.3.6.3 && < 0.4
                 , filepath >= 1.3.0.1 && < 1.5
-                , haskell-src-exts >= 1.16.0.1 && < 1.18
+                , haskell-src-exts >= 1.17 && < 1.18
                 , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
 
   ghc-options:  -rtsopts
@@ -643,6 +654,10 @@ test-suite agda-tests
                 , tasty-silver >= 3.1.8 && < 3.2
                 , temporary >= 1.2.0.3 && < 1.3
                 , text >= 0.11.3.1 && < 1.3
+  if impl(ghc < 7.8)
+    -- provide System.Environment.setEnv for pre-GHC7.6
+    build-depends:  setenv >= 0.1.1.3 && < 0.2
+
 
   -- we use the CPP processor to conditionally enable the UHC specific compiler tests.
   if flag(uhc)
@@ -719,7 +734,7 @@ test-suite internal-tests
                 --
                 -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
                 , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
-                , QuickCheck >= 2.8.2 && < 2.9
+                , QuickCheck >= 2.8.2 && < 2.10
                 -- transformers 0.4.0.0 was deprecated.
                 , text >= 0.11.3.1 && < 1.3
                 , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
@@ -746,10 +761,17 @@ test-suite internal-tests
                      , TupleSections
                      , TypeSynonymInstances
 
+  -- Initially, we disable all the warnings.
+  ghc-options: -w
+               -Werror
+
+  -- This option must be the first one after disabling the warnings. See
+  -- Issue #2094.
+  if impl(ghc >= 8.0)
+    ghc-options: -Wunrecognised-warning-flags
+
   if impl(ghc >= 7.6.3)
-    ghc-options: -w
-                 -Werror
-                 -fwarn-deprecated-flags
+    ghc-options: -fwarn-deprecated-flags
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
@@ -798,6 +820,5 @@ test-suite internal-tests
     ghc-options: -Wmissing-pattern-synonym-signatures
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
-                 -Wunrecognised-warning-flags
                  -Wsemigroup
                  -Wunused-foralls

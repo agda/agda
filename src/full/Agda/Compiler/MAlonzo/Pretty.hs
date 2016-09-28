@@ -198,6 +198,7 @@ instance Pretty HS.Exp where
       HS.ExpTypeSig _ e t -> mparens (pr > 0) $
         sep [ pretty e <+> text "::"
             , nest 2 $ pretty t ]
+      HS.NegApp exp -> parens $ text "-" <> pretty exp
       _ -> __IMPOSSIBLE__
 
 instance Pretty HS.Alt where

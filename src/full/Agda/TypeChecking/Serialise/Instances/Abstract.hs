@@ -46,12 +46,14 @@ instance EmbPrj NameSpaceId where
     valu _   = malformed
 
 instance EmbPrj Access where
-  icod_ PrivateAccess = icode0 0
+  icod_ (PrivateAccess UserWritten) = icode0 0
+  icod_ PrivateAccess{} = icode0 1
   icod_ PublicAccess  = icode0'
   icod_ OnlyQualified = icode0 2
 
   value = vcase valu where
-    valu [0] = valu0 PrivateAccess
+    valu [0] = valu0 $ PrivateAccess UserWritten
+    valu [1] = valu0 $ PrivateAccess Inserted
     valu []  = valu0 PublicAccess
     valu [2] = valu0 OnlyQualified
     valu _   = malformed
@@ -128,7 +130,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.DotP _ a)          = icode1 5 a
   icod_ (A.AbsurdP _)         = icode0 6
   icod_ (A.LitP a)            = icode1 7 a
-  icod_ (A.ProjP _ a)         = icode1 8 a
+  icod_ (A.ProjP _ a b)       = icode2 8 a b
   icod_ (A.PatternSynP _ a b) = icode2 9 a b
   icod_ (A.RecP _ a)          = icode1 10 a
 
@@ -141,7 +143,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [5, a]       = valu1 (A.DotP i) a
     valu [6]          = valu0 (A.AbsurdP i)
     valu [7, a]       = valu1 (A.LitP) a
-    valu [8, a]       = valu1 (A.ProjP i) a
+    valu [8, a, b]    = valu2 (A.ProjP i) a b
     valu [9, a, b]    = valu2 (A.PatternSynP i) a b
     valu [10, a]      = valu1 (A.RecP i) a
     valu _            = malformed

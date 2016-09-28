@@ -61,15 +61,15 @@ instance EmbPrj a => EmbPrj (Drop a) where
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Elim' a) where
-  icod_ (Apply a) = icode1' a
-  icod_ (IApply x y a) = icode3' x y a
-  icod_ (Proj  a) = icode1 0 a
+  icod_ (Apply a)  = icode1' a
+  icod_ (IApply x y a) = icode3 0 x y a
+  icod_ (Proj a b) = icode2 0 a b
 
   value = vcase valu where
-    valu [a]    = valu1 Apply a
-    valu [x,y,a] = valu3 IApply x y a
-    valu [0, a] = valu1 Proj a
-    valu _      = malformed
+    valu [a]       = valu1 Apply a
+    valu [0,x,y,a] = valu3 IApply x y a
+    valu [0, a, b] = valu2 Proj a b
+    valu _         = malformed
 
 instance EmbPrj I.ConHead where
   icod_ (ConHead a b c) = icode3' a b c
@@ -224,7 +224,7 @@ instance EmbPrj NLPat where
   icod_ (PDef a b)      = icode2 2 a b
   icod_ (PLam a b)      = icode2 3 a b
   icod_ (PPi a b)       = icode2 4 a b
-  icod_ (PSet a)        = icode1 5 a
+  icod_ (PPlusLevel a b) = icode2 5 a b
   icod_ (PBoundVar a b) = icode2 6 a b
   icod_ (PTerm a)       = icode1 7 a
 
@@ -234,7 +234,7 @@ instance EmbPrj NLPat where
     valu [2, a, b]    = valu2 PDef a b
     valu [3, a, b]    = valu2 PLam a b
     valu [4, a, b]    = valu2 PPi a b
-    valu [5, a]       = valu1 PSet a
+    valu [5, a, b]    = valu2 PPlusLevel a b
     valu [6, a, b]    = valu2 PBoundVar a b
     valu [7, a]       = valu1 PTerm a
     valu _            = malformed
@@ -306,20 +306,31 @@ instance EmbPrj EtaEquality where
 
 instance EmbPrj Defn where
   icod_ Axiom                                       = icode0 0
-  icod_ (Function    a b _ c d e f g h i j k l m n) = icode14 1 a b c d e f g h i j k l m n
+  icod_ (Function    a b _ c d e f g h i j k m)     = icode12 1 a b c d e f g h i j k m
   icod_ (Datatype    a b c d e f g h i j)           = icode10 2 a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l)       = icode12 3 a b c d e f g h i j k l
-  icod_ (Constructor a b c d e f)                   = icode6 4 a b c d e f
+  icod_ (Constructor a b c d e f h)                 = icode7 4 a b c d e f h
   icod_ (Primitive   a b c d)                       = icode4 5 a b c d
 
   value = vcase valu where
     valu [0]                                           = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j, k, l, m, n] = valu14 (\ a b -> Function a b Nothing) a b c d e f g h i j k l m n
+    valu [1, a, b, c, d, e, f, g, h, i, j, k, m]       = valu12 (\ a b -> Function a b Nothing) a b c d e f g h i j k m
     valu [2, a, b, c, d, e, f, g, h, i, j]             = valu10 Datatype a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l]       = valu12 Record  a b c d e f g h i j k l
-    valu [4, a, b, c, d, e, f]                         = valu6 Constructor a b c d e f
+    valu [4, a, b, c, d, e, f, h]                      = valu7 Constructor a b c d e f h
     valu [5, a, b, c, d]                               = valu4 Primitive   a b c d
     valu _                                             = malformed
+
+instance EmbPrj FunctionFlag where
+  icod_ FunStatic       = icode0 0
+  icod_ FunInline       = icode0 1
+  icod_ FunMacro        = icode0 2
+
+  value = vcase valu where
+    valu [0] = valu0 FunStatic
+    valu [1] = valu0 FunInline
+    valu [2] = valu0 FunMacro
+    valu _   = malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icode2' a b
@@ -373,17 +384,6 @@ instance EmbPrj I.Clause where
     valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
     valu _                  = malformed
 
-instance EmbPrj a => EmbPrj (I.ClauseBodyF a) where
-  icod_ (Body   a) = icode1 0 a
-  icod_ (Bind   a) = icode1' a
-  icod_ NoBody     = icode0'
-
-  value = vcase valu where
-    valu [0, a] = valu1 Body   a
-    valu [a]    = valu1 Bind   a
-    valu []     = valu0 NoBody
-    valu _      = malformed
-
 instance EmbPrj I.ConPatternInfo where
   icod_ (ConPatternInfo a b) = icode2' a b
 
@@ -400,17 +400,17 @@ instance EmbPrj I.DBPatVar where
 
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a    ) = icode1' a
-  icod_ (ConP a b c) = icode3' a b c
+  icod_ (ConP a b c) = icode3 1 a b c
   icod_ (LitP a    ) = icode1 2 a
   icod_ (DotP a    ) = icode1 3 a
-  icod_ (ProjP a   ) = icode1 4 a
+  icod_ (ProjP a b ) = icode2 4 a b
 
   value = vcase valu where
     valu [a]       = valu1 VarP a
-    valu [a, b, c] = valu3 ConP a b c
+    valu [1, a, b, c] = valu3 ConP a b c
     valu [2, a]    = valu1 LitP a
     valu [3, a]    = valu1 DotP a
-    valu [4, a]    = valu1 ProjP a
+    valu [4, a, b] = valu2 ProjP a b
     valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where

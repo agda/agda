@@ -3,6 +3,8 @@
 
 -- Expected results see comments.
 
+-- {-# OPTIONS -v reify.clause:60 #-}
+
 _fun : (A : Set) → Set
 _fun = {!!}
 -- C-c C-c RET gives

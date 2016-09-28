@@ -6,3 +6,35 @@ Problematic calls:
     (at Issue1014.agda:22,28-29)
   bar A (proj₁ (h n An)) h (proj₂ (proj₂ (h n An)))
     (at Issue1014.agda:22,31-34)
+Issue1014.agda:29,3-33,82
+Termination checking failed for the following functions:
+  CorrectlyRejected.bar'
+Problematic calls:
+  .Issue1014.CorrectlyRejected._.♯-1
+    (at Issue1014.agda:33,61-62)
+  bar' A h n' An'
+    (at Issue1014.agda:33,64-68)
+Issue1014.agda:40,3-42,63
+Termination checking failed for the following functions:
+  CorrectlyRejected.bar
+Problematic calls:
+  .Issue1014.CorrectlyRejected._.♯-2
+    (at Issue1014.agda:42,47-48)
+  bar n' An'
+    (at Issue1014.agda:42,50-53)
+Issue1014.agda:47,3-51,81
+Termination checking failed for the following functions:
+  WasAccepted1.bar
+Problematic calls:
+  .Issue1014.WasAccepted1._.♯-3
+    (at Issue1014.agda:51,61-62)
+  bar A n' h An'
+    (at Issue1014.agda:51,64-67)
+Issue1014.agda:62,1-64,63
+Termination checking failed for the following functions:
+  bar
+Problematic calls:
+  .Issue1014._.♯-4
+    (at Issue1014.agda:64,45-46)
+  bar n' h An'
+    (at Issue1014.agda:64,48-51)

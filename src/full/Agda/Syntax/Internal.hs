@@ -21,6 +21,7 @@ import Prelude hiding (foldr, mapM, null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
+import Control.DeepSeq
 
 import Data.Foldable ( Foldable, foldMap )
 import Data.Function
@@ -39,7 +40,7 @@ import Data.Typeable (Typeable)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
-import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
@@ -135,8 +136,10 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 
 -- | Eliminations, subsuming applications and projections.
 --
-data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
-             | IApply a a a -- ^ IApply x y r, x and y are the endpoints
+data Elim' a
+  = Apply (Arg a)         -- ^ Application.
+  | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
+  | IApply a a a -- ^ IApply x y r, x and y are the endpoints
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
@@ -383,12 +386,12 @@ stuckOn e r =
 -- * Definitions
 ---------------------------------------------------------------------------
 
--- | A clause is a list of patterns and the clause body should @Bind@.
+-- | A clause is a list of patterns and the clause body.
 --
 --  The telescope contains the types of the pattern variables and the
 --  de Bruijn indices say how to get from the order the variables occur in
 --  the patterns to the order they occur in the telescope. The body
---  binds the variables in the order they appear in the patterns.
+--  binds the variables in the order they appear in the telescope.
 --
 --  @clauseTel ~ permute clausePerm (patternVars namedClausePats)@
 --
@@ -399,36 +402,24 @@ stuckOn e r =
 data Clause = Clause
     { clauseRange     :: Range
     , clauseTel       :: Telescope
-      -- ^ @Δ@: The types of the pattern variables.
+      -- ^ @Δ@: The types of the pattern variables in dependency order.
     , namedClausePats :: [NamedArg DeBruijnPattern]
-      -- ^ @let Γ = patternVars namedClausePats@
-    , clauseBody      :: ClauseBody
-      -- ^ @λΓ.v@
+      -- ^ @Δ ⊢ ps@.  The de Bruijn indices refer to @Δ@.
+    , clauseBody      :: Maybe Term
+      -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
+      --   absurd one.
     , clauseType      :: Maybe (Arg Type)
       -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
     , clauseCatchall  :: Bool
+      -- ^ Clause has been labelled as CATCHALL.
     }
   deriving (Typeable, Show)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
-
-data ClauseBodyF a = Body a
-                   | Bind (Abs (ClauseBodyF a))
-                   | NoBody    -- ^ for absurd clauses.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
-
-type ClauseBody = ClauseBodyF Term
-
-imapClauseBody :: (Nat -> a -> b) -> ClauseBodyF a -> ClauseBodyF b
-imapClauseBody f b = go 0 b
-  where
-    go i  (Body x)  = Body (f i x)
-    go _   NoBody   = NoBody
-    go !i (Bind b)  = Bind $ go (i + 1) <$> b
 
 instance HasRange Clause where
   getRange = clauseRange
@@ -458,7 +449,7 @@ data Pattern' x
     --   The subpatterns do not contain any projection copatterns.
   | LitP Literal
     -- ^ E.g. @5@, @"hello"@.
-  | ProjP QName
+  | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
@@ -526,8 +517,8 @@ properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record c
 properlyMatching ProjP{} = True
 
 instance IsProjP (Pattern' a) where
-  isProjP (ProjP d) = Just $ AmbQ [d]
-  isProjP _         = Nothing
+  isProjP (ProjP o d) = Just (o, AmbQ [d])
+  isProjP _ = Nothing
 
 -----------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -858,18 +849,23 @@ instance Suggest Name (Abs b) where
 
 -- | Convert top-level postfix projections into prefix projections.
 unSpine :: Term -> Term
-unSpine v =
+unSpine = unSpine' $ const True
+
+-- | Convert 'Proj' projection eliminations
+--   according to their 'ProjOrigin' into
+--   'Def' projection applications.
+unSpine' :: (ProjOrigin -> Bool) -> Term -> Term
+unSpine' p v =
   case hasElims v of
-    Just (h, es) -> unSpine' h [] es
+    Just (h, es) -> loop h [] es
     Nothing      -> v
   where
-    unSpine' :: (Elims -> Term) -> Elims -> Elims -> Term
-    unSpine' h res es =
+    loop :: (Elims -> Term) -> Elims -> Elims -> Term
+    loop h res es =
       case es of
-        []                -> v
-        e@(Apply a) : es' -> unSpine' h (e : res) es'
-        e@IApply{}  : es' -> unSpine' h (e : res) es'
-        Proj f      : es' -> unSpine' (Def f) [Apply (defaultArg v)] es'
+        []                   -> v
+        Proj o f : es' | p o -> loop (Def f) [Apply (defaultArg v)] es'
+        e        : es'       -> loop h (e : res) es'
       where v = h $ reverse res
 
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
@@ -884,8 +880,8 @@ hasElims v =
     Lit{}      -> Nothing
     -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
     Lam _ (Abs _ v)  -> case ignoreSharing v of
-      Var 0 [Proj f] -> Just (Def f, [])
-      _              -> Nothing
+      Var 0 [Proj _o f] -> Just (Def f, [])
+      _ -> Nothing
     Lam{}      -> Nothing
     Pi{}       -> Nothing
     Sort{}     -> Nothing
@@ -901,32 +897,32 @@ getElims v = maybe default id $ hasElims v
 -}
 
 -- | Drop 'Apply' constructor. (Unsafe!)
-argFromElim :: Elim -> Arg Term
+argFromElim :: Elim' a -> Arg a
 argFromElim (Apply u) = u
 argFromElim Proj{}    = __IMPOSSIBLE__
 argFromElim IApply{}    = __IMPOSSIBLE__
 
 -- | Drop 'Apply' constructor. (Safe)
-isApplyElim :: Elim -> Maybe (Arg Term)
+isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
 isApplyElim (IApply _ _ r)    = Just (defaultArg r)  -- TODO Andrea: hack
 
 -- | Drop 'Apply' constructors. (Safe)
-allApplyElims :: Elims -> Maybe Args
+allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
 
 -- | Split at first non-'Apply'
-splitApplyElims :: Elims -> (Args, Elims)
+splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])
 splitApplyElims (Apply u : es) = mapFst (u :) $ splitApplyElims es
 splitApplyElims es             = ([], es)
 
 class IsProjElim e where
-  isProjElim  :: e -> Maybe QName
+  isProjElim  :: e -> Maybe (ProjOrigin, QName)
 
 instance IsProjElim Elim where
-  isProjElim (Proj d) = Just d
-  isProjElim Apply{}  = Nothing
+  isProjElim (Proj o d) = Just (o, d)
+  isProjElim Apply{}    = Nothing
   isProjElim IApply{} = Nothing
 
 -- | Discard @Proj f@ entries.
@@ -938,22 +934,8 @@ argsFromElims :: Elims -> Args
 argsFromElims = map argFromElim . dropProjElims
 
 -- | Drop 'Proj' constructors. (Safe)
-allProjElims :: Elims -> Maybe [QName]
+allProjElims :: Elims -> Maybe [(ProjOrigin, QName)]
 allProjElims = mapM isProjElim
-
-{- NOTE: Elim' already contains Arg.
-
--- | Commute functors 'Arg' and 'Elim\''.
-swapArgElim :: Arg (Elim' a) -> Elim' (Arg a)
-
-swapArgElim (Arg ai (Apply a)) = Apply (Arg ai a)
-swapArgElim (Arg ai (Proj  d)) = Proj  d
-
--- IMPOSSIBLE TO DEFINE
-swapElimArg :: Elim' (Arg a) -> Arg (Elim' a)
-swapElimArg (Apply (Arg ai a)) = Arg ai (Apply a)
-swapElimArg (Proj  d) = defaultArg (Proj  d)
--}
 
 ---------------------------------------------------------------------------
 -- * Null instances.
@@ -963,11 +945,6 @@ instance Null (Tele a) where
   empty = EmptyTel
   null EmptyTel    = True
   null ExtendTel{} = False
-
-instance Null ClauseBody where
-  empty = NoBody
-  null NoBody = True
-  null _      = False
 
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
@@ -1138,13 +1115,10 @@ instance KillRange a => KillRange (Pattern' a) where
       DotP v           -> killRange1 DotP v
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
-      ProjP q          -> killRange1 ProjP q
+      ProjP o q        -> killRange1 (ProjP o) q
 
 instance KillRange Clause where
   killRange (Clause r tel ps body t catchall) = killRange6 Clause r tel ps body t catchall
-
-instance KillRange a => KillRange (ClauseBodyF a) where
-  killRange = fmap killRange
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1189,9 +1163,9 @@ instance Pretty Term where
   prettyPrec p v =
     case ignoreSharing v of
       Var x els -> text ("@" ++ show x) `pApp` els
-      Lam _ b   ->
+      Lam ai b   ->
         mparens (p > 0) $
-        sep [ text ("λ " ++ show (absName b) ++ " ->")
+        sep [ text "λ" <+> prettyHiding ai id (text . show . absName $ b) <+> text "->"
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> text (show q) `pApp` els
@@ -1202,20 +1176,37 @@ instance Pretty Term where
       Pi a b               -> mparens (p > 0) $
         sep [ pDom (domInfo a) (text (absName b) <+> text ":" <+> pretty (unDom a)) <+> text "->"
             , nest 2 $ pretty (unAbs b) ]
-      Sort s      -> pretty s
-      Level l     -> pretty l
+      Sort s      -> prettyPrec p s
+      Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
-      DontCare v  -> pretty v
+      DontCare v  -> prettyPrec p v
       Shared{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
-                   d <+> fsep (map (prettyPrec 10) els)
+                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
-      pDom i =
-        case getHiding i of
-          NotHidden -> parens
-          Hidden    -> braces
-          Instance  -> braces . braces
+pDom :: LensHiding a => a -> Doc -> Doc
+pDom i =
+  case getHiding i of
+    NotHidden -> parens
+    Hidden    -> braces
+    Instance  -> braces . braces
+
+instance Pretty Clause where
+  pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
+    sep [ pretty tel <+> text "|-"
+        , nest 2 $ sep [ fsep (map (prettyPrec 10) ps) <+> text "="
+                       , nest 2 $ pBody b t ] ]
+    where
+      pBody Nothing _ = text "(absurd)"
+      pBody (Just b) Nothing  = pretty b
+      pBody (Just b) (Just t) = sep [ pretty b <+> text ":", nest 2 $ pretty t ]
+
+instance Pretty a => Pretty (Tele (Dom a)) where
+  pretty tel = fsep [ pDom a (text x <+> text ":" <+> pretty (unDom a)) | (x, a) <- telToList tel ]
+    where
+      telToList EmptyTel = []
+      telToList (ExtendTel a tel) = (absName tel, a) : telToList (unAbs tel)
 
 instance Pretty Level where
   prettyPrec p (Max as) =
@@ -1259,18 +1250,19 @@ instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
 instance Pretty Elim where
-  prettyPrec p (Apply v) = prettyPrec p v
+  prettyPrec p (Apply v)    = prettyPrec p v
+  prettyPrec _ (Proj _o x)  = text ("." ++ show x)
   prettyPrec p (IApply x y r) = prettyPrec p r
-  prettyPrec _ (Proj x)  = text ("." ++ show x)
 
 instance Pretty DBPatVar where
-  prettyPrec _ x = text $ show (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
+  prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP x)      = prettyPrec n x
   prettyPrec _ (DotP t)      = text "." P.<> prettyPrec 10 t
-  prettyPrec n (ConP c i ps) = mparens (n > 0) $
-    text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
+  prettyPrec n (ConP c i nps)= mparens (n > 0) $
+    text (show $ conName c) <+> fsep (map pretty ps)
+    where ps = map (fmap namedThing) nps
   -- -- Version with printing record type:
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
   --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
@@ -1278,11 +1270,53 @@ instance Pretty a => Pretty (Pattern' a) where
   --     b = maybe False (== ConPImplicit) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
   prettyPrec _ (LitP l)      = text (show l)
-  prettyPrec _ (ProjP q)     = text (show q)
+  prettyPrec _ (ProjP _o q)  = text ("." ++ show q)
 
-instance Pretty a => Pretty (ClauseBodyF a) where
-  pretty b = case b of
-    Bind (NoAbs _ b) -> pretty b
-    Bind (Abs   x b) -> text (show x ++ ".") <+> pretty b
-    Body t           -> pretty t
-    NoBody           -> text "()"
+-----------------------------------------------------------------------------
+-- * NFData instances
+-----------------------------------------------------------------------------
+
+-- Note: only strict in the shape of the terms.
+
+instance NFData Term where
+  rnf v = case v of
+    Var _ es   -> rnf es
+    Lam _ b    -> rnf (unAbs b)
+    Lit l      -> rnf l
+    Def q es   -> rnf es
+    Con c vs   -> rnf vs
+    Pi a b     -> rnf (unDom a, unAbs b)
+    Sort s     -> rnf s
+    Level l    -> rnf l
+    MetaV _ es -> rnf es
+    DontCare v -> rnf v
+    Shared{}   -> ()
+
+instance NFData Type where
+  rnf (El s v) = rnf (s, v)
+
+instance NFData Sort where
+  rnf s = case s of
+    Type l   -> rnf l
+    Prop     -> ()
+    Inf      -> ()
+    SizeUniv -> ()
+    DLub a b -> rnf (a, unAbs b)
+
+instance NFData Level where
+  rnf (Max as) = rnf as
+
+instance NFData PlusLevel where
+  rnf (ClosedLevel n) = rnf n
+  rnf (Plus n l) = rnf (n, l)
+
+instance NFData LevelAtom where
+  rnf (MetaLevel _ es)   = rnf es
+  rnf (BlockedLevel _ v) = rnf v
+  rnf (NeutralLevel _ v) = rnf v
+  rnf (UnreducedLevel v) = rnf v
+
+instance NFData a => NFData (Elim' a) where
+  rnf (Apply x) = rnf x
+  rnf Proj{}    = ()
+  rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r

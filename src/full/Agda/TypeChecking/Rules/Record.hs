@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Record where
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -145,7 +146,11 @@ checkRecDef i name ind eta con ps contel fields =
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
+          -- Andreas, 2016-09-20, issue #2197.
+          -- Eta is inferred by the positivity checker.
+          -- We should turn it off until it is proven to be safe.
+          haveEta      = maybe (Inferred False) Specified eta
+          -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
@@ -195,6 +200,7 @@ checkRecDef i name ind eta con ps contel fields =
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
               , conComp   = Nothing
+              , conErased = []
               }
 
       -- Declare the constructor as eligible for instance search
@@ -229,7 +235,7 @@ checkRecDef i name ind eta con ps contel fields =
         , nest 2 $ do
            tel <- getContextTelescope
            text (show tel) $+$ do
-           inContext [] $ do
+           inTopContext $ do
              prettyTCM tel $+$ do
                telA <- reify tel
                text (show telA) $+$ do
@@ -313,21 +319,21 @@ defineCompR , defineCompR' ::
   -> TCM (Maybe QName)
 defineCompR' name params fsT fns rect = do
   (compName, gamma, _, clause_types, bodies) <-
-    defineCompForFields (\ t fn -> t `applyE` [Proj fn]) name params fsT fns rect
+    defineCompForFields (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
   cs <- flip mapM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
           let
-              pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP $ unArg fname]
+              pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
               c = Clause { clauseTel       = gamma
                          , clauseType      = Just $ argN (unDom clause_ty)
                          , namedClausePats = pats
                          , clauseRange     = noRange
                          , clauseCatchall  = False
-                         , clauseBody      = abstract gamma $ Body $ body
+                         , clauseBody      = Just body -- abstract gamma $ Body $ body
                          }
           reportSDoc "comp.rec" 17 $ text $ show c
 --          reportSDoc "comp.rec" 10 $ text $ show (clauseType c)
           reportSDoc "comp.rec" 15 $ prettyTCM $ abstract gamma (unDom clause_ty)
-          reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
+--          reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
           return c
   addClauses compName cs
   return $ Just compName
@@ -399,12 +405,12 @@ checkRecordProjections m r con tel ftel fs = do
       -- where Δ = Γ, tel is the current context
       let finalt   = telePi (replaceEmptyName "r" tel) t
           projname = qualify m $ qnameName x
-          projcall = Var 0 [Proj projname]
+          projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel dom
                                  $ Abs (nameToArgName $ qnameName projname) EmptyTel)
-                                (ftel2 `absApp` projcall) fs
+                                (ftel2 `absApp` projcall ProjSystem) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> do
         inTopContext $ prettyTCM finalt
@@ -431,6 +437,7 @@ checkRecordProjections m r con tel ftel fs = do
         -- compute body modification for irrelevant projections
         let bodyMod = case rel of
               Relevant   -> id
+              NonStrict  -> id
               Irrelevant -> DontCare
               _          -> __IMPOSSIBLE__
 
@@ -442,16 +449,11 @@ checkRecordProjections m r con tel ftel fs = do
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ varP "x" | Dom{domInfo = info} <- telToList ftel ]
-            nobind 0 = id
-            nobind n = Bind . Abs "_" . nobind (n - 1)
-            body   = nobind (size ftel1)
-                   $ Bind . Abs "x"
-                   $ nobind (size ftel2)
-                   $ Body $ bodyMod $ var (size ftel2)
+            body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
             clause = Clause { clauseRange = getRange info
                             , clauseTel       = killRange cltel
-                            , namedClausePats = [Named Nothing <$> numberPatVars (idP $ size ftel) conp]
+                            , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
@@ -475,7 +477,7 @@ checkRecordProjections m r con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ text "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                       inTopContext (addContext ftel (prettyTCM (clauseBody clause)))
+                       inTopContext (addContext ftel (maybe (text "_|_") prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ text "adding projection"
@@ -496,22 +498,13 @@ checkRecordProjections m r con tel ftel fs = do
         escapeContext (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
-              Function { funClauses        = [clause]
-                       , funCompiled       = Just cc
-                       , funTreeless       = Nothing
-                       , funDelayed        = NotDelayed
-                       , funInv            = NotInjective
-                       , funAbstr          = ConcreteDef
-                       , funMutual         = []
-                       , funProjection     = Just projection
-                       , funSmashable      = True
-                       , funStatic         = False
-                       , funInline         = False
-                       , funTerminates     = Just True
-                       , funExtLam         = Nothing
-                       , funWith           = Nothing
-                       , funCopatternLHS   = isCopatternLHS [clause]
-                       })
+              emptyFunction
+                { funClauses        = [clause]
+                , funCompiled       = Just cc
+                , funProjection     = Just projection
+                , funTerminates     = Just True
+                , funCopatternLHS   = isCopatternLHS [clause]
+                })
               { defArgOccurrences = [StrictPos] }
           computePolarity projname
           when (Info.defInstance info == InstanceDef) $

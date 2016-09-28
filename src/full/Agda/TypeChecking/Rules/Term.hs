@@ -18,6 +18,7 @@ import Data.Either (partitionEithers)
 import Data.Monoid (mappend)
 import Data.List hiding (sort, null)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Traversable (sequenceA)
 import Data.Void
 
@@ -130,7 +131,7 @@ isType_ e =
       return t'
     A.Set _ n    -> do
       return $ sort (mkType n)
-    A.App i s (Arg (ArgInfo NotHidden r o) l)
+    A.App i s arg@(Arg (ArgInfo NotHidden r o) l)
       | A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -140,8 +141,24 @@ isType_ e =
         --   Set : (NonStrict) Level -> Set\omega
         n   <- levelView =<< do
           applyRelevanceToContext NonStrict $
-            checkExpr (namedThing l) lvl
+            checkNamedArg arg lvl
         return $ sort (Type n)
+
+    -- Issue #707: Check an existing interaction point
+    A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
+      -- -- | Just x <- A.metaNumber minfo -> do
+      reportSDoc "tc.ip" 20 $ fsep
+        [ text "Rechecking meta "
+        , prettyTCM x
+        , text $ " for interaction point " ++ show ii
+        ]
+      s0 <- jMetaType . mvJudgement <$> lookupMeta x
+      vs <- getContextArgs
+      s1  <- piApplyM s0 vs
+      case ignoreSharing $ unEl s1 of
+        Sort s -> return $ El s $ MetaV x $ map Apply vs
+        _ -> __IMPOSSIBLE__
+
     _ -> fallback
 
 ptsRule :: (LensSort a, LensSort b) => a -> b -> TCM Sort
@@ -168,8 +185,8 @@ noFunctionsIntoSize t tBlame = do
 
 -- | Check that an expression is a type which is equal to a given type.
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
-isTypeEqualTo e t = case e of
-  A.ScopedExpr _ e -> isTypeEqualTo e t
+isTypeEqualTo e0 t = scopedExpr e0 >>= \case
+  A.ScopedExpr{} -> __IMPOSSIBLE__
   A.Underscore i | A.metaNumber i == Nothing -> return t
   e -> workOnTypes $ do
     t' <- isType e (getSort t)
@@ -251,9 +268,9 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
-    allowed <- optExperimentalIrrelevance <$> pragmaOptions
-    t <- modEnv lamOrPi allowed $ isType_ e
-    let info' = mapRelevance (modRel lamOrPi allowed) info
+    experimental <- optExperimentalIrrelevance <$> pragmaOptions
+    t <- modEnv lamOrPi $ isType_ e
+    let info' = mapRelevance (modRel lamOrPi experimental) info
     addContext' (xs, setArgInfo info' $ defaultDom t) $
       ret $ bindsWithHidingToTel xs (setArgInfo info $ defaultDom t)
     where
@@ -261,10 +278,10 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         -- types, but do not modify the new context entries
         -- otherwise, if we are checking a pi, we do not resurrect, but
         -- modify the new context entries
-        modEnv LamNotPi True = doWorkOnTypes
-        modEnv _        _    = id
-        modRel PiNotLam True = irrToNonStrict
-        modRel _        _    = id
+        modEnv LamNotPi = workOnTypes
+        modEnv _        = id
+        modRel PiNotLam xp = if xp then irrToNonStrict else nonStrictToRel
+        modRel _        _  = id
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
 
@@ -481,31 +498,19 @@ checkAbsurdLambda i h e t = do
             (\ d -> (defaultDefn (setRelevance rel info') aux t' d)
                     { defPolarity       = [Nonvariant]
                     , defArgOccurrences = [Unused] })
-            $ Function
+            $ emptyFunction
               { funClauses        =
                   [Clause
                     { clauseRange     = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ debruijnNamedVar "()" 0]
-                    , clauseBody      = Bind $ NoAbs "()" NoBody
+                    , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
                     }
                   ]
               , funCompiled       = Just Fail
-              , funTreeless       = Nothing
-              , funDelayed        = NotDelayed
-              , funInv            = NotInjective
-              , funAbstr          = ConcreteDef
-              , funMutual         = []
-              , funProjection     = Nothing
-              , funSmashable      = False -- there is no body anyway, smashing doesn't make sense
-              , funStatic         = False
-              , funInline         = False
               , funTerminates     = Just True
-              , funExtLam         = Nothing
-              , funWith           = Nothing
-              , funCopatternLHS   = False
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
@@ -527,6 +532,9 @@ checkExtendedLambda i di qname cs e t = do
      j   <- currentOrFreshMutualBlock
      rel <- asks envRelevance
      let info = setRelevance rel defaultArgInfo
+     -- Andreas, 2016-07-13, issue 2028.
+     -- Save the state to rollback the changes to the signature.
+     st <- get
      -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
      -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
      addConstant qname =<< do
@@ -557,10 +565,13 @@ checkExtendedLambda i di qname cs e t = do
        -- In this case, we want to postpone.
        Just (err, x) -> do
          -- Note that we messed up the state a bit.  We might want to unroll these state changes.
-         -- However, they are harmless:
+         -- However, they are mostly harmless:
          -- 1. We created a new mutual block id.
          -- 2. We added a constant without definition.
-         -- TODO: roll back the state.
+
+         -- In fact, they are not so harmless, see issue 2028!
+         -- Thus, reset the state!
+         put st
 
          -- The meta might not be known in the reset state, as it could have been created
          -- somewhere on the way to the type error.
@@ -571,9 +582,8 @@ checkExtendedLambda i di qname cs e t = do
              -- TODO: mine for a meta in t
              -- For now, we fail.
              throwError err
-           -- Case: we know the meta here.  It cannot be instantiated yet.
-           Just InstV{} -> __IMPOSSIBLE__
-           Just InstS{} -> __IMPOSSIBLE__
+           -- Case: we know the meta here.
+           Just InstV{} -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
            Just{} -> do
              -- It has to be blocked on some meta, so we can postpone,
              -- being sure it will be retired when a meta is solved
@@ -595,12 +605,16 @@ checkExtendedLambda i di qname cs e t = do
 --   * If another error was thrown or the type @a@ is not blocked, reraise the error.
 --
 catchIlltypedPatternBlockedOnMeta :: TCM () -> TCM (Maybe (TCErr, MetaId))
-catchIlltypedPatternBlockedOnMeta m = (Nothing <$ m) `catchError` \ err -> do
+catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
+  `catchError` \ err -> do
   let reraise = throwError err
   case err of
-    TypeError s cl@Closure{ clValue = IlltypedPattern p a } ->
-      enterClosure cl $ \ _ -> do
-        ifBlockedType a (\ x _ -> return $ Just (err, x)) $ {- else -} \ _ -> reraise
+    TypeError s cl@Closure{ clValue = IlltypedPattern p a } -> do
+      mx <- localState $ do
+        put s
+        enterClosure cl $ \ _ -> do
+          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ -> return Nothing
+      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     _ -> reraise
 
 ---------------------------------------------------------------------------
@@ -799,6 +813,15 @@ checkArguments' exph r args t0 t k = do
       postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
       -- if unsuccessful, postpone checking until t0 unblocks
 
+
+-- | Remove top layers of scope info of expression and set the scope accordingly
+--   in the 'TCState'.
+
+scopedExpr :: A.Expr -> TCM A.Expr
+scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
+scopedExpr e                      = return e
+
+-- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 = do
   restr <- fmap getPrimName <$> getBuiltin' builtinRestrict
@@ -833,7 +856,8 @@ checkExpr e t0 = do
              ty <- elInf $ primPartialP <#> pure l_sigma <@> primIOne <@> pure a_sigma
              let c = Clause { clauseTel = tel
                           , clauseType = Just $ Arg defaultArgInfo ty
-                          , clauseBody = foldr (\ nm b -> Bind $ mkAbs nm b) (Body (Lam defaultArgInfo $ NoAbs "_" $ u)) (teleNames tel)
+                          , clauseBody = Just $ (Lam defaultArgInfo $ NoAbs "_" $ u) -- is u in the right telescope?
+                                  -- foldr (\ nm b -> Bind $ mkAbs nm b) (Body (Lam defaultArgInfo $ NoAbs "_" $ u)) (teleNames tel)
                           , namedClausePats = adjusted
                           , clauseRange = noRange
                           , clauseCatchall = False
@@ -879,9 +903,6 @@ checkExpr' e t0 =
     reportSDoc "tc.term.expr.top" 15 $
         text "    --> " <+> prettyTCM t
 
-    let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
-        scopedExpr e                      = return e
-
     e <- scopedExpr e
 
     case e of
@@ -914,24 +935,13 @@ checkExpr' e t0 =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> do
-          reportSDoc "tc.interaction" 20 $ sep
-            [ text "Found interaction point"
-            , text (show ii)
-            , text ":"
-            , prettyTCM t0
-            ]
-          reportSDoc "tc.interaction" 40 $ sep
-            [ text "Raw:"
-            , text (show t0)
-            ]
-          checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
-        A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
+        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' DontRunMetaOccursCheck) t0 i ii
+        A.Underscore i -> checkUnderscore t0 i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         -- check |- Set l : t  (requires universe polymorphism)
-        A.App i s (Arg ai l)
+        A.App i s arg@(Arg ai l)
           | A.Set _ 0 <- unScope s, visible ai ->
           ifNotM hasUniversePolymorphism
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -941,7 +951,7 @@ checkExpr' e t0 =
             --   Set : (NonStrict) Level -> Set\omega
             n   <- levelView =<< do
               applyRelevanceToContext NonStrict $
-                checkExpr (namedThing l) lvl
+                checkNamedArg arg lvl
             -- check that Set (l+1) <= t
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
@@ -951,8 +961,9 @@ checkExpr' e t0 =
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
-              quoted (A.Proj (AmbQ [x])) = return x
-              quoted (A.Proj (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
+              quoted (A.Macro x) = return x
+              quoted (A.Proj o (AmbQ [x])) = return x
+              quoted (A.Proj o (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.Con (AmbQ [x])) = return x
               quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.ScopedExpr _ e) = quoted e
@@ -1054,9 +1065,16 @@ checkExpr' e t0 =
 
         A.ETel _   -> __IMPOSSIBLE__
 
+        A.Dot{} -> typeError $ GenericError $ "Invalid dotted expression"
+
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
 
+---------------------------------------------------------------------------
+-- * Reflection
+---------------------------------------------------------------------------
+
+-- | DOCUMENT ME!
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
   t' <- etaContract =<< normalise t
@@ -1067,6 +1085,7 @@ quoteGoal t = do
       quotedGoal <- quoteTerm (unEl t')
       return $ Right quotedGoal
 
+-- | DOCUMENT ME!
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
@@ -1078,18 +1097,69 @@ quoteContext = do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
 
--- | Document ME!
+-- | Unquote a TCM computation in a given hole.
+unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
+unquoteM tac hole holeType k = do
+  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
 
-inferProjApp :: A.Expr -> [QName] -> A.Args -> TCM (Term, Type)
-inferProjApp e ds args0 = inferOrCheckProjApp e ds args0 Nothing
+-- | DOCUMENT ME!
+unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
+unquoteTactic tac hole goal k = do
+  ok  <- runUnquoteM $ unquoteTCM tac hole
+  case ok of
+    Left (BlockedOnMeta oldState x) -> do
+      put oldState
+      mi <- Map.lookup x <$> getMetaStore
+      (r, unblock) <- case mi of
+        Nothing -> do -- fresh meta: need to block on something else!
+          otherMetas <- allMetas <$> instantiateFull goal
+          case otherMetas of
+            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
+            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
+        Just mi -> return (getRange mi, isInstantiatedMeta x)
+      setCurrentRange r $
+        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
+    Left err -> typeError $ UnquoteFailed err
+    Right _ -> k
 
-checkProjApp  :: A.Expr -> [QName] -> A.Args -> Type -> TCM Term
-checkProjApp e ds args0 t = do
-  (v, ti) <- inferOrCheckProjApp e ds args0 (Just t)
+---------------------------------------------------------------------------
+-- * Projections
+---------------------------------------------------------------------------
+
+-- | Inferring the type of an overloaded projection application.
+--   See 'inferOrCheckProjApp'.
+
+inferProjApp :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> TCM (Term, Type)
+inferProjApp e o ds args0 = inferOrCheckProjApp e o ds args0 Nothing
+
+-- | Checking the type of an overloaded projection application.
+--   See 'inferOrCheckProjApp'.
+
+checkProjApp  :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> Type -> TCM Term
+checkProjApp e o ds args0 t = do
+  (v, ti) <- inferOrCheckProjApp e o ds args0 (Just t)
   coerce v ti t
 
-inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
-inferOrCheckProjApp e ds args mt = do
+-- | Inferring or Checking an overloaded projection application.
+--
+--   The overloaded projection is disambiguated by inferring the type of its
+--   principal argument, which is the first visible argument.
+
+inferOrCheckProjApp
+  :: A.Expr
+     -- ^ The whole expression which constitutes the application.
+  -> ProjOrigin
+     -- ^ The origin of the projection involved in this projection application.
+  -> [QName]
+     -- ^ The projection name (potentially ambiguous).  List must not be empty.
+  -> A.Args
+     -- ^ The arguments to the projection.
+  -> Maybe Type
+     -- ^ The expected type of the expression (if 'Nothing', infer it).
+  -> TCM (Term, Type)
+     -- ^ The type-checked expression and its type (if successful).
+inferOrCheckProjApp e o ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ text "checking ambiguous projection"
     , text $ "  ds   = " ++ show ds
@@ -1140,7 +1210,7 @@ inferOrCheckProjApp e ds args mt = do
             [] -> refuseNoMatching
             [d] -> do
               storeDisambiguatedName d
-              (,t) <$> checkHeadApplication e t (A.Proj $ AmbQ [d]) args
+              (,t) <$> checkHeadApplication e t (A.Proj o $ AmbQ [d]) args
             _ -> __IMPOSSIBLE__
         _ -> __IMPOSSIBLE__
 
@@ -1167,7 +1237,7 @@ inferOrCheckProjApp e ds args mt = do
               Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
               guard proper
               -- try to eliminate
-              (dom, u, tb) <- MaybeT (projectTyped v ta d `catchError` \ _ -> return Nothing)
+              (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  dom = " <+> prettyTCM dom
                 , text "  u   = " <+> prettyTCM u
@@ -1234,14 +1304,28 @@ inferOrCheckProjApp e ds args mt = do
 --   and resolves pattern synonyms.
 checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 checkApplication hd args e t = do
-  case hd of
-    A.Proj (AmbQ []) -> __IMPOSSIBLE__
+  reportSDoc "tc.check.app" 20 $ vcat
+    [ text "checkApplication"
+    , nest 2 $ text "hd   = " <+> prettyA hd
+    , nest 2 $ text "args = " <+> sep (map prettyA args)
+    , nest 2 $ text "e    = " <+> prettyA e
+    , nest 2 $ text "t    = " <+> prettyTCM t
+    ]
+  reportSDoc "tc.check.app" 70 $ vcat
+    [ text "checkApplication (raw)"
+    , nest 2 $ text $ "hd   = " ++ show hd
+    , nest 2 $ text $ "args = " ++ show args
+    , nest 2 $ text $ "e    = " ++ show e
+    , nest 2 $ text $ "t    = " ++ show t
+    ]
+  case unScope hd of
+    A.Proj _ (AmbQ []) -> __IMPOSSIBLE__
 
     -- Subcase: unambiguous projection
-    A.Proj (AmbQ [_]) -> checkHeadApplication e t hd args
+    A.Proj _ (AmbQ [_]) -> checkHeadApplication e t hd args
 
     -- Subcase: ambiguous projection
-    A.Proj (AmbQ ds@(_:_:_)) -> checkProjApp e ds args t
+    A.Proj o (AmbQ ds@(_:_:_)) -> checkProjApp e o ds args t
 
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs@(_:_:_)) -> do
@@ -1344,7 +1428,7 @@ checkApplication hd args e t = do
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
-          hole <- newValueMeta RunMetaOccursCheck t
+          (_, hole) <- newValueMeta RunMetaOccursCheck t
           unquoteM (namedArg arg) hole t $ return hole
       | arg : args <- args -> do
           -- Example: unquote v a b : A
@@ -1359,7 +1443,7 @@ checkApplication hd args e t = do
                                                     -- a b : (x : X) (y : Y x)
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
-          hole <- newValueMeta RunMetaOccursCheck holeType
+          (_, hole) <- newValueMeta RunMetaOccursCheck holeType
           unquoteM (namedArg arg) hole holeType $ return $ apply hole vs
       where
         metaTel :: [Arg a] -> TCM Telescope
@@ -1372,30 +1456,58 @@ checkApplication hd args e t = do
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
 
--- | Unquote a TCM computation in a given hole.
-unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
-unquoteM tac hole holeType k = do
-  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
+---------------------------------------------------------------------------
+-- * Meta variables
+---------------------------------------------------------------------------
 
-unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
-unquoteTactic tac hole goal k = do
-  ok  <- runUnquoteM $ unquoteTCM tac hole
-  case ok of
-    Left (BlockedOnMeta oldState x) -> do
-      put oldState
-      mi <- Map.lookup x <$> getMetaStore
-      (r, unblock) <- case mi of
-        Nothing -> do -- fresh meta: need to block on something else!
-          otherMetas <- allMetas <$> instantiateFull goal
-          case otherMetas of
-            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
-        Just mi -> return (getRange mi, isInstantiatedMeta x)
-      setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
-    Left err -> typeError $ UnquoteFailed err
-    Right _ -> k
+-- | Check an interaction point without arguments.
+checkQuestionMark :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> InteractionId -> TCM Term
+checkQuestionMark new t0 i ii = do
+  reportSDoc "tc.interaction" 20 $ sep
+    [ text "Found interaction point"
+    , text (show ii)
+    , text ":"
+    , prettyTCM t0
+    ]
+  reportSDoc "tc.interaction" 60 $ sep
+    [ text "Raw:"
+    , text (show t0)
+    ]
+  checkMeta (newQuestionMark' new ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+
+-- | Check an underscore without arguments.
+checkUnderscore :: Type -> A.MetaInfo -> TCM Term
+checkUnderscore = checkMeta (newValueMeta RunMetaOccursCheck)
+
+-- | Type check a meta variable.
+checkMeta :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> TCM Term
+checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
+
+-- | Infer the type of a meta variable.
+--   If it is a new one, we create a new meta for its type.
+inferMeta :: (Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Elims -> Term, Type)
+inferMeta newMeta i = mapFst applyE <$> checkOrInferMeta newMeta Nothing i
+
+-- | Type check a meta variable.
+--   If its type is not given, we return its type, or a fresh one, if it is a new meta.
+--   If its type is given, we check that the meta has this type, and we return the same
+--   type.
+checkOrInferMeta :: (Type -> TCM (MetaId, Term)) -> Maybe Type -> A.MetaInfo -> TCM (Term, Type)
+checkOrInferMeta newMeta mt i = do
+  case A.metaNumber i of
+    Nothing -> do
+      setScope (A.metaScope i)
+      t <- maybe (workOnTypes $ newTypeMeta_) return mt
+      (x, v) <- newMeta t
+      setMetaNameSuggestion x (A.metaNameSuggestion i)
+      return (v, t)
+    -- Rechecking an existing metavariable
+    Just x -> do
+      let v = MetaV x []
+      t' <- jMetaType . mvJudgement <$> lookupMeta x
+      case mt of
+        Nothing -> return (v, t')
+        Just t  -> (,t) <$> coerce v t' t
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.
@@ -1412,47 +1524,16 @@ domainFree info x =
       }
 
 ---------------------------------------------------------------------------
--- * Meta variables
----------------------------------------------------------------------------
-
-checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
-checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
-
-inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Elims -> Term, Type)
-inferMeta newMeta i = mapFst applyE <$> checkOrInferMeta newMeta Nothing i
-
--- | Type check a meta variable.
---   If its type is not given, we return its type, or a fresh one, if it is a new meta.
---   If its type is given, we check that the meta has this type, and we return the same
---   type.
-checkOrInferMeta :: (Type -> TCM Term) -> Maybe Type -> A.MetaInfo -> TCM (Term, Type)
-checkOrInferMeta newMeta mt i = do
-  case A.metaNumber i of
-    Nothing -> do
-      setScope (A.metaScope i)
-      t <- maybe (workOnTypes $ newTypeMeta_) return mt
-      v <- newMeta t
-      setValueMetaName v (A.metaNameSuggestion i)
-      return (v, t)
-    -- Rechecking an existing metavariable
-    Just x -> do
-      let v = MetaV x []
-      t' <- jMetaType . mvJudgement <$> lookupMeta x
-      case mt of
-        Nothing -> return (v, t')
-        Just t  -> (,t) <$> coerce v t' t
-
----------------------------------------------------------------------------
 -- * Applications
 ---------------------------------------------------------------------------
 
-inferHeadDef :: QName -> TCM (Elims -> Term, Type)
-inferHeadDef x = do
+inferHeadDef :: ProjOrigin -> QName -> TCM (Elims -> Term, Type)
+inferHeadDef o x = do
   proj <- isProjection x
   let app =
         case proj of
           Nothing -> \ args -> Def x $ map Apply args
-          Just p  -> \ args -> projDropParsApply p args
+          Just p  -> \ args -> projDropParsApply p o args
   mapFst applyE <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
@@ -1471,9 +1552,9 @@ inferHead e = do
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
       return (applyE u, unDom a)
-    (A.Def x) -> inferHeadDef x
-    (A.Proj (AmbQ [d])) -> inferHeadDef d
-    (A.Proj _) -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
+    (A.Def x) -> inferHeadDef ProjPrefix x
+    (A.Proj o (AmbQ [d])) -> inferHeadDef o d
+    (A.Proj{}) -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
     (A.Con (AmbQ [c])) -> do
 
       -- Constructors are polymorphic internally.
@@ -1787,9 +1868,9 @@ checkHeadApplication e t hd args = do
       -- postpone checking of patterns when we don't know their types (Issue480).
       forcedType <- do
         lvl <- levelType
-        l   <- newValueMeta RunMetaOccursCheck lvl
+        (_, l) <- newValueMeta RunMetaOccursCheck lvl
         lv  <- levelView l
-        a   <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
+        (_, a) <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
         return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
       wrapper <- inFreshModuleIfFreeParams $ do
@@ -1805,7 +1886,7 @@ checkHeadApplication e t hd args = do
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }
             clause = A.Clause (A.LHS (A.LHSRange noRange) core []) []
-                              (A.RHS arg)
+                              (A.RHS arg Nothing)
                               [] False
 
         i <- currentOrFreshMutualBlock
@@ -1874,36 +1955,29 @@ traceCallE call m = do
 --   This function can be used to check user-supplied parameters
 --   we have already computed by inference.
 --
---   The type @t@ of the head has enough domains.
+--   Precondition: The type @t@ of the head has enough domains.
 
 checkKnownArguments
-  :: [NamedArg A.Expr]
-  -> Args
-  -> Type
-  -> TCM (Args, Type)
+  :: [NamedArg A.Expr]  -- ^ User-supplied arguments (hidden ones may be missing).
+  -> Args               -- ^ Inferred arguments (including hidden ones).
+  -> Type               -- ^ Type of the head (must be Pi-type with enough domains).
+  -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArguments []           vs t = return (vs, t)
 checkKnownArguments (arg : args) vs t = do
   (vs', t') <- traceCall (SetRange $ getRange arg) $ checkKnownArgument arg vs t
   checkKnownArguments args vs' t'
 
 -- | Check an argument whose value we already know.
+
 checkKnownArgument
-  :: NamedArg A.Expr
-  -> Args
-  -> Type
-  -> TCM (Args, Type)
+  :: NamedArg A.Expr    -- ^ User-supplied argument.
+  -> Args               -- ^ Inferred arguments (including hidden ones).
+  -> Type               -- ^ Type of the head (must be Pi-type with enough domains).
+  -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArgument arg [] _ = genericDocError =<< do
   text "Invalid projection parameter " <+> prettyA arg
 checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
-  -- Bollocks:
-  -- unless (info' == infov) $ do
-  --    reportSDoc "impossible" 10 $ vcat
-  --      [ text "parameter " <+> prettyTCM (Arg infov v)
-  --      , text "has type  " <+> prettyTCM (Dom info' a)
-  --      ]
-  --    __IMPOSSIBLE__
-
   -- Skip the arguments from vs that do not correspond to e
   if not (getHiding info == getHiding info'
           && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
@@ -1911,9 +1985,40 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument
     else do
-      u <- checkExpr (namedThing e) a
+      u <- checkNamedArg arg a
       equalTerm a u v
       return (vs, b `absApp` v)
+
+-- | Check a single argument.
+
+checkNamedArg :: NamedArg A.Expr -> Type -> TCM Term
+checkNamedArg arg@(Arg info e0) t0 = do
+  let e = namedThing e0
+  let x = maybe "" rangedThing $ nameOf e0
+  traceCall (CheckExprCall e t0) $ do
+    reportSDoc "tc.term.args.named" 15 $ do
+        text "Checking named arg" <+> sep
+          [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
+          ]
+    reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show arg
+    let checkU = checkMeta (newMetaArg info x) t0
+    let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0
+    if not $ isHole e then checkExpr e t0 else localScope $ do
+      -- Note: we need localScope here,
+      -- as scopedExpr manipulates the scope in the state.
+      -- However, we may not pull localScope over checkExpr!
+      -- This is why we first test for isHole, and only do
+      -- scope manipulations if we actually handle the checking
+      -- of e here (and not pass it to checkExpr).
+      scopedExpr e >>= \case
+        A.Underscore i ->  checkU i
+        A.QuestionMark i ii -> checkQ i ii
+        _ -> __IMPOSSIBLE__
+  where
+  isHole A.Underscore{} = True
+  isHole A.QuestionMark{} = True
+  isHole (A.ScopedExpr _ e) = isHole e
+  isHole _ = False
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
@@ -1995,7 +2100,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
           Pi (Dom{domInfo = info', unDom = a}) b
             | getHiding info == getHiding info'
               && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
-                u <- lift $ applyRelevanceToContext (getRelevance info') $
+                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
                  -- from ascribed type into extended-lambdas.  Would solve issue 1159.
@@ -2009,7 +2114,8 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                  -- Thus, the following naive use violates some invariant.
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
-                  checkExpr (namedThing e) a
+                  let e' = e { nameOf = maybe (Just $ unranged $ absName b) Just (nameOf e) }
+                  checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Apply $ Arg info' u) $
                   checkArguments exh (fuseRange r e) args (absApp b u) t1
@@ -2065,7 +2171,7 @@ inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     case hd of
-      A.Proj (AmbQ ds@(_:_:_)) -> inferProjApp e ds args
+      A.Proj o (AmbQ ds@(_:_:_)) -> inferProjApp e o ds args
       _ -> do
         (f, t0) <- inferHead hd
         res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)
@@ -2185,7 +2291,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _perm) -> do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t) -> do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope
@@ -2241,7 +2347,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We add all the bindings to the context.
         foldr (uncurry4 addLetBinding) ret $ zip4 infos xs sigma ts
 
-checkLetBinding (A.LetApply i x modapp rd rm _adir) ret = do
+checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
   -- Example: @f x y = let open M t in u@.
@@ -2256,7 +2362,7 @@ checkLetBinding (A.LetApply i x modapp rd rm _adir) ret = do
     , text "module  =" <+> (prettyTCM =<< currentModule)
     , text "fv      =" <+> (text $ show fv)
     ]
-  checkSectionApplication i x modapp rd rm
+  checkSectionApplication i x modapp copyInfo
   withAnonymousModule x new ret
 -- LetOpen and LetDeclaredVariable are only used for highlighting.
 checkLetBinding A.LetOpen{} ret = ret

@@ -48,7 +48,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes (getConForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records (isRecordType)
 import Agda.TypeChecking.Telescope
@@ -128,10 +127,15 @@ coverageCheck f t cs = do
       xs           = teleNamedArgs gamma
       -- construct the initial split clause
       sc           = SClause gamma xs idS $ Just $ defaultArg a
-  reportSDoc "tc.cover.top" 10 $ vcat
-    [ text $ "Coverage checking " ++ show f
-    , nest 2 $ vcat $ map (text . show . clausePats) cs
-    ]
+
+  reportSDoc "tc.cover.top" 10 $ do
+    let prCl cl = addContext (clauseTel cl) $
+                  prettyTCMPatternList $ namedClausePats cl
+    vcat
+      [ text $ "Coverage checking " ++ show f ++ " with patterns:"
+      , nest 2 $ vcat $ map prCl cs
+      ]
+
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
   (splitTree, used, pss) <- cover f cs sc
@@ -142,14 +146,14 @@ coverageCheck f t cs = do
   -- report an error if there are uncovered cases
   unless (null pss) $
       setCurrentRange cs $
-        typeError $ CoverageFailure f (map (map (fmap namedThing)) pss)
+        typeError $ CoverageFailure f pss
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses
   unless (null is) $ do
       let unreached = map (cs !!) is
       setCurrentRange unreached $
-        typeError $ UnreachableClauses f (map clausePats unreached)
+        typeError $ UnreachableClauses f $ map namedClausePats unreached
   return splitTree
 
 -- | Top-level function for eliminating redundant clauses in the interactive
@@ -168,17 +172,16 @@ cover f cs sc@(SClause tel ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
-    , nest 2 $ text "ps   =" <+> text (show ps)
+    , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
-  let ups = map (fmap namedThing) ps
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
-  case match cs ups of
+  case match cs ps of
     Yes (i,mps)
      | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups ]
+      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
 
@@ -230,10 +233,10 @@ cover f cs sc@(SClause tel ps _ target) = do
             , nest 2 $ vcat
               [ text "n   = " <+> text (show n)
               , text "scs = " <+> prettyTCM scs
-              , text "ups = " <+> text (show ups)
+              , text "ps  = " <+> text (show ps)
               ]
             ]
-          let trees' = zipWith (etaRecordSplits (unArg n) ups) scs trees
+          let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n trees'
           return (tree, Set.unions useds, concat psss)
 
@@ -260,41 +263,37 @@ cover f cs sc@(SClause tel ps _ target) = do
         return (tree, Set.unions useds, concat psss)
 
     gatherEtaSplits :: Int -> SplitClause
-                    -> [Arg DeBruijnPattern] -> [Arg DeBruijnPattern]
+                    -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
     gatherEtaSplits n sc []
        | n >= 0    = __IMPOSSIBLE__ -- we should have encountered the main
                                     -- split by now already
        | otherwise = []
-    gatherEtaSplits n sc (p:ps) = case unArg p of
+    gatherEtaSplits n sc (p:ps) = case namedArg p of
       VarP x
-       | n == 0    -> case lookupS (scSubst sc) i of -- this is the main split
+       | n == 0    -> case p' of -- this is the main split
            VarP  _      -> __IMPOSSIBLE__
            DotP  _      -> __IMPOSSIBLE__
-           ConP  _ _ qs ->
-             map (fmap namedThing) qs ++ gatherEtaSplits (-1) sc ps
+           ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
            LitP  _      -> __IMPOSSIBLE__
-           ProjP _      -> __IMPOSSIBLE__
+           ProjP{}      -> __IMPOSSIBLE__
        | otherwise ->
-           (p $> lookupS (scSubst sc) i) : gatherEtaSplits (n-1) sc ps
-        where i = dbPatVarIndex x
+           updateNamedArg (\ _ -> p') p : gatherEtaSplits (n-1) sc ps
+        where p' = lookupS (scSubst sc) $ dbPatVarIndex x
       DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
-      ConP  _ _ qs -> gatherEtaSplits n sc (map (fmap namedThing) qs ++ ps)
+      ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
-      ProjP _      -> gatherEtaSplits n sc ps
+      ProjP{}      -> gatherEtaSplits n sc ps
 
-    addEtaSplits :: Int -> [Arg DeBruijnPattern] -> SplitTree -> SplitTree
+    addEtaSplits :: Int -> [NamedArg DeBruijnPattern] -> SplitTree -> SplitTree
     addEtaSplits k []     t = t
-    addEtaSplits k (p:ps) t = case unArg p of
+    addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _       -> addEtaSplits (k+1) ps t
       DotP  _       -> addEtaSplits (k+1) ps t
-      ConP c cpi nqs ->
-        let qs = map (fmap namedThing) nqs
-            t' = [(conName c , addEtaSplits k (qs ++ ps) t)]
-        in  SplitAt (p $> k) t'
+      ConP c cpi qs -> SplitAt (p $> k) [(conName c , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
-      ProjP _       -> __IMPOSSIBLE__
+      ProjP{}       -> __IMPOSSIBLE__
 
-    etaRecordSplits :: Int -> [Arg DeBruijnPattern] -> (QName,SplitClause)
+    etaRecordSplits :: Int -> [NamedArg DeBruijnPattern] -> (QName,SplitClause)
                     -> SplitTree -> (QName,SplitTree)
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
@@ -357,15 +356,18 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
   caseMaybe target (return (empty, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
-      , text "old patterns          : " <+> sep (map (prettyTCM . namedArg) ps)
-      , text "substitution          : " <+> text (show sigma)
+      , text "old patterns          : " <+> do
+          addContext sctel $ prettyTCMPatternList ps
+      ]
+    reportSDoc "tc.cover.target" 60 $ sep
+      [ text "substitution          : " <+> text (show sigma)
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "target type before substitution (variables may be wrong): " <+> do
           addContext sctel $ prettyTCM a
       ]
     TelV tel b <- telView $ applyPatSubst sigma $ unArg a
-    reportSDoc "tc.cover.target" 10 $ sep
+    reportSDoc "tc.cover.target" 15 $ sep
       [ text "target type telescope (after substitution): " <+> do
           addContext sctel $ prettyTCM tel
       , text "target type core      (after substitution): " <+> do
@@ -390,9 +392,10 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
       [ text "new split clause telescope   : " <+> prettyTCM sctel'
       ]
     reportSDoc "tc.cover.target" 30 $ sep
-      [ text "new split clause patterns    : " <+> sep (map (prettyTCM . namedArg) ps')
+      [ text "new split clause patterns    : " <+> do
+          addContext sctel' $ prettyTCMPatternList ps'
       ]
-    reportSDoc "tc.cover.target" 30 $ sep
+    reportSDoc "tc.cover.target" 60 $ sep
       [ text "new split clause substitution: " <+> text (show $ scSubst sc')
       ]
     reportSDoc "tc.cover.target" 30 $ sep
@@ -405,7 +408,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
       ]
     return $ if n == 0 then (empty, sc { scTarget = newTarget }) else (tel, sc')
 
--- | @computeNeighbourhood delta1 delta2 d pars ixs hix hps con@
+-- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
 --   @
 --      delta1   Telescope before split point
@@ -415,6 +418,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
 --      pars     Data type parameters
 --      ixs      Data type indices
 --      hix      Index of split variable
+--      tel      Telescope for patterns ps
 --      ps       Patterns before doing the split
 --      con      Constructor to fit into hole
 --   @
@@ -427,10 +431,11 @@ computeNeighbourhood
   -> Args                         -- ^ Data type parameters.
   -> Args                         -- ^ Data type indices.
   -> Nat                          -- ^ Index of split variable.
-  -> [NamedArg DeBruijnPattern] -- ^ Patterns before doing the split.
+  -> Telescope                    -- ^ Telescope for the patterns.
+  -> [NamedArg DeBruijnPattern]   -- ^ Patterns before doing the split.
   -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe SplitClause)   -- ^ New split clause if successful.
-computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
+computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps c = do
 
   -- Get the type of the datatype
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
@@ -464,7 +469,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       gamma  = telFromList gammal
       delta1Gamma = delta1 `abstract` gamma
 
-  debugInit con ctype d pars ixs cixs delta1 delta2 gamma ps hix
+  debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
 
   -- All variables are flexible
   let flex = allFlexVars delta1Gamma
@@ -496,7 +501,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
       let conp    = ConP con noConPatternInfo $ applySubst rho2 $
-                      map (setOrigin Inserted) $ teleNamedArgs gamma
+                      map (setOrigin Inserted) $ tele2NamedArgs gamma0 gamma
+          -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
 
       -- Compute final context and substitution
       let rho3    = consS conp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
@@ -506,22 +512,23 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
 
       debugTel "delta'" delta'
       debugSubst "rho" rho
+      addContext tel $ debugPs ps
 
       -- Apply the substitution
       let ps' = applySubst rho ps
-      debugPlugged ps ps'
+      addContext delta' $ debugPlugged ps'
 
       return $ Just $ SClause delta' ps' rho Nothing -- target fixed later
 
   where
-    debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix =
+    debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
         , nest 2 $ vcat
           [ text "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , text "con    =" <+> prettyTCM con
           , text "ctype  =" <+> prettyTCM ctype
-          , text "hps    =" <+> text (show hps)
+          , text "ps     =" <+> do addContext tel $ prettyTCMPatternList ps
           , text "d      =" <+> prettyTCM d
           , text "pars   =" <+> prettyList (map prettyTCM pars)
           , text "ixs    =" <+> addContext delta1 (prettyList (map prettyTCM ixs))
@@ -549,21 +556,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
         [ text (s ++ " =") <+> prettyTCM tel
         ]
 
-    debugShow s x =
+    debugPs ps =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text (s ++ " =") <+> text (show x)
+        [ text "ps     =" <+> prettyTCMPatternList ps
         ]
 
-    debugPlugged ps ps' =
+    debugPlugged ps' =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "ps     =" <+> text (show ps)
-        , text "ps'    =" <+> text (show ps')
-        ]
-
-    debugFinal tel ps =
-      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "rtel   =" <+> prettyTCM tel
-        , text "rps    =" <+> text (show ps)
+        [ text "ps'    =" <+> do prettyTCMPatternList ps'
         ]
 
 -- | Entry point from @Interaction.MakeCase@.
@@ -659,7 +659,7 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
   ns <- catMaybes <$> do
     forM cons $ \ con ->
       fmap (con,) <$> do
-        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x ps con
+        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x tel ps con
         if not fixtarget then return msc else do
         Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
 
@@ -709,13 +709,13 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
     inContextOfDelta2 = addContext tel . escapeContext x
 
     -- Debug printing
-    debugInit tel x ps =
-      liftTCM $ reportSDoc "tc.cover.top" 10 $ vcat
+    debugInit tel x ps = liftTCM $ do
+      reportSDoc "tc.cover.top" 10 $ vcat
         [ text "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel     =" <+> prettyTCM tel
           , text "x       =" <+> text (show x)
-          , text "ps      =" <+> text (show ps)
+          , text "ps      =" <+> do addContext tel $ prettyTCMPatternList ps
           ]
         ]
 
@@ -764,13 +764,15 @@ splitResult f sc@(SClause tel ps _ target) = do
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.
 
+        -- Andreas, 2016-07-22 read the style of projections from the user's lips
+        projOrigin <- ifM (optPostfixProjections <$> pragmaOptions) (return ProjPostfix) (return ProjPrefix)
         Just . Covering n <$> do
           forM fs $ \ proj -> do
             -- compute the new target
             dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
             let -- type of projection instantiated at self
                 target' = Just $ proj $> dType `piApply` pargs
-                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP projOrigin) proj]
                          , scSubst  = idS
                          , scTarget = target'
                          }

@@ -7,5 +7,5 @@ data X : Set where
 
 
 macro
-  f : Term -> Set
-  f x _ = X
+  f : Term → Set
+  f x = X

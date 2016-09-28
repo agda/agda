@@ -4,3 +4,9 @@ Termination checking failed for the following functions:
 Problematic calls:
   f (t lie)
     (at TerminationRecordPatternLie.agda:36,18-19)
+TerminationRecordPatternLie.agda:39,1-40,21
+Termination checking failed for the following functions:
+  g
+Problematic calls:
+  g (tail l lie)
+    (at TerminationRecordPatternLie.agda:40,7-8)

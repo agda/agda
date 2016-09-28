@@ -4,3 +4,9 @@ Termination checking failed for the following functions:
 Problematic calls:
   weird'' zero
     (at MixingCoPatternsAndCoConstructors.agda:31,28-35)
+MixingCoPatternsAndCoConstructors.agda:37,3-39,40
+Termination checking failed for the following functions:
+  MStream.repeat
+Problematic calls:
+  tail (repeat a)
+    (at MixingCoPatternsAndCoConstructors.agda:39,31-37)

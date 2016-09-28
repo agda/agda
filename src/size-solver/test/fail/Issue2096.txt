@@ -1,0 +1,5 @@
+q < Xo
+Xo < Xl
+Xl < Xj
+Xj < X1
+Xm + 5 <= Xj

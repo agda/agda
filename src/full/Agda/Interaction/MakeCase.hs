@@ -29,7 +29,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TheTypeChecker
@@ -85,16 +84,21 @@ parseVariables f ii rng ss = do
        , text $ "function's fvs  = " ++ show fv
        ]
 
-    -- Get number of free variables.  These cannot be split on.
-    fv <- getDefFreeVars f
-    let numSplittableVars = n - fv
+    -- Compute which variables correspond to module parameters. These cannot be split on.
+    -- Note: these are not necessarily the outer-most bound variables, since
+    -- module parameter refinement may have instantiated them, or
+    -- with-abstraction might have reshuffled the variables (#2181).
+    pars <- freeVarsToApply f
+    let nonSplittableVars = [ i | Var i [] <- map unArg pars ]
 
     -- Resolve each string to a variable.
     forM ss $ \ s -> do
-      let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
+      let failNotVar = typeError $ GenericError $ "Not a variable: " ++ s
           done i
-            | i < numSplittableVars = return i
-            | otherwise             = failNotVar
+            | notElem i nonSplittableVars = return i
+            | otherwise                   = typeError $ GenericError $
+               "Cannot split on variable " ++ s ++ ". It is either a module parameter " ++
+               "or already instantiated by a dot pattern"
 
       -- Note: the range in the concrete name is only approximate.
       resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
@@ -135,7 +139,13 @@ getClauseForIP f clauseNo = do
       let (cs1,cs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
           c         = fromMaybe __IMPOSSIBLE__ $ headMaybe cs2
       return (extlam, c, cs1)
-    _ -> __IMPOSSIBLE__
+    d -> do
+      reportSDoc "impossible" 10 $ vcat
+        [ text "getClauseForIP" <+> prettyTCM f <+> text (show clauseNo)
+          <+> text "received"
+        , text (show d)
+        ]
+      __IMPOSSIBLE__
 
 
 -- | Entry point for case splitting tactic.
@@ -198,8 +208,13 @@ makeCase hole rng s = withInteractionId hole $ do
     (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
-    vars <- parseVariables f hole rng vars
-    scs <- split f vars $ clauseToSplitClause clause
+    xs <- parseVariables f hole rng vars
+    -- Variables that are not in scope yet are brought into scope (@toShow@)
+    -- The other variables are split on (@toSplit@).
+    let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ (x, s) ->
+          if take 1 s == "." then Left x else Right x
+    let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
+    scs <- split f toSplit sc
     -- filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
     cs <- forM scs $ \(sc, isAbsurd) -> do
@@ -242,6 +257,22 @@ makeCase hole rng s = withInteractionId hole $ do
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 
+-- | Mark the variables given by the list of deBruijn indices as 'UserWritten'
+--   in the 'SplitClause'.
+makePatternVarsVisible :: [Nat] -> SplitClause -> SplitClause
+makePatternVarsVisible [] sc = sc
+makePatternVarsVisible is sc@SClause{ scPats = ps } =
+  sc{ scPats = map (mapNamedArg mkVis) ps }
+  where
+  mkVis :: NamedArg DBPatVar -> NamedArg DBPatVar
+  mkVis nx@(Arg ai (Named n (DBPatVar x i)))
+    | i `elem` is =
+      -- We could introduce extra consistency checks, like
+      -- if visible ai then __IMPOSSIBLE__ else
+      -- or passing the parsed name along and comparing it with @x@
+      setOrigin UserWritten nx
+    | otherwise = nx
+
 -- | Make clause with no rhs (because of absurd match).
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
@@ -259,7 +290,7 @@ makeAbsurdClause f (SClause tel ps _ t) = do
     -- Contract implicit record patterns before printing.
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
-    let c = Clause noRange tel ps NoBody t False
+    let c = Clause noRange tel ps Nothing t False
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
     reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)

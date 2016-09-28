@@ -1,12 +1,19 @@
 
 module Agda.TypeChecking.Patterns.Match where
 
+import Data.IntMap (IntMap)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
+import Agda.TypeChecking.Substitute (DeBruijn)
 
-data Match a = Yes Simplification [Arg a] | No | DontKnow (Blocked ())
+import Agda.Utils.Empty
 
-matchPatterns   :: (Show a) => [NamedArg (Pattern' a)] -> Args  -> ReduceM (Match Term, Args)
-matchCopatterns :: (Show a, PrettyTCM a) => [NamedArg (Pattern' a)] -> Elims -> ReduceM (Match Term, Elims)
+data Match a = Yes Simplification (IntMap (Arg a)) | No | DontKnow (Blocked ())
+
+buildSubstitution :: (DeBruijn a) => Empty -> Int -> IntMap (Arg a) -> Substitution' a
+
+matchPatterns   :: [NamedArg DeBruijnPattern] -> Args  -> ReduceM (Match Term, Args)
+matchCopatterns :: [NamedArg DeBruijnPattern] -> Elims -> ReduceM (Match Term, Elims)

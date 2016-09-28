@@ -18,7 +18,7 @@ import Agda.Compiler.Treeless.Pretty
 
 usedArguments :: QName -> TTerm -> TCM [Bool]
 usedArguments q t = computeUnused q b (replicate n False)
-  where (n, b) = lamView t
+  where (n, b) = tLamView t
 
 computeUnused :: QName -> TTerm -> [Bool] -> TCM [Bool]
 computeUnused q t used = do
@@ -59,9 +59,9 @@ computeUnused q t used = do
     underBinders n = Set.filter (>= 0) . Set.mapMonotonic (subtract n)
 
 stripUnusedArguments :: [Bool] -> TTerm -> TTerm
-stripUnusedArguments used t = unlamView m $ applySubst rho b
+stripUnusedArguments used t = mkTLam m $ applySubst rho b
   where
-    (n, b) = lamView t
+    (n, b) = tLamView t
     m      = length $ filter id used'
     used'  = reverse $ take n $ used ++ repeat True
     rho = computeSubst used'
@@ -69,10 +69,3 @@ stripUnusedArguments used t = unlamView m $ applySubst rho b
     computeSubst (True  : bs) = liftS 1 $ computeSubst bs
     computeSubst []           = idS
 
-lamView :: TTerm -> (Int, TTerm)
-lamView (TLam b) = first succ $ lamView b
-lamView t        = (0, t)
-
-unlamView :: Int -> TTerm -> TTerm
-unlamView 0 t = t
-unlamView n t = TLam $ unlamView (n - 1) t

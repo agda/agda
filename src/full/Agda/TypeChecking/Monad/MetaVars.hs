@@ -1,13 +1,18 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 
@@ -26,12 +31,15 @@ import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
 import Agda.Utils.Size
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -46,6 +54,14 @@ getMetaStore = use stMetaStore
 
 modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore %= f
+
+-- | Run a computation and record which new metas it created.
+metasCreatedBy :: TCM a -> TCM (a, Set MetaId)
+metasCreatedBy m = do
+  before <- Map.keysSet <$> use stMetaStore
+  a <- m
+  after  <- Map.keysSet <$> use stMetaStore
+  return (a, after Set.\\ before)
 
 -- | Lookup a meta variable
 lookupMeta :: MetaId -> TCM MetaVariable
@@ -136,7 +152,6 @@ isInstantiatedMeta' m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
     InstV tel v -> Just $ foldr mkLam v tel
-    InstS v     -> Just v
     _           -> Nothing
 
 -- | Create 'MetaInfo' in the current environment.
@@ -166,7 +181,7 @@ getMetaNameSuggestion :: MetaId -> TCM MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
 setMetaNameSuggestion :: MetaId -> MetaNameSuggestion -> TCM ()
-setMetaNameSuggestion mi s = do
+setMetaNameSuggestion mi s = unless (null s || isUnderscore s) $ do
   reportSLn "tc.meta.name" 20 $
     "setting name of meta " ++ prettyShow mi ++ " to " ++ s
   updateMetaVar mi $ \ mvar ->
@@ -183,12 +198,21 @@ modifyInteractionPoints f =
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.
-registerInteractionPoint :: Range -> Maybe Nat -> TCM InteractionId
-registerInteractionPoint r maybeId = do
+registerInteractionPoint :: Bool -> Range -> Maybe Nat -> TCM InteractionId
+registerInteractionPoint preciseRange r maybeId = do
+  m <- use stInteractionPoints
+  if not preciseRange then continue m else do
+    -- If the range does not come from a file, it is not
+    -- precise, so ignore it.
+    Strict.caseMaybe (rangeFile r) (continue m) $ \ _ -> do
+    -- First, try to find the interaction point by Range.
+    caseMaybe (findInteractionPoint_ r m) (continue m) {-else-} return
+ where
+ continue m = do
+  -- We did not find an interaction id with the same Range, so let's create one!
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
     Nothing -> fresh
-  m <- use stInteractionPoints
   let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipClause = IPNoClause }
   case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
@@ -199,6 +223,19 @@ registerInteractionPoint r maybeId = do
     (Nothing, m') -> do
       modifyInteractionPoints (const m')
       return ii
+
+-- | Find an interaction point by 'Range' by searching the whole map.
+--
+--   O(n): linear in the number of registered interaction points.
+
+findInteractionPoint_ :: Range -> InteractionPoints -> Maybe InteractionId
+findInteractionPoint_ r m = do
+  guard $ not $ null r
+  headMaybe $ mapMaybe sameRange $ Map.toList m
+  where
+    sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
+    sameRange (ii, InteractionPoint r' _ _) | r == r' = Just ii
+    sameRange _ = Nothing
 
 -- | Hook up meta variable to interaction point.
 connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
@@ -253,6 +290,13 @@ lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
   where
     err2 = typeError $ GenericError $ "No type nor action available for hole " ++ show ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
 
+-- | Check whether an interaction id is already associated with a meta variable.
+lookupInteractionMeta :: InteractionId -> TCM (Maybe MetaId)
+lookupInteractionMeta ii = lookupInteractionMeta_ ii <$> use stInteractionPoints
+
+lookupInteractionMeta_ :: InteractionId -> InteractionPoints -> Maybe MetaId
+lookupInteractionMeta_ ii m = ipMeta =<< Map.lookup ii m
+
 -- | Generate new meta variable.
 newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement a -> TCM MetaId
 newMeta = newMeta' Open
@@ -298,19 +342,18 @@ getInstantiatedMetas = do
         isInst BlockedConst{}                 = False
         isInst PostponedTypeCheckingProblem{} = False
         isInst InstV{}                        = True
-        isInst InstS{}                        = True
 
 getOpenMetas :: TCM [MetaId]
 getOpenMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpen mi ]
-    where
-        isOpen Open                           = True
-        isOpen OpenIFS                        = True
-        isOpen BlockedConst{}                 = True
-        isOpen PostponedTypeCheckingProblem{} = True
-        isOpen InstV{}                        = False
-        isOpen InstS{}                        = False
+    return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpenMeta mi ]
+
+isOpenMeta :: MetaInstantiation -> Bool
+isOpenMeta Open                           = True
+isOpenMeta OpenIFS                        = True
+isOpenMeta BlockedConst{}                 = True
+isOpenMeta PostponedTypeCheckingProblem{} = True
+isOpenMeta InstV{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.
@@ -345,14 +388,18 @@ withFreezeMetas cont = do
 
 -- | Freeze all meta variables and return the list of metas that got frozen.
 freezeMetas :: TCM [MetaId]
-freezeMetas = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
+freezeMetas = freezeMetas' $ const True
+
+-- | Freeze some meta variables and return the list of metas that got frozen.
+freezeMetas' :: (MetaId -> Bool) -> TCM [MetaId]
+freezeMetas' p = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
   where
   freeze :: Monad m => MetaId -> MetaVariable -> WriterT [MetaId] m MetaVariable
   freeze m mvar
-    | mvFrozen mvar == Frozen = return mvar
-    | otherwise = do
+    | p m && mvFrozen mvar /= Frozen = do
         tell [m]
         return $ mvar { mvFrozen = Frozen }
+    | otherwise = return mvar
 
 -- | Thaw all meta variables.
 unfreezeMetas :: TCM ()

@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.MetaVars where
 
@@ -10,6 +11,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
 
+import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
@@ -42,13 +44,14 @@ import Agda.Utils.Except
   , runExceptT
   )
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty ( prettyShow, render )
 import qualified Agda.Utils.VarSet as Set
 
 #include "undefined.h"
@@ -71,7 +74,6 @@ isBlockedTerm x = do
             BlockedConst{}                 -> True
             PostponedTypeCheckingProblem{} -> True
             InstV{}                        -> False
-            InstS{}                        -> False
             Open{}                         -> False
             OpenIFS{}                      -> False
     reportSLn "tc.meta.blocked" 12 $
@@ -85,7 +87,6 @@ isEtaExpandable kinds x = do
       Open{}                         -> True
       OpenIFS{}                      -> notElem Records kinds
       InstV{}                        -> False
-      InstS{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
 
@@ -93,7 +94,7 @@ isEtaExpandable kinds x = do
 
 -- | Performing the meta variable assignment.
 --
---   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
+--   The instantiation should not be an 'InstV' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
 assignTerm :: MetaId -> [Arg ArgName] -> Term -> TCM ()
@@ -162,7 +163,7 @@ newSortMetaCtx vs =
     return $ Type $ Max [Plus 0 $ MetaLevel x $ map Apply vs]
 
 newTypeMeta :: Sort -> TCM Type
-newTypeMeta s = El s <$> newValueMeta RunMetaOccursCheck (sort s)
+newTypeMeta s = El s . snd <$> newValueMeta RunMetaOccursCheck (sort s)
 
 newTypeMeta_ ::  TCM Type
 newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
@@ -175,15 +176,15 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 --   of type the output type of @t@ with name suggestion @s@.
 --   If @t@ is a function type, then insert enough
 --   lambdas in front of it.
-newIFSMeta :: MetaNameSuggestion -> Type -> TCM Term
+newIFSMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
 newIFSMeta s t = do
   TelV tel t' <- telView t
   addContext tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
-    teleLam tel <$> newIFSMetaCtx s (telePi_ ctx t') vs
+    mapSnd (teleLam tel) <$> newIFSMetaCtx s (telePi_ ctx t') vs
 
-newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM Term
+newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
 newIFSMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new ifs meta:"
@@ -199,35 +200,42 @@ newIFSMetaCtx s t vs = do
     ]
   addConstraint $ FindInScope x Nothing Nothing
   etaExpandMetaSafe x
-  return $ MetaV x $ map Apply vs
+  return (x, MetaV x $ map Apply vs)
 
--- | Create a new value meta with specific dependencies.
-newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM Term
+-- | Create a new value meta with specific dependencies, possibly η-expanding in the process.
+newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
 newNamedValueMeta b s t = do
-  v <- newValueMeta b t
-  setValueMetaName v s
-  return v
+  (x, v) <- newValueMeta b t
+  setMetaNameSuggestion x s
+  return (x, v)
+
+-- | Create a new value meta with specific dependencies without η-expanding.
+newNamedValueMeta' :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newNamedValueMeta' b s t = do
+  (x, v) <- newValueMeta' b t
+  setMetaNameSuggestion x s
+  return (x, v)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta :: RunMetaOccursCheck -> Type -> TCM Term
+newValueMeta :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
 newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx b t tel (idP $ size tel) vs
 
-newValueMetaCtx :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM Term
+newValueMetaCtx :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM (MetaId, Term)
 newValueMetaCtx b t tel perm ctx =
-  instantiateFull =<< newValueMetaCtx' b t tel perm ctx
+  mapSndM instantiateFull =<< newValueMetaCtx' b t tel perm ctx
 
 -- | Create a new value meta without η-expanding.
-newValueMeta' :: RunMetaOccursCheck -> Type -> TCM Term
+newValueMeta' :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
 newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx' b t tel (idP $ size tel) vs
 
 -- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM Term
+newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM (MetaId, Term)
 newValueMetaCtx' b a tel perm vs = do
   i <- createMetaInfo' b
   let t     = telePi_ tel a
@@ -241,7 +249,7 @@ newValueMetaCtx' b a tel perm vs = do
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
   u <- shared $ MetaV x $ map Apply vs
   boundedSizeMetaHook u tel a
-  return u
+  return (x, u)
 
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ typeDontCare)
@@ -268,7 +276,7 @@ newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case ignoreSharing tm of
     Pi dom@(Dom{domInfo = info, unDom = a}) codom | condition dom codom -> do
-      u <- applyRelevanceToContext (getRelevance info) $
+      (_, u) <- applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
@@ -294,14 +302,24 @@ newRecordMetaCtx r pars tel perm ctx = do
   con    <- getRecordConstructor r
   return $ Con con fields
 
-newQuestionMark :: InteractionId -> Type -> TCM Term
-newQuestionMark ii t = do
+newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck
+
+newQuestionMark' :: (Type -> TCM (MetaId, Term)) -> InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark' new ii t = do
+  -- Andreas, 2016-07-29, issue 1720-2
+  -- This is slightly risky, as the same interaction id
+  -- maybe be shared between different contexts.
+  -- Blame goes to the record processing hack, see issue #424
+  -- and @ConcreteToAbstract.recordConstructorType@.
+  let existing x = (x,) . MetaV x . map Apply <$> getContextArgs
+  flip (caseMaybeM $ lookupInteractionMeta ii) existing $ {-else-} do
+
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
-  m  <- newValueMeta' DontRunMetaOccursCheck t
-  MetaV x _ <- return $ ignoreSharing m   -- needs to be strict!
+  (x, m) <- new t
   connectInteractionPoint ii x
-  return m
+  return (x, m)
 
 -- | Construct a blocked constant if there are constraints.
 blockTerm :: Type -> TCM Term -> TCM Term
@@ -333,7 +351,7 @@ blockTermOnProblem t v pid =
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        v   <- newValueMeta DontRunMetaOccursCheck t
+        (_, v) <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x es))
@@ -382,7 +400,7 @@ postponeTypeCheckingProblem p unblock = do
   -- to run the extended occurs check (metaOccurs) to exclude
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
-  v   <- newValueMeta DontRunMetaOccursCheck t
+  (_, v) <- newValueMeta DontRunMetaOccursCheck t
   cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
@@ -672,7 +690,7 @@ assign dir x args v = do
           Left NeutralArg  -> Just <$> attemptPruning x args fvs
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
-          Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
+          Left ProjectedVar{} -> Just <$> attemptPruning x args fvs
 
       case mids of
         Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
@@ -945,7 +963,7 @@ etaExpandProjectedVar i v fail succeed = do
 class NoProjectedVar a where
   noProjectedVar :: a -> Either ProjVarExc ()
 
-data ProjVarExc = ProjVarExc Int [QName]
+data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
 
 -- ASR (17 June 2015). Unused Error instance.
 -- instance Error ProjVarExc where
@@ -1048,7 +1066,7 @@ type Res = [(Arg Nat, Term)]
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
-  | ProjectedVar Int [QName]  -- ^ Try to eta-expand var to remove projs.
+  | ProjectedVar Int [(ProjOrigin, QName)]  -- ^ Try to eta-expand var to remove projs.
 
 #if !MIN_VERSION_transformers(0,4,1)
 instance Error InvertExcept where
@@ -1098,7 +1116,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
           case isRC of
             Just (_, Record{ recFields = fs })
               | length fs == length vs -> do
-                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj f] where
+                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding    = min (getHiding info) (getHiding info')
                        , argInfoRelevance = max (getRelevance info) (getRelevance info')
@@ -1160,3 +1178,47 @@ allMetas = foldTerm metas
   where
   metas (MetaV m _) = [m]
   metas _           = []
+
+
+-- | Turn open metas into postulates.
+--
+--   Preconditions:
+--
+--   1. We are 'inTopContext'.
+--
+--   2. 'envCurrentModule' is set to the top-level module.
+--
+openMetasToPostulates :: TCM ()
+openMetasToPostulates = do
+  m <- asks envCurrentModule
+
+  -- Go through all open metas.
+  ms <- Map.assocs <$> use stMetaStore
+  forM_ ms $ \ (x, mv) -> do
+    when (isOpenMeta $ mvInstantiation mv) $ do
+      let t = jMetaType $ mvJudgement mv
+
+      -- Create a name for the new postulate.
+      let r = clValue $ miClosRange $ mvInfo mv
+      -- s <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
+      let s = "unsolved#meta." ++ show (metaId x)
+      n <- freshName r s
+      let q = A.QName m n
+
+      -- Debug.
+      reportSDoc "meta.postulate" 20 $ vcat
+        [ text ("Turning " ++ if isSortMeta_ mv then "sort" else "value" ++ " meta ")
+            <+> prettyTCM x <+> text " into postulate."
+        , nest 2 $ vcat
+          [ text "Name: " <+> prettyTCM q
+          , text "Type: " <+> prettyTCM t
+          ]
+        ]
+
+      -- Add the new postulate to the signature.
+      addConstant q $ defaultDefn defaultArgInfo q t Axiom
+
+      -- Solve the meta.
+      let inst = InstV [] $ Def q []
+      stMetaStore %= Map.adjust (\ mv0 -> mv0 { mvInstantiation = inst }) x
+      return ()

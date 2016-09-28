@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP           #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -11,6 +12,7 @@ import Control.Arrow
 import Control.DeepSeq
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
 import Data.Function (on)
@@ -42,6 +44,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
@@ -63,6 +66,7 @@ import Agda.Interaction.Highlighting.Vim
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.IO.Binary
@@ -118,13 +122,13 @@ addImportedThings ::
   Set String -> -- UHC backend imports
   A.PatternSynDefns -> DisplayForms -> TCM ()
 addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns display = do
-  stImports %= \imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
-  stImportedBuiltins %= \imp -> Map.union imp ibuiltin
-  stHaskellImports %= \imp -> Set.union imp hsImports
-  stHaskellImportsUHC %= \imp -> Set.union imp hsImportsUHC
-  stPatternSynImports %= \imp -> Map.union imp patsyns
-  stImportedDisplayForms %= \imp -> HMap.unionWith (++) imp display
-  addSignatureInstances isig
+  stImports              %= \ imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
+  stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
+  stHaskellImports       %= \ imp -> Set.union imp hsImports
+  stHaskellImportsUHC    %= \ imp -> Set.union imp hsImportsUHC
+  stPatternSynImports    %= \ imp -> Map.union imp patsyns
+  stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
+  addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
@@ -144,11 +148,18 @@ scopeCheckImport x = do
     let s = iScope i
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
-data MaybeWarnings = NoWarnings | SomeWarnings Warnings
+data MaybeWarnings' a = NoWarnings | SomeWarnings a
+  deriving (Functor)
+type MaybeWarnings = MaybeWarnings' [Warning]
+
+instance Null a => Null (MaybeWarnings' a) where
+  empty = NoWarnings
+  null mws = case mws of
+    NoWarnings      -> True
+    SomeWarnings ws -> null ws
 
 hasWarnings :: MaybeWarnings -> Bool
-hasWarnings NoWarnings     = False
-hasWarnings SomeWarnings{} = True
+hasWarnings = not . null
 
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
@@ -227,8 +238,13 @@ getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x NotMainInterface
   case wt of
-    SomeWarnings w  -> warningsToError w
+    SomeWarnings w  -> warningsToError (filter notIM w)
     NoWarnings      -> return i
+   -- filter out unsolved interaction points for imported module so
+   -- that we get the right error message (see test case Fail/Issue1296)
+   where notIM UnsolvedInteractionMetas{} = False
+         notIM _                          = True
+
 
 -- | A more precise variant of 'getInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
@@ -239,6 +255,7 @@ getInterface'
   -> MainInterface
      -- ^ If type checking is necessary,
      --   should all state changes inflicted by 'createInterface' be preserved?
+     --   Yes, if we are the 'MainInterface'.  No, if we are 'NotMainInterface'.
   -> TCM (Interface, MaybeWarnings)
 getInterface' x isMain = do
   withIncreasedModuleNestingLevel $ do
@@ -256,8 +273,9 @@ getInterface' x isMain = do
 
       uptodate <- Bench.billTo [Bench.Import] $ do
         ignore <- ignoreInterfaces
-        cached <- isCached file -- if it's cached ignoreInterfaces has no effect
-                                -- to avoid typechecking a file more than once
+        cached <- runMaybeT $ isCached x file
+          -- If it's cached ignoreInterfaces has no effect;
+          -- to avoid typechecking a file more than once.
         sourceH <- liftIO $ hashFile file
         ifaceH  <-
           case cached of
@@ -277,7 +295,9 @@ getInterface' x isMain = do
         -- let maySkip = isMain == NotMainInterface
         -- Andreas, 2015-07-13: Serialize iInsideScope again.
         let maySkip = True
-        if uptodate && maySkip then skip file else typeCheckThe file
+        if uptodate && maySkip
+          then getStoredInterface x file includeStateChanges
+          else typeCheck          x file includeStateChanges
 
       -- Ensure that the given module name matches the one in the file.
       let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -307,29 +327,52 @@ getInterface' x isMain = do
     where
       includeStateChanges = isMain == MainInterface
 
-      isCached file = do
-        let ifile = filePath $ toIFile file
-        exist <- liftIO $ doesFileExistCaseSensitive ifile
-        if not exist
-          then return Nothing
-          else do
-            h  <- fmap snd <$> getInterfaceFileHashes ifile
-            mm <- getDecodedModule x
-            return $ case mm of
-              Just mi | Just (iFullHash mi) == h -> Just mi
-              _                                  -> Nothing
+-- | Check whether interface file exists and is in cache
+--   in the correct version (as testified by the interface file hash).
 
-      -- Formats the "Checking", "Finished" and "Skipping" messages.
-      chaseMsg kind file = do
-        nesting <- envModuleNestingLevel <$> ask
-        let s = genericReplicate nesting ' ' ++ kind ++
-                " " ++ prettyShow x ++
-                case file of
-                  Nothing -> "."
-                  Just f  -> " (" ++ f ++ ")."
-        reportSLn "import.chase" 1 s
+isCached
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> AbsolutePath
+     -- ^ File we process.
+  -> MaybeT TCM Interface
 
-      skip file = do
+isCached x file = do
+  let ifile = filePath $ toIFile file
+
+  -- Make sure the file exists in the case sensitive spelling.
+  guardM $ liftIO $ doesFileExistCaseSensitive ifile
+
+  -- Check that we have cached the module.
+  mi <- MaybeT $ getDecodedModule x
+
+  -- Check that the interface file exists and return its hash.
+  h  <- MaybeT $ fmap snd <$> getInterfaceFileHashes ifile
+
+  -- Make sure the hashes match.
+  guard $ iFullHash mi == h
+
+  return mi
+
+
+-- | Try to get the interface from interface file or cache.
+
+getStoredInterface
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> AbsolutePath
+     -- ^ File we process.
+  -> Bool
+     -- ^ If type checking is necessary,
+     --   should all state changes inflicted by 'createInterface' be preserved?
+     --   @True@, if we are the 'MainInterface'.  @False@, if we are 'NotMainInterface'.
+  -> TCM (Bool, (Interface, MaybeWarnings))
+     -- ^ @Bool@ is: do we have to merge the interface?
+getStoredInterface x file includeStateChanges = do
+        -- If something goes wrong (interface outdated etc.)
+        -- we revert to fresh type checking.
+        let fallback = typeCheck x file includeStateChanges
+
         -- Examine the hash of the interface file. If it is different from the
         -- stored version (in stDecodedModules), or if there is no stored version,
         -- read and decode it. Otherwise use the stored version.
@@ -354,9 +397,8 @@ getInterface' x isMain = do
         case mi of
           Nothing       -> do
             reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
-            typeCheckThe file
+            fallback
           Just i        -> do
-
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
             hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
@@ -365,28 +407,49 @@ getInterface' x isMain = do
             if hs /= map snd (iImportedModules i)
               then do
                 -- liftIO close -- Close the interface file. See above.
-                typeCheckThe file
+                fallback
               else do
-                unless cached $ chaseMsg "Skipping" (Just ifile)
+                unless cached $ chaseMsg "Skipping" x $ Just ifile
                 -- We set the pragma options of the skipped file here,
                 -- because if the top-level file is skipped we want the
                 -- pragmas to apply to interactive commands in the UI.
                 mapM_ setOptionsFromPragma (iPragmaOptions i)
                 return (False, (i, NoWarnings))
 
-      typeCheckThe file = do
+-- | Run the type checker on a file and create an interface.
+--
+--   Mostly, this function calls 'createInterface'.
+--   But if it is not the main module we check,
+--   we do it in a fresh state, suitably initialize,
+--   in order to forget some state changes after successful type checking.
+
+typeCheck
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> AbsolutePath
+     -- ^ File we process.
+  -> Bool
+     -- ^ If type checking is necessary,
+     --   should all state changes inflicted by 'createInterface' be preserved?
+     --   @True@, if we are the 'MainInterface'.  @False@, if we are 'NotMainInterface'.
+  -> TCM (Bool, (Interface, MaybeWarnings))
+     -- ^ @Bool@ is: do we have to merge the interface?
+typeCheck x file includeStateChanges = do
+
           unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
-                (chaseMsg "Checking" $ Just $ filePath file)
-                (const $ chaseMsg "Finished" Nothing)
+                (chaseMsg "Checking" x $ Just $ filePath file)
+                (const $ unlessM (hasWarnings <$> getAllWarnings RespectFlags) $
+                  chaseMsg "Finished" x Nothing)
 
           -- Do the type checking.
 
           if includeStateChanges then do
-            r <- withMsgs $ createInterface file x
+            r <- withMsgs $ createInterface file x includeStateChanges
 
             -- Merge the signature with the signature for imported
             -- things.
+            reportSLn "import.iface" 40 $ "Merging with state changes included."
             sig     <- getSignature
             patsyns <- getPatternSyns
             display <- use stImportsDisplayForms
@@ -432,7 +495,7 @@ getInterface' x isMain = do
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns display
 
-                     r  <- withMsgs $ createInterface file x
+                     r  <- withMsgs $ createInterface file x includeStateChanges
                      mf <- use stModuleToSource
                      ds <- getDecodedModules
                      return (r, do
@@ -454,11 +517,25 @@ getInterface' x isMain = do
                       -- checking the module.
                       -- Note that this doesn't actually read the interface
                       -- file, only the cached interface.
-                      skip file
+                      getStoredInterface x file includeStateChanges
                     _ -> return (False, r)
 
--- | Print the highlighting information contained in the given
--- interface.
+
+-- | Formats and outputs the "Checking", "Finished" and "Skipping" messages.
+
+chaseMsg
+  :: String               -- ^ The prefix, like @Checking@, @Finished@, @Skipping@.
+  -> C.TopLevelModuleName -- ^ The module name.
+  -> Maybe String         -- ^ Optionally: the file name.
+  -> TCM ()
+chaseMsg kind x file = do
+  indentation <- (`replicate` ' ') <$> asks envModuleNestingLevel
+  let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
+  reportSLn "import.chase" 1 $ concat $
+    [ indentation, kind, " ", prettyShow x, maybeFile ]
+
+
+-- | Print the highlighting information contained in the given interface.
 
 highlightFromInterface
   :: Interface
@@ -470,6 +547,7 @@ highlightFromInterface i file = do
     "Generating syntax info for " ++ filePath file ++
     " (read from interface)."
   printHighlightingInfo (iHighlighting i)
+
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
@@ -537,8 +615,9 @@ removePrivates si = si { scopeModules = restrictPrivate <$> scopeModules si }
 createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
+  -> Bool
   -> TCM (Interface, MaybeWarnings)
-createInterface file mname =
+createInterface file mname isMain =
   local (\e -> e { envCurrentPath = Just file }) $ do
     modFile       <- use stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
@@ -570,7 +649,7 @@ createInterface file mname =
     -- Scope checking.
     reportSLn "import.iface.create" 7 $ "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $
-      concreteToAbstract_ (TopLevel file top)
+      concreteToAbstract_ (TopLevel file mname top)
     reportSLn "import.iface.create" 7 $ "Finished scope checking."
 
     let ds    = topLevelDecls topLevel
@@ -637,6 +716,31 @@ createInterface file mname =
     setScope scope
     reportSLn "scope.top" 50 $ "SCOPE " ++ show scope
 
+    -- TODO: It would be nice if unsolved things were highlighted
+    -- after every mutual block.
+
+    openMetas           <- getOpenMetas
+    unless (null openMetas) $ do
+      reportSLn "import.metas" 10 "We have unsolved metas."
+      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
+
+    ifTopLevelAndHighlightingLevelIs NonInteractive $
+      printUnsolvedInfo
+
+    -- Andreas, 2016-08-03, issue #964
+    -- When open metas are allowed,
+    -- permanently freeze them now by turning them into postulates.
+    -- This will enable serialization.
+    -- savedMetaStore <- use stMetaStore
+    unless isMain $
+      whenM (optAllowUnsolved <$> pragmaOptions) $ do
+        withCurrentModule (scopeCurrent scope) $
+          openMetasToPostulates
+        -- Clear constraints as they might refer to what
+        -- they think are open metas.
+        stAwakeConstraints    .= []
+        stSleepingConstraints .= []
+
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     syntaxInfo <- use stSyntaxInfo
@@ -652,31 +756,21 @@ createInterface file mname =
       ]
     reportSLn "import.iface.create" 7 $ "Finished serialization."
 
-    -- TODO: It would be nice if unsolved things were highlighted
-    -- after every mutual block.
+    mallWarnings <- getAllWarnings $ if isMain then IgnoreFlags else RespectFlags
 
-    openMetas           <- getOpenMetas
-    unless (null openMetas) $ do
-      reportSLn "import.metas" 10 "We have unsolved metas."
-      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
-    unsolvedMetas       <- List.nub <$> mapM getMetaRange openMetas
-    unsolvedConstraints <- getAllConstraints
-    interactionPoints   <- getInteractionPoints
+    reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
+    case mallWarnings of
+      SomeWarnings allWarnings -> return ()
+      NoWarnings               -> Bench.billTo [Bench.Serialization] $ do
+        -- The file was successfully type-checked (and no warnings were
+        -- encountered), so the interface should be written out.
+        let ifile = filePath $ toIFile file
+        writeInterface ifile i
+    reportSLn "import.iface.create" 7 $ "Finished (or skipped) writing to interface file."
 
-    ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printUnsolvedInfo
-
-    reportSLn "import.iface.create" 7 $ "Starting writing to interface file."
-    warn <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
-     then Bench.billTo [Bench.Serialization] $ do
-      -- The file was successfully type-checked (and no warnings were
-      -- encountered), so the interface should be written out.
-      let ifile = filePath $ toIFile file
-      writeInterface ifile i
-      return NoWarnings
-     else do
-      return $ SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints
-    reportSLn "import.iface.create" 7 $ "Finished writing to interface file."
+    -- -- Restore the open metas, as we might continue in interaction mode.
+    -- Actually, we do not serialize the metas if checking the MainInterface
+    -- stMetaStore .= savedMetaStore
 
     -- Profiling: Print statistics.
     printStatistics 30 (Just mname) =<< getStatistics
@@ -688,7 +782,34 @@ createInterface file mname =
     verboseS "profile" 1 $ do
       reportSLn "import.iface" 5 $ "Accumulated statistics."
 
-    return (constructIScope i, warn)
+    return $ first constructIScope (i, mallWarnings)
+
+-- | Collect all warnings that have accumulated in the state.
+-- Depending on the argument, we either respect the flags passed
+-- in by the user, or not (for instance when deciding if we are
+-- writing an interface file or not)
+
+getAllWarnings :: IgnoreFlags -> TCM MaybeWarnings
+getAllWarnings ifs = do
+  openMetas            <- getOpenMetas
+  interactionMetas     <- getInteractionMetas
+  unsolvedInteractions <- List.nub <$> mapM getMetaRange interactionMetas
+  unsolvedMetas        <- List.nub <$> mapM getMetaRange (openMetas List.\\ interactionMetas)
+  unsolvedConstraints  <- getAllConstraints
+  collectedWarnings    <- use stWarnings
+  interactionPoints    <- getInteractionPoints
+  tcst                 <- get
+
+  allWarnings <- applyFlagsToWarnings ifs $ reverse
+               $ UnsolvedInteractionMetas unsolvedInteractions
+               : UnsolvedMetaVariables    unsolvedMetas
+               : UnsolvedConstraints      tcst unsolvedConstraints
+               : collectedWarnings
+
+  return $ if and [ null allWarnings ] -- , null interactionPoints ] -- Andreas, issue 964: we do want to serialize with open interaction points now!
+           then NoWarnings
+           else SomeWarnings allWarnings
+
 
 -- constructIScope :: ScopeInfo -> Map ModuleName Scope
 constructIScope :: Interface -> Interface

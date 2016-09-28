@@ -70,12 +70,12 @@ data NameSpaceId
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
 localNameSpace :: Access -> NameSpaceId
-localNameSpace PublicAccess  = PublicNS
-localNameSpace PrivateAccess = PrivateNS
-localNameSpace OnlyQualified = OnlyQualifiedNS
+localNameSpace PublicAccess    = PublicNS
+localNameSpace PrivateAccess{} = PrivateNS
+localNameSpace OnlyQualified   = OnlyQualifiedNS
 
 nameSpaceAccess :: NameSpaceId -> Access
-nameSpaceAccess PrivateNS = PrivateAccess
+nameSpaceAccess PrivateNS = PrivateAccess Inserted
 nameSpaceAccess _         = PublicAccess
 
 -- | Get a 'NameSpace' from 'Scope'.
@@ -659,7 +659,7 @@ flattenScope ms scope =
                [ qual c (build ms' exportedNamesInScope $ moduleScope a)
                | (c, a) <- Map.toList $ scopeImports root
                , let -- get the suffixes of c in ms
-                     ms' = mapMaybe (maybePrefixMatch $ C.qnameParts c) ms
+                     ms' = mapMaybe (List.stripPrefix $ C.qnameParts c) ms
                , not $ null ms' ]
     qual c = Map.mapKeys (q c)
       where

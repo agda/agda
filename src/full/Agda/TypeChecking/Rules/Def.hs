@@ -13,8 +13,10 @@ import Data.Function
 import Data.List hiding (sort)
 import Data.Maybe
 import Data.Traversable
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
@@ -46,6 +48,7 @@ import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
+import Agda.TypeChecking.Primitive hiding (Nat)
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
@@ -73,33 +76,49 @@ checkFunDef delayed i name cs = do
         t    <- typeOfConst name
         info  <- flip setRelevance defaultArgInfo <$> relOfConst name
         case isAlias cs t of
-          Just (e, x) ->
+          Just (e, mc, x) ->
             traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
               whenM (isFrozen x) $ unfreezeMeta x
-              checkAlias t info delayed i name e
+              checkAlias t info delayed i name e mc
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
+        -- If it's a macro check that it ends in Term → TC ⊤
+        ismacro <- isMacro . theDef <$> getConstInfo name
+        when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
+
+checkMacroType :: Type -> TCM ()
+checkMacroType t = do
+  t' <- normalise t
+  TelV tel tr <- telView t'
+
+  let telList = telToList tel
+      resType = abstract (telFromList (drop (length telList - 1) telList)) tr
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  equalType resType expectedType
+    `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
+                                                            , nest 2 $ prettyTCM expectedType ]
+
 -- | A single clause without arguments and without type signature is an alias.
-isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, MetaId)
+isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, Maybe C.Expr, MetaId)
 isAlias cs t =
         case trivialClause cs of
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just e | Just x <- isMeta (ignoreSharing $ unEl t) -> Just (e, x)
+          Just (e, mc) | Just x <- isMeta (ignoreSharing $ unEl t) -> Just (e, mc, x)
           _ -> Nothing
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) _ (A.RHS e) [] _] = Just e
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) _ (A.RHS e mc) [] _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
+checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
+checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
@@ -132,29 +151,19 @@ checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
 
   -- Add the definition
   addConstant name $ defaultDefn ai name t
-                   $ Function
-                      { funClauses        = [ Clause  -- trivial clause @name = v@
+                   $ set funMacro (Info.defMacro i == MacroDef) $
+                     emptyFunction
+                      { funClauses = [ Clause  -- trivial clause @name = v@
                           { clauseRange     = getRange i
                           , clauseTel       = EmptyTel
                           , namedClausePats = []
-                          , clauseBody      = Body $ bodyMod v
+                          , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
                           } ]
-                      , funCompiled       = Just $ Done [] $ bodyMod v
-                      , funTreeless       = Nothing
-                      , funDelayed        = delayed
-                      , funInv            = NotInjective
-                      , funAbstr          = Info.defAbstract i
-                      , funMutual         = []
-                      , funProjection     = Nothing
-                      , funSmashable      = True
-                      , funStatic         = False
-                      , funInline         = False
-                      , funTerminates     = Nothing
-                      , funExtLam         = Nothing
-                      , funWith           = Nothing
-                      , funCopatternLHS   = False
+                      , funCompiled = Just $ Done [] $ bodyMod v
+                      , funDelayed  = delayed
+                      , funAbstr    = Info.defAbstract i
                       }
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
@@ -224,10 +233,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
         modifyFunClauses name (const [])
 
-        -- Check that all clauses have the same number of arguments
-        -- unless (allEqual $ map npats cs) $ typeError DifferentArities
-        -- Andreas, 2013-03-15 disable this check to allow flexible arity (issue 727)
-
         reportSDoc "tc.cc" 25 $ do
           sep [ text "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
@@ -277,24 +282,21 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               , nest 2 $ text (show cc)
               ]
 
+        -- The macro tag might be on the type signature
+        ismacro <- isMacro . theDef <$> getConstInfo name
+
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           useTerPragma $ defaultDefn ai name fullType $
-             Function
+             set funMacro (ismacro || Info.defMacro i == MacroDef) $
+             emptyFunction
              { funClauses        = cs
              , funCompiled       = Just cc
-             , funTreeless       = Nothing
              , funDelayed        = delayed
              , funInv            = inv
              , funAbstr          = Info.defAbstract i
-             , funMutual         = []
-             , funProjection     = Nothing
-             , funSmashable      = True
-             , funStatic         = False
-             , funInline         = False
-             , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with
              , funCopatternLHS   = isCopatternLHS cs
@@ -307,8 +309,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           sep [ text "added " <+> prettyTCM name <+> text ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name
               ]
-    where
-        npats = size . clausePats
 
 -- | Set 'funTerminates' according to termination info in 'TCEnv',
 --   which comes from a possible termination pragma.
@@ -355,19 +355,6 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
--- | Create a clause body from a term.
---
---   As we have type checked the term in the clause telescope, but the final
---   body should have bindings in the order of the pattern variables,
---   we need to apply the permutation to the checked term.
-
-mkBody :: Permutation -> Term -> ClauseBody
-mkBody perm v = foldr (\ x t -> Bind $ Abs x t) b xs
-  where
-    b  = Body $ applySubst (renamingR perm) v
-    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
-
-
 -- | Type check a function clause.
 
 checkClause
@@ -387,7 +374,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs _perm) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
@@ -395,16 +382,15 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         -- Note that the with function doesn't necessarily share any part of
         -- the context with the parent (but withSub will take you from parent
         -- to child).
-        inTopContext $ checkWithFunction cxtNames with
+        inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
 
         reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
           [ text "Clause before translation:"
           , nest 2 $ vcat
             [ text "delta =" <+> prettyTCM delta
-            -- , text "perm  =" <+> text (show perm)
             , text "ps    =" <+> text (show ps)
             , text "body  =" <+> text (show body)
-            , text "body  =" <+> prettyTCM body
+            , text "body  =" <+> maybe (text "_|_") prettyTCM body
             ]
           ]
 
@@ -432,24 +418,24 @@ checkRHS
   -> Type                    -- ^ Type of function.
   -> LHSResult               -- ^ Result of type-checking patterns
   -> A.RHS                   -- ^ Rhs to check.
-  -> TCM (ClauseBody, WithFunctionProblem)
+  -> TCM (Maybe Term, WithFunctionProblem)
 
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
   where
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
     case rhs of
 
       -- Case: ordinary RHS
-      A.RHS e -> do
+      A.RHS e _ -> Bench.billTo [Bench.Typing, Bench.CheckRHS] $ do
         when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps
         v <- checkExpr e $ unArg trhs
-        return (mkBody perm v, NoWithFunction)
+        return (Just v, NoWithFunction)
 
       -- Case: no RHS
       A.AbsurdRHS -> do
         unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
-        return (NoBody, NoWithFunction)
+        return (Nothing, NoWithFunction)
 
       -- Case: @rewrite@
       -- Andreas, 2014-01-17, Issue 1402:
@@ -568,10 +554,11 @@ checkWithRHS
   -> [Term]                  -- ^ With-expressions.
   -> [EqualityView]          -- ^ Types of with-expressions.
   -> [A.Clause]              -- ^ With-clauses to check.
-  -> TCM (ClauseBody, WithFunctionProblem)
+  -> TCM (Maybe Term, WithFunctionProblem)
 
-checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
+checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
         let withArgs = withArguments vs0 as
+            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
 
         -- Andreas, 2012-09-17: for printing delta,
@@ -616,7 +603,6 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
             (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
             v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
-            body = mkBody perm v
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           useTerPragma $ defaultDefn defaultArgInfo aux typeDontCare emptyFunction
@@ -637,9 +623,9 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
         reportSDoc "tc.with.top" 20 $
           text "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
         reportSDoc "tc.with.top" 20 $
-          text "              body" <+> (addContext delta $ prettyTCM body)
+          text "              body" <+> prettyTCM v
 
-        return (body, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
+        return (Just v, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
 
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
 checkWithFunction _ NoWithFunction = return ()
@@ -647,7 +633,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
-      withSub = liftS (size delta2) (wkS (countWithArgs as) idS) `composeS` renaming (reverseP perm')
+      withSub = liftS (size delta2) (wkS (countWithArgs as) idS) `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
@@ -771,7 +757,7 @@ containsAbsurdPattern p = case p of
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.RecP _ fs   -> any (containsAbsurdPattern . (^. exprFieldA)) fs
-    A.ProjP _ _   -> False
+    A.ProjP{}     -> False
     A.DefP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
 

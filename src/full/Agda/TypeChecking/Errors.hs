@@ -1,16 +1,19 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Errors
   ( prettyError
   , tcErrString
-  , Warnings(..)
+  , prettyWarnings
   , warningsToError
+  , applyFlagsToWarnings
   ) where
 
 import Prelude hiding (null)
 
+import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Function
@@ -21,6 +24,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -41,14 +45,16 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
@@ -79,24 +85,82 @@ prettyError err = liftTCM $ show <$> prettyError' err []
 -- * Warnings
 ---------------------------------------------------------------------------
 
--- | Warnings.
---
--- Invariant: The fields are never empty at the same time.
+instance PrettyTCM Warning where
+  prettyTCM wng = case wng of
 
-data Warnings = Warnings
-  { unsolvedMetaVariables :: [Range]
-    -- ^ Meta-variable problems are reported as type errors unless
-    -- 'optAllowUnsolved' is 'True'.
-  , unsolvedConstraints   :: Constraints
-    -- ^ Same as 'unsolvedMetaVariables'.
-  }
+    UnsolvedMetaVariables ms  ->
+      fsep ( pwords "Unsolved metas at the following locations:" )
+      $$ nest 2 (vcat $ map prettyTCM ms)
 
--- | Turns warnings into an error. Even if several errors are possible
---   only one is raised.
-warningsToError :: Warnings -> TCM a
-warningsToError (Warnings [] [])     = typeError $ SolvedButOpenHoles
-warningsToError (Warnings w@(_:_) _) = typeError $ UnsolvedMetas w
-warningsToError (Warnings _ w@(_:_)) = typeError $ UnsolvedConstraints w
+    UnsolvedInteractionMetas is ->
+      fsep ( pwords "Unsolved interaction metas at the following locations:" )
+      $$ nest 2 (vcat $ map prettyTCM is)
+
+    UnsolvedConstraints tcst cs -> localState $ do
+      put tcst
+      fsep ( pwords "Failed to solve the following constraints:" )
+      $$ nest 2 (vcat $ map prettyConstraint cs)
+
+      where prettyConstraint :: ProblemConstraint -> TCM Doc
+            prettyConstraint c = f (prettyTCM c)
+              where
+              r   = getRange c
+              f d = if null $ P.pretty r
+                    then d
+                    else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
+
+    TerminationIssue tcst tes -> localState $ do
+      put tcst
+      sayWhen (envRange $ clEnv tes) (envCall $ clEnv tes) $
+        fwords "Termination checking failed for the following functions:"
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevelModule) $
+               concatMap termErrFunctions $ clValue tes)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls $ clValue tes)
+
+    NotStrictlyPositive tcst d ocs -> localState $ do
+      put tcst
+      sayWhen (getRange d) Nothing $
+        fsep $
+        [prettyTCM (dropTopLevelModule d)] ++
+        pwords "is not strictly positive, because it occurs"
+        ++ [prettyTCM ocs]
+
+prettyWarnings :: [Warning] -> TCM String
+prettyWarnings = fmap (unlines . intersperse " ") . prettyWarnings'
+
+prettyWarnings' :: [Warning] -> TCM [String]
+prettyWarnings' = mapM (fmap show . prettyTCM)
+
+-- | Turns all warnings into errors.
+warningsToError :: [Warning] -> TCM a
+warningsToError ws = typeError $ case ws of
+  [] -> SolvedButOpenHoles
+  _  -> NonFatalErrors ws
+
+
+-- | Depending which flags are set, one may happily ignore some
+-- warnings.
+
+applyFlagsToWarnings :: IgnoreFlags -> [Warning] -> TCM [Warning]
+applyFlagsToWarnings ifs ws = do
+
+  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
+  loopingNotOK  <- optTerminationCheck <$> pragmaOptions
+  let ignore = case ifs of { IgnoreFlags -> True ; RespectFlags -> False }
+
+  let cleanUp w = case w of
+       TerminationIssue{}           -> ignore || loopingNotOK
+       NotStrictlyPositive{}        -> ignore || negativeNotOK
+       UnsolvedMetaVariables ums    -> not (null ums) && (ignore || unsolvedNotOK)
+       UnsolvedInteractionMetas uis -> not (null uis) && (ignore || unsolvedNotOK)
+       UnsolvedConstraints tcst ucs -> not (null ucs) && (ignore || unsolvedNotOK)
+
+  return $ filter cleanUp ws
 
 ---------------------------------------------------------------------------
 -- * Helpers
@@ -125,7 +189,6 @@ tcErrString err = show (getRange err) ++ " " ++ case err of
   Exception r s   -> show r ++ " " ++ show s
   IOException r e -> show r ++ " " ++ show e
   PatternErr{}    -> "PatternErr"
-  {- AbortAssign _   -> "AbortAssign" -- UNUSED -}
 
 errorString :: TypeError -> String
 errorString err = case err of
@@ -183,6 +246,7 @@ errorString err = case err of
   ModuleArityMismatch{}                    -> "ModuleArityMismatch"
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
   ModuleDoesntExport{}                     -> "ModuleDoesntExport"
+  ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
@@ -203,12 +267,12 @@ errorString err = case err of
   InvalidTypeSort{}                        -> "InvalidTypeSort"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
+  NotValidBeforeField{}                    -> "NotValidBeforeField"
   NotAnExpression{}                        -> "NotAnExpression"
   NotImplemented{}                         -> "NotImplemented"
   NotSupported{}                           -> "NotSupported"
   NotInScope{}                             -> "NotInScope"
   NotLeqSort{}                             -> "NotLeqSort"
-  NotStrictlyPositive{}                    -> "NotStrictlyPositive"
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
@@ -262,8 +326,6 @@ errorString err = case err of
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   UninstantiatedModule{}                   -> "UninstantiatedModule"
   UnreachableClauses{}                     -> "UnreachableClauses"
-  UnsolvedConstraints{}                    -> "UnsolvedConstraints"
-  UnsolvedMetas{}                          -> "UnsolvedMetas"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
@@ -279,9 +341,14 @@ errorString err = case err of
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
   HidingMismatch{}                         -> "HidingMismatch"
   RelevanceMismatch{}                      -> "RelevanceMismatch"
+  NonFatalErrors{}                         -> "NonFatalErrors"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
+    -- Gallais, 2016-05-14
+    -- Given where `NonFatalErrors` are created, we know for a
+    -- fact that ̀ws` is non-empty.
+    TypeError _ (Closure _ _ _ _ (NonFatalErrors ws)) -> foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
     -- This use of localState seems ok since we do not collect
     -- Benchmark info during printing errors.
@@ -291,7 +358,6 @@ instance PrettyTCM TCErr where
     Exception r s   -> sayWhere r $ return s
     IOException r e -> sayWhere r $ fwords $ show e
     PatternErr{}    -> sayWhere err $ panic "uncaught pattern violation"
-    {- AbortAssign _   -> sayWhere err $ panic "uncaught aborted assignment" -- UNUSED -}
 
 instance PrettyTCM CallInfo where
   prettyTCM c = do
@@ -302,8 +368,11 @@ instance PrettyTCM CallInfo where
       else call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
 -- | Drops the filename component of the qualified name.
+dropTopLevelModule' :: Int -> QName -> QName
+dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
+
 dropTopLevelModule :: QName -> QName
-dropTopLevelModule (QName (MName ns) n) = QName (MName (drop 1 ns)) n
+dropTopLevelModule = dropTopLevelModule' 1
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -319,15 +388,19 @@ instance PrettyTCM TypeError where
 
     GenericDocError d -> return d
 
-    TerminationCheckFailed because ->
+    TerminationCheckFailed because -> do
+      dropTopLevelModule <- do
+        caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
+        m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
+        return $ dropTopLevelModule' $ size m
       fwords "Termination checking failed for the following functions:"
-      $$ (nest 2 $ fsep $ punctuate comma $
-           map (pretty . dropTopLevelModule) $
-             concatMap termErrFunctions because)
-      $$ fwords "Problematic calls:"
-      $$ (nest 2 $ fmap (P.vcat . nub) $
-            mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-            concatMap termErrCalls because)
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevelModule) $
+               concatMap termErrFunctions because)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls because)
 
     PropMustBeSingleton -> fwords
       "Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
@@ -649,22 +722,6 @@ instance PrettyTCM TypeError where
     SolvedButOpenHoles ->
       text "Module cannot be imported since it has open interaction points"
 
-    UnsolvedMetas rs ->
-      fsep ( pwords "Unsolved metas at the following locations:" )
-      $$ nest 2 (vcat $ map prettyTCM rs)
-
-    UnsolvedConstraints cs ->
-      fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (vcat $ map prettyConstraint cs)
-
-      where prettyConstraint :: ProblemConstraint -> TCM Doc
-            prettyConstraint c = f (prettyTCM c)
-              where
-              r   = getRange c
-              f d = if null $ P.pretty r
-                    then d
-                    else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
-
     CyclicModuleDependency ms ->
       fsep (pwords "cyclic module dependency:")
       $$ nest 2 (vcat $ map pretty ms)
@@ -697,6 +754,12 @@ instance PrettyTCM TypeError where
       pwords "which defines the module" ++ [pretty mod <> text "."] ++
       pwords "However, according to the include path this module should" ++
       pwords "be defined in" ++ [text (filePath file') <> text "."]
+
+    ModuleNameUnexpected given expected -> fsep $
+      pwords "The name of the top level module does not match the file name. The module" ++
+      [ pretty given ] ++
+      pwords "should probably be named" ++
+      [ pretty expected ]
 
     ModuleNameDoesntMatchFileName given files ->
       fsep (pwords "The name of the top level module does not match the file name. The module" ++
@@ -804,6 +867,9 @@ instance PrettyTCM TypeError where
 
     NotAValidLetBinding nd -> fwords $
       "Not a valid let-declaration"
+
+    NotValidBeforeField nd -> fwords $
+      "This declaration is illegal in a record before the last field"
 
     NothingAppliedToHiddenArg e -> fsep $
       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
@@ -1022,7 +1088,7 @@ instance PrettyTCM TypeError where
         where
           display ps = do
             ps <- nicify f ps
-            prettyTCM f <+> fsep (map prettyArg ps)
+            prettyTCM f <+> fsep (map (prettyArg . fmap namedThing) ps)
 
           nicify f ps = do
             showImp <- showImplicitArguments
@@ -1084,36 +1150,6 @@ instance PrettyTCM TypeError where
       pwords "I got stuck on unifying" ++ [prettyList (map prettyTCM us)] ++
       pwords "with" ++ [prettyList (map prettyTCM vs)] ++
       pwords "in the telescope" ++ [prettyTCM tel]
-
-    NotStrictlyPositive d ocs -> fsep $
-      pwords "The datatype" ++ [prettyTCM d] ++
-      pwords "is not strictly positive, because"
-      ++ prettyOcc "it" ocs
-      where
-        prettyOcc _ [] = []
-        prettyOcc it (OccCon d c r : ocs) = concat
-          [ pwords it, pwords "occurs", prettyR r
-          , pwords "in the constructor", [prettyTCM c], pwords "of"
-          , [prettyTCM d <> com ocs], prettyOcc "which" ocs
-          ]
-        prettyOcc it (OccClause f n r : ocs) = concat
-          [ pwords it, pwords "occurs", prettyR r
-          , pwords "in the", [th n], pwords "clause of"
-          , [prettyTCM f <> com ocs], prettyOcc "which" ocs
-          ]
-
-        prettyR NonPositively = pwords "negatively"
-        prettyR (ArgumentTo i q) =
-          pwords "as the" ++ [th i] ++
-          pwords "argument to" ++ [prettyTCM q]
-
-        th 0 = text "first"
-        th 1 = text "second"
-        th 2 = text "third"
-        th n = prettyTCM (n - 1) <> text "th"
-
-        com []    = empty
-        com (_:_) = comma
 
     TooManyPolarities x n -> fsep $
       pwords "Too many polarities given in the POLARITY pragma for" ++
@@ -1179,8 +1215,11 @@ instance PrettyTCM TypeError where
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
+
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
+
+    NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
     where
     mpar n args
@@ -1200,7 +1239,7 @@ instance PrettyTCM TypeError where
       mpar n args $
         prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
     prettyPat _ (I.LitP l) = prettyTCM l
-    prettyPat _ (I.ProjP p) = prettyTCM p
+    prettyPat _ (I.ProjP _ p) = text "." <> prettyTCM p
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text "!" <> prettyTCM cmp
@@ -1380,7 +1419,7 @@ instance PrettyTCM Call where
 
     CheckSectionApplication _ m1 modapp -> fsep $
       pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp empty empty defaultImportDir]
+      [prettyA $ A.Apply info m1 modapp initCopyInfo defaultImportDir]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 

@@ -4,3 +4,9 @@ Termination checking failed for the following functions:
 Problematic calls:
   f (isCons (tl h t)) (tl h t) refl
     (at TerminationRecordPatternCoerce.agda:45,32-33)
+TerminationRecordPatternCoerce.agda:55,1-59,35
+Termination checking failed for the following functions:
+  f'
+Problematic calls:
+  f' (isCons (tl b' h t p)) (tl b' h t p) refl
+    (at TerminationRecordPatternCoerce.agda:57,27-29)

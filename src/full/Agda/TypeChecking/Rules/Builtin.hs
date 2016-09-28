@@ -161,7 +161,22 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 return (sort $ varSort 1))
                                                [builtinRefl])
   , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinInstance, builtinVisible])
+    -- Relevance
   , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
+  , (builtinRelevant           |-> BuiltinDataCons trelevance)
+  , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
+    -- Associativity
+  , builtinAssoc               |-> BuiltinData tset [builtinAssocLeft, builtinAssocRight, builtinAssocNon]
+  , builtinAssocLeft           |-> BuiltinDataCons tassoc
+  , builtinAssocRight          |-> BuiltinDataCons tassoc
+  , builtinAssocNon            |-> BuiltinDataCons tassoc
+    -- Precedence
+  , builtinPrecedence          |-> BuiltinData tset [builtinPrecRelated, builtinPrecUnrelated]
+  , builtinPrecRelated         |-> BuiltinDataCons (tint --> tprec)
+  , builtinPrecUnrelated       |-> BuiltinDataCons tprec
+    -- Fixity
+  , builtinFixity              |-> BuiltinData tset [builtinFixityFixity]
+  , builtinFixityFixity        |-> BuiltinDataCons (tassoc --> tprec --> tfixity)
   , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $
                                                     hPi "A" (return $ sort $ varSort 0) $
                                                     hPi "x" (El (varSort 1) <$> varM 0) $
@@ -195,8 +210,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinHidden             |-> BuiltinDataCons thiding)
   , (builtinInstance           |-> BuiltinDataCons thiding)
   , (builtinVisible            |-> BuiltinDataCons thiding)
-  , (builtinRelevant           |-> BuiltinDataCons trelevance)
-  , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
   , (builtinSizeUniv           |-> builtinPostulate tSizeUniv) -- SizeUniv : SizeUniv
 -- See comment on tSizeUniv: the following does not work currently.
 --  , (builtinSizeUniv           |-> builtinPostulate tSetOmega) -- SizeUniv : Setω
@@ -260,6 +273,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMUnquoteTerm        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tterm --> tTCM 1 (varM 0))
   , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit             |-> builtinPostulate (tTCM_ primUnit)
+  , builtinAgdaTCMIsMacro            |-> builtinPostulate (tqname --> tTCM_ primBool)
   ]
   where
         (|->) = (,)
@@ -289,6 +303,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tterm      = el primAgdaTerm
         terrorpart = el primAgdaErrorPart
         tnat       = el primNat
+        tint       = el primInteger
         tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
@@ -300,6 +315,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
+        tassoc     = el primAssoc
+        tprec      = el primPrecedence
+        tfixity    = el primFixity
 --        tcolors    = el (list primAgdaTerm) -- TODO guilhem
         targinfo   = el primArgInfo
         ttype      = el primAgdaTerm
@@ -623,7 +641,7 @@ bindUntypedBuiltin :: String -> A.Expr -> TCM ()
 bindUntypedBuiltin b e =
   case A.unScope e of
     A.Def q  -> bindBuiltinName b (Def q [])
-    A.Proj (AmbQ [q]) -> bindBuiltinName b (Def q [])
+    A.Proj _ (AmbQ [q]) -> bindBuiltinName b (Def q [])
     e        -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
 
 -- | Bind a builtin thing to a new name.
@@ -640,7 +658,7 @@ bindBuiltinNoDef b q = do
         -- Andreas, 2015-02-14
         -- Special treatment of SizeUniv, should maybe be a primitive.
         def | b == builtinSizeUniv = emptyFunction
-                { funClauses = [ (empty :: Clause) { clauseBody = Body $ Sort sSizeUniv } ]
+                { funClauses = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
                 , funCompiled = Just (CC.Done [] $ Sort sSizeUniv)
                 , funTerminates = Just True
                 }

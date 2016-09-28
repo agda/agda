@@ -275,10 +275,10 @@ getDefType f t = do
 --   In this case, the first result is not a record type.
 --
 --   Precondition: @t@ is reduced.
-projectTyped :: Term -> Type -> QName -> TCM (Maybe (Dom Type, Term, Type))
-projectTyped v t f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
+projectTyped :: Term -> Type -> ProjOrigin -> QName -> TCM (Maybe (Dom Type, Term, Type))
+projectTyped v t o f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
   ifNotPiType tf (const $ return Nothing) {- else -} $ \ dom b -> do
-  u <- f `applyDef` (argFromDom dom $> v)
+  u <- applyDef o f (argFromDom dom $> v)
   return $ Just (dom, u, b `absApp` v)
 
 -- | Check if a name refers to an eta expandable record.
@@ -308,8 +308,8 @@ isEtaRecordType a = case ignoreSharing $ unEl a of
 
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
-isRecordConstructor :: MonadTCM tcm => QName -> tcm (Maybe (QName, Defn))
-isRecordConstructor c = liftTCM $ do
+isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
+isRecordConstructor c = do
   def <- theDef <$> getConstInfo c
   case def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
@@ -330,16 +330,34 @@ isGeneratedRecordConstructor c = do
 -- | Mark record type as unguarded.
 --   No eta-expansion.  Projections do not preserve guardedness.
 unguardedRecord :: QName -> TCM ()
-unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ updateRecord
-  where updateRecord r@Record{} = r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False, recRecursive = True }
-        updateRecord _          = __IMPOSSIBLE__
+unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ \case
+  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False, recRecursive = True }
+  _ -> __IMPOSSIBLE__
 
 -- | Mark record type as recursive.
 --   Projections do not preserve guardedness.
 recursiveRecord :: QName -> TCM ()
-recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ updateRecord
-  where updateRecord r@Record{} = r { recRecursive = True }
-        updateRecord _          = __IMPOSSIBLE__
+recursiveRecord q = do
+  ok <- etaEnabled
+  modifySignature $ updateDefinition q $ updateTheDef $ \case
+    r@Record{ recInduction = ind, recEtaEquality' = eta } ->
+      r { recRecursive = True, recEtaEquality' = eta' }
+      where
+      eta' | ok, eta == Inferred False, ind /= Just CoInductive = Inferred True
+           | otherwise = eta
+    _ -> __IMPOSSIBLE__
+
+-- | Turn on eta for non-recursive record, unless user declared otherwise.
+nonRecursiveRecord :: QName -> TCM ()
+nonRecursiveRecord q = whenM etaEnabled $ do
+  -- Do nothing if eta is disabled by option.
+  modifySignature $ updateDefinition q $ updateTheDef $ \case
+    r@Record{ recInduction = ind, recEtaEquality' = Inferred False }
+      | ind /= Just CoInductive ->
+      r { recEtaEquality' = Inferred True }
+    r@Record{} -> r
+    _          -> __IMPOSSIBLE__
+
 
 -- | Check whether record type is marked as recursive.
 --
@@ -404,7 +422,7 @@ expandRecordVar i gamma0 = do
           tau  = liftS (size gamma2) tau0
 
       --  Fields are in order first-first.
-          zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
+          zs  = for fs $ fmap $ \ f -> Var 0 [Proj ProjSystem f]
       --  We need to reverse the field sequence to build the substitution.
       -- @Γ₁, x:_ ⊢ σ₀ : Γ₁, Γ'@
           sigma0 = reverse (map unArg zs) ++# raiseS 1
@@ -466,7 +484,7 @@ curryAt t n = do
           xs  = reverse $ zipWith (\ ai i -> Arg ai $ var i) gammai [m..]
           curry v = teleLam gamma $ teleLam tel $
                       raise (n+m) v `apply` (xs ++ [Arg ai u])
-          zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
+          zs  = for fs $ fmap $ \ f -> Var 0 [Proj ProjSystem f]
           atel = sgTel $ (,) (absName b) <$> dom
           uncurry v = teleLam gamma $ teleLam atel $
                         raise (n + 1) v `apply` (xs ++ zs)
@@ -518,7 +536,7 @@ etaExpandRecord_ r pars def u = do
     _ -> do
       -- Andreas, < 2016-01-18: Note: recFields are always the original projections,
       -- thus, we can use them in Proj directly.
-      let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj x]
+      let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj ProjSystem x]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -556,7 +574,7 @@ etaContractRecord r c args = do
           -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
           (_, Just (_, [])) -> Nothing  -- not a projection
-          (_, Just (h, es)) | Proj f <- last es, unArg ax == f
+          (_, Just (h, es)) | Proj _o f <- last es, unArg ax == f
                             -> Just $ Just $ h $ init es
           _                 -> Nothing
       fallBack = return (Con c args)

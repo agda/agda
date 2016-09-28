@@ -7,8 +7,8 @@ out >     case n of
 out >       EraseRefl.Dec.yes p →
 out >         case o of
 out >           EraseRefl.Dec.yes q → EraseRefl.Dec.yes _
-out >           EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (i j l k m r))
-out >       EraseRefl.Dec.no p → EraseRefl.Dec.no (λ q → p (h j l k m q))
+out >           EraseRefl.Dec.no q → EraseRefl.Dec.no _
+out >       EraseRefl.Dec.no p → EraseRefl.Dec.no _
 out > EraseRefl.main = Common.IO.putStrLn ""
 out >
 out >

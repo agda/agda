@@ -42,11 +42,13 @@ import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Positivity.Occurrence
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Info as SI
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -55,6 +57,7 @@ import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
 
 import Agda.Utils.FileName
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -163,6 +166,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
+    warnInfo <- fmap Fold.fold $ fmap warningHighlighting <$> use stWarnings
+
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
@@ -179,6 +184,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     let syntaxInfo = compress (mconcat [ constructorInfo
                                        , theRest modMap file
                                        , nameInfo
+                                       , warnInfo
                                        ])
                        `mappend`
                      curTokens
@@ -219,7 +225,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     , Fold.foldMap getNamedArg    $ universeBi decl
     ]
     where
-    bound n = nameToFile modMap file [] (A.nameConcrete n)
+    bound n = nameToFile modMap file [] (A.nameConcrete n) P.noRange
                          (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
 
@@ -229,17 +235,17 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     macro n = nameToFileA modMap file n True $ \isOp ->
                   mempty { aspect = Just $ Name (Just Macro) isOp }
 
-    field m n = nameToFile modMap file m n
+    field m n = nameToFile modMap file m n P.noRange
                            (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                            Nothing
     asName n = nameToFile modMap file []
-                          n
+                          n P.noRange
                           (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                           Nothing
 
     mod isTopLevelModule n =
       nameToFile modMap file []
-                 (A.nameConcrete n)
+                 (A.nameConcrete n) P.noRange
                  (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                  (Just $ (if isTopLevelModule then P.beginningOfFile else id)
                            (A.nameBindingSite n))
@@ -521,6 +527,15 @@ errorHighlighting e = do
                   }
   return $ mconcat [ erase, error ]
 
+-- | Generate syntax highlighting for warnings.
+
+warningHighlighting :: Warning -> File
+warningHighlighting w = case w of
+  TerminationIssue tcst terrs -> terminationErrorHighlighting $ clValue terrs
+  NotStrictlyPositive tcst d ocs -> positivityErrorHighlighting d ocs
+  _ -> mempty
+
+
 -- | Generate syntax highlighting for termination errors.
 
 terminationErrorHighlighting :: [TerminationError] -> File
@@ -531,6 +546,16 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
                    concatMap M.termErrFunctions termErrs
     callSites    = Fold.foldMap (\r -> singleton (rToR r) m) $
                    concatMap (map M.callInfoRange . M.termErrCalls) termErrs
+
+-- | Generate syntax highlighting for not-strictly-positive inductive
+-- definitions.
+
+-- TODO: highlight also the problematic occurrences
+positivityErrorHighlighting :: I.QName -> OccursWhere -> File
+positivityErrorHighlighting q o = singleton (rToR (P.getRange q)) m
+  where
+    m     = mempty { otherAspects = [PositivityProblem] }
+
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.
@@ -610,6 +635,8 @@ nameToFile :: SourceToModule
               -- ^ The name qualifier (may be empty).
            -> C.Name
               -- ^ The base name.
+           -> P.Range
+              -- ^ The 'Range' of the name in its fixity declaration (if any).
            -> (Bool -> Aspects)
               -- ^ Meta information to be associated with the name.
               -- The argument is 'True' iff the name is an operator.
@@ -618,7 +645,7 @@ nameToFile :: SourceToModule
               -- meta information is extended with this information,
               -- if possible.
            -> File
-nameToFile modMap file xs x m mR =
+nameToFile modMap file xs x fr m mR =
   -- We don't care if we get any funny ranges.
   if all (== Strict.Just file) fileNames then
     several (map rToR rs)
@@ -627,7 +654,7 @@ nameToFile modMap file xs x m mR =
     mempty
   where
   fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
-  rs         = map P.getRange (x : xs)
+  rs         = applyWhen (not $ null fr) (fr :) $ map P.getRange (x : xs)
   mFilePos   = do
     r <- mR
     P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
@@ -655,8 +682,16 @@ nameToFileA modMap file x include m =
              file
              (concreteQualifier x)
              (concreteBase x)
+             r
              m
              (if include then Just $ bindingSite x else Nothing)
+  where
+    -- Andreas, 2016-09-08, for issue #2140:
+    -- Range of name from fixity declaration:
+    fr = theNameRange $ A.nameFixity $ A.qnameName x
+    -- Somehow we import fixity ranges from other files, we should ignore them.
+    -- (I do not understand how we get them as they should not be serialized...)
+    r = if P.rangeFile fr == Strict.Just file then fr else P.noRange
 
 concreteBase :: I.QName -> C.Name
 concreteBase = A.nameConcrete . A.qnameName

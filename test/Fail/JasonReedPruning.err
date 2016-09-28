@@ -1,3 +1,6 @@
+Failed to solve the following constraints:
+  [0] _23 := (λ x y → refl) [blocked on problem 30]
+  [30] _22 = f _22 : o
 Unsolved metas at the following locations:
   JasonReedPruning.agda:23,11-12
   JasonReedPruning.agda:21,11-12

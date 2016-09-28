@@ -37,7 +37,6 @@ instance NamesIn a => NamesIn (Named n a)     where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Abs a)         where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (WithArity a)   where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Tele a)        where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (ClauseBodyF a) where namesIn = namesInFoldable
 
 instance NamesIn a => NamesIn (C.FieldAssignment' a) where namesIn = namesInFoldable
 
@@ -79,7 +78,7 @@ instance NamesIn (Pattern' a) where
     LitP l        -> namesIn l
     DotP v        -> namesIn v
     ConP c _ args -> namesIn (c, args)
-    ProjP f       -> namesIn f
+    ProjP _ f     -> namesIn f
 
 instance NamesIn a => NamesIn (Type' a) where
   namesIn (El s t) = namesIn (s, t)
@@ -132,8 +131,8 @@ instance NamesIn Literal where
 
 instance NamesIn a => NamesIn (Elim' a) where
   namesIn (Apply arg) = namesIn arg
+  namesIn (Proj _ f)  = namesIn f
   namesIn (IApply x y arg) = namesIn (x, y, arg)
-  namesIn (Proj f)    = namesIn f
 
 instance NamesIn QName   where namesIn x = Set.singleton x
 instance NamesIn ConHead where namesIn h = namesIn (conName h)
@@ -148,7 +147,7 @@ instance NamesIn DisplayForm where
 
 instance NamesIn DisplayTerm where
   namesIn v = case v of
-    DWithApp v us vs -> namesIn (v, us, vs)
+    DWithApp v us es -> namesIn (v, us, es)
     DCon c vs        -> namesIn (c, vs)
     DDef f es        -> namesIn (f, es)
     DDot v           -> namesIn v
@@ -164,7 +163,7 @@ instance NamesIn (A.Pattern' a) where
   namesIn p = case p of
     A.VarP{}               -> Set.empty
     A.ConP _ c args        -> namesIn (c, args)
-    A.ProjP _ d            -> namesIn d
+    A.ProjP _ _ d          -> namesIn d
     A.DefP _ f args        -> namesIn (f, args)
     A.WildP{}              -> Set.empty
     A.AsP _ _ p            -> namesIn p

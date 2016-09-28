@@ -12,7 +12,7 @@ import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
 import Data.Generics.Geniplate
-import Data.Foldable hiding (any, foldr, sequence_)
+import Data.Foldable hiding (any, all, foldr, sequence_)
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
@@ -37,12 +37,14 @@ import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
+import Agda.Compiler.Treeless.Erase
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
@@ -117,11 +119,9 @@ imports = (++) <$> hsImps <*> imps where
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
-#if MIN_VERSION_haskell_src_exts(1,17,0)
-              (False, [HS.IVar $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
-#else
-              (False, [HS.IVar HS.NoNamespace $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
-#endif
+              (False, [ HS.IVar $ HS.Ident x
+                      | x <- [mazCoerceName, mazErasedName] ++
+                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF] ])
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -236,14 +236,16 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
         | Just (HsType ty) <- compiledHaskell compiled -> do
         ccscov <- ifM (noCheckCover q) (return []) $ do
             ccs <- List.concat <$> mapM checkConstructorType cs
-            cov <- checkCover q ty np cs
+            cov <- checkCover q ty (np + ni) cs
             return $ ccs ++ cov
         return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
+        computeErasedConstructorArgs q
         (ars, cds) <- unzip <$> mapM condecl cs
         return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
       Constructor{} -> return []
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
+        computeErasedConstructorArgs q
         let c = conName con
         let noFields = length flds
         let ar = I.arity ty
@@ -301,13 +303,9 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
            fbs@(_:_)) =
           [HS.FunBind [m0, HS.Match dummy dn ps mt rhs bindsAux]]
     where
-#if MIN_VERSION_haskell_src_exts(1,17,0)
     bindsAux :: Maybe HS.Binds
     bindsAux = Just $ HS.BDecls fbs
-#else
-    bindsAux :: HS.Binds
-    bindsAux = HS.BDecls fbs
-#endif
+
   mkwhere fbs = fbs
 
   fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]
@@ -373,7 +371,7 @@ checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
 checkCover q ty n cs = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c = do
-        (a, _) <- conArityAndPars c
+        a <- erasedArity c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
         return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
@@ -401,13 +399,32 @@ term tm0 = case tm0 of
     return $ hsVarUQ x
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
-    if any not used && length ts >= length used
-      then do
+    let given   = length ts
+        needed  = length used
+        missing = drop given used
+    if any not used
+      then if any not missing then term (etaExpand (needed - given) tm0) else do
         f <- lift $ HS.Var <$> xhqn "du" f  -- used stripped function
         f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
       else do
         t' <- term (T.TDef f)
         t' `apps` ts
+  T.TApp (T.TCon c) ts -> do
+    kit <- lift coinductionKit
+    if Just c == (nameOfSharp <$> kit)
+      then do
+        t' <- HS.Var <$> lift (xhqn "d" c)
+        apps t' ts
+      else do
+        (ar, _) <- lift $ conArityAndPars c
+        erased  <- lift $ getErasedConArgs c
+        let missing = drop (length ts) erased
+            notErased = not
+        case all notErased missing of
+          False -> term $ etaExpand (length missing) tm0
+          True  -> do
+            f <- lift $ HS.Con <$> conhqn c
+            f `apps` [ t | (t, False) <- zip ts erased ]
   T.TApp t ts -> do
     t' <- term t
     t' `apps` ts
@@ -429,14 +446,10 @@ term tm0 = case tm0 of
 
     return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
 
-  T.TLit l -> lift $ literal l
+  T.TLit l -> return $ literal l
   T.TDef q -> do
     HS.Var <$> (lift $ xhqn "d" q)
-  T.TCon q -> do
-    kit <- lift coinductionKit
-    if Just q == (nameOfSharp <$> kit)
-      then HS.Var <$> lift (xhqn "d" q)
-      else hsCast' . HS.Con <$> lift (conhqn q)
+  T.TCon q   -> term (T.TApp (T.TCon q) [])
   T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
@@ -444,62 +457,65 @@ term tm0 = case tm0 of
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
   where apps =  foldM (\ h a -> HS.App h <$> term a)
+        etaExpand n t =
+          foldr (const T.TLam)
+                (T.mkTApp (raise n t) [T.TVar i | i <- [n - 1, n - 2..0]])
+                (replicate n ())
+
 
 compilePrim :: T.TPrim -> HS.Exp
-compilePrim s =
-  case s of
-    T.PQuot -> fakeExp "(Prelude.quot :: Integer -> Integer -> Integer)"
-    T.PRem -> fakeExp "(Prelude.rem :: Integer -> Integer -> Integer)"
-    T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
-    T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
-    T.PMul -> fakeExp "((Prelude.*) :: Integer -> Integer -> Integer)"
-    T.PGeq -> fakeExp "((Prelude.>=) :: Integer -> Integer -> Bool)"
-    T.PLt  -> fakeExp "((Prelude.<) :: Integer -> Integer -> Bool)"
-    T.PEq  -> fakeExp "((Prelude.==) :: Integer -> Integer -> Bool)"
-    T.PSeq -> HS.Var (hsName "seq")
-    -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
-    T.PIf  -> __IMPOSSIBLE__
+compilePrim s = HS.Var $ hsName $ treelessPrimName s
 
 alt :: Int -> T.TAlt -> CC HS.Alt
 alt sc a = do
   case a of
-    T.TACon {} -> do
-      intros (T.aArity a) $ \xs -> do
-        hConNm <- lift $ conhqn $ T.aCon a
-        mkAlt (HS.PApp hConNm $ map HS.PVar xs)
+    T.TACon {T.aCon = c} -> do
+      intros (T.aArity a) $ \ xs -> do
+        erased <- lift $ getErasedConArgs c
+        hConNm <- lift $ conhqn c
+        mkAlt (HS.PApp hConNm $ map HS.PVar [ x | (x, False) <- zip xs erased ])
     T.TAGuard g b -> do
       g <- term g
       b <- term b
       return $ HS.Alt dummy HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier g] b])
                       emptyBinds
-    T.TALit { T.aLit = (LitQName _ q) } -> mkAlt (litqnamepat q)
-    T.TALit { T.aLit = (LitString _ s) , T.aBody = b } -> do
-      b <- term b
+    T.TALit { T.aLit = LitQName _ q } -> mkAlt (litqnamepat q)
+    T.TALit { T.aLit = l@LitFloat{},   T.aBody = b } -> mkGuarded (treelessPrimName T.PEqF) (literal l) b
+    T.TALit { T.aLit = LitString _ s , T.aBody = b } -> mkGuarded "(==)" (litString s) b
+    T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
+  where
+    mkGuarded eq lit b = do
+      b  <- term b
       sc <- term (T.TVar sc)
       let guard =
-            HS.Var (HS.UnQual (HS.Ident "(==)")) `HS.App`
-              sc`HS.App`
-              litString s
+            HS.Var (HS.UnQual (HS.Ident eq)) `HS.App`
+              sc `HS.App` lit
       return $ HS.Alt dummy HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier guard] b])
                       emptyBinds
-    T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
-  where
+
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
         return $ HS.Alt dummy pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
 
-literal :: Literal -> TCM HS.Exp
+literal :: Literal -> HS.Exp
 literal l = case l of
-  LitNat    _ _   -> return $ typed "Integer"
-  LitFloat  _ _   -> return $ typed "Double"
-  LitQName  _ x   -> return $ litqname x
-  LitString _ s   -> return $ litString s
-  _               -> return $ l'
-  where l'    = HS.Lit $ hslit l
-        typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
+  LitNat    _ _   -> typed "Integer"
+  LitFloat  _ x   -> floatExp x "Double"
+  LitQName  _ x   -> litqname x
+  LitString _ s   -> litString s
+  _               -> l'
+  where
+    l'    = HS.Lit $ hslit l
+    typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
+
+    -- ASR (2016-09-14): See Issue #2169.
+    floatExp :: Double -> String -> HS.Exp
+    floatExp x s = if isNegativeZero x
+                   then HS.NegApp $ typed s
+                   else typed s
 
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitNat    _ x -> HS.Int    x
@@ -516,26 +532,47 @@ litString s =
 
 litqname :: QName -> HS.Exp
 litqname x =
-  HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
-  hsTypedInt n `HS.App`
-  hsTypedInt m `HS.App`
-  HS.Lit (HS.String $ show x )
+  rteCon "QName" `apps`
+  [ hsTypedInt n
+  , hsTypedInt m
+  , HS.Lit $ HS.String $ show x
+  , rteCon "Fixity" `apps`
+    [ litAssoc (fixityAssoc fx)
+    , litPrec  (fixityLevel fx) ] ]
   where
+    apps = foldl HS.App
+    rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
     NameId n m = nameId $ qnameName x
+    fx = theFixity $ nameFixity $ qnameName x
+
+    litAssoc NonAssoc   = rteCon "NonAssoc"
+    litAssoc LeftAssoc  = rteCon "LeftAssoc"
+    litAssoc RightAssoc = rteCon "RightAssoc"
+
+    litPrec Unrelated   = rteCon "Unrelated"
+    litPrec (Related l) = rteCon "Related" `HS.App` hsTypedInt l
 
 litqnamepat :: QName -> HS.Pat
 litqnamepat x =
   HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
-          [ HS.PLit HS.Signless (HS.Int n)
-          , HS.PLit HS.Signless (HS.Int m)
-          , HS.PWildCard]
+          [ HS.PLit HS.Signless (HS.Int $ fromIntegral n)
+          , HS.PLit HS.Signless (HS.Int $ fromIntegral m)
+          , HS.PWildCard, HS.PWildCard ]
   where
     NameId n m = nameId $ qnameName x
+
+erasedArity :: QName -> TCM Nat
+erasedArity q = do
+  (ar, _) <- conArityAndPars q
+  erased  <- length . filter id <$> getErasedConArgs q
+  return (ar - erased)
 
 condecl :: QName -> TCM (Nat, HS.ConDecl)
 condecl q = do
   (ar, np) <- conArityAndPars q
-  return $ (ar + np, cdecl q ar)
+  erased   <- length . filter id <$> getErasedConArgs q
+  let ar' = ar - erased
+  return $ (ar' + np, cdecl q ar')
 
 cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)
