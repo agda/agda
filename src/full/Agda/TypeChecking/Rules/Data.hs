@@ -30,6 +30,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -258,7 +259,9 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t') $
               Constructor (size tel) con d (Info.defAbstract i) Inductive cnames []
-
+          case cnames of
+            Nothing -> return ()
+            Just (_,names) -> mapM_ makeProjection names
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do
           addNamedInstance c d
@@ -350,31 +353,20 @@ defineProjections dataname con params names fsT t = do
       cpi  = ConPatternInfo Nothing (Just $ argN $ raise (size fsT) t)
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
-          { clauseTel = abstract params fsT -- the clauseTel of a ProjectionLike still keeps the params
+          { clauseTel = abstract params fsT
           , clauseType = Just . argN $ ([Con con (teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
-          , namedClausePats = [Named Nothing <$> conp]
+          , namedClausePats = raise (size fsT) (teleNamedArgs params) ++ [Named Nothing <$> conp]
           , clauseRange = noRange
           , clauseCatchall = False
-          , clauseBody = Just $ var i -- abstract fsT $ Body $
+          , clauseBody = Just $ var i
           }
-      proj = Projection
-        { projProper   = False
-        , projOrig     = projName
-        -- name of the data type:
-        , projFromType = dataname
-        -- index of the data argument (in the type),
-        -- start counting with 1:
-        , projIndex    = size projTel -- = size params + 1
-        , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
-        }
 
-    noMutualBlock $ addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
-      emptyFunction
+    noMutualBlock $ do
+      addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
+       emptyFunction
         { funClauses = [clause]
-        , funProjection = Just proj
         , funTerminates = Just True
         }
-
 
 defineCompForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
