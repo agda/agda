@@ -147,8 +147,6 @@ options =
     <*> optional
           (strOption (long "dry-run" <>
                       metavar "AGDA" <>
-                      value "agda" <>
-                      showDefaultWith id <>
                       action "command" <>
                       help ("Do not run git bisect, just run the " ++
                             "test once using AGDA")))
