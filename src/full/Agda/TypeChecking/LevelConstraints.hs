@@ -34,7 +34,15 @@ simplifyLevelConstraint n new old =
 data Leq = PlusLevel :=< PlusLevel
   deriving (Show, Eq)
 
+-- | Turn a level constraint into a list of level inequalities, if possible.
+
 inequalities :: Constraint -> [Leq]
+
+inequalities (LevelCmp CmpLeq (Max as) (Max [b])) = map (:=< b) as  -- Andreas, 2016-09-28
+  -- Why was this most natural case missing?
+  -- See test/Succeed/LevelLeqGeq.agda for where it is usefule
+
+-- These are very special cases only, in no way complete:
 inequalities (LevelCmp CmpEq (Max [a, b]) (Max [c]))
   | a == c = [b :=< a]
   | b == c = [a :=< b]

@@ -969,9 +969,11 @@ leqLevel a b = liftTCM $ do
   -- See case for `same term` below.
   a <- normalise a
   b <- normalise b
-  catchConstraint (LevelCmp CmpLeq a b) $ leqView a b
+  leqView a b
   where
-    leqView a@(Max as) b@(Max bs) = do
+    -- Andreas, 2016-09-28
+    -- If we have to postpone a constraint, then its simplified form!
+    leqView a@(Max as) b@(Max bs) = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.nat" 30 $
         text "compareLevelView" <+>
           sep [ text (show a) <+> text "=<"
