@@ -4,6 +4,7 @@ ret > ExitSuccess
 out > 123.4 = 123.4
 out > -42.9 = -42.9
 out > 1.0   = 1.0
+out > -0.0  = -0.0
 out > NaN   = NaN
 out > Inf   = Infinity
 out > -Inf  = -Infinity
@@ -12,6 +13,6 @@ out > 0.0  < -0.0 = false
 out > -0.0 < 0.0  = true
 out > sin (asin 0.6)      = 0.6
 out > cos (acos 0.6)      = 0.6
-out > tan (atan 0.6)      = 0.6
-out > tan (atan2 0.6 1.0) = 0.6
+out > tan (atan 0.4)      = 0.4
+out > tan (atan2 0.4 1.0) = 0.4
 out >

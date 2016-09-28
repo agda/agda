@@ -22,6 +22,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable hiding (for)
 
+import Numeric.IEEE
+
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
 import qualified Language.Haskell.Exts.Pretty as HS
@@ -512,10 +514,20 @@ literal l = case l of
     typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
 
     -- ASR (2016-09-14): See Issue #2169.
+    -- Ulf, 2016-09-28: and #2218.
     floatExp :: Double -> String -> HS.Exp
-    floatExp x s = if isNegativeZero x
-                   then HS.NegApp $ typed s
-                   else typed s
+    floatExp x s
+      | isNegativeZero x = rte "negativeZero"
+      | isNegativeInf  x = rte "negativeInfinity"
+      | isInfinite x     = rte "positiveInfinity"
+      | isNegativeNaN x  = rte "negativeNaN"
+      | isNaN x          = rte "positiveNaN"
+      | otherwise        = typed s
+
+    rte = HS.Var . HS.Qual mazRTE . HS.Ident
+
+    isNegativeInf x = isInfinite x && x < 0.0
+    isNegativeNaN x = isNaN x && not (identicalIEEE x (0.0 / 0.0))
 
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitNat    _ x -> HS.Int    x

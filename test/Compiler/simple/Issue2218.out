@@ -1,0 +1,9 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out >  inf  -inf   nan  -nan  |  x
+out >    x     -     -     -  |  Infinity
+out >    -     x     -     -  |  -Infinity
+out >    -     -     x     -  |  NaN
+out >    -     -     -     x  |  NaN
+out >

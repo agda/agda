@@ -36,6 +36,7 @@ main =
   putStr "123.4 = " ,, print 123.4 ,,
   putStr "-42.9 = " ,, print -42.9 ,,
   putStr "1.0   = " ,, print 1.0 ,,
+  putStr "-0.0  = " ,, print -0.0  ,,
   putStr "NaN   = " ,, print NaN   ,,
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
@@ -46,6 +47,6 @@ main =
 
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,
   putStr "cos (acos 0.6)      = " ,, print (cos (acos 0.6)) ,,
-  putStr "tan (atan 0.6)      = " ,, print (tan (atan 0.6)) ,,
-  putStr "tan (atan2 0.6 1.0) = " ,, print (tan (atan2 0.6 1.0)) ,,
+  putStr "tan (atan 0.4)      = " ,, print (tan (atan 0.4)) ,,
+  putStr "tan (atan2 0.4 1.0) = " ,, print (tan (atan2 0.4 1.0)) ,,
   return unit

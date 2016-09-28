@@ -14,7 +14,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( dbPatPerm )
+import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
@@ -171,12 +171,13 @@ quotingKit = do
       quotePat (ProjP _ x)       = projP !@ quoteQName x
 
       quoteClause :: Clause -> ReduceM Term
-      quoteClause Clause{namedClausePats = ps, clauseBody = body} =
+      quoteClause cl@Clause{namedClausePats = ps, clauseBody = body} =
         case body of
           Nothing -> absurdClause !@ quotePats ps
-          Just b  -> let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
-                         v    = renameP __IMPOSSIBLE__ (reverseP perm) b
-                     in normalClause !@ quotePats ps @@ quoteTerm v
+          Just b  ->
+            let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm' False ps -- Dot patterns don't count (#2203)
+                v    = applySubst (renamingR perm) b
+            in normalClause !@ quotePats ps @@ quoteTerm v
 
       list :: [ReduceM Term] -> ReduceM Term
       list []       = pure nil
@@ -206,9 +207,11 @@ quotingKit = do
              in  var !@! Lit (LitNat noRange $ fromIntegral n) @@ quoteArgs ts
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
-            d <- theDef <$> getConstInfo x
+            def <- getConstInfo x
+            let d = theDef def
             n <- getDefFreeVars x
-            qx d @@ quoteArgs (drop n ts)
+            -- #2220: remember to restore dropped parameters
+            qx d @@ list (drop n $ defParameters def ++ map (quoteArg quoteTerm) ts)
             where
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } =
@@ -218,12 +221,8 @@ quotingKit = do
               qx _ = def !@! quoteName x
           Con x ts   -> do
             cDef <- getConstInfo (conName x)
-            let TelV tel _ = telView' (defType cDef)  -- no reduction required to get the parameter telescope
-                Constructor{conPars = np} = theDef cDef
-                hiding = map getHiding $ take np $ telToList tel
-                par h = arg !@ (arginfo !@ quoteHiding h @@ pure relevant) @@ pure unsupported
-                pars  = map par hiding
-                args  = list $ pars ++ map (quoteArg quoteTerm) ts
+            n    <- getDefFreeVars (conName x)
+            let args = list $ drop n $ defParameters cDef ++ map (quoteArg quoteTerm) ts
             con !@! quoteConName x @@ args
           Pi t u     -> pi !@  quoteDom quoteType t
                             @@ quoteAbs quoteType u
@@ -234,6 +233,17 @@ quotingKit = do
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
+
+      defParameters :: Definition -> [ReduceM Term]
+      defParameters def = map par hiding
+        where
+          np = case theDef def of
+                 Constructor{ conPars = np }        -> np
+                 Function{ funProjection = Just p } -> projIndex p - 1
+                 _                                  -> 0
+          TelV tel _ = telView' (defType def)
+          hiding     = map getHiding $ take np $ telToList tel
+          par h      = arg !@ (arginfo !@ quoteHiding h @@ pure relevant) @@ pure unsupported
 
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =

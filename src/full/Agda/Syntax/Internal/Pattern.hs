@@ -126,13 +126,19 @@ numberPatVars err perm ps = evalState (labelPatVars ps) $
 unnumberPatVars :: LabelPatVars a b i => b -> a
 unnumberPatVars = unlabelPatVars
 
+dbPatPerm :: [NamedArg DeBruijnPattern] -> Maybe Permutation
+dbPatPerm = dbPatPerm' True
+
 -- | Computes the permutation from the clause telescope
 --   to the pattern variables.
 --
 --   Use as @fromMaybe __IMPOSSIBLE__ . dbPatPerm@ to crash
 --   in a controlled way if a de Bruijn index is out of scope here.
-dbPatPerm :: [NamedArg DeBruijnPattern] -> Maybe Permutation
-dbPatPerm ps = Perm (size ixs) <$> picks
+--
+--   The first argument controls whether dot patterns counts as variables or
+--   not.
+dbPatPerm' :: Bool -> [NamedArg DeBruijnPattern] -> Maybe Permutation
+dbPatPerm' countDots ps = Perm (size ixs) <$> picks
   where
     ixs   = concatMap (getIndices . namedThing . unArg) ps
     n     = size $ catMaybes ixs
@@ -141,7 +147,7 @@ dbPatPerm ps = Perm (size ixs) <$> picks
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP x)      = [Just $ dbPatVarIndex x]
     getIndices (ConP c _ ps) = concatMap (getIndices . namedThing . unArg) ps
-    getIndices (DotP _)      = [Nothing]
+    getIndices (DotP _)      = [Nothing | countDots]
     getIndices (LitP _)      = []
     getIndices ProjP{}       = []
 

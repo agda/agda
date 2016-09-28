@@ -27,8 +27,5 @@ Inf = 1.0 / 0.0
 
 main : IO Unit
 main =
-  -- Issues #2169 and #2192.
-  putStr "-0.0 = " ,, print -0.0  ,,
-
   putStr "NaN < -5.0  = " ,, printB (NaN < -5.0) ,,
   return unit
