@@ -64,6 +64,10 @@ exports.primFloatEquality = function(x) {
   };
 };
 
+exports.uprimFloatEquality = function(x, y) {
+  return Object.is(x,y);
+};
+
 exports.primFloatLess = function(x) {
   return function(y) {
     if (Object.is(x,-0.0) && x == y) {
