@@ -198,50 +198,51 @@ definition (q,d) = do
   reportSDoc "js.compile" 10 $ text "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
-  fmap (Export ls) <$> defn q ls (defType d) (defJSDef d) (theDef d)
 
-defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM (Maybe Exp)
-defn q ls t (Just e) Axiom =
-  return $ Just $ PlainJS e
-defn q ls t Nothing Axiom =
-  return $ Just Undefined
-defn q ls t (Just e) (Function {}) =
-  return $ Just $ PlainJS e
-defn q ls t Nothing (Function {}) = do
-  reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
-  caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
-    funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
-    reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
-    funBody' <- compileTerm funBody
-    reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
-    return $ Just funBody'
-defn q ls t _ p@(Primitive {}) | primName p `Set.member` primitives =
-  return $ Just $ PlainJS $ "agdaRTS." ++ primName p
-defn q ls t (Just e) (Primitive {}) =
-  return $ Just $ PlainJS e
-defn q ls t _ (Primitive {}) =
-  return $ Just Undefined
-defn q ls t _ (Datatype {}) =
-  return $ Just emp
-defn q ls t (Just e) (Constructor {}) =
-  return $ Just $ PlainJS e
-defn q ls t _ (Constructor { conData = p, conPars = nc }) = do
-  np <- return (arity t - nc)
-  d <- getConstInfo p
+  fmap (Export ls) <$> definition' q d (defType d) ls
+
+definition' :: QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Exp)
+definition' q d t ls =
   case theDef d of
-    Record { recFields = flds } ->
-      return $ Just (curriedLambda np (Object (fromList
-        ( (last ls , Lambda 1
-             (Apply (Lookup (Local (LocalId 0)) (last ls))
-               [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-        : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
-             [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
-    _ ->
-      return $ Just (curriedLambda (np + 1)
-        (Apply (Lookup (Local (LocalId 0)) (last ls))
-          [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-defn q ls t _ (Record {}) =
-  return $ Just emp
+    Axiom | Just e <- defJSDef d -> plainJS e
+    Axiom | otherwise -> return $ Just Undefined
+
+    Function{} | Just e <- defJSDef d -> plainJS e
+    Function{} | otherwise -> do
+      reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
+      caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
+        funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
+        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
+        funBody' <- compileTerm funBody
+        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
+        return $ Just funBody'
+
+    Primitive{primName = p} | p `Set.member` primitives ->
+      plainJS $ "agdaRTS." ++ p
+    Primitive{} | Just e <- defJSDef d -> plainJS e
+    Primitive{} | otherwise -> return $ Just Undefined
+
+    Datatype{} -> return $ Just emp
+    Record{} -> return $ Just emp
+
+    Constructor{} | Just e <- defJSDef d -> plainJS e
+    Constructor{conData = p, conPars = nc} | otherwise -> do
+      np <- return (arity t - nc)
+      d <- getConstInfo p
+      case theDef d of
+        Record { recFields = flds } ->
+          return $ Just (curriedLambda np (Object (fromList
+            ( (last ls , Lambda 1
+                 (Apply (Lookup (Local (LocalId 0)) (last ls))
+                   [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+            : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
+                 [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
+        _ ->
+          return $ Just (curriedLambda (np + 1)
+            (Apply (Lookup (Local (LocalId 0)) (last ls))
+              [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+  where
+    plainJS = return . Just . PlainJS
 
 
 compileTerm :: T.TTerm -> TCM Exp
