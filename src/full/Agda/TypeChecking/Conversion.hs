@@ -1035,11 +1035,14 @@ leqLevel a b = liftTCM $ do
                         [n] -> n
                         _   -> __IMPOSSIBLE__
 
-        -- [a] ≤ [neutral]
-        ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
-          | m == n -> equalLevel' (Max [a]) (Max [b])
-          -- Andreas, 2014-04-07: This call to equalLevel is ok even if we removed
-          -- subsumed terms from the lhs.
+        -- Andreas, 2016-09-28: This simplification loses the solution lzero.
+        -- Thus, it is invalid.
+        -- See test/Succeed/LevelMetaLeqNeutralLevel.agda.
+        -- -- [a] ≤ [neutral]
+        -- ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
+        --   | m == n -> equalLevel' (Max [a]) (Max [b])
+        --   -- Andreas, 2014-04-07: This call to equalLevel is ok even if we removed
+        --   -- subsumed terms from the lhs.
 
         -- anything else
         _ -> postpone
