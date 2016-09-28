@@ -123,17 +123,13 @@ jsMember n =
 global' :: QName -> TCM (Exp,[MemberId])
 global' q = do
   i <- iModuleName <$> curIF
-  is <- filter (isInModule q) <$> map (iModuleName . miInterface) <$> elems <$> getVisitedModules
-  case is of
-    [] -> __IMPOSSIBLE__
-    _ -> let
-        seg = maximum (map (length . mnameToList) is)
-        ms = mnameToList (qnameModule q)
-        m = MName (take seg ms)
-        ls = map jsMember (drop seg ms ++ [qnameName q])
-      in case (m == i) of
-        True -> return (Self, ls)
-        False -> return (Global (jsMod m), ls)
+  modNm <- topLevelModuleName (qnameModule q)
+  let
+    qms = mnameToList $ qnameModule q
+    nm = map jsMember (drop (length $ mnameToList modNm) qms ++ [qnameName q])
+  if modNm == i
+    then return (Self, nm)
+    else return (Global (jsMod modNm), nm)
 
 global :: QName -> TCM (Exp,[MemberId])
 global q = do
@@ -199,6 +195,7 @@ curModule = do
 
 definition :: (QName,Definition) -> TCM (Maybe Export)
 definition (q,d) = do
+  reportSDoc "js.compile" 10 $ text "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
   fmap (Export ls) <$> defn q ls (defType d) (defJSDef d) (theDef d)
