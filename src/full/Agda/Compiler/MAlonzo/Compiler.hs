@@ -522,7 +522,7 @@ literal l = case l of
       | isInfinite x     = rte "positiveInfinity"
       | isNegativeNaN x  = rte "negativeNaN"
       | isNaN x          = rte "positiveNaN"
-      | otherwise        = l'
+      | otherwise        = typed s
 
     rte = HS.Var . HS.Qual mazRTE . HS.Ident
 

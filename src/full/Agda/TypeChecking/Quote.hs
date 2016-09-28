@@ -14,7 +14,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( dbPatPerm )
+import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
@@ -171,12 +171,13 @@ quotingKit = do
       quotePat (ProjP _ x)       = projP !@ quoteQName x
 
       quoteClause :: Clause -> ReduceM Term
-      quoteClause Clause{namedClausePats = ps, clauseBody = body} =
+      quoteClause cl@Clause{namedClausePats = ps, clauseBody = body} =
         case body of
           Nothing -> absurdClause !@ quotePats ps
-          Just b  -> let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
-                         v    = renameP __IMPOSSIBLE__ (reverseP perm) b
-                     in normalClause !@ quotePats ps @@ quoteTerm v
+          Just b  ->
+            let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm' False ps -- Dot patterns don't count (#2203)
+                v    = applySubst (renamingR perm) b
+            in normalClause !@ quotePats ps @@ quoteTerm v
 
       list :: [ReduceM Term] -> ReduceM Term
       list []       = pure nil
