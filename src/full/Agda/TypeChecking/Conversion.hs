@@ -985,7 +985,11 @@ leqLevel a b = liftTCM $ do
         ([], _) -> ok
 
         -- as ≤ 0
-        (as, [])  -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
+        (as, [])              -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
+        (as, [ClosedLevel 0]) -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
+           -- Andreas, 2016-09-28, @[ClosedLevel 0]@ is possible if we come from case
+           -- "reduce constants" where we run @subtr@ on both sides.
+           -- See test/Succeed/LevelMetaLeqZero.agda.
 
         -- as ≤ [b]
         (as@(_:_:_), [b]) -> sequence_ [ leqView (Max [a]) (Max [b]) | a <- as ]
