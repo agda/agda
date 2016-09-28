@@ -57,3 +57,19 @@ remInt = rem
 
 eqFloat :: Double -> Double -> Bool
 eqFloat = identicalIEEE
+
+negativeZero :: Double
+negativeZero = -0.0
+
+positiveInfinity :: Double
+positiveInfinity = 1.0 / 0.0
+
+negativeInfinity :: Double
+negativeInfinity = -positiveInfinity
+
+positiveNaN :: Double
+positiveNaN = 0.0 / 0.0
+
+negativeNaN :: Double
+negativeNaN = -positiveNaN
+
