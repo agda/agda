@@ -309,15 +309,18 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce' (x,y,z) = (,,) <$> reduce' x <*> reduce' y <*> reduce' z
 
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
-reduceIApply d (IApply x y r : es) = do
+reduceIApply = reduceIApply' reduceB'
+
+reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
+reduceIApply' reduceB' d (IApply x y r : es) = do
   view <- intervalView'
-  r <- reduce' r
-  case view r of
+  r <- reduceB' r
+  case view (ignoreBlocking r) of -- should we propagate the blocking?
    IZero -> reduceB' (applyE x es)
    IOne  -> reduceB' (applyE y es)
    _     -> reduceIApply d es
-reduceIApply d (_ : es) = reduceIApply d es
-reduceIApply d [] = d
+reduceIApply' reduceB' d (_ : es) = reduceIApply d es
+reduceIApply' reduceB' d [] = d
 
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm

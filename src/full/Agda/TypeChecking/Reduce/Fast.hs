@@ -231,7 +231,8 @@ strictSubst strict us
         _        -> applySubst (liftS k rho) v
 
     goE k (Apply v) = Apply $! mapArg' (go k) v
-    goE _ p         = p
+    goE k (IApply x y r) = IApply (go k x) (go k y) (go k r)
+    goE _ p@Proj{}       = p
 
     goAbs k (Abs   x v) = Abs   x $! go (k + 1) v
     goAbs k (NoAbs x v) = NoAbs x $! go k v
@@ -288,7 +289,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
 
     reduceB'' steps v =
       case v of
-        Def f es -> unfoldDefinitionE steps False reduceB' (Def f []) f es
+        Def f es -> runReduce $ reduceIApp es $ return $ unfoldDefinitionE steps False reduceB' (Def f []) f es
         Con c vs ->
           -- Constructors can reduce' when they come from an
           -- instantiated module.
@@ -296,9 +297,10 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
             NotBlocked r v -> NotBlocked r $ reduceNat v
             b              -> b
         Lit{} -> done
-        Var{} -> done
+        Var i es -> runReduce $ reduceIApp es (return done)
         _     -> runReduce (slowReduceTerm v)
       where
+        reduceIApp es d = reduceIApply' (return . reduceB' steps) d es -- TODO Andrea: is it ok to reduce with same number of steps?
         done = notBlocked v
 
         reduceNat v@(Con c [])
