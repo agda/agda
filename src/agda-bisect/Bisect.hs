@@ -431,16 +431,19 @@ cabalInstall opts file =
 
 makeBuildEasier :: (IO (), IO ())
 makeBuildEasier =
-  (callProcess "sed"
-     [ "-ri"
-     , "-e", "s/cpphs >=[^,]*/cpphs/"
-     , "-e", "s/alex >=[^,]*/alex/"
-     , "-e", "s/geniplate[^,]*/geniplate-mirror/"
-     , "-e", "s/unordered-containers[^,]*/unordered-containers/"
-     , "Agda.cabal"
-     ]
+  (do callProcessWithResult "sed"
+        [ "-ri"
+        , "-e", "s/cpphs >=[^,]*/cpphs/"
+        , "-e", "s/alex >=[^,]*/alex/"
+        , "-e", "s/geniplate[^,]*/geniplate-mirror/"
+        , "-e", "s/unordered-containers[^,]*/unordered-containers/"
+        , cabalFile
+        ]
+      return ()
   , callProcess "git" ["reset", "--hard"]
   )
+  where
+  cabalFile = "Agda.cabal"
 
 -- | Runs the given program with the given arguments. Returns 'True'
 -- iff the command exits successfully.
