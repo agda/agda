@@ -75,6 +75,8 @@ data-files:         Agda.css
                     postprocess-latex.pl
                     uhc-agda-base/LICENSE
                     uhc-agda-base/src/UHC/Agda/*.hs
+                    uhc-agda-base/src/UHC/Agda/double.c
+                    uhc-agda-base/src/UHC/Agda/double.h
                     uhc-agda-base/uhc-agda-base.cabal
 
 source-repository head

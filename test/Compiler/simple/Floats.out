@@ -8,6 +8,9 @@ out > -0.0  = -0.0
 out > NaN   = NaN
 out > Inf   = Infinity
 out > -Inf  = -Infinity
+out > Inf == Inf = true
+out > NaN == NaN = true
+out > 0.0 == -0.0 = false
 out > NaN  < -Inf = false
 out > 0.0  < -0.0 = false
 out > -0.0 < 0.0  = true

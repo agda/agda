@@ -41,6 +41,14 @@ main =
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
 
+  putStr "Inf == Inf = " ,, printB (Inf == Inf) ,,
+
+  -- Issues #2155 and #2194.
+  putStr "NaN == NaN = " ,, printB (NaN == NaN) ,,
+
+  -- Issue #2169.
+  putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
+
   putStr "NaN  < -Inf = " ,, printB (NaN < -Inf) ,,
   putStr "0.0  < -0.0 = " ,, printB (0.0 < -0.0) ,,
   putStr "-0.0 < 0.0  = " ,, printB (-0.0 < 0.0) ,,

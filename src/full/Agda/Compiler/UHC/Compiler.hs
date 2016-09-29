@@ -202,6 +202,7 @@ runUHCMain mainInfo = do
     callUHC1 $  [ "--pkg-hide-all"
                 , "--pkg-expose=uhcbase"
                 , "--pkg-expose=base"
+                , "UHC/Agda/double.c"
                 ] ++ extraOpts ++ allFps ++ ["+RTS", "-K50m", "-RTS"]
 
 callUHC1 :: [String] -> TCM ()
