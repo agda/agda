@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Syntax.Parser
     ( -- * Types
@@ -20,6 +21,7 @@ module Agda.Syntax.Parser
 import Control.Exception
 import Control.Monad ((>=>), forM_)
 import Data.List
+import Data.Typeable ( Typeable )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)
@@ -34,6 +36,7 @@ import Agda.Syntax.Parser.Tokens
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.FileName
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Pretty
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative ((<$>))
@@ -87,22 +90,32 @@ parseLiterateWithoutComments p layers = parseStringFromFile (literateSrcFile lay
 parseLiterateWithComments :: LiterateParser [Token]
 parseLiterateWithComments p layers = do
   code <- map Left <$> parseLiterateWithoutComments p layers
-  let markup = Right <$> filter (not . isCode) layers
-  let (terms, overlaps) = interleaveRanges code markup
-  forM_ overlaps $ \(c,_) ->
-    fail$ "Multiline token in literate file spans multiple code blocks " ++ show (getRange c)
-  return$ concat [ case m of
-                     Left t -> [t]
-                     Right (Layer Comment interval s) -> [TokTeX (interval, s)]
-                     Right (Layer Markup _ _) -> []
-                     Right (Layer Code _ _) -> []
-                 | m <- terms ]
+  let literate = Right <$> filter (not . isCode) layers
+  let (terms, overlaps) = interleaveRanges code literate
+  case map fst overlaps of
+    [] -> return$
+            concat [ case m of
+                       Left t -> [t]
+                       Right (Layer Comment interval s) -> [TokTeX (interval, s)]
+                       Right (Layer Markup _ _) -> []
+                       Right (Layer Code _ _) -> []
+                   | m <- terms ]
+    (c:_) ->
+      -- TODO: This error should be made into one or more warnings.
+      -- This is because i) there can be more than one case of overlapping
+      -- tokens and ii) one can type-check a file even if some comment tokens
+      -- overlap with literate blocks.
+      throw OverlappingTokensError { errRange = getRange c }
 
 parseLiterateFile :: Processor -> Parser a -> AbsolutePath -> IO a
 parseLiterateFile po p path = readFile (filePath path) >>= parseLiterate p p . po (startPos (Just path))
 
 parsePosString :: Parser a -> Position -> String -> IO a
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
+
+-- | Extensions supported by `parseFile'`
+parseFileExts :: [String]
+parseFileExts = ".agda":literateExts
 
 parseFile' :: (Show a) => Parser a -> AbsolutePath -> IO a
 parseFile' p file =
@@ -111,10 +124,12 @@ parseFile' p file =
   else
     go literateProcessors
   where
-    go [] = fail$ "Unsupported extension for file " ++ filePath file
+    go [] = throw InvalidExtensionError {
+                     errPath = file
+                   , errValidExts = parseFileExts
+                   }
     go ((ext, po):pos) | ext `isSuffixOf` filePath file = parseLiterateFile po p file
     go (_:pos) = go pos
-
 
 ------------------------------------------------------------------------
 -- Specific parsers

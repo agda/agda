@@ -6,7 +6,7 @@ import Prelude
 import Control.Exception as E
 
 import Agda.Syntax.Position
-import Agda.Syntax.Parser ( ParseError(..) )
+import Agda.Syntax.Parser ( ParseError )
 
 import Agda.Utils.Pretty
 
