@@ -7,7 +7,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (mapM)
-import Control.Arrow (first, second)
+import Control.Arrow (first, second, (***))
 import Control.Applicative
 import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
@@ -349,13 +349,26 @@ stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN id
   where
     stripN = Map.filterWithKey $ const . not . isNoName
 
-type WSM = StateT ScopeCopyInfo ScopeM
+type WSM = StateT ScopeMemo ScopeM
+
+data ScopeMemo = ScopeMemo
+  { memoNames   :: A.Ren A.QName
+  , memoModules :: [(ModuleName, (ModuleName, Bool))]
+    -- ^ Bool: did we copy recursively? We need to track this because we don't
+    --   copy recursively when creating new modules for reexported functions
+    --   (issue1985), but we might need to copy recursively later.
+  }
+
+memoToScopeInfo :: ScopeMemo -> ScopeCopyInfo
+memoToScopeInfo (ScopeMemo names mods) =
+  ScopeCopyInfo { renNames   = names
+                , renModules = [ (x, y) | (x, (y, _)) <- mods ] }
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
-copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) initCopyInfo
+copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo [] [])
   where
     copy :: A.ModuleName -> Scope -> WSM Scope
     copy new s = do
@@ -388,12 +401,12 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y = modify $ \ i -> i { renNames   = (x, y) : renNames   i }
-        addMod  x y = modify $ \ i -> i { renModules = (x, y) : renModules i }
+        addName x y     = modify $ \ i -> i { memoNames   = (x, y)        : memoNames   i }
+        addMod  x y rec = modify $ \ i -> i { memoModules = (x, (y, rec)) : filter ((/= x) . fst) (memoModules i) }
 
         -- Querying the memo structure.
-        findName x = lookup x <$> gets renNames
-        findMod  x = lookup x <$> gets renModules
+        findName x = lookup x <$> gets memoNames
+        findMod  x = lookup x <$> gets memoModules
 
         refresh :: A.Name -> WSM A.Name
         refresh x = do
@@ -403,49 +416,84 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
         renName x = do
+          -- Issue 1985: For re-exported names we can't use new' as the
+          -- module, since it has the wrong telescope. Example:
+          --
+          --    module M1 (A : Set) where
+          --      module M2 (B : Set) where
+          --        postulate X : Set
+          --      module M3 (C : Set) where
+          --        module M4 (D E : Set) where
+          --          open M2 public
+          --
+          --    module M = M1.M3 A C
+          --
+          -- Here we can't copy M1.M2.X to M.M4.X since we need
+          -- X : (B : Set) → Set, but M.M4 has telescope (D E : Set). Thus, we
+          -- would break the invariant that all functions in a module share the
+          -- module telescope. Instead we copy M1.M2.X to M.M2.X for a fresh
+          -- module M2 that gets the right telescope.
+          m <- case x `isInModule` old of
+                 True  -> return new'
+                 False -> renMod' False (qnameModule x)
+                          -- Don't copy recursively here, we only know that the
+                          -- current name x should be copied.
           -- Generate a fresh name for the target.
-          y <- A.qualify new' <$> refresh (qnameName x)
-          lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
           -- Andreas, 2015-08-11 Issue 1619:
           -- Names copied by a module macro should get the module macro's
           -- range as declaration range
           -- (maybe rather the one of the open statement).
           -- For now, we just set their range
           -- to the new module name's one, which fixes issue 1619.
-          y <- return $ setRange rnew y
+          y <- setRange rnew . A.qualify m <$> refresh (qnameName x)
+          lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
           addName x y
           return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renMod :: A.ModuleName -> WSM A.ModuleName
-        renMod x = do
+        renMod = renMod' True
+
+        renMod' rec x = do
           -- Andreas, issue 1607:
           -- If we have already copied this module, return the copy.
-          ifJustM (findMod x) return $ {- else -} do
+          z <- findMod x
+          case z of
+            Just (y, False) | rec -> y <$ copyRec x y
+            Just (y, _)           -> return y
+            Nothing -> do
+            -- Ulf (issue 1985): If copying a reexported module we put it at the
+            -- top-level, to make sure we don't mess up the invariant that all
+            -- (abstract) names M.f share the argument telescope of M.
+            let newM | x `isSubModuleOf` old = newL
+                     | otherwise             = mnameToList new0
 
-          y <- do
-             -- Andreas, Jesper, 2015-07-02: Issue 1597
-             -- Don't blindly drop a prefix of length of the old qualifier.
-             -- If things are imported by open public they do not have the old qualifier
-             -- as prefix.  Those need just to be linked, not copied.
-             -- return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
-             -- caseMaybe (stripPrefix (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
-             --   return $ A.mnameFromList $ newL ++ suffix
-             -- Ulf, 2016-02-22: #1726
-             -- We still need to copy modules from 'open public'. Same as in renName.
-             y <- refresh (last $ A.mnameToList x)
-             return $ A.mnameFromList $ newL ++ [y]
-          -- Andreas, Jesper, 2015-07-02: Issue 1597
-          -- Don't copy a module over itself, it will just be emptied of its contents.
-          if (x == y) then return x else do
-          lift $ reportSLn "scope.copy" 50 $ "  Copying module " ++ show x ++ " to " ++ show y
-          addMod x y
-          -- We need to copy the contents of included modules recursively
-          lift $ createModule False y
-          s0 <- lift $ getNamedScope x
-          s  <- withCurrentModule' y $ copy y s0
-          lift $ modifyNamedScope y (const s)
-          return y
+            y <- do
+               -- Andreas, Jesper, 2015-07-02: Issue 1597
+               -- Don't blindly drop a prefix of length of the old qualifier.
+               -- If things are imported by open public they do not have the old qualifier
+               -- as prefix.  Those need just to be linked, not copied.
+               -- return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
+               -- caseMaybe (stripPrefix (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
+               --   return $ A.mnameFromList $ newL ++ suffix
+               -- Ulf, 2016-02-22: #1726
+               -- We still need to copy modules from 'open public'. Same as in renName.
+               y <- refresh (last $ A.mnameToList x)
+               return $ A.mnameFromList $ newM ++ [y]
+            -- Andreas, Jesper, 2015-07-02: Issue 1597
+            -- Don't copy a module over itself, it will just be emptied of its contents.
+            if (x == y) then return x else do
+            lift $ reportSLn "scope.copy" 50 $ "  Copying module " ++ show x ++ " to " ++ show y
+            addMod x y rec
+            lift $ createModule False y
+            -- We need to copy the contents of included modules recursively (only when 'rec')
+            when rec $ copyRec x y
+            return y
+          where
+            copyRec x y = do
+              s0 <- lift $ getNamedScope x
+              s  <- withCurrentModule' y $ copy y s0
+              lift $ modifyNamedScope y (const s)
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
