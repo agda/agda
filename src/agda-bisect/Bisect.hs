@@ -175,7 +175,9 @@ options =
         [ "For every step of the bisection process this script tries to"
         , "compile Agda, run the resulting program (if any) with the"
         , "given arguments, and determine if the result is"
-        , "satisfactory."
+        , "satisfactory. (When --timeout is used an unsatisfactory"
+        , "run that does not time out is treated as an install"
+        , "failure.)"
         ]
 
     , paragraph
@@ -311,16 +313,12 @@ bisect opts =
                                , "--encoding=UTF-8"
                                , "HEAD"
                                ] ""
-    let skip = any (`isInfixOf` msg) (skipStrings opts)
 
-    r <- if skip then return "skip" else do
-           ok <- installAndRunAgda opts
-           return $ case ok of
-             Nothing    -> "skip"
-             Just True  -> "good"
-             Just False -> "bad"
+    r <- if any (`isInfixOf` msg) (skipStrings opts)
+         then return Skip
+         else installAndRunAgda opts
 
-    ok <- callProcessWithResult "git" ["bisect", r]
+    ok <- callProcessWithResult "git" ["bisect", map toLower (show r)]
 
     case logFile opts of
       Nothing -> return ()
@@ -333,24 +331,26 @@ bisect opts =
       after <- currentCommit
       when (before /= after) run
 
--- | Tries to first install Agda, and then run the test.
---
--- Returns 'Nothing' if the build failed, and otherwise the result of
--- the test.
+-- | The result of a single test.
 
-installAndRunAgda :: Options -> IO (Maybe Bool)
+data Result = Good | Bad | Skip
+  deriving Show
+
+-- | Tries to first install Agda, and then run the test.
+
+installAndRunAgda :: Options -> IO Result
 installAndRunAgda opts = do
   ok <- installAgda opts
   if not ok then
-    return Nothing
+    return Skip
    else
-    Just <$> runAgda compiledAgda opts
+    runAgda compiledAgda opts
 
 -- | Runs Agda. Returns 'True' iff the result is satisfactory.
 
 runAgda :: FilePath  -- ^ Agda.
         -> Options
-        -> IO Bool
+        -> IO Result
 runAgda agda opts = do
   (prog, args) <-
     case scriptOrArguments opts of
@@ -372,17 +372,20 @@ runAgda agda opts = do
   case result of
     Nothing -> do
       putStrLn "Timeout"
-      return False
+      return Bad
     Just (code, out, err) -> do
       let occurs s       = s `isInfixOf` out || s `isInfixOf` err
           success        = code == ExitSuccess
           expectedResult = mustSucceed opts == success
-          result         =
-            expectedResult
-               &&
-            all occurs (mustOutput opts)
-               &&
-            not (any occurs (mustNotOutput opts))
+          testsOK        = expectedResult
+                              &&
+                           all occurs (mustOutput opts)
+                              &&
+                           not (any occurs (mustNotOutput opts))
+          result         = case (mustFinishWithin opts, testsOK) of
+                             (Just _,  False) -> Skip
+                             (Nothing, False) -> Bad
+                             (_,       True)  -> Good
 
       putStrLn $
         "Result: " ++
@@ -390,7 +393,7 @@ runAgda agda opts = do
         " (" ++ (if expectedResult then "good" else "bad") ++ ")"
       unless (null out) $ putStr $ "Stdout:\n" ++ indent out
       unless (null err) $ putStr $ "Stderr:\n" ++ indent err
-      putStrLn $ "Verdict: " ++ if result then "Good" else "Bad"
+      putStrLn $ "Verdict: " ++ show result
 
       return result
   where
