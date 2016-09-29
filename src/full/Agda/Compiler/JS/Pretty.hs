@@ -108,8 +108,10 @@ exports n i lss (Export ls e : es) | otherwise =
   exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
-  pretty n i (Module m es) =
-    imports ++ br i ++ exports n i (singleton []) es
+  pretty n i (Module m es ex) =
+    imports ++ br i
+      ++ exports n i (singleton []) es ++ br i
+      ++ maybe "" (pretty n i) ex
     where
       js = toList (globals es)
       imports = unlines $

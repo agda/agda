@@ -21,12 +21,10 @@ postulate
 {-# COMPILED_UHC return (\_ _ x -> UHC.Agda.Builtins.primReturn x) #-}
 {-# COMPILED_UHC _>>=_ (\_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y) #-}
 {-# COMPILED_JS return
-    function(u0) { return function(u1) { return function(x) { return x; }; }; } #-}
--- JS implementation of _>>=_ uses y.apply() instead of y() to prevent the JS
--- backend from removing the value x.
+    function(u0) { return function(u1) { return function(x) { return function(io) { return x; }; }; }; } #-}
 {-# COMPILED_JS _>>=_
   function(u0) { return function(u1) { return function(u2) { return function(u3) {
-    return function(x) { return function(y) { return y.apply(this, Array(x)); }; };
+    return function(x) { return function(y) { return function(io) { return y(x(0))(0);}; }; };
   }; }; }; }
 #-}
 
@@ -39,7 +37,7 @@ postulate
 {-# COMPILED putStr Data.Text.IO.putStr #-}
 {-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
 {-# COMPILED_UHC putStr (UHC.Agda.Builtins.primPutStr) #-}
-{-# COMPILED_JS putStr function (x) { return process.stdout.write(x); } #-}
+{-# COMPILED_JS putStr function (x) { return function(io) { return process.stdout.write(x); }; } #-}
 
 
 printChar : Char -> IO Unit
