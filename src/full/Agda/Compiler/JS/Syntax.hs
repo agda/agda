@@ -50,7 +50,7 @@ newtype MemberId = MemberId String
 data Export = Export { expName :: [MemberId], defn :: Exp }
   deriving (Typeable, Show)
 
-data Module = Module { modName :: GlobalId, exports :: [Export] }
+data Module = Module { modName :: GlobalId, exports :: [Export], postscript :: Maybe Exp }
   deriving (Typeable, Show)
 
 -- Note that modules are allowed to be recursive, via the Self expression,
@@ -108,4 +108,4 @@ instance Globals Export where
   globals (Export ls e) = globals e
 
 instance Globals Module where
-  globals (Module m es) = globals es
+  globals (Module m es _) = globals es

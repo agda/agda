@@ -75,15 +75,15 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 compilerMain :: Interface -> TCM ()
 compilerMain mainI = inCompilerEnv mainI $ do
-  doCompile IsMain mainI $ \_ -> do
+  doCompile IsMain mainI $ do
     compile
   copyRTEModules
 
-compile :: Interface -> TCM ()
-compile i = do
+compile :: IsMain -> Interface -> TCM ()
+compile isMain i = do
   ifM uptodate noComp $ do
     yesComp
-    writeModule =<< curModule
+    writeModule =<< curModule isMain
   where
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
@@ -186,12 +186,16 @@ insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e 
 -- Main compiling clauses
 --------------------------------------------------
 
-curModule :: TCM Module
-curModule = do
+curModule :: IsMain -> TCM Module
+curModule isMain = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
   es <- catMaybes <$> (mapM definition =<< (sortDefs <$> curDefs))
-  return (Module m (reorder es))
+  return $ Module m (reorder es) main
+  where
+    main = case isMain of
+      IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [emp]
+      NotMain -> Nothing
 
 definition :: (QName,Definition) -> TCM (Maybe Export)
 definition (q,d) = do
