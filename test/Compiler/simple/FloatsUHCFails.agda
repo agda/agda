@@ -35,12 +35,6 @@ main =
   putStr "√2 = " ,, print (primFloatSqrt 2.0) ,,
   putStr "√2 = " ,, print (primFloatTimes 2.0 (primSin (primFloatDiv pi 4.0))) ,,
 
-  putStr "Inf == Inf  = " ,, printB (Inf == Inf) ,,
-  -- Issues #2155 and #2194.
-  putStr "NaN == NaN  = " ,, printB (NaN == NaN) ,,
-  -- Issue #2169.
-  putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
-
   -- Issue #2216
   putStr "isZero  0.0 = " ,, putStrLn (isZero 0.0) ,,
   putStr "isZero -0.0 = " ,, putStrLn (isZero -0.0) ,,

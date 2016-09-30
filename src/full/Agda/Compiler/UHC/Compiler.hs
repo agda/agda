@@ -2,10 +2,14 @@
 
 -- | UHC compiler backend, main entry point.
 
--- In the long term, it would be nice if we could use e.g. shake to build individual Agda modules. The problem with that is that
--- some parts need to be in the TCM Monad, which doesn't easily work in shake. We would need a way to extract the information
--- out of the TCM monad, so that we can pass it to the compilation function without pulling in the TCM Monad. Another minor
--- problem might be error reporting?
+-- In the long term, it would be nice if we could use e.g. shake to
+-- build individual Agda modules. The problem with that is that some
+-- parts need to be in the TCM Monad, which doesn't easily work in
+-- shake. We would need a way to extract the information out of the
+-- TCM monad, so that we can pass it to the compilation function
+-- without pulling in the TCM Monad. Another minor problem might be
+-- error reporting?
+
 module Agda.Compiler.UHC.Compiler(compilerMain) where
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -193,8 +197,12 @@ runUHCMain mainInfo = do
 
     liftIO . setCurrentDirectory =<< compileDir
 
-    -- TODO drop the RTS args as soon as we don't need the additional memory anymore
-    callUHC1 $  ["--pkg-hide-all", "--pkg-expose=uhcbase", "--pkg-expose=base"
+    -- TODO drop the RTS args as soon as we don't need the additional
+    -- memory anymore
+    callUHC1 $  [ "--pkg-hide-all"
+                , "--pkg-expose=uhcbase"
+                , "--pkg-expose=base"
+                , "UHC/Agda/double.c"
                 ] ++ extraOpts ++ allFps ++ ["+RTS", "-K50m", "-RTS"]
 
 callUHC1 :: [String] -> TCM ()
