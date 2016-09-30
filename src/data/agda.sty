@@ -342,7 +342,7 @@
 
 % Misc.
 \newcommand{\AgdaHole}[1]{\colorbox{AgdaHole}{#1}}
-\long\def\AgdaHide#1{} % Used to hide code from LaTeX.
+\long\def\AgdaHide#1{\ignorespaces} % Used to hide code from LaTeX.
 
 \newcommand{\AgdaIndent}[1]{$\;\;$}
 
@@ -365,14 +365,18 @@
 \newcommand{\AgdaNewlineWithVerticalSpace}[1]{%
   {\parskip=0pt\parindent=0pt\par\vskip #1\noindent}}
 
+% 0: No space around code. 1: Space around code.
+\newcounter{Agda@SpaceAroundCode}
+
 % Use this command to avoid extra space around code blocks.
 \newcommand{\AgdaNoSpaceAroundCode}{%
-  \renewcommand{\AgdaNewline}[1]{\AgdaNewlineWithVerticalSpace{0pt}}}
+  \setcounter{Agda@SpaceAroundCode}{0}}
+
 % Use this command to include extra space around code blocks.
 \newcommand{\AgdaSpaceAroundCode}{%
-  \renewcommand{\AgdaNewline}[1]{\AgdaNewlineWithVerticalSpace{##1}}}
+  \setcounter{Agda@SpaceAroundCode}{1}}
 
-\newcommand{\AgdaNewline}[1]{}
+% By default space is inserted around code blocks.
 \AgdaSpaceAroundCode{}
 
 % The code environment.
@@ -380,12 +384,16 @@
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
 \newenvironment{code}{%
-  \AgdaNewline{\abovedisplayskip}%
+  \ifthenelse{\value{Agda@SpaceAroundCode} = 0}{%
+    \AgdaNewlineWithVerticalSpace{0pt}}{%
+    \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}%
   \advance\leftskip\mathindent%
   \AgdaCodeStyle%
   \pboxed}{%
   \endpboxed%
-  \AgdaNewline{\belowdisplayskip}%
+  \ifthenelse{\value{Agda@SpaceAroundCode} = 0}{%
+    \AgdaNewlineWithVerticalSpace{0pt}}{%
+    \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}%
   \ignorespacesafterend}
 
 % Default column for polytable.
