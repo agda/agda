@@ -31,14 +31,18 @@ keywords
   Reserved words that cannot appear as a `name part <Names_>`_, but can appear
   in a name together with other characters.
 
-  .. code-block:: none
-
-    = | -> → : ? \ λ ∀ .. ...
-    abstract codata coinductive constructor data eta-equality field forall hiding
-    import in inductive infix infixl infixr instance let macro module mutual
-    no-eta-equality open pattern postulate primitive private public quote
-    quoteContext quoteGoal quoteTerm record renaming rewrite Set syntax tactic
-    unquote unquoteDecl unquoteDef using where with
+  ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ`` ``∀`` ``..``
+  ``...`` ``abstract`` ``codata`` ``coinductive`` ``constructor``
+  ``data`` ``eta-equality`` ``field`` ``forall`` ``hiding`` ``import``
+  ``in`` ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance``
+  ``let`` :ref:`macro <macros>` ``module`` ``mutual``
+  ``no-eta-equality`` ``open`` ``pattern`` ``postulate`` ``primitive``
+  ``private`` ``public`` :ref:`quote <reflection>` ``quoteContext``
+  ``quoteGoal`` :ref:`quoteTerm <macros>` ``record`` ``renaming``
+  ``rewrite`` ``Set`` ``syntax`` ``tactic`` :ref:`unquote <macros>`
+  :ref:`unquoteDecl <unquoting-declarations>`
+  :ref:`unquoteDef <unquoting-declarations>` ``using`` ``where``
+  ``with``
 
   The ``Set`` keyword can appear with a number suffix, optionally subscripted
   (see :ref:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
