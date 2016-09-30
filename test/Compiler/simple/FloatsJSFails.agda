@@ -28,4 +28,7 @@ Inf = 1.0 / 0.0
 main : IO Unit
 main =
   putStr "NaN < -5.0  = " ,, printB (NaN < -5.0) ,,
+
+  -- Issue #2194.
+  putStr "NaN == -NaN = " ,, printB (NaN == (primFloatNegate NaN)) ,,
   return unit
