@@ -75,15 +75,15 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 compilerMain :: Interface -> TCM ()
 compilerMain mainI = inCompilerEnv mainI $ do
-  doCompile IsMain mainI $ \_ -> do
+  doCompile IsMain mainI $ do
     compile
   copyRTEModules
 
-compile :: Interface -> TCM ()
-compile i = do
+compile :: IsMain -> Interface -> TCM ()
+compile isMain i = do
   ifM uptodate noComp $ do
     yesComp
-    writeModule =<< curModule
+    writeModule =<< curModule isMain
   where
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
@@ -123,17 +123,13 @@ jsMember n =
 global' :: QName -> TCM (Exp,[MemberId])
 global' q = do
   i <- iModuleName <$> curIF
-  is <- filter (isInModule q) <$> map (iModuleName . miInterface) <$> elems <$> getVisitedModules
-  case is of
-    [] -> __IMPOSSIBLE__
-    _ -> let
-        seg = maximum (map (length . mnameToList) is)
-        ms = mnameToList (qnameModule q)
-        m = MName (take seg ms)
-        ls = map jsMember (drop seg ms ++ [qnameName q])
-      in case (m == i) of
-        True -> return (Self, ls)
-        False -> return (Global (jsMod m), ls)
+  modNm <- topLevelModuleName (qnameModule q)
+  let
+    qms = mnameToList $ qnameModule q
+    nm = map jsMember (drop (length $ mnameToList modNm) qms ++ [qnameName q])
+  if modNm == i
+    then return (Self, nm)
+    else return (Global (jsMod modNm), nm)
 
 global :: QName -> TCM (Exp,[MemberId])
 global q = do
@@ -190,61 +186,67 @@ insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e 
 -- Main compiling clauses
 --------------------------------------------------
 
-curModule :: TCM Module
-curModule = do
+curModule :: IsMain -> TCM Module
+curModule isMain = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
   es <- catMaybes <$> (mapM definition =<< (sortDefs <$> curDefs))
-  return (Module m (reorder es))
+  return $ Module m (reorder es) main
+  where
+    main = case isMain of
+      IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [emp]
+      NotMain -> Nothing
 
 definition :: (QName,Definition) -> TCM (Maybe Export)
 definition (q,d) = do
+  reportSDoc "js.compile" 10 $ text "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
-  fmap (Export ls) <$> defn q ls (defType d) (defJSDef d) (theDef d)
 
-defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM (Maybe Exp)
-defn q ls t (Just e) Axiom =
-  return $ Just $ PlainJS e
-defn q ls t Nothing Axiom =
-  return $ Just Undefined
-defn q ls t (Just e) (Function {}) =
-  return $ Just $ PlainJS e
-defn q ls t Nothing (Function {}) = do
-  reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
-  caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
-    funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
-    reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
-    funBody' <- compileTerm funBody
-    reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
-    return $ Just funBody'
-defn q ls t _ p@(Primitive {}) | primName p `Set.member` primitives =
-  return $ Just $ PlainJS $ "agdaRTS." ++ primName p
-defn q ls t (Just e) (Primitive {}) =
-  return $ Just $ PlainJS e
-defn q ls t _ (Primitive {}) =
-  return $ Just Undefined
-defn q ls t _ (Datatype {}) =
-  return $ Just emp
-defn q ls t (Just e) (Constructor {}) =
-  return $ Just $ PlainJS e
-defn q ls t _ (Constructor { conData = p, conPars = nc }) = do
-  np <- return (arity t - nc)
-  d <- getConstInfo p
+  fmap (Export ls) <$> definition' q d (defType d) ls
+
+definition' :: QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Exp)
+definition' q d t ls =
   case theDef d of
-    Record { recFields = flds } ->
-      return $ Just (curriedLambda np (Object (fromList
-        ( (last ls , Lambda 1
-             (Apply (Lookup (Local (LocalId 0)) (last ls))
-               [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-        : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
-             [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
-    _ ->
-      return $ Just (curriedLambda (np + 1)
-        (Apply (Lookup (Local (LocalId 0)) (last ls))
-          [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-defn q ls t _ (Record {}) =
-  return $ Just emp
+    Axiom | Just e <- defJSDef d -> plainJS e
+    Axiom | otherwise -> return $ Just Undefined
+
+    Function{} | Just e <- defJSDef d -> plainJS e
+    Function{} | otherwise -> do
+      reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
+      caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
+        funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
+        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
+        funBody' <- compileTerm funBody
+        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
+        return $ Just funBody'
+
+    Primitive{primName = p} | p `Set.member` primitives ->
+      plainJS $ "agdaRTS." ++ p
+    Primitive{} | Just e <- defJSDef d -> plainJS e
+    Primitive{} | otherwise -> return $ Just Undefined
+
+    Datatype{} -> return $ Just emp
+    Record{} -> return $ Just emp
+
+    Constructor{} | Just e <- defJSDef d -> plainJS e
+    Constructor{conData = p, conPars = nc} | otherwise -> do
+      np <- return (arity t - nc)
+      d <- getConstInfo p
+      case theDef d of
+        Record { recFields = flds } ->
+          return $ Just (curriedLambda np (Object (fromList
+            ( (last ls , Lambda 1
+                 (Apply (Lookup (Local (LocalId 0)) (last ls))
+                   [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+            : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
+                 [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
+        _ ->
+          return $ Just (curriedLambda (np + 1)
+            (Apply (Lookup (Local (LocalId 0)) (last ls))
+              [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+  where
+    plainJS = return . Just . PlainJS
 
 
 compileTerm :: T.TTerm -> TCM Exp

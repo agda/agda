@@ -44,7 +44,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
 data IsMain = IsMain | NotMain
-  deriving (Eq)
+  deriving (Eq, Show)
 
 doCompile :: IsMain -> Interface -> (IsMain -> Interface -> TCM ()) -> TCM ()
 doCompile isMain i f = do
@@ -65,7 +65,7 @@ doCompile isMain i f = do
             mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
         mapM_ (comp NotMain) imps
         lift $ setInterface i
-        lift $ f NotMain i
+        lift $ f isMain i
         modify (Set.insert $ iModuleName i)
 
 setInterface :: Interface -> TCM ()

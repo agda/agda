@@ -51,16 +51,9 @@ data Options = Options
   , skipStrings               :: [String]
   , logFile                   :: Maybe String
   , start                     :: Either FilePath (String, String)
-  , dryRun                    :: Maybe FilePath
+  , dryRun                    :: Maybe (Either FilePath String)
   , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
-
--- | The path to the Agda executable.
-
-agda :: Options -> FilePath
-agda opts = case dryRun opts of
-  Nothing   -> compiledAgda
-  Just agda -> agda
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -145,11 +138,19 @@ options =
                      help "Replay the git bisect log in LOG" <>
                      action "file")))
     <*> optional
-          (strOption (long "dry-run" <>
-                      metavar "AGDA" <>
-                      action "command" <>
-                      help ("Do not run git bisect, just run the " ++
-                            "test once using AGDA")))
+          ((Left <$>
+            strOption (long "dry-run" <>
+                       metavar "AGDA" <>
+                       action "command" <>
+                       help ("Do not run git bisect, just run the " ++
+                             "test once using AGDA")))
+             <|>
+           (Right <$>
+            strOption (long "dry-run-with-commit" <>
+                       metavar "C" <>
+                       completer commitCompleter <>
+                       help ("Do not run git bisect, just run the " ++
+                             "test once using commit C"))))
     <*> ((Right <$>
           many (strArgument (metavar "ARGUMENTS..." <>
                              help "The arguments supplied to Agda")))
@@ -174,7 +175,9 @@ options =
         [ "For every step of the bisection process this script tries to"
         , "compile Agda, run the resulting program (if any) with the"
         , "given arguments, and determine if the result is"
-        , "satisfactory."
+        , "satisfactory. (When --timeout is used an unsatisfactory"
+        , "run that does not time out is treated as an install"
+        , "failure.)"
         ]
 
     , paragraph
@@ -239,14 +242,45 @@ main :: IO ()
 main = do
   opts <- options
   case dryRun opts of
-    Just _  -> runAgda opts >> return ()
+    Just (Left agda) -> do
+      runAgda agda opts
+      return ()
+
+    Just (Right commit) -> do
+      setupSandbox
+
+      let checkout c = callProcess "git" ["checkout", c]
+      bracket currentCommit checkout $ \_ -> do
+        checkout commit
+
+        installAndRunAgda opts
+        return ()
+
     Nothing -> do
-      sandboxExists <- callProcessWithResultSilently
-                         "cabal" ["sandbox", "list-sources"]
-      unless sandboxExists $
-        callProcess "cabal" ["sandbox", "init"]
+      setupSandbox
 
       bisect opts
+
+-- | The current git commit.
+
+currentCommit :: IO String
+currentCommit = do
+  s <- withEncoding char8 $
+         readProcess "git" ["rev-parse", "HEAD"] ""
+  return $ dropFinalNewline s
+  where
+  dropFinalNewline s = case reverse s of
+    '\n' : s -> reverse s
+    _        -> s
+
+-- | Tries to make sure that a Cabal sandbox will be used.
+
+setupSandbox :: IO ()
+setupSandbox = do
+  sandboxExists <- callProcessWithResultSilently
+                     "cabal" ["sandbox", "list-sources"]
+  unless sandboxExists $
+    callProcess "cabal" ["sandbox", "init"]
 
 -- | Performs the bisection process.
 
@@ -268,11 +302,6 @@ bisect opts =
     inProgress <- callProcessWithResultSilently "git" ["bisect", "log"]
     when inProgress run
 
-  currentCommit :: IO String
-  currentCommit =
-    withEncoding char8 $
-      readProcess "git" ["rev-parse", "HEAD"] ""
-
   run :: IO ()
   run = do
     before <- currentCommit
@@ -284,18 +313,12 @@ bisect opts =
                                , "--encoding=UTF-8"
                                , "HEAD"
                                ] ""
-    let skip = any (`isInfixOf` msg) (skipStrings opts)
 
-    r <- if skip then return "skip" else
-          uncurry bracket_ makeBuildEasier $ do
-            ok <- installAgda opts
-            if not ok then
-              return "skip"
-             else do
-              ok <- runAgda opts
-              return $ if ok then "good" else "bad"
+    r <- if any (`isInfixOf` msg) (skipStrings opts)
+         then return Skip
+         else installAndRunAgda opts
 
-    ok <- callProcessWithResult "git" ["bisect", r]
+    ok <- callProcessWithResult "git" ["bisect", map toLower (show r)]
 
     case logFile opts of
       Nothing -> return ()
@@ -308,20 +331,37 @@ bisect opts =
       after <- currentCommit
       when (before /= after) run
 
+-- | The result of a single test.
+
+data Result = Good | Bad | Skip
+  deriving Show
+
+-- | Tries to first install Agda, and then run the test.
+
+installAndRunAgda :: Options -> IO Result
+installAndRunAgda opts = do
+  ok <- installAgda opts
+  if not ok then
+    return Skip
+   else
+    runAgda compiledAgda opts
+
 -- | Runs Agda. Returns 'True' iff the result is satisfactory.
 
-runAgda :: Options -> IO Bool
-runAgda opts = do
+runAgda :: FilePath  -- ^ Agda.
+        -> Options
+        -> IO Result
+runAgda agda opts = do
   (prog, args) <-
     case scriptOrArguments opts of
-      Left (prog, args) -> return (prog, agda opts : args)
+      Left (prog, args) -> return (prog, agda : args)
       Right args        -> do
         flags <- if extraArguments opts then do
-                   help <- readProcess (agda opts) ["--help"] ""
+                   help <- readProcess agda ["--help"] ""
                    return $ filter (`isInfixOf` help) defaultFlags
                   else
                    return []
-        return (agda opts, flags ++ args)
+        return (agda, flags ++ args)
 
   putStrLn $ "Command: " ++ showCommandForUser prog args
 
@@ -332,17 +372,20 @@ runAgda opts = do
   case result of
     Nothing -> do
       putStrLn "Timeout"
-      return False
+      return Bad
     Just (code, out, err) -> do
       let occurs s       = s `isInfixOf` out || s `isInfixOf` err
           success        = code == ExitSuccess
           expectedResult = mustSucceed opts == success
-          result         =
-            expectedResult
-               &&
-            all occurs (mustOutput opts)
-               &&
-            not (any occurs (mustNotOutput opts))
+          testsOK        = expectedResult
+                              &&
+                           all occurs (mustOutput opts)
+                              &&
+                           not (any occurs (mustNotOutput opts))
+          result         = case (mustFinishWithin opts, testsOK) of
+                             (Just _,  False) -> Skip
+                             (Nothing, False) -> Bad
+                             (_,       True)  -> Good
 
       putStrLn $
         "Result: " ++
@@ -350,7 +393,7 @@ runAgda opts = do
         " (" ++ (if expectedResult then "good" else "bad") ++ ")"
       unless (null out) $ putStr $ "Stdout:\n" ++ indent out
       unless (null err) $ putStr $ "Stderr:\n" ++ indent err
-      putStrLn $ "Verdict: " ++ if result then "Good" else "Bad"
+      putStrLn $ "Verdict: " ++ show result
 
       return result
   where
@@ -359,17 +402,18 @@ runAgda opts = do
 -- | Tries to install Agda.
 
 installAgda :: Options -> IO Bool
-installAgda opts = do
-  ok <- cabalInstall opts "Agda.cabal"
-  if not ok then
-    return False
-   else do
-    let executable = "src/main/Agda-executable.cabal"
-    exists <- doesFileExist executable
-    if exists then
-      cabalInstall opts executable
-     else
-      return True
+installAgda opts =
+  uncurry bracket_ makeBuildEasier $ do
+    ok <- cabalInstall opts "Agda.cabal"
+    if not ok then
+      return False
+     else do
+      let executable = "src/main/Agda-executable.cabal"
+      exists <- doesFileExist executable
+      if exists then
+        cabalInstall opts executable
+       else
+        return True
 
 -- | Tries to install the package in the given cabal file.
 
@@ -390,16 +434,20 @@ cabalInstall opts file =
 
 makeBuildEasier :: (IO (), IO ())
 makeBuildEasier =
-  (callProcess "sed"
-     [ "-ri"
-     , "-e", "s/cpphs >=[^,]*/cpphs/"
-     , "-e", "s/alex >=[^,]*/alex/"
-     , "-e", "s/geniplate[^,]*/geniplate-mirror/"
-     , "-e", "s/unordered-containers[^,]*/unordered-containers/"
-     , "Agda.cabal"
-     ]
+  (do callProcessWithResult "sed"
+        [ "-ri"
+        , "-e", "s/cpphs >=[^,]*/cpphs/"
+        , "-e", "s/alex >=[^,]*/alex/"
+        , "-e", "s/geniplate[^,]*/geniplate-mirror/"
+        , "-e", "s/unordered-containers[^,]*/unordered-containers/"
+        , "-e", "s/-Werror//g"
+        , cabalFile
+        ]
+      return ()
   , callProcess "git" ["reset", "--hard"]
   )
+  where
+  cabalFile = "Agda.cabal"
 
 -- | Runs the given program with the given arguments. Returns 'True'
 -- iff the command exits successfully.
