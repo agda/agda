@@ -440,6 +440,7 @@ makeBuildEasier =
         , "-e", "s/alex >=[^,]*/alex/"
         , "-e", "s/geniplate[^,]*/geniplate-mirror/"
         , "-e", "s/unordered-containers[^,]*/unordered-containers/"
+        , "-e", "s/-Werror//g"
         , cabalFile
         ]
       return ()
