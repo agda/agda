@@ -11,6 +11,7 @@ Welcome to Agda's documentation!
 
    overview
    getting-started/index
+   keywords
    language/index
    tools/index
    license
