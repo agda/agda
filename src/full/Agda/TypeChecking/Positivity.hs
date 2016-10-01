@@ -109,7 +109,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     checkPos :: Graph Node Edge ->
                 Graph Node Occurrence ->
                 QName -> TCM ()
-    checkPos g gstar q = inConcreteOrAbstractMode q $ do
+    checkPos g gstar q = inConcreteOrAbstractMode q $ \ _def -> do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
@@ -211,9 +211,9 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
       -- Compute a map from each name in q to the maximal argument index
       let maxs = Map.fromListWith max
            [ (q, i) | ArgNode q i <- Set.toList $ Graph.sourceNodes g, q `Set.member` qset ]
-      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ do
+      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> do
         reportSDoc "tc.pos.args" 10 $ text "checking args of" <+> prettyTCM q
-        n <- getDefArity =<< getConstInfo q
+        n <- getDefArity def
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
         -- Otherwise, we obtain the occurrences from the Graph.
         let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
@@ -550,12 +550,11 @@ computeOccurrences q = flatten <$> computeOccurrences' q
 
 -- | Computes the occurrences in the given definition.
 computeOccurrences' :: QName -> TCM OccurrencesBuilder
-computeOccurrences' q = inConcreteOrAbstractMode q $ do
+computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
   reportSDoc "tc.pos" 25 $ do
-    a <- defAbstract <$> getConstInfo q
+    let a = defAbstract def
     m <- asks envAbstractMode
     text "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
-  def <- getConstInfo q
   OccursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
       n  <- getDefArity def

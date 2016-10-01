@@ -407,10 +407,9 @@ typeEndsInDef t = liftTCM $ do
 --   Only the latter depends on the choice whether we
 --   consider dot patterns or not.
 termDef :: QName -> TerM Calls
-termDef name = terSetCurrent name $ do
+termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 
   -- Retrieve definition
-  def <- liftTCM $ getConstInfo name
   let t = defType def
 
   liftTCM $ reportSDoc "term.def.fun" 5 $

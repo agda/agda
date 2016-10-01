@@ -416,7 +416,7 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
   -- Andreas, 2015-07-01, see Issue1366b:
   -- Injectivity check needs also to be run for abstract definitions.
   -- Fold.forM_ names $ \ q -> ignoreAbstractMode $ do -- NOT NECESSARY after all
-  Fold.forM_ names $ \ q -> inConcreteOrAbstractMode q $ do
+  Fold.forM_ names $ \ q -> inConcreteOrAbstractMode q $ \ def -> do
     -- For abstract q, we should be inAbstractMode,
     -- otherwise getConstInfo returns Axiom.
     --
@@ -428,7 +428,6 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
     -- or super modules inAbstractMode.
     -- I changed that in Monad.Signature.treatAbstractly', so we can see
     -- our own local definitions.
-    def <- getConstInfo q
     case theDef def of
       d@Function{ funClauses = cs, funTerminates = term } -> do
         case term of
