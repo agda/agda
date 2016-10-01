@@ -175,6 +175,19 @@ checkDecl d = setCurrentRange d $ do
       A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
                                     checkRecDef i x ind eta c ps tel cs
                                     blockId <- mutualBlockOf x
+
+                                    -- Andreas, 2016-10-01 testing whether
+                                    -- envMutualBlock is set correctly.
+                                    -- Apparently not.
+                                    verboseS "tc.decl.mutual" 70 $ do
+                                      current <- asks envMutualBlock
+                                      unless (Just blockId == current) $ do
+                                        reportSLn "" 0 $ unlines
+                                          [ "mutual block id discrepancy for " ++ show x
+                                          , "  current    mut. bl. = " ++ show current
+                                          , "  calculated mut. bl. = " ++ show blockId
+                                          ]
+
                                     return (blockId, Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
