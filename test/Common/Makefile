@@ -18,9 +18,9 @@ alllagda=$(patsubst %.lagda,%.test,$(filter-out $(excluded),$(shell find . -name
 default : all
 all : $(allagda) $(alllagda)
 
-RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim --ignore-interfaces -v$(V)
+RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim --ignore-interfaces -v$(V) -v impossible:10
 
-cleanup	     = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
+cleanup = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
 
 %.test : %.agda
 	@echo $<

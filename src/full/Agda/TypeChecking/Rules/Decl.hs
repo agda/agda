@@ -175,6 +175,19 @@ checkDecl d = setCurrentRange d $ do
       A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
                                     checkRecDef i x ind eta c ps tel cs
                                     blockId <- mutualBlockOf x
+
+                                    -- Andreas, 2016-10-01 testing whether
+                                    -- envMutualBlock is set correctly.
+                                    -- Apparently not.
+                                    verboseS "tc.decl.mutual" 70 $ do
+                                      current <- asks envMutualBlock
+                                      unless (Just blockId == current) $ do
+                                        reportSLn "" 0 $ unlines
+                                          [ "mutual block id discrepancy for " ++ show x
+                                          , "  current    mut. bl. = " ++ show current
+                                          , "  calculated mut. bl. = " ++ show blockId
+                                          ]
+
                                     return (blockId, Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
@@ -235,7 +248,7 @@ mutualChecks mi d ds mid names = do
   mapM_ instantiateDefinitionType $ Set.toList names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
-  checkTermination_        mid d
+  local (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
   checkPositivity_         mi names
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
@@ -355,15 +368,15 @@ highlight_ d = do
         "do not highlight construct(ed/or) type"
 
 -- | Termination check a declaration.
-checkTermination_ :: MutualId -> A.Declaration -> TCM ()
-checkTermination_ mid d = Bench.billTo [Bench.Termination] $ do
+checkTermination_ :: A.Declaration -> TCM ()
+checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
   whenM (optTerminationCheck <$> pragmaOptions) $ do
     case d of
       -- Record module definitions should not be termination-checked twice.
       A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
-        termErrs <- termDecl mid d
+        termErrs <- termDecl d
         -- If there are some termination errors, we collect them in
         -- the state and mark the definition as non-terminating so
         -- that it does not get unfolded
