@@ -576,12 +576,12 @@ termClause' clause = do
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
     , nest 2 $ text "argPats' =" <+> do
+      addContext tel $ do
        aps <- reifyPatterns argPats'
        fsep $ map prettyA aps
     ]
   addContext tel $ do
-    ps <- liftTCM $ normalise $ map namedArg argPats'
-    dbpats <- convertPatterns ps
+    dbpats <- convertPatterns $ map namedArg argPats'
     case body of
       Nothing -> return empty
       Just v -> do
