@@ -95,12 +95,6 @@ termDecl :: MutualId -> A.Declaration -> TCM Result
 termDecl mid d = inTopContext $ ignoreAbstractMode $ termDecl' mid d
 
 
--- | Termination check a sequence of declarations.
-
-termDecls :: MutualId -> [A.Declaration] -> TCM Result
-termDecls mid ds = concat <$> mapM (termDecl' mid) ds
-
-
 -- | Termination check a single declaration
 --   (without necessarily ignoring @abstract@).
 
@@ -111,9 +105,9 @@ termDecl' mid d = case d of
     A.Primitive {}        -> return mempty
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ rds] <- unscopeDefs ds
-                          -> termDecls mid rds
+                          -> termDecls rds
     A.Mutual i ds         -> termMutual mid i ds
-    A.Section _ _ _ ds    -> termDecls mid ds
+    A.Section _ _ _ ds    -> termDecls ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
     A.Apply {}            -> return mempty
@@ -122,10 +116,10 @@ termDecl' mid d = case d of
     A.Open {}             -> return mempty
     A.PatternSynDef {}    -> return mempty
         -- open and pattern synonym defs are just artifacts from the concrete syntax
-    A.ScopedDecl _ ds     -> termDecls mid ds
+    A.ScopedDecl _ ds     -> termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ _ ds -> termDecls mid ds
+    A.RecDef _ r _ _ _ _ _ ds -> termDecls ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}      -> __IMPOSSIBLE__
     A.DataSig{}     -> __IMPOSSIBLE__
@@ -133,6 +127,8 @@ termDecl' mid d = case d of
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
+    termDecls ds = concat <$> mapM (termDecl' mid) ds
+
     unscopeDefs = concatMap unscopeDef
 
     unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
