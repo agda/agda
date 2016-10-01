@@ -17,6 +17,7 @@ module Agda.Termination.TermCheck
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Foldable (toList)
@@ -90,23 +91,25 @@ type Calls = CallGraph CallPath
 type Result = [TerminationError]
 
 -- | Entry point: Termination check a single declaration.
+--
+--   Precondition: 'envMutualBlock' must be set correctly.
 
-termDecl :: MutualId -> A.Declaration -> TCM Result
-termDecl mid d = inTopContext $ ignoreAbstractMode $ termDecl' mid d
+termDecl :: A.Declaration -> TCM Result
+termDecl d = inTopContext $ ignoreAbstractMode $ termDecl' d
 
 
 -- | Termination check a single declaration
 --   (without necessarily ignoring @abstract@).
 
-termDecl' :: MutualId -> A.Declaration -> TCM Result
-termDecl' mid d = case d of
+termDecl' :: A.Declaration -> TCM Result
+termDecl' d = case d of
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ rds] <- unscopeDefs ds
                           -> termDecls rds
-    A.Mutual i ds         -> termMutual mid i ds
+    A.Mutual i ds         -> termMutual i ds
     A.Section _ _ _ ds    -> termDecls ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
@@ -116,7 +119,7 @@ termDecl' mid d = case d of
     A.Open {}             -> return mempty
     A.PatternSynDef {}    -> return mempty
         -- open and pattern synonym defs are just artifacts from the concrete syntax
-    A.ScopedDecl _ ds     -> termDecls ds
+    A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
     A.RecDef _ r _ _ _ _ _ ds -> termDecls ds
@@ -127,7 +130,7 @@ termDecl' mid d = case d of
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
-    termDecls ds = concat <$> mapM (termDecl' mid) ds
+    termDecls ds = concat <$> mapM termDecl' ds
 
     unscopeDefs = concatMap unscopeDef
 
@@ -137,8 +140,8 @@ termDecl' mid d = case d of
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 
-termMutual :: MutualId -> Info.MutualInfo -> [A.Declaration] -> TCM Result
-termMutual mid i ds =
+termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
+termMutual i ds =
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
@@ -146,6 +149,7 @@ termMutual mid i ds =
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
   -- during type-checking.
+  mid <- fromMaybe __IMPOSSIBLE__ <$> asks envMutualBlock
   mutualBlock <- lookupMutualBlock mid
   let allNames = Set.elems mutualBlock
       -- Andreas, 2014-03-26
