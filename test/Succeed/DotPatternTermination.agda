@@ -47,3 +47,25 @@ module Test3 where
   parse₀ .(suc d) (alt d _ p)    = parse₀ d p
   parse₀ ._       (! d)          = parse₀ d (pp d)
   parse₀ ._       (pp d)         = zero
+
+
+module Test4 where
+  -- Andreas, 2016-10-01 see issue #2231
+  -- abstract f sees through abstract suc, so dot pattern termination
+  -- succeeds.
+
+  abstract
+    data N : Set where
+      suc' : N → N
+    sucN = suc'
+
+  data D : N → Set where
+    c1 : ∀ n → D n → D (sucN n)
+    c2 : ∀ n → D n → D n
+
+  abstract
+  -- To see that this is terminating the termination checker has to look at the
+  -- natural number index, which is in a dot pattern.
+    f : ∀ n → D n → Set
+    f .(sucN n) (c1  n d) = f n (c2 n (c2 n d))
+    f n         (c2 .n d) = f n d

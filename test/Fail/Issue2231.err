@@ -1,0 +1,6 @@
+Issue2231.agda:19,1-21,29
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f n (c2 n (c2 n d))
+    (at Issue2231.agda:20,24-25)
