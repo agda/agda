@@ -3,4 +3,6 @@ EXECUTED_PROGRAM
 ret > ExitSuccess
 out > NaN < -5.0  = true
 out > NaN == -NaN = false
+out > NaN  < NaN  = false
+out > -NaN < -NaN = false
 out >

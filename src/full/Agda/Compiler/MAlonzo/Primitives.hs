@@ -162,14 +162,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
   , "primFloatEquality"     |-> return "MAlonzo.RTE.eqFloat"
-  , "primFloatLess"         |-> return (unwords
-                                  [ "((\\ x y ->"
-                                  , "let isNegInf z = z < 0 && isInfinite z in"
-                                  , "if isNegInf y                 then False else"
-                                  , "if isNegInf x                 then True  else"
-                                  , "if isNaN x                    then True  else"
-                                  , "if isNegativeZero x && x == y then True else"
-                                  , "x < y) :: Double -> Double -> Bool)" ])
+  , "primFloatLess"         |-> return "MAlonzo.RTE.ltFloat"
   , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
   , "primRound"             |-> return "(round :: Double -> Integer)"
   , "primFloor"             |-> return "(floor :: Double -> Integer)"

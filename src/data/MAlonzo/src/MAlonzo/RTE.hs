@@ -73,3 +73,24 @@ positiveNaN = 0.0 / 0.0
 negativeNaN :: Double
 negativeNaN = -positiveNaN
 
+-- Adapted from the same function on Agda.Syntax.Literal.
+compareFloat :: Double -> Double -> Ordering
+compareFloat x y
+  | identicalIEEE x y          = EQ
+  | isNegInf x                 = LT
+  | isNegInf y                 = GT
+  | isNegNaN x                 = LT
+  | isNegNaN y                 = GT
+  | isNaN x                    = LT
+  | isNaN y                    = GT
+  | isNegativeZero x && x == y = LT
+  | isNegativeZero y && x == y = GT
+  | otherwise                  = compare x y
+  where
+    isNegNaN = identicalIEEE (-positiveNaN)
+    isNegInf z = z < 0 && isInfinite z
+
+ltFloat :: Double -> Double -> Bool
+ltFloat x y = case compareFloat x y of
+                LT -> True
+                _  -> False
