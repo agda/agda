@@ -8,8 +8,6 @@ import Data.List as L
 import Data.Map as M
 import qualified Language.Haskell.Exts.Syntax as HS
 
-import Numeric.IEEE ( IEEE(identicalIEEE) )
-
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
 import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (closedTerm)

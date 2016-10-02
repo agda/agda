@@ -2,7 +2,7 @@ module MAlonzo.RTE where
 
 import Unsafe.Coerce
 import GHC.Prim
-import Numeric.IEEE
+import Numeric.IEEE ( IEEE(identicalIEEE) )
 
 -- Special version of coerce that plays well with rules.
 {-# INLINE [1] coe #-}
