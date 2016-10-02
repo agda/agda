@@ -12,12 +12,15 @@ printB : Bool → IO Unit
 printB true  = putStrLn "true"
 printB false = putStrLn "false"
 
-_/_ = primFloatDiv
+_/_  = primFloatDiv
 _==_ = primFloatEquality
-_<_ = primFloatLess
+_<_  = primFloatLess
 
 NaN : Float
 NaN = 0.0 / 0.0
+
+-NaN : Float
+-NaN = primFloatNegate NaN
 
 Inf : Float
 Inf = 1.0 / 0.0
@@ -31,4 +34,9 @@ main =
 
   -- Issue #2194.
   putStr "NaN == -NaN = " ,, printB (NaN == (primFloatNegate NaN)) ,,
+
+  -- Issue #2208.
+  putStr "NaN  < NaN  = " ,, printB (NaN < NaN) ,,
+  putStr "-NaN < -NaN = " ,, printB (-NaN < -NaN) ,,
+
   return unit

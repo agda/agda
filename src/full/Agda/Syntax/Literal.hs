@@ -86,21 +86,22 @@ instance Ord Literal where
   -- compare LitMeta{} _   = LT
   -- compare _ LitMeta{}   = GT
 
+-- Also implemented in GHC and UHC backends.
 compareFloat :: Double -> Double -> Ordering
 compareFloat x y
-  | identicalIEEE x y = EQ
-  | isNegInf x        = LT
-  | isNegInf y        = GT
-  | isNegNaN x        = LT
-  | isNegNaN y        = GT
-  | isNaN x           = LT
-  | isNaN y           = GT
+  | identicalIEEE x y          = EQ
+  | isNegInf x                 = LT
+  | isNegInf y                 = GT
+  | isNegNaN x                 = LT
+  | isNegNaN y                 = GT
+  | isNaN x                    = LT
+  | isNaN y                    = GT
   | isNegativeZero x && x == y = LT
   | isNegativeZero y && x == y = GT
-  | otherwise         = compare x y
+  | otherwise                  = compare x y
   where
-    nan = 0.0/0.0
-    isNegNaN = identicalIEEE (-nan)
+    positiveNaN = 0.0 / 0.0
+    isNegNaN    = identicalIEEE (-positiveNaN)
     isNegInf z = z < 0 && isInfinite z
 
 instance HasRange Literal where
