@@ -9,17 +9,17 @@ open import Common.IO
 data It (a : Float) : Set where
   it : It a
 
-inf : Float
-inf = primFloatDiv 1.0 0.0
+Inf : Float
+Inf = primFloatDiv 1.0 0.0
 
--inf : Float
--inf = primFloatNegate inf
+-Inf : Float
+-Inf = primFloatNegate Inf
 
-nan : Float
-nan = primFloatDiv 0.0 0.0
+NaN : Float
+NaN = primFloatDiv 0.0 0.0
 
--nan : Float
--nan = primFloatNegate nan
+-NaN : Float
+-NaN = primFloatNegate NaN
 
 _==_ = primFloatEquality
 
@@ -29,24 +29,24 @@ macro
 
 nl = putStrLn ""
 
-header = putStrLn " inf  -inf   nan  -nan  |  x"
+header = putStrLn " Inf  -Inf   NaN  -NaN  |  x"
 
 tick : Bool → String
 tick true  = "   x  "
 tick false = "   -  "
 
 check : Float → IO _
-check x = putStr (tick (x ==  inf)) ,,
-          putStr (tick (x == -inf)) ,,
-          putStr (tick (x ==  nan)) ,,
-          putStr (tick (x == -nan)) ,,
+check x = putStr (tick (x ==  Inf)) ,,
+          putStr (tick (x == -Inf)) ,,
+          putStr (tick (x ==  NaN)) ,,
+          putStr (tick (x == -NaN)) ,,
           putStr "|  " ,, printFloat x ,,
           nl
 
 main : IO _
 main =
   header ,,
-  check (literal  inf) ,,
-  check (literal -inf) ,,
-  check (literal  nan) ,,
-  check (literal -nan)
+  check (literal  Inf) ,,
+  check (literal -Inf) ,,
+  check (literal  NaN) ,,
+  check (literal -NaN)
