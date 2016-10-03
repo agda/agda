@@ -259,6 +259,7 @@ instance IsNoName Name where
   isNoName (NoName _ _)    = True
   isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
   isNoName (Name _ [])     = True
+  isNoName (Name _ [Id x]) = isNoName x
   isNoName _               = False
 
 instance IsNoName QName where
