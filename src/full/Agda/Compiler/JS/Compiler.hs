@@ -194,7 +194,7 @@ curModule isMain = do
   return $ Module m (reorder es) main
   where
     main = case isMain of
-      IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [emp]
+      IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
       NotMain -> Nothing
 
 definition :: (QName,Definition) -> TCM (Maybe Export)
