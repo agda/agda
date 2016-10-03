@@ -554,7 +554,9 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
   reportSDoc "tc.pos" 25 $ do
     let a = defAbstract def
     m <- asks envAbstractMode
+    cur <- asks envCurrentModule
     text "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
+      <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
       n  <- getDefArity def
@@ -679,7 +681,7 @@ buildOccurrenceGraph qs =
     mapM defGraph (Set.toList qs)
   where
     defGraph :: QName -> TCM [Graph.Edge Node Node Edge]
-    defGraph q = do
+    defGraph q = inConcreteOrAbstractMode q $ \ _def -> do
       occs <- computeOccurrences' q
 
       reportSDoc "tc.pos.occs" 40 $
