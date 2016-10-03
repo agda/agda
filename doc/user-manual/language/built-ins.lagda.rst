@@ -279,6 +279,10 @@ exceptions:
 - ``primFloatEquality NaN NaN`` returns ``true``.
 - ``primFloatEquality NaN (primFloatNegate NaN)`` returns ``false``.
 - ``primFloatEquality 0.0 -0.0`` returns ``false``.
+- ``primFloatLess NaN NaN`` returns ``false``.
+- ``primFloatLess (primFloatNegate NaN) (primFloatNegate NaN)`` returns ``false``.
+- ``primFloatLess NaN (primFloatNegate NaN)`` returns ``false``.
+- ``primFloatLess (primFloatNegate NaN) NaN`` returns ``true``.
 - ``primFloatLess`` sorts ``NaN`` below everything but negative infinity.
 - ``primFloatLess -0.0 0.0`` returns ``true``.
 
