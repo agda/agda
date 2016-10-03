@@ -14,8 +14,6 @@ out > 0.0 == -0.0 = false
 out > NaN  < -Inf = false
 out > 0.0  < -0.0 = false
 out > -0.0 < 0.0  = true
-out > NaN  < NaN  = false
-out > -NaN < -NaN = false
 out > sin (asin 0.6)      = 0.6
 out > cos (acos 0.6)      = 0.6
 out > tan (atan 0.4)      = 0.4
