@@ -394,7 +394,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR user-manual-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR user-manual-test;
     fi
 
 # ASR (2016-07-08) TODO: Travis is re-preprocessing various Agda
