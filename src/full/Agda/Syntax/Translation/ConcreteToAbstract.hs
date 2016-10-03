@@ -59,7 +59,7 @@ import Agda.Syntax.IdiomBrackets
 import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
   , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
-  , envAbstractMode , AbstractMode(..)
+  , envAbstractMode , AbstractMode(..), aModeToDef, aDefToMode
   , TCM
   )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -1309,15 +1309,6 @@ newtype Blind a = Blind { unBlind :: a }
 
 instance ToAbstract (Blind a) (Blind a) where
   toAbstract = return
-
-aDefToMode :: IsAbstract -> AbstractMode
-aDefToMode AbstractDef = AbstractMode
-aDefToMode ConcreteDef = ConcreteMode
-
-aModeToDef :: AbstractMode -> IsAbstract
-aModeToDef AbstractMode = AbstractDef
-aModeToDef ConcreteMode = ConcreteDef
-aModeToDef _ = __IMPOSSIBLE__
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.

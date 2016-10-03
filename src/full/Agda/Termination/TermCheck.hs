@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
+{-# LANGUAGE NondecreasingIndentation   #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -95,7 +96,7 @@ type Result = [TerminationError]
 --   Precondition: 'envMutualBlock' must be set correctly.
 
 termDecl :: A.Declaration -> TCM Result
-termDecl d = inTopContext $ ignoreAbstractMode $ termDecl' d
+termDecl d = inTopContext $ termDecl' d
 
 
 -- | Termination check a single declaration
@@ -158,6 +159,9 @@ termMutual i ds =
       -- skip = return False
       -- No need to term-check if the declarations are acyclic!
       skip = not <$> do
+        -- Andreas, 2016-10-01 issue #2231
+        -- Recursivity checker has to see through abstract definitions!
+        ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
   reportSLn "term.mutual" 10 $ "Termination checking " ++ show allNames
@@ -407,10 +411,9 @@ typeEndsInDef t = liftTCM $ do
 --   Only the latter depends on the choice whether we
 --   consider dot patterns or not.
 termDef :: QName -> TerM Calls
-termDef name = terSetCurrent name $ do
+termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 
   -- Retrieve definition
-  def <- liftTCM $ getConstInfo name
   let t = defType def
 
   liftTCM $ reportSDoc "term.def.fun" 5 $

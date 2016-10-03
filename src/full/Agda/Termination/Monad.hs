@@ -246,6 +246,10 @@ instance MonadError TCErr TerM where
   catchError m handler = TerM $ ReaderT $ \ tenv -> do
     runTer tenv m `catchError` (\ err -> runTer tenv $ handler err)
 
+instance HasConstInfo TerM where
+  getConstInfo       = liftTCM . getConstInfo
+  getRewriteRulesFor = liftTCM . getRewriteRulesFor
+
 -- * Modifiers and accessors for the termination environment in the monad.
 
 terGetGuardingTypeConstructors :: TerM Bool
