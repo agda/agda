@@ -2142,6 +2142,15 @@ data AbstractMode
   | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
   deriving (Typeable, Show, Eq)
 
+aDefToMode :: IsAbstract -> AbstractMode
+aDefToMode AbstractDef = AbstractMode
+aDefToMode ConcreteDef = ConcreteMode
+
+aModeToDef :: AbstractMode -> IsAbstract
+aModeToDef AbstractMode = AbstractDef
+aModeToDef ConcreteMode = ConcreteDef
+aModeToDef _ = __IMPOSSIBLE__
+
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments
 ---------------------------------------------------------------------------
