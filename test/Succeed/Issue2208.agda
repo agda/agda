@@ -14,3 +14,9 @@ NaN≮NaN = refl
 
 -NaN≮-NaN : primFloatLess -NaN -NaN ≡ false
 -NaN≮-NaN = refl
+
+NaN≮-NaN : primFloatLess NaN -NaN ≡ false
+NaN≮-NaN = refl
+
+-NaN<NaN : primFloatLess -NaN NaN ≡ true
+-NaN<NaN = refl

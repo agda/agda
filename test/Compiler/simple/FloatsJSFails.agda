@@ -35,4 +35,10 @@ main =
   -- Issue #2194.
   putStr "NaN == -NaN = " ,, printB (NaN == (primFloatNegate NaN)) ,,
 
+  -- Issue #2208.
+  putStr "NaN  < NaN  = " ,, printB (NaN < NaN) ,,
+  putStr "-NaN < -NaN = " ,, printB (-NaN < -NaN) ,,
+  putStr "NaN  < -NaN = " ,, printB (NaN < -NaN) ,,
+  putStr "-NaN < NaN  = " ,, printB (-NaN < NaN) ,,
+
   return unit
