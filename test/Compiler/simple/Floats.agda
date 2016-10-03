@@ -56,6 +56,11 @@ main =
   putStr "0.0  < -0.0 = " ,, printB (0.0 < -0.0) ,,
   putStr "-0.0 < 0.0  = " ,, printB (-0.0 < 0.0) ,,
 
+  -- Issue #2208.
+  putStr "NaN  < NaN  = " ,, printB (NaN < NaN) ,,
+  putStr "-NaN < -NaN = " ,, printB (-NaN < -NaN) ,,
+  putStr "NaN  < -NaN = " ,, printB (NaN < -NaN) ,,
+
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,
   putStr "cos (acos 0.6)      = " ,, print (cos (acos 0.6)) ,,
   putStr "tan (atan 0.4)      = " ,, print (tan (atan 0.4)) ,,
