@@ -6,6 +6,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | Unification algorithm for specializing datatype indices, as described in
 --     \"Unifiers as Equivalences: Proof-Relevant Unification of Dependently
@@ -714,8 +715,8 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal a u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
-  case a of
-    El _ (Def d es) -> do
+  case ignoreSharing $ unEl a of
+    Def d es -> do
       npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       hpars <- mfromMaybe $ isHom k pars
@@ -839,7 +840,7 @@ simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
   isSizeName <- liftTCM isSizeNameTest
   let Equal a u v = getEquality k s
-  case unEl a of
+  case ignoreSharing $ unEl a of
     Def d _ -> do
       guard $ isSizeName d
       su <- liftTCM $ sizeView u
@@ -857,7 +858,7 @@ injectiveTypeConStrategy k s = do
   guard injTyCon
   eq <- liftTCM $ eqUnLevel $ getEquality k s
   case eq of
-    Equal a u@(Def d es) v@(Def d' es') | d == d' -> do
+    Equal a u@(ignoreSharing -> Def d es) v@(ignoreSharing -> Def d' es') | d == d' -> do
       -- d must be a data, record or axiom
       def <- liftTCM $ getConstInfo d
       guard $ case theDef def of
