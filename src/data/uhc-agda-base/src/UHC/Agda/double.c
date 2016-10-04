@@ -1,16 +1,12 @@
-/* From the ieee754 package. See the LICENSE file. */
-
 #include <stdint.h>
 
-union double_t {
-  double d;
-  uint64_t w;
+union cast {
+  double   x;
+  uint64_t n;
 };
 
-int
-identical (double x, double y)
-{
-  union double_t ux = { x };
-  union double_t uy = { y };
-  return ux.w == uy.w;
+int identical (double x, double y) {
+  union cast cx = { .x = x };
+  union cast cy = { .x = y };
+  return cx.n == cy.n;
 }
