@@ -723,7 +723,7 @@ dataStrategy k s = do
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
-      case (u, v) of
+      case (ignoreSharing u, ignoreSharing v) of
         (MetaV m es, Con c _   ) -> do
           us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
           return $ Injectivity k a d hpars ixs c
