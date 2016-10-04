@@ -124,7 +124,7 @@ coverageCheck f t cs = do
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      xs           = teleNamedArgs gamma
+      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
       -- construct the initial split clause
       sc           = SClause gamma xs idS $ Just $ defaultArg a
 
@@ -374,7 +374,9 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
           addContext sctel $ addContext tel $ prettyTCM b
       ]
     let n         = size tel
-        xs        = teleNamedArgs tel
+        -- Andreas, 2016-10-04 issue #2236
+        -- Need to set origin to "Inserted" to avoid printing of hidden patterns.
+        xs        = map (setOrigin Inserted) $ teleNamedArgs tel
         -- Compute new split clause
         sctel'    = telFromList $ telToList (raise n sctel) ++ telToList tel
         -- Dot patterns in @ps@ need to be raised!  (Issue 1298)
