@@ -855,7 +855,7 @@ checkExpr e t0 = do
                                                            []
                  adjusted :: [NamedArg DeBruijnPattern]
                  adjusted = map (fmap (fmap (\ p@(VarP v) -> case lookupS sigma (dbPatVarIndex v) of
-                                                                      Def q [] -> mkConP q
+                                                                      t@(Def q []) -> DotP t
                                                                       Var j [] -> VarP (v {dbPatVarIndex = j})
                                                                       _        -> p))) pats
 --             reportSDoc "tc.partial" 80 $ text (show adjusted)
