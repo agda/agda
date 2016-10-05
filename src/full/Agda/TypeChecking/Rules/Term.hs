@@ -821,6 +821,13 @@ scopedExpr :: A.Expr -> TCM A.Expr
 scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 scopedExpr e                      = return e
 
+isRestrict :: Type -> TCM Bool
+isRestrict t0 = do
+  restr <- fmap getPrimName <$> getBuiltin' builtinRestrict
+  case unEl t0 of -- reduce?
+    Def q [Apply l,Apply phi,Apply a] -> return $ Just q == restr
+    _ -> return False
+
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 = do
@@ -2001,9 +2008,10 @@ checkNamedArg arg@(Arg info e0) t0 = do
           [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
           ]
     reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show arg
+    restrict <- isRestrict t0  -- TODO Andrea: remove, it's a quick hack to keep r[_] working
     let checkU = checkMeta (newMetaArg info x) t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0
-    if not $ isHole e then checkExpr e t0 else localScope $ do
+    if (not $ isHole e) || restrict then checkExpr e t0 else localScope $ do
       -- Note: we need localScope here,
       -- as scopedExpr manipulates the scope in the state.
       -- However, we may not pull localScope over checkExpr!
