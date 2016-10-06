@@ -613,9 +613,9 @@ primPOr = do
           nPi' "i" (elInf $ cl primInterval) $ \ i  ->
           nPi' "j" (elInf $ cl primInterval) $ \ j  ->
           hPi' "A" (pPi' "o" (imax i j) $ \o -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-          ((pPi' "i1" i $ \ i1 -> el' a $ bA <@> (cl primIsOne1 <@> i <@> j <@> i1))) -->
-          ((pPi' "j1" j $ \ j1 -> el' a $ bA <@> (cl primIsOne2 <@> i <@> j <@> j1))) -->
-          (pPi' "o" (imax i j) $ \ o -> el' a $ bA <@> o)
+          ((pPi' "i1" i $ \ i1 -> el' a $ bA <..> (cl primIsOne1 <@> i <@> j <@> i1))) -->
+          ((pPi' "j1" j $ \ j1 -> el' a $ bA <..> (cl primIsOne2 <@> i <@> j <@> j1))) -->
+          (pPi' "o" (imax i j) $ \ o -> el' a $ bA <..> o)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
     case ts of
      [l,i,j,a,u,v] -> do
@@ -1378,9 +1378,10 @@ gApply' info a b = do
     y <- b
     return $ x `apply` [Arg info y]
 
-(<@>),(<#>) :: Monad tcm => tcm Term -> tcm Term -> tcm Term
+(<@>),(<#>),(<..>) :: Monad tcm => tcm Term -> tcm Term -> tcm Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
+(<..>) = gApply' (setRelevance Irrelevant defaultArgInfo)
 
 (<@@>) :: Monad tcm => tcm Term -> (tcm Term,tcm Term,tcm Term) -> tcm Term
 t <@@> (x,y,r) = do
