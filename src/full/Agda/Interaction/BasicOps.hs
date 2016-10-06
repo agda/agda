@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -22,6 +23,7 @@ import Data.Maybe
 import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
+import Agda.Interaction.Options
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
@@ -133,6 +135,9 @@ giveExpr mi e = do
           _ -> updateMeta mi v
         wakeupConstraints mi
         solveSizeConstraints DontDefaultToInfty
+
+        cubical <- optCubical <$> pragmaOptions
+        if cubical then return () else do -- don't double check with cubical, because it gets in the way too often.
         -- Double check.
         vfull <- instantiateFull v
         checkInternal vfull t'
