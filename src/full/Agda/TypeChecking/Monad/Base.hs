@@ -2330,6 +2330,7 @@ data TypeError
             -- ^ The given type should have been a sort.
         | ShouldBePi Type
             -- ^ The given type should have been a pi.
+        | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern DeBruijnPattern
         | NotAProjectionPattern (NamedArg A.Pattern)

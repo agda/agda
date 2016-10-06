@@ -294,6 +294,7 @@ errorString err = case err of
   ShouldBeAppliedToTheDatatypeParameters{} -> "ShouldBeAppliedToTheDatatypeParameters"
   ShouldBeEmpty{}                          -> "ShouldBeEmpty"
   ShouldBePi{}                             -> "ShouldBePi"
+  ShouldBePath{}                           -> "ShouldBePath"
   ShouldBeRecordType{}                     -> "ShouldBeRecordType"
   ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
   NotAProjectionPattern{}                  -> "NotAProjectionPattern"
@@ -574,6 +575,9 @@ instance PrettyTCM TypeError where
 
     ShouldBePi t -> fsep $
       [prettyTCM t] ++ pwords "should be a function type, but it isn't"
+
+    ShouldBePath t -> fsep $
+      [prettyTCM t] ++ pwords "should be a Path or PathP type, but it isn't"
 
     NotAProperTerm -> fwords "Found a malformed term"
 

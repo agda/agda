@@ -29,11 +29,13 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+
 
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
@@ -138,7 +140,7 @@ checkInternal' action v t = do
                $ Con c (take (length vs) vs2)
     Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
-      (a, b) <- shouldBePi t
+      (a, b) <- maybe (shouldBePi t) return =<< isPath t
       checkArgInfo ai $ domInfo a
       addContext (suggest vb b, a) $ do
         Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) (absBody b)
@@ -250,7 +252,14 @@ inferSpine' action t self self' (e : es) = do
     , text "eliminated by e = " <+> prettyTCM e
     ]
   case e of
-    IApply{} -> __IMPOSSIBLE__ -- TODO Andrea: not actually impossible
+    IApply x y r -> do
+      (a, b) <- shouldBePath t
+      r' <- checkInternal' action r (unDom a)
+      izero <- primIZero
+      ione  <- primIOne
+      x' <- checkInternal' action x (b `absApp` izero)
+      y' <- checkInternal' action y (b `absApp` ione)
+      inferSpine' action (b `absApp` r) (self `applyE` [e]) (self' `applyE` [IApply x' y' r']) es
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t
       checkArgInfo ai $ domInfo a
@@ -270,6 +279,22 @@ shouldBeProjectible :: Type -> QName -> TCM Type
 shouldBeProjectible t f = maybe failure return =<< getDefType f =<< reduce t
   where failure = typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
+
+shouldBePath :: Type -> TCM (Dom Type, Abs Type)
+shouldBePath t = do
+  m <- isPath t
+  case m of
+    Just p  -> return p
+    Nothing -> typeError $ ShouldBePath t
+
+isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
+isPath t = do
+  t <- pathView =<< reduce t
+  case t of
+    PathType s l p a x y -> do
+      i <- elInf primInterval
+      return $ Just $ (defaultDom $ i, Abs "_" $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0])
+    OType t    -> return Nothing
 
 shouldBePi :: Type -> TCM (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
