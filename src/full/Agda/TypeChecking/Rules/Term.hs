@@ -396,8 +396,9 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
-        v <- add (notInScopeName y) (defaultArgDom (setRelevance r' info) argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
+        let info' = setRelevance r' info
+        v <- add (notInScopeName y) (defaultArgDom info' argT) $ checkExpr body btyp
+        blockTermOnProblem target (Lam info' $ Abs (nameToArgName x) v) pid
       where
         [WithHiding h x] = xs
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
