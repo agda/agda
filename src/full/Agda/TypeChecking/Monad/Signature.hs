@@ -880,14 +880,16 @@ makeAbstract d =
     makeAbs d             = Just d
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
-inAbstractMode :: TCM a -> TCM a
+{-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
+inAbstractMode :: MonadReader TCEnv m => m a -> m a
 inAbstractMode = local $ \e -> e { envAbstractMode = AbstractMode,
                                    envAllowDestructiveUpdate = False }
                                     -- Allowing destructive updates when seeing through
                                     -- abstract may break the abstraction.
 
 -- | Not in abstract mode. All abstract definitions are opaque.
-inConcreteMode :: TCM a -> TCM a
+{-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
+inConcreteMode :: MonadReader TCEnv m => m a -> m a
 inConcreteMode = local $ \e -> e { envAbstractMode = ConcreteMode }
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
@@ -899,14 +901,15 @@ ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
 
 -- | Enter concrete or abstract mode depending on whether the given identifier
 --   is concrete or abstract.
-inConcreteOrAbstractMode :: QName -> TCM a -> TCM a
+{-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
+inConcreteOrAbstractMode :: (MonadReader TCEnv m, HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
-  a <- ignoreAbstractMode $ defAbstract <$> getConstInfo q
-  case a of
-    AbstractDef -> inAbstractMode cont
-    ConcreteDef -> inConcreteMode cont
+  def <- ignoreAbstractMode $ getConstInfo q
+  case defAbstract def of
+    AbstractDef -> inAbstractMode $ cont def
+    ConcreteDef -> inConcreteMode $ cont def
 
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not

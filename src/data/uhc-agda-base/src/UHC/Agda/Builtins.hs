@@ -108,11 +108,17 @@ import Debug.Trace
 import UHC.OldException (onException)
 import System.IO (openFile, IOMode (ReadMode), hClose, hFileSize, hGetContents)
 
+------------------------------------------------------------------------------
+-- Adapted from the ieee754 package. See the LICENSE file.
+foreign import ccall "double.h identical" c_identical :: Double -> Double -> Int
+
+identicalIEEE :: Double -> Double -> Bool
+identicalIEEE x y = c_identical x y /= 0
+------------------------------------------------------------------------------
 
 -- internal helper for this file
 notImplError :: String -> a
 notImplError f = error $ "Feature " ++ f ++ " is not implemented in the UHC backend!"
-
 
 -- ====================
 -- Integer
@@ -312,6 +318,9 @@ primToLower     = C.toLower
 -- Float
 -- ====================
 
+positiveNaN :: Double
+positiveNaN = 0.0 / 0.0
+
 primShowFloat :: Double -> String
 primShowFloat x
   | isNaN x          = "NaN"
@@ -326,33 +335,34 @@ primShowFloat x
 primMkFloat :: String -> Double
 primMkFloat = read
 
--- ASR (2016-09-15). Since Haskell's Eq, which equates 0.0 and -0.0,
--- allows to prove a contradiction, we should use a bitwise equality
--- for comparing Double. Since the @identicalIEEE@ function from the
--- ieee754 package is not available in UHC, we use a function
--- implemented by Ulf (see Issue #2169).
--- PH (2016-09-22). It turns out that there are two kinds of NaN,
--- NaN and -NaN. This two different NaNs should not be treated as equal.
--- However, there is no straightforward way to distinguish those in
--- UHC Haskell. For the time being, we will just disable this primitive for UHC.
--- (see Issue #2194)
+-- ASR (2016-09-29). We use bitwise equality for comparing Double
+-- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove a
+-- contradiction (see Issue #2169).
 primFloatEquality :: Double -> Double -> Bool
--- As this primitive is often pulled in by imports but rarely used,
--- we only fail at runtime.
-primFloatEquality = error "Not implemented - see Issue #2194"
--- primFloatEquality x y =
---   isNaN x && isNaN y ||
---   (x, isNegativeZero x) == (y, isNegativeZero y)
+primFloatEquality = identicalIEEE
+
+-- Adapted from the same function on Agda.Syntax.Literal.
+compareFloat :: Double -> Double -> Ordering
+compareFloat x y
+  | identicalIEEE x y          = EQ
+  | isNegInf x                 = LT
+  | isNegInf y                 = GT
+  | isNegNaN x                 = LT
+  | isNegNaN y                 = GT
+  | isNaN x                    = LT
+  | isNaN y                    = GT
+  | isNegativeZero x && x == y = LT
+  | isNegativeZero y && x == y = GT
+  | otherwise                  = compare x y
+  where
+    isNegNaN    = identicalIEEE (-positiveNaN)
+    isNegInf z = z < 0 && isInfinite z
 
 primFloatLess :: Double -> Double -> Bool
-primFloatLess x y
-  | isNegInf y                 = False
-  | isNegInf x                 = True
-  | isNaN x                    = True
-  | isNegativeZero x && x == y = True
-  | otherwise                  = x < y
-  where
-    isNegInf z = z < 0 && isInfinite z
+primFloatLess x y =
+  case compareFloat x y of
+    LT -> True
+    _  -> False
 
 primNatToFloat :: Nat -> Double
 primNatToFloat n = fromIntegral (unNat n)

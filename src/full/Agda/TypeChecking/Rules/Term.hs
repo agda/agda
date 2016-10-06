@@ -1888,8 +1888,9 @@ checkHeadApplication e t hd args = do
 
         -- Define and type check the fresh function.
         rel <- asks envRelevance
+        abs <- aModeToDef <$> asks envAbstractMode
         let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
-                                 PublicAccess ConcreteDef noRange
+                                 PublicAccess abs noRange
             core   = A.LHSProj { A.lhsDestructor = AmbQ [flat]
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }

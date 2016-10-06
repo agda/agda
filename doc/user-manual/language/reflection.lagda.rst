@@ -483,6 +483,8 @@ This lets you apply the magic tactic as a normal function:
     thm : ¬ P ≡ NP
     thm = by-magic
 
+.. _unquoting-declarations:
+
 Unquoting Declarations
 ~~~~~~~~~~~~~~~~~~~~~~
 

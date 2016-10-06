@@ -1,7 +1,7 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out >  inf  -inf   nan  -nan  |  x
+out >  Inf  -Inf   NaN  -NaN  |  x
 out >    x     -     -     -  |  Infinity
 out >    -     x     -     -  |  -Infinity
 out >    -     -     x     -  |  NaN

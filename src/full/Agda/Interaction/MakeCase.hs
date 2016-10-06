@@ -56,11 +56,12 @@ type CaseContext = Maybe ExtLamInfo
 
 parseVariables
   :: QName           -- ^ The function name.
+  -> Telescope       -- ^ The telescope of the clause we are splitting.
   -> InteractionId   -- ^ The hole of this function we are working on.
   -> Range           -- ^ The range of this hole.
   -> [String]        -- ^ The words the user entered in this hole (variable names).
   -> TCM [Int]       -- ^ The computed de Bruijn indices of the variables to split on.
-parseVariables f ii rng ss = do
+parseVariables f tel ii rng ss = do
 
   -- Get into the context of the meta.
   mId <- lookupInteractionId ii
@@ -73,6 +74,11 @@ parseVariables f ii rng ss = do
     xs <- forM (downFrom n) $ \ i -> do
       (,i) . P.render <$> prettyTCM (var i)
 
+    -- We might be under some lambdas, in which case the context
+    -- is bigger than the number of pattern variables.
+    let nlocals = n - size tel
+    unless (nlocals >= 0) __IMPOSSIBLE__
+
     reportSDoc "interaction.case" 20 $ do
       m   <- currentModule
       tel <- lookupSection m
@@ -82,6 +88,7 @@ parseVariables f ii rng ss = do
        , text "current module  =" <+> prettyTCM m
        , text "current section =" <+> inTopContext (prettyTCM tel)
        , text $ "function's fvs  = " ++ show fv
+       , text $ "number of locals= " ++ show nlocals
        ]
 
     -- Compute which variables correspond to module parameters. These cannot be split on.
@@ -95,10 +102,15 @@ parseVariables f ii rng ss = do
     forM ss $ \ s -> do
       let failNotVar = typeError $ GenericError $ "Not a variable: " ++ s
           done i
-            | notElem i nonSplittableVars = return i
-            | otherwise                   = typeError $ GenericError $
+            | i < 0                    = typeError $ GenericError $
+               "Cannot split on local variable " ++ s
+               -- See issue #2239
+
+            | elem i nonSplittableVars = typeError $ GenericError $
                "Cannot split on variable " ++ s ++ ". It is either a module parameter " ++
                "or already instantiated by a dot pattern"
+
+            | otherwise                = return i
 
       -- Note: the range in the concrete name is only approximate.
       resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
@@ -115,7 +127,7 @@ parseVariables f ii rng ss = do
         VarName x -> do
           (v, _) <- getVarInfo x
           case ignoreSharing v of
-            Var i [] -> done i
+            Var i [] -> done $ i - nlocals
             _        -> failNotVar
 
         -- If s is not a name, compare it to the printed variable representation.
@@ -123,7 +135,7 @@ parseVariables f ii rng ss = do
         UnknownName -> do
           case filter ((s ==) . fst) xs of
             []      -> typeError $ GenericError $ "Unbound variable " ++ s
-            [(_,i)] -> done i
+            [(_,i)] -> done $ i - nlocals
             -- Issue 1325: Variable names in context can be ambiguous.
             _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
 
@@ -208,7 +220,7 @@ makeCase hole rng s = withInteractionId hole $ do
     (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
-    xs <- parseVariables f hole rng vars
+    xs <- parseVariables f tel hole rng vars
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
     let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ (x, s) ->

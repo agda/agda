@@ -1,0 +1,8 @@
+AbstractTermination.agda:7,1-14,18
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  g n
+    (at AbstractTermination.agda:10,9-10)
+  f n₁
+    (at AbstractTermination.agda:14,15-16)

@@ -56,9 +56,9 @@ showChar' c
 
 instance Eq Literal where
   LitNat _ n    == LitNat _ m    = n == m
-  -- We use bitwise equality for comparing Double because
-  -- Haskell's Eq, which equates 0.0 and -0.0, allows to prove a
-  -- contradiction (see Issue #2169).
+  -- ASR (2016-09-29). We use bitwise equality for comparing Double
+  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
+  -- a contradiction (see Issue #2169).
   LitFloat _ x  == LitFloat _ y  = identicalIEEE x y
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
@@ -86,21 +86,22 @@ instance Ord Literal where
   -- compare LitMeta{} _   = LT
   -- compare _ LitMeta{}   = GT
 
+-- Also implemented in GHC and UHC backends.
 compareFloat :: Double -> Double -> Ordering
 compareFloat x y
-  | identicalIEEE x y = EQ
-  | isNegInf x        = LT
-  | isNegInf y        = GT
-  | isNegNaN x        = LT
-  | isNegNaN y        = GT
-  | isNaN x           = LT
-  | isNaN y           = GT
+  | identicalIEEE x y          = EQ
+  | isNegInf x                 = LT
+  | isNegInf y                 = GT
+  | isNegNaN x                 = LT
+  | isNegNaN y                 = GT
+  | isNaN x                    = LT
+  | isNaN y                    = GT
   | isNegativeZero x && x == y = LT
   | isNegativeZero y && x == y = GT
-  | otherwise         = compare x y
+  | otherwise                  = compare x y
   where
-    nan = 0.0/0.0
-    isNegNaN = identicalIEEE (-nan)
+    positiveNaN = 0.0 / 0.0
+    isNegNaN    = identicalIEEE (-positiveNaN)
     isNegInf z = z < 0 && isInfinite z
 
 instance HasRange Literal where

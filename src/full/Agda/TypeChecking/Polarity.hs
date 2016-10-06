@@ -90,11 +90,10 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
 -- | Main function of this module.
 computePolarity :: QName -> TCM ()
-computePolarity x = inConcreteOrAbstractMode x $ do
+computePolarity x = inConcreteOrAbstractMode x $ \ def -> do
   reportSLn "tc.polarity.set" 25 $ "Computing polarity of " ++ show x
 
   -- get basic polarity from positivity analysis
-  def      <- getConstInfo x
   let npars = droppedPars def
   let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
   reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
