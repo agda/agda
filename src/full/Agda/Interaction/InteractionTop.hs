@@ -1253,20 +1253,23 @@ lowerMeta = C.mapExpr kill where
 -- as the scope), performs the given command with the expression as
 -- input, and displays the result.
 
-parseAndDoAtToplevel
-  :: (A.Expr -> TCM A.Expr)
+parseAndDoAtToplevel'
+  :: (A.Expr -> TCM Doc)
      -- ^ The command to perform.
   -> (Doc -> DisplayInfo)
      -- ^ The name to use for the buffer displaying the output.
   -> String
      -- ^ The expression to parse.
   -> CommandM ()
-parseAndDoAtToplevel cmd title s = do
+parseAndDoAtToplevel' cmd title s = do
   (time, res) <- localStateCommandM $ do
     e <- liftIO $ parse exprParser s
     maybeTimed (lift $ B.atTopLevel $
-                prettyA =<< cmd =<< concreteToAbstract_ e)
+                cmd =<< concreteToAbstract_ e)
   display_info (title $ fromMaybe empty time $$ res)
+
+parseAndDoAtToplevel :: (A.Expr -> TCM A.Expr) -> (Doc -> DisplayInfo) -> String -> CommandM ()
+parseAndDoAtToplevel cmd = parseAndDoAtToplevel' (prettyA <=< cmd)
 
 maybeTimed :: CommandM a -> CommandM (Maybe Doc, a)
 maybeTimed work = do
