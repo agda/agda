@@ -38,8 +38,11 @@ import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad hiding (Global, Local)
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
+import Agda.TypeChecking.Substitute (TelV(..))
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
@@ -53,6 +56,7 @@ import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.DelayCoinduction
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 
@@ -168,13 +172,15 @@ reorder' defs (e : es) =
     False -> reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
-isTopLevelValue (Export _ e) = case e of
+isTopLevelValue (Export _ isCoind e) = case e of
+  _ | isCoind -> False
   Lambda{} -> False
   _        -> True
 
 isEmptyObject :: Export -> Bool
-isEmptyObject (Export _ e) = case e of
+isEmptyObject (Export _ _ e) = case e of
   Object m -> Map.null m
+  Lambda{} -> True
   _        -> False
 
 insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
@@ -188,45 +194,55 @@ insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e 
 
 curModule :: IsMain -> TCM Module
 curModule isMain = do
+  kit <- coinductionKit
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
-  es <- catMaybes <$> (mapM definition =<< (sortDefs <$> curDefs))
+  es <- catMaybes <$> (mapM (definition kit) =<< (sortDefs <$> curDefs))
   return $ Module m (reorder es) main
   where
     main = case isMain of
       IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
       NotMain -> Nothing
 
-definition :: (QName,Definition) -> TCM (Maybe Export)
-definition (q,d) = do
+definition :: Maybe CoinductionKit -> (QName,Definition) -> TCM (Maybe Export)
+definition kit (q,d) = do
   reportSDoc "js.compile" 10 $ text "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
 
-  fmap (Export ls) <$> definition' q d (defType d) ls
+  definition' kit q d (defType d) ls
 
-definition' :: QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Exp)
-definition' q d t ls =
+definition' :: Maybe CoinductionKit -> QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Export)
+definition' kit q d t ls =
   case theDef d of
+    -- coinduction
+    Constructor{} | Just q == (nameOfSharp <$> kit) -> do
+      ret $  Lambda 1 $ local 0
+    Function{} | Just q == (nameOfFlat <$> kit) -> do
+      ret $ Lambda 1 $ Apply (local 0) [Integer 0]
+
     Axiom | Just e <- defJSDef d -> plainJS e
-    Axiom | otherwise -> return $ Just Undefined
+    Axiom | otherwise -> ret Undefined
 
     Function{} | Just e <- defJSDef d -> plainJS e
     Function{} | otherwise -> do
+      isInfVal <- outputIsInf kit t
+
       reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
         funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
-        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
-        funBody' <- compileTerm funBody
-        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
-        return $ Just funBody'
+        funBody' <- delayCoinduction funBody t
+        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody'
+        funBody'' <- compileTerm funBody'
+        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody''
+        return $ Just $ Export ls isInfVal funBody''
 
     Primitive{primName = p} | p `Set.member` primitives ->
       plainJS $ "agdaRTS." ++ p
     Primitive{} | Just e <- defJSDef d -> plainJS e
-    Primitive{} | otherwise -> return $ Just Undefined
+    Primitive{} | otherwise -> ret Undefined
 
-    Datatype{} -> return $ Just emp
+    Datatype{} -> ret emp
     Record{} -> return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
@@ -235,20 +251,21 @@ definition' q d t ls =
       d <- getConstInfo p
       case theDef d of
         Record { recFields = flds } ->
-          return $ Just (curriedLambda np (Object (fromList
+          ret (curriedLambda np (Object (fromList
             ( (last ls , Lambda 1
                  (Apply (Lookup (Local (LocalId 0)) (last ls))
                    [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
             : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
                  [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
         _ ->
-          return $ Just (curriedLambda (np + 1)
+          ret (curriedLambda (np + 1)
             (Apply (Lookup (Local (LocalId 0)) (last ls))
               [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
 
     AbstractDefn -> __IMPOSSIBLE__
   where
-    plainJS = return . Just . PlainJS
+    ret = return . Just . Export ls False
+    plainJS = return . Just . Export ls False . PlainJS
 
 
 compileTerm :: T.TTerm -> TCM Exp
