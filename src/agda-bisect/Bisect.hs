@@ -4,6 +4,7 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import Data.Monoid
+import Data.Time.Clock
 import GHC.IO.Encoding
 import Options.Applicative
 import System.Directory
@@ -13,6 +14,7 @@ import System.Process
 import System.Timeout
 import Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import Text.Printf
 
 -- | A string used to detect internal errors.
 
@@ -365,15 +367,36 @@ runAgda agda opts = do
 
   putStrLn $ "Command: " ++ showCommandForUser prog args
 
-  let maybeTimeout = case mustFinishWithin opts of
-        Nothing -> fmap Just
-        Just n  -> timeout n
+  let maybeTimeout c = case mustFinishWithin opts of
+        Nothing -> (\r -> Just (r, Nothing)) <$> c
+        Just n  -> do
+          before <- getCurrentTime
+          r      <- timeout n c
+          after  <- getCurrentTime
+          return $ case r of
+            Nothing -> Nothing
+            Just r  -> Just (r, Just (diffUTCTime after before))
+            -- The documentation of Data.Time.Clock suggests that the
+            -- time difference computed here may be off due to the
+            -- presence of a leap second.
+
   result <- maybeTimeout (readProcessWithExitCode prog args "")
   case result of
     Nothing -> do
       putStrLn "Timeout"
       return Bad
-    Just (code, out, err) -> do
+
+    Just ((code, out, err), time) -> do
+      case time of
+        Nothing   -> return ()
+        Just time -> putStrLn $
+          printf "Elapsed time (roughly): %d min %.2f s" m (s :: Double)
+          where
+          (ti, tf) = properFraction time
+          m        = ti `div` 60
+          s        = fromRational
+                       (fromInteger (ti `mod` 60) + toRational tf)
+
       let occurs s       = s `isInfixOf` out || s `isInfixOf` err
           success        = code == ExitSuccess
           expectedResult = mustSucceed opts == success
@@ -439,7 +462,6 @@ makeBuildEasier =
         , "-e", "s/cpphs >=[^,]*/cpphs/"
         , "-e", "s/alex >=[^,]*/alex/"
         , "-e", "s/geniplate[^,]*/geniplate-mirror/"
-        , "-e", "s/unordered-containers[^,]*/unordered-containers/"
         , "-e", "s/-Werror//g"
         , cabalFile
         ]
