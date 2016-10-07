@@ -7,7 +7,7 @@ top_command (cmd_infer_toplevel Normalised "x")
 top_command (cmd_infer_toplevel Normalised "y")
 
 -- Should be "x".
-top_command (cmd_compute_toplevel False "x")
+top_command (cmd_compute_toplevel DefaultCompute "x")
 
 -- Should be "x".
-top_command (cmd_compute_toplevel False "y")
+top_command (cmd_compute_toplevel DefaultCompute "y")
