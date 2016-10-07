@@ -1,0 +1,4 @@
+top_command (cmd_load currentFile [])
+
+top_command (cmd_compute_toplevel UseShowInstance "five")
+goal_command 0 (cmd_compute UseShowInstance) "five"

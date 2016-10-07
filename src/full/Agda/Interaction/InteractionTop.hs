@@ -45,6 +45,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
+import Agda.Syntax.Literal
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -63,6 +64,7 @@ import Agda.Interaction.SearchAbout
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
+import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
@@ -591,11 +593,12 @@ interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
 
 interpret (Cmd_compute_toplevel cmode s) =
-  parseAndDoAtToplevel action Info_NormalForm s
+  parseAndDoAtToplevel' action Info_NormalForm $ computeWrapInput cmode s
   where
   action = allowNonTerminatingReductions
-         . (if cmode == B.IgnoreAbstract then ignoreAbstractMode else inConcreteMode)
-         . B.evalInCurrent
+         . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+         . (B.showComputed cmode <=< B.evalInCurrent)
+
 
 interpret (ShowImplicitArgs showImpl) = do
   opts <- lift commandLineOptions
@@ -785,9 +788,9 @@ interpret (Cmd_make_case ii rng s) = do
 
 interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
   liftLocalState $ do
-    e <- B.parseExprIn ii rng s
+    e <- B.parseExprIn ii rng $ computeWrapInput cmode s
     B.withInteractionId ii $ do
-      prettyATop =<< do applyWhen (cmode == B.IgnoreAbstract) ignoreAbstractMode $ B.evalInCurrent e
+      showComputed cmode =<< do applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
 
 
 interpret Cmd_show_version = display_info Info_Version
