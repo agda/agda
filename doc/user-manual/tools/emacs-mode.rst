@@ -54,6 +54,9 @@ Global commands
 | ``C-u C-c C-n``         | Compute normal form, ignoring ``abstract``       |
 |                         |                                                  |
 +-------------------------+--------------------------------------------------+
+| ``C-u C-u C-c C-n``     | Compute normal form and display the result       |
+|                         | using ``show``                                   |
++-------------------------+--------------------------------------------------+
 | ``C-c C-x M-;``         | Comment/uncomment rest of buffer                 |
 +-------------------------+--------------------------------------------------+
 
@@ -92,6 +95,9 @@ will either use the text inside the goal or ask the user for input.
 | ``C-c C-n``             | Compute **n**\ ormal form                               |
 +-------------------------+---------------------------------------------------------+
 | ``C-u C-c C-n``         | Compute normal form, ignoring ``abstract``              |
++-------------------------+---------------------------------------------------------+
+| ``C-u C-u C-c C-n``     | Compute normal form and display the result using        |
+|                         | ``show``                                                |
 +-------------------------+---------------------------------------------------------+
 
 
