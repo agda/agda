@@ -1362,7 +1362,7 @@ a goal, the top-level scope."
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "P")
   (let ((cmd (concat "Cmd_compute"
-                     (if arg " True" " False"))))
+                     (if arg " IgnoreAbstract" " DefaultCompute"))))
     (agda2-goal-cmd cmd "expression to normalise")))
 
 (defun agda2-compute-normalised-toplevel (expr &optional arg)
@@ -1372,7 +1372,7 @@ top-level module.
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "MExpression: \nP")
   (let ((cmd (concat "Cmd_compute_toplevel"
-                     (if arg " True" " False")
+                     (if arg " IgnoreAbstract" " DefaultCompute")
                      " ")))
     (agda2-go t nil t (concat cmd (agda2-string-quote expr)))))
 

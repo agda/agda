@@ -1,7 +1,7 @@
 top_command (cmd_load currentFile [])
 
 -- Normalise and display a lambda lifted  extended lambda
-top_command (cmd_compute_toplevel False "f")
+top_command (cmd_compute_toplevel DefaultCompute "f")
 
 -- Refine for extended lambdas (issue 713)
 goal_command 4 cmd_refine "λ { a {x} b → a }"

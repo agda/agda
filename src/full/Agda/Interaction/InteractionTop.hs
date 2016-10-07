@@ -348,7 +348,7 @@ data Interaction' range
 
     -- | Parse and type check the given expression (as if it were defined
     -- at the top-level of the current module) and normalise it.
-  | Cmd_compute_toplevel Bool -- Ignore abstract?
+  | Cmd_compute_toplevel B.ComputeMode
                          String
 
     ------------------------------------------------------------------------
@@ -425,7 +425,7 @@ data Interaction' range
 
   | Cmd_make_case       InteractionId range String
 
-  | Cmd_compute         Bool -- Ignore abstract?
+  | Cmd_compute         B.ComputeMode
                         InteractionId range String
 
   | Cmd_why_in_scope    InteractionId range String
@@ -590,11 +590,11 @@ interpret Cmd_solveAll = do
 interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
 
-interpret (Cmd_compute_toplevel ignore s) =
+interpret (Cmd_compute_toplevel cmode s) =
   parseAndDoAtToplevel action Info_NormalForm s
   where
   action = allowNonTerminatingReductions
-         . (if ignore then ignoreAbstractMode else inConcreteMode)
+         . (if cmode == B.IgnoreAbstract then ignoreAbstractMode else inConcreteMode)
          . B.evalInCurrent
 
 interpret (ShowImplicitArgs showImpl) = do
@@ -783,11 +783,11 @@ interpret (Cmd_make_case ii rng s) = do
         in
          (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) dots rhs decl catchall)
 
-interpret (Cmd_compute ignore ii rng s) = display_info . Info_NormalForm =<< do
+interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
   liftLocalState $ do
     e <- B.parseExprIn ii rng s
     B.withInteractionId ii $ do
-      prettyATop =<< do applyWhen ignore ignoreAbstractMode $ B.evalInCurrent e
+      prettyATop =<< do applyWhen (cmode == B.IgnoreAbstract) ignoreAbstractMode $ B.evalInCurrent e
 
 
 interpret Cmd_show_version = display_info Info_Version

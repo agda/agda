@@ -250,6 +250,8 @@ normalForm HeadNormal   t = {- etaContract =<< -} reduce t
 normalForm Simplified   t = {- etaContract =<< -} simplify t
 normalForm Normalised   t = {- etaContract =<< -} normalise t
 
+data ComputeMode = DefaultCompute | IgnoreAbstract
+  deriving (Read, Eq)
 
 data OutputForm a b = OutputForm Range ProblemId (OutputConstraint a b)
   deriving (Functor)

@@ -1,14 +1,14 @@
 top_command    (cmd_load currentFile [])
 
 -- Should be 'x'
-top_command (cmd_compute_toplevel False "x")
+top_command (cmd_compute_toplevel DefaultCompute "x")
 
 -- Should be 'd'
-top_command (cmd_compute_toplevel True "x")
+top_command (cmd_compute_toplevel IgnoreAbstract "x")
 
 -- Should be 'x'
-goal_command 0 (cmd_compute False) "x"
+goal_command 0 (cmd_compute DefaultCompute) "x"
 
 -- Should be 'd'
-goal_command 0 (cmd_compute True) "x"
+goal_command 0 (cmd_compute IgnoreAbstract) "x"
 
