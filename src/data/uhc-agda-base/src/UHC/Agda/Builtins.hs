@@ -61,7 +61,8 @@ module UHC.Agda.Builtins
   , primShowFloat
   , primMkFloat
   , primFloatEquality
-  , primFloatLess
+  , primFloatNumericalEquality
+  , primFloatNumericalLess
   , primNatToFloat
   , primFloatPlus
   , primFloatMinus
@@ -339,7 +340,10 @@ primMkFloat = read
 -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove a
 -- contradiction (see Issue #2169).
 primFloatEquality :: Double -> Double -> Bool
-primFloatEquality = identicalIEEE
+primFloatEquality x y = identicalIEEE x y || (isNaN x && isNaN y)
+
+primFloatNumericalEquality :: Double -> Double -> Bool
+primFloatNumericalEquality = (==)
 
 -- Adapted from the same function on Agda.Syntax.Literal.
 compareFloat :: Double -> Double -> Ordering
@@ -347,19 +351,15 @@ compareFloat x y
   | identicalIEEE x y          = EQ
   | isNegInf x                 = LT
   | isNegInf y                 = GT
-  | isNegNaN x                 = LT
-  | isNegNaN y                 = GT
+  | isNaN x && isNaN y         = EQ
   | isNaN x                    = LT
   | isNaN y                    = GT
-  | isNegativeZero x && x == y = LT
-  | isNegativeZero y && x == y = GT
   | otherwise                  = compare x y
   where
-    isNegNaN    = identicalIEEE (-positiveNaN)
     isNegInf z = z < 0 && isInfinite z
 
-primFloatLess :: Double -> Double -> Bool
-primFloatLess x y =
+primFloatNumericalLess :: Double -> Double -> Bool
+primFloatNumericalLess x y =
   case compareFloat x y of
     LT -> True
     _  -> False

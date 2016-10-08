@@ -59,7 +59,7 @@ instance Eq Literal where
   -- ASR (2016-09-29). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  LitFloat _ x  == LitFloat _ y  = identicalIEEE x y
+  LitFloat _ x  == LitFloat _ y  = identicalIEEE x y || (isNaN x && isNaN y)
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
   LitQName _ x  == LitQName _ y  = x == y
@@ -86,22 +86,21 @@ instance Ord Literal where
   -- compare LitMeta{} _   = LT
   -- compare _ LitMeta{}   = GT
 
--- Also implemented in GHC and UHC backends.
+-- NOTE: This is not the same ordering as primFloatNumericalEquality!
+-- This ordering must be a total order of all allowed float values,
+-- while primFloatNumericalEquality is only a preorder
 compareFloat :: Double -> Double -> Ordering
 compareFloat x y
   | identicalIEEE x y          = EQ
   | isNegInf x                 = LT
   | isNegInf y                 = GT
-  | isNegNaN x                 = LT
-  | isNegNaN y                 = GT
+  | isNaN x && isNaN y         = EQ
   | isNaN x                    = LT
   | isNaN y                    = GT
   | isNegativeZero x && x == y = LT
   | isNegativeZero y && x == y = GT
   | otherwise                  = compare x y
   where
-    positiveNaN = 0.0 / 0.0
-    isNegNaN    = identicalIEEE (-positiveNaN)
     isNegInf z = z < 0 && isInfinite z
 
 instance HasRange Literal where

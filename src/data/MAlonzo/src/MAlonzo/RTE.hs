@@ -56,7 +56,10 @@ remInt :: Integer -> Integer -> Integer
 remInt = rem
 
 eqFloat :: Double -> Double -> Bool
-eqFloat = identicalIEEE
+eqFloat x y = identicalIEEE x y || (isNaN x && isNaN y)
+
+eqNumFloat :: Double -> Double -> Bool
+eqNumFloat = (==)
 
 negativeZero :: Double
 negativeZero = -0.0
@@ -79,18 +82,14 @@ compareFloat x y
   | identicalIEEE x y          = EQ
   | isNegInf x                 = LT
   | isNegInf y                 = GT
-  | isNegNaN x                 = LT
-  | isNegNaN y                 = GT
+  | isNaN x && isNaN y         = EQ
   | isNaN x                    = LT
   | isNaN y                    = GT
-  | isNegativeZero x && x == y = LT
-  | isNegativeZero y && x == y = GT
   | otherwise                  = compare x y
   where
-    isNegNaN = identicalIEEE (-positiveNaN)
     isNegInf z = z < 0 && isInfinite z
 
-ltFloat :: Double -> Double -> Bool
-ltFloat x y = case compareFloat x y of
+ltNumFloat :: Double -> Double -> Bool
+ltNumFloat x y = case compareFloat x y of
                 LT -> True
                 _  -> False
