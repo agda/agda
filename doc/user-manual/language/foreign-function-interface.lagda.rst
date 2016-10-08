@@ -75,19 +75,17 @@ The GHC backend compiles certain Agda built-ins to special Haskell
 types. The mapping between Agda built-in types and Haskell types
 is as follows:
 
-+-------------------+-----------------------+
-| Agda Built-in     | Haskell Type          |
-+===================+=======================+
-| ``STRING``        | ``Data.Text.Text``    |
-+-------------------+-----------------------+
-| ``CHAR``          | ``Char``              |
-+-------------------+-----------------------+
-| ``INTEGER``       | ``Integer``           |
-+-------------------+-----------------------+
-| ``BOOL``          | ``Boolean``           |
-+-------------------+-----------------------+
-| ``FLOAT``         | ``Double``            |
-+-------------------+-----------------------+
+
+=============  ==================
+Agda Built-in  Haskell Type
+=============  ==================
+``STRING``     ``Data.Text.Text``
+``CHAR``       ``Char``
+``INTEGER``    ``Integer``
+``BOOL``       ``Boolean``
+``FLOAT``      ``Double``
+=============  ==================
+
 
 .. warning::
    Agda ``FLOAT`` values have only one logical ``NaN`` value. At runtime,
