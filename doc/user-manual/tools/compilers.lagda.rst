@@ -37,7 +37,7 @@ Example
 ^^^^^^^
 
 The following "Hello, World!" example requires some :ref:`built-ins`
-and `Pragmas`_:
+and uses the :ref:`foreign-function-interface`:
 
 ::
 

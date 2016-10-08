@@ -86,6 +86,14 @@ is as follows:
 +-------------------+-----------------------+
 | ``BOOL``          | ``Boolean``           |
 +-------------------+-----------------------+
+| ``FLOAT``         | ``Double``            |
++-------------------+-----------------------+
+
+.. warning::
+   Agda ``FLOAT`` values have only one logical ``NaN`` value. At runtime,
+   there might be multiple different ``NaN`` representations present. All
+   such ``NaN`` values must be treated equal by FFI calls to avoid making
+   Agda inconsistent.
 
 The COMPILED pragma
 -------------------

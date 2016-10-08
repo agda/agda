@@ -227,7 +227,7 @@ definition' q d t ls =
     Primitive{} | otherwise -> return $ Just Undefined
 
     Datatype{} -> return $ Just emp
-    Record{} -> return $ Just emp
+    Record{} -> return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
     Constructor{conData = p, conPars = nc} | otherwise -> do
@@ -372,7 +372,8 @@ primitives = Set.fromList
   [ "primExp"
   , "primFloatDiv"
   , "primFloatEquality"
-  , "primFloatLess"
+  , "primFloatNumericalEquality"
+  , "primFloatNumericalLess"
   , "primFloatNegate"
   , "primFloatMinus"
   , "primFloatPlus"
