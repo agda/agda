@@ -12,7 +12,8 @@ printB false = putStrLn "false"
 
 _/_  = primFloatDiv
 _==_ = primFloatEquality
-_<_  = primFloatLess
+_=N=_ = primFloatNumericalEquality
+_<_  = primFloatNumericalLess
 
 NaN : Float
 NaN = 0.0 / 0.0
@@ -34,6 +35,11 @@ acos  = primACos
 atan  = primATan
 atan2 = primATan2
 
+isZero : Float → String
+isZero 0.0  = "pos"
+isZero -0.0 = "neg"
+isZero _    = "nonzero"
+
 main : IO Unit
 main =
   putStr "123.4 = " ,, print 123.4 ,,
@@ -48,9 +54,21 @@ main =
 
   -- Issues #2155 and #2194.
   putStr "NaN == NaN = " ,, printB (NaN == NaN) ,,
+  -- Issue #2194.
+  putStr "NaN == -NaN = " ,, printB (NaN == (primFloatNegate NaN)) ,,
 
   -- Issue #2169.
   putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
+
+  -- Issue #2216
+  putStr "isZero  0.0 = " ,, putStrLn (isZero 0.0) ,,
+  putStr "isZero -0.0 = " ,, putStrLn (isZero -0.0) ,,
+  putStr "isZero  1.0 = " ,, putStrLn (isZero 1.0) ,,
+
+  -- numerical equality
+  putStr "NaN =N= NaN  = " ,, printB (NaN =N= NaN) ,,
+  putStr "0.0 =N= -0.0 = " ,, printB (0.0 =N= -0.0) ,,
+  putStr "0.0 =N= 12.0 = " ,, printB (0.0 =N= 12.0) ,,
 
   putStr "NaN  < -Inf = " ,, printB (NaN < -Inf) ,,
   putStr "0.0  < -0.0 = " ,, printB (0.0 < -0.0) ,,
@@ -60,6 +78,9 @@ main =
   putStr "NaN  < NaN  = " ,, printB (NaN < NaN) ,,
   putStr "-NaN < -NaN = " ,, printB (-NaN < -NaN) ,,
   putStr "NaN  < -NaN = " ,, printB (NaN < -NaN) ,,
+  putStr "-NaN < NaN  = " ,, printB (-NaN < NaN) ,,
+  putStr "NaN < -5.0  = " ,, printB (NaN < -5.0) ,,
+  putStr "-5.0 < NaN  = " ,, printB (-5.0 < NaN) ,,
 
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,
   putStr "cos (acos 0.6)      = " ,, print (cos (acos 0.6)) ,,
