@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
-
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
  -}
@@ -28,11 +26,14 @@ import Control.Applicative hiding (empty)
 
 import Data.List hiding (null)
 import Data.Monoid (Any(..))
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
+import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -176,14 +177,18 @@ cover f cs sc@(SClause tel ps _ target) = do
     ]
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
   case match cs ps of
-    Yes (i,mps)
+    Yes (i,(mps,ls0))
      | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps ]
-      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
-      return (SplittingDone (size tel), Set.fromList (i : is), [])
+      let lsis = mapMaybe (\(j,c) -> (,j) <$> matchLits c ps) $ zip [0..i-1] cs
+      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show lsis
+      -- Andreas, 2016-10-08, issue #2243 (#708)
+      -- If we have several literal matches with the same literals
+      -- only take the first matching clause of these.
+      let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
+      return (SplittingDone (size tel), Set.fromList is, [])
 
      | otherwise -> do
          reportSDoc "tc.cover.cover" 10 $ vcat
