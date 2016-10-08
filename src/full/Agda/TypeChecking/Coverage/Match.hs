@@ -41,7 +41,7 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [NamedArg DeBruijnPattern] -> Match (Nat,[DeBruijnPattern])
+match :: [Clause] -> [NamedArg DeBruijnPattern] -> Match (Nat,([DeBruijnPattern],[Literal]))
 match cs ps = foldr choice No $ zipWith matchIt [0..] cs
   where
     -- If liberal matching on literals fails or blocks we go with that.
@@ -75,6 +75,11 @@ isTrivialPattern p = case p of
   ConP c i ps -> isJust (conPRecord i) && all (isTrivialPattern . namedArg) ps
   LitP{}      -> False
   ProjP{}     -> False
+
+-- | If matching succeeds, we return the instantiation of the clause pattern vector
+--   to obtain the split clause pattern vector, plus the literals of the clause patterns
+--   matched against split clause variables.
+type MatchResult = Match ([DeBruijnPattern],[Literal])
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables are blocking the match.
@@ -139,7 +144,7 @@ choice No           m            = m
 --
 --   Note: literal patterns do not occur in the split clause
 --   since we cannot split into all possible literals (that would be infeasible).
-type MatchLit = Literal -> DeBruijnPattern -> Match [DeBruijnPattern]
+type MatchLit = Literal -> DeBruijnPattern -> MatchResult
 
 -- | Use this function if literal patterns should not cover a split clause pattern.
 noMatchLit :: MatchLit
@@ -147,18 +152,18 @@ noMatchLit _ _ = No
 
 -- | Use this function if a literal pattern should cover a split clause variable pattern.
 yesMatchLit :: MatchLit
-yesMatchLit _ q@VarP{} = Yes [q]
+yesMatchLit l q@VarP{} = Yes ([q], [l])
 yesMatchLit l (DotP t) = maybe No (yesMatchLit l) $ buildPattern t
 yesMatchLit _ ConP{}   = No
 yesMatchLit _ ProjP{}  = No
 yesMatchLit _ LitP{}   = __IMPOSSIBLE__
 
 -- | Check if a clause could match given generously chosen literals
-matchLits :: Clause -> [NamedArg DeBruijnPattern] -> Bool
+matchLits :: Clause -> [NamedArg DeBruijnPattern] -> Maybe [Literal]
 matchLits c ps =
   case matchClause yesMatchLit ps 0 c of
-    Yes _ -> True
-    _     -> False
+    Yes (qs,ls) -> Just ls
+    _ -> Nothing
 
 -- | @matchClause mlit qs i c@ checks whether clause @c@ number @i@
 --   covers a split clause with patterns @qs@.
@@ -171,7 +176,7 @@ matchClause
      -- ^ Clause number @i@.
   -> Clause
      -- ^ Clause @c@ to cover split clause.
-  -> Match [DeBruijnPattern]
+  -> MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @(namedClausePats c)[rs] == qs@.
 matchClause mlit qs i c = matchPats mlit (namedClausePats c) qs
@@ -199,7 +204,7 @@ matchPats
      -- ^ Clause pattern vector @ps@ (to cover split clause pattern vector).
   -> [NamedArg DeBruijnPattern]
      -- ^ Split clause pattern vector @qs@ (to be covered by clause pattern vector).
-  -> Match [DeBruijnPattern]
+  -> MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @ps[rs] == qs@.
 
@@ -215,7 +220,7 @@ matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
     -- the current (shorter) clause is not considered covering.
     projPatternsLeftInSplitClause =
         case mapMaybe isProjP qsrest of
-            [] -> Yes [] -- no proj. patterns left
+            [] -> mempty -- no proj. patterns left
             _  -> No     -- proj. patterns left
 
     -- Patterns left in candidate clause:
@@ -224,7 +229,7 @@ matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
     -- comparison to the split clause, we should split on them.
     projPatternsLeftInMatchedClause =
         case mapMaybe isProjP psrest of
-            [] -> Yes []               -- no proj. patterns left
+            [] -> mempty               -- no proj. patterns left
             ds -> Block (Any True) []  -- proj. patterns left
 
 
@@ -269,19 +274,19 @@ matchPat
      -- ^ Clause pattern @p@ (to cover split clause pattern).
   -> DeBruijnPattern
      -- ^ Split clause pattern @q@ (to be covered by clause pattern).
-  -> Match [DeBruijnPattern]
+  -> MatchResult
      -- ^ Result.
      --   If 'Yes', also the instantiation @rs@ of the clause pattern variables
      --   to produce the split clause pattern, @p[rs] = q@.
 
-matchPat _    VarP{}   q = Yes [q]
-matchPat _    DotP{}   q = Yes []
+matchPat _    VarP{}   q = Yes ([q],[])
+matchPat _    DotP{}   q = mempty
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
 -- Not checking for trivial patterns should be safe here, as dot patterns are
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
 -- on them doesn't change the reduction behaviour.
 matchPat mlit (LitP l) q = mlit l q
-matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then Yes [] else No
+matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
 matchPat _    ProjP{} _ = __IMPOSSIBLE__
 matchPat mlit p@(ConP c _ ps) q = case q of
   VarP x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
