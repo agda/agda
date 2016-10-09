@@ -2,12 +2,20 @@
 
 module Agda.TypeChecking.Constraints where
 
-import Control.Monad.State
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
+
+import Control.Monad
 import Control.Monad.Reader
-import Control.Applicative
-import Data.List as List
+import Control.Monad.State
+import Control.Monad.Trans.Maybe
+
+import Data.List as List hiding (null)
 
 import Agda.Syntax.Internal
+
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
@@ -22,10 +30,14 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 
 import Agda.Utils.Except ( MonadError(throwError) )
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Lens
+import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -71,15 +83,102 @@ addConstraint c = do
     isIFSConstraint FindInScope{} = True
     isIFSConstraint _             = False
 
+    isLvl LevelCmp{} = True
+    isLvl _          = False
+
+    -- Try to simplify a level constraint
     simpl :: Constraint -> TCM Constraint
-    simpl c = do
+    simpl c = if not $ isLvl c then return c else do
       n <- genericLength <$> getContext
-      let isLvl LevelCmp{} = True
-          isLvl _          = False
-      cs <- getAllConstraints
-      lvls <- instantiateFull $ List.filter (isLvl . clValue . theConstraint) cs
-      when (not $ List.null lvls) $ reportSDoc "tc.constr.add" 40 $ text "  simplifying using" <+> prettyTCM lvls
-      return $ simplifyLevelConstraint n c lvls
+      cs <- map theConstraint <$> getAllConstraints
+      lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
+      when (not $ null lvls) $ do
+        reportSDoc "tc.constr.add" 40 $ text "  simplifying using" <+> prettyTCM lvls
+        reportSDoc "tc.constr.add" 45 $ do
+          cxt <- getContextTelescope
+          inTopContext $ do
+            text "simpl" <+> do
+              vcat $
+                [ text "current module  = " <+> (prettyTCM =<< currentModule)
+                , text "current context = " <+> prettyTCM cxt
+                , text "current m.pars  = " <+> (text . show =<< use stModuleParameters)
+                , text "constraints: "
+                ] ++ do
+                  for lvls $ \ cl -> do
+                    let cxt' = envContext (clEnv cl)
+                        mp   = clModuleParameters cl
+                    vcat
+                      [ text "*" <+> text "module = " <+> prettyTCM (envCurrentModule $ clEnv cl)
+                      , nest 2 $ text "m.pars = " <+> (text . show) mp
+                      , nest 2 $ prettyTCM cxt' <+> text " |- " <+> prettyTCM cl
+                      ]
+      simplifyLevelConstraint c . catMaybes <$>
+        mapM (runMaybeT . castConstraintToCurrentContext) lvls
+
+-- | We would like to use a constraint @c@ created in context @Δ@ from module @N@
+--   in the current context @Γ@ and current module @M@.
+--
+--   @Δ@ is module tel @Δ₁@ of @N@ extended by some local bindings @Δ₂@.
+--   @Γ@ is module tel @Γ₁@ of @N@ extended by some local bindings @Γ₂@.
+--   The module parameter substitution from current @M@ to @N@ be
+--   @Γ₁ ⊢ σ : Δ₁@.
+--
+--   We first strengthen @Δ ⊢ c@ to live in @Δ₁@ and obtain @c₁ = strengthen Δ₂ c@.
+--   We then transport @c₁@ to module @M@ and @Γ₁@ and obtain @c₂ = applySubst σ c₁@.
+--   Finally, we weaken @c₂@ to live in @Γ@ and obtain @c₃ = weaken Γ₂ c₂@.
+--
+--   This works for different modules, but if @M == N@ we should not strengthen
+--   and then weaken, because strengthening is a partial operation.
+--   We should rather lift the substitution @σ@ by @Δ₂@ and then
+--   raise by @Γ₂ - Δ₂@.
+--   This "raising" might be a strengthening if @Γ₂@ is shorter than @Δ₂@.
+--
+--   (TODO: If the module substitution does not exist, because @N@ is not
+--   a parent of @M@, we cannot use the constraint, as it has been created
+--   in an unrelated context.)
+
+castConstraintToCurrentContext :: Closure Constraint -> MaybeT TCM Constraint
+castConstraintToCurrentContext cl = do
+  let modN  = envCurrentModule $ clEnv cl
+      delta = envContext $ clEnv cl
+  -- The module telescope of the constraint.
+  -- The constraint could come from the module telescope of the top level module.
+  -- In this case, it does not live in any module!
+  -- Thus, getSection can return Nothing.
+  delta1 <- liftTCM $ maybe empty (^. secTelescope) <$> getSection modN
+  -- The number of locals of the constraint.
+  let delta2 = size delta - size delta1
+  unless (delta2 >= 0) __IMPOSSIBLE__
+
+  modM  <- currentModule
+  gamma <- liftTCM $ getContextSize
+  -- The current module telescope.
+  -- Could also be empty, if we are in the front matter or telescope of the top-level module.
+  gamma1 <-liftTCM $ maybe empty (^. secTelescope) <$> getSection modM
+  -- The current locals.
+  let gamma2 = gamma - size gamma1
+
+  -- If gamma2 < 0, we must be in the wrong context.
+  -- E.g. we could have switched to the empty context even though
+  -- we are still inside a module with parameters.
+  -- In this case, we cannot safely convert the constraint,
+  -- since the module parameter substitution may be wrong.
+  guard (gamma2 >= 0)
+
+  -- Γ₁.Δ₂ ⊢ σ : Δ
+  -- This should work, but the module parameter substitution seems to be poorly maintained.
+  -- sigma <- liftTCM $ liftS delta2 <$> getModuleParameterSub modN
+  -- -- sigma should be the identity if modM == monN, but this is not the case
+  -- -- see test/succeed/RefineParam.agda run with -v tc.constr.add:45
+  sigma <- if modM == modN then return idS else
+    liftS delta2 <$> getModuleParameterSub modN
+  -- Γ₁.Δ₂ ⊢ c
+  let c = applySubst sigma $ clValue cl
+  -- Now try to transport c to Γ.
+  let n = gamma2 - delta2
+  -- Fine if we have to weaken or strengthening is safe.
+  guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allVars $ freeVars c)
+  return $ raise n c
 
 -- | Don't allow the argument to produce any constraints.
 noConstraints :: TCM a -> TCM a
@@ -87,7 +186,7 @@ noConstraints problem = liftTCM $ do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   tcst <- get
-  unless (List.null cs) $ typeError $ NonFatalErrors [ UnsolvedConstraints tcst cs ]
+  unless (null cs) $ typeError $ NonFatalErrors [ UnsolvedConstraints tcst cs ]
   return x
 
 -- | Create a fresh problem for the given action.

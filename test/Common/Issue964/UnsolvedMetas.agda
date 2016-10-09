@@ -1,4 +1,3 @@
-
 -- Andreas, 2016-08-04, issue #964
 -- Allow open metas and interaction points in imported files
 
@@ -7,6 +6,14 @@
 -- {-# OPTIONS -v import:100 #-}
 -- {-# OPTIONS -v meta.postulate:20 #-}
 -- {-# OPTIONS -v tc.meta:25 #-}
+
+-- Andreas, 2016-10-09, while working on issue #2223:
+--
+-- This module is an example that we can be in a context
+-- that is shorter than the current section.
+-- Typically, this would be the empty context.
+--
+-- {-# OPTIONS -v tc.constr.add:45 #-}
 
 open import Common.Level
 
