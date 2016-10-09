@@ -712,8 +712,7 @@ primComp = do
           nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
-  one   <- primItIsOne
-  mpath <- primPathName'
+  one <- primItIsOne
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     unview <- intervalUnview'
     let
@@ -742,6 +741,7 @@ primComp = do
                t <- reduce' t
                mGlue <- getPrimitiveName' builtinGlue
                mId   <- getBuiltinName' builtinId
+               mPath <- getBuiltinName' builtinPath
                case absBody t of
                  Pi a b   -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
 
@@ -750,7 +750,7 @@ primComp = do
                  Def q [Apply la, Apply lb, Apply bA, Apply phi', Apply bT, Apply f, Apply pf] | Just q == mGlue -> do
                    compGlue phi u a0 la lb bA phi' bT f pf
 
-                 Def q [ Apply _ , Apply bA , Apply x , Apply y ] | Just q == mpath -> do
+                 Def q [ Apply _ , Apply bA , Apply x , Apply y ] | Just q == mPath -> do
                    compPath iz ineg imax sphi u a0 l bA x y
 
                  Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do
