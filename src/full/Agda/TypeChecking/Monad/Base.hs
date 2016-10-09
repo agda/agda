@@ -806,6 +806,21 @@ instance HasRange Constraint where
   getRange (FindInScope x cands) = getRange x
 -}
 
+instance Free' Constraint c where
+  freeVars' c =
+    case c of
+      ValueCmp _ t u v      -> freeVars' (t, (u, v))
+      ElimCmp _ t u es es'  -> freeVars' ((t, u), (es, es'))
+      TypeCmp _ t t'        -> freeVars' (t, t')
+      TelCmp _ _ _ tel tel' -> freeVars' (tel, tel')
+      SortCmp _ s s'        -> freeVars' (s, s')
+      LevelCmp _ l l'       -> freeVars' (l, l')
+      UnBlock _             -> mempty
+      Guarded c _           -> freeVars' c
+      IsEmpty _ t           -> freeVars' t
+      CheckSizeLtSat u      -> freeVars' u
+      FindInScope _ _ cs    -> freeVars' cs
+
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable)
 
@@ -2173,6 +2188,9 @@ data Candidate  = Candidate { candidateTerm :: Term
                             , candidateEti  :: ExplicitToInstance
                             }
   deriving (Show)
+
+instance Free' Candidate c where
+  freeVars' (Candidate t u _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
