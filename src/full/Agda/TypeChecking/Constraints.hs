@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Constraints where
 
@@ -119,13 +120,14 @@ addConstraint c = do
 --   in the current context @Γ@ and current module @M@.
 --
 --   @Δ@ is module tel @Δ₁@ of @N@ extended by some local bindings @Δ₂@.
---   @Γ@ is module tel @Γ₁@ of @N@ extended by some local bindings @Γ₂@.
+--   @Γ@ is the current context.
 --   The module parameter substitution from current @M@ to @N@ be
---   @Γ₁ ⊢ σ : Δ₁@.
+--   @Γ ⊢ σ : Δ₁@.
+--
+--   If @M == N@, we do not need the parameter substitution.  We try raising.
 --
 --   We first strengthen @Δ ⊢ c@ to live in @Δ₁@ and obtain @c₁ = strengthen Δ₂ c@.
---   We then transport @c₁@ to module @M@ and @Γ₁@ and obtain @c₂ = applySubst σ c₁@.
---   Finally, we weaken @c₂@ to live in @Γ@ and obtain @c₃ = weaken Γ₂ c₂@.
+--   We then transport @c₁@ to @Γ@ and obtain @c₂ = applySubst σ c₁@.
 --
 --   This works for different modules, but if @M == N@ we should not strengthen
 --   and then weaken, because strengthening is a partial operation.
@@ -150,6 +152,7 @@ castConstraintToCurrentContext cl = do
   let delta2 = size delta - size delta1
   unless (delta2 >= 0) __IMPOSSIBLE__
 
+  -- The current module M and context Γ.
   modM  <- currentModule
   gamma <- liftTCM $ getContextSize
   -- The current module telescope.
@@ -165,20 +168,22 @@ castConstraintToCurrentContext cl = do
   -- since the module parameter substitution may be wrong.
   guard (gamma2 >= 0)
 
-  -- Γ₁.Δ₂ ⊢ σ : Δ
-  -- This should work, but the module parameter substitution seems to be poorly maintained.
-  -- sigma <- liftTCM $ liftS delta2 <$> getModuleParameterSub modN
-  -- -- sigma should be the identity if modM == monN, but this is not the case
-  -- -- see test/succeed/RefineParam.agda run with -v tc.constr.add:45
-  sigma <- if modM == modN then return idS else
-    liftS delta2 <$> getModuleParameterSub modN
-  -- Γ₁.Δ₂ ⊢ c
-  let c = applySubst sigma $ clValue cl
-  -- Now try to transport c to Γ.
-  let n = gamma2 - delta2
-  -- Fine if we have to weaken or strengthening is safe.
-  guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allVars $ freeVars c)
-  return $ raise n c
+  -- Shortcut for modN == modM:
+  -- Raise constraint from Δ to Γ, if possible.
+  -- This might save us some strengthening.
+  if modN == modM then raiseMaybe (gamma - size delta) $ clValue cl else do
+
+  -- Strengthen constraint to Δ₁ ⊢ c
+  c <- raiseMaybe (-delta2) $ clValue cl
+  -- Γ ⊢ σ : Δ₁
+  sigma <- liftTCM $ getModuleParameterSub modN
+  -- Γ ⊢ c[σ]
+  return $ applySubst sigma c
+  where
+    raiseMaybe n c = do
+      -- Fine if we have to weaken or strengthening is safe.
+      guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allVars $ freeVars c)
+      return $ raise n c
 
 -- | Don't allow the argument to produce any constraints.
 noConstraints :: TCM a -> TCM a
