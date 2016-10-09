@@ -151,6 +151,12 @@ lookupQName ambCon x = do
         -- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
+lookupModule (A.MName []) = return $ C.QName $ C.Name noRange [Id "-1"]
+  -- Andreas, 2016-10-10 it can happen that we have an empty module name
+  -- for instance when we query the current module inside the
+  -- frontmatter or module telescope of the top level module.
+  -- In this case, we print it as an invalid module name.
+  -- (Should only affect debug printing.)
 lookupModule x =
     do  scope <- asks currentScope
         case inverseScopeLookupModule x scope of
