@@ -1495,8 +1495,9 @@ primitiveFunctions = Map.fromList
   -- ASR (2016-09-29). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  , "primFloatEquality"   |-> mkPrimFun2 (identicalIEEE   :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
+  , "primFloatEquality"   |-> mkPrimFun2 (floatEq         :: Rel Double)
+  , "primFloatNumericalEquality" |-> mkPrimFun2 ((==)     :: Rel Double)
+  , "primFloatNumericalLess"     |-> mkPrimFun2 (floatLt  :: Rel Double)
   , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
   , "primRound"           |-> mkPrimFun1 (round           :: Double -> Integer)
   , "primFloor"           |-> mkPrimFun1 (floor           :: Double -> Integer)
@@ -1571,9 +1572,26 @@ primitiveFunctions = Map.fromList
   where
     (|->) = (,)
 
--- The Ord instance for Literals does the right thing comparing floats.
+floatEq :: Double -> Double -> Bool
+floatEq x y = identicalIEEE x y || (isNaN x && isNaN y)
+
 floatLt :: Double -> Double -> Bool
-floatLt x y = LitFloat noRange x < LitFloat noRange y
+floatLt x y =
+  case compareFloat x y of
+    LT -> True
+    _  -> False
+  where
+    -- Also implemented in the GHC/UHC backends
+    compareFloat :: Double -> Double -> Ordering
+    compareFloat x y
+      | identicalIEEE x y          = EQ
+      | isNegInf x                 = LT
+      | isNegInf y                 = GT
+      | isNaN x && isNaN y         = EQ
+      | isNaN x                    = LT
+      | isNaN y                    = GT
+      | otherwise                  = compare x y
+    isNegInf z = z < 0 && isInfinite z
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =

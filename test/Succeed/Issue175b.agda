@@ -17,10 +17,10 @@ postulate ℝ : Set
 primitive
   -- ℝ functions
   primFloatMinus : ℝ -> ℝ -> ℝ
-  primFloatLess : ℝ -> ℝ -> Bool
+  primFloatNumericalLess : ℝ -> ℝ -> Bool
 
 _<_ : ℝ -> ℝ -> Bool
-a < b = primFloatLess a b
+a < b = primFloatNumericalLess a b
 
 data _≤_ : ℝ -> ℝ -> Set where
    ≤_ : {x y : ℝ} -> (x < y) ≡ true -> x ≤ y

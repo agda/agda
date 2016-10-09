@@ -15,7 +15,7 @@
 (agda2-status-action "")
 (agda2-info-action "*Goal type etc.*" "Goal: A Have: A ———————————————————————————————————————————————————————————— a : A A : Set" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
-cannot read: IOTCM "Issue1944-1-i.agda" None Indirect (Cmd_compute True 1 noRange "\ r -> f (t r)")
+cannot read: IOTCM "Issue1944-1-i.agda" None Indirect (Cmd_compute IgnoreAbstract 1 noRange "\ r -> f (t r)")
 cannot read: IOTCM "Issue1944-1-i.agda" None Indirect (Cmd_goal_type_context_infer Normalised 1 noRange "\ r -> f (t r)")
 (agda2-give-action 2 "x")
 (agda2-status-action "")

@@ -45,6 +45,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
+import Agda.Syntax.Literal
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -63,6 +64,7 @@ import Agda.Interaction.SearchAbout
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
+import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
@@ -348,7 +350,7 @@ data Interaction' range
 
     -- | Parse and type check the given expression (as if it were defined
     -- at the top-level of the current module) and normalise it.
-  | Cmd_compute_toplevel Bool -- Ignore abstract?
+  | Cmd_compute_toplevel B.ComputeMode
                          String
 
     ------------------------------------------------------------------------
@@ -425,7 +427,7 @@ data Interaction' range
 
   | Cmd_make_case       InteractionId range String
 
-  | Cmd_compute         Bool -- Ignore abstract?
+  | Cmd_compute         B.ComputeMode
                         InteractionId range String
 
   | Cmd_why_in_scope    InteractionId range String
@@ -590,12 +592,13 @@ interpret Cmd_solveAll = do
 interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
 
-interpret (Cmd_compute_toplevel ignore s) =
-  parseAndDoAtToplevel action Info_NormalForm s
+interpret (Cmd_compute_toplevel cmode s) =
+  parseAndDoAtToplevel' action Info_NormalForm $ computeWrapInput cmode s
   where
   action = allowNonTerminatingReductions
-         . (if ignore then ignoreAbstractMode else inConcreteMode)
-         . B.evalInCurrent
+         . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+         . (B.showComputed cmode <=< B.evalInCurrent)
+
 
 interpret (ShowImplicitArgs showImpl) = do
   opts <- lift commandLineOptions
@@ -783,11 +786,11 @@ interpret (Cmd_make_case ii rng s) = do
         in
          (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) dots rhs decl catchall)
 
-interpret (Cmd_compute ignore ii rng s) = display_info . Info_NormalForm =<< do
+interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
   liftLocalState $ do
-    e <- B.parseExprIn ii rng s
+    e <- B.parseExprIn ii rng $ computeWrapInput cmode s
     B.withInteractionId ii $ do
-      prettyATop =<< do applyWhen ignore ignoreAbstractMode $ B.evalInCurrent e
+      showComputed cmode =<< do applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
 
 
 interpret Cmd_show_version = display_info Info_Version
@@ -1253,20 +1256,23 @@ lowerMeta = C.mapExpr kill where
 -- as the scope), performs the given command with the expression as
 -- input, and displays the result.
 
-parseAndDoAtToplevel
-  :: (A.Expr -> TCM A.Expr)
+parseAndDoAtToplevel'
+  :: (A.Expr -> TCM Doc)
      -- ^ The command to perform.
   -> (Doc -> DisplayInfo)
      -- ^ The name to use for the buffer displaying the output.
   -> String
      -- ^ The expression to parse.
   -> CommandM ()
-parseAndDoAtToplevel cmd title s = do
+parseAndDoAtToplevel' cmd title s = do
   (time, res) <- localStateCommandM $ do
     e <- liftIO $ parse exprParser s
     maybeTimed (lift $ B.atTopLevel $
-                prettyA =<< cmd =<< concreteToAbstract_ e)
+                cmd =<< concreteToAbstract_ e)
   display_info (title $ fromMaybe empty time $$ res)
+
+parseAndDoAtToplevel :: (A.Expr -> TCM A.Expr) -> (Doc -> DisplayInfo) -> String -> CommandM ()
+parseAndDoAtToplevel cmd = parseAndDoAtToplevel' (prettyA <=< cmd)
 
 maybeTimed :: CommandM a -> CommandM (Maybe Doc, a)
 maybeTimed work = do

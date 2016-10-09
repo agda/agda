@@ -74,7 +74,8 @@ primFunctions = M.fromList $
         -- Float
         , "primShowFloat"
         , "primFloatEquality"
-        , "primFloatLess"
+        , "primFloatNumericalEquality"
+        , "primFloatNumericalLess"
         , "primNatToFloat"
         , "primFloatPlus"
         , "primFloatMinus"

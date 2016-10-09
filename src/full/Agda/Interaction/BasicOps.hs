@@ -28,6 +28,7 @@ import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToCo
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
+import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Common
 import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange)
 import qualified Agda.Syntax.Info as Info
@@ -256,6 +257,26 @@ normalForm HeadNormal   t = {- etaContract =<< -} reduce t
 normalForm Simplified   t = {- etaContract =<< -} simplify t
 normalForm Normalised   t = {- etaContract =<< -} normalise t
 
+data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
+  deriving (Read, Eq)
+
+computeIgnoreAbstract :: ComputeMode -> Bool
+computeIgnoreAbstract DefaultCompute  = False
+computeIgnoreAbstract IgnoreAbstract  = True
+computeIgnoreAbstract UseShowInstance = True
+  -- UseShowInstance requires the result to be a string literal so respecting
+  -- abstract can only ever break things.
+
+computeWrapInput :: ComputeMode -> String -> String
+computeWrapInput UseShowInstance s = "show (" ++ s ++ ")"
+computeWrapInput _               s = s
+
+showComputed :: ComputeMode -> Expr -> TCM Doc
+showComputed UseShowInstance e =
+  case e of
+    A.Lit (LitString _ s) -> pure (text s)
+    _                     -> (text "Not a string:" $$) <$> prettyATop e
+showComputed _ e = prettyATop e
 
 data OutputForm a b = OutputForm Range ProblemId (OutputConstraint a b)
   deriving (Functor)
