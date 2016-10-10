@@ -284,9 +284,10 @@ consisteny, the following laws apply:
 - ``primFloatEquality 0.0 -0.0`` returns ``false``.
 
 
-For numerical comparisons, use the ``primFloatNumericalEquality``
-and ``primFloatNumericalLess`` primitives. These are implemented by the
-corresponding Haskell functions with the following exceptions:
+For numerical comparisons, use the ``primFloatNumericalEquality`` and
+``primFloatNumericalLess`` primitives. These are implemented by the
+corresponding Haskell functions with the following behaviour and
+exceptions:
 
 - ``primFloatNumericalEquality 0.0 -0.0`` returns ``true``.
 - ``primFloatNumericalEquality NaN NaN`` returns ``false``.
