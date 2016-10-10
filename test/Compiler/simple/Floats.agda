@@ -10,10 +10,10 @@ printB : Bool → IO Unit
 printB true  = putStrLn "true"
 printB false = putStrLn "false"
 
-_/_  = primFloatDiv
-_==_ = primFloatEquality
+_/_   = primFloatDiv
+_==_  = primFloatEquality
 _=N=_ = primFloatNumericalEquality
-_<_  = primFloatNumericalLess
+_<_   = primFloatNumericalLess
 
 NaN : Float
 NaN = 0.0 / 0.0
@@ -71,6 +71,7 @@ main =
   putStr "0.0 =N= 12.0 = " ,, printB (0.0 =N= 12.0) ,,
 
   putStr "NaN  < -Inf = " ,, printB (NaN < -Inf) ,,
+  putStr "-Inf < NaN  = " ,, printB (-Inf < NaN) ,,
   putStr "0.0  < -0.0 = " ,, printB (0.0 < -0.0) ,,
   putStr "-0.0 < 0.0  = " ,, printB (-0.0 < 0.0) ,,
 
@@ -79,7 +80,7 @@ main =
   putStr "-NaN < -NaN = " ,, printB (-NaN < -NaN) ,,
   putStr "NaN  < -NaN = " ,, printB (NaN < -NaN) ,,
   putStr "-NaN < NaN  = " ,, printB (-NaN < NaN) ,,
-  putStr "NaN < -5.0  = " ,, printB (NaN < -5.0) ,,
+  putStr "NaN  < -5.0 = " ,, printB (NaN < -5.0) ,,
   putStr "-5.0 < NaN  = " ,, printB (-5.0 < NaN) ,,
 
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,
