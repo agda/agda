@@ -57,6 +57,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Pretty (prettyShow)
 
@@ -816,7 +817,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.BuiltinPragma b e      -> C.BuiltinPragma r b <$> toConcrete e
     A.BuiltinNoDefPragma b x -> C.BuiltinPragma r b . C.Ident <$>
       toConcrete x
-    A.RewritePragma x        -> C.RewritePragma r <$> toConcrete x
+    A.RewritePragma x        -> C.RewritePragma r . singleton <$> toConcrete x
     A.CompiledTypePragma x hs -> do
       x <- toConcrete x
       return $ C.CompiledTypePragma r x hs
