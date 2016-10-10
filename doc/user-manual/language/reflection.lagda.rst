@@ -317,6 +317,9 @@ following primitive operations::
     -- Compute the normal form of a term.
     normalise : Term → TC Term
 
+    -- Compute the weak head normal form of a term.
+    reduce : Term → TC Term
+
     -- Get the current context. Returns the context in reverse order, so that
     -- it is indexable by deBruijn index.
     getContext : TC (List (Arg Type))
@@ -362,6 +365,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMINFERTYPE          inferType          #-}
   {-# BUILTIN AGDATCMCHECKTYPE          checkType          #-}
   {-# BUILTIN AGDATCMNORMALISE          normalise          #-}
+  {-# BUILTIN AGDATCMREDUCE             reduce             #-}
   {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
   {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
   {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
@@ -404,8 +408,8 @@ For example, the macro application ``f u v w`` where
 
   unquote (f (quoteTerm u) (quote v) w)
 
-where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns the
-representation of its normal form in the ``Term`` data type, and ``unquote m`` runs a computation
+where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns its
+representation in the ``Term`` data type, and ``unquote m`` runs a computation
 in the ``TC`` monad. Specifically, when checking ``unquote m : A`` for some
 type ``A`` the type checker proceeds as follows:
 
@@ -422,11 +426,6 @@ call to ``g``.
 .. note::
    The ``quoteTerm`` and ``unquote`` primitives are available in the language,
    but it is recommended to avoid using them in favour of macros.
-
-.. note::
-   Since ``quoteTerm`` normalises the term before quoting some type information
-   may get lost. More specifically data constructor and projection parameters,
-   which are not stored by normalised terms.
 
 Limitations:
 

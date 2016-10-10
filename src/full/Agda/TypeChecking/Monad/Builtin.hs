@@ -134,7 +134,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
-    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
+    primAgdaTCMNormalise, primAgdaTCMReduce,
+    primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
@@ -260,6 +261,7 @@ primAgdaTCMTypeError  = getBuiltin builtinAgdaTCMTypeError
 primAgdaTCMInferType  = getBuiltin builtinAgdaTCMInferType
 primAgdaTCMCheckType  = getBuiltin builtinAgdaTCMCheckType
 primAgdaTCMNormalise  = getBuiltin builtinAgdaTCMNormalise
+primAgdaTCMReduce     = getBuiltin builtinAgdaTCMReduce
 primAgdaTCMCatchError = getBuiltin builtinAgdaTCMCatchError
 primAgdaTCMGetContext = getBuiltin builtinAgdaTCMGetContext
 primAgdaTCMExtendContext = getBuiltin builtinAgdaTCMExtendContext
@@ -312,7 +314,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaMeta,
   builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
   builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
-  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
+  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
+  builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
@@ -439,6 +442,7 @@ builtinAgdaTCMTypeError  = "AGDATCMTYPEERROR"
 builtinAgdaTCMInferType  = "AGDATCMINFERTYPE"
 builtinAgdaTCMCheckType  = "AGDATCMCHECKTYPE"
 builtinAgdaTCMNormalise  = "AGDATCMNORMALISE"
+builtinAgdaTCMReduce     = "AGDATCMREDUCE"
 builtinAgdaTCMCatchError = "AGDATCMCATCHERROR"
 builtinAgdaTCMGetContext = "AGDATCMGETCONTEXT"
 builtinAgdaTCMExtendContext = "AGDATCMEXTENDCONTEXT"
