@@ -6,7 +6,7 @@ if [ -e "$OBJECT_FILE" ]; then
     rm "$OBJECT_FILE"
 fi
 
-echo 'IOTCM "Issue373.agda" None Indirect (Cmd_compile MAlonzo "Issue373.agda" [])' | \
+echo 'IOTCM "Issue373.agda" None Indirect (Cmd_compile GHC "Issue373.agda" [])' | \
   $AGDA_BIN --interaction 2>&1
 
 ./Issue373

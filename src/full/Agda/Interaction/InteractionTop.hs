@@ -547,10 +547,10 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          MAlonzo -> MAlonzo.compilerMain IsMain i
-          MAlonzoNoMain -> MAlonzo.compilerMain NotMain i
-          Epic    -> Epic.compilerMain i
-          JS      -> JS.compilerMain i
+          GHC       -> MAlonzo.compilerMain IsMain i
+          GHCNoMain -> MAlonzo.compilerMain NotMain i
+          Epic      -> Epic.compilerMain i
+          JS        -> JS.compilerMain i
         display_info $ Info_CompilationOk
       Imp.SomeWarnings w ->
         display_info $ Info_Error $ unlines
@@ -910,8 +910,8 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data Backend = MAlonzo
-             | MAlonzoNoMain
+data Backend = GHC
+             | GHCNoMain
              | Epic | JS
     deriving (Show, Read)
 

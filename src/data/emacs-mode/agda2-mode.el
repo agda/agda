@@ -94,10 +94,10 @@ argument, and does not need to be listed here."
   :group 'agda2)
 
 (defcustom agda2-backend
-  "MAlonzo"
+  "GHC"
   "The backend which is used to compile Agda programs."
-  :type '(choice (const "MAlonzo")
-                 (const "MAlonzoNoMain")
+  :type '(choice (const "GHC")
+                 (const "GHCNoMain")
                  (const "Epic")
                  (const "JS"))
   :group 'agda2)
@@ -811,7 +811,9 @@ resulting time (represented as a string)."
 The variable `agda2-backend' determines which backend is used."
   (interactive)
   (agda2-go t t t "Cmd_compile"
-            agda2-backend
+            (cond ((equal agda2-backend "MAlonzo")       "GHC")
+                  ((equal agda2-backend "MAlonzoNoMain") "GHCNoMain")
+                  (t agda2-backend))
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-program-args)
             ))
