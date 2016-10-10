@@ -379,21 +379,150 @@
 % By default space is inserted around code blocks.
 \AgdaSpaceAroundCode{}
 
+% Sometimes one might want to break up a code block into multiple
+% pieces, but keep code in different blocks aligned with respect to
+% each other. Then one can use the AgdaAlign environment. Example
+% usage:
+%
+%   \begin{AgdaAlign}
+%   \begin{code}
+%     code
+%       code  (more code)
+%   \end{code}
+%   Explanation...
+%   \begin{code}
+%     aligned with "code"
+%       code  (aligned with (more code))
+%   \end{code}
+%   \end{AgdaAlign}
+%
+% Note that AgdaAlign environments should not be nested.
+%
+% Sometimes one might also want to hide code in the middle of a code
+% block. This can be accomplished in the following way:
+%
+%   \begin{AgdaAlign}
+%   \begin{code}
+%     visible
+%   \end{code}
+%   \AgdaHide{
+%   \begin{code}
+%     hidden
+%   \end{code}}
+%   \begin{code}
+%     visible
+%   \end{code}
+%   \end{AgdaAlign}
+%
+% However, the result may be ugly: extra space is perhaps inserted
+% around the code blocks.
+%
+% The AgdaSuppressSpace environment ensures that extra space is only
+% inserted before the first code block, and after the last one (but
+% not if \AgdaNoSpaceAroundCode{} is used).
+%
+% The environment takes one argument, the number of wrapped code
+% blocks (excluding hidden ones). Example usage:
+%
+%   \begin{AgdaAlign}
+%   \begin{code}
+%     code
+%       more code
+%   \end{code}
+%   Explanation...
+%   \begin{AgdaSuppressSpace}{2}
+%   \begin{code}
+%     aligned with "code"
+%       aligned with "more code"
+%   \end{code}
+%   \AgdaHide{
+%   \begin{code}
+%     hidden code
+%   \end{code}}
+%   \begin{code}
+%       also aligned with "more code"
+%   \end{code}
+%   \end{AgdaSuppressSpace}
+%   \end{AgdaAlign}
+%
+% Note that AgdaSuppressSpace environments should not be nested.
+%
+% There is also a combined environment, AgdaMultiCode, that combines
+% the effects of AgdaAlign and AgdaSuppressSpace.
+
+% 0: AgdaAlign is not active. 1: AgdaAlign is active.
+\newcounter{Agda@Align}
+\setcounter{Agda@Align}{0}
+
+% The current code block.
+\newcounter{Agda@AlignCurrent}
+
+\newcommand{\Agda@AlignStart}{%
+  \setcounter{Agda@Align}{1}%
+  \setcounter{Agda@AlignCurrent}{1}}
+
+\newcommand{\Agda@AlignEnd}{\setcounter{Agda@Align}{0}}
+
+\newenvironment{AgdaAlign}{%
+  \Agda@AlignStart{}}{%
+  \Agda@AlignEnd{}%
+  \ignorespacesafterend}
+
+% 0: AgdaSuppressSpace is not active. 1: AgdaSuppressSpace is active.
+\newcounter{Agda@Suppress}
+\setcounter{Agda@Suppress}{0}
+
+% The current code block.
+\newcounter{Agda@SuppressCurrent}
+
+% The expected number of code blocks.
+\newcounter{Agda@SuppressLast}
+
+\newcommand{\Agda@SuppressStart}[1]{%
+  \setcounter{Agda@Suppress}{1}%
+  \setcounter{Agda@SuppressLast}{#1}%
+  \setcounter{Agda@SuppressCurrent}{1}}
+
+\newcommand{\Agda@SuppressEnd}{\setcounter{Agda@Suppress}{0}}
+
+\newenvironment{AgdaSuppressSpace}[1]{%
+  \Agda@SuppressStart{#1}}{%
+  \Agda@SuppressEnd{}%
+  \ignorespacesafterend}
+
+\newenvironment{AgdaMultiCode}[1]{%
+  \Agda@AlignStart{}%
+  \Agda@SuppressStart{#1}}{%
+  \Agda@SuppressEnd{}%
+  \Agda@AlignEnd{}%
+  \ignorespacesafterend}
+
 % The code environment.
 %
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
 \newenvironment{code}{%
-  \ifthenelse{\value{Agda@SpaceAroundCode} = 0}{%
+  \ifthenelse{\value{Agda@SpaceAroundCode} = 0 \or%
+              \not \(\value{Agda@Suppress} = 0 \or%
+                     \value{Agda@SuppressCurrent} = 1\)}{%
     \AgdaNewlineWithVerticalSpace{0pt}}{%
     \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}%
   \advance\leftskip\mathindent%
   \AgdaCodeStyle%
-  \pboxed}{%
+  \pboxed%
+  \ifthenelse{\value{Agda@Align} = 0}{}{%
+    \ifthenelse{\value{Agda@AlignCurrent} = 1}{%
+      \savecolumns}{%
+      \restorecolumns}}}{%
   \endpboxed%
-  \ifthenelse{\value{Agda@SpaceAroundCode} = 0}{%
+  \ifthenelse{\value{Agda@SpaceAroundCode} = 0 \or%
+              \not \(\value{Agda@Suppress} = 0 \or%
+                     \value{Agda@SuppressCurrent} =%
+                     \value{Agda@SuppressLast}\)}{%
     \AgdaNewlineWithVerticalSpace{0pt}}{%
     \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}%
+  \stepcounter{Agda@AlignCurrent}%
+  \stepcounter{Agda@SuppressCurrent}%
   \ignorespacesafterend}
 
 % Default column for polytable.
