@@ -11,6 +11,8 @@ module Agda.TypeChecking.Rules.Builtin
 
 import Control.Applicative hiding (empty)
 import Control.Monad
+import Control.Monad.Reader (ask)
+import Control.Monad.State (get)
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
@@ -569,9 +571,10 @@ bindBuiltin b e = do
     _ | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
     _ -> typeError $ NoSuchBuiltinName b
   where
-    nowNat b = genericError $
-      "Builtin " ++ b ++ " does no longer exist. " ++
-      "It is now bound by BUILTIN " ++ builtinNat
+    nowNat b = do
+      tcst <- get
+      rng  <- getRange . envRange <$> ask
+      warning $ OldBuiltin tcst rng b builtinNat
 
 isUntypedBuiltin :: String -> Bool
 isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]

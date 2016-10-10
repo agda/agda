@@ -2209,6 +2209,8 @@ data Warning =
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      TCState Constraints
     -- ^ Do not use directly with 'warning'
+  | OldBuiltin               TCState Range String String
+    -- ^ In `OldBuiltin _ _ old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-# REWRITE #-}@.
   deriving (Show)

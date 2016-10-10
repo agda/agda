@@ -128,6 +128,12 @@ instance PrettyTCM Warning where
         [prettyTCM (dropTopLevelModule d)] ++
         pwords "is not strictly positive, because it occurs"
         ++ [prettyTCM ocs]
+    OldBuiltin tcst r old new -> localState $ do
+      put tcst
+      sayWhen r Nothing $ fwords $
+        "Builtin " ++ old ++ " does no longer exist. " ++
+        "It is now bound by BUILTIN " ++ new
+
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
@@ -153,15 +159,18 @@ applyFlagsToWarnings ifs ws = do
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
   loopingNotOK  <- optTerminationCheck <$> pragmaOptions
-  let ignore = case ifs of { IgnoreFlags -> True ; RespectFlags -> False }
 
-  let cleanUp w = case w of
-       TerminationIssue{}           -> ignore || loopingNotOK
-       NotStrictlyPositive{}        -> ignore || negativeNotOK
-       UnsolvedMetaVariables ums    -> not (null ums) && (ignore || unsolvedNotOK)
-       UnsolvedInteractionMetas uis -> not (null uis) && (ignore || unsolvedNotOK)
-       UnsolvedConstraints tcst ucs -> not (null ucs) && (ignore || unsolvedNotOK)
-       EmptyRewritePragma           -> True
+  let cleanUp w =
+        let ignore = ifs == IgnoreFlags
+            keepUnsolved us = not (null us) && (ignore || unsolvedNotOK)
+        in case w of
+          TerminationIssue{}           -> ignore || loopingNotOK
+          NotStrictlyPositive{}        -> ignore || negativeNotOK
+          UnsolvedMetaVariables ums    -> keepUnsolved ums
+          UnsolvedInteractionMetas uis -> keepUnsolved uis
+          UnsolvedConstraints tcst ucs -> keepUnsolved ucs
+          OldBuiltin{}                 -> True
+          EmptyRewritePragma           -> True
 
   return $ filter cleanUp ws
 
