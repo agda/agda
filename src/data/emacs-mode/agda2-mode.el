@@ -99,7 +99,8 @@ argument, and does not need to be listed here."
   :type '(choice (const "GHC")
                  (const "GHCNoMain")
                  (const "Epic")
-                 (const "JS"))
+                 (const "JS")
+                 (const "LaTeX"))
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"

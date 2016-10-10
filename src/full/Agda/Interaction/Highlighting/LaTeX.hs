@@ -26,11 +26,13 @@ import qualified Data.List   as List
 
 import Paths_Agda
 
+import Agda.Syntax.Abstract (toTopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
+import Agda.Syntax.Concrete
+  (TopLevelModuleName, moduleNameParts, projectRoot)
 import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Interaction.Options
 import Agda.Compiler.CallCompiler
@@ -518,14 +520,20 @@ spaces (_ : ss) = __IMPOSSIBLE__
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
--- | The only exported function. It's (only) called in @Main.hs@.
-generateLaTeX :: TopLevelModuleName -> HighlightingInfo -> TCM ()
-generateLaTeX mod hi = do
+-- | The only exported function.
+generateLaTeX :: Interface -> TCM ()
+generateLaTeX i = do
+  let mod = toTopLevelModuleName $ iModuleName i
+      hi  = iHighlighting i
 
   options <- TCM.commandLineOptions
 
-  -- There is a default directory given by 'defaultLaTeXDir'.
-  let dir = optLaTeXDir options
+  dir <- case optGHCiInteraction options of
+    False -> return $ optLaTeXDir options
+    True  -> do
+      sourceFile <- Find.findFile mod
+      return $ filePath (projectRoot sourceFile mod)
+                 </> optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
   TCM.reportSLn "latex" 1 $ unlines

@@ -68,6 +68,7 @@ import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
+import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
@@ -551,6 +552,7 @@ interpret (Cmd_compile b file argv) =
           GHCNoMain -> MAlonzo.compilerMain NotMain i
           Epic      -> Epic.compilerMain i
           JS        -> JS.compilerMain i
+          LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
       Imp.SomeWarnings w ->
         display_info $ Info_Error $ unlines
@@ -912,7 +914,7 @@ withCurrentFile m = do
 
 data Backend = GHC
              | GHCNoMain
-             | Epic | JS
+             | Epic | JS | LaTeX
     deriving (Show, Read)
 
 data GiveRefine = Give | Refine | Intro

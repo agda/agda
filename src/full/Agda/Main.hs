@@ -148,7 +148,7 @@ runAgdaWithOptions generateHTML progName opts
             Dot.generateDot $ i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
-            LaTeX.generateLaTeX (toTopLevelModuleName $ iModuleName i) (iHighlighting i)
+            LaTeX.generateLaTeX i
 
           return result
 
