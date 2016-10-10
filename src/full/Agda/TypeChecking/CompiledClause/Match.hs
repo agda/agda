@@ -29,14 +29,7 @@ matchCompiled c args = do
   r <- matchCompiledE c $ map (fmap Apply) args
   case r of
     YesReduction simpl v -> return $ YesReduction simpl v
--- <<<<<<< HEAD
---     NoReduction bes      -> return $ NoReduction $ fmap (map fromElim) bes
---   where fromElim (Apply v) = v
---         fromElim (IApply x y v) = __IMPOSSIBLE__ -- TODO: Andrea how are projections handled?
---         fromElim (Proj f ) = __IMPOSSIBLE__
--- =======
     NoReduction bes      -> return $ NoReduction $ fmap (map argFromElim) bes
--- >>>>>>> master
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and
 --   and a spine @es@ and tries to apply the function to @es@.

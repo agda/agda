@@ -434,22 +434,6 @@ instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
--- <<<<<<< HEAD
--- instance Apply ClauseBody where
---   apply  b       []       = b
---   apply (Bind b) (a:args) = lazyAbsApp b (unArg a) `apply` args
---   apply (Body v) args     = Body $ v `apply` args
---   apply  NoBody   _       = NoBody
---   applyE  b       []             = b
-
---   applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
---   applyE (Bind b) (IApply x y a : es) = lazyAbsApp b a `applyE` es -- Andrea: TODO review after allowing copatterns for Path
---   applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
---   applyE (Body v) es             = Body $ v `applyE` es
---   applyE  NoBody   _             = NoBody
-
--- =======
--- >>>>>>> master
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
   apply (DDot v)           args = DDot  $ apply v args
