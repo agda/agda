@@ -900,13 +900,13 @@ getElims v = maybe default id $ hasElims v
 argFromElim :: Elim' a -> Arg a
 argFromElim (Apply u) = u
 argFromElim Proj{}    = __IMPOSSIBLE__
-argFromElim IApply{}    = __IMPOSSIBLE__
+argFromElim (IApply _ _ r) = defaultArg r -- losing information
 
 -- | Drop 'Apply' constructor. (Safe)
 isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
-isApplyElim (IApply _ _ r)    = Just (defaultArg r)  -- TODO Andrea: hack
+isApplyElim (IApply _ _ r)    = Just (defaultArg r)  -- losing information
 
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: [Elim' a] -> Maybe [Arg a]

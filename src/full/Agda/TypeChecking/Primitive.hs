@@ -745,7 +745,7 @@ primComp = do
                case absBody t of
                  Pi a b   -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
 
-                 s@Sort{} -> compSort iz io ineg phi u a0 s
+                 s@Sort{} -> compSort fallback iz io ineg phi u a0 s
 
                  Def q [Apply la, Apply lb, Apply bA, Apply phi', Apply bT, Apply f, Apply pf] | Just q == mGlue -> do
                    compGlue phi u a0 la lb bA phi' bT f pf
@@ -827,7 +827,9 @@ primComp = do
       [la,lb,bA,phi',bT,f,pf] <- mapM open xs
       pure tCGlue <#> la <#> lb <@> bA <@> phi' <@> bT <@> f <@> pf <@> phi <@> u <@> a0
 
-  compSort iz io ineg phi u a0 s = (redReturn =<<) . runNamesT [] $ do
+  compSort fallback iz io ineg phi u a0 s = do
+   checkPrims <- all isJust <$> sequence [getBuiltin' builtinPathToEquiv, getPrimitiveTerm' builtinGlue]
+   if not checkPrims then fallback else (redReturn =<<) . runNamesT [] $ do
     p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
     tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
     tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
