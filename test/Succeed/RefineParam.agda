@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.constr.add:45 #-}
 
 module _ where
 
