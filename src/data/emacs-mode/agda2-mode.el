@@ -93,14 +93,14 @@ argument, and does not need to be listed here."
   :type '(repeat string)
   :group 'agda2)
 
+(defvar agda2-backends '("GHC" "GHCNoMain" "Epic" "JS" "LaTeX")
+  "Compilation backends.")
+
 (defcustom agda2-backend
-  "GHC"
-  "The backend which is used to compile Agda programs."
-  :type '(choice (const "GHC")
-                 (const "GHCNoMain")
-                 (const "Epic")
-                 (const "JS")
-                 (const "LaTeX"))
+  'ask
+  "The backend used to compile Agda programs."
+  :type `(choice (const :tag "Ask every time" ask)
+                 ,@(mapcar (lambda (x) `(const ,x)) agda2-backends))
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
@@ -811,13 +811,22 @@ resulting time (represented as a string)."
 
 The variable `agda2-backend' determines which backend is used."
   (interactive)
-  (agda2-go t t t "Cmd_compile"
-            (cond ((equal agda2-backend "MAlonzo")       "GHC")
-                  ((equal agda2-backend "MAlonzoNoMain") "GHCNoMain")
-                  (t agda2-backend))
-            (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-program-args)
-            ))
+  (let ((backend (cond ((equal agda2-backend "MAlonzo")       "GHC")
+                       ((equal agda2-backend "MAlonzoNoMain") "GHCNoMain")
+                       ((equal agda2-backend 'ask)
+                        (completing-read "Backend: " agda2-backends
+                                         nil t nil nil nil
+                                         'inherit-input-method))
+                       (t agda2-backend))))
+    (unless (member backend agda2-backends)
+      (if (equal backend "")
+          (error "No backend chosen")
+        (error "Invalid backend: %s" backend)))
+    (agda2-go t t t "Cmd_compile"
+              backend
+              (agda2-string-quote (buffer-file-name))
+              (agda2-list-quote agda2-program-args)
+              )))
 
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
