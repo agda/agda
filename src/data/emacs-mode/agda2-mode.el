@@ -1371,7 +1371,12 @@ a goal, the top-level scope."
 
 (defun agda2-compute-normalised (&optional arg)
   "Compute the normal form of the expression in the goal at point.
-With a prefix argument \"abstract\" is ignored during the computation."
+
+With a prefix argument distinct from `(4)' the normal form of
+\"show <expression>\" is computed.
+
+With any prefix argument \"abstract\" is ignored during the
+computation."
   (interactive "P")
   (let ((cmd (concat "Cmd_compute"
                       (cond ((equal arg nil) " DefaultCompute")
@@ -1380,10 +1385,15 @@ With a prefix argument \"abstract\" is ignored during the computation."
     (agda2-goal-cmd cmd "expression to normalise")))
 
 (defun agda2-compute-normalised-toplevel (expr &optional arg)
-  "Computes the normal form of the given expression.
-The scope used for the expression is that of the last point inside the current
-top-level module.
-With a prefix argument \"abstract\" is ignored during the computation."
+  "Compute the normal form of the given expression.
+The scope used for the expression is that of the last point
+inside the current top-level module.
+
+With a prefix argument distinct from `(4)' the normal form of
+\"show <expression>\" is computed.
+
+With any prefix argument \"abstract\" is ignored during the
+computation."
   (interactive "MExpression: \nP")
   (let ((cmd (concat "Cmd_compute_toplevel"
                      (cond ((equal arg nil) " DefaultCompute")
@@ -1392,10 +1402,15 @@ With a prefix argument \"abstract\" is ignored during the computation."
     (agda2-go t nil t (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
-  "Computes the normal form of the given expression,
-using the scope of the current goal or, if point is not in a goal, the
-top-level scope.
-With a prefix argument \"abstract\" is ignored during the computation."
+  "Compute the normal form of the given expression.
+The scope used for the expression is that of the last point
+inside the current top-level module.
+
+With a prefix argument distinct from `(4)' the normal form of
+\"show <expression>\" is computed.
+
+With any prefix argument \"abstract\" is ignored during the
+computation."
   (interactive)
   (if (agda2-goal-at (point))
       (call-interactively 'agda2-compute-normalised)
