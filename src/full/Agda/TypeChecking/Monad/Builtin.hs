@@ -614,7 +614,7 @@ intervalView' = do
   imin <- getPrimitiveName' "primIMin"
   ineg <- getPrimitiveName' "primINeg"
   return $ \ t ->
-    case t of
+    case ignoreSharing t of
       Def q es ->
         case es of
           [] | Just q == iz -> IZero

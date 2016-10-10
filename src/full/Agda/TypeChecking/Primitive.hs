@@ -562,7 +562,7 @@ primIdJ = do
     case (ts,comp,papply) of
      ([la,lc,a,x,c,d,y,eq], Just comp, Just papply) -> do
        seq    <- reduceB' eq
-       case unArg $ ignoreBlocking $ seq of
+       case ignoreSharing $ unArg $ ignoreBlocking $ seq of
          (Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p]) | Just q == conidn -> do
           redReturn $ runNames [] $ do
              [lc,c,d,la,a,x,y,phi,p] <- mapM (open . unArg) [lc,c,d,la,a,x,y,phi,p]
@@ -680,7 +680,7 @@ primIdFace' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case unArg (ignoreBlocking st) of
+        case ignoreSharing $ unArg (ignoreBlocking st) of
           Def q [_,_,_,_, Apply phi,_] | Just q == mConId -> redReturn (unArg phi)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
@@ -699,7 +699,7 @@ primIdPath' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case unArg (ignoreBlocking st) of
+        case ignoreSharing $ unArg (ignoreBlocking st) of
           Def q [_,_,_,_,_,Apply w] | Just q == mConId -> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
@@ -736,13 +736,13 @@ primComp = do
                                       lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- TODO: primIsOneEmpty
                           _     -> notReduced u
 
-           case unArg $ ignoreBlocking sc of
+           case ignoreSharing $ unArg $ ignoreBlocking sc of
              Lam _info t -> do
                t <- reduce' t
                mGlue <- getPrimitiveName' builtinGlue
                mId   <- getBuiltinName' builtinId
                mPath <- getBuiltinName' builtinPath
-               case absBody t of
+               case ignoreSharing $ absBody t of
                  Pi a b   -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
 
                  s@Sort{} -> compSort fallback iz io ineg phi u a0 s
@@ -782,10 +782,10 @@ primComp = do
     where
       reduce2Lam t = do
         t <- reduce' t
-        case t of
+        case ignoreSharing t of
           Lam _ t -> Reduce.underAbstraction_ t $ \ t -> do
              t <- reduce' t
-             case t of
+             case ignoreSharing t of
                Lam _ t -> Reduce.underAbstraction_ t reduce'
                _       -> return t
           _ -> return t
@@ -805,11 +805,11 @@ primComp = do
                                lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- TODO: primIsOneEmpty
                    _     -> su
         sameConHead h u = allComponents unview phi u $ \ t ->
-          case t of
+          case ignoreSharing t of
             Con h' _ -> h == h'
             _        -> False
 
-    case a0 of
+    case ignoreSharing a0 of
       Con h args -> do
         ifM (not <$> sameConHead h u) noRed $ do
           Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
@@ -1030,7 +1030,7 @@ prim_unglue' = do
          IOne -> redReturn $ unArg f `apply` [argN one,b]
          _    -> do
             sb <- reduceB' b
-            case unArg $ ignoreBlocking $ sb of
+            case ignoreSharing $ unArg $ ignoreBlocking $ sb of
                Def q [Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply a]
                      | Just q == mglue -> redReturn $ unArg a
                _ -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf] ++ [reduced sb])
@@ -1046,7 +1046,7 @@ primFaceForall' = do
     case ts of
       [phi] -> do
         sphi <- reduceB' phi
-        case unArg $ ignoreBlocking $ sphi of
+        case ignoreSharing $ unArg $ ignoreBlocking $ sphi of
           Lam _ t -> do
             t <- reduce' t
             case t of
