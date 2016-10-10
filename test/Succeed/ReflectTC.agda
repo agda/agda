@@ -8,7 +8,10 @@ open import Common.Equality
 -- Some helpers --
 
 quotegoal : (Type → Tactic) → Tactic
-quotegoal tac hole = inferType hole >>= λ goal → tac goal hole
+quotegoal tac hole =
+  inferType hole >>= λ goal →
+  reduce goal >>= λ goal →
+  tac goal hole
 
 case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
 case x of f = f x

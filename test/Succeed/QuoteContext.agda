@@ -16,18 +16,17 @@ test (suc m) v n = quoteContext
 
 test-zero : test 0 _ 0 ≡
   vArg (def (quote Nat) []) ∷
-  vArg (def (quote ⊤) []) ∷ []
+  vArg (def (quote Vec) (vArg (def (quote Nat) []) ∷
+                         vArg (con (quote zero) []) ∷
+                         [])) ∷
+  []
 test-zero = refl
 
 test-suc : test 1 (zero , _) 0 ≡
   vArg (def (quote Nat) []) ∷
-  vArg
-    (def (quote Σ)
-      (hArg (def (quote lzero) []) ∷
-       hArg (def (quote lzero) []) ∷
-       vArg (def (quote Nat) []) ∷
-       vArg (lam visible (abs "x" (def (quote Vec)
-         (vArg (def (quote Nat) []) ∷
-          vArg (var 1 []) ∷ [])))) ∷ [])) ∷
-  vArg (def (quote Nat) []) ∷ []
+  vArg (def (quote Vec) (vArg (def (quote Nat) []) ∷
+                         vArg (con (quote suc) (vArg (var 0 []) ∷ [])) ∷
+                         [])) ∷
+  vArg (def (quote Nat) []) ∷
+  []
 test-suc = refl

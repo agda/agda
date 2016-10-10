@@ -229,6 +229,7 @@ postulate
   inferType     : Term → TC Type
   checkType     : Term → Type → TC Term
   normalise     : Term → TC Term
+  reduce        : Term → TC Term
   catchTC       : ∀ {a} {A : Set a} → TC A → TC A → TC A
   quoteTC       : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC     : ∀ {a} {A : Set a} → Term → TC A
@@ -252,6 +253,7 @@ postulate
 {-# BUILTIN AGDATCMINFERTYPE     inferType     #-}
 {-# BUILTIN AGDATCMCHECKTYPE     checkType     #-}
 {-# BUILTIN AGDATCMNORMALISE     normalise     #-}
+{-# BUILTIN AGDATCMREDUCE        reduce        #-}
 {-# BUILTIN AGDATCMCATCHERROR    catchTC       #-}
 {-# BUILTIN AGDATCMQUOTETERM     quoteTC       #-}
 {-# BUILTIN AGDATCMUNQUOTETERM   unquoteTC     #-}

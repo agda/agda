@@ -11,7 +11,8 @@ f <$> m = m >>= λ x → returnTC (f x)
 macro
   default : Tactic
   default hole =
-    inferType hole >>= λ
+    inferType hole >>= λ goal →
+    reduce goal >>= λ
     { (def (quote Nat) []) → unify hole (lit (nat 42))
     ; (def (quote Bool) []) → unify hole (con (quote false) [])
     ; (meta x _) → catchTC (blockOnMeta x) (typeError (strErr "impossible" ∷ []))
