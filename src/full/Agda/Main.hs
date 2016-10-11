@@ -43,6 +43,7 @@ import Agda.Utils.String
 
 import Agda.Version
 
+import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
@@ -74,7 +75,13 @@ runAgdaWithOptions generateHTML progName opts
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
-          Bench.billTo [] (checkFile opts) `finally_` do
+          UtilsBench.setBenchmarking True
+            -- Andreas, Nisse, 2016-10-11 AIM XXIV
+            -- Turn benchmarking on provisionally, otherwise we lose track of time spent
+            -- on e.g. LaTeX-code generation.
+            -- Benchmarking might be turned off later by setCommandlineOptions
+
+          Bench.billTo [] checkFile `finally_` do
             -- Print benchmarks.
             Bench.print
 
