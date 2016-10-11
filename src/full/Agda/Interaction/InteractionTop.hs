@@ -72,7 +72,6 @@ import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
-import qualified Agda.Compiler.Epic.Compiler as Epic
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
 
@@ -550,7 +549,6 @@ interpret (Cmd_compile b file argv) =
         lift $ case b of
           GHC       -> MAlonzo.compilerMain IsMain i
           GHCNoMain -> MAlonzo.compilerMain NotMain i
-          Epic      -> Epic.compilerMain i
           JS        -> JS.compilerMain i
           LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
@@ -914,7 +912,8 @@ withCurrentFile m = do
 
 data Backend = GHC
              | GHCNoMain
-             | Epic | JS | LaTeX
+             | JS
+             | LaTeX
     deriving (Show, Read)
 
 data GiveRefine = Give | Refine | Intro
