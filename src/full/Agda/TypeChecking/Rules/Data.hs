@@ -17,6 +17,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Fixity
 
+import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Conversion
@@ -366,6 +367,7 @@ defineProjections dataname con params names fsT t = do
        emptyFunction
         { funClauses = [clause]
         , funTerminates = Just True
+        , funCompiled = Just Fail
         }
 
 defineCompForFields
@@ -402,7 +404,7 @@ defineCompForFields applyProj name params fsT fns rect = do
   reportSDoc "comp.rec" 20 $ prettyTCM compType
 
   noMutualBlock $ addConstant compName $ defaultDefn defaultArgInfo compName compType $
-    emptyFunction { funTerminates = Just True }
+    emptyFunction { funTerminates = Just True, funCompiled = Just Fail }
 
   --   ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (_ : (i : I) -> Partial φ (R (δ i))) (_ : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)

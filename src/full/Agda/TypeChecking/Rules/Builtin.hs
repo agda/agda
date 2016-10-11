@@ -669,7 +669,8 @@ bindBuiltinNoDef b q = do
       addConstant q $
         defaultDefn defaultArgInfo q t $
           Primitive ConcreteDef -- TODO fix (Info.defAbstract i)
-              s [] Nothing
+              s []
+              (Just (CC.Done [] $ Def q []))
 
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b

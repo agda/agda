@@ -238,7 +238,9 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
       "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  unimplemented = typeError $ NotImplemented s
+  axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
+  unimplemented | s `L.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
+                | otherwise = typeError $ NotImplemented s
 
   lam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
 
