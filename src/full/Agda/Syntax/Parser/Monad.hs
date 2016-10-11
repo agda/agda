@@ -93,7 +93,9 @@ data ParseFlags = ParseFlags
   deriving Show
 
 -- | What you get if parsing fails.
-data ParseError = ParseError
+data ParseError =
+  -- | Errors that arise at a specific position in the file
+  ParseError
   { errSrcFile   :: !SrcFile
                     -- ^ The file in which the error occurred.
   , errPos       :: !PositionWithoutFile
@@ -104,8 +106,19 @@ data ParseError = ParseError
                     -- ^ The previous token.
   , errMsg       :: String
                     -- ^ Hopefully an explanation of what happened.
+  } |
+  -- | Parse errors that concern a range in a file.
+  OverlappingTokensError
+  { errRange     :: !(Range' SrcFile)
+                    -- ^ The range of the bigger overlapping token
+  } |
+  -- | Parse errors that concern a whole file.
+  InvalidExtensionError
+  { errPath      :: !AbsolutePath
+                    -- ^ The file which the error concerns.
+  , errValidExts :: [String]
   }
-    deriving (Typeable)
+  deriving (Typeable)
 
 instance Exception ParseError
 
@@ -154,16 +167,27 @@ instance Show ParseError where
   show = prettyShow
 
 instance Pretty ParseError where
-  pretty err = vcat
-      [ pretty ((errPos err) { srcFile = errSrcFile err }) <> colon <+>
-        text (errMsg err)
-      , text $ errPrevToken err ++ "<ERROR>"
-      , text $ take 30 (errInput err) ++ "..."
+  pretty ParseError{errPos,errSrcFile,errMsg,errPrevToken,errInput} = vcat
+      [ pretty (errPos { srcFile = errSrcFile }) <> colon <+>
+        text errMsg
+      , text $ errPrevToken ++ "<ERROR>"
+      , text $ take 30 errInput ++ "..."
+      ]
+  pretty OverlappingTokensError{errRange} = vcat
+      [ pretty errRange <> colon <+>
+        text "Multi-line comment spans one or more literate text blocks."
+      ]
+  pretty InvalidExtensionError{errPath,errValidExts} = vcat
+      [ pretty errPath <> colon <+>
+        text "Unsupported extension."
+      , text "Supported extensions are:" <+> prettyList errValidExts
       ]
 
 instance HasRange ParseError where
-  getRange err = posToRange' (errSrcFile err) p p
-    where p = errPos err
+  getRange ParseError{errSrcFile,errPos=p} = posToRange' errSrcFile p p
+  getRange OverlappingTokensError{errRange} = errRange
+  getRange InvalidExtensionError{errPath} = posToRange p p
+    where p = startPos (Just errPath)
 
 {--------------------------------------------------------------------------
     Running the parser
