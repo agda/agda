@@ -94,6 +94,17 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                 return (sort $ varSort 1)))
   , (builtinInterval           |-> builtinPostulate tSetOmega)
+  , (builtinSub                |-> builtinPostulate (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
+                                                     hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
+                                                     nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+                                                     elInf (cl primPartial <#> a <@> bA <@> phi) --> (return $ sort Inf)
+                                                    ))
+  , (builtinSubIn              |-> builtinPostulate (runNamesT [] $
+                                                     hPi' "a" (el $ cl primLevel) $ \ a ->
+                                                     hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
+                                                     hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+                                                     nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
+                                                     elInf $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ \ _ -> x)))
   , (builtinIZero              |-> builtinPostulate tinterval)
   , (builtinIOne               |-> builtinPostulate tinterval)
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))

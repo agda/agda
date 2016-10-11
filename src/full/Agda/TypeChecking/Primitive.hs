@@ -666,6 +666,29 @@ primPartialP' = do
         toFinitePi <$> nPi' "p" (elInf $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
+primSubOut' :: TCM PrimitiveImpl
+primSubOut' = do
+  t    <- runNamesT [] $
+          hPi' "a" (el $ cl primLevel) $ \ a ->
+          hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
+          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+          hPi' "u" (elInf $ cl primPartial <#> a <@> bA <@> phi) $ \ u ->
+          elInf (cl primSub <#> a <#> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+    case ts of
+      [a,bA,phi,u,x] -> do
+        view <- intervalView'
+        sphi <- reduceB' phi
+        case view $ unArg $ ignoreBlocking sphi of
+          IOne -> redReturn =<< (return (unArg u) <..> (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinItIsOne))
+          _ -> do
+            sx <- reduceB' x
+            mSubIn <- getBuiltinName' builtinSubIn
+            case ignoreSharing $ unArg $ ignoreBlocking $ sx of
+              Def q [_,_,_, Apply t] | Just q == mSubIn -> redReturn (unArg t)
+              _ -> return $ NoReduction $ map notReduced [a,bA] ++ [reduced sphi, notReduced u, reduced sx]
+      _ -> __IMPOSSIBLE__
+
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
   t <- runNamesT [] $
@@ -1570,6 +1593,7 @@ primitiveFunctions = Map.fromList
   , "primDepIMin"         |-> primDepIMin'
   , "primIdFace"          |-> primIdFace'
   , "primIdPath"          |-> primIdPath'
+  , builtinSubOut         |-> primSubOut'
   ]
   where
     (|->) = (,)

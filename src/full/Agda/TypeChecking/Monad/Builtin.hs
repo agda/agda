@@ -121,6 +121,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
+    primSub, primSubIn, primSubOut,
     primId, primConId,
     primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
     primCompGlue, primFaceForall,
@@ -202,6 +203,9 @@ primFaceForall   = getPrimitiveTerm builtinFaceForall
 primIsOne1       = getBuiltin builtinIsOne1
 primIsOne2       = getBuiltin builtinIsOne2
 primIsOneEmpty   = getBuiltin builtinIsOneEmpty
+primSub          = getBuiltin builtinSub
+primSubIn        = getBuiltin builtinSubIn
+primSubOut       = getPrimitiveTerm builtinSubOut
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -330,6 +334,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
+  builtinSub, builtinSubIn, builtinSubOut,
   builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
   builtinId, builtinConId,
@@ -424,6 +429,9 @@ builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
 builtinIsOneEmpty                    = "ISONEEMPTY"
+builtinSub                           = "SUB"
+builtinSubIn                         = "SUBIN"
+builtinSubOut                        = "primSubOut"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
@@ -559,6 +567,7 @@ builtinsNoDef =
   , builtinPartialP
   , builtinRestrict
   , builtinIsOne
+  , builtinSub
   ]
 
 -- | The coinductive primitives.

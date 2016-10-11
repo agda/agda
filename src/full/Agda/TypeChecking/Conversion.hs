@@ -332,6 +332,7 @@ compareTerm' cmp a m n =
        mI     <- getBuiltinName'   builtinInterval
        mIsOne <- getBuiltinName'   builtinIsOne
        mGlue  <- getPrimitiveName' builtinGlue
+       mSub   <- getBuiltinName' builtinSub
        case ty of
          Def q es | Just q == mIsOne -> return ()
          Def q es@(Apply l: Apply a:_) | Just q == mGlue, Just args <- allApplyElims es -> do
@@ -340,6 +341,11 @@ compareTerm' cmp a m n =
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+         Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
+              ty <- el' (pure $ unArg l) (pure $ unArg a)
+              out <- primSubOut
+              let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
+              compareTerm cmp ty (mkOut m) (mkOut n)
          Def q [] | Just q == mI -> compareInterval cmp a' m n
          _ -> compareAtom cmp a' m n
 
@@ -533,7 +539,7 @@ compareAtom cmp t m n =
                 -- Variables are invariant in their arguments
                 compareElims [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
-            (Def f es, Def f' es') | f == f' -> ifM (compareUnglueApp f es es') (return ()) $ do
+            (Def f es, Def f' es') | f == f' -> ifM (compareEtaPrims f es es') (return ()) $ do
                 def <- getConstInfo f
                 -- To compute the type @a@ of a projection-like @f@,
                 -- we have to infer the type of its first argument.
@@ -570,8 +576,33 @@ compareAtom cmp t m n =
                     compareArgs (repeat $ polFromCmp cmp) a' (Con x []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
-        compareUnglueApp :: QName -> Elims -> Elims -> TCM Bool
-        compareUnglueApp q es es' = ifM (not <$> isPrimitive builtin_unglue q) (return False) $ do
+        -- returns True in case we handled the comparison already.
+        compareEtaPrims :: QName -> Elims -> Elims -> TCM Bool
+        compareEtaPrims q es es' = do
+          munglue <- getPrimitiveName' builtin_unglue
+          msubout <- getPrimitiveName' builtinSubOut
+          case () of
+            _ | Just q == munglue -> compareUnglueApp q es es'
+            _ | Just q == msubout -> compareSubApp q es es'
+            _                     -> return False
+        compareSubApp q es es' = do
+          let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
+          case (allApplyElims as, allApplyElims as') of
+            (Just [a,bA,phi,u,x], Just [a',bA',phi',u',x']) -> do
+              tSub <- primSub
+              -- Andrea, 28-07-16:
+              -- comparing the types is most probably wasteful,
+              -- since b and b' should be neutral terms, but it's a
+              -- precondition for the compareAtom call to make
+              -- sense.
+              equalType (El Inf $ apply tSub $ [a,bA] ++ map (setHiding NotHidden) [phi,u])
+                        (El Inf $ apply tSub $ [a,bA'] ++ map (setHiding NotHidden) [phi',u'])
+              compareAtom cmp (El Inf $ apply tSub $ [a,bA] ++ map (setHiding NotHidden) [phi,u])
+                              (unArg x) (unArg x')
+              compareElims [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
+              return True
+            _  -> return False
+        compareUnglueApp q es es' = do
           let (as,bs) = splitAt 8 es; (as',bs') = splitAt 8 es'
           case (allApplyElims as, allApplyElims as') of
             (Just [la,lb,bA,phi,bT,f,pf,b], Just [la',lb',bA',phi',bT',f',pf',b']) -> do
