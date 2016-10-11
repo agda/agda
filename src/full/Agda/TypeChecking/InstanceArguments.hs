@@ -67,7 +67,7 @@ initialIFSCandidates t = do
 
       -- {{}}-fields of variables are also candidates
       let cxtAndTypes = [ (var i, snd $ unDom $ raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
-      fields <- concat <$> mapM instanceFields cxtAndTypes
+      fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $ text "instance field candidates" $$ nest 2 (vcat
         [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
               , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- fields ])
@@ -365,9 +365,16 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
-dropSameCandidates m cands = do
+dropSameCandidates m cands0 = do
   metas <- Set.fromList . Map.keys <$> getMetaStore
   let freshMetas x = not $ Set.null $ Set.difference (Set.fromList $ allMetas x) metas
+
+  -- Take overlappable candidates into account
+  let cands =
+        case partition (\ (c, _, _, _) -> candidateOverlappable c) cands0 of
+          (cand : _, []) -> [cand]  -- only overlappable candidates: pick the first one
+          _              -> cands0  -- otherwise require equality
+
   reportSDoc "tc.instance" 50 $ vcat
     [ text "valid candidates:"
     , nest 2 $ vcat [ if freshMetas (v, a) then text "(redacted)" else
