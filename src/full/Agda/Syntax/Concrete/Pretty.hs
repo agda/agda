@@ -427,8 +427,8 @@ instance Pretty OpenShortHand where
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts) = fsep $ map text $ "OPTIONS" : opts
     pretty (BuiltinPragma _ b x)  = hsep [ text "BUILTIN", text b, pretty x ]
-    pretty (RewritePragma _ x)    =
-      hsep [ text "REWRITE", pretty x ]
+    pretty (RewritePragma _ xs)    =
+      hsep [ text "REWRITE", hsep $ map pretty xs ]
     pretty (CompiledPragma _ x hs) =
       hsep [ text "COMPILED", pretty x, text hs ]
     pretty (CompiledExportPragma _ x hs) =

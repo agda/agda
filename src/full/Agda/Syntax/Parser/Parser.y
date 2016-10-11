@@ -570,6 +570,9 @@ PragmaName : string {% mkName $1 }
 PragmaQName :: { QName }
 PragmaQName : string {% pragmaQName $1 }  -- Issue 2125. WAS: string {% fmap QName (mkName $1) }
 
+PragmaQNames :: { [QName] }
+PragmaQNames : Strings {% mapM pragmaQName $1 }
+
 {--------------------------------------------------------------------------
     Expressions (terms and types)
  --------------------------------------------------------------------------}
@@ -1405,7 +1408,7 @@ BuiltinPragma
 
 RewritePragma :: { Pragma }
 RewritePragma
-    : '{-#' 'REWRITE' PragmaQName '#-}'
+    : '{-#' 'REWRITE' PragmaQNames '#-}'
       { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
 
 CompiledPragma :: { Pragma }

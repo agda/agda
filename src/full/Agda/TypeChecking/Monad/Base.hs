@@ -2209,6 +2209,8 @@ data Warning =
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      TCState Constraints
     -- ^ Do not use directly with 'warning'
+  | EmptyRewritePragma
+    -- ^ If the user wrote just @{-# REWRITE #-}@.
   deriving (Show)
 
 ---------------------------------------------------------------------------
