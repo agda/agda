@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
@@ -62,6 +63,13 @@ initialIFSCandidates t = do
                  , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
+
+      -- {{}}-fields of variables are also candidates
+      let cxtAndTypes = [ (var i, snd $ unDom $ raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
+      fields <- concat <$> mapM instanceFields cxtAndTypes
+      reportSDoc "tc.instance.fields" 30 $ text "instance field candidates" $$ nest 2 (vcat
+        [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- fields ])
+
       -- get let bindings
       env <- asks envLetBindings
       env <- mapM (getOpen . snd) $ Map.toList env
@@ -70,7 +78,15 @@ initialIFSCandidates t = do
                  , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
-      return $ vars ++ lets
+      return $ vars ++ fields ++ lets
+
+    instanceFields (v, t) =
+      caseMaybeM (isEtaRecordType =<< reduce t) (return []) $ \ (r, pars) -> do
+        (tel, args) <- etaExpandRecord r pars v
+        let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
+        fmap concat $ forM (zip args types) $ \ (arg, t) ->
+          ([ Candidate (unArg arg) t ExplicitStayExplicit | getHiding arg == Instance ] ++) <$>
+          instanceFields (unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
