@@ -81,8 +81,8 @@ runAgdaWithOptions generateHTML progName opts
             -- Print accumulated statistics.
             printStatistics 20 Nothing =<< use lensAccumStatistics
   where
-    checkFile :: CommandLineOptions -> TCM ()
-    checkFile opts = do
+    checkFile :: TCM ()
+    checkFile = do
       let i             = optInteractive     opts
           ghci          = optGHCiInteraction opts
           ghc           = optGhcCompile      opts
