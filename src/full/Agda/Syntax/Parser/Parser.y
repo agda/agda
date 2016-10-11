@@ -97,6 +97,7 @@ import Agda.Utils.Impossible
     'infixl'                  { TokKeyword KwInfixL $$ }
     'infixr'                  { TokKeyword KwInfixR $$ }
     'instance'                { TokKeyword KwInstance $$ }
+    'overlap'                 { TokKeyword KwOverlap $$ }
     'let'                     { TokKeyword KwLet $$ }
     'macro'                   { TokKeyword KwMacro $$ }
     'module'                  { TokKeyword KwModule $$ }
@@ -226,6 +227,7 @@ Token
     | 'infixl'                  { TokKeyword KwInfixL $1 }
     | 'infixr'                  { TokKeyword KwInfixR $1 }
     | 'instance'                { TokKeyword KwInstance $1 }
+    | 'overlap'                 { TokKeyword KwOverlap $1 }
     | 'let'                     { TokKeyword KwLet $1 }
     | 'macro'                   { TokKeyword KwMacro $1 }
     | 'module'                  { TokKeyword KwModule $1 }
@@ -1080,6 +1082,9 @@ TypeSigs : SpaceIds ':' Expr { map (\ x -> TypeSig defaultArgInfo x $3) $1 }
 ArgTypeSigs :: { [Arg Declaration] }
 ArgTypeSigs
   : ArgIds ':' Expr { map (fmap (\ x -> TypeSig defaultArgInfo x $3)) $1 }
+  | 'overlap' ArgIds ':' Expr {
+      let setOverlap (Arg i x) = Arg i{ argInfoOverlappable = True } x in
+      map (setOverlap . fmap (\ x -> TypeSig defaultArgInfo x $4)) $2 }
   | 'instance' ArgTypeSignatures {
     let
       setInstance (TypeSig info x t) = TypeSig (setHiding Instance info) x t
