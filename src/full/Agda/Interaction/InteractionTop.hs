@@ -564,8 +564,8 @@ interpret Cmd_constraints =
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
-  pws <- interpretWarnings
-  display_info $ Info_AllGoalsWarnings (unlines ms) pws
+  (pwe, pwa) <- interpretWarnings
+  display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
 
 interpret Cmd_warnings = do
   -- Ulf, 2016-08-09: Warnings are now printed in the info buffer by Cmd_metas.
@@ -796,14 +796,16 @@ interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
 interpret Cmd_show_version = display_info Info_Version
 
 -- | Show warnings
-interpretWarnings :: CommandM String
+interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings RespectFlags
+  mws <- lift $ Imp.getAllWarnings Imp.AllWarnings RespectFlags
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
-      pws <- lift $ prettyTCWarnings ws
-      return pws
-    _ -> return ""
+      let (we, wa) = Imp.classifyWarnings ws
+      pwe <- lift $ prettyTCWarnings we
+      pwa <- lift $ prettyTCWarnings wa
+      return (pwe, pwa)
+    _ -> return ("", "")
    where isNotMeta w = case tcWarning w of
                          UnsolvedInteractionMetas{} -> False
                          UnsolvedMetaVariables{}    -> False
