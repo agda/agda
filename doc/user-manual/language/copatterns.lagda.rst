@@ -90,7 +90,7 @@ Note that if we want to use automated case-splitting and pattern
 matching to implement one of the fields, we need to do so in a separate
 definition.
 
-With copatterns, we can define the fields of a record in the same way
+With *copatterns*, we can define the fields of a record in the same way
 that we defined the cases of a function:
 
 ..
@@ -110,6 +110,7 @@ that we defined the cases of a function:
 The result is exactly the same:
 
 ::
+
     test₁ : 3rd enum-Nat ≡ 3 
     test₁ = refl
 
@@ -148,8 +149,8 @@ Without copatterns, we just add the extra argument to the function declaration:
     test₁ : 3rd (enum-Nat 10) ≡ 13 
     test₁ = refl
 
-With copatterns, the new argument must be repeated once for each field in the
-record:
+With copatterns, the function argument must be repeated once for each
+field in the record:
 
 ..
   ::
@@ -234,9 +235,9 @@ With copatterns, we can do the case analysis directly by pattern matching:
       backward enum-Nat zero = zero 
       backward enum-Nat (suc n) = n 
 
-   If the fields of Enumeration are not in scope (in particular, the ``start`` field),
-   then Agda will not be able to figure out what the first copattern means.
-   This will yield the following error message:
+   If the fields of the ``Enumeration`` record are not in scope (in
+   particular, the ``start`` field), then Agda will not be able to
+   figure out what the first copattern means:
 
    .. code-block:: agda
 
