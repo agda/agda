@@ -12,9 +12,9 @@ open Functor {{...}} public
 
 record Applicative (F : Set → Set) : Set₁ where
   field
-    pure  : ∀ {A} → A → F A
-    _<*>_ : ∀ {A B} → F (A → B) → F A → F B
-    instance Fun : Functor F
+    pure    : ∀ {A} → A → F A
+    _<*>_   : ∀ {A B} → F (A → B) → F A → F B
+    {{Fun}} : Functor F
 
   defaultApplicativeFunctor : Functor F
   fmap {{defaultApplicativeFunctor}} f x = pure f <*> x
@@ -56,3 +56,7 @@ testVec xs ys = fmap _+_ xs <*> ys
 
 what : ∀ {n} → FunctorVec {n} ≡ it
 what = refl
+
+zipWith : {A B C : Set} {F : Set → Set} {{_ : Applicative F}} →
+          (A → B → C) → F A → F B → F C
+zipWith f x y = fmap f x <*> y
