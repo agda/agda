@@ -260,7 +260,6 @@ library
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
-                    Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile
                     Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs

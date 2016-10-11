@@ -1269,7 +1269,7 @@ parseAndDoAtToplevel'
   -> CommandM ()
 parseAndDoAtToplevel' cmd title s = do
   (time, res) <- localStateCommandM $ do
-    e <- liftIO $ parse exprParser s
+    e <- lift $ runPM $ parse exprParser s
     maybeTimed (lift $ B.atTopLevel $
                 cmd =<< concreteToAbstract_ e)
   display_info (title $ fromMaybe empty time $$ res)

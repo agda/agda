@@ -5,7 +5,7 @@ module Agda.Syntax.Parser.Monad
       Parser
     , ParseResult(..)
     , ParseState(..)
-    , ParseError(..)
+    , ParseError(..), ParseWarning(..)
     , LexState
     , LayoutContext(..)
     , ParseFlags (..)
@@ -117,10 +117,20 @@ data ParseError =
   { errPath      :: !AbsolutePath
                     -- ^ The file which the error concerns.
   , errValidExts :: [String]
+  } |
+  ReadFileError
+  { errPath      :: !AbsolutePath
+  , errIOError   :: IOError
   }
   deriving (Typeable)
 
-instance Exception ParseError
+-- | Warnings for parsing
+data ParseWarning =
+  -- | Parse errors that concern a range in a file.
+  OverlappingTokensWarning
+  { warnRange    :: !(Range' SrcFile)
+                    -- ^ The range of the bigger overlapping token
+  }
 
 -- | The result of parsing something.
 data ParseResult a  = ParseOk ParseState a
@@ -182,12 +192,30 @@ instance Pretty ParseError where
         text "Unsupported extension."
       , text "Supported extensions are:" <+> prettyList errValidExts
       ]
+  pretty ReadFileError{errPath,errIOError} = vcat
+      [ text "Cannot read file" <+> pretty errPath
+      , text$ displayException errIOError
+      ]
 
 instance HasRange ParseError where
   getRange ParseError{errSrcFile,errPos=p} = posToRange' errSrcFile p p
   getRange OverlappingTokensError{errRange} = errRange
   getRange InvalidExtensionError{errPath} = posToRange p p
     where p = startPos (Just errPath)
+  getRange ReadFileError{errPath} = posToRange p p
+    where p = startPos (Just errPath)
+
+
+instance Show ParseWarning where
+  show = prettyShow
+
+instance Pretty ParseWarning where
+  pretty OverlappingTokensWarning{warnRange} = vcat
+      [ pretty warnRange <> colon <+>
+        text "Multi-line comment spans one or more literate text blocks."
+      ]
+instance HasRange ParseWarning where
+  getRange OverlappingTokensWarning{warnRange} = warnRange
 
 {--------------------------------------------------------------------------
     Running the parser
@@ -239,8 +267,11 @@ parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
           -> IO (ParseResult a)
 parseFile flags st p file =
-    do  input <- liftIO $ UTF8.readTextFile $ filePath file
-        return $ parseFromSrc flags st p (Strict.Just file) input
+    do  res <- (Right <$> (UTF8.readTextFile (filePath file))) `catch`
+          (return . Left . ReadFileError file)
+        case res of
+          Left  error -> return$ ParseFailed error
+          Right input -> return$ parseFromSrc flags st p (Strict.Just file) input
 
 -- | Parses a string as if it were the contents of the given file
 --   Useful for integrating preprocessors.

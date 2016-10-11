@@ -48,6 +48,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
+import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -58,7 +59,6 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
 
-import Agda.Interaction.Exceptions
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Response
@@ -72,6 +72,7 @@ import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
   , MonadError(catchError, throwError)
+  , runExceptT
   )
 
 import Agda.Utils.Benchmark (MonadBench(..))
@@ -2210,6 +2211,7 @@ data Warning =
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-# REWRITE #-}@.
+  | ParseWarning             ParseWarning
   deriving Show
 
 data TCWarning
@@ -2673,6 +2675,16 @@ instance MonadError TCErr (TCMT IO) where
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
+-- | Parse monad
+
+runPM :: PM a -> TCM a
+runPM m = do
+  (res, ws) <- runPMIO m
+  mapM_ (warning . ParseWarning) ws
+  case res of
+    Left  e -> throwError (Exception (getRange e) (pretty e))
+    Right a -> return a
+
 -- | Interaction monad.
 
 type IM = TCMT (Haskeline.InputT IO)
@@ -2795,11 +2807,9 @@ instance MonadIO m => MonadIO (TCMT m) where
                  x <- m
                  x `seq` return x
     where
-      wrap r m = failOnException handleException
-               $ E.catch m (handleIOException r)
+      wrap r m = E.catch m (handleIOException r)
 
       handleIOException r e = E.throwIO $ IOException r e
-      handleException   r s = E.throwIO $ Exception r s
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see

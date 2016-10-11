@@ -184,11 +184,11 @@ checkModuleName name file mexpected = do
 
 moduleName' :: AbsolutePath -> TCM (Ranged TopLevelModuleName)
 moduleName' file = billTo [Bench.ModuleName] $ do
-  q <- liftIO (parseFile' moduleParser file)
+  q <- runPM (parseFile' moduleParser file)
   let name = topLevelModuleName q
   case name of
     TopLevelModuleName ["_"] -> do
-      q <- liftIO (parse moduleNameParser defaultName)
+      q <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $
              GenericError $ "File name " ++ show file ++
