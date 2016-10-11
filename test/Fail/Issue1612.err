@@ -1,4 +1,4 @@
-Issue1612.agda:9,8-9
+Issue1612.agda:7,1-79,14
 D is not strictly positive, because it occurs
 in the first clause
 in the definition of B0, which occurs

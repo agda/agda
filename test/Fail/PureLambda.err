@@ -1,4 +1,4 @@
-PureLambda.agda:4,6-7
+PureLambda.agda:4,1-5,22
 D is not strictly positive, because it occurs
 to the left of an arrow
 in the type of the constructor lam

@@ -460,6 +460,7 @@ autohints AHMModule mi (Just def) = do
       c <- getConstInfo n
       case theDef c of
         Axiom{}    -> return True
+        AbstractDefn{} -> return True
         Function{} -> return True
         _          -> return False
 

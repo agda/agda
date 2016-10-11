@@ -55,8 +55,8 @@ data MakeCaseVariant = Function | ExtendedLambda
 data DisplayInfo
     = Info_CompilationOk
     | Info_Constraints String
-    | Info_AllGoalsWarnings String String
-        -- ^ First string is the goals, second the warnings
+    | Info_AllGoalsWarnings String String String
+        -- ^ Strings are the goals, the warnings and the (non-fatal) errors
     | Info_Time Doc
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be

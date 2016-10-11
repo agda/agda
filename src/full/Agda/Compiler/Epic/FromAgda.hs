@@ -82,6 +82,7 @@ translateDefn msharp (n, defini) =
                           -- Hopefully they are defined!
       let ar = arity $ defType defini
       return <$> mkFun n n' (primName p) ar
+    AbstractDefn -> __IMPOSSIBLE__
   where
     mkFun q = mkFunGen q apps ("primitive: " ++)
     mkCon q tag ari = do

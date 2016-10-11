@@ -1,0 +1,3 @@
+AbstractTypeProjectionLike.agda:18,33-37
+true != false of type Bool
+when checking that the expression refl has type f Bool true ≡ false

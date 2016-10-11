@@ -68,10 +68,10 @@ import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
+import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
-import qualified Agda.Compiler.Epic.Compiler as Epic
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
 
@@ -547,10 +547,10 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          MAlonzo -> MAlonzo.compilerMain IsMain i
-          MAlonzoNoMain -> MAlonzo.compilerMain NotMain i
-          Epic    -> Epic.compilerMain i
-          JS      -> JS.compilerMain i
+          GHC       -> MAlonzo.compilerMain IsMain i
+          GHCNoMain -> MAlonzo.compilerMain NotMain i
+          JS        -> JS.compilerMain i
+          LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
       Imp.SomeWarnings w ->
         display_info $ Info_Error $ unlines
@@ -564,8 +564,8 @@ interpret Cmd_constraints =
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
-  pws <- interpretWarnings
-  display_info $ Info_AllGoalsWarnings (unlines ms) pws
+  (pwe, pwa) <- interpretWarnings
+  display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
 
 interpret Cmd_warnings = do
   -- Ulf, 2016-08-09: Warnings are now printed in the info buffer by Cmd_metas.
@@ -796,18 +796,20 @@ interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
 interpret Cmd_show_version = display_info Info_Version
 
 -- | Show warnings
-interpretWarnings :: CommandM String
+interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings RespectFlags
-  case removeMetas <$> mws of
+  mws <- lift $ Imp.getAllWarnings Imp.AllWarnings RespectFlags
+  case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
-      pws <- lift $ prettyWarnings ws
-      return pws
-    _ -> return ""
-   where removeMetas = filter $ \ w -> case w of
-                                        UnsolvedInteractionMetas{} -> False
-                                        UnsolvedMetaVariables{}    -> False
-                                        _                          -> True
+      let (we, wa) = Imp.classifyWarnings ws
+      pwe <- lift $ prettyTCWarnings we
+      pwa <- lift $ prettyTCWarnings wa
+      return (pwe, pwa)
+    _ -> return ("", "")
+   where isNotMeta w = case tcWarning w of
+                         UnsolvedInteractionMetas{} -> False
+                         UnsolvedMetaVariables{}    -> False
+                         _                          -> True
 
 -- | Print open metas nicely.
 showOpenMetas :: TCM [String]
@@ -908,9 +910,10 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data Backend = MAlonzo
-             | MAlonzoNoMain
-             | Epic | JS
+data Backend = GHC
+             | GHCNoMain
+             | JS
+             | LaTeX
     deriving (Show, Read)
 
 data GiveRefine = Give | Refine | Intro

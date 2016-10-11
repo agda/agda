@@ -14,5 +14,5 @@
 (agda2-highlight-add-annotations '(1 51 (comment) nil) '(53 114 (comment) nil) '(115 178 (comment) nil) '(179 214 (comment) nil) '(215 278 (comment) nil) '(279 322 (comment) nil))
 (agda2-info-action "*Type-checking*" "Finished Issue1619. " t)
 (agda2-status-action "Checked")
-(agda2-info-action "*All Goals*" "" nil)
+(agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))

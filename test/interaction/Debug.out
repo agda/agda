@@ -10,5 +10,5 @@
 (agda2-verbose " New module. Let's check it out. ")
 (agda2-verbose " Now we've looked at Debug ")
 (agda2-status-action "Checked")
-(agda2-info-action "*All Goals*" "" nil)
+(agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))

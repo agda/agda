@@ -166,7 +166,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
-    warnInfo <- fmap Fold.fold $ fmap warningHighlighting <$> use stWarnings
+    warnInfo <- Fold.fold . map (warningHighlighting . tcWarning) <$> use stTCWarnings
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
@@ -424,6 +424,7 @@ nameKinds hlLevel decl = do
   defnToKind   M.Record{}                          = Record
   defnToKind   M.Constructor{ M.conInd = i }       = Constructor i
   defnToKind   M.Primitive{}                       = Primitive
+  defnToKind   M.AbstractDefn                      = __IMPOSSIBLE__
 
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind
@@ -531,8 +532,8 @@ errorHighlighting e = do
 
 warningHighlighting :: Warning -> File
 warningHighlighting w = case w of
-  TerminationIssue tcst terrs -> terminationErrorHighlighting $ clValue terrs
-  NotStrictlyPositive tcst d ocs -> positivityErrorHighlighting d ocs
+  TerminationIssue terrs    -> terminationErrorHighlighting terrs
+  NotStrictlyPositive d ocs -> positivityErrorHighlighting d ocs
   _ -> mempty
 
 

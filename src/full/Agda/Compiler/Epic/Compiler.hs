@@ -182,6 +182,7 @@ initialAnalysis inter = do
         case defEpicDef def of
           Nothing -> putDelayed q True
           _       -> return ()
+      AbstractDefn -> __IMPOSSIBLE__
       _ -> return ()
 
 idPrint :: String -> (a -> Compile TCM b) -> a -> Compile TCM b

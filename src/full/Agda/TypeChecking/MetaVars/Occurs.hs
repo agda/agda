@@ -345,7 +345,7 @@ instance Occurs QName where
   metaOccurs m d = whenM (defNeedsChecking d) $ do
     tallyDef d
     reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-    metaOccurs m . theDef =<< getConstInfo d
+    metaOccurs m . theDef =<< ignoreAbstractMode (getConstInfo d)
 
 instance Occurs Defn where
   occurs red ctx m xs def = __IMPOSSIBLE__
@@ -359,6 +359,7 @@ instance Occurs Defn where
   metaOccurs m Record{ recConHead = c }     = metaOccurs m . defType =<< getConstInfo (conName c)
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
+  metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
 
 instance Occurs Clause where
   occurs red ctx m xs cl = __IMPOSSIBLE__
@@ -546,6 +547,7 @@ isNeutral b f es = liftTCM $ do
   def <- getConstInfo f
   if defMatchable def then no else do
   case theDef def of
+    AbstractDefn -> yes
     Axiom{}    -> yes
     Datatype{} -> yes
     Record{}   -> yes

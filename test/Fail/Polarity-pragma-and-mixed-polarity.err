@@ -1,4 +1,4 @@
-Polarity-pragma-and-mixed-polarity.agda:6,6-7
+Polarity-pragma-and-mixed-polarity.agda:6,1-7,14
 D is not strictly positive, because it occurs
 in the first argument to F
 in the type of the constructor d

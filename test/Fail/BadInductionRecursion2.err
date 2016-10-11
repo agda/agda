@@ -1,4 +1,4 @@
-BadInductionRecursion2.agda:8,8-9
+BadInductionRecursion2.agda:7,1-12,19
 D is not strictly positive, because it occurs
 to the left of an arrow
 in the first clause

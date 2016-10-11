@@ -1,0 +1,3 @@
+Failed to solve the following constraints:
+  [0] Is empty: f true ≡ f false
+      [ at Issue2250.agda:19,10-12 ]

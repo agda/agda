@@ -3,7 +3,7 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2051 (Issue2051.agda). " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals (with errors)*" "?0 : D ?1 : _9 x ?2 : D Sort _8 [ at Issue2051.agda:17,9-16 ] _9 : Set (_8 x) [ at Issue2051.agda:17,9-16 ] _12 : D [ at Issue2051.agda:17,9-16 ] Errors: ——————— Failed to solve the following constraints: [0] _11 := (_ : _9 x) [x] :? D " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : D ?1 : _9 x ?2 : D Sort _8 [ at Issue2051.agda:17,9-16 ] _9 : Set (_8 x) [ at Issue2051.agda:17,9-16 ] _12 : D [ at Issue2051.agda:17,9-16 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [0] _11 := (_ : _9 x) [x] :? D " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("con d = c ?" "con (c x) = c ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))

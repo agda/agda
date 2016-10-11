@@ -254,6 +254,7 @@ quotingKit = do
           Record{recConHead = c} ->
             agdaDefinitionRecordDef !@! quoteName (conName c)
           Axiom{}       -> pure agdaDefinitionPostulate
+          AbstractDefn{}-> pure agdaDefinitionPostulate
           Primitive{primClauses = cs} | not $ null cs ->
             agdaDefinitionFunDef !@ quoteList quoteClause cs
           Primitive{}   -> pure agdaDefinitionPrimitive

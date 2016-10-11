@@ -11,5 +11,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "(λ (j₁ : Size< i) → fixU j₁ f)")
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "" nil)
+(agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
