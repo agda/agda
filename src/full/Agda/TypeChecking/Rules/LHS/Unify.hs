@@ -865,7 +865,10 @@ injectiveTypeConStrategy k s = do
                 Datatype{} -> True
                 Record{}   -> True
                 Axiom{}    -> True
-                _          -> False
+                AbstractDefn -> False -- True triggers issue #2250
+                Function{}   -> False
+                Primitive{}  -> False
+                Constructor{}-> __IMPOSSIBLE__  -- Never a type!
       let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
       return $ TypeConInjectivity k d us vs

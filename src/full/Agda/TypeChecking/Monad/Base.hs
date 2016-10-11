@@ -1426,6 +1426,8 @@ data FunctionFlag
 
 data Defn = Axiom
             -- ^ Postulate.
+          | AbstractDefn
+            -- ^ Returned by 'getConstInfo' if definition is abstract.
           | Function
             { funClauses        :: [Clause]
             , funCompiled       :: Maybe CompiledClauses
@@ -1682,16 +1684,10 @@ defNonterminating :: Definition -> Bool
 defNonterminating Defn{theDef = Function{funTerminates = Just False}} = True
 defNonterminating _                                                   = False
 
--- | Beware when using this function on a @def@ obtained with @getConstInfo q@!
---   If the identifier @q@ is abstract, 'getConstInfo' will turn its @def@ into
---   an 'Axiom' and you always get 'ConcreteDef', paradoxically.
---   Use it in 'IgnoreAbstractMode', like this:
---   @
---     a <- ignoreAbstractMode $ defAbstract <$> getConstInfo q
---   @
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom{}                   -> ConcreteDef
+    AbstractDefn{}            -> AbstractDef
     Function{funAbstr = a}    -> a
     Datatype{dataAbstr = a}   -> a
     Record{recAbstr = a}      -> a
@@ -2976,6 +2972,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
+      AbstractDefn -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j

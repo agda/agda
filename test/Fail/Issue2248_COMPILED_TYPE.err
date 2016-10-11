@@ -1,0 +1,3 @@
+Issue2248_COMPILED_TYPE.agda:14,1-28
+COMPILED_TYPE directive only works on postulates
+when checking the pragma COMPILED_TYPE IO IO

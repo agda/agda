@@ -179,6 +179,7 @@ translateDefn (n, defini) = do
         (Just expr) -> do
                 expr' <- expr
                 return [mkBind1 crName expr']
+    AbstractDefn -> __IMPOSSIBLE__
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
     mkIdentityFun :: QName

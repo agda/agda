@@ -245,6 +245,8 @@ definition' q d t ls =
           return $ Just (curriedLambda (np + 1)
             (Apply (Lookup (Local (LocalId 0)) (last ls))
               [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+
+    AbstractDefn -> __IMPOSSIBLE__
   where
     plainJS = return . Just . PlainJS
 

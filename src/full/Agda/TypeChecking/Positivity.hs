@@ -590,6 +590,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Constructor{} -> return emptyOB
     Axiom{}       -> return emptyOB
     Primitive{}   -> return emptyOB
+    AbstractDefn  -> __IMPOSSIBLE__
 
 -- | Eta expand a clause to have the given number of variables.
 --   Warning: doesn't put correct types in telescope!

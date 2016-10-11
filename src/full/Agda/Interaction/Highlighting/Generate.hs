@@ -424,6 +424,7 @@ nameKinds hlLevel decl = do
   defnToKind   M.Record{}                          = Record
   defnToKind   M.Constructor{ M.conInd = i }       = Constructor i
   defnToKind   M.Primitive{}                       = Primitive
+  defnToKind   M.AbstractDefn                      = __IMPOSSIBLE__
 
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind

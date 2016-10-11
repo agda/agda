@@ -359,7 +359,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       copyDef' np def
       where
         copyDef' np d = do
-          reportSLn "tc.mod.apply" 60 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args " ++ show abstr
+          reportSLn "tc.mod.apply" 60 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args " ++ show (defAbstract d)
           reportSLn "tc.mod.apply" 80 $
             "args = " ++ show ts' ++ "\n" ++
             "old type = " ++ prettyShow (defType d)
@@ -388,7 +388,6 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             pol = defPolarity d `apply` ts'
             occ = defArgOccurrences d `apply` ts'
             inst = defInstance d
-            abstr = defAbstract d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
             nd y = for def $ \ df -> Defn
@@ -865,13 +864,14 @@ makeAbstract d =
                , theDef = def
                }
   where
-    makeAbs Datatype   {} = Just Axiom
-    makeAbs Function   {} = Just Axiom
+    makeAbs Axiom         = Just Axiom
+    makeAbs Datatype   {} = Just AbstractDefn
+    makeAbs Function   {} = Just AbstractDefn
     makeAbs Constructor{} = Nothing
     -- Andreas, 2012-11-18:  Make record constructor and projections abstract.
-    makeAbs d@Record{}    = Just Axiom
-    -- Q: what about primitive?
-    makeAbs d             = Just d
+    makeAbs d@Record{}    = Just AbstractDefn
+    makeAbs Primitive{}   = __IMPOSSIBLE__
+    makeAbs AbstractDefn  = __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
@@ -948,16 +948,6 @@ sortOfConst q =
             Datatype{dataSort = s} -> return s
             _                      -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
--- | The number of parameters of a definition.
-defPars :: Definition -> Int
-defPars d = case theDef d of
-    Axiom{}                  -> 0
-    def@Function{}           -> projectionArgs def
-    Datatype  {dataPars = n} -> n
-    Record     {recPars = n} -> n
-    Constructor{conPars = n} -> n
-    Primitive{}              -> 0
-
 -- | The number of dropped parameters for a definition.
 --   0 except for projection(-like) functions and constructors.
 droppedPars :: Definition -> Int
@@ -968,6 +958,7 @@ droppedPars d = case theDef d of
     Record     {recPars = _} -> 0  -- not dropped
     Constructor{conPars = n} -> n
     Primitive{}              -> 0
+    AbstractDefn             -> __IMPOSSIBLE__
 
 -- | Is it the name of a record projection?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
