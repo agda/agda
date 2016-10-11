@@ -1,4 +1,4 @@
-Issue1592c.agda:15,6-7
+Issue1592c.agda:15,1-16,26
 D is not strictly positive, because it occurs
 in the second argument to dup
 in the first argument to proj₁

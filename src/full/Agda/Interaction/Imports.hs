@@ -150,7 +150,7 @@ scopeCheckImport x = do
 
 data MaybeWarnings' a = NoWarnings | SomeWarnings a
   deriving (Functor)
-type MaybeWarnings = MaybeWarnings' [Warning]
+type MaybeWarnings = MaybeWarnings' [TCWarning]
 
 instance Null a => Null (MaybeWarnings' a) where
   empty = NoWarnings
@@ -238,7 +238,7 @@ getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x NotMainInterface
   case wt of
-    SomeWarnings w  -> warningsToError (filter notIM w)
+    SomeWarnings w  -> tcWarningsToError (filter (notIM . tcWarning) w)
     NoWarnings      -> return i
    -- filter out unsolved interaction points for imported module so
    -- that we get the right error message (see test case Fail/Issue1296)
@@ -793,18 +793,20 @@ getAllWarnings :: IgnoreFlags -> TCM MaybeWarnings
 getAllWarnings ifs = do
   openMetas            <- getOpenMetas
   interactionMetas     <- getInteractionMetas
-  unsolvedInteractions <- List.nub <$> mapM getMetaRange interactionMetas
-  unsolvedMetas        <- List.nub <$> mapM getMetaRange (openMetas List.\\ interactionMetas)
+  let getUniqueMetas = fmap List.nub . mapM getMetaRange
+  unsolvedInteractions <- getUniqueMetas interactionMetas
+  unsolvedMetas        <- getUniqueMetas (openMetas List.\\ interactionMetas)
   unsolvedConstraints  <- getAllConstraints
-  collectedWarnings    <- use stWarnings
-  interactionPoints    <- getInteractionPoints
-  tcst                 <- get
+  collectedTCWarnings  <- use stTCWarnings
+--  interactionPoints    <- getInteractionPoints
 
-  allWarnings <- applyFlagsToWarnings ifs $ reverse
-               $ UnsolvedInteractionMetas unsolvedInteractions
-               : UnsolvedMetaVariables    unsolvedMetas
-               : UnsolvedConstraints      tcst unsolvedConstraints
-               : collectedWarnings
+  unsolved <- mapM warning_
+                   [ UnsolvedInteractionMetas unsolvedInteractions
+                   , UnsolvedMetaVariables    unsolvedMetas
+                   , UnsolvedConstraints      unsolvedConstraints ]
+
+  allWarnings <- applyFlagsToTCWarnings ifs $ reverse
+                   $ unsolved ++ collectedTCWarnings
 
   return $ if and [ null allWarnings ] -- , null interactionPoints ] -- Andreas, issue 964: we do want to serialize with open interaction points now!
            then NoWarnings

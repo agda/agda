@@ -6,9 +6,9 @@
 module Agda.TypeChecking.Errors
   ( prettyError
   , tcErrString
-  , prettyWarnings
-  , warningsToError
-  , applyFlagsToWarnings
+  , prettyTCWarnings
+  , tcWarningsToError
+  , applyFlagsToTCWarnings
   ) where
 
 import Prelude hiding (null)
@@ -85,6 +85,13 @@ prettyError err = liftTCM $ show <$> prettyError' err []
 -- * Warnings
 ---------------------------------------------------------------------------
 
+instance PrettyTCM TCWarning where
+  prettyTCM (TCWarning tcst clw) = localState $ do
+    put tcst
+    sayWhen (envRange  $ clEnv clw)
+            (envCall   $ clEnv clw)
+            (prettyTCM $ clValue clw)
+
 instance PrettyTCM Warning where
   prettyTCM wng = case wng of
 
@@ -96,8 +103,7 @@ instance PrettyTCM Warning where
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints tcst cs -> localState $ do
-      put tcst
+    UnsolvedConstraints cs ->
       fsep ( pwords "Failed to solve the following constraints:" )
       $$ nest 2 (vcat $ map prettyConstraint cs)
 
@@ -109,43 +115,36 @@ instance PrettyTCM Warning where
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
-    TerminationIssue tcst tes -> localState $ do
-      put tcst
-      sayWhen (envRange $ clEnv tes) (envCall $ clEnv tes) $
-        fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevelModule) $
-               concatMap termErrFunctions $ clValue tes)
-        $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . nub) $
-              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-              concatMap termErrCalls $ clValue tes)
+    TerminationIssue tes ->
+      fwords "Termination checking failed for the following functions:"
+      $$ (nest 2 $ fsep $ punctuate comma $
+           map (pretty . dropTopLevelModule) $
+             concatMap termErrFunctions tes)
+      $$ fwords "Problematic calls:"
+      $$ (nest 2 $ fmap (P.vcat . nub) $
+            mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+            concatMap termErrCalls tes)
 
-    NotStrictlyPositive tcst d ocs -> localState $ do
-      put tcst
-      sayWhen (getRange d) Nothing $
-        fsep $
-        [prettyTCM (dropTopLevelModule d)] ++
-        pwords "is not strictly positive, because it occurs"
-        ++ [prettyTCM ocs]
-    OldBuiltin tcst r old new -> localState $ do
-      put tcst
-      sayWhen r Nothing $ fwords $
-        "Builtin " ++ old ++ " does no longer exist. " ++
-        "It is now bound by BUILTIN " ++ new
+    NotStrictlyPositive d ocs -> fsep $
+      [prettyTCM (dropTopLevelModule d)] ++
+      pwords "is not strictly positive, because it occurs"
+      ++ [prettyTCM ocs]
 
+    OldBuiltin old new -> fwords $
+      "Builtin " ++ old ++ " does no longer exist. " ++
+      "It is now bound by BUILTIN " ++ new
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
-prettyWarnings :: [Warning] -> TCM String
-prettyWarnings = fmap (unlines . intersperse " ") . prettyWarnings'
+prettyTCWarnings :: [TCWarning] -> TCM String
+prettyTCWarnings = fmap (unlines . intersperse " ") . prettyTCWarnings'
 
-prettyWarnings' :: [Warning] -> TCM [String]
-prettyWarnings' = mapM (fmap show . prettyTCM)
+prettyTCWarnings' :: [TCWarning] -> TCM [String]
+prettyTCWarnings' = mapM (fmap show . prettyTCM)
 
 -- | Turns all warnings into errors.
-warningsToError :: [Warning] -> TCM a
-warningsToError ws = typeError $ case ws of
+tcWarningsToError :: [TCWarning] -> TCM a
+tcWarningsToError ws = typeError $ case ws of
   [] -> SolvedButOpenHoles
   _  -> NonFatalErrors ws
 
@@ -153,8 +152,8 @@ warningsToError ws = typeError $ case ws of
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToWarnings :: IgnoreFlags -> [Warning] -> TCM [Warning]
-applyFlagsToWarnings ifs ws = do
+applyFlagsToTCWarnings :: IgnoreFlags -> [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarnings ifs ws = do
 
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
@@ -168,11 +167,11 @@ applyFlagsToWarnings ifs ws = do
           NotStrictlyPositive{}        -> ignore || negativeNotOK
           UnsolvedMetaVariables ums    -> keepUnsolved ums
           UnsolvedInteractionMetas uis -> keepUnsolved uis
-          UnsolvedConstraints tcst ucs -> keepUnsolved ucs
+          UnsolvedConstraints ucs      -> keepUnsolved ucs
           OldBuiltin{}                 -> True
           EmptyRewritePragma           -> True
 
-  return $ filter cleanUp ws
+  return $ filter (cleanUp . tcWarning) ws
 
 ---------------------------------------------------------------------------
 -- * Helpers

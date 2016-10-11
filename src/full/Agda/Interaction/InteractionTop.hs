@@ -799,15 +799,15 @@ interpret Cmd_show_version = display_info Info_Version
 interpretWarnings :: CommandM String
 interpretWarnings = do
   mws <- lift $ Imp.getAllWarnings RespectFlags
-  case removeMetas <$> mws of
+  case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
-      pws <- lift $ prettyWarnings ws
+      pws <- lift $ prettyTCWarnings ws
       return pws
     _ -> return ""
-   where removeMetas = filter $ \ w -> case w of
-                                        UnsolvedInteractionMetas{} -> False
-                                        UnsolvedMetaVariables{}    -> False
-                                        _                          -> True
+   where isNotMeta w = case tcWarning w of
+                         UnsolvedInteractionMetas{} -> False
+                         UnsolvedMetaVariables{}    -> False
+                         _                          -> True
 
 -- | Print open metas nicely.
 showOpenMetas :: TCM [String]

@@ -571,10 +571,7 @@ bindBuiltin b e = do
     _ | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
     _ -> typeError $ NoSuchBuiltinName b
   where
-    nowNat b = do
-      tcst <- get
-      rng  <- getRange . envRange <$> ask
-      warning $ OldBuiltin tcst rng b builtinNat
+    nowNat b = warning $ OldBuiltin b builtinNat
 
 isUntypedBuiltin :: String -> Bool
 isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]

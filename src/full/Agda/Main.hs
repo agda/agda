@@ -133,10 +133,10 @@ runAgdaWithOptions generateHTML progName opts
           -- An interface is only generated if NoWarnings.
           result <- case mw of
             SomeWarnings ws -> do
-              ws' <- applyFlagsToWarnings RespectFlags ws
+              ws' <- applyFlagsToTCWarnings RespectFlags ws
               case ws' of
                 []   -> return Nothing
-                cuws -> warningsToError cuws
+                cuws -> tcWarningsToError cuws
             NoWarnings      -> return $ Just i
 
           reportSDoc "main" 50 $ pretty i
