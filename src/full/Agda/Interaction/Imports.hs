@@ -370,52 +370,54 @@ getStoredInterface
   -> TCM (Bool, (Interface, MaybeWarnings))
      -- ^ @Bool@ is: do we have to merge the interface?
 getStoredInterface x file includeStateChanges = do
-        -- If something goes wrong (interface outdated etc.)
-        -- we revert to fresh type checking.
-        let fallback = typeCheck x file includeStateChanges
+  -- If something goes wrong (interface outdated etc.)
+  -- we revert to fresh type checking.
+  let fallback = typeCheck x file includeStateChanges
 
-        -- Examine the hash of the interface file. If it is different from the
-        -- stored version (in stDecodedModules), or if there is no stored version,
-        -- read and decode it. Otherwise use the stored version.
-        let ifile = filePath $ toIFile file
-        h <- fmap snd <$> getInterfaceFileHashes ifile
-        mm <- getDecodedModule x
-        (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
-          Just mi ->
-            if Just (iFullHash mi) /= h
-            then do dropDecodedModule x
-                    reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
-                    reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
-                    reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
-                    (False,) <$> readInterface ifile
-            else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
-                    return (True, Just mi)
-          Nothing -> do
-            reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
-            (False,) <$> readInterface ifile
+  -- Examine the hash of the interface file. If it is different from the
+  -- stored version (in stDecodedModules), or if there is no stored version,
+  -- read and decode it. Otherwise use the stored version.
+  let ifile = filePath $ toIFile file
+  h <- fmap snd <$> getInterfaceFileHashes ifile
+  mm <- getDecodedModule x
+  (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
+    Just mi ->
+      if Just (iFullHash mi) /= h
+      then do
+        dropDecodedModule x
+        reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
+        reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
+        reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
+        (False,) <$> readInterface ifile
+      else do
+        reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
+        return (True, Just mi)
+    Nothing -> do
+      reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
+      (False,) <$> readInterface ifile
 
-        -- Check that it's the right version
-        case mi of
-          Nothing       -> do
-            reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
-            fallback
-          Just i        -> do
-            reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
+  -- Check that it's the right version
+  case mi of
+    Nothing       -> do
+      reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
+      fallback
+    Just i        -> do
+      reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-            hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
+      hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
 
-            -- If any of the imports are newer we need to retype check
-            if hs /= map snd (iImportedModules i)
-              then do
-                -- liftIO close -- Close the interface file. See above.
-                fallback
-              else do
-                unless cached $ chaseMsg "Skipping" x $ Just ifile
-                -- We set the pragma options of the skipped file here,
-                -- because if the top-level file is skipped we want the
-                -- pragmas to apply to interactive commands in the UI.
-                mapM_ setOptionsFromPragma (iPragmaOptions i)
-                return (False, (i, NoWarnings))
+      -- If any of the imports are newer we need to retype check
+      if hs /= map snd (iImportedModules i)
+        then do
+          -- liftIO close -- Close the interface file. See above.
+          fallback
+        else do
+          unless cached $ chaseMsg "Skipping" x $ Just ifile
+          -- We set the pragma options of the skipped file here,
+          -- because if the top-level file is skipped we want the
+          -- pragmas to apply to interactive commands in the UI.
+          mapM_ setOptionsFromPragma (iPragmaOptions i)
+          return (False, (i, NoWarnings))
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -436,92 +438,92 @@ typeCheck
   -> TCM (Bool, (Interface, MaybeWarnings))
      -- ^ @Bool@ is: do we have to merge the interface?
 typeCheck x file includeStateChanges = do
+  unless includeStateChanges cleanCachedLog
+  let withMsgs = bracket_
+       (chaseMsg "Checking" x $ Just $ filePath file)
+       (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
+                   let (we, wa) = classifyWarnings ws
+                   unless (null wa) $ reportSDoc "import.warn" 1
+                                    $ P.vcat $ P.prettyTCM <$> wa
+                   unless (not $ null we) $ chaseMsg "Finished" x Nothing)
 
-          unless includeStateChanges cleanCachedLog
-          let withMsgs = bracket_
-                (chaseMsg "Checking" x $ Just $ filePath file)
-                (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
-                            let (we, wa) = classifyWarnings ws
-                            unless (null wa) $ reportSDoc "import.warn" 1 $ P.vcat $ P.prettyTCM <$> wa
-                            unless (not $ null we) $ chaseMsg "Finished" x Nothing)
+  -- Do the type checking.
 
-          -- Do the type checking.
+  if includeStateChanges then do
+     r <- withMsgs $ createInterface file x includeStateChanges
 
-          if includeStateChanges then do
-            r <- withMsgs $ createInterface file x includeStateChanges
+     -- Merge the signature with the signature for imported
+     -- things.
+     reportSLn "import.iface" 40 $ "Merging with state changes included."
+     sig     <- getSignature
+     patsyns <- getPatternSyns
+     display <- use stImportsDisplayForms
+     addImportedThings sig Map.empty Set.empty Set.empty patsyns display
+     setSignature emptySignature
+     setPatternSyns Map.empty
 
-            -- Merge the signature with the signature for imported
-            -- things.
-            reportSLn "import.iface" 40 $ "Merging with state changes included."
-            sig     <- getSignature
-            patsyns <- getPatternSyns
-            display <- use stImportsDisplayForms
-            addImportedThings sig Map.empty Set.empty Set.empty patsyns display
-            setSignature emptySignature
-            setPatternSyns Map.empty
+     return (True, r)
+   else do
+    ms       <- getImportPath
+    nesting  <- asks envModuleNestingLevel
+    range    <- asks envRange
+    call     <- asks envCall
+    mf       <- use stModuleToSource
+    vs       <- getVisitedModules
+    ds       <- getDecodedModules
+    opts     <- stPersistentOptions . stPersistentState <$> get
+    isig     <- use stImports
+    ibuiltin <- use stImportedBuiltins
+    display  <- use stImportsDisplayForms
+    ipatsyns <- getPatternSynImports
+    ho       <- getInteractionOutputCallback
+    -- Every interface is treated in isolation. Note: Changes
+    -- to stDecodedModules are not preserved if an error is
+    -- encountered in an imported module.
+    -- Andreas, 2014-03-23: freshTCM spawns a new TCM computation
+    -- with initial state and environment
+    -- but on the same Benchmark accounts.
+    r <- freshTCM $
+           withImportPath ms $
+           local (\e -> e { envModuleNestingLevel = nesting
+                            -- Andreas, 2014-08-18:
+                            -- Preserve the range of import statement
+                            -- for reporting termination errors in
+                            -- imported modules:
+                          , envRange              = range
+                          , envCall               = call
+                          }) $ do
+             setDecodedModules ds
+             setCommandLineOptions opts
+             setInteractionOutputCallback ho
+             stModuleToSource .= mf
+             setVisitedModules vs
+             addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns display
 
-            return (True, r)
-           else do
-            ms       <- getImportPath
-            nesting  <- asks envModuleNestingLevel
-            range    <- asks envRange
-            call     <- asks envCall
-            mf       <- use stModuleToSource
-            vs       <- getVisitedModules
-            ds       <- getDecodedModules
-            opts     <- stPersistentOptions . stPersistentState <$> get
-            isig     <- use stImports
-            ibuiltin <- use stImportedBuiltins
-            display  <- use stImportsDisplayForms
-            ipatsyns <- getPatternSynImports
-            ho       <- getInteractionOutputCallback
-            -- Every interface is treated in isolation. Note: Changes
-            -- to stDecodedModules are not preserved if an error is
-            -- encountered in an imported module.
-            -- Andreas, 2014-03-23: freshTCM spawns a new TCM computation
-            -- with initial state and environment
-            -- but on the same Benchmark accounts.
-            r <- freshTCM $
-                   withImportPath ms $
-                   local (\e -> e { envModuleNestingLevel = nesting
-                                    -- Andreas, 2014-08-18:
-                                    -- Preserve the range of import statement
-                                    -- for reporting termination errors in
-                                    -- imported modules:
-                                  , envRange              = range
-                                  , envCall               = call
-                                  }) $ do
-                     setDecodedModules ds
-                     setCommandLineOptions opts
-                     setInteractionOutputCallback ho
-                     stModuleToSource .= mf
-                     setVisitedModules vs
-                     addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns display
+             r  <- withMsgs $ createInterface file x includeStateChanges
+             mf <- use stModuleToSource
+             ds <- getDecodedModules
+             return (r, do
+                stModuleToSource .= mf
+                setDecodedModules ds
+                case r of
+                  (i, NoWarnings) -> storeDecodedModule i
+                  _               -> return ()
+                )
 
-                     r  <- withMsgs $ createInterface file x includeStateChanges
-                     mf <- use stModuleToSource
-                     ds <- getDecodedModules
-                     return (r, do
-                        stModuleToSource .= mf
-                        setDecodedModules ds
-                        case r of
-                          (i, NoWarnings) -> storeDecodedModule i
-                          _               -> return ()
-                        )
-
-            case r of
-                Left err          -> throwError err
-                Right (r, update) -> do
-                  update
-                  case r of
-                    (_, NoWarnings) ->
-                      -- We skip the file which has just been type-checked to
-                      -- be able to forget some of the local state from
-                      -- checking the module.
-                      -- Note that this doesn't actually read the interface
-                      -- file, only the cached interface.
-                      getStoredInterface x file includeStateChanges
-                    _ -> return (False, r)
+    case r of
+        Left err          -> throwError err
+        Right (r, update) -> do
+          update
+          case r of
+            (_, NoWarnings) ->
+              -- We skip the file which has just been type-checked to
+              -- be able to forget some of the local state from
+              -- checking the module.
+              -- Note that this doesn't actually read the interface
+              -- file, only the cached interface.
+              getStoredInterface x file includeStateChanges
+            _ -> return (False, r)
 
 
 -- | Formats and outputs the "Checking", "Finished" and "Skipping" messages.
