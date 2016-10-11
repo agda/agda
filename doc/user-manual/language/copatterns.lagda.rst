@@ -240,10 +240,10 @@ With copatterns, we can do the case analysis directly by pattern matching:
 
    .. code-block:: agda
 
-      Could not parse the left-hand side start (enum-Nat true)
+      Could not parse the left-hand side start enum-Nat
       Operators used in the grammar:
       None
-      when scope checking the left-hand side start (enum-Nat true) in the
+      when scope checking the left-hand side start enum-Nat in the
       definition of enum-Nat
 
 
