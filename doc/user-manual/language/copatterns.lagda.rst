@@ -49,17 +49,19 @@ For example, we can get the “third” element of a type ``A``:
     3rd : {A : Set} → Enumeration A → A
     3rd e = forward e (forward e (forward e (start e)))
 
-Or we can go back 2 positions:
+Or we can go back 2 positions starting from a given ``a``:
 
 ::
 
   backward-2 : {A : Set} → Enumeration A → A → A
-  backward-2 e a = backward (backward a) 
+  backward-2 e a = backward (backward a)
     where
       open Enumeration e
 
-Now, we want to give this structure to the natural numbers. Without
-copatterns, we would build a record like this:
+
+Now, we want to use these methods on natural numbers. For this, we need
+a record of type ``Enumeration Nat``. Without copatterns, we would
+specify all the fields in a single expression:
 
 ..
   ::
@@ -67,7 +69,7 @@ copatterns, we would build a record like this:
 
 ::
 
-    open Enumeration 
+    open Enumeration
 
     enum-Nat : Enumeration Nat
     enum-Nat = record {
@@ -80,18 +82,18 @@ copatterns, we would build a record like this:
         pred zero = zero
         pred (suc x) = x
 
-    test₁ : 3rd enum-Nat ≡ 3 
+    test₁ : 3rd enum-Nat ≡ 3
     test₁ = refl
 
-    test₂ : backward-2 enum-Nat 5 ≡ 3 
+    test₂ : backward-2 enum-Nat 5 ≡ 3
     test₂ = refl
 
 Note that if we want to use automated case-splitting and pattern
 matching to implement one of the fields, we need to do so in a separate
 definition.
 
-With *copatterns*, we can define the fields of a record in the same way
-that we defined the cases of a function:
+With *copatterns*, we can define the fields of a record as separate declarations,
+in the same way that we would give different cases for a function:
 
 ..
   ::
@@ -104,17 +106,17 @@ that we defined the cases of a function:
     enum-Nat : Enumeration Nat
     start    enum-Nat = 0
     forward  enum-Nat n = suc n
-    backward enum-Nat zero = zero 
-    backward enum-Nat (suc n) = n 
+    backward enum-Nat zero = zero
+    backward enum-Nat (suc n) = n
 
-The result is exactly the same:
+The resulting behaviour is the same in both cases:
 
 ::
 
-    test₁ : 3rd enum-Nat ≡ 3 
+    test₁ : 3rd enum-Nat ≡ 3
     test₁ = refl
 
-    test₂ : backward-2 enum-Nat 5 ≡ 3 
+    test₂ : backward-2 enum-Nat 5 ≡ 3
     test₂ = refl
 
 
@@ -133,7 +135,7 @@ Without copatterns, we just add the extra argument to the function declaration:
 
 ::
 
-    open Enumeration 
+    open Enumeration
 
     enum-Nat : Nat → Enumeration Nat
     enum-Nat initial = record {
@@ -146,7 +148,7 @@ Without copatterns, we just add the extra argument to the function declaration:
         pred zero = zero
         pred (suc x) = x
 
-    test₁ : 3rd (enum-Nat 10) ≡ 13 
+    test₁ : 3rd (enum-Nat 10) ≡ 13
     test₁ = refl
 
 With copatterns, the function argument must be repeated once for each
@@ -163,10 +165,10 @@ field in the record:
     enum-Nat : Nat → Enumeration Nat
     start    (enum-Nat initial) = initial
     forward  (enum-Nat _) n = suc n
-    backward (enum-Nat _) zero = zero 
-    backward (enum-Nat _) (suc n) = n 
+    backward (enum-Nat _) zero = zero
+    backward (enum-Nat _) (suc n) = n
 
-    
+
 Mixing patterns and co-patterns
 -------------------------------
 
@@ -182,7 +184,7 @@ value to start with based on the user-provided flag:
 
 ::
 
-    open Enumeration 
+    open Enumeration
 
     if_then_else_ : {A : Set} → Bool → A → A → A
     if true  then x else _ = x
@@ -214,8 +216,8 @@ With copatterns, we can do the case analysis directly by pattern matching:
     start    (enum-Nat true)  = 42
     start    (enum-Nat false) = 0
     forward  (enum-Nat _) n = suc n
-    backward (enum-Nat _) zero = zero 
-    backward (enum-Nat _) (suc n) = n 
+    backward (enum-Nat _) zero = zero
+    backward (enum-Nat _) (suc n) = n
 
 ..
   ::
@@ -232,8 +234,8 @@ With copatterns, we can do the case analysis directly by pattern matching:
       enum-Nat : Enumeration Nat
       start    enum-Nat = 0
       forward  enum-Nat n = suc n
-      backward enum-Nat zero = zero 
-      backward enum-Nat (suc n) = n 
+      backward enum-Nat zero = zero
+      backward enum-Nat (suc n) = n
 
    If the fields of the ``Enumeration`` record are not in scope (in
    particular, the ``start`` field), then Agda will not be able to
@@ -257,15 +259,10 @@ With copatterns, we can do the case analysis directly by pattern matching:
    ::
 
        open Enumeration
-    
+
        enum-Nat : Enumeration Nat
        start    enum-Nat = 0
        forward  enum-Nat n = suc n
-       backward enum-Nat zero = zero 
-       backward enum-Nat (suc n) = n 
-       
+       backward enum-Nat zero = zero
+       backward enum-Nat (suc n) = n
 
-
-   
-
-   
