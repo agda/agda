@@ -869,7 +869,7 @@ checkExpr e t0 =
 
           | A.QuoteTerm _ <- unScope q ->
              do (et, _)   <- inferExpr (namedThing e)
-                et'       <- etaContract =<< normalise et
+                et'       <- etaContract =<< instantiateFull et
                 let metas = allMetas et'
                 case metas of
                   _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
@@ -972,7 +972,7 @@ checkExpr e t0 =
 -- | DOCUMENT ME!
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
-  t' <- etaContract =<< normalise t
+  t' <- etaContract =<< instantiateFull t
   let metas = allMetas t'
   case metas of
     _:_ -> return $ Left metas
@@ -984,7 +984,7 @@ quoteGoal t = do
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
-  contextTypes  <- etaContract =<< normalise contextTypes
+  contextTypes  <- etaContract =<< instantiateFull contextTypes
   let metas = allMetas contextTypes
   case metas of
     _:_ -> return $ Left metas

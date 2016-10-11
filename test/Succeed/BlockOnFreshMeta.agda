@@ -19,6 +19,7 @@ macro
   weirdButShouldWork : Tactic
   weirdButShouldWork hole =
     inferType hole >>= λ goal →
+    reduce goal >>= λ goal →
     case goal of λ
     { (meta _ _) → blockOnFresh
     ; _ → unify hole (lit (nat 42))

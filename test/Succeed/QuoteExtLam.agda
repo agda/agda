@@ -44,10 +44,18 @@ check₄ = checkDefinition (λ { expected₄ → true; _ → false }) magic₄
 
 expected = extLam (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
 
-check₁ : quoteTerm magic₁ ≡ expected
+macro
+
+  quoteTermNormalised : Term → Term → TC ⊤
+  quoteTermNormalised t hole =
+    bindTC (normalise t) λ t →
+    bindTC (quoteTC t) λ t →
+    unify hole t
+
+check₁ : quoteTermNormalised magic₁ ≡ expected
 check₁ = refl
 
-check₂ : quoteTerm magic₂ ≡ expected
+check₂ : quoteTermNormalised magic₂ ≡ expected
 check₂ = refl
 
 pattern expectedDef =

@@ -252,28 +252,28 @@ numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
 <Integers_>`_)::
 
   primitive
-    primNatToFloat    : Nat → Float
-    primFloatPlus     : Float → Float → Float
-    primFloatMinus    : Float → Float → Float
-    primFloatTimes    : Float → Float → Float
-    primFloatNegate   : Float → Float
-    primFloatDiv      : Float → Float → Float
-    primFloatEquality : Float → Float → Bool
+    primNatToFloat             : Nat → Float
+    primFloatPlus              : Float → Float → Float
+    primFloatMinus             : Float → Float → Float
+    primFloatTimes             : Float → Float → Float
+    primFloatNegate            : Float → Float
+    primFloatDiv               : Float → Float → Float
+    primFloatEquality          : Float → Float → Bool
     primFloatNumericalEquality : Float → Float → Bool
     primFloatNumericalLess     : Float → Float → Bool
-    primRound         : Float → Int
-    primFloor         : Float → Int
-    primCeiling       : Float → Int
-    primExp           : Float → Float
-    primLog           : Float → Float
-    primSin           : Float → Float
-    primCos           : Float → Float
-    primTan           : Float → Float
-    primASin          : Float → Float
-    primACos          : Float → Float
-    primATan          : Float → Float
-    primATan2         : Float → Float → Float
-    primShowFloat     : Float → String
+    primRound                  : Float → Int
+    primFloor                  : Float → Int
+    primCeiling                : Float → Int
+    primExp                    : Float → Float
+    primLog                    : Float → Float
+    primSin                    : Float → Float
+    primCos                    : Float → Float
+    primTan                    : Float → Float
+    primASin                   : Float → Float
+    primACos                   : Float → Float
+    primATan                   : Float → Float
+    primATan2                  : Float → Float → Float
+    primShowFloat              : Float → String
 
 The ``primFloatEquality`` primitive is intended to be used for decidable
 propositional equality. To enable proof carrying comparisons while preserving
@@ -284,9 +284,10 @@ consisteny, the following laws apply:
 - ``primFloatEquality 0.0 -0.0`` returns ``false``.
 
 
-For numerical comparisons, use the ``primFloatNumericalEquality``
-and ``primFloatNumericalLess`` primitives. These are implemented by the
-corresponding Haskell functions with the following exceptions:
+For numerical comparisons, use the ``primFloatNumericalEquality`` and
+``primFloatNumericalLess`` primitives. These are implemented by the
+corresponding Haskell functions with the following behaviour and
+exceptions:
 
 - ``primFloatNumericalEquality 0.0 -0.0`` returns ``true``.
 - ``primFloatNumericalEquality NaN NaN`` returns ``false``.
@@ -295,10 +296,13 @@ corresponding Haskell functions with the following exceptions:
 - ``primFloatNumericalLess NaN (primFloatNegate NaN)`` returns ``false``.
 - ``primFloatNumericalLess (primFloatNegate NaN) NaN`` returns ``false``.
 - ``primFloatNumericalLess`` sorts ``NaN`` below everything but negative infinity.
-- ``primFloatNumericalLess -0.0 0.0`` returns ``true``.
+- ``primFloatNumericalLess -0.0 0.0`` returns ``false``.
 
 .. warning::
-   Do not use ``primFloatNumericalEquality`` to establish decidable propositional equality. Doing so makes Agda inconsistent, see `issue #2169 <https://github.com/agda/agda/issues/2169>`_.
+
+   Do not use ``primFloatNumericalEquality`` to establish decidable
+   propositional equality. Doing so makes Agda inconsistent, see
+   Issue `#2169 <https://github.com/agda/agda/issues/2169>`_.
 
 Lists
 -----
