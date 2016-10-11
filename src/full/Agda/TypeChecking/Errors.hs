@@ -129,6 +129,8 @@ instance PrettyTCM Warning where
         pwords "is not strictly positive, because it occurs"
         ++ [prettyTCM ocs]
 
+    EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
+
 prettyWarnings :: [Warning] -> TCM String
 prettyWarnings = fmap (unlines . intersperse " ") . prettyWarnings'
 
@@ -159,6 +161,7 @@ applyFlagsToWarnings ifs ws = do
        UnsolvedMetaVariables ums    -> not (null ums) && (ignore || unsolvedNotOK)
        UnsolvedInteractionMetas uis -> not (null uis) && (ignore || unsolvedNotOK)
        UnsolvedConstraints tcst ucs -> not (null ucs) && (ignore || unsolvedNotOK)
+       EmptyRewritePragma           -> True
 
   return $ filter cleanUp ws
 

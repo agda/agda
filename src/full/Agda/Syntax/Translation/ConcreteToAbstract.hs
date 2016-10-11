@@ -56,12 +56,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 import Agda.Syntax.IdiomBrackets
 
-import Agda.TypeChecking.Monad.Base
-  ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
-  , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
-  , envAbstractMode , AbstractMode(..), aModeToDef, aDefToMode
-  , TCM
-  )
+import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -1635,6 +1630,7 @@ errorNotConstrDecl d = typeError . GenericDocError $
 instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+  toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
   toAbstract (C.RewritePragma _ xs) = concat <$> do
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
