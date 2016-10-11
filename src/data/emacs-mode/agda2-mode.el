@@ -93,7 +93,7 @@ argument, and does not need to be listed here."
   :type '(repeat string)
   :group 'agda2)
 
-(defvar agda2-backends '("GHC" "GHCNoMain" "Epic" "JS" "LaTeX")
+(defvar agda2-backends '("GHC" "GHCNoMain" "JS" "LaTeX")
   "Compilation backends.")
 
 (defcustom agda2-backend
