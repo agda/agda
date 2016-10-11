@@ -3,7 +3,7 @@
 
 module Agda.TypeChecking.InstanceArguments where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.Map as Map
@@ -35,6 +35,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Null (empty)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -58,7 +59,7 @@ initialIFSCandidates t = do
     getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit
+      let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit False
                  | (Dom info (x, t), i) <- zip ctx [0..]
                  , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
@@ -68,12 +69,13 @@ initialIFSCandidates t = do
       let cxtAndTypes = [ (var i, snd $ unDom $ raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
       fields <- concat <$> mapM instanceFields cxtAndTypes
       reportSDoc "tc.instance.fields" 30 $ text "instance field candidates" $$ nest 2 (vcat
-        [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- fields ])
+        [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
+              , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- fields ])
 
       -- get let bindings
       env <- asks envLetBindings
       env <- mapM (getOpen . snd) $ Map.toList env
-      let lets = [ Candidate v t ExplicitStayExplicit
+      let lets = [ Candidate v t ExplicitStayExplicit False
                  | (v, Dom info t) <- env
                  , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
@@ -85,7 +87,8 @@ initialIFSCandidates t = do
         (tel, args) <- etaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          ([ Candidate (unArg arg) t ExplicitStayExplicit | getHiding arg == Instance ] ++) <$>
+          ([ Candidate (unArg arg) t ExplicitStayExplicit (argInfoOverlappable $ argInfo arg)
+           | getHiding arg == Instance ] ++) <$>
           instanceFields (unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
@@ -117,7 +120,7 @@ initialIFSCandidates t = do
                Constructor{ conSrcCon = c }       -> Con c []
                _                                  -> Def q $ map Apply args
           inScope <- isNameInScope q <$> getScope
-          return $ Candidate v t ExplicitToInstance <$ guard inScope
+          return $ Candidate v t ExplicitToInstance False <$ guard inScope
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
@@ -171,7 +174,8 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       reportSLn "tc.instance" 15 $
         "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
-        [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- cands ]
+        [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
+              , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- cands ]
       t <- normalise =<< getMetaTypeInContext m
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
@@ -192,7 +196,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               text "findInScope 5: not a single candidate found..."
             typeError $ IFSNoCandidateInScope t
 
-          Just [Candidate term t' _] -> do
+          Just [Candidate term t' _ _] -> do
             reportSDoc "tc.instance" 15 $ vcat
               [ text "findInScope 5: solved by instance search using the only candidate"
               , nest 2 $ prettyTCM term
@@ -401,23 +405,25 @@ checkCandidates m t cands = disableDestructiveUpdate $
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ text "candidates"
-      , vcat [ text "-" <+> prettyTCM v <+> text ":" <+> prettyTCM t | Candidate v t _ <- cands ] ]
+      , vcat [ text "-" <+> (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":" <+> prettyTCM t
+             | Candidate v t _ overlap <- cands ] ]
     cands' <- filterResetingState m cands (checkCandidateForMeta m t)
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ text "valid candidates"
-      , vcat [ text "-" <+> prettyTCM v <+> text ":" <+> prettyTCM t | Candidate v t _ <- cands' ] ]
+      , vcat [ text "-" <+> (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":" <+> prettyTCM t
+             | Candidate v t _ overlap <- cands' ] ]
     return cands'
   where
     anyMetaTypes :: [Candidate] -> TCM Bool
     anyMetaTypes [] = return False
-    anyMetaTypes (Candidate _ a _ : cands) = do
+    anyMetaTypes (Candidate _ a _ _ : cands) = do
       a <- instantiate a
       case ignoreSharing $ unEl a of
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
-    checkCandidateForMeta m t (Candidate term t' eti) = do
+    checkCandidateForMeta m t (Candidate term t' eti _) = do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m

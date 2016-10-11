@@ -2186,11 +2186,12 @@ data ExplicitToInstance
 data Candidate  = Candidate { candidateTerm :: Term
                             , candidateType :: Type
                             , candidateEti  :: ExplicitToInstance
+                            , candidateOverlappable :: Bool
                             }
   deriving (Show)
 
 instance Free' Candidate c where
-  freeVars' (Candidate t u _) = freeVars' (t, u)
+  freeVars' (Candidate t u _ _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
