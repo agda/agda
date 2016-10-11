@@ -13,6 +13,7 @@ module Agda.TypeChecking.Coverage
   , splitClauseWithAbsurd
   , splitLast
   , splitResult
+  , normaliseProjP
   ) where
 
 import Prelude hiding (null)
@@ -50,7 +51,7 @@ import Agda.TypeChecking.Datatypes (getConForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Records (isRecordType)
+import Agda.TypeChecking.Records (isRecordType, getOriginalProjection)
 import Agda.TypeChecking.Telescope
 
 import Agda.Interaction.Options
@@ -176,7 +177,8 @@ cover f cs sc@(SClause tel ps _ target) = do
     , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
-  case match cs ps of
+  cs' <- normaliseProjP cs
+  case match cs' ps of
     Yes (i,(mps,ls0))
      | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
@@ -302,6 +304,30 @@ cover f cs sc@(SClause tel ps _ target) = do
                     -> SplitTree -> (QName,SplitTree)
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
+
+class NormaliseProjP a where
+  normaliseProjP :: a -> TCM a
+
+instance NormaliseProjP Clause where
+  normaliseProjP cl = do
+    ps <- normaliseProjP $ namedClausePats cl
+    return $ cl { namedClausePats = ps }
+
+instance NormaliseProjP a => NormaliseProjP [a] where
+  normaliseProjP = traverse normaliseProjP
+
+instance NormaliseProjP a => NormaliseProjP (Arg a) where
+  normaliseProjP = traverse normaliseProjP
+
+instance NormaliseProjP a => NormaliseProjP (Named_ a) where
+  normaliseProjP = traverse normaliseProjP
+
+instance NormaliseProjP (Pattern' x) where
+  normaliseProjP p@VarP{}        = return p
+  normaliseProjP p@DotP{}        = return p
+  normaliseProjP (ConP c cpi ps) = ConP c cpi <$> normaliseProjP ps
+  normaliseProjP p@LitP{}        = return p
+  normaliseProjP (ProjP o d0)    = ProjP o <$> getOriginalProjection d0
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
 splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
