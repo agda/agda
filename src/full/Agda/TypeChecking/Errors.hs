@@ -136,6 +136,8 @@ instance PrettyTCM Warning where
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    ParseWarning pw -> pretty pw
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse " ") . prettyTCWarnings'
 
@@ -170,6 +172,7 @@ applyFlagsToTCWarnings ifs ws = do
           UnsolvedConstraints ucs      -> keepUnsolved ucs
           OldBuiltin{}                 -> True
           EmptyRewritePragma           -> True
+          ParseWarning{}               -> True
 
   return $ filter (cleanUp . tcWarning) ws
 

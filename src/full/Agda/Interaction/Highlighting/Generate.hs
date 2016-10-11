@@ -338,13 +338,13 @@ generateTokenInfo
   :: AbsolutePath          -- ^ The module to highlight.
   -> TCM CompressedFile
 generateTokenInfo file =
-  liftIO $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser file
+  runPM $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser file
 
 -- | Same as 'generateTokenInfo' but takes a string instead of a filename.
 generateTokenInfoFromString :: P.Range -> String -> TCM CompressedFile
 generateTokenInfoFromString r _ | r == P.noRange = return mempty
 generateTokenInfoFromString r s = do
-  liftIO $ tokenHighlighting <$> Pa.parsePosString Pa.tokensParser p s
+  runPM $ tokenHighlighting <$> Pa.parsePosString Pa.tokensParser p s
   where
     Just p = P.rStart r
 

@@ -188,7 +188,7 @@ metaParseExpr ii s =
         let pos = case rStart r of
                     Nothing  -> __IMPOSSIBLE__
                     Just pos -> pos
-        e <- liftIO $ parsePosString exprParser pos s
+        e <- runPM $ parsePosString exprParser pos s
         concreteToAbstract scope e
 
 actOnMeta :: [String] -> (InteractionId -> A.Expr -> TCM a) -> TCM a
@@ -228,7 +228,7 @@ evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s = do
-    e <- liftIO $ parse exprParser s
+    e <- runPM $ parse exprParser s
     localToAbstract e return
 
 evalTerm :: String -> TCM (ExitCode a)
