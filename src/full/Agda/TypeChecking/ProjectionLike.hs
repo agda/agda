@@ -119,7 +119,13 @@ eligibleForProjectionLike d = do
     Datatype{} -> True
     Record{}   -> True
     Axiom{}    -> True
-    _          -> False
+    Function{}    -> False
+    Primitive{}   -> False
+    Constructor{} -> __IMPOSSIBLE__
+    AbstractDefn  -> False
+      -- Andreas, 2016-10-11 AIM XXIV
+      -- Projection-like at abstract types violates the parameter reconstructibility property.
+      -- See test/Fail/AbstractTypeProjectionLike.
 
 -- | Turn a definition into a projection if it looks like a projection.
 makeProjection :: QName -> TCM ()

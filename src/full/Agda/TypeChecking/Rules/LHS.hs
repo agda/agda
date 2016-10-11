@@ -287,6 +287,12 @@ noShadowingOfConstructors mkCall problem =
               []      -> return ()
               (c : _) -> setCurrentRange x $
                 typeError $ PatternShadowsConstructor x c
+          AbstractDefn{} -> return ()
+            -- Abstract constructors cannot be brought into scope,
+            -- even by a bigger import list.
+            -- Thus, they cannot be confused with variables.
+            -- Alternatively, we could do getConstInfo in ignoreAbstractMode,
+            -- then Agda would complain if a variable shadowed an abstract constructor.
           Axiom       {} -> return ()
           Function    {} -> return ()
           Record      {} -> return ()

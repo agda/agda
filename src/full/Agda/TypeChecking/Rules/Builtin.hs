@@ -416,7 +416,7 @@ bindPostulatedName ::
   String -> A.Expr -> (QName -> Definition -> TCM Term) -> TCM ()
 bindPostulatedName builtin e m = do
   q   <- getName e
-  def <- ignoreAbstractMode $ getConstInfo q
+  def <- getConstInfo q
   case theDef def of
     Axiom {} -> bindBuiltinName builtin =<< m q def
     _        -> err
@@ -540,7 +540,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                     "The argument to BUILTIN " ++ s ++ " must be a postulated name"
         case e of
           A.Def q -> do
-            def <- ignoreAbstractMode $ getConstInfo q
+            def <- getConstInfo q
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
