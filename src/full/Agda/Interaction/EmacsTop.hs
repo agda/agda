@@ -87,11 +87,29 @@ lispifyResponse (Resp_HighlightingInfo info modFile) =
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk -> f "The module was successfully compiled." "*Compilation result*"
     Info_Constraints s -> f s "*Constraints*"
-    Info_AllGoalsWarnings g  [] -> f g "*All Goals*"
-    Info_AllGoalsWarnings [] w  -> f w "*Errors*"
-    Info_AllGoalsWarnings g  w  -> f (g ++ delimiter ++ w)
-                                     "*All Goals (with errors)*"
-      where delimiter = "\nErrors:\n" ++ (replicate 7 '\x2014') ++ "\n"
+    Info_AllGoalsWarnings g  w e -> f body ("*All" ++ title ++ "*")
+      where
+        isG = not $ null g
+        isW = not $ null w
+        isE = not $ null e
+        title = intercalate "," $ catMaybes
+                  [ " Goals"    <$ guard isG
+                  , " Warnings" <$ guard isW
+                  , " Errors"   <$ guard isE
+                  , " Done"     <$ guard (not (isG || isW || isE))
+                  ]
+        delimiter s = concat [ replicate 4 '\x2014'
+                             , " ", s, " "
+                             , replicate (54 - length s) '\x2014'
+                             ]
+
+        body = intercalate "\n" $ catMaybes
+                 [ g                    <$ guard isG
+                 , delimiter "Warnings" <$ guard (isW && (isG || isE))
+                 , w                    <$ guard isW
+                 , delimiter "Errors"   <$ guard (isE && (isG || isW))
+                 , e                    <$ guard isE
+                 ]
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"
     -- FNF: if Info_Warning comes back into use, the above should be

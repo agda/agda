@@ -93,13 +93,14 @@ argument, and does not need to be listed here."
   :type '(repeat string)
   :group 'agda2)
 
+(defvar agda2-backends '("GHC" "GHCNoMain" "Epic" "JS" "LaTeX")
+  "Compilation backends.")
+
 (defcustom agda2-backend
-  "MAlonzo"
-  "The backend which is used to compile Agda programs."
-  :type '(choice (const "MAlonzo")
-                 (const "MAlonzoNoMain")
-                 (const "Epic")
-                 (const "JS"))
+  'ask
+  "The backend used to compile Agda programs."
+  :type `(choice (const :tag "Ask every time" ask)
+                 ,@(mapcar (lambda (x) `(const ,x)) agda2-backends))
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
@@ -810,11 +811,22 @@ resulting time (represented as a string)."
 
 The variable `agda2-backend' determines which backend is used."
   (interactive)
-  (agda2-go t t t "Cmd_compile"
-            agda2-backend
-            (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-program-args)
-            ))
+  (let ((backend (cond ((equal agda2-backend "MAlonzo")       "GHC")
+                       ((equal agda2-backend "MAlonzoNoMain") "GHCNoMain")
+                       ((equal agda2-backend 'ask)
+                        (completing-read "Backend: " agda2-backends
+                                         nil t nil nil nil
+                                         'inherit-input-method))
+                       (t agda2-backend))))
+    (unless (member backend agda2-backends)
+      (if (equal backend "")
+          (error "No backend chosen")
+        (error "Invalid backend: %s" backend)))
+    (agda2-go t t t "Cmd_compile"
+              backend
+              (agda2-string-quote (buffer-file-name))
+              (agda2-list-quote agda2-program-args)
+              )))
 
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
@@ -1359,7 +1371,12 @@ a goal, the top-level scope."
 
 (defun agda2-compute-normalised (&optional arg)
   "Compute the normal form of the expression in the goal at point.
-With a prefix argument \"abstract\" is ignored during the computation."
+
+With a prefix argument distinct from `(4)' the normal form of
+\"show <expression>\" is computed.
+
+With any prefix argument \"abstract\" is ignored during the
+computation."
   (interactive "P")
   (let ((cmd (concat "Cmd_compute"
                       (cond ((equal arg nil) " DefaultCompute")
@@ -1368,10 +1385,15 @@ With a prefix argument \"abstract\" is ignored during the computation."
     (agda2-goal-cmd cmd "expression to normalise")))
 
 (defun agda2-compute-normalised-toplevel (expr &optional arg)
-  "Computes the normal form of the given expression.
-The scope used for the expression is that of the last point inside the current
-top-level module.
-With a prefix argument \"abstract\" is ignored during the computation."
+  "Compute the normal form of the given expression.
+The scope used for the expression is that of the last point
+inside the current top-level module.
+
+With a prefix argument distinct from `(4)' the normal form of
+\"show <expression>\" is computed.
+
+With any prefix argument \"abstract\" is ignored during the
+computation."
   (interactive "MExpression: \nP")
   (let ((cmd (concat "Cmd_compute_toplevel"
                      (cond ((equal arg nil) " DefaultCompute")
@@ -1380,10 +1402,15 @@ With a prefix argument \"abstract\" is ignored during the computation."
     (agda2-go t nil t (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
-  "Computes the normal form of the given expression,
-using the scope of the current goal or, if point is not in a goal, the
-top-level scope.
-With a prefix argument \"abstract\" is ignored during the computation."
+  "Compute the normal form of the given expression.
+The scope used for the expression is that of the last point
+inside the current top-level module.
+
+With a prefix argument distinct from `(4)' the normal form of
+\"show <expression>\" is computed.
+
+With any prefix argument \"abstract\" is ignored during the
+computation."
   (interactive)
   (if (agda2-goal-at (point))
       (call-interactively 'agda2-compute-normalised)

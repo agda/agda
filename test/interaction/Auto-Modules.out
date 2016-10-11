@@ -29,5 +29,5 @@
 ((last . 1) . (agda2-goals-action '(5)))
 (agda2-give-action 5 "λ z z₁ → subst (Eq .x₁) z₁ z")
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "" nil)
+(agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))

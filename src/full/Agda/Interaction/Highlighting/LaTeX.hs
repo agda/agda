@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -12,7 +13,7 @@ import Prelude hiding (log)
 import Data.Char
 import Data.Maybe
 import Data.Function
-import Control.Monad.RWS
+import Control.Monad.RWS.Strict
 import System.Directory
 import System.FilePath
 import Data.Text (Text)
@@ -26,11 +27,13 @@ import qualified Data.List   as List
 
 import Paths_Agda
 
+import Agda.Syntax.Abstract (toTopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
+import Agda.Syntax.Concrete
+  (TopLevelModuleName, moduleNameParts, projectRoot)
 import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Interaction.Options
 import Agda.Compiler.CallCompiler
@@ -54,20 +57,19 @@ type LaTeX = ExceptT String (RWST () Text State IO)
 
 data State = State
   { tokens     :: Tokens
-  , column     :: Int     -- ^ Column number, used for polytable alignment.
-  , indent     :: Int     -- ^ Indentation level, also for alignment.
-  , indentPrev :: Int
-  , inCode     :: Bool    -- ^ Keeps track of whether we are in a code
+  , column     :: !Int    -- ^ Column number, used for polytable alignment.
+  , indent     :: !Int    -- ^ Indentation level, also for alignment.
+  , indentPrev :: !Int
+  , inCode     :: !Bool   -- ^ Keeps track of whether we are in a code
                           -- block or not.
-  , debugs     :: [Debug] -- ^ Says what debug information should printed.
   }
 
 type Tokens = [Token]
 
 data Token = Token
-  { text     :: Text
+  { text     :: !Text
   , info     :: Aspects
-  , position :: Int      -- ^ Is not used currently, but could
+  , position :: !Int     -- ^ Is not used currently, but could
                          -- potentially be used for hyperlinks as in
                          -- the HTML output?
   }
@@ -75,6 +77,11 @@ data Token = Token
 
 data Debug = MoveColumn | NonCode | Code | Spaces | Output
   deriving (Eq, Show)
+
+-- | Says what debug information should printed.
+
+debugs :: [Debug]
+debugs = []
 
 -- | Run function for the @LaTeX@ monad.
 runLaTeX :: LaTeX a -> () -> State -> IO (Either String a, State, Text)
@@ -87,7 +94,6 @@ emptyState = State
   , indent     = 0
   , indentPrev = 0
   , inCode     = False
-  , debugs     = []
   }
 
 ------------------------------------------------------------------------
@@ -99,9 +105,9 @@ emptyState = State
 isInfixOf' :: Text -> Text -> Maybe (Text, Text)
 isInfixOf' needle haystack = go (T.tails haystack) 0
   where
-  go []                                         n = Nothing
-  go ((T.stripPrefix needle -> Just suf) : xss) n = Just (T.take n haystack, suf)
-  go (_                                  : xss) n = go xss (n + 1)
+  go []                                         !n = Nothing
+  go ((T.stripPrefix needle -> Just suf) : xss)  n = Just (T.take n haystack, suf)
+  go (_                                  : xss)  n = go xss (n + 1)
 
 -- Same as above, but starts searching from the back rather than the
 -- front.
@@ -214,8 +220,7 @@ unsetInCode :: LaTeX ()
 unsetInCode = modify $ \s -> s { inCode = False }
 
 logHelper :: Debug -> Text -> [String] -> LaTeX ()
-logHelper debug text extra = do
-  debugs <- gets debugs
+logHelper debug text extra =
   when (debug `elem` debugs) $ do
     lift $ lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
       T.pack "'" <+> text <+> T.pack "' " <+>
@@ -518,14 +523,20 @@ spaces (_ : ss) = __IMPOSSIBLE__
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
--- | The only exported function. It's (only) called in @Main.hs@.
-generateLaTeX :: TopLevelModuleName -> HighlightingInfo -> TCM ()
-generateLaTeX mod hi = do
+-- | The only exported function.
+generateLaTeX :: Interface -> TCM ()
+generateLaTeX i = do
+  let mod = toTopLevelModuleName $ iModuleName i
+      hi  = iHighlighting i
 
   options <- TCM.commandLineOptions
 
-  -- There is a default directory given by 'defaultLaTeXDir'.
-  let dir = optLaTeXDir options
+  dir <- case optGHCiInteraction options of
+    False -> return $ optLaTeXDir options
+    True  -> do
+      sourceFile <- Find.findFile mod
+      return $ filePath (projectRoot sourceFile mod)
+                 </> optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
   TCM.reportSLn "latex" 1 $ unlines

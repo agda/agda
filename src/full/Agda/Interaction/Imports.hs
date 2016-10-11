@@ -49,6 +49,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Rewriting (killCtxId)
 import Agda.TypeChecking.DeadCode
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -150,7 +151,7 @@ scopeCheckImport x = do
 
 data MaybeWarnings' a = NoWarnings | SomeWarnings a
   deriving (Functor)
-type MaybeWarnings = MaybeWarnings' [Warning]
+type MaybeWarnings = MaybeWarnings' [TCWarning]
 
 instance Null a => Null (MaybeWarnings' a) where
   empty = NoWarnings
@@ -238,7 +239,7 @@ getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x NotMainInterface
   case wt of
-    SomeWarnings w  -> warningsToError (filter notIM w)
+    SomeWarnings w  -> tcWarningsToError (filter (notIM . tcWarning) w)
     NoWarnings      -> return i
    -- filter out unsolved interaction points for imported module so
    -- that we get the right error message (see test case Fail/Issue1296)
@@ -439,8 +440,10 @@ typeCheck x file includeStateChanges = do
           unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
                 (chaseMsg "Checking" x $ Just $ filePath file)
-                (const $ unlessM (hasWarnings <$> getAllWarnings RespectFlags) $
-                  chaseMsg "Finished" x Nothing)
+                (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
+                            let (we, wa) = classifyWarnings ws
+                            unless (null wa) $ reportSDoc "import.warn" 1 $ P.vcat $ P.prettyTCM <$> wa
+                            unless (not $ null we) $ chaseMsg "Finished" x Nothing)
 
           -- Do the type checking.
 
@@ -756,7 +759,8 @@ createInterface file mname isMain =
       ]
     reportSLn "import.iface.create" 7 $ "Finished serialization."
 
-    mallWarnings <- getAllWarnings $ if isMain then IgnoreFlags else RespectFlags
+    mallWarnings <- getAllWarnings ErrorWarnings
+                      $ if isMain then IgnoreFlags else RespectFlags
 
     reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
     case mallWarnings of
@@ -789,27 +793,50 @@ createInterface file mname isMain =
 -- in by the user, or not (for instance when deciding if we are
 -- writing an interface file or not)
 
-getAllWarnings :: IgnoreFlags -> TCM MaybeWarnings
-getAllWarnings ifs = do
+data WhichWarnings = ErrorWarnings | AllWarnings
+  -- ^ order of constructors important for derived Ord instance
+  deriving (Eq, Ord)
+
+classifyWarning :: Warning -> WhichWarnings
+classifyWarning w = case w of
+  OldBuiltin{}               -> AllWarnings
+  EmptyRewritePragma         -> AllWarnings
+  TerminationIssue{}         -> ErrorWarnings
+  NotStrictlyPositive{}      -> ErrorWarnings
+  UnsolvedMetaVariables{}    -> ErrorWarnings
+  UnsolvedInteractionMetas{} -> ErrorWarnings
+  UnsolvedConstraints{}      -> ErrorWarnings
+
+classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
+classifyWarnings = partition $ (< AllWarnings) . classifyWarning . tcWarning
+
+getAllWarnings' :: WhichWarnings -> IgnoreFlags -> TCM [TCWarning]
+getAllWarnings' ww ifs = do
   openMetas            <- getOpenMetas
   interactionMetas     <- getInteractionMetas
-  unsolvedInteractions <- List.nub <$> mapM getMetaRange interactionMetas
-  unsolvedMetas        <- List.nub <$> mapM getMetaRange (openMetas List.\\ interactionMetas)
+  let getUniqueMetas = fmap List.nub . mapM getMetaRange
+  unsolvedInteractions <- getUniqueMetas interactionMetas
+  unsolvedMetas        <- getUniqueMetas (openMetas List.\\ interactionMetas)
   unsolvedConstraints  <- getAllConstraints
-  collectedWarnings    <- use stWarnings
-  interactionPoints    <- getInteractionPoints
-  tcst                 <- get
+  collectedTCWarnings  <- use stTCWarnings
 
-  allWarnings <- applyFlagsToWarnings ifs $ reverse
-               $ UnsolvedInteractionMetas unsolvedInteractions
-               : UnsolvedMetaVariables    unsolvedMetas
-               : UnsolvedConstraints      tcst unsolvedConstraints
-               : collectedWarnings
+  unsolved <- mapM warning_
+                   [ UnsolvedInteractionMetas unsolvedInteractions
+                   , UnsolvedMetaVariables    unsolvedMetas
+                   , UnsolvedConstraints      unsolvedConstraints ]
 
-  return $ if and [ null allWarnings ] -- , null interactionPoints ] -- Andreas, issue 964: we do want to serialize with open interaction points now!
+  fmap (filter ((<= ww) . classifyWarning . tcWarning))
+    $ applyFlagsToTCWarnings ifs $ reverse
+    $ unsolved ++ collectedTCWarnings
+
+getAllWarnings :: WhichWarnings -> IgnoreFlags -> TCM MaybeWarnings
+getAllWarnings ww ifs = do
+  allWarnings <- getAllWarnings' ww ifs
+  return $ if null allWarnings
+    -- Andreas, issue 964: not checking null interactionPoints
+    -- anymore; we want to serialize with open interaction points now!
            then NoWarnings
            else SomeWarnings allWarnings
-
 
 -- constructIScope :: ScopeInfo -> Map ModuleName Scope
 constructIScope :: Interface -> Interface

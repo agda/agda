@@ -1,4 +1,4 @@
-Issue1544.agda:95,10-18
+Issue1544.agda:93,3-114,42
 Command₁ is not strictly positive, because it occurs
 in the type of the constructor command₁
 in the definition of Modifier, which occurs
@@ -11,7 +11,7 @@ in the second argument to [tabulate]
 in the second argument to Record
 in the type of the constructor mkCommand
 in the definition of Command₁.
-Issue1544.agda:99,12-20
+Issue1544.agda:93,3-114,42
 Command₂ is not strictly positive, because it occurs
 in the type of the constructor command₂
 in the definition of Modifier, which occurs
@@ -23,14 +23,14 @@ in the definition of Modifier, which occurs
 in the second argument to [tabulate]
 in the second argument to [Record]
 in the definition of Command₂.
-Issue1544.agda:105,12-20
+Issue1544.agda:93,3-114,42
 Command₃ is not strictly positive, because it occurs
 in the type of the constructor command₃
 in the definition of Modifier, which occurs
 in the second argument to tabulate
 in the second argument to Record
 in the definition of Command₃.
-Issue1544.agda:111,10-18
+Issue1544.agda:93,3-114,42
 Modifier is not strictly positive, because it occurs
 in the second argument to tabulate
 in the second argument to Record

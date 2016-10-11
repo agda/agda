@@ -1,4 +1,4 @@
-Issue653.agda:13,8-9
+Issue653.agda:7,1-14,22
 B is not strictly positive, because it occurs
 in the second argument to P
 in the first clause
