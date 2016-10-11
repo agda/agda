@@ -1343,6 +1343,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections
         bindName p FldName x y
+      when (getHiding t /= Instance && argInfoOverlappable (argInfo t)) $
+        genericError "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
       return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
 
   -- Primitive function
