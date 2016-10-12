@@ -641,7 +641,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             , varOrDot (namedArg a)
             ]
 
-          isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing
+          isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing && isNothing (isProjP x)
 
           stripArg a = fmap (fmap stripPat) a
 
