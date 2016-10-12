@@ -336,6 +336,7 @@ defineCompR' name params fsT fns rect = do
 --          reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
           return c
   addClauses compName cs
+  setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
   return $ Just compName
 
 

@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
+import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
@@ -92,6 +93,13 @@ setTerminates :: QName -> Bool -> TCM ()
 setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ setT
   where
     setT def@Function{} = def { funTerminates = Just b }
+    setT def            = def
+
+-- | Set CompiledClauses of a defined function symbol.
+setCompiledClauses :: QName -> CompiledClauses -> TCM ()
+setCompiledClauses q cc = modifySignature $ updateDefinition q $ updateTheDef $ setT
+  where
+    setT def@Function{} = def { funCompiled = Just cc }
     setT def            = def
 
 -- | Modify the clauses of a function.

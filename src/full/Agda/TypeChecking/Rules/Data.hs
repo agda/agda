@@ -17,7 +17,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Fixity
 
-import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
+import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Conversion
@@ -324,7 +324,9 @@ defineCompData d con params names fsT t = do
             , clauseCatchall = False
             , clauseBody = Just $ Con con (map argN bodies) -- abstract gamma $ Body $ Con con (map argN bodies)
             }
-    addClauses compName [clause]
+        cs = [clause]
+    addClauses compName cs
+    setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
     setTerminates compName True
     return $ Just compName
 
@@ -363,11 +365,13 @@ defineProjections dataname con params names fsT t = do
           }
 
     noMutualBlock $ do
+      let cs = [clause]
+      cc <- inTopContext $ compileClauses Nothing cs
       addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
        emptyFunction
-        { funClauses = [clause]
+        { funClauses = cs
         , funTerminates = Just True
-        , funCompiled = Just Fail
+        , funCompiled = Just cc
         }
 
 defineCompForFields
@@ -404,7 +408,7 @@ defineCompForFields applyProj name params fsT fns rect = do
   reportSDoc "comp.rec" 20 $ prettyTCM compType
 
   noMutualBlock $ addConstant compName $ defaultDefn defaultArgInfo compName compType $
-    emptyFunction { funTerminates = Just True, funCompiled = Just Fail }
+    emptyFunction { funTerminates = Just True }
 
   --   ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (_ : (i : I) -> Partial φ (R (δ i))) (_ : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
