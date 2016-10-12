@@ -297,8 +297,10 @@ instance PrettyTCM Constraint where
                 Nothing -> text "No candidates yet"
                 Just cnds ->
                   hang (text "Candidates") 2 $
-                    vcat [ hang (prettyTCM (candidateTerm c) <+> text ":") 2 $
+                    vcat [ hang (overlap c <+> prettyTCM (candidateTerm c) <+> text ":") 2 $
                             prettyTCM (candidateType c) | c <- cnds ]
+              where overlap c | candidateOverlappable c = text "overlap"
+                              | otherwise               = empty
         IsEmpty r t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
         CheckSizeLtSat t ->

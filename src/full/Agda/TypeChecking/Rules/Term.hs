@@ -130,8 +130,9 @@ isType_ e =
       return t'
     A.Set _ n    -> do
       return $ sort (mkType n)
-    A.App i s arg@(Arg (ArgInfo NotHidden r o) l)
-      | A.Set _ 0 <- unScope s ->
+    A.App i s arg
+      | getHiding arg == NotHidden,
+        A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
       $ {- else -} do

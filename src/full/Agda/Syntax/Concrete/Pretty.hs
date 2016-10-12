@@ -303,13 +303,16 @@ instance Pretty Declaration where
                     ]
             Field inst x (Arg i e) ->
                 sep [ text "field"
-                    , nest 2 $ mkInst inst $
+                    , nest 2 $ mkInst inst $ mkOverlap i $
                       prettyRelevance i $ prettyHiding i id $
                         pretty $ TypeSig (i {argInfoRelevance = Relevant}) x e
                     ]
                 where
                   mkInst InstanceDef    d = sep [ text "instance", nest 2 d ]
                   mkInst NotInstanceDef d = d
+
+                  mkOverlap i d | argInfoOverlappable i = text "overlap" <+> d
+                                | otherwise             = d
             FunClause lhs rhs wh _ ->
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs

@@ -1,0 +1,17 @@
+Failed to solve the following constraints:
+  [0] Resolve instance argument _18 : {{.a : A}} {{.b : B}} → A
+      Candidates
+        .a : A
+        overlap B.a .b : A
+  [0] Resolve instance argument _24 : {{.c : C}} {{.d : D}} → A
+      Candidates
+        overlap C.a .c : A
+        D.a .d : A
+  [0] Resolve instance argument _30 : {{.b : B}} → A
+      Candidates
+        overlap B.a .b : A
+        a : A
+Unsolved metas at the following locations:
+  DisallowedOverlaps.agda:27,9-11
+  DisallowedOverlaps.agda:31,9-11
+  DisallowedOverlaps.agda:37,9-11
