@@ -121,7 +121,7 @@ type CoverM = ExceptionT SplitError TCM
 -- | Top-level function for checking pattern coverage.
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
-  TelV gamma a <- telView t
+  TelV gamma a <- telViewUpToPath (-1) t
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma

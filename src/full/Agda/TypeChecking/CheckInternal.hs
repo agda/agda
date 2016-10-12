@@ -287,15 +287,6 @@ shouldBePath t = do
     Just p  -> return p
     Nothing -> typeError $ ShouldBePath t
 
-isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
-isPath t = do
-  t <- pathView =<< reduce t
-  case t of
-    PathType s l p a x y -> do
-      i <- elInf primInterval
-      return $ Just $ (defaultDom $ i, Abs "_" $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0])
-    OType t    -> return Nothing
-
 shouldBePi :: Type -> TCM (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 

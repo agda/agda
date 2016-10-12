@@ -19,6 +19,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -321,6 +322,31 @@ telViewUpTo' n p t = do
     _            -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+-- | @telViewUpToPath n t@ takes off $t$
+--   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
+telViewUpToPath :: Int -> Type -> TCM TelView
+telViewUpToPath 0 t = return $ TelV EmptyTel t
+telViewUpToPath n t = do
+  vt <- pathViewAsPi $ t
+  case vt of
+    Left (a,b)     -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
+    Right (El _ (Pi a b)) -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
+    _              -> return $ TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+pathViewAsPi :: Type -> TCM (Either (Dom Type, Abs Type) Type)
+pathViewAsPi t = do
+  t <- pathView =<< reduce t
+  case t of
+    PathType s l p a x y -> do
+      i <- El Inf <$> primInterval
+      return $ Left $ (defaultDom $ i, Abs "_" $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0])
+    OType t    -> return $ Right t
+
+isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
+isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
 -- | Decomposing a function type.
 

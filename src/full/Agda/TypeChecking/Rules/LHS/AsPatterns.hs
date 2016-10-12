@@ -53,7 +53,8 @@ smashType a _ [] = return []
 smashType a self (e : es) =
   case e of
     Apply v -> do
-      Pi a b <- ignoreSharing <$> reduce (unEl a)
+      TelV (ExtendTel a (Abs x EmptyTel)) b' <- telViewUpToPath 1 =<< reduce a
+      let b = Abs x b'
       (ArgT (unDom a) :) <$> smashType (absApp b $ unArg v) (self `applyE` [e]) es
     Proj o f -> do
       a <- reduce a

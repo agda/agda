@@ -46,6 +46,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -355,6 +356,57 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
+checkBodyEndPoints
+  :: Telescope  -- ^ Δ current context? same clauseTel
+  -> Type     -- ^ raised type of the function, Δ ⊢ T
+  -> Term     -- ^ Δ ⊢ self : T
+  -> Elims -- ^ Δ ⊢ es, patterns to eliminate T
+  -> Term     -- ^ Δ ⊢ body : T@es
+  -> TCM ()
+checkBodyEndPoints delta t self es body = do
+  -- apply ps to T and accumulate constraints
+  (cs,t) <- accumBoundary [] es t self
+  reportSDoc "endpoints" 20 $ prettyTCM (cs,t)
+  checkBoundary cs t body
+ where
+   checkBoundary cs t body = do
+     neg <- primINeg
+     forM_ cs $ \ (i,(x,y)) -> do
+       let sigma v u = singletonS i v `applySubst` u
+           boundary phi b = equalTermOnFace phi t body b
+       boundary (neg `apply` [argN $ var i]) x
+       boundary (var i) y
+     return ()
+   -- cs :: [(Int,(Term,Term))], (i,(x,y)) ∈ cs, Δ ⊢ i : I, Δ ⊢ x : t[i=i0], y : t[i=i1]
+   -- Δ ⊢ es elims for t
+   -- Δ ⊢ t
+   -- Δ ⊢ self : t
+   accumBoundary cs []              t self = return (cs,t)
+   accumBoundary cs (Proj o p : es) t self = do
+     Just (_,self',t') <- projectTyped self t o p
+     t' <- reduce t'
+     cs' <- updateBoundary cs $ \ x -> do
+                Just (_,x,_) <- projectTyped x t o p
+                return x -- does x have type t' in some sense?
+     accumBoundary cs' es t' self'
+   accumBoundary cs (Apply arg : es) t self = do
+     vt <- pathView t
+     case vt of
+       OType t -> do
+         t' <- reduce $ piApply t [arg]
+         cs' <- updateBoundary cs $ \ b -> return $ b `apply` [arg]
+         accumBoundary cs' es t' (self `apply` [arg])
+       PathType s q l bA (Arg _ x) (Arg _ y) | r@(Var i []) <- unArg arg -> do
+         t' <- El s <$> reduce (unArg bA `apply` [defaultArg r])
+         let self' = self `applyE` [IApply x y r]
+         cs' <- updateBoundary cs $ \ b -> return $ b `applyE` [IApply x y r]
+         accumBoundary ((i,(x,y)):cs') es t' self'
+       _ -> __IMPOSSIBLE__
+   accumBoundary cs (IApply{}  : es) t self = __IMPOSSIBLE__ -- we will get Apply for Path too.
+   updateBoundary bs f = forM bs $ \ (i,(x,y)) -> do
+                                      x <- f x
+                                      y <- f y
+                                      return (i,(x,y))
 -- | Type check a function clause.
 
 checkClause
@@ -383,6 +435,9 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         -- the context with the parent (but withSub will take you from parent
         -- to child).
         inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
+        (let (qs,ps') = splitAt npars $ patternsToElims ps
+             self = Def x [] `applyE` qs
+         in maybe (return ()) (checkBodyEndPoints delta (raise (size delta) t) self ps') body)
 
         reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
           [ text "Clause before translation:"
@@ -391,6 +446,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
             , text "ps    =" <+> text (show ps)
             , text "body  =" <+> text (show body)
             , text "body  =" <+> maybe (text "_|_") prettyTCM body
+            , text "type  =" <+> text (show t)
             ]
           ]
 

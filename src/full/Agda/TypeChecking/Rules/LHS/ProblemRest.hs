@@ -88,7 +88,7 @@ problemFromPats ps a = do
 
   -- Redo the telView, in order to *not* normalize the clause type further than necessary.
   -- (See issue 734.)
-  TelV tel0 b  <- telViewUpTo (length ps) a
+  TelV tel0 b  <- telViewUpToPath (length ps) a
   let gamma     = useNamesFromPattern ps tel0
       as        = telToList gamma
       (ps1,ps2) = splitAt (size as) ps
@@ -121,7 +121,7 @@ updateProblemRest_ :: Problem -> TCM (Nat, Problem)
 updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
-      TelV tel b   <- telViewUpTo (length ps) $ unArg a
+      TelV tel b   <- telViewUpToPath (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
           as        = telToList gamma
           (ps1,ps2) = splitAt (size as) ps
