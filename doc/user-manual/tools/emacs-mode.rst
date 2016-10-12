@@ -37,7 +37,7 @@ Global commands
 ``C-c C-z``          Search through definitions in scope
 ``C-c C-n``          Compute **n**\ ormal form
 ``C-u C-c C-n``      Compute normal form, ignoring ``abstract``
-``C-u C-u C-c C-n``  Compute normal form of ``show <expression>``
+``C-u C-u C-c C-n``  Compute and print normal form of ``show <expression>``
 ``C-c C-x M-;``      Comment/uncomment rest of buffer
 ===================  =========================================================
 
@@ -63,7 +63,7 @@ will either use the text inside the goal or ask the user for input.
 ``C-c C-o``          M\ **o**\ dule c\ **o**\ ntents
 ``C-c C-n``          Compute **n**\ ormal form
 ``C-u C-c C-n``      Compute normal form, ignoring ``abstract``
-``C-u C-u C-c C-n``  Compute normal form of ``show <expression>``
+``C-u C-u C-c C-n``  Compute and print normal form of ``show <expression>``
 ===================  =========================================================
 
 Other commands
