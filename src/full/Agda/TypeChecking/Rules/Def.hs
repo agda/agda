@@ -203,7 +203,13 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
               ]
 
+        reportSDoc "tc.def.fun" 70 $
+          sep $ [ text "clauses:" ] ++ map (nest 2 . text . show) cs
+
         cs <- return $ map A.lhsToSpine cs
+
+        reportSDoc "tc.def.fun" 70 $
+          sep $ [ text "spine clauses:" ] ++ map (nest 2 . text . show) cs
 
         -- Ensure that all clauses have the same number of trailing hidden patterns
         -- This is necessary since trailing implicits are no longer eagerly inserted.
@@ -228,6 +234,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               -- TODO: instantiateFull?
               inTopContext $ addClauses name [c]
               return c
+
+        reportSDoc "tc.def.fun" 70 $
+          sep $ [ text "checked clauses:" ] ++ map (nest 2 . text . show) cs
 
         -- After checking, remove the clauses again.
         -- (Otherwise, @checkInjectivity@ loops for issue 801).

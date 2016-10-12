@@ -57,6 +57,7 @@ import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Datatypes
@@ -1050,7 +1051,10 @@ compareElim e p = do
       , nest 2 $ text $ "p = " ++ show p
       ]
   case (e, getMasked p) of
-    (Proj _ d, ProjDBP _ d')       -> compareProj d d'
+    (Proj _ d, ProjDBP _ d')       -> do
+      d  <- liftTCM $ getOriginalProjection d
+      d' <- liftTCM $ getOriginalProjection d'
+      compareProj d d'
     (Proj{}, _         )           -> return Order.unknown
     (Apply{}, ProjDBP{})           -> return Order.unknown
     (Apply arg, _)                 -> compareTerm (unArg arg) p

@@ -419,6 +419,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           Just (o', AmbQ ds) -> do
             let d' = head ds
             when (length ds /= 1) __IMPOSSIBLE__
+            d  <- liftTCM $ getOriginalProjection d
             d' <- liftTCM $ getOriginalProjection d'
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
             if o /= o' then liftTCM $ mismatchOrigin o o' else do

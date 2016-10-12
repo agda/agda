@@ -46,6 +46,7 @@ compileClauses ::
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
+  cs <- normaliseProjP cs
   let cls = [ Cl (map (fmap (fmap dbPatVarName . namedThing)) $ namedClausePats c)
                  (compiledClauseBody c)
             | c <- cs ]
