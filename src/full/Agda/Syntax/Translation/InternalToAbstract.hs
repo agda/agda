@@ -468,7 +468,7 @@ reifyTerm expandAnonDefs v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
-                  elims (A.AbsurdLam noExprInfo h) =<< reify es
+                  elims (A.AbsurdLam noExprInfo h) =<< reify (drop n es)
 
       -- Otherwise (no absurd lambda):
        _ -> do
