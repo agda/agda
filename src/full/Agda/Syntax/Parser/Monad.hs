@@ -194,7 +194,9 @@ instance Pretty ParseError where
       ]
   pretty ReadFileError{errPath,errIOError} = vcat
       [ text "Cannot read file" <+> pretty errPath
-      , text$ displayException errIOError
+        -- TODO: `show` should be replaced by `displayException` once we
+        -- cease to support versions of GHC under 7.10.
+      , text "Error:" <+> text (show errIOError)
       ]
 
 instance HasRange ParseError where
