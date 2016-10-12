@@ -55,7 +55,7 @@ import Agda.Utils.Pretty
 
 
 #if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), Applicative)
 #endif
 
 #include "undefined.h"
