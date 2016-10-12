@@ -19,9 +19,6 @@ import qualified Data.ByteString as BS
 import Control.Applicative ((<$>))
 #endif
 
-import qualified Text.Regex.TDFA.Text as RT
-import qualified Text.Regex.TDFA as R
-
 import Utils
 
 
@@ -76,18 +73,14 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
               ["--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
               T.empty >>= fmap printAgdaResult . expectFail
       return (r1 `T.append` r2 `T.append` r3)
-    expectOk (ExitSuccess, stdout, _) = clean stdout
+    expectOk (ExitSuccess, stdout, _) = cleanOutput stdout
     expectOk p = return $ "UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
 
 expectFail :: ProgramResult -> IO AgdaResult
 expectFail res@(ret, stdout, _) =
   if ret == ExitSuccess
     then return $ AgdaUnexpectedSuccess res
-    else AgdaResult <$> clean stdout
-
-mkRegex :: T.Text -> R.Regex
-mkRegex r = either (error "Invalid regex") id $
-  RT.compile R.defaultCompOpt R.defaultExecOpt r
+    else AgdaResult <$> cleanOutput stdout
 
 -- | Treats newlines or consecutive whitespaces as one single whitespace.
 --
@@ -110,22 +103,4 @@ resShow = ShowText
 printAgdaResult :: AgdaResult -> T.Text
 printAgdaResult (AgdaResult t)            = t
 printAgdaResult (AgdaUnexpectedSuccess p) = "AGDA_UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
-
-clean :: T.Text -> IO T.Text
-clean inp = do
-  pwd <- getCurrentDirectory
-
-  return $ clean' pwd inp
-  where
-    clean' pwd t = foldl (\t' (rgx,n) -> replace rgx n t') t rgxs
-      where
-        rgxs = map (\(r, x) -> (mkRegex r, x))
-          [ ("[^ (]*test.Fail.", "")
-          , ("[^ (]*test.Common.", "")
-          , (T.pack pwd `T.append` ".test", "..")
-          , ("\\\\", "/")
-          , (":[[:digit:]]+:$", "")
-          , ("[^ (]*lib.prim", "agda-default-include-path")
-          , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
-          ]
 
