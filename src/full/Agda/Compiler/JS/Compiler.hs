@@ -19,7 +19,7 @@ import System.FilePath ( splitFileName, (</>) )
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
-import Agda.Syntax.Common ( Nat, unArg, namedArg )
+import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName,
@@ -27,15 +27,12 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
-    unSpine, allApplyElims,
     conName,
-    derefPtr,
-    toTopLevelModuleName, clausePats, arity, unEl, unAbs )
-import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
+    toTopLevelModuleName, arity, unEl, unAbs, nameFixity )
+import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
+import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
 import Agda.TypeChecking.Substitute ( absBody )
-import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad hiding (Global, Local)
 import Agda.TypeChecking.Monad.Builtin
@@ -317,6 +314,7 @@ compilePrim p =
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
     T.PEqI -> binOp "agdaRTS.uprimIntegerEqual"
     T.PEqF -> binOp "agdaRTS.uprimFloatEquality"
+    T.PEqQ -> binOp "agdaRTS.uprimQNameEquality"
     p | T.isPrimEq p -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
     T.PGeq -> binOp "agdaRTS.uprimIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.uprimIntegerLessThan"
@@ -348,12 +346,38 @@ qname q = do
   return (foldl Lookup e ls)
 
 literal :: Literal -> Exp
-literal (LitNat    _ x) = Integer x
-literal (LitFloat  _ x) = Double  x
-literal (LitString _ x) = String  x
-literal (LitChar   _ x) = Char    x
-literal (LitQName  _ x) = String  (show x)
-literal LitMeta{}       = __IMPOSSIBLE__
+literal l = case l of
+  (LitNat    _ x) -> Integer x
+  (LitFloat  _ x) -> Double  x
+  (LitString _ x) -> String  x
+  (LitChar   _ x) -> Char    x
+  (LitQName  _ x) -> litqname x
+  LitMeta{}       -> __IMPOSSIBLE__
+
+litqname :: QName -> Exp
+litqname q =
+  Object $ Map.fromList
+    [ (mem "id", Integer $ fromIntegral n)
+    , (mem "moduleId", Integer $ fromIntegral m)
+    , (mem "name", String $ show q)
+    , (mem "fixity", litfixity fx)]
+  where
+    mem = MemberId
+    NameId n m = nameId $ qnameName q
+    fx = theFixity $ nameFixity $ qnameName q
+
+    litfixity :: Fixity -> Exp
+    litfixity fx = Object $ Map.fromList
+      [ (mem "assoc", litAssoc $ fixityAssoc fx)
+      , (mem "prec", litPrec $ fixityLevel fx)]
+
+    -- TODO this will probably not work well together with the necessary FFI bindings
+    litAssoc NonAssoc   = String "NonAssoc"
+    litAssoc LeftAssoc  = String "LeftAssoc"
+    litAssoc RightAssoc = String "RightAssoc"
+
+    litPrec Unrelated   = String "Unrelated"
+    litPrec (Related l) = Integer l
 
 --------------------------------------------------
 -- Writing out an ECMAScript module
@@ -408,4 +432,6 @@ primitives = Set.fromList
   , "primACos"
   , "primATan"
   , "primATan2"
+  , "primShowQName"
+  , "primQNameEquality"
   ]

@@ -158,3 +158,15 @@ exports.primExp = function(x) {
 exports.primSeq = function(x, y) {
   return y;
 };
+
+exports.primShowQName = function(x) {
+  return x["name"];
+};
+exports.uprimQNameEquality = function(x,y) {
+  return x["id"].compare(y["id"]) == 0 && x["moduleId"].compare(y["moduleId"]) == 0;
+};
+exports.primQNameEquality = function(x) {
+  return function(y) {
+    return exports.uprimQNameEquality(x, y);
+  };
+};
