@@ -193,7 +193,7 @@ library
     build-depends:  fail == 4.9.*
                   , semigroups == 0.18.*
 
-  build-tools:  alex >= 3.1.0 && < 3.3
+  build-tools:  alex >= 3.1.0 && < 3.2
               , happy >= 1.19.4 && < 2
 
   exposed-modules:  Agda.Auto.Auto
