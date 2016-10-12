@@ -85,8 +85,6 @@ disabledTests =
   , RFInclude "Compiler/UHC/simple/Issue1664"
   , RFInclude "Compiler/JS/simple/Issue1664"
   , RFInclude "Compiler/JS/simple/CopatternStreamSized"
-  , RFInclude "Compiler/JS/simple/Issue1486"
-  , RFInclude "Compiler/JS/simple/Issue326"
   , RFInclude "Compiler/JS/simple/VecReverse"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   -- primQNameLess not implemented for JS
