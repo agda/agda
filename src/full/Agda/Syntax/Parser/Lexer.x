@@ -169,6 +169,7 @@ tokens :-
 <0,code> abstract       { keyword KwAbstract }
 <0,code> private        { keyword KwPrivate }
 <0,code> instance       { keyword KwInstance }
+<0,code> overlap        { keyword KwOverlap }
 <0,code> macro          { keyword KwMacro }
 <0,code> Set            { keyword KwSet }
 <0,code> forall         { keyword KwForall }

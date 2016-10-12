@@ -1118,9 +1118,10 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
               | length fs == length vs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
-                       { argInfoHiding    = min (getHiding info) (getHiding info')
-                       , argInfoRelevance = max (getRelevance info) (getRelevance info')
-                       , argInfoOrigin    = min (getOrigin info) (getOrigin info')
+                       { argInfoHiding       = min (getHiding info) (getHiding info')
+                       , argInfoRelevance    = max (getRelevance info) (getRelevance info')
+                       , argInfoOrigin       = min (getOrigin info) (getOrigin info')
+                       , argInfoOverlappable = False
                        }
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
@@ -1154,7 +1155,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
     -- adding an irrelevant entry only if not present
     cons :: (Arg Nat, Term) -> Res -> Res
-    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) vars    -- TODO? UnusedArg?!
+    cons a@(Arg (ArgInfo _ Irrelevant _ _) i, t) vars    -- TODO? UnusedArg?!
       | any ((i==) . unArg . fst) vars  = vars
       | otherwise                       = a : vars
     -- adding a relevant entry:
