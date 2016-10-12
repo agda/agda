@@ -150,6 +150,7 @@ castConstraintToCurrentContext cl = do
   delta1 <- liftTCM $ maybe empty (^. secTelescope) <$> getSection modN
   -- The number of locals of the constraint.
   let delta2 = size delta - size delta1
+  guard (delta2 >= 0) -- TODO Andrea: here to keep r[_] working
   unless (delta2 >= 0) __IMPOSSIBLE__
 
   -- The current module M and context Γ.

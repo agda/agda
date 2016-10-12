@@ -1464,7 +1464,21 @@ forallFaceMaps t kb k = do
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
     bs <- getLetBindings
     modifyContext (const cxt') $ updateModuleParameters sigma $ do
-      addBindings' (map (id -*- (applySubst sigma -*- applySubst sigma)) bs) $ addBindings resolved $ k sigma
+      addBindings' (map (id -*- (applySubst sigma -*- applySubst sigma)) bs) $ addBindings resolved $ do
+        cl <- buildClosure ()
+        tel <- getContextTelescope
+        m <- currentModule
+        sub <- getModuleParameterSub m
+        reportSLn "conv.forall" 10 $ unlines [replicate 10 '-'
+                                             , show (envCurrentModule $ clEnv cl)
+                                             , show (envLetBindings $ clEnv cl)
+                                             , show tel -- (toTelescope $ envContext $ clEnv cl)
+                                             , show (clModuleParameters cl)
+                                             , show sigma
+                                             , show m
+                                             , show sub]
+
+        k sigma
   where
     -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf
     ifBlockeds ts blocked unblocked = do
