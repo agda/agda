@@ -2,7 +2,12 @@
   ::
   module language.coinduction where
 
-  open import Coinduction
+  open import Data.Nat
+  open import Data.Bool
+  open import Relation.Binary.PropositionalEquality
+  open import Data.List
+
+  module newcoinduction where
 
 .. _coinduction:
 
@@ -12,11 +17,88 @@ Coinduction
 
 .. _copatterns-coinductive-records:
 
-Copatterns and Coinductive Records
+Coinductive Records
 ----------------------------------
 
-.. note::
-   This is a stub.
+It is possible to define the type of infinite lists (or streams) of elements of
+some type A as follows,
+
+::
+
+    record Stream (A : Set) : Set where
+      coinductive
+      field
+        hd : A
+        tl : Stream A
+
+As opossed to inductive record types, we have to introduce the keyword
+``coinductive`` before defining the fields that constitute the record.
+
+It is interesting to note that is not neccessary to give an explicit
+constructor to the record type ``Stream A``.
+
+..
+  ::
+
+    open Stream
+
+    record _×_ (A B : Set) : Set where
+      inductive
+      constructor _,_
+      field
+        fst : A
+        snd : B
+
+
+We can as well define bisimilarity (equivalence) of a pair of ``Stream A`` as a
+coinductive record.
+
+::
+
+    record _≈_ {A : Set} (xs : Stream A) (ys : Stream A) : Set where
+      coinductive
+      field
+        hd-≈ : hd xs ≡ hd ys
+        tl-≈ : tl xs ≈ tl ys
+
+Using copatterns we can define a pair of functions on ``Stream`` such that one
+returns a ``Stream`` with the elements in the even positions and the other the
+elements in odd positions.
+
+..
+  ::
+
+    open _≈_
+
+::
+
+    even : ∀ {A} → Stream A → Stream A
+    hd (even x) = hd x
+    tl (even x) = even (tl (tl x))
+
+    odd : ∀ {A} → Stream A → Stream A
+    odd x = even (tl x)
+
+    split : ∀ {A } → Stream A → Stream A × Stream A
+    split xs = even xs , odd xs
+
+And merge a pair of ``Stream`` by interleaving their elements.
+
+::
+
+    merge : ∀ {A} → Stream A × Stream A → Stream A
+    hd (merge (fst , snd)) = hd fst
+    tl (merge (fst , snd)) = merge (snd , tl fst)
+
+Finally, we can prove that split is the left inverse of merge.
+
+::
+
+    merge-split-id : ∀ {A} (xs : Stream A) → merge (split xs) ≈ xs
+    hd-≈ (merge-split-id _)  = refl
+    tl-≈ (merge-split-id xs) = merge-split-id (tl xs)
+
+
 
 Old Coinduction
 ---------------
@@ -29,6 +111,12 @@ Old Coinduction
    The type constructor ``∞`` can be used to prove absurdity!
 
 To use coinduction it is recommended that you import the module Coinduction from the `standard library <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary>`_. Coinductive types can then be defined by labelling coinductive occurrences using the delay operator ``∞``:
+
+..
+  ::
+
+  open import Coinduction
+
 ::
 
   data Coℕ : Set where
