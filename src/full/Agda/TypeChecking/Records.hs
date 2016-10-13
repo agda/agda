@@ -10,6 +10,7 @@ import Data.Function
 import Data.List
 import Data.Maybe
 import qualified Data.Set as Set
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
@@ -153,7 +154,7 @@ getRecordTypeFields t =
 
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
-getOriginalProjection :: QName -> TCM QName
+getOriginalProjection :: HasConstInfo m => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 -- | Returns the given record type's constructor name (with an empty
@@ -655,3 +656,28 @@ isSingletonType' regardIrrelevance t = do
 -- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
 emap = mapRight . fmap
+
+class NormaliseProjP a where
+  normaliseProjP :: HasConstInfo m => a -> m a
+
+instance NormaliseProjP Clause where
+  normaliseProjP cl = do
+    ps <- normaliseProjP $ namedClausePats cl
+    return $ cl { namedClausePats = ps }
+
+instance NormaliseProjP a => NormaliseProjP [a] where
+  normaliseProjP = traverse normaliseProjP
+
+instance NormaliseProjP a => NormaliseProjP (Arg a) where
+  normaliseProjP = traverse normaliseProjP
+
+instance NormaliseProjP a => NormaliseProjP (Named_ a) where
+  normaliseProjP = traverse normaliseProjP
+
+instance NormaliseProjP (Pattern' x) where
+  normaliseProjP p@VarP{}        = return p
+  normaliseProjP p@DotP{}        = return p
+  normaliseProjP (ConP c cpi ps) = ConP c cpi <$> normaliseProjP ps
+  normaliseProjP p@LitP{}        = return p
+  normaliseProjP (ProjP o d0)    = ProjP o <$> getOriginalProjection d0
+
