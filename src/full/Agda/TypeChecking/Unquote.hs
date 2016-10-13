@@ -58,6 +58,7 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.Maybe.Strict (toLazy)
 import Agda.Utils.FileName
+import Agda.Utils.Lens
 
 #include "undefined.h"
 
@@ -492,6 +493,7 @@ evalTCM v = do
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
+             , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u))
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
@@ -511,6 +513,11 @@ evalTCM v = do
     tcBind m k = do v <- evalTCM m
                     evalTCM (k `apply` [defaultArg v])
 
+    process :: (InstantiateFull a, Normalise a) => a -> TCM a
+    process v = do
+      norm <- view eUnquoteNormalise
+      if norm then normalise v else instantiateFull v
+
     mkT l a = El s a
       where s = Type $ Max [Plus 0 $ UnreducedLevel l]
 
@@ -518,6 +525,9 @@ evalTCM v = do
     tcCatchError :: Term -> Term -> UnquoteM Term
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
+
+    tcWithNormalisation :: Term -> UnquoteM Term
+    tcWithNormalisation m = liftU1 (locally eUnquoteNormalise $ const True) (evalTCM m)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
@@ -568,17 +578,17 @@ evalTCM v = do
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
       (_, a) <- inferExpr =<< toAbstract_ v
-      quoteType =<< instantiateFull a
+      quoteType =<< process a
 
     tcCheckType :: R.Term -> R.Type -> TCM Term
     tcCheckType v a = do
       a <- isType_ =<< toAbstract_ a
       e <- toAbstract_ v
       v <- checkExpr e a
-      quoteTerm =<< instantiateFull v
+      quoteTerm =<< process v
 
     tcQuoteTerm :: Term -> UnquoteM Term
-    tcQuoteTerm v = liftU $ quoteTerm =<< instantiateFull v
+    tcQuoteTerm v = liftU $ quoteTerm =<< process v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
@@ -599,7 +609,7 @@ evalTCM v = do
     tcGetContext :: UnquoteM Term
     tcGetContext = liftU $ do
       as <- map (fmap snd) <$> getContext
-      as <- etaContract =<< instantiateFull as
+      as <- etaContract =<< process as
       buildList <*> mapM quoteDom as
 
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a

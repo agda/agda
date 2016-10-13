@@ -1990,6 +1990,7 @@ data TCEnv =
                 -- ^ Used by the scope checker to make sure that certain forms
                 --   of expressions are not used inside dot patterns: extended
                 --   lambdas and let-expressions.
+          , envUnquoteFlags :: UnquoteFlags
           }
     deriving (Typeable)
 
@@ -2031,10 +2032,25 @@ initEnv = TCEnv { envContext             = []
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
                 , envInsideDotPattern       = False
+                , envUnquoteFlags           = defaultUnquoteFlags
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
 disableDestructiveUpdate = local $ \e -> e { envAllowDestructiveUpdate = False }
+
+data UnquoteFlags = UnquoteFlags
+  { _unquoteNormalise :: Bool }
+  deriving (Typeable)
+
+defaultUnquoteFlags :: UnquoteFlags
+defaultUnquoteFlags = UnquoteFlags
+  { _unquoteNormalise = False }
+
+unquoteNormalise :: Lens' Bool UnquoteFlags
+unquoteNormalise f e = f (_unquoteNormalise e) <&> \ x -> e { _unquoteNormalise = x }
+
+eUnquoteNormalise :: Lens' Bool TCEnv
+eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 
 -- * e-prefixed lenses
 ------------------------------------------------------------------------
@@ -2122,6 +2138,9 @@ ePrintDomainFreePi f e = f (envPrintDomainFreePi e) <&> \ x -> e { envPrintDomai
 
 eInsideDotPattern :: Lens' Bool TCEnv
 eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPattern = x }
+
+eUnquoteFlags :: Lens' UnquoteFlags TCEnv
+eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
