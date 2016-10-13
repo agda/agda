@@ -407,3 +407,8 @@ Cabal stuff
   https://code.google.com/p/agda/issues/detail?id=1196):
 
   cabal repl --ghc-options=-Wwarn
+
+Documentation
+-------------
+
+See http://agda.readthedocs.io/en/latest/contribute/documentation.html .

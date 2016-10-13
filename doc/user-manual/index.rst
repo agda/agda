@@ -13,6 +13,7 @@ Welcome to Agda's documentation!
    getting-started/index
    language/index
    tools/index
+   contribute/index
    license
 
 
