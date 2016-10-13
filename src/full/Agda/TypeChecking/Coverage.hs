@@ -314,13 +314,13 @@ instance NormaliseProjP Clause where
     return $ cl { namedClausePats = ps }
 
 instance NormaliseProjP a => NormaliseProjP [a] where
-  normaliseProjP = traverse normaliseProjP
+  normaliseProjP = Trav.traverse normaliseProjP
 
 instance NormaliseProjP a => NormaliseProjP (Arg a) where
-  normaliseProjP = traverse normaliseProjP
+  normaliseProjP = Trav.traverse normaliseProjP
 
 instance NormaliseProjP a => NormaliseProjP (Named_ a) where
-  normaliseProjP = traverse normaliseProjP
+  normaliseProjP = Trav.traverse normaliseProjP
 
 instance NormaliseProjP (Pattern' x) where
   normaliseProjP p@VarP{}        = return p
