@@ -11,6 +11,7 @@ record Eq (A : Set) : Set where
 open Eq {{...}}
 
 record Ord (A : Set) : Set where
+  constructor mkOrd
   field
     _<_ : A → A → Bool
     overlap {{eqA}} : Eq A
@@ -18,6 +19,7 @@ record Ord (A : Set) : Set where
 open Ord {{...}} hiding (eqA)
 
 record Num (A : Set) : Set where
+  constructor mkNum
   field
     fromNat : Nat → A
     overlap {{eqA}} : Eq A
@@ -60,3 +62,8 @@ getShared = it
 
 itsOrd : {A : Set} {{OrdA : Ord A}} {{NumA : Num A}} → getShared ≡ Ord.eqA OrdA
 itsOrd = refl
+
+-- Check that it also works if you pattern match on the dictionaries
+
+leq3' : {A : Set} {{OrdA : Ord A}} {{NumA : Num A}} → A → Bool
+leq3' {{mkOrd _<_}} {{mkNum fromNat}} x = x == fromNat 3 || x < fromNat 3

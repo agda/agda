@@ -59,7 +59,7 @@ initialIFSCandidates t = do
     getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit False
+      let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit (argInfoOverlappable info)
                  | (Dom info (x, t), i) <- zip ctx [0..]
                  , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
