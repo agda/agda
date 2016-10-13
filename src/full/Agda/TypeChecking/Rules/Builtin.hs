@@ -216,6 +216,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit             |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro            |-> builtinPostulate (tqname --> tTCM_ primBool)
+  , builtinAgdaTCMWithNormalisation  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   ]
   where
         (|->) = (,)

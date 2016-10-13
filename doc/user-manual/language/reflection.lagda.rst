@@ -358,6 +358,11 @@ following primitive operations::
     -- Check if a name refers to a macro
     isMacro : Name → TC Bool
 
+    -- Change the behaviour of inferType, checkType, quoteTC, getContext
+    -- to normalise (or not) their results. The default behaviour is no
+    -- normalisation.
+    withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
@@ -378,6 +383,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
   {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
   {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
+  {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
 
 Metaprogramming
 ---------------

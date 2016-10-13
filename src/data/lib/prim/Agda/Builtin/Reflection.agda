@@ -245,6 +245,10 @@ postulate
   commitTC      : TC ⊤
   isMacro       : Name → TC Bool
 
+  -- If the argument is 'true' makes the following primitives also normalise
+  -- their results: inferType, checkType, quoteTC, getType, and getContext
+  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
 {-# BUILTIN AGDATCMBIND          bindTC        #-}
@@ -268,3 +272,4 @@ postulate
 {-# BUILTIN AGDATCMBLOCKONMETA   blockOnMeta   #-}
 {-# BUILTIN AGDATCMCOMMIT        commitTC      #-}
 {-# BUILTIN AGDATCMISMACRO       isMacro       #-}
+{-# BUILTIN AGDATCMWITHNORMALISATION withNormalisation #-}
