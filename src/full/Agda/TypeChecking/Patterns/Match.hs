@@ -22,6 +22,7 @@ import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad hiding (reportSDoc)
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
 
 import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>))
@@ -148,9 +149,10 @@ matchCopatterns ps vs = do
 matchCopattern :: DeBruijnPattern
                -> Elim
                -> ReduceM (Match Term, Elim)
-matchCopattern (ProjP _ p) elim@(Proj _ q)
-  | p == q    = return (Yes YesSimplification empty, elim)
-  | otherwise = return (No                         , elim)
+matchCopattern pat@ProjP{} elim@(Proj _ q) = do
+  ProjP _ p <- normaliseProjP pat
+  return $ if p == q then (Yes YesSimplification empty, elim)
+                     else (No,                          elim)
 matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
