@@ -869,12 +869,13 @@ checkLHS f st@(LHSState problem sigma dpi) = do
                  (raise (size gamma) da)
                  us'
                  (raise (size gamma) ws)
-        whenUnifies res $ \ (delta1',rho0) -> do
+        whenUnifies res $ \ (delta1',rho0,es) -> do
 
           reportSDoc "tc.lhs.top" 15 $ text "unification successful"
           reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
             [ text "delta1' =" <+> prettyTCM delta1'
             , text "rho0    =" <+> addContext delta1' (prettyTCM rho0)
+            , text "es      =" <+> addContext delta1' (prettyTCM $ (fmap . fmap . fmap) patternToTerm es)
             ]
 
           -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
