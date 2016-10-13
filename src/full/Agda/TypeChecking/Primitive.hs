@@ -785,6 +785,8 @@ primComp = do
                      Record{recComp = Just compR} | Just as <- allApplyElims es
                                 -> redReturn $ (Def compR []) `apply`
                                                (map (fmap lam_i) as ++ [ignoreBlocking sphi,u,a0])
+                     Record{recComp = Nothing, recFields = []}
+                                | Just as <- allApplyElims es -> compData l as sc sphi u a0
                      Datatype{} | Just as <- allApplyElims es -> compData l as sc sphi u a0
                      _          -> fallback
 

@@ -29,7 +29,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, defineCompForFields )
+import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, defineCompData, defineCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -165,11 +165,11 @@ checkRecDef i name ind eta con ps contel fields =
       let npars = size tel
           telh  = fmap hideAndRelParams tel
       escapeContext npars $ do
-        compName <- do
+        compWays <- do
           cxt <- getContextTelescope
-          let sigma = IdS -- liftS (size tel) (raiseS (size cxt))
           escapeContext (size cxt) $
-            defineCompR name (abstract cxt tel) (sigma `applySubst` ftel) fs (sigma `applySubst` rect)
+            if null fs then Left . fmap (,[]) <$> defineCompData name con (abstract cxt tel) [] ftel rect
+                       else Right             <$> defineCompR    name     (abstract cxt tel) ftel fs rect
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -187,7 +187,7 @@ checkRecDef i name ind eta con ps contel fields =
               -- Determined by positivity checker:
               , recRecursive      = False
               , recMutual         = []
-              , recComp           = compName
+              , recComp           = either (const Nothing) id compWays
               }
 
         -- Add record constructor to signature
@@ -199,7 +199,7 @@ checkRecDef i name ind eta con ps contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
-              , conComp   = Nothing
+              , conComp   = either id (const Nothing) compWays
               , conErased = []
               }
 
