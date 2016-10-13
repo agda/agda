@@ -27,10 +27,10 @@
 --
 --   The unification algorithm can end in three different ways:
 --   (type @UnificationResult@):
---   - A *positive success* @Unifies (tel, sigma)@ with @tel ⊢ sigma : varTel@
---     and @tel ⊢ eqLHS [ varTel ↦ sigma ] ≡ eqRHS [ varTel ↦ sigma ] : eqTel@.
---     In this case, @sigma@ is an *equivalence* between the telescopes @tel@
---     and @varTel(eqLHS ≡ eqRHS)@.
+--   - A *positive success* @Unifies (tel, sigma, ps)@ with @tel ⊢ sigma : varTel@,
+--     @tel ⊢ eqLHS [ varTel ↦ sigma ] ≡ eqRHS [ varTel ↦ sigma ] : eqTel@,
+--     and @tel ⊢ ps : eqTel@. In this case, @sigma;ps@ is an *equivalence*
+--     between the telescopes @tel@ and @varTel(eqLHS ≡ eqRHS)@.
 --   - A *negative success* @NoUnify err@ means that a conflicting equation
 --     was found (e.g an equation between two distinct constructors or a cycle).
 --   - A *failure* @DontKnow err@ means that the unifier got stuck.
@@ -185,7 +185,11 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 -- | Result of 'unifyIndices'.
-type UnificationResult = UnificationResult' (Telescope, PatternSubstitution)
+type UnificationResult = UnificationResult'
+  ( Telescope                  -- @tel@
+  , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
+  , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
+  )
 
 data UnificationResult' a
   = Unifies  a      -- ^ Unification succeeded.
@@ -212,7 +216,7 @@ unifyIndices_ :: MonadTCM tcm
               -> Type
               -> Args
               -> Args
-              -> tcm (Telescope, PatternSubstitution)
+              -> tcm (Telescope, PatternSubstitution, [NamedArg DeBruijnPattern])
 unifyIndices_ tel flex a us vs = liftTCM $ do
   r <- unifyIndices tel flex a us vs
   case r of
@@ -227,7 +231,7 @@ unifyIndices :: MonadTCM tcm
              -> Args
              -> Args
              -> tcm UnificationResult
-unifyIndices tel flex a [] [] = return $ Unifies (tel, idS)
+unifyIndices tel flex a [] [] = return $ Unifies (tel, idS, [])
 unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ text "unifyIndices"
@@ -241,7 +245,8 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
     reportSDoc "tc.lhs.unify" 20 $ text "initial unifyState:" <+> prettyTCM initialState
     reportSDoc "tc.lhs.unify" 70 $ text "initial unifyState:" <+> text (show initialState)
     (result,output) <- runUnifyM $ unify initialState rightToLeftStrategy
-    return $ fmap (\s -> (varTel s , unifySubst output)) result
+    let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
+    return $ fmap (\s -> (varTel s , unifySubst output , ps)) result
 
 ----------------------------------------------------
 -- Equalities
@@ -419,21 +424,23 @@ dropAt k (x:xs)
 
 -- | Solve the k'th equation with the given value, which can depend on
 --   regular variables but not on other equation variables.
-solveEq :: Int -> Term -> UnifyState -> UnifyState
-solveEq k u s = s
-    { eqTel    = applyUnder k (eqTel s) (raise k u)
+solveEq :: Int -> Term -> UnifyState -> (UnifyState, PatternSubstitution)
+solveEq k u s = (,sigma) $ s
+    { eqTel    = applyUnder k (eqTel s) u'
     , eqLHS    = dropAt k $ eqLHS s
     , eqRHS    = dropAt k $ eqRHS s
     }
   where
-
+    u'    = raise k u
+    n     = eqCount s
+    sigma = liftS (n-k-1) $ consS (DotP u') idS
 
 -- | Simplify the k'th equation with the given value (which can depend on other
 --   equation variables). Returns Nothing if there is a cycle.
-simplifyEq :: Int -> Term -> UnifyState -> Maybe UnifyState
+simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
 simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
   Nothing -> Nothing
-  Just (tel' , sigma , rho) -> Just $ UState
+  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
     { varTel   = varTel s
     , flexVars = flexVars s
     , eqTel    = tel'
@@ -893,39 +900,45 @@ type UnifyLog = [UnifyLogEntry]
 
 data UnifyOutput = UnifyOutput
   { unifySubst :: PatternSubstitution
+  , unifyProof :: PatternSubstitution
   , unifyLog   :: UnifyLog
   }
 
 instance Semigroup UnifyOutput where
   x <> y = UnifyOutput
     { unifySubst = unifySubst y `composeS` unifySubst x
+    , unifyProof = unifyProof y `composeS` unifyProof x
     , unifyLog   = unifyLog x ++ unifyLog y
     }
 
 instance Monoid UnifyOutput where
-  mempty        = UnifyOutput IdS []
+  mempty  = UnifyOutput IdS IdS []
   mappend = (<>)
 
 type UnifyM a = WriterT UnifyOutput TCM a
 
 tellUnifySubst :: PatternSubstitution -> UnifyM ()
-tellUnifySubst sub = do
-  tell $ UnifyOutput sub []
+tellUnifySubst sub = tell $ UnifyOutput sub IdS []
+
+tellUnifyProof :: PatternSubstitution -> UnifyM ()
+tellUnifyProof sub = tell $ UnifyOutput IdS sub []
 
 writeUnifyLog :: UnifyLogEntry -> UnifyM ()
-writeUnifyLog x = tell $ UnifyOutput IdS [x]
+writeUnifyLog x = tell $ UnifyOutput IdS IdS [x]
 
 runUnifyM :: UnifyM a -> TCM (a,UnifyOutput)
 runUnifyM = runWriterT
 
 unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 
-unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } =
-  liftTCM $ do
-    addContext (varTel s) $ noConstraints $ equalTerm a u v
-    ifM (optWithoutK <$> pragmaOptions)
-    {-then-} (DontKnow <$> withoutKErr)
-    {-else-} (Unifies  <$> reduceEqTel (solveEq k u s))
+unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
+    liftTCM $ addContext (varTel s) $ noConstraints $ equalTerm a u v
+    ifM (liftTCM $ optWithoutK <$> pragmaOptions)
+    {-then-} (DontKnow <$> liftTCM withoutKErr)
+    {-else-} (do
+      let (s', sigma) = solveEq k u s
+      tellUnifyProof sigma
+      Unifies <$> liftTCM (reduceEqTel s'))
   `catchError` \err -> return $ DontKnow err
   where
     withoutKErr = addContext (varTel s) $ typeError_ $ WithoutKError a u u
@@ -934,7 +947,9 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
   let m = varCount s
   caseMaybeM (trySolveVar (m-1-i) u s) (DontKnow <$> err) $ \(s',sub) -> do
     tellUnifySubst sub
-    Unifies <$> liftTCM (reduce $ solveEq k (applyPatSubst sub u) s')
+    let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
+    tellUnifyProof sigma
+    Unifies <$> liftTCM (reduce s'')
   where
     trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
@@ -988,7 +1003,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
     -- but I'm not sure if it's necessary.
     DontKnow _ -> liftTCM $ DontKnow <$> err
 
-    Unifies (eqTel1', rho0) -> do
+    Unifies (eqTel1', rho0, _) -> do
       -- Split ps0 into parts for eqTel1 and ctel
       let (rho1, rho2) = splitS (size ctel) rho0
 
@@ -998,6 +1013,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
           eqTel2' = applyPatSubst rho3 eqTel2
           eqTel'  = eqTel1' `abstract` eqTel2'
           rho     = liftS (size eqTel2) rho3
+
+      tellUnifyProof rho
 
       eqTel' <- liftTCM $ reduce eqTel'
 
@@ -1069,8 +1086,10 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   c     <- liftTCM $ getRecordConstructor d
   lhs   <- expandKth $ eqLHS s
   rhs   <- expandKth $ eqRHS s
+  let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
+  tellUnifyProof sigma
   Unifies <$> liftTCM (reduceEqTel $ s
-    { eqTel    = fst $ expandTelescopeVar (eqTel s) k delta c
+    { eqTel    = tel
     , eqLHS    = lhs
     , eqRHS    = rhs
     })
@@ -1096,6 +1115,8 @@ unifyStep s (StripSizeSuc k u v) = do
       eqFlatTel  = flattenTel $ eqTel s
       eqFlatTel' = applySubst sub $ updateAt k (fmap $ const sizeTy) $ eqFlatTel
       eqTel'     = unflattenTel (teleNames $ eqTel s) eqFlatTel'
+  -- TODO: tellUnifyProof sub
+  -- but sizeSu is not a constructor, so sub is not a PatternSubstitution!
   return $ Unifies $ s
     { eqTel = eqTel'
     , eqLHS = updateAt k (const $ defaultArg u) $ eqLHS s
@@ -1104,7 +1125,9 @@ unifyStep s (StripSizeSuc k u v) = do
 
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
-  return $ Unifies $ solveEq k (DontCare $ unArg $ lhs !! k) s
+      (s', sigma) = solveEq k (DontCare $ unArg $ lhs !! k) s
+  tellUnifyProof sigma
+  return $ Unifies s'
 
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
@@ -1112,6 +1135,8 @@ unifyStep s (TypeConInjectivity k d us vs) = do
   let n   = eqCount s
       m   = size dtel
       deq = Def d $ map Apply $ teleArgs dtel
+  -- TODO: tellUnifyProof ???
+  -- but d is not a constructor...
   Unifies <$> liftTCM (reduceEqTel $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
     , eqLHS = us ++ dropAt k (eqLHS s)

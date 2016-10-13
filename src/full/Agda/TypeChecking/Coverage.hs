@@ -500,7 +500,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps c = do
     DontKnow{} -> do
       debugCantSplit
       throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
-    Unifies (delta1',rho0) -> do
+    Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
