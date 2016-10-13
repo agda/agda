@@ -245,9 +245,9 @@ postulate
   commitTC      : TC ⊤
   isMacro       : Name → TC Bool
 
-  -- Makes the following primitives also normalise their results:
-  -- inferType, checkType, quoteTC, getType, and getContext
-  withNormalisation : ∀ {a} {A : Set a} → TC A → TC A
+  -- If the argument is 'true' makes the following primitives also normalise
+  -- their results: inferType, checkType, quoteTC, getType, and getContext
+  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
 
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}

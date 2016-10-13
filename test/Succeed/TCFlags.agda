@@ -42,7 +42,7 @@ macro
   reflect hole = inferType hole >>= useReflected hole
 
   reflectN : Term → TC ⊤
-  reflectN hole = withNormalisation (inferType hole) >>= useReflected hole
+  reflectN hole = withNormalisation true (inferType hole) >>= useReflected hole
 
 test₁ : D (true && false)
 test₁ = reflect

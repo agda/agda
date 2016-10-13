@@ -211,6 +211,16 @@ instance Unquote a => Unquote (Arg a) where
 instance Unquote R.Elim where
   unquote t = R.Apply <$> unquote t
 
+instance Unquote Bool where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case ignoreSharing t of
+      Con c [] ->
+        choice [ (c `isCon` primTrue,  pure True)
+               , (c `isCon` primFalse, pure False) ]
+               __IMPOSSIBLE__
+      _ -> throwException $ NonCanonical "boolean" t
+
 instance Unquote Integer where
   unquote t = do
     t <- reduceQuotedTerm t
@@ -493,7 +503,6 @@ evalTCM v = do
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
-             , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u))
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
@@ -501,6 +510,7 @@ evalTCM v = do
              failEval
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v)) ]
              failEval
@@ -526,8 +536,10 @@ evalTCM v = do
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
-    tcWithNormalisation :: Term -> UnquoteM Term
-    tcWithNormalisation m = liftU1 (locally eUnquoteNormalise $ const True) (evalTCM m)
+    tcWithNormalisation :: Term -> Term -> UnquoteM Term
+    tcWithNormalisation b m = do
+      v <- unquote b
+      liftU1 (locally eUnquoteNormalise $ const v) (evalTCM m)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
