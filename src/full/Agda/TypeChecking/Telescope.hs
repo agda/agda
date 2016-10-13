@@ -341,8 +341,11 @@ pathViewAsPi t = do
   t <- pathView =<< reduce t
   case t of
     PathType s l p a x y -> do
+      let name | Lam _ (Abs n _) <- unArg a = n
+               | otherwise = "i"
       i <- El Inf <$> primInterval
-      return $ Left $ (defaultDom $ i, Abs "_" $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0])
+      return $ Left $ (defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0])
+
     OType t    -> return $ Right t
 
 isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))

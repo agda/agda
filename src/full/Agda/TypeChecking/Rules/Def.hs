@@ -365,6 +365,7 @@ checkBodyEndPoints
   -> TCM ()
 checkBodyEndPoints delta t self es body = do
   -- apply ps to T and accumulate constraints
+  t <- reduce t
   (cs,t) <- accumBoundary [] es t self
   reportSDoc "endpoints" 20 $ prettyTCM (cs,t)
   checkBoundary cs t body
