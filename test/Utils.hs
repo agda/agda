@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Utils where
 
@@ -24,8 +25,8 @@ import qualified Data.ByteString as BS
 import Data.Text.Encoding
 import qualified System.Process.Text as PT
 import Data.Array
-import Text.Regex.TDFA.Text ()
 import qualified Text.Regex.TDFA as R
+import qualified Text.Regex.TDFA.Text as RT (compile)
 
 type ProgramResult = (ExitCode, T.Text, T.Text)
 
@@ -122,6 +123,29 @@ replace rgx new inp =
       T.take off t `T.append` new `T.append` T.drop (off + len) t
       where
         (off, len) = match ! 0
+
+mkRegex :: T.Text -> R.Regex
+mkRegex r = either (error "Invalid regex") id $
+  RT.compile R.defaultCompOpt R.defaultExecOpt r
+
+cleanOutput :: T.Text -> IO T.Text
+cleanOutput inp = do
+  pwd <- getCurrentDirectory
+
+  return $ clean' pwd inp
+  where
+    clean' pwd t = foldl (\t' (rgx,n) -> replace rgx n t') t rgxs
+      where
+        rgxs = map (\(r, x) -> (mkRegex r, x))
+          [ ("[^ (]*test.Fail.", "")
+          , ("[^ (]*test.Succeed.", "")
+          , ("[^ (]*test.Common.", "")
+          , (T.pack pwd `T.append` ".test", "..")
+          , ("\\\\", "/")
+          , (":[[:digit:]]+:$", "")
+          , ("[^ (]*lib.prim", "agda-default-include-path")
+          , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
+          ]
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd

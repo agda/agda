@@ -443,7 +443,7 @@ typeCheck x file includeStateChanges = do
        (chaseMsg "Checking" x $ Just $ filePath file)
        (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
                    let (we, wa) = classifyWarnings ws
-                   unless (null wa) $ reportSDoc "import.warn" 1
+                   unless (null wa) $ reportSDoc "warning" 1
                                     $ P.vcat $ P.prettyTCM <$> wa
                    unless (not $ null we) $ chaseMsg "Finished" x Nothing)
 
