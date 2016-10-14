@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-| Agda main module.
 -}
@@ -8,6 +9,8 @@ import Control.Monad.State
 import Control.Applicative
 
 import Data.Maybe
+
+import Development.GitRev
 
 import System.Environment
 import System.Exit
@@ -160,8 +163,22 @@ printUsage = do
 
 -- | Print version information.
 printVersion :: IO ()
-printVersion =
+printVersion = do
   putStrLn $ "Agda version " ++ version
+  forM_ commitInfo $ \info ->
+    putStrLn $ "Built from " ++ info
+
+-- | Information about current git commit, generated at compile time
+commitInfo :: Maybe String
+commitInfo = case $(gitHash) of
+  "UNKNOWN" -> Nothing
+  hash      -> Just $ concat [ hash, dirty, "\n"
+                             , "  + Branch: ", $(gitBranch)
+                             , "  + Commit date: ", $(gitCommitDate), "\n"
+                             ]
+  where
+    dirty | $(gitDirty) = " (uncommitted files present)"
+          | otherwise   = ""
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
