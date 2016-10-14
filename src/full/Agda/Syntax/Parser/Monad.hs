@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 
 module Agda.Syntax.Parser.Monad
@@ -30,7 +31,7 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-import Control.Exception
+import Control.Exception (catch)
 import Data.Int
 import Data.Typeable ( Typeable )
 
@@ -40,12 +41,18 @@ import Control.Applicative
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+#if !(MIN_VERSION_mtl(2,2,1))
+import Agda.Utils.Except ( Error(noMsg) )
+#endif
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Pretty
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
     The parse monad
@@ -207,6 +214,11 @@ instance HasRange ParseError where
   getRange ReadFileError{errPath} = posToRange p p
     where p = startPos (Just errPath)
 
+#if !(MIN_VERSION_mtl(2,2,1))
+-- Stupid ErrorT!
+instance Error ParseError where
+  noMsg = __IMPOSSIBLE__
+#endif
 
 instance Show ParseWarning where
   show = prettyShow
