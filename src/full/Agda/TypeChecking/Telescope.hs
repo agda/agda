@@ -331,7 +331,8 @@ telViewUpToPath n t = do
   vt <- pathViewAsPi $ t
   case vt of
     Left (a,b)     -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
-    Right (El _ (Pi a b)) -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
+    Right (El _ t) | Pi a b <- ignoreSharing t
+                   -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
     _              -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
