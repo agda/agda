@@ -63,7 +63,7 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
 -- | Convert the root of a term into a pattern constructor, if possible.
 buildPattern :: Term -> Maybe DeBruijnPattern
 buildPattern (Con c args)   = Just $ ConP c noConPatternInfo $ map (fmap $ unnamed . DotP) args
-buildPattern (Var i [])     = Just $ debruijnVar i
+buildPattern (Var i [])     = Just $ deBruijnVar i
 buildPattern (Shared p)     = buildPattern (derefPtr p)
 buildPattern _              = Nothing
 

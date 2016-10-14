@@ -679,47 +679,47 @@ abstractArgs args x = abstract tel x
 class DeBruijn a where
 
   -- | Produce a variable without name suggestion.
-  debruijnVar  :: Int -> a
-  debruijnVar = debruijnNamedVar underscore
+  deBruijnVar  :: Int -> a
+  deBruijnVar = debruijnNamedVar underscore
 
   -- | Produce a variable with name suggestion.
   debruijnNamedVar :: String -> Int -> a
-  debruijnNamedVar _ = debruijnVar
+  debruijnNamedVar _ = deBruijnVar
 
   -- | Are we dealing with a variable?
   --   If yes, what is its index?
-  debruijnView :: a -> Maybe Int
+  deBruijnView :: a -> Maybe Int
 
 -- | We can substitute @Term@s for variables.
 instance DeBruijn Term where
-  debruijnVar = var
-  debruijnView u =
+  deBruijnVar = var
+  deBruijnView u =
     case ignoreSharing u of
       Var i [] -> Just i
-      Level l -> debruijnView l
+      Level l -> deBruijnView l
       _ -> Nothing
 
 instance DeBruijn LevelAtom where
-  debruijnVar = NeutralLevel ReallyNotBlocked . debruijnVar
-  debruijnView l =
+  deBruijnVar = NeutralLevel ReallyNotBlocked . deBruijnVar
+  deBruijnView l =
     case l of
-      NeutralLevel _ u -> debruijnView u
-      UnreducedLevel u -> debruijnView u
+      NeutralLevel _ u -> deBruijnView u
+      UnreducedLevel u -> deBruijnView u
       MetaLevel{}    -> Nothing
       BlockedLevel{} -> Nothing
 
 instance DeBruijn PlusLevel where
-  debruijnVar = Plus 0 . debruijnVar
-  debruijnView l =
+  deBruijnVar = Plus 0 . deBruijnVar
+  deBruijnView l =
     case l of
-      Plus 0 a -> debruijnView a
+      Plus 0 a -> deBruijnView a
       _ -> Nothing
 
 instance DeBruijn Level where
-  debruijnVar i = Max [debruijnVar i]
-  debruijnView l =
+  deBruijnVar i = Max [deBruijnVar i]
+  deBruijnView l =
     case l of
-      Max [p] -> debruijnView p
+      Max [p] -> deBruijnView p
       _ -> Nothing
 
 -- See Syntax.Internal for the definition.
@@ -738,14 +738,14 @@ raiseS n = wkS n idS
 
 consS :: DeBruijn a => a -> Substitution' a -> Substitution' a
 consS t (Wk m rho)
-  | Just n <- debruijnView t,
+  | Just n <- deBruijnView t,
     n + 1 == m = wkS (m - 1) (liftS 1 rho)
 consS u rho = seq u (u :# rho)
 
 -- | To replace index @n@ by term @u@, do @applySubst (singletonS n u)@.
 singletonS :: DeBruijn a => Int -> a -> Substitution' a
-singletonS n u = map debruijnVar [0..n-1] ++# consS u (raiseS n)
-  -- ALT: foldl (\ s i -> debruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
+singletonS n u = map deBruijnVar [0..n-1] ++# consS u (raiseS n)
+  -- ALT: foldl (\ s i -> deBruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
 
 -- | Single substitution without disturbing any deBruijn indices.
 --   @
@@ -822,9 +822,9 @@ strengthenS err n
 
 lookupS :: Subst a a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of
-  IdS                    -> debruijnVar i
+  IdS                    -> deBruijnVar i
   Wk n IdS               -> let j = i + n in
-                            if  j < 0 then __IMPOSSIBLE__ else debruijnVar j
+                            if  j < 0 then __IMPOSSIBLE__ else deBruijnVar j
   Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
   u :# rho   | i == 0    -> u
              | i < 0     -> __IMPOSSIBLE__
@@ -833,7 +833,7 @@ lookupS rho i = case rho of
              | i == 0    -> absurd err
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
-  Lift n rho | i < n     -> debruijnVar i
+  Lift n rho | i < n     -> deBruijnVar i
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
 
@@ -842,12 +842,12 @@ renaming :: forall a. DeBruijn a => Empty -> Permutation -> Substitution' a
 renaming err p = prependS err gamma $ raiseS $ size p
   where
     gamma :: [Maybe a]
-    gamma = inversePermute p (debruijnVar :: Int -> a)
+    gamma = inversePermute p (deBruijnVar :: Int -> a)
     -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
 renamingR :: DeBruijn a => Permutation -> Substitution' a
-renamingR p@(Perm n _) = permute (reverseP p) (map debruijnVar [0..]) ++# raiseS n
+renamingR p@(Perm n _) = permute (reverseP p) (map deBruijnVar [0..]) ++# raiseS n
 
 
 ---------------------------------------------------------------------------
@@ -1064,8 +1064,8 @@ instance Subst Term EqualityView where
 
 instance DeBruijn DeBruijnPattern where
   debruijnNamedVar n i  = VarP $ DBPatVar n i
-  debruijnView (VarP x) = Just $ dbPatVarIndex x
-  debruijnView _        = Nothing
+  deBruijnView (VarP x) = Just $ dbPatVarIndex x
+  deBruijnView _        = Nothing
 
 fromPatternSubstitution :: PatternSubstitution -> Substitution
 fromPatternSubstitution = fmap patternToTerm
