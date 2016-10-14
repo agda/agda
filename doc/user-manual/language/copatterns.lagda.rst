@@ -73,13 +73,13 @@ specify all the fields in a single expression:
 
     enum-Nat : Enumeration Nat
     enum-Nat = record {
-        start     = 0
+        start    = 0
       ; forward  = suc
-      ; backward  = pred
+      ; backward = pred
       }
       where
         pred : Nat → Nat
-        pred zero = zero
+        pred zero    = zero
         pred (suc x) = x
 
     test₁ : 3rd enum-Nat ≡ 3
@@ -106,7 +106,7 @@ in the same way that we would give different cases for a function:
     enum-Nat : Enumeration Nat
     start    enum-Nat = 0
     forward  enum-Nat n = suc n
-    backward enum-Nat zero = zero
+    backward enum-Nat zero    = zero
     backward enum-Nat (suc n) = n
 
 The resulting behaviour is the same in both cases:
@@ -124,8 +124,8 @@ The resulting behaviour is the same in both cases:
 Copatterns in function definitions
 ----------------------------------
 
-In fact, we do not need to start at 0. We can allow the user to specify the
-starting element.
+In fact, we do not need to start at ``0``. We can allow the user to
+specify the starting element.
 
 Without copatterns, we just add the extra argument to the function declaration:
 
@@ -139,13 +139,13 @@ Without copatterns, we just add the extra argument to the function declaration:
 
     enum-Nat : Nat → Enumeration Nat
     enum-Nat initial = record {
-        start     = initial
+        start    = initial
       ; forward  = suc
-      ; backward  = pred
+      ; backward = pred
       }
       where
         pred : Nat → Nat
-        pred zero = zero
+        pred zero    = zero
         pred (suc x) = x
 
     test₁ : 3rd (enum-Nat 10) ≡ 13
@@ -165,7 +165,7 @@ field in the record:
     enum-Nat : Nat → Enumeration Nat
     start    (enum-Nat initial) = initial
     forward  (enum-Nat _) n = suc n
-    backward (enum-Nat _) zero = zero
+    backward (enum-Nat _) zero    = zero
     backward (enum-Nat _) (suc n) = n
 
 
@@ -198,7 +198,7 @@ value to start with based on the user-provided flag:
       }
       where
         pred : Nat → Nat
-        pred zero = zero
+        pred zero    = zero
         pred (suc x) = x
 
 
@@ -216,7 +216,7 @@ With copatterns, we can do the case analysis directly by pattern matching:
     start    (enum-Nat true)  = 42
     start    (enum-Nat false) = 0
     forward  (enum-Nat _) n = suc n
-    backward (enum-Nat _) zero = zero
+    backward (enum-Nat _) zero    = zero
     backward (enum-Nat _) (suc n) = n
 
 ..
@@ -225,7 +225,8 @@ With copatterns, we can do the case analysis directly by pattern matching:
 
 .. tip:: When using copatterns to define an element of a record type,
    the fields of the record must be in scope. In the examples above,
-   we use `open Enumeration` to bring the fields of the record into scope.
+   we use ``open Enumeration`` to bring the fields of the record into
+   scope.
 
    Consider the first example:
 
@@ -234,7 +235,7 @@ With copatterns, we can do the case analysis directly by pattern matching:
       enum-Nat : Enumeration Nat
       start    enum-Nat = 0
       forward  enum-Nat n = suc n
-      backward enum-Nat zero = zero
+      backward enum-Nat zero    = zero
       backward enum-Nat (suc n) = n
 
    If the fields of the ``Enumeration`` record are not in scope (in
@@ -263,6 +264,6 @@ With copatterns, we can do the case analysis directly by pattern matching:
        enum-Nat : Enumeration Nat
        start    enum-Nat = 0
        forward  enum-Nat n = suc n
-       backward enum-Nat zero = zero
+       backward enum-Nat zero    = zero
        backward enum-Nat (suc n) = n
 
