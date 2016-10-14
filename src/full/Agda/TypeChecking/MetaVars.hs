@@ -1040,7 +1040,7 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
 -}
 
 type FVs = Set.VarSet
-type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
+type SubstCand = [(Int,Term)] -- ^ a possibly non-deterministic substitution
 
 -- | Turn non-det substitution into proper substitution, if possible.
 --   Otherwise, raise the error.
