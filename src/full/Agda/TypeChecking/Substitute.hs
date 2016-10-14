@@ -674,17 +674,53 @@ abstractArgs args x = abstract tel x
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
 
+-- | Things we can substitute for a variable.
+--   Needs to be able to represent variables, e.g. for substituting under binders.
 class DeBruijn a where
+
+  -- | Produce a variable without name suggestion.
   debruijnVar  :: Int -> a
   debruijnVar = debruijnNamedVar underscore
+
+  -- | Produce a variable with name suggestion.
   debruijnNamedVar :: String -> Int -> a
   debruijnNamedVar _ = debruijnVar
+
+  -- | Are we dealing with a variable?
+  --   If yes, what is its index?
   debruijnView :: a -> Maybe Int
 
+-- | We can substitute @Term@s for variables.
 instance DeBruijn Term where
   debruijnVar = var
-  debruijnView (Var n []) = Just n
-  debruijnView _ = Nothing
+  debruijnView u =
+    case ignoreSharing u of
+      Var i [] -> Just i
+      Level l -> debruijnView l
+      _ -> Nothing
+
+instance DeBruijn LevelAtom where
+  debruijnVar = NeutralLevel ReallyNotBlocked . debruijnVar
+  debruijnView l =
+    case l of
+      NeutralLevel _ u -> debruijnView u
+      UnreducedLevel u -> debruijnView u
+      MetaLevel{}    -> Nothing
+      BlockedLevel{} -> Nothing
+
+instance DeBruijn PlusLevel where
+  debruijnVar = Plus 0 . debruijnVar
+  debruijnView l =
+    case l of
+      Plus 0 a -> debruijnView a
+      _ -> Nothing
+
+instance DeBruijn Level where
+  debruijnVar i = Max [debruijnVar i]
+  debruijnView l =
+    case l of
+      Max [p] -> debruijnView p
+      _ -> Nothing
 
 -- See Syntax.Internal for the definition.
 
