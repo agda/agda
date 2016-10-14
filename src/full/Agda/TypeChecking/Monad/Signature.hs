@@ -231,7 +231,7 @@ addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   def  <- getConstInfo x
   args <- drop (projectionArgs $ theDef def) <$> getContextArgs
-  add args x x $ map Apply args
+  add args x x $ map Apply $ raise 1 args -- make room for the single match variable of the display form
   where
     add args top x es0 = do
       def <- getConstInfo x
@@ -253,9 +253,7 @@ addDisplayForms x = do
               (es1, es2) = splitAt n es0
               m          = n - size es1
               vs1 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-                    -- Display patterns use a single var 0 for all pattern variables,
-                    -- so raise the terms that should match exactly by 1.
-              sub = parallelS $ reverse $ raise 1 vs1 ++ replicate m (var 0)
+              sub = parallelS $ reverse $ vs1 ++ replicate m (var 0)
               body = applySubst sub (compiledClauseBody cl) `applyE` es2
           case unSpine <$> body of
             Just (Def y es) -> do
