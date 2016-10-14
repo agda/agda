@@ -15,6 +15,7 @@ import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
+import Agda.Syntax.Position (killRange)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -124,7 +125,7 @@ assignTerm' x tel v = do
     -- dontAssignMetas $ do
     --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
 
-    let i = metaInstance tel v
+    let i = metaInstance tel $ killRange v
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
     modifyMetaStore $ ins x i
     etaExpandListeners x

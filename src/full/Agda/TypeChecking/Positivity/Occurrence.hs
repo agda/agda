@@ -42,7 +42,7 @@ import Agda.Utils.Impossible
 data OccursWhere
   = Unknown
     -- ^ an unknown position (treated as negative)
-  | Known (DS.Seq Where)
+  | Known Range (DS.Seq Where)
     -- ^ The elements of the sequence, from left to right, explain how
     -- to get to the occurrence.
   deriving (Show, Eq, Ord)

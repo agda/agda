@@ -84,7 +84,7 @@ checkRecDef i name ind eta con ps contel fields =
       -- Check and evaluate field types.
       reportSDoc "tc.rec" 15 $ text "checking fields"
       -- WRONG: contype <- workOnTypes $ killRange <$> (instantiateFull =<< isType_ contel)
-      contype <- killRange <$> (instantiateFull =<< isType_ contel)
+      contype <- instantiateFull =<< isType_ contel
       reportSDoc "tc.rec" 20 $ vcat
         [ text "contype = " <+> prettyTCM contype ]
 

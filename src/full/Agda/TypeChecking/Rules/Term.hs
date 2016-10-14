@@ -152,8 +152,20 @@ isType_ e =
         , prettyTCM x
         , text $ " for interaction point " ++ show ii
         ]
-      s0 <- jMetaType . mvJudgement <$> lookupMeta x
-      vs <- getContextArgs
+      mv <- lookupMeta x
+      let s0 = jMetaType . mvJudgement $ mv
+      -- Andreas, 2016-10-14, issue #2257
+      -- The meta was created in a context of length @n@.
+      let n  = length . envContext . clEnv . miClosRange . mvInfo $ mv
+      (vs, rest) <- splitAt n <$> getContextArgs
+      reportSDoc "tc.ip" 20 $ vcat
+        [ text "  s0   = " <+> prettyTCM s0
+        , text "  vs   = " <+> prettyTCM vs
+        , text "  rest = " <+> prettyTCM rest
+        ]
+      -- We assume the meta variable use here is in an extension of the original context.
+      -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
+      if (length vs /= n) then fallback else do
       s1  <- piApplyM s0 vs
       case ignoreSharing $ unEl s1 of
         Sort s -> return $ El s $ MetaV x $ map Apply vs

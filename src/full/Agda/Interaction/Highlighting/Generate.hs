@@ -553,9 +553,10 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 
 -- TODO: highlight also the problematic occurrences
 positivityErrorHighlighting :: I.QName -> OccursWhere -> File
-positivityErrorHighlighting q o = singleton (rToR (P.getRange q)) m
+positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
   where
-    m     = mempty { otherAspects = [PositivityProblem] }
+    rs = case o of Unknown -> []; Known r _ -> [r]
+    m  = mempty { otherAspects = [PositivityProblem] }
 
 
 -- | Generates and prints syntax highlighting information for unsolved

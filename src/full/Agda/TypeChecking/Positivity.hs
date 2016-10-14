@@ -30,6 +30,7 @@ import Debug.Trace
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
+import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
@@ -244,9 +245,9 @@ getDefArity def = case theDef def of
 -- See also Agda.TypeChecking.Positivity.Occurrence.
 
 (>*<) :: OccursWhere -> OccursWhere -> OccursWhere
-Unknown   >*< _         = Unknown
-Known _   >*< Unknown   = Unknown
-Known os1 >*< Known os2 = Known (os1 DS.>< os2)
+Unknown      >*< _            = Unknown
+Known _    _ >*< Unknown      = Unknown
+Known r1 os1 >*< Known r2 os2 = Known (fuseRange r1 r2) (os1 DS.>< os2)
 
 instance PrettyTCM OccursWhere where
   prettyTCM o = prettyOs $ map maxOneLeftOfArrow $ uniq $ splitOnDef o
@@ -263,8 +264,8 @@ instance PrettyTCM OccursWhere where
       prettyOs [o] = prettyO o <> text "."
       prettyOs (o:os) = prettyO o <> text ", which occurs" $$ prettyOs os
 
-      prettyO Unknown    = empty
-      prettyO (Known ws) =
+      prettyO Unknown      = empty
+      prettyO (Known _ ws) =
         Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
 
       prettyW w = case w of
@@ -283,8 +284,8 @@ instance PrettyTCM OccursWhere where
         Matched      -> pwords "as matched against"
         InDefOf d    -> pwords "in the definition of" ++ [prettyTCM d]
 
-      maxOneLeftOfArrow Unknown    = Unknown
-      maxOneLeftOfArrow (Known ws) = Known $
+      maxOneLeftOfArrow Unknown      = Unknown
+      maxOneLeftOfArrow (Known r ws) = Known r $
         noArrows
           DS.><
         case DS.viewl startsWithArrow of
@@ -296,26 +297,30 @@ instance PrettyTCM OccursWhere where
         isArrow LeftOfArrow{} = True
         isArrow _             = False
 
-      splitOnDef Unknown    = [Unknown]
-      splitOnDef (Known ws) = split ws DS.empty
+      splitOnDef Unknown      = [Unknown]
+      splitOnDef (Known r ws) = split ws DS.empty
         where
         split ws acc = case DS.viewl ws of
           w@InDefOf{} DS.:< ws -> let rest = split ws (DS.singleton w) in
                                   if DS.null acc
                                   then rest
-                                  else Known acc : rest
+                                  else Known r acc : rest
           w           DS.:< ws -> split ws (acc DS.|> w)
-          DS.EmptyL            -> [Known acc]
+          DS.EmptyL            -> [Known r acc]
 
 instance Sized OccursWhere where
-  size Unknown    = 1
-  size (Known ws) = 1 + size ws
+  size Unknown      = 1
+  size (Known _ ws) = 1 + size ws
 
 -- Computing occurrences --------------------------------------------------
 
-data Item = AnArg Nat
+data Item = AnArg Range Nat
           | ADef QName
   deriving (Eq, Ord, Show)
+
+instance HasRange Item where
+  getRange (AnArg r _) = r
+  getRange (ADef qn)   = getRange qn
 
 type Occurrences = Map Item [OccursWhere]
 
@@ -362,12 +367,12 @@ preprocess ob = case pp Nothing DS.empty ob of
   pp  m ws (OccursAs w ob)     = OccursAs' w <$> pp m (ws DS.|> w) ob
   pp  m ws (OnlyVarsUpTo n ob) = pp (Just $! maybe n (min n) m) ws ob
   pp  m ws (OccursHere i)      = do guard keep
-                                    return (OccursHere' i (Known ws))
+                                    return (OccursHere' i (Known (getRange i) ws))
     where
     keep = case (m, i) of
-      (Nothing, _)      -> True
-      (_, ADef _)       -> True
-      (Just m, AnArg i) -> i < m
+      (Nothing, _)        -> True
+      (_, ADef _)         -> True
+      (Just m, AnArg _ i) -> i < m
 
 -- | A type used locally in 'flatten'.
 data OccursWheres
@@ -432,14 +437,15 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
-    let ps    = clausePats cl
+    let ps    = namedClausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
     (Concat (mapMaybe matching (zip [0..] ps)) >+<) <$>
       withExtendedOccEnv' items (occurrences $ clauseBody cl)
     where
       matching (i, p)
-        | properlyMatching (unArg p) = Just $ OccursAs Matched $
-                                                OccursHere $ AnArg i
+        | properlyMatching (namedThing $ unArg p) =
+          let at = getRange $ nameOf $ unArg p
+          in Just $ OccursAs Matched $ OccursHere $ AnArg at i
         | otherwise                  = Nothing
 
       -- @patItems ps@ creates a map from the pattern variables of @ps@
@@ -447,11 +453,12 @@ instance ComputeOccurrences Clause where
       patItems ps = mconcat $ zipWith patItem [0..] ps
 
       -- @patItem i p@ assigns index @i@ to each pattern variable in @p@
-      patItem :: Int -> Arg DeBruijnPattern -> IntMap (Maybe Item)
+      patItem :: Int -> NamedArg DeBruijnPattern -> IntMap (Maybe Item)
       patItem i p = Fold.foldMap makeEntry ixs
         where
-          ixs = map dbPatVarIndex $ lefts $ map unArg $ patternVars p
-          makeEntry x = singleton (x , Just (AnArg i))
+          ixs = map dbPatVarIndex $ lefts $ map unArg $ patternVars $ namedThing <$> p
+
+          makeEntry x = singleton (x, Just (AnArg (getRange $ nameOf $ unArg p) i))
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
@@ -567,7 +574,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       -- Andreas, 2013-02-27: first, each data index occurs as matched on.
       TelV tel t <- telView $ defType def
       let xs  = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursAs Matched . OccursHere . AnArg) xs
+          ioccs = Concat $ map (OccursAs Matched . OccursHere . AnArg noRange) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
@@ -576,14 +583,14 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                             Def _ vs -> genericDrop np vs
                             _        -> __IMPOSSIBLE__
             let tel'    = telFromList $ genericDrop np $ telToList tel
-                vars np = map (Just . AnArg) $ downFrom np
+                vars np = map (Just . AnArg noRange) $ downFrom np
             (>+<) <$> (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel')
                   <*> (OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
       (>+<) ioccs <$> (Concat <$> mapM conOcc cs)
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
-          vars = map (Just . AnArg) $ downFrom np
+          vars = map (Just . AnArg noRange) $ downFrom np
       getOccurrences vars =<< instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
@@ -761,8 +768,8 @@ computeEdges muts q ob =
                          then id
                          else (Graph.Edge
                                  { Graph.source = case i of
-                                                    AnArg i -> ArgNode q i
-                                                    ADef q  -> DefNode q
+                                                    AnArg _ i -> ArgNode q i
+                                                    ADef q    -> DefNode q
                                  , Graph.target = to
                                  , Graph.label  = Edge pol o
                                  } :)
