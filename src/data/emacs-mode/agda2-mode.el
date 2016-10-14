@@ -785,22 +785,16 @@ An error is raised if no responses are received."
             ))
 
 (defun agda2-measure-load-time
-  (&optional highlighting-level dont-touch continuation)
+  (&optional highlighting-level continuation)
   "Load the current buffer and print how much time it takes.
 \(Wall-clock time.)
 
 The given HIGHLIGHTING-LEVEL is used (if non-nil).
 
-The file is first saved and \"touched\", unless DONT-TOUCH is
-non-nil.
-
 If CONTINUATION is non-nil, then CONTINUATION is applied to the
 resulting time (represented as a string)."
   (interactive)
   (agda2-abort-if-in-progress)
-  (unless dont-touch
-    (save-buffer)
-    (shell-command (concat "touch \"" (buffer-file-name) "\"")))
   (let* ((agda2-highlight-level
           (or highlighting-level agda2-highlight-level)))
     (setq agda2-measure-data (cons continuation (current-time)))
@@ -1373,7 +1367,8 @@ a goal, the top-level scope."
   "Compute the normal form of the expression in the goal at point.
 
 With a prefix argument distinct from `(4)' the normal form of
-\"show <expression>\" is computed.
+\"show <expression>\" is computed, and then the resulting string
+is printed.
 
 With any prefix argument \"abstract\" is ignored during the
 computation."
@@ -1390,7 +1385,8 @@ The scope used for the expression is that of the last point
 inside the current top-level module.
 
 With a prefix argument distinct from `(4)' the normal form of
-\"show <expression>\" is computed.
+\"show <expression>\" is computed, and then the resulting string
+is printed.
 
 With any prefix argument \"abstract\" is ignored during the
 computation."
@@ -1407,7 +1403,8 @@ The scope used for the expression is that of the last point
 inside the current top-level module.
 
 With a prefix argument distinct from `(4)' the normal form of
-\"show <expression>\" is computed.
+\"show <expression>\" is computed, and then the resulting string
+is printed.
 
 With any prefix argument \"abstract\" is ignored during the
 computation."
