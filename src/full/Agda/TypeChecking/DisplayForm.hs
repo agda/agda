@@ -56,7 +56,7 @@ displayForm q es = do
     unless (null odfs) $ verboseS "tc.display.top" 100 $ do
       n <- getContextId
       reportSLn "tc.display.top" 100 $
-        "displayForm: context = " ++ show n ++
+        "displayForm for " ++ show q ++ ": context = " ++ show n ++
         ", dfs = " ++ show odfs
     -- Use only the display forms that can be opened in the current context.
     dfs   <- catMaybes <$> mapM getLocal odfs
