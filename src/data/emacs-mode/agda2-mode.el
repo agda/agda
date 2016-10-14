@@ -464,7 +464,7 @@ agda2-include-dirs is not bound." :warning))
          (output (with-output-to-string
                    (call-process agda2-program-name
                                  nil standard-output nil "--version")))
-         (version (and (string-match "^Agda version \\([0-9.]+\\)$" output)
+         (version (and (string-match "^Agda version \\([0-9.]+\\)" output)
                        (match-string 1 output))))
     (unless (equal version agda2-version)
       (error "The Agda mode's version (%s) does not match that of %s (%s)."
