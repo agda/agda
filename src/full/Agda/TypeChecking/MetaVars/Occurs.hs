@@ -37,6 +37,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 -- import Agda.TypeChecking.MetaVars
@@ -316,12 +317,10 @@ instance Occurs Term where
             -- a data or record type constructor propagates strong occurrences
             -- since e.g. x = List x is unsolvable
             occDef d ctx vs = do
-              def <- theDef <$> getConstInfo d
-              whenM (defNeedsChecking d) $ do
-                tallyDef d
-                reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-                metaOccurs m def
-              if (defIsDataOrRecord def) then (occ ctx vs) else (occ (defArgs red ctx) vs)
+              metaOccurs m d
+              ifM (isJust <$> isDataOrRecordType d)
+                {-then-} (occ ctx vs)
+                {-else-} (occ (defArgs red ctx) vs)
 
   metaOccurs m v = do
     v <- instantiate v
