@@ -478,6 +478,8 @@ reference these are the bindings::
   {-# BUILTIN LEVELSUC  lsuc  #-}
   {-# BUILTIN LEVELMAX  _⊔_   #-}
 
+.. _builtin_sized_types:
+
 Sized types
 -----------
 
