@@ -84,23 +84,15 @@ disabledTests =
     -- primQNameFixity not yet implemented for UHC and JS
   , RFInclude "Compiler/UHC/simple/Issue1664"
   , RFInclude "Compiler/JS/simple/Issue1664"
-
-  , RFInclude "Compiler/JS/simple/Coind"
-  , RFInclude "Compiler/JS/simple/CompilingCoinduction"
   , RFInclude "Compiler/JS/simple/CopatternStreamSized"
-  , RFInclude "Compiler/JS/simple/Issue1486"
-  , RFInclude "Compiler/JS/simple/Issue326"
   , RFInclude "Compiler/JS/simple/VecReverse"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   -- primQNameLess not implemented for JS
   , RFInclude "Compiler/JS/simple/QNameOrder"
   -- Floats
-  , RFInclude "Compiler/JS/simple/FloatsJSFails"
   , RFInclude "Compiler/JS/simple/FloatsOnlyUHC"
   , RFInclude "Compiler/MAlonzo/simple/FloatsOnlyUHC"
   , RFInclude "Compiler/UHC/simple/FloatsUHCFails"
-  , RFInclude "Compiler/UHC/simple/Issue2218"  -- primFloatEquality is disabled
-  , RFInclude "Compiler/JS/simple/Issue2218"   -- not printing newlines for some reason
   ]
 
 tests :: IO TestTree

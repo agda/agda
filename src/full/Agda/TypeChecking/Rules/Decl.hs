@@ -381,8 +381,7 @@ checkTermination_ d = Bench.billTo [Bench.Termination] $ do
         -- the state and mark the definition as non-terminating so
         -- that it does not get unfolded
         unless (null termErrs) $ do
-          termIssue <- TerminationIssue <$> get <*> buildClosure termErrs
-          warning termIssue
+          warning $ TerminationIssue termErrs
           case Seq.viewl (A.allNames d) of
             nm Seq.:< _ -> setTerminates nm False
             _           -> return ()

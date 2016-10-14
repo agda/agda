@@ -7,5 +7,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "_>>=_")
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "" nil)
+(agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))

@@ -38,6 +38,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 -- import Agda.TypeChecking.MetaVars
@@ -317,12 +318,10 @@ instance Occurs Term where
             -- a data or record type constructor propagates strong occurrences
             -- since e.g. x = List x is unsolvable
             occDef d ctx vs = do
-              def <- theDef <$> getConstInfo d
-              whenM (defNeedsChecking d) $ do
-                tallyDef d
-                reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-                metaOccurs m def
-              if (defIsDataOrRecord def) then (occ ctx vs) else (occ (defArgs red ctx) vs)
+              metaOccurs m d
+              ifM (isJust <$> isDataOrRecordType d)
+                {-then-} (occ ctx vs)
+                {-else-} (occ (defArgs red ctx) vs)
 
   metaOccurs m v = do
     v <- instantiate v
@@ -346,7 +345,7 @@ instance Occurs QName where
   metaOccurs m d = whenM (defNeedsChecking d) $ do
     tallyDef d
     reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-    metaOccurs m . theDef =<< getConstInfo d
+    metaOccurs m . theDef =<< ignoreAbstractMode (getConstInfo d)
 
 instance Occurs Defn where
   occurs red ctx m xs def = __IMPOSSIBLE__
@@ -360,6 +359,7 @@ instance Occurs Defn where
   metaOccurs m Record{ recConHead = c }     = metaOccurs m . defType =<< getConstInfo (conName c)
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
+  metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
 
 instance Occurs Clause where
   occurs red ctx m xs cl = __IMPOSSIBLE__
@@ -552,7 +552,8 @@ isNeutral b f es = liftTCM $ do
   def <- getConstInfo f
   if defMatchable def then no else do
   case theDef def of
-    Axiom{}    -> do i <- intervalView (Def f es)
+    AbstractDefn -> yes
+    Axiom{}    -> do i <- intervalView (Def f es) -- TODO Andrea: hackish, should declare "I" as data?
                      case i of
                        IZero       -> no
                        IOne        -> no

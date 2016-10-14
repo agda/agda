@@ -56,12 +56,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 import Agda.Syntax.IdiomBrackets
 
-import Agda.TypeChecking.Monad.Base
-  ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
-  , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
-  , envAbstractMode , AbstractMode(..), aModeToDef, aDefToMode
-  , TCM
-  )
+import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -1348,6 +1343,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections
         bindName p FldName x y
+      when (getHiding t /= Instance && argInfoOverlappable (argInfo t)) $
+        genericError "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
       return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
 
   -- Primitive function
@@ -1635,7 +1632,9 @@ errorNotConstrDecl d = typeError . GenericDocError $
 instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-  toAbstract (C.RewritePragma _ x) = do
+  toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
+  toAbstract (C.RewritePragma _ xs) = concat <$> do
+   forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
       A.Def x          -> return [ A.RewritePragma x ]

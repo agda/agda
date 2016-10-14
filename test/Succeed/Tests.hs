@@ -12,6 +12,7 @@ import System.IO.Temp
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Text.Encoding
+import Data.Monoid ((<>))
 import System.Exit
 import Data.List
 import System.Directory
@@ -37,6 +38,7 @@ tests = do
 
 data AgdaResult
   = AgdaSuccess
+  | AgdaSuccessWithWarnings T.Text -- the cleaned stdout
   | AgdaUnexpectedFail ProgramResult
   | AgdaWrongDotOutput T.Text
 
@@ -46,26 +48,33 @@ mkSucceedTest
   -> FilePath -- ^ Input file.
   -> TestTree
 mkSucceedTest extraOpts dir inp =
-  goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
+  goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName dir inp
         flagFile = dropAgdaExtension inp <.> ".flags"
+        warnFile = dropAgdaExtension inp <.> ".warn"
 
-        -- we don't really have a golden file. Just use
-        -- a dummy update function.
+        -- Unless we have a .warn file, we don't really have a golden
+        -- file. Just use a dummy update function.
         -- TODO extend tasty-silver to handle this use case properly
-        readGolden = return $ Just $ printAgdaResult AgdaSuccess
+        readGolden = do
+          warnExists <- doesFileExist warnFile
+          if warnExists then readTextFileMaybe warnFile
+                        else return $ Just $ printAgdaResult AgdaSuccess
+
+        updGolden = Just $ writeTextFile warnFile
 
         doRun = do
           flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , inp
                          , "--no-default-libraries"
-                         , "-v impossible:10"
+                         , "-vimpossible:10" -- BEWARE: no spaces allowed here
+                         , "-vwarning:1"
                          ] ++
                          extraOpts ++ words flags
           let run = \extraArgs -> readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
 
-          res@(ret, _, _) <-
+          res@(ret, stdOut, _) <-
             if "--compile" `isInfixOf` flags
               then
                 withTempDirectory dir ("MAZ_compile_" ++ testName) (\compDir ->
@@ -81,10 +90,14 @@ mkSucceedTest extraOpts dir inp =
               removeFile "Issue481.dot"
               if dot == dotOrig
                 then
-                  return AgdaSuccess
+                  return $ AgdaSuccess
                 else
                   return $ AgdaWrongDotOutput dot
-            ExitSuccess -> return AgdaSuccess
+            ExitSuccess -> do
+              warnExists <- doesFileExist warnFile
+              if warnExists
+              then AgdaSuccessWithWarnings <$> cleanOutput stdOut
+              else return AgdaSuccess
             _ -> return $ AgdaUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
@@ -99,6 +112,8 @@ resShow :: T.Text -> IO GShow
 resShow = return . ShowText
 
 printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult AgdaSuccess            = "AGDA_SUCCESS"
-printAgdaResult (AgdaUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" `T.append` printProcResult p
-printAgdaResult (AgdaWrongDotOutput t) = "AGDA_WRONG_DOT_OUTPUT\n\n" `T.append` t
+printAgdaResult r = case r of
+  AgdaSuccess               -> "AGDA_SUCCESS\n\n"
+  AgdaSuccessWithWarnings t -> t
+  AgdaUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProcResult p
+  AgdaWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t

@@ -474,7 +474,7 @@ reifyTerm expandAnonDefs v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
-                  elims (A.AbsurdLam noExprInfo h) =<< reify es
+                  elims (A.AbsurdLam noExprInfo h) =<< reify (drop n es)
 
       -- Otherwise (no absurd lambda):
        _ -> do
@@ -656,7 +656,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             , varOrDot (namedArg a)
             ]
 
-          isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing
+          isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing && isNothing (isProjP x)
 
           stripArg a = fmap (fmap stripPat) a
 

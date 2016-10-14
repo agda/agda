@@ -13,6 +13,7 @@ module Agda.TypeChecking.Coverage
   , splitClauseWithAbsurd
   , splitLast
   , splitResult
+  , normaliseProjP
   ) where
 
 import Prelude hiding (null)
@@ -50,7 +51,7 @@ import Agda.TypeChecking.Datatypes (getConForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Records (isRecordType)
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
 
 import Agda.Interaction.Options
@@ -176,7 +177,8 @@ cover f cs sc@(SClause tel ps _ target) = do
     , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
-  case match cs ps of
+  cs' <- normaliseProjP cs
+  case match cs' ps of
     Yes (i,(mps,ls0))
      | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
@@ -498,7 +500,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps c = do
     DontKnow{} -> do
       debugCantSplit
       throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
-    Unifies (delta1',rho0) -> do
+    Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ

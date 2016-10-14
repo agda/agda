@@ -656,6 +656,7 @@ isCoinductive t = do
         Record      {  recInduction = _                } -> return (Just False)
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
+        AbstractDefn{} -> __IMPOSSIBLE__
     Var   {} -> return Nothing
     Lam   {} -> __IMPOSSIBLE__
     Lit   {} -> __IMPOSSIBLE__

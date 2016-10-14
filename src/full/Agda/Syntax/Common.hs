@@ -390,13 +390,14 @@ instance LensOrigin Origin where
 -- | A function argument can be hidden and/or irrelevant.
 
 data ArgInfo = ArgInfo
-  { argInfoHiding    :: Hiding
-  , argInfoRelevance :: Relevance
-  , argInfoOrigin    :: Origin
+  { argInfoHiding       :: Hiding
+  , argInfoRelevance    :: Relevance
+  , argInfoOrigin       :: Origin
+  , argInfoOverlappable :: Bool
   } deriving (Typeable, Eq, Ord, Show)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h r o) = killRange3 ArgInfo h r o
+  killRange (ArgInfo h r o v) = killRange3 ArgInfo h r o v
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -411,7 +412,7 @@ instance LensArgInfo ArgInfo where
   mapArgInfo = id
 
 instance NFData ArgInfo where
-  rnf (ArgInfo a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (ArgInfo a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance LensHiding ArgInfo where
   getHiding = argInfoHiding
@@ -429,9 +430,10 @@ instance LensOrigin ArgInfo where
   mapOrigin f ai = ai { argInfoOrigin = f (argInfoOrigin ai) }
 
 defaultArgInfo :: ArgInfo
-defaultArgInfo =  ArgInfo { argInfoHiding    = NotHidden
-                          , argInfoRelevance = Relevant
-                          , argInfoOrigin    = UserWritten }
+defaultArgInfo =  ArgInfo { argInfoHiding       = NotHidden
+                          , argInfoRelevance    = Relevant
+                          , argInfoOrigin       = UserWritten
+                          , argInfoOverlappable = False }
 
 
 ---------------------------------------------------------------------------
@@ -456,14 +458,14 @@ instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
 instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 _ _) x1 == Arg (ArgInfo h2 _ _) x2 = (h1, x1) == (h2, x2)
+  Arg (ArgInfo h1 _ _ _) x1 == Arg (ArgInfo h2 _ _ _) x2 = (h1, x1) == (h2, x2)
 
 instance Show a => Show (Arg a) where
-    show (Arg (ArgInfo h r o) x) = showR r $ showO o $ showH h $ show x
+    show (Arg (ArgInfo h r o v) x) = showR r $ showO o $ showH h $ show x
       where
         showH Hidden     s = "{" ++ s ++ "}"
         showH NotHidden  s = "(" ++ s ++ ")"
-        showH Instance   s = "{{" ++ s ++ "}}"
+        showH Instance   s = (if v then "overlap " else "") ++ "{{" ++ s ++ "}}"
         showR r s = case r of
           Irrelevant   -> "." ++ s
           NonStrict    -> "?" ++ s

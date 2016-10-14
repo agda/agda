@@ -1,3 +1,2 @@
-user error (Multiline token in literate file spans multiple code
-blocks
-TeXSpanningComment.lagda.tex:2,3-6,7)
+TeXSpanningComment.lagda.tex:2,3-6,7
+TeXSpanningComment.lagda.tex:2,3-6,7: Multi-line comment spans one or more literate text blocks.

@@ -137,7 +137,8 @@ options =
          (Left <$>
           strOption (long "replay" <>
                      metavar "LOG" <>
-                     help "Replay the git bisect log in LOG" <>
+                     help ("Replay the git bisect log in LOG " ++
+                           "(which is assumed to be well-formed)") <>
                      action "file")))
     <*> optional
           ((Left <$>
@@ -275,6 +276,16 @@ currentCommit = do
     '\n' : s -> reverse s
     _        -> s
 
+-- | Raises an error if the given string does not refer to a unique
+-- git revision.
+
+validRevision :: String -> IO ()
+validRevision rev = do
+  ok <- callProcessWithResultSilently "git" ["show", rev]
+  unless ok $ do
+    putStrLn $ "Invalid revision: " ++ rev ++ "."
+    exitFailure
+
 -- | Tries to make sure that a Cabal sandbox will be used.
 
 setupSandbox :: IO ()
@@ -296,11 +307,16 @@ bisect opts =
   initialise = do
     case start opts of
       Left log          -> callProcess "git" ["bisect", "replay", log]
-      Right (bad, good) -> callProcess "git"
-                                       ["bisect", "start", bad, good]
+      Right (bad, good) -> do
+        validRevision bad
+        validRevision good
+        callProcess "git" ["bisect", "start", bad, good]
 
     -- It seems as if git bisect log returns successfully iff
-    -- bisection is in progress.
+    -- bisection is in progress. Note, however, that git bisect start
+    -- accepts invalid revisions. One can currently use a malformed
+    -- replay log to fool this script into compiling the currently
+    -- checked out revision.
     inProgress <- callProcessWithResultSilently "git" ["bisect", "log"]
     when inProgress run
 

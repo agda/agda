@@ -11,6 +11,8 @@ module Agda.TypeChecking.Rules.Builtin
 
 import Control.Applicative hiding (empty)
 import Control.Monad
+import Control.Monad.Reader (ask)
+import Control.Monad.State (get)
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
@@ -271,6 +273,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMInferType  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCheckType  |-> builtinPostulate (tterm --> ttype --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMNormalise  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMReduce     |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCatchError |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMGetContext |-> builtinPostulate (tTCM_ (unEl <$> tlist (targ ttype)))
   , builtinAgdaTCMExtendContext |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
@@ -285,6 +288,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit             |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro            |-> builtinPostulate (tqname --> tTCM_ primBool)
+  , builtinAgdaTCMWithNormalisation  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   ]
   where
         (|->) = (,)
@@ -486,7 +490,7 @@ bindPostulatedName ::
   String -> A.Expr -> (QName -> Definition -> TCM Term) -> TCM ()
 bindPostulatedName builtin e m = do
   q   <- getName e
-  def <- ignoreAbstractMode $ getConstInfo q
+  def <- getConstInfo q
   case theDef def of
     Axiom {} -> bindBuiltinName builtin =<< m q def
     _        -> err
@@ -610,7 +614,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                     "The argument to BUILTIN " ++ s ++ " must be a postulated name"
         case e of
           A.Def q -> do
-            def <- ignoreAbstractMode $ getConstInfo q
+            def <- getConstInfo q
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
@@ -641,9 +645,7 @@ bindBuiltin b e = do
     _ | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
     _ -> typeError $ NoSuchBuiltinName b
   where
-    nowNat b = genericError $
-      "Builtin " ++ b ++ " does no longer exist. " ++
-      "It is now bound by BUILTIN " ++ builtinNat
+    nowNat b = warning $ OldBuiltin b builtinNat
 
 isUntypedBuiltin :: String -> Bool
 isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]

@@ -224,6 +224,11 @@ Testing and documentation
   when the test case changes, it is assumed that the error message
   changes as well.
 
+* Tests under test/Succeed will also be tested for expected warning
+  messages if there is a corresponding .warn file. If you want to
+  record a new warning, touch the .warn file, run make succeed and
+  accept the new golden value.
+
 * Make sure you do not introduce performance regression.  If you
 
     make library-test
@@ -407,3 +412,8 @@ Cabal stuff
   https://code.google.com/p/agda/issues/detail?id=1196):
 
   cabal repl --ghc-options=-Wwarn
+
+Documentation
+-------------
+
+See http://agda.readthedocs.io/en/latest/contribute/documentation.html .

@@ -80,6 +80,7 @@ type Verbosity = Trie String Int
 -- ignore or respect the flags --allow-unsolved-metas,
 -- --no-termination-check, --no-positivity-check?
 data IgnoreFlags = IgnoreFlags | RespectFlags
+  deriving Eq
 
 data CommandLineOptions = Options
   { optProgramName      :: String

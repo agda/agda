@@ -13,10 +13,10 @@ data Even  : ℕ → Set where
   isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
 
 pattern expected =
-  def (quote Σ)
+  def (quote ∃)
       ( arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
         arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-        arg (argInfo visible relevant) (def (quote ℕ) []) ∷
+        arg (argInfo hidden relevant) (def (quote ℕ) []) ∷
         arg (argInfo visible relevant) (def (quote Even) []) ∷
         [] )
 
@@ -31,8 +31,8 @@ isExpected _        = false
 macro
   checkExpectedType : QName → Tactic
   checkExpectedType i hole =
-    bindTC (getType i)   λ t →
-    bindTC (normalise t) λ t → give (` isExpected t) hole
+    bindTC (getType i) λ t →
+    give (` isExpected t) hole
 
 input0 : ∃ Even
 input0 = 0 , isEven0

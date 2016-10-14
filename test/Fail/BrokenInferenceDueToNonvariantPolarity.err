@@ -1,8 +1,9 @@
 Failed to solve the following constraints:
-  [0] Find in scope _30 :
-      (n₁ : Nat) {.p : False (suc n₁)} (b₁ : Bla (suc n₁) .p) →
-      False (_n_29 n₁ {.p} b₁)
-       (no candidate for now)
+  [0] Resolve instance argument
+        _30 :
+          (n₁ : Nat) {.p : False (suc n₁)} (b₁ : Bla (suc n₁) .p) →
+          False (_n_29 n₁ {.p} b₁)
+      No candidates yet
 Unsolved metas at the following locations:
   BrokenInferenceDueToNonvariantPolarity.agda:50,19-24
   BrokenInferenceDueToNonvariantPolarity.agda:50,26-34

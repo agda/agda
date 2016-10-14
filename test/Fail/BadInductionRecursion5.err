@@ -1,4 +1,4 @@
-BadInductionRecursion5.agda:5,8-9
+BadInductionRecursion5.agda:3,1-12,14
 D is not strictly positive, because it occurs
 in the first clause
 in the definition of T₂, which occurs

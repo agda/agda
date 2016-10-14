@@ -22,10 +22,10 @@ import Test.QuickCheck
 -- QuickCheck instances
 
 instance Arbitrary OccursWhere where
-  arbitrary = oneof [return Unknown, Known <$> arbitrary]
+  arbitrary = oneof [return Unknown, Known <$> arbitrary <*> arbitrary]
 
-  shrink Unknown    = []
-  shrink (Known ws) = Unknown : [ Known ws | ws <- shrink ws ]
+  shrink Unknown      = []
+  shrink (Known r ws) = Unknown : [ Known r ws | r <- shrink r, ws <- shrink ws ]
 
 instance Arbitrary Where where
   arbitrary = oneof
@@ -42,8 +42,8 @@ instance Arbitrary Where where
     ]
 
 instance CoArbitrary OccursWhere where
-  coarbitrary (Known ws) = variant 0 . coarbitrary ws
-  coarbitrary Unknown    = variant 1
+  coarbitrary (Known r ws) = variant 0 . coarbitrary (r, ws)
+  coarbitrary Unknown      = variant 1
 
 instance CoArbitrary Where where
   coarbitrary LeftOfArrow    = variant 0

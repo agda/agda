@@ -90,6 +90,9 @@ hsep ds = P.hsep <$> sequence ds
 hcat ds = P.hcat <$> sequence ds
 vcat ds = P.vcat <$> sequence ds
 
+hang :: TCM Doc -> Int -> TCM Doc -> TCM Doc
+hang p n q = P.hang <$> p <*> pure n <*> q
+
 ($$), ($+$), (<>), (<+>) :: TCM Doc -> TCM Doc -> TCM Doc
 d1 $$ d2  = (P.$$) <$> d1 <*> d2
 d1 $+$ d2 = (P.$+$) <$> d1 <*> d2
@@ -280,21 +283,25 @@ instance PrettyTCM Constraint where
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
-        FindInScope m mb Nothing -> do
+        FindInScope m mb mcands -> do
             t <- getMetaType m
-            sep [ text "Find in scope" <+> pretty m
-                  <+> maybe (text ":") (\ b -> text "blocked on" <+> pretty b <+> text ":") mb
-                , prettyTCM t
-                , text " (no candidate for now)"
+            sep [ hang (text "Resolve instance argument" <+> blk) 2 $
+                  hang (pretty m <+> text ":") 2 $ prettyTCM t
+                , cands
                 ]
-        FindInScope m mb (Just cands) -> do
-            t <- getMetaType m
-            sep [ text "Find in scope" <+> pretty m
-                  <+> maybe (text ":") (\ b -> text "blocked on" <+> pretty b <+> text ":") mb
-                , nest 2 $ prettyTCM t
-                , sep $ flip map cands $ \cand ->
-                           prettyTCM (candidateTerm cand) <+> text ": " <+> prettyTCM (candidateType cand)
-                ]
+          where
+            blk = case mb of
+                    Nothing -> empty
+                    Just b  -> parens $ text "blocked on" <+> pretty b
+            cands =
+              case mcands of
+                Nothing -> text "No candidates yet"
+                Just cnds ->
+                  hang (text "Candidates") 2 $
+                    vcat [ hang (overlap c <+> prettyTCM (candidateTerm c) <+> text ":") 2 $
+                            prettyTCM (candidateType c) | c <- cnds ]
+              where overlap c | candidateOverlappable c = text "overlap"
+                              | otherwise               = empty
         IsEmpty r t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
         CheckSizeLtSat t ->

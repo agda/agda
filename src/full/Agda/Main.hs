@@ -43,6 +43,7 @@ import Agda.Utils.String
 
 import Agda.Version
 
+import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
@@ -74,15 +75,21 @@ runAgdaWithOptions generateHTML progName opts
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
-          Bench.billTo [] (checkFile opts) `finally_` do
+          UtilsBench.setBenchmarking True
+            -- Andreas, Nisse, 2016-10-11 AIM XXIV
+            -- Turn benchmarking on provisionally, otherwise we lose track of time spent
+            -- on e.g. LaTeX-code generation.
+            -- Benchmarking might be turned off later by setCommandlineOptions
+
+          Bench.billTo [] checkFile `finally_` do
             -- Print benchmarks.
             Bench.print
 
             -- Print accumulated statistics.
             printStatistics 20 Nothing =<< use lensAccumStatistics
   where
-    checkFile :: CommandLineOptions -> TCM ()
-    checkFile opts = do
+    checkFile :: TCM ()
+    checkFile = do
       let i             = optInteractive     opts
           ghci          = optGHCiInteraction opts
           ghc           = optGhcCompile      opts
@@ -126,10 +133,10 @@ runAgdaWithOptions generateHTML progName opts
           -- An interface is only generated if NoWarnings.
           result <- case mw of
             SomeWarnings ws -> do
-              ws' <- applyFlagsToWarnings RespectFlags ws
+              ws' <- applyFlagsToTCWarnings RespectFlags ws
               case ws' of
                 []   -> return Nothing
-                cuws -> warningsToError cuws
+                cuws -> tcWarningsToError cuws
             NoWarnings      -> return $ Just i
 
           reportSDoc "main" 50 $ pretty i
@@ -141,7 +148,7 @@ runAgdaWithOptions generateHTML progName opts
             Dot.generateDot $ i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
-            LaTeX.generateLaTeX (toTopLevelModuleName $ iModuleName i) (iHighlighting i)
+            LaTeX.generateLaTeX i
 
           return result
 

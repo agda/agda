@@ -1,4 +1,4 @@
-Negative4.agda:5,6-11
+Negative4.agda:5,1-6,44
 NSPos is not strictly positive, because it occurs
 to the left of an arrow
 in the type of the constructor c

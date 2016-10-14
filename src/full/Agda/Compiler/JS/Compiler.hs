@@ -19,7 +19,7 @@ import System.FilePath ( splitFileName, (</>) )
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
-import Agda.Syntax.Common ( Nat, unArg, namedArg )
+import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName,
@@ -27,19 +27,19 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
-    unSpine, allApplyElims,
     conName,
-    derefPtr,
-    toTopLevelModuleName, clausePats, arity, unEl, unAbs )
-import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
+    toTopLevelModuleName, arity, unEl, unAbs, nameFixity )
+import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
+import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
 import Agda.TypeChecking.Substitute ( absBody )
-import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad hiding (Global, Local)
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
+import Agda.TypeChecking.Substitute (TelV(..))
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
@@ -53,6 +53,7 @@ import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.DelayCoinduction
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 
@@ -168,13 +169,15 @@ reorder' defs (e : es) =
     False -> reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
-isTopLevelValue (Export _ e) = case e of
+isTopLevelValue (Export _ isCoind e) = case e of
+  _ | isCoind -> False
   Lambda{} -> False
   _        -> True
 
 isEmptyObject :: Export -> Bool
-isEmptyObject (Export _ e) = case e of
+isEmptyObject (Export _ _ e) = case e of
   Object m -> Map.null m
+  Lambda{} -> True
   _        -> False
 
 insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
@@ -188,45 +191,55 @@ insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e 
 
 curModule :: IsMain -> TCM Module
 curModule isMain = do
+  kit <- coinductionKit
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
-  es <- catMaybes <$> (mapM definition =<< (sortDefs <$> curDefs))
+  es <- catMaybes <$> (mapM (definition kit) =<< (sortDefs <$> curDefs))
   return $ Module m (reorder es) main
   where
     main = case isMain of
       IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
       NotMain -> Nothing
 
-definition :: (QName,Definition) -> TCM (Maybe Export)
-definition (q,d) = do
+definition :: Maybe CoinductionKit -> (QName,Definition) -> TCM (Maybe Export)
+definition kit (q,d) = do
   reportSDoc "js.compile" 10 $ text "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
 
-  fmap (Export ls) <$> definition' q d (defType d) ls
+  definition' kit q d (defType d) ls
 
-definition' :: QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Exp)
-definition' q d t ls =
+definition' :: Maybe CoinductionKit -> QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Export)
+definition' kit q d t ls =
   case theDef d of
+    -- coinduction
+    Constructor{} | Just q == (nameOfSharp <$> kit) -> do
+      ret $  Lambda 1 $ local 0
+    Function{} | Just q == (nameOfFlat <$> kit) -> do
+      ret $ Lambda 1 $ Apply (local 0) [Integer 0]
+
     Axiom | Just e <- defJSDef d -> plainJS e
-    Axiom | otherwise -> return $ Just Undefined
+    Axiom | otherwise -> ret Undefined
 
     Function{} | Just e <- defJSDef d -> plainJS e
     Function{} | otherwise -> do
+      isInfVal <- outputIsInf kit t
+
       reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
         funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
-        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
-        funBody' <- compileTerm funBody
-        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
-        return $ Just funBody'
+        funBody' <- delayCoinduction funBody t
+        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody'
+        funBody'' <- compileTerm funBody'
+        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody''
+        return $ Just $ Export ls isInfVal funBody''
 
     Primitive{primName = p} | p `Set.member` primitives ->
       plainJS $ "agdaRTS." ++ p
     Primitive{} | Just e <- defJSDef d -> plainJS e
-    Primitive{} | otherwise -> return $ Just Undefined
+    Primitive{} | otherwise -> ret Undefined
 
-    Datatype{} -> return $ Just emp
+    Datatype{} -> ret emp
     Record{} -> return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
@@ -235,18 +248,21 @@ definition' q d t ls =
       d <- getConstInfo p
       case theDef d of
         Record { recFields = flds } ->
-          return $ Just (curriedLambda np (Object (fromList
+          ret (curriedLambda np (Object (fromList
             ( (last ls , Lambda 1
                  (Apply (Lookup (Local (LocalId 0)) (last ls))
                    [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
             : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
                  [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
         _ ->
-          return $ Just (curriedLambda (np + 1)
+          ret (curriedLambda (np + 1)
             (Apply (Lookup (Local (LocalId 0)) (last ls))
               [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+
+    AbstractDefn -> __IMPOSSIBLE__
   where
-    plainJS = return . Just . PlainJS
+    ret = return . Just . Export ls False
+    plainJS = return . Just . Export ls False . PlainJS
 
 
 compileTerm :: T.TTerm -> TCM Exp
@@ -298,6 +314,7 @@ compilePrim p =
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
     T.PEqI -> binOp "agdaRTS.uprimIntegerEqual"
     T.PEqF -> binOp "agdaRTS.uprimFloatEquality"
+    T.PEqQ -> binOp "agdaRTS.uprimQNameEquality"
     p | T.isPrimEq p -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
     T.PGeq -> binOp "agdaRTS.uprimIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.uprimIntegerLessThan"
@@ -329,12 +346,38 @@ qname q = do
   return (foldl Lookup e ls)
 
 literal :: Literal -> Exp
-literal (LitNat    _ x) = Integer x
-literal (LitFloat  _ x) = Double  x
-literal (LitString _ x) = String  x
-literal (LitChar   _ x) = Char    x
-literal (LitQName  _ x) = String  (show x)
-literal LitMeta{}       = __IMPOSSIBLE__
+literal l = case l of
+  (LitNat    _ x) -> Integer x
+  (LitFloat  _ x) -> Double  x
+  (LitString _ x) -> String  x
+  (LitChar   _ x) -> Char    x
+  (LitQName  _ x) -> litqname x
+  LitMeta{}       -> __IMPOSSIBLE__
+
+litqname :: QName -> Exp
+litqname q =
+  Object $ Map.fromList
+    [ (mem "id", Integer $ fromIntegral n)
+    , (mem "moduleId", Integer $ fromIntegral m)
+    , (mem "name", String $ show q)
+    , (mem "fixity", litfixity fx)]
+  where
+    mem = MemberId
+    NameId n m = nameId $ qnameName q
+    fx = theFixity $ nameFixity $ qnameName q
+
+    litfixity :: Fixity -> Exp
+    litfixity fx = Object $ Map.fromList
+      [ (mem "assoc", litAssoc $ fixityAssoc fx)
+      , (mem "prec", litPrec $ fixityLevel fx)]
+
+    -- TODO this will probably not work well together with the necessary FFI bindings
+    litAssoc NonAssoc   = String "NonAssoc"
+    litAssoc LeftAssoc  = String "LeftAssoc"
+    litAssoc RightAssoc = String "RightAssoc"
+
+    litPrec Unrelated   = String "Unrelated"
+    litPrec (Related l) = Integer l
 
 --------------------------------------------------
 -- Writing out an ECMAScript module
@@ -389,4 +432,6 @@ primitives = Set.fromList
   , "primACos"
   , "primATan"
   , "primATan2"
+  , "primShowQName"
+  , "primQNameEquality"
   ]

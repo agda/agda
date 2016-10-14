@@ -263,6 +263,7 @@ instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
+    AbstractDefn -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Nothing } ->
       d { funClauses    = apply cs args
@@ -573,6 +574,7 @@ instance Abstract ProjLams where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
+    AbstractDefn -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Nothing  } ->
       d { funClauses  = abstract tel cs
@@ -1015,7 +1017,7 @@ instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) wh
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
 instance Subst Term Candidate where
-  applySubst rho (Candidate u t eti) = Candidate (applySubst rho u) (applySubst rho t) eti
+  applySubst rho (Candidate u t eti ov) = Candidate (applySubst rho u) (applySubst rho t) eti ov
 
 instance Subst Term EqualityView where
   applySubst rho (OtherType t) = OtherType

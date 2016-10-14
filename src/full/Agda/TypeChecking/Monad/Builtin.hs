@@ -154,11 +154,13 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
-    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
+    primAgdaTCMNormalise, primAgdaTCMReduce,
+    primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
-    primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro
+    primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
+    primAgdaTCMWithNormalisation
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -310,6 +312,7 @@ primAgdaTCMTypeError  = getBuiltin builtinAgdaTCMTypeError
 primAgdaTCMInferType  = getBuiltin builtinAgdaTCMInferType
 primAgdaTCMCheckType  = getBuiltin builtinAgdaTCMCheckType
 primAgdaTCMNormalise  = getBuiltin builtinAgdaTCMNormalise
+primAgdaTCMReduce     = getBuiltin builtinAgdaTCMReduce
 primAgdaTCMCatchError = getBuiltin builtinAgdaTCMCatchError
 primAgdaTCMGetContext = getBuiltin builtinAgdaTCMGetContext
 primAgdaTCMExtendContext = getBuiltin builtinAgdaTCMExtendContext
@@ -324,6 +327,7 @@ primAgdaTCMUnquoteTerm        = getBuiltin builtinAgdaTCMUnquoteTerm
 primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit             = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro            = getBuiltin builtinAgdaTCMIsMacro
+primAgdaTCMWithNormalisation  = getBuiltin builtinAgdaTCMWithNormalisation
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -369,12 +373,14 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaMeta,
   builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
   builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
-  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
+  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
+  builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
-  builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro
+  builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
+  builtinAgdaTCMWithNormalisation
   :: String
 
 builtinNat                           = "NATURAL"
@@ -526,6 +532,7 @@ builtinAgdaTCMTypeError  = "AGDATCMTYPEERROR"
 builtinAgdaTCMInferType  = "AGDATCMINFERTYPE"
 builtinAgdaTCMCheckType  = "AGDATCMCHECKTYPE"
 builtinAgdaTCMNormalise  = "AGDATCMNORMALISE"
+builtinAgdaTCMReduce     = "AGDATCMREDUCE"
 builtinAgdaTCMCatchError = "AGDATCMCATCHERROR"
 builtinAgdaTCMGetContext = "AGDATCMGETCONTEXT"
 builtinAgdaTCMExtendContext = "AGDATCMEXTENDCONTEXT"
@@ -540,6 +547,7 @@ builtinAgdaTCMCommit        = "AGDATCMCOMMIT"
 builtinAgdaTCMQuoteTerm     = "AGDATCMQUOTETERM"
 builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
 builtinAgdaTCMIsMacro       = "AGDATCMISMACRO"
+builtinAgdaTCMWithNormalisation = "AGDATCMWITHNORMALISATION"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

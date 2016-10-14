@@ -229,6 +229,7 @@ postulate
   inferType     : Term → TC Type
   checkType     : Term → Type → TC Term
   normalise     : Term → TC Term
+  reduce        : Term → TC Term
   catchTC       : ∀ {a} {A : Set a} → TC A → TC A → TC A
   quoteTC       : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC     : ∀ {a} {A : Set a} → Term → TC A
@@ -244,6 +245,10 @@ postulate
   commitTC      : TC ⊤
   isMacro       : Name → TC Bool
 
+  -- If the argument is 'true' makes the following primitives also normalise
+  -- their results: inferType, checkType, quoteTC, getType, and getContext
+  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
 {-# BUILTIN AGDATCMBIND          bindTC        #-}
@@ -252,6 +257,7 @@ postulate
 {-# BUILTIN AGDATCMINFERTYPE     inferType     #-}
 {-# BUILTIN AGDATCMCHECKTYPE     checkType     #-}
 {-# BUILTIN AGDATCMNORMALISE     normalise     #-}
+{-# BUILTIN AGDATCMREDUCE        reduce        #-}
 {-# BUILTIN AGDATCMCATCHERROR    catchTC       #-}
 {-# BUILTIN AGDATCMQUOTETERM     quoteTC       #-}
 {-# BUILTIN AGDATCMUNQUOTETERM   unquoteTC     #-}
@@ -266,3 +272,4 @@ postulate
 {-# BUILTIN AGDATCMBLOCKONMETA   blockOnMeta   #-}
 {-# BUILTIN AGDATCMCOMMIT        commitTC      #-}
 {-# BUILTIN AGDATCMISMACRO       isMacro       #-}
+{-# BUILTIN AGDATCMWITHNORMALISATION withNormalisation #-}

@@ -131,8 +131,9 @@ isType_ e =
       return t'
     A.Set _ n    -> do
       return $ sort (mkType n)
-    A.App i s arg@(Arg (ArgInfo NotHidden r o) l)
-      | A.Set _ 0 <- unScope s ->
+    A.App i s arg
+      | getHiding arg == NotHidden,
+        A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
       $ {- else -} do
@@ -152,8 +153,20 @@ isType_ e =
         , prettyTCM x
         , text $ " for interaction point " ++ show ii
         ]
-      s0 <- jMetaType . mvJudgement <$> lookupMeta x
-      vs <- getContextArgs
+      mv <- lookupMeta x
+      let s0 = jMetaType . mvJudgement $ mv
+      -- Andreas, 2016-10-14, issue #2257
+      -- The meta was created in a context of length @n@.
+      let n  = length . envContext . clEnv . miClosRange . mvInfo $ mv
+      (vs, rest) <- splitAt n <$> getContextArgs
+      reportSDoc "tc.ip" 20 $ vcat
+        [ text "  s0   = " <+> prettyTCM s0
+        , text "  vs   = " <+> prettyTCM vs
+        , text "  rest = " <+> prettyTCM rest
+        ]
+      -- We assume the meta variable use here is in an extension of the original context.
+      -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
+      if (length vs /= n) then fallback else do
       s1  <- piApplyM s0 vs
       case ignoreSharing $ unEl s1 of
         Sort s -> return $ El s $ MetaV x $ map Apply vs
@@ -982,7 +995,7 @@ checkExpr' e t0 =
 
           | A.QuoteTerm _ <- unScope q ->
              do (et, _)   <- inferExpr (namedThing e)
-                et'       <- etaContract =<< normalise et
+                et'       <- etaContract =<< instantiateFull et
                 let metas = allMetas et'
                 case metas of
                   _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
@@ -1085,7 +1098,7 @@ checkExpr' e t0 =
 -- | DOCUMENT ME!
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
-  t' <- etaContract =<< normalise t
+  t' <- etaContract =<< instantiateFull t
   let metas = allMetas t'
   case metas of
     _:_ -> return $ Left metas
@@ -1097,7 +1110,7 @@ quoteGoal t = do
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
-  contextTypes  <- etaContract =<< normalise contextTypes
+  contextTypes  <- etaContract =<< instantiateFull contextTypes
   let metas = allMetas contextTypes
   case metas of
     _:_ -> return $ Left metas
@@ -1322,8 +1335,8 @@ checkApplication hd args e t = do
   reportSDoc "tc.check.app" 70 $ vcat
     [ text "checkApplication (raw)"
     , nest 2 $ text $ "hd   = " ++ show hd
-    , nest 2 $ text $ "args = " ++ show args
-    , nest 2 $ text $ "e    = " ++ show e
+    , nest 2 $ text $ "args = " ++ show (deepUnscope args)
+    , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
     , nest 2 $ text $ "t    = " ++ show t
     ]
   case unScope hd of
@@ -1399,7 +1412,7 @@ checkApplication hd args e t = do
     -- Subcase: macro
     A.Macro x -> do
       -- First go: no parameters
-      TelV tel _ <- telView =<< normalise . defType =<< getConstInfo x
+      TelV tel _ <- telView =<< normalise . defType =<< instantiateDef =<< getConstInfo x
 
       tTerm <- primAgdaTerm
       tName <- primQName
@@ -2009,7 +2022,7 @@ checkNamedArg arg@(Arg info e0) t0 = do
         text "Checking named arg" <+> sep
           [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
           ]
-    reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show arg
+    reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
     restrict <- isRestrict t0  -- TODO Andrea: remove, it's a quick hack to keep r[_] working
     let checkU = checkMeta (newMetaArg info x) t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0

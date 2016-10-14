@@ -1,0 +1,3 @@
+Issue2248.agda:25,1-48
+COMPILED directive only works on postulates
+when checking the pragma COMPILED putStrLn Data.Text.IO.putStrLn

@@ -296,7 +296,7 @@ exceptions:
 - ``primFloatNumericalLess NaN (primFloatNegate NaN)`` returns ``false``.
 - ``primFloatNumericalLess (primFloatNegate NaN) NaN`` returns ``false``.
 - ``primFloatNumericalLess`` sorts ``NaN`` below everything but negative infinity.
-- ``primFloatNumericalLess -0.0 0.0`` returns ``true``.
+- ``primFloatNumericalLess -0.0 0.0`` returns ``false``.
 
 .. warning::
 

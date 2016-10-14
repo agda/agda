@@ -117,8 +117,9 @@ splitProblem mf (Problem ps qs tel pr) = do
             let es = patternsToElims qs
             -- Note: the module parameters are already part of qs
             let self = defaultArg $ Def f [] `applyE` es
+                ai   = getArgInfo p
             -- Try the projection candidates
-            msum $ map (tryProj o self fs vs (length projs >= 2)) projs
+            msum $ map (tryProj o ai self fs vs (length projs >= 2)) projs
 
           _ -> __IMPOSSIBLE__
       where
@@ -129,8 +130,8 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
 
-      tryProj :: ProjOrigin -> Arg Term -> [Arg QName] -> Args -> Bool -> (QName, Projection) -> ListT TCM SplitProblem
-      tryProj o self fs vs amb (d0, proj) = do
+      tryProj :: ProjOrigin -> ArgInfo -> Arg Term -> [Arg QName] -> Args -> Bool -> (QName, Projection) -> ListT TCM SplitProblem
+      tryProj o ai self fs vs amb (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections (amb) we just try the next one.
         let ambErr err = if amb then mzero else err
@@ -147,13 +148,15 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
             lift $ reportSDoc "tc.lhs.split" 20 $ sep
-              [ text $ "original proj         d  = " ++ show d
+              [ text $ "proj                  d0 = " ++ show d0
+              , text $ "original proj         d  = " ++ show d
               ]
             -- Get the field decoration.
             -- If the projection pattern name @d@ is not a field name,
             -- we have to try the next projection name.
             -- If this was not an ambiguous projection, that's an error.
             argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
+            let ai' = setRelevance (getRelevance argd) ai
 
             -- From here, we have the correctly disambiguated projection.
             -- Thus, we no longer catch errors.
@@ -171,7 +174,7 @@ splitProblem mf (Problem ps qs tel pr) = do
               , text "being projected by dType = " <+> prettyTCM dType
               ]
             -- This should succeed, as we have the correctly disambiguated.
-            lift $ SplitRest argd o <$> dType `piApplyM` (vs ++ [self])
+            lift $ SplitRest (Arg ai' d0) o <$> dType `piApplyM` (vs ++ [self])
 
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero
