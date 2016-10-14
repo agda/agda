@@ -20,6 +20,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import qualified Agda.Syntax.Info as Info
@@ -204,12 +205,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               ]
 
         reportSDoc "tc.def.fun" 70 $
-          sep $ [ text "clauses:" ] ++ map (nest 2 . text . show) cs
+          sep $ [ text "clauses:" ] ++ map (nest 2 . text . show . A.deepUnscope) cs
 
         cs <- return $ map A.lhsToSpine cs
 
         reportSDoc "tc.def.fun" 70 $
-          sep $ [ text "spine clauses:" ] ++ map (nest 2 . text . show) cs
+          sep $ [ text "spine clauses:" ] ++ map (nest 2 . text . show . A.deepUnscope) cs
 
         -- Ensure that all clauses have the same number of trailing hidden patterns
         -- This is necessary since trailing implicits are no longer eagerly inserted.

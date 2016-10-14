@@ -1222,8 +1222,8 @@ checkApplication hd args e t = do
   reportSDoc "tc.check.app" 70 $ vcat
     [ text "checkApplication (raw)"
     , nest 2 $ text $ "hd   = " ++ show hd
-    , nest 2 $ text $ "args = " ++ show args
-    , nest 2 $ text $ "e    = " ++ show e
+    , nest 2 $ text $ "args = " ++ show (deepUnscope args)
+    , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
     , nest 2 $ text $ "t    = " ++ show t
     ]
   case unScope hd of
@@ -1828,7 +1828,7 @@ checkNamedArg arg@(Arg info e0) t0 = do
         text "Checking named arg" <+> sep
           [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
           ]
-    reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show arg
+    reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
     let checkU = checkMeta (newMetaArg info x) t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0
     if not $ isHole e then checkExpr e t0 else localScope $ do
