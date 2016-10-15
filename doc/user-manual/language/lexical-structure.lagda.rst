@@ -32,7 +32,8 @@ keywords
   in a name together with other characters.
 
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ`` ``∀`` ``..``
-  ``...`` ``abstract`` ``codata`` ``coinductive`` ``constructor``
+  ``...`` ``abstract`` ``codata``
+  :ref:`coinductive <copatterns-coinductive-records>` ``constructor``
   ``data`` ``eta-equality`` ``field`` ``forall`` ``hiding`` ``import``
   ``in`` ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance``
   ``let`` :ref:`macro <macros>` ``module`` ``mutual``
