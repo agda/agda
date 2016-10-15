@@ -13,6 +13,7 @@ extra-deps:
 - equivalence-0.3.1
 - fail-4.9.0.0
 - geniplate-mirror-0.7.4
+- gitrev-1.2.0
 - haskeline-0.7.2.3
 - haskell-src-exts-1.17.1
 - ieee754-0.7.8

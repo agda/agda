@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-| Agda main module.
 -}
@@ -8,6 +9,8 @@ import Control.Monad.State
 import Control.Applicative
 
 import Data.Maybe
+
+import Development.GitRev
 
 import System.Environment
 import System.Exit
@@ -160,8 +163,24 @@ printUsage = do
 
 -- | Print version information.
 printVersion :: IO ()
-printVersion =
-  putStrLn $ "Agda version " ++ version
+printVersion = do
+  putStrLn $ "Agda version " ++ version ++
+    case commitInfo of
+      Nothing   -> ""
+      Just info -> "-" ++ info
+
+-- | Information about current git commit, generated at compile time
+commitInfo :: Maybe String
+commitInfo = case $(gitHash) of
+  "UNKNOWN" -> Nothing
+  hash      -> Just $ abbrev hash ++ dirty
+  where
+    -- | Check if there are uncommited changes
+    dirty | $(gitDirty) = "-dirty"
+          | otherwise   = ""
+
+    -- | Abbreviate a commit hash while keeping it unambiguous
+    abbrev = take 7
 
 -- | What to do for bad options.
 optionError :: String -> IO ()

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 
 module Agda.Syntax.Parser.Monad
@@ -5,7 +6,7 @@ module Agda.Syntax.Parser.Monad
       Parser
     , ParseResult(..)
     , ParseState(..)
-    , ParseError(..)
+    , ParseError(..), ParseWarning(..)
     , LexState
     , LayoutContext(..)
     , ParseFlags (..)
@@ -30,7 +31,7 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-import Control.Exception
+import Control.Exception (catch)
 import Data.Int
 import Data.Typeable ( Typeable )
 
@@ -40,12 +41,18 @@ import Control.Applicative
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+#if !(MIN_VERSION_mtl(2,2,1))
+import Agda.Utils.Except ( Error(noMsg) )
+#endif
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Pretty
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
     The parse monad
@@ -117,10 +124,20 @@ data ParseError =
   { errPath      :: !AbsolutePath
                     -- ^ The file which the error concerns.
   , errValidExts :: [String]
+  } |
+  ReadFileError
+  { errPath      :: !AbsolutePath
+  , errIOError   :: IOError
   }
   deriving (Typeable)
 
-instance Exception ParseError
+-- | Warnings for parsing
+data ParseWarning =
+  -- | Parse errors that concern a range in a file.
+  OverlappingTokensWarning
+  { warnRange    :: !(Range' SrcFile)
+                    -- ^ The range of the bigger overlapping token
+  }
 
 -- | The result of parsing something.
 data ParseResult a  = ParseOk ParseState a
@@ -182,12 +199,37 @@ instance Pretty ParseError where
         text "Unsupported extension."
       , text "Supported extensions are:" <+> prettyList errValidExts
       ]
+  pretty ReadFileError{errPath,errIOError} = vcat
+      [ text "Cannot read file" <+> pretty errPath
+        -- TODO: `show` should be replaced by `displayException` once we
+        -- cease to support versions of GHC under 7.10.
+      , text "Error:" <+> text (show errIOError)
+      ]
 
 instance HasRange ParseError where
   getRange ParseError{errSrcFile,errPos=p} = posToRange' errSrcFile p p
   getRange OverlappingTokensError{errRange} = errRange
   getRange InvalidExtensionError{errPath} = posToRange p p
     where p = startPos (Just errPath)
+  getRange ReadFileError{errPath} = posToRange p p
+    where p = startPos (Just errPath)
+
+#if !(MIN_VERSION_mtl(2,2,1))
+-- Stupid ErrorT!
+instance Error ParseError where
+  noMsg = __IMPOSSIBLE__
+#endif
+
+instance Show ParseWarning where
+  show = prettyShow
+
+instance Pretty ParseWarning where
+  pretty OverlappingTokensWarning{warnRange} = vcat
+      [ pretty warnRange <> colon <+>
+        text "Multi-line comment spans one or more literate text blocks."
+      ]
+instance HasRange ParseWarning where
+  getRange OverlappingTokensWarning{warnRange} = warnRange
 
 {--------------------------------------------------------------------------
     Running the parser
@@ -239,8 +281,11 @@ parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
           -> IO (ParseResult a)
 parseFile flags st p file =
-    do  input <- liftIO $ UTF8.readTextFile $ filePath file
-        return $ parseFromSrc flags st p (Strict.Just file) input
+    do  res <- (Right <$> (UTF8.readTextFile (filePath file))) `catch`
+          (return . Left . ReadFileError file)
+        case res of
+          Left  error -> return$ ParseFailed error
+          Right input -> return$ parseFromSrc flags st p (Strict.Just file) input
 
 -- | Parses a string as if it were the contents of the given file
 --   Useful for integrating preprocessors.

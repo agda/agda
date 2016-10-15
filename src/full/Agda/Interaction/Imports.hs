@@ -641,7 +641,7 @@ createInterface file mname isMain =
 
     -- Parsing.
     (pragmas, top) <- Bench.billTo [Bench.Parsing] $
-      liftIO $ parseFile' moduleParser file
+      runPM $ parseFile' moduleParser file
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
@@ -808,6 +808,7 @@ classifyWarning w = case w of
   UnsolvedMetaVariables{}    -> ErrorWarnings
   UnsolvedInteractionMetas{} -> ErrorWarnings
   UnsolvedConstraints{}      -> ErrorWarnings
+  ParseWarning{}             -> ErrorWarnings
 
 classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
 classifyWarnings = partition $ (< AllWarnings) . classifyWarning . tcWarning
