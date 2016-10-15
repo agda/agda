@@ -72,7 +72,6 @@ mapExceptT = mapErrorT
 instance Error Doc where
   noMsg  = empty
   strMsg = text
-#endif
 
 -- | To simulate @MaybeT@ by @ExceptT@.
 instance Error () where
@@ -81,3 +80,5 @@ instance Error () where
 -- Stupid ErrorT!
 instance Error (a, b, c) where
   noMsg = __IMPOSSIBLE__
+
+#endif

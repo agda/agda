@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Parser
     ( -- * Types
@@ -16,10 +17,17 @@ module Agda.Syntax.Parser
     , tokensParser
       -- * Parse errors
     , ParseError(..)
+    , ParseWarning(..)
+    , PM(..)
+    , runPMIO
     ) where
 
+import Control.Arrow (second)
 import Control.Exception
 import Control.Monad ((>=>), forM_)
+import Control.Monad.State
+import Control.Monad.Reader
+import Control.Monad.Writer hiding ((<>))
 import Data.List
 import Data.Typeable ( Typeable )
 
@@ -33,13 +41,21 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Definitions
 import Agda.Syntax.Parser.Tokens
 
-import Agda.Utils.Except ( MonadError(throwError) )
+import Agda.Utils.Except
+  ( Error(strMsg)
+  , ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
 import Agda.Utils.FileName
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
 
+
+
+
 #if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), Applicative)
 #endif
 
 #include "undefined.h"
@@ -48,16 +64,30 @@ import Agda.Utils.Impossible
 ------------------------------------------------------------------------
 -- Wrapping parse results
 
-wrap :: ParseResult a -> a
-wrap (ParseOk _ x)      = x
-wrap (ParseFailed err)  = throw err
+wrap :: ParseResult a -> PM a
+wrap (ParseOk _ x)      = return x
+wrap (ParseFailed err)  = throwError err
 
-wrapM:: Monad m => m (ParseResult a) -> m a
-wrapM m =
-    do  r <- m
-        case r of
-            ParseOk _ x     -> return x
-            ParseFailed err -> throw err
+wrapIOM :: (MonadError e m, MonadIO m) => (IOError -> e) -> IO a -> m a
+wrapIOM f m = do
+  a <- liftIO$ (Right <$> m) `catch` (\err -> return$ Left (err :: IOError))
+  case a of
+    Right x  -> return x
+    Left err -> throwError (f err)
+
+wrapM :: IO (ParseResult a) -> PM a
+wrapM m = liftIO m >>= wrap
+
+-- | A monad for handling parse results
+newtype PM a = PM { unPM :: ExceptT ParseError (StateT [ParseWarning] IO) a }
+               deriving (Functor, Applicative, Monad,
+                         MonadError ParseError, MonadIO)
+
+warning :: ParseWarning -> PM ()
+warning w = PM (modify (w:))
+
+runPMIO :: (MonadIO m) => PM a -> m (Either ParseError a, [ParseWarning])
+runPMIO = liftIO . fmap (second reverse) . flip runStateT [] . runExceptT . unPM
 
 ------------------------------------------------------------------------
 -- Parse functions
@@ -70,18 +100,18 @@ data Parser a = Parser
   , parseLiterate  :: LiterateParser a
   }
 
-type LiterateParser a = Parser a -> [Layer] -> IO a
+type LiterateParser a = Parser a -> [Layer] -> PM a
 
-parse :: Parser a -> String -> IO a
+parse :: Parser a -> String -> PM a
 parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
-parseFile :: Parser a -> AbsolutePath -> IO a
+parseFile :: Parser a -> AbsolutePath -> PM a
 parseFile p = wrapM . M.parseFile (parseFlags p) [layout, normal] (parser p)
 
-parseString :: Parser a -> String -> IO a
+parseString :: Parser a -> String -> PM a
 parseString = parseStringFromFile Strict.Nothing
 
-parseStringFromFile :: SrcFile -> Parser a -> String -> IO a
+parseStringFromFile :: SrcFile -> Parser a -> String -> PM a
 parseStringFromFile src p = wrapM . return . M.parseFromSrc (parseFlags p) [layout, normal] (parser p) src
 
 parseLiterateWithoutComments :: LiterateParser a
@@ -92,39 +122,37 @@ parseLiterateWithComments p layers = do
   code <- map Left <$> parseLiterateWithoutComments p layers
   let literate = Right <$> filter (not . isCode) layers
   let (terms, overlaps) = interleaveRanges code literate
-  case map fst overlaps of
-    [] -> return$
-            concat [ case m of
+  forM_ (map fst overlaps) $ \c ->
+    warning$ OverlappingTokensWarning { warnRange = getRange c }
+
+  return$ concat [ case m of
                        Left t -> [t]
                        Right (Layer Comment interval s) -> [TokTeX (interval, s)]
                        Right (Layer Markup _ _) -> []
                        Right (Layer Code _ _) -> []
                    | m <- terms ]
-    (c:_) ->
-      -- TODO: This error should be made into one or more warnings.
-      -- This is because i) there can be more than one case of overlapping
-      -- tokens and ii) one can type-check a file even if some comment tokens
-      -- overlap with literate blocks.
-      throw OverlappingTokensError { errRange = getRange c }
 
-parseLiterateFile :: Processor -> Parser a -> AbsolutePath -> IO a
-parseLiterateFile po p path = readFile (filePath path) >>= parseLiterate p p . po (startPos (Just path))
+readFilePM :: AbsolutePath -> PM String
+readFilePM path = wrapIOM (ReadFileError path) (readFile (filePath path))
 
-parsePosString :: Parser a -> Position -> String -> IO a
+parseLiterateFile :: Processor -> Parser a -> AbsolutePath -> PM a
+parseLiterateFile po p path = readFilePM path >>= parseLiterate p p . po (startPos (Just path))
+
+parsePosString :: Parser a -> Position -> String -> PM a
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
 -- | Extensions supported by `parseFile'`
 parseFileExts :: [String]
 parseFileExts = ".agda":literateExts
 
-parseFile' :: (Show a) => Parser a -> AbsolutePath -> IO a
+parseFile' :: (Show a) => Parser a -> AbsolutePath -> PM a
 parseFile' p file =
   if ".agda" `isSuffixOf` filePath file then
     Agda.Syntax.Parser.parseFile p file
   else
     go literateProcessors
   where
-    go [] = throw InvalidExtensionError {
+    go [] = throwError InvalidExtensionError {
                      errPath = file
                    , errValidExts = parseFileExts
                    }

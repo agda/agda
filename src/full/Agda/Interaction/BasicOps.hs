@@ -75,7 +75,7 @@ import Agda.Utils.Impossible
 
 parseExpr :: Range -> String -> TCM C.Expr
 parseExpr rng s = do
-  C.ExprWhere e wh <- liftIO $ parsePosString exprWhereParser pos s
+  C.ExprWhere e wh <- runPM $ parsePosString exprWhereParser pos s
   unless (null wh) $ typeError $ GenericError $
     "where clauses are not supported in holes"
   return e
