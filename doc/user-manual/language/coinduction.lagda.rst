@@ -20,8 +20,8 @@ Coinduction
 Coinductive Records
 ----------------------------------
 
-It is possible to define the type of infinite lists (or streams) of elements of
-some type A as follows,
+It is possible to define the type of infinite lists (or streams) of
+elements of some type ``A`` as follows,
 
 ::
 
@@ -61,9 +61,9 @@ coinductive record.
         hd-≈ : hd xs ≡ hd ys
         tl-≈ : tl xs ≈ tl ys
 
-Using copatterns we can define a pair of functions on ``Stream`` such that one
-returns a ``Stream`` with the elements in the even positions and the other the
-elements in odd positions.
+Using :ref:`copatterns <copatterns>` we can define a pair of functions
+on ``Stream`` such that one returns a ``Stream`` with the elements in
+the even positions and the other the elements in odd positions.
 
 ..
   ::
