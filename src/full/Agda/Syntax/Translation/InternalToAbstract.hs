@@ -171,6 +171,7 @@ instance Reify DisplayTerm Expr where
 --   otherwise, does @fallback@.
 reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm f es fallback = do
+  ifNotM displayFormsEnabled fallback $ {- else -} do
     caseMaybeM (liftTCM $ displayForm f es) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
@@ -178,7 +179,8 @@ reifyDisplayForm f es fallback = do
 --
 --   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
-reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
+reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
+  ifNotM displayFormsEnabled (return lhs) $ {- else -} do
     -- Try to rewrite @f 0 1 2 ... |ps|-1@ to a dt.
     -- Andreas, 2014-06-11  Issue 1177:
     -- I thought we need to add the placeholders for ps to the context,
@@ -328,8 +330,11 @@ instance Reify Term Expr where
   reify v = reifyTerm True v
 
 reifyTerm :: Bool -> Term -> TCM Expr
-reifyTerm expandAnonDefs v = do
+reifyTerm expandAnonDefs0 v = do
   metasBare <- asks envPrintMetasBare
+  -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
+  -- (i.e. when we don't care about nice printing)
+  expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
   -- Andreas, 2016-07-21 if --postfix-projections
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
@@ -479,14 +484,15 @@ reifyTerm expandAnonDefs v = do
         -- as they are mutually recursive with their parent.
         -- Thus we do not have to consider padding them.
 
-        -- Check whether we have an extended lambda.
+        -- Check whether we have an extended lambda and display forms are on.
+        df <- displayFormsEnabled
         toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
              Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
              _ -> Nothing
         case extLam of
-          Just pars -> reifyExtLam x pars (defClauses defn) es
+          Just pars | df -> reifyExtLam x pars (defClauses defn) es
 
         -- Otherwise (ordinary function call):
           _ -> do

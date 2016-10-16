@@ -135,6 +135,20 @@ setOptionsFromPragma ps = do
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
 
+-- | Disable display forms.
+enableDisplayForms :: TCM a -> TCM a
+enableDisplayForms =
+  local $ \e -> e { envDisplayFormsEnabled = True }
+
+-- | Disable display forms.
+disableDisplayForms :: TCM a -> TCM a
+disableDisplayForms =
+  local $ \e -> e { envDisplayFormsEnabled = False }
+
+-- | Check if display forms are enabled.
+displayFormsEnabled :: TCM Bool
+displayFormsEnabled = asks envDisplayFormsEnabled
+
 -- | Gets the include directories.
 --
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
