@@ -111,7 +111,7 @@ data CompactDef =
              , cdefDef            :: CompactDefn }
 
 data CompactDefn
-  = CFun  { cfunCompiled  :: FastCompiledClauses }
+  = CFun  { cfunCompiled  :: FastCompiledClauses, cfunProjection :: Maybe QName }
   | CCon  { cconSrcCon    :: ConHead }
   | CForce  -- ^ primForce
   | CTyCon  -- ^ Datatype or record type. Need to know this for primForce.
@@ -123,8 +123,9 @@ compactDef z s pf def = do
     case theDef def of
       _ | Just (defName def) == pf -> pure CForce
       Constructor{conSrcCon = c} -> pure CCon{cconSrcCon = c}
-      Function{funCompiled = Just cc, funClauses = _:_} ->
-        pure CFun{ cfunCompiled = fastCompiledClauses z s cc }
+      Function{funCompiled = Just cc, funClauses = _:_, funProjection = proj} ->
+        pure CFun{ cfunCompiled   = fastCompiledClauses z s cc
+                 , cfunProjection = projOrig <$> proj }
       Datatype{dataClause = Nothing} -> pure CTyCon
       Record{recClause = Nothing} -> pure CTyCon
       _ -> pure COther
@@ -310,10 +311,16 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
             inc w                  = Con c [defaultArg w]
         reduceNat v = v
 
+    originalProjection :: QName -> QName
+    originalProjection q =
+      case cdefDef $ constInfo q of
+        CFun{ cfunProjection = Just p } -> p
+        _                               -> __IMPOSSIBLE__
+
     -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
     -- need also to instantiate metas, see Issue 826.
     unfoldCorecursionE :: Elim -> Blocked Elim
-    unfoldCorecursionE e@Proj{}             = notBlocked e
+    unfoldCorecursionE (Proj o p)           = notBlocked $ Proj o $ originalProjection p
     unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) $
       unfoldCorecursion 0 v
 

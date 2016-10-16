@@ -607,6 +607,11 @@ defaultGetRewriteRulesFor getTCState q = do
       look s = HMap.lookup q $ s ^. sigRewriteRules
   return $ mconcat $ catMaybes [look sig, look imp]
 
+-- | Get the original name of the projection
+--   (the current one could be from a module application).
+getOriginalProjection :: HasConstInfo m => QName -> m QName
+getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
+
 instance HasConstInfo (TCMT IO) where
   getRewriteRulesFor = defaultGetRewriteRulesFor get
   getConstInfo q = join $ pureTCM $ \st env ->
