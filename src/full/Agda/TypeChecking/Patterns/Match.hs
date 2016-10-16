@@ -151,6 +151,7 @@ matchCopattern :: DeBruijnPattern
                -> ReduceM (Match Term, Elim)
 matchCopattern pat@ProjP{} elim@(Proj _ q) = do
   ProjP _ p <- normaliseProjP pat
+  q         <- getOriginalProjection q
   return $ if p == q then (Yes YesSimplification empty, elim)
                      else (No,                          elim)
 matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__

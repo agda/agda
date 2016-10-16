@@ -152,11 +152,6 @@ getRecordTypeFields t =
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
--- | Get the original name of the projection
---   (the current one could be from a module application).
-getOriginalProjection :: HasConstInfo m => QName -> m QName
-getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
-
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: QName -> TCM ConHead

@@ -376,7 +376,7 @@ rewriteAfter f v =
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
-unfoldCorecursionE e@Proj{}             = return $ notBlocked e
+unfoldCorecursionE (Proj o p)           = notBlocked . Proj o <$> getOriginalProjection p
 unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
   unfoldCorecursion v
 
