@@ -497,15 +497,12 @@ checkLoneSigs xs =
 
 -- | Check whether name is not "_" and return its fixity.
 getFixity :: Name -> Nice Fixity'
-getFixity x = do
-  when (isUnderscore x) $ throwError $ InvalidName x
-  Map.findWithDefault noFixity' x <$> gets fixs  -- WAS: defaultFixity'
+getFixity x = Map.findWithDefault noFixity' x <$> gets fixs -- WAS: defaultFixity'
 
 -- | Fail if the name is @_@. Otherwise the name's polarity, if any,
 -- is removed from the state and returned.
 getPolarity :: Name -> Nice (Maybe [Occurrence])
 getPolarity x = do
-  when (isUnderscore x) $ throwError $ InvalidName x
   p <- gets (Map.lookup x . pols)
   modify (\s -> s { pols = Map.delete x (pols s) })
   return p
@@ -815,15 +812,17 @@ niceDeclarations ds = do
           case [ (x, (fits, rest))
                | x <- xs
                , let (fits, rest) =
-                      span (couldBeFunClauseOf (Map.lookup x fixs) x) (d : ds)
+                      -- Anonymous declarations only have 1 clause each!
+                      if isNoName x then ([d], ds)
+                      else span (couldBeFunClauseOf (Map.lookup x fixs) x) (d : ds)
                , not (null fits)
                ] of
 
             -- case: clauses match none of the sigs
             [] -> case lhs of
-              -- Subcase: The lhs is single identifier.
+              -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
-              LHS p [] [] [] | IdentP (QName x) <- removeSingletonRawAppP p -> do
+              LHS p [] [] [] | Just x <- isSingleIdentifierP p -> do
                 ds <- nice ds
                 d  <- mkFunDef defaultArgInfo termCheck x Nothing [d] -- fun def without type signature is relevant
                 return $ d ++ ds
@@ -1063,9 +1062,14 @@ niceDeclarations ds = do
     --         -- it's part of the current definition
     -- isFunClauseOf _ _ = False
 
+    isSingleIdentifierP :: Pattern -> Maybe Name
+    isSingleIdentifierP p = case removeSingletonRawAppP p of
+      IdentP (QName x) -> Just x
+      WildP r          -> Just $ noName r
+      _                -> Nothing
+
     removeSingletonRawAppP :: Pattern -> Pattern
-    removeSingletonRawAppP p =
-      case p of
+    removeSingletonRawAppP p = case p of
         RawAppP _ [p'] -> removeSingletonRawAppP p'
         ParenP _ p'    -> removeSingletonRawAppP p'
         _ -> p
