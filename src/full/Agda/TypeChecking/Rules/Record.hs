@@ -165,11 +165,6 @@ checkRecDef i name ind eta con ps contel fields =
       let npars = size tel
           telh  = fmap hideAndRelParams tel
       escapeContext npars $ do
-        compWays <- do
-          cxt <- getContextTelescope
-          escapeContext (size cxt) $
-            if null fs then Left . fmap (,[]) <$> defineCompData name con (abstract cxt tel) [] ftel rect
-                       else Right             <$> defineCompR    name     (abstract cxt tel) ftel fs rect
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -187,7 +182,7 @@ checkRecDef i name ind eta con ps contel fields =
               -- Determined by positivity checker:
               , recRecursive      = False
               , recMutual         = []
-              , recComp           = either (const Nothing) id compWays
+              , recComp           = Nothing -- filled in later
               }
 
         -- Add record constructor to signature
@@ -199,7 +194,7 @@ checkRecDef i name ind eta con ps contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
-              , conComp   = either id (const Nothing) compWays
+              , conComp   = Nothing -- filled in later
               , conErased = []
               }
 
@@ -290,8 +285,40 @@ checkRecDef i name ind eta con ps contel fields =
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
 
+      -- we define composition here so that the projections are already in the signature.
+      escapeContext npars $ do
+        addCompositionForRecord name con tel fs ftel rect
+
       return ()
 
+
+addCompositionForRecord
+  :: QName      -- datatype name
+               -> ConHead
+               -> Telescope   -- Γ parameters
+               -> [Arg QName] -- projection names
+               -> Telescope   -- Γ ⊢ Φ field types
+               -> Type        -- Γ ⊢ T target type
+               -> TCM ()
+addCompositionForRecord name con tel fs ftel rect = do
+  compWays <- do
+    cxt <- getContextTelescope
+    escapeContext (size cxt) $
+      if null fs then Left . fmap (,[]) <$> defineCompData name con (abstract cxt tel) [] ftel rect
+                 else Right <$>
+                      ifM (return (any (== Irrelevant) $ map getRelevance fs) `and2M` do not . optIrrelevantProjections <$> pragmaOptions)
+                          (return Nothing) (defineCompR    name     (abstract cxt tel) ftel fs rect)
+  case compWays of
+    Right x -> do
+      modifySignature $ updateDefinition name $ updateTheDef $ \ d ->
+        case d of
+          r@Record{} -> r { recComp = x }
+          _          -> __IMPOSSIBLE__
+    Left y -> do
+      modifySignature $ updateDefinition (conName con) $ updateTheDef $ \ d ->
+        case d of
+          r@Constructor{} -> r { conComp = y }
+          _          -> __IMPOSSIBLE__
 
 defineCompR name params fsT fns rect = do
   i  <- getBuiltin' builtinInterval
@@ -336,7 +363,9 @@ defineCompR' name params fsT fns rect = do
 --          reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
           return c
   addClauses compName cs
+  reportSDoc "comp.rec" 15 $ text $ "compiling clauses for " ++ show compName
   setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
+  reportSDoc "comp.rec" 15 $ text $ "compiled"
   return $ Just compName
 
 
