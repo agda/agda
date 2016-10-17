@@ -583,6 +583,8 @@ type ParseLHS = Either Pattern (QName, LHSCore)
 parseLHS' ::
   LHSOrPatSyn -> Maybe QName -> Pattern ->
   ScopeM (ParseLHS, [NotationSection])
+parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
+    return (Right (qn, LHSHead qn []), [])
 parseLHS' lhsOrPatSyn top p = do
     let names = patternQNames p
         ms    = qualifierModules names

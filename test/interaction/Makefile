@@ -37,6 +37,7 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's"$(pwd)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
+              -e 's/\((agda2-info-action "\*Agda Version\*" "Agda version \([[:digit:]]\+\.\)\+[[:digit:]]\+\)\(-[[:alnum:]]\+\(-dirty\)\?\)\?\(" nil)\)/\1\5/g' \
               -e 's/\(\\n\| \)\+/ /g' \
 							-e 's/^ //g' \
               -e '/Linking /d' \

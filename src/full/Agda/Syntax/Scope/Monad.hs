@@ -309,17 +309,25 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
   ys <- case r of
-    DefinedName _ d     -> typeError $ ClashingDefinition (C.QName x) $ anameName d
-    VarName z           -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
+    -- Binding an anonymous declaration always succeeds.
+    -- In case it's not the first one, we simply remove the one that came before
+    UnknownName   | isNoName x -> success
+    DefinedName{} | isNoName x -> success <* modifyCurrentScope (removeNameFromScope PrivateNS x)
+    DefinedName _ d     -> clash $ anameName d
+    VarName z           -> clash $ A.qualify (mnameFromList []) z
     FieldName       ds  -> ambiguous FldName ds
     ConstructorName ds  -> ambiguous ConName ds
-    PatternSynResName n -> typeError $ ClashingDefinition (C.QName x) $ anameName n
-    UnknownName         -> return [AbsName y kind Defined]
-  modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
+    PatternSynResName n -> clash $ anameName n
+    UnknownName         -> success
+  let ns = if isNoName x then PrivateNS else localNameSpace acc
+  modifyCurrentScope $ addNamesToScope ns x ys
   where
+    success = return [ AbsName y kind Defined ]
+    clash   = typeError . ClashingDefinition (C.QName x)
+
     ambiguous k ds@(d:_) =
-      if kind == k && all ((==k) . anameKind) ds then return [ AbsName y kind Defined ]
-      else typeError $ ClashingDefinition (C.QName x) $ anameName d
+      if kind == k && all ((==k) . anameKind) ds
+      then success else clash $ anameName d
     ambiguous k [] = __IMPOSSIBLE__
 
 -- | Rebind a name. Use with care!

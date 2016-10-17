@@ -314,12 +314,12 @@ instance Sized OccursWhere where
 
 -- Computing occurrences --------------------------------------------------
 
-data Item = AnArg Range Nat
+data Item = AnArg Nat
           | ADef QName
   deriving (Eq, Ord, Show)
 
 instance HasRange Item where
-  getRange (AnArg r _) = r
+  getRange (AnArg _) = noRange
   getRange (ADef qn)   = getRange qn
 
 type Occurrences = Map Item [OccursWhere]
@@ -370,9 +370,9 @@ preprocess ob = case pp Nothing DS.empty ob of
                                     return (OccursHere' i (Known (getRange i) ws))
     where
     keep = case (m, i) of
-      (Nothing, _)        -> True
-      (_, ADef _)         -> True
-      (Just m, AnArg _ i) -> i < m
+      (Nothing, _)      -> True
+      (_, ADef _)       -> True
+      (Just m, AnArg i) -> i < m
 
 -- | A type used locally in 'flatten'.
 data OccursWheres
@@ -444,8 +444,7 @@ instance ComputeOccurrences Clause where
     where
       matching (i, p)
         | properlyMatching (namedThing $ unArg p) =
-          let at = getRange $ nameOf $ unArg p
-          in Just $ OccursAs Matched $ OccursHere $ AnArg at i
+            Just $ OccursAs Matched $ OccursHere $ AnArg i
         | otherwise                  = Nothing
 
       -- @patItems ps@ creates a map from the pattern variables of @ps@
@@ -458,7 +457,7 @@ instance ComputeOccurrences Clause where
         where
           ixs = map dbPatVarIndex $ lefts $ map unArg $ patternVars $ namedThing <$> p
 
-          makeEntry x = singleton (x, Just (AnArg (getRange $ nameOf $ unArg p) i))
+          makeEntry x = singleton (x, Just $ AnArg i)
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
@@ -574,7 +573,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       -- Andreas, 2013-02-27: first, each data index occurs as matched on.
       TelV tel t <- telView $ defType def
       let xs  = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursAs Matched . OccursHere . AnArg noRange) xs
+          ioccs = Concat $ map (OccursAs Matched . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
@@ -583,14 +582,14 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                             Def _ vs -> genericDrop np vs
                             _        -> __IMPOSSIBLE__
             let tel'    = telFromList $ genericDrop np $ telToList tel
-                vars np = map (Just . AnArg noRange) $ downFrom np
+                vars np = map (Just . AnArg) $ downFrom np
             (>+<) <$> (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel')
                   <*> (OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
       (>+<) ioccs <$> (Concat <$> mapM conOcc cs)
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
-          vars = map (Just . AnArg noRange) $ downFrom np
+          vars = map (Just . AnArg) $ downFrom np
       getOccurrences vars =<< instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
@@ -768,8 +767,8 @@ computeEdges muts q ob =
                          then id
                          else (Graph.Edge
                                  { Graph.source = case i of
-                                                    AnArg _ i -> ArgNode q i
-                                                    ADef q    -> DefNode q
+                                                    AnArg i -> ArgNode q i
+                                                    ADef q  -> DefNode q
                                  , Graph.target = to
                                  , Graph.label  = Edge pol o
                                  } :)

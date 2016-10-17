@@ -493,6 +493,7 @@ library
                     Agda.Utils.VarSet
                     Agda.Utils.Warshall
                     Agda.Version
+                    Agda.VersionCommit
 
   other-modules:    Paths_Agda
 
