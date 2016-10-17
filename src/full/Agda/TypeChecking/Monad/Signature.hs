@@ -410,6 +410,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defInstance       = inst
                     , defCopy           = True
                     , defMatchable      = False
+                    , defNoCompilation  = defNoCompilation d
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }

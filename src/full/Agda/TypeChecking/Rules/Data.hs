@@ -367,12 +367,14 @@ defineProjections dataname con params names fsT t = do
     noMutualBlock $ do
       let cs = [clause]
       cc <- inTopContext $ compileClauses Nothing cs
-      addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
-       emptyFunction
-        { funClauses = cs
-        , funTerminates = Just True
-        , funCompiled = Just cc
-        }
+      let fun = emptyFunction
+                { funClauses = cs
+                , funTerminates = Just True
+                , funCompiled = Just cc
+                }
+      addConstant projName $
+        (defaultDefn defaultArgInfo projName (unDom projType) fun)
+          { defNoCompilation = True }
 
 defineCompForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
@@ -407,9 +409,9 @@ defineCompForFields applyProj name params fsT fns rect = do
                (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
   reportSDoc "comp.rec" 20 $ prettyTCM compType
 
-  noMutualBlock $ addConstant compName $ defaultDefn defaultArgInfo compName compType $
-    emptyFunction { funTerminates = Just True }
-
+  noMutualBlock $ addConstant compName $ (defaultDefn defaultArgInfo compName compType
+    (emptyFunction { funTerminates = Just True }))
+    { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (_ : (i : I) -> Partial φ (R (δ i))) (_ : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
   TelV gamma rtype <- telView compType

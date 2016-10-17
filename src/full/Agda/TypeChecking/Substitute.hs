@@ -203,8 +203,8 @@ instance Subst Term a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-  apply (Defn info x t pol occ df m c inst copy ma d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) df m c inst copy ma (apply d args)
+  apply (Defn info x t pol occ df m c inst copy ma nc d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) df m c inst copy ma nc (apply d args)
 
 instance Apply RewriteRule where
   apply r args = RewriteRule
@@ -535,8 +535,8 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ df m c inst copy ma d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c inst copy ma (abstract tel d)
+  abstract tel (Defn info x t pol occ df m c inst copy ma nc d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c inst copy ma nc (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.

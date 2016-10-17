@@ -95,7 +95,7 @@ curMName :: TCM ModuleName
 curMName = sigMName <$> curSig
 
 curDefs :: TCM Definitions
-curDefs = (^. sigDefinitions) <$> curSig
+curDefs = fmap (HMap.filter (not . defNoCompilation)) $ (^. sigDefinitions) <$> curSig
 
 sortDefs :: Definitions -> [(QName, Definition)]
 sortDefs defs =
