@@ -24,8 +24,7 @@ open import Relation.Nullary
 
 module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
-  ×-Lex : (_≈₁_ _<₁_ : Rel A₁ ℓ₁) → (_≤₂_ : Rel A₂ ℓ₂) →
-          Rel (A₁ × A₂) _
+  ×-Lex : (_≈₁_ _<₁_ : Rel A₁ ℓ₁) → (_≤₂_ : Rel A₂ ℓ₂) → Rel (A₁ × A₂) _
   ×-Lex _≈₁_ _<₁_ _≤₂_ =
     (_<₁_ on proj₁) -⊎- (_≈₁_ on proj₁) -×- (_≤₂_ on proj₂)
 
@@ -50,8 +49,8 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
     ∀ {_≤₂_} →
     Transitive _≤₂_ →
     Transitive (×-Lex _≈₁_ _<₁_ _≤₂_)
-  ×-transitive {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} eq₁ resp₁ trans₁
-               {_≤₂_ = _≤₂_} trans₂ {x} {y} {z} = trans {x} {y} {z}
+  ×-transitive {_≈₁_} {_<₁_} eq₁ resp₁ trans₁
+               {_≤₂_} trans₂ = trans
     where
     module Eq₁ = IsEquivalence eq₁
 
@@ -71,14 +70,16 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
     ∀ {_≈₂_ _≤₂_ : Rel A₂ ℓ₂} →
     Antisymmetric _≈₂_ _≤₂_ →
     Antisymmetric (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _≤₂_)
-  ×-antisymmetric {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} sym₁ irrefl₁ asym₁
-                  {_≈₂_ = _≈₂_} {_≤₂_ = _≤₂_} antisym₂ {x} {y} =
-    antisym {x} {y}
+  ×-antisymmetric {_≈₁_} {_<₁_} sym₁ irrefl₁ asym₁
+                  {_≈₂_} {_≤₂_} antisym₂ = antisym
     where
     antisym : Antisymmetric (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _≤₂_)
-    antisym (inj₁ x₁<y₁) (inj₁ y₁<x₁) = ⊥-elim $ asym₁ x₁<y₁ y₁<x₁
-    antisym (inj₁ x₁<y₁) (inj₂ y≈≤x)  = ⊥-elim $ irrefl₁ (sym₁ $ proj₁ y≈≤x) x₁<y₁
-    antisym (inj₂ x≈≤y)  (inj₁ y₁<x₁) = ⊥-elim $ irrefl₁ (sym₁ $ proj₁ x≈≤y) y₁<x₁
+    antisym (inj₁ x₁<y₁) (inj₁ y₁<x₁) =
+      ⊥-elim $ asym₁ x₁<y₁ y₁<x₁
+    antisym (inj₁ x₁<y₁) (inj₂ y≈≤x)  =
+      ⊥-elim $ irrefl₁ (sym₁ $ proj₁ y≈≤x) x₁<y₁
+    antisym (inj₂ x≈≤y)  (inj₁ y₁<x₁) =
+      ⊥-elim $ irrefl₁ (sym₁ $ proj₁ x≈≤y) y₁<x₁
     antisym (inj₂ x≈≤y)  (inj₂ y≈≤x)  =
       proj₁ x≈≤y , antisym₂ (proj₂ x≈≤y) (proj₂ y≈≤x)
 
@@ -88,8 +89,8 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
     ∀ {_<₂_} →
     Asymmetric _<₂_ →
     Asymmetric (×-Lex _≈₁_ _<₁_ _<₂_)
-  ×-asymmetric {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} sym₁ resp₁ asym₁
-               {_<₂_ = _<₂_} asym₂ {x} {y} = asym {x} {y}
+  ×-asymmetric {_≈₁_} {_<₁_} sym₁ resp₁ asym₁
+               {_<₂_} asym₂ = asym
     where
     irrefl₁ : Irreflexive _≈₁_ _<₁_
     irrefl₁ = asym⟶irr resp₁ sym₁ asym₁
@@ -104,16 +105,14 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
     ∀ {_≈₁_ _<₁_} → IsEquivalence _≈₁_ → _<₁_ Respects₂ _≈₁_ →
     {_≈₂_ _<₂_ : Rel A₂ ℓ₂} → _<₂_ Respects₂ _≈₂_ →
     (×-Lex _≈₁_ _<₁_ _<₂_) Respects₂ (_≈₁_ ×-Rel _≈₂_)
-  ×-≈-respects₂ {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} eq₁ resp₁
-                {_≈₂_ = _≈₂_} {_<₂_ = _<₂_}     resp₂ =
-    (λ {x y z} → resp¹ {x} {y} {z}) ,
-    (λ {x y z} → resp² {x} {y} {z})
+  ×-≈-respects₂ {_≈₁_} {_<₁_} eq₁ resp₁
+                {_≈₂_} {_<₂_}     resp₂ = resp¹ , resp²
     where
     _<_ = ×-Lex _≈₁_ _<₁_ _<₂_
 
     open IsEquivalence eq₁ renaming (sym to sym₁; trans to trans₁)
 
-    resp¹ : ∀ {x} → (_<_ x) Respects (_≈₁_ ×-Rel _≈₂_)
+    resp¹ : ∀ {x} → (x <_) Respects (_≈₁_ ×-Rel _≈₂_)
     resp¹ y≈y' (inj₁ x₁<y₁) = inj₁ (proj₁ resp₁ (proj₁ y≈y') x₁<y₁)
     resp¹ y≈y' (inj₂ x≈<y)  =
       inj₂ ( trans₁ (proj₁ x≈<y) (proj₁ y≈y')
@@ -128,22 +127,28 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
   ×-decidable : ∀ {_≈₁_ _<₁_} → Decidable _≈₁_ → Decidable _<₁_ →
                 ∀ {_≤₂_} → Decidable _≤₂_ →
                 Decidable (×-Lex _≈₁_ _<₁_ _≤₂_)
-  ×-decidable dec-≈₁ dec-<₁ dec-≤₂ = λ x y →
+  ×-decidable dec-≈₁ dec-<₁ dec-≤₂ x y =
     dec-<₁ (proj₁ x) (proj₁ y)
       ⊎-dec
     (dec-≈₁ (proj₁ x) (proj₁ y)
        ×-dec
      dec-≤₂ (proj₂ x) (proj₂ y))
 
-  ×-total : ∀ {_≈₁_ _<₁_} → Total _<₁_ →
-            ∀ {_≤₂_} →
-            Total (×-Lex _≈₁_ _<₁_ _≤₂_)
-  ×-total {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} total₁ {_≤₂_ = _≤₂_} = total
-    where
-    total : Total (×-Lex _≈₁_ _<₁_ _≤₂_)
-    total x y with total₁ (proj₁ x) (proj₁ y)
-    ... | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
-    ... | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
+  ×-total₁ : ∀ {_≈₁_ _<₁_} → Total _<₁_ →
+             ∀ {_≤₂_} → Total (×-Lex _≈₁_ _<₁_ _≤₂_)
+  ×-total₁ total₁ x y with total₁ (proj₁ x) (proj₁ y)
+  ... | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
+  ... | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
+
+  ×-total₂ : ∀ {_≈₁_ _<₁_} → Symmetric _≈₁_ → Trichotomous _≈₁_ _<₁_ →
+             ∀ {_≤₂_} → Total _≤₂_ →
+             Total (×-Lex _≈₁_ _<₁_ _≤₂_)
+  ×-total₂ sym tri₁ total₂ x y with tri₁ (proj₁ x) (proj₁ y)
+  ... | tri< x₁<y₁ _ _ = inj₁ (inj₁ x₁<y₁)
+  ... | tri> _ _ y₁<x₁ = inj₂ (inj₁ y₁<x₁)
+  ... | tri≈ _ x₁≈y₁ _ with total₂ (proj₂ x) (proj₂ y)
+  ...   | inj₁ x₂≤y₂ = inj₁ (inj₂ (x₁≈y₁     , x₂≤y₂))
+  ...   | inj₂ y₂≤x₂ = inj₂ (inj₂ (sym x₁≈y₁ , y₂≤x₂))
 
   ×-compare :
     {_≈₁_ _<₁_ : Rel A₁ ℓ₁} → Symmetric _≈₁_ → Trichotomous _≈₁_ _<₁_ →
@@ -190,18 +195,14 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
   _×-isPreorder_ : ∀ {_≈₁_ _∼₁_} → IsPreorder _≈₁_ _∼₁_ →
                    ∀ {_≈₂_ _∼₂_} → IsPreorder _≈₂_ _∼₂_ →
                    IsPreorder (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _∼₁_ _∼₂_)
-  _×-isPreorder_ {_≈₁_ = _≈₁_} {_∼₁_ = _∼₁_} pre₁ {_∼₂_ = _∼₂_} pre₂ =
+  _×-isPreorder_ {_≈₁_} {_∼₁_} pre₁ {_∼₂_ = _∼₂_} pre₂ =
     record
       { isEquivalence = Pointwise._×-isEquivalence_
                           (isEquivalence pre₁) (isEquivalence pre₂)
-      ; reflexive     = λ {x y} →
-                        ×-reflexive _≈₁_ _∼₁_ _∼₂_ (reflexive pre₂)
-                                    {x} {y}
-      ; trans         = λ {x y z} →
-                        ×-transitive
+      ; reflexive     = ×-reflexive _≈₁_ _∼₁_ _∼₂_ (reflexive pre₂)
+      ; trans         = ×-transitive
                           (isEquivalence pre₁) (∼-resp-≈ pre₁)
                           (trans pre₁) {_≤₂_ = _∼₂_} (trans pre₂)
-                          {x} {y} {z}
       }
     where open IsPreorder
 
@@ -213,15 +214,12 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
     record
       { isEquivalence = Pointwise._×-isEquivalence_
                           (isEquivalence spo₁) (isEquivalence spo₂)
-      ; irrefl        = λ {x y} →
-                        _×-irreflexive_ {_<₁_ = _<₁_} (irrefl spo₁)
+      ; irrefl        = _×-irreflexive_ {_<₁_ = _<₁_} (irrefl spo₁)
                                         {_<₂_ = _<₂_} (irrefl spo₂)
-                                        {x} {y}
-      ; trans         = λ {x y z} →
-                        ×-transitive
+      ; trans         = ×-transitive
                           {_<₁_ = _<₁_} (isEquivalence spo₁)
                                         (<-resp-≈ spo₁) (trans spo₁)
-                          {_≤₂_ = _<₂_} (trans spo₂) {x} {y} {z}
+                          {_≤₂_ = _<₂_} (trans spo₂)
       ; <-resp-≈      = ×-≈-respects₂ (isEquivalence spo₁)
                                       (<-resp-≈ spo₁)
                                       (<-resp-≈ spo₂)
@@ -236,11 +234,10 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
     record
       { isEquivalence = Pointwise._×-isEquivalence_
                           (isEquivalence spo₁) (isEquivalence spo₂)
-      ; trans         = λ {x y z} →
-                        ×-transitive
+      ; trans         = ×-transitive
                           {_<₁_ = _<₁_} (isEquivalence spo₁)
                                         (<-resp-≈ spo₁) (trans spo₁)
-                          {_≤₂_ = _<₂_} (trans spo₂) {x} {y} {z}
+                          {_≤₂_ = _<₂_} (trans spo₂)
       ; compare       = ×-compare (Eq.sym spo₁) (compare spo₁)
                                                 (compare spo₂)
       }
