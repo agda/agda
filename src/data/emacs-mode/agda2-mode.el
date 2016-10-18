@@ -443,7 +443,7 @@ agda2-include-dirs is not bound." :warning))
  ;; Protect global value of default-input-method from set-input-method.
  (make-local-variable 'default-input-method)
  ;; Don't take script into account when determining word boundaries
- (setq-local word-combining-categories (cons '(nil . nil) word-combining-categories))
+ (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
  (set-input-method "Agda")
  ;; Highlighting etc. is removed when we switch from the Agda mode.
  ;; Use case: When a file M.lagda with a local variables list
@@ -936,7 +936,7 @@ The buffer is returned."
            'agda2-does-not-support-compilation-via-the-compilation-mode)
 
       (set-syntax-table agda2-mode-syntax-table)
-      (setq-local word-combining-categories (cons '(nil . nil) word-combining-categories))
+      (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
       (set-input-method "Agda")))
 
   agda2-warning-buffer)
@@ -964,7 +964,7 @@ The buffer is returned."
            'agda2-does-not-support-compilation-via-the-compilation-mode)
 
       (set-syntax-table agda2-mode-syntax-table)
-      (setq-local word-combining-categories (cons '(nil . nil) word-combining-categories))
+      (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
       (set-input-method "Agda")))
 
   agda2-info-buffer)
