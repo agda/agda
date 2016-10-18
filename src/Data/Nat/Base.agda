@@ -92,11 +92,11 @@ erase (less-than-or-equal eq) = less-than-or-equal (TrustMe.erase eq)
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations
 
-fold : {a : Set} → a → (a → a) → ℕ → a
+fold : ∀{ℓ} {a : Set ℓ} → a → (a → a) → ℕ → a
 fold z s zero    = z
 fold z s (suc n) = s (fold z s n)
 
-module GeneralisedArithmetic {a : Set} (0# : a) (1+ : a → a) where
+module GeneralisedArithmetic {ℓ} {a : Set ℓ} (0# : a) (1+ : a → a) where
 
   add : ℕ → a → a
   add n z = fold z 1+ n
