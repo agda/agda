@@ -82,6 +82,24 @@ record CommutativeMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
 
   open Monoid monoid public using (setoid; semigroup; rawMonoid)
 
+record IdempotentCommutativeMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
+  infixl 7 _∙_
+  infix  4 _≈_
+  field
+    Carrier                       : Set c
+    _≈_                           : Rel Carrier ℓ
+    _∙_                           : Op₂ Carrier
+    ε                             : Carrier
+    isIdempotentCommutativeMonoid : IsIdempotentCommutativeMonoid _≈_ _∙_ ε
+
+  open IsIdempotentCommutativeMonoid isIdempotentCommutativeMonoid public
+
+  commutativeMonoid : CommutativeMonoid _ _
+  commutativeMonoid = record { isCommutativeMonoid = isCommutativeMonoid }
+
+  open CommutativeMonoid commutativeMonoid public
+    using (setoid; semigroup; rawMonoid; monoid)
+
 record Group c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 _⁻¹
   infixl 7 _∙_
