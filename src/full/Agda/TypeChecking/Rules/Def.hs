@@ -368,23 +368,22 @@ data WithFunctionProblem
 
 checkBodyEndPoints
   :: Telescope  -- ^ Δ current context? same clauseTel
-  -> Type     -- ^ raised type of the function, Δ ⊢ T
-  -> Term     -- ^ Δ ⊢ self : T
-  -> Elims -- ^ Δ ⊢ es, patterns to eliminate T
-  -> Term     -- ^ Δ ⊢ body : T@es
+  -> Type       -- ^ raised type of the function, Δ ⊢ T
+  -> Term       -- ^ Δ ⊢ self : T
+  -> Elims      -- ^ Δ ⊢ es, patterns to eliminate T
+  -> Term       -- ^ Δ ⊢ body : T@es
   -> TCM ()
 checkBodyEndPoints delta t self es body = do
   -- apply ps to T and accumulate constraints
   t <- reduce t
   (cs,t) <- accumBoundary [] es t self
-  reportSDoc "endpoints" 20 $ prettyTCM (cs,t)
+  reportSDoc "endpoints" 20 $ text $ show (cs,t)
   checkBoundary cs t body
  where
    checkBoundary cs t body = do
      neg <- primINeg
      forM_ cs $ \ (i,(x,y)) -> do
-       let sigma v u = singletonS i v `applySubst` u
-           boundary phi b = equalTermOnFace phi t body b
+       let boundary phi b = equalTermOnFace phi t body b
        boundary (neg `apply` [argN $ var i]) x
        boundary (var i) y
      return ()
@@ -446,9 +445,12 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         -- the context with the parent (but withSub will take you from parent
         -- to child).
         inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
-        (let (qs,ps') = splitAt npars $ patternsToElims ps
-             self = Def x [] `applyE` qs
-         in maybe (return ()) (checkBodyEndPoints delta (raise (size delta) t) self ps') body)
+
+        (do
+            let (qs,ps') = splitAt npars $ patternsToElims ps
+                self     = Def x [] `applyE` qs
+            sub <- getModuleParameterSub =<< currentModule
+            fromMaybe (return ()) $ checkBodyEndPoints delta (applySubst sub t) self ps' <$> body)
 
         reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
           [ text "Clause before translation:"
