@@ -19,7 +19,7 @@ import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Properties using (_+′_)
 open import Data.Empty using (⊥-elim)
-open import Data.Product using (_×_ ; _,_)
+open import Data.Product as Prod using (_×_; _,_; proj₁; proj₂; <_,_>)
 open import Function
 open import Function.Inverse using (_↔_)
 open import Relation.Binary
@@ -382,3 +382,85 @@ map-[]≔ f (x ∷ xs) (suc i) = P.cong (_∷_ _) $ map-[]≔ f xs i
 []≔-++-inject+ (x ∷ xs) ys zero    = refl
 []≔-++-inject+ (x ∷ xs) ys (suc i) =
   P.cong (_∷_ x) $ []≔-++-inject+ xs ys i
+
+------------------------------------------------------------------------
+-- Some properties related to zipping and unzipping.
+
+-- Products of vectors are isomorphic to vectors of products.
+
+unzip∘zip : ∀ {a n} {A B : Set a} (xs : Vec A n) (ys : Vec B n) →
+            unzip (zip xs ys) ≡ (xs , ys)
+unzip∘zip [] []             = refl
+unzip∘zip (x ∷ xs) (y ∷ ys) =
+  P.cong (Prod.map (_∷_ x) (_∷_ y)) (unzip∘zip xs ys)
+
+zip∘unzip : ∀ {a n} {A B : Set a} (xys : Vec (A × B) n) →
+            (Prod.uncurry zip) (unzip xys) ≡ xys
+zip∘unzip []              = refl
+zip∘unzip ((x , y) ∷ xys) = P.cong (_∷_ (x , y)) (zip∘unzip xys)
+
+×v↔v× : ∀ {a n} {A B : Set a} → (Vec A n × Vec B n) ↔ Vec (A × B) n
+×v↔v× = record
+  { to         = P.→-to-⟶ (Prod.uncurry zip)
+  ; from       = P.→-to-⟶ unzip
+  ; inverse-of = record
+    { left-inverse-of  = Prod.uncurry unzip∘zip
+    ; right-inverse-of = zip∘unzip
+    }
+  }
+
+-- map lifts projections to vectors of products.
+
+map-proj₁-zip : ∀ {a n} {A B : Set a} (xs : Vec A n) (ys : Vec B n) →
+                map proj₁ (zip xs ys) ≡ xs
+map-proj₁-zip []       []       = refl
+map-proj₁-zip (x ∷ xs) (y ∷ ys) = P.cong (_∷_ x) (map-proj₁-zip xs ys)
+
+map-proj₂-zip : ∀ {a n} {A B : Set a} (xs : Vec A n) (ys : Vec B n) →
+                map proj₂ (zip xs ys) ≡ ys
+map-proj₂-zip []       []       = refl
+map-proj₂-zip (x ∷ xs) (y ∷ ys) = P.cong (_∷_ y) (map-proj₂-zip xs ys)
+
+-- map lifts pairing to vectors of products.
+
+map-<,>-zip : ∀ {a n} {A B₁ B₂ : Set a}
+              (f : A → B₁) (g : A → B₂) (xs : Vec A n) →
+              map < f , g > xs ≡ zip (map f xs) (map g xs)
+map-<,>-zip f g []       = P.refl
+map-<,>-zip f g (x ∷ xs) = P.cong (_∷_ (f x , g x)) (map-<,>-zip f g xs)
+
+map-zip : ∀ {a n} {A₁ A₂ B₁ B₂ : Set a}
+          (f : A₁ → A₂) (g : B₁ → B₂) (xs : Vec A₁ n) (ys : Vec B₁ n) →
+          map (Prod.map f g) (zip xs ys) ≡ zip (map f xs) (map g ys)
+map-zip f g []       []       = refl
+map-zip f g (x ∷ xs) (y ∷ ys) = P.cong (_∷_ (f x , g y)) (map-zip f g xs ys)
+
+map-unzip : ∀ {a n} {A₁ A₂ B₁ B₂ : Set a}
+            (f : A₁ → A₂) (g : B₁ → B₂) (xys : Vec (A₁ × B₁) n) →
+            let xs , ys = unzip xys
+            in (map f xs , map g ys) ≡ unzip (map (Prod.map f g) xys)
+map-unzip f g []              = refl
+map-unzip f g ((x , y) ∷ xys) =
+  P.cong (Prod.map (_∷_ (f x)) (_∷_ (g y))) (map-unzip f g xys)
+
+-- lookup is homomorphic with respect to the product structure.
+
+lookup-unzip : ∀ {a n} {A B : Set a} (i : Fin n) (xys : Vec (A × B) n) →
+               let xs , ys = unzip xys
+               in (lookup i xs , lookup i ys) ≡ lookup i xys
+lookup-unzip ()      []
+lookup-unzip zero    ((x , y) ∷ xys) = refl
+lookup-unzip (suc i) ((x , y) ∷ xys) = lookup-unzip i xys
+
+lookup-zip : ∀ {a n} {A B : Set a}
+             (i : Fin n) (xs : Vec A n) (ys : Vec B n) →
+             lookup i (zip xs ys) ≡ (lookup i xs , lookup i ys)
+lookup-zip i xs ys = begin
+  lookup i (zip xs ys)
+    ≡⟨ P.sym (lookup-unzip i (zip xs ys)) ⟩
+  lookup i (proj₁ (unzip (zip xs ys))) , lookup i (proj₂ (unzip (zip xs ys)))
+    ≡⟨ P.cong₂ _,_ (P.cong (lookup i ∘ proj₁) (unzip∘zip xs ys))
+                   (P.cong (lookup i ∘ proj₂) (unzip∘zip xs ys)) ⟩
+  lookup i xs , lookup i ys
+    ∎
+  where open P.≡-Reasoning

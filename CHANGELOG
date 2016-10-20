@@ -17,6 +17,11 @@ Important changes since 0.12:
 * Added the length-filter property to Data.List.Properties (the filter
   equivalent to the pre-existing length-gfilter)
 
+* Added some zip/unzip-related properties to Data.Vec.Properties.
+
+* Added an All predicate and related properties for Data.Vec (see
+  Data.Vec.All and Data.Vec.All.Properties).
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12
 ------------------------------------------------------------------------
