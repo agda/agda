@@ -10,12 +10,12 @@ libraries in different locations. The central concept is that of a *library*.
 Example: Using the standard library
 -----------------------------------
 
-Before we go into details, here is a quick info for the impatient how
-to tell Agda about the location of the standard library, using the
+Before we go into details, here is some quick information for the impatient
+on how to tell Agda about the location of the standard library, using the
 library management system.
 
-Assume you have downloaded the standard library into a directory which
-we will refer to by ``AGDA_STDLIB`` (absolute path).  A library file
+Let's assume you have downloaded the standard library into a directory which we
+will refer to by ``AGDA_STDLIB`` (as an absolute path).  A library file
 ``standard-library.agda-lib`` should exist in this directory, with the
 following content:
 
@@ -37,9 +37,10 @@ to do two things:
 
    The ``AGDA_DIR`` defaults to ``~/.agda`` on unix-like systems and
    ``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows.
-   (More on ``AGDA_DIR`` see below.)
+   (More on ``AGDA_DIR`` below.)
 
-   Remark: The ``libraries`` file informs Agda about the libraries you want it to know.
+   Remark: The ``libraries`` file informs Agda about the libraries you want it to know
+   about.
 
 |
 
@@ -49,8 +50,9 @@ to do two things:
 
      standard-library
 
-   Remark: The ``defaults`` file informs Agda which of the libraries it
-   found through ``libraries`` should be in the include path by default.
+   Remark: The ``defaults`` file informs Agda which of the libraries pointed
+   to by ``libraries`` should be used by default (i.e. in the default
+   include path).
 
 That's the short version, if you want to know more, read on!
 
@@ -82,7 +84,7 @@ Installing libraries
 --------------------
 
 To be found by Agda a library file has to be listed (with its full path) in a
-*libraries* file
+``libraries`` file
 
 - ``AGDA_DIR/libraries-VERSION``, or if that doesn't exist
 - ``AGDA_DIR/libraries``
@@ -99,6 +101,9 @@ expanded. The location of the libraries file used can be overridden using the
 You can find out the precise location of the ``libraries`` file by
 calling ``agda -l fjdsk Dummy.agda`` at the command line and looking at the
 error message (assuming you don't have a library called ``fjdsk`` installed).
+
+Note that if you want to install a library so that it is used by default,
+it must also be listed in the ``defaults`` file (details below).
 
 Using a library
 ---------------
@@ -119,11 +124,29 @@ There are three ways a library gets used:
   root. In this case the file ``AGDA_DIR/defaults`` is read and all libraries
   listed are added to the path. The ``defaults`` file should contain a list of
   library names, each on a separate line. In this case the current directory is
-  also added to the path.
+  *also* added to the path.
 
   To disable default libraries, you can give the flag
   ``--no-default-libraries``. To disable using libraries altogether, use the
   ``--no-libraries`` flag.
+
+Default libraries
+-----------------
+
+If you want to usually use a variety of libraries, it is simplest to list them
+all in the ``AGDA_DIR/defaults`` file.  It has format
+
+   .. code-block:: none
+
+     standard-library
+     library2
+     library3
+
+where of course ``library2`` and ``library3`` are the libraries you commonly use.
+While it is safe to list all your libraries in ``library``, be aware that listing
+libraries with name clashes in ``defaults`` can lead to difficulties, and should be
+done with care (i.e. avoid it unless you really must).
+
 
 Version numbers
 ---------------
@@ -141,3 +164,12 @@ For example, suppose you have the following libraries installed: ``mylib``,
 ``mylib-1.0``, ``otherlib-2.1``, and ``otherlib-2.3``. In this case, aside from
 the exact matches you can also say ``--library=otherlib`` to get
 ``otherlib-2.3``.
+
+Upgrading
+---------
+
+If you are upgrading from a pre 2.5 version of Agda, be aware that you may have
+remnants of the previous library management system in your preferences.  In particular,
+if you get warnings about ``agda2-include-dirs``, you will need to find where this is
+defined.  This may be buried deep in ``.el`` files, whose location is both operating
+system and emacs version dependant.
