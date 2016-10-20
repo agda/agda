@@ -1,3 +1,10 @@
+------------------------------------------------------------------------
+-- The Agda standard library
+--
+-- An example of how Algebra.IdempotentCommutativeMonoidSolver can be
+-- used
+------------------------------------------------------------------------
+
 module Algebra.IdempotentCommutativeMonoidSolver.Example where
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong₂; isEquivalence)
