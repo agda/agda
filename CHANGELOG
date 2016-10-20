@@ -188,9 +188,6 @@ Important changes since 0.9:
 * The fixity of Relation.Unary._~ was changed from the default to infix
   10.
 
-* Turned on η-equality for Record.Record, removed Record.Signature′
-  and Record.Record′.
-
 ------------------------------------------------------------------------
 -- Version 0.9
 ------------------------------------------------------------------------
