@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version TODO
+-- Version TODO
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version TODO.
@@ -23,7 +23,7 @@ Important changes since 0.12:
   Data.Vec.All and Data.Vec.All.Properties).
 
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version 0.12
+-- Version 0.12
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version 2.5.1.
@@ -33,7 +33,7 @@ Important changes since 0.11:
 * Added support for GHC 8.0.1.
 
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version 0.11
+-- Version 0.11
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version 2.4.2.4.
@@ -54,7 +54,7 @@ Important changes since 0.10:
 * Renamed Data/AVL.agda._⊕_sub1 to pred[_⊕_].
 
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version 0.10
+-- Version 0.10
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version 2.4.2.3.
@@ -192,7 +192,7 @@ Important changes since 0.9:
   and Record.Record′.
 
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version 0.9
+-- Version 0.9
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version 2.4.2.1.
