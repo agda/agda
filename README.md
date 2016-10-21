@@ -20,7 +20,7 @@ Documentation
 -------------
 
 * [User manual](http://agda.readthedocs.io)
-* [CHANGELOG](https://github.com/agda/agda/blob/master/CHANGELOG)
+* [CHANGELOG](https://github.com/agda/agda/blob/master/CHANGELOG.md)
 
 Prerequisites
 -------------
