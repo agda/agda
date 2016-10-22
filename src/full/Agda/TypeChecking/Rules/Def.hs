@@ -377,7 +377,7 @@ checkBodyEndPoints delta t self es body = do
   -- apply ps to T and accumulate constraints
   t <- reduce t
   (cs,t) <- accumBoundary [] es t self
-  reportSDoc "endpoints" 20 $ prettyTCM (cs,t)
+  reportSDoc "endpoints" 20 $ text $ show (cs,t)
   checkBoundary cs t body
  where
    checkBoundary cs t body = do
@@ -435,6 +435,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
       cxtNames <- reverse . map (fst . unDom) <$> getContext
       when (not $ null namedDots) $ reportSDoc "tc.lhs.top" 50 $
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
+      closed_t <- flip abstract t <$> getContextTelescope
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
         checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs) -> do
@@ -446,9 +447,9 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         -- the context with the parent (but withSub will take you from parent
         -- to child).
         inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
-        (let (qs,ps') = splitAt npars $ patternsToElims ps
-             self = Def x [] `applyE` qs
-         in maybe (return ()) (checkBodyEndPoints delta (raise (size delta) t) self ps') body)
+        (let ps' = patternsToElims ps
+             self = Def x []
+         in maybe (return ()) (checkBodyEndPoints delta closed_t self ps') body)
 
         reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
           [ text "Clause before translation:"
