@@ -64,6 +64,7 @@ import Agda.TypeChecking.DropArgs
 import Agda.Interaction.Options ( optPostfixProjections )
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -136,12 +137,13 @@ instance Reify Expr Expr where
 instance Reify MetaId Expr where
     reifyWhen = reifyWhenE
     reify x@(MetaId n) = liftTCM $ do
+      b <- asks envPrintMetasBare
       mi  <- mvInfo <$> lookupMeta x
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = clScope $ miClosRange mi
-                 , metaNumber         = Just x
-                 , metaNameSuggestion = miNameSuggestion mi
+                 , metaNumber         = if b then Nothing else Just x
+                 , metaNameSuggestion = if b then "" else miNameSuggestion mi
                  }
           underscore = return $ A.Underscore mi'
       caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
@@ -330,12 +332,13 @@ instance Reify Term Expr where
 
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs v = do
+  metasBare <- asks envPrintMetasBare
   -- Andreas, 2016-07-21 if --postfix-projections
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
   let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
-  v <- unSpine' pred <$> instantiate v
-  case v of
+  v <- ignoreSharing <$> instantiate v
+  case applyUnless metasBare (unSpine' pred) v of
     I.Var n es   -> do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
         elims (A.Var x) =<< reify es
@@ -423,7 +426,8 @@ reifyTerm expandAnonDefs v = do
     I.Sort s     -> reify s
     I.MetaV x es -> do
       x' <- reify x
-      elims x' =<< reify es
+      ifM (asks envPrintMetasBare) {-then-} (return x') {-else-} $
+        elims x' =<< reify es
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
