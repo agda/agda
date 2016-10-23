@@ -1985,8 +1985,12 @@ data TCEnv =
                 --   No by default.
                 --   Yes for rewriting feature.
           , envPrintDomainFreePi :: Bool
-                -- ^ When True types will be omitted from printed pi types if they
-                --   can be inferred
+                -- ^ When @True@, types will be omitted from printed pi types if they
+                --   can be inferred.
+          , envPrintMetasBare :: Bool
+                -- ^ When @True@, throw away meta numbers and meta elims.
+                --   This is used for reifying terms for feeding into the
+                --   user's source code, e.g., for the interaction tactics @solveAll@.
           , envInsideDotPattern :: Bool
                 -- ^ Used by the scope checker to make sure that certain forms
                 --   of expressions are not used inside dot patterns: extended
@@ -2032,6 +2036,7 @@ initEnv = TCEnv { envContext             = []
                 , envAllowedReductions      = allReductions
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
+                , envPrintMetasBare         = False
                 , envInsideDotPattern       = False
                 , envUnquoteFlags           = defaultUnquoteFlags
                 }
