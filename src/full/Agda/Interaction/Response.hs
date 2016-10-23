@@ -40,6 +40,7 @@ data Response
     | Resp_GiveAction InteractionId GiveResult
     | Resp_MakeCase MakeCaseVariant [String]
     | Resp_SolveAll [(InteractionId, Expr)]
+      -- ^ Solution for one or more meta-variables.
     | Resp_DisplayInfo DisplayInfo
     | Resp_RunningInfo Int String
       -- ^ The integer is the message's debug level.

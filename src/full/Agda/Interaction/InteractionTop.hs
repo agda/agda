@@ -340,6 +340,7 @@ data Interaction' range
     -- identifiers in their type.
   | Cmd_search_about_toplevel B.Rewrite String
 
+    -- | Solve all goals whose values are determined by the constraints.
   | Cmd_solveAll
 
     -- | Parse the given expression (as if it were defined at the
@@ -581,12 +582,14 @@ interpret (Cmd_search_about_toplevel norm s) =
   liftCommandMT B.atTopLevel $ searchAbout norm noRange s
 
 interpret Cmd_solveAll = do
-  out <- lift $ mapM lowr =<< B.getSolvedInteractionPoints False -- only solve metas which have a proper instantiation, i.e., not another meta
+  -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
+  out <- lift $ local (\ e -> e { envPrintMetasBare = True }) $
+    mapM prt =<< B.getSolvedInteractionPoints False -- only solve metas which have a proper instantiation, i.e., not another meta
   putResponse $ Resp_SolveAll out
   where
-      lowr (i, m, e) = do
+      prt (i, m, e) = do
         mi <- getMetaInfo <$> lookupMeta m
-        e <- withMetaInfo mi $ lowerMeta <$> abstractToConcreteCtx TopCtx e
+        e <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e)
 
 interpret (Cmd_infer_toplevel norm s) =
@@ -1235,24 +1238,6 @@ refreshStr taken s = go nameModifiers where
 
 nameModifiers :: [String]
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
-
-
--- | Kill meta numbers and ranges from all metas (@?@ and @_@).
-lowerMeta :: (C.ExprLike a) => a -> a
-lowerMeta = C.mapExpr kill where
-  kill e =
-    case e of
-      C.QuestionMark{} -> preMeta
-      C.Underscore{}   -> preUscore
-      C.App{}          -> case appView e of
-        C.AppView (C.QuestionMark _ _) _ -> preMeta
-        C.AppView (C.Underscore   _ _) _ -> preUscore
-        _ -> e
-      C.Paren r q@(C.QuestionMark _ Nothing) -> q
-      _ -> e
-
-  preMeta   = C.QuestionMark noRange Nothing
-  preUscore = C.Underscore   noRange Nothing
 
 
 -- | Parses and scope checks an expression (using the \"inside scope\"

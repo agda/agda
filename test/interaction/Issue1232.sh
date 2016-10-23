@@ -12,6 +12,7 @@ mkfifo $pipe
 # Forces the pipe to stay open. Otherwise it's closed by echo the first time we
 # write to it.
 sleep 2 > $pipe &
+SLEEP_PID=$!
 
 $AGDA_BIN --interaction < $pipe 2>&1 &
 
@@ -39,6 +40,10 @@ cmd load $top []
 
 sleep 0.1
 rm -f $pipe $top.agda $top.agdai
+
+# Free the pipe to prevent weird errors on nfs file systems
+kill $SLEEP_PID
+wait $SLEEP_PID 2>/dev/null
 
 # Restore the test file (it needs to be in the repo for the Makefile to work)
 printf "\n" > $top.agda

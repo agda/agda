@@ -37,7 +37,11 @@ withAnonymousModule m n =
 
 -- | Set the current environment to the given
 withEnv :: TCEnv -> TCM a -> TCM a
-withEnv env m = local (\env0 -> env { envAllowDestructiveUpdate = envAllowDestructiveUpdate env0 }) m
+withEnv env = local $ \ env0 -> env
+  -- Keep persistent settings
+  { envAllowDestructiveUpdate = envAllowDestructiveUpdate env0
+  , envPrintMetasBare         = envPrintMetasBare env0
+  }
 
 -- | Get the current environment
 getEnv :: TCM TCEnv

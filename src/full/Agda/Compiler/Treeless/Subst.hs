@@ -14,9 +14,9 @@ import Agda.Syntax.Internal (Substitution'(..))
 import Agda.TypeChecking.Substitute
 
 instance DeBruijn TTerm where
-  debruijnVar = TVar
-  debruijnView (TVar i) = Just i
-  debruijnView _ = Nothing
+  deBruijnVar = TVar
+  deBruijnView (TVar i) = Just i
+  deBruijnView _ = Nothing
 
 instance Subst TTerm TTerm where
   applySubst IdS t = t
@@ -123,4 +123,3 @@ instance HasFree TAlt where
     TACon _ i b -> freeVars (Binder i b)
     TALit _ b   -> freeVars b
     TAGuard g b -> freeVars (g, b)
-

@@ -121,14 +121,10 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Semigroup hiding (Arg)
 import Data.List hiding (null, sort)
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
@@ -614,7 +610,6 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
 isHom :: (Free' a All, Subst Term a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (\ (i,_) -> All (i >= n)) IgnoreNot x
-  --guard $ null $ allFreeVars x `IntSet.intersection` IntSet.fromAscList [0..k-1]
   return $ raise (-n) x
 
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
