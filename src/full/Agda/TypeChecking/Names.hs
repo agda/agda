@@ -93,7 +93,7 @@ open a = do
 bind' :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
-  (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (debruijnVar 0)))
+  (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
 bind :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
 bind n f = mkAbs n <$> bind' n f
