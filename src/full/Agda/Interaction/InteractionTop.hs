@@ -1238,19 +1238,22 @@ nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 
 -- | Kill meta numbers and ranges from all metas (@?@ and @_@).
+--   Also drop arguments to metas.
+--   Andreas, 2016-10-23, issue #2280:
+--   Unfortunately, all arguments are dropped, not only these originating
+--   in the lambda-lifting of the meta to the toplevel.
+--   Such a transformation should anyway be done in InternalToAbstract.
 lowerMeta :: (C.ExprLike a) => a -> a
-lowerMeta = C.mapExpr kill where
-  kill e =
-    case e of
+lowerMeta = C.mapExpr $ \case
       C.QuestionMark{} -> preMeta
       C.Underscore{}   -> preUscore
-      C.App{}          -> case appView e of
+      e@C.App{}        -> case appView e of
         C.AppView (C.QuestionMark _ _) _ -> preMeta
         C.AppView (C.Underscore   _ _) _ -> preUscore
         _ -> e
       C.Paren r q@(C.QuestionMark _ Nothing) -> q
-      _ -> e
-
+      e -> e
+  where
   preMeta   = C.QuestionMark noRange Nothing
   preUscore = C.Underscore   noRange Nothing
 
