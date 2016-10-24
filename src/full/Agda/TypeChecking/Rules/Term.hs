@@ -339,7 +339,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
                          A.Underscore{} -> True
                          _              -> False)
                    && isRelevant info && visible info
-  reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, typ, info)
+  reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, unScope typ, info)
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
     then (if possiblePath then trySeeingIfPath else dontUseTargetType)
@@ -2314,7 +2314,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t) -> do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _) -> do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope

@@ -172,7 +172,7 @@ instance PatternVars (A.Pattern' e) where
         -- indexed records.
       A.PatternSynP _ _ args -> patternVars args
       A.RecP _ fs            -> patternVars fs
-
+      A.EqualP{}             -> []
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -186,6 +186,7 @@ noDotPattern err = dot
       A.WildP i              -> pure $ A.WildP i
       A.AsP i x p            -> A.AsP i x <$> dot p
       A.DotP{}               -> typeError $ GenericError err
+      A.EqualP{}             -> typeError $ GenericError err   -- Andrea: so we also disallow = patterns, reasonable?
       A.AbsurdP i            -> pure $ A.AbsurdP i
       A.LitP l               -> pure $ A.LitP l
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
@@ -1242,6 +1243,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.AbsurdP{}            = Nothing
               definedName C.AsP{}                = Nothing
               definedName C.DotP{}               = Nothing
+              definedName C.EqualP{}             = Nothing
               definedName C.LitP{}               = Nothing
               definedName C.RecP{}               = Nothing
               definedName C.QuoteP{}             = Nothing
@@ -1999,6 +2001,7 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
     toAbstract (A.DotP i e)           = A.DotP i <$> insideDotPattern (toAbstract e)
+    toAbstract (A.EqualP i e1 e2)     = A.EqualP i <$> toAbstract e1 <*> toAbstract e2
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
@@ -2079,6 +2082,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             info = PatRange r
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
+        where info = PatRange r
+    toAbstract p0@(C.EqualP r e1 e2) = return $ A.EqualP info e1 e2
         where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r

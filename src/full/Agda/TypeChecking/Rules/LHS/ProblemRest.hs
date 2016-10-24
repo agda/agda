@@ -151,4 +151,5 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
     return $ LHSState
       { lhsProblem = p'
       , lhsDPI     = applyPatSubst tau (lhsDPI st)
+      , lhsPartialSplit = lhsPartialSplit st
       }

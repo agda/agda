@@ -8,12 +8,14 @@ import Control.Monad.Reader (asks)
 
 import Data.List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad hiding (reportSDoc, reportSLn)
+import Agda.TypeChecking.Monad.Builtin (getBuiltinName', builtinIZero, builtinIOne)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as RedM
@@ -117,6 +119,7 @@ match' ((c, es, patch) : stack) = do
                   case Map.lookup l (litBranches bs) of
                     Nothing -> stack
                     Just cc -> (cc, es0 ++ es1, patchLit) : stack
+
                 -- If our argument (or its constructor form) is @Con c vs@
                 -- we push @conFrame c vs@ onto the stack.
                 conFrame c vs stack =
@@ -141,13 +144,21 @@ match' ((c, es, patch) : stack) = do
                   where (es0, rest) = splitAt n es
                         (es1, es2)  = splitAt m rest
                         vs          = map argFromElim es1
+            zo <- do
+               mi <- getBuiltinName' builtinIZero
+               mo <- getBuiltinName' builtinIOne
+               return $ Set.fromList $ catMaybes [mi,mo]
+
+            isIntervalMatch <- return $ (Map.keysSet (conBranches bs) `Set.isSubsetOf` zo)
+
 
             -- Now do the matching on the @n@ths argument:
             id $
              case fmap ignoreSharing <$> eb of
-              Blocked x _            -> no (Blocked x) es'
-              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
-
+              Blocked x _            | not isIntervalMatch -> no (Blocked x) es'
+                                     | otherwise   -> match' $ catchAllFrame $ stack
+              NotBlocked _ (Apply (Arg info (MetaV x _))) | not isIntervalMatch -> no (Blocked x) es'
+                                                          | otherwise -> match' $ catchAllFrame $ stack
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v
@@ -167,7 +178,8 @@ match' ((c, es, patch) : stack) = do
 
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.
-              NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
+              NotBlocked blocked e | not isIntervalMatch -> no (NotBlocked $ stuckOn e blocked) es'
+                                   | otherwise -> match' $ catchAllFrame $ stack
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}

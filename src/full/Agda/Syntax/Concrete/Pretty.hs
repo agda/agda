@@ -540,6 +540,7 @@ instance Pretty Pattern where
             LitP l          -> pretty l
             QuoteP _        -> text "quote"
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
+            EqualP _ e1 e2  -> sep [ pretty e1, text "=", pretty e2 ]
 
 prettyOpApp ::
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]

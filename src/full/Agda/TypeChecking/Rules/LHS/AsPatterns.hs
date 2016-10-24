@@ -112,6 +112,7 @@ noAsPatterns p =
     A.ProjP{}       -> True
     A.WildP{}       -> True
     A.DotP{}        -> True
+    A.EqualP{}      -> True
     A.AbsurdP{}     -> True
     A.LitP{}        -> True
     A.PatternSynP{} -> __IMPOSSIBLE__

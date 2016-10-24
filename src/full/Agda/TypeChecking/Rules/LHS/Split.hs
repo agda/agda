@@ -45,8 +45,10 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Primitive
 
 import Agda.TypeChecking.Rules.LHS.Problem
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 
 import Agda.Utils.Except (catchError)
 import Agda.Utils.Functor ((<.>))
@@ -194,6 +196,40 @@ splitProblem mf (Problem ps qs tel pr) = do
     splitP (_:_)        EmptyTel               = __IMPOSSIBLE__
     -- (we can never have an ExtendTel without Abs)
     splitP _            (ExtendTel _ NoAbs{})  = __IMPOSSIBLE__
+
+    -- pattern with type?  Let's get to work:
+    splitP ps0@(p : ps) tel0@(ExtendTel dom@(Dom{domInfo = ai, unDom = a}) xtel@(Abs x tel)) | domFinite dom = do
+      let
+        isEqualP A.EqualP{} = True
+        -- isEqualP A.DotP{}   = True
+        isEqualP _          = False
+      (es,ts,ps) <- case (namedThing . unArg) p of
+                   A.WildP{} -> return ([p],[],ps)
+                   A.EqualP{} -> let (es,ps1) = span (isEqualP . namedThing . unArg) ps0 in
+                     return (es,[(t,u) | A.EqualP _ t u <- map (namedThing . unArg) es],ps1)
+                   _         -> __IMPOSSIBLE__
+      -- tInterval <- lift $ elInf primInterval
+      liftTCM $ reportSDoc "tc.lhs.split.partial" 10 $ sep
+        [ text "split Partial"
+        , nest 2 $ text "cxt  =" <+> (prettyTCM =<< getContext)
+        , nest 2 $ text "tel0 =" <+> prettyTCM tel0
+        ]
+      let keepGoing = appendSplitProblem es x dom <$> do
+            underAbstraction dom xtel $ \ tel -> splitP ps tel
+          appendSplitProblem ps x dom s@SplitRest{} = s
+          appendSplitProblem ps x dom s@Split{ splitLPats = (Problem ps' () tel pr) }
+            = s { splitLPats = Problem (ps ++ ps') () (ExtendTel dom $ Abs x tel) pr}
+      -- ts <- lift $ forM ts $ \ (t,u) -> do
+      --         liftTCM $ reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
+      --         t <- checkExpr t tInterval
+      --         u <- checkExpr u tInterval
+      --         return (t,u)
+
+      return Split
+              { splitLPats   = empty
+              , splitFocus   = Arg ai $ PartialFocus ts qs a
+              , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+              } `mplus` keepGoing
 
     -- pattern with type?  Let's get to work:
     splitP ps0@(p : ps) tel0@(ExtendTel dom@(Dom{domInfo = ai, unDom = a}) xtel@(Abs x tel)) = do

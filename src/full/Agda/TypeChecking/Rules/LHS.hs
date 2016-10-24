@@ -16,7 +16,7 @@ import Control.Monad.Trans.Maybe
 import Data.Function (on)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List (delete, sortBy, stripPrefix)
+import Data.List (delete, sortBy, stripPrefix, findIndex)
 import Data.Monoid
 import Data.Traversable
 import Data.Map (Map)
@@ -51,6 +51,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Monad.Builtin
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.AsPatterns
@@ -175,6 +177,19 @@ updateInPatterns as ps qs = do
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.LitP        _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
+        A.EqualP{}          -> __IMPOSSIBLE__
+      ConP c cpi [] -> do
+        let
+            dpi :: [DotPatternInst]
+            dpi = mkDPI $ patternToTerm $ unArg q
+              where
+                mkDPI v = case namedThing $ unArg p of
+                  A.DotP _ e -> [DPI Nothing (Just e) v a]
+                  A.VarP x   -> [DPI (Just x) Nothing v a]
+                  A.WildP _  -> [DPI Nothing  Nothing v a]
+                  _        -> []
+
+        return (IntMap.empty,dpi)
       -- Case: the unifier eta-expanded the variable
       ConP c cpi qs -> do
         Def r es <- ignoreSharing <$> reduce (unEl $ unDom a)
@@ -210,6 +225,7 @@ updateInPatterns as ps qs = do
       A.LitP _            -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _          -> __IMPOSSIBLE__
+      A.EqualP{}          -> __IMPOSSIBLE__
       where
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi (Arg fi f) = Arg fi $ unnamed $
@@ -221,6 +237,7 @@ updateInPatterns as ps qs = do
               , A.metaNumber         = Nothing
               , A.metaNameSuggestion = show $ A.nameConcrete $ qnameName f
               }
+
 
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
@@ -242,6 +259,7 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
     isSolved A.DefP{}        = __IMPOSSIBLE__
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
     isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
+    isSolved A.EqualP{}      = False -- __IMPOSSIBLE__
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
@@ -268,6 +286,7 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.ProjP     {}) t = return ()  -- projection pattern
   noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = return ()
+  noShadowing (A.EqualP    {}) t = return ()
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
   noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
@@ -400,6 +419,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.RecP _ _   -> __IMPOSSIBLE__
       A.AsP  _ _ _ -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
+      A.EqualP{}   -> __IMPOSSIBLE__
 
     gatherImplicitDotVars :: DotPatternInst -> TCM [(Int,Projectns)]
     gatherImplicitDotVars (DPI _ (Just _) _ _) = return [] -- Not implicit
@@ -492,6 +512,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret = do
     A.AsP{}         -> __IMPOSSIBLE__
     A.LitP{}        -> __IMPOSSIBLE__
     A.PatternSynP{} -> __IMPOSSIBLE__
+    A.EqualP{}      -> __IMPOSSIBLE__
     where
       bindDummy s = do
         x <- if isUnderscore s then freshNoName_ else freshName_ ("." ++ argNameToString s)
@@ -520,13 +541,16 @@ data LHSResult = LHSResult
   , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
     -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
+  , lhsPartialSplit :: [Int]
+    -- ^ have we done a partial split?
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult n tel ps t) = LHSResult n
+  instantiateFull' (LHSResult n tel ps t psplit) = LHSResult n
     <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' t
+    <*> pure psplit
 
 -- | Check a LHS. Main function.
 --
@@ -578,8 +602,8 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem pxs qs delta rest) dpi
-      <- checkLHS f $ LHSState problem0 []
+    LHSState problem@(Problem pxs qs delta rest) dpi psplit
+      <- checkLHS f $ LHSState problem0 [] []
 
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
@@ -622,7 +646,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
                       --       arguments in the lhs of a with-function relative to
                       --       the parent function.
           numPats   = length $ takeWhile (notProj . namedArg) qs
-          lhsResult = LHSResult (length cxt) delta qs b'
+          lhsResult = LHSResult (length cxt) delta qs b' psplit
           -- In the case of a non-with function the pattern substitution
           -- should be weakened by the number of non-parameter patterns to
           -- get the paramSub.
@@ -655,12 +679,15 @@ checkLHS
   :: Maybe QName       -- ^ The name of the definition we are checking.
   -> LHSState          -- ^ The current state.
   -> TCM LHSState      -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem dpi) = do
+checkLHS f st@(LHSState problem dpi psplit) = do
 
   problem <- insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
   -- since we might insert eta expanded record patterns.
-  if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
+  let
+    hasFinite = any domFinite $ telToList $ problemTel problem
+    handledFinite = if hasFinite then not . null $ psplit else True
+  if isSolvedProblem problem && handledFinite then return $ st { lhsProblem = problem } else do
 
     unlessM (optPatternMatching <$> gets getPragmaOptions) $
       typeError $ GenericError $ "Pattern matching is disabled"
@@ -684,11 +711,83 @@ checkLHS f st@(LHSState problem dpi) = do
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' dpi)
+      st' <- updateProblemRest (LHSState problem' dpi psplit)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
+
+    trySplit (Split p0 (Arg ai (PartialFocus ts ip a)) p1) ret = do
+      tel <- getContextTelescope
+      reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
+      tInterval <- elInf primInterval
+      (gamma,sigma) <- bindLHSVars (problemInPat p0) (problemTel p0) $ do
+         ts <- forM ts $ \ (t,u) -> do
+                 reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
+                 t <- checkExpr t tInterval
+                 u <- checkExpr u tInterval
+                 reportSDoc "tc.lhs.split.partial" 10 $ prettyTCM t <+> prettyTCM u
+                 u <- intervalView =<< reduce u
+                 case u of
+                   IZero -> primINeg <@> pure t
+                   IOne  -> return t
+                   _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
+         phi <- case ts of
+                   [] -> do
+                     a <- ignoreSharing <$> reduce (unEl a)
+                     misone <- getBuiltinName' builtinIsOne
+                     case a of
+                       Def q [Apply phi] | Just q == misone -> return (unArg phi)
+                       _           -> typeError $ GenericError $ show a ++ " is not IsOne."
+                                        -- TODO Andrea type error or something.
+                   _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
+         -- phi ≤ a
+         phi <- reduce phi
+         [(gamma,sigma)] <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
+                            (\ sigma -> (,sigma) <$> getContextTelescope)
+         return (gamma,sigma)
+
+      -- substitute the literal in p1 and dpi
+      let delta1 = problemTel p0
+          oix = size (problemTel $ unAbs p1) -- de brujin index of IsOne
+          Just o_n = flip findIndex ip (\ x -> case namedThing (unArg x) of
+                                           VarP x -> dbPatVarIndex x == oix
+                                           _      -> False)
+          delta2' = ExtendTel (Dom{domInfo = ai, domFinite = True, unDom = a}) (fmap problemTel p1)
+          delta2 = applySubst sigma delta2'
+          mkConP c = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval) }) []
+          rho0 = fmap (\ (Con c []) -> mkConP c) sigma
+
+          rho    = liftS (size delta2) $ rho0
+          -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
+          -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
+          -- rho    = [ var i | i <- [0..size delta2 - 1] ]
+          --       ++ [ raise (size delta2) $ Lit lit ]
+          --       ++ [ var i | i <- [size delta2 ..] ]
+          ip'      = applySubst rho ip
+          rest'    = applyPatSubst rho (problemRest problem)
+
+      (p0',newDpi) <- do
+         let delta1 = problemTel p0
+         addContext gamma $ updateInPatterns
+                            (applyPatSubst rho0 $ flattenTel delta1)
+                            (problemInPat p0)
+                            (applySubst rho0 $ teleArgs delta1)
+      let dpi' = applyPatSubst rho dpi ++ newDpi
+          ps' = p0' ++ [setRelevance Irrelevant $ defaultArg $ unnamed $ A.WildP (PatRange noRange)]
+                    ++ problemInPat (absBody p1)
+
+      reportSDoc "tc.lhs.split.problem" 10 $ sep
+        [ text "ip  = " <+> (text . show) ip
+        , text "ip' = " <+> (text . show) ip'
+        ]
+
+      -- Compute the new problem
+      let
+          delta'   = abstract gamma delta2
+          problem' = Problem ps' ip' delta' rest'
+      st' <- updateProblemRest (LHSState problem' dpi' $ psplit ++ [o_n])
+      checkLHS f st'
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
 
@@ -711,7 +810,7 @@ checkLHS f st@(LHSState problem dpi) = do
       let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
           delta'   = abstract delta1 delta2
           problem' = Problem ps' ip' delta' rest'
-      st' <- updateProblemRest (LHSState problem' dpi')
+      st' <- updateProblemRest (LHSState problem' dpi' psplit)
       checkLHS f st'
 
     -- Split on constructor pattern (unifier might fail)
@@ -740,6 +839,7 @@ checkLHS f st@(LHSState problem dpi) = do
         DontKnow tcerr -> return $ DontKnow tcerr
 
     trySplitConstructor p0 (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
+    trySplitConstructor p0 (Arg info PartialFocus{}) p1 = __IMPOSSIBLE__
     trySplitConstructor p0 (Arg info
              (Focus { focusCon      = c
                     , focusPatOrigin= porigin
@@ -966,8 +1066,8 @@ checkLHS f st@(LHSState problem dpi) = do
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi')
-            <- updateProblemRest $ LHSState problem' dpi'
+          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi' psplit)
+            <- updateProblemRest $ LHSState problem' dpi' psplit
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"

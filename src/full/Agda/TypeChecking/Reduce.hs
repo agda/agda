@@ -327,7 +327,7 @@ instance Reduce Term where
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
-  let tryFast = case v of
+  let tryFast = False && case v of
                   Def{} -> True
                   Con{} -> True
                   _     -> False

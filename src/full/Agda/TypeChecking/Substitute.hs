@@ -358,6 +358,7 @@ instance Apply Clause where
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
             LitP{}  -> __IMPOSSIBLE__
+            ConP q _ [] -> mkSub tm n ps vs
             ConP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
         mkSub _ _ _ _ = __IMPOSSIBLE__
@@ -376,6 +377,7 @@ instance Apply Clause where
             VarP (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
             LitP{}              -> __IMPOSSIBLE__
+            ConP q _ [] -> newTel n tel ps vs
             ConP{}              -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
         newTel _ tel _ _ = __IMPOSSIBLE__

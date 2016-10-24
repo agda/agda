@@ -55,6 +55,10 @@ compileClauses mt cs = do
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
+      reportSDoc "tc.cc.tree" 20 $ sep $ do
+        (text "split tree from coverage check ") : do
+          [text (show splitTree)]
+
       -- The coverage checker might have added some clauses (#2288)!
       cs <- normaliseProjP =<< defClauses <$> getConstInfo q
       let cls = unBruijn cs

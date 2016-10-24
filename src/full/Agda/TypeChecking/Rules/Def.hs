@@ -4,7 +4,7 @@
 module Agda.TypeChecking.Rules.Def where
 
 import Prelude hiding (mapM)
-import Control.Arrow ((***))
+import Control.Arrow ((***),second)
 import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Reader hiding (forM, mapM)
@@ -64,6 +64,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Functor
+import Agda.Utils.List
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -220,11 +221,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         -- to patch clauses to same arity
         -- cs <- trailingImplicits t cs
 
+        _canBeSystem <- do
+          let pss = map (A.spLhsPats . A.clauseLHS) cs
+          return $! (not $ null $ [ () | ps <- pss, A.EqualP {} <- map (namedThing . unArg) ps ])
+          -- throw error if EqualP are not all at the end and/or we have different patterns too.
+          -- allow WildP with no other patterns
+          -- also if we have withs
+
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo (A.clauseRHS c) $ do
-              c <- applyRelevanceToContext (argInfoRelevance ai) $ do
+              (c,b) <- applyRelevanceToContext (argInfoRelevance ai) $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
@@ -235,7 +243,13 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
               inTopContext $ addClauses name [c]
-              return c
+              return (c,b)
+
+        (cs,isOneIxs) <- return $ (second (nub . concat) . unzip) cs
+
+        let isSystem = not . null $ isOneIxs
+
+        -- when isSystem $ unless canBeSystem $ typeError ... -- TODO Andrea
 
         reportSDoc "tc.def.fun" 70 $
           sep $ [ text "checked clauses:" ] ++ map (nest 2 . text . show) cs
@@ -252,6 +266,21 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           sep [ text "raw clauses: "
               , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
+
+
+        cs <- if not isSystem then return cs else do
+                 fullType <- flip abstract t <$> getContextTelescope
+                 inTopContext $ checkSystemCoverage isOneIxs fullType cs
+                 tel <- getContextTelescope
+                 let c = Clause
+                       { clauseRange = noRange
+                       , clauseTel = tel
+                       , namedClausePats = teleNamedArgs tel
+                       , clauseBody = Nothing
+                       , clauseType = Just (defaultArg t)
+                       , clauseCatchall = False
+                       }
+                 return (cs ++ [c])
 
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull {- =<< mapM rebindClause -} cs
@@ -286,7 +315,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
 
         -- Coverage check and compile the clauses
         cc <- Bench.billTo [Bench.Coverage] $
-          inTopContext $ compileClauses (Just (name, fullType)) cs
+          inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
+                                        cs
 
         reportSDoc "tc.cc" 10 $ do
           sep [ text "compiled clauses of" <+> prettyTCM name
@@ -366,6 +396,52 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
+checkSystemCoverage
+  :: [Int]
+  -> Type
+  -> [Clause]
+  -> TCM ()
+checkSystemCoverage [n] t cs = do
+  reportSDoc "tc.sys.cover" 10 $ text (show (n , length cs)) <+> prettyTCM t
+  TelV gamma t <- telViewUpTo n t
+  addContext gamma $ do
+  TelV (ExtendTel a _) _ <- telViewUpTo 1 t
+  a <- reduce $ unEl $ unDom a
+
+  case a of
+    Def q [Apply phi] -> do
+      [iz,io] <- mapM getBuiltinName' [builtinIZero, builtinIOne]
+      ineg <- primINeg
+      imin <- primIMin
+      imax <- primIMax
+      i0 <- primIZero
+      let isDir (ConP q _ []) | Just (conName q) == iz = Just (\ x -> ineg `apply` [argN x])
+          isDir (ConP q _ []) | Just (conName q) == io = Just id
+          isDir _ = Nothing
+      let
+        collectDirs [] [] = []
+        collectDirs (i : is) (p : ps) | Just f <- isDir p = f (var i) : collectDirs is ps
+                                      | otherwise = collectDirs is ps
+        collectDirs _ _ = __IMPOSSIBLE__
+        andI [] = Nothing
+        andI [t] = Just t
+        andI (t:ts) = (\ x -> imin `apply` [argN t, argN x]) <$> andI ts
+        orI [] = i0
+        orI (t:ts) = imax `apply` [argN t, argN (orI ts)]
+
+      let
+        pats = map (take n . map (namedThing . unArg) . namedClausePats) cs
+        alphas = map (collectDirs (downFrom n)) pats
+        psi = orI $ catMaybes $ map andI alphas
+      reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
+      interval <- elInf primInterval
+      reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
+      equalTerm interval (unArg phi) psi
+      return ()
+    _ -> __IMPOSSIBLE__
+
+  where
+checkSystemCoverage _ t cs = __IMPOSSIBLE__
 checkBodyEndPoints
   :: Telescope  -- ^ Δ current context? same clauseTel
   -> Type     -- ^ raised type of the function, Δ ⊢ T
@@ -424,7 +500,7 @@ checkClause
   :: Type          -- ^ Type of function defined by this clause.
   -> Maybe Substitution  -- ^ Module parameter substitution arising from with-abstraction.
   -> A.SpineClause -- ^ Clause.
-  -> TCM Clause    -- ^ Type-checked clause.
+  -> TCM (Clause,[Int])    -- ^ Type-checked clause and whether we performed a partial split
 
 checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 wh catchall) = do
     reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
@@ -438,7 +514,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
       closed_t <- flip abstract t <$> getContextTelescope
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs psplit) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
@@ -468,7 +544,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
               Irrelevant -> dontCare <$> body
               _          -> body
 
-        return $
+        return $ (,psplit)
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
                  , namedClausePats = ps
@@ -488,7 +564,7 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (Maybe Term, WithFunctionProblem)
 
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _) rhs0 = handleRHS rhs0
   where
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
@@ -624,7 +700,7 @@ checkWithRHS
   -> [A.Clause]              -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
 
-checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
+checkWithRHS x aux t (LHSResult npars delta ps trhs _) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
         let withArgs = withArguments vs0 as
             perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
@@ -828,6 +904,7 @@ containsAbsurdPattern p = case p of
     A.ProjP{}     -> False
     A.DefP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
+    A.EqualP{}    -> False
 
 -- | Set the current clause number.
 atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a

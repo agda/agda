@@ -84,6 +84,7 @@ instance ExpandPatternSynonyms A.Pattern where
     A.DefP i q as        -> A.DefP i q <$> expandPatternSynonyms as
     A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p
     A.RecP i as          -> A.RecP i <$> expandPatternSynonyms as
+    A.EqualP{}           -> return p
     A.PatternSynP i x as -> setCurrentRange i $ do
       p <- killRange <$> lookupPatternSyn x
         -- Must expand arguments before instantiating otherwise pattern
