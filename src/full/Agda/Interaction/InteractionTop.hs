@@ -967,7 +967,10 @@ give_gen ii rng s0 giveRefine = do
     modifyTheInteractionPoints $ replace ii iis
     -- print abstract expr
     ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
-    lift $ reportSLn "interaction.give" 30 $ "ce = " ++ show ce
+    lift $ reportSLn "interaction.give" 30 $ unlines
+      [ "ce = " ++ show ce
+      , "scopePrecedence = " ++ show (scopePrecedence scope)
+      ]
     -- if the command was @Give@, use the literal user input;
     -- Andreas, 2014-01-15, see issue 1020:
     -- Refine could solve a goal by introducing the sole constructor
