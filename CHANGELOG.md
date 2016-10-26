@@ -25,6 +25,11 @@ Important changes since 0.12:
 * Added order-theoretic lattices and some related properties in
   `Relation.Binary.Lattice` and `Relation.Binary.Properties`.
 
+* Added symmetric and equivalence closures of binary relations in
+  `Relation.Binary.SymmetricClosure` and
+  `Relation.Binary.EquivalenceClosure`.
+
+
 Version 0.12
 ============
 
