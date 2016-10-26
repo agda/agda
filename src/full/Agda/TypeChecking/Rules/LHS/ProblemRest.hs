@@ -149,6 +149,5 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
     let tau = raiseS n
     return $ LHSState
       { lhsProblem = p'
-      , lhsSubst   = applySubst tau (lhsSubst st)
       , lhsDPI     = applyPatSubst tau (lhsDPI st)
       }

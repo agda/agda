@@ -243,7 +243,6 @@ data AsBinding      = AsB Name Term Type
 -- | State worked on during the main loop of checking a lhs.
 data LHSState = LHSState
   { lhsProblem :: Problem
-  , lhsSubst   :: PatternSubstitution
   , lhsDPI     :: [DotPatternInst]
   }
 
