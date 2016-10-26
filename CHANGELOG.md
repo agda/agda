@@ -44,14 +44,15 @@ Important changes since 0.12:
   either explicitly or within records, have been made public in several
   `Properties.agda` files. These include:
 
-    Data.Bool.Properties
+  ```agda
+  Data.Bool.Properties
 
-    Data.Fin.Properties
+  Data.Fin.Properties
 
-    Data.Integer.Properties
-    Data.Integer.Addition.Properties
-    Data.Integer.Multiplication.Properties
-
+  Data.Integer.Properties
+  Data.Integer.Addition.Properties
+  Data.Integer.Multiplication.Properties
+  ```
 
 Version 0.12
 ============
