@@ -564,7 +564,6 @@ interpret Cmd_constraints =
     display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
   (pwe, pwa) <- interpretWarnings
   display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
