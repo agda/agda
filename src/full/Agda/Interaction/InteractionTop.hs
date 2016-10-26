@@ -544,7 +544,8 @@ interpret (Cmd_load m argv) =
   cmd_load' m argv True $ \_ -> interpret Cmd_metas
 
 interpret (Cmd_compile b file argv) =
-  cmd_load' file argv False $ \(i, mw) -> do
+  cmd_load' file argv (b == LaTeX) $ \(i, mw) -> do
+    mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
@@ -563,7 +564,6 @@ interpret Cmd_constraints =
     display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
   (pwe, pwa) <- interpretWarnings
   display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
@@ -917,7 +917,7 @@ data Backend = GHC
              | GHCNoMain
              | JS
              | LaTeX
-    deriving (Show, Read)
+    deriving (Show, Read, Eq)
 
 data GiveRefine = Give | Refine | Intro
   deriving (Eq, Show)
