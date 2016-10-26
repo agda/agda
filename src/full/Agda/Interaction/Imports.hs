@@ -1,5 +1,7 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -150,8 +152,13 @@ scopeCheckImport x = do
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
 data MaybeWarnings' a = NoWarnings | SomeWarnings a
-  deriving (Functor)
+  deriving (Functor, Foldable, Traversable)
 type MaybeWarnings = MaybeWarnings' [TCWarning]
+
+applyFlagsToMaybeWarnings :: IgnoreFlags -> MaybeWarnings -> TCM MaybeWarnings
+applyFlagsToMaybeWarnings r mw = do
+  w' <- traverse (applyFlagsToTCWarnings r) mw
+  return $ if null w' then NoWarnings else w'
 
 instance Null a => Null (MaybeWarnings' a) where
   empty = NoWarnings
