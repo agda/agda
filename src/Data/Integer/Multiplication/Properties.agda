@@ -29,18 +29,6 @@ open CommutativeSemiring ℕ.commutativeSemiring
 -- Multiplication and one form a commutative monoid
 
 private
-
-  identityˡ : LeftIdentity (+ 1) ℤ*
-  identityˡ (+ zero ) = refl
-  identityˡ -[1+  n ] rewrite proj₂ +-identity n = refl
-  identityˡ (+ suc n) rewrite proj₂ +-identity n = refl
-
-  comm : Commutative ℤ*
-  comm -[1+ a ] -[1+ b ] rewrite *-comm (suc a) (suc b) = refl
-  comm -[1+ a ] (+   b ) rewrite *-comm (suc a) b       = refl
-  comm (+   a ) -[1+ b ] rewrite *-comm a       (suc b) = refl
-  comm (+   a ) (+   b ) rewrite *-comm a       b       = refl
-
   lemma : ∀ a b c → c ℕ+ (b ℕ+ a ℕ* suc b) ℕ* suc c
                   ≡ c ℕ+ b ℕ* suc c ℕ+ a ℕ* suc (c ℕ+ b ℕ* suc c)
   lemma =
@@ -50,36 +38,48 @@ private
             refl
     where open ℕ.SemiringSolver
 
-  assoc : Associative ℤ*
-  assoc (+ zero) _ _ = refl
-  assoc x (+ zero) _ rewrite proj₂ *-zero ∣ x ∣ = refl
-  assoc x y (+ zero) rewrite
-      proj₂ *-zero ∣ y ∣
-    | proj₂ *-zero ∣ x ∣
-    | proj₂ *-zero ∣ sign x S* sign y ◃ ∣ x ∣ ℕ* ∣ y ∣ ∣
-    = refl
-  assoc -[1+ a  ] -[1+ b  ] (+ suc c) = cong (+_ ∘ suc) (lemma a b c)
-  assoc -[1+ a  ] (+ suc b) -[1+ c  ] = cong (+_ ∘ suc) (lemma a b c)
-  assoc (+ suc a) (+ suc b) (+ suc c) = cong (+_ ∘ suc) (lemma a b c)
-  assoc (+ suc a) -[1+ b  ] -[1+ c  ] = cong (+_ ∘ suc) (lemma a b c)
-  assoc -[1+ a  ] -[1+ b  ] -[1+ c  ] = cong -[1+_]     (lemma a b c)
-  assoc -[1+ a  ] (+ suc b) (+ suc c) = cong -[1+_]     (lemma a b c)
-  assoc (+ suc a) -[1+ b  ] (+ suc c) = cong -[1+_]     (lemma a b c)
-  assoc (+ suc a) (+ suc b) -[1+ c  ] = cong -[1+_]     (lemma a b c)
 
-  isSemigroup : IsSemigroup _ _
-  isSemigroup = record
+identityˡ : LeftIdentity (+ 1) ℤ*
+identityˡ (+ zero ) = refl
+identityˡ -[1+  n ] rewrite proj₂ +-identity n = refl
+identityˡ (+ suc n) rewrite proj₂ +-identity n = refl
+
+comm : Commutative ℤ*
+comm -[1+ a ] -[1+ b ] rewrite *-comm (suc a) (suc b) = refl
+comm -[1+ a ] (+   b ) rewrite *-comm (suc a) b       = refl
+comm (+   a ) -[1+ b ] rewrite *-comm a       (suc b) = refl
+comm (+   a ) (+   b ) rewrite *-comm a       b       = refl
+
+assoc : Associative ℤ*
+assoc (+ zero) _ _ = refl
+assoc x (+ zero) _ rewrite proj₂ *-zero ∣ x ∣ = refl
+assoc x y (+ zero) rewrite
+    proj₂ *-zero ∣ y ∣
+  | proj₂ *-zero ∣ x ∣
+  | proj₂ *-zero ∣ sign x S* sign y ◃ ∣ x ∣ ℕ* ∣ y ∣ ∣
+  = refl
+assoc -[1+ a  ] -[1+ b  ] (+ suc c) = cong (+_ ∘ suc) (lemma a b c)
+assoc -[1+ a  ] (+ suc b) -[1+ c  ] = cong (+_ ∘ suc) (lemma a b c)
+assoc (+ suc a) (+ suc b) (+ suc c) = cong (+_ ∘ suc) (lemma a b c)
+assoc (+ suc a) -[1+ b  ] -[1+ c  ] = cong (+_ ∘ suc) (lemma a b c)
+assoc -[1+ a  ] -[1+ b  ] -[1+ c  ] = cong -[1+_]     (lemma a b c)
+assoc -[1+ a  ] (+ suc b) (+ suc c) = cong -[1+_]     (lemma a b c)
+assoc (+ suc a) -[1+ b  ] (+ suc c) = cong -[1+_]     (lemma a b c)
+assoc (+ suc a) (+ suc b) -[1+ c  ] = cong -[1+_]     (lemma a b c)
+
+isSemigroup : IsSemigroup _ _
+isSemigroup = record
     { isEquivalence = isEquivalence
     ; assoc         = assoc
     ; ∙-cong        = cong₂ ℤ*
     }
 
-  isCommutativeMonoid : IsCommutativeMonoid _≡_ ℤ* (+ 1)
-  isCommutativeMonoid = record
-    { isSemigroup = isSemigroup
-    ; identityˡ   = identityˡ
-    ; comm        = comm
-    }
+isCommutativeMonoid : IsCommutativeMonoid _≡_ ℤ* (+ 1)
+isCommutativeMonoid = record
+  { isSemigroup = isSemigroup
+  ; identityˡ   = identityˡ
+  ; comm        = comm
+  }
 
 commutativeMonoid : CommutativeMonoid _ _
 commutativeMonoid = record
