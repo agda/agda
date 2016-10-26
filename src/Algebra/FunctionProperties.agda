@@ -91,3 +91,9 @@ Absorptive ∙ ∘ = (∙ Absorbs ∘) × (∘ Absorbs ∙)
 
 Involutive : Op₁ A → Set _
 Involutive f = ∀ x → f (f x) ≈ x
+
+Congruent₁ : Op₁ A → Set _
+Congruent₁ f = f Preserves _≈_ ⟶ _≈_
+
+Congruent₂ : Op₂ A → Set _
+Congruent₂ ∙ = ∙ Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
