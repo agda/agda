@@ -16,6 +16,8 @@ Important changes since 0.12:
 * Added the `length-filter` property to `Data.List.Properties` (the
   `filter` equivalent to the pre-existing `length-gfilter`).
 
+* Added `_≤?_` decision procedure for Data.Fin.
+
 * Added some `zip`/`unzip`-related properties to
   `Data.Vec.Properties`.
 
