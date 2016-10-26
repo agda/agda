@@ -184,6 +184,8 @@ last : ∀ {a n} {A : Set a} → Vec A (1 + n) → A
 last xs         with initLast xs
 last .(ys ∷ʳ y) | (ys , y , refl) = y
 
+-- Multiplying vectors
+
 infixl 1 _>>=_
 
 _>>=_ : ∀ {a b m n} {A : Set a} {B : Set b} →
@@ -195,6 +197,10 @@ infixl 4 _⊛*_
 _⊛*_ : ∀ {a b m n} {A : Set a} {B : Set b} →
        Vec (A → B) m → Vec A n → Vec B (m * n)
 fs ⊛* xs = fs >>= λ f → map f xs
+
+allPairs : ∀ {a b} {A : Set a} {B : Set b} {m n}
+           → Vec A m → Vec B n → Vec (A × B) (m * n)
+allPairs xs ys = map _,_ xs ⊛* ys
 
 -- Interleaves the two vectors.
 
@@ -222,7 +228,6 @@ tabulate {suc n} f = f zero ∷ tabulate (f ∘ suc)
 infixl 6 _[_]≔_
 
 _[_]≔_ : ∀ {a n} {A : Set a} → Vec A n → Fin n → A → Vec A n
-[]       [ ()    ]≔ y
 (x ∷ xs) [ zero  ]≔ y = y ∷ xs
 (x ∷ xs) [ suc i ]≔ y = x ∷ xs [ i ]≔ y
 

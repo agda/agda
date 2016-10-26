@@ -458,7 +458,7 @@ module Applicative where
 
   private
 
-    -- A variant of flip map.
+    -- A variant of flip map.
 
     pam : ∀ {ℓ} {A B : Set ℓ} → List A → (A → B) → List B
     pam xs f = xs >>= return ∘ f
@@ -517,8 +517,8 @@ module Applicative where
                 (pam xs f >>= fs) ≡ (xs >>= λ x → fs (f x))
     pam-lemma xs f fs = begin
       (pam xs f >>= fs)                   ≡⟨ P.sym $ Monad.associative xs (return ∘ f) fs ⟩
-      (xs >>= λ x → return (f x) >>= fs)  ≡⟨ Monad.cong (refl {x = xs}) (λ x → Monad.left-identity (f x) fs) ⟩
-      (xs >>= λ x → fs (f x))             ∎
+      (xs >>= λ x → return (f x) >>= fs)  ≡⟨ Monad.cong (refl {x = xs}) (λ x → Monad.left-identity (f x) fs) ⟩
+      (xs >>= λ x → fs (f x))             ∎
 
   composition :
     ∀ {ℓ} {A B C : Set ℓ}
