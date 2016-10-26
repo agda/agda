@@ -12,6 +12,19 @@ module Relation.Binary.Properties.Poset
 open Relation.Binary.Poset P hiding (trans)
 import Relation.Binary.NonStrictToStrict as Conv
 open Conv _≈_ _≤_
+open import Relation.Binary.Properties.Preorder preorder
+open import Function using (flip)
+
+-- The inverse relation is also a poset.
+
+invIsPartialOrder : IsPartialOrder _≈_ (flip _≤_)
+invIsPartialOrder = record
+  { isPreorder   = invIsPreorder
+  ; antisym      = flip antisym
+  }
+
+invPoset : Poset p₁ p₂ p₃
+invPoset = record { isPartialOrder = invIsPartialOrder }
 
 ------------------------------------------------------------------------
 -- Posets can be turned into strict partial orders

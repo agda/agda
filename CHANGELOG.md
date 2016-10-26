@@ -22,6 +22,9 @@ Important changes since 0.12:
 * Added an `All` predicate and related properties for `Data.Vec` (see
   `Data.Vec.All` and `Data.Vec.All.Properties`).
 
+* Added order-theoretic lattices and some related properties in
+  `Relation.Binary.Lattice` and `Relation.Binary.Properties`.
+
 Version 0.12
 ============
 
