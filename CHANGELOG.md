@@ -16,7 +16,12 @@ Important changes since 0.12:
 * Added the `length-filter` property to `Data.List.Properties` (the
   `filter` equivalent to the pre-existing `length-gfilter`).
 
-* Added `_≤?_` decision procedure for Data.Fin.
+* Added `_≤?_` decision procedure for `Data.Fin`.
+
+* Added `allPairs` function to `Data.Vec`.
+
+* Added additional properties of `_∈_` to `Data.Vec.Properties`:
+  `∈-map`, `∈-++ₗ`, `∈-++ᵣ`, `∈-allPairs`.
 
 * Added some `zip`/`unzip`-related properties to
   `Data.Vec.Properties`.
@@ -31,6 +36,15 @@ Important changes since 0.12:
   `Relation.Binary.SymmetricClosure` and
   `Relation.Binary.EquivalenceClosure`.
 
+* Added `Congruent₁` and `Congruent₂` to `Algebra.FunctionProperties`.
+  These are aliases for `_Preserves _≈_ ⟶ _≈_` and
+  `_Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_` from `Relation.Binary.Core`.
+
+* Useful lemmas and properties that were previously in private scope,
+  either explicitly or within records, have been made public in several
+  `Properties.agda` files. These include:
+
+    Data.Bool.Properties
 
 Version 0.12
 ============
