@@ -31,15 +31,23 @@ open DecTotalOrder N.decTotalOrder using () renaming (refl to ℕ≤-refl)
 ------------------------------------------------------------------------
 -- Properties
 
-private
-  drop-suc : ∀ {o} {m n : Fin o} → Fin.suc m ≡ suc n → m ≡ n
-  drop-suc refl = refl
+suc-injective : ∀ {o} {m n : Fin o} → Fin.suc m ≡ suc n → m ≡ n
+suc-injective refl = refl
 
 preorder : ℕ → Preorder _ _ _
 preorder n = P.preorder (Fin n)
 
 setoid : ℕ → Setoid _ _
 setoid n = P.setoid (Fin n)
+
+cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
+cmp zero    zero    = tri≈ (λ())     refl  (λ())
+cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
+cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
+cmp (suc i) (suc j) with cmp i j
+... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ suc-injective) (¬gt ∘ N.≤-pred)
+... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ suc-injective) (s≤s gt)
+... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
 
 strictTotalOrder : ℕ → StrictTotalOrder _ _ _
 strictTotalOrder n = record
@@ -52,15 +60,7 @@ strictTotalOrder n = record
     ; compare       = cmp
     }
   }
-  where
-  cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
-  cmp zero    zero    = tri≈ (λ())     refl  (λ())
-  cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
-  cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
-  cmp (suc i) (suc j) with cmp i j
-  ... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ drop-suc) (¬gt ∘ N.≤-pred)
-  ... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ drop-suc) (s≤s gt)
-  ... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
+
 
 decSetoid : ℕ → DecSetoid _ _
 decSetoid n = StrictTotalOrder.decSetoid (strictTotalOrder n)
