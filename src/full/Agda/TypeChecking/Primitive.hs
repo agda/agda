@@ -736,6 +736,7 @@ primComp = do
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   one <- primItIsOne
+  tempty <- primIsOneEmpty
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     unview <- intervalUnview'
     let
@@ -748,6 +749,7 @@ primComp = do
         sphi <- reduceB' phi
         vphi <- intervalView $ unArg $ ignoreBlocking sphi
         io   <- intervalUnview IOne
+        tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
         case vphi of
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
@@ -755,8 +757,10 @@ primComp = do
            let fallback = return $ NoReduction [notReduced l,reduced sc, reduced sphi, u', notReduced a0]
                  where
                    u' = case vphi of
-                          IZero -> reduced $ notBlocked $ argN $ runNames [] $
-                                      lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- TODO: primIsOneEmpty
+                          IZero -> reduced $ notBlocked $ argN $ runNames [] $ do
+                                      [l,c] <- mapM (open . unArg) [l, ignoreBlocking sc]
+                                      lam "i" $ \ i -> pure tEmpty <#> (l <@> i)
+                                                                   <#> (lam "o" $ \ _ -> c <@> i)
                           _     -> notReduced u
 
            case ignoreSharing $ unArg $ ignoreBlocking sc of
@@ -815,6 +819,7 @@ primComp = do
                _       -> return t
           _ -> return t
   compData l ps sc sphi u a0 = do
+    tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
     su  <- reduceB' u
     sa0 <- reduceB' a0
     view   <- intervalView'
@@ -826,8 +831,10 @@ primComp = do
         noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
           where
             su' = case view phi of
-                   IZero -> notBlocked $ argN $ runNames [] $
-                               lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- TODO: primIsOneEmpty
+                   IZero -> notBlocked $ argN $ runNames [] $ do
+                               [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
+                               lam "i" $ \ i -> pure tEmpty <#> (l <@> i)
+                                                            <#> (lam "o" $ \ _ -> c <@> i)
                    _     -> su
         sameConHead h u = allComponents unview phi u $ \ t ->
           case ignoreSharing t of
@@ -858,11 +865,12 @@ primComp = do
     p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
     tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
     tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
+    tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
     l <- open $ runNames [] (lam "i" (\ _ -> pure $ Level $ lvlView s))
     [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
     let transp p = pure tComp <#> l <@> p <@> iz
-                              <@> lam "i" (\ _ -> lam "o'" (\ _ ->
-                                                    pure (Sort Prop))) -- TODO: primIsOneEmpty
+                              <@> lam "i" (\ i -> pure tEmpty <#> (l <@> i)
+                                                              <#> (lam "o" $ \ _ -> p <@> i))
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
                <@> a0 <@> phi <@> (e <@> pure io)
                <@> lam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
