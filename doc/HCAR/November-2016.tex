@@ -1,0 +1,53 @@
+\documentclass{article}
+
+\usepackage{hcar}
+
+\begin{document}
+
+% Agda-NA.tex
+\begin{hcarentry}[section,updated]{Agda}
+\label{agda}
+\report{Ulf Norell}%11/13
+\status{actively developed}
+\participants{Ulf Norell, Nils Anders Danielsson, Andreas Abel,
+Jesper Cockx, Makoto Takeyama,
+Stevan Andjelkovic, Jean-Philippe Bernardy, James Chapman,
+Dominique Devriese, Peter Divianszki,
+Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson,
+Alan Jeffrey, Fredrik Lindblad, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez
+and many others}
+\makeheader
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). A central feature of Agda is inductive families,
+i.e., GADTs which can be indexed by \emph{values} and not just types.
+The language also supports coinductive types, parameterized modules,
+and mixfix operators, and comes with an \emph{interactive}
+interface---the type checker can assist you in the development of your
+code.
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of value as a
+platform for research and experiments in dependently typed programming.
+
+A lot has happened in the Agda project and community during the past year.
+For instance:
+\begin{itemize}
+\item Agda~2.5.1 was released in April 2016.
+\item An unprecedented amount of Agda documentation is hosted at
+\url{http://agda.readthedocs.org/en/stable/} and is being continuously improved.
+\item An all new metaprogramming interface (based on David Christiansen's
+work in Idris) gives tactic programmers fine-grained control over the
+type checking engine.
+\item A new unification algorithm for pattern matching has been implemented
+and published ({\em Unifiers as equivalences: proof-relevant unification of
+dependently typed data, ICFP 2016}) by Jesper Cockx et al.
+\end{itemize}
+Release of Agda~2.5.2 is planned for late 2016/early 2017.
+
+\FurtherReading
+  The Agda Wiki: \url{http://wiki.portal.chalmers.se/agda/}
+\end{hcarentry}
+
+\end{document}
