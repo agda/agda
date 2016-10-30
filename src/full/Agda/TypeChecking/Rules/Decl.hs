@@ -3,6 +3,8 @@
 
 module Agda.TypeChecking.Rules.Decl where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State (modify, gets, get)
@@ -69,11 +71,12 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Function
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -158,8 +161,6 @@ checkDecl d = setCurrentRange d $ do
         impossible  m = m $>  __IMPOSSIBLE__
                         -- We're definitely inside a mutual block.
 
-    let mi = Info.MutualInfo TerminationCheck True noRange
-
     finalChecks <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Field{}                -> typeError FieldOutsideRecord
@@ -172,7 +173,7 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
+      A.RecDef i x ind eta c ps tel cs -> mutual empty [d] $ check x i $ do
                                     checkRecDef i x ind eta c ps tel cs
                                     blockId <- mutualBlockOf x
 
@@ -729,18 +730,18 @@ checkPragma r p =
 -- All definitions which have so far been assigned to the given mutual
 -- block are returned.
 checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
-checkMutual i ds = inMutualBlock $ do
+checkMutual i ds = inMutualBlock $ \ blockId -> do
 
-  blockId <- currentOrFreshMutualBlock
   verboseS "tc.decl.mutual" 20 $ do
     reportSDoc "tc.decl.mutual" 20 $ vcat $
       (text "Checking mutual block" <+> text (show blockId) <> text ":") :
       map (nest 2 . prettyA) ds
 
+  setMutualBlockInfo blockId i
   local (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
     mapM_ checkDecl ds
 
-  (blockId, ) <$> lookupMutualBlock blockId
+  (blockId, ) . mutualNames <$> lookupMutualBlock blockId
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()

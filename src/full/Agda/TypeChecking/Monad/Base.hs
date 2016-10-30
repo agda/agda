@@ -184,7 +184,7 @@ data PostScopeState = PostScopeState
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
   , stPostTCWarnings          :: ![TCWarning]
-  , stPostMutualBlocks        :: !(Map MutualId (Set QName))
+  , stPostMutualBlocks        :: !(Map MutualId MutualBlock)
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
@@ -193,6 +193,16 @@ data PostScopeState = PostScopeState
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   }
+
+-- | A mutual block of names in the signature.
+data MutualBlock = MutualBlock
+  { mutualInfo  :: Info.MutualInfo
+    -- ^ The original info of the mutual block.
+  , mutualNames :: Set QName
+  } deriving (Show, Eq)
+
+instance Null MutualBlock where
+  empty = MutualBlock empty empty
 
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
@@ -482,7 +492,7 @@ stTCWarnings f s =
   f (stPostTCWarnings (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
 
-stMutualBlocks :: Lens' (Map MutualId (Set QName)) TCState
+stMutualBlocks :: Lens' (Map MutualId MutualBlock) TCState
 stMutualBlocks f s =
   f (stPostMutualBlocks (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualBlocks = x}}

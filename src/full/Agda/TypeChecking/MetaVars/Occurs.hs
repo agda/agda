@@ -117,7 +117,7 @@ initOccursCheck mv = modifyOccursCheckDefs . const =<<
          reportSLn "tc.meta.occurs" 20 $ "(none)"
          return Set.empty
        Just b  -> do
-         ds <- lookupMutualBlock b
+         ds <- mutualNames <$> lookupMutualBlock b
          reportSDoc "tc.meta.occurs" 20 $ sep $ map prettyTCM $ Set.toList ds
          return ds
 

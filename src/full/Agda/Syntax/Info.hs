@@ -167,6 +167,10 @@ data MutualInfo = MutualInfo
   }
   deriving (Typeable, Show, Eq)
 
+-- | Default value for 'MutualInfo'.
+instance Null MutualInfo where
+  empty = MutualInfo TerminationCheck True noRange
+
 instance HasRange MutualInfo where
   getRange = mutualRange
 
