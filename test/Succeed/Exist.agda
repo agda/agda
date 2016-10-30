@@ -1,4 +1,5 @@
 -- Testing parameterised records in parameterised modules
+
 module Exist (X : Set) where
 
 data [_] (a : Set) : Set where
@@ -26,4 +27,3 @@ mapP {a} {b} {P} {Q} f pres xs = map helper xs
   helper r = record { witness = f (∃.witness r)
                     ; proof   = pres (∃.proof r)
                     }
-

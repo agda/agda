@@ -40,8 +40,18 @@ inMutualBlock m = do
 setMutualBlockInfo :: MutualId -> Info.MutualInfo -> TCM ()
 setMutualBlockInfo mi info = stMutualBlocks %= Map.alter f mi
   where
-  f Nothing = Just $ MutualBlock info empty
+  f Nothing                   = Just $ MutualBlock info empty
   f (Just (MutualBlock _ xs)) = Just $ MutualBlock info xs
+
+-- | Set the mutual block info for a block if non-existing.
+
+insertMutualBlockInfo :: MutualId -> Info.MutualInfo -> TCM ()
+insertMutualBlockInfo mi info = stMutualBlocks %= Map.alter f mi
+  where
+  f Nothing = Just $ MutualBlock info empty
+  f (Just mb@(MutualBlock info0 xs))
+    | null info0 = Just $ MutualBlock info xs
+    | otherwise  = Just mb
 
 -- | Set the mutual block for a definition.
 

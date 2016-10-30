@@ -737,7 +737,7 @@ checkMutual i ds = inMutualBlock $ \ blockId -> do
       (text "Checking mutual block" <+> text (show blockId) <> text ":") :
       map (nest 2 . prettyA) ds
 
-  setMutualBlockInfo blockId i
+  insertMutualBlockInfo blockId i
   local (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
     mapM_ checkDecl ds
 
