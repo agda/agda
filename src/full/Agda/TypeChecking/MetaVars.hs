@@ -1164,13 +1164,14 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
       -- filter out duplicate irrelevants
       filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
--- | Used in 'Agda.Interaction.BasicOps.giveExpr'.
-updateMeta :: MetaId -> Term -> TCM ()
-updateMeta mI v = do
-    mv <- lookupMeta mI
-    withMetaInfo' mv $ do
-      args <- getContextArgs
-      noConstraints $ assignV DirEq mI args v
+-- UNUSED
+-- -- | Used in 'Agda.Interaction.BasicOps.giveExpr'.
+-- updateMeta :: MetaId -> Term -> TCM ()
+-- updateMeta mI v = do
+--     mv <- lookupMeta mI
+--     withMetaInfo' mv $ do
+--       args <- getContextArgs
+--       noConstraints $ assignV DirEq mI args v
 
 -- | Returns every meta-variable occurrence in the given type, except
 -- for those in 'Sort's.

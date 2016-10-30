@@ -372,20 +372,16 @@ highlight_ d = do
 checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  whenM (optTerminationCheck <$> pragmaOptions) $ do
-    case d of
+  case d of
       -- Record module definitions should not be termination-checked twice.
       A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
         termErrs <- termDecl d
         -- If there are some termination errors, we collect them in
-        -- the state and mark the definition as non-terminating so
-        -- that it does not get unfolded
+        -- the state.
+        -- The termination checker already marked non-terminating functions as such.
         unless (null termErrs) $ do
           warning $ TerminationIssue termErrs
-          case Seq.viewl (A.allNames d) of
-            nm Seq.:< _ -> setTerminates nm False
-            _           -> return ()
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()

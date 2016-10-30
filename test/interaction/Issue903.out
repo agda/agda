@@ -7,5 +7,5 @@
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 (agda2-give-action 3 "h")
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Set → Set ?1 : ?0 T ?2 : Set _19 : Id (?0 T) ?1 [ at Issue903.agda:18,18-32 ] _20 : Id (?0 T) ?1 [ at Issue903.agda:18,18-32 ] _21 : Id T (?1 tt) [ at 1,1-2 ] _22 : Id T (?1 tt) [ at 1,1-2 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [0] _21 := h [blocked on problem 28] [24] T → T = ?0 T : Set [0] _19 := e T ?1 _22 [blocked on problem 24] [28] tt = (?1 tt) : T " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Set → Set ?1 : ?0 T ?2 : Set _19 : Id (?0 T) ?1 [ at Issue903.agda:18,18-32 ] _20 : Id (?0 T) ?1 [ at Issue903.agda:18,18-32 ] _21 : Id T (?1 tt) [ at 1,1-2 ] _22 : Id T (?1 tt) [ at 1,1-2 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [28] tt = (?1 tt) : T [0] _19 := e T ?1 _22 [blocked on problem 24] [24] T → T = ?0 T : Set [0] _21 := h [blocked on problem 28] " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))

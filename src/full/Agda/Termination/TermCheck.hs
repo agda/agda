@@ -12,6 +12,7 @@
 
 module Agda.Termination.TermCheck
     ( termDecl
+    , termMutual
     , Result, DeBruijnPat
     ) where
 
@@ -111,7 +112,7 @@ termDecl' d = case d of
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ rds] <- unscopeDefs ds
                           -> termDecls rds
-    A.Mutual i ds         -> termMutual i $ getNames ds
+    A.Mutual i ds         -> termMutual $ getNames ds
     A.Section _ _ _ ds    -> termDecls ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
@@ -151,15 +152,17 @@ termDecl' d = case d of
     getName (A.UnquoteDef _ xs _)       = xs
     getName _                           = []
 
--- | Termination check the current mutual block.
+
+-- | Entry point: Termination check the current mutual block.
 
 termMutual
-  :: Info.MutualInfo
-  -> [QName]
+  :: [QName]
      -- ^ The function names defined in this block on top-level.
      --   (For error-reporting only.)
   -> TCM Result
-termMutual i0 names0 = do
+termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempty) $ {-else-}
+ disableDestructiveUpdate $ do
+
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
   -- during type-checking.
@@ -179,13 +182,6 @@ termMutual i0 names0 = do
         ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
-  unless (i0 == i) $ do
-    reportSLn "impossible" 10 $ unlines
-      [ "termMutual: MutualInfo mismatch"
-      , "  A.Mutual:  i0 = " ++ show i0
-      , "  TCM     :  i  = " ++ show i
-      ]
-    __IMPOSSIBLE__
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
 
@@ -228,11 +224,13 @@ termMutual i0 names0 = do
          -- Else: Old check, all at once.
          (runTerm $ termMutual')
 
-     -- record result of termination check in signature
+     -- Record result of termination check in signature.
+     -- If there are some termination errors, we collect them in
+     -- the state and mark the definition as non-terminating so
+     -- that it does not get unfolded
      let terminates = null res
      forM_ allNames $ \ q -> setTerminates q terminates
      return res
-
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
