@@ -316,7 +316,7 @@ auto ii rng argstr = do
                         case lookup mi riis of
                          Nothing ->
                           -- catchError
-                           (giveExpr mi expr >> return (Nothing, Nothing))
+                           (giveExpr Nothing mi expr >> return (Nothing, Nothing))
                            -- (const retry)
                            -- (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
                          Just ii' -> do ae <- give ii' Nothing expr

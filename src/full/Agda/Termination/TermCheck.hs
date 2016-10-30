@@ -12,6 +12,7 @@
 
 module Agda.Termination.TermCheck
     ( termDecl
+    , termMutual
     , Result, DeBruijnPat
     ) where
 
@@ -111,7 +112,7 @@ termDecl' d = case d of
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ rds] <- unscopeDefs ds
                           -> termDecls rds
-    A.Mutual i ds         -> termMutual i ds
+    A.Mutual i ds         -> termMutual $ getNames ds
     A.Section _ _ _ ds    -> termDecls ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
@@ -139,21 +140,37 @@ termDecl' d = case d of
     unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
     unscopeDef d = [d]
 
+    -- The mutual names mentioned in the abstract syntax
+    -- for symbols that need to be termination-checked.
+    getNames = concatMap getName
+    getName (A.FunDef i x delayed cs)   = [x]
+    getName (A.RecDef _ _ _ _ _ _ _ ds) = getNames ds
+    getName (A.Mutual _ ds)             = getNames ds
+    getName (A.Section _ _ _ ds)        = getNames ds
+    getName (A.ScopedDecl _ ds)         = getNames ds
+    getName (A.UnquoteDecl _ _ xs _)    = xs
+    getName (A.UnquoteDef _ xs _)       = xs
+    getName _                           = []
 
--- | Termination check a bunch of mutually inductive recursive definitions.
 
-termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
-termMutual i ds =
+-- | Entry point: Termination check the current mutual block.
 
-  -- We set the range to avoid panics when printing error messages.
-  setCurrentRange i $ do
+termMutual
+  :: [QName]
+     -- ^ The function names defined in this block on top-level.
+     --   (For error-reporting only.)
+  -> TCM Result
+termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempty) $ {-else-}
+ disableDestructiveUpdate $ do
 
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
   -- during type-checking.
   mid <- fromMaybe __IMPOSSIBLE__ <$> asks envMutualBlock
   mutualBlock <- lookupMutualBlock mid
-  let allNames = Set.elems mutualBlock
+  let allNames = Set.elems $ mutualNames mutualBlock
+      names    = if null names0 then allNames else names0
+      i        = mutualInfo mutualBlock
       -- Andreas, 2014-03-26
       -- Keeping recursion check after experiments on the standard lib.
       -- Seems still to save 1s.
@@ -164,6 +181,9 @@ termMutual i ds =
         -- Recursivity checker has to see through abstract definitions!
         ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+
+  -- We set the range to avoid panics when printing error messages.
+  setCurrentRange i $ do
 
   reportSLn "term.mutual" 10 $ "Termination checking " ++ show allNames
 
@@ -204,24 +224,13 @@ termMutual i ds =
          -- Else: Old check, all at once.
          (runTerm $ termMutual')
 
-     -- record result of termination check in signature
+     -- Record result of termination check in signature.
+     -- If there are some termination errors, we collect them in
+     -- the state and mark the definition as non-terminating so
+     -- that it does not get unfolded
      let terminates = null res
      forM_ allNames $ \ q -> setTerminates q terminates
      return res
-
-  where
-    getName (A.FunDef i x delayed cs) = [x]
-    getName (A.RecDef _ _ _ _ _ _ _ ds) = concatMap getName ds
-    getName (A.Mutual _ ds)       = concatMap getName ds
-    getName (A.Section _ _ _ ds)  = concatMap getName ds
-    getName (A.ScopedDecl _ ds)   = concatMap getName ds
-    getName (A.UnquoteDecl _ _ xs _) = xs
-    getName (A.UnquoteDef _ xs _)    = xs
-    getName _                     = []
-
-    -- the mutual names mentioned in the abstract syntax
-    names = concatMap getName ds
-
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.

@@ -30,8 +30,9 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.List
 import Agda.Utils.Functor
+import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 
 #include "undefined.h"
@@ -44,24 +45,25 @@ headSymbol v = do -- ignoreAbstractMode $ do
   v <- ignoreBlocking <$> reduceHead v
   case ignoreSharing v of
     Def f _ -> do
+      let yes = return $ Just $ ConsHead f
+          no  = return $ Nothing
       def <- theDef <$> do ignoreAbstractMode $ getConstInfo f
         -- Andreas, 2013-02-18
         -- if we do not ignoreAbstractMode here, abstract Functions get turned
         -- into Axioms, but we want to distinguish these.
       case def of
-        Datatype{}  -> return (Just $ ConsHead f)
-        Record{}    -> return (Just $ ConsHead f)
+        Datatype{}  -> yes
+        Record{}    -> yes
         Axiom{}     -> do
           reportSLn "tc.inj.axiom" 50 $ "headSymbol: " ++ show f ++ " is an Axiom."
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).
-          fs <- lookupMutualBlock =<< currentOrFreshMutualBlock
-          if Set.member f fs
-            then return Nothing
-            else return (Just $ ConsHead f)
-        Function{}    -> return Nothing
-        Primitive{}   -> return Nothing
+          caseMaybeM (asks envMutualBlock) yes $ \ mb -> do
+            fs <- mutualNames <$> lookupMutualBlock mb
+            if Set.member f fs then no else yes
+        Function{}    -> no
+        Primitive{}   -> no
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn  -> __IMPOSSIBLE__
     Con c _ -> return (Just $ ConsHead $ conName c)
