@@ -34,10 +34,6 @@ setMutualBlock i x = do
   stMutualBlocks %= Map.insertWith Set.union i (Set.singleton x)
   stSignature    %= updateDefinition x (\ defn -> defn { defMutual = i })
 
--- | Get all mutual blocks
-getMutualBlocks :: TCM [Set QName]
-getMutualBlocks = Map.elems <$> use stMutualBlocks
-
 -- | Get the current mutual block, if any, otherwise a fresh mutual
 -- block is returned.
 currentOrFreshMutualBlock :: TCM MutualId
@@ -56,10 +52,3 @@ mutualBlockOf x = do
   case filter (Set.member x . snd) mb of
     (i, _) : _ -> return i
     _          -> fail $ "No mutual block for " ++ show x
-
-findMutualBlock :: QName -> TCM (Set QName)
-findMutualBlock f = do
-  bs <- getMutualBlocks
-  case filter (Set.member f) bs of
-    []    -> fail $ "No mutual block for " ++ show f
-    b : _ -> return b
