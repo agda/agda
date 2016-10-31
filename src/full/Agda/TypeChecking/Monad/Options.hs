@@ -316,6 +316,9 @@ typeInType = not . optUniverseCheck <$> pragmaOptions
 etaEnabled :: TCM Bool
 etaEnabled = optEta <$> pragmaOptions
 
+maxInstanceSearchDepth :: TCM Int
+maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
+
 ------------------------------------------------------------------------
 -- Verbosity
 

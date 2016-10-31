@@ -353,7 +353,13 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
         a  <- instantiateFull =<< (`piApplyM` ctxArgs) =<< getMetaType m
         return (ok, v, a)
   result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
-  let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, r /= No ]
+
+  -- Check that there aren't any hard failures
+  case [ err | (_, ((HellNo err, _, _), _)) <- result ] of
+    err : _ -> throwError err
+    []      -> return ()
+
+  let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, not (isNo r) ]
       noMaybes = null [ Maybe | (_, ((Maybe, _, _), _)) <- result ]
             -- It's not safe to compare maybes for equality because they might
             -- not have instantiated at all.
@@ -399,8 +405,12 @@ dropSameCandidates m cands0 = do
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
 
-data YesNoMaybe = Yes | No | Maybe
-  deriving (Show, Eq)
+data YesNoMaybe = Yes | No | Maybe | HellNo TCErr
+  deriving (Show)
+
+isNo :: YesNoMaybe -> Bool
+isNo No = True
+isNo _  = False
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
@@ -429,8 +439,15 @@ checkCandidates m t cands = disableDestructiveUpdate $
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
+    checkDepth :: Term -> Type -> TCM YesNoMaybe -> TCM YesNoMaybe
+    checkDepth c a k = locally eInstanceDepth succ $ do
+      d        <- view eInstanceDepth
+      maxDepth <- maxInstanceSearchDepth
+      when (d > maxDepth) $ typeError $ InstanceSearchDepthExhausted c a maxDepth
+      k
+
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
-    checkCandidateForMeta m t (Candidate term t' eti _) = do
+    checkCandidateForMeta m t (Candidate term t' eti _) = checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m
@@ -487,11 +504,20 @@ checkCandidates m t cands = disableDestructiveUpdate $
               (return Yes)
               (\ _ -> Maybe <$ reportSLn "tc.instance" 50 "assignment inconclusive")
 
+          hardFailure :: TCErr -> Bool
+          hardFailure (TypeError _ err) =
+            case clValue err of
+              InstanceSearchDepthExhausted{} -> True
+              _                              -> False
+          hardFailure _ = False
+
           handle :: TCErr -> TCM YesNoMaybe
-          handle err = do
-            reportSDoc "tc.instance" 50 $
-              text "assignment failed:" <+> prettyTCM err
-            return No
+          handle err
+            | hardFailure err = return $ HellNo err
+            | otherwise       = do
+              reportSDoc "tc.instance" 50 $
+                text "assignment failed:" <+> prettyTCM err
+              return No
 
 isIFSConstraint :: Constraint -> Bool
 isIFSConstraint FindInScope{} = True

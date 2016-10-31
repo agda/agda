@@ -159,6 +159,7 @@ data PragmaOptions = PragmaOptions
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
+  , optInstanceSearchDepth       :: Int
   }
   deriving (Show,Eq)
 
@@ -249,6 +250,7 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optRewriting                 = False
   , optPostfixProjections        = False
+  , optInstanceSearchDepth       = 500
   }
 
 -- | The default termination depth.
@@ -448,6 +450,11 @@ rewritingFlag o = return $ o { optRewriting = True }
 
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
+
+instanceDepthFlag :: String -> Flag PragmaOptions
+instanceDepthFlag s o = do
+  d <- integerArgument "--instance-search-depth" s
+  return $ o { optInstanceSearchDepth = d }
 
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
@@ -700,6 +707,8 @@ pragmaOptions =
                     "enable declaration and use of REWRITE rules"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
+    , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
+                    "set instance search depth to N (default: 500)"
     ]
 
 -- | Used for printing usage info.
