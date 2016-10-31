@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveTraversable #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Pattern matcher used in the reducer for clauses that

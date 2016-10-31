@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.

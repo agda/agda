@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
 
 module Agda.Utils.PartialOrd where
 
