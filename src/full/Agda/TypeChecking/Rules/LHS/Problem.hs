@@ -1,7 +1,4 @@
 -- {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem where
 

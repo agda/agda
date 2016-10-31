@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                   #-}
-{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
 
 -- | @ListT@ done right,
