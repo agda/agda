@@ -11,6 +11,7 @@
 
 module Agda.TypeChecking.Substitute
   ( module Agda.TypeChecking.Substitute
+  , module Agda.TypeChecking.Substitute.DeBruijn
   , Substitution'(..), Substitution
   ) where
 
@@ -38,6 +39,7 @@ import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ
 
+import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -672,54 +674,6 @@ abstractArgs args x = abstract tel x
 ---------------------------------------------------------------------------
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
-
--- | Things we can substitute for a variable.
---   Needs to be able to represent variables, e.g. for substituting under binders.
-class DeBruijn a where
-
-  -- | Produce a variable without name suggestion.
-  deBruijnVar  :: Int -> a
-  deBruijnVar = debruijnNamedVar underscore
-
-  -- | Produce a variable with name suggestion.
-  debruijnNamedVar :: String -> Int -> a
-  debruijnNamedVar _ = deBruijnVar
-
-  -- | Are we dealing with a variable?
-  --   If yes, what is its index?
-  deBruijnView :: a -> Maybe Int
-
--- | We can substitute @Term@s for variables.
-instance DeBruijn Term where
-  deBruijnVar = var
-  deBruijnView u =
-    case ignoreSharing u of
-      Var i [] -> Just i
-      Level l -> deBruijnView l
-      _ -> Nothing
-
-instance DeBruijn LevelAtom where
-  deBruijnVar = NeutralLevel ReallyNotBlocked . deBruijnVar
-  deBruijnView l =
-    case l of
-      NeutralLevel _ u -> deBruijnView u
-      UnreducedLevel u -> deBruijnView u
-      MetaLevel{}    -> Nothing
-      BlockedLevel{} -> Nothing
-
-instance DeBruijn PlusLevel where
-  deBruijnVar = Plus 0 . deBruijnVar
-  deBruijnView l =
-    case l of
-      Plus 0 a -> deBruijnView a
-      _ -> Nothing
-
-instance DeBruijn Level where
-  deBruijnVar i = Max [deBruijnVar i]
-  deBruijnView l =
-    case l of
-      Max [p] -> deBruijnView p
-      _ -> Nothing
 
 -- See Syntax.Internal for the definition.
 
