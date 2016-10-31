@@ -430,7 +430,10 @@ checkCandidates m t cands = disableDestructiveUpdate $
         _       -> anyMetaTypes cands
 
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
-    checkCandidateForMeta m t (Candidate term t' eti _) = do
+    checkCandidateForMeta m t (Candidate term t' eti _) = locally eInstanceDepth succ $ do
+      d <- view eInstanceDepth
+      maxDepth <- maxInstanceSearchDepth
+      when (d > maxDepth) $ genericError "Instance search depth exhausted"
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m

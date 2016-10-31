@@ -2003,6 +2003,9 @@ data TCEnv =
                 --   of expressions are not used inside dot patterns: extended
                 --   lambdas and let-expressions.
           , envUnquoteFlags :: UnquoteFlags
+          , envInstanceDepth :: !Int
+                -- ^ Until we get a termination checker for instance search (#1743) we
+                --   limit the search depth to ensure termination.
           }
     deriving (Typeable)
 
@@ -2046,6 +2049,7 @@ initEnv = TCEnv { envContext             = []
                 , envPrintMetasBare         = False
                 , envInsideDotPattern       = False
                 , envUnquoteFlags           = defaultUnquoteFlags
+                , envInstanceDepth          = 0
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2154,6 +2158,9 @@ eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPat
 
 eUnquoteFlags :: Lens' UnquoteFlags TCEnv
 eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
+
+eInstanceDepth :: Lens' Int TCEnv
+eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
