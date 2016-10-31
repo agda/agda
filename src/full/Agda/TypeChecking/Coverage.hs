@@ -34,6 +34,7 @@ import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -53,6 +54,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.MetaVars
 
 import Agda.Interaction.Options
 
@@ -202,7 +204,16 @@ cover f cs sc@(SClause tel ps _ target) = do
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
-      return (SplittingDone (size tel), Set.empty, [ps])
+      case fmap getHiding target of
+        Just h | h == Instance -> do
+          -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
+          -- make sense to do it also for hidden, but since the value of a
+          -- hidden clause is expected to be forced by later clauses, it's too
+          -- late to add it now. If it was inferrable we would have gotten a
+          -- type error before getting to this point.
+          inferMissingClause f sc
+          return (SplittingDone (size tel), Set.empty, [])
+        _ -> return (SplittingDone (size tel), Set.empty, [ps])
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
@@ -304,6 +315,23 @@ cover f cs sc@(SClause tel ps _ target) = do
                     -> SplitTree -> (QName,SplitTree)
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
+
+inferMissingClause :: QName -> SplitClause -> TCM ()
+inferMissingClause f (SClause tel ps _ (Just t)) = setCurrentRange f $ do
+  reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
+  cl <- addContext tel $ do
+    (x, rhs) <- case getHiding t of
+                  Instance  -> newIFSMeta "" (unArg t)
+                  Hidden    -> __IMPOSSIBLE__
+                  NotHidden -> __IMPOSSIBLE__
+    return $ Clause { clauseRange     = noRange
+                    , clauseTel       = tel
+                    , namedClausePats = ps
+                    , clauseBody      = Just rhs
+                    , clauseType      = Just t
+                    , clauseCatchall  = False }
+  addClauses f [cl]
+inferMissingClause _ (SClause _ _ _ Nothing) = __IMPOSSIBLE__
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
 splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
