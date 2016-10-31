@@ -780,8 +780,9 @@ splitResult f sc@(SClause tel ps _ target) = do
             -- compute the new target
             dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
             let -- type of projection instantiated at self
-                target' = Just $ proj $> dType `piApply` pargs
-                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP projOrigin) proj]
+                target' = Just $ proj $> dType `piApply` pargs      -- Always visible (#2287)
+                projArg = fmap (Named Nothing . ProjP projOrigin) $ setHiding NotHidden proj
+                sc' = sc { scPats   = scPats sc ++ [projArg]
                          , scSubst  = idS
                          , scTarget = target'
                          }
