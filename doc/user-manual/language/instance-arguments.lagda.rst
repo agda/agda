@@ -259,10 +259,14 @@ first uses the ``Eq A`` instance and the second uses a recursive call to
 instance argument of type ``Eq Nat``, it will then solve that with ``eqNat``
 and return the solution ``eqList {{eqNat}}``.
 
-.. warning::
+.. note::
    At the moment there is no termination check on instances, so it is possible
-   to make instance resolution loop by defining non-sensical instances like
+   to construct non-sensical instances like
    ``loop : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq A``.
+   To prevent looping in cases like this, the search depth of instance search
+   is limited, and once the maximum depth is reached, a type error will be
+   thrown. You can set the maximum depth using the ``--instance-search-depth``
+   flag.
 
 Constructor instances
 +++++++++++++++++++++
