@@ -98,3 +98,17 @@ instance fields as *overlappable* using the ``overlap`` keyword::
 Whenever there are multiple valid candidates for an instance goal, if **all** candidates
 are overlappable, the goal is solved by the left-most candidate. In the example above
 that means that the ``Eq A`` goal is solved by the instance from the ``Ord`` argument.
+
+Clauses for instance fields can be omitted when defining values of record
+types. For instance we can define ``Nat`` instances for ``Eq``, ``Ord`` and
+``Num`` as follows, leaving out cases for the ``eqA`` fields::
+
+  instance
+    EqNat : Eq Nat
+    _==_ {{EqNat}} = Agda.Builtin.Nat._==_
+
+    OrdNat : Ord Nat
+    _<_ {{OrdNat}} = Agda.Builtin.Nat._<_
+
+    NumNat : Num Nat
+    fromNat {{NumNat}} n = n

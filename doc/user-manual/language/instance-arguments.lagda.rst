@@ -159,6 +159,8 @@ This will bring into scope
     mempty = undefined
     _<>_   = undefined
 
+Superclass dependencies can be implemented using :ref:`instance-fields`.
+
 See :ref:`module-application` and :ref:`record-modules` for details about how
 the module application is desugared. If defined by hand, ``mempty`` would be
 
