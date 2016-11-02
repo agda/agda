@@ -288,7 +288,7 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
 -- | Make clause with no rhs (because of absurd match).
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
-makeAbsurdClause f (SClause tel ps _ t) = do
+makeAbsurdClause f (SClause tel ps _ _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeCase: split clause:"
     , nest 2 $ vcat

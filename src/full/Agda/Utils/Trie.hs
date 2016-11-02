@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
 
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 

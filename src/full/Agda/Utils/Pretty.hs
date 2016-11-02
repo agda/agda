@@ -76,3 +76,8 @@ align :: Int -> [(String, Doc)] -> Doc
 align max rows =
   vcat $ map (\(s, d) -> text s $$ nest (maxLen + 1) d) $ rows
   where maxLen = maximum $ 0 : filter (< max) (map (length . fst) rows)
+
+-- | Handles strings with newlines properly (preserving indentation)
+multiLineText :: String -> Doc
+multiLineText = vcat . map text . lines
+

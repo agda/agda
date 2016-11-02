@@ -1,4 +1,4 @@
-{-# OPTIONS -v tc.size.solve:100 #-}
+-- {-# OPTIONS -v tc.size.solve:100 #-}
 
 open import Agda.Builtin.Size
 

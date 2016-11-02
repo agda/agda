@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP                   #-}
-{-# LANGUAGE DeriveFoldable        #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE DeriveTraversable     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
 {-# OPTIONS_GHC -fno-cse #-}
@@ -544,7 +541,8 @@ interpret (Cmd_load m argv) =
   cmd_load' m argv True $ \_ -> interpret Cmd_metas
 
 interpret (Cmd_compile b file argv) =
-  cmd_load' file argv False $ \(i, mw) -> do
+  cmd_load' file argv (b == LaTeX) $ \(i, mw) -> do
+    mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
@@ -563,7 +561,6 @@ interpret Cmd_constraints =
     display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
   (pwe, pwa) <- interpretWarnings
   display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
@@ -917,7 +914,7 @@ data Backend = GHC
              | GHCNoMain
              | JS
              | LaTeX
-    deriving (Show, Read)
+    deriving (Show, Read, Eq)
 
 data GiveRefine = Give | Refine | Intro
   deriving (Eq, Show)
@@ -967,7 +964,10 @@ give_gen ii rng s0 giveRefine = do
     modifyTheInteractionPoints $ replace ii iis
     -- print abstract expr
     ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
-    lift $ reportSLn "interaction.give" 30 $ "ce = " ++ show ce
+    lift $ reportSLn "interaction.give" 30 $ unlines
+      [ "ce = " ++ show ce
+      , "scopePrecedence = " ++ show (scopePrecedence scope)
+      ]
     -- if the command was @Give@, use the literal user input;
     -- Andreas, 2014-01-15, see issue 1020:
     -- Refine could solve a goal by introducing the sole constructor

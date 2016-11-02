@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE CPP               #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -14,6 +13,11 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
+
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Foldable ( Foldable )
+import Data.Traversable ( Traversable, traverse )
+#endif
 
 import Data.Function (on)
 import qualified Data.Map as Map
@@ -150,8 +154,13 @@ scopeCheckImport x = do
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
 data MaybeWarnings' a = NoWarnings | SomeWarnings a
-  deriving (Functor)
+  deriving (Functor, Foldable, Traversable)
 type MaybeWarnings = MaybeWarnings' [TCWarning]
+
+applyFlagsToMaybeWarnings :: IgnoreFlags -> MaybeWarnings -> TCM MaybeWarnings
+applyFlagsToMaybeWarnings r mw = do
+  w' <- traverse (applyFlagsToTCWarnings r) mw
+  return $ if null w' then NoWarnings else w'
 
 instance Null a => Null (MaybeWarnings' a) where
   empty = NoWarnings

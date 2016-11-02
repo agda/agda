@@ -1,9 +1,6 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -184,7 +181,7 @@ data PostScopeState = PostScopeState
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
   , stPostTCWarnings          :: ![TCWarning]
-  , stPostMutualBlocks        :: !(Map MutualId (Set QName))
+  , stPostMutualBlocks        :: !(Map MutualId MutualBlock)
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
@@ -193,6 +190,16 @@ data PostScopeState = PostScopeState
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   }
+
+-- | A mutual block of names in the signature.
+data MutualBlock = MutualBlock
+  { mutualInfo  :: Info.MutualInfo
+    -- ^ The original info of the mutual block.
+  , mutualNames :: Set QName
+  } deriving (Show, Eq)
+
+instance Null MutualBlock where
+  empty = MutualBlock empty empty
 
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
@@ -482,7 +489,7 @@ stTCWarnings f s =
   f (stPostTCWarnings (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
 
-stMutualBlocks :: Lens' (Map MutualId (Set QName)) TCState
+stMutualBlocks :: Lens' (Map MutualId MutualBlock) TCState
 stMutualBlocks f s =
   f (stPostMutualBlocks (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualBlocks = x}}
@@ -2001,6 +2008,9 @@ data TCEnv =
                 --   of expressions are not used inside dot patterns: extended
                 --   lambdas and let-expressions.
           , envUnquoteFlags :: UnquoteFlags
+          , envInstanceDepth :: !Int
+                -- ^ Until we get a termination checker for instance search (#1743) we
+                --   limit the search depth to ensure termination.
           }
     deriving (Typeable)
 
@@ -2044,6 +2054,7 @@ initEnv = TCEnv { envContext             = []
                 , envPrintMetasBare         = False
                 , envInsideDotPattern       = False
                 , envUnquoteFlags           = defaultUnquoteFlags
+                , envInstanceDepth          = 0
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2152,6 +2163,9 @@ eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPat
 
 eUnquoteFlags :: Lens' UnquoteFlags TCEnv
 eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
+
+eInstanceDepth :: Lens' Int TCEnv
+eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
@@ -2550,6 +2564,8 @@ data TypeError
         | NeedOptionRewriting
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
+    -- Instance search errors
+        | InstanceSearchDepthExhausted Term Type Int
           deriving (Typeable, Show)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.

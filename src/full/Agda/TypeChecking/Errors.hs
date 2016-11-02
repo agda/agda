@@ -357,6 +357,7 @@ errorString err = case err of
   HidingMismatch{}                         -> "HidingMismatch"
   RelevanceMismatch{}                      -> "RelevanceMismatch"
   NonFatalErrors{}                         -> "NonFatalErrors"
+  InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1238,6 +1239,10 @@ instance PrettyTCM TypeError where
       pwords "Option --rewriting needed to add and use rewrite rules"
 
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
+
+    InstanceSearchDepthExhausted c a d -> fsep $
+      pwords ("Instance search depth exhaused (max depth: " ++ show d ++ ") for candidate") ++
+      [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
 
     where
     mpar n args

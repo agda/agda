@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 

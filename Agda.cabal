@@ -439,6 +439,8 @@ library
                     Agda.TypeChecking.SizedTypes.Utils
                     Agda.TypeChecking.SizedTypes.WarshallSolver
                     Agda.TypeChecking.Substitute
+                    Agda.TypeChecking.Substitute.Class
+                    Agda.TypeChecking.Substitute.DeBruijn
                     Agda.TypeChecking.SyntacticEquality
                     Agda.TypeChecking.Telescope
                     Agda.TypeChecking.Unquote
@@ -566,6 +568,9 @@ library
   default-extensions: ConstraintKinds
                     , DataKinds
                     , DefaultSignatures
+                    , DeriveFunctor
+                    , DeriveFoldable
+                    , DeriveTraversable
                     , ExistentialQuantification
                     , FlexibleContexts
                     , FlexibleInstances

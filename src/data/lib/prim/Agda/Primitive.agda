@@ -60,8 +60,8 @@ postulate
 {-# BUILTIN PARTIALP     PartialP #-}
 
 postulate
-  empty : ∀ {a} {A : Partial (Set a) i0} → PartialP i0 A
-{-# BUILTIN ISONEEMPTY empty #-}
+  isOneEmpty : ∀ {a} {A : Partial (Set a) i0} → PartialP i0 A
+{-# BUILTIN ISONEEMPTY isOneEmpty #-}
 
 primitive
   primPFrom1 : ∀ {a} {A : I → Set a} → A i1 → ∀ i j → Partial (A (primIMax i j)) i

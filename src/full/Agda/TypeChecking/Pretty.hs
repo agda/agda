@@ -19,6 +19,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad
 
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -76,6 +77,9 @@ prettyAs x = AP.prettyAs x
 
 text :: String -> TCM Doc
 text s = return $ P.text s
+
+multiLineText :: String -> TCM Doc
+multiLineText s = return $ P.multiLineText s
 
 pwords :: String -> [TCM Doc]
 pwords s = map return $ P.pwords s
@@ -177,6 +181,9 @@ instance (Show a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
       (rho1, rho2) = splitS 1 rho
       u            = lookupS rho2 0
 
+instance PrettyTCM ModuleParameters where
+  prettyTCM = prettyTCM . mpSubstitution
+
 instance PrettyTCM Clause where
   prettyTCM cl = do
     x <- qualify_ <$> freshName_ "<unnamedclause>"
@@ -203,6 +210,10 @@ instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
   prettyTCM x = prettyA =<< reify x
+
+instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where
+  prettyTCM m = text "Map" <> braces (sep $ punctuate comma
+    [ hang (prettyTCM k <+> text "=") 2 (prettyTCM v) | (k, v) <- Map.toList m ])
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} PrettyTCM ArgName where

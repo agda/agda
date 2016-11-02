@@ -578,8 +578,8 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem pxs qs delta rest) sigma dpi
-      <- checkLHS f $ LHSState problem0 idS []
+    LHSState problem@(Problem pxs qs delta rest) dpi
+      <- checkLHS f $ LHSState problem0 []
 
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
@@ -655,7 +655,7 @@ checkLHS
   :: Maybe QName       -- ^ The name of the definition we are checking.
   -> LHSState          -- ^ The current state.
   -> TCM LHSState      -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem sigma dpi) = do
+checkLHS f st@(LHSState problem dpi) = do
 
   problem <- insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
@@ -684,7 +684,7 @@ checkLHS f st@(LHSState problem sigma dpi) = do
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' sigma dpi)
+      st' <- updateProblemRest (LHSState problem' dpi)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
@@ -694,7 +694,7 @@ checkLHS f st@(LHSState problem sigma dpi) = do
 
     trySplit (Split p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
 
-      -- substitute the literal in p1 and sigma and dpi
+      -- substitute the literal in p1 and dpi
       let delta1 = problemTel p0
           delta2 = absApp (fmap problemTel p1) (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
@@ -703,7 +703,6 @@ checkLHS f st@(LHSState problem sigma dpi) = do
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
-          sigma'   = applySubst rho sigma
           dpi'     = applyPatSubst rho dpi
           ip'      = applySubst rho ip
           rest'    = applyPatSubst rho (problemRest problem)
@@ -712,7 +711,7 @@ checkLHS f st@(LHSState problem sigma dpi) = do
       let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
           delta'   = abstract delta1 delta2
           problem' = Problem ps' ip' delta' rest'
-      st' <- updateProblemRest (LHSState problem' sigma' dpi')
+      st' <- updateProblemRest (LHSState problem' dpi')
       checkLHS f st'
 
     -- Split on constructor pattern (unifier might fail)
@@ -955,24 +954,20 @@ checkLHS f st@(LHSState problem sigma dpi) = do
               ]
 
           -- Apply the substitution
-          let sigma'   = applySubst rho sigma
-              ip'      = applySubst rho ip
+          let ip'      = applySubst rho ip
               rest'    = applyPatSubst rho (problemRest problem)
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
-              [ text "sigma'  =" <+> prettyTCM sigma'
-              , text "ip'     =" <+> text (show ip)
-              ]
+              [ text "ip' =" <+> text (show ip) ]
 
           -- Construct the new problem
           let problem' = Problem ps' ip' delta' rest'
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st'@(LHSState problem'@(Problem ps' ip' delta' rest')
-                        sigma' dpi')
-            <- updateProblemRest $ LHSState problem' sigma' dpi'
+          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi')
+            <- updateProblemRest $ LHSState problem' dpi'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"
