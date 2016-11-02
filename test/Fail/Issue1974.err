@@ -1,4 +1,4 @@
 Issue1974.agda:37,22-24
-No instance of type R₁ (λ v → _F_21 v) was found in scope.
+No instance of type R₁ (λ v → _F_22 v) was found in scope.
 when checking that a is a valid argument to a function of type
 {F = F₁ : Set → Set} {{r : R₁ F₁}} {A = A₁ : Set} → A₁ → F₁ A₁

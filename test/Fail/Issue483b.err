@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [0] _13 := λ .x → refl [blocked on problem 18]
-  [18] _9 _ = f _ : A
+  [0] _14 := λ .x → refl [blocked on problem 18]
+  [18] _10 _ = f _ : A
 Unsolved metas at the following locations:
   Issue483b.agda:12,16-17
   Issue483b.agda:14,10-14

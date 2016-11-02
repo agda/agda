@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [19] _13 _ = refute _ : ⊥
-  [0] _14 := λ .x → refl [blocked on problem 19]
+  [19] _15 _ = refute _ : ⊥
+  [0] _16 := λ .x → refl [blocked on problem 19]
 Unsolved metas at the following locations:
   Issue483c.agda:20,9-10
   Issue483c.agda:21,9-13

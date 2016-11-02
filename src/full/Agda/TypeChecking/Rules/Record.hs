@@ -2,10 +2,14 @@
 
 module Agda.TypeChecking.Rules.Record where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.Maybe
 import qualified Data.Set as Set
+
+import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -24,16 +28,14 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
+import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, forceSort)
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
-import Agda.Utils.Size
-import Agda.Utils.Permutation
 import Agda.Utils.Monad
-
-import Agda.Interaction.Options
-
+import Agda.Utils.Null
+import Agda.Utils.Permutation
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -99,10 +101,9 @@ checkRecDef i name ind eta con ps contel fields =
       -- Compute correct type of constructor
 
       -- t = tel -> t0 where t0 must be a sort s
-      t0' <- normalise t0
-      s <- case ignoreSharing $ unEl t0' of
-        Sort s  -> return s
-        _       -> typeError $ ShouldBeASort t0
+      TelV idxTel s <- telView t0
+      unless (null idxTel) $ typeError $ ShouldBeASort t0
+      s <- forceSort s
 
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)

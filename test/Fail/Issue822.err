@@ -1,3 +1,3 @@
 Issue822.agda:23,5-10
 Type mismatch
-when checking that the pattern D.[ A ] has type _3
+when checking that the pattern D.[ A ] has type _5

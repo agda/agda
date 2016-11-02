@@ -1,4 +1,4 @@
 Issue2047.agda:26,9-22
-F _P_25 n != (λ { (valSuc n₁) → anything }) anything of type Set
+F _P_27 n != (λ { (valSuc n₁) → anything }) anything of type Set
 when checking that the expression anyF anything has type
 Any (LR .n)

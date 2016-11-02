@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.Data where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Except
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe)
@@ -79,16 +80,26 @@ checkDataDef i name ps cs =
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
             -- the indices. We count the number of indices and return s.
             -- We check that s is a sort.
-            (nofIxs, s) <- splitType t0
+            let TelV ixTel s0 = telView' t0
+                nofIxs = size ixTel
 
-            when (any (`freeIn` s) [0..nofIxs - 1]) $ do
-              err <- fsep [ text "The sort of" <+> prettyTCM name
+            s <- workOnTypes $ do
+              -- Andreas, 2016-11-02 issue #2290
+              -- Trying to unify the sort with a fresh sort meta which is
+              -- defined outside the index telescope is the most robust way
+              -- to check independence of the indices.
+              -- However, it might give the dreaded "Cannot instantiate meta..."
+              -- error which we replace by a more understandable error
+              -- in case of a suspected dependency.
+              s <- newSortMetaBelowInf
+              catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
+                  if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
+                     fsep [ text "The sort of" <+> prettyTCM name
                           , text "cannot depend on its indices in the type"
                           , prettyTCM t0
                           ]
-              typeError $ GenericError $ show err
-
-            s <- return $ raise (-nofIxs) s
+                  else throwError err
+              return s
 
             -- the small parameters are taken into consideration for --without-K
             smallPars <- smallParams tel s
@@ -158,19 +169,16 @@ checkDataDef i name ps cs =
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
-    where
-      -- Take a type of form @tel -> a@ and return
-      -- @size tel@ (number of data type indices) and
-      -- @a@ as a sort (either @a@ directly if it is a sort,
-      -- or a fresh sort meta set equal to a.
-      splitType :: Type -> TCM (Int, Sort)
-      splitType t = case ignoreSharing $ unEl t of
-        Pi a b -> mapFst (+ 1) <$> do addContext (absName b, a) $ splitType (absBody b)
-        Sort s -> return (0, s)
-        _      -> do
-          s <- newSortMeta
-          equalType t (sort s)
-          return (0, s)
+
+-- | Ensure that the type is a sort.
+--   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.
+forceSort :: Type -> TCM Sort
+forceSort t = case ignoreSharing $ unEl t of
+  Sort s -> return s
+  _      -> do
+    s <- newSortMetaBelowInf
+    equalType t (sort s)
+    return s
 
 
 -- | A parameter is small if its sort fits into the data sort.

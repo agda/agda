@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [0] _17 := refl [blocked on problem 36]
-  [36] assert (g (_11 false) false ≡ g true false) refl (_11 false)
+  [0] _18 := refl [blocked on problem 36]
+  [36] assert (g (_12 false) false ≡ g true false) refl (_12 false)
        = true
          : Bool
 Unsolved metas at the following locations:

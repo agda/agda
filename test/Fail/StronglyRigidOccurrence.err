@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [0] _11 := refl [blocked on problem 14]
-  [14] _9 = suc _9 : Nat
+  [0] _13 := refl [blocked on problem 14]
+  [14] _11 = suc _11 : Nat
 Unsolved metas at the following locations:
   StronglyRigidOccurrence.agda:13,25-26
   StronglyRigidOccurrence.agda:14,8-12

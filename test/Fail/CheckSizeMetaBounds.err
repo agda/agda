@@ -1,6 +1,6 @@
 CheckSizeMetaBounds.agda:23,1-24,30
 Cannot solve size constraints
-[.i, .j, n] .j < ∞ |- _i_16 .i .j n ≤ _j_15 .i .j n
-[.i, .j, n] .j < ∞ |- ↑ _j_15 .i .j n ≤ .i
-Reason: inconsistent upper bound for 15
+[.i, .j, n] .j < ∞ |- _i_18 .i .j n ≤ _j_17 .i .j n
+[.i, .j, n] .j < ∞ |- ↑ _j_17 .i .j n ≤ .i
+Reason: inconsistent upper bound for 17
 when checking the definition of magic
