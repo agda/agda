@@ -77,6 +77,9 @@ prettyAs x = AP.prettyAs x
 text :: String -> TCM Doc
 text s = return $ P.text s
 
+multiLineText :: String -> TCM Doc
+multiLineText s = return $ P.multiLineText s
+
 pwords :: String -> [TCM Doc]
 pwords s = map return $ P.pwords s
 
