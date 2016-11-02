@@ -141,24 +141,36 @@ assignTerm' x tel v = do
 
 -- * Creating meta variables.
 
+-- | Create a sort meta that cannot be instantiated with 'Inf' (Setω).
+newSortMetaBelowInf :: TCM Sort
+newSortMetaBelowInf = newSortMeta' $ HasType ()
+
+-- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMeta :: TCM Sort
-newSortMeta =
+newSortMeta = newSortMeta' $ IsSort ()
+
+newSortMeta' :: (Type -> Judgement ()) -> TCM Sort
+newSortMeta' judge =
   ifM typeInType (return $ mkType 0) $ {- else -}
-  ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
+  ifM hasUniversePolymorphism (newSortMetaCtx' judge =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
        lvl <- levelType
-       x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () lvl -- WAS: topSort
+       x   <- newMeta i normalMetaPriority (idP 0) $ judge lvl
        return $ Type $ Max [Plus 0 $ MetaLevel x []]
 
+-- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMetaCtx :: Args -> TCM Sort
-newSortMetaCtx vs =
+newSortMetaCtx = newSortMetaCtx' $ IsSort ()
+
+newSortMetaCtx' :: (Type -> Judgement ()) -> Args -> TCM Sort
+newSortMetaCtx' judge vs = do
   ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
     lvl <- levelType
-    let t = telePi_ tel lvl -- WAS: topSort
-    x   <- newMeta i normalMetaPriority (idP 0) (IsSort () t)
+    let t = telePi_ tel lvl
+    x   <- newMeta i normalMetaPriority (idP 0) $ judge t
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
     return $ Type $ Max [Plus 0 $ MetaLevel x $ map Apply vs]

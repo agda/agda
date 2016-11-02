@@ -168,7 +168,7 @@ checkDataDef i name ps cs =
         Pi a b -> mapFst (+ 1) <$> do addContext (absName b, a) $ splitType (absBody b)
         Sort s -> return (0, s)
         _      -> do
-          s <- newSortMeta
+          s <- newSortMetaBelowInf
           equalType t (sort s)
           return (0, s)
 
