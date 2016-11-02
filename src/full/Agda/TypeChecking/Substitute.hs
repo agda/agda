@@ -785,6 +785,9 @@ instance Subst Term Constraint where
     where
       rf x = applySubst rho x
 
+instance Subst Term ModuleParameters where
+  applySubst rho mp = mp { mpSubstitution = applySubst rho $ mpSubstitution mp }
+
 instance Subst Term A.NamedDotPattern where
   applySubst rho (A.NamedDot x v a) = A.NamedDot x (applySubst rho v) (applySubst rho a)
 
@@ -811,6 +814,9 @@ instance Subst t a => Subst t (Maybe a) where
 
 instance Subst t a => Subst t [a] where
   applySubst rho = map (applySubst rho)
+
+instance (Ord k, Subst t a) => Subst t (Map k a) where
+  applySubst rho = fmap (applySubst rho)
 
 instance Subst Term () where
   applySubst _ _ = ()

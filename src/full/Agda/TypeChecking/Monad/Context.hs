@@ -100,7 +100,7 @@ updateModuleParameters sub ret = do
     , "  cxt = " ++ unwords (map (show . fst . unDom) cxt)
     , showMP "  old = " pm
     ]
-  let pm' = Map.map f pm
+  let pm' = applySubst sub pm
   reportSLn "tc.cxt.param" 90 $ showMP "  new = " pm'
   stModuleParameters .= pm'
   x <- ret              -- We need to keep introduced modules around
@@ -109,8 +109,6 @@ updateModuleParameters sub ret = do
   stModuleParameters .= pm''
   reportSLn "tc.cxt.param" 90 $ showMP "  restored = " pm''
   return x
-  where
-    f mp = mp { mpSubstitution = composeS sub (mpSubstitution mp) }
 
 -- | Since the @ModuleParamDict@ is relative to the current context,
 --   this function should be called everytime the context is extended.
