@@ -74,7 +74,7 @@ import Agda.Utils.Impossible
 --
 --   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
 --
---   [@Δ₁ ⊢ as'@]  types with with-arguments depending only on @Δ₁@.
+--   [@Δ₁ ⊢ as'@]  types of with-arguments depending only on @Δ₁@.
 --
 --   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
 
@@ -85,17 +85,17 @@ splitTelForWith
   -> [EqualityView] -- ^ __@Δ ⊢ as@__   types of with arguments.
   -> [Term]         -- ^ __@Δ ⊢ vs@__   with arguments.
   -- Output:
-  -> ( Telescope    -- @Δ₁@       part of context not needed for with arguments and their types.
-     , Telescope    -- @Δ₂@       part of context needed for with arguments and their types.
+  -> ( Telescope    -- @Δ₁@       part of context needed for with arguments and their types.
+     , Telescope    -- @Δ₂@       part of context not needed for with arguments and their types.
      , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
      , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [EqualityView] -- @Δ₁ ⊢ as'@ types with with- and rewrite-arguments depending only on @Δ₁@.
+     , [EqualityView] -- @Δ₁ ⊢ as'@ types of with- and rewrite-arguments depending only on @Δ₁@.
      , [Term]       -- @Δ₁ ⊢ vs'@ with- and rewrite-arguments under @π@.
      )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@as'@__,__@vs'@__) where
 --
---   [@Δ₁@]        part of context not needed for with arguments and their types.
+--   [@Δ₁@]        part of context needed for with arguments and their types.
 --
---   [@Δ₂@]        part of context needed for with arguments and their types.
+--   [@Δ₂@]        part of context not needed for with arguments and their types.
 --
 --   [@π@]         permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
 --
@@ -141,11 +141,11 @@ splitTelForWith delta t as vs = let
 -- Each @EqualityType@, coming from a @rewrite@, will turn into 2 abstractions.
 
 withFunctionType
-  :: Telescope  -- ^ @Δ₁@                       context for types of with types.
-  -> [Term]     -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions.
+  :: Telescope      -- ^ @Δ₁@                       context for types of with types.
+  -> [Term]         -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions.
   -> [EqualityView] -- ^ @Δ₁ ⊢ as@                  types of with and rewrite-expressions.
-  -> Telescope  -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
-  -> Type       -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
+  -> Telescope      -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
+  -> Type           -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
   -> TCM (Type, Nat)
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and

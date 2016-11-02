@@ -598,6 +598,18 @@ metaHelperType norm ii rng s = case words s of
           (delta1, delta2, _, a', as', vs') = splitTelForWith tel a (map OtherType as) vs
       a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vs' as' delta2 a'
+      reportSDoc "interaction.helper" 10 $ TP.vcat
+        [ TP.text "generating helper function"
+        , TP.nest 2 $ TP.text "tel    = " TP.<+> inTopContext (prettyTCM tel)
+        , TP.nest 2 $ TP.text "a      = " TP.<+> prettyTCM a
+        , TP.nest 2 $ TP.text "vs     = " TP.<+> prettyTCM vs
+        , TP.nest 2 $ TP.text "as     = " TP.<+> prettyTCM as
+        , TP.nest 2 $ TP.text "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
+        , TP.nest 2 $ TP.text "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
+        , TP.nest 2 $ TP.text "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
+        , TP.nest 2 $ TP.text "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
+        , TP.nest 2 $ TP.text "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
+        ]
       return (OfType' h a)
   where
     cleanupType arity args t = do
