@@ -13,3 +13,7 @@ mutual
 -- The sort of D cannot depend on its indices in the type A → Set _7
 
 -- Should pass.
+
+mutual
+  data E : (x : A) → _ where
+  FEa = F (E a)

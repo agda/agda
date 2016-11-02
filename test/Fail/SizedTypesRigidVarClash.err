@@ -1,6 +1,6 @@
 SizedTypesRigidVarClash.agda:12,1-14
 Cannot solve size constraints
-[.i, .j, x] _size_9 .i .j x ≤ .j
-[.i, .j, x] .i ≤ _size_9 .i .j x
+[.i, .j, x] _size_10 .i .j x ≤ .j
+[.i, .j, x] .i ≤ _size_10 .i .j x
 Reason: size constraint graph constrains size hypotheses
 when checking the definition of inc

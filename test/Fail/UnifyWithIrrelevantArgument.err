@@ -1,5 +1,5 @@
 UnifyWithIrrelevantArgument.agda:11,12-16
-Cannot instantiate the metavariable _7 to solution x since it
+Cannot instantiate the metavariable _8 to solution x since it
 contains the variable x which is not in scope of the metavariable
 or irrelevant in the metavariable but relevant in the solution
-when checking that the expression refl has type _7 A _ ≡ x
+when checking that the expression refl has type _8 A _ ≡ x

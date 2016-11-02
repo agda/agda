@@ -1,4 +1,4 @@
 Issue1213.agda:22,8-22
-⊤ != ⊥ of type Set (lsuc (lzero' _13))
+⊤ != ⊥ of type Set (lsuc (lzero' _15))
 when checking that the expression IsZero (suc _) has type
-Set (lsuc (lzero' _13))
+Set (lsuc (lzero' _15))

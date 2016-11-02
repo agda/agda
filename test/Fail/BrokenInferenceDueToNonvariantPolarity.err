@@ -1,8 +1,8 @@
 Failed to solve the following constraints:
   [0] Resolve instance argument
-        _30 :
+        _32 :
           (n₁ : Nat) {.p : False (suc n₁)} (b₁ : Bla (suc n₁) .p) →
-          False (_n_29 n₁ {.p} b₁)
+          False (_n_31 n₁ {.p} b₁)
       No candidates yet
 Unsolved metas at the following locations:
   BrokenInferenceDueToNonvariantPolarity.agda:50,19-24

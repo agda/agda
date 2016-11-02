@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.Data where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Except
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe)
@@ -79,17 +80,26 @@ checkDataDef i name ps cs =
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
             -- the indices. We count the number of indices and return s.
             -- We check that s is a sort.
-            let TelV ixTel s = telView' t0
+            let TelV ixTel s0 = telView' t0
                 nofIxs = size ixTel
 
-            when (any (`freeIn` s) [0..nofIxs - 1]) $ do
-              typeError . GenericDocError =<< do
+            s <- workOnTypes $ do
+              -- Andreas, 2016-11-02 issue #2290
+              -- Trying to unify the sort with a fresh sort meta which is
+              -- defined outside the index telescope is the most robust way
+              -- to check independence of the indices.
+              -- However, it might give the dreaded "Cannot instantiate meta..."
+              -- error which we replace by a more understandable error
+              -- in case of a suspected dependency.
+              s <- newSortMetaBelowInf
+              catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
+                  if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
                      fsep [ text "The sort of" <+> prettyTCM name
                           , text "cannot depend on its indices in the type"
                           , prettyTCM t0
                           ]
-
-            s <- forceSort $ raise (-nofIxs) s
+                  else throwError err
+              return s
 
             -- the small parameters are taken into consideration for --without-K
             smallPars <- smallParams tel s
