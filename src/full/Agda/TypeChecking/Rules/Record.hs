@@ -24,7 +24,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
+import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, splitType )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -99,10 +99,8 @@ checkRecDef i name ind eta con ps contel fields =
       -- Compute correct type of constructor
 
       -- t = tel -> t0 where t0 must be a sort s
-      t0' <- normalise t0
-      s <- case ignoreSharing $ unEl t0' of
-        Sort s  -> return s
-        _       -> typeError $ ShouldBeASort t0
+      (n, s) <- splitType =<< reduce t0
+      unless (n == 0) $ typeError $ ShouldBeASort t0
 
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)

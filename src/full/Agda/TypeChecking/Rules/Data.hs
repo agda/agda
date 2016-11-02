@@ -158,19 +158,19 @@ checkDataDef i name ps cs =
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
-    where
-      -- Take a type of form @tel -> a@ and return
-      -- @size tel@ (number of data type indices) and
-      -- @a@ as a sort (either @a@ directly if it is a sort,
-      -- or a fresh sort meta set equal to a.
-      splitType :: Type -> TCM (Int, Sort)
-      splitType t = case ignoreSharing $ unEl t of
-        Pi a b -> mapFst (+ 1) <$> do addContext (absName b, a) $ splitType (absBody b)
-        Sort s -> return (0, s)
-        _      -> do
-          s <- newSortMetaBelowInf
-          equalType t (sort s)
-          return (0, s)
+
+-- | Take a type of form @tel -> a@ and return
+-- @size tel@ (number of data type indices) and
+-- @a@ as a sort: either @a@ directly if it is a sort,
+-- or a fresh sort meta set equal to a.
+splitType :: Type -> TCM (Int, Sort)
+splitType t = case ignoreSharing $ unEl t of
+  Pi a b -> mapFst (+ 1) <$> do addContext (absName b, a) $ splitType (absBody b)
+  Sort s -> return (0, s)
+  _      -> do
+    s <- newSortMetaBelowInf
+    equalType t (sort s)
+    return (0, s)
 
 
 -- | A parameter is small if its sort fits into the data sort.
