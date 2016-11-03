@@ -399,7 +399,7 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
 --   (Otherwise, one can implement invalid recursion schemes just like
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
-checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
+checkCoinductiveRecords ds = forM_ ds $ \case
   A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ _ -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"

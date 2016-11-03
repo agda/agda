@@ -1245,8 +1245,8 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.LitP{}               = Nothing
               definedName C.RecP{}               = Nothing
               definedName C.QuoteP{}             = Nothing
-              definedName C.HiddenP{}            = __IMPOSSIBLE__
-              definedName C.InstanceP{}          = __IMPOSSIBLE__
+              definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
+              definedName C.InstanceP{}          = Nothing
               definedName C.RawAppP{}            = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
