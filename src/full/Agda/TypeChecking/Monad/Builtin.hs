@@ -122,7 +122,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
-    primId, primConId,
+    primId, primConId, primIdElim,
     primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
     primCompGlue, primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
@@ -180,6 +180,7 @@ primCons         = getBuiltin builtinCons
 primIO           = getBuiltin builtinIO
 primId           = getBuiltin builtinId
 primConId        = getBuiltin builtinConId
+primIdElim       = getPrimitiveTerm builtinIdElim
 primPath         = getBuiltin builtinPath
 primPathP        = getBuiltin builtinPathP
 primInterval     = getBuiltin builtinInterval
@@ -341,7 +342,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSub, builtinSubIn, builtinSubOut,
   builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
-  builtinId, builtinConId,
+  builtinId, builtinConId, builtinIdElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -410,6 +411,7 @@ builtinCons                          = "CONS"
 builtinIO                            = "IO"
 builtinId                            = "ID"
 builtinConId                         = "CONID"
+builtinIdElim                        = "primIdElim"
 builtinPath                          = "PATH"
 builtinPathP                         = "PATHP"
 builtinInterval                      = "INTERVAL"

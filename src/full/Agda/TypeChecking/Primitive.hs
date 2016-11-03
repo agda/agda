@@ -579,6 +579,43 @@ primIdJ = do
          _ -> return $ NoReduction $ map notReduced [la,lc,a,x,c,d,y] ++ [reduced seq]
      _ -> __IMPOSSIBLE__
 
+primIdElim' :: TCM PrimitiveImpl
+primIdElim' = do
+  t <- runNamesT [] $
+       hPi' "a" (el $ cl primLevel) $ \ a ->
+       hPi' "c" (el $ cl primLevel) $ \ c ->
+       hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+       hPi' "x" (el' a bA) $ \ x ->
+       nPi' "C" (nPi' "y" (el' a bA) $ \ y ->
+                 (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
+       (nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+        nPi' "y" (elInf $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ const x)) $ \ y ->
+        let pathxy = (cl primPath <#> a <@> bA <@> x <@> oucy)
+            oucy = (cl primSubOut <#> a <#> bA <#> phi <#> (lam "o" $ const x) <@> y)
+            reflx = (lam "o" $ \ _ -> lam "i" $ \ _ -> x) -- TODO Andrea, should block on o
+        in
+        nPi' "w" (elInf $ cl primSub <#> a <#> pathxy <@> phi <@> reflx) $ \ w ->
+        let oucw = (cl primSubOut <#> a <#> pathxy <#> phi <#> reflx <@> w) in
+        el' c $ bC <@> oucy <@> (cl primConId <#> a <#> bA <#> x <#> oucy <@> phi <@> oucw))
+       -->
+       (nPi' "y" (el' a bA) $ \ y ->
+        nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
+        el' c $ bC <@> y <@> p)
+  conid <- primConId
+  sin <- primSubIn
+  path <- primPath
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
+    case ts of
+      [a,c,bA,x,bC,f,y,p] -> do
+        sp <- reduceB' p
+        case ignoreSharing $ unArg $ ignoreBlocking sp of
+          Def q [Apply _a, Apply _bA, Apply _x, Apply _y, Apply phi , Apply w] -> do
+            y' <- return $ sin `apply` [a,bA                            ,phi,argN $ unArg y]
+            w' <- return $ sin `apply` [a,argN $ path `apply` [a,bA,x,y],phi,argN $ unArg w]
+            redReturn $ unArg f `apply` [phi, defaultArg y', defaultArg w']
+          _ -> return $ NoReduction $ map notReduced [a,c,bA,x,bC,f,y] ++ [reduced sp]
+      _ -> __IMPOSSIBLE__
+
 primPFrom1 :: TCM PrimitiveImpl
 primPFrom1 = do
   t    <- runNamesT [] $
@@ -1607,6 +1644,7 @@ primitiveFunctions = Map.fromList
   , "primDepIMin"         |-> primDepIMin'
   , "primIdFace"          |-> primIdFace'
   , "primIdPath"          |-> primIdPath'
+  , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
   ]
   where
