@@ -576,6 +576,11 @@ type PatternSubstitution = Substitution' DeBruijnPattern
 
 infixr 4 :#
 
+instance Null (Substitution' a) where
+  empty = IdS
+  null IdS = True
+  null _   = False
+
 
 ---------------------------------------------------------------------------
 -- * Views

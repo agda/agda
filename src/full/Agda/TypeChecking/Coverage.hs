@@ -629,7 +629,7 @@ splitClauseWithAbsurd c x = split' Inductive False c (BlockingVar x Nothing)
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
-  where sc = SClause tel ps __IMPOSSIBLE__ __IMPOSSIBLE__ Nothing
+  where sc = SClause tel ps empty empty Nothing
 
 -- | @split ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
