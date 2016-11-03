@@ -582,8 +582,9 @@ typesOfHiddenMetas norm = liftTCM $ do
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of
-  []    -> fail "C-c C-h expects an argument of the form f e1 e2 .. en"
+  []    -> failure
   f : _ -> do
+    ensureName f
     A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     withInteractionId ii $ do
       cxtArgs  <- getContextArgs
@@ -612,6 +613,15 @@ metaHelperType norm ii rng s = case words s of
         ]
       return (OfType' h a)
   where
+    failure = typeError $ GenericError $ "Expected an argument of the form f e1 e2 .. en"
+    ensureName f = do
+      ce <- parseExpr rng f
+      case ce of
+        C.Ident{} -> return ()
+        C.RawApp _ [C.Ident{}] -> return ()
+        _ -> do
+         reportSLn "interaction.helper" 10 $ "ce = " ++ show ce
+         failure
     cleanupType arity args t = do
       -- Get the arity of t
       TelV ttel _ <- telView t
