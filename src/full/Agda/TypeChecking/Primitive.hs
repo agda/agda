@@ -806,18 +806,21 @@ primComp = do
             boolToI b = if b then unview IOne else unview IZero
           as <- decomposeInterval phi
           (and <$>) . forM as $ \ (bs,ts) -> do -- OPTIMIZE: stop at the first False
-               t <- reduce2Lam $ listS (Map.toList (Map.map boolToI bs)) `applySubst` u
+               let u' = listS (Map.toAscList $ Map.map boolToI bs) `applySubst` u
+               t <- reduce2Lam u'
                return $! p t
     where
       reduce2Lam t = do
         t <- reduce' t
-        case ignoreSharing t of
-          Lam _ t -> Reduce.underAbstraction_ t $ \ t -> do
+        case lam2Abs $ ignoreSharing t of
+          t -> Reduce.underAbstraction_ t $ \ t -> do
              t <- reduce' t
-             case ignoreSharing t of
-               Lam _ t -> Reduce.underAbstraction_ t reduce'
-               _       -> return t
-          _ -> return t
+             case lam2Abs $ ignoreSharing t of
+               t -> Reduce.underAbstraction_ t reduce'
+       where
+         lam2Abs (Lam _ t) = t
+         lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
+
   compData l ps sc sphi u a0 = do
     tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
     su  <- reduceB' u
@@ -990,6 +993,7 @@ primComp = do
                       <@> (gApply (getHiding a) (pure $ raise 1 (unArg a0)) (subst 0 i0 <$> pure v))) -- Γ , u1 : A[i1]
 
 
+-- lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
 listS :: [(Int,Term)] -> Substitution
 listS ((i,t):ts) = singletonS i t `composeS` listS ts
 listS []         = IdS
