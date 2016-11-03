@@ -131,11 +131,11 @@ tallyDef :: QName -> TCM ()
 tallyDef d = modifyOccursCheckDefs $ \ s -> Set.delete d s
 
 data OccursCtx
-  = Flex          -- ^ we are in arguments of a meta
-  | Rigid         -- ^ we are not in arguments of a meta but a bound var
-  | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
-  | Top           -- ^ we are at the term root (this turns into @StronglyRigid@)
-  | Irrel         -- ^ we are in an irrelevant argument
+  = Flex          -- ^ We are in arguments of a meta.
+  | Rigid         -- ^ We are not in arguments of a meta but a bound var.
+  | StronglyRigid -- ^ We are at the start or in the arguments of a constructor.
+  | Top           -- ^ We are at the term root (this turns into @StronglyRigid@).
+  | Irrel         -- ^ We are in an irrelevant argument.
   deriving (Eq, Show)
 
 data UnfoldStrategy = YesUnfold | NoUnfold

@@ -21,7 +21,9 @@ module Agda.TypeChecking.Free
     , Free, Free', FreeV, FreeVS
     , IgnoreSorts(..)
     , runFree , rigidVars, relevantVars, allVars
-    , allFreeVars, allRelevantVars, allRelevantVarsIgnoring
+    , allFreeVars
+    , allRelevantVars, allRelevantVarsIgnoring
+    , allRelevantOrUnusedVars, allRelevantOrUnusedVarsIgnoring
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
@@ -293,11 +295,20 @@ closed t = getAll $ runFree (const $ All False) IgnoreNot t
 allFreeVars :: Free' a VarSet => a -> VarSet
 allFreeVars = runFree (Set.singleton . fst) IgnoreNot
 
--- | Collect all relevant free variables, possibly ignoring sorts.
+-- | Collect all relevant free variables, excluding the "unused" ones, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free' a VarSet => IgnoreSorts -> a -> VarSet
 allRelevantVarsIgnoring = runFree sg
   where sg (i, VarOcc _ r) = if irrelevantOrUnused r then Set.empty else Set.singleton i
 
--- | Collect all relevant free variables.
+-- | Collect all relevant free variables, excluding the "unused" ones.
 allRelevantVars :: Free' a VarSet => a -> VarSet
 allRelevantVars = allRelevantVarsIgnoring IgnoreNot
+
+-- | Collect all relevant free variables, possibly ignoring sorts.
+allRelevantOrUnusedVarsIgnoring :: Free' a VarSet => IgnoreSorts -> a -> VarSet
+allRelevantOrUnusedVarsIgnoring = runFree sg
+  where sg (i, VarOcc _ r) = if isIrrelevant r then Set.empty else Set.singleton i
+
+-- | Collect all relevant free variables.
+allRelevantOrUnusedVars :: Free' a VarSet => a -> VarSet
+allRelevantOrUnusedVars = allRelevantOrUnusedVarsIgnoring IgnoreNot
