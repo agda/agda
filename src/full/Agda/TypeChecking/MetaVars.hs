@@ -3,10 +3,12 @@
 
 module Agda.TypeChecking.MetaVars where
 
+import Prelude hiding (null)
+
 import Control.Monad.Reader
 
 import Data.Function
-import Data.List hiding (sort)
+import Data.List hiding (sort, null)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
@@ -49,6 +51,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
@@ -635,23 +638,33 @@ assign dir x args v = do
       -- Andreas, 2011-04-21 do the occurs check first
       -- e.g. _1 x (suc x) = suc (_2 x y)
       -- even though the lhs is not a pattern, we can prune the y from _2
-      let relVL = Set.toList $ allRelevantVars args
-{- Andreas, 2012-04-02: DontCare no longer present
-      -- take away top-level DontCare constructors
-      args <- return $ map (fmap stripDontCare) args
--}
-      -- Andreas, 2011-10-06 only irrelevant vars that are direct
-      -- arguments to the meta, hence, can be abstracted over, may
-      -- appear on the rhs.  (test/fail/Issue483b)
-      -- Update 2011-03-27: Also irr. vars under record constructors.
-      let fromIrrVar (Var i [])   = return [i]
-          fromIrrVar (Con c vs)   =
-            ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
-              concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
-          fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
-          fromIrrVar _ = return []
-      irrVL <- concat <$> mapM fromIrrVar
-                 [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
+
+      (relVL, irrVL) <- do
+        -- Andreas, 2016-11-03 #2211 attempt to do s.th. for unused
+        if False -- irrelevantOrUnused $ getMetaRelevance mvar
+          then do
+            reportSDoc "tc.meta.assign" 25 $ text "meta is irrelevant or unused"
+            return (Set.toList $ allFreeVars args, empty)
+          else do
+            -- Andreas, 2016-11-03, issue #2211
+            -- treating UnusedArg as Irrelevant bears trouble
+            -- since the UnusedArg info is not consistently present
+            -- Thus, make sure we include the "unused" variables.
+            let relVL = Set.toList $ allRelevantOrUnusedVars args
+            -- Andreas, 2011-10-06 only irrelevant vars that are direct
+            -- arguments to the meta, hence, can be abstracted over, may
+            -- appear on the rhs.  (test/fail/Issue483b)
+            -- Update 2011-03-27: Also irr. vars under record constructors.
+            let fromIrrVar (Var i [])   = return [i]
+                fromIrrVar (Con c vs)   =
+                  ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
+                    concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
+                fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
+                fromIrrVar _ = return []
+            irrVL <- concat <$> mapM fromIrrVar
+                       [ v | Arg info v <- args, isIrrelevant info ]
+                          -- irrelevantOrUnused (getRelevance info) ]
+            return (relVL, irrVL)
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
               pr (Def c []) = prettyTCM c
@@ -1123,7 +1136,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         -- Andreas, 2013-09-17 but only if constructor is fully applied
         Arg info (Con c vs) -> do
           let fallback
-               | irrelevantOrUnused (getRelevance info) = return vars
+               | isIrrelevant info = return vars
+                 -- Andreas, 2016-11-03, issue #2211
+                 -- treating UnusedArg as Irrelevant bears trouble
+                 -- since the UnusedArg info is not consistently present
+                 -- irrelevantOrUnused (getRelevance info) = return vars
                | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
           case isRC of
@@ -1143,7 +1160,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
             Nothing -> fallback
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
-        Arg info _ | irrelevantOrUnused (getRelevance info) -> return vars
+        Arg info _ | isIrrelevant info -> return vars
+          -- Andreas, 2016-11-03, issue #2211
+          -- treating UnusedArg as Irrelevant bears trouble
+          -- since the UnusedArg info is not consistently present
+          -- irrelevantOrUnused (getRelevance info) -> return vars
         -- Andreas, 2013-10-29
         -- An irrelevant part can also be marked by a DontCare
         -- (coming from an irrelevant projection), see Issue 927:
