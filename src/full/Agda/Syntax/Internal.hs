@@ -504,8 +504,8 @@ patternVars (Arg i (LitP l)     ) = []
 patternVars (Arg i ProjP{}      ) = []
 
 -- | Does the pattern perform a match that could fail?
-properlyMatching :: Pattern' a -> Bool
-properlyMatching VarP{} = False
+properlyMatching :: DeBruijnPattern -> Bool
+properlyMatching (VarP x) = isAbsurdPatternName $ dbPatVarName x
 properlyMatching DotP{} = False
 properlyMatching LitP{} = True
 properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons

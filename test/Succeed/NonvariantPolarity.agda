@@ -42,26 +42,6 @@ module UnusedModulePar where
   test : (y : Bool) → not y ≡ not′ y
   test y = refl
 
-module Absurd where
-
-  -- Absurd patterns do not count as matches; abort is constant in its 2nd arg.
-  abort : (A : Set) → ⊥ → A
-  abort A ()
-
-  test : (x y : ⊥) → abort Bool x ≡ abort Bool y
-  test x y = refl
-
-module ProofIrrelevance where
-
-  -- Record and absurd patterns do not count as match.
-  fun : (b : Bool) → True b → Bool
-  fun true  trivial = true
-  fun false ()
-
-  -- This gives us a kind of proof irrelevance.
-  test : (b : Bool) → (x y : True b) → fun b x ≡ fun b y
-  test b x y = refl
-
 module CoinductiveUnit where
 
   record Unit : Set where
