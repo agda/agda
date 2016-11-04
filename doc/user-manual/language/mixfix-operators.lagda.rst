@@ -43,7 +43,8 @@ Depending on which of ``_and_`` and ``_⇒_`` has more precedence,
 it can either be read as ``(false and true) ⇒ false = true``,
 or as ``false and (true ⇒ false) = true``.
 
-Each operator is associated to a precedence, which is a natural number.
+Each operator is associated to a precedence, which is an integer
+(can be negative!).
 The default precedence for an operator is 20.
 
 If we give ``_and_`` more precedence than ``_⇒_``, then we will get the first result::
