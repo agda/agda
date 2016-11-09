@@ -578,6 +578,8 @@ builtinsNoDef =
   , builtinRestrict
   , builtinIsOne
   , builtinSub
+  , builtinIZero
+  , builtinIOne
   ]
 
 -- | The coinductive primitives.
@@ -612,10 +614,12 @@ coinductionKit = tryMaybe coinductionKit'
 getPrimName :: Term -> QName
 getPrimName ty = do
   let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+      lamV (Pi _ b)   = lamV (unEl $ unAbs b)
       lamV (Shared p) = lamV (derefPtr p)
       lamV v          = ([], v)
   case lamV ty of
             (_, Def path _) -> path
+            (_, Con nm _)   -> conName nm
             (_, _)          -> __IMPOSSIBLE__
 
 getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
@@ -636,12 +640,12 @@ intervalView' = do
     case ignoreSharing t of
       Def q es ->
         case es of
-          [] | Just q == iz -> IZero
-          [] | Just q == io -> IOne
           [Apply x,Apply y] | Just q == imin -> IMin x y
           [Apply x,Apply y] | Just q == imax -> IMax x y
           [Apply x]         | Just q == ineg -> INeg x
           _                 -> OTerm t
+      Con q [] | Just (conName q) == iz -> IZero
+               | Just (conName q) == io -> IOne
       _ -> OTerm t
 
 intervalView :: HasBuiltins m => Term -> m IntervalView

@@ -44,6 +44,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.Permutation
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -95,7 +96,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                 (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                 return (sort $ varSort 1)))
-  , (builtinInterval           |-> builtinPostulate tSetOmega)
+  , (builtinInterval           |-> BuiltinData tSetOmega [builtinIZero,builtinIOne])
   , (builtinSub                |-> builtinPostulate (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                      hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                      nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
@@ -107,8 +108,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                      hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
                                                      nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
                                                      elInf $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ \ _ -> x)))
-  , (builtinIZero              |-> builtinPostulate tinterval)
-  , (builtinIOne               |-> builtinPostulate tinterval)
+  , (builtinIZero              |-> BuiltinDataCons (elInf primInterval))
+  , (builtinIOne               |-> BuiltinDataCons (elInf primInterval))
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinPartialP           |-> BuiltinPrim "primPartialP" (const $ return ()))
   , (builtinRestrict           |-> builtinPostulate (hPi "a" (el primLevel) $
@@ -684,6 +685,30 @@ bindBuiltinNoDef b q = do
           Primitive ConcreteDef -- TODO fix (Info.defAbstract i)
               s []
               (Just (CC.Done [] $ Def q []))
-
+    Just (BuiltinDataCons mt) -> do
+      t <- mt
+      d <- return $! getPrimName $ unEl t
+      let
+        ch = ConHead q Inductive []
+        def = Constructor 0 ch d ConcreteDef Inductive Nothing []
+      addConstant q $ defaultDefn defaultArgInfo q t def
+      bindBuiltinName b $ Con ch []
+    Just (BuiltinData mt cs) -> do
+      t <- mt
+      addConstant q $ defaultDefn defaultArgInfo q t def
+      bindBuiltinName b $ Def q []
+      where
+        def = Datatype
+              { dataPars       = 0
+              , dataSmallPars  = Perm 0 []
+              , dataNonLinPars = Drop 0 $ Perm 0 []
+              , dataIxs        = 0
+              , dataInduction  = Inductive
+              , dataClause     = Nothing
+              , dataCons       = []     -- Constructors are added later
+              , dataSort       = Inf
+              , dataAbstr      = ConcreteDef
+              , dataMutual     = []
+              }
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b

@@ -33,8 +33,6 @@ postulate
 
 {-# BUILTIN INTERVAL I    #-} -- I : Setω
 
-postulate
-  i0 i1 : I
 {-# BUILTIN IZERO    i0   #-}
 {-# BUILTIN IONE     i1   #-}
 

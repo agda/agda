@@ -40,6 +40,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Exception
 
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
@@ -369,7 +370,9 @@ isDatatype ind at = do
   let t       = unDom at
       throw f = throwException . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
+  mInterval <- liftTCM $ getBuiltinName' builtinInterval
   case ignoreSharing $ unEl t' of
+    Def d [] | Just d == mInterval -> throw NotADatatype
     Def d es -> do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d

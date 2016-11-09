@@ -294,8 +294,9 @@ splitProblem mf (Problem ps qs tel pr) = do
                 | otherwise = keepGoing
           -- ifBlockedType reduces the type
           ifBlockedType a (const tryInstantiate) $ \ a' -> do
+            mi <- liftTCM $ getBuiltinName' builtinInterval
             case ignoreSharing $ unEl a' of
-
+              Def d [] | Just d == mi -> typeError $ GenericError "can't split on the Interval directly"
               -- Subcase: split type is a Def.
               Def d es    -> do
 
