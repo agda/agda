@@ -345,7 +345,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
     let ks = wordsBy (`elem` ".:") k
-        m  = maximum $ 0 : Trie.lookupPath ks t
+        m  = last $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
 -- | Displays a debug message in a suitable way.

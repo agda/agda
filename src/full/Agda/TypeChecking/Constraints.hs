@@ -94,15 +94,15 @@ addConstraint c = do
       cs <- map theConstraint <$> getAllConstraints
       lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
       when (not $ null lvls) $ do
-        reportSDoc "tc.constr.add" 40 $ text "  simplifying using" <+> prettyTCM lvls
-        reportSDoc "tc.constr.add" 45 $ do
+        reportSDoc "tc.constr.lvl" 40 $ text "  simplifying using" <+> prettyTCM lvls
+        reportSDoc "tc.constr.lvl" 80 $ do
           cxt <- getContextTelescope
           inTopContext $ do
             text "simpl" <+> do
               vcat $
                 [ text "current module  = " <+> (prettyTCM =<< currentModule)
                 , text "current context = " <+> prettyTCM cxt
-                , text "current m.pars  = " <+> (text . show =<< use stModuleParameters)
+                , text "current m.pars  = " <+> (prettyTCM =<< use stModuleParameters)
                 , text "constraints: "
                 ] ++ do
                   for lvls $ \ cl -> do
@@ -110,8 +110,8 @@ addConstraint c = do
                         mp   = clModuleParameters cl
                     vcat
                       [ text "*" <+> text "module = " <+> prettyTCM (envCurrentModule $ clEnv cl)
-                      , nest 2 $ text "m.pars = " <+> (text . show) mp
-                      , nest 2 $ prettyTCM cxt' <+> text " |- " <+> prettyTCM cl
+                      , nest 2 $ text "m.pars = " <+> prettyTCM mp
+                      , nest 2 $ hang (prettyTCM cxt' <+> text "|-") 2 (prettyTCM cl)
                       ]
       simplifyLevelConstraint c . catMaybes <$>
         mapM (runMaybeT . castConstraintToCurrentContext) lvls
@@ -178,6 +178,13 @@ castConstraintToCurrentContext cl = do
   -- Γ ⊢ σ : Δ₁
   sigma <- liftTCM $ getModuleParameterSub modN
   -- Γ ⊢ c[σ]
+
+  -- Ulf, 2016-11-09: I don't understand what this function does when M and N
+  -- are not related. Certainly things can go terribly wrong (see
+  -- test/Succeed/Issue2223b.agda)
+  fv <- liftTCM $ getModuleFreeVars modN
+  guard $ fv == size delta1
+
   return $ applySubst sigma c
   where
     raiseMaybe n c = do
