@@ -87,8 +87,12 @@ instance (PatternFrom a b) => PatternFrom [a] [b] where
 instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
   patternFrom k = traverse $ patternFrom k
 
-instance (PatternFrom a b) => PatternFrom (Elim' a) (Elim' b) where
-  patternFrom k = traverse $ patternFrom k
+instance (PatternFrom a NLPat) => PatternFrom (Elim' a) (Elim' NLPat) where
+  patternFrom k (Apply u) = if isIrrelevant u then
+                              return $ Apply $ u $> PWild
+                            else
+                              Apply <$> traverse (patternFrom k) u
+  patternFrom k (Proj o f) = return $ Proj o f
 
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
   patternFrom k = traverse $ patternFrom k
