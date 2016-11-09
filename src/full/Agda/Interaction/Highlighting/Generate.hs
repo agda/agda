@@ -33,7 +33,6 @@ import qualified Data.Foldable as Fold (fold, foldMap)
 import qualified Data.IntMap as IntMap
 import Data.Void
 
-import Agda.Interaction.Options
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
@@ -576,21 +575,17 @@ printUnsolvedInfo = do
 
 computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
-  unsolvedOK <- optAllowUnsolved <$> pragmaOptions
-  if unsolvedOK
-  then return mempty
-  else do
-    is <- getInteractionMetas
+  is <- getInteractionMetas
 
-    -- We don't want to highlight blocked terms, since
-    --   * there is always at least one proper meta responsible for the blocking
-    --   * in many cases the blocked term covers the highlighting for this meta
-    let notBlocked m = not <$> isBlockedTerm m
-    ms <- filterM notBlocked =<< getOpenMetas
+  -- We don't want to highlight blocked terms, since
+  --   * there is always at least one proper meta responsible for the blocking
+  --   * in many cases the blocked term covers the highlighting for this meta
+  let notBlocked m = not <$> isBlockedTerm m
+  ms <- filterM notBlocked =<< getOpenMetas
 
-    rs <- mapM getMetaRange (ms \\ is)
-    return $ several (map (rToR . P.continuousPerLine) rs)
-                     (mempty { otherAspects = [UnsolvedMeta] })
+  rs <- mapM getMetaRange (ms \\ is)
+  return $ several (map (rToR . P.continuousPerLine) rs)
+                   (mempty { otherAspects = [UnsolvedMeta] })
 
 -- | Generates syntax highlighting information for unsolved constraints
 -- that are not connected to a meta variable.
