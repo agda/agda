@@ -366,15 +366,7 @@ instance PrettyTCM Telescope where
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where
-  prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
-    where
-    pr :: [Dom (Name, Type)] -> TCM [P.Doc]
-    pr []                            = return []
-    pr (Dom info (x,t) : ctx) = escapeContext 1 $ do
-      -- TODO guilhem: show colors
-      d <- CP.prettyRelevance info . CP.prettyHiding info P.parens <$> do
-             prettyTCM x <+> text ":" <+> prettyTCM t
-      (d :) <$> pr ctx
+  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ map ctxEntry $ reverse ctx
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
