@@ -178,6 +178,13 @@ castConstraintToCurrentContext cl = do
   -- Γ ⊢ σ : Δ₁
   sigma <- liftTCM $ getModuleParameterSub modN
   -- Γ ⊢ c[σ]
+
+  -- Ulf, 2016-11-09: I don't understand what this function does when M and N
+  -- are not related. Certainly things can go terribly wrong (see
+  -- test/Succeed/Issue2223b.agda)
+  fv <- liftTCM $ getModuleFreeVars modN
+  guard $ fv == size delta1
+
   return $ applySubst sigma c
   where
     raiseMaybe n c = do
