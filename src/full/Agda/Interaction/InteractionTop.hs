@@ -338,7 +338,7 @@ data Interaction' range
   | Cmd_search_about_toplevel B.Rewrite String
 
     -- | Solve all goals whose values are determined by the constraints.
-  | Cmd_solveAll
+  | Cmd_solveAll B.Rewrite
 
     -- | Parse the given expression (as if it were defined at the
     -- top-level of the current module) and infer its type.
@@ -579,10 +579,10 @@ interpret (Cmd_show_module_contents_toplevel norm s) =
 interpret (Cmd_search_about_toplevel norm s) =
   liftCommandMT B.atTopLevel $ searchAbout norm noRange s
 
-interpret Cmd_solveAll = do
+interpret (Cmd_solveAll norm) = do
   -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
   out <- lift $ local (\ e -> e { envPrintMetasBare = True }) $
-    mapM prt =<< B.getSolvedInteractionPoints False -- only solve metas which have a proper instantiation, i.e., not another meta
+    mapM prt =<< B.getSolvedInteractionPoints False norm -- only solve metas which have a proper instantiation, i.e., not another meta
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do

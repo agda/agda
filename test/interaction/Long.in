@@ -25,7 +25,7 @@ goal_command 8 (cmd_compute DefaultCompute) "s′ z"
 goal_command 8 (cmd_compute IgnoreAbstract) "s′ z"
 goal_command 8 cmd_give "d"
 -- Note that cmd_solveAll does not update the set of goals.
-top_command cmd_solveAll
+top_command (cmd_solveAll AsIs)
 goal_command 1 cmd_give "s z"
 top_command (cmd_compute_toplevel DefaultCompute "eval throw")
 goal_command 1 cmd_give "Nothing"
