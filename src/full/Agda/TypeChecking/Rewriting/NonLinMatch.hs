@@ -51,7 +51,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primLevelSuc)
+import Agda.TypeChecking.Monad.Builtin (primLevelSuc, primLevelMax)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (isRecordConstructor)
 import Agda.TypeChecking.Reduce
@@ -87,8 +87,12 @@ instance (PatternFrom a b) => PatternFrom [a] [b] where
 instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
   patternFrom k = traverse $ patternFrom k
 
-instance (PatternFrom a b) => PatternFrom (Elim' a) (Elim' b) where
-  patternFrom k = traverse $ patternFrom k
+instance (PatternFrom a NLPat) => PatternFrom (Elim' a) (Elim' NLPat) where
+  patternFrom k (Apply u) = if isIrrelevant u then
+                              return $ Apply $ u $> PWild
+                            else
+                              Apply <$> traverse (patternFrom k) u
+  patternFrom k (Proj o f) = return $ Proj o f
 
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
   patternFrom k = traverse $ patternFrom k
@@ -124,11 +128,11 @@ instance PatternFrom Term NLPat where
       Lit{}    -> done
       Def f es -> do
         Def lsuc [] <- ignoreSharing <$> primLevelSuc
-        if f == lsuc
-        then case es of
-               [Apply arg] -> pLevelSuc <$> patternFrom k (unArg arg)
-               _           -> done
-        else PDef f <$> patternFrom k es
+        Def lmax [] <- ignoreSharing <$> primLevelMax
+        case es of
+          [Apply x] | f == lsuc -> pLevelSuc <$> patternFrom k (unArg x)
+          [x , y]   | f == lmax -> done
+          _                     -> PDef f <$> patternFrom k es
       Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
       Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
       Sort s   -> done
