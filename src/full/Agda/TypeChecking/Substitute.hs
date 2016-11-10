@@ -742,6 +742,9 @@ instance Subst Term NLPat where
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applySubst rho u
 
+instance Subst Term NLPType where
+  applySubst rho (NLPType s a) = NLPType (applySubst rho s) (applySubst rho a)
+
 instance Subst Term RewriteRule where
   applySubst rho (RewriteRule q gamma f ps rhs t) =
     RewriteRule q (applySubst rho gamma)

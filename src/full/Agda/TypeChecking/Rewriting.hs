@@ -47,7 +47,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Reader (local)
+import Control.Monad.Reader (local, asks)
 
 import Data.Foldable ( Foldable, foldMap )
 import Data.IntSet (IntSet)
@@ -64,6 +64,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
@@ -402,6 +403,9 @@ class NLPatVars a where
 instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
   nlPatVars = foldMap nlPatVars
 
+instance NLPatVars NLPType where
+  nlPatVars (NLPType l a) = nlPatVars l `IntSet.union` nlPatVars a
+
 instance NLPatVars NLPat where
   nlPatVars p =
     case p of
@@ -426,6 +430,9 @@ instance (Functor f, KillCtxId a) => KillCtxId (f a) where
 
 instance KillCtxId RewriteRule where
   killCtxId rule@RewriteRule{ rewPats = ps } = rule{ rewPats = killCtxId ps }
+
+instance KillCtxId NLPType where
+  killCtxId (NLPType l a) = NLPType (killCtxId l) (killCtxId a)
 
 instance KillCtxId NLPat where
   killCtxId p = case p of
@@ -471,3 +478,9 @@ instance Free' NLPat c where
     PPlusLevel _ u -> freeVars' u
     PBoundVar _ es -> freeVars' es
     PTerm t -> freeVars' t
+
+instance Free' NLPType c where
+  freeVars' (NLPType l a) =
+    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
+      {- then -} (freeVars' (l, a))
+      {- else -} (freeVars' a)

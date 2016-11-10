@@ -237,6 +237,13 @@ instance EmbPrj NLPat where
     valu [7, a]       = valu1 PTerm a
     valu _            = malformed
 
+instance EmbPrj NLPType where
+  icod_ (NLPType a b) = icode2' a b
+
+  value = vcase valu where
+    valu [a, b] = valu2 NLPType a b
+    valu _      = malformed
+
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icode6' a b c d e f
 

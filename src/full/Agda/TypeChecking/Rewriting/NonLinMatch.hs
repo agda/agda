@@ -97,8 +97,13 @@ instance (PatternFrom a NLPat) => PatternFrom (Elim' a) (Elim' NLPat) where
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
   patternFrom k = traverse $ patternFrom k
 
-instance (PatternFrom a b) => PatternFrom (Type' a) (Type' b) where
-  patternFrom k = traverse $ patternFrom k
+instance PatternFrom Type NLPType where
+  patternFrom k a = do
+    s <- reduce $ getSort a
+    case s of
+      Type l -> NLPType . Just  <$> patternFrom k (Level l)
+                                <*> patternFrom k (unEl a)
+      _      -> NLPType Nothing <$> patternFrom k (unEl a)
 
 instance PatternFrom Term NLPat where
   patternFrom k v = do
@@ -247,8 +252,15 @@ instance Match a b => Match (Elim' a) (Elim' b) where
 instance Match a b => Match (Dom a) (Dom b) where
   match gamma k p v = match gamma k (C.unDom p) (C.unDom v)
 
-instance Match a b => Match (Type' a) (Type' b) where
-  match gamma k p v = match gamma k (unEl p) (unEl v)
+instance Match NLPType Type where
+  match gamma k (NLPType (Just lp) p) (El s a) = case s of
+      Type l   -> match gamma k lp l >> match gamma k p a
+      Prop     -> no
+      Inf      -> no
+      SizeUniv -> no
+      DLub _ _ -> no
+    where no = matchingBlocked $ NotBlocked ReallyNotBlocked ()
+  match gamma k (NLPType Nothing p) (El _ a) = match gamma k p a
 
 instance (Match a b, RaiseNLP a, Subst t2 b) => Match (Abs a) (Abs b) where
   match gamma k (Abs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p v
@@ -454,6 +466,9 @@ class RaiseNLP a where
 instance RaiseNLP a => RaiseNLP [a] where
   raiseNLPFrom c k = fmap $ raiseNLPFrom c k
 
+instance RaiseNLP a => RaiseNLP (Maybe a) where
+  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+
 instance RaiseNLP a => RaiseNLP (Arg a) where
   raiseNLPFrom c k = fmap $ raiseNLPFrom c k
 
@@ -463,8 +478,9 @@ instance RaiseNLP a => RaiseNLP (Elim' a) where
 instance RaiseNLP a => RaiseNLP (Dom a) where
   raiseNLPFrom c k = fmap $ raiseNLPFrom c k
 
-instance RaiseNLP a => RaiseNLP (Type' a) where
-  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+instance RaiseNLP NLPType where
+  raiseNLPFrom c k (NLPType l a) =
+    NLPType (raiseNLPFrom c k l) (raiseNLPFrom c k a)
 
 instance RaiseNLP a => RaiseNLP (Abs a) where
   raiseNLPFrom c k (Abs i p)   = Abs i   $ raiseNLPFrom (c+1) k p

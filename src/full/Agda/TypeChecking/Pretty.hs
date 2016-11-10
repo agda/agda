@@ -409,36 +409,48 @@ raisePatVars k (PVar id x bvs) = PVar id (k+x) bvs
 raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
-raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
+raisePatVars k (PPi a b)   =
+  PPi (fmap (raisePatVarsInType k) a) (fmap (raisePatVarsInType k) b)
 raisePatVars k (PPlusLevel i u) = PPlusLevel i $ raisePatVars k u
 raisePatVars k (PBoundVar i es) = PBoundVar i $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
+
+raisePatVarsInType :: Int -> NLPType -> NLPType
+raisePatVarsInType k (NLPType l a) =
+  NLPType (fmap (raisePatVars k) l) (raisePatVars k a)
 
 instance PrettyTCM NLPat where
   prettyTCM (PVar id x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = text ("λ " ++ absName u ++ " →") <+>
-                          (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
-  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (unDom a) <+>
-                          (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
-  prettyTCM (PPlusLevel i u) = text (show i ++ " + ") <> prettyTCM u
+  prettyTCM (PLam i u)  = parens $
+    text ("λ " ++ absName u ++ " →") <+>
+    (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
+  prettyTCM (PPi a b)   = parens $
+    text ("(" ++ absName b ++ " :") <+> prettyTCM (unDom a) <> text ") →" <+>
+    (addContext (absName b) $ prettyTCM (raisePatVarsInType 1 $ unAbs b))
+  prettyTCM (PPlusLevel i u) = parens $ text (show i ++ " + ") <> prettyTCM u
+  prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
+instance PrettyTCM NLPType where
+  prettyTCM (NLPType (Just l) a) = text "{" <> prettyTCM l <> text "}" <> prettyTCM a
+  prettyTCM (NLPType Nothing  a) = prettyTCM a
+
 instance PrettyTCM (Elim' NLPat) where
-  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
+  prettyTCM (Apply v) = prettyTCM (unArg v)
   prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
 instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma f ps rhs b) = sep
-    [ prettyTCM q <+> text " rule "
+  prettyTCM (RewriteRule q gamma f ps rhs b) = fsep
+    [ prettyTCM q
     , prettyTCM gamma <+> text " |- "
-    , addContext gamma $ hsep
+    , addContext gamma $ sep
       [ prettyTCM (PDef f ps)
       , text " --> "
       , prettyTCM rhs
