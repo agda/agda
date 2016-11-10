@@ -1157,6 +1157,11 @@ instance InstantiateFull NLPat where
   instantiateFull' (PBoundVar x y) = PBoundVar x <$> instantiateFull' y
   instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
+instance InstantiateFull NLPType where
+  instantiateFull' (NLPType l a) = NLPType
+    <$> instantiateFull' l
+    <*> instantiateFull' a
+
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t) =
     RewriteRule q

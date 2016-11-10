@@ -1210,7 +1210,7 @@ data NLPat
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
     -- ^ Matches @λ x → t@
-  | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
+  | PPi (Dom NLPType) (Abs NLPType)
     -- ^ Matches @(x : A) → B@
   | PPlusLevel Integer NLPat
     -- ^ Matches @lsuc $ lsuc $ ... lsuc t@
@@ -1220,6 +1220,11 @@ data NLPat
     -- ^ Matches the term modulo β (ideally βη).
   deriving (Typeable, Show)
 type PElims = [Elim' NLPat]
+
+data NLPType = NLPType
+  { nlpTypeLevel :: Maybe NLPat
+  , nlpTypeUnEl  :: NLPat
+  } deriving (Typeable, Show)
 
 type RewriteRules = [RewriteRule]
 
@@ -3001,6 +3006,9 @@ instance KillRange NLPat where
   killRange (PPlusLevel x y) = killRange2 PPlusLevel x y
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
+
+instance KillRange NLPType where
+  killRange (NLPType s a) = killRange2 NLPType s a
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t) =
