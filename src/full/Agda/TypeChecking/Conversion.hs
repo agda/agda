@@ -323,21 +323,9 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, EmptyTel) -> return ()
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
-    (ExtendTel dom1@(Dom i1 a1) tel1, ExtendTel dom2@(Dom i2 a2) tel2)
-      | getHiding i1 /= getHiding i2 -> bad
-        -- Andreas, 2011-09-11 do not test r1 == r2 because they could differ
-        -- e.g. one could be Forced and the other Relevant (see fail/UncurryMeta)
-      | otherwise -> do
-          name <- freshName_ (suggest (absName tel1) (absName tel2))
-          let r = max (getRelevance i1) (getRelevance i2) -- take "most irrelevant"
-              dependent = (r /= Irrelevant) && isBinderUsed tel2
--- NEW
-          pid <- newProblem_ $ compareType cmp a1 a2
-          dom <- if dependent
-                 then Dom i1 <$> blockTypeOnProblem a1 pid
-                 else return dom1
-          addContext (name, dom) $ compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
-          stealConstraints pid
+    (ExtendTel dom1@(Dom i1 a1) tel1, ExtendTel dom2@(Dom i2 a2) tel2) -> do
+      compareDom cmp dom1 dom2 tel1 tel2 bad bad $
+        compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
 
 {- OLD, before 2013-05-15
           let checkDom = escapeContext 1 $ compareType cmp a1 a2
@@ -350,8 +338,9 @@ compareTel t1 t2 cmp tel1 tel2 =
 -}
   where
     -- Andreas, 2011-05-10 better report message about types
-    bad = typeError $ UnequalTypes cmp t2 t1 -- switch t2 and t1 because of contravariance!
---    bad = typeError $ UnequalTelescopes cmp tel1 tel2
+    bad = typeError $ UnequalTypes cmp t2 t1
+      -- switch t2 and t1 because of contravariance!
+
 
 
 -- | Raise 'UnequalTerms' if there is no hope that by
@@ -554,32 +543,18 @@ compareAtom cmp t m n =
                 patternViolation
           maybe impossible return =<< getConType c t
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
-          (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
-            | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
-            -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-            | not (compareRelevance cmp (ignoreForced $ argInfoRelevance i2)
-                                        (ignoreForced $ argInfoRelevance i1))
-                -> typeError $ UnequalRelevance cmp t1 t2
-            | otherwise -> verboseBracket "tc.conv.fun" 15 "compare function types" $ do
-                reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
-                  [ text "t1 =" <+> prettyTCM t1
-                  , text "t2 =" <+> prettyTCM t2 ]
+          (Pi dom1 b1, Pi dom2 b2) -> do
+            verboseBracket "tc.conv.fun" 15 "compare function types" $ do
+              reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
+                [ text "t1 =" <+> prettyTCM t1
+                , text "t2 =" <+> prettyTCM t2 ]
+              compareDom cmp dom2 dom1 b1 b2 errH errR $
+                compareType cmp (absBody b1) (absBody b2)
+            where
+            errH = typeError $ UnequalHiding t1 t2
+            errR = typeError $ UnequalRelevance cmp t1 t2
 
-                -- We only need to require a1 == a2 if t2 is a dependent function type.
-                -- If it's non-dependent it doesn't matter what we add to the context.
-                pid <- newProblem_ $ compareType cmp a2 a1
-                dom <- if isBinderUsed b2
-                       then Dom i1 <$> blockTypeOnProblem a1 pid
-                       -- then Dom i1 . El a1s <$> blockTermOnProblem (El Inf $ Sort a1s) a1t pid
-                       else return dom1
-                name <- freshName_ (suggest b1 b2)
-                addContext (name, dom) $ compareType cmp (absBody b1) (absBody b2)
-                stealConstraints pid
-                -- Andreas, 2013-05-15 Now, comparison of codomains is not
-                -- blocked any more by getting stuck on domains.
-                -- Only the domain type in context will be blocked.
-
-{- OLD
+{- OLD, before 2013-05-15
                 let checkDom = escapeContext 1 $ compareType cmp a2 a1
                     conCoDom = TypeCmp cmp (absBody b1) (absBody b2)
                 -- We only need to require a1 == a2 if t2 is a dependent function type.
@@ -591,6 +566,40 @@ compareAtom cmp t m n =
                   else checkDom >> solveConstraint_ conCoDom
 -}
           _ -> __IMPOSSIBLE__
+
+-- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
+compareDom :: Free c
+  => Comparison -- ^ @cmp@ The comparison direction
+  -> Dom Type   -- ^ @a1@  The smaller domain.
+  -> Dom Type   -- ^ @a2@  The other domain.
+  -> Abs b      -- ^ @b1@  The smaller codomain.
+  -> Abs c      -- ^ @b2@  The bigger codomain.
+  -> TCM ()     -- ^ Continuation if mismatch in 'Hiding'.
+  -> TCM ()     -- ^ Continuation if mismatch in 'Relevance'.
+  -> TCM ()     -- ^ Continuation if comparison is successful.
+  -> TCM ()
+compareDom cmp dom1@(Dom i1 a1) dom2@(Dom i2 a2) b1 b2 errH errR cont
+  | getHiding dom1 /= getHiding dom2 = errH
+  -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
+  | not $ compareRelevance cmp (ignoreForced $ getRelevance dom1)
+                               (ignoreForced $ getRelevance dom2) = errR
+  | otherwise = do
+      let r = max (getRelevance dom1) (getRelevance dom2)
+              -- take "most irrelevant"
+          dependent = (r /= Irrelevant) && isBinderUsed b2
+      pid <- newProblem_ $ compareType cmp a1 a2
+      dom <- if dependent
+             then Dom i1 <$> blockTypeOnProblem a1 pid
+             else return dom1
+        -- We only need to require a1 == a2 if b2 is dependent
+        -- If it's non-dependent it doesn't matter what we add to the context.
+      name <- freshName_ $ suggest b1 b2
+      addContext (name, dom) $ cont
+      stealConstraints pid
+        -- Andreas, 2013-05-15 Now, comparison of codomains is not
+        -- blocked any more by getting stuck on domains.
+        -- Only the domain type in context will be blocked.
+        -- But see issue #1258.
 
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)

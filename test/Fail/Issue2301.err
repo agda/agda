@@ -1,0 +1,3 @@
+Issue2301.agda:12,11-15
+A → Box A !=< .A → Box A
+when checking that the expression wrap has type .A → Box A
