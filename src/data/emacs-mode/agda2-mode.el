@@ -205,7 +205,7 @@ to this variable to take effect."
                         (modify-syntax-entry keys "w" tbl)))
                     (standard-syntax-table))
     ;; Then override the remaining special cases.
-    (dolist (cs '((?- . "w 12b") (?\n . "> b")
+    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
                   (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
       (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
@@ -941,6 +941,14 @@ The buffer is returned."
 
   agda2-warning-buffer)
 
+(defun agda2-font-syntactic-face (state)
+  (cond ((nth 4 state)
+         ( save-excursion
+           (goto-char (nth 8 state))
+           (cond ((looking-at "--[[:space:]\n]") 'font-lock-comment-face)
+                 ((looking-at "{-[^#]") 'font-lock-comment-face)
+          )))))
+
 (defun agda2-info-buffer nil
   "Creates the Agda info buffer, if it does not already exist.
 The buffer is returned."
@@ -1243,6 +1251,36 @@ The form of the result depends on the prefix argument:
                    (concat ,cmd " " ,eval " "
                            (agda2-string-quote expr)))))))
 
+(defmacro agda2-maybe-normalised-global (name comment cmd)
+  "This macro constructs a function NAME which runs CMD.
+COMMENT is used to build the function's comments. The function
+NAME takes a prefix argument which tells whether it should
+normalise types or not when running CMD (through
+`agda2-go' t nil t;)."
+  (let ((eval (make-symbol "eval")))
+    `(defun ,name (prefix)
+       ,(concat comment ".
+
+The form of the result depends on the prefix argument:
+
+* If the prefix argument is `nil' (i.e., if no prefix argument is
+  given), then the result is simplified.
+
+* If the prefix argument is `(4)' (for instance if C-u is typed
+  exactly once right before the command is invoked), then the
+  result is neither explicitly normalised nor simplified.
+
+* If any other prefix argument is used (for instance if C-u is
+  typed twice right before the command is invoked), then the
+  result is normalised.")
+       (interactive "P")
+       (let ((,eval (cond ((equal prefix nil) "AsIs")
+                          ((equal prefix '(4)) "Simplified")
+                          ("Normalised"))))
+         (agda2-go t nil t
+                   (concat ,cmd " " ,eval " "
+                           ))))))
+
 (agda2-maybe-normalised
  agda2-goal-type
  "Show the type of the goal at point"
@@ -1348,10 +1386,10 @@ a goal, the top-level scope."
                           'agda2-module-contents
                         'agda2-module-contents-toplevel)))
 
-(defun agda2-solveAll ()
-  "Solves all goals that are already instantiated internally."
-  (interactive)
-  (agda2-go t t t "Cmd_solveAll"))
+(agda2-maybe-normalised-global
+agda2-solveAll
+"Solves all goals that are already instantiated internally."
+"Cmd_solveAll")
 
 (defun agda2-solveAll-action (iss)
   (while iss
@@ -1734,7 +1772,7 @@ a file is loaded."
   ;; Enable highlighting of comments via Font Lock mode (which uses
   ;; the syntax table).
   (set (make-local-variable 'font-lock-defaults)
-       '(nil nil nil nil nil))
+       '(nil nil nil nil nil (font-lock-syntactic-face-function . agda2-font-syntactic-face)))
   ;; If the following s-expression is removed, then highlighting of
   ;; comments stops working.
   (when font-lock-mode

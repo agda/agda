@@ -268,7 +268,7 @@ evalInMeta ii e =
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Read)
 
-normalForm :: Rewrite -> Type -> TCM Type
+normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
 normalForm AsIs         t = return t
 normalForm Instantiated t = return t   -- reify does instantiation
 normalForm HeadNormal   t = {- etaContract =<< -} reduce t
@@ -487,7 +487,7 @@ getConstraints = liftTCM $ do
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
-    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True -- get all
+    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True AsIs -- get all
     return $ ss ++ cs
   where
     toOutputForm (ii, mi, e) = do
@@ -502,8 +502,8 @@ getConstraints = liftTCM $ do
 --   @getSolvedInteractionPoints False@ only returns metas that
 --   are solved by a non-meta.
 
-getSolvedInteractionPoints :: Bool -> TCM [(InteractionId, MetaId, Expr)]
-getSolvedInteractionPoints all = concat <$> do
+getSolvedInteractionPoints :: Bool -> Rewrite -> TCM [(InteractionId, MetaId, Expr)]
+getSolvedInteractionPoints all norm = concat <$> do
   mapM solution =<< getInteractionIdsAndMetas
   where
     solution (i, m) = do
@@ -516,7 +516,7 @@ getSolvedInteractionPoints all = concat <$> do
               v <- ignoreSharing <$> instantiate v
               let isMeta = case v of MetaV{} -> True; _ -> False
               if isMeta && not all then return [] else do
-                e <- reify v
+                e <- reify =<< normalForm norm v
                 return [(i, m, ScopedExpr scope e)]
             unsol = return []
         case mvInstantiation mv of
