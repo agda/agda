@@ -205,7 +205,7 @@ to this variable to take effect."
                         (modify-syntax-entry keys "w" tbl)))
                     (standard-syntax-table))
     ;; Then override the remaining special cases.
-    (dolist (cs '((?- . "w 12b") (?\n . "> b")
+    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
                   (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
       (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
@@ -940,6 +940,14 @@ The buffer is returned."
       (set-input-method "Agda")))
 
   agda2-warning-buffer)
+
+(defun agda2-font-syntactic-face (state)
+  (cond ((nth 4 state)
+         ( save-excursion
+           (goto-char (nth 8 state))
+           (cond ((looking-at "--[[:space:]\n]") 'font-lock-comment-face)
+                 ((looking-at "{-[^#]") 'font-lock-comment-face)
+          )))))
 
 (defun agda2-info-buffer nil
   "Creates the Agda info buffer, if it does not already exist.
@@ -1764,7 +1772,7 @@ a file is loaded."
   ;; Enable highlighting of comments via Font Lock mode (which uses
   ;; the syntax table).
   (set (make-local-variable 'font-lock-defaults)
-       '(nil nil nil nil nil))
+       '(nil nil nil nil nil (font-lock-syntactic-face-function . agda2-font-syntactic-face)))
   ;; If the following s-expression is removed, then highlighting of
   ;; comments stops working.
   (when font-lock-mode
