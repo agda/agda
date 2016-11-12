@@ -231,7 +231,7 @@ constituents.")
     (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
     (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
     (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
-    (agda2-solveAll                          ,(kbd "C-c C-s")     (global)       "Solve constraints")
+    (agda2-solve-maybe-all                   ,(kbd "C-c C-s")     (local global) "Solve constraints")
     (agda2-show-goals                        ,(kbd "C-c C-?")     (global)       "Show goals")
     (agda2-next-goal                         "\C-c\C-f"           (global)       "Next goal") ; Forward.
     (agda2-previous-goal                     "\C-c\C-b"           (global)       "Previous goal") ; Back.
@@ -1386,10 +1386,27 @@ a goal, the top-level scope."
                           'agda2-module-contents
                         'agda2-module-contents-toplevel)))
 
+(defun agda2-solve-maybe-all ()
+  "Solves goals that are already instantiated internally.
+Either only one if point is a goal, or all of them."
+  (interactive)
+  (call-interactively (if (agda2-goal-at (point))
+                          'agda2-solveOne
+                          'agda2-solveAll))
+)
+
 (agda2-maybe-normalised-global
-agda2-solveAll
-"Solves all goals that are already instantiated internally."
-"Cmd_solveAll")
+  agda2-solveAll
+  "Solves all goals that are already instantiated internally."
+  "Cmd_solveAll"
+)
+
+(agda2-maybe-normalised
+  agda2-solveOne
+  "Solves the goal at point if it is already instantiated internally"
+  "Cmd_solveOne"
+  nil
+)
 
 (defun agda2-solveAll-action (iss)
   (while iss
