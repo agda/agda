@@ -746,19 +746,19 @@ checkLHS f st@(LHSState problem dpi psplit) = do
          [(gamma,sigma)] <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
                             (\ sigma -> (,sigma) <$> getContextTelescope)
          return (gamma,sigma)
-
+      itisone <- primItIsOne
       -- substitute the literal in p1 and dpi
       let delta1 = problemTel p0
           oix = size (problemTel $ unAbs p1) -- de brujin index of IsOne
           Just o_n = flip findIndex ip (\ x -> case namedThing (unArg x) of
                                            VarP x -> dbPatVarIndex x == oix
                                            _      -> False)
-          delta2' = ExtendTel (Dom{domInfo = ai, domFinite = True, unDom = a}) (fmap problemTel p1)
+          delta2' = absApp (fmap problemTel p1) itisone
           delta2 = applySubst sigma delta2'
           mkConP c = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval) }) []
           rho0 = fmap (\ (Con c []) -> mkConP c) sigma
 
-          rho    = liftS (size delta2) $ rho0
+          rho    = liftS (size delta2) $ consS (DotP itisone) rho0
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
           -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
@@ -774,8 +774,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                             (problemInPat p0)
                             (applySubst rho0 $ teleArgs delta1)
       let dpi' = applyPatSubst rho dpi ++ newDpi
-          ps' = p0' ++ [setRelevance Irrelevant $ defaultArg $ unnamed $ A.WildP (PatRange noRange)]
-                    ++ problemInPat (absBody p1)
+          ps' = p0' ++ problemInPat (absBody p1)
 
       reportSDoc "tc.lhs.split.problem" 10 $ sep
         [ text "ip  = " <+> (text . show) ip

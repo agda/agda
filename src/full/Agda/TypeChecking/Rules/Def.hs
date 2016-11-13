@@ -221,12 +221,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         -- to patch clauses to same arity
         -- cs <- trailingImplicits t cs
 
-        _canBeSystem <- do
+        canBeSystem <- do
           let pss = map (A.spLhsPats . A.clauseLHS) cs
-          return $! (not $ null $ [ () | ps <- pss, A.EqualP {} <- map (namedThing . unArg) ps ])
-          -- throw error if EqualP are not all at the end and/or we have different patterns too.
-          -- allow WildP with no other patterns
-          -- also if we have withs
+          return $! null [ () | ps <- pss, A.ConP{} <- map (namedThing . unArg) ps]
 
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
@@ -248,8 +245,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         (cs,isOneIxs) <- return $ (second (nub . concat) . unzip) cs
 
         let isSystem = not . null $ isOneIxs
+        when isSystem $ unless canBeSystem $
+          typeError $ GenericError "no actual pattern matching in systems!"
 
-        -- when isSystem $ unless canBeSystem $ typeError ... -- TODO Andrea
 
         reportSDoc "tc.def.fun" 70 $
           sep $ [ text "checked clauses:" ] ++ map (nest 2 . text . show) cs
@@ -268,9 +266,11 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               ]
 
 
+        -- Systems have their own coverage and "coherence" check, we
+        -- also add an absurd clause for the cases not needed.
         cs <- if not isSystem then return cs else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 inTopContext $ checkSystemCoverage isOneIxs fullType cs
+                 inTopContext $ checkSystemCoverage name isOneIxs fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseRange = noRange
@@ -397,11 +397,12 @@ data WithFunctionProblem
     }
 
 checkSystemCoverage
-  :: [Int]
+  :: QName
+  -> [Int]
   -> Type
   -> [Clause]
   -> TCM ()
-checkSystemCoverage [n] t cs = do
+checkSystemCoverage f [n] t cs = do
   reportSDoc "tc.sys.cover" 10 $ text (show (n , length cs)) <+> prettyTCM t
   TelV gamma t <- telViewUpTo n t
   addContext gamma $ do
@@ -415,33 +416,63 @@ checkSystemCoverage [n] t cs = do
       imin <- primIMin
       imax <- primIMax
       i0 <- primIZero
-      let isDir (ConP q _ []) | Just (conName q) == iz = Just (\ x -> ineg `apply` [argN x])
-          isDir (ConP q _ []) | Just (conName q) == io = Just id
-          isDir _ = Nothing
+      i1 <- primIOne
       let
+        isDir (ConP q _ []) | Just (conName q) == iz = Just False
+        isDir (ConP q _ []) | Just (conName q) == io = Just True
+        isDir _ = Nothing
+
         collectDirs [] [] = []
-        collectDirs (i : is) (p : ps) | Just f <- isDir p = f (var i) : collectDirs is ps
-                                      | otherwise = collectDirs is ps
+        collectDirs (i : is) (p : ps) | Just d <- isDir p = (i,d) : collectDirs is ps
+                                      | otherwise         = collectDirs is ps
         collectDirs _ _ = __IMPOSSIBLE__
+
+        dir (i,False) = ineg `apply` [argN $ var i]
+        dir (i,True) = var i
+
         andI [] = Nothing
         andI [t] = Just t
         andI (t:ts) = (\ x -> imin `apply` [argN t, argN x]) <$> andI ts
+
         orI [] = i0
         orI (t:ts) = imax `apply` [argN t, argN (orI ts)]
 
       let
         pats = map (take n . map (namedThing . unArg) . namedClausePats) cs
         alphas = map (collectDirs (downFrom n)) pats
-        psi = orI $ catMaybes $ map andI alphas
+        phis = map andI $ map (map dir) alphas
+        psi = orI $ catMaybes $ phis
+        pcs = zip (map (fromMaybe i1) phis) cs
+        boolToI True = i1
+        boolToI False = i0
+
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
       interval <- elInf primInterval
       reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
+      forM_ (init $ init $ tails pcs) $ \ ((phi1,cl1):pcs') -> do
+        forM_ pcs' $ \ (phi2,cl2) -> do
+          phi12 <- reduce (imin `apply` [argN phi1, argN phi2])
+          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
+            let args = sigma `applySubst` teleArgs gamma
+                t' = sigma `applySubst` t
+                fromReduced (YesReduction _ x) = x
+                fromReduced (NoReduction x) = ignoreBlocking x
+                body cl = do
+                  let extra = length (drop n $ namedClausePats cl)
+                  TelV delta _ <- telViewUpTo extra t'
+                  fmap (abstract delta) $ addContext delta $ do
+                    fmap fromReduced $ runReduceM $
+                      appDef' (Def f []) [cl] (map notReduced $ raise (size delta) args ++ teleArgs delta)
+            v1 <- body cl1
+            v2 <- body cl2
+            equalTerm t' v1 v2
       return ()
     _ -> __IMPOSSIBLE__
 
   where
-checkSystemCoverage _ t cs = __IMPOSSIBLE__
+checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
+
 checkBodyEndPoints
   :: Telescope  -- ^ Δ current context? same clauseTel
   -> Type     -- ^ raised type of the function, Δ ⊢ T
