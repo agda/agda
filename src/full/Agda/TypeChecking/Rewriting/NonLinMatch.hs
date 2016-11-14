@@ -50,6 +50,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel)
+import Agda.TypeChecking.MetaVars (allMetas)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primLevelSuc, primLevelMax)
 import Agda.TypeChecking.Pretty
@@ -437,18 +438,22 @@ nonLinMatch gamma p v = do
 
 -- | Untyped βη-equality, does not handle things like empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
---   (where b contains information about possible metas blocking the reduction)
+--   (where b contains information about possible metas blocking the comparison)
+
+-- TODO: implement a type-directed, lazy version of this function.
 equal :: Term -> Term -> ReduceM (Maybe Blocked_)
 equal u v = do
-  buv <- etaContract =<< normaliseB' (u, v)
-  let b     = void buv
-      (u,v) = ignoreBlocking buv
-      ok    = u == v
+  (u, v) <- etaContract =<< normalise' (u, v)
+  let ok    = u == v
+      metas = allMetas (u, v)
+      block = caseMaybe (headMaybe metas)
+                (NotBlocked ReallyNotBlocked ())
+                (\m -> Blocked m ())
   if ok then return Nothing else
     traceSDoc "rewriting" 80 (sep
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
-      ]) $ return $ Just b
+      ]) $ return $ Just block
 
 -- | Normalise the given term but also preserve blocking tags
 --   TODO: implement a more efficient version of this.
