@@ -324,8 +324,13 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
     , nest 2 $ text "perm= " <+> text (show perm)
     ]
+  -- Ulf, 2016-11-14 Issue 2297: We have Θ ⊢ t = Γ → A and Δ ⊢ qs : ΘΓ. Below
+  -- we call 'strip' with drop npars qs : Γ, so we need a matching type
+  -- Δ ⊢ t' : Γ. This is just t[take npars qs/Θ] (since Δ ⊢ take npars qs : Θ).
+  let t' = applyPatSubst (map namedArg (reverse $ take npars qs) ++# EmptyS) t
+  reportSDoc "tc.with.strip" 30 $ nest 2 $ text "t'   = " <+> pretty t'
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', namedDots) <- runWriterT $ strip (Def parent []) t psi $ drop npars qs
+  (ps', namedDots) <- runWriterT $ strip (Def parent []) t' psi $ drop npars qs
   reportSDoc "tc.with.strip" 50 $ nest 2 $
     text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- We need to add the patterns for the module parameters before
