@@ -3,7 +3,7 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2286 (Issue2286.agda). " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Nat _15 : f n == n [ at Issue2286.agda:19,8-12 ] _16 : f n == n [ at Issue2286.agda:19,8-12 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [0] _15 := λ n → refl [blocked on problem 16] [16] ?0 n = n : Nat " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Nat _15 : f n == n [ at Issue2286.agda:19,8-12 ] _16 : f n == n [ at Issue2286.agda:19,8-12 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _15 := λ n → refl [blocked on problem 16] [16, 19] ?0 n = n : Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "1,1-4 Termination checking failed for the following functions: f Problematic calls: f x₁ when checking that the expression f x has type Nat" nil)
 (agda2-highlight-load-and-delete-action)

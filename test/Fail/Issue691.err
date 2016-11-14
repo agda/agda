@@ -1,8 +1,9 @@
 Failed to solve the following constraints:
-  [0] _18 := refl [blocked on problem 36]
-  [36] assert (g (_12 false) false ≡ g true false) refl (_12 false)
-       = true
-         : Bool
+  _18 := refl [blocked on problem 36]
+  [36, 40] assert (g (_12 false) false ≡ g true false) refl
+           (_12 false)
+           = true
+             : Bool
 Unsolved metas at the following locations:
   Issue691.agda:21,11-12
   Issue691.agda:26,10-14

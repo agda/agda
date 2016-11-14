@@ -1,12 +1,17 @@
 Failed to solve the following constraints:
-  [0] _112 := (λ {.Γ} {.Γ′} {.t} {.A} η j → j)
-        [blocked on problem 145]
-  [145] _103 = (suc _103) : Nat
-  [158] suc _103 = _103 : Nat
-  [158] suc _103 = _103 : Nat
-  [0] _118 :=
-        λ {.Γ} {.Γ′} {.t} {.A} η j → up (ren-true--fail η (_113 η j))
-        [blocked on problem 158]
+  _118 :=
+    λ {.Γ} {.Γ′} {.t} {.A} η j → up (ren-true--fail η (_113 η j))
+    [blocked on problem 158]
+  [158, 163, 165] _116 := λ {.Γ} {.Γ′} {.t} {.A} η j → suc _103
+                    [blocked on problem 166]
+  [158, 163, 165, 166] suc _103 = _103 : Nat
+  [158] _114 := λ {.Γ} {.Γ′} {.t} {.A} η j → suc (suc (suc _103))
+          [blocked on problem 160]
+  [158, 160, 161, 162] suc _103 = _103 : Nat
+  [145] _110 := (λ {.Γ} {.Γ′} {.t} {.A} η j → suc _103)
+          [blocked on problem 147]
+  [145, 147, 148] _103 = (suc _103) : Nat
+  _112 := (λ {.Γ} {.Γ′} {.t} {.A} η j → j) [blocked on problem 145]
 Unsolved metas at the following locations:
   Issue1982.agda:28,40-46
   Issue1982.agda:29,48-49

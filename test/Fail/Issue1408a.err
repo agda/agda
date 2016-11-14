@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [0] Is empty: suc i ≅ zero
+  Is empty: suc i ≅ zero
       [ at Issue1408a.agda:23,30-32 ]
-  [0] Is empty: zero ≅ suc j
+  Is empty: zero ≅ suc j
       [ at Issue1408a.agda:22,31-33 ]

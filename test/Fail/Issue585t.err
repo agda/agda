@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [0] _14 := p _x_13 [blocked on problem 20]
-  [20] _x_13 = inn (out _x_13) : B
+  _14 := p _x_13 [blocked on problem 20]
+  [20, 22] _x_13 = inn (out _x_13) : B
 Unsolved metas at the following locations:
   Issue585t.agda:24,9-10
   Issue585t.agda:24,7-10

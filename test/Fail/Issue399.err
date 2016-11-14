@@ -1,29 +1,28 @@
 Failed to solve the following constraints:
-  [0] _37 := λ {.a} → mymaybemplus [blocked on problem 38]
-  [33] _4 _32 =< Maybe .a : Set (_2 _32)
-  [0] _2 _32 = .Agda.Primitive.lzero
-  [0] .Agda.Primitive.lzero = _2 _32
-  [0] _3 := (_ : _1) [a] :? Set (_2 m)
-  [0] _8 := (_ : _1) [a] :? Set (_7 m mzero)
-  [0] _11 := (_ : _1) [a] :? Set (_10 m mzero)
-  [0] dLub Set₁ (λ a → Set (_2 m)) =< Set₁
-  [0] dLub Set₁
-      (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
-      =< Set₁
-  [0] (.Agda.Primitive.lsuc _a_30) = _0
+  _37 := λ {.a} → mymaybemplus [blocked on problem 38]
+  [33, 34] _4 _32 =< Maybe .a : Set (_2 _32)
+  _2 _32 = .Agda.Primitive.lzero
+  .Agda.Primitive.lzero = _2 _32
+  _3 := (_ : _1) [a] :? Set (_2 m)
+  _8 := (_ : _1) [a] :? Set (_7 m mzero)
+  _11 := (_ : _1) [a] :? Set (_10 m mzero)
+  dLub Set₁ (λ a → Set (_2 m)) =< Set₁
+  dLub Set₁ (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
+  =< Set₁
+  (.Agda.Primitive.lsuc _a_30) = _0
   [30] (Set _a_30 → Set _a_30) =< _1
          : (Set (.Agda.Primitive.lsuc _a_30))
-  [0] _31 := Maybe [blocked on problem 30]
-  [0] _34 := λ {.a} → mymaybemzero [blocked on problem 33]
-  [0] .Agda.Primitive.lzero = _7 _32 (λ {.a} → _35)
-  [0] .Agda.Primitive.lzero = _10 _32 (λ {.a} → _35)
-  [0] _7 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
-  [38] _9 _32 (λ {.a} → _35) =< Maybe .a
-         : Set (_7 _32 (λ {.a} → _35))
-  [0] .Agda.Primitive.lzero = _10 _32 (λ {.a} → _35)
-  [0] _10 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
-  [38] _12 _32 (λ {.a} → _35) =< Maybe .a
-         : Set (_10 _32 (λ {.a} → _35))
+  _31 := Maybe [blocked on problem 30]
+  _34 := λ {.a} → mymaybemzero [blocked on problem 33]
+  .Agda.Primitive.lzero = _7 _32 (λ {.a} → _35)
+  .Agda.Primitive.lzero = _10 _32 (λ {.a} → _35)
+  _7 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
+  [38, 39] _9 _32 (λ {.a} → _35) =< Maybe .a
+             : Set (_7 _32 (λ {.a} → _35))
+  .Agda.Primitive.lzero = _10 _32 (λ {.a} → _35)
+  _10 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
+  [38, 40] _12 _32 (λ {.a} → _35) =< Maybe .a
+             : Set (_10 _32 (λ {.a} → _35))
 Unsolved metas at the following locations:
   Issue399.agda:7,20-21
   Issue399.agda:8,30-33

@@ -296,7 +296,7 @@ showComputed UseShowInstance e =
     _                     -> (text "Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
-data OutputForm a b = OutputForm Range ProblemId (OutputConstraint a b)
+data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
   deriving (Functor)
 
 data OutputConstraint a b
@@ -342,7 +342,7 @@ outputFormId (OutputForm _ _ o) = out o
       FindInScopeOF _ _ _        -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (last pids) <$> reify c)
+  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) pids <$> reify c)
 
 reifyElimToExpr :: I.Elim -> TCM Expr
 reifyElimToExpr e = case e of
@@ -409,8 +409,8 @@ showComparison cmp = " " ++ prettyShow cmp ++ " "
 instance (Show a,Show b) => Show (OutputForm a b) where
   show o =
     case o of
-      OutputForm r 0   c -> show c ++ range r
-      OutputForm r pid c -> "[" ++ prettyShow pid ++ "] " ++ show c ++ range r
+      OutputForm r []   c -> show c ++ range r
+      OutputForm r pids c -> show pids ++ " " ++ show c ++ range r
     where
       range r | null s    = ""
               | otherwise = " [ at " ++ s ++ " ]"
@@ -494,7 +494,7 @@ getConstraints = liftTCM $ do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
-        abstractToConcrete_ $ OutputForm noRange 0 $ Assign m e
+        abstractToConcrete_ $ OutputForm noRange [] $ Assign m e
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.

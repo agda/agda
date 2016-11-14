@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [0] b =< _14 A B
-  [0] a =< _14 A B
+  b =< _14 A B
+  a =< _14 A B
 Unsolved metas at the following locations:
   Issue203b.agda:8,11-12
   Issue203b.agda:12,48-49

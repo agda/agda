@@ -1,22 +1,22 @@
 Failed to solve the following constraints:
-  [0] Resolve instance argument _43 : Default _A_42
-      Candidates
-        create false : Default Bool
-        create Bool : Default Set
-        create zero : Default ℕ
-        create defNat : Default (Default ℕ)
-        (λ {ℓ} {A} → create (λ x → x)) :
-          ({ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A))
-  [0] Resolve instance argument _49 : Default _A_48
-      Candidates
-        create false : Default Bool
-        create Bool : Default Set
-        create zero : Default ℕ
-        create defNat : Default (Default ℕ)
-        λ {ℓ} {A} → create (λ x → x) :
-          {ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A)
-  [0] _44 := (_ : _A_42) [id ℕ 5] :? ℕ
-  [0] _50 := (_ : _A_48) [5] :? ℕ
+  Resolve instance argument _43 : Default _A_42
+  Candidates
+    create false : Default Bool
+    create Bool : Default Set
+    create zero : Default ℕ
+    create defNat : Default (Default ℕ)
+    (λ {ℓ} {A} → create (λ x → x)) :
+      ({ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A))
+  Resolve instance argument _49 : Default _A_48
+  Candidates
+    create false : Default Bool
+    create Bool : Default Set
+    create zero : Default ℕ
+    create defNat : Default (Default ℕ)
+    λ {ℓ} {A} → create (λ x → x) :
+      {ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A)
+  _44 := (_ : _A_42) [id ℕ 5] :? ℕ
+  _50 := (_ : _A_48) [5] :? ℕ
 Unsolved metas at the following locations:
   Issue723.agda:42,6-13
   Issue723.agda:42,6-21

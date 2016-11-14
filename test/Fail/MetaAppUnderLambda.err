@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [0] _20 := (_ : _18 A v) [v] :? A
+  _20 := (_ : _18 A v) [v] :? A
 Unsolved metas at the following locations:
   MetaAppUnderLambda.agda:15,16-17
   MetaAppUnderLambda.agda:17,23-26

@@ -5,7 +5,7 @@
 (agda2-info-action "*Type-checking*" " Checking Common.Level (Level.agda). " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Level. " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Set (_4 p r P _~_ p p') Sort _4 [ at Issue1205.agda:10,25-35 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [0] dLub (Set p) (λ p → dLub (Set p) (λ p' → Set (_4 p r P _~_ p p'))) =< Set (lsuc r ⊔ lsuc p) " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Set (_4 p r P _~_ p p') Sort _4 [ at Issue1205.agda:10,25-35 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: dLub (Set p) (λ p → dLub (Set p) (λ p' → Set (_4 p r P _~_ p p'))) =< Set (lsuc r ⊔ lsuc p) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "p ~ p'")
 (agda2-status-action "")

@@ -837,7 +837,7 @@ showOpenMetas :: TCM [String]
 showOpenMetas = do
   ims <- B.typesOfVisibleMetas B.AsIs
   di <- forM ims $ \ i ->
-    B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) $
+    B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
       showATop i
   -- Show unsolved implicit arguments simplified.
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
