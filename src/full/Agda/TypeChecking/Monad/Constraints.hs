@@ -135,6 +135,9 @@ withConstraint f (PConstr pids c) = do
 buildProblemConstraint :: ProblemId -> Constraint -> TCM ProblemConstraint
 buildProblemConstraint pid c = PConstr [pid] <$> buildClosure c
 
+buildProblemConstraint_ :: Constraint -> TCM ProblemConstraint
+buildProblemConstraint_ = buildProblemConstraint 0
+
 buildConstraint :: Constraint -> TCM ProblemConstraint
 buildConstraint c = flip buildProblemConstraint c =<< currentProblem
 
@@ -146,7 +149,7 @@ addConstraint' c = do
     stSleepingConstraints %= (pc :)
   where
     build | isBlocking c = buildConstraint c
-          | otherwise    = buildProblemConstraint 0 c
+          | otherwise    = buildProblemConstraint_ c
     isBlocking SortCmp{}     = False
     isBlocking LevelCmp{}    = False
     isBlocking ValueCmp{}    = True

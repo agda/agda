@@ -370,7 +370,7 @@ blockTermOnProblem t v pid =
         (_, v) <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x es))
+        cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV x es))
         listenToMeta (CheckConstraint i cmp) x
         return v
 
@@ -417,7 +417,7 @@ postponeTypeCheckingProblem p unblock = do
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
   (_, v) <- newValueMeta DontRunMetaOccursCheck t
-  cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m es))
+  cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
