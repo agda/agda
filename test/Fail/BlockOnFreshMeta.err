@@ -1,4 +1,4 @@
 Failed to solve the following constraints:
-  [0] _21 := unquote shouldNotCrash
+  _21 := unquote shouldNotCrash
 Unsolved metas at the following locations:
   BlockOnFreshMeta.agda:24,5-19

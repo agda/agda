@@ -132,11 +132,14 @@ withConstraint f (PConstr pids c) = do
     local (\e -> e { envActiveProblems = pids', envSolvingConstraints = isSolving }) $
     solvingProblems pids (f c)
 
-buildProblemConstraint :: ProblemId -> Constraint -> TCM ProblemConstraint
-buildProblemConstraint pid c = PConstr [pid] <$> buildClosure c
+buildProblemConstraint :: [ProblemId] -> Constraint -> TCM ProblemConstraint
+buildProblemConstraint pids c = PConstr pids <$> buildClosure c
+
+buildProblemConstraint_ :: Constraint -> TCM ProblemConstraint
+buildProblemConstraint_ = buildProblemConstraint []
 
 buildConstraint :: Constraint -> TCM ProblemConstraint
-buildConstraint c = flip buildProblemConstraint c =<< currentProblem
+buildConstraint c = flip buildProblemConstraint c . nub . filter (> 0) =<< asks envActiveProblems
 
 -- | Add new a constraint
 addConstraint' :: Constraint -> TCM ()
@@ -146,7 +149,7 @@ addConstraint' c = do
     stSleepingConstraints %= (pc :)
   where
     build | isBlocking c = buildConstraint c
-          | otherwise    = buildProblemConstraint 0 c
+          | otherwise    = buildProblemConstraint_ c
     isBlocking SortCmp{}     = False
     isBlocking LevelCmp{}    = False
     isBlocking ValueCmp{}    = True

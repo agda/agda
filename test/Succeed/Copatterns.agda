@@ -58,33 +58,6 @@ record Monad (M : Set → Set) : Set1 where
     return : {A : Set}   → A → M A
     _>>=_  : {A B : Set} → M A → (A → M B) → M B
 
-module StateMonad {S : Set} where
-
-  open Monad {{...}}
-
-  -- State is an instance of Monad.
-
-  instance
-    stateMonad : Monad (State S)
-    runState (return {{stateMonad}} a  ) s  = a , s
-    runState (_>>=_  {{stateMonad}} m k) s₀ =
-      let a , s₁ = runState m s₀
-      in  runState (k a) s₁
-
-  -- The stateMonad fulfills the monad laws.
-
-  leftId : {A B : Set}(a : A)(k : A → State S B) →
-    (return a >>= k) ≡ k a
-  leftId a k = refl
-
-  rightId : {A B : Set}(m : State S A) →
-    (m >>= return) ≡ m
-  rightId m = refl
-
-  assoc : {A B C : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
-     ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
-  assoc m k l = refl
-
 module InstanceArgument where
 
   open Monad {{...}}
