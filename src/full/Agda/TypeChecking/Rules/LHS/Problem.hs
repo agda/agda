@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Prelude hiding (null)
 
+import Control.Applicative hiding (empty)
 import Data.Foldable ( Foldable )
 import Data.Maybe ( fromMaybe )
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
@@ -17,6 +18,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty hiding ((<>))
 
@@ -270,6 +272,9 @@ instance PrettyTCM AsBinding where
     sep [ prettyTCM x P.<> text "@" P.<> parens (prettyTCM v)
         , nest 2 $ text ":" <+> prettyTCM a
         ]
+
+instance InstantiateFull AsBinding where
+  instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
 
 instance Null ProblemRest where
   null  = null . restPats
