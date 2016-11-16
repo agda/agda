@@ -304,6 +304,7 @@ library
                     Agda.Syntax.Internal.Generic
                     Agda.Syntax.Internal.Names
                     Agda.Syntax.Internal.Pattern
+                    Agda.Syntax.Internal.SanityCheck
                     Agda.Syntax.Literal
                     Agda.Syntax.Notation
                     Agda.Syntax.Parser.Alex
