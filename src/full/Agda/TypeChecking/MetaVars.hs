@@ -1213,7 +1213,16 @@ allMetas :: TermLike a => a -> [MetaId]
 allMetas = foldTerm metas
   where
   metas (MetaV m _) = [m]
+  metas (Level l)   = levelMetas l
   metas _           = []
+
+  levelMetas (Max as) = concatMap plusLevelMetas as
+
+  plusLevelMetas ClosedLevel{} = []
+  plusLevelMetas (Plus _ l)    = levelAtomMetas l
+
+  levelAtomMetas (MetaLevel m _) = [m]
+  levelAtomMetas _               = []
 
 
 -- | Turn open metas into postulates.
