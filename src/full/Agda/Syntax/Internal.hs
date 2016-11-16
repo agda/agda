@@ -1123,7 +1123,7 @@ instance Pretty a => Pretty (Substitution' a) where
     pr p rho = case rho of
       IdS              -> text "idS"
       EmptyS           -> text "emptyS"
-      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho <> text ",", prettyPrec 3 t ]
+      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho P.<> text ",", prettyPrec 3 t ]
       Strengthen _ rho -> mparens (p > 9) $ text "strS" <+> pr 10 rho
       Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
       Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
