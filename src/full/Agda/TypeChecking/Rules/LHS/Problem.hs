@@ -26,6 +26,7 @@ import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import qualified Agda.Utils.Pretty as PP
 
 type Substitution   = [Maybe Term]
 type FlexibleVars   = [FlexibleVar Nat]
@@ -272,6 +273,11 @@ instance PrettyTCM AsBinding where
     sep [ prettyTCM x P.<> text "@" P.<> parens (prettyTCM v)
         , nest 2 $ text ":" <+> prettyTCM a
         ]
+
+instance PP.Pretty AsBinding where
+  pretty (AsB x v a) =
+    PP.text (show x ++ " =") PP.<+> PP.hang (PP.pretty v PP.<+> PP.text ":") 2
+                                            (PP.pretty a)
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
