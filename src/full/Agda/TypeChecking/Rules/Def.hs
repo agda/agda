@@ -649,7 +649,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
       , text "as     =" <+> addContext delta1 (prettyTCM as)
       , text "vs     =" <+> do addContext delta1 $ prettyTCM vs
       , text "b      =" <+> do addContext delta1 $ addContext delta2 $ prettyTCM b
-      , text "qs     =" <+> text (show qs)
+      , text "qs     =" <+> prettyList (map pretty qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
       , text "fperm  =" <+> text (show finalPerm)
@@ -666,7 +666,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
                              -- from module applications.
   (withFunType, n) <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "with-function type:", nest 2 $ prettyTCM withFunType ]
-  reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ text $ show withFunType ]
+  reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ pretty withFunType ]
 
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
