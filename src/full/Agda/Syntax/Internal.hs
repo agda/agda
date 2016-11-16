@@ -1117,16 +1117,16 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
 
-instance Pretty Substitution where
-  prettyPrec p rho = brackets $ pr rho
+instance Pretty a => Pretty (Substitution' a) where
+  prettyPrec p rho = pr p rho
     where
-    pr rho = case rho of
+    pr p rho = case rho of
       IdS              -> text "idS"
-      EmptyS           -> text "ε"
-      t :# rho         -> prettyPrec 1 t <+> text ":#" <+> pr rho
-      Strengthen _ rho -> text "↓" <+> pr rho
-      Wk n rho         -> text ("↑" ++ show n) <+> pr rho
-      Lift n rho       -> text ("⇑" ++ show n) <+> pr rho
+      EmptyS           -> text "emptyS"
+      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho <> text ",", prettyPrec 3 t ]
+      Strengthen _ rho -> mparens (p > 9) $ text "strS" <+> pr 10 rho
+      Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
+      Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
 
 instance Pretty Term where
   prettyPrec p v =

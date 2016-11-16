@@ -9,7 +9,7 @@ withDisplayForm
   qs     = @0 .Common.Product.Σ.proj₁
   qsToTm = [$ @0, .proj₁]
   ys     = [Nothing,Just 0]
-  rho    = [@1 :# idS]
+  rho    = idS, @1
   qs[rho]= [$ x, .proj₁]
   dt     = f x .proj₁ | w1
 Issue1963DisplayWithPostfixCopattern.agda:30,8-12
