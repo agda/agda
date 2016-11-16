@@ -232,7 +232,11 @@ buildWithFunction cxtNames f aux t qs npars withSub perm n1 n cs = mapM buildWit
     -- The named dot patterns computed by buildWithClause lives in the context
     -- of the top with-clause (of the current call to buildWithFunction). When
     -- we recurse we expect inherited named dot patterns to live in the context
-    -- of the innermost parent clause.
+    -- of the innermost parent clause. Note that this makes them live in the
+    -- context of the with-function arguments before any pattern matching. We
+    -- need to update again once the with-clause patterns have been checked.
+    -- This happens in Rules.Def.checkClause before calling checkRHS.
+    permuteNamedDots :: A.SpineClause -> A.SpineClause
     permuteNamedDots (A.Clause lhs dots rhs wh catchall) =
       A.Clause lhs (applySubst withSub dots) rhs wh catchall
 
@@ -307,7 +311,7 @@ stripWithClausePatterns
   :: [Name]                   -- ^ Names of the module parameters of the parent function
   -> QName                    -- ^ Name of the parent function.
   -> QName                    -- ^ Name of with-function.
-  -> Type                     -- ^ __@t@__   type of the original function.
+  -> Type                     -- ^ __@t@__   top-level type of the original function.
   -> [NamedArg DeBruijnPattern] -- ^ __@qs@__  internal patterns for original function.
   -> Nat                      -- ^ __@npars@__ number of module parameters is @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
@@ -316,29 +320,28 @@ stripWithClausePatterns
 stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
-  psi <- insertImplicitPatternsT ExpandLast ps t
+  -- Ulf, 2016-11-16 Issue 2303: We need the module parameter
+  -- instantiations from qs, so we make sure
+  -- that t is the top-level type of the parent function and add patterns for
+  -- the module parameters to ps before stripping.
+  let paramPat i _ = A.VarP (cxtNames !! i)
+      ps' = zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps
+  psi <- insertImplicitPatternsT ExpandLast ps' t
   reportSDoc "tc.with.strip" 10 $ vcat
     [ text "stripping patterns"
     , nest 2 $ text "t   = " <+> prettyTCM t
+    , nest 2 $ text "ps  = " <+> fsep (punctuate comma $ map prettyA ps)
+    , nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
     , nest 2 $ text "perm= " <+> text (show perm)
     ]
-  -- Ulf, 2016-11-14 Issue 2297: We have Θ ⊢ t = Γ → A and Δ ⊢ qs : ΘΓ. Below
-  -- we call 'strip' with drop npars qs : Γ, so we need a matching type
-  -- Δ ⊢ t' : Γ. This is just t[take npars qs/Θ] (since Δ ⊢ take npars qs : Θ).
-  let t' = applyPatSubst (map namedArg (reverse $ take npars qs) ++# EmptyS) t
-  reportSDoc "tc.with.strip" 30 $ nest 2 $ text "t'   = " <+> pretty t'
+
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', namedDots) <- runWriterT $ strip (Def parent []) t' psi $ drop npars qs
+  (ps', namedDots) <- runWriterT $ strip (Def parent []) t psi qs
   reportSDoc "tc.with.strip" 50 $ nest 2 $
     text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
-      -- We need to add the patterns for the module parameters before
-      -- permuting.
-  let paramPat i (VarP x) = A.VarP (cxtNames !! i)
-      paramPat _ (DotP _) = A.WildP patNoRange
-      paramPat _ _ = __IMPOSSIBLE__
-  let psp = permute perm $ zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps'
+  let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
@@ -441,7 +444,9 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           Nothing -> mismatch
 
         VarP x  -> do
-          ps <- intro1 t $ \ t -> strip (self `apply1` var (dbPatVarIndex x)) t ps qs
+          let v = var (dbPatVarIndex x)
+          t  <- piApply1 t v
+          ps <- strip (self `apply1` v) t ps qs
           return $ p : ps
 
         DotP v  -> case namedArg p of

@@ -520,13 +520,24 @@ data LHSResult = LHSResult
   , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
     -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
+  , lhsPatSubst     :: Substitution
+    -- ^ Substitution version of @lhsPatterns@, only up to the first projection
+    -- pattern. @Δ |- lhsPatSubst : Γ@. Where @Γ@ is the argument telescope of
+    -- the function. This is used to update inherited dot patterns in
+    -- with-function clauses.
+  , lhsAsBindings   :: [AsBinding]
+    -- ^ As-bindings from the left-hand side. Return instead of bound since we
+    -- want them in where's and right-hand sides, but not in with-clauses
+    -- (Issue 2303).
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult n tel ps t) = LHSResult n
+  instantiateFull' (LHSResult n tel ps t sub as) = LHSResult n
     <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' t
+    <*> instantiateFull' sub
+    <*> instantiateFull' as
 
 -- | Check a LHS. Main function.
 --
@@ -599,7 +610,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
              , text "delta = " <+> prettyTCM delta
              , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
              , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
-             , text "qs    = " <+> text (show qs)
+             , text "qs    = " <+> prettyList (map pretty qs)
              ]
            ]
 
@@ -622,7 +633,6 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
                       --       arguments in the lhs of a with-function relative to
                       --       the parent function.
           numPats   = length $ takeWhile (notProj . namedArg) qs
-          lhsResult = LHSResult (length cxt) delta qs b'
           -- In the case of a non-with function the pattern substitution
           -- should be weakened by the number of non-parameter patterns to
           -- get the paramSub.
@@ -631,6 +641,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
           -- parent modules.
           patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# EmptyS
           paramSub = composeS patSub withSub
+          lhsResult = LHSResult (length cxt) delta qs b' patSub asb'
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> text (show patSub)
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> text (show withSub)
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> text (show paramSub)
@@ -639,15 +650,17 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
       reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
       reportSDoc "tc.lhs.top" 50 $ text "new let-bindings:" <+> (brackets $ fsep $ punctuate comma $ map prettyTCM newLets)
 
-      bindAsPatterns (asb' ++ newLets) $
+      bindAsPatterns newLets $
         applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
+        bindAsPatterns asb' $ do
 
-        rebindLocalRewriteRules
+          rebindLocalRewriteRules
 
-        -- Check dot patterns
-        mapM_ checkDotPattern dpi
-        checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
+          -- Check dot patterns
+          mapM_ checkDotPattern dpi
+          checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
 
+        -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
         ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved

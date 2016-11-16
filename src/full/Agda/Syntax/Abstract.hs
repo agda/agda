@@ -273,7 +273,9 @@ instance Eq NamedDotPattern where
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
   { clauseLHS        :: lhs
-  , clauseNamedDots  :: [NamedDotPattern] -- only in with-clauses where we inherit some already checked dot patterns from the parent
+  , clauseNamedDots  :: [NamedDotPattern]
+      -- ^ Only in with-clauses where we inherit some already checked dot patterns from the parent.
+      --   These live in the context of the parent clause left-hand side.
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
