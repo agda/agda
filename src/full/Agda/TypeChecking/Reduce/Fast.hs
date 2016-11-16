@@ -108,7 +108,9 @@ import Agda.Utils.Impossible
 data CompactDef =
   CompactDef { cdefDelayed        :: Bool
              , cdefNonterminating :: Bool
-             , cdefDef            :: CompactDefn }
+             , cdefDef            :: CompactDefn
+             , cdefRewriteRules   :: RewriteRules
+             }
 
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses, cfunProjection :: Maybe QName }
@@ -117,8 +119,8 @@ data CompactDefn
   | CTyCon  -- ^ Datatype or record type. Need to know this for primForce.
   | COther  -- ^ In this case we fall back to slow reduction
 
-compactDef :: Maybe ConHead -> Maybe ConHead -> Maybe QName -> Definition -> ReduceM CompactDef
-compactDef z s pf def = do
+compactDef :: Maybe ConHead -> Maybe ConHead -> Maybe QName -> Definition -> RewriteRules -> ReduceM CompactDef
+compactDef z s pf def rewr = do
   cdefn <-
     case theDef def of
       _ | Just (defName def) == pf -> pure CForce
@@ -133,6 +135,7 @@ compactDef z s pf def = do
     CompactDef { cdefDelayed        = defDelayed def == Delayed
                , cdefNonterminating = defNonterminating def
                , cdefDef            = cdefn
+               , cdefRewriteRules   = rewr
                }
 
 -- Faster case trees ------------------------------------------------------
@@ -256,7 +259,10 @@ fastReduce allowNonTerminating v = do
   s  <- fmap name <$> getBuiltin' builtinSuc
   pf <- fmap primFunName <$> getPrimitive' "primForce"
   rwr <- optRewriting <$> pragmaOptions
-  constInfo <- unKleisli (compactDef z s pf <=< getConstInfo)
+  constInfo <- unKleisli $ \f -> do
+    info <- getConstInfo f
+    rewr <- getRewriteRulesFor f
+    compactDef z s pf info rewr
   ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating rwr z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
@@ -281,13 +287,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         Nothing -> const False
         Just s  -> (conNameId s ==) . conNameId
 
-    rewriteAfter f steps
-      | hasRewriting = trampoline (runReduce . rewrite . f steps)
-      | otherwise    = f steps
-
-    reduceB' = rewriteAfter reduceB''
-
-    reduceB'' steps v =
+    reduceB' steps v =
       case v of
         Def f es -> unfoldDefinitionE steps False reduceB' (Def f []) f es
         Con c vs ->
@@ -324,11 +324,9 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
     unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) $
       unfoldCorecursion 0 v
 
-    unfoldCorecursion = rewriteAfter unfoldCorecursion'
-
-    unfoldCorecursion' :: Int -> Term -> Blocked Term
-    unfoldCorecursion' steps (Def f es) = unfoldDefinitionE steps True unfoldCorecursion (Def f []) f es
-    unfoldCorecursion' steps v          = reduceB' steps v
+    unfoldCorecursion :: Int -> Term -> Blocked Term
+    unfoldCorecursion steps (Def f es) = unfoldDefinitionE steps True unfoldCorecursion (Def f []) f es
+    unfoldCorecursion steps v          = reduceB' steps v
 
     -- | If the first argument is 'True', then a single delayed clause may
     -- be unfolded.
@@ -347,7 +345,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         YesReduction _ v -> (keepGoing $! steps + 1) v
 
     unfoldDefinitionStep :: Int -> Bool -> CompactDef -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
-    unfoldDefinitionStep steps unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def} v0 f es =
+    unfoldDefinitionStep steps unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def, cdefRewriteRules = rewr} v0 f es =
       let v = v0 `applyE` es
           -- Non-terminating functions
           -- (i.e., those that failed the termination check)
@@ -358,11 +356,17 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
             || (not unfoldDelayed       && delayed)
       in case def of
         CCon{cconSrcCon = c} ->
-          NoReduction $ notBlocked $ Con c [] `applyE` es
+          if hasRewriting then
+            runReduce $ rewrite (notBlocked ()) (Con c []) rewr es
+          else
+            NoReduction $ notBlocked $ Con c [] `applyE` es
         CFun{cfunCompiled = cc} ->
           reduceNormalE steps v0 f (map notReduced es) dontUnfold cc
         CForce -> reduceForce unfoldDelayed v0 f es
-        CTyCon -> NoReduction $ notBlocked v
+        CTyCon -> if hasRewriting then
+                    runReduce $ rewrite (notBlocked ()) v0 rewr es
+                  else
+                    NoReduction $ notBlocked v
         COther -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
       where
         yesReduction = YesReduction NoSimplification
@@ -404,8 +408,14 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
           | otherwise  =
             case match' steps f [(cc, es, id)] of
               YesReduction s u -> YesReduction s u
-              NoReduction es'  -> NoReduction $ applyE v0 <$> es'
-          where defaultResult = NoReduction $ NotBlocked AbsurdMatch vfull
+              NoReduction es'  -> if hasRewriting then
+                                    runReduce $ rewrite (void es') v0 rewr (ignoreBlocking es')
+                                  else
+                                    NoReduction $ applyE v0 <$> es'
+          where defaultResult = if hasRewriting then
+                                  runReduce $ rewrite (NotBlocked AbsurdMatch ()) v0 rewr (map ignoreReduced es)
+                                else
+                                  NoReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
         match' :: Int -> QName -> FastStack -> Reduced (Blocked Elims) Term
