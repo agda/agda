@@ -335,11 +335,12 @@ compareTerm' cmp a m n =
        mSub   <- getBuiltinName' builtinSub
        case ty of
          Def q es | Just q == mIsOne -> return ()
-         Def q es@(Apply l: Apply a:_) | Just q == mGlue, Just args <- allApplyElims es -> do
+         Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
               ty <- el' (pure $ unArg l) (pure $ unArg a)
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
+              compareTermOnFace cmp (unArg phi) ty m n
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
               ty <- el' (pure $ unArg l) (pure $ unArg a)
