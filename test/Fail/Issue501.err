@@ -1,0 +1,5 @@
+Issue501.agda:37,24-29
+Failed to solve the following constraints:
+  [69] _45 k = _46 k : _43 k
+when checking that the pattern ⟨ x ⟩ has type
+(_44 k := _45 k) (_46 k)
