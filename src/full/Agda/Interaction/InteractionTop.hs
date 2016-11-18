@@ -229,8 +229,24 @@ handleCommand_ = handleCommand id (return ())
 
 handleCommand :: (forall a. CommandM a -> CommandM a) -> CommandM () -> CommandM () -> CommandM ()
 handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
-    res <- (`catchErr` (return . Just)) $ Nothing <$ cmd
-    maybe (return ()) (\ e -> onFail >> handleErr e) res
+    tcSt <- lift get
+
+    -- -- Andreas, 2016-11-18 OLD CODE:
+    -- -- onFail and handleErr are executed in "new" command state (not TCState).
+    -- -- But it seems that if an exception is raised, it is identical to the old state,
+    -- -- see code for catchErr.
+    -- res <- (`catchErr` (return . Just)) $ Nothing <$ cmd
+    -- maybe (return ()) (\ e -> onFail >> handleErr e) res
+
+    -- Andreas, 2016-11-18 NEW CODE: execute onFail and handleErr in handler
+    -- which means (looking at catchErr) they run in state s rathern than s'.
+    -- Yet, it looks like s == s' in case the command failed.
+    cmd `catchErr` \ e -> do
+      onFail
+      handleErr e
+      -- Andreas, 2016-11-18, issue #2174
+      -- Reset TCState after error is handled, to get rid of metas created during failed command
+      lift $ put tcSt
 
   where
     -- Preserves state so we can do unsolved meta highlighting
