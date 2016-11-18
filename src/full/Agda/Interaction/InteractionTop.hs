@@ -229,6 +229,7 @@ handleCommand_ = handleCommand id (return ())
 
 handleCommand :: (forall a. CommandM a -> CommandM a) -> CommandM () -> CommandM () -> CommandM ()
 handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
+    tcSt <- lift get
 
     -- -- Andreas, 2016-11-18 OLD CODE:
     -- -- onFail and handleErr are executed in "new" command state (not TCState).
@@ -243,6 +244,9 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     cmd `catchErr` \ e -> do
       onFail
       handleErr e
+      -- Andreas, 2016-11-18, issue #2174
+      -- Reset TCState after error is handled, to get rid of metas created during failed command
+      lift $ put tcSt
 
   where
     -- Preserves state so we can do unsolved meta highlighting
