@@ -924,7 +924,7 @@ runUnifyM = runWriterT
 unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
-    liftTCM $ addContext (varTel s) $ noConstraints $ equalTerm a u v
+    liftTCM $ addContext (varTel s) $ noConstraints $ dontAssignMetas $ equalTerm a u v
     ifM (liftTCM $ optWithoutK <$> pragmaOptions)
     {-then-} (DontKnow <$> liftTCM withoutKErr)
     {-else-} (do
