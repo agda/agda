@@ -45,7 +45,7 @@ displayFormArities :: QName -> TCM [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
 
 -- | Find a matching display form for @q es@.
---   In essence this tries to reqwrite @q es@ with any
+--   In essence this tries to rewrite @q es@ with any
 --   display form @q ps --> dt@ and returns the instantiated
 --   @dt@ if successful.  First match wins.
 displayForm :: QName -> Elims -> TCM (Maybe DisplayTerm)

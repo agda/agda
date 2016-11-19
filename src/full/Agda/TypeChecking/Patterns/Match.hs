@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Pattern matcher used in the reducer for clauses that
 --   have not been compiled to case trees yet.
@@ -22,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad hiding (reportSDoc)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>))
@@ -192,19 +194,31 @@ matchPattern p u = case (p, u) of
       NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
         where r' = stuckOn (Apply arg') r
 
-  -- Case record pattern: always succeed!
-  -- This case is necessary if we want to use the clauses before
-  -- record pattern translation (e.g., in type-checking definitions by copatterns).
-  (ConP con@(ConHead c _ ds) ConPatternInfo{conPRecord = Just{}} ps, arg@(Arg info v))
-     -- precondition: con actually comes with the record fields
-     | size ds == size ps -> mapSnd (Arg info . Con con) <$> do
-         matchPatterns ps $ for ds $ \ d -> Arg info $ v `applyE` [Proj ProjSystem d]
-           -- TODO: correct info for projected terms
-     | otherwise -> __IMPOSSIBLE__
+  -- Case constructor pattern.
+  (ConP c cpi ps, Arg info v) -> do
+    if isNothing $ conPRecord cpi then fallback else do
+    isEtaRecordCon (conName c) >>= \case
+      Nothing -> fallback
+      Just fs -> do
+        -- Case: Eta record constructor.
+        -- This case is necessary if we want to use the clauses before
+        -- record pattern translation (e.g., in type-checking definitions by copatterns).
+        unless (size fs == size ps) __IMPOSSIBLE__
+        mapSnd (Arg info . Con c) <$> do
+          matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
+    where
+    isEtaRecordCon :: QName -> ReduceM (Maybe [Arg QName])
+    isEtaRecordCon c = do
+      (theDef <$> getConstInfo c) >>= \case
+        Constructor{ conData = d } -> do
+          (theDef <$> getConstInfo d) >>= \case
+            r@Record{ recFields = fs } | recEtaEquality r -> return $ Just fs
+            _ -> return Nothing
+        _ -> __IMPOSSIBLE__
 
-  -- Case data constructor pattern.
-  (ConP c _ ps, Arg info v) ->
-    do  w <- reduceB' v
+    -- Default: not an eta record constructor.
+    fallback = do
+        w <- reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
         -- 1) it does not hurt to do it all the time, and
@@ -237,6 +251,7 @@ matchPattern p u = case (p, u) of
           Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)
           NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
             where r' = stuckOn (Apply arg) r
+
 -- ASR (08 November 2014). The type of the function could be
 --
 -- @(Match Term, [Arg Term]) -> (Match Term, [Arg Term])@.
