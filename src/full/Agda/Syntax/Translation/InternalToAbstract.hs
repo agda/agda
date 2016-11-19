@@ -179,9 +179,6 @@ reifyDisplayForm f es fallback = do
 --   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
 reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
-    let vs = [ setHiding h $ defaultArg $ I.var i
-             | (i, h) <- zip [0..] $ map getHiding ps
-             ]
     -- Try to rewrite @f 0 1 2 ... |ps|-1@ to a dt.
     -- Andreas, 2014-06-11  Issue 1177:
     -- I thought we need to add the placeholders for ps to the context,
@@ -190,7 +187,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     -- But apparently, it has no influence...
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
-      displayForm f $ map I.Apply vs
+      displayForm f $ zipWith (\ p i -> I.Apply $ p $> I.var i) ps [0..]
     reportSLn "reify.display" 60 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
@@ -265,8 +262,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
-    displayLHS ps wps d = case flattenWith d of
-      (f, vs, es) -> do
+    displayLHS ps wps d = do
+        let (f, vs, es) = flattenWith d
         ds <- mapM (namedArg <.> elimToPat) es
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
