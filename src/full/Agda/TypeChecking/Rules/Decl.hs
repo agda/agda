@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Control.Monad.State (modify, gets, get)
 import Control.Monad.Writer (tell)
 
+import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
 import Data.List (genericLength)
 import Data.Maybe
@@ -52,6 +53,7 @@ import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.SizedTypes.Solve
@@ -246,11 +248,13 @@ checkDecl d = setCurrentRange d $ do
 mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
 mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
-  mapM_ instantiateDefinitionType $ Set.toList names
+  let nameList = Set.toList names
+  mapM_ instantiateDefinitionType nameList
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
   local (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
   checkPositivity_         mi names
+  revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
   -- actual problem, and prevents interesting sound applications
@@ -266,6 +270,30 @@ mutualChecks mi d ds mid names = do
   -- before polarity only.
   checkInjectivity_        names
   checkProjectionLikeness_ names
+
+-- | Check if there is a inferred eta record type in the mutual block.
+--   If yes, repeat the record pattern translation for all function definitions
+--   in the block.
+--   This is necessary since the original record pattern translation will
+--   have skipped record patterns of the new record types (as eta was off for them).
+--   See issue #2308 (and #2197).
+revisitRecordPatternTranslation :: [QName] -> TCM ()
+revisitRecordPatternTranslation qs = do
+  -- rs: inferred eta record types of this mutual block
+  -- qccs: compiled clauses of definitions
+  (rs, qccs) <- partitionEithers . catMaybes <$> mapM classify qs
+  unless (null rs) $ forM_ qccs $ \(q,cc) -> do
+    cc <- translateCompiledClauses cc
+    modifySignature $ updateDefinition q $ updateTheDef $
+      updateCompiledClauses $ const $ Just cc
+  where
+  -- Walk through the definitions and return the set of inferred eta record types
+  -- and the set of function definitions in the mutual block
+  classify q = inConcreteOrAbstractMode q $ \ def -> do
+    case theDef def of
+      Record{ recEtaEquality' = Inferred True } -> return $ Just $ Left q
+      Function{ funCompiled = Just cc } -> return $ Just $ Right (q, cc)
+      _ -> return Nothing
 
 type FinalChecks = Maybe (TCM ())
 
