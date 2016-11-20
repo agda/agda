@@ -33,6 +33,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
@@ -239,6 +240,10 @@ updateDefCompiledRep f def = def { defCompiledRep = f (defCompiledRep def) }
 updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
 updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
 updateFunClauses f _                              = __IMPOSSIBLE__
+
+updateCompiledClauses :: (Maybe CompiledClauses -> Maybe CompiledClauses) -> (Defn -> Defn)
+updateCompiledClauses f def@Function{ funCompiled = cc} = def { funCompiled = f cc }
+updateCompiledClauses f _                              = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Top level module
