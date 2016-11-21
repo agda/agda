@@ -327,7 +327,7 @@ instance Reduce Term where
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
-  let tryFast = False && case v of
+  let tryFast = case v of
                   Def{} -> True
                   Con{} -> True
                   _     -> False
@@ -953,7 +953,7 @@ instance Normalise Char where
   normalise' = return
 
 instance Normalise ConPatternInfo where
-  normalise' (ConPatternInfo mr mt) = ConPatternInfo mr <$> normalise' mt
+  normalise' (ConPatternInfo mr b mt) = ConPatternInfo mr b <$> normalise' mt
 
 instance Normalise DBPatVar where
   normalise' = return
@@ -1074,7 +1074,7 @@ instance InstantiateFull Int where
     instantiateFull' = return
 
 instance InstantiateFull ConPatternInfo where
-  instantiateFull' (ConPatternInfo mr mt) = ConPatternInfo mr <$> instantiateFull' mt
+  instantiateFull' (ConPatternInfo mr b mt) = ConPatternInfo mr b <$> instantiateFull' mt
 
 instance InstantiateFull DBPatVar where
     instantiateFull' = return
@@ -1233,11 +1233,12 @@ instance InstantiateFull a => InstantiateFull (WithArity a) where
   instantiateFull' (WithArity n a) = WithArity n <$> instantiateFull' a
 
 instance InstantiateFull a => InstantiateFull (Case a) where
-  instantiateFull' (Branches cop cs ls m) =
+  instantiateFull' (Branches cop cs ls m b) =
     Branches cop
       <$> instantiateFull' cs
       <*> instantiateFull' ls
       <*> instantiateFull' m
+      <*> pure b
 
 instance InstantiateFull CompiledClauses where
   instantiateFull' Fail        = return Fail

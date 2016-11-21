@@ -48,6 +48,7 @@ evaluateCC ccs = case ccs of
             , conBranches    = Map.fromList cbrs
             , litBranches    = Map.fromList lbrs
             , catchAllBranch = cab
+            , fallThrough    = fallThrough brs
             }
     Done n t   -> Done n <$> evaluate t
     Fail       -> return Fail

@@ -135,6 +135,7 @@ translateCompiledClauses cc = snd <$> loop cc
     loops i cs@Branches{ projPatterns   = cop
                        , conBranches    = conMap
                        , litBranches    = litMap
+                       , fallThrough    = fT
                        , catchAllBranch = catchAll } = do
 
       -- recurse on and compute variable status of catch-all clause
@@ -184,6 +185,7 @@ translateCompiledClauses cc = snd <$> loop cc
                   { projPatterns = cop
                   , conBranches = conMap
                   , litBranches = litMap
+                  , fallThrough = fT
                   , catchAllBranch = catchAll })
 
         -- case: translated away one record pattern
@@ -259,10 +261,12 @@ replaceByProjections (Arg ai i) projs cc =
       loops i Branches{ projPatterns   = cop
                       , conBranches    = conMap
                       , litBranches    = litMap
+                      , fallThrough    = fT
                       , catchAllBranch = catchAll } =
         Branches{ projPatterns   = cop
                 , conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
                 , litBranches    = fmap (loop (i - 1)) litMap
+                , fallThrough    = fT
                 , catchAllBranch = fmap (loop i) catchAll
                 }
   in  loop i cc

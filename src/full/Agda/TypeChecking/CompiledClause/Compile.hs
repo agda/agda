@@ -105,11 +105,13 @@ compileWithSplitTree shared t cs = case t of
     compiles ts br@Branches{ projPatterns = cop
                            , conBranches = cons
                            , litBranches = lits
+                           , fallThrough = fT
                            , catchAllBranch = catchAll }
       = Branches
           { projPatterns   = cop
           , conBranches    = updCons cons
           , litBranches    = compile shared <$> lits
+          , fallThrough    = fT
           , catchAllBranch = compile shared <$> catchAll
           }
       where
@@ -170,7 +172,7 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
 splitC :: Int -> Cl -> Case Cl
 splitC n (Cl ps b) = caseMaybe mp fallback $ \case
   ProjP _ d   -> projCase d $ Cl (ps0 ++ ps1) b
-  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) $
+  ConP c cpi qs -> conCase (conName c) (conPFallThrough cpi) $ WithArity (length qs) $
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b
   LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback

@@ -128,7 +128,7 @@ bindBuiltinFlat e =
                    ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
                    EmptyTel
         infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
-        cpi      = ConPatternInfo Nothing $ Just $ defaultArg infA
+        cpi      = ConPatternInfo Nothing False $ Just $ defaultArg infA
     let clause   = Clause
           { clauseRange     = noRange
           , clauseTel       = tel
@@ -143,6 +143,7 @@ bindBuiltinFlat e =
                                  $ WithArity 1 $ Done [defaultArg "x"] $ var 0)
                                Map.empty
                                Nothing
+                               (Just False)
         projection = Projection
           { projProper   = True
           , projOrig     = flat

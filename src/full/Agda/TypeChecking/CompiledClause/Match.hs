@@ -149,16 +149,11 @@ match' ((c, es, patch) : stack) = do
                mo <- getBuiltinName' builtinIOne
                return $ Set.fromList $ catMaybes [mi,mo]
 
-            isIntervalMatch <- return $ (Map.keysSet (conBranches bs) `Set.isSubsetOf` zo)
-
+            fallThrough <- return $ fromMaybe False (fallThrough bs) && isJust (catchAllBranch bs)
 
             -- Now do the matching on the @n@ths argument:
             id $
              case fmap ignoreSharing <$> eb of
-              Blocked x _            | not isIntervalMatch -> no (Blocked x) es'
-                                     | otherwise   -> match' $ catchAllFrame $ stack
-              NotBlocked _ (Apply (Arg info (MetaV x _))) | not isIntervalMatch -> no (Blocked x) es'
-                                                          | otherwise -> match' $ catchAllFrame $ stack
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v
@@ -176,10 +171,15 @@ match' ((c, es, patch) : stack) = do
                 match' $ projFrame p $ stack -- catchAllFrame $ stack
                 -- Issue #1986: no catch-all for copattern matching!
 
+              _ | fallThrough -> match' $ catchAllFrame $ stack
+
+              Blocked x _            -> no (Blocked x) es'
+              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
+
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.
-              NotBlocked blocked e | not isIntervalMatch -> no (NotBlocked $ stuckOn e blocked) es'
-                                   | otherwise -> match' $ catchAllFrame $ stack
+              NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
+
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}

@@ -482,6 +482,9 @@ data ConPatternInfo = ConPatternInfo
   { conPRecord :: Maybe ConPOrigin
     -- ^ @Nothing@ if data constructor.
     --   @Just@ if record constructor.
+  , conPFallThrough :: Bool
+    -- ^ Should the match block on non-canonical terms or can it
+    --   proceed to the catch-all clause?
   , conPType   :: Maybe (Arg Type)
     -- ^ The type of the whole constructor pattern.
     --   Should be present (@Just@) if constructor pattern is
@@ -489,11 +492,12 @@ data ConPatternInfo = ConPatternInfo
     --   Could be absent (@Nothing@) if pattern comes from some
     --   plugin (like Agsy).
     --   Needed e.g. for with-clause stripping.
+
   }
   deriving (Typeable, Show)
 
 noConPatternInfo :: ConPatternInfo
-noConPatternInfo = ConPatternInfo Nothing Nothing
+noConPatternInfo = ConPatternInfo Nothing False Nothing
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
@@ -1100,7 +1104,7 @@ instance KillRange Substitution where
   killRange (Lift n rho)         = killRange1 (Lift n) rho
 
 instance KillRange ConPatternInfo where
-  killRange (ConPatternInfo mr mt) = killRange1 (ConPatternInfo mr) mt
+  killRange (ConPatternInfo mr b mt) = killRange1 (ConPatternInfo mr b) mt
 
 instance KillRange DBPatVar where
   killRange (DBPatVar x i) = killRange2 DBPatVar x i

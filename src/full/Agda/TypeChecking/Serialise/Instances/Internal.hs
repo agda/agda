@@ -341,10 +341,10 @@ instance EmbPrj a => EmbPrj (WithArity a) where
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
-  icod_ (Branches a b c d) = icode4' a b c d
+  icod_ (Branches a b c d e) = icode5' a b c d e
 
   value = vcase valu where
-    valu [a, b, c, d] = valu4 Branches a b c d
+    valu [a, b, c, d, e] = valu5 Branches a b c d e
     valu _            = malformed
 
 instance EmbPrj CompiledClauses where
@@ -386,10 +386,10 @@ instance EmbPrj I.Clause where
     valu _                  = malformed
 
 instance EmbPrj I.ConPatternInfo where
-  icod_ (ConPatternInfo a b) = icode2' a b
+  icod_ (ConPatternInfo a b c) = icode3' a b c
 
   value = vcase valu where
-    valu [a, b] = valu2 ConPatternInfo a b
+    valu [a, b, c] = valu3 ConPatternInfo a b c
     valu _      = malformed
 
 instance EmbPrj I.DBPatVar where

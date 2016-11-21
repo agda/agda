@@ -353,7 +353,7 @@ defineProjections dataname con params names fsT t = do
       reportSDoc "tc.data.proj" 20 $ sep [ text "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
 
     let
-      cpi  = ConPatternInfo Nothing (Just $ argN $ raise (size fsT) t)
+      cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t)
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
           { clauseTel = abstract params fsT

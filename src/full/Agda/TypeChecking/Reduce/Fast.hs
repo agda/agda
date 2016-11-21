@@ -149,6 +149,8 @@ data FastCase c = FBranches
     -- ^ Map from literal to case subtree.
   , fcatchAllBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
+  , ffallThrough :: Maybe Bool
+    -- ^ (if True) In case of non-canonical argument use catchAllBranch.
   }
 
 -- | Case tree with bodies.
@@ -177,17 +179,18 @@ fastCompiledClauses z s cc =
     Case (Arg _ n) bs -> FCase n (fastCase z s bs)
 
 fastCase :: Maybe ConHead -> Maybe ConHead -> Case CompiledClauses -> FastCase FastCompiledClauses
-fastCase z s (Branches proj con lit wild) =
+fastCase z s (Branches proj con lit wild fT) =
   FBranches
     { fprojPatterns   = proj
     , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses z s . content) con
     , fsucBranch      = fmap (fastCompiledClauses z s . content) $ flip Map.lookup con . conName =<< s
     , flitBranches    = fmap (fastCompiledClauses z s) lit
+    , ffallThrough    = fT
     , fcatchAllBranch = fmap (fastCompiledClauses z s) wild }
 
 {-# INLINE lookupCon #-}
 lookupCon :: QName -> FastCase c -> Maybe c
-lookupCon c (FBranches _ cons _ _ _) = Map.lookup (nameId $ qnameName c) cons
+lookupCon c (FBranches _ cons _ _ _ _) = Map.lookup (nameId $ qnameName c) cons
 
 -- QName memo -------------------------------------------------------------
 
@@ -492,15 +495,16 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                         where (es0, rest) = splitAt n es
                               (es1, es2)  = splitAt m rest
                               vs          = map argFromElim es1
+                      fallThrough = fromMaybe False (ffallThrough bs) && isJust (fcatchAllBranch bs)
                   -- Now do the matching on the @n@ths argument:
                   in case eb of
+                    Blocked x _ | fallThrough -> match' steps f $ catchAllFrame $ stack
                     Blocked x _       -> no (Blocked x) es'
                     NotBlocked blk elim ->
                       case elim of
                         IApply{} -> __IMPOSSIBLE__ -- TODO Andrea not actually impossible, but let's get it to build first
                         Apply (Arg info v) ->
                           case v of
-                            MetaV x _ -> no (Blocked x) es'
 
                             -- In case of a natural number literal, try also its constructor form
                             Lit l@(LitNat r n) ->
@@ -512,6 +516,10 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
 
                             Lit l    -> match' steps f $ litFrame l    $ catchAllFrame stack
                             Con c vs -> match' steps f $ conFrame c vs $ catchAllFrame $ stack
+
+                            _ | fallThrough -> match' steps f $ catchAllFrame $ stack
+
+                            MetaV x _ -> no (Blocked x) es'
 
                             -- Otherwise, we are stuck.  If we were stuck before,
                             -- we keep the old reason, otherwise we give reason StuckOn here.

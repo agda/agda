@@ -129,10 +129,11 @@ translateDefn msharp (n, defini) =
 
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody c cc = case cc of
-    CC.Case n (CC.Branches cop cbr lbr cabr) -> CC.Case (fmap (c+) n)
+    CC.Case n (CC.Branches cop cbr lbr cabr cft) -> CC.Case (fmap (c+) n)
         $ CC.Branches cop (Map.map (fmap $ reverseCCBody c) cbr)
           (Map.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
+          cft
     CC.Done i t -> CC.Done i (S.applySubst
                                 (S.parallelS $ map (flip T.Var []) $
                                    reverse $ take (length i) [c..])

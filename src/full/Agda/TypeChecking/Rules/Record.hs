@@ -476,7 +476,7 @@ checkRecordProjections m r con tel ftel fs = do
             -- (rt) which should be  R ptel
             telList = telToList tel
             (_ptel,[rt]) = splitAt (size tel - 1) telList
-            cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
+            cpi    = ConPatternInfo (Just ConPRec) False (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ varP "x" | Dom{domInfo = info} <- telToList ftel ]
             body   = Just $ bodyMod $ var (size ftel2)

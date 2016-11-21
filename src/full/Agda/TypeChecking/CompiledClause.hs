@@ -45,6 +45,8 @@ data Case c = Branches
     -- ^ Map from literal to case subtree.
   , catchAllBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
+  , fallThrough :: Maybe Bool
+    -- ^ (if True) In case of non-canonical argument use catchAllBranch.
   }
   deriving (Typeable, Functor, Foldable, Traversable)
 
@@ -66,16 +68,16 @@ data CompiledClauses
   deriving (Typeable)
 
 litCase :: Literal -> c -> Case c
-litCase l x = Branches False Map.empty (Map.singleton l x) Nothing
+litCase l x = Branches False Map.empty (Map.singleton l x) Nothing (Just False)
 
-conCase :: QName -> WithArity c -> Case c
-conCase c x = Branches False (Map.singleton c x) Map.empty Nothing
+conCase :: QName -> Bool -> WithArity c -> Case c
+conCase c b x = Branches False (Map.singleton c x) Map.empty Nothing (Just b)
 
 projCase :: QName -> c -> Case c
-projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing
+projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing (Just False)
 
 catchAll :: c -> Case c
-catchAll x = Branches False Map.empty Map.empty (Just x)
+catchAll x = Branches False Map.empty Map.empty (Just x) (Just True)
 
 -- | Check whether a case tree has a catch-all clause.
 hasCatchAll :: CompiledClauses -> Bool
@@ -96,19 +98,24 @@ instance Monoid c => Monoid (WithArity c) where
   mappend = (<>)
 
 instance Monoid m => Semigroup (Case m) where
-  Branches cop  cs  ls  m <> Branches cop' cs' ls' m' =
+  Branches cop  cs  ls  m b <> Branches cop' cs' ls' m' b' =
     Branches (cop || cop') -- for @projCase <> mempty@
              (Map.unionWith mappend cs cs')
              (Map.unionWith mappend ls ls')
              (mappend m m')
+             (combine b b')
+   where
+     combine Nothing  b'        = b
+     combine b        Nothing   = b
+     combine (Just b) (Just b') = Just $ b && b'
 
 instance Monoid m => Monoid (Case m) where
   mempty = empty
   mappend = (<>)
 
 instance Null (Case m) where
-  empty = Branches False Map.empty Map.empty Nothing
-  null (Branches _cop cs ls mcatch) = null cs && null ls && null mcatch
+  empty = Branches False Map.empty Map.empty Nothing Nothing
+  null (Branches _cop cs ls mcatch _b) = null cs && null ls && null mcatch
 
 -- * Pretty instances.
 
@@ -122,7 +129,7 @@ instance Pretty a => Pretty (WithArity a) where
   pretty = pretty . content
 
 instance Pretty a => Pretty (Case a) where
-  prettyPrec p (Branches _cop cs ls m) =
+  prettyPrec p (Branches _cop cs ls m b) =
     mparens (p > 0) $ vcat $
       prettyMap cs ++ prettyMap ls ++ prC m
     where
@@ -152,10 +159,11 @@ instance KillRange c => KillRange (WithArity c) where
   killRange = fmap killRange
 
 instance KillRange c => KillRange (Case c) where
-  killRange (Branches cop con lit all) = Branches cop
+  killRange (Branches cop con lit all b) = Branches cop
     (killRangeMap con)
     (killRangeMap lit)
     (killRange all)
+    b
 
 instance KillRange CompiledClauses where
   killRange (Case i br) = killRange2 Case i br
