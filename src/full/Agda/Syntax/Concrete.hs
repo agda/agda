@@ -184,7 +184,7 @@ data Pattern
   | DotP Range Expr                        -- ^ @.e@
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
-  | EqualP Range Expr Expr                 -- ^ @i = i1@ i.e. cubical face lattice generator
+  | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
   deriving (Typeable)
 
 -- | A lambda binding is either domain free or typed.
@@ -682,7 +682,7 @@ instance HasRange Pattern where
   getRange (InstanceP r _)    = r
   getRange (DotP r _)         = r
   getRange (RecP r _)         = r
-  getRange (EqualP r _ _)     = r
+  getRange (EqualP r _)       = r
 
 -- SetRange instances
 ------------------------------------------------------------------------
@@ -705,7 +705,7 @@ instance SetRange Pattern where
   setRange r (InstanceP _ p)    = InstanceP r p
   setRange r (DotP _ e)         = DotP r e
   setRange r (RecP _ fs)        = RecP r fs
-  setRange r (EqualP _ e1 e2)   = EqualP r e1 e2
+  setRange r (EqualP _ es)      = EqualP r es
 -- KillRange instances
 ------------------------------------------------------------------------
 
@@ -815,7 +815,7 @@ instance KillRange Pattern where
   killRange (LitP l)          = killRange1 LitP l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
-  killRange (EqualP _ e1 e2)  = killRange2 (EqualP noRange) e1 e2
+  killRange (EqualP _ es)     = killRange1 (EqualP noRange) es
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
@@ -917,7 +917,7 @@ instance NFData Pattern where
   rnf (DotP _ a) = rnf a
   rnf (LitP a) = rnf a
   rnf (RecP _ a) = rnf a
-  rnf (EqualP _ a b) = rnf a `seq` rnf b
+  rnf (EqualP _ es) = rnf es
 
 -- | Ranges are not forced.
 

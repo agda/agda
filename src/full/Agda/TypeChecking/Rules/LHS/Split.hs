@@ -204,10 +204,11 @@ splitProblem mf (Problem ps qs tel pr) = do
         -- isEqualP A.DotP{}   = True
         isEqualP _          = False
       (es,ts,ps) <- case (namedThing . unArg) p of
-                   A.WildP{} -> return ([p],[],ps)
+                   A.WildP{} -> return ([p],Right [],ps)
                    A.EqualP{} -> let (es,ps1) = span (isEqualP . namedThing . unArg) ps0 in
-                     return (es,[(t,u) | A.EqualP _ t u <- map (namedThing . unArg) es],ps1)
-                   _         -> __IMPOSSIBLE__
+                     return (es, Right $ concat [ts | A.EqualP _ ts <- map (namedThing . unArg) es],ps1)
+                   A.VarP{}  -> return ([p],Left p,ps)
+                   _  -> __IMPOSSIBLE__
       -- tInterval <- lift $ elInf primInterval
       liftTCM $ reportSDoc "tc.lhs.split.partial" 10 $ sep
         [ text "split Partial"

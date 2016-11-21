@@ -175,8 +175,8 @@ instance PatternVars (A.Pattern' e) where
       A.EqualP{}             -> []
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
-noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
-noDotPattern err = dot
+noDotorEqPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
+noDotorEqPattern err = dot
   where
     dot :: A.Pattern' e -> ScopeM (A.Pattern' Void)
     dot p = case p of
@@ -1560,8 +1560,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
-         let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
-         p <- noDotPattern err p
+         let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
+         p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
            typeError . GenericDocError =<< do
@@ -1951,12 +1951,24 @@ instance ToAbstract LeftHandSide A.LHS where
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSRange $ getRange (lhs, wps)) lhscore wps
 
+-- Merges adjacent EqualP patterns into one: typecheking expects only one pattern for each domain in the telescope.
+mergeEqualPs :: [NamedArg (Pattern' e)] -> [NamedArg (Pattern' e)]
+mergeEqualPs = go Nothing
+  where
+    go acc (Arg i (Named n (A.EqualP r es)) : ps) = go (fmap (fmap (++es)) acc `mplus` Just ((i,n,r),es)) ps
+    go Nothing [] = []
+    go Nothing (p : ps) = p : go Nothing ps
+    go (Just ((i,n,r),es)) ps = Arg i (Named n (A.EqualP r es)) :
+      case ps of
+        (p : ps) -> p : go Nothing ps
+        []     -> []
+
 -- does not check pattern linearity
 instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
     toAbstract (C.LHSHead x ps) = do
         x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps
-        return $ A.LHSHead x args
+        return $ A.LHSHead x (mergeEqualPs args)
     toAbstract c@(C.LHSProj d ps1 l ps2) = do
         unless (null ps1) $ typeError $ GenericDocError $
           P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
@@ -1968,7 +1980,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ show d ++ " isn't one"
-        A.LHSProj (AmbQ ds) <$> toAbstract l <*> toAbstract ps2
+        A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs <$> toAbstract ps2)
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
@@ -2001,7 +2013,7 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
     toAbstract (A.DotP i e)           = A.DotP i <$> insideDotPattern (toAbstract e)
-    toAbstract (A.EqualP i e1 e2)     = A.EqualP i <$> toAbstract e1 <*> toAbstract e2
+    toAbstract (A.EqualP i es)        = return $ A.EqualP i es
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
@@ -2083,7 +2095,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
         where info = PatRange r
-    toAbstract p0@(C.EqualP r e1 e2) = return $ A.EqualP info e1 e2
+    toAbstract p0@(C.EqualP r es) = A.EqualP info <$> traverse (\(t,u) -> (,) <$> toAbstract t <*> toAbstract u) es
         where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r

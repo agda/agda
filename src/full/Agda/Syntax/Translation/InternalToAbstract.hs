@@ -739,7 +739,7 @@ instance BlankVars A.Pattern where
     A.AsP i n p   -> A.AsP i n $ blank bound p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__
     A.RecP i fs   -> A.RecP i $ blank bound fs
-    A.EqualP i e1 e2 -> A.EqualP i (blank bound e1) (blank bound e2)  -- Andrea TODO: is this correct?
+    A.EqualP i es -> A.EqualP i (blank bound es)  -- Andrea TODO: is this correct?
 
 instance BlankVars A.Expr where
   blank bound e = case e of

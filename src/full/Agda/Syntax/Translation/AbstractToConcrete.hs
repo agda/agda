@@ -909,8 +909,8 @@ instance ToConcrete A.Pattern C.Pattern where
           C.Underscore{} -> return $ C.WildP $ getRange i
           _ -> return $ C.DotP (getRange i) c
 
-      A.EqualP i e1 e2 -> do
-        C.EqualP (getRange i) <$> toConcrete e1 <*> toConcrete e2
+      A.EqualP i es -> do
+        C.EqualP (getRange i) <$> toConcrete es
 
       A.PatternSynP i n _ ->
         C.IdentP <$> toConcrete n

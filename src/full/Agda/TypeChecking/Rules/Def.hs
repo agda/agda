@@ -430,19 +430,21 @@ checkSystemCoverage f [n] t cs = do
         dir (i,False) = ineg `apply` [argN $ var i]
         dir (i,True) = var i
 
-        andI [] = Nothing
-        andI [t] = Just t
-        andI (t:ts) = (\ x -> imin `apply` [argN t, argN x]) <$> andI ts
+        -- andI and orI have cases for singletons to improve error messages.
+        andI [] = i1
+        andI [t] = t
+        andI (t:ts) = (\ x -> imin `apply` [argN t, argN x]) $ andI ts
 
         orI [] = i0
+        orI [t] = t
         orI (t:ts) = imax `apply` [argN t, argN (orI ts)]
 
       let
         pats = map (take n . map (namedThing . unArg) . namedClausePats) cs
         alphas = map (collectDirs (downFrom n)) pats
         phis = map andI $ map (map dir) alphas
-        psi = orI $ catMaybes $ phis
-        pcs = zip (map (fromMaybe i1) phis) cs
+        psi = orI $ phis
+        pcs = zip phis cs
         boolToI True = i1
         boolToI False = i0
 
@@ -450,6 +452,7 @@ checkSystemCoverage f [n] t cs = do
       interval <- elInf primInterval
       reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
+
       forM_ (init $ init $ tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
           phi12 <- reduce (imin `apply` [argN phi1, argN phi2])

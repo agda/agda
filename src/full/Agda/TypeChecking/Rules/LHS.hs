@@ -646,7 +646,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
                       --       arguments in the lhs of a with-function relative to
                       --       the parent function.
           numPats   = length $ takeWhile (notProj . namedArg) qs
-          lhsResult = LHSResult (length cxt) delta qs b' psplit
+          lhsResult = LHSResult (length cxt) delta qs b' (catMaybes psplit)
           -- In the case of a non-with function the pattern substitution
           -- should be weakened by the number of non-parameter patterns to
           -- get the paramSub.
@@ -716,8 +716,12 @@ checkLHS f st@(LHSState problem dpi psplit) = do
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
+    trySplit (Split p0 (Arg ai (PartialFocus (Left p) ip a)) p1) ret | Nothing `elem` psplit = ret
+    trySplit (Split p0 (Arg ai (PartialFocus (Left p) ip a)) p1) ret = do
+      st' <- updateProblemRest (LHSState problem dpi $ psplit ++ [Nothing])
+      checkLHS f st'
 
-    trySplit (Split p0 (Arg ai (PartialFocus ts ip a)) p1) ret = do
+    trySplit (Split p0 (Arg ai (PartialFocus (Right ts) ip a)) p1) ret = do
       tel <- getContextTelescope
       reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
       tInterval <- elInf primInterval
@@ -741,7 +745,6 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                        _           -> typeError $ GenericError $ show a ++ " is not IsOne."
                                         -- TODO Andrea type error or something.
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
-         -- phi ≤ a
          phi <- reduce phi
          [(gamma,sigma)] <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
                             (\ sigma -> (,sigma) <$> getContextTelescope)
@@ -755,7 +758,9 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                                            _      -> False)
           delta2' = absApp (fmap problemTel p1) itisone
           delta2 = applySubst sigma delta2'
-          mkConP c = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval) }) []
+          mkConP c = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
+                                              , conPFallThrough = True })
+                          []
           rho0 = fmap (\ (Con c []) -> mkConP c) sigma
 
           rho    = liftS (size delta2) $ consS (DotP itisone) rho0
@@ -785,7 +790,8 @@ checkLHS f st@(LHSState problem dpi psplit) = do
       let
           delta'   = abstract gamma delta2
           problem' = Problem ps' ip' delta' rest'
-      st' <- updateProblemRest (LHSState problem' dpi' $ psplit ++ [o_n])
+      reportSDoc "tc.lhs.split.partial" 20 $ text (show problem')
+      st' <- updateProblemRest (LHSState problem' dpi' $ psplit ++ [Just o_n])
       checkLHS f st'
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
@@ -1009,7 +1015,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
           let storedPatternType = applyPatSubst rho1 typeOfSplitVar
           -- Also remember if we are a record pattern and from an implicit pattern.
           isRec <- isRecord d
-          let cpi = ConPatternInfo (isRec $> porigin) (Just storedPatternType)
+          let cpi = ConPatternInfo (isRec $> porigin) False (Just storedPatternType)
 
           -- compute final context and permutation
           let crho2   = ConP c cpi $ applySubst rho2 $

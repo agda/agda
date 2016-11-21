@@ -1,4 +1,5 @@
 NoDotInPatSyn.agda:12,1-29
-Dot patterns are not allowed in pattern synonyms. Use '_' instead.
+Dot or equality patterns are not allowed in pattern synonyms. Maybe
+use '_' instead.
 when scope checking the declaration
   pattern one = cons .zero nil

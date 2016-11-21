@@ -446,7 +446,7 @@ data Pattern' e
   | LitP Literal
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
-  | EqualP PatInfo e e
+  | EqualP PatInfo [(Expr,Expr)]
   deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
@@ -633,7 +633,7 @@ instance HasRange (Pattern' e) where
     getRange (LitP l)            = getRange l
     getRange (PatternSynP i _ _) = getRange i
     getRange (RecP i _)          = getRange i
-    getRange (EqualP i _ _)      = getRange i
+    getRange (EqualP i _)        = getRange i
 
 instance HasRange SpineLHS where
     getRange (SpineLHS i _ _ _)  = getRange i
@@ -674,7 +674,7 @@ instance SetRange (Pattern' a) where
     setRange r (LitP l)             = LitP (setRange r l)
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) (setRange r n) as
     setRange r (RecP i as)          = RecP (PatRange r) as
-    setRange r (EqualP _ e1 e2)     = EqualP (PatRange r) e1 e2
+    setRange r (EqualP _ es)        = EqualP (PatRange r) es
 
 instance KillRange LamBinding where
   killRange (DomainFree info x) = killRange1 (DomainFree info) x
@@ -759,7 +759,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (LitP l)            = killRange1 LitP l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
   killRange (RecP i as)         = killRange2 RecP i as
-  killRange (EqualP i e1 e2)    = killRange3 EqualP i e1 e2
+  killRange (EqualP i es)       = killRange2 EqualP i es
 
 instance KillRange SpineLHS where
   killRange (SpineLHS i a b c)  = killRange4 SpineLHS i a b c
@@ -1009,7 +1009,7 @@ substPattern s p = case p of
   DefP{}        -> p              -- destructor pattern
   AsP i x p     -> AsP i x (substPattern s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
-  EqualP i e1 e2 -> EqualP i (substExpr (map (fmap patternToExpr) s) e1) (substExpr (map (fmap patternToExpr) s) e2)
+  EqualP i es -> EqualP i (map (substExpr (map (fmap patternToExpr) s)) es)
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a

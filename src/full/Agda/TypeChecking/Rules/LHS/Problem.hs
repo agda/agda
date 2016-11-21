@@ -190,7 +190,7 @@ data Focus
     , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
     }
   | LitFocus Literal [NamedArg DeBruijnPattern] Type
-  | PartialFocus [(A.Expr,A.Expr)] [NamedArg DeBruijnPattern] Type
+  | PartialFocus (Either (NamedArg A.Pattern) [(A.Expr,A.Expr)]) [NamedArg DeBruijnPattern] Type
 
 -- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem
@@ -242,7 +242,7 @@ data AsBinding      = AsB Name Term Type
 data LHSState = LHSState
   { lhsProblem :: Problem
   , lhsDPI     :: [DotPatternInst]
-  , lhsPartialSplit :: ![Int] -- ^ have we splitted with a PartialFocus?
+  , lhsPartialSplit :: ![Maybe Int] -- ^ have we splitted with a PartialFocus?
   }
 
 instance Subst Term ProblemRest where
