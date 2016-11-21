@@ -1463,9 +1463,8 @@ forallFaceMaps t kb k = do
     cxt <- asks envContext
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
-    bs <- getLetBindings
-    modifyContext (const cxt') $ updateModuleParameters sigma $ do
-      addBindings' (map (id -*- (applySubst sigma -*- applySubst sigma)) bs) $ addBindings resolved $ do
+    modifyContext (const cxt') $ updateModuleParameters sigma $
+      addBindings resolved $ do
         cl <- buildClosure ()
         tel <- getContextTelescope
         m <- currentModule
@@ -1487,8 +1486,6 @@ forallFaceMaps t kb k = do
       io  <- primIOne
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
-    addBindings' [] m = m
-    addBindings' ((n,(v,t)):bs) m = addLetBinding' n v t (addBindings' bs m)
     addBindings [] m = m
     addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
 
