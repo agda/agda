@@ -118,7 +118,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
           | Lit Literal
           | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
-          | Con ConHead Args              -- ^ @c vs@
+          | Con ConHead ConInfo Args      -- ^ @c vs@ or @record { fs = vs }@
           | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
           | Sort Sort
           | Level Level
@@ -130,6 +130,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Shared !(Ptr Term)
             -- ^ Explicit sharing
   deriving (Typeable, Show)
+
+type ConInfo = ConPOrigin
 
 -- | Eliminations, subsuming applications and projections.
 --
@@ -494,6 +496,15 @@ data ConPatternInfo = ConPatternInfo
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo Nothing Nothing
 
+-- | Build partial 'ConPatternInfo' from 'ConInfo'
+toConPatternInfo :: ConInfo -> ConPatternInfo
+toConPatternInfo ConPRec = ConPatternInfo (Just ConPRec) Nothing
+toConPatternInfo _ = noConPatternInfo
+
+-- | Build 'ConInfo' from 'ConPatternInfo'.
+fromConPatternInfo :: ConPatternInfo -> ConInfo
+fromConPatternInfo = fromMaybe ConPImplicit . conPRecord
+
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
 patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
@@ -639,7 +650,7 @@ ignoreSharingType (El s v) = El s (ignoreSharing v)
 shared_ :: Term -> Term
 shared_ v@Shared{}   = v
 shared_ v@(Var _ []) = v
-shared_ v@(Con _ []) = v -- Issue 1691: sharing (zero : Nat) destroys constructorForm
+shared_ v@(Con _ _ []) = v -- Issue 1691: sharing (zero : Nat) destroys constructorForm
 shared_ v            = Shared (newPtr v)
 
 -- | Typically m would be TCM and f would be Blocked.
@@ -979,7 +990,7 @@ instance TermSize Term where
   tsize v = case v of
     Var _ vs    -> 1 + tsize vs
     Def _ vs    -> 1 + tsize vs
-    Con _ vs    -> 1 + tsize vs
+    Con _ _ vs    -> 1 + tsize vs
     MetaV _ vs  -> 1 + tsize vs
     Level l     -> tsize l
     Lam _ f     -> 1 + tsize f
@@ -1029,7 +1040,7 @@ instance KillRange Term where
   killRange v = case v of
     Var i vs    -> killRange1 (Var i) vs
     Def c vs    -> killRange2 Def c vs
-    Con c vs    -> killRange2 Con c vs
+    Con c ci vs -> killRange3 Con c ci vs
     MetaV m vs  -> killRange1 (MetaV m) vs
     Lam i f     -> killRange2 Lam i f
     Lit l       -> killRange1 Lit l
@@ -1138,7 +1149,7 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> text (show q) `pApp` els
-      Con c vs             -> text (show $ conName c) `pApp` map Apply vs
+      Con c ci vs          -> text (show $ conName c) `pApp` map Apply vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
         sep [ prettyPrec 1 (unDom a) <+> text "->"
             , nest 2 $ pretty b ]
@@ -1251,8 +1262,8 @@ instance NFData Term where
     Var _ es   -> rnf es
     Lam _ b    -> rnf (unAbs b)
     Lit l      -> rnf l
-    Def q es   -> rnf es
-    Con c vs   -> rnf vs
+    Def _ es   -> rnf es
+    Con _ _ vs -> rnf vs
     Pi a b     -> rnf (unDom a, unAbs b)
     Sort s     -> rnf s
     Level l    -> rnf l

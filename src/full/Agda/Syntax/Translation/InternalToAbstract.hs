@@ -159,7 +159,7 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
+    DCon c ci vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
@@ -250,7 +250,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okElim (I.Proj{})  = True
 
     okTerm (I.Var _ []) = True
-    okTerm (I.Con c vs) = all okArg vs
+    okTerm (I.Con c ci vs) = all okArg vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
     okTerm _            = False
 
@@ -270,8 +270,6 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
-        ci   = ConPatInfo ConPCon patNoRange
-
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
@@ -282,11 +280,11 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
                                            Nothing -> __IMPOSSIBLE__
                                            Just p  -> p
 
-        termToPat (DCon c vs)          = tryRecPFromConP =<< do
-           A.ConP ci (AmbQ [conName c]) <$> mapM argToPat vs
+        termToPat (DCon c ci vs)          = tryRecPFromConP =<< do
+           A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c vs)) = tryRecPFromConP =<< do
-           A.ConP ci (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
+        termToPat (DTerm (I.Con c ci vs)) = tryRecPFromConP =<< do
+           A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
 
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ A.WildP patNoRange
@@ -304,7 +302,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
           reportSLn "reify.display" 60 $ "termToExpr " ++ show v
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
-            I.Con c vs ->
+            I.Con c ci vs ->
               apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
             I.Def f es -> do
               let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
@@ -346,7 +344,7 @@ reifyTerm expandAnonDefs0 v = do
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
-    I.Con c vs   -> do
+    I.Con c ci vs -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
       case isR of
@@ -358,8 +356,8 @@ reifyTerm expandAnonDefs0 v = do
           vs <- map unArg <$> reify vs
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x (map I.Apply vs) $ do
-          ci <- getConstInfo x
-          let Constructor{conPars = np} = theDef ci
+          def <- getConstInfo x
+          let Constructor{conPars = np} = theDef def
           -- if we are the the module that defines constructor x
           -- then we have to drop at least the n module parameters
           n  <- getDefFreeVars x
@@ -384,7 +382,7 @@ reifyTerm expandAnonDefs0 v = do
               -- Here, we need the reducing version of @telView@
               -- because target of constructor could be a definition
               -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
-              TelV tel _ <- telView (defType ci)
+              TelV tel _ <- telView (defType def)
               case genericDrop np $ telToList tel of
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,

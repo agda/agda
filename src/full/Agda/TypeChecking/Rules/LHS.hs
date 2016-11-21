@@ -408,7 +408,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
         gatherVars :: Term -> TCM [(Int,Projectns)]
         gatherVars u = case ignoreSharing u of
           Var i es -> return $ (i,) <$> maybeToList (allProjElims es)
-          Con c us -> ifM (isEtaCon $ conName c)
+          Con c _ us -> ifM (isEtaCon $ conName c)
                       {-then-} (concat <$> traverse (gatherVars . unArg) us)
                       {-else-} (return [])
           _        -> return []

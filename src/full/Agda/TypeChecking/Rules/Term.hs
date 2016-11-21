@@ -668,7 +668,7 @@ checkRecordExpression mfs e t = do
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      return $ Con con args
+      return $ Con con ConPRec args
     _         -> typeError $ ShouldBeRecordType t
 
   where
@@ -1470,8 +1470,8 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      vc <- getOrigConTerm c
-      (u, a) <- inferDef (\ _ -> vc) c
+      con <- getOrigConHead c
+      (u, a) <- inferDef (\ _ -> Con con ConPCon []) c
 
       -- Next get the number of parameters in the current context.
       Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
@@ -1571,7 +1571,7 @@ checkConstructorApplication org t c args = do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "us     =" <+> prettyTCM us
                , text "t'     =" <+> prettyTCM t' ]
-             coerce (Con c us) t' t
+             coerce (Con c ConPCon us) t' t
       _ -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback

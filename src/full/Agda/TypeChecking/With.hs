@@ -521,11 +521,11 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
             cs' <- liftTCM $ mapM getConForm cs'
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
-            stripConP d us b c qs' ps'
+            stripConP d us b c ConPCon qs' ps'
 
           A.RecP _ fs -> caseMaybeM (liftTCM $ isRecord d) mismatch $ \ def -> do
             ps' <- liftTCM $ insertMissingFields d (const $ A.WildP empty) fs (recordFieldNames def)
-            stripConP d us b c qs' ps'
+            stripConP d us b c ConPRec qs' ps'
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $
@@ -578,13 +578,15 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
              -- ^ Type the remaining patterns eliminate.
           -> ConHead
              -- ^ Constructor of this pattern.
+          -> ConInfo
+             -- ^ Constructor info of this pattern (constructor/record).
           -> [NamedArg DeBruijnPattern]
              -- ^ Argument patterns (parent clause).
           -> [NamedArg A.Pattern]
              -- ^ Argument patterns (with clause).
           -> WriterT [A.NamedDotPattern] TCM [NamedArg A.Pattern]
              -- ^ Stripped patterns.
-        stripConP d us b c qs' ps' = do
+        stripConP d us b c ci qs' ps' = do
 
           -- Get the type and number of parameters of the constructor.
           Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
@@ -601,7 +603,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
                  ]
 
           -- Compute the new type
-          let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
+          let v  = Con c ci [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
               t' = tel' `abstract` absApp (raise (size tel') b) v
               self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
 
@@ -741,5 +743,5 @@ patsToElims = map $ toElim . fmap namedThing
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP x      -> DTerm  $ var $ dbPatVarIndex x
       DotP t      -> DDot   $ t
-      ConP c _ ps -> DCon c $ toTerms ps
+      ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l

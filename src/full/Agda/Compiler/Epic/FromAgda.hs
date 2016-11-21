@@ -246,7 +246,7 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
       return $ case del of
         True  -> Lazy f
         False -> f
-    T.Con c args -> do
+    T.Con c ci args -> do
         let con = unqname $ conName c
         apps con <$> mapM (substTerm env . unArg) args
     T.Shared p -> substTerm env $ derefPtr p

@@ -95,7 +95,7 @@ unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevel
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = tryMaybe $ do
-    Con c [] <- prim
+    Con c ci [] <- prim
     return c
 
 maybePrimDef :: TCM Term -> TCM (Maybe QName)

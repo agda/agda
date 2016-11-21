@@ -480,7 +480,7 @@ instance ComputeOccurrences Term where
             if n == 1 then OccursAs UnderInf else OccursAs (DefArg d n)
       occs <- mapM occurrences args
       return $ OccursHere (ADef d) >+< Concat (zipWith occsAs [0..] occs)
-    Con c args   -> occurrences args
+    Con _ _ args -> occurrences args
     MetaV _ args -> OccursAs MetaArg <$> occurrences args
     Pi a b       -> do
       oa <- occurrences a

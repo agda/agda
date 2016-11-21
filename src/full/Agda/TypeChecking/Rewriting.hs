@@ -205,8 +205,8 @@ addRewriteRule q = do
       -- Find head symbol f of the lhs and its arguments.
       (f , hd , es) <- case ignoreSharing lhs of
         Def f es -> return (f , Def f , es)
-        Con c vs -> do
-          let hd = Con c . fromMaybe __IMPOSSIBLE__ . allApplyElims
+        Con c ci vs -> do
+          let hd = Con c ci . fromMaybe __IMPOSSIBLE__ . allApplyElims
           return (conName c , hd  , map Apply vs)
         _        -> failureNotDefOrCon
 

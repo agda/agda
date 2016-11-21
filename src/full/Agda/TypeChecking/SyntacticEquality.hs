@@ -98,7 +98,7 @@ instance SynEq Term where
     -- TODO: preserve sharing!
     case (ignoreSharing v, ignoreSharing v') of
       (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
-      (Con   c vs, Con   c' vs') | c == c' -> Con c   <$$> synEq vs vs'
+      (Con c ci vs,Con c' ci' vs') | c == c' -> Con c (bestConInfo ci ci') <$$> synEq vs vs'
       (Def   f vs, Def   f' vs') | f == f' -> Def f   <$$> synEq vs vs'
       (MetaV x vs, MetaV x' vs') | x == x' -> MetaV x <$$> synEq vs vs'
       (Lit   l   , Lit   l'    ) | l == l' -> pure2 $ v

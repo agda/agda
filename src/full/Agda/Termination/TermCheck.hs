@@ -525,7 +525,7 @@ termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
         t <- constructorForm t
         case ignoreSharing t of
           -- Constructors.
-          Con c args  -> ConDBP (conName c) <$> mapM (loop . unArg) args
+          Con c ci args -> ConDBP (conName c) <$> mapM (loop . unArg) args
           Def s [Apply arg] | Just s == suc
                       -> ConDBP s . (:[]) <$> loop (unArg arg)
           DontCare t  -> __IMPOSSIBLE__  -- removed by stripAllProjections
@@ -811,8 +811,8 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
     -- thus, we need to use traverseTermM.  Sharing is handled by traverseTermM,
     -- so no ignoreSharing needed here.
     let reduceCon = traverseTermM $ \ t -> case t of
-           Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
-           _        -> return t
+           Con c ci vs -> (`apply` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
+           _ -> return t
 
     -- Reduce constructors only when this call is actually a recursive one.
     -- es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ forM es $
@@ -910,7 +910,7 @@ instance ExtractCalls Term where
     case ignoreSharing t of
 
       -- Constructed value.
-      Con ConHead{conName = c} args -> do
+      Con ConHead{conName = c} _ args -> do
 
         -- A constructor preserves the guardedness of all its arguments.
         let argsg = zip args $ repeat True
@@ -1193,7 +1193,7 @@ instance StripAllProjections Term where
   stripAllProjections t = do
     case ignoreSharing t of
       Var i es   -> Var i <$> stripAllProjections es
-      Con c ts   -> Con c <$> stripAllProjections ts
+      Con c ci ts -> Con c ci <$> stripAllProjections ts
       Def d es   -> Def d <$> stripAllProjections es
       DontCare t -> stripAllProjections t
       _ -> return t
@@ -1259,14 +1259,14 @@ compareTerm' v mp@(Masked m p) = do
     (Con{}, ConDBP c ps) | any (isSubTerm v) ps ->
       decrease <$> offsetFromConstructor c <*> return Order.le
 
-    (Con c ts, ConDBP c' ps) | conName c == c'->
+    (Con c ci ts, ConDBP c' ps) | conName c == c'->
       compareConArgs ts ps
 
-    (Con c [], _) -> return Order.le
+    (Con c ci [], _) -> return Order.le
 
     -- new case for counting constructors / projections
     -- register also increase
-    (Con c ts, _) -> do
+    (Con c ci ts, _) -> do
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) mp) ts)
 
@@ -1277,7 +1277,7 @@ subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPat -> Order
 subTerm t p = if equal t p then Order.le else properSubTerm t p
   where
     equal (Shared p) dbp = equal (derefPtr p) dbp
-    equal (Con c ts) (ConDBP c' ps) =
+    equal (Con c ci ts) (ConDBP c' ps) =
       and $ (conName c == c')
           : (length ts == length ps)
           : zipWith equal (map unArg ts) ps

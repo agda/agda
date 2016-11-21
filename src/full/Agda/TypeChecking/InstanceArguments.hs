@@ -132,7 +132,7 @@ initialIFSCandidates t = do
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
                -- Ulf, 2014-08-20: constructors are always instances.
-               Constructor{ conSrcCon = c }       -> Con c []
+               Constructor{ conSrcCon = c }       -> Con c ConPImplicit []
                _                                  -> Def q $ map Apply args
           inScope <- isNameInScope q <$> getScope
           return $ Candidate v t ExplicitToInstance False <$ guard inScope
@@ -337,7 +337,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
       case ignoreSharing v of
         Def _ es  -> areThereNonRigidMetaArgs es
         Var _ es  -> areThereNonRigidMetaArgs es
-        Con _ vs  -> areThereNonRigidMetaArgs (map Apply vs)
+        Con _ _ vs-> areThereNonRigidMetaArgs (map Apply vs)
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
                       -- Ignore unconstrained level and size metas (#1865)
                       Def lvl [] <- ignoreSharing <$> primLevel
@@ -549,10 +549,10 @@ applyDroppingParameters :: Term -> Args -> TCM Term
 applyDroppingParameters t vs = do
   let fallback = return $ t `apply` vs
   case ignoreSharing t of
-    Con c [] -> do
+    Con c ci [] -> do
       def <- theDef <$> getConInfo c
       case def of
-        Constructor {conPars = n} -> return $ Con c (genericDrop n vs)
+        Constructor {conPars = n} -> return $ Con c ci (genericDrop n vs)
         _ -> __IMPOSSIBLE__
     Def f [] -> do
       mp <- isProjection f

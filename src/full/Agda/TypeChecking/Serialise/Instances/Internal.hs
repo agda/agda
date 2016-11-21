@@ -98,7 +98,7 @@ instance EmbPrj I.Term where
   icod_ (Lam      a b) = icode2 1 a b
   icod_ (Lit      a  ) = icode1 2 a
   icod_ (Def      a b) = icode2 3 a b
-  icod_ (Con      a b) = icode2 4 a b
+  icod_ (Con    a b c) = icode3 4 a b c
   icod_ (Pi       a b) = icode2 5 a b
   icod_ (Sort     a  ) = icode1 7 a
   icod_ (MetaV    a b) = __IMPOSSIBLE__
@@ -113,7 +113,7 @@ instance EmbPrj I.Term where
     valu [1, a, b] = valu2 Lam   a b
     valu [2, a]    = valu1 Lit   a
     valu [3, a, b] = valu2 Def   a b
-    valu [4, a, b] = valu2 Con   a b
+    valu [4, a, b, c] = valu3 Con a b c
     valu [5, a, b] = valu2 Pi    a b
     valu [7, a]    = valu1 Sort  a
     valu [8, a]    = valu1 DontCare a
@@ -193,14 +193,14 @@ instance EmbPrj CtxId where
 instance EmbPrj DisplayTerm where
   icod_ (DTerm    a  )   = icode1' a
   icod_ (DDot     a  )   = icode1 1 a
-  icod_ (DCon     a b)   = icode2 2 a b
+  icod_ (DCon     a b c) = icode3 2 a b c
   icod_ (DDef     a b)   = icode2 3 a b
   icod_ (DWithApp a b c) = icode3 4 a b c
 
   value = vcase valu where
     valu [a]          = valu1 DTerm a
     valu [1, a]       = valu1 DDot a
-    valu [2, a, b]    = valu2 DCon a b
+    valu [2, a, b, c] = valu3 DCon a b c
     valu [3, a, b]    = valu2 DDef a b
     valu [4, a, b, c] = valu3 DWithApp a b c
     valu _            = malformed

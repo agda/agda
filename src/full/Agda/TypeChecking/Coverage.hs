@@ -495,7 +495,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
                                        -- Andreas, 2013-11-29 changes nothing!
 {-
   con <- conSrcCon . theDef <$> getConstInfo con
-  Con con [] <- liftTCM $ ignoreSharing <$> (constructorForm =<< normalise (Con con []))
+  Con con ci [] <- liftTCM $ ignoreSharing <$> (constructorForm =<< normalise (Con con ci []))
 -}
 
   -- Get the type of the constructor

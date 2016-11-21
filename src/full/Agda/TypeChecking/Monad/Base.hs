@@ -1172,7 +1172,7 @@ data DisplayTerm
     --   The 'Elims' are additional arguments @es@
     --   (possible in case the with-application is of function type)
     --   or projections (if it is of record type).
-  | DCon ConHead [Arg DisplayTerm]
+  | DCon ConHead ConInfo [Arg DisplayTerm]
     -- ^ @c vs@.
   | DDef QName [Elim' DisplayTerm]
     -- ^ @d vs@.
@@ -1187,7 +1187,7 @@ instance Free' DisplayForm c where
 
 instance Free' DisplayTerm c where
   freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
-  freeVars' (DCon _ vs)        = freeVars' vs
+  freeVars' (DCon _ _ vs)      = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
   freeVars' (DDot v)           = freeVars' v
   freeVars' (DTerm v)          = freeVars' v
@@ -3081,7 +3081,7 @@ instance KillRange DisplayTerm where
   killRange dt =
     case dt of
       DWithApp dt dts es -> killRange3 DWithApp dt dts es
-      DCon q dts        -> killRange2 DCon q dts
+      DCon q ci dts     -> killRange3 DCon q ci dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
       DTerm v           -> killRange1 DTerm v

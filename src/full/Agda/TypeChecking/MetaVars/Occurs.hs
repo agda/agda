@@ -270,7 +270,7 @@ instance Occurs Term where
           Lit l       -> return v
           DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
           Def d es    -> Def d <$> occDef d (leaveTop ctx) es
-          Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
+          Con c ci vs -> Con c ci <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
           Sort s      -> Sort <$> occ (leaveTop ctx) s
           v@Shared{}  -> updateSharedTerm (occ ctx) v
@@ -331,7 +331,7 @@ instance Occurs Term where
       Lit l      -> return ()
       DontCare v -> metaOccurs m v
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
-      Con c vs   -> metaOccurs m vs
+      Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
@@ -527,7 +527,7 @@ hasBadRigid xs t = do
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
-    Con c args   -> do
+    Con c _ args -> do
       ifM (liftTCM $ isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
@@ -597,7 +597,7 @@ instance FoldRigid Term where
         Blocked{}                   -> mempty
         NotBlocked MissingClauses _ -> mempty
         _        -> fold es
-      Con _ ts   -> fold ts
+      Con _ _ ts -> fold ts
       Pi a b     -> fold (a,b)
       Sort s     -> fold s
       Level l    -> fold l

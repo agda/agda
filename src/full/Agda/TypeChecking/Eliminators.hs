@@ -69,8 +69,8 @@
 --                   _         -> return $ elim (Proj f : map Apply vs') ev
 --         _ -> defElim
 --     Var x vs   -> VarElim x `app` vs
---     Con c vs   -> return $ ConElim c vs
--- --    Con c vs   -> ConElim c `app` vs
+--     Con c ci vs   -> return $ ConElim c vs
+-- --    Con c ci vs   -> ConElim c `app` vs
 --     MetaV m vs -> MetaElim m `app` vs
 --     Lam{}      -> noElim
 --     Lit{}      -> noElim
@@ -94,7 +94,7 @@
 -- unElimView v = case v of
 --   VarElim x es  -> unElim (Var x []) es
 --   DefElim x es  -> unElim (Def x []) es
---   ConElim x vs  -> unElim (Con x []) $ map Apply vs
+--   ConElim x vs  -> unElim (Con x ci []) $ map Apply vs
 --   MetaElim x es -> unElim (MetaV x []) es
 --   NoElim v      -> v
 

@@ -667,7 +667,7 @@ metaHelperType norm ii rng s = case words s of
     onNamesTm f v = case v of
       I.Var x es   -> I.Var x <$> onNamesElims f es
       I.Def q es   -> I.Def q <$> onNamesElims f es
-      I.Con c args -> I.Con c <$> onNamesArgs f args
+      I.Con c ci args -> I.Con c ci <$> onNamesArgs f args
       I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
       I.DontCare v -> I.DontCare <$> onNamesTm f v

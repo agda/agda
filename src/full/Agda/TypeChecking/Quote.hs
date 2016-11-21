@@ -95,8 +95,8 @@ quotingKit = do
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
   lkit            <- requireLevels
-  Con z _         <- ignoreSharing <$> primZero
-  Con s _         <- ignoreSharing <$> primSuc
+  Con z _ _       <- ignoreSharing <$> primZero
+  Con s _ _       <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
 
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
@@ -218,7 +218,7 @@ quotingKit = do
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
-          Con x ts   -> do
+          Con x ci ts -> do
             cDef <- getConstInfo (conName x)
             n    <- getDefFreeVars (conName x)
             let args = list $ drop n $ defParameters cDef ++ map (quoteArg quoteTerm) ts

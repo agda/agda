@@ -99,7 +99,7 @@ instance Evaluate Term where
             ]
           ]
         return f
-    Con c args   -> Con c <$> evaluate args
+    Con c ci args   -> Con c ci <$> evaluate args
     Pi  arg abs  -> return term
     Sort s       -> return term
     MetaV i args -> return term

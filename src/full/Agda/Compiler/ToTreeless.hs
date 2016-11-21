@@ -328,7 +328,7 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       maybeInlineDef q args
-    I.Con c args -> do
+    I.Con c ci args -> do
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Shared _ -> __IMPOSSIBLE__ -- the ignoreSharing fun should already take care of this
@@ -375,4 +375,3 @@ substArg x | erasable x = return C.TErased
         UnusedArg  -> True
         Forced{}   -> False -- TODO: would like this to be True
         Relevant   -> False
-

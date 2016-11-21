@@ -14,7 +14,7 @@ instance MentionsMeta Term where
     Lam _ b      -> mm b
     Lit{}        -> False
     Def _ args   -> mm args
-    Con _ args   -> mm args
+    Con _ _ args -> mm args
     Pi a b       -> mm (a, b)
     Sort s       -> mm s
     Level l      -> mm l

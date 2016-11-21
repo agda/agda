@@ -125,17 +125,17 @@ checkInternal' action v t = do
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       checkSpine action a (MetaV x []) es t
-    Con c vs   -> do
+    Con c ci vs -> do
       -- we need to fully apply the constructor to make getConType work
       TelV tel t <- telView t
       addContext tel $ do
         let failure = typeError $ DoesNotConstructAnElementOf (conName c) t
             vs'     = raise (size tel) vs ++ teleArgs tel
         a <- maybe failure return =<< getConType c t
-        Con c vs2 <- checkArgs action a (Con c []) vs' t
+        Con c ci vs2 <- checkArgs action a (Con c ci []) vs' t
                  -- Strip away the extra arguments
         return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
-               $ Con c (take (length vs) vs2)
+               $ Con c ci (take (length vs) vs2)
     Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
       (a, b) <- shouldBePi t

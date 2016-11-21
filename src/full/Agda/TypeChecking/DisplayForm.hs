@@ -35,7 +35,7 @@ dtermToTerm :: DisplayTerm -> Term
 dtermToTerm dt = case dt of
   DWithApp d ds es ->
     dtermToTerm d `apply` map (defaultArg . dtermToTerm) ds `applyE` es
-  DCon c args      -> Con c $ map (fmap dtermToTerm) args
+  DCon c ci args   -> Con c ci $ map (fmap dtermToTerm) args
   DDef f es        -> Def f $ map (fmap dtermToTerm) es
   DDot v           -> v
   DTerm v          -> v
@@ -142,7 +142,7 @@ instance Match Term where
     (Var 0 [], v)                  -> return [strengthen __IMPOSSIBLE__ v]
     (Var i ps, Var j vs) | i == j  -> match ps vs
     (Def c ps, Def d vs) | c == d  -> match ps vs
-    (Con c ps, Con d vs) | c == d  -> match ps vs
+    (Con c _ ps, Con d _ vs) | c == d -> match ps vs
     (Lit l, Lit l')      | l == l' -> return []
     (p, v)               | p == v  -> return []
     (p, Level l)                   -> match p =<< reallyUnLevelView l
