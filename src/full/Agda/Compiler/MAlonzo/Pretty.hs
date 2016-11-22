@@ -8,7 +8,6 @@ module Agda.Compiler.MAlonzo.Pretty where
 
 import Data.Generics.Geniplate
 import qualified Language.Haskell.Exts.Syntax as HS
-import qualified Language.Haskell.Exts.Pretty as HS
 import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
@@ -54,10 +53,10 @@ instance Pretty HS.ImportDecl where
   pretty _ = __IMPOSSIBLE__
 
 instance Pretty HS.ImportSpec where
-  pretty (HS.IVar x)          = pretty x
-  pretty (HS.IThingAll x)     = pretty x <> text "(..)"
-  pretty (HS.IThingWith x cs) = pretty x <> parens (hsep $ punctuate comma $ map pretty cs)
-  pretty HS.IAbs{}            = __IMPOSSIBLE__
+  pretty (HS.IVar x)      = pretty x
+  pretty (HS.IThingAll x) = pretty x <> text "(..)"
+  pretty HS.IThingWith{}  = __IMPOSSIBLE__
+  pretty HS.IAbs{}        = __IMPOSSIBLE__
 
 instance Pretty HS.Decl where
   pretty d = case d of
@@ -108,15 +107,15 @@ prettyWhere (Just b) doc =
 instance Pretty HS.Pat where
   prettyPrec pr pat =
     case pat of
-      HS.PVar x           -> pretty x
-      HS.PLit{}           -> text $ HS.prettyPrint pat
-      HS.PAsPat x p       -> mparens (pr > 10) $ pretty x <> text "@" <> prettyPrec 11 p
-      HS.PWildCard        -> text "_"
-      HS.PBangPat p       -> text "!" <> prettyPrec 11 p
-      HS.PApp c ps        -> mparens (pr > 9) $ pretty c <+> hsep (map (prettyPrec 10) ps)
-      HS.PatTypeSig _ p t -> mparens (pr > 0) $ sep [ pretty p <+> text "::", nest 2 $ pretty t ]
-      HS.PIrrPat p        -> mparens (pr > 10) $ text "~" <> prettyPrec 11 p
-      _                   -> __IMPOSSIBLE__
+      HS.PVar x             -> pretty x
+      HS.PLit HS.Signless l -> pretty l
+      HS.PAsPat x p         -> mparens (pr > 10) $ pretty x <> text "@" <> prettyPrec 11 p
+      HS.PWildCard          -> text "_"
+      HS.PBangPat p         -> text "!" <> prettyPrec 11 p
+      HS.PApp c ps          -> mparens (pr > 9) $ pretty c <+> hsep (map (prettyPrec 10) ps)
+      HS.PatTypeSig _ p t   -> mparens (pr > 0) $ sep [ pretty p <+> text "::", nest 2 $ pretty t ]
+      HS.PIrrPat p          -> mparens (pr > 10) $ text "~" <> prettyPrec 11 p
+      _                     -> __IMPOSSIBLE__
 
 prettyRhs :: String -> HS.Rhs -> Doc
 prettyRhs eq (HS.UnGuardedRhs e)   = text eq <+> pretty e
@@ -166,12 +165,19 @@ instance Pretty HS.Stmt where
   pretty HS.LetStmt{} = __IMPOSSIBLE__
   pretty HS.RecStmt{} = __IMPOSSIBLE__
 
+instance Pretty HS.Literal where
+  prettyPrec _ (HS.Int  n) = integer n
+  prettyPrec _ (HS.Frac x) = double (fromRational x)
+  prettyPrec _ (HS.Char c) = text (show c)
+  prettyPrec _ (HS.String s) = text (show s)
+  prettyPrec _ _ = __IMPOSSIBLE__
+
 instance Pretty HS.Exp where
   prettyPrec pr e =
     case e of
       HS.Var x -> pretty x
       HS.Con c -> pretty c
-      HS.Lit l -> text $ HS.prettyPrint l
+      HS.Lit l -> pretty l
       HS.InfixApp a qop b -> mparens (pr > 0) $
         sep [ prettyPrec 1 a
             , pretty qop <+> prettyPrec 1 b ]
@@ -207,13 +213,38 @@ instance Pretty HS.Alt where
       sep [ pretty pat, nest 2 $ prettyRhs "->" rhs ]
 
 instance Pretty HS.ModuleName where
-  pretty = text . HS.prettyPrint . encodeModuleName
+  pretty m = text s
+    where HS.ModuleName s = encodeModuleName m
 
 instance Pretty HS.QName where
-  pretty (HS.Qual m x) = text $ HS.prettyPrint $ HS.Qual (encodeModuleName m) x
-  pretty q             = text $ HS.prettyPrint q
+  pretty q = mparens (isOperator q) (prettyQName q)
 
-instance Pretty HS.Name  where pretty = text . HS.prettyPrint
-instance Pretty HS.CName where pretty = text . HS.prettyPrint
-instance Pretty HS.QOp   where pretty = text . HS.prettyPrint
+instance Pretty HS.Name where
+  pretty (HS.Ident  s) = text s
+  pretty (HS.Symbol s) = text s
+
+instance Pretty HS.QOp where
+  pretty op = case op of
+      HS.QVarOp x -> pp x
+      HS.QConOp x -> __IMPOSSIBLE__
+    where
+      pp x | isOperator x = prettyQName x
+           | otherwise    = text "`" <> prettyQName x <> text "`"
+
+isOperator :: HS.QName -> Bool
+isOperator q =
+  case q of
+    HS.Qual _ x           -> isOp x
+    HS.UnQual x           -> isOp x
+    HS.Special HS.UnitCon -> False
+    _                     -> __IMPOSSIBLE__
+  where
+    isOp HS.Symbol{} = True
+    isOp HS.Ident{}  = False
+
+prettyQName :: HS.QName -> Doc
+prettyQName (HS.Qual m x)           = pretty m <> text "." <> pretty x
+prettyQName (HS.UnQual x)           = pretty x
+prettyQName (HS.Special HS.UnitCon) = text "()"
+prettyQName _ = __IMPOSSIBLE__
 
