@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
@@ -1210,8 +1211,7 @@ niceDeclarations ds = do
 
 class MakeAbstract a where
   mkAbstract :: Updater a
-  -- default mkAbstract :: (Traversable f, MakeAbstract a) => Updater (f a)
-  default mkAbstract :: (Traversable f) => Updater (f a)
+  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => Updater a
   mkAbstract = traverse mkAbstract
 
 instance MakeAbstract a => MakeAbstract [a] where
@@ -1277,8 +1277,7 @@ instance MakeAbstract WhereClause where
 
 class MakePrivate a where
   mkPrivate :: Origin -> Updater a
-  -- default mkPrivate :: (Traversable f, MakePrivate a) => Updater (f a)
-  default mkPrivate :: (Traversable f) => Origin -> Updater (f a)
+  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> Updater a
   mkPrivate o = traverse $ mkPrivate o
 
 instance MakePrivate a => MakePrivate [a] where
