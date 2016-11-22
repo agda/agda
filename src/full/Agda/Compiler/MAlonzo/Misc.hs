@@ -9,7 +9,7 @@ import Data.Map as Map
 import Data.Set as Set
 import Data.Function
 
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
 

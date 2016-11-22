@@ -24,7 +24,7 @@ import Data.Traversable hiding (for)
 
 import Numeric.IEEE
 
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)

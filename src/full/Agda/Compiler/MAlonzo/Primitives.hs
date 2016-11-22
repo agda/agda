@@ -6,7 +6,7 @@ import Control.Monad.State
 import Data.Char
 import Data.List as L
 import Data.Map as M
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless

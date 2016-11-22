@@ -9,7 +9,7 @@ module Agda.Compiler.MAlonzo.Encode
 import Data.Char
 import Data.Function
 import Data.List
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.MAlonzo.Misc
 
