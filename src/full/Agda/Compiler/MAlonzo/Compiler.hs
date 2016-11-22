@@ -607,7 +607,6 @@ tvaldecl q ind ntv npar cds cl =
   -- single argument are translated into newtypes.
   kind = case (ind, cds) of
     (Inductive, [HS.ConDecl _ [_]]) -> HS.NewType
-    (Inductive, [HS.RecDecl _ [_]]) -> HS.NewType
     _                               -> HS.DataType
 
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
