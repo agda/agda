@@ -31,6 +31,7 @@ You need recent versions of the following programs/libraries:
 * cabal-install: http://www.haskell.org/cabal/
 * Alex:          http://www.haskell.org/alex/
 * Happy:         http://www.haskell.org/happy/
+* cpphs:         http://projects.haskell.org/cpphs/
 * GNU Emacs:     http://www.gnu.org/software/emacs/
 
 You should also make sure that programs installed by cabal-install are
