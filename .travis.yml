@@ -189,6 +189,9 @@ install:
   # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
   # commenting out `jobs: $ncpus` in the Cabal configuration file.
 
+  # The version installed of cpphs should match with the lower version
+  # required in Agda.cabal [Issue #2315].
+
   - if [[ $BUILD = "CABAL" ]]; then
        cabal --version &&
        ghc --version &&
@@ -200,7 +203,9 @@ install:
        cat $HOME/.cabal/config &&
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
-       cabal --version;
+       cabal --version &&
+       cabal install cpphs-1.20.2 &&
+       cpphs --version;
     fi
 
   - if [[ $BUILD = "STACK" ]]; then
