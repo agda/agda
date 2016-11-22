@@ -34,6 +34,7 @@ Global commands
 ``C-c C-b``          Move to previous goal (**b**\ ackwards)
 ``C-c C-d``          Infer (**d**\ educe) type
 ``C-c C-o``          M\ **o**\ dule c\ **o**\ ntents
+``C-c C-z``          Search through definitions in scope
 ``C-c C-n``          Compute **n**\ ormal form
 ``C-u C-c C-n``      Compute normal form, ignoring ``abstract``
 ``C-u C-u C-c C-n``  Compute and print normal form of ``show <expression>``
@@ -160,7 +161,7 @@ Hex code  Character         Short key-binding  TeX command
 ========  =========  =================  ===========
 Hex code  Character  Short key-binding  TeX command
 ========  =========  =================  ===========
-2115      ``ℕ``      ``\bn``            ``\Bbb{N}``
+2115      ``ℕ``      ``\bN``            ``\Bbb{N}``
 2192      ``→``      ``\r-``            ``\to``
 21a6      ``↦``      ``\r-|``           ``\mapsto``
 2200      ``∀``      ``\all``           ``\forall``
