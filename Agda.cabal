@@ -610,26 +610,6 @@ executable agda-mode
                   , process >= 1.1.0.2 && < 1.5
   default-language: Haskell2010
 
-executable agda-ghc-names
-  hs-source-dirs:   src/agda-ghc-names
-  main-is:          agda-ghc-names.hs
-  other-modules:    ExtractNames
-                    , Find
-                    , FixProf
-                    , ResolveHsNames
-
-  build-depends:  base >= 4.6.0.1 && < 4.10
-                , binary >= 0.7.2.1 && < 0.9
-                , containers >= 0.5.0.0 && < 0.6
-                , filemanip >= 0.3.6.3 && < 0.4
-                , filepath >= 1.3.0.1 && < 1.5
-                , haskell-src-exts >= 1.17 && < 1.18
-                , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
-
-  ghc-options:  -rtsopts
-  default-language: Haskell2010
-
-
 -- Cabal testsuite integration has some serious bugs, but we
 -- can still make it work. See also:
 -- https://github.com/haskell/cabal/issues/1938
