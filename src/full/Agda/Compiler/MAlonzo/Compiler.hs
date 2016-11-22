@@ -24,9 +24,6 @@ import Data.Traversable hiding (for)
 
 import Numeric.IEEE
 
-import qualified Language.Haskell.Exts.Extension as HS
-import qualified Language.Haskell.Exts.Parser as HS
-import qualified Language.Haskell.Exts.Pretty as HS
 import qualified Language.Haskell.Exts.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
