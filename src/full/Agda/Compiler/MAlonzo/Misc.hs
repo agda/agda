@@ -9,7 +9,7 @@ import Data.Map as Map
 import Data.Set as Set
 import Data.Function
 
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
 
@@ -111,15 +111,11 @@ hsInt :: Integer -> HS.Exp
 hsInt n = HS.Lit (HS.Int n)
 
 hsTypedInt :: Integral a => a -> HS.Exp
-hsTypedInt n = HS.ExpTypeSig dummy (HS.Lit (HS.Int $ fromIntegral n)) (HS.TyCon (hsName "Integer"))
-
-hspLet :: HS.Pat -> HS.Exp -> HS.Exp -> HS.Exp
-hspLet p e b =
-  HS.Let (HS.BDecls [HS.PatBind dummy p (HS.UnGuardedRhs e) emptyBinds]) b
+hsTypedInt n = HS.ExpTypeSig (HS.Lit (HS.Int $ fromIntegral n)) (HS.TyCon (hsName "Integer"))
 
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =
-  HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x [] Nothing (HS.UnGuardedRhs e) emptyBinds]]) b
+  HS.Let (HS.BDecls [HS.FunBind [HS.Match x [] (HS.UnGuardedRhs e) emptyBinds]]) b
 
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual
@@ -133,18 +129,17 @@ hsAppView = reverse . view
 
 hsOpToExp :: HS.QOp -> HS.Exp
 hsOpToExp (HS.QVarOp x) = HS.Var x
-hsOpToExp (HS.QConOp x) = HS.Con x
 
 hsLambda :: [HS.Pat] -> HS.Exp -> HS.Exp
-hsLambda ps (HS.Lambda i ps1 e) = HS.Lambda i (ps ++ ps1) e
-hsLambda ps e = HS.Lambda dummy ps e
+hsLambda ps (HS.Lambda ps1 e) = HS.Lambda (ps ++ ps1) e
+hsLambda ps e = HS.Lambda ps e
 
 hsMapAlt :: (HS.Exp -> HS.Exp) -> HS.Alt -> HS.Alt
-hsMapAlt f (HS.Alt i p rhs wh) = HS.Alt i p (hsMapRHS f rhs) wh
+hsMapAlt f (HS.Alt p rhs wh) = HS.Alt p (hsMapRHS f rhs) wh
 
 hsMapRHS :: (HS.Exp -> HS.Exp) -> HS.Rhs -> HS.Rhs
 hsMapRHS f (HS.UnGuardedRhs def) = HS.UnGuardedRhs (f def)
-hsMapRHS f (HS.GuardedRhss es)   = HS.GuardedRhss [ HS.GuardedRhs i g (f e) | HS.GuardedRhs i g e <- es ]
+hsMapRHS f (HS.GuardedRhss es)   = HS.GuardedRhss [ HS.GuardedRhs g (f e) | HS.GuardedRhs g e <- es ]
 
 --------------------------------------------------
 -- Hard coded module names
@@ -154,7 +149,7 @@ mazstr :: String
 mazstr = "MAlonzo.Code"
 
 mazName :: Name
-mazName = mkName_ dummy mazstr
+mazName = mkName_ __IMPOSSIBLE__ mazstr
 
 mazMod' :: String -> HS.ModuleName
 mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
@@ -210,10 +205,7 @@ unsafeCoerceMod = HS.ModuleName "Unsafe.Coerce"
 --------------------------------------------------
 
 fakeD :: HS.Name -> String -> HS.Decl
-fakeD v s = HS.FunBind [ HS.Match dummy v [] Nothing
-                           (HS.UnGuardedRhs $ hsVarUQ $ HS.Ident $ s)
-                           emptyBinds
-                       ]
+fakeD v s = HS.FunBind [HS.Match v [] (HS.UnGuardedRhs $ fakeExp s) emptyBinds]
 
 fakeDS :: String -> String -> HS.Decl
 fakeDS = fakeD . HS.Ident
@@ -222,16 +214,13 @@ fakeDQ :: QName -> String -> HS.Decl
 fakeDQ = fakeD . unqhname "d"
 
 fakeType :: String -> HS.Type
-fakeType = HS.TyVar . HS.Ident
+fakeType = HS.FakeType
 
 fakeExp :: String -> HS.Exp
-fakeExp = HS.Var . HS.UnQual . HS.Ident
+fakeExp = HS.FakeExp
 
 fakeDecl :: String -> HS.Decl
-fakeDecl s = HS.TypeSig dummy [HS.Ident (s ++ " {- OMG hack")] (HS.TyVar $ HS.Ident "-}")
-
-dummy :: a
-dummy = error "MAlonzo : this dummy value should not have been eval'ed."
+fakeDecl = HS.FakeDecl
 
 --------------------------------------------------
 -- Auxiliary definitions

@@ -9,7 +9,7 @@ import Data.List
 
 import InternalTests.Helpers
 
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 ------------------------------------------------------------------------------
 

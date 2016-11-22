@@ -6,7 +6,7 @@ import Control.Monad.State
 import Data.Char
 import Data.List as L
 import Data.Map as M
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -60,7 +60,7 @@ checkTypeOfMain q ty ret
           [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
         typeError $ GenericError $ show err
   where
-    mainAlias = HS.FunBind [HS.Match dummy mainLHS [] Nothing mainRHS emptyBinds ]
+    mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
     mainRHS   = HS.UnGuardedRhs $ HS.Var $ HS.UnQual $ unqhname "d" q
 
