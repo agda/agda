@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DefaultSignatures         #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE NoMonoLocalBinds          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE TupleSections             #-}
@@ -90,8 +92,8 @@ deepUnscopeDecl d                                = [deepUnscope d]
 class ExprLike a where
   -- | The first expression is pre-traversal, the second one post-traversal.
   recurseExpr :: (Applicative m) => (Expr -> m Expr -> m Expr) -> a -> m a
-  default recurseExpr :: (Traversable f, Applicative m)
-                      => (Expr -> m Expr -> m Expr) -> f a -> m (f a)
+  default recurseExpr :: (Traversable f, ExprLike a', a ~ f a', Applicative m)
+                      => (Expr -> m Expr -> m Expr) -> a -> m a
   recurseExpr = traverse . recurseExpr
 
   foldExpr :: Monoid m => (Expr -> m) -> a -> m
