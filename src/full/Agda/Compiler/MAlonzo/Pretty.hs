@@ -65,6 +65,7 @@ instance Pretty HS.Decl where
       sep [ hsep (punctuate comma (map pretty fs)) <+> text "::"
           , nest 2 $ pretty t ]
     HS.FunBind ms -> vcat $ map pretty ms
+    HS.FakeDecl s -> text s
 
 instance Pretty HS.ConDecl where
   pretty (HS.ConDecl c ts) = pretty c <+> fsep (map (prettyPrec 10) ts)
@@ -130,6 +131,7 @@ instance Pretty HS.Type where
           f : ts = appView t []
           appView (HS.TyApp a b) as = appView a (b : as)
           appView t as = t : as
+      HS.FakeType s -> text s
 
 instance Pretty HS.Stmt where
   pretty (HS.Qualifier e) = pretty e
@@ -174,6 +176,7 @@ instance Pretty HS.Exp where
         sep [ pretty e <+> text "::"
             , nest 2 $ pretty t ]
       HS.NegApp exp -> parens $ text "-" <> pretty exp
+      HS.FakeExp s -> text s
 
 instance Pretty HS.Alt where
   pretty (HS.Alt pat rhs wh) =

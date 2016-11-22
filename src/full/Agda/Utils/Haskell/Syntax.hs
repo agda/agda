@@ -20,6 +20,7 @@ data Decl = TypeDecl Name [TyVarBind] Type
           | DataDecl DataOrNew Name [TyVarBind] [ConDecl] [Deriving]
           | TypeSig [Name] Type
           | FunBind [Match]
+          | FakeDecl String
   deriving (Eq)
 
 data DataOrNew = DataType | NewType
@@ -50,6 +51,7 @@ data Type = TyForall [TyVarBind] Type
           | TyCon QName
           | TyVar Name
           | TyApp Type Type
+          | FakeType String
   deriving (Eq)
 
 data Pat = PVar Name
@@ -78,6 +80,7 @@ data Exp = Var QName
          | Case Exp [Alt]
          | ExpTypeSig Exp Type
          | NegApp Exp
+         | FakeExp String
   deriving (Eq)
 
 data Alt = Alt Pat Rhs (Maybe Binds)

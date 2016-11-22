@@ -205,10 +205,7 @@ unsafeCoerceMod = HS.ModuleName "Unsafe.Coerce"
 --------------------------------------------------
 
 fakeD :: HS.Name -> String -> HS.Decl
-fakeD v s = HS.FunBind [ HS.Match v []
-                           (HS.UnGuardedRhs $ hsVarUQ $ HS.Ident $ s)
-                           emptyBinds
-                       ]
+fakeD v s = HS.FunBind [HS.Match v [] (HS.UnGuardedRhs $ fakeExp s) emptyBinds]
 
 fakeDS :: String -> String -> HS.Decl
 fakeDS = fakeD . HS.Ident
@@ -217,13 +214,13 @@ fakeDQ :: QName -> String -> HS.Decl
 fakeDQ = fakeD . unqhname "d"
 
 fakeType :: String -> HS.Type
-fakeType = HS.TyVar . HS.Ident
+fakeType = HS.FakeType
 
 fakeExp :: String -> HS.Exp
-fakeExp = HS.Var . HS.UnQual . HS.Ident
+fakeExp = HS.FakeExp
 
 fakeDecl :: String -> HS.Decl
-fakeDecl s = HS.TypeSig [HS.Ident (s ++ " {- OMG hack")] (HS.TyVar $ HS.Ident "-}")
+fakeDecl = HS.FakeDecl
 
 --------------------------------------------------
 -- Auxiliary definitions
