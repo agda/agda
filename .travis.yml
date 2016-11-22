@@ -189,7 +189,7 @@ install:
   # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
   # commenting out `jobs: $ncpus` in the Cabal configuration file.
 
-  - if [[ $BUILD != "NOTHING" && $BUILD != "STACK" ]]; then
+  - if [[ $BUILD = "CABAL" ]]; then
        cabal --version &&
        ghc --version &&
        haddock --version &&
