@@ -161,7 +161,7 @@ Hex code  Character         Short key-binding  TeX command
 ========  =========  =================  ===========
 Hex code  Character  Short key-binding  TeX command
 ========  =========  =================  ===========
-2115      ``ℕ``      ``\bn``            ``\Bbb{N}``
+2115      ``ℕ``      ``\bN``            ``\Bbb{N}``
 2192      ``→``      ``\r-``            ``\to``
 21a6      ``↦``      ``\r-|``           ``\mapsto``
 2200      ``∀``      ``\all``           ``\forall``
