@@ -155,7 +155,7 @@ matrix:
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
   allow_failures:
-    - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml"
+    - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
 
 ##############################################################################
 before_install:
