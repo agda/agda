@@ -99,8 +99,8 @@ compile i = do
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
-  yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
+  noComp   = reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
+  yesComp  = reportSLn "compile.ghc" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [show . A.mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
@@ -169,11 +169,11 @@ definition kit (Defn UnusedArg _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
 definition kit Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
-  reportSDoc "malonzo.definition" 10 $
+  reportSDoc "compile.ghc.definition" 10 $
     text "Not compiling" <+> prettyTCM q <> text "."
   return []
 definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef = d} = do
-  reportSDoc "malonzo.definition" 10 $ vcat
+  reportSDoc "compile.ghc.definition" 10 $ vcat
     [ text "Compiling" <+> prettyTCM q <> text ":"
     , nest 2 $ text (show d)
     ]

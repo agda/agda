@@ -125,13 +125,13 @@ compileModule i = do
             uptodate <- liftIO $ isNewerThan eifFile ifile
             (eif, imps') <- case uptodate of
                 True  -> do
-                    lift $ reportSLn "" 1 $
+                    lift $ reportSLn "compile.epic" 2 $
                       (prettyShow . iModuleName) i ++ " : no compilation is needed."
                     eif <- readEInterface eifFile
                     modify $ \s -> s { curModule = eif }
                     return (eif, Set.insert file imps)
                 False -> do
-                    lift $ reportSLn "" 1 $
+                    lift $ reportSLn "compile.epic" 1 $
                         "Compiling: " ++ (prettyShow . iModuleName) i
                     resetNameSupply
                     initialAnalysis i
