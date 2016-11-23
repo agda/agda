@@ -42,7 +42,7 @@ callCompiler doCall cmd args =
       Nothing     -> return ()
       Just errors -> typeError (CompilationError errors)
   else
-    reportSLn "" 1 $ "NOT calling: " ++ intercalate " " (cmd : args)
+    reportSLn "compile.cmd" 1 $ "NOT calling: " ++ intercalate " " (cmd : args)
 
 -- | Generalisation of @callCompiler@ where the raised exception is
 -- returned.
@@ -53,7 +53,7 @@ callCompiler'
      -- ^ Command-line arguments.
   -> TCM (Maybe String)
 callCompiler' cmd args = do
-  reportSLn "" 1 $ "Calling: " ++ intercalate " " (cmd : args)
+  reportSLn "compile.cmd" 1 $ "Calling: " ++ intercalate " " (cmd : args)
   (_, out, err, p) <-
     liftIO $ createProcess
                (proc cmd args) { std_err = CreatePipe
@@ -68,7 +68,7 @@ callCompiler' cmd args = do
       -- The handle should be in text mode.
       liftIO $ hSetBinaryMode out False
       progressInfo <- liftIO $ hGetContents out
-      mapM_ (reportSLn "" 1) $ lines progressInfo
+      mapM_ (reportSLn "compile.output" 1) $ lines progressInfo
 
   errors <- liftIO $ case err of
     Nothing  -> __IMPOSSIBLE__
