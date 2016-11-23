@@ -188,7 +188,7 @@ install:
   # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
   # commenting out `jobs: $ncpus` in the Cabal configuration file.
 
-  # The version installed of cpphs should match with the lower version
+  # The version installed of cpphs should match the lower version
   # required in Agda.cabal [Issue #2315].
 
   - if [[ $BUILD = "CABAL" ]]; then
@@ -228,12 +228,16 @@ install:
 # because the flags `cpphs` and `debug` are not used with the Cabal
 # tests-suites.
 
+# The version installed of cpphs in ghc-7.8.4-transformers-0.3.0.0
+# should match the lower version required in Agda.cabal [Issue #2315].
+
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        cabal install --enable-tests --only-dependencies --force-reinstalls;
     elif [[ $TEST = "UHC" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          stack $ARGS --no-terminal install alex-3.1.7 &&
+         stack $ARGS --no-terminal install cpphs-1.20.2 &&
          stack build $ARGS --no-terminal --test --only-dependencies;
     elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
