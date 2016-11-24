@@ -75,7 +75,8 @@ Other commands
 ``S-TAB``             Indent current line, cycles in opposite direction
  ``M-.``              Go to definition of identifier under point
  Middle mouse button  Go to definition of identifier clicked on
- ``M-*``              Go back
+ ``M-*``              Go back (Emacs < 25.1)
+ ``M-,``              Go back (Emacs ≥ 25.1)
 ====================  =================================================
 
 .. _unicode-input:
