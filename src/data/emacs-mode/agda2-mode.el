@@ -259,7 +259,7 @@ constituents.")
     (eri-indent-reverse          [S-tab])
     (agda2-goto-definition-mouse [mouse-2])
     (agda2-goto-definition-keyboard "\M-.")
-    (agda2-go-back                  "\M-*")
+    (agda2-go-back                  ,(if (version< emacs-version "25.1") "\M-*" "\M-,"))
     )
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD &optional KEYS WHERE DESC) where
