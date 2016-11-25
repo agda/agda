@@ -1911,6 +1911,24 @@ the argument is a positive number, otherwise turn it off."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Switching to a different version of Agda
 
+(defun get-agda-program-versions ()
+  "Get \"version strings\" of executables starting with
+'agda-mode' in current path."
+  (delete-dups
+   (mapcar (lambda (path)
+	     ;; strip 'agda-mode' prefix
+	     (replace-regexp-in-string "^agda-mode-?" ""
+				       (file-name-nondirectory path)))
+	   (remove-if-not 'file-executable-p
+	     ;; concatenate result
+	     (reduce 'append
+		     ;; for each directory in exec-path, get list of
+		     ;; files whose name starts with 'agda-mode'
+		     (mapcar (lambda (path)
+			       (when (file-accessible-directory-p path)
+				 (directory-files path 't "^agda-mode")))
+			     exec-path))))))
+
 ;; Note that other versions of Agda may use different protocols, so
 ;; this function unloads the Emacs mode.
 
@@ -1921,7 +1939,8 @@ This command assumes that the agda and agda-mode executables for
 Agda version VERSION are called agda-VERSION and
 agda-mode-VERSION, and that they are located on the PATH. (If
 VERSION is empty, then agda and agda-mode are used instead.)"
-  (interactive "M")
+  (interactive
+   (list (completing-read "Version: " (get-agda-program-versions))))
 
   (let*
       ((agda-buffers
