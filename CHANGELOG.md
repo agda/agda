@@ -1,3 +1,9 @@
+Release notes for Agda version 2.5.1.2
+======================================
+
+* Fixed broken type signatures that were incorrectly accepted due to
+  [GHC #12784](https://ghc.haskell.org/trac/ghc/ticket/12784).
+
 Release notes for Agda version 2.5.1.1
 ======================================
 
