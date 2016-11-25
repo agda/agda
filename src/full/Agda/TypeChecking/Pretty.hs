@@ -236,6 +236,9 @@ instance PrettyTCM EqualityView where
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA
 
+instance PrettyTCM A.TypedBinding where
+  prettyTCM = prettyA
+
 instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
   prettyTCM NonStrict  = text ".."
