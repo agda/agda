@@ -274,7 +274,7 @@ checkRecDef i name ind eta con ps contel fields =
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- getContextTelescope
           setDefaultModuleParameters m
-          checkRecordProjections m name con tel' (raise 1 ftel) fields
+          checkRecordProjections m name hasNamedCon con tel' (raise 1 ftel) fields
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
@@ -296,9 +296,9 @@ checkRecDef i name ind eta con ps contel fields =
     [@fs@   ]  the fields to be checked
 -}
 checkRecordProjections ::
-  ModuleName -> QName -> ConHead -> Telescope -> Telescope ->
+  ModuleName -> QName -> Bool -> ConHead -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
-checkRecordProjections m r con tel ftel fs = do
+checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs EmptyTel ftel fs
   where
 
@@ -388,7 +388,8 @@ checkRecordProjections m r con tel ftel fs = do
             -- (rt) which should be  R ptel
             telList = telToList tel
             (_ptel,[rt]) = splitAt (size tel - 1) telList
-            cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
+            cpo    = if hasNamedCon then ConPCon else ConPRec
+            cpi    = ConPatternInfo (Just cpo) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ varP "x" | Dom info _ <- telToList ftel ]
             body   = Just $ bodyMod $ var (size ftel2)
