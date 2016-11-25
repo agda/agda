@@ -1916,18 +1916,18 @@ the argument is a positive number, otherwise turn it off."
 'agda-mode' in current path."
   (delete-dups
    (mapcar (lambda (path)
-	     ;; strip 'agda-mode' prefix
-	     (replace-regexp-in-string "^agda-mode-?" ""
-				       (file-name-nondirectory path)))
-	   (remove-if-not 'file-executable-p
-	     ;; concatenate result
-	     (reduce 'append
-		     ;; for each directory in exec-path, get list of
-		     ;; files whose name starts with 'agda-mode'
-		     (mapcar (lambda (path)
-			       (when (file-accessible-directory-p path)
-				 (directory-files path 't "^agda-mode")))
-			     exec-path))))))
+             ;; strip 'agda-mode' prefix
+             (replace-regexp-in-string "^agda-mode-?" ""
+                                       (file-name-nondirectory path)))
+           (remove-if-not 'file-executable-p
+             ;; concatenate result
+             (reduce 'append
+                     ;; for each directory in exec-path, get list of
+                     ;; files whose name starts with 'agda-mode'
+                     (mapcar (lambda (path)
+                               (when (file-accessible-directory-p path)
+                                 (directory-files path 't "^agda-mode")))
+                             exec-path))))))
 
 ;; Note that other versions of Agda may use different protocols, so
 ;; this function unloads the Emacs mode.
