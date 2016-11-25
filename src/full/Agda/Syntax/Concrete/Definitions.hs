@@ -70,11 +70,12 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Except ( Error(strMsg), MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (headMaybe, isSublistOf)
+import Agda.Utils.List (caseList, headMaybe, isSublistOf)
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
@@ -440,6 +441,12 @@ type Nice = StateT NiceEnv (Either DeclarationException)
 data NiceEnv = NiceEnv
   { _loneSigs :: LoneSigs
     -- ^ Lone type signatures that wait for their definition.
+  , _termChk  :: TerminationCheck
+    -- ^ Termination checking pragma waiting for a definition.
+  , _posChk   :: PositivityCheck
+    -- ^ Positivity checking pragma waiting for a definition.
+  , _catchall :: Catchall
+    -- ^ Catchall pragma waiting for a function clause.
   , fixs     :: Fixities
   , pols     :: Polarities
   }
@@ -453,6 +460,9 @@ type Polarities = Map Name [Occurrence]
 initNiceEnv :: NiceEnv
 initNiceEnv = NiceEnv
   { _loneSigs = empty
+  , _termChk  = TerminationCheck
+  , _posChk   = True
+  , _catchall = False
   , fixs      = empty
   , pols      = empty
   }
@@ -495,6 +505,53 @@ checkLoneSigs xs =
   case xs of
     []       -> return ()
     (x, _):_ -> throwError $ MissingDefinition x
+
+-- | Lens for field '_termChk'.
+
+terminationCheckPragma :: Lens' TerminationCheck NiceEnv
+terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
+
+withTerminationCheckPragma :: TerminationCheck -> Nice a -> Nice a
+withTerminationCheckPragma tc f = do
+  tc_old <- use terminationCheckPragma
+  terminationCheckPragma .= tc
+  result <- f
+  terminationCheckPragma .= tc_old
+  return result
+
+-- | Lens for field '_posChk'.
+
+positivityCheckPragma :: Lens' PositivityCheck NiceEnv
+positivityCheckPragma f e = f (_posChk e) <&> \ s -> e { _posChk = s }
+
+withPositivityCheckPragma :: PositivityCheck -> Nice a -> Nice a
+withPositivityCheckPragma pc f = do
+  pc_old <- use positivityCheckPragma
+  positivityCheckPragma .= pc
+  result <- f
+  positivityCheckPragma .= pc_old
+  return result
+
+-- | Lens for field '_catchall'.
+
+catchallPragma :: Lens' Catchall NiceEnv
+catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
+
+-- | Get current catchall pragma, and reset it for the next clause.
+
+popCatchallPragma :: Nice Catchall
+popCatchallPragma = do
+  ca <- use catchallPragma
+  catchallPragma .= False
+  return ca
+
+withCatchallPragma :: Catchall -> Nice a -> Nice a
+withCatchallPragma ca f = do
+  ca_old <- use catchallPragma
+  catchallPragma .= ca
+  result <- f
+  catchallPragma .= ca_old
+  return result
 
 -- | Check whether name is not "_" and return its fixity.
 getFixity :: Name -> Nice Fixity'
@@ -661,151 +718,24 @@ niceDeclarations ds = do
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
+    nice ds = do
+      (xs , ys) <- nice1 ds
+      (xs ++) <$> nice ys
 
-    nice (Pragma (TerminationCheckPragma r NoTerminationCheck) : _) =
-      throwError $ PragmaNoTerminationCheck r
+    nice1 :: [Declaration] -> Nice ([NiceDeclaration], [Declaration])
+    nice1 []     = __IMPOSSIBLE__
+    nice1 (d:ds) = case d of
 
-    nice (Pragma (TerminationCheckPragma r tc) : ds@(Mutual{} : _)) | notMeasure tc = do
-      ds <- nice ds
-      case ds of
-        NiceMutual r _ pc ds' : ds -> return $ NiceMutual r tc pc ds' : ds
-        _                          -> __IMPOSSIBLE__
+        (TypeSig info x t)            -> do
+          termCheck <- use terminationCheckPragma
+          fx <- getFixity x
+          -- register x as lone type signature, to recognize clauses later
+          addLoneSig x (FunName termCheck)
+          return ([FunSig (getRange d) fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
 
-    nice (Pragma (TerminationCheckPragma r tc) : d@TypeSig{} : ds) =
-      niceTypeSig tc d ds
-
-    nice (Pragma (TerminationCheckPragma r tc) : d@FunClause{} : ds) | notMeasure tc =
-      niceFunClause tc False d ds
-
-    nice (Pragma (TerminationCheckPragma r tc) : ds@(UnquoteDecl{} : _)) | notMeasure tc = do
-      NiceUnquoteDecl r f p a i _ x e : ds <- nice ds
-      return $ NiceUnquoteDecl r f p a i tc x e : ds
-
-    nice (Pragma (TerminationCheckPragma r tc) : d@(Pragma (NoPositivityCheckPragma _)) : ds@(Mutual{} : _)) | notMeasure tc = do
-      ds <- nice (d : ds)
-      case ds of
-        NiceMutual r _ pc ds' : ds -> return $ NiceMutual r tc pc ds' : ds
-        _                          -> __IMPOSSIBLE__
-
-    nice (Pragma (CatchallPragma r) : d@FunClause{} : ds) =
-      niceFunClause TerminationCheck True d ds
-
-    nice (d@TypeSig{} : Pragma (TerminationCheckPragma r (TerminationMeasure _ x)) : ds) =
-      niceTypeSig (TerminationMeasure r x) d ds
-
-    -- nice (Pragma (MeasurePragma r x) : d@FunClause{} : ds) =
-    --   niceFunClause (TerminationMeasure r x) d ds
-
-    nice (Pragma (NoPositivityCheckPragma _) : ds@(Mutual{} : _)) = do
-      ds <- nice ds
-      case ds of
-        NiceMutual r tc _ ds' : ds -> return $ NiceMutual r tc False ds' : ds
-        _                          -> __IMPOSSIBLE__
-
-    nice (Pragma (NoPositivityCheckPragma _) : d@(Data _ Inductive _ _ _ _) : ds) =
-      niceDataDef False d ds
-
-    nice (Pragma (NoPositivityCheckPragma _) : d@(DataSig _ Inductive _ _ _) : ds) =
-      niceDataSig False d ds
-
-    nice (Pragma (NoPositivityCheckPragma _) : d@Record{} : ds) =
-      niceRecord False d ds
-
-    nice (Pragma (NoPositivityCheckPragma _) : d@RecordSig{} : ds) =
-      niceRecordSig False d ds
-
-    nice (Pragma (NoPositivityCheckPragma _) : d@(Pragma (TerminationCheckPragma _ _)) : ds@(Mutual{} : _)) = do
-      ds <- nice (d : ds)
-      case ds of
-        NiceMutual r tc _ ds' : ds -> return $ NiceMutual r tc False ds' : ds
-        _                          -> __IMPOSSIBLE__
-
-    nice (d:ds) = do
-      case d of
-        TypeSig{}                     -> niceTypeSig TerminationCheck d ds
-        FunClause{}                   -> niceFunClause TerminationCheck False d ds
-        Field{}                       -> (++) <$> niceAxioms FieldBlock [ d ] <*> nice ds
-        DataSig r CoInductive _ _ _   -> throwError (Codata r)
-        Data r CoInductive _ _ _ _    -> throwError (Codata r)
-        d@(DataSig _ Inductive _ _ _) -> niceDataSig True d ds
-        d@(Data _ Inductive _ _ _ _)  -> niceDataDef True d ds
-        d@RecordSig{}                 -> niceRecordSig True d ds
-        d@Record{}                    -> niceRecord True d ds
-
-        Mutual r ds' ->
-          (:) <$> (mkOldMutual r =<< nice ds') <*> nice ds
-
-        Abstract r ds' ->
-          (++) <$> (abstractBlock r =<< nice ds') <*> nice ds
-
-        Private r o ds' ->
-          (++) <$> (privateBlock r o =<< nice ds') <*> nice ds
-
-        InstanceB r ds' ->
-          (++) <$> (instanceBlock r =<< nice ds') <*> nice ds
-
-        Macro r ds' ->
-          (++) <$> (macroBlock r =<< nice ds') <*> nice ds
-
-        Postulate _ ds' ->
-          (++) <$> (mapM setPolarity =<< niceAxioms PostulateBlock ds') <*> nice ds
-          where
-          setPolarity (Axiom r f acc a i arg Nothing x e) = do
-            mp <- getPolarity x
-            return (Axiom r f acc a i arg mp x e)
-          setPolarity (Axiom _ _ _ _ _ _ (Just _) _ _) = __IMPOSSIBLE__
-          setPolarity d = return d
-
-        Primitive _ ds' -> (++) <$> (map toPrim <$> niceAxioms PrimitiveBlock ds') <*> nice ds
-
-        Module r x tel ds' ->
-          (NiceModule r PublicAccess ConcreteDef x tel ds' :) <$> nice ds
-
-        ModuleMacro r x modapp op is ->
-          (NiceModuleMacro r PublicAccess x modapp op is :)
-            <$> nice ds
-
-        -- Fixity and syntax declarations and polarity pragmas have
-        -- already been processed.
-        Infix _ _                 -> nice ds
-        Syntax _ _                -> nice ds
-        Pragma (PolarityPragma{}) -> nice ds
-
-        PatternSyn r n as p -> do
-          fx <- getFixity n
-          (NicePatternSyn r fx n as p :) <$> nice ds
-        Open r x is         -> (NiceOpen r x is :) <$> nice ds
-        Import r x as op is -> (NiceImport r x as op is :) <$> nice ds
-
-        UnquoteDecl r xs e -> do
-          fxs <- mapM getFixity xs
-          (NiceUnquoteDecl r fxs PublicAccess ConcreteDef NotInstanceDef TerminationCheck xs e :) <$> nice ds
-
-        UnquoteDef r xs e -> do
-          fxs  <- mapM getFixity xs
-          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
-          let missing = filter (`notElem` sigs) xs
-          if null missing
-            then do
-              mapM_ removeLoneSig xs
-              (NiceUnquoteDef r fxs PublicAccess ConcreteDef TerminationCheck xs e :) <$> nice ds
-            else throwError $ UnquoteDefRequiresSignature missing
-
-        Pragma (TerminationCheckPragma r NoTerminationCheck) ->
-          throwError $ PragmaNoTerminationCheck r
-        Pragma (TerminationCheckPragma r _) ->
-          throwError $ InvalidTerminationCheckPragma r
-
-        Pragma (CatchallPragma r) ->
-          throwError $ InvalidCatchallPragma r
-
-        Pragma (NoPositivityCheckPragma r) ->
-          throwError $ InvalidNoPositivityCheckPragma r
-
-        Pragma p -> (NicePragma (getRange p) p :) <$> nice ds
-
-    niceFunClause :: TerminationCheck -> Catchall -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
-    niceFunClause termCheck catchall d@(FunClause lhs _ _ _) ds = do
+        (FunClause lhs _ _ _)         -> do
+          termCheck <- use terminationCheckPragma
+          catchall  <- popCatchallPragma
           xs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
@@ -824,71 +754,188 @@ niceDeclarations ds = do
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
               LHS p [] [] [] | Just x <- isSingleIdentifierP p -> do
-                ds <- nice ds
                 d  <- mkFunDef defaultArgInfo termCheck x Nothing [d] -- fun def without type signature is relevant
-                return $ d ++ ds
+                return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
               -- A missing type signature error might be raise in ConcreteToAbstract
               _ -> do
-                ds <- nice ds
-                return $ NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck catchall d : ds
+                return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck catchall d] , ds)
 
             -- case: clauses match exactly one of the sigs
             [(x,(fits,rest))] -> do
                removeLoneSig x
                cs  <- mkClauses x (expandEllipsis fits) False
-               ds1 <- nice rest
                fx  <- getFixity x
-               d   <- return $ FunDef (getRange fits) fits fx ConcreteDef termCheck x cs
-               return $ d : ds1
+               return ([FunDef (getRange fits) fits fx ConcreteDef termCheck x cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
             l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l -- "ambiguous function clause; cannot assign it uniquely to one type signature"
-    niceFunClause _ _ _ _ = __IMPOSSIBLE__
 
-    niceTypeSig :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
-    niceTypeSig termCheck d@(TypeSig info x t) ds = do
-      fx <- getFixity x
-      -- register x as lone type signature, to recognize clauses later
-      addLoneSig x (FunName termCheck)
-      ds <- nice ds
-      return $ FunSig (getRange d) fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t : ds
-    niceTypeSig _ _ _ = __IMPOSSIBLE__
+        Field{}                       -> (,ds) <$> niceAxioms FieldBlock [ d ]
+        DataSig r CoInductive _ _ _   -> throwError (Codata r)
+        Data r CoInductive _ _ _ _    -> throwError (Codata r)
 
-    niceDataDef :: PositivityCheck -> Declaration -> [Declaration] ->
-                   Nice [NiceDeclaration]
-    niceDataDef pc (Data r Inductive x tel t cs) ds = do
-      t <- defaultTypeSig (DataName pc $ parameters tel) x t
-      (++) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel t (Just cs)
-           <*> nice ds
-    niceDataDef _ _ _ = __IMPOSSIBLE__
+        (DataSig r Inductive x tel t) -> do
+          pc <- use positivityCheckPragma
+          addLoneSig x (DataName pc $ parameters tel)
+          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel (Just t) Nothing
+              <*> return ds
 
-    niceDataSig :: PositivityCheck -> Declaration -> [Declaration] ->
-                   Nice [NiceDeclaration]
-    niceDataSig pc (DataSig r Inductive x tel t) ds = do
-      addLoneSig x (DataName pc $ parameters tel)
-      (++) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel (Just t) Nothing
-           <*> nice ds
-    niceDataSig _ _ _ = __IMPOSSIBLE__
+        (Data r Inductive x tel t cs) -> do
+          pc <- use positivityCheckPragma
+          t <- defaultTypeSig (DataName pc $ parameters tel) x t
+          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel t (Just cs)
+              <*> return ds
 
-    niceRecord :: PositivityCheck -> Declaration -> [Declaration] ->
-                  Nice [NiceDeclaration]
-    niceRecord pc (Record r x i e c tel t cs) ds = do
-      t <- defaultTypeSig (RecName pc $ parameters tel) x t
-      c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
-      (++) <$> dataOrRec pc (\ r f a pc x tel cs -> RecDef r f a pc x i e c tel cs) NiceRecSig
-                 niceDeclarations r x tel t (Just cs)
-           <*> nice ds
-    niceRecord _ _ _ = __IMPOSSIBLE__
+        (RecordSig r x tel t)         -> do
+          pc <- use positivityCheckPragma
+          addLoneSig x (RecName pc $ parameters tel)
+          fx <- getFixity x
+          return ([NiceRecSig r fx PublicAccess ConcreteDef pc x tel t] , ds)
 
-    niceRecordSig :: PositivityCheck -> Declaration -> [Declaration] ->
-                     Nice [NiceDeclaration]
-    niceRecordSig pc (RecordSig r x tel t) ds = do
-      addLoneSig x (RecName pc $ parameters tel)
-      fx <- getFixity x
-      (NiceRecSig r fx PublicAccess ConcreteDef pc x tel t :) <$> nice ds
-    niceRecordSig _ _ _ = __IMPOSSIBLE__
+        (Record r x i e c tel t cs)   -> do
+          pc <- use positivityCheckPragma
+          t <- defaultTypeSig (RecName pc $ parameters tel) x t
+          c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
+          (,) <$> dataOrRec pc (\ r f a pc x tel cs -> RecDef r f a pc x i e c tel cs) NiceRecSig
+                    niceDeclarations r x tel t (Just cs)
+              <*> return ds
+
+        Mutual r ds' ->
+          (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
+
+        Abstract r ds' ->
+          (,ds) <$> (abstractBlock r =<< nice ds')
+
+        Private r o ds' ->
+          (,ds) <$> (privateBlock r o =<< nice ds')
+
+        InstanceB r ds' ->
+          (,ds) <$> (instanceBlock r =<< nice ds')
+
+        Macro r ds' ->
+          (,ds) <$> (macroBlock r =<< nice ds')
+
+        Postulate _ ds' ->
+          (,ds) <$> (mapM setPolarity =<< niceAxioms PostulateBlock ds')
+          where
+          setPolarity (Axiom r f acc a i arg Nothing x e) = do
+            mp <- getPolarity x
+            return (Axiom r f acc a i arg mp x e)
+          setPolarity (Axiom _ _ _ _ _ _ (Just _) _ _) = __IMPOSSIBLE__
+          setPolarity d = return d
+
+        Primitive _ ds' -> (,ds) <$> (map toPrim <$> niceAxioms PrimitiveBlock ds')
+
+        Module r x tel ds' -> return $
+          ([NiceModule r PublicAccess ConcreteDef x tel ds'] , ds)
+
+        ModuleMacro r x modapp op is -> return $
+          ([NiceModuleMacro r PublicAccess x modapp op is] , ds)
+
+        -- Fixity and syntax declarations and polarity pragmas have
+        -- already been processed.
+        Infix _ _  -> return ([], ds)
+        Syntax _ _ -> return ([], ds)
+
+        PatternSyn r n as p -> do
+          fx <- getFixity n
+          return ([NicePatternSyn r fx n as p] , ds)
+        Open r x is         -> return ([NiceOpen r x is] , ds)
+        Import r x as op is -> return ([NiceImport r x as op is] , ds)
+
+        UnquoteDecl r xs e -> do
+          fxs <- mapM getFixity xs
+          tc  <- use terminationCheckPragma
+          return ([NiceUnquoteDecl r fxs PublicAccess ConcreteDef NotInstanceDef tc xs e] , ds)
+
+        UnquoteDef r xs e -> do
+          fxs  <- mapM getFixity xs
+          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          let missing = filter (`notElem` sigs) xs
+          if null missing
+            then do
+              mapM_ removeLoneSig xs
+              return ([NiceUnquoteDef r fxs PublicAccess ConcreteDef TerminationCheck xs e] , ds)
+            else throwError $ UnquoteDefRequiresSignature missing
+
+        Pragma p -> nicePragma p ds
+
+    nicePragma :: Pragma -> [Declaration] -> Nice ([NiceDeclaration], [Declaration])
+
+    nicePragma (TerminationCheckPragma r (TerminationMeasure _ x)) ds =
+      if canHaveTerminationMeasure ds then
+        withTerminationCheckPragma (TerminationMeasure r x) $ nice1 ds
+      else
+        throwError $ InvalidTerminationCheckPragma r
+
+    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds =
+      throwError $ PragmaNoTerminationCheck r
+
+    nicePragma (TerminationCheckPragma r tc) ds =
+      if canHaveTerminationCheckPragma ds then
+        withTerminationCheckPragma tc $ nice1 ds
+      else
+        throwError $ InvalidTerminationCheckPragma r
+
+    nicePragma (CatchallPragma r) ds =
+      if canHaveCatchallPragma ds then
+        withCatchallPragma True $ nice1 ds
+      else
+        throwError $ InvalidCatchallPragma r
+
+    nicePragma (NoPositivityCheckPragma r) ds =
+      if canHaveNoPositivityCheckPragma ds then
+        withPositivityCheckPragma False $ nice1 ds
+      else
+        throwError $ InvalidNoPositivityCheckPragma r
+
+    nicePragma (PolarityPragma{}) ds = return ([], ds)
+
+    nicePragma p ds = return ([NicePragma (getRange p) p], ds)
+
+    canHaveTerminationMeasure :: [Declaration] -> Bool
+    canHaveTerminationMeasure [] = False
+    canHaveTerminationMeasure (d:ds) = case d of
+      TypeSig{} -> True
+      (Pragma p) | isAttachedPragma p -> canHaveTerminationMeasure ds
+      _         -> False
+
+    canHaveTerminationCheckPragma :: [Declaration] -> Bool
+    canHaveTerminationCheckPragma []     = False
+    canHaveTerminationCheckPragma (d:ds) = case d of
+      Mutual{}      -> True
+      TypeSig{}     -> True
+      FunClause{}   -> True
+      UnquoteDecl{} -> True
+      (Pragma p) | isAttachedPragma p -> canHaveTerminationCheckPragma ds
+      _             -> False
+
+    canHaveCatchallPragma :: [Declaration] -> Bool
+    canHaveCatchallPragma []     = False
+    canHaveCatchallPragma (d:ds) = case d of
+      FunClause{} -> True
+      (Pragma p) | isAttachedPragma p -> canHaveCatchallPragma ds
+      _           -> False
+
+    canHaveNoPositivityCheckPragma :: [Declaration] -> Bool
+    canHaveNoPositivityCheckPragma []     = False
+    canHaveNoPositivityCheckPragma (d:ds) = case d of
+      Mutual{}                    -> True
+      (Data _ Inductive _ _ _ _)  -> True
+      (DataSig _ Inductive _ _ _) -> True
+      Record{}                    -> True
+      RecordSig{}                 -> True
+      (Pragma p) | isAttachedPragma p -> canHaveNoPositivityCheckPragma ds
+      _                           -> False
+
+    isAttachedPragma :: Pragma -> Bool
+    isAttachedPragma p = case p of
+      TerminationCheckPragma{}  -> True
+      CatchallPragma{}          -> True
+      NoPositivityCheckPragma{} -> True
+      _                         -> False
 
     -- We could add a default type signature here, but at the moment we can't
     -- infer the type of a record or datatype, so better to just fail here.
@@ -1085,11 +1132,13 @@ niceDeclarations ds = do
           []  -> return ()
           (NiceFunClause _ _ _ _ s_ (FunClause lhs _ _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
+        tc0 <- use terminationCheckPragma
         let tcs = map termCheck ds
-        tc <- combineTermChecks r tcs
+        tc <- combineTermChecks r (tc0:tcs)
 
+        pc0 <- use positivityCheckPragma
         let pc :: PositivityCheck
-            pc = all positivityCheckOldMutual ds
+            pc = pc0 && all positivityCheckOldMutual ds
 
         return $ NiceMutual r tc pc $ sigs ++ other
       where
