@@ -95,8 +95,7 @@ matrix:
             - hvr-ghc
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
-    # not, this test is faster using the `BUILD=CABAL` (see
-    # Issue #2188).
+    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - env: TEST=HADDOCK GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
       addons:
         apt:
