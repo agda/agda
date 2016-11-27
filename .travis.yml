@@ -32,6 +32,20 @@ cache:
 
 matrix:
   include:
+    # ASR (2016-11-27): Travis is using GHC 8.0.2 RC1.
+    # TODO: Remove GHC 8.0.1 after the release of GHC 8.0.2.
+    - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.24
+            - ghc-8.0.2
+            - happy-1.19.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
@@ -95,8 +109,7 @@ matrix:
             - hvr-ghc
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
-    # not, this test is faster using the `BUILD=CABAL` (see
-    # Issue #2188).
+    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - env: TEST=HADDOCK GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
       addons:
         apt:
