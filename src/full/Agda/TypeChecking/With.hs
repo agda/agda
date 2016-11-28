@@ -405,6 +405,12 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
 
     -- Case: both parent-clause pattern and with-clause pattern present.
     -- Make sure they match, and decompose into subpatterns.
+    strip self t (p0 : ps) qs@(q : _)
+      | A.AsP _ x p <- namedArg p0 = do
+        (a, _) <- mustBePi t
+        let v = patternToTerm (namedArg q)
+        tell [A.NamedDot x v (unDom a)]
+        strip self t (fmap (p <$) p0 : ps) qs
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
       p <- liftTCM $ expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
