@@ -15,6 +15,8 @@ There are two ways of declaring local definitions in Agda:
 - let-expressions
 - where-blocks
 
+.. _let-expressions:
+
 let-expressions
 ===============
 
