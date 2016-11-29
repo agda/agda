@@ -3,7 +3,7 @@ adding section: Issue2018debug 1
     actual tele: {A : Set}
 checking section M {A = A₁ : Set}
 adding section: M 1
-    actual tele: {A : Set} {A₁ : Set}
+    actual tele: {A : Set} {A = A₁ : Set}
 Issue2018debug.agda:14,8-11
 Set₁ != Set
 when checking that the expression Set has type Set

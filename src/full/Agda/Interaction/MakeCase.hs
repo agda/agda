@@ -162,7 +162,7 @@ getClauseForIP f clauseNo = do
 
 -- | Entry point for case splitting tactic.
 
-makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
+makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
 
   -- Get function clause which contains the interaction point.
@@ -217,7 +217,7 @@ makeCase hole rng s = withInteractionId hole $ do
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return $ splitClauses cov
     checkClauseIsClean ipCl
-    (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
+    (f, casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
     xs <- parseVariables f tel hole rng vars
@@ -236,7 +236,7 @@ makeCase hole rng s = withInteractionId hole $ do
       , nest 2 $ vcat $ map (text . show) cs
       ]
     checkClauseIsClean ipCl
-    return (casectxt,cs)
+    return (f, casectxt, cs)
 
   where
   failNoCop = typeError $ GenericError $

@@ -494,7 +494,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret = do
     A.PatternSynP{} -> __IMPOSSIBLE__
     where
       bindDummy s = do
-        x <- if isUnderscore s then freshNoName_ else freshName_ ("." ++ argNameToString s)
+        x <- if isUnderscore s then freshNoName_ else unshadowName =<< freshName_ ("." ++ argNameToString s)
         addContext (x, a) $ bindLHSVars ps (absBody tel) ret
 
 -- | Bind as patterns
