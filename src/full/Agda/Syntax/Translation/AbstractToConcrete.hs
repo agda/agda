@@ -868,8 +868,35 @@ appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []    _   = False
 appBrackets' (_:_) ctx = appBrackets ctx
 
--- TODO: bind variables properly
+newtype BindingPattern = BindingPat A.Pattern
+newtype FreshName = FreshenName A.Name
+
+instance ToConcrete FreshName A.Name where
+  bindToConcrete (FreshenName x) ret = bindToConcrete x $ \ y -> ret x{ nameConcrete = y }
+
+-- Takes care of freshening and binding pattern variables, but doesn't actually
+-- translate anything to Concrete.
+instance ToConcrete BindingPattern A.Pattern where
+  bindToConcrete (BindingPat p) ret =
+    case p of
+      A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP
+      A.WildP{}              -> ret p
+      A.ProjP{}              -> ret p
+      A.AbsurdP{}            -> ret p
+      A.LitP{}               -> ret p
+      A.DotP{}               -> ret p
+      A.ConP i c args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.ConP i c
+      A.DefP i f args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.DefP i f
+      A.PatternSynP i f args -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.PatternSynP i f
+      A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
+      A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
+                                bindToConcrete (BindingPat p)  $ \ p ->
+                                ret (A.AsP i x p)
+
 instance ToConcrete A.Pattern C.Pattern where
+  bindToConcrete p ret = do
+    prec <- currentPrecedence
+    bindToConcrete (BindingPat p) (ret <=< withPrecedence prec . toConcrete)
   toConcrete p =
     case p of
       A.VarP x ->
@@ -910,6 +937,9 @@ instance ToConcrete A.Pattern C.Pattern where
           _ -> return $ C.DotP (getRange i) c
 
       A.PatternSynP i n _ ->
+        -- Ulf, 2016-11-29: This doesn't seem right. The underscore is a list
+        -- of arguments, which we shouldn't really throw away! I guess this
+        -- case is __IMPOSSIBLE__?
         C.IdentP <$> toConcrete n
 
       A.RecP i as ->

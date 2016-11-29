@@ -772,10 +772,11 @@ interpret (Cmd_why_in_scope ii rng s) =
   liftCommandMT (B.withInteractionId ii) $ whyInScope s
 
 interpret (Cmd_make_case ii rng s) = do
-  (casectxt , cs) <- lift $ makeCase ii rng s
+  (f, casectxt, cs) <- lift $ makeCase ii rng s
   liftCommandMT (B.withInteractionId ii) $ do
     hidden <- lift $ showImplicitArguments
-    pcs <- lift $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
+    tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
+    pcs <- lift $ inTopContext $ addContext tel $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
     putResponse $ Resp_MakeCase (makeCaseVariant casectxt) (List.map (extlam_dropName casectxt . render) pcs)
   where
     render = renderStyle (style { mode = OneLineMode })

@@ -825,7 +825,7 @@ checkExpr e t0 =
             -- expression is not a matching hidden lambda or question mark
             , not (hiddenLambdaOrHole h e)
             -> do
-                x <- freshName rx $ notInScopeName $ absName b
+                x <- unshadowName <=< freshName rx $ notInScopeName $ absName b
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
                 checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
             where
