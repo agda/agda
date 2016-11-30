@@ -82,14 +82,29 @@ initialIFSCandidates t = do
                  ]
       return $ vars ++ fields ++ lets
 
-    instanceFields (v, t) =
-      caseMaybeM (isEtaRecordType =<< reduce t) (return []) $ \ (r, pars) -> do
-        (tel, args) <- etaExpandRecord r pars v
+    etaExpand etaOnce t =
+      isEtaRecordType t >>= \case
+        Nothing | etaOnce -> do
+          isRecordType t >>= \case
+            Nothing         -> return Nothing
+            Just (r, vs, _) -> do
+              m <- currentModule
+              -- Are we inside the record module? If so it's safe and desirable
+              -- to eta-expand once (issue #2320).
+              if qnameToList r `isPrefixOf` mnameToList m
+                then return (Just (r, vs))
+                else return Nothing
+        r -> return r
+
+    instanceFields = instanceFields' True
+    instanceFields' etaOnce (v, t) =
+      caseMaybeM (etaExpand etaOnce =<< reduce t) (return []) $ \ (r, pars) -> do
+        (tel, args) <- forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
           ([ Candidate (unArg arg) t ExplicitStayExplicit (argInfoOverlappable $ argInfo arg)
            | getHiding arg == Instance ] ++) <$>
-          instanceFields (unArg arg, t)
+          instanceFields' False (unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
