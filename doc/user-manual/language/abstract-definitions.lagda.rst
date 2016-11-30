@@ -47,9 +47,9 @@ Synopsis
   details (e.g. expose reduction behavior by using propositional
   equality).
 
-* Inside ``private`` type signatures, abstract definitions do reduce,
-  though.  This is fine as nothing can be leaked through private
-  definitions, as they are not visible outside the module.
+* Inside ``private`` type signatures in ``abstract`` blocks, abstract
+  definitions do reduce. However, there are some problems with this. See `Issue
+  #418 <https://github.com/agda/agda/issues/418#issuecomment-245590857>`_.
 
 * The reach of the ``abstract`` keyword block extends recursively to
   the ``where``-blocks of a function and the declarations inside of a
