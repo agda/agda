@@ -406,7 +406,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               { projProper   = True
               , projOrig     = projname
               -- name of the record type:
-              , projFromType = r
+              , projFromType = defaultArg r
               -- index of the record argument (in the type),
               -- start counting with 1:
               , projIndex    = size tel -- which is @size ptel + 1@

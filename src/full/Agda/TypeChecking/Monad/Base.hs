@@ -1375,8 +1375,9 @@ data Projection = Projection
   , projOrig      :: QName
     -- ^ The original projection name
     --   (current name could be from module application).
-  , projFromType  :: QName
-    -- ^ Type projected from.  Record type if @projProper = Just{}@.
+  , projFromType  :: Arg QName
+    -- ^ Type projected from. Record type if @projProper = Just{}@. Also
+    -- stores @ArgInfo@ of the principal argument.
   , projIndex     :: Int
     -- ^ Index of the record argument.
     --   Start counting with 1, because 0 means that

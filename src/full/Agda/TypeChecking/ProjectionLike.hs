@@ -210,9 +210,9 @@ makeProjection x = -- if True then return () else do
   where
     -- @validProj (d,n)@ checks whether the head @d@ of the type of the
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
-    validProj :: (QName, Int) -> TCM Bool
+    validProj :: (Arg QName, Int) -> TCM Bool
     validProj (_, 0) = return False
-    validProj (d, _) = eligibleForProjectionLike d
+    validProj (d, _) = eligibleForProjectionLike (unArg d)
 
     -- NOTE: If the following definition turns out to be slow, then
     -- one could perhaps reuse information computed by the termination
@@ -266,13 +266,13 @@ makeProjection x = -- if True then return () else do
     -- E.g. f : {x : _}(y : _){z : _} -> D x y z -> ...
     -- will return (D,3) as a candidate (amongst maybe others).
     --
-    candidateArgs :: [Term] -> Type -> [(QName,Int)]
+    candidateArgs :: [Term] -> Type -> [(Arg QName, Int)]
     candidateArgs vs t =
       case ignoreSharing $ unEl t of
         Pi a b
           | Def d es <- ignoreSharing $ unEl $ unDom a,
             Just us  <- allApplyElims es,
-            vs == map unArg us -> (d, length vs) : candidateRec b
+            vs == map unArg us -> (d <$ argFromDom a, length vs) : candidateRec b
           | otherwise          -> candidateRec b
         _                      -> []
       where
