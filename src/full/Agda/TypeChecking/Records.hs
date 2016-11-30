@@ -490,7 +490,8 @@ curryAt t n = do
 {-| @etaExpand r pars u@ computes the eta expansion of record value @u@
     at record type @r pars@.
 
-    The first argument @r@ should be the name of a record type. Given
+    The first argument @r@ should be the name of an eta-expandable record type.
+    Given
 
       @record R : Set where field x : A; y : B; .z : C@
 
@@ -501,20 +502,30 @@ curryAt t n = do
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
 etaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
-etaExpandRecord r pars u = do
+etaExpandRecord = etaExpandRecord' False
+
+-- | Eta expand a record regardless of whether it's an eta-record or not.
+forceEtaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
+forceEtaExpandRecord = etaExpandRecord' True
+
+etaExpandRecord' :: Bool -> QName -> Args -> Term -> TCM (Telescope, Args)
+etaExpandRecord' forceEta r pars u = do
   def <- getRecordDef r
-  (tel, _, args) <- etaExpandRecord_ r pars def u
+  (tel, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
 etaExpandRecord_ :: QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, Args)
-etaExpandRecord_ r pars def u = do
+etaExpandRecord_ = etaExpandRecord'_ False
+
+etaExpandRecord'_ :: Bool -> QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, Args)
+etaExpandRecord'_ forceEta r pars def u = do
   let Record{ recConHead     = con
             , recFields      = xs
             , recTel         = tel
             } = def
       eta = recEtaEquality def
       tel' = apply tel pars
-  unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
+  unless (eta || forceEta) __IMPOSSIBLE__ -- make sure we do not expand non-eta records (unless forced to)
   case ignoreSharing u of
 
     -- Already expanded.
