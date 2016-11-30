@@ -774,10 +774,14 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
   mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom funSig i info mp x e) =
   Bench.billTo [Bench.Typing, Bench.TypeSig] $
-    case Info.defAccess i of
-        PublicAccess  -> inConcreteMode $ checkAxiom funSig i info mp x e
-        PrivateAccess{} -> inAbstractMode $ checkAxiom funSig i info mp x e
-        OnlyQualified -> __IMPOSSIBLE__
+    let abstr = case Info.defAccess i of
+          PrivateAccess{}
+            | Info.defAbstract i == AbstractDef -> inAbstractMode
+              -- Issue #2321, only go to AbstractMode for abstract definitions
+            | otherwise -> inConcreteMode
+          PublicAccess  -> inConcreteMode
+          OnlyQualified -> __IMPOSSIBLE__
+    in abstr $ checkAxiom funSig i info mp x e
 checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 
 
