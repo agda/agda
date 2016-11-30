@@ -111,7 +111,7 @@ getRecordDef r = maybe err return =<< isRecord r
 getRecordOfField :: QName -> TCM (Maybe QName)
 getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
   \ Projection{ projProper = proper, projFromType = r} ->
-    return $ if proper then Just r else Nothing
+    return $ if proper then Just (unArg r) else Nothing
 
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [Arg C.Name]

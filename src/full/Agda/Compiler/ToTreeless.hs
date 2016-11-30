@@ -303,7 +303,7 @@ mkRecord fs = lift $ do
 recConFromProj :: QName -> TCM I.ConHead
 recConFromProj q = do
   caseMaybeM (isProjection q) __IMPOSSIBLE__ $ \ proj -> do
-    let d = projFromType proj
+    let d = unArg $ projFromType proj
     getRecordConstructor d
 
 

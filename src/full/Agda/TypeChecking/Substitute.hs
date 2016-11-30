@@ -880,13 +880,14 @@ instance Subst DeBruijnPattern DeBruijnPattern where
 --   This function is an optimization, saving us from construction lambdas we
 --   immediately remove through application.
 projDropParsApply :: Projection -> ProjOrigin -> Args -> Term
-projDropParsApply (Projection proper d _ _ lams) o args =
+projDropParsApply (Projection proper d r _ lams) o args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
     Nothing -> if proper then Def d $ map Apply args else __IMPOSSIBLE__
     Just (pars, Arg i y) ->
-      let core = if proper then Lam i $ Abs y $ Var 0 [Proj o d] else Def d []
+      let core = if proper then Lam i $ Abs y $ Var 0 [Proj o d]
+                           else Lam i $ Abs y $ Def d [Apply $ Var 0 [] <$ r] -- Issue2226: get ArgInfo for principal argument from projFromType
       -- Now drop pars many args
           (pars', args') = dropCommon pars args
       -- We only have to abstract over the parameters that exceed the arguments.
