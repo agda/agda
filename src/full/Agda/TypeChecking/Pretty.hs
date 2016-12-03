@@ -387,7 +387,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
-        b = maybe False (/= ConPCon) $ conPRecord i
+        b = maybe False (/= ConOCon) $ conPRecord i
         showRec :: TCM Doc
         showRec = sep
           [ text "record"

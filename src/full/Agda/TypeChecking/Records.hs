@@ -411,7 +411,7 @@ expandRecordVar i gamma0 = do
           fs  = recFields def
       -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = Con (recConHead def) ConPImplicit ys
+          u   = Con (recConHead def) ConOSystem ys
       -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
           tau0 = consS u $ raiseS m
       -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
@@ -473,7 +473,7 @@ curryAt t n = do
           m   = size tel
           fs  = recFields def
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = Con (recConHead def) ConPImplicit ys
+          u   = Con (recConHead def) ConOSystem ys
           b'  = raise m b `absApp` u
           t'  = gamma `telePi` (tel `telePi` b')
           gammai = map domInfo $ telToList gamma
@@ -551,7 +551,7 @@ etaExpandRecord'_ forceEta r pars def u = do
           , text "args =" <+> prettyTCM xs'
           ]
         ]
-      return (tel', con, ConPImplicit, xs')
+      return (tel', con, ConOSystem, xs')
 
 etaExpandAtRecordType :: Type -> Term -> TCM (Telescope, Term)
 etaExpandAtRecordType t u = do
@@ -616,7 +616,7 @@ isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   reportSLn "tc.meta.eta" 30 $ "Is " ++ show r ++ " a singleton record type?"
   def <- getRecordDef r
-  emap (Con (recConHead def) ConPImplicit) <$> check (recTel def `apply` ps)
+  emap (Con (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where
   check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
   check tel = do

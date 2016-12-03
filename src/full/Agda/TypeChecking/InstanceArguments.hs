@@ -132,7 +132,7 @@ initialIFSCandidates t = do
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
                -- Ulf, 2014-08-20: constructors are always instances.
-               Constructor{ conSrcCon = c }       -> Con c ConPImplicit []
+               Constructor{ conSrcCon = c }       -> Con c ConOSystem []
                _                                  -> Def q $ map Apply args
           inScope <- isNameInScope q <$> getScope
           return $ Candidate v t ExplicitToInstance False <$ guard inScope

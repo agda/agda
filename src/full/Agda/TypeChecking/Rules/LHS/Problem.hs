@@ -183,7 +183,7 @@ data ProblemRest = ProblemRest
 data Focus
   = Focus
     { focusCon      :: QName
-    , focusPatOrigin:: ConPOrigin -- ^ Do we come from an implicit or record pattern?
+    , focusPatOrigin:: ConOrigin -- ^ Do we come from an implicit or record pattern?
     , focusConArgs  :: [NamedArg A.Pattern]
     , focusRange    :: Range
     , focusOutPat   :: [NamedArg DeBruijnPattern]

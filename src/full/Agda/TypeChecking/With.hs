@@ -397,7 +397,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
     -- are implicit patterns (we inserted too many).
     strip _ _ ps      []      = do
       let implicit (A.WildP{})     = True
-          implicit (A.ConP ci _ _) = patOrigin ci == ConPImplicit
+          implicit (A.ConP ci _ _) = patOrigin ci == ConOSystem
           implicit _               = False
       unless (all (implicit . namedArg) ps) $
         typeError $ GenericError $ "Too many arguments given in with-clause"
@@ -469,7 +469,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
             ok p
           -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
           -- we just fold it back.  This fixes issues 665 and 824.
-          A.ConP ci _ _ | patOrigin ci == ConPImplicit -> okFlex p
+          A.ConP ci _ _ | patOrigin ci == ConOSystem -> okFlex p
           -- Andreas, 2015-07-07 issue 1606: Same for flexible record patterns.
           -- Agda might have replaced a record of dot patterns (A.ConP) by a dot pattern (I.DotP).
           p'@A.ConP{} -> ifM (liftTCM $ isFlexiblePattern p') (okFlex p) {-else-} failDotPat
@@ -521,11 +521,11 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
             cs' <- liftTCM $ mapM getConForm cs'
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
-            stripConP d us b c ConPCon qs' ps'
+            stripConP d us b c ConOCon qs' ps'
 
           A.RecP _ fs -> caseMaybeM (liftTCM $ isRecord d) mismatch $ \ def -> do
             ps' <- liftTCM $ insertMissingFields d (const $ A.WildP empty) fs (recordFieldNames def)
-            stripConP d us b c ConPRec qs' ps'
+            stripConP d us b c ConORec qs' ps'
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $

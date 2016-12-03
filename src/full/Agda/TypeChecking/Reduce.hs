@@ -431,7 +431,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
           _                             -> False
   case def of
     Constructor{conSrcCon = c} ->
-      noReduction $ notBlocked $ Con (c `withRangeOf` f) ConPImplicit [] `applyE` es
+      noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `elem` allowed

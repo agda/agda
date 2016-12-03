@@ -266,7 +266,7 @@ addDisplayForms x = do
             Nothing         -> noDispForm x $ "bad body"
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
-                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConPImplicit []
+                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df

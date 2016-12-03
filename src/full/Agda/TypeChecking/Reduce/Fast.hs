@@ -357,9 +357,9 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
       in case def of
         CCon{cconSrcCon = c} ->
           if hasRewriting then
-            runReduce $ rewrite (notBlocked ()) (Con c ConPImplicit []) rewr es
+            runReduce $ rewrite (notBlocked ()) (Con c ConOSystem []) rewr es
           else
-            NoReduction $ notBlocked $ Con c ConPImplicit [] `applyE` es
+            NoReduction $ notBlocked $ Con c ConOSystem [] `applyE` es
         CFun{cfunCompiled = cc} ->
           reduceNormalE steps v0 f (map notReduced es) dontUnfold cc
         CForce -> reduceForce unfoldDelayed v0 f es
@@ -479,7 +479,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                       sucFrame n stack =
                         case fsucBranch bs of
                           Nothing -> stack
-                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) ConPImplicit 1)
+                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) ConOSystem 1)
                                      : stack
                         where v = MaybeRed (Reduced $ notBlocked ()) $ Apply $ defaultArg $ Lit $ LitNat noRange n
 
@@ -511,7 +511,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                             Lit l@(LitNat r n) ->
                               let cFrame stack
                                     | n > 0                  = sucFrame (n - 1) stack
-                                    | n == 0, Just z <- zero = conFrame z ConPImplicit [] stack
+                                    | n == 0, Just z <- zero = conFrame z ConOSystem [] stack
                                     | otherwise              = stack
                               in match' steps f $ litFrame l $ cFrame $ catchAllFrame stack
 

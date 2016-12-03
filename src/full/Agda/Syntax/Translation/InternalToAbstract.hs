@@ -666,7 +666,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
-          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConPImplicit
+          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
                                  = all varOrDot $ map namedArg ps
           varOrDot _             = False
 
@@ -873,7 +873,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyPatterns ps
         where
           ci = ConPatInfo origin patNoRange
-          origin = fromMaybe ConPCon $ I.conPRecord cpi
+          origin = fromMaybe ConOCon $ I.conPRecord cpi
 
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.
@@ -887,7 +887,7 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && patOrigin ci /= ConPRec then fallback else do
+          if recNamedCon def && patOrigin ci /= ConORec then fallback else do
             fs <- liftTCM $ getRecordFieldNames r
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps

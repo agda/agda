@@ -140,7 +140,7 @@ insertTele er n ins term (ExtendTel x xs) = do
 
 -- TODO: restore fields in ConHead
 mkCon :: QName -> Int -> Term
-mkCon c n = I.Con (I.ConHead c Inductive []) ConPImplicit $ map (defaultArg . I.var) $ downFrom n
+mkCon c n = I.Con (I.ConHead c Inductive []) ConOSystem $ map (defaultArg . I.var) $ downFrom n
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ typeError $ NotImplemented "using the new unification algorithm for forcing"

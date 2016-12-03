@@ -514,7 +514,7 @@ frommyExp (NotM e) =
         frommyExps n as v
 -}
        (ndrop, h) = case iscon of
-                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive []) Common.ConPImplicit) -- TODO: restore fields
+                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive []) Common.ConOSystem) -- TODO: restore fields
                       Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do

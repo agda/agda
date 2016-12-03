@@ -31,7 +31,7 @@ getConHead c = conSrcCon . theDef <$> getConstInfo c
 getConForm :: QName -> TCM ConHead
 getConForm c = do
   ch <- getConHead c
-  Con con _ [] <- ignoreSharing <$> constructorForm (Con ch ConPCon [])
+  Con con _ [] <- ignoreSharing <$> constructorForm (Con ch ConOCon [])
   return con
 
 -- | Augment constructor with record fields (preserve constructor name).

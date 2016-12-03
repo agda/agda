@@ -309,7 +309,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> pure ConPImplicit <*> args
+      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> pure ConOSystem <*> args
 
       genLeaf :: Gen Term
       genLeaf = frequency

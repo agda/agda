@@ -476,7 +476,7 @@ bindBuiltinUnit t = do
   case def of
     Record { recFields = [], recConHead = con } -> do
       bindBuiltinName builtinUnit t
-      bindBuiltinName builtinUnitUnit (Con con ConPImplicit [])
+      bindBuiltinName builtinUnitUnit (Con con ConOSystem [])
     _ -> genericError "Builtin UNIT must be a singleton record type"
 
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()

@@ -451,14 +451,14 @@ instance EmbPrj Origin where
   value 2 = return Reflected
   value _ = malformed
 
-instance EmbPrj ConPOrigin where
-  icod_ ConPImplicit = return 0
-  icod_ ConPCon      = return 1
-  icod_ ConPRec      = return 2
+instance EmbPrj ConOrigin where
+  icod_ ConOSystem = return 0
+  icod_ ConOCon    = return 1
+  icod_ ConORec    = return 2
 
-  value 0 = return ConPImplicit
-  value 1 = return ConPCon
-  value 2 = return ConPRec
+  value 0 = return ConOSystem
+  value 1 = return ConOCon
+  value 2 = return ConORec
   value _ = malformed
 
 instance EmbPrj ProjOrigin where

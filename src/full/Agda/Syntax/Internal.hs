@@ -131,7 +131,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Explicit sharing
   deriving (Typeable, Show)
 
-type ConInfo = ConPOrigin
+type ConInfo = ConOrigin
 
 -- | Eliminations, subsuming applications and projections.
 --
@@ -480,7 +480,7 @@ namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 --   The scope used for the type is given by any outer scope
 --   plus the clause's telescope ('clauseTel').
 data ConPatternInfo = ConPatternInfo
-  { conPRecord :: Maybe ConPOrigin
+  { conPRecord :: Maybe ConOrigin
     -- ^ @Nothing@ if data constructor.
     --   @Just@ if record constructor.
   , conPType   :: Maybe (Arg Type)
@@ -498,12 +498,12 @@ noConPatternInfo = ConPatternInfo Nothing Nothing
 
 -- | Build partial 'ConPatternInfo' from 'ConInfo'
 toConPatternInfo :: ConInfo -> ConPatternInfo
-toConPatternInfo ConPRec = ConPatternInfo (Just ConPRec) Nothing
+toConPatternInfo ConORec = ConPatternInfo (Just ConORec) Nothing
 toConPatternInfo _ = noConPatternInfo
 
 -- | Build 'ConInfo' from 'ConPatternInfo'.
 fromConPatternInfo :: ConPatternInfo -> ConInfo
-fromConPatternInfo = fromMaybe ConPImplicit . conPRecord
+fromConPatternInfo = fromMaybe ConOSystem . conPRecord
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
@@ -1246,7 +1246,7 @@ instance Pretty a => Pretty (Pattern' a) where
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
   --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
   --   where
-  --     b = maybe False (== ConPImplicit) $ conPRecord i
+  --     b = maybe False (== ConOSystem) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
   prettyPrec _ (LitP l)      = text (show l)
   prettyPrec _ (ProjP _o q)  = text ("." ++ show q)

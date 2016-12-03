@@ -297,7 +297,7 @@ compareTerm' cmp a m n =
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c ConPImplicit []) m' n'
+                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
 
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n

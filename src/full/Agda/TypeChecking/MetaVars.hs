@@ -316,7 +316,7 @@ newRecordMetaCtx r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel perm ctx
   con    <- getRecordConstructor r
-  return $ Con con ConPImplicit fields
+  return $ Con con ConOSystem fields
 
 newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
 newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck

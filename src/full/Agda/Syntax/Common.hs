@@ -702,18 +702,18 @@ type RString = Ranged RawName
 ---------------------------------------------------------------------------
 
 -- | Where does the 'ConP' or 'Con' come from?
-data ConPOrigin
-  = ConPImplicit  -- ^ Inserted by system or expanded from an implicit pattern.
-  | ConPCon       -- ^ User wrote a constructor (pattern).
-  | ConPRec       -- ^ User wrote a record (pattern).
+data ConOrigin
+  = ConOSystem  -- ^ Inserted by system or expanded from an implicit pattern.
+  | ConOCon     -- ^ User wrote a constructor (pattern).
+  | ConORec     -- ^ User wrote a record (pattern).
   deriving (Typeable, Show, Eq, Ord, Enum, Bounded)
 
-instance KillRange ConPOrigin where
+instance KillRange ConOrigin where
   killRange = id
 
 -- | Prefer user-written over system-inserted.
-bestConInfo :: ConPOrigin -> ConPOrigin -> ConPOrigin
-bestConInfo ConPImplicit o = o
+bestConInfo :: ConOrigin -> ConOrigin -> ConOrigin
+bestConInfo ConOSystem o = o
 bestConInfo o _ = o
 
 -- | Where does a projection come from?
