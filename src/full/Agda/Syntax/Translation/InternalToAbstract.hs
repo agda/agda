@@ -347,7 +347,7 @@ reifyTerm expandAnonDefs0 v = do
     I.Con c ci vs -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
-      case isR of
+      case isR || ci == ConORec of
         True -> do
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || notHidden a
