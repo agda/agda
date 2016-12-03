@@ -510,7 +510,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
 
         -- Get the name of builtin REFL.
 
-        Con reflCon [] <- ignoreSharing <$> primRefl
+        Con reflCon _ [] <- ignoreSharing <$> primRefl
 
         -- Andreas, 2014-05-17  Issue 1110:
         -- Rewriting with @refl@ has no effect, but gives an
@@ -521,14 +521,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
         let isReflProof = do
              v <- reduce proof
              case ignoreSharing v of
-               Con c [] | c == reflCon -> return True
+               Con c _ [] | c == reflCon -> return True
                _ -> return False
 
         ifM isReflProof recurse $ {- else -} do
 
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
-        let reflPat  = A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [conName reflCon]) []
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [conName reflCon]) []
 
         -- Andreas, 2015-12-25  Issue #1740:
         -- After the fix of #520, rewriting with a reflexive equation

@@ -58,7 +58,7 @@ instance Apply Term where
     case m of
       Var i es'   -> Var i (es' ++ es)
       Def f es'   -> defApp f es' es  -- remove projection redexes
-      Con c args  -> conApp c args es
+      Con c ci args -> conApp c ci args es
       Lam _ b     ->
         case es of
           Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
@@ -77,16 +77,16 @@ instance Apply Term where
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case ignoreSharing v of
-    (Con (ConHead _ _ fs) vs) -> do
+    (Con (ConHead _ _ fs) _ vs) -> do
       i <- elemIndex f fs
       headMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
-conApp :: ConHead -> Args -> Elims -> Term
-conApp ch                  args []             = Con ch args
-conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
-conApp ch@(ConHead c _ fs) args (Proj o f : es) =
+conApp :: ConHead -> ConInfo -> Args -> Elims -> Term
+conApp ch                  ci args []             = Con ch ci args
+conApp ch                  ci args (Apply a : es) = conApp ch ci (args ++ [a]) es
+conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
@@ -413,13 +413,13 @@ instance Apply FunctionInverse where
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
   apply (DDot v)           args = DDot  $ apply v args
-  apply (DCon c vs)        args = DCon c $ vs ++ map (fmap DTerm) args
+  apply (DCon c ci vs)     args = DCon c ci $ vs ++ map (fmap DTerm) args
   apply (DDef c es)        args = DDef c $ es ++ map (Apply . fmap DTerm) args
   apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
 
   applyE (DTerm v)           es = DTerm $ applyE v es
   applyE (DDot v)            es = DDot  $ applyE v es
-  applyE (DCon c vs)         es = DCon c $ vs ++ map (fmap DTerm) ws
+  applyE (DCon c ci vs)      es = DCon c ci $ vs ++ map (fmap DTerm) ws
     where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
   applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
   applyE (DWithApp v ws es') es = DWithApp v ws $ es' ++ es
@@ -673,7 +673,7 @@ instance Subst Term Term where
     Var i es    -> lookupS rho i `applyE` applySubst rho es
     Lam h m     -> Lam h $ applySubst rho m
     Def f es    -> defApp f [] $ applySubst rho es
-    Con c vs    -> Con c $ applySubst rho vs
+    Con c ci vs -> Con c ci $ applySubst rho vs
     MetaV x es  -> MetaV x $ applySubst rho es
     Lit l       -> Lit l
     Level l     -> levelTm $ applySubst rho l
@@ -764,7 +764,7 @@ instance Subst Term DisplayForm where
 instance Subst Term DisplayTerm where
   applySubst rho (DTerm v)        = DTerm $ applySubst rho v
   applySubst rho (DDot v)         = DDot  $ applySubst rho v
-  applySubst rho (DCon c vs)      = DCon c $ applySubst rho vs
+  applySubst rho (DCon c ci vs)   = DCon c ci $ applySubst rho vs
   applySubst rho (DDef c es)      = DDef c $ applySubst rho es
   applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
@@ -1063,7 +1063,7 @@ instance Eq Term where
   Lam h v    == Lam h' v'    = h == h' && v  == v'
   Lit l      == Lit l'       = l == l'
   Def x vs   == Def x' vs'   = x == x' && vs == vs'
-  Con x vs   == Con x' vs'   = x == x' && vs == vs'
+  Con x _ vs == Con x' _ vs' = x == x' && vs == vs'
   Pi a b     == Pi a' b'     = a == a' && b == b'
   Sort s     == Sort s'      = s == s'
   Level l    == Level l'     = l == l'
@@ -1084,7 +1084,7 @@ instance Ord Term where
   Def a b    `compare` Def x y    = compare (a, b) (x, y)
   Def{}      `compare` _          = LT
   _          `compare` Def{}      = GT
-  Con a b    `compare` Con x y    = compare (a, b) (x, y)
+  Con a _ b  `compare` Con x _ y  = compare (a, b) (x, y)
   Con{}      `compare` _          = LT
   _          `compare` Con{}      = GT
   Lit a      `compare` Lit x      = compare a x

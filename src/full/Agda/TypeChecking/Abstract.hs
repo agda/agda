@@ -88,7 +88,7 @@ instance IsPrefixOf Term where
     case (ignoreSharing u, ignoreSharing v) of
       (Var   i us, Var   j vs) | i == j  -> us `isPrefixOf` vs
       (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
-      (Con   c us, Con   d vs) | c == d  -> us `isPrefixOf` vs
+      (Con c _ us, Con d _ vs) | c == d  -> us `isPrefixOf` vs
       (MetaV x us, MetaV y vs) | x == y  -> us `isPrefixOf` vs
       (u, v) -> guard (u == v) >> return []
 
@@ -149,7 +149,7 @@ instance AbsTerm Term where
       Var i vs    -> Var (i + 1) $ absT vs
       Lam h b     -> Lam h $ absT b
       Def c vs    -> Def c $ absT vs
-      Con c vs    -> Con c $ absT vs
+      Con c ci vs -> Con c ci $ absT vs
       Pi a b      -> uncurry Pi $ absT (a, b)
       Lit l       -> Lit l
       Level l     -> Level $ absT l

@@ -102,7 +102,7 @@ getBuiltins =
 defName :: T.Term -> QName
 defName v = case T.ignoreSharing v of
   T.Def q [] -> q
-  T.Con q [] -> T.conName q
+  T.Con q ci [] -> T.conName q
   _          -> __IMPOSSIBLE__
 
 -- | Translation to primitive integer functions

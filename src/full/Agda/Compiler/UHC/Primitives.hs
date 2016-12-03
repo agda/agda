@@ -112,7 +112,7 @@ primFunctions = M.fromList $
             -- lookup refl constructor
             bt <- fromMaybe __IMPOSSIBLE__ <$> (lift $ getBuiltin' builtinRefl)
             let reflNm = case T.ignoreSharing bt of
-                    (T.Con conHd []) -> T.conName conHd
+                    (T.Con conHd _ []) -> T.conName conHd
                     _                -> __IMPOSSIBLE__
 
             mkVar <$> getConstrFun reflNm

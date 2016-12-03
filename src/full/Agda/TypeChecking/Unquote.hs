@@ -120,7 +120,7 @@ inOriginalContext m =
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftU tm
                   case ignoreSharing t of
-                    Con con' _ -> return (con == con')
+                    Con con' _ _ -> return (con == con')
                     _ -> return False
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
@@ -188,22 +188,22 @@ instance Unquote ArgInfo where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [h,r] -> do
+      Con c _ [h,r] -> do
         choice
           [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure False)]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "arg info" t
 
 instance Unquote a => Unquote (Arg a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [info,x] -> do
+      Con c _ [info,x] -> do
         choice
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "arg" t
 
 -- Andreas, 2013-10-20: currently, post-fix projections are not part of the
@@ -215,7 +215,7 @@ instance Unquote Bool where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [] ->
+      Con c _ [] ->
         choice [ (c `isCon` primTrue,  pure True)
                , (c `isCon` primFalse, pure False) ]
                __IMPOSSIBLE__
@@ -266,7 +266,7 @@ instance Unquote ErrorPart where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [x] ->
+      Con c _ [x] ->
         choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
@@ -277,40 +277,40 @@ instance Unquote a => Unquote [a] where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [x,xs] -> do
+      Con c _ [x,xs] -> do
         choice
           [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
           __IMPOSSIBLE__
-      Con c [] -> do
+      Con c _ [] -> do
         choice
           [(c `isCon` primNil, return [])]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "list" t
 
 instance Unquote Hiding where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [] -> do
+      Con c _ [] -> do
         choice
           [(c `isCon` primHidden,  return Hidden)
           ,(c `isCon` primInstance, return Instance)
           ,(c `isCon` primVisible, return NotHidden)]
           __IMPOSSIBLE__
-      Con c vs -> __IMPOSSIBLE__
+      Con c _ vs -> __IMPOSSIBLE__
       _        -> throwException $ NonCanonical "visibility" t
 
 instance Unquote Relevance where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [] -> do
+      Con c _ [] -> do
         choice
           [(c `isCon` primRelevant,   return Relevant)
           ,(c `isCon` primIrrelevant, return Irrelevant)]
           __IMPOSSIBLE__
-      Con c vs -> __IMPOSSIBLE__
+      Con c _ vs -> __IMPOSSIBLE__
       _        -> throwException $ NonCanonical "relevance" t
 
 instance Unquote QName where
@@ -324,11 +324,11 @@ instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [x,y] -> do
+      Con c _ [x,y] -> do
         choice
           [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "abstraction" t
 
     where hint x | not (null x) = x
@@ -358,16 +358,16 @@ instance Unquote R.Sort where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [] -> do
+      Con c _ [] -> do
         choice
           [(c `isCon` primAgdaSortUnsupported, return R.UnknownS)]
           __IMPOSSIBLE__
-      Con c [u] -> do
+      Con c _ [u] -> do
         choice
           [(c `isCon` primAgdaSortSet, R.SetS <$> unquoteN u)
           ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "sort" t
 
 instance Unquote Literal where
@@ -377,7 +377,7 @@ instance Unquote Literal where
           file <- liftU getCurrentPath
           return $ LitMeta r file x
     case ignoreSharing t of
-      Con c [x] ->
+      Con c _ [x] ->
         choice
           [ (c `isCon` primAgdaLitNat,    LitNat    noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
@@ -386,25 +386,25 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitMeta,   litMeta   noRange =<< unquoteN x) ]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "literal" t
 
 instance Unquote R.Term where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [] ->
+      Con c _ [] ->
         choice
           [ (c `isCon` primAgdaTermUnsupported, return R.Unknown) ]
           __IMPOSSIBLE__
 
-      Con c [x] -> do
+      Con c _ [x] -> do
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
           , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
           __IMPOSSIBLE__
 
-      Con c [x, y] ->
+      Con c _ [x, y] ->
         choice
           [ (c `isCon` primAgdaTermVar,     R.Var     <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermCon,     R.Con     <$> (ensureCon =<< unquoteN x) <*> unquoteN y)
@@ -431,37 +431,37 @@ instance Unquote R.Pattern where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [] -> do
+      Con c _ [] -> do
         choice
           [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
           , (c `isCon` primAgdaPatDot,    return R.DotP)
           ] __IMPOSSIBLE__
-      Con c [x] -> do
+      Con c _ [x] -> do
         choice
           [ (c `isCon` primAgdaPatVar,  R.VarP  <$> unquoteNString x)
           , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
           , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c [x, y] -> do
+      Con c _ [x, y] -> do
         choice
           [ (c `isCon` primAgdaPatCon, R.ConP <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "pattern" t
 
 instance Unquote R.Clause where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c [x] -> do
+      Con c _ [x] -> do
         choice
           [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c [x, y] -> do
+      Con c _ [x, y] -> do
         choice
           [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "clause" t
 
 -- Unquoting TCM computations ---------------------------------------------

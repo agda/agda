@@ -297,7 +297,7 @@ compareTerm' cmp a m n =
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c []) m' n'
+                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
 
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
@@ -519,13 +519,13 @@ compareAtom cmp t m n =
             (Def f es, Def f' es') ->
               unlessM (bothAbsurd f f') $ do
                 trySizeUniv cmp t m n f es f' es'
-            (Con x xArgs, Con y yArgs)
+            (Con x ci xArgs, Con y _ yArgs)
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
                     a' <- conType x t
                     -- Constructors are covariant in their arguments
                     -- (see test/succeed/CovariantConstructors).
-                    compareArgs (repeat $ polFromCmp cmp) a' (Con x []) xArgs yArgs
+                    compareArgs (repeat $ polFromCmp cmp) a' (Con x ci []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked

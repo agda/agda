@@ -117,14 +117,14 @@ match' ((c, es, patch) : stack) = do
                   case Map.lookup l (litBranches bs) of
                     Nothing -> stack
                     Just cc -> (cc, es0 ++ es1, patchLit) : stack
-                -- If our argument (or its constructor form) is @Con c vs@
+                -- If our argument (or its constructor form) is @Con c ci vs@
                 -- we push @conFrame c vs@ onto the stack.
-                conFrame c vs stack =
+                conFrame c ci vs stack =
                   case Map.lookup (conName c) (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
                                , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
-                               , patchCon c (length vs)
+                               , patchCon c ci (length vs)
                                ) : stack
                 -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
                 projFrame p stack =
@@ -136,8 +136,8 @@ match' ((c, es, patch) : stack) = do
                 patchLit es = patch (es0 ++ [e] ++ es1)
                   where (es0, es1) = splitAt n es
                 -- In case we matched constructor @c@ with @m@ arguments,
-                -- contract these @m@ arguments @vs@ to @Con c vs@.
-                patchCon c m es = patch (es0 ++ [Con c vs <$ e] ++ es2)
+                -- contract these @m@ arguments @vs@ to @Con c ci vs@.
+                patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
                   where (es0, rest) = splitAt n es
                         (es1, es2)  = splitAt m rest
                         vs          = map argFromElim es1
@@ -152,13 +152,13 @@ match' ((c, es, patch) : stack) = do
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v
                 let cFrame stack = case ignoreSharing cv of
-                      Con c vs -> conFrame c vs stack
+                      Con c ci vs -> conFrame c ci vs stack
                       _        -> stack
                 match' $ litFrame l $ cFrame $ catchAllFrame stack
 
               -- In case of a constructor, push the conFrame
-              NotBlocked _ (Apply (Arg info (Con c vs))) -> performedSimplification $
-                match' $ conFrame c vs $ catchAllFrame $ stack
+              NotBlocked _ (Apply (Arg info (Con c ci vs))) -> performedSimplification $
+                match' $ conFrame c ci vs $ catchAllFrame $ stack
 
               -- In case of a projection, push the projFrame
               NotBlocked _ (Proj _ p) -> performedSimplification $

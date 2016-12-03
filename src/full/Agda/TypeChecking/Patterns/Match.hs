@@ -204,7 +204,7 @@ matchPattern p u = case (p, u) of
         -- This case is necessary if we want to use the clauses before
         -- record pattern translation (e.g., in type-checking definitions by copatterns).
         unless (size fs == size ps) __IMPOSSIBLE__
-        mapSnd (Arg info . Con c) <$> do
+        mapSnd (Arg info . Con c (fromConPatternInfo cpi)) <$> do
           matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
     where
     isEtaRecordCon :: QName -> ReduceM (Maybe [Arg QName])
@@ -242,10 +242,10 @@ matchPattern p u = case (p, u) of
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument
         case ignoreSharing <$> w of
-          NotBlocked _ (Con c' vs)
+          NotBlocked _ (Con c' ci vs)
             | c == c'               -> do
                 (m, vs) <- yesSimplification <$> matchPatterns ps vs
-                return (m, Arg info $ Con c' vs)
+                return (m, Arg info $ Con c' ci vs)
             | otherwise             -> return (No                          , arg)
           NotBlocked _ (MetaV x vs) -> return (DontKnow $ Blocked x ()     , arg)
           Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)

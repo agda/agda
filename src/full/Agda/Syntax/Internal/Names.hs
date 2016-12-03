@@ -98,7 +98,7 @@ instance NamesIn Term where
     Lam _ b      -> namesIn b
     Lit l        -> namesIn l
     Def f args   -> namesIn (f, args)
-    Con c args   -> namesIn (c, args)
+    Con c _ args -> namesIn (c, args)
     Pi a b       -> namesIn (a, b)
     Sort s       -> namesIn s
     Level l      -> namesIn l
@@ -148,7 +148,7 @@ instance NamesIn DisplayForm where
 instance NamesIn DisplayTerm where
   namesIn v = case v of
     DWithApp v us es -> namesIn (v, us, es)
-    DCon c vs        -> namesIn (c, vs)
+    DCon c _ vs      -> namesIn (c, vs)
     DDef f es        -> namesIn (f, es)
     DDot v           -> namesIn v
     DTerm v          -> namesIn v

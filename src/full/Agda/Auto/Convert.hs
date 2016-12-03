@@ -392,7 +392,7 @@ tomyExp v0 =
       c   <- getConst False name TMAll
       as' <- tomyExps as
       return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
-    I.Con con as -> do
+    I.Con con ci as -> do
       let name = I.conName con
       c   <- getConst True name TMAll
       as' <- tomyExps as
@@ -447,7 +447,7 @@ fmExp m (I.Lam _ b) = fmExp m (I.unAbs b)
 fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
-fmExp m (I.Con _ as) = fmExps m as
+fmExp m (I.Con _ ci as) = fmExps m as
 fmExp m (I.Pi x y)  = fmType m (Common.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
@@ -514,7 +514,7 @@ frommyExp (NotM e) =
         frommyExps n as v
 -}
        (ndrop, h) = case iscon of
-                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive [])) -- TODO: restore fields
+                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive []) Common.ConOSystem) -- TODO: restore fields
                       Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
@@ -563,7 +563,7 @@ frommyExps ndrop (NotM as) trm =
   ALConPar _ -> __IMPOSSIBLE__
  where
   addend x (I.Var h xs) = I.Var h (xs ++ [I.Apply x])
-  addend x (I.Con h xs) = I.Con h (xs ++ [x])
+  addend x (I.Con h ci xs) = I.Con h ci (xs ++ [x])
   addend x (I.Def h xs) = I.Def h (xs ++ [I.Apply x])
   addend x (I.Shared p) = addend x (I.derefPtr p)
   addend _ _ = __IMPOSSIBLE__
@@ -782,7 +782,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lam hid1 b1, I.Lam hid2 b2) | hid1 == hid2 -> f (nl + 1) n c (I.absBody b1) (I.absBody b2)
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
-      (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
+      (I.Con n1 _ as1, I.Con n2 _ as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
       (I.Pi (Common.Dom info1 it1) ot1, I.Pi (Common.Dom info2 it2) ot2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing

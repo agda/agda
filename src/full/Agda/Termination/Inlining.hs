@@ -199,7 +199,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
     dtermToPat v =
       case v of
         DWithApp{}       -> __IMPOSSIBLE__   -- I believe
-        DCon c vs        -> ConP c noConPatternInfo . map (fmap unnamed)
+        DCon c ci vs     -> ConP c (toConPatternInfo ci) . map (fmap unnamed)
                               <$> mapM (traverse dtermToPat) vs
         DDef d es        -> do
           ifM (return (null es) `and2M` do isJust <$> lift (isProjection d))
@@ -209,7 +209,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
         DTerm (Var i []) ->
           ifM (bindVar i) (varP . nameToPatVarName <$> lift (nameOfBV i))
                           (pure $ DotP (Var i []))
-        DTerm (Con c vs) -> ConP c noConPatternInfo . map (fmap unnamed) <$>
+        DTerm (Con c ci vs) -> ConP c (toConPatternInfo ci) . map (fmap unnamed) <$>
                               mapM (traverse (dtermToPat . DTerm)) vs
         DTerm v          -> DotP v <$ skip
 

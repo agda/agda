@@ -120,7 +120,7 @@ instance IsInstantiatedMeta Term where
       DontCare v -> loop v
       Level l    -> isInstantiatedMeta l
       Lam _ b    -> isInstantiatedMeta b
-      Con _ vs   -> isInstantiatedMeta vs
+      Con _ _ vs -> isInstantiatedMeta vs
       _          -> __IMPOSSIBLE__
 
 instance IsInstantiatedMeta Level where

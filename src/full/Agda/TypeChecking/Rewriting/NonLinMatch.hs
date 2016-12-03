@@ -139,7 +139,7 @@ instance PatternFrom Term NLPat where
           [Apply x] | f == lsuc -> pLevelSuc <$> patternFrom k (unArg x)
           [x , y]   | f == lmax -> done
           _                     -> PDef f <$> patternFrom k es
-      Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
+      Con c ci vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
       Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
       Sort s   -> done
       Level l  -> __IMPOSSIBLE__
@@ -324,7 +324,7 @@ instance Match NLPat Term where
         case ignoreSharing v of
           Def f' es
             | f == f'   -> match gamma k ps es
-          Con c vs
+          Con c _ vs
             | f == conName c -> match gamma k ps (Apply <$> vs)
             | otherwise -> do -- @c@ may be a record constructor
                 mr <- liftRed $ isRecordConstructor (conName c)
@@ -365,7 +365,7 @@ instance Match NLPat Term where
             _          -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> match gamma k ps es
-        Con c vs -> do -- @c@ may be a record constructor
+        Con c _ vs -> do -- @c@ may be a record constructor
           mr <- liftRed $ isRecordConstructor (conName c)
           case mr of
             Just (r, def) | recEtaEquality def -> do

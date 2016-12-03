@@ -61,7 +61,7 @@ builtinKit =
              <*> isB def builtinNatEquals
              <*> isP pf  "primForce"
   where
-    con (I.Con c _) = pure $ I.conName c
+    con (I.Con c _ _) = pure $ I.conName c
     con _           = Nothing
     def (I.Def d _) = pure d
     def _           = Nothing
@@ -190,4 +190,3 @@ transform BuiltinKit{..} = tr
                         (TLet (TApp (TPrim PSub) [TVar 0, (TLit (LitNat _ j))]) b))
       | k == j = Just (k, b)
     nPlusKView _ = Nothing
-

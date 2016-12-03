@@ -274,7 +274,7 @@ splitProblem mf (Problem ps qs tel pr) = do
               args <- lift $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
               (return Split
                 { splitLPats   = empty
-                , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) qs d pars ixs a
+                , splitFocus   = Arg ai $ Focus c ConORec args (getRange p) qs d pars ixs a
                 , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                 }) `mplus` keepGoing
 

@@ -271,8 +271,9 @@ expandCatchAlls single n cs =
     expand cl (qs, q) =
       case unArg q of
         ConP c mt qs' -> Cl (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
-                            (substBody n' m (Con c conArgs) b)
+                            (substBody n' m (Con c ci conArgs) b)
           where
+            ci       = fromConPatternInfo mt
             m        = length qs'
             -- replace all direct subpatterns of q by _
             conPArgs = map (fmap ($> VarP "_")) qs'

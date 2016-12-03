@@ -54,7 +54,7 @@ reconstructParameters a v = do
   where
     reconstruct a v = do
       case ignoreSharing v of
-        Con h vs -> do
+        Con h ci vs -> do
           TelV tel a <- telView a
           let under = size tel  -- under-applied when under > 0
           reportSDoc "tc.with.reconstruct" 50 $
@@ -67,7 +67,7 @@ reconstructParameters a v = do
               let Just ps = applySubst (strengthenS __IMPOSSIBLE__ under) . take n <$> allApplyElims es
               reportSLn "tc.with.reconstruct" 50 $ show n ++ " parameters"
               -- TODO: the reconstructed parameters are not reconstructed recursively!
-              return $ Con h (ps ++ vs)
+              return $ Con h ci (ps ++ vs)
             _ -> __IMPOSSIBLE__
         _        -> return v
 
@@ -76,8 +76,8 @@ dropParameters = traverseTermM dropPars
   where
     dropPars v =
       case ignoreSharing v of
-        Con c vs -> do
+        Con c ci vs -> do
           Constructor{ conData = d } <- theDef <$> getConstInfo (conName c)
           Just n <- defParameters <$> getConstInfo d
-          return $ Con c $ drop n vs
+          return $ Con c ci $ drop n vs
         _        -> return v

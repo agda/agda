@@ -66,7 +66,7 @@ patternToTerm :: A.Pattern -> (Nat -> Term -> TCM a) -> TCM a
 patternToTerm p ret =
   case p of
     A.VarP x               -> bindVar x $ ret 1 (Var 0 [])
-    A.ConP _ (AmbQ [c]) ps -> pappToTerm c (Con (ConHead c Inductive [])) ps ret
+    A.ConP _ (AmbQ [c]) ps -> pappToTerm c (Con (ConHead c Inductive []) ConOCon) ps ret
     A.ConP _ (AmbQ cs) _   -> genericError $ "Ambiguous constructor: " ++ intercalate ", " (map show cs)
     A.ProjP _ _ (AmbQ [d]) -> ret 0 (Def d [])
     A.ProjP _ _ (AmbQ ds)    -> genericError $ "Ambiguous projection: " ++ intercalate ", " (map show ds)
@@ -91,7 +91,7 @@ exprToTerm e =
   case unScope e of
     A.Var x  -> fst <$> getVarInfo x
     A.Def f  -> pure $ Def f []
-    A.Con (AmbQ (c:_)) -> pure $ Con (ConHead c Inductive []) [] -- Don't care too much about ambiguity here
+    A.Con (AmbQ (c:_)) -> pure $ Con (ConHead c Inductive []) ConOCon [] -- Don't care too much about ambiguity here
     A.Lit l -> pure $ Lit l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 

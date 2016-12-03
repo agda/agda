@@ -96,11 +96,12 @@ patternToTerm :: Nat -> Pattern -> Term
 patternToTerm n p = case p of
     VarP v          -> var n
     DotP t          -> t
-    ConP c typ args -> Con c $ zipWith (\ arg t -> arg {unArg = t}) args
+    ConP c typ args -> Con c ci $ zipWith (\ arg t -> arg {unArg = t}) args
                              $ snd
                              $ foldr (\ arg (n, ts) -> (n + nrBinds arg, patternToTerm n arg : ts))
                                      (n , [])
                              $ map namedArg args
+      where ci = fromConPatternInfo typ
     LitP l          -> Lit l
     ProjP _ d       -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
 
@@ -289,7 +290,7 @@ instance Injectible Term where
               Just (Apply a) -> t1 <: unArg a
       (Var i1 es1, Var i2 es2) | i1 == i2 -> es1 <: es2
       (Def q1 es1, Def q2 es2) | q1 == q2 -> es1 <: es2
-      (Con con1 args1, Con con2 args2) -> do
+      (Con con1 _ args1, Con con2 _ args2) -> do
         let c1 = conName con1
             c2 = conName con2
         args1' <- flip notForced args1 <$> do lift . getForcedArgs $ c1
@@ -312,7 +313,7 @@ instance Injectible Term where
         args1' <- map unArg <$> mapM (lift . lift . reduce) args1
         args2' <- map unArg <$> mapM (lift . lift . reduce) args2
         unionConstraints <$> zipWithM (\a b -> (a <: b)) args1' args2'
-      (Con con1 args1, Con con2 args2) -> do
+      (Con con1 _ args1, Con con2 _ args2) -> do
         let c1 = conName con1
             c2 = conName con2
         args1' <- map unArg <$> flip notForced args1 <$> getForcedArgs c1

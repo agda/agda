@@ -140,7 +140,7 @@ insertTele er n ins term (ExtendTel x xs) = do
 
 -- TODO: restore fields in ConHead
 mkCon :: QName -> Int -> Term
-mkCon c n = I.Con (I.ConHead c Inductive []) $ map (defaultArg . I.var) $ downFrom n
+mkCon c n = I.Con (I.ConHead c Inductive []) ConOSystem $ map (defaultArg . I.var) $ downFrom n
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ typeError $ NotImplemented "using the new unification algorithm for forcing"
@@ -284,7 +284,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
 buildTerm :: Var -> Nat -> Term -> Compile TCM (Expr -> Expr, Var)
 buildTerm var idx (I.Shared p) = buildTerm var idx $ I.derefPtr p
 buildTerm var idx (I.Var i _) | idx == i = return (id, var)
-buildTerm var idx (I.Con con args) = do
+buildTerm var idx (I.Con con _ args) = do
     let c = I.conName con
     vs <- replicateM (length args) newName
     (pos , arg) <- fromMaybe __IMPOSSIBLE__ <$> findPosition idx (map (Just . unArg) args)
@@ -307,7 +307,7 @@ findPosition var ts = (listToMaybe . catMaybes <$>) . forM (zip [0..] ts) $ \ (n
     pred :: Term -> Compile TCM Bool
     pred t = case I.ignoreSharing t of
       I.Var i _ | var == i -> return True
-      I.Con c args         -> do
+      I.Con c _ args -> do
           forc <- getForcedArgs $ I.conName c
           or <$> mapM (pred . unArg) (notForced forc args)
-      _                  -> return False
+      _ -> return False

@@ -26,25 +26,18 @@ import Agda.Utils.Impossible
 getConHead :: QName -> TCM ConHead
 getConHead c = conSrcCon . theDef <$> getConstInfo c
 
--- | Get true constructor as term.
-getConTerm :: QName -> TCM Term
-getConTerm c = flip Con [] <$> getConHead c
-
 -- | Get true constructor with fields, expanding literals to constructors
 --   if possible.
 getConForm :: QName -> TCM ConHead
 getConForm c = do
-  Con con [] <- ignoreSharing <$> do constructorForm =<< getConTerm c
+  ch <- getConHead c
+  Con con _ [] <- ignoreSharing <$> constructorForm (Con ch ConOCon [])
   return con
 
 -- | Augment constructor with record fields (preserve constructor name).
 --   The true constructor might only surface via 'reduce'.
 getOrigConHead :: QName -> TCM ConHead
 getOrigConHead c = setConName c <$> getConHead c
-
--- | Analogous to 'getConTerm'.
-getOrigConTerm :: QName -> TCM Term
-getOrigConTerm c = flip Con [] <$> getOrigConHead c
 
 -- | Get the name of the datatype constructed by a given constructor.
 --   Precondition: The argument must refer to a constructor

@@ -106,7 +106,7 @@ instance IsFlexiblePattern (I.Pattern' a) where
     case p of
       I.DotP{}  -> return DotFlex
       I.ConP _ i ps
-        | Just ConPImplicit <- conPRecord i -> return ImplicitFlex  -- expanded from ImplicitP
+        | Just ConOSystem <- conPRecord i -> return ImplicitFlex  -- expanded from ImplicitP
         | Just _            <- conPRecord i -> maybeFlexiblePattern ps
         | otherwise -> mzero
       I.VarP{}  -> mzero
@@ -408,7 +408,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
         gatherVars :: Term -> TCM [(Int,Projectns)]
         gatherVars u = case ignoreSharing u of
           Var i es -> return $ (i,) <$> maybeToList (allProjElims es)
-          Con c us -> ifM (isEtaCon $ conName c)
+          Con c _ us -> ifM (isEtaCon $ conName c)
                       {-then-} (concat <$> traverse (gatherVars . unArg) us)
                       {-else-} (return [])
           _        -> return []

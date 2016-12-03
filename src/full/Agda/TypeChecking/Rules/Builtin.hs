@@ -476,7 +476,7 @@ bindBuiltinUnit t = do
   case def of
     Record { recFields = [], recConHead = con } -> do
       bindBuiltinName builtinUnit t
-      bindBuiltinName builtinUnitUnit (Con con [])
+      bindBuiltinName builtinUnitUnit (Con con ConOSystem [])
     _ -> genericError "Builtin UNIT must be a singleton record type"
 
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
@@ -497,17 +497,17 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
       BuiltinDataCons t -> do
 
         let name (Lam h b)  = name (absBody b)
-            name (Con c _)  = Con c []
+            name (Con c ci _) = Con c ci []
             name (Shared p) = name $ ignoreSharing (derefPtr p)
             name _          = __IMPOSSIBLE__
 
         e' <- checkExpr e =<< t
 
         case e of
-          A.Con _ -> return ()
+          A.Con{} -> return ()
           _       -> typeError $ BuiltinMustBeConstructor s e
 
-        let v@(Con h []) = name e'
+        let v@(Con h _ []) = name e'
             c = conName h
         when (s == builtinTrue)  $ addHaskellCode c "Bool" "True"
         when (s == builtinFalse) $ addHaskellCode c "Bool" "False"

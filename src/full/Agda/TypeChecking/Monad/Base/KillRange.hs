@@ -96,7 +96,7 @@ instance KillRange DisplayTerm where
   killRange dt =
     case dt of
       DWithApp dt dts es -> killRange3 DWithApp dt dts es
-      DCon q dts        -> killRange2 DCon q dts
+      DCon q ci dts     -> killRange3 DCon q ci dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
       DTerm v           -> killRange1 DTerm v

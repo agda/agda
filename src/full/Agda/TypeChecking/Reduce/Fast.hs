@@ -229,7 +229,7 @@ strictSubst strict us
           | x < k     -> Var x $! map' (goE k) es
           | otherwise -> applyE (raise k $ us !! (x - k)) $! map' (goE k) es
         Def f es -> defApp f [] $! map' (goE k) es
-        Con c vs -> Con c $! map' (mapArg' $ go k) vs
+        Con c ci vs -> Con c ci $! map' (mapArg' $ go k) vs
         Lam i b  -> Lam i $! goAbs k b
         Lit{}    -> v
         _        -> applySubst (liftS k rho) v
@@ -253,7 +253,7 @@ mapArg' f (Arg i x) = Arg i $! f x
 -- | First argument: allow non-terminating reductions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
 fastReduce allowNonTerminating v = do
-  let name (Con c _) = c
+  let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
   z  <- fmap name <$> getBuiltin' builtinZero
   s  <- fmap name <$> getBuiltin' builtinSuc
@@ -290,10 +290,10 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
     reduceB' steps v =
       case v of
         Def f es -> unfoldDefinitionE steps False reduceB' (Def f []) f es
-        Con c vs ->
+        Con c ci vs ->
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          case unfoldDefinition steps False reduceB' (Con c []) (conName c) vs of
+          case unfoldDefinition steps False reduceB' (Con c ci []) (conName c) vs of
             NotBlocked r v -> NotBlocked r $ reduceNat v
             b              -> b
         Lit{} -> done
@@ -302,13 +302,13 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
       where
         done = notBlocked v
 
-        reduceNat v@(Con c [])
+        reduceNat v@(Con c ci [])
           | isZero c = Lit $ LitNat (getRange c) 0
-        reduceNat v@(Con c [a])
+        reduceNat v@(Con c ci [a])
           | isSuc c  = inc . ignoreBlocking $ reduceB' 0 (unArg a)
           where
             inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
-            inc w                  = Con c [defaultArg w]
+            inc w                  = Con c ci [defaultArg w]
         reduceNat v = v
 
     originalProjection :: QName -> QName
@@ -357,9 +357,9 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
       in case def of
         CCon{cconSrcCon = c} ->
           if hasRewriting then
-            runReduce $ rewrite (notBlocked ()) (Con c []) rewr es
+            runReduce $ rewrite (notBlocked ()) (Con c ConOSystem []) rewr es
           else
-            NoReduction $ notBlocked $ Con c [] `applyE` es
+            NoReduction $ notBlocked $ Con c ConOSystem [] `applyE` es
         CFun{cfunCompiled = cc} ->
           reduceNormalE steps v0 f (map notReduced es) dontUnfold cc
         CForce -> reduceForce unfoldDelayed v0 f es
@@ -466,20 +466,20 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                         case Map.lookup l (flitBranches bs) of
                           Nothing -> stack
                           Just cc -> (cc, es0 ++ es1, patchLit) : stack
-                      -- If our argument (or its constructor form) is @Con c vs@
-                      -- we push @conFrame c vs@ onto the stack.
-                      conFrame c vs stack =
+                      -- If our argument (or its constructor form) is @Con c ci vs@
+                      -- we push @conFrame c ci vs@ onto the stack.
+                      conFrame c ci vs stack =
                         case lookupCon (conName c) bs of
                           Nothing -> stack
                           Just cc -> ( cc
                                      , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
-                                     , patchCon c (length vs)
+                                     , patchCon c ci (length vs)
                                      ) : stack
 
                       sucFrame n stack =
                         case fsucBranch bs of
                           Nothing -> stack
-                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) 1)
+                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) ConOSystem 1)
                                      : stack
                         where v = MaybeRed (Reduced $ notBlocked ()) $ Apply $ defaultArg $ Lit $ LitNat noRange n
 
@@ -493,8 +493,8 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                       patchLit es = patch (es0 ++ [e] ++ es1)
                         where (es0, es1) = splitAt n es
                       -- In case we matched constructor @c@ with @m@ arguments,
-                      -- contract these @m@ arguments @vs@ to @Con c vs@.
-                      patchCon c m es = patch (es0 ++ [Con c vs <$ e] ++ es2)
+                      -- contract these @m@ arguments @vs@ to @Con c ci vs@.
+                      patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
                         where (es0, rest) = splitAt n es
                               (es1, es2)  = splitAt m rest
                               vs          = map argFromElim es1
@@ -511,12 +511,12 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                             Lit l@(LitNat r n) ->
                               let cFrame stack
                                     | n > 0                  = sucFrame (n - 1) stack
-                                    | n == 0, Just z <- zero = conFrame z [] stack
+                                    | n == 0, Just z <- zero = conFrame z ConOSystem [] stack
                                     | otherwise              = stack
                               in match' steps f $ litFrame l $ cFrame $ catchAllFrame stack
 
                             Lit l    -> match' steps f $ litFrame l    $ catchAllFrame stack
-                            Con c vs -> match' steps f $ conFrame c vs $ catchAllFrame $ stack
+                            Con c ci vs -> match' steps f $ conFrame c ci vs $ catchAllFrame $ stack
 
                             -- Otherwise, we are stuck.  If we were stuck before,
                             -- we keep the old reason, otherwise we give reason StuckOn here.

@@ -110,7 +110,7 @@ instance TermLike Term where
   traverseTerm f t = case t of
     Var i xs    -> f $ Var i $ traverseTerm f xs
     Def c xs    -> f $ Def c $ traverseTerm f xs
-    Con c xs    -> f $ Con c $ traverseTerm f xs
+    Con c ci xs -> f $ Con c ci $ traverseTerm f xs
     Lam h b     -> f $ Lam h $ traverseTerm f b
     Pi a b      -> f $ uncurry Pi $ traverseTerm f (a, b)
     MetaV m xs  -> f $ MetaV m $ traverseTerm f xs
@@ -123,7 +123,7 @@ instance TermLike Term where
   traverseTermM f t = case t of
     Var i xs    -> f =<< Var i <$> traverseTermM f xs
     Def c xs    -> f =<< Def c <$> traverseTermM f xs
-    Con c xs    -> f =<< Con c <$> traverseTermM f xs
+    Con c ci xs -> f =<< Con c ci <$> traverseTermM f xs
     Lam h b     -> f =<< Lam h <$> traverseTermM f b
     Pi a b      -> f =<< uncurry Pi <$> traverseTermM f (a, b)
     MetaV m xs  -> f =<< MetaV m <$> traverseTermM f xs
@@ -136,7 +136,7 @@ instance TermLike Term where
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
     Def c xs    -> foldTerm f xs
-    Con c xs    -> foldTerm f xs
+    Con c ci xs -> foldTerm f xs
     Lam h b     -> foldTerm f b
     Pi a b      -> foldTerm f (a, b)
     MetaV m xs  -> foldTerm f xs

@@ -316,7 +316,7 @@ newRecordMetaCtx r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel perm ctx
   con    <- getRecordConstructor r
-  return $ Con con fields
+  return $ Con con ConOSystem fields
 
 newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
 newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck
@@ -656,7 +656,7 @@ assign dir x args v = do
             -- appear on the rhs.  (test/fail/Issue483b)
             -- Update 2011-03-27: Also irr. vars under record constructors.
             let fromIrrVar (Var i [])   = return [i]
-                fromIrrVar (Con c vs)   =
+                fromIrrVar (Con c _ vs)   =
                   ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
                     concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
                 fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
@@ -798,7 +798,7 @@ attemptInertRHSImprovement m args v = do
               Just args -> return args
       case ignoreSharing v of
         Var x elims -> (, Var x . map Apply) <$> typeOfBV x
-        Con c args  -> notInert -- (, Con c) <$> defType <$> getConstInfo (conName c)
+        Con c ci args  -> notInert -- (, Con c ci) <$> defType <$> getConstInfo (conName c)
         Def f elims -> do
           def <- getConstInfo f
           let good = return (defType def, Def f . map Apply)
@@ -1002,7 +1002,7 @@ instance NoProjectedVar Term where
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
       -- Andreas, 2015-09-12 Issue 1316:
       -- Also look in inductive record constructors
-      Con (ConHead _ Inductive (_:_)) vs -> noProjectedVar vs
+      Con (ConHead _ Inductive (_:_)) _ vs -> noProjectedVar vs
       _ -> return ()
 
 instance NoProjectedVar a => NoProjectedVar (Arg a) where
@@ -1134,7 +1134,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
-        Arg info (Con c vs) -> do
+        Arg info (Con c ci vs) -> do
           let fallback
                | isIrrelevant info = return vars
                  -- Andreas, 2016-11-03, issue #2211

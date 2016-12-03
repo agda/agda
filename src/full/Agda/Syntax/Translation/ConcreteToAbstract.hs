@@ -2010,7 +2010,7 @@ resolvePatternIdentifier r x ns = do
   px <- toAbstract (PatName x ns)
   case px of
     VarPatName y        -> return $ VarP y
-    ConPatName ds       -> return $ ConP (ConPatInfo ConPCon $ PatRange r)
+    ConPatName ds       -> return $ ConP (ConPatInfo ConOCon $ PatRange r)
                                          (AmbQ $ map anameName ds)
                                          []
     PatternSynPatName d -> return $ PatternSynP (PatRange r)

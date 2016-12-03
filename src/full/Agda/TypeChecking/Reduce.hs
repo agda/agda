@@ -332,10 +332,10 @@ slowReduceTerm v = do
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
       MetaV x es -> done
       Def f es   -> unfoldDefinitionE False reduceB' (Def f []) f es
-      Con c args -> do
+      Con c ci args -> do
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          v <- unfoldDefinition False reduceB' (Con c []) (conName c) args
+          v <- unfoldDefinition False reduceB' (Con c ci []) (conName c) args
           traverse reduceNat v
       Sort s   -> fmap sortTm <$> reduceB' s
       Level l  -> ifM (elem LevelReductions <$> asks envAllowedReductions)
@@ -350,20 +350,20 @@ slowReduceTerm v = do
     where
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@Shared{} = updateSharedTerm reduceNat v
-      reduceNat v@(Con c []) = do
+      reduceNat v@(Con c ci []) = do
         mz  <- getBuiltin' builtinZero
         case v of
           _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
           _                 -> return v
-      reduceNat v@(Con c [a]) | notHidden a && isRelevant a = do
+      reduceNat v@(Con c ci [a]) | notHidden a && isRelevant a = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
-          _ | Just (Con c []) == ms -> inc <$> reduce' (unArg a)
+          _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
           _                         -> return v
           where
             inc w = case ignoreSharing w of
               Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
-              _                -> Con c [defaultArg w]
+              _                -> Con c ci [defaultArg w]
       reduceNat v = return v
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
@@ -431,7 +431,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
           _                             -> False
   case def of
     Constructor{conSrcCon = c} ->
-      noReduction $ notBlocked $ Con (c `withRangeOf` f) [] `applyE` es
+      noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `elem` allowed
@@ -669,7 +669,7 @@ instance Simplify Term where
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
       MetaV x vs -> MetaV x  <$> simplify' vs
-      Con c vs   -> Con c    <$> simplify' vs
+      Con c ci vs-> Con c ci <$> simplify' vs
       Sort s     -> sortTm   <$> simplify' s
       Level l    -> levelTm  <$> simplify' l
       Pi a b     -> Pi       <$> simplify' a <*> simplify' b
@@ -832,7 +832,7 @@ instance Normalise Term where
         normaliseArgs :: Term -> ReduceM Term
         normaliseArgs v = case v of
                 Var n vs    -> Var n <$> normalise' vs
-                Con c vs    -> Con c <$> normalise' vs
+                Con c ci vs -> Con c ci <$> normalise' vs
                 Def f vs    -> Def f <$> normalise' vs
                 MetaV x vs  -> MetaV x <$> normalise' vs
                 Lit _       -> return v
@@ -997,7 +997,7 @@ instance InstantiateFull Term where
       v <- instantiate' v
       case v of
           Var n vs    -> Var n <$> instantiateFull' vs
-          Con c vs    -> Con c <$> instantiateFull' vs
+          Con c ci vs -> Con c ci <$> instantiateFull' vs
           Def f vs    -> Def f <$> instantiateFull' vs
           MetaV x vs  -> MetaV x <$> instantiateFull' vs
           Lit _       -> return v
@@ -1178,7 +1178,7 @@ instance InstantiateFull DisplayForm where
 instance InstantiateFull DisplayTerm where
   instantiateFull' (DTerm v)       = DTerm <$> instantiateFull' v
   instantiateFull' (DDot  v)       = DDot  <$> instantiateFull' v
-  instantiateFull' (DCon c vs)     = DCon c <$> instantiateFull' vs
+  instantiateFull' (DCon c ci vs)  = DCon c ci <$> instantiateFull' vs
   instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
   instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
 

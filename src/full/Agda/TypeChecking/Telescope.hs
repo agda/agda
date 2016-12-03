@@ -276,7 +276,7 @@ expandTelescopeVar gamma k delta c = (tel', rho)
                     splitExactlyAt k $ telToList gamma
 
     cpi         = ConPatternInfo
-      { conPRecord = Just ConPImplicit
+      { conPRecord = Just ConOSystem
       , conPType   = Just $ snd <$> argFromDom a
       }
     cargs       = map (setOrigin Inserted) $ teleNamedArgs delta

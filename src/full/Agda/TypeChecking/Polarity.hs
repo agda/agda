@@ -402,7 +402,7 @@ instance HasPolarity Term where
       pols <- getPolarity x
       let compose p ps = map (composePol p) ps
       concat . zipWith compose (pols ++ repeat Invariant) <$> mapM (polarities i) ts
-    Con _ ts   -> polarities i ts -- constructors can be seen as monotone in all args.
+    Con _ _ ts -> polarities i ts -- constructors can be seen as monotone in all args.
     Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
     Sort s     -> return [] -- polarities i s -- return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts

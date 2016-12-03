@@ -723,14 +723,14 @@ dataStrategy k s = do
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (ignoreSharing u, ignoreSharing v) of
-        (MetaV m es, Con c _   ) -> do
-          us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
+        (MetaV m es, Con c ci _   ) -> do
+          us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c ci
           return $ Injectivity k a d hpars ixs c
-        (Con c _   , MetaV m es) -> do
-          vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
+        (Con c ci _   , MetaV m es) -> do
+          vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c ci
           return $ Injectivity k a d hpars ixs c
-        (Con c _   , Con c' _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
-        (Con c _   , Con c' _  ) -> return $ Conflict k d hpars c c'
+        (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
+        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars c c'
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
         (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
         _ -> mzero
@@ -747,8 +747,8 @@ dataStrategy k s = do
 
     -- Instantiate the meta with a constructor applied to fresh metas
     -- Returns the fresh metas if successful
-    instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> TCM (Maybe Args)
-    instMetaCon m es d pars c = do
+    instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> ConInfo -> TCM (Maybe Args)
+    instMetaCon m es d pars c ci = do
       caseMaybe (allApplyElims es) (return Nothing) $ \ us -> do
         ifNotM (asks envAssignMetas) (return Nothing) $ {-else-} tryMaybe $ do
           reportSDoc "tc.lhs.unify" 60 $
@@ -767,7 +767,7 @@ dataStrategy k s = do
               -- important: create the meta in the same environment as the original meta
               newArgsMetaCtx ctype tel perm us
           reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
-          noConstraints $ assignV DirEq m us (Con c margs)
+          noConstraints $ assignV DirEq m us (Con c ci margs)
           return margs
 
 checkEqualityStrategy :: Int -> UnifyStrategy
@@ -821,7 +821,7 @@ etaExpandEquationStrategy k s = do
     shouldProject :: Term -> TCM Bool
     shouldProject u = case ignoreSharing u of
       Def f es   -> usesCopatterns f
-      Con c us   -> isJust <$> isRecordConstructor (conName c)
+      Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
       Var _ _    -> return False
       Lam _ _    -> __IMPOSSIBLE__

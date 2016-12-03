@@ -309,7 +309,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> args
+      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> pure ConOSystem <*> args
 
       genLeaf :: Gen Term
       genLeaf = frequency
@@ -470,8 +470,8 @@ instance ShrinkC Term Term where
                     (uncurry Var <$> shrinkC conf (VarName i, NoType es))
     Def d es     -> map unArg (argsFromElims es) ++
                     (uncurry Def <$> shrinkC conf (DefName d, NoType es))
-    Con c args   -> map unArg args ++
-                    (uncurry Con <$> shrinkC conf (ConName c, NoType args))
+    Con c ci args-> map unArg args ++
+                    ((\(c,vs) -> Con c ci vs) <$> shrinkC conf (ConName c, NoType args))
     Lit l        -> Lit <$> shrinkC conf l
     Level l      -> [] -- TODO
     Lam info b   -> killAbs b : ((\(h,x) -> Lam (setHiding h defaultArgInfo) x)
@@ -487,9 +487,9 @@ instance ShrinkC Term Term where
       validType t
         | not (tcIsType conf) = True
         | otherwise         = case t of
-            Con _ _ -> False
-            Lam _ _ -> False
-            Lit _         -> False
+            Con{} -> False
+            Lam{} -> False
+            Lit{} -> False
             _     -> True
   noShrink = id
 
@@ -506,7 +506,7 @@ instance KillVar Term where
                | j >  i    -> Var (j - 1) $ killVar i args
                | otherwise -> Var j       $ killVar i args
     Def c args             -> Def c       $ killVar i args
-    Con c args             -> Con c       $ killVar i args
+    Con c ci args          -> Con c ci    $ killVar i args
     Lit l                  -> Lit l
     Level l                -> Level l -- TODO
     Sort s                 -> Sort s
