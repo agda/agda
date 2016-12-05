@@ -475,6 +475,7 @@ script:
 # Testing the documentation
 
   - if [[ $TEST = "DOC" ]]; then
+       sphinx-build --version &&
        make doc;
     fi
 
