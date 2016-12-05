@@ -157,7 +157,7 @@ matrix:
 
     - env: TEST=DOC BUILD=NOTHING
       language: python
-      python: "3.3"
+      python: "3.4"
       addons:
         apt:
           packages:
