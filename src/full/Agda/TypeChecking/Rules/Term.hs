@@ -2070,7 +2070,7 @@ inferExprForWith e = do
       Var i [] -> whenM (isModuleFreeVar i) $ do
         reportSDoc "tc.with.infer" 80 $ vcat
           [ text $ "with expression is variable " ++ show i
-          , text "current modules = " <$> do text . show =<< currentModule
+          , text "current modules = " <+> do text . show =<< currentModule
           , text "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
           , text "context size = " <+> do text . show =<< getContextSize
           , text "current context = " <+> do prettyTCM =<< getContext
