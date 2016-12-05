@@ -2067,7 +2067,15 @@ inferExprForWith e = do
     -- Andreas 2014-11-06, issue 1342.
     -- Check that we do not `with` on a module parameter!
     case ignoreSharing v0 of
-      Var i [] -> whenM (isModuleFreeVar i) $ typeError $ WithOnFreeVariable e
+      Var i [] -> whenM (isModuleFreeVar i) $ do
+        reportSDoc "tc.with.infer" 80 $ vcat
+          [ text $ "with expression is variable " ++ show i
+          , text "current modules = " <$> do text . show =<< currentModule
+          , text "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
+          , text "context size = " <+> do text . show =<< getContextSize
+          , text "current context = " <+> do prettyTCM =<< getContext
+          ]
+        typeError $ WithOnFreeVariable e
       _        -> return ()
     -- Possibly insert hidden arguments.
     TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
