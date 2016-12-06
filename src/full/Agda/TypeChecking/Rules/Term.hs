@@ -2045,13 +2045,8 @@ inferOrCheck e mt = case e of
 -- | Check whether a de Bruijn index is bound by a module telescope.
 isModuleFreeVar :: Int -> TCM Bool
 isModuleFreeVar i = do
-  nfv <- getCurrentModuleFreeVars
-  n   <- getContextSize
-  -- The first de Bruijn index that points to a module
-  -- free variable.
-  let firstModuleVar = n - nfv
-  when (firstModuleVar < 0) __IMPOSSIBLE__
-  return $ i >= firstModuleVar
+  params <- moduleParamsToApply =<< currentModule
+  return $ any ((== Var i []) . unArg) params
 
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
@@ -2073,7 +2068,7 @@ inferExprForWith e = do
           , text "current modules = " <+> do text . show =<< currentModule
           , text "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
           , text "context size = " <+> do text . show =<< getContextSize
-          , text "current context = " <+> do prettyTCM =<< getContext
+          , text "current context = " <+> do prettyTCM =<< getContextTelescope
           ]
         typeError $ WithOnFreeVariable e
       _        -> return ()
