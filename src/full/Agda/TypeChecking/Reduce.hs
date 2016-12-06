@@ -68,6 +68,14 @@ normalise = runReduceM . normalise'
 simplify :: Simplify a => a -> TCM a
 simplify = runReduceM . simplify'
 
+-- | Meaning no metas left in the instantiation.
+isFullyInstantiatedMeta :: MetaId -> TCM Bool
+isFullyInstantiatedMeta m = do
+  mv <- TCM.lookupMeta m
+  case mvInstantiation mv of
+    InstV sub v -> null . allMetas <$> instantiateFull (sub, v)
+    _ -> return False
+
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
 --   Doesn't do any reduction, and preserves blocking tags (when blocking meta

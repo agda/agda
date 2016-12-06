@@ -17,4 +17,3 @@ newValueMeta      :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
 newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
 newNamedValueMeta':: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
 newTelMeta        :: Telescope -> TCM Args
-allMetas          :: TermLike a => a -> [MetaId]

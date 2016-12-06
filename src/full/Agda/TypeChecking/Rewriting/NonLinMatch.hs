@@ -50,7 +50,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel)
-import Agda.TypeChecking.MetaVars (allMetas)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primLevelSuc, primLevelMax)
 import Agda.TypeChecking.Pretty

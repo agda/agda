@@ -18,6 +18,7 @@ import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
@@ -154,19 +155,23 @@ isInstantiatedMeta' m = do
     InstV tel v -> Just $ foldr mkLam v tel
     _           -> Nothing
 
--- | Doesn't count if it's instantiated to another metavariable, which might
---   happen during metavariable pruning.
-isReallyInstantiatedMeta :: MetaId -> TCM Bool
-isReallyInstantiatedMeta m = do
-  mv <- lookupMeta m
-  let unLambda (Lam _ b) = unLambda (unAbs b)
-      unLambda v         = v
-  case mvInstantiation mv of
-    InstV _ v ->
-      case unLambda v of
-        MetaV m _ -> isReallyInstantiatedMeta m
-        _         -> return True
-    _         -> return False
+
+-- | Returns every meta-variable occurrence in the given type, except
+-- for those in 'Sort's.
+allMetas :: TermLike a => a -> [MetaId]
+allMetas = foldTerm metas
+  where
+  metas (MetaV m _) = [m]
+  metas (Level l)   = levelMetas l
+  metas _           = []
+
+  levelMetas (Max as) = concatMap plusLevelMetas as
+
+  plusLevelMetas ClosedLevel{} = []
+  plusLevelMetas (Plus _ l)    = levelAtomMetas l
+
+  levelAtomMetas (MetaLevel m _) = [m]
+  levelAtomMetas _               = []
 
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: TCM MetaInfo
