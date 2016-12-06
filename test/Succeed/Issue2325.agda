@@ -26,3 +26,19 @@ module Bar {{x : X}} where
     work5 : ∀ {a b c c'} → foo a b c → foo a b c'
     work6 : ∀ {a a' b c c'} → foo a b c → foo a' b c'
     work7 : ∀ {a a' b b' c c'} → foo a b c → foo a' b' c'
+
+data Nat : Set where
+  suc : Nat → Nat
+  instance
+    zero : Nat
+
+instance
+  one = suc zero
+
+data IsSuc : Nat → Set where
+  isSuc : ∀{n} → IsSuc (suc n)
+
+postulate
+  F : {{x : Nat}} (p : IsSuc x) → Set
+
+test = F isSuc  -- yellow, but should not be
