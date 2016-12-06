@@ -2469,7 +2469,7 @@ data TypeError
         | TooManyFields QName [C.Name]
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
-        | WithOnFreeVariable A.Expr
+        | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
         | WithClausePatternMismatch A.Pattern Pattern
         | FieldOutsideRecord
