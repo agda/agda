@@ -256,7 +256,9 @@ solveAwakeConstraints' force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . genericLength =<< getAllConstraints
     whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
-     solve
+     -- Ulf, 2016-12-06: Don't inherit problems here! Stored constraints
+     -- already contain all their dependencies.
+     locally eActiveProblems (const []) solve
   where
     solve = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
