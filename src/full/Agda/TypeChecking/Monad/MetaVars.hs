@@ -154,6 +154,20 @@ isInstantiatedMeta' m = do
     InstV tel v -> Just $ foldr mkLam v tel
     _           -> Nothing
 
+-- | Doesn't count if it's instantiated to another metavariable, which might
+--   happen during metavariable pruning.
+isReallyInstantiatedMeta :: MetaId -> TCM Bool
+isReallyInstantiatedMeta m = do
+  mv <- lookupMeta m
+  let unLambda (Lam _ b) = unLambda (unAbs b)
+      unLambda v         = v
+  case mvInstantiation mv of
+    InstV _ v ->
+      case unLambda v of
+        MetaV m _ -> isReallyInstantiatedMeta m
+        _         -> return True
+    _         -> return False
+
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: TCM MetaInfo
 createMetaInfo = createMetaInfo' RunMetaOccursCheck

@@ -181,7 +181,7 @@ findInScope' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
 findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
   -- Andreas, 2013-12-28 issue 1003:
   -- If instance meta is already solved, simply discard the constraint.
-  ifM (isInstantiatedMeta m) (return Nothing) $ do
+  ifM (isReallyInstantiatedMeta m) (return Nothing) $ do
     -- Andreas, 2015-02-07: New metas should be created with range of the
     -- current instance meta, thus, we set the range.
     mv <- lookupMeta m
