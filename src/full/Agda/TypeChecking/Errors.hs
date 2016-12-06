@@ -665,9 +665,16 @@ instance PrettyTCM TypeError where
       pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
       pwords "in record"
 
-    WithOnFreeVariable e -> fsep $
-      pwords "Cannot `with` on variable " ++ [prettyA e] ++
-      pwords " bound in a module telescope (or patterns of a parent clause)"
+    WithOnFreeVariable e v -> do
+      de <- prettyA e
+      dv <- prettyTCM v
+      if show de == show dv
+        then fsep $
+          pwords "Cannot `with` on variable" ++ [return dv] ++
+          pwords " bound in a module telescope (or patterns of a parent clause)"
+        else fsep $
+          pwords "Cannot `with` on expression" ++ [return de] ++ pwords "which reduces to variable" ++ [return dv] ++
+          pwords " bound in a module telescope (or patterns of a parent clause)"
 
     UnexpectedWithPatterns ps -> fsep $
       pwords "Unexpected with patterns" ++ (punctuate (text " |") $ map prettyA ps)

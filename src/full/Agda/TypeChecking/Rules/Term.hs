@@ -2070,7 +2070,7 @@ inferExprForWith e = do
           , text "context size = " <+> do text . show =<< getContextSize
           , text "current context = " <+> do prettyTCM =<< getContextTelescope
           ]
-        typeError $ WithOnFreeVariable e
+        typeError $ WithOnFreeVariable e v0
       _        -> return ()
     -- Possibly insert hidden arguments.
     TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
