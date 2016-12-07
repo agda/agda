@@ -114,7 +114,7 @@ updateModuleParameters sub ret = do
 --   this function should be called everytime the context is extended.
 --
 weakenModuleParameters :: MonadTCM tcm => Nat -> tcm a -> tcm a
-weakenModuleParameters n = updateModuleParameters (Wk n IdS)
+weakenModuleParameters n = updateModuleParameters (raiseS n)
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.

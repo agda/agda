@@ -1,6 +1,5 @@
 Failed to solve the following constraints:
-  _42 := (λ {.i} x → .Issue118Comment9._.♯-1 x)
-    [blocked on problem 57]
+  _42 := (λ {.i} x → .Issue118Comment9.♯-1 x) [blocked on problem 57]
   [57, 59, 60] F (♭ x) = _20 x : I
   [49, 50] G x = _14 x : I
   _35 := λ {.i} x → c (g x) [blocked on problem 49]

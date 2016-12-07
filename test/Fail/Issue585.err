@@ -3,7 +3,7 @@ Failed to solve the following constraints:
     [blocked on problem 215]
   [215, 231] ♭ (_τ_139 τ) = τ : Ty
   _141 := (λ τ → var) [blocked on problem 193]
-  [193, 233, 197] .Issue585._.♯-2 = _τ_139 τ : ∞ Ty
+  [193, 233, 197] .Issue585.♯-2 = _τ_139 τ : ∞ Ty
 Unsolved metas at the following locations:
   Issue585.agda:54,49-50
   Issue585.agda:54,45-48

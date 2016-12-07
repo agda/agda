@@ -802,7 +802,7 @@ moduleParamsToApply m = do
   sub <- getModuleParameterSub m
   reportSLn "tc.sig.param" 60 $ unlines $
     [ "  n    = " ++ show n
-    , "  cxt  = " ++ show cxt
+    , "  cxt  = " ++ show (map (fmap fst) cxt)
     , "  sub  = " ++ show sub
     ]
   unless (size tel == n) __IMPOSSIBLE__
@@ -834,9 +834,8 @@ moduleParamsToApply m = do
 --   sure generated definitions work properly.
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 inFreshModuleIfFreeParams k = do
-  a <- getCurrentModuleFreeVars
-  b <- size <$> getContext
-  if a == b then k else do
+  sub <- getModuleParameterSub =<< currentModule
+  if sub == IdS then k else do
     m  <- currentModule
     m' <- qualifyM m . mnameFromList . (:[]) <$> freshName_ "_"
     addSection m'
