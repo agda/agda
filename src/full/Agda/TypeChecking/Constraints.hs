@@ -94,103 +94,13 @@ addConstraint c = do
       cs <- map theConstraint <$> getAllConstraints
       lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
       when (not $ null lvls) $ do
-        reportSDoc "tc.constr.lvl" 40 $ text "  simplifying using" <+> prettyTCM lvls
-        reportSDoc "tc.constr.lvl" 80 $ do
-          cxt <- getContextTelescope
-          inTopContext $ do
-            text "simpl" <+> do
-              vcat $
-                [ text "current module  = " <+> (prettyTCM =<< currentModule)
-                , text "current context = " <+> prettyTCM cxt
-                , text "current m.pars  = " <+> (prettyTCM =<< use stModuleParameters)
-                , text "constraints: "
-                ] ++ do
-                  for lvls $ \ cl -> do
-                    let cxt' = envContext (clEnv cl)
-                        mp   = clModuleParameters cl
-                    vcat
-                      [ text "*" <+> text "module = " <+> prettyTCM (envCurrentModule $ clEnv cl)
-                      , nest 2 $ text "m.pars = " <+> prettyTCM mp
-                      , nest 2 $ hang (prettyTCM cxt' <+> text "|-") 2 (prettyTCM cl)
-                      ]
-      simplifyLevelConstraint c . catMaybes <$>
-        mapM (runMaybeT . castConstraintToCurrentContext) lvls
-
--- | We would like to use a constraint @c@ created in context @Δ@ from module @N@
---   in the current context @Γ@ and current module @M@.
---
---   @Δ@ is module tel @Δ₁@ of @N@ extended by some local bindings @Δ₂@.
---   @Γ@ is the current context.
---   The module parameter substitution from current @M@ to @N@ be
---   @Γ ⊢ σ : Δ₁@.
---
---   If @M == N@, we do not need the parameter substitution.  We try raising.
---
---   We first strengthen @Δ ⊢ c@ to live in @Δ₁@ and obtain @c₁ = strengthen Δ₂ c@.
---   We then transport @c₁@ to @Γ@ and obtain @c₂ = applySubst σ c₁@.
---
---   This works for different modules, but if @M == N@ we should not strengthen
---   and then weaken, because strengthening is a partial operation.
---   We should rather lift the substitution @σ@ by @Δ₂@ and then
---   raise by @Γ₂ - Δ₂@.
---   This "raising" might be a strengthening if @Γ₂@ is shorter than @Δ₂@.
---
---   (TODO: If the module substitution does not exist, because @N@ is not
---   a parent of @M@, we cannot use the constraint, as it has been created
---   in an unrelated context.)
-
-castConstraintToCurrentContext :: Closure Constraint -> MaybeT TCM Constraint
-castConstraintToCurrentContext cl = do
-  let modN  = envCurrentModule $ clEnv cl
-      delta = envContext $ clEnv cl
-  -- The module telescope of the constraint.
-  -- The constraint could come from the module telescope of the top level module.
-  -- In this case, it does not live in any module!
-  -- Thus, getSection can return Nothing.
-  delta1 <- liftTCM $ maybe empty (^. secTelescope) <$> getSection modN
-  -- The number of locals of the constraint.
-  let delta2 = size delta - size delta1
-  unless (delta2 >= 0) __IMPOSSIBLE__
-
-  -- The current module M and context Γ.
-  modM  <- currentModule
-  gamma <- liftTCM $ getContextSize
-  -- The current module telescope.
-  -- Could also be empty, if we are in the front matter or telescope of the top-level module.
-  gamma1 <-liftTCM $ maybe empty (^. secTelescope) <$> getSection modM
-  -- The current locals.
-  let gamma2 = gamma - size gamma1
-
-  -- If gamma2 < 0, we must be in the wrong context.
-  -- E.g. we could have switched to the empty context even though
-  -- we are still inside a module with parameters.
-  -- In this case, we cannot safely convert the constraint,
-  -- since the module parameter substitution may be wrong.
-  guard (gamma2 >= 0)
-
-  -- Shortcut for modN == modM:
-  -- Raise constraint from Δ to Γ, if possible.
-  -- This might save us some strengthening.
-  if modN == modM then raiseMaybe (gamma - size delta) $ clValue cl else do
-
-  -- Strengthen constraint to Δ₁ ⊢ c
-  c <- raiseMaybe (-delta2) $ clValue cl
-  -- Γ ⊢ σ : Δ₁
-  sigma <- liftTCM $ getModuleParameterSub modN
-  -- Γ ⊢ c[σ]
-
-  -- Ulf, 2016-11-09: I don't understand what this function does when M and N
-  -- are not related. Certainly things can go terribly wrong (see
-  -- test/Succeed/Issue2223b.agda)
-  fv <- liftTCM $ getModuleFreeVars modN
-  guard $ fv == size delta1
-
-  return $ applySubst sigma c
-  where
-    raiseMaybe n c = do
-      -- Fine if we have to weaken or strengthening is safe.
-      guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allVars $ freeVars c)
-      return $ raise n c
+        reportSDoc "tc.constr.lvl" 40 $ text "simplifying level constraint" <+> prettyTCM c
+                                        $$ nest 2 (hang (text "using") 2 (prettyTCM lvls))
+      let c' = simplifyLevelConstraint c $ map clValue lvls
+      reportSDoc "tc.constr.lvl" 40 $
+        if c' /= c then text "simplified to" <+> prettyTCM c'
+                   else text "no simplification"
+      return c'
 
 -- | Don't allow the argument to produce any constraints.
 noConstraints :: TCM a -> TCM a
