@@ -8,9 +8,9 @@ Problematic calls:
     (at Productivity.agda:37,14-20)
   .Productivity.♯-9
     (at Productivity.agda:38,25-26)
-  .Productivity.♯-10
+  .Productivity._.♯-10
     (at Productivity.agda:38,28-29)
-  .Productivity.♯-12
+  .Productivity._._.♯-12
     (at Productivity.agda:38,45-46)
   expr
     (at Productivity.agda:38,47-51)

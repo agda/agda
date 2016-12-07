@@ -834,9 +834,8 @@ moduleParamsToApply m = do
 --   sure generated definitions work properly.
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 inFreshModuleIfFreeParams k = do
-  a <- getCurrentModuleFreeVars
-  b <- size <$> getContext
-  if a == b then k else do
+  sub <- getModuleParameterSub =<< currentModule
+  if sub == IdS then k else do
     m  <- currentModule
     m' <- qualifyM m . mnameFromList . (:[]) <$> freshName_ "_"
     addSection m'
