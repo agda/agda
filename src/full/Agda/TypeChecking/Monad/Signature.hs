@@ -802,7 +802,7 @@ moduleParamsToApply m = do
   sub <- getModuleParameterSub m
   reportSLn "tc.sig.param" 60 $ unlines $
     [ "  n    = " ++ show n
-    , "  cxt  = " ++ show cxt
+    , "  cxt  = " ++ show (map (fmap fst) cxt)
     , "  sub  = " ++ show sub
     ]
   unless (size tel == n) __IMPOSSIBLE__
