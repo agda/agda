@@ -910,7 +910,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
       A.ProjP _ _ (AmbQ []) -> __IMPOSSIBLE__
       A.ProjP i ProjPrefix xs@(AmbQ (x:_)) -> C.IdentP <$> toConcrete x
-      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) . C.Ident <$> toConcrete x
+      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) UserWritten . C.Ident <$> toConcrete x
 
       A.DefP i (AmbQ []) _ -> __IMPOSSIBLE__
       A.DefP i xs@(AmbQ (x:_)) args -> tryOp x (A.DefP i xs)  args
@@ -928,13 +928,13 @@ instance ToConcrete A.Pattern C.Pattern where
       A.LitP l ->
         return $ C.LitP l
 
-      A.DotP i e  -> do
+      A.DotP i o e -> do
         c <- toConcreteCtx DotPatternCtx e
         case c of
           -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
           -- following the fusing of WildP and ImplicitP.
           C.Underscore{} -> return $ C.WildP $ getRange i
-          _ -> return $ C.DotP (getRange i) c
+          _ -> return $ C.DotP (getRange i) o c
 
       A.PatternSynP i n _ ->
         -- Ulf, 2016-11-29: This doesn't seem right. The underscore is a list

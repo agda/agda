@@ -355,11 +355,9 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
       reportSDoc "tc.with.strip" 10 $ text "warning: dropped pattern " <+> prettyA p
       reportSDoc "tc.with.strip" 60 $ text $ show p
       case namedArg p of
-        A.DotP info e -> case unScope e of
+        A.DotP info o e -> case unScope e of
           A.Underscore{} -> return ()
-          -- Dot patterns without a range are Agda-generated from a user dot pattern
-          -- so we only complain if there is a range.
-          e | getRange info /= noRange -> typeError $ GenericError $
+          e | o == UserWritten -> typeError $ GenericError $
             "This inaccessible pattern is never checked, so only _ allowed here"
           _ -> return ()
         _ -> return ()
@@ -456,7 +454,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           return $ p : ps
 
         DotP v  -> case namedArg p of
-          A.DotP _ _    -> ok p
+          A.DotP r o _  -> ok p
           A.WildP _     -> ok p
           -- Ulf, 2016-05-30: dot patterns are no longer mandatory so a parent
           -- dot pattern can appear as a variable in the child clause. Indeed

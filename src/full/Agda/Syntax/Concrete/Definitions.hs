@@ -1017,7 +1017,7 @@ niceDeclarations ds = do
     expandEllipsis (d@(FunClause Ellipsis{} _ _ _) : ds) =
       d : expandEllipsis ds
     expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _ _) : ds) =
-      d : expand p ps ds
+      d : expand (setInserted p) (map setInserted ps) ds
       where
         expand _ _ [] = []
         expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
@@ -1031,6 +1031,23 @@ niceDeclarations ds = do
           d : expand p ps ds
         expand _ _ (_ : ds) = __IMPOSSIBLE__
     expandEllipsis (_ : ds) = __IMPOSSIBLE__
+
+    setInserted :: Pattern -> Pattern
+    setInserted p = case p of
+      IdentP{} -> p
+      QuoteP{} -> p
+      AppP p q -> AppP (setInserted p) (fmap (fmap setInserted) q)
+      RawAppP r ps -> RawAppP r (map setInserted ps)
+      OpAppP r c ns ps -> OpAppP r c ns (map (fmap $ fmap setInserted) ps)
+      HiddenP r p -> HiddenP r (fmap setInserted p)
+      InstanceP r p -> InstanceP r (fmap setInserted p)
+      ParenP r p -> ParenP r (setInserted p)
+      WildP{} -> p
+      AbsurdP{} -> p
+      AsP r n p -> AsP r n (setInserted p)
+      DotP r _ e -> DotP r Inserted e
+      LitP{} -> p
+      RecP r fs -> RecP r (map (fmap setInserted) fs)
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]

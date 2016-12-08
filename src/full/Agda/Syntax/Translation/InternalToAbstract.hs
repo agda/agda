@@ -289,8 +289,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ A.WildP patNoRange
 
-        termToPat (DDot v)             = A.DotP patNoRange <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange <$> reify v -- __IMPOSSIBLE__
+        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
+        termToPat v                    = A.DotP patNoRange Inserted <$> reify v -- __IMPOSSIBLE__
 
         len = genericLength ps
 
@@ -655,7 +655,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
             A.ProjP{}     -> p
             A.DefP _ _ _  -> p
-            A.DotP _ e    -> p
+            A.DotP _ _ e  -> p
             A.WildP _     -> p
             A.AbsurdP _   -> p
             A.LitP _      -> p
@@ -717,7 +717,7 @@ instance BlankVars A.Pattern where
     A.ConP c i ps -> A.ConP c i $ blank bound ps
     A.ProjP{}     -> p
     A.DefP i f ps -> A.DefP i f $ blank bound ps
-    A.DotP i e    -> A.DotP i $ blank bound e
+    A.DotP i o e  -> A.DotP i o $ blank bound e
     A.WildP _     -> p
     A.AbsurdP _   -> p
     A.LitP _      -> p
@@ -865,7 +865,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
       I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
       I.DotP v -> do
         t <- liftTCM $ reify v
-        return $ A.DotP patNoRange t
+        return $ A.DotP patNoRange Inserted t
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do
