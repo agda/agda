@@ -164,7 +164,7 @@ instance PatternVars (A.Pattern' e) where
       A.ProjP _ _ _          -> []
       A.WildP _              -> []
       A.AsP _ x p            -> x : patternVars p
-      A.DotP _ _             -> []
+      A.DotP _ _ _           -> []
       A.AbsurdP _            -> []
       A.LitP _               -> []
       A.DefP _ _ args        -> patternVars args
@@ -1998,7 +1998,7 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
-    toAbstract (A.DotP i e)           = A.DotP i <$> insideDotPattern (toAbstract e)
+    toAbstract (A.DotP i o e)         = A.DotP i o <$> insideDotPattern (toAbstract e)
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
@@ -2078,7 +2078,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         where
             info = PatRange r
     -- we have to do dot patterns at the end
-    toAbstract p0@(C.DotP r e) = return $ A.DotP info e
+    toAbstract p0@(C.DotP r o e) = return $ A.DotP info o e
         where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r

@@ -152,7 +152,7 @@ updateInPatterns as ps qs = do
       VarP x     -> return (IntMap.singleton (dbPatVarIndex x) p, [])
       -- Case: the unifier did instantiate the variable
       DotP u     -> case snd $ asView $ namedThing (unArg p) of
-        A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
+        A.DotP _ _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
         A.ConP _ (A.AmbQ [c]) qs -> do
@@ -189,9 +189,9 @@ updateInPatterns as ps qs = do
             dpi = mkDPI $ patternToTerm $ unArg q
               where
                 mkDPI v = case namedThing $ unArg p of
-                  A.DotP _ e -> [DPI Nothing (Just e) v a]
-                  A.VarP x   -> [DPI (Just x) Nothing v a]
-                  _        -> []
+                  A.DotP _ _ e -> [DPI Nothing (Just e) v a]
+                  A.VarP x     -> [DPI (Just x) Nothing v a]
+                  _            -> []
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
       LitP _     -> __IMPOSSIBLE__
@@ -199,10 +199,10 @@ updateInPatterns as ps qs = do
 
     projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
-      A.VarP x            -> map (makeDotField $ PatRange $ getRange x) fs
+      A.VarP x            -> map (makeDotField (PatRange $ getRange x)) fs
       A.ConP cpi _ nps    -> nps
       A.WildP pi          -> map (makeWildField pi) fs
-      A.DotP pi e         -> map (makeDotField pi) fs
+      A.DotP pi _ e       -> map (makeDotField pi) fs
       A.ProjP _ _ _       -> __IMPOSSIBLE__
       A.DefP _ _ _        -> __IMPOSSIBLE__
       A.AsP _ _ _         -> __IMPOSSIBLE__
@@ -213,7 +213,7 @@ updateInPatterns as ps qs = do
       where
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi (Arg fi f) = Arg fi $ unnamed $
-          A.DotP pi $ A.Underscore underscoreInfo
+          A.DotP pi Inserted $ A.Underscore underscoreInfo
           where
             underscoreInfo = A.MetaInfo
               { A.metaRange          = getRange pi
@@ -378,7 +378,11 @@ checkLeftoverDotPatterns ps vs as dpi = do
                  -> [(Int,Projectns)]
                  -> TCM [(Int,Projectns)]
     checkUserDot p v a idv = case namedArg p of
-      A.DotP i e   -> do
+      A.DotP i o e | o == Inserted -> return idv
+      -- Jesper, 2016-12-08 (Issue 1605): if the origin is Inserted, this
+      -- means the dot pattern was created by expanding '...', so we don't
+      -- have to complain here.
+      A.DotP i o e -> do
         reportSDoc "tc.lhs.dot" 30 $ nest 2 $
           text "checking user dot pattern: " <+> prettyA e
         caseMaybeM (undotImplicitVar (v,[],unDom a) idv)
@@ -479,7 +483,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret = do
                  -- @bindDummy underscore@ does not fix issue 819, but
                  -- introduces unwanted underscores in error messages
                  -- (Andreas, 2015-05-28)
-    A.DotP _ _    -> bindDummy (absName tel)
+    A.DotP _ _ _  -> bindDummy (absName tel)
     A.AbsurdP pi  -> do
       -- Andreas, 2012-03-15: allow postponement of emptyness check
       isEmptyType (getRange pi) $ unDom a

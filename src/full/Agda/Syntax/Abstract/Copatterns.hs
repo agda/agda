@@ -382,7 +382,7 @@ instance Alpha (Pattern' e) where
       ((DefP _ x ps)        , (DefP _ x' ps')       ) -> guard (x == x') >> alpha' ps ps'
       ((WildP _)            , (WildP _)             ) -> return ()
       ((AsP _ x p)          , (AsP _ x' p')         ) -> tell1 (x, x') >> alpha' p p'
-      ((DotP _ _)           , (DotP _ _)            ) -> return ()
+      ((DotP _ _ _)         , (DotP _ _ _)          ) -> return ()
       (AbsurdP{}            , AbsurdP{}             ) -> return ()
       ((LitP l)             , (LitP l')             ) -> guard (l == l')
       ((PatternSynP _ x ps) , (PatternSynP _ x' ps')) -> guard (x == x') >> alpha' ps ps'
