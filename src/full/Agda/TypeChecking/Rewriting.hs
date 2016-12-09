@@ -222,7 +222,7 @@ addRewriteRule q = do
           reportSDoc "rewriting" 30 $ text "metas in rhs: " <+> text (show $ allMetas rhs)
           reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
           failureMetas
-        ps <- patternFrom 0 es
+        ps <- patternFrom Relevant 0 es
         reportSDoc "rewriting" 30 $
           text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 

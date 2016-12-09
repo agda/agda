@@ -1222,7 +1222,7 @@ data NLPat
 type PElims = [Elim' NLPat]
 
 data NLPType = NLPType
-  { nlpTypeLevel :: Maybe NLPat
+  { nlpTypeLevel :: NLPat  -- always PWild or PVar (with all bound variables in scope)
   , nlpTypeUnEl  :: NLPat
   } deriving (Typeable, Show)
 
