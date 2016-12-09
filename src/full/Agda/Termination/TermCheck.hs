@@ -78,6 +78,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -605,13 +606,6 @@ termClause' clause = do
           terSetSizeDepth tel $ do
             reportBody v
             extract v
-  {-
-  -- if we are checking a delayed definition, we treat it as if there were
-  -- a guarding coconstructor (sharp)
-  terModifyGuarded (const $ case delayed of
-        Delayed    -> Order.lt
-        NotDelayed -> Order.le) $ do
-  -}
 
   where
     reportBody :: Term -> TerM ()
@@ -712,32 +706,8 @@ instance ExtractCalls Sort where
 instance ExtractCalls Type where
   extract (El s t) = extract (s, t)
 
-{-
--- | Auxiliary type to write an instance of 'ExtractCalls'.
-
-data TerConstructor = TerConstructor
-  { terConsName      :: QName
-    -- ^ Constructor name.
-  , terConsInduction :: Induction
-    -- ^ Should the constructor be treated as inductive or coinductive?
-  , terConsArgs      :: [(Arg Term, Bool)]
-    -- ^ All the arguments,
-    --   and for every argument a boolean which is 'True' iff the
-    --   argument should be viewed as preserving guardedness.
-  }
-
 -- | Extract recursive calls from a constructor application.
 
-instance ExtractCalls TerConstructor where
-  extract (TerConstructor c ind args) = mapM' loopArg args where
-    loopArg (arg, preserves) = terModifyGuarded g' $ extract arg where
-      g' = case (preserves, ind) of
-             (True,  Inductive)   -> id
-             (True,  CoInductive) -> (Order.lt .*.)
-             (False, _)           -> const Order.unknown
--}
-
--- | Extract recursive calls from a constructor application.
 constructor
   :: QName
     -- ^ Constructor name.
@@ -758,7 +728,6 @@ constructor c ind args = do
              (True,  Inductive)   -> id
              (True,  CoInductive) -> (Order.lt .*.)
              (False, _)           -> const Order.unknown
-
 
 
 -- | Handle guardedness preserving type constructor.
@@ -861,8 +830,8 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
          let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
                          | otherwise                                  = o
          liftTCM $ reportSLn "term.guardedness" 20 $
-           "composing with guardedness " ++ show guarded ++
-           " counting as " ++ show (ifDelayed guarded)
+           "composing with guardedness " ++ prettyShow guarded ++
+           " counting as " ++ prettyShow (ifDelayed guarded)
          cutoff <- terGetCutOff
          let ?cutoff = cutoff
          let matrix' = composeGuardedness (ifDelayed guarded) matrix

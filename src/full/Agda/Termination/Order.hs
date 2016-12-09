@@ -255,11 +255,13 @@ maxO o1 o2 = case (o1,o2) of
   (_, Mat m)       -> maxO o1 (collapse m)
 
 -- | The infimum of a (non empty) list of 'Order's.
+--   Gets the worst information.
 --  'Unknown' is the least element, thus, dominant.
 infimum :: (?cutoff :: CutOff) => [Order] -> Order
 infimum (o:l) = List.foldl' minO o l
 infimum []    = __IMPOSSIBLE__
 
+-- | Pick the worst information.
 minO :: (?cutoff :: CutOff) => Order -> Order -> Order
 minO o1 o2 = case (o1,o2) of
   (Unknown, _)           -> Unknown
