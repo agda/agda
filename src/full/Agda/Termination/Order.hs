@@ -110,19 +110,17 @@ instance NotWorse Order where
 -}
 
 -- | We assume the matrices have the same dimension.
-instance (Ord i) => NotWorse (Matrix i Order) where
+instance (Ord i, HasZero o, NotWorse o) => NotWorse (Matrix i o) where
   m `notWorse` n
     | size m /= size n = __IMPOSSIBLE__
-    | otherwise        = Fold.all isTrue $
-                           zipMatrices onlym onlyn both trivial m n
+    | otherwise        = Fold.and $ zipMatrices onlym onlyn both trivial m n
     where
-      -- If an element is only in @m@, then its 'Unknown' in @n@
-      -- so it gotten better at best, in any case, not worse.
-      onlym o = True     -- @== o `notWorse` Unknown@
-      onlyn o = Unknown `notWorse` o
-      both    = notWorse
-      isTrue  = id
-      trivial = id
+    -- If an element is only in @m@, then its 'Unknown' in @n@
+    -- so it gotten better at best, in any case, not worse.
+    onlym o = True     -- @== o `notWorse` Unknown@
+    onlyn o = zeroElement `notWorse` o
+    both    = notWorse
+    trivial = id  -- @True@ counts as zero as it is neutral for @and@
 
 -- | Raw increase which does not cut off.
 increase :: Int -> Order -> Order
