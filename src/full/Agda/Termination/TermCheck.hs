@@ -553,6 +553,7 @@ stripCoConstructors p = do
     ProjDBP{} -> return p
 
 -- | Masks all non-data/record type patterns if --without-K.
+--   See issue #1023.
 maskNonDataArgs :: [DeBruijnPat] -> TerM [Masked DeBruijnPat]
 maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
   where
