@@ -108,6 +108,7 @@ data TerEnv = TerEnv
     -- ^ Are we checking a delayed definition?
   , terMaskArgs :: [Bool]
     -- ^ Only consider the 'notMasked' 'False' arguments for establishing termination.
+    --   See issue #1023.
   , terMaskResult :: Bool
     -- ^ Only consider guardedness if 'False' (not masked).
   , _terSizeDepth :: Int  -- lazy by intention!
@@ -128,6 +129,7 @@ data TerEnv = TerEnv
     --   matrix, can we take the variable for use with SIZELT constraints from the context?
     --   Yes, if we are under an inductive constructor.
     --   No, if we are under a record constructor.
+    --   (See issue #1015).
   , terUsableVars :: VarSet
     -- ^ Pattern variables that can be compared to argument variables using SIZELT.
   }
@@ -559,6 +561,7 @@ instance UsableSizeVars MaskedDeBruijnPats where
       (p                      : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
 -- * Masked patterns (which are not eligible for structural descent, only for size descent)
+--   See issue #1023.
 
 type MaskedDeBruijnPats = [Masked DeBruijnPat]
 

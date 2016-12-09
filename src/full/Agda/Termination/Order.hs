@@ -8,7 +8,7 @@
 module Agda.Termination.Order
   ( -- * Structural orderings
     Order(..), decr
-  , increase, decrease
+  , increase, decrease, setUsability
   , (.*.)
   , supremum, infimum
   , orderSemiring
@@ -19,7 +19,7 @@ module Agda.Termination.Order
   ) where
 
 import qualified Data.Foldable as Fold
-import Data.List as List hiding (union, insert)
+import qualified Data.List as List
 
 import Agda.Termination.CutOff
 import Agda.Termination.SparseMatrix as Matrix
@@ -55,18 +55,23 @@ import Agda.Utils.Impossible
 --
 -- TODO: document orders which are call-matrices themselves.
 data Order
-  = Decr {-# UNPACK #-} !Int
+  = Decr !Bool {-# UNPACK #-} !Int
     -- ^ Decrease of callee argument wrt. caller parameter.
+    --   The @Bool@ indicates whether the decrease (if any) is usable.
+    --   In any chain, there needs to be one usable decrease.
+    --   Unusable decreases come from SIZELT constraints which are
+    --   not in inductive pattern match or a coinductive copattern match.
+    --   See issue #2331.
   | Unknown
     -- ^ No relation, infinite increase, or increase beyond termination depth.
   | Mat {-# UNPACK #-} !(Matrix Int Order)
     -- ^ Matrix-shaped order, currently UNUSED.
-  deriving (Eq,Ord)
+  deriving (Eq, Ord, Show)
 
-instance Show Order where
-  show (Decr k) = show (- k)
-  show Unknown  = "."
-  show (Mat m)  = "Mat " ++ show m
+-- instance Show Order where
+--   show (Decr u k) = if u then show (- k) else "(" ++ show (-k) ++ ")"
+--   show Unknown    = "."
+--   show (Mat m)    = "Mat " ++ show m
 
 instance HasZero Order where
   zeroElement = Unknown
@@ -82,10 +87,15 @@ instance PartialOrd Order where
     (Unknown, Unknown) -> POEQ
     (Unknown, _      ) -> POLT
     (_      , Unknown) -> POGT
-    (Decr k , Decr l ) -> comparableOrd k l
+    (Decr u k, Decr u' l) -> comparableBool u u' `orPO` comparableOrd k l
     -- Matrix-shaped orders are no longer supported
     (Mat{}  , _      ) -> __IMPOSSIBLE__
     (_      , Mat{}  ) -> __IMPOSSIBLE__
+    where
+    comparableBool = curry $ \case
+      (False, True) -> POLT
+      (True, False) -> POGT
+      _ -> POEQ
 
 -- | A partial order, aimed at deciding whether a call graph gets
 --   worse during the completion.
@@ -96,10 +106,10 @@ class NotWorse a where
 -- | It does not get worse then ``increase''.
 --   If we are still decreasing, it can get worse: less decreasing.
 instance NotWorse Order where
-  o       `notWorse` Unknown = True            -- we are unboundedly increasing
-  Unknown `notWorse` Decr k = k < 0            -- we are increasing
-  Decr l  `notWorse` Decr k = k < 0 || l >= k  -- we are increasing or
-                                               -- we are decreasing, but more
+  o        `notWorse` Unknown  = True            -- we are unboundedly increasing
+  Unknown  `notWorse` Decr _ k = k < 0           -- we are increasing
+  Decr u l `notWorse` Decr u' k = k < 0   -- we are increasing or
+    || l >= k && (u || not u')            -- we are decreasing, but not less, and not less usable
   -- Matrix-shaped orders are no longer supported
   Mat m   `notWorse` o       = __IMPOSSIBLE__
   o       `notWorse` Mat m   = __IMPOSSIBLE__
@@ -110,47 +120,51 @@ instance NotWorse Order where
 -}
 
 -- | We assume the matrices have the same dimension.
-instance (Ord i) => NotWorse (Matrix i Order) where
+instance (Ord i, HasZero o, NotWorse o) => NotWorse (Matrix i o) where
   m `notWorse` n
     | size m /= size n = __IMPOSSIBLE__
-    | otherwise        = Fold.all isTrue $
-                           zipMatrices onlym onlyn both trivial m n
+    | otherwise        = Fold.and $ zipMatrices onlym onlyn both trivial m n
     where
-      -- If an element is only in @m@, then its 'Unknown' in @n@
-      -- so it gotten better at best, in any case, not worse.
-      onlym o = True     -- @== o `notWorse` Unknown@
-      onlyn o = Unknown `notWorse` o
-      both    = notWorse
-      isTrue  = id
-      trivial = id
+    -- If an element is only in @m@, then its 'Unknown' in @n@
+    -- so it gotten better at best, in any case, not worse.
+    onlym o = True     -- @== o `notWorse` Unknown@
+    onlyn o = zeroElement `notWorse` o
+    both    = notWorse
+    trivial = id  -- @True@ counts as zero as it is neutral for @and@
 
 -- | Raw increase which does not cut off.
 increase :: Int -> Order -> Order
 increase i o = case o of
-  Unknown -> Unknown
-  Decr k  -> Decr $ k - i
-  Mat m   -> Mat $ fmap (increase i) m
+  Unknown  -> Unknown
+  Decr u k -> Decr u $ k - i   -- TODO: should we set u to False if k - i < 0 ?
+  Mat m    -> Mat $ fmap (increase i) m
 
 -- | Raw decrease which does not cut off.
 decrease :: Int -> Order -> Order
 decrease i o = increase (-i) o
 
+setUsability :: Bool -> Order -> Order
+setUsability u o = case o of
+  Decr _ k -> Decr u k
+  Unknown  -> o
+  Mat{}    -> o
+
 -- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
 --
 -- Possible values for @k@: @- ?cutoff '<=' k '<=' ?cutoff + 1@.
---
-decr :: (?cutoff :: CutOff) => Int -> Order
-decr k = case ?cutoff of
+
+decr :: (?cutoff :: CutOff) => Bool -> Int -> Order
+decr u k = case ?cutoff of
   CutOff c | k < -c -> Unknown
-           | k > c  -> Decr $ c + 1
-  _                 -> Decr k
+           | k > c  -> Decr u $ c + 1
+  _                 -> Decr u k
 
 -- | Smart constructor for matrix shaped orders, avoiding empty and singleton matrices.
 orderMat :: Matrix Int Order -> Order
-orderMat m | Matrix.isEmpty m  = Decr 0                -- 0x0 Matrix = neutral element
-           | otherwise         = case isSingleton m of
-                                   Just o -> o         -- 1x1 Matrix
-                                   Nothing -> Mat m    -- nxn Matrix
+orderMat m
+ | Matrix.isEmpty m        = le     -- 0x0 Matrix = neutral element
+ | Just o <- isSingleton m = o      -- 1x1 Matrix
+ | otherwise               = Mat m  -- nxn Matrix
 
 withinCutOff :: (?cutoff :: CutOff) => Int -> Bool
 withinCutOff k = case ?cutoff of
@@ -158,30 +172,29 @@ withinCutOff k = case ?cutoff of
   CutOff c   -> k >= -c && k <= c + 1
 
 isOrder :: (?cutoff :: CutOff) => Order -> Bool
-isOrder (Decr k) = withinCutOff k
-isOrder Unknown = True
-isOrder (Mat m) = False  -- TODO: extend to matrices
-
-prop_decr :: (?cutoff :: CutOff) => Int -> Bool
-prop_decr = isOrder . decr
+isOrder (Decr _ k) = withinCutOff k
+isOrder Unknown    = True
+isOrder (Mat m)    = False  -- TODO: extend to matrices
 
 -- | @le@, @lt@, @decreasing@, @unknown@: for backwards compatibility, and for external use.
 le :: Order
-le = Decr 0
+le = Decr False 0
 
+-- | Usable decrease.
 lt :: Order
-lt = Decr 1
+lt = Decr True 1
 
 unknown :: Order
 unknown = Unknown
 
 nonIncreasing :: Order -> Bool
-nonIncreasing (Decr k) = k >= 0
-nonIncreasing _        = False
+nonIncreasing (Decr _ k) = k >= 0
+nonIncreasing _          = False
 
+-- | Decreasing and usable?
 decreasing :: Order -> Bool
-decreasing (Decr k) = k > 0
-decreasing _        = False
+decreasing (Decr u k) = u && k > 0
+decreasing _ = False
 
 -- | Matrix-shaped order is decreasing if any diagonal element is decreasing.
 isDecr :: Order -> Bool
@@ -189,61 +202,52 @@ isDecr (Mat m) = any isDecr $ diagonal m
 isDecr o = decreasing o
 
 instance Pretty Order where
-  pretty (Decr 0) = text "="
-  pretty (Decr k) = text $ show (0 - k)
-  pretty Unknown  = text "?"
-  pretty (Mat m)  = text "Mat" <+> pretty m
+  pretty (Decr u 0) = text "="
+  pretty (Decr u k) = mparens (not u) $ text $ show (0 - k)
+  pretty Unknown    = text "?"
+  pretty (Mat m)    = text "Mat" <+> pretty m
 
---instance Ord Order where
---    max = maxO
 
--- | Multiplication of 'Order's. (Corresponds to sequential
--- composition.)
+-- | Multiplication of 'Order's.
+--   (Corresponds to sequential composition.)
 
 -- I think this funny pattern matching is because overlapping patterns
 -- are producing a warning and thus an error (strict compilation settings)
 (.*.) :: (?cutoff :: CutOff) => Order -> Order -> Order
-Unknown  .*. _         = Unknown
-(Mat m)  .*. Unknown   = Unknown
-(Decr k) .*. Unknown   = Unknown
-(Decr k) .*. (Decr l)  = decr (k + l)
-(Decr 0) .*. (Mat m)   = Mat m
-(Decr k) .*. (Mat m)   = (Decr k) .*. (collapse m)
-(Mat m1) .*. (Mat m2) = if (okM m1 m2) then
-                            Mat $ mul orderSemiring m1 m2
-                        else
-                            (collapse m1) .*. (collapse m2)
-(Mat m) .*. (Decr 0)  = Mat m
-(Mat m) .*. (Decr k)  = (collapse m) .*. (Decr k)
+Unknown    .*. _           = Unknown
+(Mat m)    .*. Unknown     = Unknown
+(Decr _ k) .*. Unknown     = Unknown
+(Decr u k) .*. (Decr u' l) = decr (u || u') (k + l)  -- if one is usable, so is the composition
+(Decr _ 0) .*. (Mat m)     = Mat m
+(Decr u k) .*. (Mat m)     = (Decr u k) .*. (collapse m)
+(Mat m1)   .*. (Mat m2)
+  | okM m1 m2              = Mat $ mul orderSemiring m1 m2
+  | otherwise              = (collapse m1) .*. (collapse m2)
+(Mat m)   .*. (Decr _ 0)   = Mat m
+(Mat m)   .*. (Decr u k)   = (collapse m) .*. (Decr u k)
 
-{- collapse m
+-- | collapse @m@
+--
+-- We assume that @m@ codes a permutation:  each row has at most one column
+-- that is not @Unknown@.
+--
+-- To collapse a matrix into a single value, we take the best value of
+-- each column and multiply them.  That means if one column is all @Unknown@,
+-- i.e., no argument relates to that parameter, then the collapsed value
+-- is also @Unknown@.
+--
+-- This makes order multiplication associative.
 
-We assume that m codes a permutation:  each row has at most one column
-that is not Un.
-
-To collapse a matrix into a single value, we take the best value of
-each column and multiply them.  That means if one column is all Un,
-i.e., no argument relates to that parameter, than the collapsed value
-is also Un.
-
-This makes order multiplication associative.
-
--}
 collapse :: (?cutoff :: CutOff) => Matrix Int Order -> Order
-collapse m = -- if not $ Matrix.matrixInvariant m then __IMPOSSIBLE__ else
-  case toLists $ Matrix.transpose m of
-   [] -> __IMPOSSIBLE__   -- This can never happen if order matrices are generated by the smart constructor
-   m' -> foldl1 (.*.) $ map (foldl1 maxO) m'
-
-{- OLD CODE, does not give associative matrix multiplication:
-collapse :: (?cutoff :: CutOff) => Matrix Int Order -> Order
-collapse m = foldl (.*.) le (Data.Array.elems $ diagonal m)
--}
+collapse m = case toLists $ Matrix.transpose m of
+  [] -> __IMPOSSIBLE__   -- This can never happen if order matrices are generated by the smart constructor
+  m' -> foldl1 (.*.) $ map (foldl1 maxO) m'
 
 collapseO :: (?cutoff :: CutOff) => Order -> Order
 collapseO (Mat m) = collapse m
 collapseO o       = o
 
+-- | Can two matrices be multplied together?
 okM :: Matrix Int Order -> Matrix Int Order -> Bool
 okM m1 m2 = (rows $ size m2) == (cols $ size m1)
 
@@ -253,51 +257,57 @@ okM m1 m2 = (rows $ size m2) == (cols $ size m1)
 supremum :: (?cutoff :: CutOff) => [Order] -> Order
 supremum = foldr maxO Unknown
 
--- | @('Order', 'maxO', '.*.')@ forms a semiring, with 'Unknown' as
--- zero and 'Le' as one.
+-- | @('Order', 'maxO', '.*.')@ forms a semiring,
+--   with 'Unknown' as zero and 'Le' as one.
 
 maxO :: (?cutoff :: CutOff) => Order -> Order -> Order
 maxO o1 o2 = case (o1,o2) of
-               (Decr k, Decr l) -> Decr (max k l) -- cut off not needed, within borders
-               (Unknown,_) -> o2
-               (_,Unknown) -> o1
-               (Mat m1, Mat m2) -> Mat (Matrix.add maxO m1 m2)
-               (Mat m,_) -> maxO (collapse m) o2
-               (_,Mat m) ->  maxO o1 (collapse m)
+    -- NOTE: strictly speaking the maximum does not exists
+    -- which is better, an unusable decrease by 2 or a usable decrease by 1?
+    -- We give the usable information priority if it is a decrease.
+  (Decr False _, Decr True  l) | l > 0 -> o2
+  (Decr True  k, Decr False _) | k > 0 -> o1
+  (Decr u k, Decr u' l) -> if l > k then o2 else o1
+  (Unknown, _)     -> o2
+  (_, Unknown)     -> o1
+  (Mat m1, Mat m2) -> Mat (Matrix.add maxO m1 m2)
+  (Mat m, _)       -> maxO (collapse m) o2
+  (_, Mat m)       -> maxO o1 (collapse m)
 
 -- | The infimum of a (non empty) list of 'Order's.
+--   Gets the worst information.
 --  'Unknown' is the least element, thus, dominant.
 infimum :: (?cutoff :: CutOff) => [Order] -> Order
-infimum (o:l) = foldl' minO o l
+infimum (o:l) = List.foldl' minO o l
 infimum []    = __IMPOSSIBLE__
 
+-- | Pick the worst information.
 minO :: (?cutoff :: CutOff) => Order -> Order -> Order
 minO o1 o2 = case (o1,o2) of
-               (Unknown,_) -> Unknown
-               (_,Unknown) -> Unknown
-               (Decr k, Decr l) -> Decr (min k l) -- cut off not needed, within borders
-               (Mat m1, Mat m2) -> if (size m1 == size m2) then
-                                       Mat $ Matrix.intersectWith minO m1 m2
-                                   else
-                                       minO (collapse m1) (collapse m2)
-               (Mat m1,_) -> minO (collapse m1) o2
-               (_,Mat m2) -> minO o1 (collapse m2)
+  (Unknown, _)           -> Unknown
+  (_, Unknown)           -> Unknown
+  -- different usability:
+  -- We pick the unusable one if it is not a decrease or
+  -- decreases not more than the usable one.
+  (Decr False k, Decr True  l) -> if k <= 0 || k <= l then o1 else o2
+  (Decr True  k, Decr False l) -> if l <= 0 || l <= k then o2 else o1
+  -- same usability:
+  (Decr u k, Decr _ l) -> Decr u (min k l)
+  (Mat m1, Mat m2)
+    | size m1 == size m2 -> Mat $ Matrix.intersectWith minO m1 m2
+    | otherwise          -> minO (collapse m1) (collapse m2)
+  (Mat m1, _)            -> minO (collapse m1) o2
+  (_, Mat m2)            -> minO o1 (collapse m2)
 
 
-{- Cannot have implicit arguments in instances.  Too bad!
-
-instance Monoid Order where
-  mempty = Unknown
-  mappend = maxO
-
-instance (cutoff :: Int) => SemiRing Order where
-  multiply = (.*.)
--}
+-- | We use a record for semiring instead of a type class
+--   since implicit arguments cannot occur in instance constraints,
+--   like @instance (?cutoff :: Int) => SemiRing Order@.
 
 orderSemiring :: (?cutoff :: CutOff) => Semiring Order
-orderSemiring =
-  Semiring.Semiring { Semiring.add = maxO
-                    , Semiring.mul = (.*.)
-                    , Semiring.zero = Unknown
---                    , Semiring.one = Le
-                    }
+orderSemiring = Semiring.Semiring
+  { Semiring.add  = maxO
+  , Semiring.mul  = (.*.)
+  , Semiring.zero = Unknown
+  -- , Semiring.one  = Le
+  }

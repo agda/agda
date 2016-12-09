@@ -78,6 +78,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -553,6 +554,7 @@ stripCoConstructors p = do
     ProjDBP{} -> return p
 
 -- | Masks all non-data/record type patterns if --without-K.
+--   See issue #1023.
 maskNonDataArgs :: [DeBruijnPat] -> TerM [Masked DeBruijnPat]
 maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
   where
@@ -604,13 +606,6 @@ termClause' clause = do
           terSetSizeDepth tel $ do
             reportBody v
             extract v
-  {-
-  -- if we are checking a delayed definition, we treat it as if there were
-  -- a guarding coconstructor (sharp)
-  terModifyGuarded (const $ case delayed of
-        Delayed    -> Order.lt
-        NotDelayed -> Order.le) $ do
-  -}
 
   where
     reportBody :: Term -> TerM ()
@@ -711,32 +706,8 @@ instance ExtractCalls Sort where
 instance ExtractCalls Type where
   extract (El s t) = extract (s, t)
 
-{-
--- | Auxiliary type to write an instance of 'ExtractCalls'.
-
-data TerConstructor = TerConstructor
-  { terConsName      :: QName
-    -- ^ Constructor name.
-  , terConsInduction :: Induction
-    -- ^ Should the constructor be treated as inductive or coinductive?
-  , terConsArgs      :: [(Arg Term, Bool)]
-    -- ^ All the arguments,
-    --   and for every argument a boolean which is 'True' iff the
-    --   argument should be viewed as preserving guardedness.
-  }
-
 -- | Extract recursive calls from a constructor application.
 
-instance ExtractCalls TerConstructor where
-  extract (TerConstructor c ind args) = mapM' loopArg args where
-    loopArg (arg, preserves) = terModifyGuarded g' $ extract arg where
-      g' = case (preserves, ind) of
-             (True,  Inductive)   -> id
-             (True,  CoInductive) -> (Order.lt .*.)
-             (False, _)           -> const Order.unknown
--}
-
--- | Extract recursive calls from a constructor application.
 constructor
   :: QName
     -- ^ Constructor name.
@@ -757,7 +728,6 @@ constructor c ind args = do
              (True,  Inductive)   -> id
              (True,  CoInductive) -> (Order.lt .*.)
              (False, _)           -> const Order.unknown
-
 
 
 -- | Handle guardedness preserving type constructor.
@@ -860,8 +830,8 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
          let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
                          | otherwise                                  = o
          liftTCM $ reportSLn "term.guardedness" 20 $
-           "composing with guardedness " ++ show guarded ++
-           " counting as " ++ show (ifDelayed guarded)
+           "composing with guardedness " ++ prettyShow guarded ++
+           " counting as " ++ prettyShow (ifDelayed guarded)
          cutoff <- terGetCutOff
          let ?cutoff = cutoff
          let matrix' = composeGuardedness (ifDelayed guarded) matrix
@@ -1022,7 +992,7 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  let guardedness = decr $ projsCaller - projsCallee
+  let guardedness = decr True $ projsCaller - projsCallee
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ text "compareArgs:"
     , nest 2 $ text $ "projsCaller = " ++ show projsCaller
@@ -1226,7 +1196,7 @@ compareTerm' v mp@(Masked m p) = do
     -- deepest variable in @p@.
     -- For sized types, the depth is maximally
     -- the number of SIZELT hypotheses one can have in a context.
-    (MetaV{}, p) -> Order.decr . max (if m then 0 else patternDepth p) . pred <$>
+    (MetaV{}, p) -> Order.decr True . max (if m then 0 else patternDepth p) . pred <$>
        terAsks _terSizeDepth
 
     -- Successor on both sides cancel each other.
@@ -1257,7 +1227,7 @@ compareTerm' v mp@(Masked m p) = do
     -- Andreas, 2011-04-19 give subterm priority over matrix order
 
     (Con{}, ConDBP c ps) | any (isSubTerm v) ps ->
-      decrease <$> offsetFromConstructor c <*> return Order.le
+      decr True <$> offsetFromConstructor c
 
     (Con c ci ts, ConDBP c' ps) | conName c == c'->
       compareConArgs ts ps
@@ -1290,7 +1260,8 @@ subTerm t p = if equal t p then Order.le else properSubTerm t p
     equal t         (TermDBP t') = t == t'
     equal _ _ = False
 
-    properSubTerm t (ConDBP _ ps) = decrease 1 $ supremum $ map (subTerm t) ps
+    properSubTerm t (ConDBP _ ps) =
+      setUsability True $ decrease 1 $ supremum $ map (subTerm t) ps
     properSubTerm _ _ = Order.unknown
 
 isSubTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPat -> Bool
@@ -1336,8 +1307,8 @@ compareVar i (Masked m p) = do
     LitDBP{}    -> no
     TermDBP{}   -> no
     VarDBP j    -> compareVarVar i (Masked m j)
-    ConDBP s [p] | Just s == suc -> decrease 1 <$> compareVar i (notMasked p)
-    ConDBP c ps -> if m then no else do
+    ConDBP s [p] | Just s == suc -> setUsability True . decrease 1 <$> compareVar i (notMasked p)
+    ConDBP c ps -> if m then no else setUsability True <$> do
       decrease <$> offsetFromConstructor c
                <*> (Order.supremum <$> mapM (compareVar i . notMasked) ps)
 
@@ -1351,8 +1322,10 @@ compareVarVar i (Masked m j)
       ifM (isJust <$> do isSizeType =<< reduce =<< typeOfBV j)
         {- then -} (return Order.le)
         {- else -} (return Order.unknown)
-  | otherwise = ifNotM ((i `VarSet.member`) <$> terGetUsableVars) (return Order.unknown) $ {- else -} do
+  | otherwise = do
+      -- record usability of variable
+      u <- (i `VarSet.member`) <$> terGetUsableVars
       res <- isBounded i
       case res of
         BoundedNo  -> return Order.unknown
-        BoundedLt v -> decrease 1 <$> compareTerm' v (Masked  m (VarDBP j))
+        BoundedLt v -> setUsability u . decrease 1 <$> compareTerm' v (Masked  m (VarDBP j))
