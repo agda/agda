@@ -76,42 +76,53 @@ import Agda.Utils.Impossible
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
---   The first argument is the number of bound variables (from pattern lambdas).
+--   The first argument indicates the relevance we are working under: if this
+--   is Irrelevant, then we construct a pattern that never fails to match.
+--   The second argument is the number of bound variables (from pattern lambdas).
 
 class PatternFrom a b where
-  patternFrom :: Int -> a -> TCM b
+  patternFrom :: Relevance -> Int -> a -> TCM b
 
 instance (PatternFrom a b) => PatternFrom [a] [b] where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom r k = traverse $ patternFrom r k
 
 instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom r k u = let r' = r `composeRelevance` getRelevance u
+                      in  traverse (patternFrom r' k) u
 
 instance (PatternFrom a NLPat) => PatternFrom (Elim' a) (Elim' NLPat) where
-  patternFrom k (Apply u) = if isIrrelevant u then
-                              return $ Apply $ u $> PWild
-                            else
-                              Apply <$> traverse (patternFrom k) u
-  patternFrom k (Proj o f) = return $ Proj o f
+  patternFrom r k (Apply u) = let r' = r `composeRelevance` getRelevance u
+                              in  Apply <$> traverse (patternFrom r' k) u
+  patternFrom r k (Proj o f) = return $ Proj o f
 
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom r k = traverse $ patternFrom r k
 
 instance PatternFrom Type NLPType where
-  patternFrom k a = do
-    s <- reduce $ getSort a
+  patternFrom r k a = NLPType <$> patternFrom r k (getSort a)
+                              <*> patternFrom r k (unEl a)
+
+instance PatternFrom Sort NLPat where
+  patternFrom r k s = do
+    s <- reduce s
+    let done = return PWild
     case s of
-      Type l -> NLPType . Just  <$> patternFrom k (Level l)
-                                <*> patternFrom k (unEl a)
-      _      -> NLPType Nothing <$> patternFrom k (unEl a)
+      Type l   -> patternFrom Irrelevant k (Level l)
+      Prop     -> done
+      Inf      -> done
+      SizeUniv -> done
+      DLub _ _ -> done
 
 instance PatternFrom Term NLPat where
-  patternFrom k v = do
+  patternFrom r k v = do
     v <- unLevel =<< reduce v
-    let done = return $ PTerm v
+    let done = if isIrrelevant r then
+                 return PWild
+               else
+                 return $ PTerm v
     case ignoreSharing v of
       Var i es
-       | i < k     -> PBoundVar i <$> patternFrom k es
+       | i < k     -> PBoundVar i <$> patternFrom r k es
        | otherwise -> do
          -- The arguments of `var i` should be distinct bound variables
          -- in order to build a Miller pattern
@@ -123,37 +134,43 @@ instance PatternFrom Term NLPat where
          case mbvs of
            Just bvs -> do
              let i' = i-k
+                 allBoundVars = IntSet.fromList (downFrom k)
+                 ok = not (isIrrelevant r) ||
+                      IntSet.fromList (map unArg bvs) == allBoundVars
              -- Pattern variables are labeled with their context id, because they
              -- can only be instantiated once they're no longer bound by the
              -- context (see Issue 1652).
              id <- (!! i') <$> getContextId
-             return $ PVar (Just id) i' bvs
+             if ok then return (PVar (Just id) i' bvs) else done
            Nothing -> done
-      Lam i t  -> PLam i <$> patternFrom k t
+      Lam i t  -> PLam i <$> patternFrom r k t
       Lit{}    -> done
+      Def f es | isIrrelevant r -> done
       Def f es -> do
         Def lsuc [] <- ignoreSharing <$> primLevelSuc
         Def lmax [] <- ignoreSharing <$> primLevelMax
         case es of
-          [Apply x] | f == lsuc -> pLevelSuc <$> patternFrom k (unArg x)
-          [x , y]   | f == lmax -> done
-          _                     -> PDef f <$> patternFrom k es
-      Con c ci vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
-      Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
+          [x]     | f == lsuc -> done
+          [x , y] | f == lmax -> done
+          _                   -> PDef f <$> patternFrom r k es
+      Con c ci vs | isIrrelevant r -> do
+        mr <- isRecordConstructor (conName c)
+        case mr of
+          Just (_, def) | recEtaEquality def ->
+            PDef (conName c) <$> patternFrom r k (Apply <$> vs)
+          _ -> done
+      Con c ci vs -> PDef (conName c) <$> patternFrom r k (Apply <$> vs)
+      Pi a b | isIrrelevant r -> done
+      Pi a b   -> PPi <$> patternFrom r k a <*> patternFrom r k b
       Sort s   -> done
       Level l  -> __IMPOSSIBLE__
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
 
-pLevelSuc :: NLPat -> NLPat
-pLevelSuc p = case p of
-  PPlusLevel n p -> PPlusLevel (n+1) p
-  _              -> PPlusLevel 1 p
-
 instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
-  patternFrom k (Abs name x)   = Abs name   <$> patternFrom (k+1) x
-  patternFrom k (NoAbs name x) = NoAbs name <$> patternFrom k x
+  patternFrom r k (Abs name x)   = Abs name   <$> patternFrom r (k+1) x
+  patternFrom r k (NoAbs name x) = NoAbs name <$> patternFrom r k x
 
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
@@ -196,10 +213,15 @@ matchingBlocked :: Blocked_ -> NLM ()
 matchingBlocked = throwError
 
 -- | Add substitution @i |-> v@ to result of matching.
-tellSub :: Int -> Term -> NLM ()
-tellSub i v = do
-  caseMaybeM (IntMap.lookup i <$> use nlmSub) (nlmSub %= IntMap.insert i v) $ \v' -> do
-    whenJustM (liftRed $ equal v v') matchingBlocked
+tellSub :: Relevance -> Int -> Term -> NLM ()
+tellSub r i v = do
+  old <- IntMap.lookup i <$> use nlmSub
+  case old of
+    Nothing -> nlmSub %= IntMap.insert i (r,v)
+    Just (r',v')
+      | isIrrelevant r  -> return ()
+      | isIrrelevant r' -> nlmSub %= IntMap.insert i (r,v)
+      | otherwise       -> whenJustM (liftRed $ equal v v') matchingBlocked
 
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
 tellEq gamma k u v =
@@ -208,7 +230,7 @@ tellEq gamma k u v =
                , text " and " <+> addContext k (prettyTCM v) ]) $ do
   nlmEqs %= (PostponedEquation k u v:)
 
-type Sub = IntMap Term
+type Sub = IntMap (Relevance, Term)
 
 -- | Matching against a term produces a constraint
 --   which we have to verify after applying
@@ -224,24 +246,27 @@ type PostponedEquations = [PostponedEquation]
 --   returning a substitution.
 
 class Match a b where
-  match :: Telescope  -- ^ The telescope of pattern variables
+  match :: Relevance  -- ^ Are we currently matching in an irrelevant context?
+        -> Telescope  -- ^ The telescope of pattern variables
         -> Telescope  -- ^ The telescope of lambda-bound variables
         -> a          -- ^ The pattern to match
         -> b          -- ^ The term to be matched against the pattern
         -> NLM ()
 
 instance Match a b => Match [a] [b] where
-  match gamma k ps vs
-    | length ps == length vs = zipWithM_ (match gamma k) ps vs
+  match r gamma k ps vs
+    | length ps == length vs = zipWithM_ (match r gamma k) ps vs
     | otherwise              = matchingBlocked $ NotBlocked ReallyNotBlocked ()
 
 instance Match a b => Match (Arg a) (Arg b) where
-  match gamma k p v = match gamma k (unArg p) (unArg v)
+  match r gamma k p v = let r' = r `composeRelevance` getRelevance p
+                        in  match r' gamma k (unArg p) (unArg v)
 
 instance Match a b => Match (Elim' a) (Elim' b) where
-  match gamma k p v =
+  match r gamma k p v =
    case (p, v) of
-     (Apply p, Apply v) -> match gamma k p v
+     (Apply p, Apply v) -> let r' = r `composeRelevance` getRelevance p
+                           in  match r' gamma k p v
      (Proj _ x, Proj _ y) -> if x == y then return () else
                              traceSDocNLM "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
@@ -250,29 +275,28 @@ instance Match a b => Match (Elim' a) (Elim' b) where
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
 
 instance Match a b => Match (Dom a) (Dom b) where
-  match gamma k p v = match gamma k (C.unDom p) (C.unDom v)
+  match r gamma k p v = match r gamma k (C.unDom p) (C.unDom v)
 
 instance Match NLPType Type where
-  match gamma k (NLPType (Just lp) p) (El s a) = case s of
-      Type l   -> match gamma k lp l >> match gamma k p a
-      Prop     -> no
-      Inf      -> no
-      SizeUniv -> no
-      DLub _ _ -> no
-    where no = matchingBlocked $ NotBlocked ReallyNotBlocked ()
-  match gamma k (NLPType Nothing p) (El _ a) = match gamma k p a
+  match r gamma k (NLPType lp p) (El s a) = match r gamma k lp s >> match r gamma k p a
+
+instance Match NLPat Sort where
+  match r gamma k p s = case (p , s) of
+    (PWild , _     ) -> return ()
+    (p     , Type l) -> match Irrelevant gamma k p l
+    _                -> matchingBlocked $ NotBlocked ReallyNotBlocked ()
 
 instance (Match a b, RaiseNLP a, Subst t2 b) => Match (Abs a) (Abs b) where
-  match gamma k (Abs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p v
-  match gamma k (Abs n p) (NoAbs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p (raise 1 v)
-  match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raiseNLP 1 p) v
-  match gamma k (NoAbs _ p) (NoAbs _ v) = match gamma k p v
+  match r gamma k (Abs n p) (Abs _ v) = match r gamma (ExtendTel dummyDom (Abs n k)) p v
+  match r gamma k (Abs n p) (NoAbs _ v) = match r gamma (ExtendTel dummyDom (Abs n k)) p (raise 1 v)
+  match r gamma k (NoAbs n p) (Abs _ v) = match r gamma (ExtendTel dummyDom (Abs n k)) (raiseNLP 1 p) v
+  match r gamma k (NoAbs _ p) (NoAbs _ v) = match r gamma k p v
 
 instance Match NLPat Level where
-  match gamma k p l = match gamma k p =<< liftRed (reallyUnLevelView l)
+  match r gamma k p l = match r gamma k p =<< liftRed (reallyUnLevelView l)
 
 instance Match NLPat Term where
-  match gamma k p v = do
+  match r gamma k p v = do
     vb <- liftRed $ reduceB' v
     let n = size k
         b = void vb
@@ -302,7 +326,7 @@ instance Match NLPat Term where
         cid <- getContextId
         case (maybe Nothing (\i -> elemIndex i cid) id) of
           Just j -> if v == var (j+n)
-                    then tellSub i (var j)
+                    then tellSub r i (var j)
                     else no (text $ "(CtxId = " ++ show id ++ ")")
           Nothing -> do
             let allowedVars :: IntSet
@@ -317,65 +341,58 @@ instance Match NLPat Term where
             case ok of
               Left b         -> block b
               Right Nothing  -> no (text "")
-              Right (Just v) -> tellSub i $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
+              Right (Just v) -> tellSub r i $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of
           Def f' es
-            | f == f'   -> match gamma k ps es
+            | f == f'   -> match r gamma k ps es
           Con c _ vs
-            | f == conName c -> match gamma k ps (Apply <$> vs)
+            | f == conName c -> match r gamma k ps (Apply <$> vs)
             | otherwise -> do -- @c@ may be a record constructor
                 mr <- liftRed $ isRecordConstructor (conName c)
                 case mr of
-                  Just (r, def) | recEtaEquality def -> do
+                  Just (_, def) | recEtaEquality def -> do
                     let fs = recFields def
                         qs = map (fmap $ \f -> PDef f (ps ++ [Proj ProjSystem f])) fs
-                    match gamma k qs vs
+                    match r gamma k qs vs
                   _ -> no (text "")
           Lam i u -> do
             let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PTerm (var 0)])
                 body  = absBody u
-            match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
+            match r gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           v' -> do -- @f@ may be a record constructor as well
             mr <- liftRed $ isRecordConstructor f
             case mr of
-              Just (r, def) | recEtaEquality def -> do
+              Just (_, def) | recEtaEquality def -> do
                 let fs  = recFields def
                     ws  = map (fmap $ \f -> v `applyE` [Proj ProjSystem f]) fs
                     qs = fromMaybe __IMPOSSIBLE__ $ allApplyElims ps
-                match gamma k qs ws
+                match r gamma k qs ws
               _ -> no (text "")
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
-        match gamma k p' body
+        match r gamma k p' body
       PPi pa pb  -> case ignoreSharing v of
-        Pi a b -> match gamma k pa a >> match gamma k pb b
+        Pi a b -> match r gamma k pa a >> match r gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
-      PPlusLevel n p' -> do
-        l <- liftRed $ levelView' v
-        case subLevel n l of
-          Just l' -> match gamma k p' l'
-          Nothing -> case ignoreSharing v of
-            MetaV m es -> matchingBlocked $ Blocked m ()
-            _          -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
-        Var i' es | i == i' -> match gamma k ps es
+        Var i' es | i == i' -> match r gamma k ps es
         Con c _ vs -> do -- @c@ may be a record constructor
           mr <- liftRed $ isRecordConstructor (conName c)
           case mr of
-            Just (r, def) | recEtaEquality def -> do
+            Just (_, def) | recEtaEquality def -> do
               let fs = recFields def
                   qs = map (fmap $ \f -> PBoundVar i (ps ++ [Proj ProjSystem f])) fs
-              match gamma k qs vs
+              match r gamma k qs vs
             _ -> no (text "")
         Lam info u -> do
           let pbody = PBoundVar i (raiseNLP 1 ps ++ [Apply $ Arg info $ PTerm (var 0)])
               body  = absBody u
-          match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
+          match r gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PTerm u -> tellEq gamma k u v
@@ -414,7 +431,10 @@ makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
   prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) EmptyS
     where
-      val i = IntMap.lookup i sub
+      val i = case IntMap.lookup i sub of
+                Just (Irrelevant, v) -> Just $ dontCare v
+                Just (_         , v) -> Just v
+                Nothing              -> Nothing
 
 checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM (Maybe Blocked_)
 checkPostponedEquations sub eqs = forM' eqs $
@@ -426,7 +446,7 @@ nonLinMatch gamma p v = do
   let no msg b = traceSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
-  caseEitherM (runNLM $ match gamma EmptyTel p v) (no "matching") $ \ s -> do
+  caseEitherM (runNLM $ match Relevant gamma EmptyTel p v) (no "matching") $ \ s -> do
     let sub = makeSubstitution gamma $ s^.nlmSub
         eqs = s^.nlmEqs
     traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ do
@@ -498,7 +518,6 @@ instance RaiseNLP NLPat where
     PDef f ps -> PDef f $ raiseNLPFrom c k ps
     PLam i q -> PLam i $ raiseNLPFrom c k q
     PPi a b -> PPi (raiseNLPFrom c k a) (raiseNLPFrom c k b)
-    PPlusLevel i q -> PPlusLevel i (raiseNLPFrom c k q)
     PBoundVar i ps -> let j = if i < c then i else i + k
                       in PBoundVar j $ raiseNLPFrom c k ps
     PTerm u -> PTerm $ raiseFrom c k u

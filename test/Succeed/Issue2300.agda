@@ -13,3 +13,9 @@ postulate
 
 test2 : (x y : A) → h x y ≡ y
 test2 x y = refl
+
+postulate
+  r : .A → A
+  s : .A → A
+  rewr : ∀ x → r x ≡ s x
+{-# REWRITE rewr #-}

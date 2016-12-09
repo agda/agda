@@ -415,13 +415,12 @@ raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
 raisePatVars k (PPi a b)   =
   PPi (fmap (raisePatVarsInType k) a) (fmap (raisePatVarsInType k) b)
-raisePatVars k (PPlusLevel i u) = PPlusLevel i $ raisePatVars k u
 raisePatVars k (PBoundVar i es) = PBoundVar i $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
 
 raisePatVarsInType :: Int -> NLPType -> NLPType
 raisePatVarsInType k (NLPType l a) =
-  NLPType (fmap (raisePatVars k) l) (raisePatVars k a)
+  NLPType (raisePatVars k l) (raisePatVars k a)
 
 instance PrettyTCM NLPat where
   prettyTCM (PVar id x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
@@ -434,14 +433,13 @@ instance PrettyTCM NLPat where
   prettyTCM (PPi a b)   = parens $
     text ("(" ++ absName b ++ " :") <+> prettyTCM (unDom a) <> text ") →" <+>
     (addContext (absName b) $ prettyTCM (raisePatVarsInType 1 $ unAbs b))
-  prettyTCM (PPlusLevel i u) = parens $ text (show i ++ " + ") <> prettyTCM u
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
 instance PrettyTCM NLPType where
-  prettyTCM (NLPType (Just l) a) = text "{" <> prettyTCM l <> text "}" <> prettyTCM a
-  prettyTCM (NLPType Nothing  a) = prettyTCM a
+  prettyTCM (NLPType PWild a) = prettyTCM a
+  prettyTCM (NLPType l     a) = text "{" <> prettyTCM l <> text "}" <> prettyTCM a
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Apply v) = prettyTCM (unArg v)
