@@ -150,9 +150,9 @@ instance PatternFrom Term NLPat where
         Def lsuc [] <- ignoreSharing <$> primLevelSuc
         Def lmax [] <- ignoreSharing <$> primLevelMax
         case es of
-          [Apply x] | f == lsuc -> pLevelSuc <$> patternFrom r k (unArg x)
-          [x , y]   | f == lmax -> done
-          _                     -> PDef f <$> patternFrom r k es
+          [x]     | f == lsuc -> done
+          [x , y] | f == lmax -> done
+          _                   -> PDef f <$> patternFrom r k es
       Con c ci vs | isIrrelevant r -> do
         mr <- isRecordConstructor (conName c)
         case mr of
@@ -167,11 +167,6 @@ instance PatternFrom Term NLPat where
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
-
-pLevelSuc :: NLPat -> NLPat
-pLevelSuc p = case p of
-  PPlusLevel n p -> PPlusLevel (n+1) p
-  _              -> PPlusLevel 1 p
 
 instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
   patternFrom r k (Abs name x)   = Abs name   <$> patternFrom r (k+1) x
@@ -384,13 +379,6 @@ instance Match NLPat Term where
         Pi a b -> match r gamma k pa a >> match r gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
-      PPlusLevel n p' -> do
-        l <- liftRed $ levelView' v
-        case subLevel n l of
-          Just l' -> match r gamma k p' l'
-          Nothing -> case ignoreSharing v of
-            MetaV m es -> matchingBlocked $ Blocked m ()
-            _          -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> match r gamma k ps es
         Con c _ vs -> do -- @c@ may be a record constructor
@@ -530,7 +518,6 @@ instance RaiseNLP NLPat where
     PDef f ps -> PDef f $ raiseNLPFrom c k ps
     PLam i q -> PLam i $ raiseNLPFrom c k q
     PPi a b -> PPi (raiseNLPFrom c k a) (raiseNLPFrom c k b)
-    PPlusLevel i q -> PPlusLevel i (raiseNLPFrom c k q)
     PBoundVar i ps -> let j = if i < c then i else i + k
                       in PBoundVar j $ raiseNLPFrom c k ps
     PTerm u -> PTerm $ raiseFrom c k u
