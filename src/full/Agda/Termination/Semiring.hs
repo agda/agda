@@ -1,7 +1,7 @@
 -- | Semirings.
 
 module Agda.Termination.Semiring
-  ( HasZero(..), SemiRing(..)
+  ( HasZero(..)
   , Semiring(..)
   , integerSemiring
   , intSemiring
@@ -9,14 +9,6 @@ module Agda.Termination.Semiring
   ) where
 
 import Data.Monoid
-
-{- | SemiRing type class.  Additive monoid with multiplication operation.
-Inherit addition and zero from Monoid. -}
-
-class (Eq a, Monoid a) => SemiRing a where
---  isZero   :: a -> Bool
-  multiply :: a -> a -> a
-
 
 -- | @HasZero@ is needed for sparse matrices, to tell which is the element
 --   that does not have to be stored.
