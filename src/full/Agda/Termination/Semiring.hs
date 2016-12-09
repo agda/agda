@@ -27,13 +27,13 @@ class Eq a => HasZero a where
 
 -- | Semirings.
 
-data Semiring a
-  = Semiring { add  :: a -> a -> a  -- ^ Addition.
-             , mul  :: a -> a -> a  -- ^ Multiplication.
-             , zero :: a            -- ^ Zero.
--- The one is never used in matrix multiplication
---             , one  :: a            -- ^ One.
-             }
+data Semiring a = Semiring
+  { add  :: a -> a -> a  -- ^ Addition.
+  , mul  :: a -> a -> a  -- ^ Multiplication.
+  , zero :: a            -- ^ Zero.
+  -- The one is never used in matrix multiplication
+  -- , one  :: a            -- ^ One.
+  }
 
 ------------------------------------------------------------------------
 -- Specific semirings
