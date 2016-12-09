@@ -34,18 +34,18 @@ instance (?cutoff :: CutOff) => Arbitrary Order where
 instance Arbitrary Order where
   arbitrary = frequency
     [(30, return Unknown)
-    ,(70, elements [0,1] >>= return . Decr)
+    ,(70, elements [0,1] >>= return . Decr True)
     ] -- no embedded matrices generated for now.
 
 instance CoArbitrary Order where
-  coarbitrary (Decr k) = variant 0
+  coarbitrary (Decr _ k) = variant 0
   coarbitrary Unknown  = variant 1
   coarbitrary (Mat m)  = variant 2
 
 ------------------------------------------------------------------------------
 
-prop_decr :: (?cutoff :: CutOff) => Int -> Bool
-prop_decr = isOrder . decr
+prop_decr :: (?cutoff :: CutOff) => Bool -> Int -> Bool
+prop_decr u = isOrder . decr u
 
 prop_orderSemiring :: (?cutoff :: CutOff) => Order -> Order -> Order -> Bool
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring
