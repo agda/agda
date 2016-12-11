@@ -21,4 +21,5 @@ main =
     printList printChar (stringToList testString) ,,
     putStrLn "" ,,
     putStrLn (fromList (stringToList testString)) ,,
+    putStrLn (primShowString testString) ,,
     return unit
