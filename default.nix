@@ -29,11 +29,11 @@
 , regex-tdfa, regex-tdfa-text, filemanip
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
-, murmur-hash, ieee754
+, murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
-, nodejs-5_x
+, nodejs-6_x
 }:
 
 assert uhc-backend -> uhc != null && uhc-light != null;
@@ -51,7 +51,7 @@ mkDerivation {
     hashable hashtables haskeline haskell-src-exts mtl parallel pretty
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib uhc-light tasty-quickcheck
-    monadplus EdisonCore EdisonAPI murmur-hash ieee754
+    monadplus EdisonCore EdisonAPI murmur-hash ieee754 gitrev
   ];
   testDepends = [
     base containers directory filepath process-extras tasty
@@ -59,7 +59,7 @@ mkDerivation {
     tasty-silver temporary text
   ];
   configureFlags = if uhc-backend then [ "-fuhc" ] else [];
-  buildTools = [ alex cpphs happy nodejs-5_x]
+  buildTools = [ alex cpphs happy nodejs-6_x]
     ++ stdenv.lib.optionals uhc-backend [ uhc ]
     ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
 
