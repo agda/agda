@@ -105,6 +105,8 @@ import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
+import qualified Agda.Utils.List as List
+
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -117,20 +119,48 @@ data DefaultToInfty
   deriving (Eq, Ord, Show)
 
 -- | Solve size constraints involving hypotheses.
+
 solveSizeConstraints :: DefaultToInfty -> TCM ()
 solveSizeConstraints flag =  do
-  -- Get the constraints.
-  cs0 <- S.getSizeConstraints
+
+  -- 1. Get the constraints normalised.
+
+  cs0 <- mapM (mapClosure normalise) =<< S.getSizeConstraints
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
       [ text $ "Solving constraints (" ++ show flag ++ ")"
       ] ++ map prettyTCM cs0
   let -- Error for giving up
       cannotSolve = typeError . GenericDocError =<<
-        vcat (text "Cannot solve size constraints" : map prettyTCM
-                   cs0)
+        vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
 
-  constrainedMetas <- solveSizeConstraints_ flag cs0
+  -- 2. Cluster the constraints by common size metas.
+
+  -- Get all size metas.
+  sizeMetaSet <- Set.fromList . map (\ (x, _t, _tel) -> x) <$> S.getSizeMetas True
+
+  -- Pair each constraint with its list of size metas occurring in it.
+  cms <- forM cs0 $ \ cl -> enterClosure cl $ \ c -> do
+
+    -- @allMetas@ does not reduce or instantiate;
+    -- this is why we require the size constraints to be normalised.
+    return (cl, map metaId . Set.toList $
+      sizeMetaSet `Set.intersection` Set.fromList (allMetas c))
+
+  -- Now, some constraints may have no metas (clcs), the others have at least one (othercs).
+  let classify :: (a, [b]) -> Either a (a, (b,[b]))
+      classify (cl, [])     = Left  cl
+      classify (cl, (x:xs)) = Right (cl, (x,xs))
+  let (clcs, othercs) = List.mapEither classify cms
+
+  -- We cluster the constraints by their metas.
+  let ccs = cluster' othercs
+
+  -- 3. Solve each cluster
+
+  constrainedMetas <- Set.unions <$> mapM (solveSizeConstraints_ flag) (clcs : ccs)
+
+  -- 4. Possibly set remaining metas to infinity.
 
   -- Andreas, issue 1862: do not default to ∞ always, could be too early.
   when (flag == DefaultToInfty) $ do
