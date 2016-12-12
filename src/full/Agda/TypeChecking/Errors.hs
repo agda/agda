@@ -105,7 +105,7 @@ instance PrettyTCM Warning where
 
     UnsolvedConstraints cs ->
       fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (vcat $ map prettyConstraint cs)
+      $$ nest 2 (P.vcat . nub <$> mapM prettyConstraint cs)
 
       where prettyConstraint :: ProblemConstraint -> TCM Doc
             prettyConstraint c = f (prettyTCM c)

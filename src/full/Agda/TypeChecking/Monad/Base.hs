@@ -45,6 +45,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
+import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
@@ -828,6 +829,23 @@ instance Free' Constraint c where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInScope _ _ cs    -> freeVars' cs
+
+instance TermLike Constraint where
+  foldTerm f = \case
+      ValueCmp _ t u v      -> foldTerm f (t, u, v)
+      ElimCmp _ t u es es'  -> foldTerm f (t, u, es, es')
+      TypeCmp _ t t'        -> foldTerm f (t, t')
+      LevelCmp _ l l'       -> foldTerm f (l, l')
+      IsEmpty _ t           -> foldTerm f t
+      CheckSizeLtSat u      -> foldTerm f u
+      TelCmp _ _ _ tel tel' -> __IMPOSSIBLE__  -- foldTerm f (tel, tel') -- Not yet implemented
+      SortCmp _ s s'        -> __IMPOSSIBLE__  -- foldTerm f (s, s') -- Not yet implemented
+      UnBlock _             -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
+      Guarded c _           -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
+      FindInScope _ _ cs    -> __IMPOSSIBLE__  -- Not yet implemented
+  traverseTerm f c  = __IMPOSSIBLE__ -- Not yet implemented
+  traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
+
 
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable)

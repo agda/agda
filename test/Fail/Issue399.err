@@ -19,7 +19,6 @@ Failed to solve the following constraints:
   _7 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
   [38, 39] _9 _32 (λ {.a} → _35) =< Maybe .a
              : Set (_7 _32 (λ {.a} → _35))
-  .Agda.Primitive.lzero = _10 _32 (λ {.a} → _35)
   _10 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
   [38, 40] _12 _32 (λ {.a} → _35) =< Maybe .a
              : Set (_10 _32 (λ {.a} → _35))

@@ -1,6 +1,6 @@
-Issue300.agda:14,1-16,40
+Issue300.agda:16,39-40
 Cannot solve size constraints
-[Id, k, m] ↑ k ≤ _9 k
-[Id, k, m, p, j, n] j ≤ _9 j
+[Id, k, m, p, j, n] (↑ k) ≤ (_9 k)
+[Id, k, m, p, j, n] j ≤ (_9 j)
 Reason: inconsistent lower bound for 9
-when checking the definition of A
+when checking that the expression n has type Nat (_9 j)

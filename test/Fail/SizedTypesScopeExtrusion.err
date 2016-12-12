@@ -1,3 +1,4 @@
 SizedTypesScopeExtrusion.agda:21,41-42
-∞ !=< i of type Size
+Cannot solve size constraints
+∞ =< i : Size
 when checking that the expression x has type Nat
