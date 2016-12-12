@@ -58,7 +58,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml"
+    - env: TEST=CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -66,7 +66,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACK GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml"
+    - env: TEST=STACK GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -123,7 +123,7 @@ matrix:
             - hvr-ghc
 
     # We don't use Alex from multi-ghc-travis [Issue 2316].
-    - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml"
+    - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc"
       addons:
         apt:
           packages:
