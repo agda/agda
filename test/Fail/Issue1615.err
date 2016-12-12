@@ -1,7 +1,7 @@
-Issue1615.agda:11,1-12,15
+Issue1615.agda:11,33-35
 Cannot solve size constraints
-[i, j, n, k, m] k < i, j < i |- k ≤ _12 i j n k m
-[i, j, n, k, m] k < i, j < i |- j ≤ _12 i j n k m
-[i, j, n, k, m] k < i, j < i |- ↑ _12 i j n k m ≤ i
+[i, j, n, k, m] k < i, j < i |- k ≤ (_12 i j n k m)
+[i, j, n, k, m] k < i, j < i |- j ≤ (_12 i j n k m)
+[i, j, n, k, m] k < i, j < i |- (↑ _12 i j n k m) ≤ i
 Reason: size constraint i+1 ≤ i is inconsistent
-when checking the definition of min
+when checking that the expression i' has type Size< i

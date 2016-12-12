@@ -52,12 +52,14 @@ module Agda.TypeChecking.SizedTypes.Solve where
 
 import Prelude hiding (null)
 
-import Control.Monad (unless)
+import Control.Monad hiding (forM, forM_)
+import Control.Monad.Trans.Maybe
+import Control.Monad.Reader (asks)
 
 import Data.Foldable (Foldable, foldMap, forM_)
 import Data.Function
-import Data.List hiding (null)
-import Data.Monoid (mappend)
+import qualified Data.List as List
+import Data.Monoid
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -72,15 +74,13 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad as TCM hiding (Offset)
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars
--- import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints as C
--- import {-# SOURCE #-} Agda.TypeChecking.Conversion
--- import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
 import qualified Agda.TypeChecking.SizedTypes as S
 import Agda.TypeChecking.SizedTypes.Syntax as Size
@@ -92,6 +92,7 @@ import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 
 #if MIN_VERSION_base(4,8,0)
 import Agda.Utils.List hiding ( uncons )
@@ -104,7 +105,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import qualified Agda.Utils.VarSet as VarSet
 
+import qualified Agda.Utils.Either as Either
 import qualified Agda.Utils.List as List
 
 #include "undefined.h"
@@ -158,7 +161,32 @@ solveSizeConstraints flag =  do
 
   -- 3. Solve each cluster
 
-  constrainedMetas <- Set.unions <$> mapM (solveSizeConstraints_ flag) (clcs : ccs)
+  -- Solve the closed constraints, one by one.
+
+  forM_ clcs $ \ c -> () <$ solveSizeConstraints_ flag [c]
+
+  -- Solve the clusters.
+
+  constrainedMetas <- Set.unions <$> do
+    forM  (ccs) $ \ (cs :: [CC]) -> do
+      when (null cs) __IMPOSSIBLE__
+
+      -- Convert each constraint in the cluster to the largest context.
+      -- (Keep fingers crossed).
+
+      enterClosure (List.maximumBy (compare `on` (length . envContext . clEnv)) cs) $ \ _ -> do
+        -- Get all constraints that can be cast to the longest context.
+        cs' :: [TCM.Constraint] <- catMaybes <$> do
+          mapM (runMaybeT . castConstraintToCurrentContext) cs
+
+        reportSDoc "tc.size.solve" 20 $ vcat $
+          [ text "converted size constraints to context: " <+> do
+              tel <- getContextTelescope
+              inTopContext $ prettyTCM tel
+          ] ++ map (nest 2 . prettyTCM) cs'
+
+        -- Solve the converted constraints.
+        solveSizeConstraints_ flag =<<  mapM buildClosure cs'
 
   -- 4. Possibly set remaining metas to infinity.
 
@@ -187,6 +215,144 @@ solveSizeConstraints flag =  do
   --     noConstraints $
   --       forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
+  -- 5. Make sure we did not lose any constraints.
+  forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+
+
+-- | TODO: this does not actually work!
+--
+--   We would like to use a constraint @c@ created in context @Δ@ from module @N@
+--   in the current context @Γ@ and current module @M@.
+--
+--   @Δ@ is module tel @Δ₁@ of @N@ extended by some local bindings @Δ₂@.
+--   @Γ@ is the current context.
+--   The module parameter substitution from current @M@ to @N@ be
+--   @Γ ⊢ σ : Δ₁@.
+--
+--   If @M == N@, we do not need the parameter substitution.  We try raising.
+--
+--   We first strengthen @Δ ⊢ c@ to live in @Δ₁@ and obtain @c₁ = strengthen Δ₂ c@.
+--   We then transport @c₁@ to @Γ@ and obtain @c₂ = applySubst σ c₁@.
+--
+--   This works for different modules, but if @M == N@ we should not strengthen
+--   and then weaken, because strengthening is a partial operation.
+--   We should rather lift the substitution @σ@ by @Δ₂@ and then
+--   raise by @Γ₂ - Δ₂@.
+--   This "raising" might be a strengthening if @Γ₂@ is shorter than @Δ₂@.
+--
+--   (TODO: If the module substitution does not exist, because @N@ is not
+--   a parent of @M@, we cannot use the constraint, as it has been created
+--   in an unrelated context.)
+
+castConstraintToCurrentContext' :: Closure TCM.Constraint -> MaybeT TCM TCM.Constraint
+castConstraintToCurrentContext' cl = do
+  let modN  = envCurrentModule $ clEnv cl
+      delta = envContext $ clEnv cl
+  -- The module telescope of the constraint.
+  -- The constraint could come from the module telescope of the top level module.
+  -- In this case, it does not live in any module!
+  -- Thus, getSection can return Nothing.
+  delta1 <- liftTCM $ maybe empty (^. secTelescope) <$> getSection modN
+  -- The number of locals of the constraint.
+  let delta2 = size delta - size delta1
+  unless (delta2 >= 0) __IMPOSSIBLE__
+
+  -- The current module M and context Γ.
+  modM  <- currentModule
+  gamma <- liftTCM $ getContextSize
+  -- The current module telescope.
+  -- Could also be empty, if we are in the front matter or telescope of the top-level module.
+  gamma1 <-liftTCM $ maybe empty (^. secTelescope) <$> getSection modM
+  -- The current locals.
+  let gamma2 = gamma - size gamma1
+
+  -- Γ ⊢ σ : Δ₁
+  sigma <- liftTCM $ getModuleParameterSub modN
+
+  -- Debug printing.
+  reportSDoc "tc.constr.cast" 40 $ text "casting constraint" $$ do
+    tel <- getContextTelescope
+    inTopContext $ nest 2 $ vcat $
+      [ text "current module                = " <+> prettyTCM modM
+      , text "current module telescope      = " <+> prettyTCM gamma1
+      , text "current context               = " <+> prettyTCM tel
+      , text "constraint module             = " <+> prettyTCM modN
+      , text "constraint module telescope   = " <+> prettyTCM delta1
+      , text "constraint context            = " <+> (prettyTCM =<< enterClosure cl (const $ getContextTelescope))
+      , text "constraint                    = " <+> enterClosure cl prettyTCM
+      , text "module parameter substitution = " <+> prettyTCM sigma
+      ]
+
+  -- If gamma2 < 0, we must be in the wrong context.
+  -- E.g. we could have switched to the empty context even though
+  -- we are still inside a module with parameters.
+  -- In this case, we cannot safely convert the constraint,
+  -- since the module parameter substitution may be wrong.
+  guard (gamma2 >= 0)
+
+  -- Shortcut for modN == modM:
+  -- Raise constraint from Δ to Γ, if possible.
+  -- This might save us some strengthening.
+  if modN == modM then raiseMaybe (gamma - size delta) $ clValue cl else do
+
+  -- Strengthen constraint to Δ₁ ⊢ c
+  c <- raiseMaybe (-delta2) $ clValue cl
+
+  -- Ulf, 2016-11-09: I don't understand what this function does when M and N
+  -- are not related. Certainly things can go terribly wrong (see
+  -- test/Succeed/Issue2223b.agda)
+  fv <- liftTCM $ getModuleFreeVars modN
+  guard $ fv == size delta1
+
+  -- Γ ⊢ c[σ]
+  return $ applySubst sigma c
+  where
+    raiseMaybe n c = do
+      -- Fine if we have to weaken or strengthening is safe.
+      guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allVars $ freeVars c)
+      return $ raise n c
+
+
+-- | A hazardous hack, may the Gods have mercy on us.
+--
+--   To cast to the current context, we match the context of the
+--   given constraint by 'CtxId', and as fallback, by variable name (douh!).
+--
+--   This hack lets issue 2046 go through.
+
+castConstraintToCurrentContext :: Closure TCM.Constraint -> MaybeT TCM TCM.Constraint
+castConstraintToCurrentContext cl = do
+  -- The target context
+  gamma <- asks envContext
+  -- The context where the constraint lives.
+  let delta = envContext $ clEnv cl
+  -- The constraint
+  let c = clValue cl
+  let findInGamma (Ctx cid (Dom _ (x, t))) =
+        -- try to find same CtxId (safe)
+        case List.findIndex ((cid ==) . ctxId) gamma of
+          Just i -> Just i
+          Nothing ->
+            -- match by name (hazardous)
+            -- This is one of the seven deadly sins (not respecting alpha).
+            List.findIndex ((x ==) . fst . unDom . ctxEntry) gamma
+  let cand = map findInGamma delta
+  -- The domain of our substitution
+  let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
+  -- Check that all the free variables of the constraint are contained in
+  -- coveredVars.
+  -- We ignore the free variables occurring in sorts.
+  guard $ getAll $ runFree (\ (i, _) -> All $ i `VarSet.member` coveredVars) IgnoreAll c
+  -- Turn cand into a substitution.
+  -- Since we ignored the free variables in sorts, we better patch up
+  -- the substitution with some dummy term (Sort Prop) rather than __IMPOSSIBLE__.
+  let dummy = Sort Prop
+  let sigma = parallelS $ map (maybe dummy var) cand
+  -- Apply substitution to constraint and pray that the Gods are merciful on us.
+  return $ applySubst sigma c
+  -- Note: the resulting constraint may not well-typed.
+  -- Even if it is, it may map variables to their wrong counterpart.
+
 -- | Return the size metas occurring in the simplified constraints.
 --   A constraint like @↑ _j =< ∞ : Size@ simplifies to nothing,
 --   so @_j@ would not be in this set.
@@ -212,8 +378,9 @@ solveSizeConstraints_ flag cs0 = do
   -- @css@ are the clusters of constraints.
       css :: [[(CC,HypSizeConstraint)]]
       css = cluster' csMs
-  -- There should be no constraints that do not mention a meta?
-  unless (null csNoM) __IMPOSSIBLE__
+
+  -- Check that the closed constraints are valid.
+  solveCluster flag csNoM
 
   -- Now, process the clusters.
   forM_ css $ solveCluster flag
@@ -223,7 +390,7 @@ solveSizeConstraints_ flag cs0 = do
 -- | Solve a cluster of constraints sharing some metas.
 --
 solveCluster :: DefaultToInfty -> [(CC,HypSizeConstraint)] -> TCM ()
-solveCluster flag [] = __IMPOSSIBLE__
+solveCluster flag [] = return ()
 solveCluster flag ccs = do
   let cs = map snd ccs
   let err reason = typeError . GenericDocError =<< do
@@ -254,7 +421,7 @@ solveCluster flag ccs = do
 -}
   -- We rely on the fact that contexts are only extended...
   -- Just take the longest context.
-  let HypSizeConstraint gamma hids hs _ = maximumBy (compare `on` (length . sizeContext)) cs
+  let HypSizeConstraint gamma hids hs _ = List.maximumBy (compare `on` (length . sizeContext)) cs
   -- Length of longest context.
   let n = size gamma
 
@@ -335,7 +502,8 @@ solveCluster flag ccs = do
     -- Solution does not contain metas
     u <- unSizeExpr $ fmap __IMPOSSIBLE__ a
     let x = MetaId m
-    let SizeMeta _ xs = fromMaybe __IMPOSSIBLE__ $ find ((m==) . metaId . sizeMetaId) metas
+    let SizeMeta _ xs = fromMaybe __IMPOSSIBLE__ $
+          List.find ((m==) . metaId . sizeMetaId) metas
     -- Check that solution is well-scoped
     let ys = rigidIndex <$> Set.toList (rigids a)
         ok = all (`elem` xs) ys -- TODO: more efficient
