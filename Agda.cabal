@@ -632,6 +632,7 @@ test-suite agda-tests
                     , LaTeXAndHTML.Tests
                     , LibSucceed.Tests
                     , Succeed.Tests
+                    , UserManual.Tests
                     , Utils
 
   build-depends:  array >= 0.4.0.1 && < 0.6
