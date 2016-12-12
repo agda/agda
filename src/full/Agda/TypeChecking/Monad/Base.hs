@@ -832,17 +832,17 @@ instance Free' Constraint c where
 
 instance TermLike Constraint where
   foldTerm f = \case
-      ValueCmp _ t u v      -> foldTerm f (t, u, v)
-      ElimCmp _ t u es es'  -> foldTerm f (t, u, es, es')
-      TypeCmp _ t t'        -> foldTerm f (t, t')
-      LevelCmp _ l l'       -> foldTerm f (l, l')
-      IsEmpty _ t           -> foldTerm f t
-      CheckSizeLtSat u      -> foldTerm f u
-      TelCmp _ _ _ tel tel' -> __IMPOSSIBLE__  -- foldTerm f (tel, tel') -- Not yet implemented
-      SortCmp _ s s'        -> __IMPOSSIBLE__  -- foldTerm f (s, s') -- Not yet implemented
-      UnBlock _             -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
-      Guarded c _           -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
-      FindInScope _ _ cs    -> __IMPOSSIBLE__  -- Not yet implemented
+      ValueCmp _ t u v       -> foldTerm f (t, u, v)
+      ElimCmp _ t u es es'   -> foldTerm f (t, u, es, es')
+      TypeCmp _ t t'         -> foldTerm f (t, t')
+      LevelCmp _ l l'        -> foldTerm f (l, l')
+      IsEmpty _ t            -> foldTerm f t
+      CheckSizeLtSat u       -> foldTerm f u
+      TelCmp _ _ _ tel1 tel2 -> __IMPOSSIBLE__  -- foldTerm f (tel1, tel2) -- Not yet implemented
+      SortCmp _ s1 s2        -> __IMPOSSIBLE__  -- foldTerm f (s1, s2) -- Not yet implemented
+      UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
+      Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
+      FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
   traverseTerm f c  = __IMPOSSIBLE__ -- Not yet implemented
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
