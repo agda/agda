@@ -224,7 +224,8 @@ install:
   - if [[ $BUILD = "STACK" ]]; then
        ghc --version &&
        haddock --version &&
-       emacs --version;
+       emacs --version &&
+       stack --version;
     fi
 
 ##############################################################################
