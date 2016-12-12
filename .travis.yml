@@ -3,8 +3,8 @@
 # NB: don't set `language: haskell` here.
 language: c
 
-# Explicitly request container-based infrastructure.
-sudo: false
+# Explicitly request sudo-enabled virtual environments [Issue #1992].
+sudo: required
 
 cache:
   directories:
@@ -74,16 +74,18 @@ matrix:
           sources:
             - hvr-ghc
 
-    # - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
-    #   addons:
-    #     apt:
-    #       packages:
-    #         - alex-3.1.7
-    #         - cabal-install-1.24
-    #         - ghc-8.0.1
-    #         - happy-1.19.5
-    #       sources:
-    #         - hvr-ghc
+    # Since `stack haddock` compiles Agda but `cabal haddock` does
+    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
+    - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.24
+            - ghc-8.0.1
+            - happy-1.19.5
+          sources:
+            - hvr-ghc
 
     - env: TEST=UHC GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
       addons:
@@ -105,19 +107,6 @@ matrix:
             - ghc-7.10.3
             - happy-1.19.5
             - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    # Since `stack haddock` compiles Agda but `cabal haddock` does
-    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - env: TEST=HADDOCK GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.22
-            - ghc-7.10.3
-            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -167,8 +156,8 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  allow_failures:
-    - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+  # allow_failures:
+    # - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
 
 ##############################################################################
 before_install:
