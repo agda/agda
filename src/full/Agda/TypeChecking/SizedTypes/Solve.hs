@@ -95,9 +95,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 
 #if MIN_VERSION_base(4,8,0)
-import Agda.Utils.List hiding ( uncons )
+import qualified Agda.Utils.List as List hiding ( uncons )
 #else
-import Agda.Utils.List
+import qualified Agda.Utils.List as List
 #endif
 
 import Agda.Utils.Maybe
@@ -108,7 +108,6 @@ import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
 
 import qualified Agda.Utils.Either as Either
-import qualified Agda.Utils.List as List
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -207,7 +206,7 @@ solveSizeConstraints flag =  do
         reportSDoc "tc.size.solve" 20 $
           text "solution " <+> prettyTCM (MetaV m []) <+>
           text " := "      <+> prettyTCM inf
-        assignMeta 0 m t (downFrom $ size tel) inf
+        assignMeta 0 m t (List.downFrom $ size tel) inf
 
   -- -- Double check.
   -- unless (null cs0 && null ms) $ do
@@ -373,8 +372,8 @@ solveSizeConstraints_ flag cs0 = do
 
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
-  let (csNoM, csMs) = (`partitionMaybe` ccs') $ \ p@(c0, c) ->
-        fmap (p,) $ uncons $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
+  let (csNoM, csMs) = (`List.partitionMaybe` ccs') $ \ p@(c0, c) ->
+        fmap (p,) $ List.uncons $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
   -- @css@ are the clusters of constraints.
       css :: [[(CC,HypSizeConstraint)]]
       css = cluster' csMs
@@ -560,7 +559,7 @@ solveCluster flag ccs = do
           t <- jMetaType . mvJudgement <$> lookupMeta m
           TelV tel core <- telView t
           unlessM (isJust <$> isSizeType core) __IMPOSSIBLE__
-          assignMeta 0 m t (downFrom $ size tel) inf
+          assignMeta 0 m t (List.downFrom $ size tel) inf
           return True
 
   -- Double check.
@@ -781,7 +780,7 @@ sizeExpr u = do
     OtherSize u -> case ignoreSharing u of
       Var i []    -> (\ x -> Just $ Rigid (NamedRigid x i) 0) . show <$> nameOfBV i
 --      MetaV m es  -> return $ Just $ Flex (SizeMeta m es) 0
-      MetaV m es | Just xs <- mapM isVar es, fastDistinct xs
+      MetaV m es | Just xs <- mapM isVar es, List.fastDistinct xs
                   -> return $ Just $ Flex (SizeMeta m xs) 0
       _           -> return Nothing
   where
