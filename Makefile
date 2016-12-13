@@ -311,17 +311,20 @@ clean :
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
+FAW_PATH = src/fix-agda-whitespace
+FAW_BIN  = $(FAW_PATH)/dist/build/fix-agda-whitespace/fix-agda-whitespace
+
 .PHONY : fix-whitespace
 fix-whitespace :
-	fix-agda-whitespace
+	$(FAW_BIN)
 
 .PHONY : check-whitespace
 check-whitespace :
-	fix-agda-whitespace --check
+	$(FAW_BIN) --check
 
-.PHONY : install-fix-agda-whitespace
-install-fix-agda-whitespace :
-	cd src/fix-agda-whitespace && $(CABAL_CMD) install
+.PHONY : build-fix-agda-whitespace
+build-fix-agda-whitespace :
+	cd $(FAW_PATH) && $(CABAL_CMD) build
 
 ## size-solver standalone program ############################################
 
