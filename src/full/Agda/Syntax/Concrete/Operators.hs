@@ -138,9 +138,9 @@ data ExprKind = IsPattern | IsExpr
 -- and function symbols in scope.
 --
 -- When parsing a pattern we do not use bound names. The effect is
--- that operator parts (that are not constructor parts) can be used as
--- atomic names in the pattern (so they can be rebound). See
--- @test/succeed/OpBind.agda@ for an example.
+-- that unqualified operator parts (that are not constructor parts)
+-- can be used as atomic names in the pattern (so they can be
+-- rebound). See @test/succeed/OpBind.agda@ for an example.
 --
 -- When parsing a pattern we also disallow the use of sections, mainly
 -- because there is little need for sections in patterns. Note that
@@ -276,9 +276,11 @@ buildParsers r flat kind exprNames = do
                         concatMap notationNames $
                         filter (or . partsPresent) ops)
 
-        isAtom   x = case kind of
-                       IsExpr    -> not (Set.member x allParts) || Set.member x allNames
-                       IsPattern -> not (Set.member x conParts) || Set.member x conNames
+        isAtom x
+          | kind == IsPattern && not (isQualified x) =
+            not (Set.member x conParts) || Set.member x conNames
+          | otherwise =
+            not (Set.member x allParts) || Set.member x allNames
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
 
