@@ -58,6 +58,42 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=MAIN GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.22
+            - ghc-7.10.3
+            - happy-1.19.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - env: TEST=MAIN GHC_VER=7.8.4 BUILD=CABAL CABAL_VER=1.18
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.18
+            - ghc-7.8.4
+            - happy-1.19.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - env: TEST=MAIN GHC_VER=7.6.3 BUILD=CABAL CABAL_VER=1.18
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.18
+            - ghc-7.6.3
+            - happy-1.19.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
       addons:
         apt:
@@ -98,30 +134,6 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=MAIN GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.22
-            - ghc-7.10.3
-            - happy-1.19.5
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - env: TEST=MAIN GHC_VER=7.8.4 BUILD=CABAL CABAL_VER=1.18
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.18
-            - ghc-7.8.4
-            - happy-1.19.5
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
     # We don't use Alex from multi-ghc-travis [Issue 2316].
     - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc"
       addons:
@@ -129,18 +141,6 @@ matrix:
           packages:
             - ghc-7.8.4
             - happy-1.19.5
-          sources:
-            - hvr-ghc
-
-    - env: TEST=MAIN GHC_VER=7.6.3 BUILD=CABAL CABAL_VER=1.18
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.18
-            - ghc-7.6.3
-            - happy-1.19.5
-            - texlive-binaries
           sources:
             - hvr-ghc
 
