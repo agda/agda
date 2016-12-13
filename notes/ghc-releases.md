@@ -21,7 +21,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
 * Test the fix-agda-whitespace program:
 
-  `make install-fix-agda-whitespace`
+  `make build-fix-agda-whitespace`
 
 * Test the hTags program:
 
