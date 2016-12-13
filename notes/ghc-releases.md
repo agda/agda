@@ -34,7 +34,11 @@ Let's suppose the new version of GHC is X.Y.Z.
   make test-size-solver
   ```
 
-* Update the `tested-with` field in Agda.cabal,
+* Test the agda-bisect program:
+
+  `make install-agda-bisect`
+
+* Update the `tested-with` field in Agda.cabal, agda-bisect,
   fix-agda-whitespace.cabal and hTags.cabal
 
 * Update the CHANGELOG file:

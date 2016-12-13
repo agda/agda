@@ -354,6 +354,15 @@ test-size-solver : install-size-solver
 	@echo "======================================================================"
 	$(MAKE) -C src/size-solver test
 
+## agda-bisect standalone program ############################################
+
+.PHONY : install-agda-bisect
+install-agda-bisect :
+	@echo "======================================================================"
+	@echo "============== Installing the agda-bisect program ===================="
+	@echo "======================================================================"
+	cd src/agda-bisect && $(CABAL_CMD) install
+
 ########################################################################
 # HPC
 
