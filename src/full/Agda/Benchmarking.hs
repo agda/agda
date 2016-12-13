@@ -18,6 +18,9 @@ import Data.IORef
 
 import System.IO.Unsafe
 
+import Agda.Syntax.Concrete.Name (TopLevelModuleName)
+import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Abstract.Name
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B
 import Agda.Utils.Null
@@ -89,13 +92,32 @@ data Phase
     -- ^ Subphase for 'CheckLHS': unification of the indices
   | InverseScopeLookup
     -- ^ Pretty printing names.
-  deriving (Eq, Ord, Show, Enum, Bounded)
+  | TopModule TopLevelModuleName
+  | Definition QName
+  deriving (Eq, Ord, Show)
 
 instance Pretty Phase where
-  pretty = text . show
+  pretty (TopModule m)  = pretty m
+  pretty (Definition q) = pretty q
+  pretty a = text (show a)
 
 type Benchmark = B.Benchmark Phase
 type Account   = B.Account Phase
+
+isModuleAccount :: Account -> Bool
+isModuleAccount []                = True
+isModuleAccount (TopModule{} : _) = True
+isModuleAccount _                 = False
+
+isDefAccount :: Account -> Bool
+isDefAccount []                 = True
+isDefAccount (Definition{} : _) = True
+isDefAccount _                  = False
+
+isInternalAccount :: Account -> Bool
+isInternalAccount (TopModule{}  : _) = False
+isInternalAccount (Definition{} : _) = False
+isInternalAccount _                  = True
 
 -- * Benchmarking in the IO monad.
 

@@ -631,7 +631,7 @@ createInterface
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> Bool
   -> TCM (Interface, MaybeWarnings)
-createInterface file mname isMain =
+createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
   local (\e -> e { envCurrentPath = Just file }) $ do
     modFile       <- use stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
