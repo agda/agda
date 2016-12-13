@@ -360,8 +360,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
     isPlaceholder Placeholder{}   = 1
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
-argsP p = many (annotate (const $ text "<argument>") $
-                  nothidden <|> hidden <|> instanceH)
+argsP p = many (nothidden <|> hidden <|> instanceH)
     where
         isHidden (HiddenArgV _) = True
         isHidden _              = False
@@ -376,11 +375,11 @@ argsP p = many (annotate (const $ text "<argument>") $
                 InstanceArgV _ -> empty
                 _              -> return e
 
-        instanceH = do
+        instanceH = annotate (const $ text "<instance argument>") $ do
             InstanceArgV e <- exprView <$> sat' (isInstance . exprView)
             return $ makeInstance $ defaultArg e
 
-        hidden = do
+        hidden = annotate (const $ text "<implicit argument>") $ do
             HiddenArgV e <- exprView <$> sat' (isHidden . exprView)
             return $ hide $ defaultArg e
 
