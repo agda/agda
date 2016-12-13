@@ -10,12 +10,13 @@ module Agda.Utils.Trie
   , adjust, delete
   , toList, toAscList, toListOrderedBy
   , lookup, member, lookupPath, lookupTrie
-  , mapSubTries
+  , mapSubTries, filter
   ) where
 
-import Prelude hiding (null, lookup)
+import Prelude hiding (null, lookup, filter)
 import qualified Prelude
 
+import Control.Monad
 import Data.Function
 import Data.Functor
 import Data.Foldable (Foldable)
@@ -147,4 +148,13 @@ lookupPath xs (Trie v cs) = case xs of
 lookupTrie :: Ord k => [k] -> Trie k v -> Trie k v
 lookupTrie []       t           = t
 lookupTrie (k : ks) (Trie _ cs) = maybe empty (lookupTrie ks) (Map.lookup k cs)
+
+-- | Filter a trie.
+filter :: Ord k => (v -> Bool) -> Trie k v -> Trie k v
+filter p (Trie mv ts) = Trie mv' (Map.filter (not . null) $ filter p <$> ts)
+  where
+    mv' =
+      case mv of
+        Strict.Just v | p v -> mv
+        _                   -> Strict.Nothing
 
