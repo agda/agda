@@ -38,10 +38,17 @@ type CurrentAccount a = Strict.Maybe (Account a, CPUTime)
 
 type Timings        a = Trie a CPUTime
 
+data BenchmarkOn a = BenchmarkOff | BenchmarkOn | BenchmarkSome (Account a -> Bool)
+
+isBenchmarkOn :: Account a -> BenchmarkOn a -> Bool
+isBenchmarkOn _ BenchmarkOff      = False
+isBenchmarkOn _ BenchmarkOn       = True
+isBenchmarkOn a (BenchmarkSome p) = p a
+
 -- | Benchmark structure is a trie, mapping accounts (phases and subphases)
 --   to CPU time spent on their performance.
 data Benchmark a = Benchmark
-  { benchmarkOn    :: !Bool
+  { benchmarkOn    :: !(BenchmarkOn a)
     -- ^ Are we benchmarking at all?
   , currentAccount :: !(CurrentAccount a)
     -- ^ What are we billing to currently?
@@ -52,14 +59,14 @@ data Benchmark a = Benchmark
 -- | Initial benchmark structure (empty).
 instance Null (Benchmark a) where
   empty = Benchmark
-    { benchmarkOn = False
+    { benchmarkOn = BenchmarkOff
     , currentAccount = Strict.Nothing
     , timings = empty
     }
   null = null . timings
 
 -- | Semantic editor combinator.
-mapBenchmarkOn :: (Bool -> Bool) -> Benchmark a -> Benchmark a
+mapBenchmarkOn :: (BenchmarkOn a -> BenchmarkOn a) -> Benchmark a -> Benchmark a
 mapBenchmarkOn f b = b { benchmarkOn = f $ benchmarkOn b }
 
 -- | Semantic editor combinator.
@@ -149,7 +156,7 @@ instance MonadBench a m => MonadBench a (StateT r m) where
 
 -- | Turn benchmarking on/off.
 
-setBenchmarking :: MonadBench a m => Bool -> m ()
+setBenchmarking :: MonadBench a m => BenchmarkOn a -> m ()
 setBenchmarking b = modifyBenchmark $ mapBenchmarkOn $ const b
 
 -- | Bill current account with time up to now.
@@ -180,7 +187,7 @@ reset = modifyBenchmark $
 --   Works even if the computation is aborted by an exception.
 
 billTo :: MonadBench a m => Account a -> m c -> m c
-billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
+billTo account m = ifNotM (isBenchmarkOn account <$> getsBenchmark benchmarkOn) m $ do
   -- Switch to new account.
   old <- switchBenchmarking $ Strict.Just account
   -- Compute and switch back to old account.
@@ -188,7 +195,7 @@ billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
 
 -- | Bill a CPS function to an account. Can't handle exceptions.
 billToCPS :: MonadBench a m => Account a -> ((b -> m c) -> m c) -> (b -> m c) -> m c
-billToCPS account f k = ifNotM (getsBenchmark benchmarkOn) (f k) $ do
+billToCPS account f k = ifNotM (isBenchmarkOn account <$> getsBenchmark benchmarkOn) (f k) $ do
   -- Switch to new account.
   old <- switchBenchmarking $ Strict.Just account
   f $ \ x -> x `seq` do

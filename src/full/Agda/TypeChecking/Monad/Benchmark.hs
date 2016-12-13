@@ -33,17 +33,18 @@ updateBenchmarkingStatus :: TCM ()
 -- {-# SPECIALIZE updateBenchmarkingStatus :: TCM () #-}
 -- updateBenchmarkingStatus :: (HasOptions m, MonadBench a m) => m ()
 updateBenchmarkingStatus =
-  B.setBenchmarking =<< hasVerbosity benchmarkKey benchmarkLevel
+  B.setBenchmarking =<< benchmarking
 
 -- | Check whether benchmarking is activated.
-{-# SPECIALIZE benchmarking :: TCM Bool #-}
-benchmarking :: MonadTCM tcm => tcm Bool
-benchmarking = liftTCM $ hasVerbosity benchmarkKey benchmarkLevel
+{-# SPECIALIZE benchmarking :: TCM (B.BenchmarkOn Phase) #-}
+benchmarking :: MonadTCM tcm => tcm (B.BenchmarkOn Phase)
+benchmarking = liftTCM $ ifM (hasVerbosity benchmarkKey benchmarkLevel)
+                             (return B.BenchmarkOn) (return B.BenchmarkOff)
 
 -- | Prints the accumulated benchmark results. Does nothing if
 -- profiling is not activated at level 7.
 print :: MonadTCM tcm => tcm ()
-print = liftTCM $ whenM benchmarking $ do
+print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   b <- B.getBenchmark
   reportSLn benchmarkKey benchmarkLevel $ prettyShow b
 
