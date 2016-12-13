@@ -2562,7 +2562,6 @@ data TypeError
         | NoParseForLHS LHSOrPatSyn C.Pattern
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
         | OperatorInformation [NotationSection] TypeError
-        | OperatorChangeMessage TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
         | AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]

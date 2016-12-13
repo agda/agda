@@ -4,6 +4,4 @@ Operators used in the grammar:
   ,    (infix operator, level 20) [_,_ (Issue1129b.agda:3,3-6)]  
   _←_, (prefix notation, level 1) [bind (Issue1129b.agda:10,1-5)]
   do   (prefix notation, level 0) [id (Issue1129b.agda:14,1-3)]  
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking do (a , b) ← mAB , return $ b , a

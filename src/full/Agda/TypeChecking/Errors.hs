@@ -290,7 +290,6 @@ errorString err = case err of
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
-  OperatorChangeMessage {}                 -> "OperatorChangeMessage"
   OperatorInformation {}                   -> "OperatorInformation"
   PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
   PropMustBeSingleton                      -> "PropMustBeSingleton"
@@ -1077,15 +1076,6 @@ instance PrettyTCM TypeError where
               NonAssoc   -> "infix"
               LeftAssoc  -> "infixl"
               RightAssoc -> "infixr"
-
-    OperatorChangeMessage err@(OperatorInformation [] _) ->
-      prettyTCM err
-    OperatorChangeMessage err ->
-      prettyTCM err
-        $+$
-      fsep (pwords $
-        "(the treatment of operators was changed in Agda 2.5.1, " ++
-        "so code that used to parse may have to be changed)")
 
 {- UNUSED
     AmbiguousParseForPatternSynonym p ps -> fsep (
