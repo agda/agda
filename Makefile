@@ -91,6 +91,15 @@ install-prof-bin :
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 
+# Builds Agda with the debug flag enabled. A separate build directory
+# is used. The suffix "-debug" is used for the binaries.
+
+.PHONY : install-debug
+install-debug :
+	$(CABAL_INSTALL) --disable-library-profiling \
+        -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
+        $(CABAL_OPTS)
+
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
 	$(AGDA_MODE) compile
