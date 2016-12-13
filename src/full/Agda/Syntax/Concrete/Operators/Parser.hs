@@ -29,7 +29,7 @@ import Agda.Utils.Impossible
 
 placeholder :: PositionInName -> Parser e (MaybePlaceholder e)
 placeholder p =
-  annotate (const $ text ("_" ++ show p)) $
+  doc (text ("_" ++ show p)) $
   sat $ \t ->
   case t of
     Placeholder p' | p' == p -> True
@@ -179,7 +179,7 @@ parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
 
 -- | Parse a specific identifier as a NamePart
 partP :: IsExpr e => [Name] -> RawName -> Parser e Range
-partP ms s = annotate (const $ text (show str)) $ do
+partP ms s = doc (text (show str)) $ do
     tok <- notPlaceholder
     case isLocal tok of
       Just p  -> return p
@@ -375,11 +375,11 @@ argsP p = many (nothidden <|> hidden <|> instanceH)
                 InstanceArgV _ -> empty
                 _              -> return e
 
-        instanceH = annotate (const $ text "<instance argument>") $ do
+        instanceH = doc (text "<instance argument>") $ do
             InstanceArgV e <- exprView <$> sat' (isInstance . exprView)
             return $ makeInstance $ defaultArg e
 
-        hidden = annotate (const $ text "<implicit argument>") $ do
+        hidden = doc (text "<implicit argument>") $ do
             HiddenArgV e <- exprView <$> sat' (isHidden . exprView)
             return $ hide $ defaultArg e
 
@@ -389,7 +389,7 @@ appP p pa = foldl app <$> p <*> pa
         app e = unExprView . AppV e
 
 atomP :: IsExpr e => (QName -> Bool) -> Parser e e
-atomP p = annotate (const $ text "<atom>") $ do
+atomP p = doc (text "<atom>") $ do
     e <- notPlaceholder
     case exprView e of
         LocalV x | not (p x) -> empty
