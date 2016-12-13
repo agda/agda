@@ -89,7 +89,9 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
   pretty b = text $ Boxes.render table
     where
     trie = timings b
-    (accounts, times0) = unzip $ Trie.toListOrderedBy (flip compare `on` snd) $ Trie.mapSubTries (Just . aggr) trie
+    (accounts, times0) = unzip $ Trie.toListOrderedBy (flip compare `on` snd)
+                               $ Trie.filter ((> fromMilliseconds 10) . snd)
+                               $ Trie.mapSubTries (Just . aggr) trie
     times = map fst times0
     aggr t = (fromMaybe 0 $ Trie.lookup [] t, getSum $ foldMap Sum t)
     aggrTimes = do
