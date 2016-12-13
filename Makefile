@@ -97,7 +97,7 @@ install-prof-bin :
 .PHONY : install-debug
 install-debug :
 	$(CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
+        -fdebug --program-suffix=-$(VERSION)-debug --builddir=$(BUILD_DIR)-debug \
         $(CABAL_OPTS)
 
 .PHONY : compile-emacs-mode
