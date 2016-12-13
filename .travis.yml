@@ -447,6 +447,10 @@ script:
        make testing-emacs-mode;
     fi
 
+  - if [[ $TEST = "MAIN" ]]; then
+       make install-agda-bisect;
+    fi
+
 ##############################################################################
 # Testing compilation using the `uhc` flag
 
