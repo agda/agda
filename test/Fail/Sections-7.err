@@ -4,6 +4,4 @@ Don't know how to parse _+ Set. Could mean any one of:
   _+ Set (section)
 Operators used in the grammar:
   _+ (prefix operator section, level 20) [_+_ (Sections-7.agda:2,3-6)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking _+ Set

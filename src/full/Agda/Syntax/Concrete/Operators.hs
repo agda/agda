@@ -600,11 +600,9 @@ parseLHS' lhsOrPatSyn top p = do
         [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
                           text "Parsed lhs:" <+> pretty lhs
                         return (lhs, ops)
-        []        -> typeError $ OperatorChangeMessage
-                               $ OperatorInformation ops
+        []        -> typeError $ OperatorInformation ops
                                $ NoParseForLHS lhsOrPatSyn p
-        rs        -> typeError $ OperatorChangeMessage
-                               $ OperatorInformation ops
+        rs        -> typeError $ OperatorInformation ops
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
     where
@@ -667,8 +665,7 @@ parseLHS top p = billToParser $ do
   (res, ops) <- parseLHS' IsLHS (Just top) p
   case res of
     Right (f, lhs) -> return lhs
-    _ -> typeError $ OperatorChangeMessage
-                   $ OperatorInformation ops
+    _ -> typeError $ OperatorInformation ops
                    $ NoParseForLHS IsLHS p
 
 -- | Parses a pattern.
@@ -683,8 +680,7 @@ parsePatternOrSyn lhsOrPatSyn p = billToParser $ do
   (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     Left p -> return p
-    _      -> typeError $ OperatorChangeMessage
-                        $ OperatorInformation ops
+    _      -> typeError $ OperatorInformation ops
                         $ NoParseForLHS lhsOrPatSyn p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
@@ -734,11 +730,9 @@ parseApplication es  = billToParser $ do
           reportSDoc "scope.operators" 50 $ return $
             text "Parsed an operator application:" <+> pretty e
           return e
-        []  -> typeError $ OperatorChangeMessage
-                         $ OperatorInformation ops
+        []  -> typeError $ OperatorInformation ops
                          $ NoParseForApplication es
-        es' -> typeError $ OperatorChangeMessage
-                         $ OperatorInformation ops
+        es' -> typeError $ OperatorInformation ops
                          $ AmbiguousParseForApplication es
                          $ map fullParen es'
 
@@ -762,13 +756,11 @@ parseRawModuleApplication es = billToParser $ do
     -- TODO: not sure about forcing
     case {-force $-} parse (parseSections, pArgs p) es_args of
         [as] -> return (m, as)
-        []   -> typeError $ OperatorChangeMessage
-                          $ OperatorInformation ops
+        []   -> typeError $ OperatorInformation ops
                           $ NoParseForApplication es
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
-          typeError $ OperatorChangeMessage
-                    $ OperatorInformation ops
+          typeError $ OperatorInformation ops
                     $ AmbiguousParseForApplication es
                     $ map f ass
 

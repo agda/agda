@@ -5,7 +5,5 @@ Don't know how to parse test (ε , a). Could mean any one of:
 Operators used in the grammar:
   , (infixl operator, level 2) [_,_ (Issue978.agda:21,5-8)] 
   , (infixr operator, level 4) [_,_ (Issue978.agda:8,17-20)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking the left-hand side test (ε , a) in the
 definition of test
