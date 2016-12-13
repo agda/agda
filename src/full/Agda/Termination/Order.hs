@@ -8,7 +8,7 @@
 module Agda.Termination.Order
   ( -- * Structural orderings
     Order(..), decr
-  , increase, decrease, setUsability
+  , increase, decrease
   , (.*.)
   , supremum, infimum
   , orderSemiring
@@ -55,23 +55,18 @@ import Agda.Utils.Impossible
 --
 -- TODO: document orders which are call-matrices themselves.
 data Order
-  = Decr !Bool {-# UNPACK #-} !Int
+  = Decr {-# UNPACK #-} !Int
     -- ^ Decrease of callee argument wrt. caller parameter.
-    --   The @Bool@ indicates whether the decrease (if any) is usable.
-    --   In any chain, there needs to be one usable decrease.
-    --   Unusable decreases come from SIZELT constraints which are
-    --   not in inductive pattern match or a coinductive copattern match.
-    --   See issue #2331.
   | Unknown
     -- ^ No relation, infinite increase, or increase beyond termination depth.
   | Mat {-# UNPACK #-} !(Matrix Int Order)
     -- ^ Matrix-shaped order, currently UNUSED.
-  deriving (Eq, Ord, Show)
+  deriving (Eq,Ord)
 
--- instance Show Order where
---   show (Decr u k) = if u then show (- k) else "(" ++ show (-k) ++ ")"
---   show Unknown    = "."
---   show (Mat m)    = "Mat " ++ show m
+instance Show Order where
+  show (Decr k) = show (- k)
+  show Unknown  = "."
+  show (Mat m)  = "Mat " ++ show m
 
 instance HasZero Order where
   zeroElement = Unknown
@@ -87,15 +82,10 @@ instance PartialOrd Order where
     (Unknown, Unknown) -> POEQ
     (Unknown, _      ) -> POLT
     (_      , Unknown) -> POGT
-    (Decr u k, Decr u' l) -> comparableBool u u' `orPO` comparableOrd k l
+    (Decr k , Decr l ) -> comparableOrd k l
     -- Matrix-shaped orders are no longer supported
     (Mat{}  , _      ) -> __IMPOSSIBLE__
     (_      , Mat{}  ) -> __IMPOSSIBLE__
-    where
-    comparableBool = curry $ \case
-      (False, True) -> POLT
-      (True, False) -> POGT
-      _ -> POEQ
 
 -- | A partial order, aimed at deciding whether a call graph gets
 --   worse during the completion.
@@ -106,10 +96,10 @@ class NotWorse a where
 -- | It does not get worse then ``increase''.
 --   If we are still decreasing, it can get worse: less decreasing.
 instance NotWorse Order where
-  o        `notWorse` Unknown  = True            -- we are unboundedly increasing
-  Unknown  `notWorse` Decr _ k = k < 0           -- we are increasing
-  Decr u l `notWorse` Decr u' k = k < 0   -- we are increasing or
-    || l >= k && (u || not u')            -- we are decreasing, but not less, and not less usable
+  o       `notWorse` Unknown = True            -- we are unboundedly increasing
+  Unknown `notWorse` Decr k = k < 0            -- we are increasing
+  Decr l  `notWorse` Decr k = k < 0 || l >= k  -- we are increasing or
+                                               -- we are decreasing, but more
   -- Matrix-shaped orders are no longer supported
   Mat m   `notWorse` o       = __IMPOSSIBLE__
   o       `notWorse` Mat m   = __IMPOSSIBLE__
@@ -135,34 +125,28 @@ instance (Ord i, HasZero o, NotWorse o) => NotWorse (Matrix i o) where
 -- | Raw increase which does not cut off.
 increase :: Int -> Order -> Order
 increase i o = case o of
-  Unknown  -> Unknown
-  Decr u k -> Decr u $ k - i   -- TODO: should we set u to False if k - i < 0 ?
-  Mat m    -> Mat $ fmap (increase i) m
+  Unknown -> Unknown
+  Decr k  -> Decr $ k - i
+  Mat m   -> Mat $ fmap (increase i) m
 
 -- | Raw decrease which does not cut off.
 decrease :: Int -> Order -> Order
 decrease i o = increase (-i) o
 
-setUsability :: Bool -> Order -> Order
-setUsability u o = case o of
-  Decr _ k -> Decr u k
-  Unknown  -> o
-  Mat{}    -> o
-
 -- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
 --
 -- Possible values for @k@: @- ?cutoff '<=' k '<=' ?cutoff + 1@.
 
-decr :: (?cutoff :: CutOff) => Bool -> Int -> Order
-decr u k = case ?cutoff of
+decr :: (?cutoff :: CutOff) => Int -> Order
+decr k = case ?cutoff of
   CutOff c | k < -c -> Unknown
-           | k > c  -> Decr u $ c + 1
-  _                 -> Decr u k
+           | k > c  -> Decr $ c + 1
+  _                 -> Decr k
 
 -- | Smart constructor for matrix shaped orders, avoiding empty and singleton matrices.
 orderMat :: Matrix Int Order -> Order
 orderMat m
- | Matrix.isEmpty m        = le     -- 0x0 Matrix = neutral element
+ | Matrix.isEmpty m        = Decr 0 -- 0x0 Matrix = neutral element
  | Just o <- isSingleton m = o      -- 1x1 Matrix
  | otherwise               = Mat m  -- nxn Matrix
 
@@ -172,29 +156,30 @@ withinCutOff k = case ?cutoff of
   CutOff c   -> k >= -c && k <= c + 1
 
 isOrder :: (?cutoff :: CutOff) => Order -> Bool
-isOrder (Decr _ k) = withinCutOff k
-isOrder Unknown    = True
-isOrder (Mat m)    = False  -- TODO: extend to matrices
+isOrder (Decr k) = withinCutOff k
+isOrder Unknown = True
+isOrder (Mat m) = False  -- TODO: extend to matrices
+
+prop_decr :: (?cutoff :: CutOff) => Int -> Bool
+prop_decr = isOrder . decr
 
 -- | @le@, @lt@, @decreasing@, @unknown@: for backwards compatibility, and for external use.
 le :: Order
-le = Decr False 0
+le = Decr 0
 
--- | Usable decrease.
 lt :: Order
-lt = Decr True 1
+lt = Decr 1
 
 unknown :: Order
 unknown = Unknown
 
 nonIncreasing :: Order -> Bool
-nonIncreasing (Decr _ k) = k >= 0
-nonIncreasing _          = False
+nonIncreasing (Decr k) = k >= 0
+nonIncreasing _        = False
 
--- | Decreasing and usable?
 decreasing :: Order -> Bool
-decreasing (Decr u k) = u && k > 0
-decreasing _ = False
+decreasing (Decr k) = k > 0
+decreasing _        = False
 
 -- | Matrix-shaped order is decreasing if any diagonal element is decreasing.
 isDecr :: Order -> Bool
@@ -202,10 +187,10 @@ isDecr (Mat m) = any isDecr $ diagonal m
 isDecr o = decreasing o
 
 instance Pretty Order where
-  pretty (Decr u 0) = text "="
-  pretty (Decr u k) = mparens (not u) $ text $ show (0 - k)
-  pretty Unknown    = text "?"
-  pretty (Mat m)    = text "Mat" <+> pretty m
+  pretty (Decr 0) = text "="
+  pretty (Decr k) = text $ show (0 - k)
+  pretty Unknown  = text "?"
+  pretty (Mat m)  = text "Mat" <+> pretty m
 
 
 -- | Multiplication of 'Order's.
@@ -214,17 +199,17 @@ instance Pretty Order where
 -- I think this funny pattern matching is because overlapping patterns
 -- are producing a warning and thus an error (strict compilation settings)
 (.*.) :: (?cutoff :: CutOff) => Order -> Order -> Order
-Unknown    .*. _           = Unknown
-(Mat m)    .*. Unknown     = Unknown
-(Decr _ k) .*. Unknown     = Unknown
-(Decr u k) .*. (Decr u' l) = decr (u || u') (k + l)  -- if one is usable, so is the composition
-(Decr _ 0) .*. (Mat m)     = Mat m
-(Decr u k) .*. (Mat m)     = (Decr u k) .*. (collapse m)
-(Mat m1)   .*. (Mat m2)
-  | okM m1 m2              = Mat $ mul orderSemiring m1 m2
-  | otherwise              = (collapse m1) .*. (collapse m2)
-(Mat m)   .*. (Decr _ 0)   = Mat m
-(Mat m)   .*. (Decr u k)   = (collapse m) .*. (Decr u k)
+Unknown  .*. _        = Unknown
+(Mat m)  .*. Unknown  = Unknown
+(Decr k) .*. Unknown  = Unknown
+(Decr k) .*. (Decr l) = decr (k + l)
+(Decr 0) .*. (Mat m)  = Mat m
+(Decr k) .*. (Mat m)  = (Decr k) .*. (collapse m)
+(Mat m1) .*. (Mat m2)
+  | okM m1 m2         = Mat $ mul orderSemiring m1 m2
+  | otherwise         = (collapse m1) .*. (collapse m2)
+(Mat m) .*. (Decr 0)  = Mat m
+(Mat m) .*. (Decr k)  = (collapse m) .*. (Decr k)
 
 -- | collapse @m@
 --
@@ -262,12 +247,7 @@ supremum = foldr maxO Unknown
 
 maxO :: (?cutoff :: CutOff) => Order -> Order -> Order
 maxO o1 o2 = case (o1,o2) of
-    -- NOTE: strictly speaking the maximum does not exists
-    -- which is better, an unusable decrease by 2 or a usable decrease by 1?
-    -- We give the usable information priority if it is a decrease.
-  (Decr False _, Decr True  l) | l > 0 -> o2
-  (Decr True  k, Decr False _) | k > 0 -> o1
-  (Decr u k, Decr u' l) -> if l > k then o2 else o1
+  (Decr k, Decr l) -> Decr (max k l) -- cut off not needed, within borders
   (Unknown, _)     -> o2
   (_, Unknown)     -> o1
   (Mat m1, Mat m2) -> Mat (Matrix.add maxO m1 m2)
@@ -286,13 +266,7 @@ minO :: (?cutoff :: CutOff) => Order -> Order -> Order
 minO o1 o2 = case (o1,o2) of
   (Unknown, _)           -> Unknown
   (_, Unknown)           -> Unknown
-  -- different usability:
-  -- We pick the unusable one if it is not a decrease or
-  -- decreases not more than the usable one.
-  (Decr False k, Decr True  l) -> if k <= 0 || k <= l then o1 else o2
-  (Decr True  k, Decr False l) -> if l <= 0 || l <= k then o2 else o1
-  -- same usability:
-  (Decr u k, Decr _ l) -> Decr u (min k l)
+  (Decr k, Decr l)       -> Decr (min k l) -- cut off not needed, within borders
   (Mat m1, Mat m2)
     | size m1 == size m2 -> Mat $ Matrix.intersectWith minO m1 m2
     | otherwise          -> minO (collapse m1) (collapse m2)

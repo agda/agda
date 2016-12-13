@@ -449,7 +449,7 @@ instance (Integral i, HasZero b, Pretty b) =>
          . Boxes.render
          . Boxes.hsep 1 Boxes.right
          . map ( Boxes.vcat Boxes.right
-               . map ( Boxes.alignHoriz Boxes.right 4
+               . map ( Boxes.alignHoriz Boxes.right 2
                      . Boxes.text . render . pretty
                      )
                )
