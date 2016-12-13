@@ -66,7 +66,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACK GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
+    - env: TEST=STACKAGE GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -164,7 +164,7 @@ before_install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" || $TEST = "UHC" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
-    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACK" ]]; then
+    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACKAGE" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:/opt/happy/1.19.5/bin:$PATH;
@@ -244,7 +244,7 @@ install:
          stack build $ARGS --no-terminal --test --only-dependencies;
     elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
-    elif [[ $TEST = "STACK" ]]; then
+    elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --test --only-dependencies;
     fi
 
@@ -346,7 +346,7 @@ install:
 ##############################################################################
 # Testing compilation using stack
 
-  - if [[ $TEST = "STACK" ]]; then
+  - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal --test --no-run-tests;
     fi
 
