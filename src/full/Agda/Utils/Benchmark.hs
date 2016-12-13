@@ -14,8 +14,10 @@ import Control.Monad.State
 
 import Data.Foldable (foldMap)
 import Data.Functor
+import Data.Function
 import qualified Data.List as List
 import Data.Monoid
+import Data.Maybe
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -87,17 +89,14 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
   pretty b = text $ Boxes.render table
     where
     trie = timings b
-    (accounts, times) = unzip $ Trie.toList trie
-    aggrTimes         = do
-      a <- accounts
-      let t = Trie.lookupTrie a trie
-          hasChildren =
-            case foldMap (:[]) t of
-              _:_:_ -> True
-              _     -> False
-      return $ if not (null a) && hasChildren
-               then Boxes.text $ "(" ++ prettyShow (getSum $ foldMap Sum t) ++ ")"
-               else Boxes.text ""
+    (accounts, times0) = unzip $ Trie.toListOrderedBy (flip compare `on` snd) $ Trie.mapSubTries (Just . aggr) trie
+    times = map fst times0
+    aggr t = (fromMaybe 0 $ Trie.lookup [] t, getSum $ foldMap Sum t)
+    aggrTimes = do
+      (a, (t, aggrT)) <- zip accounts times0
+      return $ if t == aggrT || null a
+               then Boxes.text ""
+               else Boxes.text $ "(" ++ prettyShow aggrT ++ ")"
 
     -- Generate a table.
     table = Boxes.hsep 1 Boxes.left [col1, col2, col3]
