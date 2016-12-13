@@ -273,10 +273,10 @@ install:
     fi
 
 ##############################################################################
-# Installing fix-agda-whitespace
+# Building fix-agda-whitespace
 
   - if [[ $TEST = "MAIN" ]]; then
-       make install-fix-agda-whitespace;
+       make build-fix-agda-whitespace;
     fi
 
 ##############################################################################
