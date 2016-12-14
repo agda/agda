@@ -12,6 +12,7 @@ module Agda.Utils.Time
   , getCPUTime
   , measureTime
   , CPUTime(..)
+  , fromMilliseconds
   ) where
 
 import Control.Monad.Trans
@@ -36,6 +37,9 @@ getClockTime = Data.Time.getCurrentTime
 
 newtype CPUTime = CPUTime Integer
   deriving (Eq, Show, Ord, Num, Real, Enum, Integral)
+
+fromMilliseconds :: Integer -> CPUTime
+fromMilliseconds n = CPUTime (n * 1000000000)
 
 -- | Print CPU time in milli (10^-3) seconds.
 
