@@ -163,7 +163,9 @@ library
                 , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
                 , murmur-hash >= 0.1 && < 0.2
                 , parallel >= 3.2.0.4 && < 3.3
-                , pretty >= 1.1.2 && < 1.2
+                -- pretty 1.1.1.2 and 1.1.1.3 do not follow the
+                -- package versioning policy.
+                , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
                 , process >= 1.1.0.2 && < 1.5
                 , regex-tdfa >= 1.2.2 && < 1.3
                 , strict >= 0.3.2 && < 0.4
