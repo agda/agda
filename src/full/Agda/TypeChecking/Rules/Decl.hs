@@ -229,7 +229,7 @@ checkDecl d = setCurrentRange d $ do
       A.Axiom A.NoFunSig i defaultArgInfo Nothing x
               (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
 
-    check x i m = do
+    check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
       reportSLn "tc.decl.abstract" 25 $ show (Info.defAbstract i)
       r <- abstract (Info.defAbstract i) m
@@ -773,6 +773,7 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom funSig i info mp x e) =
+  Bench.billTo [Bench.Definition x] $
   Bench.billTo [Bench.Typing, Bench.TypeSig] $
     let abstr = case Info.defAccess i of
           PrivateAccess{}

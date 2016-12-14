@@ -75,7 +75,7 @@ runAgdaWithOptions generateHTML progName opts
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
-          UtilsBench.setBenchmarking True
+          UtilsBench.setBenchmarking UtilsBench.BenchmarkOn
             -- Andreas, Nisse, 2016-10-11 AIM XXIV
             -- Turn benchmarking on provisionally, otherwise we lose track of time spent
             -- on e.g. LaTeX-code generation.
