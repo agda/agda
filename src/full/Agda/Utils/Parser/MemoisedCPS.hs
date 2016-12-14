@@ -46,6 +46,7 @@ import Text.PrettyPrint.HughesPJ hiding (empty)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Agda.Utils.Monad (modify')
+import Agda.Utils.Pretty ( mparens )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -269,7 +270,7 @@ instance Monad (ParserWithGrammar k r tok) where
   return  = pure
   p >>= f =
     pg (parser p >>= parser . f)
-       ((\(d, p) -> (maybeParens (p < bindP) d <+> text ">>= ?", bindP))
+       ((\(d, p) -> (mparens (p < bindP) d <+> text ">>= ?", bindP))
           <$> docs p)
 
 instance Functor (ParserWithGrammar k r tok) where
@@ -280,8 +281,8 @@ instance Applicative (ParserWithGrammar k r tok) where
   p1 <*> p2 =
     pg (parser p1 <*> parser p2)
        (liftM2 (\(d1, p1) (d2, p2) ->
-                   (sep [ maybeParens (p1 < seqP) d1
-                        , maybeParens (p2 < seqP) d2
+                   (sep [ mparens (p1 < seqP) d1
+                        , mparens (p2 < seqP) d2
                         ], seqP))
                (docs p1) (docs p2))
 
@@ -289,16 +290,16 @@ instance Applicative (ParserWithGrammar k r tok) where
 
 starDocs :: String -> ParserWithGrammar k r tok a -> Docs k
 starDocs s p =
-  (\(d, p) -> (maybeParens (p < starP) d <+> text s, starP)) <$> docs p
+  (\(d, p) -> (mparens (p < starP) d <+> text s, starP)) <$> docs p
 
 instance Alternative (ParserWithGrammar k r tok) where
   empty     = pg empty (return (text "∅", atomP))
   p1 <|> p2 =
     pg (parser p1 <|> parser p2)
        (liftM2 (\(d1, p1) (d2, p2) ->
-                   (sep [ maybeParens (p1 < choiceP) d1
+                   (sep [ mparens (p1 < choiceP) d1
                         , text "|"
-                        , maybeParens (p2 < choiceP) d2
+                        , mparens (p2 < choiceP) d2
                         ], choiceP))
                (docs p1) (docs p2))
 
