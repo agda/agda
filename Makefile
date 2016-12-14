@@ -333,7 +333,7 @@ check-whitespace :
 
 .PHONY : build-fix-agda-whitespace
 build-fix-agda-whitespace :
-	cd $(FAW_PATH) && $(CABAL_CMD) build
+	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
 
 ## size-solver standalone program ############################################
 
