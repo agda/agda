@@ -5,7 +5,10 @@
 
 module Main ( main ) where
 
+import System.Exit ( exitFailure, exitSuccess )
+
 import InternalTests.Helpers
+import Agda.Utils.Monad ( ifM )
 
 import InternalTests.Compiler.MAlonzo.Encode                  as CompEnco     ( tests )
 import InternalTests.Interaction.Highlighting.Emacs           as InteEmac     ( tests )
@@ -42,8 +45,8 @@ import InternalTests.Utils.Permutation                        as UtilPerm     ( 
 import InternalTests.Utils.Trie                               as UtilTrie     ( tests )
 import InternalTests.Utils.Warshall                           as UtilWarsh    ( tests )
 
-main :: IO Bool
-main = runTests "QuickCheck test suite:"
+runAllTests :: IO Bool
+runAllTests = runTests "QuickCheck test suite:"
   [ Free.tests
   , Irrel.tests
   , SizedTypes.tests
@@ -79,3 +82,6 @@ main = runTests "QuickCheck test suite:"
   , UtilWarsh.tests
   , Generators.tests
   ]
+
+main :: IO ()
+main = ifM runAllTests exitSuccess exitFailure
