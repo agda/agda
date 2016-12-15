@@ -325,11 +325,11 @@ FAW_PATH = src/fix-agda-whitespace
 FAW_BIN  = $(FAW_PATH)/dist/build/fix-agda-whitespace/fix-agda-whitespace
 
 .PHONY : fix-whitespace
-fix-whitespace :
+fix-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN)
 
 .PHONY : check-whitespace
-check-whitespace :
+check-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN) --check
 
 .PHONY : build-fix-agda-whitespace
