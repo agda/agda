@@ -728,6 +728,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
     , nest 2 $ prettyTCM withFunType
     , nest 2 $ text "-|" <+> (prettyTCM =<< getContextTelescope)
     ]
+  reportSDoc "tc.with.top" 70 $ vcat
+    [ nest 2 $ text $ "raw with func. type = " ++ show withFunType
+    ]
+
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
