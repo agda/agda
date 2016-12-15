@@ -273,13 +273,6 @@ install:
     fi
 
 ##############################################################################
-# Building fix-agda-whitespace
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make build-fix-agda-whitespace;
-    fi
-
-##############################################################################
 # Installing Sphinx
 
 # Required for testing the documentation.
