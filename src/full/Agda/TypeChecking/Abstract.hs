@@ -33,9 +33,9 @@ import Agda.Utils.Impossible
 typeOf :: Type -> Type
 typeOf = sort . getSort
 
--- Doesn't abstract in the sort.
+-- | @abstractType a v b[v] = b@ where @a : v@.
 abstractType :: Type -> Term -> Type -> TCM Type
-abstractType a v (El s b) = El (raise 1 s) <$> abstractTerm a v (sort s) b
+abstractType a v (El s b) = El (absTerm v s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
 piAbstractTerm :: Term -> Type -> Type -> TCM Type
