@@ -13,7 +13,7 @@ Issue1168 : Issue1168.agdai Issue1168.hs
 	@rm /tmp/$@
 
 Issue1168.agdai : Issue1168.agda
-	$(AGDA) $@.agda
+	$(AGDA) $<
 
 PrettyInterface : Issue1168.agdai PrettyInterface.hs
 	ghc -Wall -Werror -package Agda-$(VERSION) -o /tmp/$@ $@.hs
