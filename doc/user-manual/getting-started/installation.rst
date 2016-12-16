@@ -39,7 +39,7 @@ Agda is part of the Nixpkgs collection that is used by http://nixos.org/nixos. T
 
 .. code-block:: bash
 
-  nix-env -iA haskellPackages.Agda
+  nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
 
 If you’re just interested in the library, you can also install the library without the executable.
 Neither the emacs mode nor the Agda standard library are currently installed automatically, though.
