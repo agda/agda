@@ -5,8 +5,17 @@ include $(TOP)/mk/version.mk
 
 AGDA = $(AGDA_BIN) -v0
 
-Issue1168 : Issue1168.agda Issue1168.hs
+all : Issue1168 PrettyInterface
+
+Issue1168 : Issue1168.agdai Issue1168.hs
+	ghc -Wall -Werror -package Agda-$(VERSION) -o /tmp/$@ $@.hs
+	/tmp/$@
+	@rm /tmp/$@
+
+Issue1168.agdai : Issue1168.agda
 	$(AGDA) $@.agda
+
+PrettyInterface : Issue1168.agdai PrettyInterface.hs
 	ghc -Wall -Werror -package Agda-$(VERSION) -o /tmp/$@ $@.hs
 	/tmp/$@
 	@rm /tmp/$@
