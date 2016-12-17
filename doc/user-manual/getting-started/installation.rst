@@ -35,14 +35,13 @@ will pull in emacs-agda-mode and ghc-Agda-devel.
 NixOS
 -----
 
-Agda is part of the Nixpkgs collection that is used by http://nixos.org/nixos. To install Agda, type:
+Agda is part of the Nixpkgs collection that is used by http://nixos.org/nixos. To install Agda and agda-mode for Emacs, type:
 
 .. code-block:: bash
 
-  nix-env -iA haskellPackages.Agda
+  nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
 
-If you’re just interested in the library, you can also install the library without the executable.
-Neither the emacs mode nor the Agda standard library are currently installed automatically, though.
+If you’re just interested in the library, you can also install the library without the executable. The Agda standard library is currently not installed automatically.
 
 OS X
 ----
