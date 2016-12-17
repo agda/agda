@@ -35,7 +35,7 @@ will pull in emacs-agda-mode and ghc-Agda-devel.
 NixOS
 -----
 
-Agda is part of the Nixpkgs collection that is used by http://nixos.org/nixos. To install Agda and agda-mode for emacs, type:
+Agda is part of the Nixpkgs collection that is used by http://nixos.org/nixos. To install Agda and agda-mode for Emacs, type:
 
 .. code-block:: bash
 
