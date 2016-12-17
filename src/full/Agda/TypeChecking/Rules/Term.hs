@@ -302,7 +302,6 @@ checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
 ---------------------------------------------------------------------------
 
 -- | Type check a lambda expression.
---   "checkLambda bs e ty"  means  (\ bs -> e) : ty
 checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)

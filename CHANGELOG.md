@@ -9,8 +9,8 @@ Infrastructure
 
   Files ending in `.lagda.md` will be parsed as literate Markdown files.
 
-  + Code blocks start with  ```` ``` ```` or ```` ```agda ```` in its own line, and end with
-    ```` ``` ````, also in its own line.
+  + Code blocks start with  ` ``` ` or ` ```agda ` in its own line, and end with
+    ` ``` `, also in its own line.
   + Code blocks which should be type-checked by Agda but should not be visible
     when the Markdown is rendered may be enclosed in HTML comment delimiters
     (`<!--`  and `-->`).

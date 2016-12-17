@@ -1,13 +1,13 @@
 SHELL=bash
 
-# TOP=../../
-# include $(TOP)/mk/version.mk
+TOP=../../
+include $(TOP)/mk/version.mk
 
 CABAL_CMD=cabal
 
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install
+	$(CABAL_CMD) install --program-suffix=-$(VERSION)
 
 # Tested with shelltestrunner 1.3.5.
 .PHONY : test
