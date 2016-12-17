@@ -20,7 +20,7 @@ following procedure can be followed:
 * Get a clean Agda repository.
 
     git clone git@github.com:agda/agda agda.release
-    cd agda.release
+    cd agda-release
 
 * The version of the RC is the current version in master + current date
 
@@ -45,7 +45,8 @@ following procedure can be followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Ensure that cabal haddock works with GHC 8.0.1 (see #1992):
+* Ensure that cabal haddock works with the latest version supported of
+  GHC:
 
     make haddock
 
@@ -58,7 +59,8 @@ following procedure can be followed:
   should ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal test-suite from Agda.cabal.
+* Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
+  Agda.cabal.
 
 * Build source distributions:
 
@@ -85,9 +87,10 @@ following procedure can be followed:
   first):
 
     cd $BASE
-    git tag -a $RC_VERSION -m "Agda $VERSION release candidate n"
+    git tag -a v$RC_VERSION -m "Agda $VERSION release candidate n"
 
-* Restore the Cabal test-suite in Agda.cabal.
+* Restore the Cabal tests-suites `agda-tests` and `internal-tests`
+  from Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
@@ -97,7 +100,7 @@ following procedure can be followed:
   candidate (requires Git >= 1.8.3) (untested):
 
     cd std-lib
-    git tag -a $RC_VERSION -m "Agda standard library compatible with Agda $VERSION release candidate n"
+    git tag -a v$RC_VERSION -m "Agda standard library compatible with Agda $VERSION release candidate n"
     git push --follow-tags
 
 * Push all changes into the master branch (requires Git >= 1.8.3).
