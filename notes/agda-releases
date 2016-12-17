@@ -26,7 +26,7 @@ followed:
 * Get a clean Agda repository.
 
     git clone git@github.com:agda/agda agda.release
-    cd agda.release
+    cd agda-release
 
 * If the current version in master is 2.5.0 the versions used in this
   notes are:
@@ -63,7 +63,8 @@ followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Ensure that cabal haddock works with GHC 8.0.1 (see #1992):
+* Ensure that cabal haddock works with the latest version supported of
+  GHC:
 
     make haddock
 
@@ -76,7 +77,8 @@ followed:
   should ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal test-suite from Agda.cabal.
+* Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
+  Agda.cabal.
 
 * Build source distributions:
 
@@ -114,7 +116,8 @@ followed:
 
     neil doc --username=YourHackageUsername
 
-* Restore the Cabal test-suite in Agda.cabal.
+* Restore the Cabal tests-suites `agda-tests` and `internal-tests`
+  from Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
