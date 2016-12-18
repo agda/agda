@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
@@ -762,7 +763,23 @@ dataStrategy k s = do
             reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
             withMetaInfo' mv $ do
               let perm = mvPermutation mv
-              tel <- permuteTel perm <$> (instantiateFull =<< getContextTelescope)
+              reportSDoc "tc.lhs.unify" 100 $ vcat
+                [ text "Permutation of meta: " <+> prettyTCM perm
+                ]
+              cxt <- instantiateFull =<< getContextTelescope
+              reportSDoc "tc.lhs.unify" 100 $ do
+                let flat = flattenTel cxt
+                let badRen  :: Substitution = renaming __IMPOSSIBLE__ perm
+                let goodRen :: Substitution = renaming __IMPOSSIBLE__ $ flipP perm
+                vcat
+                  [ text "Context of meta: " <+> (inTopContext $ prettyTCM cxt)
+                  , text "Flattened:       " <+> prettyTCM flat
+                  , text "Flattened (raw): " <+> text (show flat)
+                  , text "Bad renaming:    " <+> text (show badRen)
+                  , text "Good renaming:   " <+> text (show goodRen)
+                  , text "Raw permutation: " <+> prettyTCM (permute perm flat)
+                  ]
+              let tel = permuteTel perm cxt
               reportSDoc "tc.lhs.unify" 100 $ text "Context tel (for new metas): " <+> prettyTCM tel
               -- important: create the meta in the same environment as the original meta
               newArgsMetaCtx ctype tel perm us
