@@ -32,7 +32,7 @@ cache:
 
 matrix:
   include:
-    # ASR (2016-11-27): Travis is using GHC 8.0.2 RC1.
+    # ASR (2016-12-18): Travis is using GHC 8.0.2 RC2.
     # TODO: Remove GHC 8.0.1 after the release of GHC 8.0.2.
     - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
