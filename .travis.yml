@@ -156,8 +156,8 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  allow_failures:
-  - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+  # allow_failures:
+  # - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
 
 ##############################################################################
 before_install:
@@ -203,7 +203,9 @@ install:
        cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
-       cabal install cabal-install &&
+       if [[ $GHC_VER != "8.0.2" ]]; then
+          cabal install cabal-install;
+       fi &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cabal --version &&
        cabal install cpphs-1.20.2 &&
