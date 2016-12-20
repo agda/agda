@@ -490,17 +490,6 @@ instance LensOrigin (Arg e) where
   getOrigin = getOrigin . argInfo
   mapOrigin = mapArgInfo . mapOrigin
 
-{- RETIRED
-hide :: Arg a -> Arg a
-hide = setArgHiding Hidden
-
-makeInstance :: Arg a -> Arg a
-makeInstance = setHiding Instance
-
-isHiddenArg :: Arg a -> Bool
-isHiddenArg arg = argHiding arg /= NotHidden
--}
-
 instance LensArgInfo (Arg a) where
   getArgInfo        = argInfo
   mapArgInfo f arg  = arg { argInfo = f $ argInfo arg }

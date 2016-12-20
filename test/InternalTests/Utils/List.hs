@@ -22,6 +22,9 @@ prop_updateLast f as = updateLast f as == spec_updateLast f as
 spec_updateAt n f as = let (bs, cs) = splitAt n as in bs ++ updateHead f cs
 prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 
+prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
+prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
+
 prop_chop_intercalate :: Property
 prop_chop_intercalate =
   forAllShrink (choose (0, 4 :: Int))          shrink $ \ d ->
