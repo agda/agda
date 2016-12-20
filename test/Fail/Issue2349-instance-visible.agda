@@ -8,7 +8,7 @@ open import Agda.Builtin.Equality
 data D {{a}} (A : Set a) : Set a where
   c : {{a : A}} (b : A) → D A
 
-test : ∀ a (A : Set a) (x : D A) (a : A) → x ≡ c {{lzero}} {{a = a}} a
+test : ∀ ℓ (A : Set ℓ) (x : D A) (a : A) → x ≡ c {{ℓ}} {{a = a}} a
 test ℓ A x a = refl
 
 -- ERROR:
