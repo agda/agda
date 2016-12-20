@@ -530,8 +530,8 @@ reifyTerm expandAnonDefs0 v = do
               --
               -- Andreas, 2016-12-20, issue #2348:
               -- Let @padTail@ be the list of arguments of the padding
-              -- * after the last visible argument of the padding, and
-              -- * with the same visibility as the first regular argument.
+              -- (*) after the last visible argument of the padding, and
+              -- (*) with the same visibility as the first regular argument.
               -- If @padTail@ is not empty, we need to
               -- print the first regular argument with name.
               -- We further have to print all elements of @padTail@
