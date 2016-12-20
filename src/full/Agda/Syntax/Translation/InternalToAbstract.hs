@@ -457,7 +457,8 @@ reifyTerm expandAnonDefs0 v = do
     reifyDef _ x es = reifyDef' x es
 
     reifyDef' :: QName -> I.Elims -> TCM Expr
-    reifyDef' x@(QName _ name) es = do
+    reifyDef' x es = do
+      reportSLn "reify.def" 60 $ "reifying call to " ++ show x
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
       -- If the definition is not (yet) in the signature,
@@ -900,7 +901,10 @@ instance Reify (QNamed I.Clause) A.Clause where
 
 instance Reify NamedClause A.Clause where
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
-    reportSLn "reify.clause" 60 $ "reifying NamedClause, cl = " ++ show cl
+    reportSLn "reify.clause" 60 $ "reifying NamedClause"
+      ++ "\n  f      = " ++ show f
+      ++ "\n  toDrop = " ++ show toDrop
+      ++ "\n  cl     = " ++ show cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
