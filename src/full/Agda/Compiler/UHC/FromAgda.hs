@@ -75,7 +75,7 @@ fromAgdaModule modNm curModImps iface = do
   let defs = sortDefs $ iSignature iface ^. sigDefinitions
 
   runCompileT modNm (do
-    lift $ reportSLn "uhc" 10 "Translate datatypes..."
+    lift $ reportSLn "compile.uhc" 10 "Translate datatypes..."
 
     funs' <- concat <$> mapM translateDefn defs
     let funs = mkLetRec funs' (mkInt opts 0)
@@ -117,14 +117,14 @@ translateDefn (n, defini) = do
         (\x -> [x]) <$> mkIdentityFun n "coind-flat" 0
     f@(Function{}) | otherwise -> do
         let ty    = (defType defini)
-        lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
-        lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
+        lift $ reportSDoc "compile.uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
+        lift $ reportSDoc "compile.uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
 
         caseMaybeM (lift $ toTreeless n) (pure []) $ \ treeless -> do
           funBody <- convertGuards <$> lift (normalizeNames treeless)
-          lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
+          lift $ reportSDoc "compile.uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
           funBody' <- runTT $ compileTerm funBody
-          lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled UHC Core fun:" <+> (text . show) funBody'
+          lift $ reportSDoc "compile.uhc.fromagda" 30 $ text " compiled UHC Core fun:" <+> (text . show) funBody'
 
           addExports [crName]
           return [mkBind1 crName funBody']

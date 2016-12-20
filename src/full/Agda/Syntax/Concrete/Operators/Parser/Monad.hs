@@ -14,7 +14,7 @@ module Agda.Syntax.Concrete.Operators.Parser.Monad
   , token
   , sat
   , tok
-  , annotate
+  , doc
   , memoise
   , memoiseIfPrinting
   , grammar
@@ -71,11 +71,11 @@ tok :: (Eq tok, Show tok) =>
        MaybePlaceholder tok -> Parser tok (MaybePlaceholder tok)
 tok = Parser.tok
 
--- | Uses the given function to modify the printed representation (if
--- any) of the given parser.
+-- | Uses the given document as the printed representation of the
+-- given parser. The document's precedence is taken to be 'atomP'.
 
-annotate :: (Doc -> Doc) -> Parser tok a -> Parser tok a
-annotate = Parser.annotate
+doc :: Doc -> Parser tok a -> Parser tok a
+doc = Parser.doc
 
 -- | Memoises the given parser.
 --

@@ -37,12 +37,12 @@ expandLitPattern p = traverse (traverse expand) p
         | n < 0     -> __IMPOSSIBLE__
         | n > 20    -> tooBig
         | otherwise -> do
-          Con z _ <- ignoreSharing <$> primZero
-          Con s _ <- ignoreSharing <$> primSuc
+          Con z _ _ <- ignoreSharing <$> primZero
+          Con s _ _ <- ignoreSharing <$> primSuc
           let zero  = A.ConP cinfo (A.AmbQ [setRange r $ conName z]) []
               suc p = A.ConP cinfo (A.AmbQ [setRange r $ conName s]) [defaultNamedArg p]
               info  = A.PatRange r
-              cinfo = A.ConPatInfo ConPCon info
+              cinfo = A.ConPatInfo ConOCon info
               p'    = foldr ($) zero $ genericReplicate n suc
           return $ foldr (A.AsP info) p' xs
       _ -> return p

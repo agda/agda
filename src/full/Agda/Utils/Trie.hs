@@ -8,19 +8,23 @@ module Agda.Utils.Trie
   ( Trie
   , empty, singleton, everyPrefix, insert, insertWith, union, unionWith
   , adjust, delete
-  , toList, toAscList
+  , toList, toAscList, toListOrderedBy
   , lookup, member, lookupPath, lookupTrie
+  , mapSubTries, filter
   ) where
 
-import Prelude hiding (null, lookup)
+import Prelude hiding (null, lookup, filter)
 import qualified Prelude
 
+import Control.Monad
 import Data.Function
 import Data.Functor
 import Data.Foldable (Foldable)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.Monoid
+import qualified Data.List as List
 
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
@@ -103,6 +107,25 @@ toAscList (Trie mv ts) = Strict.maybeToList (([],) <$> mv) ++
   , (ks, v) <- toAscList t
   ]
 
+-- | Convert to list where nodes at the same level are ordered according to the
+--   given ordering.
+toListOrderedBy :: Ord k => (v -> v -> Ordering) -> Trie k v -> [([k], v)]
+toListOrderedBy cmp (Trie mv ts) =
+  Strict.maybeToList (([],) <$> mv) ++
+  [ (k : ks, v) | (k, t)  <- List.sortBy (cmp' `on` val . snd) $ Map.toAscList ts,
+                  (ks, v) <- toListOrderedBy cmp t ]
+  where
+    cmp' Strict.Nothing  Strict.Just{}   = LT
+    cmp' Strict.Just{}   Strict.Nothing  = GT
+    cmp' Strict.Nothing  Strict.Nothing  = EQ
+    cmp' (Strict.Just x) (Strict.Just y) = cmp x y
+    val (Trie mv _) = mv
+
+-- | Create new values based on the entire subtrie. Almost, but not quite
+--   comonad extend.
+mapSubTries :: Ord k => (Trie k u -> Maybe v) -> Trie k u -> Trie k v
+mapSubTries f t@(Trie mv ts) = Trie (Strict.toStrict (f t)) (fmap (mapSubTries f) ts)
+
 -- | Returns the value associated with the given key, if any.
 lookup :: Ord k => [k] -> Trie k v -> Maybe v
 lookup []       (Trie v _)  = Strict.toLazy v
@@ -125,4 +148,13 @@ lookupPath xs (Trie v cs) = case xs of
 lookupTrie :: Ord k => [k] -> Trie k v -> Trie k v
 lookupTrie []       t           = t
 lookupTrie (k : ks) (Trie _ cs) = maybe empty (lookupTrie ks) (Map.lookup k cs)
+
+-- | Filter a trie.
+filter :: Ord k => (v -> Bool) -> Trie k v -> Trie k v
+filter p (Trie mv ts) = Trie mv' (Map.filter (not . null) $ filter p <$> ts)
+  where
+    mv' =
+      case mv of
+        Strict.Just v | p v -> mv
+        _                   -> Strict.Nothing
 

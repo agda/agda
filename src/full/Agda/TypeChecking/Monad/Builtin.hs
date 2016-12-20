@@ -619,7 +619,7 @@ getPrimName ty = do
       lamV v          = ([], v)
   case lamV ty of
             (_, Def path _) -> path
-            (_, Con nm _)   -> conName nm
+            (_, Con nm _ _)   -> conName nm
             (_, _)          -> __IMPOSSIBLE__
 
 getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
@@ -644,8 +644,8 @@ intervalView' = do
           [Apply x,Apply y] | Just q == imax -> IMax x y
           [Apply x]         | Just q == ineg -> INeg x
           _                 -> OTerm t
-      Con q [] | Just (conName q) == iz -> IZero
-               | Just (conName q) == io -> IOne
+      Con q _ [] | Just (conName q) == iz -> IZero
+                 | Just (conName q) == io -> IOne
       _ -> OTerm t
 
 intervalView :: HasBuiltins m => Term -> m IntervalView

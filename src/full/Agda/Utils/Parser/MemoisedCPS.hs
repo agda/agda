@@ -24,13 +24,15 @@
 
 module Agda.Utils.Parser.MemoisedCPS
   ( ParserClass(..)
+  , doc
+  , DocP, bindP, choiceP, seqP, starP, atomP
   , Parser
   , ParserWithGrammar
   ) where
 
 import Control.Applicative
 import Control.Monad (ap, liftM2)
-import Control.Monad.State.Strict (State, evalState, get, put)
+import Control.Monad.State.Strict (State, evalState, runState, get, put)
 import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
@@ -44,6 +46,7 @@ import Text.PrettyPrint.HughesPJ hiding (empty)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Agda.Utils.Monad (modify')
+import Agda.Utils.Pretty ( mparens )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -113,7 +116,7 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
 
   -- | Tries to print the parser, or returns 'PP.empty', depending on
   -- the implementation. This function might not terminate.
-  grammar :: p a -> Doc
+  grammar :: Show k => p a -> Doc
 
   -- | Parses a single token.
   token :: p tok
@@ -126,7 +129,7 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
 
   -- | Uses the given function to modify the printed representation
   -- (if any) of the given parser.
-  annotate :: (Doc -> Doc) -> p a -> p a
+  annotate :: (DocP -> DocP) -> p a -> p a
 
   -- | Memoises the given parser.
   --
@@ -142,6 +145,12 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
   -- (Parametrised parsers must use distinct keys for distinct
   -- inputs.)
   memoiseIfPrinting :: (Eq k, Hashable k, Show k) => k -> p r -> p r
+
+-- | Uses the given document as the printed representation of the
+-- given parser. The document's precedence is taken to be 'atomP'.
+
+doc :: ParserClass p k r tok => Doc -> p a -> p a
+doc d = annotate (\_ -> (d, atomP))
 
 instance ParserClass (Parser k r tok) k r tok where
   parse p toks =
@@ -200,17 +209,51 @@ instance ParserClass (Parser k r tok) k r tok where
 -- | An extended parser type, with some support for printing parsers.
 
 data ParserWithGrammar k r tok a =
-  PG (Bool -> Either (Parser k r tok a)
-                     (State (HashSet k) Doc))
+  PG (Bool -> Either (Parser k r tok a) (Docs k))
   -- ^ Invariant: If the boolean is 'True', then the result must be
   -- @'Left' something@, and if the boolean is 'False', then the
   -- result must be @'Right' something@.
 
+-- | Documents paired with precedence levels.
+
+type DocP = (Doc, Int)
+
+-- | Precedence of @>>=@.
+
+bindP :: Int
+bindP = 10
+
+-- | Precedence of @<|>@.
+
+choiceP :: Int
+choiceP = 20
+
+-- | Precedence of @<*>@.
+
+seqP :: Int
+seqP = 30
+
+-- | Precedence of @⋆@ and @+@.
+
+starP :: Int
+starP = 40
+
+-- | Precedence of atoms.
+
+atomP :: Int
+atomP = 50
+
+-- | The extended parser type computes one top-level document, plus
+-- one document per encountered memoisation key.
+--
+-- 'Nothing' is used to mark that a given memoisation key has been
+-- seen, but that no corresponding document has yet been stored.
+
+type Docs k = State (HashMap k (Maybe DocP)) DocP
+
 -- | A smart constructor.
 
-pg :: Parser k r tok a ->
-      State (HashSet k) Doc ->
-      ParserWithGrammar k r tok a
+pg :: Parser k r tok a -> Docs k -> ParserWithGrammar k r tok a
 pg p d = PG $ \b -> if b then Left p else Right d
 
 -- | Extracts the parser.
@@ -218,56 +261,88 @@ pg p d = PG $ \b -> if b then Left p else Right d
 parser :: ParserWithGrammar k r tok a -> Parser k r tok a
 parser (PG p) = either id __IMPOSSIBLE__ (p True)
 
--- | Extracts the document.
+-- | Extracts the documents.
 
-doc :: ParserWithGrammar k r tok a -> State (HashSet k) Doc
-doc (PG p) = either __IMPOSSIBLE__ id (p False)
+docs :: ParserWithGrammar k r tok a -> Docs k
+docs (PG p) = either __IMPOSSIBLE__ id (p False)
 
 instance Monad (ParserWithGrammar k r tok) where
   return  = pure
-  p >>= f = pg (parser p >>= parser . f)
-               ((\d -> parens (d <+> text ">>= ?")) <$> doc p)
+  p >>= f =
+    pg (parser p >>= parser . f)
+       ((\(d, p) -> (mparens (p < bindP) d <+> text ">>= ?", bindP))
+          <$> docs p)
 
 instance Functor (ParserWithGrammar k r tok) where
-  fmap f p = pg (fmap f (parser p)) (doc p)
+  fmap f p = pg (fmap f (parser p)) (docs p)
 
 instance Applicative (ParserWithGrammar k r tok) where
-  pure x    = pg (pure x) (return (text "ε"))
+  pure x    = pg (pure x) (return (text "ε", atomP))
   p1 <*> p2 =
     pg (parser p1 <*> parser p2)
-       (liftM2 (\d1 d2 -> parens (sep [d1, d2])) (doc p1) (doc p2))
-
-instance Alternative (ParserWithGrammar k r tok) where
-  empty     = pg empty (return (text "∅"))
-  p1 <|> p2 =
-    pg (parser p1 <|> parser p2)
-       (liftM2 (\d1 d2 -> parens (sep [d1, text "|", d2])) (doc p1) (doc p2))
-
-  many p = pg (many (parser p)) ((<+> text "⋆") . parens <$> doc p)
-  some p = pg (some (parser p)) ((<+> text "+") . parens <$> doc p)
+       (liftM2 (\(d1, p1) (d2, p2) ->
+                   (sep [ mparens (p1 < seqP) d1
+                        , mparens (p2 < seqP) d2
+                        ], seqP))
+               (docs p1) (docs p2))
 
 -- | A helper function.
 
-memoiseDoc ::
+starDocs :: String -> ParserWithGrammar k r tok a -> Docs k
+starDocs s p =
+  (\(d, p) -> (mparens (p < starP) d <+> text s, starP)) <$> docs p
+
+instance Alternative (ParserWithGrammar k r tok) where
+  empty     = pg empty (return (text "∅", atomP))
+  p1 <|> p2 =
+    pg (parser p1 <|> parser p2)
+       (liftM2 (\(d1, p1) (d2, p2) ->
+                   (sep [ mparens (p1 < choiceP) d1
+                        , text "|"
+                        , mparens (p2 < choiceP) d2
+                        ], choiceP))
+               (docs p1) (docs p2))
+
+  many p = pg (many (parser p)) (starDocs "⋆" p)
+  some p = pg (some (parser p)) (starDocs "+" p)
+
+-- | Pretty-prints a memoisation key.
+
+prettyKey :: Show k => k -> DocP
+prettyKey key = (text ("<" ++ show key ++ ">"), atomP)
+
+-- | A helper function.
+
+memoiseDocs ::
   (Eq k, Hashable k, Show k) =>
-  k -> ParserWithGrammar k r tok r -> State (HashSet k) Doc
-memoiseDoc key p = do
-  s <- get
-  if Set.member key s then
-    return (text ("<" ++ show key ++ ">"))
-   else do
-    put (Set.insert key s)
-    (\d -> parens $
-             text ("μ " ++ show key ++ ".") $+$ nest 2 d) <$>
-      doc p
+  k -> ParserWithGrammar k r tok r -> Docs k
+memoiseDocs key p = do
+  r <- Map.lookup key <$> get
+  case r of
+    Just _  -> return ()
+    Nothing -> do
+      modify' (Map.insert key Nothing)
+      d <- docs p
+      modify' (Map.insert key (Just d))
+  return (prettyKey key)
 
 instance ParserClass (ParserWithGrammar k r tok) k r tok where
   parse p                 = parse (parser p)
-  grammar p               = evalState (doc p) Set.empty
-  token                   = pg token (return (text "·"))
-  sat p                   = pg (sat p) (return (text "sat ?"))
-  tok t                   = pg (tok t) (return (text (show t)))
-  annotate f p            = pg (parser p) (f <$> doc p)
+  token                   = pg token (return (text "·", atomP))
+  sat p                   = pg (sat p) (return (text "<sat ?>", atomP))
+  tok t                   = pg (tok t) (return (text (show t), atomP))
+  annotate f p            = pg (parser p) (f <$> docs p)
   memoise key p           = pg (memoise key (parser p))
-                               (memoiseDoc key p)
-  memoiseIfPrinting key p = pg (parser p) (memoiseDoc key p)
+                               (memoiseDocs key p)
+  memoiseIfPrinting key p = pg (parser p) (memoiseDocs key p)
+
+  grammar p =
+    d
+      $+$
+    nest 2 (foldr1 ($+$) $
+      text "where" :
+      map (\(k, d) -> fst (prettyKey k) <+> text "∷=" <+>
+                        maybe __IMPOSSIBLE__ fst d)
+          (Map.toList ds))
+    where
+    ((d, _), ds) = runState (docs p) Map.empty

@@ -61,6 +61,11 @@ pwords = map text . words
 fwords :: String -> Doc
 fwords = fsep . pwords
 
+-- ASR (2016-12-13): In pretty >= 1.1.2.0 the below function 'mparens'
+-- is called 'maybeParens'. I didn't use that name due to the issue
+-- https://github.com/haskell/pretty/issues/40.
+
+-- | Apply 'parens' to 'Doc' if boolean is true.
 mparens :: Bool -> Doc -> Doc
 mparens True  = parens
 mparens False = id

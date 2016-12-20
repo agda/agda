@@ -223,7 +223,7 @@ instance Free' Term c where
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con c ts     -> underConstructor c $ freeVars' ts
+    Con c _ ts   -> underConstructor c $ freeVars' ts
     -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).

@@ -143,7 +143,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
   toAbstract pat = case pat of
     R.ConP c args -> do
       (names, args) <- toAbstractPats args
-      return (names, A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [killRange c]) args)
+      return (names, A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [killRange c]) args)
     R.DotP    -> return ([], A.WildP patNoRange)
     R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP name)
         -- Ulf, 2016-08-09: Also bind noNames (#2129). This to make the

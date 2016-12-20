@@ -66,7 +66,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
         Primitive{}   -> no
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn  -> __IMPOSSIBLE__
-    Con c _ -> return (Just $ ConsHead $ conName c)
+    Con c _ _ -> return (Just $ ConsHead $ conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Lit _   -> return Nothing -- handle literal heads as well? can't think of
@@ -251,13 +251,13 @@ useInjectivity cmp a u v = do
       sub <- ask
       return $ applySubst sub v
 
-    metaElim (Arg _ (ProjP o p))  = return $ Proj o p
+    metaElim (Arg _ (ProjP o p))  = lift $ lift $ Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
     metaPat (DotP v)         = dotP v
     metaPat (VarP _)         = nextMeta
-    metaPat (ConP c mt args) = Con c <$> metaArgs args
+    metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) <$> metaArgs args
     metaPat (LitP l)         = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__

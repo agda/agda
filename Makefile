@@ -90,6 +90,15 @@ install-prof-bin :
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 
+# Builds Agda with the debug flag enabled. A separate build directory
+# is used. The suffix "-debug" is used for the binaries.
+
+.PHONY : install-debug
+install-debug :
+	$(CABAL_INSTALL) --disable-library-profiling \
+        -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
+        $(CABAL_OPTS)
+
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
 	$(AGDA_MODE) compile
@@ -311,17 +320,20 @@ clean :
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
+FAW_PATH = src/fix-agda-whitespace
+FAW_BIN  = $(FAW_PATH)/dist/build/fix-agda-whitespace/fix-agda-whitespace
+
 .PHONY : fix-whitespace
-fix-whitespace :
-	fix-agda-whitespace
+fix-whitespace : build-fix-agda-whitespace
+	$(FAW_BIN)
 
 .PHONY : check-whitespace
-check-whitespace :
-	fix-agda-whitespace --check
+check-whitespace : build-fix-agda-whitespace
+	$(FAW_BIN) --check
 
-.PHONY : install-fix-agda-whitespace
-install-fix-agda-whitespace :
-	cd src/fix-agda-whitespace && $(CABAL_CMD) install
+.PHONY : build-fix-agda-whitespace
+build-fix-agda-whitespace :
+	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
 
 ## size-solver standalone program ############################################
 
@@ -340,6 +352,15 @@ test-size-solver : install-size-solver
 	@echo "=============== Testing the size-solver program ======================"
 	@echo "======================================================================"
 	$(MAKE) -C src/size-solver test
+
+## agda-bisect standalone program ############################################
+
+.PHONY : install-agda-bisect
+install-agda-bisect :
+	@echo "======================================================================"
+	@echo "============== Installing the agda-bisect program ===================="
+	@echo "======================================================================"
+	cd src/agda-bisect && $(CABAL_CMD) install
 
 ########################################################################
 # HPC

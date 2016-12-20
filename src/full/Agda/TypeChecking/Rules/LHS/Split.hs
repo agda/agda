@@ -311,7 +311,7 @@ splitProblem mf (Problem ps qs tel pr) = do
               args <- lift $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
               (return Split
                 { splitLPats   = empty
-                , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) qs d pars ixs a
+                , splitFocus   = Arg ai $ Focus c ConORec args (getRange p) qs d pars ixs a
                 , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
@@ -319,6 +319,8 @@ splitProblem mf (Problem ps qs tel pr) = do
         p@(A.ConP ci (A.AmbQ cs) args) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
+                  lift $ reportSDoc "tc.lhs.split" 30 $
+                    text "split ConP: type is blocked"
                     -- Type is blocked by a meta and constructor is unambiguous,
                     -- in this case try to instantiate the meta.
                   ok <- lift $ do
@@ -328,10 +330,14 @@ splitProblem mf (Problem ps qs tel pr) = do
                     Sort s <- ignoreSharing . unEl <$> reduce (piApply dt vs)
                     tryConversion $ equalType a' (El s $ Def d $ map Apply vs)
                   if ok then tryAgain else keepGoing
-                | otherwise = keepGoing
+                | otherwise = do
+                  lift $ reportSDoc "tc.lhs.split" 30 $
+                    text "split ConP: type is blocked and constructor is ambiguous"
+                  keepGoing
           -- ifBlockedType reduces the type
           ifBlockedType a (const tryInstantiate) $ \ a' -> do
             mi <- liftTCM $ getBuiltinName' builtinInterval
+            lift $ reportSDoc "tc.lhs.split" 30 $ text "split ConP: type is " <+> prettyTCM a'
             case ignoreSharing $ unEl a' of
               Def d [] | Just d == mi -> typeError $ GenericError "can't split on the Interval directly"
               -- Subcase: split type is a Def.

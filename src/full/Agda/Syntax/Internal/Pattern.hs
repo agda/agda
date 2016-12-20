@@ -165,8 +165,9 @@ clausePerm = dbPatPerm . namedClausePats
 --   other patterns into apply elimination.
 patternToElim :: Arg DeBruijnPattern -> Elim
 patternToElim (Arg ai (VarP x)) = Apply $ Arg ai $ var $ dbPatVarIndex x
-patternToElim (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
+patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
       map (argFromElim . patternToElim . fmap namedThing) ps
+  where ci = fromConPatternInfo cpi
 patternToElim (Arg ai (DotP t)     ) = Apply $ Arg ai t
 patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest

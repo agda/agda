@@ -108,6 +108,7 @@ data TerEnv = TerEnv
     -- ^ Are we checking a delayed definition?
   , terMaskArgs :: [Bool]
     -- ^ Only consider the 'notMasked' 'False' arguments for establishing termination.
+    --   See issue #1023.
   , terMaskResult :: Bool
     -- ^ Only consider guardedness if 'False' (not masked).
   , _terSizeDepth :: Int  -- lazy by intention!
@@ -128,6 +129,7 @@ data TerEnv = TerEnv
     --   matrix, can we take the variable for use with SIZELT constraints from the context?
     --   Yes, if we are under an inductive constructor.
     --   No, if we are under a record constructor.
+    --   (See issue #1015).
   , terUsableVars :: VarSet
     -- ^ Pattern variables that can be compared to argument variables using SIZELT.
   }
@@ -407,7 +409,7 @@ isProjectionButNotCoinductive qn = liftTCM $ do
           mp <- isProjection qn
           case mp of
             Just Projection{ projProper = True, projFromType = t }
-              -> isInductiveRecord t
+              -> isInductiveRecord (unArg t)
             _ -> return False
 
 -- | Check whether a projection belongs to a coinductive record
@@ -426,7 +428,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
   if Just q == flat then return True else do
     pdef <- getConstInfo q
     case isProjection_ (theDef pdef) of
-      Just Projection{ projProper = True, projFromType = r, projIndex = n } ->
+      Just Projection{ projProper = True, projFromType = Arg _ r, projIndex = n } ->
         caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
           -- no for inductive or non-recursive record
           if recInduction rdef /= Just CoInductive then return False else do
@@ -559,6 +561,7 @@ instance UsableSizeVars MaskedDeBruijnPats where
       (p                      : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
 -- * Masked patterns (which are not eligible for structural descent, only for size descent)
+--   See issue #1023.
 
 type MaskedDeBruijnPats = [Masked DeBruijnPat]
 

@@ -7,6 +7,6 @@ if [ -e "$OBJECT_FILE" ]; then
 fi
 
 echo 'IOTCM "Issue373.agda" None Indirect (Cmd_compile GHC "Issue373.agda" [])' | \
-  $AGDA_BIN --interaction 2>&1
+  $AGDA_BIN --interaction -v compile:0 2>&1
 
 ./Issue373

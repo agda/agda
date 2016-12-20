@@ -33,9 +33,9 @@ import Agda.Utils.Impossible
 typeOf :: Type -> Type
 typeOf = sort . getSort
 
--- Doesn't abstract in the sort.
+-- | @abstractType a v b[v] = b@ where @a : v@.
 abstractType :: Type -> Term -> Type -> TCM Type
-abstractType a v (El s b) = El (raise 1 s) <$> abstractTerm a v (sort s) b
+abstractType a v (El s b) = El (absTerm v s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
 piAbstractTerm :: Term -> Type -> Type -> TCM Type
@@ -88,7 +88,7 @@ instance IsPrefixOf Term where
     case (ignoreSharing u, ignoreSharing v) of
       (Var   i us, Var   j vs) | i == j  -> us `isPrefixOf` vs
       (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
-      (Con   c us, Con   d vs) | c == d  -> us `isPrefixOf` vs
+      (Con c _ us, Con d _ vs) | c == d  -> us `isPrefixOf` vs
       (MetaV x us, MetaV y vs) | x == y  -> us `isPrefixOf` vs
       (u, v) -> guard (u == v) >> return []
 
@@ -149,7 +149,7 @@ instance AbsTerm Term where
       Var i vs    -> Var (i + 1) $ absT vs
       Lam h b     -> Lam h $ absT b
       Def c vs    -> Def c $ absT vs
-      Con c vs    -> Con c $ absT vs
+      Con c ci vs -> Con c ci $ absT vs
       Pi a b      -> uncurry Pi $ absT (a, b)
       Lit l       -> Lit l
       Level l     -> Level $ absT l

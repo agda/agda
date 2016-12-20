@@ -71,7 +71,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
+import Agda.TypeChecking.Rules.LHS
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
@@ -709,7 +709,7 @@ checkRecordExpression mfs e t = do
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      return $ Con con args
+      return $ Con con ConORec args
     _         -> typeError $ ShouldBeRecordType t
 
   where
@@ -862,14 +862,16 @@ checkExpr e t0 = do
              tel <- getContextTelescope
              u <- checkExpr' e =<< (el' (pure l_sigma) $ pure a_sigma <@> primItIsOne)
              tinv <- El (mkType 0) <$> primInterval
-             let pats = teleNamedArgs gamma_tel
+             let
+                 pats :: [NamedArg DeBruijnPattern]
+                 pats = teleNamedArgs gamma_tel
 --type DeBruijnPattern = Pattern' DBPatVar
 
                  mkConP q = ConP (ConHead q Inductive []) (noConPatternInfo { conPType = Just (Arg defaultArgInfo tinv) })
                                                            []
                  adjusted :: [NamedArg DeBruijnPattern]
                  adjusted = map (fmap (fmap (\ p@(VarP v) -> case lookupS sigma (dbPatVarIndex v) of
-                                                                      t@(Con q []) -> DotP t
+                                                                      t@(Con q _ []) -> DotP t
                                                                       Var j [] -> VarP (v {dbPatVarIndex = j})
                                                                       _        -> p))) pats
 --             reportSDoc "tc.partial" 80 $ text (show adjusted)
@@ -938,7 +940,7 @@ checkExpr' e t0 =
             -- expression is not a matching hidden lambda or question mark
             , not (hiddenLambdaOrHole h e)
             -> do
-                x <- freshName rx $ notInScopeName $ absName b
+                x <- unshadowName <=< freshName rx $ notInScopeName $ absName b
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
                 checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
             where
@@ -1584,8 +1586,8 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      vc <- getOrigConTerm c
-      (u, a) <- inferDef (\ _ -> vc) c
+      con <- getOrigConHead c
+      (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.
       Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
@@ -1686,7 +1688,7 @@ checkConstructorApplication org t c args = do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "us     =" <+> prettyTCM us
                , text "t'     =" <+> prettyTCM t' ]
-             coerce (Con c us) t' t
+             coerce (Con c ConOCon us) t' t
       _ -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback
@@ -2248,13 +2250,8 @@ inferOrCheck e mt = case e of
 -- | Check whether a de Bruijn index is bound by a module telescope.
 isModuleFreeVar :: Int -> TCM Bool
 isModuleFreeVar i = do
-  nfv <- getCurrentModuleFreeVars
-  n   <- getContextSize
-  -- The first de Bruijn index that points to a module
-  -- free variable.
-  let firstModuleVar = n - nfv
-  when (firstModuleVar < 0) __IMPOSSIBLE__
-  return $ i >= firstModuleVar
+  params <- moduleParamsToApply =<< currentModule
+  return $ any ((== Var i []) . unArg) params
 
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
@@ -2270,7 +2267,15 @@ inferExprForWith e = do
     -- Andreas 2014-11-06, issue 1342.
     -- Check that we do not `with` on a module parameter!
     case ignoreSharing v0 of
-      Var i [] -> whenM (isModuleFreeVar i) $ typeError $ WithOnFreeVariable e
+      Var i [] -> whenM (isModuleFreeVar i) $ do
+        reportSDoc "tc.with.infer" 80 $ vcat
+          [ text $ "with expression is variable " ++ show i
+          , text "current modules = " <+> do text . show =<< currentModule
+          , text "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
+          , text "context size = " <+> do text . show =<< getContextSize
+          , text "current context = " <+> do prettyTCM =<< getContextTelescope
+          ]
+        typeError $ WithOnFreeVariable e v0
       _        -> return ()
     -- Possibly insert hidden arguments.
     TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
@@ -2314,7 +2319,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _) -> do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _ asb _) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope

@@ -28,7 +28,7 @@ collectNamesInTerm :: Term -> [A.QName]
 collectNamesInTerm (Var _ els)  = collectNamesInElims els
 collectNamesInTerm (Lam ty t)   = collectNamesInTerm $ unAbs t
 collectNamesInTerm (Def n els)  = n : collectNamesInElims els
-collectNamesInTerm (Con n args) = conName n : collectNamesInArgs args
+collectNamesInTerm (Con n _ args) = conName n : collectNamesInArgs args
 collectNamesInTerm (Pi dom cod) = collectNamesInType (Com.unDom dom) ++ collectNamesInType (unAbs cod)
 collectNamesInTerm (Shared t)   = collectNamesInTerm $ ignoreSharing $ derefPtr t
 collectNamesInTerm _            = []

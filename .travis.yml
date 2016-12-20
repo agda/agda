@@ -3,8 +3,8 @@
 # NB: don't set `language: haskell` here.
 language: c
 
-# Explicitly request container-based infrastructure.
-sudo: false
+# Explicitly request sudo-enabled virtual environments [Issue #1992].
+sudo: required
 
 cache:
   directories:
@@ -32,6 +32,20 @@ cache:
 
 matrix:
   include:
+    # ASR (2016-12-18): Travis is using GHC 8.0.2 RC2.
+    # TODO: Remove GHC 8.0.1 after the release of GHC 8.0.2.
+    - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.24
+            - ghc-8.0.2
+            - happy-1.19.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
@@ -41,44 +55,6 @@ matrix:
             - ghc-8.0.1
             - happy-1.19.5
             - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - env: TEST=CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml"
-      addons:
-        apt:
-          packages:
-            - ghc-8.0.1
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACK GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml"
-      addons:
-        apt:
-          packages:
-            - ghc-8.0.1
-          sources:
-            - hvr-ghc
-
-    # - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
-    #   addons:
-    #     apt:
-    #       packages:
-    #         - alex-3.1.7
-    #         - cabal-install-1.24
-    #         - ghc-8.0.1
-    #         - happy-1.19.5
-    #       sources:
-    #         - hvr-ghc
-
-    - env: TEST=UHC GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - happy-1.19.5
-            - cabal-install-1.24
-            - ghc-8.0.1
-            - alex-3.1.7
           sources:
             - hvr-ghc
 
@@ -94,21 +70,6 @@ matrix:
           sources:
             - hvr-ghc
 
-    # Since `stack haddock` compiles Agda but `cabal haddock` does
-    # not, this test is faster using the `BUILD=CABAL` (see
-    # Issue #2188).
-
-    - env: TEST=HADDOCK GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.22
-            - ghc-7.10.3
-            - happy-1.19.5
-          sources:
-            - hvr-ghc
-
     - env: TEST=MAIN GHC_VER=7.8.4 BUILD=CABAL CABAL_VER=1.18
       addons:
         apt:
@@ -118,16 +79,6 @@ matrix:
             - ghc-7.8.4
             - happy-1.19.5
             - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml"
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - ghc-7.8.4
-            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -143,9 +94,59 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.0.1
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.0.1
+          sources:
+            - hvr-ghc
+
+    # Since `stack haddock` compiles Agda but `cabal haddock` does
+    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
+    - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-1.24
+            - ghc-8.0.1
+            - happy-1.19.5
+          sources:
+            - hvr-ghc
+
+    - env: TEST=UHC GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - happy-1.19.5
+            - cabal-install-1.24
+            - ghc-8.0.1
+            - alex-3.1.7
+          sources:
+            - hvr-ghc
+
+    # We don't use Alex from multi-ghc-travis [Issue 2316].
+    - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-7.8.4
+            - happy-1.19.5
+          sources:
+            - hvr-ghc
+
     - env: TEST=DOC BUILD=NOTHING
       language: python
-      python: "3.3"
+      python: "3.4"
       addons:
         apt:
           packages:
@@ -155,23 +156,24 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  allow_failures:
-    - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+  # allow_failures:
+  # - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
 
 ##############################################################################
 before_install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" || $TEST = "UHC" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
-    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACK" ]]; then
+    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACKAGE" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
-         export PATH=/opt/ghc/$GHC_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
+         export PATH=/opt/ghc/$GHC_VER/bin:/opt/happy/1.19.5/bin:$PATH;
     fi
 
   - if [[ $BUILD = "STACK" ]]; then
        mkdir -p ~/.local/bin &&
-       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';
+       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack' &&
+       export PATH=$HOME/.local/bin:$PATH;
     fi
 
 ##############################################################################
@@ -189,7 +191,10 @@ install:
   # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
   # commenting out `jobs: $ncpus` in the Cabal configuration file.
 
-  - if [[ $BUILD != "NOTHING" && $BUILD != "STACK" ]]; then
+  # The version installed of cpphs should match the lower version
+  # required in Agda.cabal [Issue #2315].
+
+  - if [[ $BUILD = "CABAL" ]]; then
        cabal --version &&
        ghc --version &&
        haddock --version &&
@@ -198,16 +203,20 @@ install:
        cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
-       cabal install cabal-install &&
+       if [[ $GHC_VER != "8.0.2" ]]; then
+          cabal install cabal-install;
+       fi &&
        export PATH=$HOME/.cabal/bin:$PATH &&
-       cabal --version;
+       cabal --version &&
+       cabal install cpphs-1.20.2 &&
+       cpphs --version;
     fi
 
   - if [[ $BUILD = "STACK" ]]; then
        ghc --version &&
        haddock --version &&
        emacs --version &&
-       export PATH=$HOME/.local/bin:$PATH;
+       stack --version;
     fi
 
 ##############################################################################
@@ -224,15 +233,20 @@ install:
 # because the flags `cpphs` and `debug` are not used with the Cabal
 # tests-suites.
 
+# The version installed of cpphs in ghc-7.8.4-transformers-0.3.0.0
+# should match the lower version required in Agda.cabal [Issue #2315].
+
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        cabal install --enable-tests --only-dependencies --force-reinstalls;
     elif [[ $TEST = "UHC" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
+         stack $ARGS --no-terminal install alex-3.1.7 &&
+         stack $ARGS --no-terminal install cpphs-1.20.2 &&
          stack build $ARGS --no-terminal --test --only-dependencies;
     elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
-    elif [[ $TEST = "STACK" ]]; then
+    elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --test --only-dependencies;
     fi
 
@@ -258,13 +272,6 @@ install:
 
   - if [[ $TEST = "MAIN" ]]; then
        make up-to-date-std-lib;
-    fi
-
-##############################################################################
-# Installing fix-agda-whitespace
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make install-fix-agda-whitespace;
     fi
 
 ##############################################################################
@@ -334,7 +341,7 @@ install:
 ##############################################################################
 # Testing compilation using stack
 
-  - if [[ $TEST = "STACK" ]]; then
+  - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal --test --no-run-tests;
     fi
 
@@ -398,7 +405,7 @@ script:
     fi
 
 # ASR (2016-07-08) TODO: Travis is re-preprocessing various Agda
-# source files when running the internal test-suite.
+# source files when running the internal test-suite. See Issue #2083.
 
   - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR PARALLEL_TESTS=$PARALLEL_TESTS internal-tests;
@@ -435,6 +442,10 @@ script:
        make testing-emacs-mode;
     fi
 
+  - if [[ $TEST = "MAIN" ]]; then
+       make install-agda-bisect;
+    fi
+
 ##############################################################################
 # Testing compilation using the `uhc` flag
 
@@ -453,6 +464,7 @@ script:
 # Testing the documentation
 
   - if [[ $TEST = "DOC" ]]; then
+       sphinx-build --version &&
        make doc;
     fi
 

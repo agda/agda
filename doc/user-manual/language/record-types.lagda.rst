@@ -15,8 +15,70 @@
 Record Types
 ************
 
+.. contents::
+   :depth: 2
+   :local:
+
 .. note::
    This is a stub.
+
+.. _record-declarations:
+
+Record declarations
+-------------------
+
+Record types can be declared using the ``record`` keyword
+
+..
+  ::
+  module Hide where
+
+::
+
+   record Pair (A B : Set) : Set where
+     field
+       fst : A
+       snd : B
+
+This defines a new type ``Pair : Set → Set → Set`` and two projection functions
+
+.. code-block:: agda
+
+  Pair.fst : {A B : Set} → Pair A B → A
+  Pair.snd : {A B : Set} → Pair A B → B
+
+Elements of record types can be defined using a record expression
+
+::
+
+   p23 : Pair Nat Nat
+   p23 = record { fst = 2; snd = 3 }
+
+or using :ref:`copatterns`
+
+::
+
+   p34 : Pair Nat Nat
+   Pair.fst p34 = 3
+   Pair.snd p34 = 4
+
+Record types behaves much like single constructor datatypes (but see
+`eta-expansion`_ below), and you can name the constructor using the ``constructor`` keyword
+
+::
+
+  record Pair (A B : Set) : Set where
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+  p45 : Pair Nat Nat
+  p45 = 4 , 5
+
+.. note::
+   Naming the constructor is not required to enable pattern matching against
+   record values. Record expression can appear as patterns.
 
 .. _record-modules:
 
@@ -24,6 +86,46 @@ Record modules
 --------------
 
 .. _eta-expansion:
+
+Along with a new type, a record declaration also defines a module containing
+the projection functions. This allows records to be "opened", bringing the
+fields into scope. For instance
+
+::
+
+  swap : {A B : Set} → Pair A B → Pair B A
+  swap p = snd , fst
+    where open Pair p
+
+It possible to add arbitrary definitions to the record module, by defining them
+inside the record declaration
+
+::
+
+  record Functor (F : Set → Set) : Set₁ where
+    field
+      fmap : ∀ {A B} → (A → B) → F A → F B
+
+    _<$_ : ∀ {A B} → A → F B → F A
+    x <$ fb = fmap (λ _ → x) fb
+
+.. note::
+   In general new definitions need to appear after the field declarations, but
+   simple non-recursive function definitions without pattern matching can be
+   interleaved with the fields. The reason for this restriction is that the
+   type of the record constructor needs to be expressible using :ref:`let-expressions`.
+   In the example below ``D₁`` can only contain declarations for which the
+   generated type of ``mkR`` is well-formed.
+
+   .. code-block:: agda
+
+      record R Γ : Setᵢ where
+        constructor mkR
+        field f₁ : A₁
+        D₁
+        field f₂ : A₂
+
+      mkR : ∀ {Γ} (f₁ : A₁) (let D₁) (f₂ : A₂) → R Γ
 
 Eta-expansion
 -------------
@@ -112,3 +214,4 @@ types. For instance we can define ``Nat`` instances for ``Eq``, ``Ord`` and
 
     NumNat : Num Nat
     fromNat {{NumNat}} n = n
+

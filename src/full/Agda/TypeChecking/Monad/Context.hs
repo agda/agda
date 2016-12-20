@@ -114,7 +114,7 @@ updateModuleParameters sub ret = do
 --   this function should be called everytime the context is extended.
 --
 weakenModuleParameters :: MonadTCM tcm => Nat -> tcm a -> tcm a
-weakenModuleParameters n = updateModuleParameters (Wk n IdS)
+weakenModuleParameters n = updateModuleParameters (raiseS n)
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
@@ -142,11 +142,15 @@ getModuleParameterSub m = do
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
 addCtx :: MonadTCM tcm => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
-  ctx <- map (nameConcrete . fst . unDom) <$> getContext
-  let x' = head $ filter (notTaken ctx) $ iterate nextName x
-  ce <- mkContextEntry $ (x',) <$> a
+  ce <- mkContextEntry $ (x,) <$> a
   modifyContext (ce :) ret
       -- let-bindings keep track of own their context
+
+-- | Pick a concrete name that doesn't shadow anything in the context.
+unshadowName :: MonadTCM tcm => Name -> tcm Name
+unshadowName x = do
+  ctx <- map (nameConcrete . fst . unDom) <$> getContext
+  return $ head $ filter (notTaken ctx) $ iterate nextName x
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
@@ -193,7 +197,7 @@ instance AddContext ([WithHiding Name], Dom Type) where
 
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
-    x <- freshName_ s
+    x <- unshadowName =<< freshName_ s
     addCtx x dom ret
   contextSize _ = 1
 
@@ -233,7 +237,7 @@ dummyDom = defaultDom typeDontCare
 underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction _ (NoAbs _ v) k = k v
 underAbstraction t a           k = do
-    x <- freshName_ $ realName $ absName a
+    x <- unshadowName =<< freshName_ (realName $ absName a)
     addContext (x, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s

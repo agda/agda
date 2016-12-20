@@ -466,7 +466,7 @@ checkSystemCoverage f [n] t cs = do
                   TelV delta _ <- telViewUpTo extra t'
                   fmap (abstract delta) $ addContext delta $ do
                     fmap fromReduced $ runReduceM $
-                      appDef' (Def f []) [cl] (map notReduced $ raise (size delta) args ++ teleArgs delta)
+                      appDef' (Def f []) [cl] [] (map notReduced $ raise (size delta) args ++ teleArgs delta)
             v1 <- body cl1
             v2 <- body cl2
             equalTerm t' v1 v2
@@ -548,10 +548,34 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
       closed_t <- flip abstract t <$> getContextTelescope
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs psplit) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb psplit) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-        (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
+
+        -- Subtle: checkRHS expects the function type to be the lambda lifted
+        -- type. If we're checking a with-function that's already the case,
+        -- otherwise we need to abstract over the module telescope.
+        t' <- case withSub of
+                Just{}  -> return t
+                Nothing -> do
+                  theta <- lookupSection (qnameModule x)
+                  return $ abstract theta t
+
+        -- At this point we should update the named dots potential with-clauses
+        -- in the right-hand side. When checking a clause we expect the named
+        -- dots to live in the context of the closest parent lhs, but the named
+        -- dots added by buildWithFunction live in the context of the
+        -- with-function arguments before pattern matching. That's what we need
+        -- patSubst for.
+        let rhs = updateRHS rhs0
+            updateRHS rhs@A.RHS{}               = rhs
+            updateRHS rhs@A.AbsurdRHS{}         = rhs
+            updateRHS (A.WithRHS q es cs)       = A.WithRHS q es (map updateClause cs)
+            updateRHS (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (updateRHS rhs) wh
+
+            updateClause (A.Clause f dots rhs wh ca) = A.Clause f (applySubst patSubst dots) (updateRHS rhs) wh ca
+
+        (body, with) <- bindAsPatterns asb $ checkWhere wh $ checkRHS i x aps t' lhsResult rhs
 
         -- Note that the with function doesn't necessarily share any part of
         -- the context with the parent (but withSub will take you from parent
@@ -593,12 +617,12 @@ checkRHS
   :: LHSInfo                 -- ^ Range of lhs.
   -> QName                   -- ^ Name of function.
   -> [NamedArg A.Pattern]    -- ^ Patterns in lhs.
-  -> Type                    -- ^ Type of function.
+  -> Type                    -- ^ Top-level type of function.
   -> LHSResult               -- ^ Result of type-checking patterns
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (Maybe Term, WithFunctionProblem)
-
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _) rhs0 = handleRHS rhs0
+                                              -- Note: the as-bindings are already bound (in checkClause)
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb _) rhs0 = handleRHS rhs0
   where
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
@@ -659,7 +683,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _) rhs0 = handleRHS rhs0
 
         -- Get the name of builtin REFL.
 
-        Con reflCon [] <- ignoreSharing <$> primRefl
+        Con reflCon _ [] <- ignoreSharing <$> primRefl
 
         -- Andreas, 2014-05-17  Issue 1110:
         -- Rewriting with @refl@ has no effect, but gives an
@@ -670,14 +694,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _) rhs0 = handleRHS rhs0
         let isReflProof = do
              v <- reduce proof
              case ignoreSharing v of
-               Con c [] | c == reflCon -> return True
+               Con c _ [] | c == reflCon -> return True
                _ -> return False
 
         ifM isReflProof recurse $ {- else -} do
 
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
-        let reflPat  = A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [conName reflCon]) []
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [conName reflCon]) []
 
         -- Andreas, 2015-12-25  Issue #1740:
         -- After the fix of #520, rewriting with a reflexive equation
@@ -733,8 +757,8 @@ checkWithRHS
   -> [EqualityView]          -- ^ Types of with-expressions.
   -> [A.Clause]              -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
-
-checkWithRHS x aux t (LHSResult npars delta ps trhs _) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
+                                -- Note: as-bindings already bound (in checkClause)
+checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb _) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
         let withArgs = withArguments vs0 as
             perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
@@ -822,7 +846,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
       , text "as     =" <+> addContext delta1 (prettyTCM as)
       , text "vs     =" <+> do addContext delta1 $ prettyTCM vs
       , text "b      =" <+> do addContext delta1 $ addContext delta2 $ prettyTCM b
-      , text "qs     =" <+> text (show qs)
+      , text "qs     =" <+> prettyList (map pretty qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
       , text "fperm  =" <+> text (show finalPerm)
@@ -839,7 +863,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
                              -- from module applications.
   (withFunType, n) <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "with-function type:", nest 2 $ prettyTCM withFunType ]
-  reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ text $ show withFunType ]
+  reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ pretty withFunType ]
 
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
@@ -877,6 +901,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
     , nest 2 $ prettyTCM withFunType
     , nest 2 $ text "-|" <+> (prettyTCM =<< getContextTelescope)
     ]
+  reportSDoc "tc.with.top" 70 $ vcat
+    [ nest 2 $ text $ "raw with func. type = " ++ show withFunType
+    ]
+
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
@@ -930,7 +958,7 @@ containsAbsurdPattern p = case p of
     A.AbsurdP _   -> True
     A.VarP _      -> False
     A.WildP _     -> False
-    A.DotP _ _    -> False
+    A.DotP _ _ _  -> False
     A.LitP _      -> False
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps

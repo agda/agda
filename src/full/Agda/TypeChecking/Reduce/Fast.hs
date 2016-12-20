@@ -108,7 +108,9 @@ import Agda.Utils.Impossible
 data CompactDef =
   CompactDef { cdefDelayed        :: Bool
              , cdefNonterminating :: Bool
-             , cdefDef            :: CompactDefn }
+             , cdefDef            :: CompactDefn
+             , cdefRewriteRules   :: RewriteRules
+             }
 
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses, cfunProjection :: Maybe QName }
@@ -117,8 +119,8 @@ data CompactDefn
   | CTyCon  -- ^ Datatype or record type. Need to know this for primForce.
   | COther  -- ^ In this case we fall back to slow reduction
 
-compactDef :: Maybe ConHead -> Maybe ConHead -> Maybe QName -> Definition -> ReduceM CompactDef
-compactDef z s pf def = do
+compactDef :: Maybe ConHead -> Maybe ConHead -> Maybe QName -> Definition -> RewriteRules -> ReduceM CompactDef
+compactDef z s pf def rewr = do
   cdefn <-
     case theDef def of
       _ | Just (defName def) == pf -> pure CForce
@@ -133,6 +135,7 @@ compactDef z s pf def = do
     CompactDef { cdefDelayed        = defDelayed def == Delayed
                , cdefNonterminating = defNonterminating def
                , cdefDef            = cdefn
+               , cdefRewriteRules   = rewr
                }
 
 -- Faster case trees ------------------------------------------------------
@@ -229,7 +232,7 @@ strictSubst strict us
           | x < k     -> Var x $! map' (goE k) es
           | otherwise -> applyE (raise k $ us !! (x - k)) $! map' (goE k) es
         Def f es -> defApp f [] $! map' (goE k) es
-        Con c vs -> Con c $! map' (mapArg' $ go k) vs
+        Con c ci vs -> Con c ci $! map' (mapArg' $ go k) vs
         Lam i b  -> Lam i $! goAbs k b
         Lit{}    -> v
         _        -> applySubst (liftS k rho) v
@@ -254,13 +257,16 @@ mapArg' f (Arg i x) = Arg i $! f x
 -- | First argument: allow non-terminating reductions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
 fastReduce allowNonTerminating v = do
-  let name (Con c _) = c
+  let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
   z  <- fmap name <$> getBuiltin' builtinZero
   s  <- fmap name <$> getBuiltin' builtinSuc
   pf <- fmap primFunName <$> getPrimitive' "primForce"
   rwr <- optRewriting <$> pragmaOptions
-  constInfo <- unKleisli (compactDef z s pf <=< getConstInfo)
+  constInfo <- unKleisli $ \f -> do
+    info <- getConstInfo f
+    rewr <- getRewriteRulesFor f
+    compactDef z s pf info rewr
   ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating rwr z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
@@ -285,19 +291,13 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         Nothing -> const False
         Just s  -> (conNameId s ==) . conNameId
 
-    rewriteAfter f steps
-      | hasRewriting = trampoline (runReduce . rewrite . f steps)
-      | otherwise    = f steps
-
-    reduceB' = rewriteAfter reduceB''
-
-    reduceB'' steps v =
+    reduceB' steps v =
       case v of
         Def f es -> runReduce $ reduceIApp es $ return $ unfoldDefinitionE steps False reduceB' (Def f []) f es
-        Con c vs ->
+        Con c ci vs ->
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          case unfoldDefinition steps False reduceB' (Con c []) (conName c) vs of
+          case unfoldDefinition steps False reduceB' (Con c ci []) (conName c) vs of
             NotBlocked r v -> NotBlocked r $ reduceNat v
             b              -> b
         Lit{} -> done
@@ -307,13 +307,13 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         reduceIApp es d = reduceIApply' (return . reduceB' steps) d es -- TODO Andrea: is it ok to reduce with same number of steps?
         done = notBlocked v
 
-        reduceNat v@(Con c [])
+        reduceNat v@(Con c ci [])
           | isZero c = Lit $ LitNat (getRange c) 0
-        reduceNat v@(Con c [a])
+        reduceNat v@(Con c ci [a])
           | isSuc c  = inc . ignoreBlocking $ reduceB' 0 (unArg a)
           where
             inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
-            inc w                  = Con c [defaultArg w]
+            inc w                  = Con c ci [defaultArg w]
         reduceNat v = v
 
     originalProjection :: QName -> QName
@@ -331,11 +331,9 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
     unfoldCorecursionE (IApply x y r) = -- TODO Andrea, check if this makes sense
       IApply <$> unfoldCorecursion 0 x <*> unfoldCorecursion 0 y <*> unfoldCorecursion 0 r
 
-    unfoldCorecursion = rewriteAfter unfoldCorecursion'
-
-    unfoldCorecursion' :: Int -> Term -> Blocked Term
-    unfoldCorecursion' steps (Def f es) = unfoldDefinitionE steps True unfoldCorecursion (Def f []) f es
-    unfoldCorecursion' steps v          = reduceB' steps v
+    unfoldCorecursion :: Int -> Term -> Blocked Term
+    unfoldCorecursion steps (Def f es) = unfoldDefinitionE steps True unfoldCorecursion (Def f []) f es
+    unfoldCorecursion steps v          = reduceB' steps v
 
     -- | If the first argument is 'True', then a single delayed clause may
     -- be unfolded.
@@ -354,7 +352,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         YesReduction _ v -> (keepGoing $! steps + 1) v
 
     unfoldDefinitionStep :: Int -> Bool -> CompactDef -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
-    unfoldDefinitionStep steps unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def} v0 f es =
+    unfoldDefinitionStep steps unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def, cdefRewriteRules = rewr} v0 f es =
       let v = v0 `applyE` es
           -- Non-terminating functions
           -- (i.e., those that failed the termination check)
@@ -365,11 +363,17 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
             || (not unfoldDelayed       && delayed)
       in case def of
         CCon{cconSrcCon = c} ->
-          NoReduction $ notBlocked $ Con c [] `applyE` es
+          if hasRewriting then
+            runReduce $ rewrite (notBlocked ()) (Con c ConOSystem []) rewr es
+          else
+            NoReduction $ notBlocked $ Con c ConOSystem [] `applyE` es
         CFun{cfunCompiled = cc} ->
           reduceNormalE steps v0 f (map notReduced es) dontUnfold cc
         CForce -> reduceForce unfoldDelayed v0 f es
-        CTyCon -> NoReduction $ notBlocked v
+        CTyCon -> if hasRewriting then
+                    runReduce $ rewrite (notBlocked ()) v0 rewr es
+                  else
+                    NoReduction $ notBlocked v
         COther -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
       where
         yesReduction = YesReduction NoSimplification
@@ -411,8 +415,14 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
           | otherwise  =
             case match' steps f [(cc, es, id)] of
               YesReduction s u -> YesReduction s u
-              NoReduction es'  -> NoReduction $ applyE v0 <$> es'
-          where defaultResult = NoReduction $ NotBlocked AbsurdMatch vfull
+              NoReduction es'  -> if hasRewriting then
+                                    runReduce $ rewrite (void es') v0 rewr (ignoreBlocking es')
+                                  else
+                                    NoReduction $ applyE v0 <$> es'
+          where defaultResult = if hasRewriting then
+                                  runReduce $ rewrite (NotBlocked AbsurdMatch ()) v0 rewr (map ignoreReduced es)
+                                else
+                                  NoReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
         match' :: Int -> QName -> FastStack -> Reduced (Blocked Elims) Term
@@ -463,20 +473,20 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                         case Map.lookup l (flitBranches bs) of
                           Nothing -> stack
                           Just cc -> (cc, es0 ++ es1, patchLit) : stack
-                      -- If our argument (or its constructor form) is @Con c vs@
-                      -- we push @conFrame c vs@ onto the stack.
-                      conFrame c vs stack =
+                      -- If our argument (or its constructor form) is @Con c ci vs@
+                      -- we push @conFrame c ci vs@ onto the stack.
+                      conFrame c ci vs stack =
                         case lookupCon (conName c) bs of
                           Nothing -> stack
                           Just cc -> ( cc
                                      , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
-                                     , patchCon c (length vs)
+                                     , patchCon c ci (length vs)
                                      ) : stack
 
                       sucFrame n stack =
                         case fsucBranch bs of
                           Nothing -> stack
-                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) 1)
+                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) ConOSystem 1)
                                      : stack
                         where v = MaybeRed (Reduced $ notBlocked ()) $ Apply $ defaultArg $ Lit $ LitNat noRange n
 
@@ -490,8 +500,8 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                       patchLit es = patch (es0 ++ [e] ++ es1)
                         where (es0, es1) = splitAt n es
                       -- In case we matched constructor @c@ with @m@ arguments,
-                      -- contract these @m@ arguments @vs@ to @Con c vs@.
-                      patchCon c m es = patch (es0 ++ [Con c vs <$ e] ++ es2)
+                      -- contract these @m@ arguments @vs@ to @Con c ci vs@.
+                      patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
                         where (es0, rest) = splitAt n es
                               (es1, es2)  = splitAt m rest
                               vs          = map argFromElim es1
@@ -510,12 +520,12 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                             Lit l@(LitNat r n) ->
                               let cFrame stack
                                     | n > 0                  = sucFrame (n - 1) stack
-                                    | n == 0, Just z <- zero = conFrame z [] stack
+                                    | n == 0, Just z <- zero = conFrame z ConOSystem [] stack
                                     | otherwise              = stack
                               in match' steps f $ litFrame l $ cFrame $ catchAllFrame stack
 
                             Lit l    -> match' steps f $ litFrame l    $ catchAllFrame stack
-                            Con c vs -> match' steps f $ conFrame c vs $ catchAllFrame $ stack
+                            Con c ci vs -> match' steps f $ conFrame c ci vs $ catchAllFrame $ stack
 
                             _ | fallThrough -> match' steps f $ catchAllFrame $ stack
 

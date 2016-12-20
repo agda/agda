@@ -45,8 +45,6 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
-import Agda.TypeChecking.MetaVars (allMetas)
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Names
 
 import Agda.Utils.Monad
@@ -242,22 +240,22 @@ class FromTerm a where
 
 instance FromTerm Integer where
   fromTerm = do
-    Con pos    [] <- ignoreSharing <$> primIntegerPos
-    Con negsuc [] <- ignoreSharing <$> primIntegerNegSuc
+    Con pos _    [] <- ignoreSharing <$> primIntegerPos
+    Con negsuc _ [] <- ignoreSharing <$> primIntegerNegSuc
     toNat         <- fromTerm :: TCM (FromTermFunction Nat)
     return $ \ v -> do
       b <- reduceB' v
       let v'  = ignoreBlocking b
           arg = (<$ v')
       case ignoreSharing $ unArg (ignoreBlocking b) of
-        Con c [u]
+        Con c ci [u]
           | c == pos    ->
             redBind (toNat u)
-              (\ u' -> notReduced $ arg $ Con c [ignoreReduced u']) $ \ n ->
+              (\ u' -> notReduced $ arg $ Con c ci [ignoreReduced u']) $ \ n ->
             redReturn $ fromIntegral n
           | c == negsuc ->
             redBind (toNat u)
-              (\ u' -> notReduced $ arg $ Con c [ignoreReduced u']) $ \ n ->
+              (\ u' -> notReduced $ arg $ Con c ci [ignoreReduced u']) $ \ n ->
             redReturn $ fromIntegral $ -n - 1
         _ -> return $ NoReduction (reduced b)
 
@@ -307,7 +305,7 @@ instance FromTerm Bool where
         where
             a =?= b = ignoreSharing a === ignoreSharing b
             Def x [] === Def y []   = x == y
-            Con x [] === Con y []   = x == y
+            Con x _ [] === Con y _ [] = x == y
             Var n [] === Var m []   = n == m
             _        === _          = False
 
@@ -322,7 +320,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     return $ mkList nil cons toA fromA
     where
       isCon (Lam _ b)  = isCon $ absBody b
-      isCon (Con c _)  = return c
+      isCon (Con c _ _)= return c
       isCon (Shared p) = isCon (derefPtr p)
       isCon v          = __IMPOSSIBLE__
 
@@ -331,15 +329,15 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
         let t = ignoreBlocking b
         let arg = (<$ t)
         case ignoreSharing $ unArg t of
-          Con c []
+          Con c ci []
             | c == nil  -> return $ YesReduction NoSimplification []
-          Con c [x,xs]
+          Con c ci [x,xs]
             | c == cons ->
               redBind (toA x)
-                  (\x' -> notReduced $ arg $ Con c [ignoreReduced x',xs]) $ \y ->
+                  (\x' -> notReduced $ arg $ Con c ci [ignoreReduced x',xs]) $ \y ->
               redBind
                   (mkList nil cons toA fromA xs)
-                  (fmap $ \xs' -> arg $ Con c [defaultArg $ fromA y, xs']) $ \ys ->
+                  (fmap $ \xs' -> arg $ Con c ci [defaultArg $ fromA y, xs']) $ \ys ->
               redReturn (y : ys)
           _ -> return $ NoReduction (reduced b)
 
@@ -453,34 +451,34 @@ imax x y = do
   y' <- y
   intervalUnview (IMax (argN x') (argN y'))
 
-primCoe :: TCM PrimitiveImpl
-primCoe = do
-  t    <- runNamesT [] $
-          hPi' "a" (el $ cl primLevel) $ \ a -> let seta = Sort . tmSort <$> a in
-          hPi' "A" (sort . tmSort <$> a) $ \ bA ->
-          hPi' "B" (sort . tmSort <$> a) $ \ bB ->
-          nPi' "Q" (El <$> (sortSuc <$> a) <*> cl primPath <#> (lvlSuc <$> a) <#> seta <@> bA <@> bB) $ \ bQ ->
-          nPi' "p" (elInf $ cl primInterval) $ \ p ->
-          nPi' "q" (elInf $ cl primInterval) $ \ q ->
-          (el' a $ bQ <@@> (bA,bB,p)) -->
-          (el' a $ bQ <@@> (bA,bB,q))
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ ts -> do
-    app <- getPrimitiveTerm' "primPathApply"
-    case (ts,app) of
-      ([l,a,b,t,p,q,x],Just app) -> do
-        let
-          u = apply app $ map (raise 1) [l,l{- Wrong -},setHiding Hidden a,setHiding Hidden b,t] ++ [defaultArg (var 0)]
-        (p', q') <- normalise' (p, q)
-        if p' == q' then redReturn (unArg x)
-          else do
-            u' <- normalise' u
-            if occurrence 0 u' == NoOccurrence then return $ YesReduction YesSimplification (unArg x)
-                                               else return $ NoReduction (map notReduced ts)
-      _         -> __IMPOSSIBLE__
- where
-   tmLvlSuc t = Max [Plus 1 $ NeutralLevel mempty $ t]
-   sortSuc = Type . tmLvlSuc
-   lvlSuc = Level . tmLvlSuc
+-- primCoe :: TCM PrimitiveImpl
+-- primCoe = do
+--   t    <- runNamesT [] $
+--           hPi' "a" (el $ cl primLevel) $ \ a -> let seta = Sort . tmSort <$> a in
+--           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+--           hPi' "B" (sort . tmSort <$> a) $ \ bB ->
+--           nPi' "Q" (El <$> (sortSuc <$> a) <*> cl primPath <#> (lvlSuc <$> a) <#> seta <@> bA <@> bB) $ \ bQ ->
+--           nPi' "p" (elInf $ cl primInterval) $ \ p ->
+--           nPi' "q" (elInf $ cl primInterval) $ \ q ->
+--           (el' a $ bQ <@@> (bA,bB,p)) -->
+--           (el' a $ bQ <@@> (bA,bB,q))
+--   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ ts -> do
+ --    app <- getPrimitiveTerm' "primPathApply"
+ --    case (ts,app) of
+ --      ([l,a,b,t,p,q,x],Just app) -> do
+ --        let
+ --          u = apply app $ map (raise 1) [l,l{- Wrong -},setHiding Hidden a,setHiding Hidden b,t] ++ [defaultArg (var 0)]
+ --        (p', q') <- normalise' (p, q)
+ --        if p' == q' then redReturn (unArg x)
+ --          else do
+ --            u' <- normalise' u
+ --            if occurrence 0 u' == NoOccurrence then return $ YesReduction YesSimplification (unArg x)
+ --                                               else return $ NoReduction (map notReduced ts)
+ --      _         -> __IMPOSSIBLE__
+ -- where
+ --   tmLvlSuc t = Max [Plus 1 $ NeutralLevel mempty $ t]
+ --   sortSuc = Type . tmLvlSuc
+ --   lvlSuc = Level . tmLvlSuc
 
 primPathAbs' :: TCM PrimitiveImpl
 primPathAbs' = do
@@ -878,11 +876,11 @@ primComp = do
                    _     -> su
         sameConHead h u = allComponents unview phi u $ \ t ->
           case ignoreSharing t of
-            Con h' _ -> h == h'
+            Con h' _ _ -> h == h'
             _        -> False
 
     case ignoreSharing a0 of
-      Con h args -> do
+      Con h _ args -> do
         ifM (not <$> sameConHead h u) noRed $ do
           Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
           case cm of
@@ -1190,11 +1188,11 @@ primTrustMe = do
           hPi "y" (El (varSort 2) <$> varM 1) $
           El (varSort 3) <$>
             primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
-  Con rf [] <- ignoreSharing <$> primRefl
+  Con rf ci [] <- ignoreSharing <$> primRefl
   n         <- conPars . theDef <$> getConInfo rf
   -- Andreas, 2015-02-27  Forced Big vs. Forced Small should not matter here
-  let refl x | n == 2    = Con rf [setRelevance (Forced Small) $ hide $ defaultArg x]
-             | n == 3    = Con rf []
+  let refl x | n == 2    = Con rf ci [setRelevance (Forced Small) $ hide $ defaultArg x]
+             | n == 3    = Con rf ci []
              | otherwise = __IMPOSSIBLE__
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
       case ts of
@@ -1629,7 +1627,7 @@ primitiveFunctions = Map.fromList
   , "primIMin"            |-> primIMin'
   , "primIMax"            |-> primIMax'
   , "primINeg"            |-> primINeg'
-  , "primCoe"             |-> primCoe
+--  , "primCoe"             |-> primCoe
   , "primPOr"             |-> primPOr
   , "primComp"            |-> primComp
   , "primPFrom1"          |-> primPFrom1
@@ -1688,7 +1686,7 @@ getBuiltinName b = do
   caseMaybeM (getBuiltin' b) (return Nothing) $ \v -> do
     v <- normalise v
     let getName (Def x _) = x
-        getName (Con x _) = conName x
+        getName (Con x _ _) = conName x
         getName (Lam _ b) = getName $ ignoreSharing $ unAbs b
         getName _         = __IMPOSSIBLE__
     return $ Just $ getName (ignoreSharing v)

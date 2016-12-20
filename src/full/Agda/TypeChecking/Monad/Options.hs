@@ -135,6 +135,20 @@ setOptionsFromPragma ps = do
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
 
+-- | Disable display forms.
+enableDisplayForms :: TCM a -> TCM a
+enableDisplayForms =
+  local $ \e -> e { envDisplayFormsEnabled = True }
+
+-- | Disable display forms.
+disableDisplayForms :: TCM a -> TCM a
+disableDisplayForms =
+  local $ \e -> e { envDisplayFormsEnabled = False }
+
+-- | Check if display forms are enabled.
+displayFormsEnabled :: TCM Bool
+displayFormsEnabled = asks envDisplayFormsEnabled
+
 -- | Gets the include directories.
 --
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
@@ -345,7 +359,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
     let ks = wordsBy (`elem` ".:") k
-        m  = maximum $ 0 : Trie.lookupPath ks t
+        m  = last $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
 -- | Displays a debug message in a suitable way.

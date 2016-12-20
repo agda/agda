@@ -47,7 +47,7 @@ instance GetDefs Clause where
 instance GetDefs Term where
   getDefs v = case v of
     Def d vs   -> doDef d >> getDefs vs
-    Con c vs   -> getDefs vs
+    Con _ _ vs -> getDefs vs
     Lit l      -> return ()
     Var i vs   -> getDefs vs
     Lam _ v    -> getDefs v

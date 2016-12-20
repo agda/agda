@@ -82,14 +82,29 @@ initialIFSCandidates t = do
                  ]
       return $ vars ++ fields ++ lets
 
-    instanceFields (v, t) =
-      caseMaybeM (isEtaRecordType =<< reduce t) (return []) $ \ (r, pars) -> do
-        (tel, args) <- etaExpandRecord r pars v
+    etaExpand etaOnce t =
+      isEtaRecordType t >>= \case
+        Nothing | etaOnce -> do
+          isRecordType t >>= \case
+            Nothing         -> return Nothing
+            Just (r, vs, _) -> do
+              m <- currentModule
+              -- Are we inside the record module? If so it's safe and desirable
+              -- to eta-expand once (issue #2320).
+              if qnameToList r `isPrefixOf` mnameToList m
+                then return (Just (r, vs))
+                else return Nothing
+        r -> return r
+
+    instanceFields = instanceFields' True
+    instanceFields' etaOnce (v, t) =
+      caseMaybeM (etaExpand etaOnce =<< reduce t) (return []) $ \ (r, pars) -> do
+        (tel, args) <- forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
           ([ Candidate (unArg arg) t ExplicitStayExplicit (argInfoOverlappable $ argInfo arg)
            | getHiding arg == Instance ] ++) <$>
-          instanceFields (unArg arg, t)
+          instanceFields' False (unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
@@ -117,7 +132,7 @@ initialIFSCandidates t = do
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
                -- Ulf, 2014-08-20: constructors are always instances.
-               Constructor{ conSrcCon = c }       -> Con c []
+               Constructor{ conSrcCon = c }       -> Con c ConOSystem []
                _                                  -> Def q $ map Apply args
           inScope <- isNameInScope q <$> getScope
           return $ Candidate v t ExplicitToInstance False <$ guard inScope
@@ -166,7 +181,8 @@ findInScope' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
 findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
   -- Andreas, 2013-12-28 issue 1003:
   -- If instance meta is already solved, simply discard the constraint.
-  ifM (isInstantiatedMeta m) (return Nothing) $ do
+  -- Ulf, 2016-12-06 issue 2325: But only if *fully* instantiated.
+  ifM (isFullyInstantiatedMeta m) (return Nothing) $ do
     -- Andreas, 2015-02-07: New metas should be created with range of the
     -- current instance meta, thus, we set the range.
     mv <- lookupMeta m
@@ -324,7 +340,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
       case ignoreSharing v of
         Def _ es  -> areThereNonRigidMetaArgs es
         Var _ es  -> areThereNonRigidMetaArgs es
-        Con _ vs  -> areThereNonRigidMetaArgs (map Apply vs)
+        Con _ _ vs-> areThereNonRigidMetaArgs (map Apply vs)
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
                       -- Ignore unconstrained level and size metas (#1865)
                       Def lvl [] <- ignoreSharing <$> primLevel
@@ -536,10 +552,10 @@ applyDroppingParameters :: Term -> Args -> TCM Term
 applyDroppingParameters t vs = do
   let fallback = return $ t `apply` vs
   case ignoreSharing t of
-    Con c [] -> do
+    Con c ci [] -> do
       def <- theDef <$> getConInfo c
       case def of
-        Constructor {conPars = n} -> return $ Con c (genericDrop n vs)
+        Constructor {conPars = n} -> return $ Con c ci (genericDrop n vs)
         _ -> __IMPOSSIBLE__
     Def f [] -> do
       mp <- isProjection f

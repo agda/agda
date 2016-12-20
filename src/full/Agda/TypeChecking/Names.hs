@@ -45,7 +45,6 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
-import Agda.TypeChecking.MetaVars (allMetas)
 import Agda.TypeChecking.Free
 
 import Agda.Utils.Monad

@@ -111,7 +111,7 @@ getRecordDef r = maybe err return =<< isRecord r
 getRecordOfField :: QName -> TCM (Maybe QName)
 getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
   \ Projection{ projProper = proper, projFromType = r} ->
-    return $ if proper then Just r else Nothing
+    return $ if proper then Just (unArg r) else Nothing
 
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [Arg C.Name]
@@ -411,7 +411,7 @@ expandRecordVar i gamma0 = do
           fs  = recFields def
       -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = Con (recConHead def) ys
+          u   = Con (recConHead def) ConOSystem ys
       -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
           tau0 = consS u $ raiseS m
       -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
@@ -473,7 +473,7 @@ curryAt t n = do
           m   = size tel
           fs  = recFields def
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = Con (recConHead def) ys
+          u   = Con (recConHead def) ConOSystem ys
           b'  = raise m b `absApp` u
           t'  = gamma `telePi` (tel `telePi` b')
           gammai = map domInfo $ telToList gamma
@@ -490,7 +490,8 @@ curryAt t n = do
 {-| @etaExpand r pars u@ computes the eta expansion of record value @u@
     at record type @r pars@.
 
-    The first argument @r@ should be the name of a record type. Given
+    The first argument @r@ should be the name of an eta-expandable record type.
+    Given
 
       @record R : Set where field x : A; y : B; .z : C@
 
@@ -501,24 +502,34 @@ curryAt t n = do
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
 etaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
-etaExpandRecord r pars u = do
+etaExpandRecord = etaExpandRecord' False
+
+-- | Eta expand a record regardless of whether it's an eta-record or not.
+forceEtaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
+forceEtaExpandRecord = etaExpandRecord' True
+
+etaExpandRecord' :: Bool -> QName -> Args -> Term -> TCM (Telescope, Args)
+etaExpandRecord' forceEta r pars u = do
   def <- getRecordDef r
-  (tel, _, args) <- etaExpandRecord_ r pars def u
+  (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
-etaExpandRecord_ :: QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, Args)
-etaExpandRecord_ r pars def u = do
+etaExpandRecord_ :: QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, ConInfo, Args)
+etaExpandRecord_ = etaExpandRecord'_ False
+
+etaExpandRecord'_ :: Bool -> QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, ConInfo, Args)
+etaExpandRecord'_ forceEta r pars def u = do
   let Record{ recConHead     = con
             , recFields      = xs
             , recTel         = tel
             } = def
       eta = recEtaEquality def
       tel' = apply tel pars
-  unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
+  unless (eta || forceEta) __IMPOSSIBLE__ -- make sure we do not expand non-eta records (unless forced to)
   case ignoreSharing u of
 
     -- Already expanded.
-    Con con_ args -> do
+    Con con_ ci args -> do
       when (con /= con_) $ do
         reportSDoc "impossible" 10 $ vcat
           [ text "etaExpandRecord_: the following two constructors should be identical"
@@ -526,7 +537,7 @@ etaExpandRecord_ r pars def u = do
           , nest 2 $ text $ "con_ = " ++ show con_
           ]
         __IMPOSSIBLE__
-      return (tel', con, args)
+      return (tel', con, ci, args)
 
     -- Not yet expanded.
     _ -> do
@@ -540,13 +551,13 @@ etaExpandRecord_ r pars def u = do
           , text "args =" <+> prettyTCM xs'
           ]
         ]
-      return (tel', con, xs')
+      return (tel', con, ConOSystem, xs')
 
 etaExpandAtRecordType :: Type -> Term -> TCM (Telescope, Term)
 etaExpandAtRecordType t u = do
   (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType t
-  (tel, con, args) <- etaExpandRecord_ r pars def u
-  return (tel, Con con args)
+  (tel, con, ci, args) <- etaExpandRecord_ r pars def u
+  return (tel, Con con ci args)
 
 -- | The fields should be eta contracted already.
 --
@@ -556,10 +567,10 @@ etaExpandAtRecordType t u = do
 --
 --   TODO: this can be moved out of TCM (but only if ConHead
 --   stores also the Arg-decoration of the record fields.
-{-# SPECIALIZE etaContractRecord :: QName -> ConHead -> Args -> TCM Term #-}
-{-# SPECIALIZE etaContractRecord :: QName -> ConHead -> Args -> ReduceM Term #-}
-etaContractRecord :: HasConstInfo m => QName -> ConHead -> Args -> m Term
-etaContractRecord r c args = do
+{-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> TCM Term #-}
+{-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> ReduceM Term #-}
+etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
+etaContractRecord r c ci args = do
   Just Record{ recFields = xs } <- isRecord r
   let check :: Arg Term -> Arg QName -> Maybe (Maybe Term)
       check a ax = do
@@ -573,7 +584,7 @@ etaContractRecord r c args = do
           (_, Just (h, es)) | Proj _o f <- last es, unArg ax == f
                             -> Just $ Just $ h $ init es
           _                 -> Nothing
-      fallBack = return (Con c args)
+      fallBack = return (Con c ci args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
@@ -605,7 +616,7 @@ isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   reportSLn "tc.meta.eta" 30 $ "Is " ++ show r ++ " a singleton record type?"
   def <- getRecordDef r
-  emap (Con $ recConHead def) <$> check (recTel def `apply` ps)
+  emap (Con (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where
   check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
   check tel = do
@@ -675,4 +686,3 @@ instance NormaliseProjP (Pattern' x) where
   normaliseProjP (ConP c cpi ps) = ConP c cpi <$> normaliseProjP ps
   normaliseProjP p@LitP{}        = return p
   normaliseProjP (ProjP o d0)    = ProjP o <$> getOriginalProjection d0
-

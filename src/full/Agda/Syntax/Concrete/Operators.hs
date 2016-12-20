@@ -138,9 +138,9 @@ data ExprKind = IsPattern | IsExpr
 -- and function symbols in scope.
 --
 -- When parsing a pattern we do not use bound names. The effect is
--- that operator parts (that are not constructor parts) can be used as
--- atomic names in the pattern (so they can be rebound). See
--- @test/succeed/OpBind.agda@ for an example.
+-- that unqualified operator parts (that are not constructor parts)
+-- can be used as atomic names in the pattern (so they can be
+-- rebound). See @test/succeed/OpBind.agda@ for an example.
 --
 -- When parsing a pattern we also disallow the use of sections, mainly
 -- because there is little need for sections in patterns. Note that
@@ -276,9 +276,11 @@ buildParsers r flat kind exprNames = do
                         concatMap notationNames $
                         filter (or . partsPresent) ops)
 
-        isAtom   x = case kind of
-                       IsExpr    -> not (Set.member x allParts) || Set.member x allNames
-                       IsPattern -> not (Set.member x conParts) || Set.member x conNames
+        isAtom x
+          | kind == IsPattern && not (isQualified x) =
+            not (Set.member x conParts) || Set.member x conNames
+          | otherwise =
+            not (Set.member x allParts) || Set.member x allNames
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
 
@@ -529,7 +531,7 @@ parsePat prs p = case p of
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> parsePat prs p
-    DotP r e         -> return $ DotP r e
+    DotP r o e       -> return $ DotP r o e
     ParenP r p       -> fullParen' <$> parsePat prs p
     WildP _          -> return p
     AbsurdP _        -> return p
@@ -600,11 +602,9 @@ parseLHS' lhsOrPatSyn top p = do
         [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
                           text "Parsed lhs:" <+> pretty lhs
                         return (lhs, ops)
-        []        -> typeError $ OperatorChangeMessage
-                               $ OperatorInformation ops
+        []        -> typeError $ OperatorInformation ops
                                $ NoParseForLHS lhsOrPatSyn p
-        rs        -> typeError $ OperatorChangeMessage
-                               $ OperatorInformation ops
+        rs        -> typeError $ OperatorInformation ops
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
     where
@@ -667,8 +667,7 @@ parseLHS top p = billToParser $ do
   (res, ops) <- parseLHS' IsLHS (Just top) p
   case res of
     Right (f, lhs) -> return lhs
-    _ -> typeError $ OperatorChangeMessage
-                   $ OperatorInformation ops
+    _ -> typeError $ OperatorInformation ops
                    $ NoParseForLHS IsLHS p
 
 -- | Parses a pattern.
@@ -683,8 +682,7 @@ parsePatternOrSyn lhsOrPatSyn p = billToParser $ do
   (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     Left p -> return p
-    _      -> typeError $ OperatorChangeMessage
-                        $ OperatorInformation ops
+    _      -> typeError $ OperatorInformation ops
                         $ NoParseForLHS lhsOrPatSyn p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
@@ -734,11 +732,9 @@ parseApplication es  = billToParser $ do
           reportSDoc "scope.operators" 50 $ return $
             text "Parsed an operator application:" <+> pretty e
           return e
-        []  -> typeError $ OperatorChangeMessage
-                         $ OperatorInformation ops
+        []  -> typeError $ OperatorInformation ops
                          $ NoParseForApplication es
-        es' -> typeError $ OperatorChangeMessage
-                         $ OperatorInformation ops
+        es' -> typeError $ OperatorInformation ops
                          $ AmbiguousParseForApplication es
                          $ map fullParen es'
 
@@ -762,13 +758,11 @@ parseRawModuleApplication es = billToParser $ do
     -- TODO: not sure about forcing
     case {-force $-} parse (parseSections, pArgs p) es_args of
         [as] -> return (m, as)
-        []   -> typeError $ OperatorChangeMessage
-                          $ OperatorInformation ops
+        []   -> typeError $ OperatorInformation ops
                           $ NoParseForApplication es
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
-          typeError $ OperatorChangeMessage
-                    $ OperatorInformation ops
+          typeError $ OperatorInformation ops
                     $ AmbiguousParseForApplication es
                     $ map f ass
 

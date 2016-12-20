@@ -1,0 +1,4 @@
+AbsurdPatternNotUnused.agda:15,12-16
+x != y of type ⊥
+when checking that the expression refl has type
+abort Bool x ≡ abort Bool y

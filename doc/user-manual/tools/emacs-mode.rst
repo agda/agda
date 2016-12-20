@@ -75,7 +75,8 @@ Other commands
 ``S-TAB``             Indent current line, cycles in opposite direction
  ``M-.``              Go to definition of identifier under point
  Middle mouse button  Go to definition of identifier clicked on
- ``M-*``              Go back
+ ``M-*``              Go back (Emacs < 25.1)
+ ``M-,``              Go back (Emacs ≥ 25.1)
 ====================  =================================================
 
 .. _unicode-input:
@@ -161,7 +162,7 @@ Hex code  Character         Short key-binding  TeX command
 ========  =========  =================  ===========
 Hex code  Character  Short key-binding  TeX command
 ========  =========  =================  ===========
-2115      ``ℕ``      ``\bn``            ``\Bbb{N}``
+2115      ``ℕ``      ``\bN``            ``\Bbb{N}``
 2192      ``→``      ``\r-``            ``\to``
 21a6      ``↦``      ``\r-|``           ``\mapsto``
 2200      ``∀``      ``\all``           ``\forall``

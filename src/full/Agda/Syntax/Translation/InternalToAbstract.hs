@@ -161,7 +161,7 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
+    DCon c ci vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
@@ -173,6 +173,7 @@ instance Reify DisplayTerm Expr where
 --   otherwise, does @fallback@.
 reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm f es fallback = do
+  ifNotM displayFormsEnabled fallback $ {- else -} do
     caseMaybeM (liftTCM $ displayForm f es) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
@@ -180,10 +181,8 @@ reifyDisplayForm f es fallback = do
 --
 --   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
-reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
-    let vs = [ setHiding h $ defaultArg $ I.var i
-             | (i, h) <- zip [0..] $ map getHiding ps
-             ]
+reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
+  ifNotM displayFormsEnabled (return lhs) $ {- else -} do
     -- Try to rewrite @f 0 1 2 ... |ps|-1@ to a dt.
     -- Andreas, 2014-06-11  Issue 1177:
     -- I thought we need to add the placeholders for ps to the context,
@@ -192,7 +191,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     -- But apparently, it has no influence...
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
-      displayForm f $ map I.Apply vs
+      displayForm f $ zipWith (\ p i -> I.Apply $ p $> I.var i) ps [0..]
     reportSLn "reify.display" 60 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
@@ -256,7 +255,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     okElim (I.Proj{})  = True
 
     okTerm (I.Var _ []) = True
-    okTerm (I.Con c vs) = all okArg vs
+    okTerm (I.Con c ci vs) = all okArg vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
     okTerm _            = False
 
@@ -270,14 +269,12 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
-    displayLHS ps wps d = case flattenWith d of
-      (f, vs, es) -> do
+    displayLHS ps wps d = do
+        let (f, vs, es) = flattenWith d
         ds <- mapM (namedArg <.> elimToPat) es
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
-        ci   = ConPatInfo ConPCon patNoRange
-
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.IApply _ _ r) = argToPat (Arg defaultArgInfo r)
         elimToPat (I.Apply arg) = argToPat arg
@@ -289,17 +286,17 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
                                            Nothing -> __IMPOSSIBLE__
                                            Just p  -> p
 
-        termToPat (DCon c vs)          = tryRecPFromConP =<< do
-           A.ConP ci (AmbQ [conName c]) <$> mapM argToPat vs
+        termToPat (DCon c ci vs)          = tryRecPFromConP =<< do
+           A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c vs)) = tryRecPFromConP =<< do
-           A.ConP ci (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
+        termToPat (DTerm (I.Con c ci vs)) = tryRecPFromConP =<< do
+           A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
 
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ A.WildP patNoRange
 
-        termToPat (DDot v)             = A.DotP patNoRange <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange <$> reify v -- __IMPOSSIBLE__
+        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
+        termToPat v                    = A.DotP patNoRange Inserted <$> reify v -- __IMPOSSIBLE__
 
         len = genericLength ps
 
@@ -311,7 +308,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
           reportSLn "reify.display" 60 $ "termToExpr " ++ show v
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
-            I.Con c vs ->
+            I.Con c ci vs ->
               apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
             I.Def f es -> do
               let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
@@ -337,8 +334,11 @@ instance Reify Term Expr where
   reify v = reifyTerm True v
 
 reifyTerm :: Bool -> Term -> TCM Expr
-reifyTerm expandAnonDefs v = do
+reifyTerm expandAnonDefs0 v = do
   metasBare <- asks envPrintMetasBare
+  -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
+  -- (i.e. when we don't care about nice printing)
+  expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
   -- Andreas, 2016-07-21 if --postfix-projections
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
@@ -350,10 +350,10 @@ reifyTerm expandAnonDefs v = do
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
-    I.Con c vs   -> do
+    I.Con c ci vs -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
-      case isR of
+      case isR || ci == ConORec of
         True -> do
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || notHidden a
@@ -362,8 +362,8 @@ reifyTerm expandAnonDefs v = do
           vs <- map unArg <$> reify vs
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x (map I.Apply vs) $ do
-          ci <- getConstInfo x
-          let Constructor{conPars = np} = theDef ci
+          def <- getConstInfo x
+          let Constructor{conPars = np} = theDef def
           -- if we are the the module that defines constructor x
           -- then we have to drop at least the n module parameters
           n  <- getDefFreeVars x
@@ -388,7 +388,7 @@ reifyTerm expandAnonDefs v = do
               -- Here, we need the reducing version of @telView@
               -- because target of constructor could be a definition
               -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
-              TelV tel _ <- telView (defType ci)
+              TelV tel _ <- telView (defType def)
               case genericDrop np $ telToList tel of
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
@@ -488,14 +488,15 @@ reifyTerm expandAnonDefs v = do
         -- as they are mutually recursive with their parent.
         -- Thus we do not have to consider padding them.
 
-        -- Check whether we have an extended lambda.
+        -- Check whether we have an extended lambda and display forms are on.
+        df <- displayFormsEnabled
         toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
              Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
              _ -> Nothing
         case extLam of
-          Just pars -> reifyExtLam x pars (defClauses defn) es
+          Just pars | df -> reifyExtLam x pars (defClauses defn) es
 
         -- Otherwise (ordinary function call):
           _ -> do
@@ -669,7 +670,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
             A.ProjP{}     -> p
             A.DefP _ _ _  -> p
-            A.DotP _ e    -> p
+            A.DotP _ _ e  -> p
             A.WildP _     -> p
             A.AbsurdP _   -> p
             A.LitP _      -> p
@@ -681,7 +682,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
-          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConPImplicit
+          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
                                  = all varOrDot $ map namedArg ps
           varOrDot _             = False
 
@@ -732,7 +733,7 @@ instance BlankVars A.Pattern where
     A.ConP c i ps -> A.ConP c i $ blank bound ps
     A.ProjP{}     -> p
     A.DefP i f ps -> A.DefP i f $ blank bound ps
-    A.DotP i e    -> A.DotP i $ blank bound e
+    A.DotP i o e  -> A.DotP i o $ blank bound e
     A.WildP _     -> p
     A.AbsurdP _   -> p
     A.LitP _      -> p
@@ -882,7 +883,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
       I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
       I.DotP v -> do
         t <- liftTCM $ reify v
-        return $ A.DotP patNoRange t
+        return $ A.DotP patNoRange Inserted t
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do
@@ -890,7 +891,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyPatterns ps
         where
           ci = ConPatInfo origin patNoRange
-          origin = fromMaybe ConPCon $ I.conPRecord cpi
+          origin = fromMaybe ConOCon $ I.conPRecord cpi
 
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.
@@ -904,7 +905,7 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && patOrigin ci /= ConPRec then fallback else do
+          if recNamedCon def && patOrigin ci /= ConORec then fallback else do
             fs <- liftTCM $ getRecordFieldNames r
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps

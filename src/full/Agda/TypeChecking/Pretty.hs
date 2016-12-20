@@ -237,6 +237,9 @@ instance PrettyTCM EqualityView where
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA
 
+instance PrettyTCM A.TypedBinding where
+  prettyTCM = prettyA
+
 instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
   prettyTCM NonStrict  = text ".."
@@ -245,7 +248,8 @@ instance PrettyTCM Relevance where
   prettyTCM UnusedArg  = empty
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pid c) = prettyList (map prettyTCM pid) <+> prettyTCM c
+  prettyTCM (PConstr []   c) = prettyTCM c
+  prettyTCM (PConstr pids c) = prettyList (map prettyTCM pids) <+> prettyTCM c
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
@@ -367,15 +371,7 @@ instance PrettyTCM Telescope where
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where
-  prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
-    where
-    pr :: [Dom (Name, Type)] -> TCM [P.Doc]
-    pr []                            = return []
-    pr (Dom{domInfo = info, unDom = (x,t)} : ctx) = escapeContext 1 $ do
-      -- TODO guilhem: show colors
-      d <- CP.prettyRelevance info . CP.prettyHiding info P.parens <$> do
-             prettyTCM x <+> text ":" <+> prettyTCM t
-      (d :) <$> pr ctx
+  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ map ctxEntry $ reverse ctx
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
@@ -392,7 +388,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
-        b = maybe False (/= ConPCon) $ conPRecord i
+        b = maybe False (/= ConOCon) $ conPRecord i
         showRec :: TCM Doc
         showRec = sep
           [ text "record"
@@ -419,37 +415,47 @@ raisePatVars k (PVar id x bvs) = PVar id (k+x) bvs
 raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
-raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
-raisePatVars k (PPlusLevel i u) = PPlusLevel i $ raisePatVars k u
+raisePatVars k (PPi a b)   =
+  PPi (fmap (raisePatVarsInType k) a) (fmap (raisePatVarsInType k) b)
 raisePatVars k (PBoundVar i es) = PBoundVar i $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
+
+raisePatVarsInType :: Int -> NLPType -> NLPType
+raisePatVarsInType k (NLPType l a) =
+  NLPType (raisePatVars k l) (raisePatVars k a)
 
 instance PrettyTCM NLPat where
   prettyTCM (PVar id x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = text ("λ " ++ absName u ++ " →") <+>
-                          (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
-  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (unDom a) <+>
-                          (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
-  prettyTCM (PPlusLevel i u) = text (show i ++ " + ") <> prettyTCM u
+  prettyTCM (PLam i u)  = parens $
+    text ("λ " ++ absName u ++ " →") <+>
+    (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
+  prettyTCM (PPi a b)   = parens $
+    text ("(" ++ absName b ++ " :") <+> prettyTCM (unDom a) <> text ") →" <+>
+    (addContext (absName b) $ prettyTCM (raisePatVarsInType 1 $ unAbs b))
+  prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
+instance PrettyTCM NLPType where
+  prettyTCM (NLPType PWild a) = prettyTCM a
+  prettyTCM (NLPType l     a) = text "{" <> prettyTCM l <> text "}" <> prettyTCM a
+
 instance PrettyTCM (Elim' NLPat) where
-  prettyTCM (IApply x y v) = text "$" <+> prettyTCM v
-  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
+  prettyTCM (IApply x y v) = prettyTCM v
+  prettyTCM (Apply v) = prettyTCM (unArg v)
   prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
 instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma f ps rhs b) = sep
-    [ prettyTCM q <+> text " rule "
+  prettyTCM (RewriteRule q gamma f ps rhs b) = fsep
+    [ prettyTCM q
     , prettyTCM gamma <+> text " |- "
-    , addContext gamma $ hsep
+    , addContext gamma $ sep
       [ prettyTCM (PDef f ps)
       , text " --> "
       , prettyTCM rhs

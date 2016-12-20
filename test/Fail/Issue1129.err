@@ -2,6 +2,4 @@ Issue1129.agda:8,5-12
 Could not parse the application [ ? ] x
 Operators used in the grammar:
   [_] (prefix notation, level 20) [F (Issue1129.agda:3,3-4)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking [ ? ] x

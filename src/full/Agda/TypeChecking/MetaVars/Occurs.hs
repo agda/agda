@@ -132,11 +132,11 @@ tallyDef :: QName -> TCM ()
 tallyDef d = modifyOccursCheckDefs $ \ s -> Set.delete d s
 
 data OccursCtx
-  = Flex          -- ^ we are in arguments of a meta
-  | Rigid         -- ^ we are not in arguments of a meta but a bound var
-  | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
-  | Top           -- ^ we are at the term root (this turns into @StronglyRigid@)
-  | Irrel         -- ^ we are in an irrelevant argument
+  = Flex          -- ^ We are in arguments of a meta.
+  | Rigid         -- ^ We are not in arguments of a meta but a bound var.
+  | StronglyRigid -- ^ We are at the start or in the arguments of a constructor.
+  | Top           -- ^ We are at the term root (this turns into @StronglyRigid@).
+  | Irrel         -- ^ We are in an irrelevant argument.
   deriving (Eq, Show)
 
 data UnfoldStrategy = YesUnfold | NoUnfold
@@ -271,7 +271,7 @@ instance Occurs Term where
           Lit l       -> return v
           DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
           Def d es    -> Def d <$> occDef d (leaveTop ctx) es
-          Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
+          Con c ci vs -> Con c ci <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
           Sort s      -> Sort <$> occ (leaveTop ctx) s
           v@Shared{}  -> updateSharedTerm (occ ctx) v
@@ -332,7 +332,7 @@ instance Occurs Term where
       Lit l      -> return ()
       DontCare v -> metaOccurs m v
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
-      Con c vs   -> metaOccurs m vs
+      Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
@@ -533,7 +533,7 @@ hasBadRigid xs t = do
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
-    Con c args   -> do
+    Con c _ args -> do
       ifM (liftTCM $ isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
@@ -607,7 +607,7 @@ instance FoldRigid Term where
         Blocked{}                   -> mempty
         NotBlocked MissingClauses _ -> mempty
         _        -> fold es
-      Con _ ts   -> fold ts
+      Con _ _ ts -> fold ts
       Pi a b     -> fold (a,b)
       Sort s     -> fold s
       Level l    -> fold l

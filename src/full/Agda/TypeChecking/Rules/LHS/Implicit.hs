@@ -74,7 +74,7 @@ expandImplicitPattern' a p
          -- generate one implicit pattern for each field
          let qs = for (recFields def) $ \ f -> implicitP $ argInfo f
          -- generate the pattern (c _ _ ... _)
-         let q  = A.ConP (ConPatInfo ConPImplicit patNoRange) (A.AmbQ [recCon def]) qs
+         let q  = A.ConP (ConPatInfo ConOSystem patNoRange) (A.AmbQ [recCon def]) qs
          -- equip it with the name/arginfo of the original implicit pattern
              p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
          return $ Just p'

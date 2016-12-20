@@ -2,7 +2,5 @@ Sections-3.agda:5,1-12
 Could not parse the left-hand side test c x c_
 Operators used in the grammar:
   c_c (prefix operator, level 20) [c_c_ (Sections-3.agda:2,3-7)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking the left-hand side test c x c_ in the
 definition of test

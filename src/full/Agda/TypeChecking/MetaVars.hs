@@ -3,10 +3,12 @@
 
 module Agda.TypeChecking.MetaVars where
 
+import Prelude hiding (null)
+
 import Control.Monad.Reader
 
 import Data.Function
-import Data.List hiding (sort)
+import Data.List hiding (sort, null)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
@@ -49,6 +51,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
@@ -141,24 +144,36 @@ assignTerm' x tel v = do
 
 -- * Creating meta variables.
 
+-- | Create a sort meta that cannot be instantiated with 'Inf' (Setω).
+newSortMetaBelowInf :: TCM Sort
+newSortMetaBelowInf = newSortMeta' $ HasType ()
+
+-- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMeta :: TCM Sort
-newSortMeta =
+newSortMeta = newSortMeta' $ IsSort ()
+
+newSortMeta' :: (Type -> Judgement ()) -> TCM Sort
+newSortMeta' judge =
   ifM typeInType (return $ mkType 0) $ {- else -}
-  ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
+  ifM hasUniversePolymorphism (newSortMetaCtx' judge =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
        lvl <- levelType
-       x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () lvl -- WAS: topSort
+       x   <- newMeta i normalMetaPriority (idP 0) $ judge lvl
        return $ Type $ Max [Plus 0 $ MetaLevel x []]
 
+-- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMetaCtx :: Args -> TCM Sort
-newSortMetaCtx vs =
+newSortMetaCtx = newSortMetaCtx' $ IsSort ()
+
+newSortMetaCtx' :: (Type -> Judgement ()) -> Args -> TCM Sort
+newSortMetaCtx' judge vs = do
   ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
     lvl <- levelType
-    let t = telePi_ tel lvl -- WAS: topSort
-    x   <- newMeta i normalMetaPriority (idP 0) (IsSort () t)
+    let t = telePi_ tel lvl
+    x   <- newMeta i normalMetaPriority (idP 0) $ judge t
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
     return $ Type $ Max [Plus 0 $ MetaLevel x $ map Apply vs]
@@ -301,7 +316,7 @@ newRecordMetaCtx r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel perm ctx
   con    <- getRecordConstructor r
-  return $ Con con fields
+  return $ Con con ConOSystem fields
 
 newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
 newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck
@@ -355,7 +370,7 @@ blockTermOnProblem t v pid =
         (_, v) <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x es))
+        cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV x es))
         listenToMeta (CheckConstraint i cmp) x
         return v
 
@@ -402,7 +417,7 @@ postponeTypeCheckingProblem p unblock = do
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
   (_, v) <- newValueMeta DontRunMetaOccursCheck t
-  cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m es))
+  cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
@@ -623,23 +638,33 @@ assign dir x args v = do
       -- Andreas, 2011-04-21 do the occurs check first
       -- e.g. _1 x (suc x) = suc (_2 x y)
       -- even though the lhs is not a pattern, we can prune the y from _2
-      let relVL = Set.toList $ allRelevantVars args
-{- Andreas, 2012-04-02: DontCare no longer present
-      -- take away top-level DontCare constructors
-      args <- return $ map (fmap stripDontCare) args
--}
-      -- Andreas, 2011-10-06 only irrelevant vars that are direct
-      -- arguments to the meta, hence, can be abstracted over, may
-      -- appear on the rhs.  (test/fail/Issue483b)
-      -- Update 2011-03-27: Also irr. vars under record constructors.
-      let fromIrrVar (Var i [])   = return [i]
-          fromIrrVar (Con c vs)   =
-            ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
-              concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
-          fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
-          fromIrrVar _ = return []
-      irrVL <- concat <$> mapM fromIrrVar
-                 [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
+
+      (relVL, irrVL) <- do
+        -- Andreas, 2016-11-03 #2211 attempt to do s.th. for unused
+        if False -- irrelevantOrUnused $ getMetaRelevance mvar
+          then do
+            reportSDoc "tc.meta.assign" 25 $ text "meta is irrelevant or unused"
+            return (Set.toList $ allFreeVars args, empty)
+          else do
+            -- Andreas, 2016-11-03, issue #2211
+            -- treating UnusedArg as Irrelevant bears trouble
+            -- since the UnusedArg info is not consistently present
+            -- Thus, make sure we include the "unused" variables.
+            let relVL = Set.toList $ allRelevantOrUnusedVars args
+            -- Andreas, 2011-10-06 only irrelevant vars that are direct
+            -- arguments to the meta, hence, can be abstracted over, may
+            -- appear on the rhs.  (test/fail/Issue483b)
+            -- Update 2011-03-27: Also irr. vars under record constructors.
+            let fromIrrVar (Var i [])   = return [i]
+                fromIrrVar (Con c _ vs)   =
+                  ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
+                    concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
+                fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
+                fromIrrVar _ = return []
+            irrVL <- concat <$> mapM fromIrrVar
+                       [ v | Arg info v <- args, isIrrelevant info ]
+                          -- irrelevantOrUnused (getRelevance info) ]
+            return (relVL, irrVL)
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
               pr (Def c []) = prettyTCM c
@@ -773,7 +798,7 @@ attemptInertRHSImprovement m args v = do
               Just args -> return args
       case ignoreSharing v of
         Var x elims -> (, Var x . map Apply) <$> typeOfBV x
-        Con c args  -> notInert -- (, Con c) <$> defType <$> getConstInfo (conName c)
+        Con c ci args  -> notInert -- (, Con c ci) <$> defType <$> getConstInfo (conName c)
         Def f elims -> do
           def <- getConstInfo f
           let good = return (defType def, Def f . map Apply)
@@ -977,7 +1002,7 @@ instance NoProjectedVar Term where
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
       -- Andreas, 2015-09-12 Issue 1316:
       -- Also look in inductive record constructors
-      Con (ConHead _ Inductive (_:_)) vs -> noProjectedVar vs
+      Con (ConHead _ Inductive (_:_)) _ vs -> noProjectedVar vs
       _ -> return ()
 
 instance NoProjectedVar a => NoProjectedVar (Arg a) where
@@ -1109,9 +1134,13 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
-        Arg info (Con c vs) -> do
+        Arg info (Con c ci vs) -> do
           let fallback
-               | irrelevantOrUnused (getRelevance info) = return vars
+               | isIrrelevant info = return vars
+                 -- Andreas, 2016-11-03, issue #2211
+                 -- treating UnusedArg as Irrelevant bears trouble
+                 -- since the UnusedArg info is not consistently present
+                 -- irrelevantOrUnused (getRelevance info) = return vars
                | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
           case isRC of
@@ -1131,7 +1160,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
             Nothing -> fallback
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
-        Arg info _ | irrelevantOrUnused (getRelevance info) -> return vars
+        Arg info _ | isIrrelevant info -> return vars
+          -- Andreas, 2016-11-03, issue #2211
+          -- treating UnusedArg as Irrelevant bears trouble
+          -- since the UnusedArg info is not consistently present
+          -- irrelevantOrUnused (getRelevance info) -> return vars
         -- Andreas, 2013-10-29
         -- An irrelevant part can also be marked by a DontCare
         -- (coming from an irrelevant projection), see Issue 927:
@@ -1172,16 +1205,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 --     withMetaInfo' mv $ do
 --       args <- getContextArgs
 --       noConstraints $ assignV DirEq mI args v
-
--- | Returns every meta-variable occurrence in the given type, except
--- for those in 'Sort's.
-
-allMetas :: TermLike a => a -> [MetaId]
-allMetas = foldTerm metas
-  where
-  metas (MetaV m _) = [m]
-  metas _           = []
-
 
 -- | Turn open metas into postulates.
 --

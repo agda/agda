@@ -1,0 +1,3 @@
+Issue2309.agda:16,23-24
+A !=< Fst (Test A a) x of type Set
+when checking that the expression a has type Fst (Test A a) x

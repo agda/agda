@@ -18,6 +18,7 @@ import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
@@ -120,7 +121,7 @@ instance IsInstantiatedMeta Term where
       DontCare v -> loop v
       Level l    -> isInstantiatedMeta l
       Lam _ b    -> isInstantiatedMeta b
-      Con _ vs   -> isInstantiatedMeta vs
+      Con _ _ vs -> isInstantiatedMeta vs
       _          -> __IMPOSSIBLE__
 
 instance IsInstantiatedMeta Level where
@@ -153,6 +154,24 @@ isInstantiatedMeta' m = do
   return $ case mvInstantiation mv of
     InstV tel v -> Just $ foldr mkLam v tel
     _           -> Nothing
+
+
+-- | Returns every meta-variable occurrence in the given type, except
+-- for those in 'Sort's.
+allMetas :: TermLike a => a -> [MetaId]
+allMetas = foldTerm metas
+  where
+  metas (MetaV m _) = [m]
+  metas (Level l)   = levelMetas l
+  metas _           = []
+
+  levelMetas (Max as) = concatMap plusLevelMetas as
+
+  plusLevelMetas ClosedLevel{} = []
+  plusLevelMetas (Plus _ l)    = levelAtomMetas l
+
+  levelAtomMetas (MetaLevel m _) = [m]
+  levelAtomMetas _               = []
 
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: TCM MetaInfo

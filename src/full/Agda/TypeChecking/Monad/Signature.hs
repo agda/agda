@@ -276,7 +276,7 @@ addDisplayForms x = do
             Nothing         -> noDispForm x $ "bad body"
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
-                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) []
+                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
@@ -817,7 +817,7 @@ moduleParamsToApply m = do
   sub <- getModuleParameterSub m
   reportSLn "tc.sig.param" 60 $ unlines $
     [ "  n    = " ++ show n
-    , "  cxt  = " ++ show cxt
+    , "  cxt  = " ++ show (map (fmap fst) cxt)
     , "  sub  = " ++ show sub
     ]
   unless (size tel == n) __IMPOSSIBLE__
@@ -849,9 +849,8 @@ moduleParamsToApply m = do
 --   sure generated definitions work properly.
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 inFreshModuleIfFreeParams k = do
-  a <- getCurrentModuleFreeVars
-  b <- size <$> getContext
-  if a == b then k else do
+  sub <- getModuleParameterSub =<< currentModule
+  if sub == IdS then k else do
     m  <- currentModule
     m' <- qualifyM m . mnameFromList . (:[]) <$> freshName_ "_"
     addSection m'

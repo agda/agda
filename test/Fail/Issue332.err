@@ -4,6 +4,4 @@ Don't know how to parse id x. Could mean any one of:
   id x
 Operators used in the grammar:
   id (prefix notation, level 20) [id (Issue332.agda:3,1-3)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking the left-hand side id x in the definition of id

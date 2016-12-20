@@ -14,8 +14,20 @@ be followed:
     MAJORVERSION=<current-Agda-version-eg-2.4.0>
     VERSION=<current-stable-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda.release
-    cd agda.release
+    cd agda-release
     git checkout stable-$MAJORVERSION
+
+* Change VERSION to MAJORVERSION in:
+
+    .ghci
+    Agda.cabal (thrice)
+    default.nix
+    /doc/user-manual/conf.py (twice)
+    mk/version.mk
+    src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
 
 * Obtain and install the standard library branch related to the Agda
   bugfix version:
@@ -38,7 +50,8 @@ be followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Ensure that cabal haddock works with GHC 8.0.1 (see #1992):
+* Ensure that cabal haddock works with the latest version supported of
+  GHC:
 
     make haddock
 
@@ -51,7 +64,8 @@ be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal test-suite from Agda.cabal.
+* Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
+  Agda.cabal.
 
 * Build source distributions:
 
@@ -86,7 +100,8 @@ be followed:
 
     neil doc --username=YourHackageUsername
 
-* Restore the Cabal test-suite in Agda.cabal.
+* Restore the Cabal tests-suites `agda-tests` and `internal-tests`
+  from Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
@@ -138,10 +153,13 @@ be followed:
 * Restore version numbers in 'master' (possibly by just resolving the
   merge conflicts):
 
-    Agda.cabal (twice)
+    .ghci
+    Agda.cabal (thrice)
+    default.nix
+    /doc/user-manual/conf.py (twice)
+    mk/version.mk
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
-    mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 

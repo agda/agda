@@ -89,8 +89,8 @@ compile isMain i = do
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . prettyShow =<< curMName
-  yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
+  noComp   = reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
+  yesComp  = reportSLn "compile.js" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [prettyShow <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
@@ -203,7 +203,7 @@ curModule isMain = do
 
 definition :: Maybe CoinductionKit -> (QName,Definition) -> TCM (Maybe Export)
 definition kit (q,d) = do
-  reportSDoc "js.compile" 10 $ text "compiling def:" <+> prettyTCM q
+  reportSDoc "compile.js" 10 $ text "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
 
@@ -225,13 +225,13 @@ definition' kit q d t ls =
     Function{} | otherwise -> do
       isInfVal <- outputIsInf kit t
 
-      reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
+      reportSDoc "compile.js" 5 $ text "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
         funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
         funBody' <- delayCoinduction funBody t
-        reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody'
+        reportSDoc "compile.js" 30 $ text " compiled treeless fun:" <+> pretty funBody'
         funBody'' <- compileTerm funBody'
-        reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody''
+        reportSDoc "compile.js" 30 $ text " compiled JS fun:" <+> (text . show) funBody''
         return $ Just $ Export ls isInfVal funBody''
 
     Primitive{primName = p} | p `Set.member` primitives ->

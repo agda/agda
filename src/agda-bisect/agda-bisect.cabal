@@ -4,14 +4,18 @@ version: 0.1
 cabal-version: >= 1.10
 author: Nils Anders Danielsson
 build-type: Simple
+tested-with: GHC == 7.6.3
+             GHC == 7.8.4
+             GHC == 7.10.3
+             GHC == 8.0.1
 
 executable agda-bisect
   main-is:          Bisect.hs
-  build-depends:    ansi-wl-pprint >= 0.6.7.3 && < 0.7,
-                    base == 4.9.*,
-                    directory >= 1.2.6.2 && < 1.3,
-                    optparse-applicative == 0.13.*,
-                    process >= 1.4.2.0 && < 1.5,
-                    time >= 1.6.0.1 && < 1.7
+  build-depends:      ansi-wl-pprint >= 0.6.7.3 && < 0.7
+                    , base >= 4.6.0.1 && < 4.10
+                    , directory >= 1.2.0.1 && < 1.4
+                    , optparse-applicative == 0.13.*
+                    , process >= 1.1.0.2 && < 1.5
+                    , time >= 1.4.0.1 && < 1.7
   default-language: Haskell2010
   ghc-options:      -threaded

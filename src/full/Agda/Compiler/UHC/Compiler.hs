@@ -121,7 +121,7 @@ compileModule i = do
                      then imports
                      else agdaPrimInter : imports
 
-    reportSLn "" 1 $
+    reportSLn "compile.uhc" 1 $
       "Compiling: " ++ show (iModuleName i)
     code <- compileDefns modNm (map iModuleName imports') i
     crFile <- corePath modNm
@@ -158,7 +158,7 @@ compileDefns modNm curModImps iface = do
 
     crMod <- FAgda.fromAgdaModule modNm curModImps iface
 
-    reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
+    reportSLn "compile.uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
     return crMod
 
 writeCoreFile :: String -> UB.CModule -> TCM ()
@@ -168,11 +168,11 @@ writeCoreFile f cmod = do
   -- dump textual core, useful for debugging.
   when useTextual (do
     let f' = replaceExtension f ".dbg.tcr"
-    reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
+    reportSLn "compile.uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
     liftIO $ putPPFile f' (UB.printModule defaultEHCOpts cmod) 200
     )
 
-  reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f ++ "\"."
+  reportSLn "compile.uhc" 10 $ "Writing binary core to \"" ++ show f ++ "\"."
   liftIO $ putSerializeFile f cmod
 
 -- | Create the UHC Core main file, which calls the Agda main function

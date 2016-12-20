@@ -868,8 +868,36 @@ appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []    _   = False
 appBrackets' (_:_) ctx = appBrackets ctx
 
--- TODO: bind variables properly
+newtype BindingPattern = BindingPat A.Pattern
+newtype FreshName = FreshenName A.Name
+
+instance ToConcrete FreshName A.Name where
+  bindToConcrete (FreshenName x) ret = bindToConcrete x $ \ y -> ret x{ nameConcrete = y }
+
+-- Takes care of freshening and binding pattern variables, but doesn't actually
+-- translate anything to Concrete.
+instance ToConcrete BindingPattern A.Pattern where
+  bindToConcrete (BindingPat p) ret =
+    case p of
+      A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP
+      A.WildP{}              -> ret p
+      A.ProjP{}              -> ret p
+      A.AbsurdP{}            -> ret p
+      A.LitP{}               -> ret p
+      A.DotP{}               -> ret p
+      A.EqualP{}             -> ret p
+      A.ConP i c args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.ConP i c
+      A.DefP i f args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.DefP i f
+      A.PatternSynP i f args -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.PatternSynP i f
+      A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
+      A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
+                                bindToConcrete (BindingPat p)  $ \ p ->
+                                ret (A.AsP i x p)
+
 instance ToConcrete A.Pattern C.Pattern where
+  bindToConcrete p ret = do
+    prec <- currentPrecedence
+    bindToConcrete (BindingPat p) (ret <=< withPrecedence prec . toConcrete)
   toConcrete p =
     case p of
       A.VarP x ->
@@ -883,7 +911,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
       A.ProjP _ _ (AmbQ []) -> __IMPOSSIBLE__
       A.ProjP i ProjPrefix xs@(AmbQ (x:_)) -> C.IdentP <$> toConcrete x
-      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) . C.Ident <$> toConcrete x
+      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) UserWritten . C.Ident <$> toConcrete x
 
       A.DefP i (AmbQ []) _ -> __IMPOSSIBLE__
       A.DefP i xs@(AmbQ (x:_)) args -> tryOp x (A.DefP i xs)  args
@@ -901,18 +929,21 @@ instance ToConcrete A.Pattern C.Pattern where
       A.LitP l ->
         return $ C.LitP l
 
-      A.DotP i e  -> do
+      A.DotP i o e -> do
         c <- toConcreteCtx DotPatternCtx e
         case c of
           -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
           -- following the fusing of WildP and ImplicitP.
           C.Underscore{} -> return $ C.WildP $ getRange i
-          _ -> return $ C.DotP (getRange i) c
+          _ -> return $ C.DotP (getRange i) o c
 
       A.EqualP i es -> do
         C.EqualP (getRange i) <$> toConcrete es
 
       A.PatternSynP i n _ ->
+        -- Ulf, 2016-11-29: This doesn't seem right. The underscore is a list
+        -- of arguments, which we shouldn't really throw away! I guess this
+        -- case is __IMPOSSIBLE__?
         C.IdentP <$> toConcrete n
 
       A.RecP i as ->

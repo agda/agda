@@ -1,0 +1,5 @@
+Issue2291-hidden.agda:3,12-15
+Could not parse the left-hand side {_}
+Operators used in the grammar:
+  None
+when scope checking let {_} = _ in _

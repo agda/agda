@@ -190,6 +190,12 @@ qnameParts :: QName -> [Name]
 qnameParts (Qual x q) = x : qnameParts q
 qnameParts (QName x)  = [x]
 
+-- | Is the name qualified?
+
+isQualified :: QName -> Bool
+isQualified Qual{}  = True
+isQualified QName{} = False
+
 ------------------------------------------------------------------------
 -- * Operations on 'TopLevelModuleName'
 ------------------------------------------------------------------------
@@ -302,7 +308,9 @@ instance Pretty NamePart where
   pretty (Id s) = text $ rawNameToString s
 
 instance Pretty QName where
-  pretty (Qual m x) = pretty m <> pretty "." <> pretty x
+  pretty (Qual m x)
+    | isUnderscore m = pretty x -- don't print anonymous modules
+    | otherwise      = pretty m <> pretty "." <> pretty x
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where

@@ -274,7 +274,7 @@ evalInMeta ii e =
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Read)
 
-normalForm :: Rewrite -> Type -> TCM Type
+normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
 normalForm AsIs         t = return t
 normalForm Instantiated t = return t   -- reify does instantiation
 normalForm HeadNormal   t = {- etaContract =<< -} reduce t
@@ -302,7 +302,7 @@ showComputed UseShowInstance e =
     _                     -> (text "Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
-data OutputForm a b = OutputForm Range ProblemId (OutputConstraint a b)
+data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
   deriving (Functor)
 
 data OutputConstraint a b
@@ -348,7 +348,7 @@ outputFormId (OutputForm _ _ o) = out o
       FindInScopeOF _ _ _        -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (last pids) <$> reify c)
+  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) pids <$> reify c)
 
 reifyElimToExpr :: I.Elim -> TCM Expr
 reifyElimToExpr e = case e of
@@ -416,8 +416,8 @@ showComparison cmp = " " ++ prettyShow cmp ++ " "
 instance (Show a,Show b) => Show (OutputForm a b) where
   show o =
     case o of
-      OutputForm r 0   c -> show c ++ range r
-      OutputForm r pid c -> "[" ++ prettyShow pid ++ "] " ++ show c ++ range r
+      OutputForm r []   c -> show c ++ range r
+      OutputForm r pids c -> show pids ++ " " ++ show c ++ range r
     where
       range r | null s    = ""
               | otherwise = " [ at " ++ s ++ " ]"
@@ -494,14 +494,14 @@ getConstraints = liftTCM $ do
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
-    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True -- get all
+    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True AsIs -- get all
     return $ ss ++ cs
   where
     toOutputForm (ii, mi, e) = do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
-        abstractToConcrete_ $ OutputForm noRange 0 $ Assign m e
+        abstractToConcrete_ $ OutputForm noRange [] $ Assign m e
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.
@@ -509,8 +509,8 @@ getConstraints = liftTCM $ do
 --   @getSolvedInteractionPoints False@ only returns metas that
 --   are solved by a non-meta.
 
-getSolvedInteractionPoints :: Bool -> TCM [(InteractionId, MetaId, Expr)]
-getSolvedInteractionPoints all = concat <$> do
+getSolvedInteractionPoints :: Bool -> Rewrite -> TCM [(InteractionId, MetaId, Expr)]
+getSolvedInteractionPoints all norm = concat <$> do
   mapM solution =<< getInteractionIdsAndMetas
   where
     solution (i, m) = do
@@ -523,7 +523,7 @@ getSolvedInteractionPoints all = concat <$> do
               v <- ignoreSharing <$> instantiate v
               let isMeta = case v of MetaV{} -> True; _ -> False
               if isMeta && not all then return [] else do
-                e <- reify v
+                e <- reify =<< normalForm norm v
                 return [(i, m, ScopedExpr scope e)]
             unsol = return []
         case mvInstantiation mv of
@@ -589,8 +589,9 @@ typesOfHiddenMetas norm = liftTCM $ do
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of
-  []    -> fail "C-c C-h expects an argument of the form f e1 e2 .. en"
+  []    -> failure
   f : _ -> do
+    ensureName f
     A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     withInteractionId ii $ do
       cxtArgs  <- getContextArgs
@@ -605,8 +606,29 @@ metaHelperType norm ii rng s = case words s of
           (delta1, delta2, _, a', as', vs') = splitTelForWith tel a (map OtherType as) vs
       a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vs' as' delta2 a'
+      reportSDoc "interaction.helper" 10 $ TP.vcat
+        [ TP.text "generating helper function"
+        , TP.nest 2 $ TP.text "tel    = " TP.<+> inTopContext (prettyTCM tel)
+        , TP.nest 2 $ TP.text "a      = " TP.<+> prettyTCM a
+        , TP.nest 2 $ TP.text "vs     = " TP.<+> prettyTCM vs
+        , TP.nest 2 $ TP.text "as     = " TP.<+> prettyTCM as
+        , TP.nest 2 $ TP.text "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
+        , TP.nest 2 $ TP.text "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
+        , TP.nest 2 $ TP.text "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
+        , TP.nest 2 $ TP.text "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
+        , TP.nest 2 $ TP.text "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
+        ]
       return (OfType' h a)
   where
+    failure = typeError $ GenericError $ "Expected an argument of the form f e1 e2 .. en"
+    ensureName f = do
+      ce <- parseExpr rng f
+      case ce of
+        C.Ident{} -> return ()
+        C.RawApp _ [C.Ident{}] -> return ()
+        _ -> do
+         reportSLn "interaction.helper" 10 $ "ce = " ++ show ce
+         failure
     cleanupType arity args t = do
       -- Get the arity of t
       TelV ttel _ <- telView t
@@ -652,7 +674,7 @@ metaHelperType norm ii rng s = case words s of
     onNamesTm f v = case v of
       I.Var x es   -> I.Var x <$> onNamesElims f es
       I.Def q es   -> I.Def q <$> onNamesElims f es
-      I.Con c args -> I.Con c <$> onNamesArgs f args
+      I.Con c ci args -> I.Con c ci <$> onNamesArgs f args
       I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
       I.DontCare v -> I.DontCare <$> onNamesTm f v

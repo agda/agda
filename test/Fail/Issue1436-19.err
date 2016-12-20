@@ -3,6 +3,4 @@ Could not parse the application • + • + •
 Operators used in the grammar:
   + (infix operator, level 0) [_+_ (Issue1436-19.agda:9,5-8), 
                                _+_ (Issue1436-19.agda:17,5-8)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking • + • + •

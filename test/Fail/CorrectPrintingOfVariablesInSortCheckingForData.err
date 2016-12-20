@@ -1,3 +1,4 @@
 CorrectPrintingOfVariablesInSortCheckingForData.agda:13,6-9
-if y then Set else Set != Set of type Set₁
+The sort of foo cannot depend on its indices in the type
+(y : Bool) → if y then Set else Set
 when checking the definition of foo

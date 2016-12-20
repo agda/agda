@@ -6,7 +6,5 @@ mean any one of:
 Operators used in the grammar:
   if_then      (prefix operator, level 0) [if_then_ (AmbiguousParseForLHS.agda:8,3-11)]     
   if_then_else (prefix operator, level 0) [if_then_else_ (AmbiguousParseForLHS.agda:7,3-16)]
-(the treatment of operators was changed in Agda 2.5.1, so code that
-used to parse may have to be changed)
 when scope checking the left-hand side
 bad (if x then if x then x else x) in the definition of bad

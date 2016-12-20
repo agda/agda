@@ -372,7 +372,8 @@ auto ii rng argstr = do
                  ps <- addContext tel $ normalise ps
                  body <- etaContract body
                  liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange tel ps body t catchall
-              pcs <- withInteractionId ii $ mapM prettyA cls''
+              moduleTel <- lookupSection (AN.qnameModule def)
+              pcs <- withInteractionId ii $ inTopContext $ addContext moduleTel $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks
 
 

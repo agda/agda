@@ -28,24 +28,46 @@ benchmarkKey = "profile"
 benchmarkLevel :: Int
 benchmarkLevel = 7
 
+benchmarkModulesKey :: String
+benchmarkModulesKey = "profile.modules"
+
+benchmarkModulesLevel :: Int
+benchmarkModulesLevel = 10
+
+benchmarkDefsKey :: String
+benchmarkDefsKey = "profile.definitions"
+
+benchmarkDefsLevel :: Int
+benchmarkDefsLevel = 10
+
 -- | When verbosity is set or changes, we need to turn benchmarking on or off.
 updateBenchmarkingStatus :: TCM ()
 -- {-# SPECIALIZE updateBenchmarkingStatus :: TCM () #-}
 -- updateBenchmarkingStatus :: (HasOptions m, MonadBench a m) => m ()
 updateBenchmarkingStatus =
-  B.setBenchmarking =<< hasVerbosity benchmarkKey benchmarkLevel
+  B.setBenchmarking =<< benchmarking
 
 -- | Check whether benchmarking is activated.
-{-# SPECIALIZE benchmarking :: TCM Bool #-}
-benchmarking :: MonadTCM tcm => tcm Bool
-benchmarking = liftTCM $ hasVerbosity benchmarkKey benchmarkLevel
+{-# SPECIALIZE benchmarking :: TCM (B.BenchmarkOn Phase) #-}
+benchmarking :: MonadTCM tcm => tcm (B.BenchmarkOn Phase)
+benchmarking = liftTCM $ do
+  -- Ulf, 2016-12-13: Using verbosity levels to control the type of
+  -- benchmarking isn't ideal, but let's stick with it for now.
+  internal <- hasVerbosity benchmarkKey benchmarkLevel
+  defs     <- hasVerbosity benchmarkDefsKey benchmarkDefsLevel
+  modules  <- hasVerbosity benchmarkModulesKey benchmarkModulesLevel
+  return $ case (internal, defs, modules) of
+    (True, _, _) -> B.BenchmarkSome isInternalAccount
+    (_, True, _) -> B.BenchmarkSome isDefAccount
+    (_, _, True) -> B.BenchmarkSome isModuleAccount
+    _            -> B.BenchmarkOff
 
 -- | Prints the accumulated benchmark results. Does nothing if
 -- profiling is not activated at level 7.
 print :: MonadTCM tcm => tcm ()
-print = liftTCM $ whenM benchmarking $ do
+print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   b <- B.getBenchmark
-  reportSLn benchmarkKey benchmarkLevel $ prettyShow b
+  reportSLn "" 0 $ prettyShow b
 
 -- -- | Bill a computation to a specific account.
 -- {-# SPECIALIZE billTo :: Account -> TCM a -> TCM a #-}

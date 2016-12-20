@@ -47,7 +47,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Reader (local)
+import Control.Monad.Reader (local, asks)
 
 import Data.Foldable ( Foldable, foldMap )
 import Data.IntSet (IntSet)
@@ -64,6 +64,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
@@ -204,8 +205,8 @@ addRewriteRule q = do
       -- Find head symbol f of the lhs and its arguments.
       (f , hd , es) <- case ignoreSharing lhs of
         Def f es -> return (f , Def f , es)
-        Con c vs -> do
-          let hd = Con c . fromMaybe __IMPOSSIBLE__ . allApplyElims
+        Con c ci vs -> do
+          let hd = Con c ci . fromMaybe __IMPOSSIBLE__ . allApplyElims
           return (conName c , hd  , map Apply vs)
         _        -> failureNotDefOrCon
 
@@ -221,7 +222,7 @@ addRewriteRule q = do
           reportSDoc "rewriting" 30 $ text "metas in rhs: " <+> text (show $ allMetas rhs)
           reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
           failureMetas
-        ps <- patternFrom 0 es
+        ps <- patternFrom Relevant 0 es
         reportSDoc "rewriting" 30 $
           text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
@@ -314,22 +315,22 @@ rebindLocalRewriteRules = do
 -- | @rewriteWith t f es rew@
 --   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type
-            -> (Elims -> Term)
-            -> Elims
+            -> Term
             -> RewriteRule
+            -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith mt f es rew@(RewriteRule q gamma _ ps rhs b) = do
+rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
   Red.traceSDoc "rewriting" 75 (sep
-    [ text "attempting to rewrite term " <+> prettyTCM (f es)
+    [ text "attempting to rewrite term " <+> prettyTCM (v `applyE` es)
     , text " with rule " <+> prettyTCM rew
     ]) $ do
     result <- nonLinMatch gamma ps es
     case result of
-      Left block -> return $ Left $ block $> f es -- TODO: remember reductions
+      Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
       Right sub  -> do
         let v' = applySubst sub rhs
         Red.traceSDoc "rewriting" 70 (sep
-          [ text "rewrote " <+> prettyTCM (f es)
+          [ text "rewrote " <+> prettyTCM (v `applyE` es)
           , text " to " <+> prettyTCM v'
           ]) $ return $ Right v'
 
@@ -359,38 +360,28 @@ rewriteWith mt f es rew@(RewriteRule q gamma _ ps rhs b) = do
     unfreezeMetas' (`elem` ms)
     return res-}
 
--- | @rewrite t@ tries to rewrite a reduced term.
-rewrite :: Blocked Term -> ReduceM (Either (Blocked Term) Term)
-rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- else -} do
-  let v     = ignoreBlocking bv
-  case ignoreSharing v of
-    -- We only rewrite @Def@s and @Con@s.
-    Def f es -> rew f (Def f) es
-    Con c vs -> rew (conName c) hd (Apply <$> vs)
-      where hd es = Con c $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-    _ -> return $ Left bv
+-- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
+--   rewrite rules @rules@. @b@ is the default blocking tag.
+rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewrite block v rules es = do
+  rewritingAllowed <- optRewriting <$> pragmaOptions
+  if (rewritingAllowed && not (null rules)) then
+    loop block rules =<< instantiateFull' es
+  else
+    return $ NoReduction (block $> v `applyE` es)
   where
-    -- Try all rewrite rules for f.
-    rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Either (Blocked Term) Term)
-    rew f hd es = do
-      rules <- getRewriteRulesFor f
-      case rules of
-        [] -> return $ Left $ bv $> hd es
-        _  -> do
-          es <- instantiateFull' es
-          loop (void bv) es rules
-      where
-      loop :: Blocked_ -> Elims -> RewriteRules -> ReduceM (Either (Blocked Term) Term)
-      loop block es [] = return $ Left $ block $> hd es
-      loop block es (rew:rews)
-       | let n = rewArity rew, length es >= n = do
-            let (es1, es2) = List.genericSplitAt n es
-            result <- rewriteWith Nothing hd es1 rew
-            case result of
-              Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) es rews
-              Left (NotBlocked _ _) -> loop block es rews
-              Right w               -> return $ Right $ w `applyE` es2
-       | otherwise = loop (block `mappend` NotBlocked Underapplied ()) es rews
+    loop :: Blocked_ -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+    loop block [] es = return $ NoReduction $ block $> v `applyE` es
+    loop block (rew:rews) es
+     | let n = rewArity rew, length es >= n = do
+          let (es1, es2) = List.genericSplitAt n es
+          result <- rewriteWith Nothing v rew es1
+          case result of
+            Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) rews es
+            Left (NotBlocked _ _) -> loop block rews es
+            Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
+     | otherwise = loop (block `mappend` NotBlocked Underapplied ()) rews es
+
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
@@ -402,6 +393,9 @@ class NLPatVars a where
 instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
   nlPatVars = foldMap nlPatVars
 
+instance NLPatVars NLPType where
+  nlPatVars (NLPType l a) = nlPatVars l `IntSet.union` nlPatVars a
+
 instance NLPatVars NLPat where
   nlPatVars p =
     case p of
@@ -410,7 +404,6 @@ instance NLPatVars NLPat where
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
       PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
-      PPlusLevel _ p' -> nlPatVars p'
       PBoundVar _ es -> nlPatVars es
       PTerm{}   -> empty
 
@@ -427,6 +420,9 @@ instance (Functor f, KillCtxId a) => KillCtxId (f a) where
 instance KillCtxId RewriteRule where
   killCtxId rule@RewriteRule{ rewPats = ps } = rule{ rewPats = killCtxId ps }
 
+instance KillCtxId NLPType where
+  killCtxId (NLPType l a) = NLPType (killCtxId l) (killCtxId a)
+
 instance KillCtxId NLPat where
   killCtxId p = case p of
     PVar _ i bvs   -> PVar Nothing i bvs
@@ -434,7 +430,6 @@ instance KillCtxId NLPat where
     PDef f es      -> PDef f $ killCtxId es
     PLam i x       -> PLam i $ killCtxId x
     PPi a b        -> PPi (killCtxId a) (killCtxId b)
-    PPlusLevel i u -> PPlusLevel i $ killCtxId u
     PBoundVar i es -> PBoundVar i $ killCtxId es
     PTerm _        -> p
 
@@ -453,7 +448,6 @@ instance GetMatchables NLPat where
       PDef f _       -> singleton f
       PLam _ x       -> empty
       PPi a b        -> empty
-      PPlusLevel _ _ -> empty
       PBoundVar i es -> empty
       PTerm _        -> empty -- should be safe (I hope)
 
@@ -468,6 +462,11 @@ instance Free' NLPat c where
     PDef _ es -> freeVars' es
     PLam _ u -> freeVars' u
     PPi a b -> freeVars' (a,b)
-    PPlusLevel _ u -> freeVars' u
     PBoundVar _ es -> freeVars' es
     PTerm t -> freeVars' t
+
+instance Free' NLPType c where
+  freeVars' (NLPType l a) =
+    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
+      {- then -} (freeVars' (l, a))
+      {- else -} (freeVars' a)

@@ -105,7 +105,7 @@ instance PrettyTCM Warning where
 
     UnsolvedConstraints cs ->
       fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (vcat $ map prettyConstraint cs)
+      $$ nest 2 (P.vcat . nub <$> mapM prettyConstraint cs)
 
       where prettyConstraint :: ProblemConstraint -> TCM Doc
             prettyConstraint c = f (prettyTCM c)
@@ -290,7 +290,6 @@ errorString err = case err of
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
-  OperatorChangeMessage {}                 -> "OperatorChangeMessage"
   OperatorInformation {}                   -> "OperatorInformation"
   PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
   PropMustBeSingleton                      -> "PropMustBeSingleton"
@@ -669,9 +668,16 @@ instance PrettyTCM TypeError where
       pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
       pwords "in record"
 
-    WithOnFreeVariable e -> fsep $
-      pwords "Cannot `with` on variable " ++ [prettyA e] ++
-      pwords " bound in a module telescope (or patterns of a parent clause)"
+    WithOnFreeVariable e v -> do
+      de <- prettyA e
+      dv <- prettyTCM v
+      if show de == show dv
+        then fsep $
+          pwords "Cannot `with` on variable" ++ [return dv] ++
+          pwords " bound in a module telescope (or patterns of a parent clause)"
+        else fsep $
+          pwords "Cannot `with` on expression" ++ [return de] ++ pwords "which reduces to variable" ++ [return dv] ++
+          pwords " bound in a module telescope (or patterns of a parent clause)"
 
     UnexpectedWithPatterns ps -> fsep $
       pwords "Unexpected with patterns" ++ (punctuate (text " |") $ map prettyA ps)
@@ -1074,15 +1080,6 @@ instance PrettyTCM TypeError where
               NonAssoc   -> "infix"
               LeftAssoc  -> "infixl"
               RightAssoc -> "infixr"
-
-    OperatorChangeMessage err@(OperatorInformation [] _) ->
-      prettyTCM err
-    OperatorChangeMessage err ->
-      prettyTCM err
-        $+$
-      fsep (pwords $
-        "(the treatment of operators was changed in Agda 2.5.1, " ++
-        "so code that used to parse may have to be changed)")
 
 {- UNUSED
     AmbiguousParseForPatternSynonym p ps -> fsep (

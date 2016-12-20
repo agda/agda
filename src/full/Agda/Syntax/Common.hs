@@ -555,7 +555,7 @@ data Dom e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
   , unDom     :: e
-  } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+  } deriving (Typeable, Ord, Functor, Foldable, Traversable)
 
 instance Decoration Dom where
   traverseF f (Dom ai b a) = Dom ai b <$> f a
@@ -565,6 +565,10 @@ instance HasRange a => HasRange (Dom a) where
 
 instance KillRange a => KillRange (Dom a) where
   killRange (Dom info b a) = killRange3 Dom info b a
+
+instance Eq a => Eq (Dom a) where
+  Dom (ArgInfo h1 r1 _ _) b1 x1 == Dom (ArgInfo h2 r2 _ _) b2 x2 =
+    (h1, ignoreForced r1, b1, x1) == (h2, ignoreForced r2, b2, x2)
 
 instance Show a => Show (Dom a) where
   show = show . argFromDom
@@ -704,12 +708,20 @@ type RString = Ranged RawName
 -- * Further constructor and projection info
 ---------------------------------------------------------------------------
 
--- | Where does the 'ConP' come from?
-data ConPOrigin
-  = ConPImplicit  -- ^ Expanded from an implicit pattern.
-  | ConPCon       -- ^ User wrote a constructor pattern.
-  | ConPRec       -- ^ User wrote a record pattern.
+-- | Where does the 'ConP' or 'Con' come from?
+data ConOrigin
+  = ConOSystem  -- ^ Inserted by system or expanded from an implicit pattern.
+  | ConOCon     -- ^ User wrote a constructor (pattern).
+  | ConORec     -- ^ User wrote a record (pattern).
   deriving (Typeable, Show, Eq, Ord, Enum, Bounded)
+
+instance KillRange ConOrigin where
+  killRange = id
+
+-- | Prefer user-written over system-inserted.
+bestConInfo :: ConOrigin -> ConOrigin -> ConOrigin
+bestConInfo ConOSystem o = o
+bestConInfo o _ = o
 
 -- | Where does a projection come from?
 data ProjOrigin

@@ -4,7 +4,7 @@ Termination checking failed for the following functions:
 Problematic calls:
   repeat' a
     (at FakeProjectionsDoNotPreserveGuardedness.agda:31,25-32)
-  .FakeProjectionsDoNotPreserveGuardedness._.♯-0
+  .FakeProjectionsDoNotPreserveGuardedness.♯-0
     (at FakeProjectionsDoNotPreserveGuardedness.agda:34,19-20)
   repeat a
     (at FakeProjectionsDoNotPreserveGuardedness.agda:34,21-27)

@@ -12,7 +12,7 @@ import Control.Applicative ( (<$>) )
 import Data.Function ( on )
 import Data.List ( nubBy, sortBy, isPrefixOf, inits )
 
-import Prelude hiding ( lookup )
+import Prelude hiding ( lookup, filter )
 import qualified Prelude
 
 import Test.QuickCheck
@@ -58,7 +58,7 @@ modelPath ks (Model xs) =
   map snd
   $ sortBy (compare `on` length . fst)
   $ nubBy ((==) `on` fst)
-  $ filter (flip isPrefixOf ks . fst) xs
+  $ Prelude.filter (flip isPrefixOf ks . fst) xs
 
 prop_path :: [Key] -> Model -> Property
 prop_path ks m =

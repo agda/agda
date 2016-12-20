@@ -45,6 +45,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
+import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
@@ -829,6 +830,23 @@ instance Free' Constraint c where
       CheckSizeLtSat u      -> freeVars' u
       FindInScope _ _ cs    -> freeVars' cs
 
+instance TermLike Constraint where
+  foldTerm f = \case
+      ValueCmp _ t u v       -> foldTerm f (t, u, v)
+      ElimCmp _ t u es es'   -> foldTerm f (t, u, es, es')
+      TypeCmp _ t t'         -> foldTerm f (t, t')
+      LevelCmp _ l l'        -> foldTerm f (l, l')
+      IsEmpty _ t            -> foldTerm f t
+      CheckSizeLtSat u       -> foldTerm f u
+      TelCmp _ _ _ tel1 tel2 -> __IMPOSSIBLE__  -- foldTerm f (tel1, tel2) -- Not yet implemented
+      SortCmp _ s1 s2        -> __IMPOSSIBLE__  -- foldTerm f (s1, s2) -- Not yet implemented
+      UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
+      Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
+      FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
+  traverseTerm f c  = __IMPOSSIBLE__ -- Not yet implemented
+  traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
+
+
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable)
 
@@ -1172,7 +1190,7 @@ data DisplayTerm
     --   The 'Elims' are additional arguments @es@
     --   (possible in case the with-application is of function type)
     --   or projections (if it is of record type).
-  | DCon ConHead [Arg DisplayTerm]
+  | DCon ConHead ConInfo [Arg DisplayTerm]
     -- ^ @c vs@.
   | DDef QName [Elim' DisplayTerm]
     -- ^ @d vs@.
@@ -1187,7 +1205,7 @@ instance Free' DisplayForm c where
 
 instance Free' DisplayTerm c where
   freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
-  freeVars' (DCon _ vs)        = freeVars' vs
+  freeVars' (DCon _ _ vs)      = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
   freeVars' (DDot v)           = freeVars' v
   freeVars' (DTerm v)          = freeVars' v
@@ -1210,16 +1228,19 @@ data NLPat
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
     -- ^ Matches @λ x → t@
-  | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
+  | PPi (Dom NLPType) (Abs NLPType)
     -- ^ Matches @(x : A) → B@
-  | PPlusLevel Integer NLPat
-    -- ^ Matches @lsuc $ lsuc $ ... lsuc t@
   | PBoundVar {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
   deriving (Typeable, Show)
 type PElims = [Elim' NLPat]
+
+data NLPType = NLPType
+  { nlpTypeLevel :: NLPat  -- always PWild or PVar (with all bound variables in scope)
+  , nlpTypeUnEl  :: NLPat
+  } deriving (Typeable, Show)
 
 type RewriteRules = [RewriteRule]
 
@@ -1373,8 +1394,9 @@ data Projection = Projection
   , projOrig      :: QName
     -- ^ The original projection name
     --   (current name could be from module application).
-  , projFromType  :: QName
-    -- ^ Type projected from.  Record type if @projProper = Just{}@.
+  , projFromType  :: Arg QName
+    -- ^ Type projected from. Record type if @projProper = Just{}@. Also
+    -- stores @ArgInfo@ of the principal argument.
   , projIndex     :: Int
     -- ^ Index of the record argument.
     --   Start counting with 1, because 0 means that
@@ -1954,6 +1976,8 @@ data TCEnv =
                 -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are avail.
+          , envDisplayFormsEnabled :: Bool
+                -- ^ Sometimes we want to disable display forms.
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -2037,6 +2061,7 @@ initEnv = TCEnv { envContext             = []
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
                 , envRelevance           = Relevant
+                , envDisplayFormsEnabled = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2118,6 +2143,9 @@ eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
 eRelevance :: Lens' Relevance TCEnv
 eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
+
+eDisplayFormsEnabled :: Lens' Bool TCEnv
+eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
 
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
@@ -2463,7 +2491,7 @@ data TypeError
         | TooManyFields QName [C.Name]
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
-        | WithOnFreeVariable A.Expr
+        | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
         | WithClausePatternMismatch A.Pattern Pattern
         | FieldOutsideRecord
@@ -2540,7 +2568,6 @@ data TypeError
         | NoParseForLHS LHSOrPatSyn C.Pattern
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
         | OperatorInformation [NotationSection] TypeError
-        | OperatorChangeMessage TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
         | AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]
@@ -3004,9 +3031,11 @@ instance KillRange NLPat where
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
-  killRange (PPlusLevel x y) = killRange2 PPlusLevel x y
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
+
+instance KillRange NLPType where
+  killRange (NLPType s a) = killRange2 NLPType s a
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t) =
@@ -3072,7 +3101,7 @@ instance KillRange DisplayTerm where
   killRange dt =
     case dt of
       DWithApp dt dts es -> killRange3 DWithApp dt dts es
-      DCon q dts        -> killRange2 DCon q dts
+      DCon q ci dts     -> killRange3 DCon q ci dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
       DTerm v           -> killRange1 DTerm v

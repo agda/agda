@@ -517,6 +517,27 @@ spaces (s@(T.uncons -> Just (c, _)) : ss)
 
 spaces (_ : ss) = __IMPOSSIBLE__
 
+-- Split multi-lines string literals into multiple string literals
+-- Isolating leading spaces for the alignment machinery to work
+-- properly
+stringLiteral :: Token -> Tokens
+stringLiteral t | aspect (info t) == Just String =
+  reverse $ snd $ foldl insertShifted (0, [])
+                $ concatMap leadingSpaces
+                $ List.intersperse (T.pack "\n")
+                $ T.lines (text t) where
+
+    leadingSpaces :: Text -> [Text]
+    leadingSpaces t = [pre, suf]
+      where (pre , suf) = T.span (== ' ') t
+
+    insertShifted :: (Int, Tokens) -> Text -> (Int, Tokens)
+    insertShifted (i, xs) x =
+      let tx = t { text = x, position = position t + i }
+      in (i + T.length x, tx : xs)
+
+stringLiteral t = [t]
+
 ------------------------------------------------------------------------
 -- * Main.
 
@@ -576,6 +597,8 @@ toLaTeX :: String -> HighlightingInfo -> IO Text
 toLaTeX source hi
 
   = processTokens
+
+  . concatMap stringLiteral
 
   -- Head the list (the grouped chars contain the same meta info) and
   -- collect the characters into a string.

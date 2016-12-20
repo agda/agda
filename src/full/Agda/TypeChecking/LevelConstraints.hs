@@ -2,25 +2,50 @@
 
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
+import Data.List as List
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Substitute ()
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Free
+import Agda.Utils.Impossible
+
+#include "undefined.h"
 
 -- | @simplifyLevelConstraint c cs@ turns an @c@ into an equality
 --   constraint if it is an inequality constraint and the reverse
 --   inequality is contained in @cs@.
 --
---   Precondition: all constraints live in the same context.
+--   The constraints doesn't necessarily have to live in the same context, but
+--   they do need to be universally quanitfied over the context. This function
+--   takes care of renaming variables when checking for matches.
 simplifyLevelConstraint :: Constraint -> [Constraint] -> Constraint
 simplifyLevelConstraint new old =
   case inequalities new of
-    [a :=< b] | elem (b :=< a) leqs -> LevelCmp CmpEq (Max [a]) (Max [b])
+    [a :=< b] | any (matchLeq (b :=< a)) leqs -> LevelCmp CmpEq (Max [a]) (Max [b])
     _ -> new
   where
     leqs = concatMap inequalities old
 
 data Leq = PlusLevel :=< PlusLevel
   deriving (Show, Eq)
+
+-- | Check if two inequality constraints are the same up to variable renaming.
+matchLeq :: Leq -> Leq -> Bool
+matchLeq (a :=< b) (c :=< d)
+  | length xs == length ys = (a, b) == applySubst rho (c, d)
+  | otherwise              = False
+  where
+    free :: Free' a [Int] => a -> [Int]
+    free = nub . runFree ((:[]) . fst) IgnoreNot
+    xs  = free (a, b)
+    ys  = free (c, d)
+    rho = mkSub $ List.sort $ zip ys xs
+    mkSub = go 0
+      where
+        go _ [] = IdS
+        go y ren0@((y', x) : ren)
+          | y == y'   = Var x [] :# go (y + 1) ren
+          | otherwise = Strengthen __IMPOSSIBLE__ $ go (y + 1) ren0
 
 -- | Turn a level constraint into a list of level inequalities, if possible.
 

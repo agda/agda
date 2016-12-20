@@ -6,7 +6,7 @@ import Control.Monad.State
 import Data.Char
 import Data.List as L
 import Data.Map as M
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -60,7 +60,7 @@ checkTypeOfMain q ty ret
           [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
         typeError $ GenericError $ show err
   where
-    mainAlias = HS.FunBind [HS.Match dummy mainLHS [] Nothing mainRHS emptyBinds ]
+    mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
     mainRHS   = HS.UnGuardedRhs $ HS.Var $ HS.UnQual $ unqhname "d" q
 
@@ -111,7 +111,7 @@ xForPrim table = do
   qs <- HMap.keys <$> curDefs
   bs <- toList <$> gets stBuiltinThings
   let getName (Builtin (Def q _))    = q
-      getName (Builtin (Con q _))    = conName q
+      getName (Builtin (Con q _ _))  = conName q
       getName (Builtin (Shared p))   = getName (Builtin $ derefPtr p)
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
@@ -200,7 +200,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primStringFromList" |-> return "Data.Text.pack"
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
-  , "primShowString"     |-> return "Data.Text.unpack"
+  , "primShowString"     |-> return "id"
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
@@ -252,7 +252,7 @@ noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 pconName :: String -> TCM String
 pconName s = toS . ignoreSharing =<< getBuiltin s where
-  toS (Con q _) = prettyPrint <$> conhqn (conName q)
+  toS (Con q _ _) = prettyPrint <$> conhqn (conName q)
   toS (Lam _ t) = toS (unAbs t)
   toS _ = mazerror $ "pconName" ++ s
 

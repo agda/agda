@@ -105,7 +105,7 @@ haskellType t = fromType t
             underAbstraction a b $ \b ->
               hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
           else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
-        Con c args -> hsApp <$> getHsType (conName c) <*> fromArgs args
+        Con c ci args -> hsApp <$> getHsType (conName c) <*> fromArgs args
         Lam{}      -> err
         Level{}    -> return hsUnit
         Lit{}      -> return hsUnit

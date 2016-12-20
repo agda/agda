@@ -125,8 +125,8 @@ instance (ForcedVariables a, Foldable t) => ForcedVariables (t a) where
 instance ForcedVariables Term where
   forcedVariables t = case ignoreSharing t of
     Var i [] -> [i]
-    Con _ vs -> forcedVariables vs
-    _        -> []
+    Con _ _ vs -> forcedVariables vs
+    _ -> []
 
 -- | @force s xs t@ marks the domains @xs@ in function type @t@ as forced.
 --   Domains bigger than @s@ are marked as @'Forced' 'Big'@, others as

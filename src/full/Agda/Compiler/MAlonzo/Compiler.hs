@@ -24,10 +24,7 @@ import Data.Traversable hiding (for)
 
 import Numeric.IEEE
 
-import qualified Language.Haskell.Exts.Extension as HS
-import qualified Language.Haskell.Exts.Parser as HS
-import qualified Language.Haskell.Exts.Pretty as HS
-import qualified Language.Haskell.Exts.Syntax as HS
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
@@ -98,12 +95,12 @@ compile i = do
     yesComp
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
-  decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp (map fakeDecl (reverse $ iHaskellCode i) ++ ds)
+  decl mn ds imp = HS.Module mn [] imp (map fakeDecl (reverse $ iHaskellCode i) ++ ds)
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
-  yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
+  noComp   = reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
+  yesComp  = reportSLn "compile.ghc" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [show . A.mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
@@ -120,7 +117,7 @@ imports = (++) <$> hsImps <*> imps where
              getHaskellImports
 
   unqualRTE :: HS.ImportDecl
-  unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
+  unqualRTE = HS.ImportDecl mazRTE False $ Just $
               (False, [ HS.IVar $ HS.Ident x
                       | x <- [mazCoerceName, mazErasedName] ++
                              map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF] ])
@@ -130,7 +127,7 @@ imports = (++) <$> hsImps <*> imps where
            ((++) <$> importsForPrim <*> (List.map mazMod <$> mnames))
 
   decl :: HS.ModuleName -> HS.ImportDecl
-  decl m = HS.ImportDecl dummy m True False False Nothing Nothing Nothing
+  decl m = HS.ImportDecl m True Nothing
 
   mnames :: TCM [ModuleName]
   mnames = Set.elems <$> use stImportedModules
@@ -172,11 +169,11 @@ definition kit (Defn UnusedArg _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
 definition kit Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
-  reportSDoc "malonzo.definition" 10 $
+  reportSDoc "compile.ghc.definition" 10 $
     text "Not compiling" <+> prettyTCM q <> text "."
   return []
 definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef = d} = do
-  reportSDoc "malonzo.definition" 10 $ vcat
+  reportSDoc "compile.ghc.definition" 10 $ vcat
     [ text "Compiling" <+> prettyTCM q <> text ":"
     , nest 2 $ text (show d)
     ]
@@ -196,11 +193,11 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             a    = ihname "a" 0
             b    = ihname "a" 1
             vars = [a, b]
-        return [ HS.TypeDecl dummy infT
+        return [ HS.TypeDecl infT
                              (List.map HS.UnkindedVar vars)
                              (HS.TyVar b)
-               , HS.FunBind [HS.Match dummy infV
-                                      (List.map HS.PVar vars) Nothing
+               , HS.FunBind [HS.Match infV
+                                      (List.map HS.PVar vars)
                                       (HS.UnGuardedRhs HS.unit_con)
                                       emptyBinds]
                ]
@@ -208,11 +205,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
         let sharp = unqhname "d" q
             x     = ihname "x" 0
         return $
-          [ HS.TypeSig dummy [sharp] $ fakeType $
+          [ HS.TypeSig [sharp] $ fakeType $
               "forall a. a -> a"
-          , HS.FunBind [HS.Match dummy sharp
+          , HS.FunBind [HS.Match sharp
                                  [HS.PVar x]
-                                 Nothing
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                  emptyBinds]
           ]
@@ -220,11 +216,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
         let flat = unqhname "d" q
             x    = ihname "x" 0
         return $
-          [ HS.TypeSig dummy [flat] $ fakeType $
+          [ HS.TypeSig [flat] $ fakeType $
               "forall a. a -> a"
-          , HS.FunBind [HS.Match dummy flat
+          , HS.FunBind [HS.Match flat
                                  [HS.PVar x]
-                                 Nothing
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                  emptyBinds]
           ]
@@ -265,10 +260,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       Nothing -> return ccls
       Just (HsExport t name) -> do
         let tsig :: HS.Decl
-            tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
+            tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
+            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
 
   functionViaTreeless :: QName -> TCM [HS.Decl]
@@ -282,15 +277,15 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
     let (ps, b) = lamView e
         lamView e =
           case stripTopCoerce e of
-            HS.Lambda _ ps b -> (ps, b)
+            HS.Lambda ps b -> (ps, b)
             b                -> ([], b)
-        stripTopCoerce (HS.Lambda i ps b) = HS.Lambda i ps $ stripTopCoerce b
+        stripTopCoerce (HS.Lambda ps b) = HS.Lambda ps $ stripTopCoerce b
         stripTopCoerce e =
           case hsAppView e of
             [c,  e] | c == mazCoerce -> e
             _                        -> e
 
-        funbind f ps b = HS.FunBind [HS.Match dummy f ps Nothing (HS.UnGuardedRhs b) emptyBinds]
+        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
@@ -302,9 +297,8 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       else [ funbind (dname q) ps b ]
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
-  mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs emptyBinds] :
-           fbs@(_:_)) =
-          [HS.FunBind [m0, HS.Match dummy dn ps mt rhs bindsAux]]
+  mkwhere (HS.FunBind [m0, HS.Match dn ps rhs emptyBinds] : fbs@(_:_)) =
+          [HS.FunBind [m0, HS.Match dn ps rhs bindsAux]]
     where
     bindsAux :: Maybe HS.Binds
     bindsAux = Just $ HS.BDecls fbs
@@ -313,10 +307,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
   fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
-    [ HS.TypeSig dummy [unqhname "d" q] $ fakeType ty ] ++ fb e
+    [ HS.TypeSig [unqhname "d" q] $ fakeType ty ] ++ fb e
 
   fb :: HS.Exp -> [HS.Decl]
-  fb e  = [HS.FunBind [HS.Match dummy (unqhname "d" q) [] Nothing
+  fb e  = [HS.FunBind [HS.Match (unqhname "d" q) []
                                 (HS.UnGuardedRhs $ e) emptyBinds]]
 
   axiomErr :: HS.Exp
@@ -365,8 +359,8 @@ intros n cont = freshNames n $ \xs ->
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
   Just (HsDefn ty hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
-  return [ HS.TypeSig dummy [unqhname "check" q] $ fakeType ty
-         , HS.FunBind [HS.Match dummy (unqhname "check" q) [] Nothing
+  return [ HS.TypeSig [unqhname "check" q] $ fakeType ty
+         , HS.FunBind [HS.Match (unqhname "check" q) []
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
@@ -377,16 +371,16 @@ checkCover q ty n cs = do
         a <- erasedArity c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
-        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
+        return $ HS.Alt pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
 
   cs <- mapM makeClause cs
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
               _  -> HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs
 
-  return [ HS.TypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
-         , HS.FunBind [HS.Match dummy (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
-                                Nothing (HS.UnGuardedRhs rhs) emptyBinds]
+  return [ HS.TypeSig [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
+         , HS.FunBind [HS.Match (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
+                                (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
 closedTerm :: T.TTerm -> TCM HS.Exp
@@ -445,7 +439,7 @@ term tm0 = case tm0 of
     sc' <- term (T.TVar sc)
     alts' <- traverse (alt sc) alts
     def' <- term def
-    let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
+    let defAlt = HS.Alt HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
 
     return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
 
@@ -480,13 +474,13 @@ alt sc a = do
     T.TAGuard g b -> do
       g <- term g
       b <- term b
-      return $ HS.Alt dummy HS.PWildCard
-                      (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier g] b])
+      return $ HS.Alt HS.PWildCard
+                      (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier g] b])
                       emptyBinds
     T.TALit { T.aLit = LitQName _ q } -> mkAlt (litqnamepat q)
     T.TALit { T.aLit = l@LitFloat{},   T.aBody = b } -> mkGuarded (treelessPrimName T.PEqF) (literal l) b
     T.TALit { T.aLit = LitString _ s , T.aBody = b } -> mkGuarded "(==)" (litString s) b
-    T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
+    T.TALit {} -> mkAlt (HS.PLit $ hslit $ T.aLit a)
   where
     mkGuarded eq lit b = do
       b  <- term b
@@ -494,14 +488,14 @@ alt sc a = do
       let guard =
             HS.Var (HS.UnQual (HS.Ident eq)) `HS.App`
               sc `HS.App` lit
-      return $ HS.Alt dummy HS.PWildCard
-                      (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier guard] b])
+      return $ HS.Alt HS.PWildCard
+                      (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier guard] b])
                       emptyBinds
 
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
+        return $ HS.Alt pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
 
 literal :: Literal -> HS.Exp
 literal l = case l of
@@ -512,7 +506,7 @@ literal l = case l of
   _               -> l'
   where
     l'    = HS.Lit $ hslit l
-    typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
+    typed = HS.ExpTypeSig l' . HS.TyCon . rtmQual
 
     -- ASR (2016-09-14): See Issue #2169.
     -- Ulf, 2016-09-28: and #2218.
@@ -568,8 +562,8 @@ litqname x =
 litqnamepat :: QName -> HS.Pat
 litqnamepat x =
   HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
-          [ HS.PLit HS.Signless (HS.Int $ fromIntegral n)
-          , HS.PLit HS.Signless (HS.Int $ fromIntegral m)
+          [ HS.PLit (HS.Int $ fromIntegral n)
+          , HS.PLit (HS.Int $ fromIntegral m)
           , HS.PWildCard, HS.PWildCard ]
   where
     NameId n m = nameId $ qnameName x
@@ -596,10 +590,8 @@ tvaldecl :: QName
             -- ^ Is the type inductive or coinductive?
          -> Nat -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
 tvaldecl q ind ntv npar cds cl =
-  HS.FunBind [HS.Match dummy vn pvs Nothing
-                       (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
-  maybe [HS.DataDecl dummy kind [] tn tvs
-                     (List.map (HS.QualConDecl dummy [] []) cds) []]
+  HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
+  maybe [HS.DataDecl kind tn tvs cds []]
         (const []) cl
   where
   (tn, vn) = (unqhname "T" q, unqhname "d" q)
@@ -610,7 +602,6 @@ tvaldecl q ind ntv npar cds cl =
   -- single argument are translated into newtypes.
   kind = case (ind, cds) of
     (Inductive, [HS.ConDecl _ [_]]) -> HS.NewType
-    (Inductive, [HS.RecDecl _ [_]]) -> HS.NewType
     _                               -> HS.DataType
 
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
@@ -628,7 +619,7 @@ hsCast = addcast . go where
   addcast es = foldl HS.App mazCoerce es
   -- this need to be extended if you generate other kinds of exps.
   go (HS.App e1 e2    ) = go e1 ++ [hsCast e2]
-  go (HS.Lambda _ ps e) = [ HS.Lambda dummy ps (hsCast e) ]
+  go (HS.Lambda _ ps e) = [ HS.Lambda ps (hsCast e) ]
   go e = [e]
 -}
 
@@ -637,7 +628,7 @@ hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
 hsCast' (HS.InfixApp e1 op e2) = hsCoerce $ HS.InfixApp (hsCast' e1) op (hsCast' e2)
-hsCast' (HS.Lambda _ ps e)     = HS.Lambda dummy ps $ hsCast' e
+hsCast' (HS.Lambda ps e)       = HS.Lambda ps $ hsCast' e
 hsCast' (HS.Let bs e)          = HS.Let bs $ hsCast' e
 hsCast' (HS.Case sc alts)      = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
 hsCast' e =
@@ -648,7 +639,7 @@ hsCast' e =
 -- We still have to coerce function applications in arguments to coerced
 -- functions.
 hsCastApp :: HS.Exp -> HS.Exp
-hsCastApp (HS.Lambda i ps b) = HS.Lambda i ps (hsCastApp b)
+hsCastApp (HS.Lambda ps b) = HS.Lambda ps (hsCastApp b)
 hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
 hsCastApp (HS.InfixApp e1 op e2) = HS.InfixApp (hsCastApp e1) op (hsCastApp e2)
 hsCastApp e =
@@ -658,7 +649,7 @@ hsCastApp e =
 
 -- No coercion for literal integers
 hsCoerce :: HS.Exp -> HS.Exp
-hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
+hsCoerce e@(HS.ExpTypeSig (HS.Lit (HS.Int{})) _) = e
 hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
 hsCoerce (HS.Let bs e) = HS.Let bs $ hsCoerce e
 hsCoerce e =
@@ -677,13 +668,13 @@ copyRTEModules = do
   (lift . copyDirContent srcDir) =<< compileDir
 
 writeModule :: HS.Module -> TCM ()
-writeModule (HS.Module l m ps w ex imp ds) = do
+writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- outFile m
   liftIO $ UTF8.writeFile out $ prettyPrint $
-    HS.Module l m (p : ps) w ex imp ds
+    HS.Module m (p : ps) imp ds
   where
-  p = HS.LanguagePragma dummy $ List.map HS.Ident $
+  p = HS.LanguagePragma $ List.map HS.Ident $
         [ "EmptyDataDecls"
         , "ExistentialQuantification"
         , "ScopedTypeVariables"

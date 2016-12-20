@@ -10,6 +10,7 @@ module Agda.Utils.Either
   , fromLeft, fromRight
   , maybeLeft, maybeRight
   , allLeft, allRight
+  , maybeToEither
   ) where
 
 -- | Loop while we have an exception.
@@ -100,3 +101,7 @@ allLeft = mapM maybeLeft
 
 allRight :: [Either a b] -> Maybe [b]
 allRight = mapM maybeRight
+
+-- | Convert 'Maybe' to @'Either' ()'@
+maybeToEither :: Maybe a -> Either () a
+maybeToEither = maybe (Left ()) Right

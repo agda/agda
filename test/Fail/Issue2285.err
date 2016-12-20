@@ -1,0 +1,3 @@
+Issue2285.agda:14,5-32
+Setω is not a valid type
+when checking the constructor big in the declaration of Big

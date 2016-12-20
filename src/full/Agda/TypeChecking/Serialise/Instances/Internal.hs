@@ -100,7 +100,7 @@ instance EmbPrj I.Term where
   icod_ (Lam      a b) = icode2 1 a b
   icod_ (Lit      a  ) = icode1 2 a
   icod_ (Def      a b) = icode2 3 a b
-  icod_ (Con      a b) = icode2 4 a b
+  icod_ (Con    a b c) = icode3 4 a b c
   icod_ (Pi       a b) = icode2 5 a b
   icod_ (Sort     a  ) = icode1 7 a
   icod_ (MetaV    a b) = __IMPOSSIBLE__
@@ -115,7 +115,7 @@ instance EmbPrj I.Term where
     valu [1, a, b] = valu2 Lam   a b
     valu [2, a]    = valu1 Lit   a
     valu [3, a, b] = valu2 Def   a b
-    valu [4, a, b] = valu2 Con   a b
+    valu [4, a, b, c] = valu3 Con a b c
     valu [5, a, b] = valu2 Pi    a b
     valu [7, a]    = valu1 Sort  a
     valu [8, a]    = valu1 DontCare a
@@ -195,14 +195,14 @@ instance EmbPrj CtxId where
 instance EmbPrj DisplayTerm where
   icod_ (DTerm    a  )   = icode1' a
   icod_ (DDot     a  )   = icode1 1 a
-  icod_ (DCon     a b)   = icode2 2 a b
+  icod_ (DCon     a b c) = icode3 2 a b c
   icod_ (DDef     a b)   = icode2 3 a b
   icod_ (DWithApp a b c) = icode3 4 a b c
 
   value = vcase valu where
     valu [a]          = valu1 DTerm a
     valu [1, a]       = valu1 DDot a
-    valu [2, a, b]    = valu2 DCon a b
+    valu [2, a, b, c] = valu3 DCon a b c
     valu [3, a, b]    = valu2 DDef a b
     valu [4, a, b, c] = valu3 DWithApp a b c
     valu _            = malformed
@@ -224,9 +224,8 @@ instance EmbPrj NLPat where
   icod_ (PDef a b)      = icode2 2 a b
   icod_ (PLam a b)      = icode2 3 a b
   icod_ (PPi a b)       = icode2 4 a b
-  icod_ (PPlusLevel a b) = icode2 5 a b
-  icod_ (PBoundVar a b) = icode2 6 a b
-  icod_ (PTerm a)       = icode1 7 a
+  icod_ (PBoundVar a b) = icode2 5 a b
+  icod_ (PTerm a)       = icode1 6 a
 
   value = vcase valu where
     valu [0, a, b, c] = valu3 PVar a b c
@@ -234,10 +233,16 @@ instance EmbPrj NLPat where
     valu [2, a, b]    = valu2 PDef a b
     valu [3, a, b]    = valu2 PLam a b
     valu [4, a, b]    = valu2 PPi a b
-    valu [5, a, b]    = valu2 PPlusLevel a b
-    valu [6, a, b]    = valu2 PBoundVar a b
-    valu [7, a]       = valu1 PTerm a
+    valu [5, a, b]    = valu2 PBoundVar a b
+    valu [6, a]       = valu1 PTerm a
     valu _            = malformed
+
+instance EmbPrj NLPType where
+  icod_ (NLPType a b) = icode2' a b
+
+  value = vcase valu where
+    valu [a, b] = valu2 NLPType a b
+    valu _      = malformed
 
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icode6' a b c d e f
