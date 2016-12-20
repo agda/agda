@@ -521,7 +521,7 @@ checkExtendedLambda i di qname cs e t = do
      args     <- getContextArgs
      freevars <- getCurrentModuleFreeVars
      let argsNoParam = genericDrop freevars args -- don't count module parameters
-     let (hid, notHid) = partition isHidden argsNoParam
+     let (hid, notHid) = partition notVisible argsNoParam
      reportSDoc "tc.term.exlam" 30 $ vcat $
        [ text "dropped args: " <+> prettyTCM (take freevars args)
        , text "hidden  args: " <+> prettyTCM hid
