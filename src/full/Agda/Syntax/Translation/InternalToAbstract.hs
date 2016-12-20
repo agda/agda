@@ -513,22 +513,46 @@ reifyTerm expandAnonDefs0 v = do
               -- These are the dropped projection arguments
               scope <- getScope
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-              let pad = for as $ \ (Dom ai _) -> Arg ai underscore
+              let pad = for as $ \ (Dom ai (x, _)) ->
+                    Arg ai $ Named (Just $ unranged x) underscore
 
               -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
                   es'  = drop (max 0 (n - size pad)) es
-              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
-              -- Keep non-hidden arguments of the padding
+              -- Andreas, 2012-04-21: get rid of hidden underscores {_} and {{_}}
+              -- Keep non-hidden arguments of the padding.
+              --
+              -- Andreas, 2016-12-20, issue #2348:
+              -- Let @padTail@ be the list of arguments of the padding
+              -- * after the last visible argument of the padding, and
+              -- * with the same visibility as the first regular argument.
+              -- If @padTail@ is not empty, we need to
+              -- print the first regular argument with name.
+              -- We further have to print all elements of @padTail@
+              -- which have the same name and visibility of the
+              -- first regular argument.
               showImp <- showImplicitArguments
-              return (filter visible pad',
-                if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden dom es'
-                   else map (fmap unnamed) es')
+
+              -- Get the visible arguments of the padding and the rest
+              -- after the last visible argument.
+              let (padVisNamed, padRest) = filterAndRest visible pad'
+
+              -- Remove the names from the visible arguments.
+              let padVis  = map (fmap (unnamed . namedThing)) padVisNamed
+
+              -- Keep only the rest with the same visibility of @dom@...
+              let padTail = filter ((getHiding dom ==) . getHiding) padRest
+
+              -- ... and even the same name.
+              let padSame = filter ((Just (fst (unDom dom)) ==) . fmap rangedThing . nameOf . unArg) padTail
+
+              return $ if null padTail || not showImp
+                then (padVis           , map (fmap unnamed) es')
+                else (padVis ++ padSame, nameFirstIfHidden dom es')
 
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
-           let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
+           let hd = foldl' (A.App noExprInfo) (A.Def x) pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
@@ -570,7 +594,7 @@ reifyTerm expandAnonDefs0 v = do
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
-nameFirstIfHidden dom (I.Apply (Arg info e) : es) | isHidden info =
+nameFirstIfHidden dom (I.Apply (Arg info e) : es) | notVisible info =
   I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
