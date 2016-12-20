@@ -82,14 +82,17 @@ import Agda.Utils.Impossible
 
 -- Composition of reified applications ------------------------------------
 
+-- | Drops hidden arguments unless --show-implicit.
 napps :: Expr -> [NamedArg Expr] -> TCM Expr
 napps e = nelims e . map I.Apply
 
+-- | Drops hidden arguments unless --show-implicit.
 apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e = elims e . map I.Apply
 
 -- Composition of reified eliminations ------------------------------------
 
+-- | Drops hidden arguments unless --show-implicit.
 nelims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
 nelims e [] = return e
 nelims e (I.Apply arg : es) = do
@@ -103,6 +106,7 @@ nelims e (I.Proj o@ProjPrefix d  : es) =
 nelims e (I.Proj o d  : es) =
   nelims (A.App noExprInfo e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
 
+-- | Drops hidden arguments unless --show-implicit.
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e = nelims e . map (fmap unnamed)
 
@@ -383,14 +387,16 @@ reifyTerm expandAnonDefs0 v = do
               -- because target of constructor could be a definition
               -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
               TelV tel _ <- telView (defType def)
-              case genericDrop np $ telToList tel of
+              let (pars, rest) = splitAt np $ telToList tel
+              case rest of
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
                 -- we keep the parameters to avoid confusion.
-                (Dom info _ : _) | isHidden info -> do
-                  let us = genericReplicate (np - n) $
-                             setRelevance Relevant $ Arg info underscore
-                  apps h $ us ++ es
+                (Dom info _ : _) | notVisible info -> do
+                  let us = for (drop n pars) $ \ (Dom ai _) ->
+                             -- setRelevance Relevant $
+                             hideOrKeepInstance $ Arg ai underscore
+                  apps h $ us ++ es  -- Note: unless --show-implicit, @apps@ will drop @us@.
                 -- otherwise, we drop all parameters
                 _ -> apps h es
 
