@@ -290,7 +290,7 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel ps _ _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
-    [ text "Interaction.MakeCase.makeCase: split clause:"
+    [ text "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
       [ text "context =" <+> (prettyTCM =<< getContextTelescope)
       , text "tel =" <+> prettyTCM tel
