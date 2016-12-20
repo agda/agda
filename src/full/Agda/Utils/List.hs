@@ -4,6 +4,8 @@
 -}
 module Agda.Utils.List where
 
+import Control.Arrow (first)
+
 import Data.Functor ((<$>))
 import Data.Function
 import Data.List
@@ -128,6 +130,20 @@ partitionMaybe f = loop
     loop (a : as) = case f a of
       Nothing -> mapFst (a :) $ loop as
       Just b  -> mapSnd (b :) $ loop as
+
+-- | Like 'filter', but additionally return the last partition
+--   of the list where the predicate is @False@ everywhere.
+filterAndRest :: (a -> Bool) -> [a] -> ([a],[a])
+filterAndRest p = mapMaybeAndRest $ \ a -> if p a then Just a else Nothing
+
+-- | Like 'mapMaybe', but additionally return the last partition
+--   of the list where the function always returns @Nothing@.
+mapMaybeAndRest :: (a -> Maybe b) -> [a] -> ([b],[a])
+mapMaybeAndRest f = loop [] where
+  loop acc = \case
+    []                   -> ([], reverse acc)
+    x:xs | Just y <- f x -> first (y:) $ loop [] xs
+         | otherwise     -> loop (x:acc) xs
 
 -- | Drops from both lists simultaneously until one list is empty.
 dropCommon :: [a] -> [b] -> ([a],[b])
