@@ -203,9 +203,7 @@ install:
        cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
-       if [[ $GHC_VER != "8.0.2" ]]; then
-          cabal install cabal-install;
-       fi &&
+       cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cabal --version &&
        cabal install cpphs-1.20.2 &&
