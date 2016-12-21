@@ -293,8 +293,11 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ A.WildP patNoRange
 
-        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange Inserted <$> reify v -- __IMPOSSIBLE__
+        -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
+        -- so here we default to Inserted. This is only used for printing purposes, so the choice
+        -- shouldn't matter here.
+        termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
+        termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
 
         len = genericLength ps
 
@@ -896,7 +899,9 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
       I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
       I.DotP v -> do
         t <- liftTCM $ reify v
-        return $ A.DotP patNoRange Inserted t
+        -- This is only used for printing purposes, so the choice of Origin
+        -- shouldn't matter here.
+        return $ A.DotP patNoRange __IMPOSSIBLE__ t
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do

@@ -181,7 +181,10 @@ data Pattern
   | WildP Range                            -- ^ @_@
   | AbsurdP Range                          -- ^ @()@
   | AsP Range Name Pattern                 -- ^ @x\@p@ unused
-  | DotP Range Origin Expr                 -- ^ @.e@
+  | DotP Range Origin Expr                 -- ^ @.e@ (the Origin keeps track
+                                           -- whether this dot pattern was
+                                           -- written by the user or inserted
+                                           -- by the system)
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   deriving (Typeable)
