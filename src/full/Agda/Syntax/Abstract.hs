@@ -444,6 +444,9 @@ data Pattern' e
     --   Or generated at type checking for implicit arguments.
   | AsP PatInfo Name (Pattern' e)
   | DotP PatInfo Origin e
+    -- ^ Dot pattern @.e@: the Origin keeps track whether this dot pattern was
+    --   written by the user or inserted by the system (e.g. while expanding
+    --   the ellipsis in a with clause).
   | AbsurdP PatInfo
   | LitP Literal
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
