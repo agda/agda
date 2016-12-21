@@ -199,7 +199,7 @@ updateInPatterns as ps qs = do
 
     projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
-      A.VarP x            -> map (makeDotField (PatRange $ getRange x)) fs
+      A.VarP x            -> map (makeWildField (PatRange $ getRange x)) fs
       A.ConP cpi _ nps    -> nps
       A.WildP pi          -> map (makeWildField pi) fs
       A.DotP pi _ e       -> map (makeDotField pi) fs
