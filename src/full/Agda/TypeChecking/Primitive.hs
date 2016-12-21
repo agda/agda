@@ -480,6 +480,71 @@ imax x y = do
  --   sortSuc = Type . tmLvlSuc
  --   lvlSuc = Level . tmLvlSuc
 
+primPropBin :: PropView -> PropView -> TCM PrimitiveImpl
+primPropBin unit absorber = do
+  t <- el primProp --> el primProp --> el primProp
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ts -> do
+    case ts of
+     [x,y] -> do
+       sx <- reduceB' x
+       ix <- propView (unArg $ ignoreBlocking sx)
+       case ix of
+         ix | ix ==% absorber -> redReturn =<< propUnview absorber
+         ix | ix ==% unit     -> return $ YesReduction YesSimplification (unArg y)
+         _     -> do
+           sy <- reduceB' y
+           iy <- propView (unArg $ ignoreBlocking sy)
+           case iy of
+            iy | iy ==% absorber -> redReturn =<< propUnview absorber
+            iy | iy ==% unit     -> return $ YesReduction YesSimplification (unArg x)
+            _                   -> return $ NoReduction [reduced sx,reduced sy]
+     _ -> __IMPOSSIBLE__
+  where
+    (==%) PBot PBot = True
+    (==%) PTop PTop = True
+    (==%) _ _ = False
+
+primPMin' :: TCM PrimitiveImpl
+primPMin' = primPropBin PTop PBot
+
+primPMax' :: TCM PrimitiveImpl
+primPMax' = primPropBin PBot PTop
+
+primPBridge' :: TCM PrimitiveImpl
+primPBridge' = do
+  t <- el primP --> el primProp
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ts -> do
+    case ts of
+      [x] -> do
+        sx <- reduceB' x
+        px <- pView (unArg $ ignoreBlocking sx)
+        case px of
+          Iota b -> redReturn =<< propUnview PTop
+          _       -> return $ NoReduction [reduced sx]
+      _  -> __IMPOSSIBLE__
+
+primPEq' :: TCM PrimitiveImpl
+primPEq' = do
+  t <- el primP --> el primP --> el primProp
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ts -> do
+    case ts of
+      [x,y] -> do
+       (x', y') <- normalise' (x, y)
+       if x' == y' then redReturn =<< propUnview PTop
+                   else do
+        [sx,sy] <- mapM reduceB' [x,y]
+        px <- pView (unArg $ ignoreBlocking sx)
+        py <- pView (unArg $ ignoreBlocking sy)
+        case (px,py) of
+          (Iota x,Iota y) -> do
+            [bx,by] <- mapM (bView . unArg) =<< mapM reduce' [x,y]
+            case (bx,by) of
+              (BZero,BOne) -> redReturn =<< propUnview PBot
+              (BOne,BZero) -> redReturn =<< propUnview PBot
+              _            -> return $ NoReduction $ map reduced [sx,sy]
+          _  -> return $ NoReduction $ map reduced [sx,sy]
+      _ -> __IMPOSSIBLE__
+
 primPathAbs' :: TCM PrimitiveImpl
 primPathAbs' = do
   t <- runNamesT [] $
@@ -1644,6 +1709,10 @@ primitiveFunctions = Map.fromList
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
+  , builtinPEq            |-> primPEq'
+  , builtinPBridge        |-> primPBridge'
+  , builtinPMin           |-> primPMin'
+  , builtinPMax           |-> primPMax'
   ]
   where
     (|->) = (,)

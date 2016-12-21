@@ -86,6 +86,14 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
+  , (builtinB                  |-> BuiltinData tset [builtinB0,builtinB1])
+  , (builtinB0                 |-> BuiltinDataCons (el primB))
+  , (builtinB1                 |-> BuiltinDataCons (el primB))
+  , (builtinP                  |-> BuiltinData tset [builtinIota])
+  , (builtinIota               |-> BuiltinDataCons (el primB --> el primP))
+  , (builtinProp               |-> builtinPostulate tset)
+  , (builtinPTop               |-> builtinPostulate (el primProp))
+  , (builtinPBot               |-> builtinPostulate (el primProp))
   , (builtinPath               |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
