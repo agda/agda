@@ -510,6 +510,7 @@ library
 
   -- Initially, we disable all the warnings.
   ghc-options: -w
+               -Werror
 
   -- This option must be the first one after disabling the warnings. See
   -- Issue #2094.
@@ -568,6 +569,8 @@ library
                  -Wnoncanonical-monoid-instances
                  -Wsemigroup
                  -Wunused-foralls
+
+  ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
   default-extensions: ConstraintKinds
