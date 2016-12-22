@@ -593,18 +593,18 @@ compareAtom cmp t m n =
               return True
             _  -> return False
         compareUnglueApp q es es' = do
-          let (as,bs) = splitAt 8 es; (as',bs') = splitAt 8 es'
+          let (as,bs) = splitAt 7 es; (as',bs') = splitAt 7 es'
           case (allApplyElims as, allApplyElims as') of
-            (Just [la,lb,bA,phi,bT,f,pf,b], Just [la',lb',bA',phi',bT',f',pf',b']) -> do
+            (Just [la,lb,bA,phi,bT,f,b], Just [la',lb',bA',phi',bT',f',b']) -> do
               tGlue <- getPrimitiveTerm builtinGlue
               -- Andrea, 28-07-16:
               -- comparing the types is most probably wasteful,
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
-                        (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',f',pf'])
-              compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
+              equalType (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f])
+                        (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',f'])
+              compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f])
                               (unArg b) (unArg b')
               compareElims [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True

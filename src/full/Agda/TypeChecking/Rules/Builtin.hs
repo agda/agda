@@ -133,23 +133,23 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                                                   <@> varM 0) $
                                                      (El (varSort 2) <$> primRestrict <#> varM 2 <@> varM 1 <@> varM 0)
                                                      --> (elInf $ primPartialP <#> varM 2 <@> varM 1 <@> varM 0)))
-  , (builtinIsOne              |-> builtinPostulate (tinterval --> return (sort $ Inf)))
-  , (builtinItIsOne            |-> builtinPostulate (elInf $ primIsOne <@> primIOne))
+  , (builtinIsOne              |-> builtinPostulate (el primProp --> tset))
+  , (builtinItIsOne            |-> builtinPostulate (el $ primIsOne <@> primPTop))
   , (builtinIsOne1             |-> builtinPostulate (runNamesT [] $
-                                                     nPi' "i" (cl tinterval) $ \ i ->
-                                                     nPi' "j" (cl tinterval) $ \ j ->
-                                                     nPi' "i1" (elInf $ cl primIsOne <@> i) $ \ i1 ->
-                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+                                                     nPi' "i" (cl $ el primProp) $ \ i ->
+                                                     nPi' "j" (cl $ el primProp) $ \ j ->
+                                                     nPi' "i1" (el $ cl primIsOne <@> i) $ \ i1 ->
+                                                     (el $ cl primIsOne <@> (cl primPMax <@> i <@> j))))
   , (builtinIsOne2             |-> builtinPostulate (runNamesT [] $
-                                                     nPi' "i" (cl tinterval) $ \ i ->
-                                                     nPi' "j" (cl tinterval) $ \ j ->
-                                                     nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
-                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+                                                     nPi' "i" (cl $ el primProp) $ \ i ->
+                                                     nPi' "j" (cl $ el primProp) $ \ j ->
+                                                     nPi' "j1" (el $ cl primIsOne <@> j) $ \ j1 ->
+                                                     (el $ cl primIsOne <@> (cl primPMax <@> i <@> j))))
   , (builtinIsOneEmpty         |-> builtinPostulate (runNamesT [] $
                                                      hPi' "l" (el $ cl primLevel) $ \ l ->
-                                                     hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
+                                                     hPi' "A" (pPi' "o" (cl primPBot) $ \ _ ->
                                                                     el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
-                                                     pPi' "o" (cl primIZero) (\ o -> el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
+                                                     pPi' "o" (cl primPBot) (\ o -> el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
 
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
