@@ -614,3 +614,208 @@ executable agda-mode
                   , filepath >= 1.3.0.1 && < 1.5
                   , process >= 1.1.0.2 && < 1.5
   default-language: Haskell2010
+
+-- Cabal testsuite integration has some serious bugs, but we
+-- can still make it work. See also:
+-- https://github.com/haskell/cabal/issues/1938
+-- https://github.com/haskell/cabal/issues/2214
+-- https://github.com/haskell/cabal/issues/1953
+--
+-- This test suite should only be run using the Makefile.
+-- The Makefile sets up the required environment,
+-- executing the tests using cabal directly is almost
+-- guarantued to fail. See also Issue 1490.
+test-suite agda-tests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test/
+  main-is:          Main.hs
+  other-modules:    Compiler.Tests
+                    , Fail.Tests
+                    , LaTeXAndHTML.Tests
+                    , LibSucceed.Tests
+                    , Succeed.Tests
+                    , UserManual.Tests
+                    , Utils
+
+  build-depends:  array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
+                , bytestring >= 0.10.0.2 && < 0.11
+                , containers >= 0.5.0.0 && < 0.6
+                , directory >= 1.2.0.1 && < 1.4
+                , filepath >= 1.3.0.1 && < 1.5
+                , filemanip >= 0.3.6.3 && < 0.4
+                , process >= 1.1.0.2 && < 1.5
+                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.2 && < 0.5
+                , regex-tdfa >= 1.2.0 && < 1.3
+                , regex-tdfa-text >= 1.0.0.3 && < 1.1
+                , tasty >= 0.10 && < 0.12
+                , tasty-silver >= 3.1.8 && < 3.2
+                , temporary >= 1.2.0.3 && < 1.3
+                , text >= 0.11.3.1 && < 1.3
+  if impl(ghc < 7.8)
+    -- provide System.Environment.setEnv for pre-GHC7.6
+    build-depends:  setenv >= 0.1.1.3 && < 0.2
+
+
+  -- we use the CPP processor to conditionally enable the UHC specific compiler tests.
+  if flag(uhc)
+    cpp-options:    -DUHC_BACKEND
+
+  ghc-options:      -threaded
+                    -Wall
+                    -fwarn-identities
+                    -fno-warn-unused-imports
+                    -Werror
+
+  if impl(ghc < 8.0)
+    ghc-options: -fwarn-missing-local-sigs
+  else
+    ghc-options: -Wmissing-local-signatures
+  default-language: Haskell2010
+
+test-suite internal-tests
+  type:            exitcode-stdio-1.0
+  hs-source-dirs:  test
+  main-is:         InternalTests.hs
+
+  other-modules:  InternalTests.Compiler.MAlonzo.Encode
+                , InternalTests.Helpers
+                , InternalTests.Interaction.Highlighting.Emacs
+                , InternalTests.Interaction.Highlighting.Generate
+                , InternalTests.Interaction.Highlighting.Precise
+                , InternalTests.Interaction.Highlighting.Range
+                , InternalTests.Interaction.Options
+                , InternalTests.Syntax.Abstract.Name
+                , InternalTests.Syntax.Common
+                , InternalTests.Syntax.Concrete.Name
+                , InternalTests.Syntax.Parser.Parser
+                , InternalTests.Syntax.Position
+                , InternalTests.Termination.CallGraph
+                , InternalTests.Termination.CallMatrix
+                , InternalTests.Termination.Order
+                , InternalTests.Termination.Semiring
+                , InternalTests.Termination.SparseMatrix
+                , InternalTests.Termination.Termination
+                , InternalTests.TypeChecking
+                , InternalTests.TypeChecking.Coverage.SplitTree
+                , InternalTests.TypeChecking.Free
+                , InternalTests.TypeChecking.Free.Lazy
+                , InternalTests.TypeChecking.Generators
+                , InternalTests.TypeChecking.Irrelevance
+                , InternalTests.TypeChecking.Positivity
+                , InternalTests.TypeChecking.Positivity.Occurrence
+                , InternalTests.TypeChecking.SizedTypes
+                , InternalTests.TypeChecking.SizedTypes.Syntax
+                , InternalTests.TypeChecking.SizedTypes.WarshallSolver
+                , InternalTests.Utils.Bag
+                , InternalTests.Utils.BiMap
+                , InternalTests.Utils.Cluster
+                , InternalTests.Utils.Either
+                , InternalTests.Utils.Favorites
+                , InternalTests.Utils.FileName
+                , InternalTests.Utils.Graph.AdjacencyMap.Unidirectional
+                , InternalTests.Utils.List
+                , InternalTests.Utils.ListT
+                , InternalTests.Utils.Maybe.Strict
+                , InternalTests.Utils.PartialOrd
+                , InternalTests.Utils.Permutation
+                , InternalTests.Utils.Trie
+                , InternalTests.Utils.Warshall
+
+  build-depends:  Agda == 2.5.2
+                , array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
+                , containers >= 0.5.0.0 && < 0.6
+                , filepath >= 1.3.0.1 && < 1.5
+                -- mtl-2.1 contains a severe bug.
+                --
+                -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
+                , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+                , QuickCheck >= 2.8.2 && < 2.10
+                -- transformers 0.4.0.0 was deprecated.
+                , text >= 0.11.3.1 && < 1.3
+                , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
+
+  if impl(ghc < 8.0)
+    -- provide/emulate `Data.Semigroups` API for pre-GHC8
+    build-depends:  semigroups == 0.18.*
+
+  default-language:  Haskell2010
+
+  default-extensions:  ConstraintKinds
+                     , DataKinds
+                     , DefaultSignatures
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , FunctionalDependencies
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , NamedFieldPuns
+                     , RankNTypes
+                     , RecordWildCards
+                     , StandaloneDeriving
+                     , TupleSections
+                     , TypeSynonymInstances
+
+  -- Initially, we disable all the warnings.
+  ghc-options: -w
+               -Werror
+
+  -- This option must be the first one after disabling the warnings. See
+  -- Issue #2094.
+  if impl(ghc >= 8.0)
+    ghc-options: -Wunrecognised-warning-flags
+
+  if impl(ghc >= 7.6.3)
+    ghc-options: -fwarn-deprecated-flags
+                 -fwarn-dodgy-exports
+                 -fwarn-dodgy-foreign-imports
+                 -fwarn-dodgy-imports
+                 -fwarn-duplicate-exports
+                 -fwarn-hi-shadowing
+                 -fwarn-identities
+                 -fwarn-incomplete-patterns
+                 -fwarn-missing-fields
+                 -fwarn-missing-methods
+                 -fwarn-missing-signatures
+                 -fwarn-tabs
+                 -fwarn-overlapping-patterns
+                 -fwarn-unrecognised-pragmas
+                 -fwarn-unused-do-bind
+                 -fwarn-warnings-deprecations
+                 -fwarn-wrong-do-bind
+
+  if impl(ghc >= 7.8)
+    ghc-options: -fwarn-empty-enumerations
+                 -fwarn-inline-rule-shadowing
+                 -fwarn-typed-holes
+                 -fwarn-overflowed-literals
+
+  if impl(ghc >= 7.10)
+     ghc-options: -fwarn-unticked-promoted-constructors
+                  -- Enable after removing the support for GHC 7.8.
+                  -- -fwarn-deriving-typeable
+
+  -- This option is deprected in GHC 7.10.1.
+  if impl(ghc >= 7.8) && impl(ghc < 7.10)
+    ghc-options: -fwarn-amp
+
+  -- This option will be removed in GHC 8.0.1.
+  if impl(ghc >= 7.6) && impl(ghc < 8.0)
+    ghc-options: -fwarn-pointless-pragmas
+
+  -- This option will be deprected in GHC 8.0.1.
+  if impl(ghc >= 7.8) && impl(ghc < 8.0)
+    ghc-options: -fwarn-duplicate-constraints
+
+  -- This option will be deprected in GHC 8.0.1.
+  if impl(ghc >= 7.10) && impl(ghc < 8.0)
+    ghc-options: -fwarn-context-quantification
+
+  if impl(ghc >= 8.0)
+    ghc-options: -Wmissing-pattern-synonym-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Wsemigroup
+                 -Wunused-foralls
