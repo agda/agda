@@ -199,9 +199,11 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
       -- constrained, then don’t do anything because it may loop.
-      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> do
-        reportSLn "tc.instance" 15 "aborting due to non-rigidly constrained metas"
-        return (Just (cands, Just m))) $ do
+      let abortNonRigid m = do
+            reportSLn "tc.instance" 15 $
+              "aborting due to non-rigidly constrained meta " ++ show m
+            return $ Just (cands, Just m)
+      ifJustM (areThereNonRigidMetaArguments (unEl t)) abortNonRigid $ {-else-} do
 
         mcands <- checkCandidates m t cands
         debugConstraints
