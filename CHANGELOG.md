@@ -1,3 +1,8 @@
+Version TODO
+============
+
+The library has been tested using Agda version TODO.
+
 Version 0.13
 ============
 
