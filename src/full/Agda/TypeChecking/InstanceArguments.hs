@@ -199,9 +199,11 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
       -- constrained, then don’t do anything because it may loop.
-      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> do
-        reportSLn "tc.instance" 15 "aborting due to non-rigidly constrained metas"
-        return (Just (cands, Just m))) $ do
+      let abortNonRigid m = do
+            reportSLn "tc.instance" 15 $
+              "aborting due to non-rigidly constrained meta " ++ show m
+            return $ Just (cands, Just m)
+      ifJustM (areThereNonRigidMetaArguments (unEl t)) abortNonRigid $ {-else-} do
 
         mcands <- checkCandidates m t cands
         debugConstraints
@@ -340,16 +342,16 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
         Var _ es  -> areThereNonRigidMetaArgs es
         Con _ _ vs-> areThereNonRigidMetaArgs (map Apply vs)
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
-                      -- Ignore unconstrained level and size metas (#1865)
-                      Def lvl [] <- ignoreSharing <$> primLevel
-                      sz <- for (fmap ignoreSharing <$> getBuiltin' builtinSize) $ \case
-                              Just (Def sz []) -> [sz]
-                              Nothing          -> []
-                              _                -> __IMPOSSIBLE__
-                      o          <- getOutputTypeName . jMetaType . mvJudgement =<< lookupMeta i
-                      case o of
-                        OutputTypeName l | elem l (lvl : sz) -> return Nothing
-                        _                                   -> return (Just i)
+          -- Ignore unconstrained level and size metas (#1865)
+          mlvl <- getBuiltinDefName builtinLevel
+          (msz, mszlt) <- getBuiltinSize
+          let ok = catMaybes [ mlvl, msz ]  -- , mszlt ]  -- ?! Andreas, 2016-12-22
+            -- @Ulf: are SIZELT metas excluded on purpose?
+            -- How to you know the level/size meta is unconstrained?
+          o <- getOutputTypeName . jMetaType . mvJudgement =<< lookupMeta i
+          case o of
+            OutputTypeName l | elem l ok -> return Nothing
+            _ -> return $ Just i
         Lam _ t   -> isNonRigidMeta (unAbs t)
         _         -> return Nothing
 

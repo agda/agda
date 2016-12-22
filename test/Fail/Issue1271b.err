@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Is empty: .A ≡ (.A → .B)
-      [ at Issue1271b.agda:9,6-8 ]
   Is empty: .A ≡ (.B → .A)
       [ at Issue1271b.agda:13,7-9 ]
+  Is empty: .A ≡ (.A → .B)
+      [ at Issue1271b.agda:9,6-8 ]

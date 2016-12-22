@@ -1,8 +1,8 @@
 Failed to solve the following constraints:
-  _55 := (λ {.A} {x} E → refl) [blocked on problem 51]
-  [51, 55] x = (_63 .A) : .A
-  [61, 73] _63 .A = x : .A
   _64 := λ {.A} {x} E → J (_56 E) E [blocked on problem 61]
+  [61, 73] _63 .A = x : .A
+  [51, 55] x = (_63 .A) : .A
+  _55 := (λ {.A} {x} E → refl) [blocked on problem 51]
 Unsolved metas at the following locations:
   Issue920a.agda:26,52-56
   Issue920a.agda:26,49-50

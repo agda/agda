@@ -216,9 +216,12 @@ checkDecl d = setCurrentRange d $ do
 
       -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
+        reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
+        wakeupConstraints_   -- solve emptiness and instance constraints
         checkingWhere <- asks envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
-        wakeupConstraints_   -- solve emptiness constraints
+        wakeupConstraints_   -- Size solver might have unblocked some constraints
+        reportSLn "tc.decl" 20 $ "Freezing all metas."
         _ <- freezeMetas
         theMutualChecks
 
