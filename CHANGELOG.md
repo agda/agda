@@ -8021,7 +8021,7 @@ Language
 
       aux : ℕ → List → List
       aux z zs = f (cons z zs)
-     ```
+    ```
 
     Here the termination checker compares `cons z zs` to `z` and also
     to `zs`. In both cases, the result will be "unrelated", no matter
