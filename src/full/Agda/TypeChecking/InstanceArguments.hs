@@ -342,16 +342,16 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
         Var _ es  -> areThereNonRigidMetaArgs es
         Con _ _ vs-> areThereNonRigidMetaArgs (map Apply vs)
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
-                      -- Ignore unconstrained level and size metas (#1865)
-                      Def lvl [] <- ignoreSharing <$> primLevel
-                      sz <- for (fmap ignoreSharing <$> getBuiltin' builtinSize) $ \case
-                              Just (Def sz []) -> [sz]
-                              Nothing          -> []
-                              _                -> __IMPOSSIBLE__
-                      o          <- getOutputTypeName . jMetaType . mvJudgement =<< lookupMeta i
-                      case o of
-                        OutputTypeName l | elem l (lvl : sz) -> return Nothing
-                        _                                   -> return (Just i)
+          -- Ignore unconstrained level and size metas (#1865)
+          mlvl <- getBuiltinDefName builtinLevel
+          (msz, mszlt) <- getBuiltinSize
+          let ok = catMaybes [ mlvl, msz ]  -- , mszlt ]  -- ?! Andreas, 2016-12-22
+            -- @Ulf: are SIZELT metas excluded on purpose?
+            -- How to you know the level/size meta is unconstrained?
+          o <- getOutputTypeName . jMetaType . mvJudgement =<< lookupMeta i
+          case o of
+            OutputTypeName l | elem l ok -> return Nothing
+            _ -> return $ Just i
         Lam _ t   -> isNonRigidMeta (unAbs t)
         _         -> return Nothing
 
