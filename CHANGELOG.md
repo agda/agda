@@ -1,6 +1,15 @@
 Release notes for Agda version 2.5.3
 ====================================
 
+Compiler backends
+-----------------
+
+* UHC compiler backend
+
+  Required UHC 1.1.9.5
+  [Issue [#1857](https://github.com/agda/agda/issues/1857)]
+
+
 Release notes for Agda version 2.5.2
 ====================================
 
