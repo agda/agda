@@ -105,16 +105,16 @@ installing Agda:
   cabal install Agda -fuhc
 
 The backend also requires UHC to be installed. UHC is not available on
-Hackage and needs to be installed manually. This version of Agda has been
-tested with UHC 1.1.9.4, using other UHC versions may cause problems.
-To install UHC, the following commands can be used:
+Hackage and needs to be installed manually. This version of Agda has
+been tested with UHC 1.1.9.5. To install UHC, the following commands
+can be used:
 
 .. code-block:: bash
 
-  cabal install uhc-util-0.1.6.6 uulib-0.9.22
-  wget https://github.com/UU-ComputerScience/uhc/archive/v1.1.9.4.tar.gz
-  tar -xf v1.1.9.4.tar.gz
-  cd uhc-1.1.9.4/EHC
+  cabal install uhc-util-0.1.6.7 uulib-0.9.22
+  wget https://github.com/UU-ComputerScience/uhc/archive/v1.1.9.5.tar.gz
+  tar -xf v1.1.9.5.tar.gz
+  cd uhc-1.1.9.5/EHC
   ./configure
   make
   make install
@@ -127,10 +127,6 @@ flag ``--uhc``:
   agda --uhc [--compile-dir=<DIR>]
       [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
 
-Limitations
-^^^^^^^^^^^
-
-The UHC backend currently does not support Unicode strings. See issue `1857 <https://github.com/agda/agda/issues/1857>`_ for details.
 
 JavaScript Backend
 ~~~~~~~~~~~~~~~~~~

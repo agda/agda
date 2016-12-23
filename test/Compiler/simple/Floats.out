@@ -3,8 +3,6 @@ EXECUTED_PROGRAM
 ret > ExitSuccess
 out > 123.4 = 123.4
 out > -42.9 = -42.9
-out > 1.0   = 1.0
-out > -0.0  = -0.0
 out > NaN   = NaN
 out > Inf   = Infinity
 out > -Inf  = -Infinity
@@ -28,6 +26,7 @@ out > NaN  < -NaN = false
 out > -NaN < NaN  = false
 out > NaN  < -5.0 = true
 out > -5.0 < NaN  = false
+out > e                   = 2.718281828459045
 out > sin (asin 0.6)      = 0.6
 out > cos (acos 0.6)      = 0.6
 out > tan (atan 0.4)      = 0.4
