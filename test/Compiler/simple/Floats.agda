@@ -47,9 +47,6 @@ main =
 
   -- Disabled because Issue #2359.
   -- putStr "1.0   = " ,, print 1.0 ,,
-
-  -- ASR (2016-12-23). TODO: Disabled because doen't work with
-  -- UHC 1.1.9.5.
   -- putStr "-0.0  = " ,, print -0.0  ,,
 
   putStr "NaN   = " ,, print NaN   ,,
