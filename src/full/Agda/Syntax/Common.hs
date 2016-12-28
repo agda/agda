@@ -569,6 +569,10 @@ instance LensArgInfo (Dom e) where
   getArgInfo = domInfo
   mapArgInfo f arg = arg { domInfo = f $ domInfo arg }
 
+instance LensOrigin (Dom e) where
+  getOrigin = getOrigin . getArgInfo
+  mapOrigin = mapArgInfo . mapOrigin
+
 argFromDom :: Dom a -> Arg a
 argFromDom (Dom i a) = Arg i a
 
