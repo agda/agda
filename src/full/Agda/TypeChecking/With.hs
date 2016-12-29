@@ -448,11 +448,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        VarP x  -> do
-          let v = var (dbPatVarIndex x)
-          t  <- piApply1 t v
-          ps <- strip (self `apply1` v) t ps qs
-          return $ p : ps
+        VarP x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
         DotP v  -> case namedArg p of
           A.DotP r o _  -> ok p
@@ -481,9 +477,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           _ -> failDotPat
           where
             okFlex = ok . makeImplicitP
-            ok p = do
-              t' <- piApply1 t v
-              (p :) <$> strip (self `apply1` v) t' ps qs
+            ok p   = (p :) <$> recurse v
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
@@ -537,10 +531,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
            mismatch
 
         LitP lit -> case namedArg p of
-          A.LitP lit' | lit == lit' -> do
-            (a, b) <- mustBePi t
-            let v = Lit lit
-            strip (self `apply1` v) (b `absApp` v) ps qs
+          A.LitP lit' | lit == lit' -> recurse $ Lit lit
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
@@ -549,6 +540,10 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
 
           _ -> mismatch
       where
+        recurse v = do
+          t' <- piApply1 t v
+          strip (self `apply1` v) t' ps qs
+
         mismatch = typeError $
           WithClausePatternMismatch (namedArg p0) (dbPatVarName <$> namedArg q)
         mismatchOrigin o o' = typeError . GenericDocError =<< fsep
