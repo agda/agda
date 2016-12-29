@@ -1,5 +1,5 @@
 WithClausePatternMismatch.agda:9,1-10,17
-With clause pattern y is not an instance of its parent pattern (c)
+With clause pattern y is not an instance of its parent pattern c
 when checking that the clause
 test _ c with ⊤
 test _ y | z = ⊤

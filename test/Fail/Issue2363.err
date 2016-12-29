@@ -1,0 +1,7 @@
+Issue2363.agda:8,1-9,21
+With clause pattern zero is not an instance of its parent pattern
+suc n
+when checking that the clause
+test (suc n) with zero
+test zero | q = zero
+has type Nat → Nat
