@@ -401,6 +401,9 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (ProjP _ q)   = text ("." ++ show q)
 
 -- | Proper pretty printing of patterns:
+prettyTCMPatterns :: [NamedArg DeBruijnPattern] -> TCM [Doc]
+prettyTCMPatterns = mapM prettyA <=< reifyPatterns
+
 prettyTCMPatternList :: [NamedArg DeBruijnPattern] -> TCM Doc
 prettyTCMPatternList = prettyList . map prettyA <=< reifyPatterns
 

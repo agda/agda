@@ -680,8 +680,7 @@ instance PrettyTCM TypeError where
 
     WithClausePatternMismatch p q -> fsep $
       pwords "With clause pattern " ++ [prettyA p] ++
-      pwords " is not an instance of its parent pattern " ++ [prettyTCM q]
-         -- TODO: prettier printing for internal patterns
+      pwords " is not an instance of its parent pattern " ++ [P.fsep <$> prettyTCMPatterns [q]]
 
     MetaCannotDependOn m ps i -> fsep $
       pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++

@@ -70,10 +70,11 @@ data Env = Env { takenNames   :: Set C.Name
                , currentScope :: ScopeInfo
                }
 
-defaultEnv :: Env
-defaultEnv = Env { takenNames   = Set.empty
-                 , currentScope = emptyScopeInfo
-                 }
+-- -- UNUSED
+-- defaultEnv :: Env
+-- defaultEnv = Env { takenNames   = Set.empty
+--                  , currentScope = emptyScopeInfo
+--                  }
 
 makeEnv :: ScopeInfo -> Env
 makeEnv scope = Env { takenNames   = Set.union vars defs
@@ -652,7 +653,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
     toConcrete (A.WithRHS _ es cs) = do
       es <- toConcrete es
-      cs <- concat <$> toConcrete cs
+      cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
     toConcrete (A.RewriteRHS xeqs rhs wh) = do
       wh <- declsToConcrete wh

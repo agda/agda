@@ -347,6 +347,7 @@ data WithFunctionProblem
     { wfParentName :: QName                -- ^ Parent function name.
     , wfName       :: QName                -- ^ With function name.
     , wfParentType :: Type                 -- ^ Type of the parent function.
+    , wfParentTel  :: Telescope            -- ^ Context of the parent patterns.
     , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
     , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
     , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
@@ -654,11 +655,12 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb) vs0 as cs = Bench.bi
         reportSDoc "tc.with.top" 20 $
           text "              body" <+> prettyTCM v
 
-        return (Just v, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
+        return (Just v, WithFunction x aux t delta delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
 
+-- | Invoked in empty context.
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
 checkWithFunction _ NoWithFunction = return ()
-checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars perm' perm finalPerm cs) = do
+checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs npars perm' perm finalPerm cs) = do
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
@@ -735,7 +737,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction cxtNames f aux t qs npars withSub finalPerm (size delta1) n cs
+  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
