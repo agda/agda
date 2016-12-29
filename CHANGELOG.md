@@ -1,6 +1,24 @@
 Release notes for Agda version 2.5.3
 ====================================
 
+Language
+--------
+
+* With-clause patterns can be replaced by _
+  [Issue [#2363](https://github.com/agda/agda/issues/2363)].
+  Example:
+  ```agda
+    test : Nat → Set
+    test zero    with zero
+    test _       | _ = Nat
+    test (suc x) with zero
+    test _       | _ = Nat
+  ```
+  We do not have to spell out the pattern of the parent clause
+  (`zero` / `suc x`) in the with-clause if we do not need the
+  pattern variables.  Note that `x` is not in scope in the
+  with-clause!
+
 Compiler backends
 -----------------
 

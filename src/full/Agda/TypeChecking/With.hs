@@ -501,15 +501,11 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
               liftTCM $ expandImplicitPattern' (unDom a) $ makeImplicitP p
 
-          -- Andreas, 2013-03-21 if we encounter an implicit pattern
-          -- in the with-clause, we expand it and restart
-          -- Andreas, 2015-07-07 Issue 1606 do this whenever the parent
-          -- is a record pattern, regardless of whether it came from an implicit
-          -- or not.  This allows to drop hidden flexible record patterns from
-          -- the with clauses even when they were present in the parent clause.
-          A.WildP{} | Just _ <- conPRecord ci -> do
-            maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
-              liftTCM $ expandImplicitPattern' (unDom a) p
+          -- Andreas, 2016-12-29, issue #2363.
+          -- Allow _ to stand for the corresponding parent pattern.
+          A.WildP{} -> do
+            let ps' = map (updateNamedArg $ const $ A.WildP empty) qs'
+            stripConP d us b c ConOCon qs' ps'
 
           A.ConP _ (A.AmbQ cs') ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
@@ -535,6 +531,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         LitP lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> recurse $ Lit lit
+          A.WildP{}                 -> recurse $ Lit lit
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
