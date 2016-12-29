@@ -34,7 +34,7 @@ expandLitPattern p = traverse (traverse expand) p
   where
     expand p = case asView p of
       (xs, A.LitP (LitNat r n))
-        | n < 0     -> __IMPOSSIBLE__
+        | n < 0     -> return p -- Andreas, issue #2365, keep negative literals.
         | n > 20    -> tooBig
         | otherwise -> do
           Con z _ _ <- ignoreSharing <$> primZero
