@@ -1723,6 +1723,15 @@ instance ToAbstract C.Pragma [A.Pragma] where
             "STATIC used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of STATIC pragma should be a function"
       return [ A.StaticPragma y ]
+  toAbstract (C.InjectivePragma _ x) = do
+      e <- toAbstract $ OldQName x Nothing
+      y <- case e of
+          A.Def  x -> return x
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
+            "INJECTIVE used on ambiguous name " ++ prettyShow x
+          _        -> genericError "Target of INJECTIVE pragma should be a defined symbol"
+      return [ A.InjectivePragma y ]
   toAbstract (C.InlinePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of

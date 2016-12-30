@@ -600,6 +600,7 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
     , etaExpandVarStrategy
     , etaExpandEquationStrategy
     , injectiveTypeConStrategy
+    , injectivePragmaStrategy
     , simplifySizesStrategy
     , checkEqualityStrategy
     ]
@@ -885,6 +886,19 @@ injectiveTypeConStrategy k s = do
                 Function{}   -> False
                 Primitive{}  -> False
                 Constructor{}-> __IMPOSSIBLE__  -- Never a type!
+      let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+      return $ TypeConInjectivity k d us vs
+    _ -> mzero
+
+injectivePragmaStrategy :: Int -> UnifyStrategy
+injectivePragmaStrategy k s = do
+  eq <- liftTCM $ eqUnLevel $ getEquality k s
+  case eq of
+    Equal a u@(ignoreSharing -> Def d es) v@(ignoreSharing -> Def d' es') | d == d' -> do
+      -- d must have an injective pragma
+      def <- liftTCM $ getConstInfo d
+      guard $ defInjective def
       let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
       return $ TypeConInjectivity k d us vs

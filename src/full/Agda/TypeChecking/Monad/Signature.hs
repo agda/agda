@@ -167,6 +167,9 @@ markStatic = setFunctionFlag FunStatic True
 markInline :: QName -> TCM ()
 markInline = setFunctionFlag FunInline True
 
+markInjective :: QName -> TCM ()
+markInjective q = modifyGlobalDefinition q $ \def -> def { defInjective = True }
+
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
@@ -400,6 +403,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defInstance       = inst
                     , defCopy           = True
                     , defMatchable      = False
+                    , defInjective      = False
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }

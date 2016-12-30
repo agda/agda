@@ -42,6 +42,26 @@ Language
     test _ _          | true = true!  -- underscore instead of (isTrue _)
   ```
 
+* Injective pragmas.
+
+  Injective pragmas can be used to mark a definition as injective for the
+  pattern matching unifier. This can be used as a version of
+  `--injective-type-constructors` that only applies to specific datatypes.
+  For example:
+  ```agda
+    open import Agda.Builtin.Equality
+    data Fin : Nat → Set where
+      zero : {n : Nat} → Fin (suc n)
+      suc  : {n : Nat} → Fin n → Fin (suc n)
+
+    {-# INJECTIVE Fin #-}
+
+    Fin-injective : {m n : Nat} → Fin m ≡ Fin n → m ≡ n
+    Fin-injective refl = refl
+  ```
+  Aside from datatypes, this pragma can also be used to mark other definition
+  as being injective (for example postulates).
+
 Compiler backends
 -----------------
 
