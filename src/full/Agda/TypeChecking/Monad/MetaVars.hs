@@ -267,14 +267,10 @@ connectInteractionPoint ii mi = do
     (Nothing, _) -> __IMPOSSIBLE__
     (Just _, m') -> modifyInteractionPoints $ const m'
 
--- | Move an interaction point from the current ones to the old ones.
+-- | Mark an interaction point as solved.
 removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii = do
-  ip <- stInteractionPoints %%= \ m -> do
-    let (mip, m') = Map.updateLookupWithKey (\ _ ip -> Just ip{ ipSolved = True }) ii m
-    return (m',                     -- line break because of CPP and '
-      fromMaybe __IMPOSSIBLE__ mip)
-  stSolvedInteractionPoints %= Map.insert ii ip
+  stInteractionPoints %= Map.update (\ ip -> Just ip{ ipSolved = True }) ii
 
 -- | Get a list of interaction ids.
 getInteractionPoints :: TCM [InteractionId]
