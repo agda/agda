@@ -1,6 +1,6 @@
-Issue1296.agda:1,13-33
+Issue2369.agda:8,8-24
 Module cannot be imported since it has open interaction points
 (consider adding {-# OPTIONS --allow-unsolved-metas #-} to this
 module)
 when scope checking the declaration
-  open import Issue1296.SolvedMeta
+  import Issue2369.OpenIP
