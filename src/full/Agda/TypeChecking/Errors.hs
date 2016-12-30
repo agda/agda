@@ -739,8 +739,9 @@ instance PrettyTCM TypeError where
       pwords "The module" ++ [prettyTCM m] ++
       pwords "can refer to either a local module or an imported module"
 
-    SolvedButOpenHoles ->
-      text "Module cannot be imported since it has open interaction points"
+    SolvedButOpenHoles -> fsep $
+      pwords "Module cannot be imported since it has open interaction points" ++
+      pwords "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this module)"
 
     CyclicModuleDependency ms ->
       fsep (pwords "cyclic module dependency:")
