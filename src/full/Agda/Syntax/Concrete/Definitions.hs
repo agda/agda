@@ -974,24 +974,26 @@ niceDeclarations ds = do
     defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
     defaultTypeSig k x t@Just{} = return t
     defaultTypeSig k x Nothing  = do
-
-    dataOrRec :: forall a .
-                 PositivityCheck ->
-                 (Range -> Fixity' -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] ->
-                   [NiceConstructor] -> NiceDeclaration) ->
-                 (Range -> Fixity' -> Access -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] -> Expr ->
-                   NiceDeclaration) ->
-                 ([a] -> Nice [NiceDeclaration]) ->
-                 Range ->
-                 Name ->
-                 [LamBinding] ->
-                 Maybe Expr ->
-                 Maybe [a] ->
-                 Nice [NiceDeclaration]
       caseMaybeM (getSig x) (throwError $ MissingDataSignature x) $ \ k' -> do
         unless (sameKind k k') $ throwError $ WrongDefinition x k' k
         unless (k == k') $ matchParameters x k' k
         Nothing <$ removeLoneSig x
+
+    dataOrRec
+      :: forall a
+      .  PositivityCheck
+      -> (Range -> Fixity' -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] -> [NiceConstructor] -> NiceDeclaration)
+         -- ^ Construct definition.
+      -> (Range -> Fixity' -> Access -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] -> Expr -> NiceDeclaration)
+         -- ^ Construct signature.
+      -> ([a] -> Nice [NiceDeclaration])
+         -- ^ Constructor checking.
+      -> Range
+      -> Name          -- ^ Data/record type name.
+      -> [LamBinding]  -- ^ Parameters.
+      -> Maybe Expr    -- ^ Type.
+      -> Maybe [a]     -- ^ Constructors.
+      -> Nice [NiceDeclaration]
     dataOrRec pc mkDef mkSig niceD r x tel mt mcs = do
       mds <- traverse niceD mcs
       f   <- getFixity x
