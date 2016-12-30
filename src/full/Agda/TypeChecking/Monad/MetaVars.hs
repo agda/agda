@@ -232,7 +232,7 @@ registerInteractionPoint preciseRange r maybeId = do
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
     Nothing -> fresh
-  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipClause = IPNoClause }
+  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipSolved = False, ipClause = IPNoClause }
   case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
     -- However, it needs to be at the same range as the new one.
@@ -253,7 +253,7 @@ findInteractionPoint_ r m = do
   headMaybe $ mapMaybe sameRange $ Map.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
-    sameRange (ii, InteractionPoint r' _ _) | r == r' = Just ii
+    sameRange (ii, InteractionPoint r' _ _ _) | r == r' = Just ii
     sameRange _ = Nothing
 
 -- | Hook up meta variable to interaction point.
@@ -261,32 +261,30 @@ connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
 connectInteractionPoint ii mi = do
   ipCl <- asks envClause
   m <- use stInteractionPoints
-  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipClause = ipCl }
+  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl }
   -- The interaction point needs to be present already, we just set the meta.
   case Map.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
     (Nothing, _) -> __IMPOSSIBLE__
     (Just _, m') -> modifyInteractionPoints $ const m'
 
--- | Move an interaction point from the current ones to the old ones.
+-- | Mark an interaction point as solved.
 removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii = do
-  ip <- stInteractionPoints %%= \ m -> do
-    let (mip, m') = Map.updateLookupWithKey (\ _ _ -> Nothing) ii m
-    return (m',
-      fromMaybe __IMPOSSIBLE__ mip)
-  stSolvedInteractionPoints %= Map.insert ii ip
+  stInteractionPoints %= Map.update (\ ip -> Just ip{ ipSolved = True }) ii
 
 -- | Get a list of interaction ids.
 getInteractionPoints :: TCM [InteractionId]
 getInteractionPoints = Map.keys <$> use stInteractionPoints
 
--- | Get all metas that correspond to interaction ids.
+-- | Get all metas that correspond to unsolved interaction ids.
 getInteractionMetas :: TCM [MetaId]
-getInteractionMetas = mapMaybe ipMeta . Map.elems <$> use stInteractionPoints
+getInteractionMetas =
+  mapMaybe ipMeta . filter (not . ipSolved) . Map.elems <$> use stInteractionPoints
 
--- | Get all metas that correspond to interaction ids.
+-- | Get all metas that correspond to unsolved interaction ids.
 getInteractionIdsAndMetas :: TCM [(InteractionId,MetaId)]
-getInteractionIdsAndMetas = mapMaybe f . Map.toList <$> use stInteractionPoints
+getInteractionIdsAndMetas =
+  mapMaybe f . filter (not . ipSolved . snd) . Map.toList <$> use stInteractionPoints
   where f (ii, ip) = (ii,) <$> ipMeta ip
 
 -- | Does the meta variable correspond to an interaction point?

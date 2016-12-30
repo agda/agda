@@ -155,8 +155,6 @@ data PostScopeState = PostScopeState
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
   , stPostMetaStore           :: !MetaStore
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
-  , stPostSolvedInteractionPoints :: !InteractionPoints
-    -- ^ Interaction points that have been filled by a give or solve action.
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
   , stPostDirty               :: !Bool -- local
@@ -292,7 +290,6 @@ initPostScopeState = PostScopeState
   , stPostDisambiguatedNames   = IntMap.empty
   , stPostMetaStore            = Map.empty
   , stPostInteractionPoints    = Map.empty
-  , stPostSolvedInteractionPoints = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -418,12 +415,6 @@ stInteractionPoints :: Lens' InteractionPoints TCState
 stInteractionPoints f s =
   f (stPostInteractionPoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInteractionPoints = x}}
-
-stSolvedInteractionPoints :: Lens' InteractionPoints TCState
-stSolvedInteractionPoints f s =
-  f (stPostSolvedInteractionPoints (stPostScopeState s)) <&>
-  \ x -> s {stPostScopeState = (stPostScopeState s)
-             {stPostSolvedInteractionPoints = x}}
 
 stAwakeConstraints :: Lens' Constraints TCState
 stAwakeConstraints f s =
@@ -1087,6 +1078,7 @@ getMetaRelevance = envRelevance . getMetaEnv
 data InteractionPoint = InteractionPoint
   { ipRange :: Range        -- ^ The position of the interaction point.
   , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  , ipSolved:: Bool         -- ^ Has this interaction point already been solved?
   , ipClause:: IPClause
       -- ^ The clause of the interaction point (if any).
       --   Used for case splitting.
@@ -1095,6 +1087,9 @@ data InteractionPoint = InteractionPoint
 instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
 -- | Data structure managing the interaction points.
+--
+--   We never remove interaction points from this map, only set their
+--   'ipSolved' to @True@.  (Issue #2368)
 type InteractionPoints = Map InteractionId InteractionPoint
 
 -- | Which clause is an interaction point located in?
