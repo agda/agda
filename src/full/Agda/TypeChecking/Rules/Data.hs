@@ -294,27 +294,50 @@ checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 --   @
 
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindParameters = bindParameters' []
 
-bindParameters [] a ret = ret EmptyTel a
+-- | Auxiliary function for 'bindParameters'.
+bindParameters'
+  :: [Type]         -- ^ @n@ replicas of type if @LamBinding@s are @DomainFree@s
+                    --   that came from a @DomainFull@ of @n@ binders.
+                    --   Should be comsumed whenever a @DomainFree@s are consumed.
+  -> [A.LamBinding] -- ^ Bindings from definition site.
+  -> Type           -- ^ Pi-type of bindings coming from signature site.
+  -> (Telescope -> Type -> TCM a)
+  -> TCM a
 
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : bs) a ret =
-  bindParameters (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
+bindParameters' _ [] a ret = ret EmptyTel a
 
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ = __IMPOSSIBLE__
+bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
+  unless (null ts) __IMPOSSIBLE__
+  t <- workOnTypes $ isType_ e
+  bindParameters' (t <$ xs) (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
 
-bindParameters ps0@(A.DomainFree info x : ps) t ret =
+bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ = __IMPOSSIBLE__
+
+bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
   case ignoreSharing $ unEl t of
-     -- Andreas, 2011-04-07 ignore relevance information in binding?!
-     Pi arg@(Dom info' a) b -> do
-       if | info == info'                  -> continue ps x
-          | visible info, notVisible info' -> continue ps0 =<< freshName_ (absName b)
-          | otherwise                      -> __IMPOSSIBLE__
-              -- Andreas, 2016-12-30 Concrete.Definition excludes this case
-       where
-       continue ps x = do
-         addContext' (x, arg) $ bindParameters ps (absBody b) $ \ tel s ->
-           ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
-     _ -> __IMPOSSIBLE__
+    -- Andreas, 2011-04-07 ignore relevance information in binding?!
+    Pi arg@(Dom info' a) b -> do
+      if | info == info'                  -> do
+            -- Andreas, 2016-12-30, issue #1886:
+            -- If type for binding is present, check its correctness.
+            ts <- caseList ts0 (return []) $ \ t0 ts -> do
+              equalType t0 a
+              return ts
+            continue ts ps x
+
+         | visible info, notVisible info' ->
+            continue ts0 ps0 =<< freshName_ (absName b)
+
+         | otherwise                      -> __IMPOSSIBLE__
+             -- Andreas, 2016-12-30 Concrete.Definition excludes this case
+      where
+      continue ts ps x = do
+        addContext' (x, arg) $
+          bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
+            ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
+    _ -> __IMPOSSIBLE__
 
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.

@@ -55,6 +55,7 @@ import Data.Semigroup ( Semigroup, Monoid, (<>), mempty, mappend )
 import Data.List as List hiding (null)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable, traverse)
+import qualified Data.Traversable as Trav
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
@@ -811,13 +812,13 @@ niceDeclarations ds = do
         (DataSig r Inductive x tel t) -> do
           pc <- use positivityCheckPragma
           addLoneSig x (DataName pc $ parameters tel)
-          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel (Just t) Nothing
+          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
-        (Data r Inductive x tel t cs) -> do
+        (Data r Inductive x tel mt cs) -> do
           pc <- use positivityCheckPragma
-          t <- defaultTypeSig (DataName pc $ parameters tel) x t
-          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel t (Just cs)
+          mt <- defaultTypeSig (DataName pc $ parameters tel) x mt
+          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
         (RecordSig r x tel t)         -> do
@@ -826,12 +827,12 @@ niceDeclarations ds = do
           fx <- getFixity x
           return ([NiceRecSig r fx PublicAccess ConcreteDef pc x tel t] , ds)
 
-        (Record r x i e c tel t cs)   -> do
+        (Record r x i e c tel mt cs)   -> do
           pc <- use positivityCheckPragma
-          t <- defaultTypeSig (RecName pc $ parameters tel) x t
+          mt <- defaultTypeSig (RecName pc $ parameters tel) x mt
           c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
           (,) <$> dataOrRec pc (\ r f a pc x tel cs -> RecDef r f a pc x i e c tel cs) NiceRecSig
-                    niceDeclarations r x tel t (Just cs)
+                    niceDeclarations r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
         Mutual r ds' ->
@@ -990,18 +991,20 @@ niceDeclarations ds = do
          -- ^ Constructor checking.
       -> Range
       -> Name          -- ^ Data/record type name.
-      -> [LamBinding]  -- ^ Parameters.
-      -> Maybe Expr    -- ^ Type.
-      -> Maybe [a]     -- ^ Constructors.
+      -> Maybe ([LamBinding], Expr)    -- ^ Parameters and type.  If not @Nothing@ a signature is created.
+      -> Maybe ([LamBinding], [a])     -- ^ Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
-    dataOrRec pc mkDef mkSig niceD r x tel mt mcs = do
-      mds <- traverse niceD mcs
+    dataOrRec pc mkDef mkSig niceD r x mt mcs = do
+      mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
       f   <- getFixity x
       return $ catMaybes $
-        [ mt <&> \ t -> mkSig (fuseRange x t) f PublicAccess ConcreteDef pc x tel t
-        , mkDef r f ConcreteDef pc x (concatMap dropType tel) <$> mds
+        [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) f PublicAccess ConcreteDef pc x tel t
+        , mds <&> \ (tel, ds) -> mkDef r f ConcreteDef pc x (caseMaybe mt tel $ const $ concatMap dropType tel) ds
+          -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
+          -- for the data definition, lest we duplicate them.
         ]
       where
+        -- | Drop type annotations and lets from bindings.
         dropType :: LamBinding -> [LamBinding]
         dropType (DomainFull (TypedBindings _r (Arg ai (TBind _ xs _)))) =
           map (mergeHiding . fmap (DomainFree ai)) xs
