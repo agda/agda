@@ -849,9 +849,11 @@ atTopLevel m = inConcreteMode $ do
       tel <- lookupSection current
       -- Get the names of the local variables from @scope@
       -- and put them into the context.
-      let names :: [A.Name]
-          names = reverse $ map snd $ notShadowedLocals $ scopeLocals scope
-          types :: [Dom I.Type]
+      let mnames :: [Maybe A.Name]
+          mnames = map (notShadowedLocal . snd) $ reverse $ scopeLocals scope
+      -- Replace the shadowed names by fresh names (such that they do not shadow imports)
+      names <- mapM (maybe freshNoName_ return) mnames
+      let types :: [Dom I.Type]
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
           gamma = fromMaybe __IMPOSSIBLE__ $
