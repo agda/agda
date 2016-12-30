@@ -454,6 +454,8 @@ instance Pretty Pragma where
       vcat (text "HASKELL" : map text (lines s))
     pretty (StaticPragma _ i) =
       hsep $ [text "STATIC", pretty i]
+    pretty (InjectivePragma _ i) =
+      hsep $ [text "INJECTIVE", pretty i]
     pretty (InlinePragma _ i) =
       hsep $ [text "INLINE", pretty i]
     pretty (ImportPragma _ i) =

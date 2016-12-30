@@ -744,6 +744,7 @@ checkPragma r p =
           case theDef def of
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
+        A.InjectivePragma x -> markInjective x
         A.InlinePragma x -> do
           def <- getConstInfo x
           case theDef def of

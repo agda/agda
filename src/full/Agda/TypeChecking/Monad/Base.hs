@@ -1311,6 +1311,8 @@ data Definition = Defn
                          -- instantiation?
   , defMatchable      :: Bool
     -- ^ Is the def matched against in a rewrite rule?
+  , defInjective      :: Bool
+    -- ^ Should the def be treated as injective by the pattern matching unifier?
   , theDef            :: Defn
   }
     deriving (Typeable, Show)
@@ -1332,6 +1334,7 @@ defaultDefn info x t def = Defn
   , defInstance       = Nothing
   , defCopy           = False
   , defMatchable      = False
+  , defInjective      = False
   , theDef            = def
   }
 
@@ -3007,8 +3010,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled inst copy ma def) =
-    killRange11 Defn ai name t pols occs displ mut compiled inst copy ma def
+  killRange (Defn ai name t pols occs displ mut compiled inst copy ma inj def) =
+    killRange12 Defn ai name t pols occs displ mut compiled inst copy ma inj def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange CtxId where
