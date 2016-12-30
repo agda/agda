@@ -854,7 +854,8 @@ atTopLevel m = inConcreteMode $ do
           types :: [Dom I.Type]
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
-          gamma = zipWith' (\ x dom -> (x,) <$> dom) names types
+          gamma = fromMaybe __IMPOSSIBLE__ $
+                    zipWith' (\ x dom -> (x,) <$> dom) names types
       M.withCurrentModule current $
         withScope_ scope $
           addContext gamma $

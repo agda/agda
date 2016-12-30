@@ -56,7 +56,7 @@ prop_zipWith' :: (Integer -> Integer -> Integer) -> Property
 prop_zipWith' f =
   forAll natural $ \n ->
     forAll (two $ vector n) $ \(xs, ys) ->
-      zipWith' f xs ys == zipWith f xs ys
+      zipWith' f xs ys == Just (zipWith f xs ys)
 
 prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
