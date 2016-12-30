@@ -1,6 +1,47 @@
 Release notes for Agda version 2.5.3
 ====================================
 
+Language
+--------
+
+* With-clause patterns can be replaced by _
+  [Issue [#2363](https://github.com/agda/agda/issues/2363)].
+  Example:
+  ```agda
+    test : Nat → Set
+    test zero    with zero
+    test _       | _ = Nat
+    test (suc x) with zero
+    test _       | _ = Nat
+  ```
+  We do not have to spell out the pattern of the parent clause
+  (`zero` / `suc x`) in the with-clause if we do not need the
+  pattern variables.  Note that `x` is not in scope in the
+  with-clause!
+
+  An more elaborate example, which cannot be reduced to
+  an ellipsis `...`:
+  ```agda
+    record R : Set where
+      coinductive -- disallow matching
+      field f : Bool
+            n : Nat
+
+    data P (r : R) : Nat → Set where
+      fTrue  : R.f r ≡ true → P r zero
+      nSuc   : P r (suc (R.n r))
+
+    data Q : (b : Bool) (n : Nat) →  Set where
+      true! : Q true zero
+      suc!  : ∀{b n} → Q b (suc n)
+
+    test : (r : R) {n : Nat} (p : P r n) → Q (R.f r) n
+    test r nSuc       = suc!
+    test r (fTrue p)  with R.f r
+    test _ (fTrue ()) | false
+    test _ _          | true = true!  -- underscore instead of (isTrue _)
+  ```
+
 Compiler backends
 -----------------
 
