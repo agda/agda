@@ -1,2 +1,4 @@
 Issue555c.agda:7,8-9
-List of parameters does not match previous signature for R
+The type of the constructor does not fit in the sort of the
+datatype, since Set a is not less or equal than Set
+when checking the definition of R

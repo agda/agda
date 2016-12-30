@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Agda.TypeChecking.Rules.Data where
 
@@ -283,25 +284,37 @@ checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
 -- | Bind the parameters of a datatype.
+--
+--   We allow omission of hidden parameters at the definition site.
+--   Example:
+--   @
+--     data D {a} (A : Set a) : Set a
+--     data D A where
+--       c : A -> D A
+--   @
+
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
+
 bindParameters [] a ret = ret EmptyTel a
+
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : bs) a ret =
   bindParameters (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TLet _ lbs))) : bs) a ret =
-  __IMPOSSIBLE__
-bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) ret
-  -- Andreas, 2011-04-07 ignore relevance information in binding?!
-    | argInfoHiding info /= argInfoHiding info' =
-        __IMPOSSIBLE__
-    | otherwise = addContext' (x, arg) $ bindParameters ps (absBody b) $ \tel s ->
-                    ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
-bindParameters bs (El s (Shared p)) ret = bindParameters bs (El s $ derefPtr p) ret
-bindParameters (b : bs) t _ = __IMPOSSIBLE__
-{- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct
--- Andreas, 2012-01-13 due to separation of data declaration/definition, the user
--- could give more parameters than declared.
-bindParameters (b : bs) t _ = typeError $ DataTooManyParameters
--}
+
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ = __IMPOSSIBLE__
+
+bindParameters ps0@(A.DomainFree info x : ps) t ret =
+  case ignoreSharing $ unEl t of
+     -- Andreas, 2011-04-07 ignore relevance information in binding?!
+     Pi arg@(Dom info' a) b -> do
+       if | info == info'                  -> continue ps x
+          | visible info, notVisible info' -> continue ps0 =<< freshName_ (absName b)
+          | otherwise                      -> __IMPOSSIBLE__
+              -- Andreas, 2016-12-30 Concrete.Definition excludes this case
+       where
+       continue ps x = do
+         addContext' (x, arg) $ bindParameters ps (absBody b) $ \ tel s ->
+           ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
+     _ -> __IMPOSSIBLE__
 
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
