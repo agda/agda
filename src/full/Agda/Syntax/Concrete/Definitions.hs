@@ -55,6 +55,7 @@ import Data.Semigroup ( Semigroup, Monoid, (<>), mempty, mappend )
 import Data.List as List hiding (null)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable, traverse)
+import qualified Data.Traversable as Trav
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
@@ -71,6 +72,7 @@ import Agda.Utils.Except ( Error(strMsg), MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (caseList, headMaybe, isSublistOf)
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
@@ -170,7 +172,8 @@ data DeclarationException
         | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while -- Fredrik 2012-09-20: now used, can we keep it?
         | MissingDataSignature Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
-        | WrongParameters Name
+        | WrongParameters Name Params Params
+          -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
         | NotAllowedInMutual NiceDeclaration
         | UnknownNamesInFixityDecl [Name]
         | UnknownNamesInPolarityPragmas [Name]
@@ -216,7 +219,7 @@ instance HasRange DeclarationException where
   getRange (MissingTypeSignature x)             = getRange x
   getRange (MissingDataSignature x)             = getRange x
   getRange (WrongDefinition x k k')             = getRange x
-  getRange (WrongParameters x)                  = getRange x
+  getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
   getRange (NotAllowedInMutual x)               = getRange x
   getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
@@ -286,8 +289,10 @@ instance Pretty DeclarationException where
   pretty (WrongDefinition x k k') = fsep $ pretty x :
     pwords ("has been declared as a " ++ show k ++
       ", but is being defined as a " ++ show k')
-  pretty (WrongParameters x) = fsep $
-    pwords "List of parameters does not match previous signature for" ++ [pretty x]
+  pretty (WrongParameters x sig def) = fsep $
+    pwords "List of parameters " ++ map pretty def ++
+    pwords " does not match parameters " ++ map pretty sig ++
+    pwords " of previous signature for " ++ [pretty x]
   pretty (AmbiguousFunClauses lhs xs) = sep
     [ fsep $
         pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
@@ -365,9 +370,12 @@ data InMutual
 -- | The kind of the forward declaration, remembering the parameters.
 
 data DataRecOrFun
-  = DataName PositivityCheck Params  -- ^ name of a data with parameters
-  | RecName  PositivityCheck Params  -- ^ name of a record with parameters
-  | FunName  TerminationCheck        -- ^ name of a function
+  = DataName { kindPosCheck :: PositivityCheck, kindParams :: Params }
+    -- ^ Name of a data type with parameters.
+  | RecName  { kindPosCheck :: PositivityCheck, kindParams :: Params }
+    -- ^ Name of a record type with parameters.
+  | FunName  TerminationCheck
+    -- ^ Name of a function.
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where
@@ -376,7 +384,7 @@ instance Eq DataRecOrFun where
   FunName  _   == FunName  _   = True
   _            == _            = False
 
-type Params = [Hiding]
+type Params = [Arg BoundName]
 
 instance Show DataRecOrFun where
   show (DataName _ n) = "data type" --  "with " ++ show n ++ " visible parameters"
@@ -431,6 +439,30 @@ combineTermChecks r tcs = loop tcs where
       (NonTerminating        , NoTerminationCheck    ) -> failure r
       (NonTerminating        , Terminating           ) -> failure r
 
+-- | Check that the parameters of the data/record definition
+--   match the parameters of the corresponding signature.
+--
+--   The definition may omit some hidden parameters.
+--   The names need to match.
+--   The types are not checked here.
+--
+--   Precondition: the signature and definition have the same kind (data/record/fun).
+--
+matchParameters
+  :: Name          -- ^ The data/record name.
+  -> DataRecOrFun  -- ^ The data/record signature.
+  -> DataRecOrFun  -- ^ The parameters as given in the data/record definition.
+  -> Nice ()
+matchParameters _ FunName{} FunName{} = return ()
+matchParameters x sig def = loop (kindParams sig) (kindParams def)
+  where
+  failure = throwError $ WrongParameters x (kindParams sig) (kindParams def)
+  loop hs     []     = unless (all notVisible hs) failure
+  loop []     (_:_)  = failure
+  loop (h:hs) (j:js)
+    | h == j                  = loop hs js
+    | notVisible h, visible j = loop hs (j:js)
+    | otherwise               = failure
 
 -- | Nicifier monad.
 
@@ -595,12 +627,13 @@ declKind NiceFunClause{}                  = OtherDecl
 declKind NicePatternSyn{}                 = OtherDecl
 declKind NiceUnquoteDecl{}                = OtherDecl
 
--- | Compute visible parameters of a data or record signature or definition.
+-- | Compute parameters of a data or record signature or definition.
 parameters :: [LamBinding] -> Params
-parameters = List.concat . List.map numP where
-  numP (DomainFree i _) = [argInfoHiding i]
-  numP (DomainFull (TypedBindings _ (Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
-  numP (DomainFull (TypedBindings _ (Arg _ TLet{})))         = []
+parameters = List.concatMap $ \case
+  DomainFree i x                                      -> [Arg i x]
+  DomainFull (TypedBindings _ (Arg _ TLet{}))         -> []
+  DomainFull (TypedBindings _ (Arg i (TBind _ xs _))) -> for xs $ \ (WithHiding h x) ->
+    mergeHiding $ WithHiding h $ Arg i x
 
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
@@ -779,13 +812,13 @@ niceDeclarations ds = do
         (DataSig r Inductive x tel t) -> do
           pc <- use positivityCheckPragma
           addLoneSig x (DataName pc $ parameters tel)
-          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel (Just t) Nothing
+          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
-        (Data r Inductive x tel t cs) -> do
+        (Data r Inductive x tel mt cs) -> do
           pc <- use positivityCheckPragma
-          t <- defaultTypeSig (DataName pc $ parameters tel) x t
-          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x tel t (Just cs)
+          mt <- defaultTypeSig (DataName pc $ parameters tel) x mt
+          (,) <$> dataOrRec pc DataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
         (RecordSig r x tel t)         -> do
@@ -794,12 +827,12 @@ niceDeclarations ds = do
           fx <- getFixity x
           return ([NiceRecSig r fx PublicAccess ConcreteDef pc x tel t] , ds)
 
-        (Record r x i e c tel t cs)   -> do
+        (Record r x i e c tel mt cs)   -> do
           pc <- use positivityCheckPragma
-          t <- defaultTypeSig (RecName pc $ parameters tel) x t
+          mt <- defaultTypeSig (RecName pc $ parameters tel) x mt
           c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
           (,) <$> dataOrRec pc (\ r f a pc x tel cs -> RecDef r f a pc x i e c tel cs) NiceRecSig
-                    niceDeclarations r x tel t (Just cs)
+                    niceDeclarations r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
         Mutual r ds' ->
@@ -942,34 +975,36 @@ niceDeclarations ds = do
     defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
     defaultTypeSig k x t@Just{} = return t
     defaultTypeSig k x Nothing  = do
-      mk <- getSig x
-      case mk of
-        Nothing -> throwError $ MissingDataSignature x
-        Just k' | k == k'       -> Nothing <$ removeLoneSig x
-                | sameKind k k' -> throwError $ WrongParameters x
-                | otherwise     -> throwError $ WrongDefinition x k' k
+      caseMaybeM (getSig x) (throwError $ MissingDataSignature x) $ \ k' -> do
+        unless (sameKind k k') $ throwError $ WrongDefinition x k' k
+        unless (k == k') $ matchParameters x k' k
+        Nothing <$ removeLoneSig x
 
-    dataOrRec :: forall a .
-                 PositivityCheck ->
-                 (Range -> Fixity' -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] ->
-                   [NiceConstructor] -> NiceDeclaration) ->
-                 (Range -> Fixity' -> Access -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] -> Expr ->
-                   NiceDeclaration) ->
-                 ([a] -> Nice [NiceDeclaration]) ->
-                 Range ->
-                 Name ->
-                 [LamBinding] ->
-                 Maybe Expr ->
-                 Maybe [a] ->
-                 Nice [NiceDeclaration]
-    dataOrRec pc mkDef mkSig niceD r x tel mt mcs = do
-      mds <- traverse niceD mcs
+    dataOrRec
+      :: forall a
+      .  PositivityCheck
+      -> (Range -> Fixity' -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] -> [NiceConstructor] -> NiceDeclaration)
+         -- ^ Construct definition.
+      -> (Range -> Fixity' -> Access -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] -> Expr -> NiceDeclaration)
+         -- ^ Construct signature.
+      -> ([a] -> Nice [NiceDeclaration])
+         -- ^ Constructor checking.
+      -> Range
+      -> Name          -- ^ Data/record type name.
+      -> Maybe ([LamBinding], Expr)    -- ^ Parameters and type.  If not @Nothing@ a signature is created.
+      -> Maybe ([LamBinding], [a])     -- ^ Parameters and constructors.  If not @Nothing@, a definition body is created.
+      -> Nice [NiceDeclaration]
+    dataOrRec pc mkDef mkSig niceD r x mt mcs = do
+      mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
       f   <- getFixity x
       return $ catMaybes $
-        [ mt <&> \ t -> mkSig (fuseRange x t) f PublicAccess ConcreteDef pc x tel t
-        , mkDef r f ConcreteDef pc x (concatMap dropType tel) <$> mds
+        [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) f PublicAccess ConcreteDef pc x tel t
+        , mds <&> \ (tel, ds) -> mkDef r f ConcreteDef pc x (caseMaybe mt tel $ const $ concatMap dropType tel) ds
+          -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
+          -- for the data definition, lest we duplicate them.
         ]
       where
+        -- | Drop type annotations and lets from bindings.
         dropType :: LamBinding -> [LamBinding]
         dropType (DomainFull (TypedBindings _r (Arg ai (TBind _ xs _)))) =
           map (mergeHiding . fmap (DomainFree ai)) xs
