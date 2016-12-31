@@ -405,11 +405,14 @@ zipScope :: (NameSpaceId -> NamesInScope   -> NamesInScope   -> NamesInScope  ) 
             (NameSpaceId -> InScopeSet     -> InScopeSet     -> InScopeSet    ) ->
             Scope -> Scope -> Scope
 zipScope fd fm fs s1 s2 =
-  s1 { scopeNameSpaces = [ (nsid, zipNS nsid ns1 ns2)
-                         | ((nsid, ns1), (nsid', ns2)) <- zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
-                         , assert (nsid == nsid')
-                         ]
-     , scopeImports  = Map.union (scopeImports s1) (scopeImports s2)
+  s1 { scopeNameSpaces =
+         [ (nsid, zipNS nsid ns1 ns2)
+         | ((nsid, ns1), (nsid', ns2)) <-
+             fromMaybe __IMPOSSIBLE__ $
+               zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
+         , assert (nsid == nsid')
+         ]
+     , scopeImports = Map.union (scopeImports s1) (scopeImports s2)
      }
   where
     assert True  = True

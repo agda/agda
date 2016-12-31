@@ -122,10 +122,6 @@ thread f (x:xs) ret =
 
 -- Lists and monads -------------------------------------------------------
 
--- | Requires both lists to have the same lengths.
-zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
-zipWithM' f xs ys = sequence (zipWith' f xs ys)
-
 -- | A monadic version of @'mapMaybe' :: (a -> Maybe b) -> [a] -> [b]@.
 mapMaybeM
 #if __GLASGOW_HASKELL__ <= 708
