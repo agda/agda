@@ -158,9 +158,12 @@ splitProblem mf (Problem ps qs tel pr) = do
             argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
             let ai' = setRelevance (getRelevance argd) ai
 
+            -- Andreas, 2016-12-31, issue #2374:
+            -- We can also disambiguate by hiding info.
+            unless (getHiding p == getHiding ai) $ ambErr $ wrongHiding d
+
             -- From here, we have the correctly disambiguated projection.
             -- Thus, we no longer catch errors.
-            unless (getHiding p == getHiding ai) $ wrongHiding d
 
             -- For highlighting, we remember which name we disambiguated to.
             -- This is safe here (fingers crossed) as we won't decide on a
