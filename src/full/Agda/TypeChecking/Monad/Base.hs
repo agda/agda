@@ -1381,14 +1381,17 @@ data ExtLamInfo = ExtLamInfo
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
-  { projProper    :: Bool
-    -- ^ @False@ if only projection-like, @True@ if record projection.
+  { projProper    :: Maybe QName
+    -- ^ @Nothing@ if only projection-like, @Just r@ if record projection.
+    --   The @r@ is the name of the record type projected from.
+    --   This field is updated by module application.
   , projOrig      :: QName
     -- ^ The original projection name
     --   (current name could be from module application).
   , projFromType  :: Arg QName
-    -- ^ Type projected from. Record type if @projProper = Just{}@. Also
-    -- stores @ArgInfo@ of the principal argument.
+    -- ^ Type projected from. Original record type if @projProper = Just{}@.
+    --   Also stores @ArgInfo@ of the principal argument.
+    --   This field is unchanged by module application.
   , projIndex     :: Int
     -- ^ Index of the record argument.
     --   Start counting with 1, because 0 means that
@@ -1412,15 +1415,15 @@ newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
 -- | Building the projection function (which drops the parameters).
 projDropPars :: Projection -> ProjOrigin -> Term
 -- Proper projections:
-projDropPars (Projection True d _ _ lams) o =
+projDropPars (Projection Just{} d _ _ lams) o =
   case initLast $ getProjLams lams of
     Nothing -> Def d []
     Just (pars, Arg i y) ->
       let core = Lam i $ Abs y $ Var 0 [Proj o d] in
       List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
 -- Projection-like functions:
-projDropPars (Projection False _ _ _ lams) o | null lams = __IMPOSSIBLE__
-projDropPars (Projection False d _ _ lams) o =
+projDropPars (Projection Nothing _ _ _ lams) o | null lams = __IMPOSSIBLE__
+projDropPars (Projection Nothing d _ _ lams) o =
   List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
 
 -- | The info of the principal (record) argument.

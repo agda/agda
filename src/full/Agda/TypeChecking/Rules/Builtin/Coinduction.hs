@@ -142,7 +142,7 @@ bindBuiltinFlat e =
                                Map.empty
                                Nothing
         projection = Projection
-          { projProper   = True
+          { projProper   = Just inf
           , projOrig     = flat
           , projFromType = defaultArg inf
           , projIndex    = 3

@@ -408,7 +408,7 @@ isProjectionButNotCoinductive qn = liftTCM $ do
         else do
           mp <- isProjection qn
           case mp of
-            Just Projection{ projProper = True, projFromType = t }
+            Just Projection{ projProper = Just{}, projFromType = t }
               -> isInductiveRecord (unArg t)
             _ -> return False
 
@@ -428,7 +428,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
   if Just q == flat then return True else do
     pdef <- getConstInfo q
     case isProjection_ (theDef pdef) of
-      Just Projection{ projProper = True, projFromType = Arg _ r, projIndex = n } ->
+      Just Projection{ projProper = Just{}, projFromType = Arg _ r, projIndex = n } ->
         caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
           -- no for inductive or non-recursive record
           if recInduction rdef /= Just CoInductive then return False else do
