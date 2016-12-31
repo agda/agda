@@ -1,7 +1,5 @@
-{-# LANGUAGE CPP #-}
+-- | Utility functions for lists.
 
-{-| Utitlity functions on lists.
--}
 module Agda.Utils.List where
 
 import Control.Arrow (first)
@@ -18,9 +16,6 @@ import Text.Show.Functions ()
 import qualified Agda.Utils.Bag as Bag
 
 import Agda.Utils.Tuple
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | Case distinction for lists, with list first.
 --   Cf. 'Agda.Utils.Null.ifNull'.
@@ -60,11 +55,10 @@ mcons ma as = maybe as (:as) ma
 
 -- | 'init' and 'last' in one go, safe.
 initLast :: [a] -> Maybe ([a],a)
-initLast [] = Nothing
-initLast as = Just $ loop as where
-  loop []       = __IMPOSSIBLE__
-  loop [a]      = ([], a)
-  loop (a : as) = mapFst (a:) $ loop as
+initLast []     = Nothing
+initLast (a:as) = Just $ loop a as where
+  loop a []      = ([], a)
+  loop a (b : bs) = mapFst (a:) $ loop b bs
 
 -- | Lookup function (partially safe).
 (!!!) :: [a] -> Int -> Maybe a

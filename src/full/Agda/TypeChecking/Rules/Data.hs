@@ -313,7 +313,8 @@ bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e)))
   t <- workOnTypes $ isType_ e
   bindParameters' (t <$ xs) (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
 
-bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ = __IMPOSSIBLE__
+bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
+  __IMPOSSIBLE__
 
 bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
   case ignoreSharing $ unEl t of

@@ -13,6 +13,12 @@ import InternalTests.Helpers
 
 ------------------------------------------------------------------------------
 
+-- Trivial:
+-- prop_initLast_nil       = initLast [] == Nothing
+
+prop_initLast_cons a as = initLast xs == Just (init xs, last xs)
+  where xs = a:as
+
 spec_updateHead f as = let (bs, cs) = splitAt 1 as in map f bs ++ cs
 prop_updateHead f as = updateHead f as == spec_updateHead f as
 
