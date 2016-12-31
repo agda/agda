@@ -156,7 +156,7 @@ splitProblem mf (Problem ps qs tel pr) = do
             ambTry m
              | amb = unlessM (liftTCM $ tryConversion m) mzero -- succeed without constraints
              -- This would leave constraints:
-             -- | amb = whenNothingM (liftTCM $ tryMaybe $ disableDestructiveUpdate m) mzero
+             -- -- | amb = whenNothingM (liftTCM $ tryMaybe $ disableDestructiveUpdate m) mzero
              | otherwise = liftTCM $ noConstraints m
         case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
