@@ -363,7 +363,9 @@ splitProblem mf (Problem ps qs tel pr) = do
                       -- so we add a check here.
                       -- I guess this issue could be solved more systematically,
                       -- but the extra check here is non-invasive to the existing code.
-                      checkParsIfUnambiguous cs d pars
+                      -- Andreas, 2016-12-31 fixing issue #1975
+                      -- Do this also for constructors which were originally ambiguous.
+                      checkConstructorParameters c d pars
 
                       (return Split
                         { splitLPats   = empty
@@ -377,11 +379,11 @@ splitProblem mf (Problem ps qs tel pr) = do
         _ -> keepGoing
 
 
--- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
+-- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
 --   that coincide with an prefix of @pars@.
-checkParsIfUnambiguous :: MonadTCM tcm => [QName] -> QName -> Args -> tcm ()
-checkParsIfUnambiguous [c] d pars = liftTCM $ do
+checkConstructorParameters :: MonadTCM tcm => QName -> QName -> Args -> tcm ()
+checkConstructorParameters c d pars = liftTCM $ do
   dc <- getConstructorData c
   a  <- reduce (Def dc [])
   case ignoreSharing a of
@@ -396,4 +398,3 @@ checkParsIfUnambiguous [c] d pars = liftTCM $ do
       t <- typeOfConst d
       compareArgs [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
-checkParsIfUnambiguous _ _ _ = return ()
