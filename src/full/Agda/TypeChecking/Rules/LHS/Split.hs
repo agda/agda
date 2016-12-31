@@ -118,8 +118,11 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- Note: the module parameters are already part of qs
             let self = defaultArg $ Def f [] `applyE` es
                 ai   = getArgInfo p
-            -- Try the projection candidates
-            msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
+            -- Try the projection candidates.
+            -- Fail hard for the last candidate.
+            msum $ mapAwareLast (tryProj o ai self fs r vs) projs
+            -- -- This fails softly on all (if more than one) candidates.
+            -- msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
 
           _ -> __IMPOSSIBLE__
       where
@@ -129,6 +132,12 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding :: MonadTCM tcm => QName -> tcm a
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
+
+      -- | Pass 'True' unless last element of the list.
+      mapAwareLast :: forall a b. (Bool -> a -> b) -> [a] -> [b]
+      mapAwareLast f []     = []
+      mapAwareLast f [a]    = [f False a]
+      mapAwareLast f (a:as) = f True a : mapAwareLast f as
 
       tryProj
         :: ProjOrigin           -- ^ Origin of projection pattern.
@@ -144,6 +153,11 @@ splitProblem mf (Problem ps qs tel pr) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections (amb) we just try the next one.
         let ambErr err = if amb then mzero else err
+            ambTry m
+             | amb = unlessM (liftTCM $ tryConversion m) mzero -- succeed without constraints
+             -- This would leave constraints:
+             -- | amb = whenNothingM (liftTCM $ tryMaybe $ disableDestructiveUpdate m) mzero
+             | otherwise = liftTCM $ noConstraints m
         case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
           Projection{projProper = Nothing} -> ambErr notProjP
@@ -173,7 +187,7 @@ splitProblem mf (Problem ps qs tel pr) = do
 
             -- Andreas, 2016-12-31, issue #1976:
             -- Check parameters.
-            checkParameters qr r vs
+            ambTry $ checkParameters qr r vs
 
             -- From here, we have the correctly disambiguated projection.
             -- Thus, we no longer catch errors.
