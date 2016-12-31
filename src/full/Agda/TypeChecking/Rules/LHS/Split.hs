@@ -118,8 +118,11 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- Note: the module parameters are already part of qs
             let self = defaultArg $ Def f [] `applyE` es
                 ai   = getArgInfo p
-            -- Try the projection candidates
-            msum $ map (tryProj o ai self fs vs (length projs >= 2)) projs
+            -- Try the projection candidates.
+            -- Fail hard for the last candidate.
+            msum $ mapAwareLast (tryProj o ai self fs r vs) projs
+            -- -- This fails softly on all (if more than one) candidates.
+            -- msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
 
           _ -> __IMPOSSIBLE__
       where
@@ -130,15 +133,35 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
 
-      tryProj :: ProjOrigin -> ArgInfo -> Arg Term -> [Arg QName] -> Args -> Bool -> (QName, Projection) -> ListT TCM SplitProblem
-      tryProj o ai self fs vs amb (d0, proj) = do
+      -- | Pass 'True' unless last element of the list.
+      mapAwareLast :: forall a b. (Bool -> a -> b) -> [a] -> [b]
+      mapAwareLast f []     = []
+      mapAwareLast f [a]    = [f False a]
+      mapAwareLast f (a:as) = f True a : mapAwareLast f as
+
+      tryProj
+        :: ProjOrigin           -- ^ Origin of projection pattern.
+        -> ArgInfo              -- ^ ArgInfo of projection pattern.
+        -> Arg Term             -- ^ Self: value we are eliminating.
+        -> [Arg QName]          -- ^ Fields of record type under consideration.
+        -> QName                -- ^ Name of record type we are eliminating.
+        -> Args                 -- ^ Parameters of record type we are eliminating.
+        -> Bool                 -- ^ More than 1 candidates?  If yes, fail softly.
+        -> (QName, Projection)  -- ^ Current candidate.
+        -> ListT TCM SplitProblem
+      tryProj o ai self fs r vs amb (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections (amb) we just try the next one.
         let ambErr err = if amb then mzero else err
+            ambTry m
+             | amb = unlessM (liftTCM $ tryConversion m) mzero -- succeed without constraints
+             -- This would leave constraints:
+             -- | amb = whenNothingM (liftTCM $ tryMaybe $ disableDestructiveUpdate m) mzero
+             | otherwise = liftTCM $ noConstraints m
         case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
-          Projection{projProper = False} -> ambErr notProjP
-          Projection{projProper = True, projOrig = d, projLams = lams} -> do
+          Projection{projProper = Nothing} -> ambErr notProjP
+          Projection{projProper = Just qr, projOrig = d, projLams = lams} -> do
             let ai = projArgInfo proj
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
@@ -158,9 +181,16 @@ splitProblem mf (Problem ps qs tel pr) = do
             argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
             let ai' = setRelevance (getRelevance argd) ai
 
+            -- Andreas, 2016-12-31, issue #2374:
+            -- We can also disambiguate by hiding info.
+            unless (getHiding p == getHiding ai) $ ambErr $ wrongHiding d
+
+            -- Andreas, 2016-12-31, issue #1976:
+            -- Check parameters.
+            ambTry $ checkParameters qr r vs
+
             -- From here, we have the correctly disambiguated projection.
             -- Thus, we no longer catch errors.
-            unless (getHiding p == getHiding ai) $ wrongHiding d
 
             -- For highlighting, we remember which name we disambiguated to.
             -- This is safe here (fingers crossed) as we won't decide on a
@@ -363,7 +393,9 @@ splitProblem mf (Problem ps qs tel pr) = do
                       -- so we add a check here.
                       -- I guess this issue could be solved more systematically,
                       -- but the extra check here is non-invasive to the existing code.
-                      checkParsIfUnambiguous cs d pars
+                      -- Andreas, 2016-12-31 fixing issue #1975
+                      -- Do this also for constructors which were originally ambiguous.
+                      checkConstructorParameters c d pars
 
                       (return Split
                         { splitLPats   = empty
@@ -377,23 +409,34 @@ splitProblem mf (Problem ps qs tel pr) = do
         _ -> keepGoing
 
 
--- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
+-- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
 --   that coincide with an prefix of @pars@.
-checkParsIfUnambiguous :: MonadTCM tcm => [QName] -> QName -> Args -> tcm ()
-checkParsIfUnambiguous [c] d pars = liftTCM $ do
-  dc <- getConstructorData c
+checkConstructorParameters :: MonadTCM tcm => QName -> QName -> Args -> tcm ()
+checkConstructorParameters c d pars = do
+  dc <- liftTCM $ getConstructorData c
+  checkParameters dc d pars
+
+-- | Check that given parameters match the parameters of the inferred
+--   constructor/projection.
+checkParameters
+  :: MonadTCM tcm
+  => QName  -- ^ The record/data type name of the chosen constructor/projection.
+  -> QName  -- ^ The record/data type name as supplied by the type signature.
+  -> Args   -- ^ The parameters.
+  -> tcm ()
+checkParameters dc d pars = liftTCM $ do
   a  <- reduce (Def dc [])
   case ignoreSharing a of
     Def d0 es -> do -- compare parameters
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reportSDoc "tc.lhs.split" 40 $
-        vcat [ nest 2 $ text "d                   =" <+> prettyTCM d
-             , nest 2 $ text "d0 (should be == d) =" <+> prettyTCM d0
-             , nest 2 $ text "dc                  =" <+> prettyTCM dc
+        vcat [ nest 2 $ text "d                   =" <+> (text . show) d
+             , nest 2 $ text "d0 (should be == d) =" <+> (text . show) d0
+             , nest 2 $ text "dc                  =" <+> (text . show) dc
+             , nest 2 $ text "vs                  =" <+> prettyTCM vs
              ]
       -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
       t <- typeOfConst d
       compareArgs [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
-checkParsIfUnambiguous _ _ _ = return ()

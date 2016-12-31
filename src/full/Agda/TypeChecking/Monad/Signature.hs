@@ -68,7 +68,7 @@ addConstant q d = do
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel
-              Function{ funProjection = Just Projection{ projProper = True, projIndex = n } } ->
+              Function{ funProjection = Just Projection{ projProper = Just{}, projIndex = n } } ->
                 let fallback = fmap hideOrKeepInstance tel in
                 if n > 0 then fallback else
                 -- if the record value is part of the telescope, its hiding should left unchanged
@@ -416,6 +416,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
                 -> Just $ p { projIndex = n - size ts'
                             , projLams  = projLams p `apply` ts'
+                            , projProper= fmap copyName $ projProper p
                             }
               _ -> Nothing
             def =
@@ -986,7 +987,7 @@ isInlineFun = (^. funInline)
 --   (projection applied to argument).
 isProperProjection :: Defn -> Bool
 isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
-  if projIndex isP <= 0 then False else projProper isP
+  if projIndex isP <= 0 then False else isJust $ projProper isP
 
 -- | Number of dropped initial arguments of a projection(-like) function.
 projectionArgs :: Defn -> Int
@@ -1008,5 +1009,5 @@ applyDef o f a = do
   caseMaybeM (isProjection f) fallback $ \ isP -> do
     if projIndex isP <= 0 then fallback else do
       -- Get the original projection, if existing.
-      if not (projProper isP) then fallback else do
+      if isNothing (projProper isP) then fallback else do
         return $ unArg a `applyE` [Proj o $ projOrig isP]

@@ -879,7 +879,7 @@ instance Subst DeBruijnPattern DeBruijnPattern where
 --   This function is an optimization, saving us from construction lambdas we
 --   immediately remove through application.
 projDropParsApply :: Projection -> ProjOrigin -> Args -> Term
-projDropParsApply (Projection proper d r _ lams) o args =
+projDropParsApply (Projection prop d r _ lams) o args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
@@ -892,6 +892,7 @@ projDropParsApply (Projection proper d r _ lams) o args =
       -- We only have to abstract over the parameters that exceed the arguments.
       -- We only have to apply to the arguments that exceed the parameters.
       in List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (core `apply` args') pars'
+  where proper = isJust prop
 
 ---------------------------------------------------------------------------
 -- * Telescopes

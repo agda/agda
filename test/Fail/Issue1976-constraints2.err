@@ -1,0 +1,3 @@
+Issue1976-constraints2.agda:22,3-15
+A != B of type Set
+when checking that the clause F test = Set has type M.R B

@@ -183,7 +183,7 @@ makeProjection x = -- if True then return () else do
                   tel = take pIndex $ telToList $ theTel $ telView' t
               unless (length tel == pIndex) __IMPOSSIBLE__
               let projection = Projection
-                    { projProper   = False
+                    { projProper   = Nothing
                     , projOrig     = x
                     , projFromType = d
                     , projIndex    = pIndex

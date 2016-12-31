@@ -1,9 +1,9 @@
 Failed to solve the following constraints:
   _148 := λ τ → ƛ (var · var) · ƛ (_142 τ · var)
-    [blocked on problem 215]
-  [215, 231] ♭ (_τ_139 τ) = τ : Ty
-  _141 := (λ τ → var) [blocked on problem 193]
-  [193, 233, 197] .Issue585.♯-2 = _τ_139 τ : ∞ Ty
+    [blocked on problem 218]
+  [218, 234] ♭ (_τ_139 τ) = τ : Ty
+  _141 := (λ τ → var) [blocked on problem 196]
+  [196, 236, 200] .Issue585.♯-2 = _τ_139 τ : ∞ Ty
 Unsolved metas at the following locations:
   Issue585.agda:54,49-50
   Issue585.agda:54,45-48

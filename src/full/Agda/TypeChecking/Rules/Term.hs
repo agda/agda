@@ -1143,7 +1143,7 @@ inferOrCheckProjApp e o ds args mt = do
                 ]
               -- get the original projection name
               Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
-              guard proper
+              guard $ isJust proper
               -- try to eliminate
               (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat

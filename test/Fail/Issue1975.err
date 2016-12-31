@@ -1,0 +1,3 @@
+Issue1975.agda:34,7-10
+true != false of type Bool
+when checking that the pattern c x has type M.D false
