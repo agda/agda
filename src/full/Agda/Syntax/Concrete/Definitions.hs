@@ -132,10 +132,12 @@ data NiceDeclaration
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
   | FunSig Range Fixity' Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck Name Expr
-  | FunDef Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause]
+  | FunDef Range [Declaration] Fixity' IsAbstract IsInstance TerminationCheck Name [Clause]
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
+      --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
+      --   An alias should know that it is an instance.
   | DataDef Range Fixity' IsAbstract PositivityCheck Name [LamBinding] [NiceConstructor]
   | RecDef Range Fixity' IsAbstract PositivityCheck Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
@@ -250,7 +252,7 @@ instance HasRange NiceDeclaration where
   getRange (NicePragma r _)                  = r
   getRange (PrimitiveFunction r _ _ _ _ _)   = r
   getRange (FunSig r _ _ _ _ _ _ _ _ _)      = r
-  getRange (FunDef r _ _ _ _ _ _)            = r
+  getRange (FunDef r _ _ _ _ _ _ _)          = r
   getRange (DataDef r _ _ _ _ _ _)           = r
   getRange (RecDef r _ _ _ _ _ _ _ _ _)      = r
   getRange (NiceRecSig r _ _ _ _ _ _ _)      = r
@@ -610,7 +612,7 @@ declKind :: NiceDeclaration -> DeclKind
 declKind (FunSig _ _ _ _ _ _ _ tc x _)    = LoneSig (FunName tc) x
 declKind (NiceRecSig _ _ _ _ pc x pars _) = LoneSig (RecName pc $ parameters pars) x
 declKind (NiceDataSig _ _ _ _ pc x pars _)= LoneSig (DataName pc $ parameters pars) x
-declKind (FunDef _ _ _ _ tc x _)          = LoneDefs (FunName tc) [x]
+declKind (FunDef _ _ _ _ _ tc x _)        = LoneDefs (FunName tc) [x]
 declKind (DataDef _ _ _ pc x pars _)      = LoneDefs (DataName pc $ parameters pars) [x]
 declKind (RecDef _ _ _ pc x _ _ _ pars _) = LoneDefs (RecName pc $ parameters pars) [x]
 declKind (NiceUnquoteDef _ _ _ _ tc xs _) = LoneDefs (FunName tc) xs
@@ -800,7 +802,7 @@ niceDeclarations ds = do
                removeLoneSig x
                cs  <- mkClauses x (expandEllipsis fits) False
                fx  <- getFixity x
-               return ([FunDef (getRange fits) fits fx ConcreteDef termCheck x cs] , rest)
+               return ([FunDef (getRange fits) fits fx ConcreteDef NotInstanceDef termCheck x cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
             l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l -- "ambiguous function clause; cannot assign it uniquely to one type signature"
@@ -1038,7 +1040,7 @@ niceDeclarations ds = do
       cs <- mkClauses x (expandEllipsis ds0) False
       f  <- getFixity x
       return [ FunSig (fuseRange x t) f PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t
-             , FunDef (getRange ds0) ds0 f ConcreteDef termCheck x cs ]
+             , FunDef (getRange ds0) ds0 f ConcreteDef NotInstanceDef termCheck x cs ]
         where
           t = case mt of
                 Just t  -> t
@@ -1212,7 +1214,7 @@ niceDeclarations ds = do
         -- do not termination check a mutual block if any of its
         -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
         termCheck (FunSig _ _ _ _ _ _ _ tc _ _)      = tc
-        termCheck (FunDef _ _ _ _ tc _ _)            = tc
+        termCheck (FunDef _ _ _ _ _ tc _ _)          = tc
         -- ASR (28 December 2015): Is this equation necessary?
         termCheck (NiceMutual _ tc _ _)              = __IMPOSSIBLE__
         termCheck (NiceUnquoteDecl _ _ _ _ _ tc _ _) = tc
@@ -1273,7 +1275,7 @@ niceDeclarations ds = do
         NiceUnquoteDecl r f p a i tc x e -> (\ i -> NiceUnquoteDecl r f p a i tc x e) <$> setInstance i
         NiceMutual{}                     -> return d
         NiceFunClause{}                  -> return d
-        FunDef{}                         -> return d
+        FunDef r ds f a i tc x cs        -> (\ i -> FunDef r ds f a i tc x cs) <$> setInstance i
         NiceField{}                      -> return d  -- Field instance are handled by the parser
         PrimitiveFunction{}              -> return d
         NiceUnquoteDef{}                 -> return d
@@ -1332,7 +1334,7 @@ instance MakeAbstract NiceDeclaration where
   mkAbstract d =
     case d of
       NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mkAbstract ds
-      FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x) <$> mkAbstract a <*> mkAbstract cs
+      FunDef r ds f a i tc x cs        -> (\ a -> FunDef r ds f a i tc x) <$> mkAbstract a <*> mkAbstract cs
       DataDef r f a pc x ps cs         -> (\ a -> DataDef r f a pc x ps) <$> mkAbstract a <*> mkAbstract cs
       RecDef r f a pc x i e c ps cs    -> (\ a -> RecDef r f a pc x i e c ps) <$> mkAbstract a <*> mkAbstract cs
       NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> mkAbstract a
@@ -1414,7 +1416,7 @@ instance MakePrivate NiceDeclaration where
       NiceImport _ _ _ _ _                     -> return $ d
       -- Andreas, 2016-07-08, issue #2089
       -- we need to propagate 'private' to the named where modules
-      FunDef r ds f a tc x cls                 -> FunDef r ds f a tc x <$> mkPrivate o cls
+      FunDef r ds f a i tc x cls               -> FunDef r ds f a i tc x <$> mkPrivate o cls
       DataDef{}                                -> return $ d
       RecDef{}                                 -> return $ d
       NicePatternSyn _ _ _ _ _                 -> return $ d
@@ -1552,7 +1554,7 @@ notSoNiceDeclarations d =
     NiceDataSig r _ _ _ _ x bs e     -> [DataSig r Inductive x bs e]
     NiceFunClause _ _ _ _ _ d        -> [d]
     FunSig _ _ _ _ i _ rel tc x e    -> inst i [TypeSig rel x e]
-    FunDef _r ds _ _ _ _ _           -> ds
+    FunDef _r ds _ _ _ _ _ _         -> ds
     DataDef r _ _ _ x bs cs          -> [Data r Inductive x bs Nothing $ concatMap notSoNiceDeclarations cs]
     RecDef r _ _ _ x i e c bs ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
@@ -1580,7 +1582,7 @@ niceHasAbstract d =
     NiceDataSig{}                   -> Nothing
     NiceFunClause _ _ a _ _ _       -> Just a
     FunSig{}                        -> Nothing
-    FunDef _ _ _ a _ _ _            -> Just a
+    FunDef _ _ _ a _ _ _ _          -> Just a
     DataDef _ _ a _ _ _ _           -> Just a
     RecDef _ _ a _ _ _ _ _ _ _      -> Just a
     NicePatternSyn{}                -> Nothing

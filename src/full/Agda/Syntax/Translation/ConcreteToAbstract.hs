@@ -226,7 +226,7 @@ recordConstructorType fields = build <$> mapM validForLet fs
 
         C.NiceMutual _ _ _
           [ C.FunSig _ _ _ _ _instanc macro _info _ _ _
-          , C.FunDef _ _ _ abstract _ _
+          , C.FunDef _ _ _ abstract _ _ _
              [ C.Clause _top _catchall (C.LHS _p [] [] []) (C.RHS _rhs) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef ->
           -- TODO: this is still too generous, we also need to check that _p
@@ -718,14 +718,14 @@ scopeCheckExtendedLam r cs = do
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
-  -- Compose a function definition an scope check it.
+  -- Compose a function definition and scope check it.
   a <- aModeToDef <$> asks envAbstractMode
   let
     insertApp (C.RawAppP r es) = C.RawAppP r $ IdentP (C.QName cname) : es
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
-    d = C.FunDef r [] noFixity' {-'-} a __IMPOSSIBLE__ cname $
+    d = C.FunDef r [] noFixity' {-'-} a NotInstanceDef __IMPOSSIBLE__ cname $
           for cs $ \ (lhs, rhs, wh, ca) -> -- wh == NoWhere, see parser for more info
             C.Clause cname ca (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
@@ -1200,7 +1200,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ _ d@[C.FunSig _ fx _ _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+      NiceMutual _ _ _ d@[C.FunSig _ fx _ _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "abstract not allowed in let expressions"
               when (macro == MacroDef) $ do
@@ -1239,7 +1239,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck True
                 [ C.FunSig r noFixity' PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
-                , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
+                , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
             where
@@ -1396,12 +1396,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
         toAbstractNiceAxiom A.FunSig m (C.Axiom r f p a i rel Nothing x t)
 
   -- Function definitions
-    C.FunDef r ds f a tc x cs -> do
+    C.FunDef r ds f a i tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
         (x',cs) <- toAbstract (OldName x,cs)
         let delayed = NotDelayed
         -- (delayed, cs) <- translateCopatternClauses cs -- TODO
-        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
+        return [ A.FunDef (mkDefInfoInstance x f PublicAccess a i NotMacroDef r) x' delayed cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls ca) ->
