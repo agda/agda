@@ -1675,11 +1675,14 @@ figureOutTopLevelModule ds =
   case spanAllowedBeforeModule ds of
     -- Andreas 2016-02-01, issue #1388.
     -- We need to distinguish two additional cases.
+
     -- Case 1: Regular file layout: imports followed by one module. Nothing to do.
     (ds0, [ Module{} ]) -> ds
+
     -- Case 2: The declarations in the module are not indented.
     -- This is allowed for the top level module, and thus rectified here.
     (ds0, Module r m tel [] : ds2) -> ds0 ++ [Module r m tel ds2]
+
     -- Case 3: There is a module with indented declarations,
     -- followed by non-indented declarations.  This should be a
     -- parse error and be reported later (see @toAbstract TopLevel{}@),
@@ -1687,8 +1690,15 @@ figureOutTopLevelModule ds =
     (ds0, Module r m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
     -- OLD code causing issue 1388:
     -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
+
     -- Case 4: a top-level module declaration is missing.
-    (ds0, ds1)                      -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
+    -- Andreas, 2017-01-01, issue #2229:
+    -- Put everything (except OPTIONS pragmas) into an anonymous module.
+    _ -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
+      where
+      (ds0, ds1) = (`span` ds) $ \case
+        Pragma OptionsPragma{} -> True
+        _ -> False
 
 -- | Create a name from a string.
 
