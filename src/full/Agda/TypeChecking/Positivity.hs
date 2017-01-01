@@ -590,7 +590,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
           vars = map (Just . AnArg) $ downFrom np
-      getOccurrences vars =<< instantiateFull tel'
+      getOccurrences vars =<< normalise tel' -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
     Constructor{} -> return emptyOB
