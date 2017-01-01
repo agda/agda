@@ -48,3 +48,9 @@ flatten : {A : Set}(n : Nat) -> (Bush ^ n) A -> List A
 flatten zero    x          = x :: []
 flatten (suc n) leaf       = []
 flatten (suc n) (node x b) = flatten n x ++ flatten (3 + n) b
+
+-- Andreas, 2017-01-01, issue #1899.
+-- Normalize field types for positivity checking.
+record B (A : Set) : Set where
+  coinductive
+  field f : (B ^ 3) A
