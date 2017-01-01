@@ -36,19 +36,11 @@ k ==<< (ma, mb) = ma >>= \ a -> k a =<< mb
 
 -- Conditionals and monads ------------------------------------------------
 
--- | @when_@ is just @Control.Monad.when@ with a more general type.
-when_ :: Monad m => Bool -> m a -> m ()
-when_ b m = when b $ m >> return ()
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM c m = c >>= (`when` m)
 
--- | @unless_@ is just @Control.Monad.unless@ with a more general type.
-unless_ :: Monad m => Bool -> m a -> m ()
-unless_ b m = unless b $ m >> return ()
-
-whenM :: Monad m => m Bool -> m a -> m ()
-whenM c m = c >>= (`when_` m)
-
-unlessM :: Monad m => m Bool -> m a -> m ()
-unlessM c m = c >>= (`unless_` m)
+unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM c m = c >>= (`unless` m)
 
 -- | Monadic guard.
 guardM :: (Monad m, MonadPlus m) => m Bool -> m ()
@@ -159,10 +151,10 @@ partitionM f (x:xs) =
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.
 
-finally :: MonadError e m => m a -> m b -> m a
+finally :: MonadError e m => m a -> m () -> m a
 first `finally` after = do
   r <- catchError (liftM Right first) (return . Left)
-  _ <- after
+  after
   case r of
     Left e  -> throwError e
     Right r -> return r
@@ -177,13 +169,13 @@ tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 -- | Bracket without failure.  Typically used to preserve state.
 bracket_ :: Monad m
          => m a         -- ^ Acquires resource. Run first.
-         -> (a -> m c)  -- ^ Releases resource. Run last.
+         -> (a -> m ())  -- ^ Releases resource. Run last.
          -> m b         -- ^ Computes result. Run in-between.
          -> m b
 bracket_ acquire release compute = do
   resource <- acquire
   result <- compute
-  _ <- release resource
+  release resource
   return result
 
 -- | Restore state after computation.

@@ -1,0 +1,3 @@
+Issue2372.agda:13,3-8
+Terms marked as eligible for instance search should end with a name
+when checking the definition of i

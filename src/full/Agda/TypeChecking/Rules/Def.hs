@@ -166,6 +166,12 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                       , funDelayed  = delayed
                       , funAbstr    = Info.defAbstract i
                       }
+
+  -- Andreas, 2017-01-01, issue #2372:
+  -- Add the definition to the instance table, if needed, to update its type.
+  when (Info.defInstance i == InstanceDef) $ do
+    addTypedInstance name t
+
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
 
