@@ -36,19 +36,11 @@ k ==<< (ma, mb) = ma >>= \ a -> k a =<< mb
 
 -- Conditionals and monads ------------------------------------------------
 
--- | @when_@ is just @Control.Monad.when@ with a more general type.
-when_ :: Monad m => Bool -> m a -> m ()
-when_ b m = when b $ m >> return ()
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM c m = c >>= (`when` m)
 
--- | @unless_@ is just @Control.Monad.unless@ with a more general type.
-unless_ :: Monad m => Bool -> m a -> m ()
-unless_ b m = unless b $ m >> return ()
-
-whenM :: Monad m => m Bool -> m a -> m ()
-whenM c m = c >>= (`when_` m)
-
-unlessM :: Monad m => m Bool -> m a -> m ()
-unlessM c m = c >>= (`unless_` m)
+unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM c m = c >>= (`unless` m)
 
 -- | Monadic guard.
 guardM :: (Monad m, MonadPlus m) => m Bool -> m ()

@@ -34,7 +34,7 @@ litType :: Literal -> TCM Type
 litType l = case l of
   LitNat _ n    -> do
     _ <- primZero
-    when_ (n > 0) $ primSuc
+    when (n > 0) $ void $ primSuc
     el <$> primNat
   LitFloat _ _  -> el <$> primFloat
   LitChar _ _   -> el <$> primChar
