@@ -136,6 +136,8 @@ instance PrettyTCM Warning where
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    UselessPublic -> fwords $ "Keyword `public' is ignored here"
+
     ParseWarning pw -> pretty pw
 
 prettyTCWarnings :: [TCWarning] -> TCM String
@@ -172,6 +174,7 @@ applyFlagsToTCWarnings ifs ws = do
           UnsolvedConstraints ucs      -> keepUnsolved ucs
           OldBuiltin{}                 -> True
           EmptyRewritePragma           -> True
+          UselessPublic                -> True
           ParseWarning{}               -> True
 
   return $ filter (cleanUp . tcWarning) ws

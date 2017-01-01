@@ -2275,6 +2275,9 @@ data Warning =
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-# REWRITE #-}@.
+  | UselessPublic
+    -- ^ If the user opens a module public before the module header.
+    --   (See issue #2377.)
   | ParseWarning             ParseWarning
   deriving Show
 
