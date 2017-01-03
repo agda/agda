@@ -1146,9 +1146,9 @@ instance InstantiateFull Char where
     instantiateFull' = return
 
 instance InstantiateFull Definition where
-    instantiateFull' (Defn rel x t pol occ df i c inst copy ma d) = do
+    instantiateFull' (Defn rel x t pol occ df i c inst copy ma inj d) = do
       (t, df, d) <- instantiateFull' (t, df, d)
-      return $ Defn rel x t pol occ df i c inst copy ma d
+      return $ Defn rel x t pol occ df i c inst copy ma inj d
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x y z) = return $ PVar x y z

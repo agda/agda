@@ -203,6 +203,7 @@ data Pragma
   | CompiledUHCPragma QName String
   | CompiledDataUHCPragma QName String [String]
   | StaticPragma QName
+  | InjectivePragma QName
   | InlinePragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Typeable, Show, Eq)

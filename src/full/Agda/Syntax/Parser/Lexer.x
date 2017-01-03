@@ -91,6 +91,7 @@ tokens :-
 <pragma_>   "IMPORT"                   { keyword KwIMPORT }
 <pragma_>   "IMPORT_UHC"               { keyword KwIMPORT_UHC }
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
+<pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
 <pragma_>   "INLINE"                   { keyword KwINLINE }
 <pragma_>   "LINE"                     { keyword KwLINE }
 <pragma_>   "MEASURE"                  { keyword KwMEASURE }
