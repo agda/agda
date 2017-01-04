@@ -35,7 +35,7 @@ children as the number of characters in the alphabet ``A``. Each path from the r
 of the tree to a node determines a possible word in the language. Each node
 has a boolean label, which is ``true`` if and only if the word corresponding
 to that node is in the language. In particular, the root node of the tree
-is labelled ``true`` if and only if the word belongs to the language.
+is labelled ``true`` if and only if the word ``ε`` belongs to the language.
 
 These infinite trees can be represented as the following coinductive data-type:
 
