@@ -143,6 +143,14 @@ data Elim' a
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
 
+-- | This instance cheats on 'Proj', use with care.
+--   'Proj's are always assumed to be 'UserWritten', since they have no 'ArgInfo'.
+instance LensOrigin (Elim' a) where
+  getOrigin (Apply a)   = getOrigin a
+  getOrigin Proj{}      = UserWritten
+  mapOrigin f (Apply a) = Apply $ mapOrigin f a
+  mapOrigin f e@Proj{}  = e
+
 -- | Names in binders and arguments.
 type ArgName = String
 
