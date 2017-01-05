@@ -35,7 +35,7 @@ children as the number of characters in the alphabet ``A``. Each path from the r
 of the tree to a node determines a possible word in the language. Each node
 has a boolean label, which is ``true`` if and only if the word corresponding
 to that node is in the language. In particular, the root node of the tree
-is labelled ``true`` if and only if the word belongs to the language.
+is labelled ``true`` if and only if the word ``ε`` belongs to the language.
 
 These infinite trees can be represented as the following coinductive data-type:
 
@@ -51,7 +51,7 @@ These infinite trees can be represented as the following coinductive data-type:
 
 As we said before, given a language ``a : Lang A``, ``ν a ≡ true`` iff
 ``ε ∈ a``. On the other hand, the language ``δ a x : Lang A`` is the
-`Brzozowski derivative`_ of a with respect to the character ``x``, that is,
+`Brzozowski derivative`_ of ``a`` with respect to the character ``x``, that is,
 ``w ∈ δ a x`` iff ``xw ∈ a``.
 
 
@@ -81,19 +81,22 @@ operation on the labels of their nodes:
     infixl 10 _+_
 
 Now, lets define concatenation.
-The base case (``ν``) is straightforward: ``ε ∈ a·b`` iff  ``ε ∈ a`` and ``ε ∈ b``.
+The base case (``ν``) is straightforward: ``ε ∈ a · b`` iff  ``ε ∈ a`` and ``ε ∈ b``.
 
 For the derivative (``δ``), assume that we have a word ``w``, ``w ∈ δ (a · b)
-x``. This means that ``w = αβ``, with ``α ∈ a`` and ``β ∈ b``.
+x``. This means that ``xw = αβ``, with ``α ∈ a`` and ``β ∈ b``.
 
 We have to consider two cases:
 
  #. ``ε ∈ a``. Then, either:
-    * ``α = ε``, and ``w = β = x · β’``, where ``β’ ∈ δ b x``.
-    * ``α = xα’``, with ``α’ ∈ δ a x``.
+
+    * ``α = ε``, and ``β = xw``, where ``w ∈ δ b x``.
+
+    * ``α = xα’``, with ``α’ ∈ δ a x``, and ``w = α’β ∈ δ a x · b``.
 
  #. ``ε ∉ a``. Then, only the second case above is possible:
-    * ``α = xα’``, with ``α’ ∈ δ a x``.
+
+    * ``α = xα’``, with ``α’ ∈ δ a x``, and ``w = α’β ∈ δ a x · b``.
 
 ::
 
