@@ -8,6 +8,7 @@ module Agda.Syntax.Parser.Literate (
   literateSrcFile,
   literateTeX,
   literateRsT,
+  literateMd,
   illiterate,
   isCode,
   Processor,
@@ -78,6 +79,7 @@ literateProcessors = map ((,) <$> (".lagda" ++) . fst <*> snd)
                  [(""    , literateTeX)
                  ,(".rst", literateRsT)
                  ,(".tex", literateTeX)
+                 ,(".md", literateMd)
                  ]
 
 -- | Blanks the non-code parts of a given file, preserving positions of
@@ -161,6 +163,32 @@ literateTeX pos s = mkLayers pos$ tex s
 
   r_end   = rex "([[:space:]]*\\\\end\\{code\\}[[:space:]]*)(.*)"
 
+-- | Preprocessor for Markdown
+literateMd :: Position -> String -> [Layer]
+literateMd pos s = mkLayers pos$ md s
+  where
+  md :: String -> [(LayerType, String)]
+  md [] = []
+  md s  = let (line, rest) = getLine s in
+    case md_begin `matchM` line of
+      Just (getAllTextSubmatches -> [_, pre, markup]) ->
+        (Comment, pre):(Markup, markup):code rest
+      Just _                 -> __IMPOSSIBLE__
+      Nothing                -> (Comment, line):md rest
+
+  md_begin = rex "(.*)([[:space:]]*```[[:space:]]*)"
+
+
+  code :: String -> [(LayerType, String)]
+  code [] = []
+  code s = let (line, rest) = getLine s in
+    case md_end `matchM` line of
+      Just (getAllTextSubmatches -> [_, markup, post]) ->
+        (Markup, markup):(Comment, post):md rest
+      Just _ -> __IMPOSSIBLE__
+      Nothing             -> (Code, line):code rest
+
+  md_end   = rex "([[:space:]]*```[[:space:]]*)(.*)"
 
 -- | Preprocessor for reStructuredText
 literateRsT :: Position -> String -> [Layer]
