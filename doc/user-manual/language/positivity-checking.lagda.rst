@@ -11,21 +11,22 @@ Positivity Checking
 .. note::
    This is a stub.
 
-.. _no-positivity-check:
+.. _no_positivity_check_pragma:
 
-NO_POSITIVITY_CHECK pragma
-__________________________
+The ``NO_POSITIVITY_CHECK`` pragma
+__________________________________
+
+.. versionadded:: 2.5.1
 
 ..
   ::
   module no-positivity-check-pragma where
 
-The pragma switch off the positivity checker for data/record
+The pragma switches off the positivity checker for data/record
 definitions and mutual blocks.
 
-The pragma must precede a data/record definition or a mutual block.
-
-The pragma cannot be used in safe mode.
+The pragma must precede a data/record definition or a mutual
+block. The pragma cannot be used in ``--safe`` mode.
 
 Examples:
 
@@ -91,10 +92,10 @@ Examples:
       data D where
         lam : (D → D) → D
 
-.. _polarity:
+.. _polarity_pragma:
 
-POLARITY pragmas
-________________
+`POLARITY` pragmas
+__________________
 
 ..
   ::
