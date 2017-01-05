@@ -69,7 +69,7 @@ checkDataDef i name ps cs =
         t <- unTelV <$> telView t
 
         -- Top level free vars
-        freeVars <- getContextArgs
+        freeVars <- getContextSize
 
         -- The parameters are in scope when checking the constructors.
         dataDef <- bindParameters ps t $ \tel t0 -> do
@@ -146,7 +146,7 @@ checkDataDef i name ps cs =
                 -- so we apply to the free module variables.
                 -- Unfortunately, we lose precision here, since 'abstract', which
                 -- is then performed by addConstant, cannot restore the linearity info.
-                nonLinPars  = Drop (size freeVars) $ Perm (npars + size freeVars) nonLinPars0
+                nonLinPars  = Drop freeVars $ Perm (npars + freeVars) nonLinPars0
 
             -- Return the data definition
             return dataDef{ dataNonLinPars = nonLinPars }
@@ -231,7 +231,6 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         t <- isType_ e
         -- check that the type of the constructor ends in the data type
         n <- getContextSize
-        -- OLD: n <- size <$> getContextTelescope
         debugEndsIn t d n
         nonLinPars <- constructs n t d
         debugNonLinPars nonLinPars

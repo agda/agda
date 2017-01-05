@@ -108,7 +108,7 @@ abstractTerm a u@Con{} b v = do
   let n = length args
 
   let abstr b v = do
-        m <- size <$> getContext
+        m <- getContextSize
         let (a', u') = raise (m - n) (a, u)
         case isPrefixOf u' v of
           Nothing -> return v

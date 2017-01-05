@@ -859,7 +859,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
     mfv <- getCurrentModuleFreeVars
-    fv  <- size <$> getContextTelescope
+    fv  <- getContextSize
     return (fv - mfv)
   when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.

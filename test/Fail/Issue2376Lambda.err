@@ -1,0 +1,6 @@
+Issue2376Lambda.agda:11,1-12,19
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f (id p)
+    (at Issue2376Lambda.agda:12,11-12)
