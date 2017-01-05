@@ -89,14 +89,14 @@ x``. This means that ``xw = αβ``, with ``α ∈ a`` and ``β ∈ b``.
 We have to consider two cases:
 
  #. ``ε ∈ a``. Then, either:
- 
+
     * ``α = ε``, and ``β = xw``, where ``w ∈ δ b x``.
-    
-    * ``α = xα’``, with ``α’ ∈ δ a x``, and ``w ∈ δ a x · b``.
+
+    * ``α = xα’``, with ``α’ ∈ δ a x``, and ``w = α’β ∈ δ a x · b``.
 
  #. ``ε ∉ a``. Then, only the second case above is possible:
- 
-    * ``α = xα’``, with ``α’ ∈ δ a x``, and ``w ∈ δ a x · b``.
+
+    * ``α = xα’``, with ``α’ ∈ δ a x``, and ``w = α’β ∈ δ a x · b``.
 
 ::
 
