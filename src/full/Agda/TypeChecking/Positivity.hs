@@ -30,16 +30,16 @@ import Debug.Trace
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 

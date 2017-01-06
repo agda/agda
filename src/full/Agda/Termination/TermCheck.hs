@@ -52,18 +52,17 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Records
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo, billPureTo)
