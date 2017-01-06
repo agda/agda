@@ -363,6 +363,7 @@ library
                     Agda.TypeChecking.Free.Lazy
                     Agda.TypeChecking.Free.Old
                     Agda.TypeChecking.Forcing
+                    Agda.TypeChecking.Functions
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
                     Agda.TypeChecking.InstanceArguments

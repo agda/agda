@@ -30,16 +30,17 @@ import Debug.Trace
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
-import Agda.TypeChecking.Records
+import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -564,8 +565,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
-      n  <- getDefArity def
-      cs <- map (etaExpandClause n) <$> instantiateFull cs
+      cs <- mapM etaExpandClause =<< instantiateFull cs
       Concat . zipWith (OccursAs . InClause) [0..] <$>
         mapM (getOccurrences []) cs
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
@@ -597,30 +597,6 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Axiom{}       -> return emptyOB
     Primitive{}   -> return emptyOB
     AbstractDefn  -> __IMPOSSIBLE__
-
--- | Eta expand a clause to have the given number of variables.
---   Warning: doesn't put correct types in telescope!
---   This is used instead of special treatment of lambdas
---   (which was unsound: issue 121)
-etaExpandClause :: Nat -> Clause -> Clause
-etaExpandClause n c
-  | m <= 0    = c
-  | otherwise = c
-      { namedClausePats = raise m (namedClausePats c) ++
-                          map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
-      , clauseBody      = liftBody m $ clauseBody c
-      , clauseTel       = telFromList $
-          telToList (clauseTel c) ++ (replicate m $ (underscore,) <$> dummyDom)
-          -- dummyDom, not __IMPOSSIBLE__, because of debug printing.
-      }
-  where
-    m = n - genericLength (namedClausePats c)
-
-    vars = map (defaultArg . var) $ downFrom m
---    vars = reverse [ defaultArg $ var i | i <- [0..m - 1] ]
-
-    liftBody m (Just v) = Just $ raise m v `apply` vars
-    liftBody m Nothing  = Nothing
 
 -- Building the occurrence graph ------------------------------------------
 
