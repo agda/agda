@@ -1309,6 +1309,23 @@ decomposeProp' t = do
             , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
 
+primUnIota' :: TCM PrimitiveImpl
+primUnIota' = do
+  t <- runNamesT []
+       (hPi' "i" (el $ cl $ primP)       $ \ i ->
+        pPi' "o" (cl primPBridge <@> i) $ \ _ ->
+        el $ cl $ primB)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+    case ts of
+      [i] -> do
+        si <- reduceB' i
+        vi <- pView $ unArg $ ignoreBlocking $ si
+        case vi of
+          Iota t -> redReturn (Lam (setRelevance Irrelevant defaultArgInfo) $ NoAbs "_" $ unArg t)
+          _      -> return $ NoReduction [reduced si]
+      _   -> __IMPOSSIBLE__
+
+
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
@@ -1781,6 +1798,7 @@ primitiveFunctions = Map.fromList
   , builtinPBridge        |-> primPBridge'
   , builtinPMin           |-> primPMin'
   , builtinPMax           |-> primPMax'
+  , builtinUnIota         |-> primUnIota'
   ]
   where
     (|->) = (,)

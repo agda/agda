@@ -121,7 +121,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primB, primB0, primB1,
     primP, primP0, primP1,
     primProp, primPTop, primPBot,
-    primIota,
+    primIota, primUnIota,
     primPEq, primPMin, primPMax, primPBridge,
     primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
     primIMin, primIMax, primINeg,
@@ -227,6 +227,7 @@ primProp         = getBuiltin builtinProp
 primPTop         = getBuiltin builtinPTop
 primPBot         = getBuiltin builtinPBot
 primIota         = getBuiltin builtinIota
+primUnIota       = getPrimitiveTerm builtinUnIota
 primPEq          = getPrimitiveTerm builtinPEq
 primPMin         = getPrimitiveTerm builtinPMin
 primPMax         = getPrimitiveTerm builtinPMax
@@ -358,7 +359,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinB, builtinB0, builtinB1,
   builtinP, builtinP0, builtinP1,
   builtinProp, builtinPTop, builtinPBot,
-  builtinIota,
+  builtinIota, builtinUnIota,
   builtinPEq, builtinPMin, builtinPMax, builtinPBridge,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
   builtinIMin, builtinIMax, builtinINeg,
@@ -444,6 +445,7 @@ builtinProp                          = "PROP"
 builtinPTop                          = "PTOP"
 builtinPBot                          = "PBOT"
 builtinIota                          = "IOTA"
+builtinUnIota                        = "primUnIota"
 builtinPEq                           = "primPEq"
 builtinPMin                          = "primPMin"
 builtinPMax                          = "primPMax"
