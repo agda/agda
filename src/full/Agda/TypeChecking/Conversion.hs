@@ -1439,83 +1439,65 @@ equalSort s1 s2 = do
             (_       , DLub{}  )             -> postpone
 
 
--- -- This should probably represent face maps with a more precise type
--- toFaceMaps :: Term -> TCM [[(Int,Term)]]
--- toFaceMaps t = do
---   view <- intervalView'
---   iz <- primIZero
---   io <- primIOne
---   ineg <- (\ q t -> Def q [Apply $ Arg defaultArgInfo t]) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
 
---   let f IZero = mzero
---       f IOne  = return []
---       f (IMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
---       f (IMax x y) = msum $ map (f . view . unArg) [x,y]
---       f (INeg x)   = map (id -*- not) <$> (f . view . unArg) x
---       f (OTerm (Var i [])) = return [(i,True)]
---       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
---       isConsistent xs = all (\ xs -> length xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
---       as = map (map (id -*- head) . Map.toAscList) . filter isConsistent . map (Map.fromListWith (++) . map (id -*- (:[]))) $ (f (view t))
---   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
---   return xs
-
-forallFaceMaps :: Term -> (Map.Map Int Bool -> MetaId -> Term -> TCM a) -> (Substitution -> TCM a) -> TCM [a]
+--- We decompose the given Prop element, and then modify the context as follows:
+--- (i,RTop)    -> i := PTop       : Prop
+--- (i,RZero)   -> i := Iota BZero : |P
+--- (i,ROne)    -> i := Iota BOne  : |P
+--- (i,RBridge) -> i := Iota j     : |P   adding (j : |B) to the context
+forallFaceMaps :: Term -> (Map.Map Int Repr -> MetaId -> Term -> TCM a) -> (Substitution -> TCM a) -> TCM [a]
 forallFaceMaps t kb k = do
-  as <- decomposeInterval t
-  boolToI <- do
-    io <- primIOne
-    iz <- primIZero
-    return (\b -> if b then io else iz)
+  as <- decomposeProp t
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ -> do
-    let xs = map (id -*- boolToI) $ Map.toAscList ms
+    let xs = Map.toAscList ms
+    reportSLn "conv.forall" 10 $ show (map fst xs)
     cxt <- asks envContext
-    (cxt',sigma) <- substContextN cxt xs
-    resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
+    (cxt',sigma) <- repCtxN cxt xs
+    resolved <- forM xs (\ (i,_) -> (,) <$> lookupBV i <*> return (lookupS sigma i))
     modifyContext (const cxt') $ updateModuleParameters sigma $
       addBindings resolved $ do
-        cl <- buildClosure ()
-        tel <- getContextTelescope
-        m <- currentModule
-        sub <- getModuleParameterSub m
-        reportSLn "conv.forall" 10 $ unlines [replicate 10 '-'
-                                             , show (envCurrentModule $ clEnv cl)
-                                             , show (envLetBindings $ clEnv cl)
-                                             , show tel -- (toTelescope $ envContext $ clEnv cl)
-                                             , show (clModuleParameters cl)
-                                             , show sigma
-                                             , show m
-                                             , show sub]
-
         k sigma
   where
     -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf
     ifBlockeds ts blocked unblocked = do
-      and <- getPrimitiveTerm "primIMin"
-      io  <- primIOne
+      and <- primPMin
+      io  <- primPTop
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
     addBindings [] m = m
     addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
 
-    substContextN :: Context -> [(Int,Term)] -> TCM (Context , Substitution)
-    substContextN c [] = return (c, idS)
-    substContextN c ((i,t):xs) = do
-      (c', sigma) <- substContext i t c
-      (c'', sigma')  <- substContextN c' (map (subtract 1 -*- applySubst sigma) xs)
-      return (c'', applySubst sigma' sigma)
-
-
-    -- assumes the term can be typed in the shorter telescope
-    -- the terms we get from toFaceMaps are closed.
-    substContext :: Int -> Term -> Context -> TCM (Context , Substitution)
-    substContext i t [] = __IMPOSSIBLE__
-    substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
-    substContext i t (x:xs) | i > 0 = do
-                                  (c,sigma) <- substContext (i-1) t xs
-                                  e <- mkContextEntry (applySubst sigma (ctxEntry x))
-                                  return (e:c, liftS 1 sigma)
-    substContext i t (x:xs) = __IMPOSSIBLE__
+    repCtxN :: Context -> [(Int,Repr)] -> TCM (Context , Substitution)
+    repCtxN c [] = return (c, idS)
+    repCtxN [] (_:_) = __IMPOSSIBLE__
+    repCtxN (e:c) xxs@((i,r):xs)
+      | i == 0 = case r of
+          RTop -> do
+            t <- primPTop
+            recurse t c xs
+          RZero -> do
+            t <- primP0
+            recurse t c xs
+          ROne -> do
+            t <- primP1
+            recurse t c xs
+          RBridge -> do
+            iota <- primIota
+            ty <- el primB
+            let nm = fst $ unDom $ ctxEntry $ e
+            (c',sigma) <- repCtxN c (map (subtract 1 -*- id) xs)
+            e' <- mkContextEntry (defaultDom (nm,ty))
+            return (e':c', consS (iota `apply` [argN $ var 0]) (raiseS 1 `composeS` sigma))
+      | i > 0  = do
+                    (c',sigma) <- repCtxN c (map (subtract 1 -*- id) xxs)
+                    e' <- mkContextEntry (applySubst sigma (ctxEntry e))
+                    return (e':c', liftS 1 sigma)
+      | otherwise = __IMPOSSIBLE__
+     where
+       recurse t c xs = do
+            (c',sigma) <- repCtxN c (map (subtract 1 -*- id) xs)
+            return $ (c' , consS t sigma)
 
 compareInterval :: Comparison -> Type -> Term -> Term -> TCM ()
 compareInterval cmp i t u = do
@@ -1577,12 +1559,21 @@ compareTermOnFace' k cmp phi ty u v = do
   return ()
  where
   postponed ms i psi = do
+    pUnview <- propUnview'
     ty' <- runNamesT [] $ do
-             imin <- cl $ getPrimitiveTerm "primIMin"
-             ineg <- cl $ getPrimitiveTerm "primINeg"
+             imin <- cl $ primPMin
              ty <- open ty
              psi <- open psi
-             let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
+             let buildProp i RTop = i
+                 buildProp i RZero = do
+                   z <- cl primP0
+                   (\ v -> pUnview (PEq (argN v) (argN z))) <$> i
+                 buildProp i ROne = do
+                   z <- cl primP1
+                   (\ v -> pUnview (PEq (argN v) (argN z))) <$> i
+                 buildProp i RBridge = do
+                   (\ v -> pUnview (PBridge (argN v))) <$> i
+             let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (buildProp i b) <@> r)
                           psi (Map.toList ms) -- TODO Andrea: make a view?
              pPi' "o" phi $ const ty
     let

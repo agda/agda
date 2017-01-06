@@ -226,7 +226,7 @@ primP1           = primB1 >>= \ b1 -> (`apply` [defaultArg b1]) <$> primIota
 primProp         = getBuiltin builtinProp
 primPTop         = getBuiltin builtinPTop
 primPBot         = getBuiltin builtinPBot
-primIota         = getPrimitiveTerm builtinIota
+primIota         = getBuiltin builtinIota
 primPEq          = getPrimitiveTerm builtinPEq
 primPMin         = getPrimitiveTerm builtinPMin
 primPMax         = getPrimitiveTerm builtinPMax
@@ -722,6 +722,7 @@ propView' = do
   bridge <- getPrimitiveName' "primPBridge"
   return $ \ t ->
     case ignoreSharing t of
+      Con q _ [] | Just (conName q) == pt -> PTop
       Def q es ->
         case es of
           []                | Just q == pt   -> PTop
@@ -816,6 +817,15 @@ bUnview' = do
              BOne -> b1
              OB t -> t
 
+
+bToBool' :: HasBuiltins m => m (Term -> Maybe Bool)
+bToBool' = do
+  bview <- bView'
+  return $ \ t ->
+    case bview t of
+      BOne -> Just True
+      BZero -> Just False
+      _     -> Nothing
 ------------------------------------------------------------------------
 -- * Path equality
 ------------------------------------------------------------------------

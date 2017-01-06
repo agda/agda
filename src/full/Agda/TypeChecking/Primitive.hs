@@ -13,7 +13,7 @@ import Control.Monad.Reader (asks)
 
 import Data.Char
 import Data.Either (partitionEithers)
-import Data.List (nub)
+import Data.List (nub, foldl')
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -1235,6 +1235,73 @@ decomposeInterval' t = do
          f (INeg x)   = map (either (\ (x,y) -> Left (x,not y)) (Right . unview . INeg . argN)) <$> (f . view . unArg) x
          f (OTerm (Var i [])) = return [Left (i,True)]
          f (OTerm t)          = return [Right t]
+         v = view t
+     return [ (bsm,ts)
+            | xs <- f v
+            , let (bs,ts) = partitionEithers xs
+            , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
+            ]
+
+
+decomposeProp :: HasBuiltins m => Term -> m [(Map Int Repr,[Term])]
+decomposeProp t = do
+  xs <- decomposeProp' t
+
+  let
+      consume Nothing _ = Nothing
+      consume x RBridge = x
+      consume (Just RBridge) x = Just x
+      consume (Just ROne) RZero = Nothing
+      consume (Just RZero) ROne = Nothing
+      consume (Just RTop) RTop = Just RTop
+      consume (Just ROne) RTop = __IMPOSSIBLE__
+      consume (Just _) RTop = __IMPOSSIBLE__
+      consume (Just RTop) _ = __IMPOSSIBLE__
+      consume (Just ROne) ROne = Just ROne
+      consume (Just RZero) RZero = Just RZero
+
+      consume' xs = foldl' consume (Just RBridge) (Set.toList xs)
+      isConsistent xs = all (\ xs -> isJust $ consume' xs) . Map.elems $ xs  -- optimize by not doing generate + filter
+      -- RBridge is consistent with ROne or RZero
+  return [ (Map.map (fromMaybe __IMPOSSIBLE__ . consume') bsm,ts)
+            | (bsm,ts) <- xs
+            , isConsistent bsm
+            ]
+
+data Repr = RTop | ROne | RZero | RBridge deriving (Eq,Ord,Show)
+
+decomposeProp' :: HasBuiltins m => Term -> m [(Map Int (Set Repr),[Term])]
+decomposeProp' t = do
+     view   <- propView'
+     unview <- propUnview'
+     pview  <- pView'
+     btobool <- bToBool'
+     let red = id -- require ReduceEnv or expect things normalised not just reduced.
+        -- <- do
+        -- env <- ReduceM id
+        -- return $ \ t -> unReduceM (reduce' t) env
+     let boolToRepr True = ROne
+         boolToRepr False = RZero
+     let f :: PropView -> [[Either (Int,Repr) Term]]
+         f PBot = mzero
+         f PTop  = return []
+         f (PMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
+         f (PMax x y) = msum $ map (f . view . unArg) [x,y]
+         f (PBridge (Arg _ (Var i []))) = return [Left (i,RBridge)]
+         f e@(PBridge _) = return [Right (unview $ e)]
+         f e@(PEq x y) = g e (pview . unArg $ x) (pview . unArg $ y)
+         f (OProp (Var i [])) = return [Left (i,RTop)]
+         f (OProp t)          = return [Right t]
+         assignB e i u | Just b <- btobool (unArg u)
+           = return [Left (i,boolToRepr b)]
+         assignB e _ _ = return [Right (unview $ e)]
+         g :: PropView -> PView -> PView -> [[Either (Int,Repr) Term]]
+         g e (OP (Var i [])) (Iota u) = assignB e i (red u)
+         g e (Iota u) (OP (Var i [])) = assignB e i (red u)
+         -- t and u are neutral and have different normal form, we could do something if they are
+         -- both Var _ [], or if they are both Iota (Var _ [])
+         g e _ _ = return [Right (unview $ e)]
+
          v = view t
      return [ (bsm,ts)
             | xs <- f v

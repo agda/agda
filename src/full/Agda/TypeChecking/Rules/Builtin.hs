@@ -91,8 +91,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinB1                 |-> BuiltinDataCons (el primB))
   , (builtinP                  |-> BuiltinData tset [builtinIota])
   , (builtinIota               |-> BuiltinDataCons (el primB --> el primP))
-  , (builtinProp               |-> builtinPostulate tset)
-  , (builtinPTop               |-> builtinPostulate (el primProp))
+  , (builtinProp               |-> BuiltinData tset [builtinPTop])
+  , (builtinPTop               |-> BuiltinDataCons (el primProp))
   , (builtinPBot               |-> builtinPostulate (el primProp))
   , (builtinPath               |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $

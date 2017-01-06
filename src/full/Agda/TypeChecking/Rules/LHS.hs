@@ -178,41 +178,40 @@ updateInPatterns as ps qs = do
         A.LitP        _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
         A.EqualP{}          -> __IMPOSSIBLE__
-      ConP c cpi [] -> do
-        let
-            dpi :: [DotPatternInst]
-            dpi = mkDPI $ patternToTerm $ unArg q
-              where
-                mkDPI v = case namedThing $ unArg p of
-                  A.DotP _ _ e -> [DPI Nothing (Just e) v a]
-                  A.VarP x   -> [DPI (Just x) Nothing v a]
-                  A.WildP _  -> [DPI Nothing  Nothing v a]
-                  _        -> []
 
-        return (IntMap.empty,dpi)
       -- Case: the unifier eta-expanded the variable
+      -- Case: generated some patterns for a system
       ConP c cpi qs -> do
-        Def r es <- ignoreSharing <$> reduce (unEl $ unDom a)
+        t@(El _ (Def r _)) <- ignoreSharingType <$> reduce (unDom a)
+        Just ct <- getConType c t
+        TelV tel _ <- telView ct
         def      <- theDef <$> getConstInfo r
-        let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-            fs  = killRange $ recFields def
-            tel = recTel def `apply` pars
-            as  = applyPatSubst (parallelS $ map (namedThing . unArg) qs) $ flattenTel tel
+        fs <- do
+          info <- getConstructorInfo (conName c)
+          return $! case info of
+            RecordCon _ fs -> map (fmap (\ f -> show $ A.nameConcrete $ qnameName f)) $ killRange $ fs
+            DataCon{}      -> teleArgNames tel
+        let as  = applyPatSubst (parallelS $ map (namedThing . unArg) qs) $ flattenTel tel
             -- If the user wrote a dot pattern or variable but the unifier
             -- eta-expanded it, add the corresponding instantiation.
+
+            -- Andrea: also in case a system generated patterns, so that the
+            -- user-wrote var is still in scope
+
             dpi :: [DotPatternInst]
             dpi = mkDPI $ patternToTerm $ unArg q
               where
                 mkDPI v = case namedThing $ unArg p of
                   A.DotP _ _ e -> [DPI Nothing (Just e) v a]
                   A.VarP x     -> [DPI (Just x) Nothing v a]
+                  A.WildP _    -> [DPI Nothing  Nothing v a]
                   _            -> []
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
       LitP _     -> __IMPOSSIBLE__
       ProjP{}    -> __IMPOSSIBLE__
 
-    projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
+    projectInPat :: NamedArg A.Pattern -> [Arg String] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
       A.VarP x            -> map (makeDotField (PatRange $ getRange x)) fs
       A.ConP cpi _ nps    -> nps
@@ -235,7 +234,7 @@ updateInPatterns as ps qs = do
               { A.metaRange          = getRange pi
               , A.metaScope          = emptyScopeInfo
               , A.metaNumber         = Nothing
-              , A.metaNameSuggestion = show $ A.nameConcrete $ qnameName f
+              , A.metaNameSuggestion = f
               }
 
 
@@ -741,18 +740,17 @@ checkLHS f st@(LHSState problem dpi psplit) = do
     trySplit (Split p0 (Arg ai (PartialFocus (Right ts) ip a)) p1) ret = do
       tel <- getContextTelescope
       reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
-      tInterval <- elInf primInterval
+      tProp <- el primProp
       (gamma,sigma) <- bindLHSVars (problemInPat p0) (problemTel p0) $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
-                 t <- checkExpr t tInterval
-                 u <- checkExpr u tInterval
+                 t <- checkExpr t tProp
+                 u <- checkExpr u tProp
                  reportSDoc "tc.lhs.split.partial" 10 $ prettyTCM t <+> prettyTCM u
-                 u <- intervalView =<< reduce u
+                 u <- propView =<< reduce u
                  case u of
-                   IZero -> primINeg <@> pure t
-                   IOne  -> return t
-                   _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
+                   PTop  -> return t
+                   _     -> typeError $ GenericError $ "Only pTop allowed on the rhs of face"
          phi <- case ts of
                    [] -> do
                      a <- ignoreSharing <$> reduce (unEl a)
@@ -761,12 +759,13 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                        Def q [Apply phi] | Just q == misone -> return (unArg phi)
                        _           -> typeError $ GenericError $ show a ++ " is not IsOne."
                                         -- TODO Andrea type error or something.
-                   _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
+                   _  -> foldl (\ x y -> primPMin <@> x <@> y) primPTop (map pure ts)
          phi <- reduce phi
          [(gamma,sigma)] <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
                             (\ sigma -> (,sigma) <$> getContextTelescope)
          return (gamma,sigma)
       itisone <- primItIsOne
+      reportSLn "tc.lhs.partial" 10 $ show sigma
       -- substitute the literal in p1 and dpi
       let delta1 = problemTel p0
           oix = size (problemTel $ unAbs p1) -- de brujin index of IsOne
@@ -775,10 +774,13 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                                            _      -> False)
           delta2' = absApp (fmap problemTel p1) itisone
           delta2 = applySubst sigma delta2'
-          mkConP c = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
-                                              , conPFallThrough = True })
-                          []
-          rho0 = fmap (\ (Con c _ []) -> mkConP c) sigma
+          -- mkConP :: Term -> Pattern' DBPatVar
+          mkConP (Con c _ es) = ConP c (noConPatternInfo { conPType = Nothing -- Andrea TODO: figure out the right type.
+                                                         , conPFallThrough = True })
+                                     (map (fmap (unnamed . mkConP)) es)
+          mkConP (Var i []) = VarP (DBPatVar "b" i)
+          mkConP _ = __IMPOSSIBLE__
+          rho0 = fmap mkConP sigma
 
           rho    = liftS (size delta2) $ consS (DotP itisone) rho0
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!

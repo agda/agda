@@ -411,15 +411,23 @@ checkSystemCoverage f [n] t cs = do
 
   case a of
     Def q [Apply phi] -> do
-      [iz,io] <- mapM getBuiltinName' [builtinIZero, builtinIOne]
-      ineg <- primINeg
-      imin <- primIMin
-      imax <- primIMax
-      i0 <- primIZero
-      i1 <- primIOne
+      [pt,pi,bz,bo] <- mapM getBuiltinName' [builtinPTop, builtinIota, builtinB0, builtinB1]
+      imin <- primPMin
+      imax <- primPMax
+      ptop <- primPTop
+      pbot <- primPBot
+      p0 <- primP0
+      p1 <- primP1
+      pUnview <- propUnview'
       let
-        isDir (ConP q _ []) | Just (conName q) == iz = Just False
-        isDir (ConP q _ []) | Just (conName q) == io = Just True
+        btobool (ConP q _ []) | Just (conName q) == bz = Just False
+        btobool (ConP q _ []) | Just (conName q) == bo = Just True
+        btobool _ = Nothing
+
+        isDir (ConP q _ []) | Just (conName q) == pt = Just RTop
+        isDir (ConP q _ [a]) | Just (conName q) == pi
+                             , Just b <- btobool (namedArg a) = Just $ if b then ROne else RZero
+        isDir (ConP q _ [a]) | Just (conName q) == pi, VarP{} <- namedArg a = Just RBridge
         isDir _ = Nothing
 
         collectDirs [] [] = []
@@ -427,15 +435,19 @@ checkSystemCoverage f [n] t cs = do
                                       | otherwise         = collectDirs is ps
         collectDirs _ _ = __IMPOSSIBLE__
 
-        dir (i,False) = ineg `apply` [argN $ var i]
-        dir (i,True) = var i
+        buildProp i RTop = var i
+        buildProp i RZero = pUnview (PEq (argN $ var i) (argN p0))
+        buildProp i ROne = pUnview (PEq (argN $ var i) (argN p1))
+        buildProp i RBridge = pUnview (PBridge (argN $ var i))
+
+        dir = uncurry buildProp
 
         -- andI and orI have cases for singletons to improve error messages.
-        andI [] = i1
+        andI [] = ptop
         andI [t] = t
         andI (t:ts) = (\ x -> imin `apply` [argN t, argN x]) $ andI ts
 
-        orI [] = i0
+        orI [] = pbot
         orI [t] = t
         orI (t:ts) = imax `apply` [argN t, argN (orI ts)]
 
@@ -445,13 +457,11 @@ checkSystemCoverage f [n] t cs = do
         phis = map andI $ map (map dir) alphas
         psi = orI $ phis
         pcs = zip phis cs
-        boolToI True = i1
-        boolToI False = i0
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
-      interval <- elInf primInterval
+      prop <- el primProp
       reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
-      equalTerm interval (unArg phi) psi
+--      equalTerm prop (unArg phi) psi -- TODO fix equality of Prop and add this back.
 
       forM_ (init $ init $ tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
