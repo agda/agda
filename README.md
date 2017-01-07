@@ -38,7 +38,7 @@ You should also make sure that programs installed by cabal-install are
 on your shell's search path.
 
 For instructions on installing a suitable version of Emacs under
-Windows, see [below]((#installing-emacs-under-windows).
+Windows, see [below](#installing-emacs-under-windows).
 
 Non-Windows users need to ensure that the development files for the C
 libraries zlib and ncurses are installed (see http://zlib.net and
