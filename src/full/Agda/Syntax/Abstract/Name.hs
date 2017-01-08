@@ -182,7 +182,7 @@ mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
 
 toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
 toTopLevelModuleName (MName []) = __IMPOSSIBLE__
-toTopLevelModuleName (MName ms) = C.TopLevelModuleName $ map (C.nameToRawName . nameConcrete) ms
+toTopLevelModuleName (MName ms) = C.TopLevelModuleName (getRange ms) $ map (C.nameToRawName . nameConcrete) ms
 
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2

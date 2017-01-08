@@ -1,4 +1,4 @@
-module FixityOutOfScopeInRecord where
+module FixityOutOfScopeInRecord1 where
 
 postulate _+_ : Set
 

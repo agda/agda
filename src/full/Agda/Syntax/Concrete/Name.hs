@@ -12,6 +12,7 @@ import Control.DeepSeq
 import Control.Applicative
 
 import Data.ByteString.Char8 (ByteString)
+import Data.Function
 import Data.List
 import Data.Typeable (Typeable)
 
@@ -107,9 +108,15 @@ instance Underscore QName where
 --
 --   Invariant: The list must not be empty.
 
-newtype TopLevelModuleName
-  = TopLevelModuleName { moduleNameParts :: [String] }
-  deriving (Show, Eq, Ord, Typeable, Sized)
+data TopLevelModuleName = TopLevelModuleName
+  { moduleNameRange :: Range
+  , moduleNameParts :: [String]
+  }
+  deriving (Show, Typeable)
+
+instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
+instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
+instance Sized TopLevelModuleName where size    = size     .   moduleNameParts
 
 ------------------------------------------------------------------------
 -- * Operations on 'Name' and 'NamePart'
@@ -204,25 +211,26 @@ isQualified QName{} = False
 -- name is assumed to represent a top-level module name.
 
 toTopLevelModuleName :: QName -> TopLevelModuleName
-toTopLevelModuleName = TopLevelModuleName . map prettyShow . qnameParts
+toTopLevelModuleName q = TopLevelModuleName (getRange q) $ map prettyShow $ qnameParts q
 
--- | Turns a top level module into a qualified name with 'noRange'.
+-- UNUSED
+-- -- | Turns a top level module into a qualified name with 'noRange'.
 
-fromTopLevelModuleName :: TopLevelModuleName -> QName
-fromTopLevelModuleName (TopLevelModuleName [])     = __IMPOSSIBLE__
-fromTopLevelModuleName (TopLevelModuleName (x:xs)) = loop x xs
-  where
-  loop x []       = QName (mk x)
-  loop x (y : ys) = Qual  (mk x) $ loop y ys
-  mk :: String -> Name
-  mk x = Name noRange [Id x]
+-- fromTopLevelModuleName :: TopLevelModuleName -> QName
+-- fromTopLevelModuleName (TopLevelModuleName _ [])     = __IMPOSSIBLE__
+-- fromTopLevelModuleName (TopLevelModuleName _ (x:xs)) = loop x xs
+--   where
+--   loop x []       = QName (mk x)
+--   loop x (y : ys) = Qual  (mk x) $ loop y ys
+--   mk :: String -> Name
+--   mk x = Name noRange [Id x]
 
 -- | Turns a top-level module name into a file name with the given
 -- suffix.
 
 moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
-moduleNameToFileName (TopLevelModuleName []) ext = __IMPOSSIBLE__
-moduleNameToFileName (TopLevelModuleName ms) ext =
+moduleNameToFileName (TopLevelModuleName _ []) ext = __IMPOSSIBLE__
+moduleNameToFileName (TopLevelModuleName _ ms) ext =
   joinPath (init ms) </> last ms <.> ext
 
 -- | Finds the current project's \"root\" directory, given a project
@@ -234,7 +242,7 @@ moduleNameToFileName (TopLevelModuleName ms) ext =
 -- Precondition: The module name must be well-formed.
 
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
-projectRoot file (TopLevelModuleName m) =
+projectRoot file (TopLevelModuleName _ m) =
   mkAbsolute $
   foldr (.) id (replicate (length m - 1) takeDirectory) $
   takeDirectory $
@@ -314,7 +322,7 @@ instance Pretty QName where
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where
-  pretty (TopLevelModuleName ms) = text $ intercalate "." ms
+  pretty (TopLevelModuleName _ ms) = text $ intercalate "." ms
 
 ------------------------------------------------------------------------
 -- * Range instances
@@ -328,6 +336,9 @@ instance HasRange QName where
     getRange (QName  x) = getRange x
     getRange (Qual n x) = fuseRange n x
 
+instance HasRange TopLevelModuleName where
+  getRange = moduleNameRange
+
 instance SetRange Name where
   setRange r (Name _ ps)  = Name r ps
   setRange r (NoName _ i) = NoName r i
@@ -336,6 +347,9 @@ instance SetRange QName where
   setRange r (QName x)  = QName (setRange r x)
   setRange r (Qual n x) = Qual (setRange r n) (setRange r x)
 
+instance SetRange TopLevelModuleName where
+  setRange r (TopLevelModuleName _ x) = TopLevelModuleName r x
+
 instance KillRange QName where
   killRange (QName x) = QName $ killRange x
   killRange (Qual n x) = killRange n `Qual` killRange x
@@ -343,6 +357,9 @@ instance KillRange QName where
 instance KillRange Name where
   killRange (Name r ps)  = Name (killRange r) ps
   killRange (NoName r i) = NoName (killRange r) i
+
+instance KillRange TopLevelModuleName where
+  killRange (TopLevelModuleName _ x) = TopLevelModuleName noRange x
 
 ------------------------------------------------------------------------
 -- * NFData instances

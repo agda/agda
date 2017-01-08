@@ -186,15 +186,14 @@ moduleName' :: AbsolutePath -> TCM (Ranged TopLevelModuleName)
 moduleName' file = billTo [Bench.ModuleName] $ do
   q <- runPM (parseFile' moduleParser file)
   let name = topLevelModuleName q
-  case name of
-    TopLevelModuleName ["_"] -> do
+  if moduleNameParts name == ["_"] then do
       q <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $
              GenericError $ "File name " ++ show file ++
                " is invalid as it does not correspond to a valid module name."
-      return $ Ranged (getRange q) $ TopLevelModuleName [defaultName]
-    _ -> return $ Ranged (getRange q) name
+      return $ Ranged (getRange q) $ TopLevelModuleName (getRange q) [defaultName]
+    else return $ Ranged (getRange q) name
   where
     defaultName = rootNameModule file
 
