@@ -181,11 +181,11 @@ instance EmbPrj a => EmbPrj (Position' a) where
     valu _            = malformed
 
 instance EmbPrj TopLevelModuleName where
-  icod_ (TopLevelModuleName a) = icode1' a
+  icod_ (TopLevelModuleName a b) = icode2' a b
 
   value = vcase valu where
-    valu [a] = valu1 TopLevelModuleName a
-    valu _   = malformed
+    valu [a, b] = valu2 TopLevelModuleName a b
+    valu _ = malformed
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where

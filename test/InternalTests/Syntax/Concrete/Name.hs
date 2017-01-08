@@ -20,10 +20,10 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 
 instance Arbitrary TopLevelModuleName where
-  arbitrary = TopLevelModuleName <$> listOf1 (listOf1 $ elements "AB")
+  arbitrary = TopLevelModuleName <$> arbitrary <*> listOf1 (listOf1 $ elements "AB")
 
 instance CoArbitrary TopLevelModuleName where
-  coarbitrary (TopLevelModuleName m) = coarbitrary m
+  coarbitrary (TopLevelModuleName _ m) = coarbitrary m
 
 instance Arbitrary Name where
   arbitrary = oneof

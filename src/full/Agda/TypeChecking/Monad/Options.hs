@@ -174,7 +174,7 @@ data RelativeTo
 getProjectRoot :: RelativeTo -> TCM AbsolutePath
 getProjectRoot CurrentDir = liftIO (absolute =<< getCurrentDirectory)
 getProjectRoot (ProjectRoot f) = do
-  Ranged _ m <- moduleName' f
+  m <- moduleName' f
   return (projectRoot f m)
 
 -- | Makes the given directories absolute and stores them as include
@@ -236,7 +236,7 @@ setIncludeDirs incs relativeTo = do
     ProjectRoot f -> void $ moduleName f
      -- Andreas, 2016-07-12 WAS:
      -- do
-     --  Ranged _ m <- moduleName' f
+     --  m <- moduleName' f
      --  checkModuleName m f Nothing
 
 
