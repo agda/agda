@@ -15,7 +15,6 @@ data _≡_ {ℓ : Level} {A : Set ℓ} : A → A → Set ℓ where
   refl : {a : A} → a ≡ a
 
 {-# BUILTIN EQUALITY _≡_  #-}
-{-# BUILTIN REFL     refl #-}
 
 primitive
   primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y

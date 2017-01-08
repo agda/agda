@@ -413,7 +413,6 @@ The identity type can be bound to the built-in ``EQUALITY`` as follows::
   data _≡_ {a} {A : Set a} (x : A) : A → Set a where
     refl : x ≡ x
   {-# BUILTIN EQUALITY _≡_  #-}
-  {-# BUILTIN REFL     refl #-}
 
 This lets you use proofs of type ``lhs ≡ rhs`` in the :ref:`rewrite
 construction <with-rewrite>`.
