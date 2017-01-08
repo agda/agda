@@ -581,6 +581,7 @@ library
                     , FunctionalDependencies
                     , LambdaCase
                     , MultiParamTypeClasses
+                    , MultiWayIf
                     , NamedFieldPuns
                     , RankNTypes
                     , RecordWildCards
@@ -752,6 +753,7 @@ test-suite internal-tests
                      , FunctionalDependencies
                      , LambdaCase
                      , MultiParamTypeClasses
+                     , MultiWayIf
                      , NamedFieldPuns
                      , RankNTypes
                      , RecordWildCards

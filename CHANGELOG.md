@@ -4,6 +4,9 @@ Release notes for Agda version 2.5.3
 Language
 --------
 
+* BUILTIN REFL is now superfluous, subsumed by BUILTIN EQUALITY
+  [Issue [#2389](https://github.com/agda/agda/issues/2389)].
+
 * With-clause patterns can be replaced by _
   [Issue [#2363](https://github.com/agda/agda/issues/2363)].
   Example:

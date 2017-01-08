@@ -479,20 +479,31 @@ bindBuiltinUnit t = do
       bindBuiltinName builtinUnitUnit (Con con ConOSystem [])
     _ -> genericError "Builtin UNIT must be a singleton record type"
 
+-- | Bind BUILTIN EQUALITY and BUILTIN REFL.
+bindBuiltinEquality :: Term -> TCM ()
+bindBuiltinEquality t = do
+  eq <- getDef t
+  def <- theDef <$> getConstInfo eq
+  case def of
+    Datatype { dataCons = [c] } -> do
+      bindBuiltinName builtinEquality t
+      bindBuiltinName builtinRefl (Con (ConHead c Inductive []) ConOSystem [])
+    _ -> __IMPOSSIBLE__
+
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
 bindBuiltinInfo (BuiltinInfo s d) e = do
     case d of
       BuiltinData t cs -> do
-        e' <- checkExpr e =<< t
+        v <- checkExpr e =<< t
         let n = length cs
-        inductiveCheck s n e'
-        case () of
-          _ | s == builtinBool    -> bindBuiltinBool e'
-            | s == builtinNat     -> bindBuiltinNat e'
-            | s == builtinInteger -> bindBuiltinInt e'
-            | s == builtinUnit    -> bindBuiltinUnit e'
-            | otherwise           -> bindBuiltinName s e'
+        inductiveCheck s n v
+        if | s == builtinEquality -> bindBuiltinEquality v
+           | s == builtinBool     -> bindBuiltinBool     v
+           | s == builtinNat      -> bindBuiltinNat      v
+           | s == builtinInteger  -> bindBuiltinInt      v
+           | s == builtinUnit     -> bindBuiltinUnit     v
+           | otherwise            -> bindBuiltinName s v
 
       BuiltinDataCons t -> do
 
@@ -501,13 +512,13 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             name (Shared p) = name $ ignoreSharing (derefPtr p)
             name _          = __IMPOSSIBLE__
 
-        e' <- checkExpr e =<< t
+        v0 <- checkExpr e =<< t
 
         case e of
           A.Con{} -> return ()
           _       -> typeError $ BuiltinMustBeConstructor s e
 
-        let v@(Con h _ []) = name e'
+        let v@(Con h _ []) = name v0
             c = conName h
         when (s == builtinTrue)  $ addHaskellCode c "Bool" "True"
         when (s == builtinFalse) $ addHaskellCode c "Bool" "False"
@@ -536,7 +547,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
       BuiltinPostulate rel t -> do
         t' <- t
-        e' <- applyRelevanceToContext rel $ checkExpr e t'
+        v <- applyRelevanceToContext rel $ checkExpr e t'
         let err = typeError $ GenericError $
                     "The argument to BUILTIN " ++ s ++ " must be a postulated name"
         case e of
@@ -548,7 +559,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                 when (s == builtinChar)   $ addHaskellType q "Char"
                 when (s == builtinString) $ addHaskellType q "Data.Text.Text"
                 when (s == builtinFloat)  $ addHaskellType q "Double"
-                bindBuiltinName s e'
+                bindBuiltinName s v
               _        -> err
           _ -> err
 
@@ -563,14 +574,14 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 bindBuiltin :: String -> A.Expr -> TCM ()
 bindBuiltin b e = do
   unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
-  case b of
-    _ | b == builtinZero  -> nowNat b
-    _ | b == builtinSuc   -> nowNat b
-    _ | b == builtinInf   -> bindBuiltinInf e
-    _ | b == builtinSharp -> bindBuiltinSharp e
-    _ | b == builtinFlat  -> bindBuiltinFlat e
-    _ | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
-    _ -> typeError $ NoSuchBuiltinName b
+  if | b == builtinRefl  -> warning $ OldBuiltin b builtinEquality
+     | b == builtinZero  -> nowNat b
+     | b == builtinSuc   -> nowNat b
+     | b == builtinInf   -> bindBuiltinInf e
+     | b == builtinSharp -> bindBuiltinSharp e
+     | b == builtinFlat  -> bindBuiltinFlat e
+     | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
+     | otherwise -> typeError $ NoSuchBuiltinName b
   where
     nowNat b = warning $ OldBuiltin b builtinNat
 

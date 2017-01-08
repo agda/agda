@@ -5,7 +5,6 @@ data _≡_ {a} {A : Set a} (x : A) : A → Set a where
 infix 0 _≡_
 
 {-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
 
 data Sigma {l} (A : Set l) (B : A -> Set l) : Set l where
   _**_ : (a : A) -> B a -> Sigma A B
