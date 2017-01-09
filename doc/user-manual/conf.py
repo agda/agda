@@ -26,7 +26,7 @@
 
 # If your change the version here also change it in the
 # `requirements.txt` file [Issue #1936].
-needs_sphinx = '1.4.3'
+needs_sphinx = '1.5.1'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -248,6 +248,9 @@ html_static_path = []
 htmlhelp_basename = 'Agdadoc'
 
 # -- Options for LaTeX output ---------------------------------------------
+
+# See Issue #1996.
+latex_engine = 'xelatex'
 
 latex_elements = {
      # The paper size ('letterpaper' or 'a4paper').

@@ -118,12 +118,19 @@ haddock :
 	$(CABAL_CMD) configure --builddir=$(BUILD_DIR)
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
 
-.PHONY : doc
-doc :
+.PHONY : doc-html
+doc-html :
 	@echo "======================================================================"
-	@echo "========================== Documentation ============================="
+	@echo "===================== User Manual (html) ============================="
 	@echo "======================================================================"
 	$(MAKE) -C doc/user-manual html
+
+.PHONY : doc-pdf
+doc-pdf :
+	@echo "======================================================================"
+	@echo "====================== User Manual (pdf) ============================="
+	@echo "======================================================================"
+	$(MAKE) -C doc/user-manual latexpdf
 
 ## Making the full language ###############################################
 
