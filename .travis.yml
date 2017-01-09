@@ -3,6 +3,9 @@
 # NB: don't set `language: haskell` here.
 language: c
 
+# Request Ubuntu Trusty (14.04 LTS).
+dist: trusty
+
 # Explicitly request sudo-enabled virtual environments [Issue #1992].
 sudo: required
 
@@ -16,10 +19,14 @@ cache:
 # The LaTeX/HTML test-suite requires:
 # * `kpsewhich` (included in texlive-binaries)
 
-# The test of the documentation, i.e. `make doc`, requires:
-# * `latex` (included in texlive-latex-base)
-# * `utf8x.def` (included in texlive-latex-extra)
-# * `dvipng` (included in dvipng)
+# The test of the documentation, i.e. `make-doc-html` and
+# `make-user-pdf`, requires:
+#  * ecrm1000 fonts (included in texlive-fonts-recommended)
+#  * latex (included in texlive-latex-base)
+#  * lm fonts (include in lmodern)
+#  * utf8x.def (included in texlive-latex-extra)
+#  * dvipng (included in dvipng)
+#  * xelatex (included in texlive-xetex)
 
 ##############################################################################
 # Tests
@@ -151,8 +158,11 @@ matrix:
         apt:
           packages:
             - dvipng
+            - lmodern
+            - texlive-fonts-recommended
             - texlive-latex-base
             - texlive-latex-extra
+            - texlive-xetex
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
@@ -463,7 +473,8 @@ script:
 
   - if [[ $TEST = "DOC" ]]; then
        sphinx-build --version &&
-       make doc;
+       make doc-html &&
+       make doc-pdf;
     fi
 
 ##############################################################################
