@@ -70,7 +70,7 @@ Emacs mode
 
 * New bindings: All the bold digits are now available
 
-  The Agda input method did not bind bold digits. They are now available. 
+  The Agda input method did not bind bold digits. They are now available.
   The naming scheme is \Bx for digit x.
 
 Compiler backends
