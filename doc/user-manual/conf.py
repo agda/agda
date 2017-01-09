@@ -250,7 +250,7 @@ htmlhelp_basename = 'Agdadoc'
 # -- Options for LaTeX output ---------------------------------------------
 
 # See Issue #1996.
-latex_engine = 'xelatex'
+# latex_engine = 'xelatex'
 
 latex_elements = {
      # The paper size ('letterpaper' or 'a4paper').

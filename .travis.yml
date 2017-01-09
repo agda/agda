@@ -473,8 +473,7 @@ script:
 
   - if [[ $TEST = "DOC" ]]; then
        sphinx-build --version &&
-       make doc-html &&
-       make doc-pdf;
+       make doc-html;
     fi
 
 ##############################################################################
