@@ -305,18 +305,17 @@ ifPath ty fallback work = do
 
 checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkPath b@(Arg info (A.TBind _ xs typ)) body ty = do
-    PathType s path level typ lhs rhs <- pathView ty
-    interval <- elInf primInterval
-    v <- addContext' (xs, defaultDom interval) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
-    iZero <- primIZero
-    iOne  <- primIOne
-    let lhs' = subst 0 iZero v
-        rhs' = subst 0 iOne  v
+    PathType s isB path level typ lhs rhs <- pathView ty
+    (wlk,zero,one) <- if isB then (,,) <$> el primB <*> primB0 <*> primB1
+                             else (,,) <$> el primP <*> primP0 <*> primP1
+    v <- addContext' (xs, defaultDom wlk) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
+    let lhs' = subst 0 zero v
+        rhs' = subst 0 one  v
     let t = Lam info $ Abs (nameToArgName x) v
     let btyp i = El s (unArg typ `apply` [argN i])
     blockTerm ty $ do
-      equalTerm (btyp iZero) lhs' (unArg lhs)
-      equalTerm (btyp iOne) rhs' (unArg rhs)
+      equalTerm (btyp zero) lhs' (unArg lhs)
+      equalTerm (btyp one) rhs' (unArg rhs)
       return t
   where
     [WithHiding h x] = xs
@@ -1731,7 +1730,7 @@ checkConstructorApplication org t c args = do
 --   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
 pathAbs :: PathView -> Abs Term -> TCM Term
 pathAbs (OType _) t = __IMPOSSIBLE__
-pathAbs (PathType s path l a x y) t = do
+pathAbs (PathType s _ path l a x y) t = do
   return $ Lam defaultArgInfo t
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
@@ -1823,7 +1822,7 @@ checkHeadApplication e t hd args = do
                     defaultResult' $ Just $ \ vs t1 -> do
                       case vs of
                        [_,_,_,_,phi,p] -> do
-                          iv@(PathType s _ l a x y) <- idViewAsPath t1
+                          iv@(PathType s isB _ l a x y) <- idViewAsPath t1
                           let ty = pathUnview iv
                           -- the following duplicates reduction of phi
                           const_x <- blockTerm ty $ do
@@ -2154,9 +2153,9 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                 wrongPi
           _
             | notHidden info
-            , PathType s _ _ bA x y <- viewPath $ ignoreSharingType t0' -> do
+            , PathType s isB _ _ bA x y <- viewPath $ ignoreSharingType t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
-                u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
+                u <- lift $ checkExpr (namedThing e) =<< (if isB then el primB else el primP)
                 addCheckedArgs us (IApply (unArg x) (unArg y) u) $
                   checkArguments exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) t1
           _ -> shouldBePi

@@ -100,22 +100,32 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1)))
   , (builtinPathP              |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                nPi "A" (tinterval --> (return $ sort $ varSort 0)) $
-                                                (El (varSort 1) <$> varM 0 <@> primIZero) -->
-                                                (El (varSort 1) <$> varM 0 <@> primIOne) -->
+                                                nPi "A" ((el primP) --> (return $ sort $ varSort 0)) $
+                                                (El (varSort 1) <$> varM 0 <@> primP0) -->
+                                                (El (varSort 1) <$> varM 0 <@> primP1) -->
+                                                return (sort $ varSort 1)))
+  -- , (builtinBridge               |-> builtinPostulate (hPi "a" (el primLevel) $
+  --                                               hPi "A" (return $ sort $ varSort 0) $
+  --                                               (El (varSort 1) <$> varM 0) -->
+  --                                               (El (varSort 1) <$> varM 0) -->
+  --                                               return (sort $ varSort 1)))
+  , (builtinBridgeP              |-> builtinPostulate (hPi "a" (el primLevel) $
+                                                nPi "A" ((el primB) --> (return $ sort $ varSort 0)) $
+                                                (El (varSort 1) <$> varM 0 <@> primB0) -->
+                                                (El (varSort 1) <$> varM 0 <@> primB1) -->
                                                 return (sort $ varSort 1)))
   , (builtinInterval           |-> BuiltinData tSetOmega [builtinIZero,builtinIOne])
   , (builtinSub                |-> builtinPostulate (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                      hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-                                                     nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-                                                     elInf (cl primPartial <#> a <@> bA <@> phi) --> (return $ sort Inf)
+                                                     nPi' "φ" (el $ cl primProp) $ \ phi ->
+                                                     el' a (cl primPartial <#> a <@> bA <@> phi) --> (sort . tmSort <$> a)
                                                     ))
   , (builtinSubIn              |-> builtinPostulate (runNamesT [] $
                                                      hPi' "a" (el $ cl primLevel) $ \ a ->
                                                      hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-                                                     hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+                                                     hPi' "φ" (el $ cl primProp) $ \ phi ->
                                                      nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
-                                                     elInf $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ \ _ -> x)))
+                                                     el' a $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ \ _ -> x)))
   , (builtinIZero              |-> BuiltinDataCons (elInf primInterval))
   , (builtinIOne               |-> BuiltinDataCons (elInf primInterval))
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))

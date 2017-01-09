@@ -321,12 +321,17 @@ reduceIApply = reduceIApply' reduceB'
 
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply' reduceB' d (IApply x y r : es) = do
-  view <- intervalView'
+  pview <- pView'
+  bview <- bView'
   r <- reduceB' r
-  case view (ignoreBlocking r) of -- should we propagate the blocking?
-   IZero -> reduceB' (applyE x es)
-   IOne  -> reduceB' (applyE y es)
-   _     -> reduceIApply d es
+  let q = case pview (ignoreBlocking r) of -- should we propagate the blocking?
+            Iota t -> unArg t
+            OP   t -> t
+  q <- reduceB' q
+  case bview (ignoreBlocking q) of
+    BZero -> reduceB' (applyE x es)
+    BOne  -> reduceB' (applyE y es)
+    _     -> reduceIApply d es
 reduceIApply' reduceB' d (_ : es) = reduceIApply d es
 reduceIApply' reduceB' d [] = d
 

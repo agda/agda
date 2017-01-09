@@ -322,9 +322,9 @@ compareTerm' cmp a m n =
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
     equalFun _ _ _ _ = __IMPOSSIBLE__
     equalPath :: PathView -> Type -> Term -> Term -> TCM ()
-    equalPath (PathType s _ l a x y) _ m n = do
+    equalPath (PathType s isB _ l a x y) _ m n = do
         name <- freshName_ $ "i"
-        interval <- el primInterval
+        interval <- el $ if isB then primB else primP
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
@@ -724,8 +724,8 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
           va <- pathView a
           case va of
-            PathType s path l bA x y -> do
-              b <- elInf primInterval
+            PathType s isB path l bA x y -> do
+              b <- el $ if isB then primB else primP
               compareWithPol pol (flip compareTerm b)
                                   r1 r2
               -- TODO: compare (x1,x2) and (y1,y2) ?

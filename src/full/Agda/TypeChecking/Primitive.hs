@@ -771,16 +771,16 @@ primSubOut' = do
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          hPi' "u" (elInf $ cl primPartial <#> a <@> bA <@> phi) $ \ u ->
-          elInf (cl primSub <#> a <#> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
+          hPi' "φ" (el $ cl primProp) $ \ phi ->
+          hPi' "u" (el' a $ cl primPartial <#> a <@> bA <@> phi) $ \ u ->
+          el' a (cl primSub <#> a <#> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do
-        view <- intervalView'
+        view <- propView'
         sphi <- reduceB' phi
         case view $ unArg $ ignoreBlocking sphi of
-          IOne -> redReturn =<< (return (unArg u) <..> (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinItIsOne))
+          PTop -> redReturn =<< (return (unArg u) <..> (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinItIsOne))
           _ -> do
             sx <- reduceB' x
             mSubIn <- getBuiltinName' builtinSubIn

@@ -118,6 +118,8 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
+    --primBridge,
+    primBridgeP,
     primB, primB0, primB1,
     primP, primP0, primP1,
     primProp, primPTop, primPBot,
@@ -217,6 +219,8 @@ primSubOut       = getPrimitiveTerm builtinSubOut
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
+-- primBridge       = getBuiltin builtinBridge
+primBridgeP      = getBuiltin builtinBridgeP
 primB            = getBuiltin builtinB
 primB0           = getBuiltin builtinB0
 primB1           = getBuiltin builtinB1
@@ -356,6 +360,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
+  -- builtinBridge,
+  builtinBridgeP,
   builtinB, builtinB0, builtinB1,
   builtinP, builtinP0, builtinP1,
   builtinProp, builtinPTop, builtinPBot,
@@ -435,6 +441,8 @@ builtinNil                           = "NIL"
 builtinCons                          = "CONS"
 builtinIO                            = "IO"
 builtinId                            = "ID"
+--builtinBridge                        = "BRIDGE"
+builtinBridgeP                       = "BRIDGEP"
 builtinB                             = "BRIDGENAME"
 builtinB0                            = "BZERO"
 builtinB1                            = "BONE"
@@ -870,13 +878,16 @@ pathView' :: TCM (Type -> PathView)
 pathView' = do
  mpath <- primPathName'
  mpathp <- getBuiltinName' builtinPathP
+ mbridgep <- getBuiltinName' builtinBridgeP
  return $ \ t0@(El s t) ->
   case ignoreSharing t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | Just path' == mpath, Just path <- mpathp -> PathType s path level (lam_i <$> typ) lhs rhs
+      | Just path' == mpath, Just path <- mpathp -> PathType s False path level (lam_i <$> typ) lhs rhs
       where lam_i = Lam defaultArgInfo . NoAbs "_"
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | Just path' == mpathp, Just path <- mpathp -> PathType s path level typ lhs rhs
+      | Just path' == mpathp, Just path <- mpathp -> PathType s False path level typ lhs rhs
+    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
+      | Just path' == mbridgep, Just bridgep <- mbridgep -> PathType s True bridgep level typ lhs rhs
     _ -> OType t0
 
 -- | Non dependent Path
@@ -887,16 +898,10 @@ idViewAsPath t0@(El s t) = do
   case mid of
    Just path | isJust mpath -> case ignoreSharing t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | path' == path -> return $ PathType s (fromJust mpath) level typ lhs rhs
+      | path' == path -> return $ PathType s False (fromJust mpath) level typ lhs rhs
     _ -> return $ OType t0
    _ -> return $ OType t0
 
-boldPathView :: Type -> PathView
-boldPathView t0@(El s t) = do
-  case ignoreSharing t of
-    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      -> PathType s path' level typ lhs rhs
-    _ -> OType t0
 
 -- | Revert the 'PathView'.
 --
@@ -904,7 +909,7 @@ boldPathView t0@(El s t) = do
 
 pathUnview :: PathView -> Type
 pathUnview (OType t) = t
-pathUnview (PathType s path l t lhs rhs) =
+pathUnview (PathType s _ path l t lhs rhs) =
   El s $ Def path $ map Apply [l, t, lhs, rhs]
 
 ------------------------------------------------------------------------

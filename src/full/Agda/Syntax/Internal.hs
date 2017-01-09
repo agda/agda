@@ -624,7 +624,8 @@ isEqualityType OtherType{}    = False
 data PathView
   = PathType
     { pathSort  :: Sort     -- ^ Sort of this type.
-    , pathName  :: QName    -- ^ Builtin PATH.
+    , pathIsBridge :: Bool  -- ^ True for BRIDGEP, False for PATHP.
+    , pathName  :: QName    -- ^ Builtin PATHP or BRIDGEP.
     , pathLevel :: Arg Term -- ^ Hidden
     , pathType  :: Arg Term -- ^ Hidden
     , pathLhs   :: Arg Term -- ^ NotHidden

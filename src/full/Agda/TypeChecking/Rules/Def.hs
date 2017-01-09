@@ -494,19 +494,25 @@ checkBodyEndPoints
   -> Term     -- ^ Δ ⊢ body : T@es
   -> TCM ()
 checkBodyEndPoints delta t self es body = do
-  -- apply ps to T and accumulate constraints
-  t <- reduce t
-  (cs,t) <- accumBoundary [] es t self
-  reportSDoc "endpoints" 20 $ text $ show (cs,t)
-  checkBoundary cs t body
+  miota <- getBuiltin' builtinIota
+  case miota of
+    Nothing -> return ()
+    Just{}  -> do
+      -- apply ps to T and accumulate constraints
+      t <- reduce t
+      (cs,t) <- accumBoundary [] es t self
+      reportSDoc "endpoints" 20 $ text $ show (cs,t)
+      checkBoundary cs t body
  where
    checkBoundary cs t body = do
-     neg <- primINeg
+     pUnview <- propUnview'
+     p0 <- defaultArg <$> primP0
+     p1 <- defaultArg <$> primP1
      forM_ cs $ \ (i,(x,y)) -> do
-       let sigma v u = singletonS i v `applySubst` u
+       let
            boundary phi b = equalTermOnFace phi t body b
-       boundary (neg `apply` [argN $ var i]) x
-       boundary (var i) y
+       boundary (pUnview $ PEq (defaultArg i) p0) x
+       boundary (pUnview $ PEq (defaultArg i) p1) y
      return ()
    -- cs :: [(Int,(Term,Term))], (i,(x,y)) ∈ cs, Δ ⊢ i : I, Δ ⊢ x : t[i=i0], y : t[i=i1]
    -- Δ ⊢ es elims for t
@@ -527,11 +533,12 @@ checkBodyEndPoints delta t self es body = do
          t' <- reduce $ piApply t [arg]
          cs' <- updateBoundary cs $ \ b -> return $ b `apply` [arg]
          accumBoundary cs' es t' (self `apply` [arg])
-       PathType s q l bA (Arg _ x) (Arg _ y) | r@(Var i []) <- unArg arg -> do
+       PathType s isB q l bA (Arg _ x) (Arg _ y) | r@(Var i []) <- unArg arg -> do
          t' <- El s <$> reduce (unArg bA `apply` [defaultArg r])
          let self' = self `applyE` [IApply x y r]
          cs' <- updateBoundary cs $ \ b -> return $ b `applyE` [IApply x y r]
-         accumBoundary ((i,(x,y)):cs') es t' self'
+         v <- if isB then primIota <@> pure (var i) else pure (var i)
+         accumBoundary ((v,(x,y)):cs') es t' self'
        _ -> __IMPOSSIBLE__
    accumBoundary cs (IApply{}  : es) t self = __IMPOSSIBLE__ -- we will get Apply for Path too.
    updateBoundary bs f = forM bs $ \ (i,(x,y)) -> do
