@@ -65,6 +65,14 @@ Language
   Aside from datatypes, this pragma can also be used to mark other definition
   as being injective (for example postulates).
 
+Emacs mode
+----------
+
+* New bindings: All the bold digits are now available
+
+  The Agda input method did not bind bold digits. They are now available. 
+  The naming scheme is \Bx for digit x.
+
 Compiler backends
 -----------------
 
@@ -1110,11 +1118,6 @@ Emacs mode
   * \bX for uppercase blackboard bold
   * \bGx for lowercase greek blackboard bold (similar to \Gx for greeks)
   * \bGX for uppercase greek blackboard bold (similar to \GX for uppercase greeks)
-
-* New bindings: All the bold digits are now available
-
-  The Agda input method did not bind bold digits. They are now available. 
-  The naming scheme is \Bx for digit x, similar to above.
 
 * Replaced binding for go back
 
