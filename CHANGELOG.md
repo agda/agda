@@ -1111,6 +1111,11 @@ Emacs mode
   * \bGx for lowercase greek blackboard bold (similar to \Gx for greeks)
   * \bGX for uppercase greek blackboard bold (similar to \GX for uppercase greeks)
 
+* New bindings: All the bold digits are now available
+
+  The Agda input method did not bind bold digits. They are now available. 
+  The naming scheme is \Bx for digit x, similar to above.
+
 * Replaced binding for go back
 
   Use `M-,` (instead of `M-*`) for go back in Emacs ≥ 25.1 (and
