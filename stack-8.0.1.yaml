@@ -1,4 +1,4 @@
-resolver: lts-7.14
+resolver: lts-7.15
 
 # Local packages, usually specified by relative directory name
 packages:
