@@ -412,9 +412,6 @@ script:
        make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR user-manual-test;
     fi
 
-# ASR (2016-07-08) TODO: Travis is re-preprocessing various Agda
-# source files when running the internal test-suite. See Issue #2083.
-
   - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR PARALLEL_TESTS=$PARALLEL_TESTS internal-tests;
     fi
