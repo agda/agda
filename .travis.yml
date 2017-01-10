@@ -368,10 +368,6 @@ script:
 
 ##############################################################################
 
-# We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues 1022 and
-# 1675), but we still compare the generated tex/html files with the
-# golden files.
-
   - if [[ $TEST = "MAIN" ]]; then
        make check-whitespace;
     fi
@@ -391,6 +387,10 @@ script:
   - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR interactive;
     fi
+
+# We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
+# #1675), but we still compare the generated tex/html files with the
+# golden files.
 
   - if [[ $TEST = "MAIN" ]]; then
        make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
