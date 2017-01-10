@@ -171,24 +171,37 @@ literateMd pos s = mkLayers pos$ md s
   md [] = []
   md s  = let (line, rest) = getLine s in
     case md_begin `matchM` line of
-      Just (getAllTextSubmatches -> [_, pre, markup]) ->
+      Just (getAllTextSubmatches -> [_, pre, markup, _]) ->
         (Comment, pre):(Markup, markup):code rest
       Just _                 -> __IMPOSSIBLE__
-      Nothing                -> (Comment, line):md rest
+      Nothing                ->
+        (Comment, line):
+          if md_begin_other `match` line
+            then code_other rest
+            else md rest
 
-  md_begin = rex "(.*)([[:space:]]*```[[:space:]]*)"
-
+  md_begin = rex "(.*)([[:space:]]*```(agda)?[[:space:]]*)"
+  md_begin_other = rex "[[:space:]]*```[a-zA-Z0-9-]*[[:space:]]*"
 
   code :: String -> [(LayerType, String)]
   code [] = []
   code s = let (line, rest) = getLine s in
     case md_end `matchM` line of
-      Just (getAllTextSubmatches -> [_, markup, post]) ->
-        (Markup, markup):(Comment, post):md rest
+      Just (getAllTextSubmatches -> [_, markup]) ->
+        (Markup, markup):md rest
       Just _ -> __IMPOSSIBLE__
       Nothing             -> (Code, line):code rest
 
-  md_end   = rex "([[:space:]]*```[[:space:]]*)(.*)"
+  -- A non-Agda code block.
+  code_other :: String -> [(LayerType, String)]
+  code_other [] = []
+  code_other s = let (line, rest) = getLine s in
+    (Comment, line):
+      if md_end `match` line
+        then md rest
+        else code_other rest
+
+  md_end   = rex "([[:space:]]*```[[:space:]]*)"
 
 -- | Preprocessor for reStructuredText
 literateRsT :: Position -> String -> [Layer]
