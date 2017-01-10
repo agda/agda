@@ -70,8 +70,8 @@ Emacs mode
 
 * New bindings: All the bold digits are now available
 
-  The Agda input method did not bind bold digits. They are now available.
-  The naming scheme is \Bx for digit x.
+  The Agda input method did not bind bold digits. They are now
+  available. The naming scheme is `\Bx` for digit `x`.
 
 Compiler backends
 -----------------
@@ -1114,10 +1114,12 @@ Emacs mode
   available: lowercase and uppercase. Some previous bindings had to be
   modified for consistency. The naming scheme is as follows:
 
-  * \bx for lowercase blackboard bold
-  * \bX for uppercase blackboard bold
-  * \bGx for lowercase greek blackboard bold (similar to \Gx for greeks)
-  * \bGX for uppercase greek blackboard bold (similar to \GX for uppercase greeks)
+  * `\bx` for lowercase blackboard bold
+  * `\bX` for uppercase blackboard bold
+  * `\bGx` for lowercase greek blackboard bold (similar to `\Gx` for
+    greeks)
+  * `\bGX` for uppercase greek blackboard bold (similar to `\GX` for
+    uppercase greeks)
 
 * Replaced binding for go back
 
