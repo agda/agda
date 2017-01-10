@@ -38,8 +38,8 @@ main = do
             , "use the Makefile."
             , "Are you maybe using the Makefile together with an old cabal-install version?"
             , "Versions of cabal-install before 1.20.0.0 have a bug and will trigger this error."
-            , "The Makefile requries cabal-install 1.20.0.0 or later to work properly."
-            , "See also Issue 1489 and 1490."
+            , "The Makefile requires cabal-install 1.20.0.0 or later to work properly."
+            , "See also Issue #1489 and #1490."
             ]
       exitWith (ExitFailure 1)
 
