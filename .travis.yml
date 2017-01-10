@@ -228,6 +228,13 @@ install:
     fi
 
 ##############################################################################
+# Testing whitespace issues before installing Agda
+
+  - if [[ $TEST = "MAIN" ]]; then
+       make check-whitespace;
+    fi
+
+##############################################################################
 # Installing the dependencies
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
@@ -367,10 +374,6 @@ install:
 script:
 
 ##############################################################################
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make check-whitespace;
-    fi
 
   - if [[ $TEST = "MAIN" ]]; then
        make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR succeed;
