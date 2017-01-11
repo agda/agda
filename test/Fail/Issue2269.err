@@ -1,4 +1,4 @@
 Issue2269.agda:13,8-10
-Instance search depth exhaused (max depth: 10) for candidate
+Instance search depth exhausted (max depth: 10) for candidate
 weaken : Eq ⊥ → Eq _5
 when checking that the expression it has type Eq ⊥
