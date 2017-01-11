@@ -46,7 +46,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
    ```
    Installation and infrastructure
-   ===============================
+   -------------------------------
 
    * Added support for GHC X.Y.Z.
    ```

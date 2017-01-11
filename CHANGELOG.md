@@ -1,8 +1,10 @@
 Release notes for Agda version 2.5.3
 ====================================
 
-Infrastructure
---------------
+Installation and infrastructure
+-------------------------------
+
+* Added support for GHC 8.0.2.
 
 * Markdown support for literate Agda
   \[PR [#2357](https://github.com/agda/agda/pull/2357)].
