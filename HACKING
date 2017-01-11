@@ -134,7 +134,7 @@ the follow instructions:
 
   * Cherry-pick the commit 123 into the local stable
 
-      agda-stable$ git cherry-pick 123
+      agda-stable$ git cherry-pick -x 123
 
   * Merge the local stable into the local master
 
