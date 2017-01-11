@@ -1,7 +1,9 @@
 {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Functions
-  ( etaExpandClause ) where
+  ( etaExpandClause
+  , getDef
+  ) where
 
 import Control.Arrow ( first )
 
@@ -11,7 +13,9 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Level
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -83,3 +87,14 @@ etaExpandClause clause = liftTCM $ do
           fmap (first $ const $ unArg x) dom : useNames xs tel
       | otherwise =
           setOrigin Inserted dom : useNames (x:xs) tel
+
+-- | Get the name of defined symbol of the head normal form of a term.
+--   Assumes that such a head exists.
+
+getDef :: Term -> TCM QName
+getDef t = (ignoreSharing <$> reduce t) >>= \case
+  Def d _    -> return d
+  Lam _ v    -> underAbstraction_ v getDef
+  Level v    -> getDef =<< reallyUnLevelView v
+  DontCare v -> getDef v
+  _          -> __IMPOSSIBLE__

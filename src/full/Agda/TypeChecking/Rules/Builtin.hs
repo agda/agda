@@ -29,6 +29,7 @@ import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
@@ -430,12 +431,13 @@ bindPostulatedName builtin e m = do
   getName (A.ScopedExpr _ e) = getName e
   getName _                  = err
 
-getDef :: Term -> TCM QName
-getDef t = do
-  t <- etaContract =<< normalise t
-  case ignoreSharing t of
-    Def d _ -> return d
-    _ -> __IMPOSSIBLE__
+-- REPLACED by TC.Functions.getDef
+-- getDef :: Term -> TCM QName
+-- getDef t = do
+--   t <- etaContract =<< normalise t
+--   case ignoreSharing t of
+--     Def d _ -> return d
+--     _ -> __IMPOSSIBLE__
 
 bindAndSetHaskellType :: String -> String -> Term -> TCM ()
 bindAndSetHaskellType b hs t = do
