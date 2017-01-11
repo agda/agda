@@ -519,19 +519,19 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
 
         Con reflCon _ [] <- ignoreSharing <$> primRefl
 
-        -- Andreas, 2014-05-17  Issue 1110:
-        -- Rewriting with @refl@ has no effect, but gives an
-        -- incomprehensible error message about the generated
-        -- with clause. Thus, we rather do simply nothing if
-        -- rewriting with @refl@ is attempted.
-
-        let isReflProof = do
-             v <- reduce proof
-             case ignoreSharing v of
-               Con c _ [] | c == reflCon -> return True
-               _ -> return False
-
-        ifM isReflProof recurse $ {- else -} do
+        -- Andreas, 2017-01-11:
+        -- The test for refl is obsolete after fixes of #520 and #1740.
+        -- -- Andreas, 2014-05-17  Issue 1110:
+        -- -- Rewriting with @refl@ has no effect, but gives an
+        -- -- incomprehensible error message about the generated
+        -- -- with clause. Thus, we rather do simply nothing if
+        -- -- rewriting with @refl@ is attempted.
+        -- let isReflProof = do
+        --      v <- reduce proof
+        --      case ignoreSharing v of
+        --        Con c _ [] | c == reflCon -> return True
+        --        _ -> return False
+        -- ifM isReflProof recurse $ {- else -} do
 
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
