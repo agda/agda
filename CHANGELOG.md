@@ -3,6 +3,10 @@ Version TODO
 
 The library has been tested using Agda version TODO.
 
+Important changes since 0.13:
+
+* Added support for GHC 8.0.2.
+
 Version 0.13
 ============
 
