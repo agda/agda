@@ -1237,7 +1237,7 @@ instance PrettyTCM TypeError where
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
     InstanceSearchDepthExhausted c a d -> fsep $
-      pwords ("Instance search depth exhaused (max depth: " ++ show d ++ ") for candidate") ++
+      pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
 
     where
