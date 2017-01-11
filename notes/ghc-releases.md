@@ -39,14 +39,14 @@ Let's suppose the new version of GHC is X.Y.Z.
   `make install-agda-bisect`
 
 * Update the `tested-with` field in Agda.cabal, agda-bisect,
-  fix-agda-whitespace.cabal and hTags.cabal
+  fix-agda-whitespace.cabal, hTags.cabal and std-lib/lib.agda.
 
-* Update the CHANGELOG file:
+* Update the CHANGELOG files (Agda and the standard library):
 
 
    ```
    Installation and infrastructure
-   ===============================
+   -------------------------------
 
    * Added support for GHC X.Y.Z.
    ```
