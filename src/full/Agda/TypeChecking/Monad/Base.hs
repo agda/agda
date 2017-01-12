@@ -2427,8 +2427,6 @@ data TypeError
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
             -- ^ The given relevance does not correspond to the expected relevane.
-        | NotInductive Term
-          -- ^ The term does not correspond to an inductive data type.
         | UninstantiatedDotPattern A.Expr
         | IlltypedPattern A.Pattern Type
         | IllformedProjectionPattern A.Pattern

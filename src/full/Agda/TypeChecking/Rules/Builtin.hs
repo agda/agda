@@ -388,27 +388,35 @@ coreBuiltins =
             xs <- mapM freshName_ xs
             addContext (xs, domFromArg $ defaultArg nat) $ f apply1 zero suc (==) (===) choice
 
-
-inductiveCheck :: String -> Int -> Term -> TCM ()
+-- | Checks that builtin with name @b : String@ of type @t : Term@
+--   is a data type or inductive record with @n : Int@ constructors.
+--   Returns the name of the data/record type.
+inductiveCheck :: String -> Int -> Term -> TCM (QName, Definition)
 inductiveCheck b n t = do
-    t <- etaContract =<< normalise t
-    let err = typeError (NotInductive t)
-    case ignoreSharing t of
-      Def t _ -> do
-        t <- theDef <$> getConstInfo t
-        case t of
-          Datatype { dataInduction = Inductive
-                   , dataCons      = cs
-                   }
-            | length cs == n -> return ()
-            | otherwise ->
-              typeError $ GenericError $ unwords
-                          [ "The builtin", b
-                          , "must be a datatype with", show n
-                          , "constructors" ]
-          Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> return ()
-          _ -> err
-      _ -> err
+  t <- etaContract =<< normalise t
+  case ignoreSharing t of
+    Def q _ -> do
+      def <- getConstInfo q
+      let yes = return (q, def)
+      case theDef def of
+        Datatype { dataInduction = Inductive, dataCons = cs }
+          | length cs == n -> yes
+          | otherwise      -> no
+        Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> yes
+        _ -> no
+    _ -> no
+  where
+  no
+    | n == 1 = typeError $ GenericError $ unwords
+        [ "The builtin", b
+        , "must be a datatype with a single constructor"
+        , "or an (inductive) record type"
+        ]
+    | otherwise = typeError $ GenericError $ unwords
+        [ "The builtin", b
+        , "must be a datatype with", show n
+        , "constructors"
+        ]
 
 -- | @bindPostulatedName builtin e m@ checks that @e@ is a postulated
 -- name @q@, and binds the builtin @builtin@ to the term @m q def@,
@@ -498,14 +506,14 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
     case d of
       BuiltinData t cs -> do
         v <- checkExpr e =<< t
-        let n = length cs
-        inductiveCheck s n v
+        unless (s == builtinUnit) $ do
+          void $ inductiveCheck s (length cs) v
         if | s == builtinEquality -> bindBuiltinEquality v
            | s == builtinBool     -> bindBuiltinBool     v
            | s == builtinNat      -> bindBuiltinNat      v
            | s == builtinInteger  -> bindBuiltinInt      v
            | s == builtinUnit     -> bindBuiltinUnit     v
-           | otherwise            -> bindBuiltinName s v
+           | otherwise            -> bindBuiltinName s   v
 
       BuiltinDataCons t -> do
 

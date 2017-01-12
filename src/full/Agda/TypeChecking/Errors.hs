@@ -272,7 +272,6 @@ errorString err = case err of
   NoParseForLHS{}                          -> "NoParseForLHS"
 --  NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
-  NotInductive {}                          -> "NotInductive"
   AbsurdPatternRequiresNoRHS{}             -> "AbsurdPatternRequiresNoRHS"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
@@ -478,9 +477,6 @@ instance PrettyTCM TypeError where
     RelevanceMismatch r r' -> fwords $
       "Expected " ++ verbalize (Indefinite r') ++ " argument, but found " ++
       verbalize (Indefinite r) ++ " argument"
-
-    NotInductive t -> fsep $
-      [prettyTCM t] ++ pwords "is not an inductive data type"
 
     UninstantiatedDotPattern e -> fsep $
       pwords "Failed to infer the value of dotted pattern"
