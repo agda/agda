@@ -56,7 +56,7 @@ builtinPostulate :: TCM Type -> BuiltinDescriptor
 builtinPostulate = BuiltinPostulate Relevant
 
 coreBuiltins :: [BuiltinInfo]
-coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
+coreBuiltins =
   [ (builtinList               |-> BuiltinData (tset --> tset) [builtinNil, builtinCons])
   , (builtinArg                |-> BuiltinData (tset --> tset) [builtinArgArg])
   , (builtinAbs                |-> BuiltinData (tset --> tset) [builtinAbsAbs])
@@ -220,7 +220,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMWithNormalisation  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   ]
   where
-        (|->) = (,)
+        (|->) = BuiltinInfo
 
         v0 = varM 0
         v1 = varM 1
