@@ -518,6 +518,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
         -- Get the name of builtin REFL.
 
         Con reflCon _ [] <- ignoreSharing <$> primRefl
+        reflInfo <- fmap (setOrigin Inserted) <$> getReflArgInfo reflCon
 
         -- Andreas, 2017-01-11:
         -- The test for refl is obsolete after fixes of #520 and #1740.
@@ -535,7 +536,9 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
 
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
-        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [conName reflCon]) []
+        -- The REFL constructor might have an argument
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [conName reflCon]) $
+              maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
 
         -- Andreas, 2015-12-25  Issue #1740:
         -- After the fix of #520, rewriting with a reflexive equation

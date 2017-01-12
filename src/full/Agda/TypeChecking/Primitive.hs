@@ -381,27 +381,17 @@ primTrustMe = do
   -- Construct the type of primTrustMe.
   -- E.g., type of @trustMe : {a : Level} {A : Set a} {x y : A} → eq {a} {A} x y@.
   let t = telePi_ (fmap hide eqTel) $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel
-  -- OLD:
-  -- t    <- hPi "a" (el primLevel) $
-  --         hPi "A" (return $ sort $ varSort 0) $
-  --         hPi "x" (El (varSort 1) <$> varM 0) $
-  --         hPi "y" (El (varSort 2) <$> varM 1) $
-  --         El (varSort 3) <$>
-  --           primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
 
-  -- BUILTIN REFL maybe a constructor with one hidden argument or only parameters.
-  Con rf ci [] <- ignoreSharing <$> primRefl
-  n <- conPars . theDef <$> getConInfo rf
-  let m = size eqTel -- Arity of equality/primTrustMe.
-      k = m - n - 1  -- Arity of refl.
-  -- Andreas, 2015-02-27  Forced Big vs. Forced Small should not matter here
-  let (refl :: Arg Term -> Term)
-        | k == 1    = Con rf ci . (:[]) . setRelevance (Forced Small) . hide
-        | k == 0    = const $ Con rf ci []
-        | otherwise = __IMPOSSIBLE__
+  -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
+  -- Get the ArgInfo of the principal argument of refl.
+  con@(Con rf ci []) <- ignoreSharing <$> primRefl
+  minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
+  let (refl :: Arg Term -> Term) = case minfo of
+        Just ai -> Con rf ci . (:[]) . setArgInfo ai
+        Nothing -> const con
 
   -- The implementation of primTrustMe:
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ m $ \ ts -> do
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (size eqTel) $ \ ts -> do
     let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 ts
     -- Andreas, 2013-07-22.
     -- Note that we cannot call the conversion checker here,
@@ -412,7 +402,28 @@ primTrustMe = do
     -- We can only do untyped equality, e.g., by normalisation.
     (u', v') <- normalise' (u, v)
     if u' == v' then redReturn $ refl u else
-      return (NoReduction $ map notReduced ts)
+      return $ NoReduction $ map notReduced ts
+
+-- | Get the 'ArgInfo' of the principal argument of BUILTIN REFL.
+--
+--   Returns @Nothing@ for e.g.
+--   @
+--     data Eq {a} {A : Set a} (x : A) : A → Set a where
+--       refl : Eq x x
+--   @
+--
+--   Returns @Just ...@ for e.g.
+--   @
+--     data Eq {a} {A : Set a} : (x y : A) → Set a where
+--       refl : ∀ x → Eq x x
+--   @
+
+getReflArgInfo :: ConHead -> TCM (Maybe ArgInfo)
+getReflArgInfo rf = do
+  def <- getConInfo rf
+  TelV reflTel _ <- telView $ defType def
+  return $ fmap getArgInfo $ headMaybe $ drop (conPars $ theDef def) $ telToList reflTel
+
 
 -- | Used for both @primForce@ and @primForceLemma@.
 genPrimForce :: TCM Type -> (Term -> Arg Term -> Term) -> TCM PrimitiveImpl
