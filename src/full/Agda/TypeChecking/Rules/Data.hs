@@ -418,6 +418,12 @@ constructs nofPars t q = constrT 0 t
                   when (any (< 0) nl) __IMPOSSIBLE__
                   when (any (>= nofPars) nl) __IMPOSSIBLE__
                   return nl
+                MetaV{} -> do
+                  def <- getConstInfo q
+                  xs <- newArgsMeta $ defType def
+                  let t' = El (dataSort $ theDef def) $ Def q $ map Apply xs
+                  equalType t t'
+                  constrT n t'
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
         checkParams n vs = zipWithM_ sameVar vs ps
