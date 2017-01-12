@@ -757,6 +757,11 @@ levelSuc (Max as) = Max $ map inc as
 mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
+isSort :: Term -> Maybe Sort
+isSort v = case ignoreSharing v of
+  Sort s -> Just s
+  _      -> Nothing
+
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines
   [ "An internal error has occurred. Please report this as a bug."

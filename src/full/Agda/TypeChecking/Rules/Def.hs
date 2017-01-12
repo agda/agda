@@ -40,7 +40,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.CheckInternal (checkType)
+import Agda.TypeChecking.CheckInternal (checkType, inferSort)
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
@@ -511,7 +511,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
 
         t' <- reduce =<< instantiateFull eqt
         (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
-          eqt@(EqualityType s _eq _params dom a b) -> return (eqt, El s (unArg dom), unArg a, unArg b)
+          eqt@(EqualityType _s _eq _params (Arg _ dom) a b) -> do
+            s <- inferSort dom
+            return (eqt, El s dom, unArg a, unArg b)
+            -- Note: the sort _s of the equality need not be the sort of the type @dom@!
           OtherType{} -> typeError . GenericDocError =<< do
             text "Cannot rewrite by equation of type" <+> prettyTCM t'
 

@@ -14,6 +14,7 @@ module Agda.TypeChecking.CheckInternal
   , checkInternal'
   , defaultAction, Action(..)
   , infer
+  , inferSort
   ) where
 
 import Control.Arrow ((&&&), (***), first, second)
@@ -323,3 +324,42 @@ subtype :: Type -> Type -> TCM ()
 subtype t1 t2 = do
   ifIsSort t1 (\ s1 -> (s1 `leqSort`) =<< shouldBeSort t2) $
     leqType t1 t2
+
+-- | Compute the sort of a type.
+
+inferSort :: Term -> TCM Sort
+inferSort t = case ignoreSharing t of
+    Var i es   -> do
+      a <- typeOfBV i
+      (_, s) <- eliminate (Var i []) a es
+      shouldBeSort s
+    Def f es   -> do  -- f is not projection(-like)!
+      a <- defType <$> getConstInfo f
+      (_, s) <- eliminate (Def f []) a es
+      shouldBeSort s
+    MetaV x es -> do
+      a <- metaType x
+      (_, s) <- eliminate (MetaV x []) a es
+      shouldBeSort s
+    Pi a b     -> return $ dLub (getSort a) (getSort <$> b)
+    Sort s     -> return $ sSuc s
+    Con{}      -> __IMPOSSIBLE__
+    Lit{}      -> __IMPOSSIBLE__
+    Lam{}      -> __IMPOSSIBLE__
+    Level{}    -> __IMPOSSIBLE__
+    DontCare{} -> __IMPOSSIBLE__
+    Shared{}   -> __IMPOSSIBLE__
+
+-- | @eliminate t self es@ eliminates value @self@ of type @t@ by spine @es@
+--   and returns the remaining value and its type.
+eliminate :: Term -> Type -> Elims -> TCM (Term, Type)
+eliminate self t [] = return (self, t)
+eliminate self t (e : es) = case e of
+    Apply (Arg _ v) -> do
+      (_, b) <- shouldBePi t
+      eliminate (self `apply1` v) (b `absApp` v) es
+    -- case: projection or projection-like
+    Proj o f -> do
+      (Dom ai _, b) <- shouldBePi =<< shouldBeProjectible t f
+      u  <- applyDef o f $ Arg ai self
+      eliminate u (b `absApp` self) es
