@@ -541,8 +541,12 @@ equalityView :: Type -> TCM EqualityView
 equalityView t0@(El s t) = do
   equality <- primEqualityName
   case ignoreSharing t of
-    Def equality' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | equality' == equality -> return $ EqualityType s equality level typ lhs rhs
+    Def equality' es | equality' == equality -> do
+      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let n = length vs
+      unless (n >= 3) __IMPOSSIBLE__
+      let (pars, [ typ , lhs, rhs ]) = splitAt (n-3) vs
+      return $ EqualityType s equality pars typ lhs rhs
     _ -> return $ OtherType t0
 
 -- | Revert the 'EqualityView'.
@@ -552,4 +556,4 @@ equalityView t0@(El s t) = do
 equalityUnview :: EqualityView -> Type
 equalityUnview (OtherType t) = t
 equalityUnview (EqualityType s equality l t lhs rhs) =
-  El s $ Def equality $ map Apply [l, t, lhs, rhs]
+  El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])

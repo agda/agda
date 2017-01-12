@@ -841,7 +841,7 @@ instance Subst Term EqualityView where
   applySubst rho (EqualityType s eq l t a b) = EqualityType
     (applySubst rho s)
     eq
-    (applySubst rho l)
+    (map (applySubst rho) l)
     (applySubst rho t)
     (applySubst rho a)
     (applySubst rho b)

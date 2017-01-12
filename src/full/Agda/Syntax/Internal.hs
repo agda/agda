@@ -611,7 +611,7 @@ data EqualityView
   = EqualityType
     { eqtSort  :: Sort     -- ^ Sort of this type.
     , eqtName  :: QName    -- ^ Builtin EQUALITY.
-    , eqtLevel :: Arg Term -- ^ Hidden
+    , eqtParams :: [Arg Term] -- ^ Hidden.  Empty or @Level@.
     , eqtType  :: Arg Term -- ^ Hidden
     , eqtLhs   :: Arg Term -- ^ NotHidden
     , eqtRhs   :: Arg Term -- ^ NotHidden
