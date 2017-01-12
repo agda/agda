@@ -1,4 +1,3 @@
-\nonstopmode
 \documentclass{article}
 
 \usepackage{agda}
