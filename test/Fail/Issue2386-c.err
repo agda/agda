@@ -1,0 +1,3 @@
+Issue2386-c.agda:9,1-28
+The type of BUILTIN EQUALITY must be a polymorphic relation
+when checking the pragma BUILTIN EQUALITY Eq

@@ -34,12 +34,14 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -96,12 +98,13 @@ coreBuiltins =
   , builtinAgdaErrorPartString |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm   |-> BuiltinDataCons (tterm --> terrorpart)
   , builtinAgdaErrorPartName   |-> BuiltinDataCons (tqname --> terrorpart)
-  , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
-                                                hPi "A" (return $ sort $ varSort 0) $
-                                                (El (varSort 1) <$> varM 0) -->
-                                                (El (varSort 1) <$> varM 0) -->
-                                                return (sort $ varSort 1))
-                                               [builtinRefl])
+  -- Andreas, 2017-01-12, issue #2386: special handling of builtinEquality
+  -- , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
+  --                                               hPi "A" (return $ sort $ varSort 0) $
+  --                                               (El (varSort 1) <$> varM 0) -->
+  --                                               (El (varSort 1) <$> varM 0) -->
+  --                                               return (sort $ varSort 1))
+  --                                              [builtinRefl])
   , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinInstance, builtinVisible])
     -- Relevance
   , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
@@ -119,10 +122,11 @@ coreBuiltins =
     -- Fixity
   , builtinFixity              |-> BuiltinData tset [builtinFixityFixity]
   , builtinFixityFixity        |-> BuiltinDataCons (tassoc --> tprec --> tfixity)
-  , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $
-                                                    hPi "A" (return $ sort $ varSort 0) $
-                                                    hPi "x" (El (varSort 1) <$> varM 0) $
-                                                    El (varSort 2) <$> primEquality <#> varM 2 <#> varM 1 <@> varM 0 <@> varM 0))
+  -- Andreas, 2017-01-12, issue #2386: special handling of builtinEquality
+  -- , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $
+  --                                                   hPi "A" (return $ sort $ varSort 0) $
+  --                                                   hPi "x" (El (varSort 1) <$> varM 0) $
+  --                                                   El (varSort 2) <$> primEquality <#> varM 2 <#> varM 1 <@> varM 0 <@> varM 0))
   , (builtinRewrite           |-> BuiltinUnknown Nothing verifyBuiltinRewrite)
   , (builtinNil                |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons               |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
@@ -449,7 +453,7 @@ bindPostulatedName builtin e m = do
 
 bindAndSetHaskellType :: String -> String -> Term -> TCM ()
 bindAndSetHaskellType b hs t = do
-  d <- getDef t
+  d <- fromMaybe __IMPOSSIBLE__ <$> getDef t
   addHaskellType d hs
   bindBuiltinName b t
 
@@ -461,7 +465,7 @@ bindBuiltinInt = bindAndSetHaskellType builtinInteger "Integer"
 
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
-  nat <- getDef t
+  nat <- fromMaybe __IMPOSSIBLE__ <$> getDef t
   def <- theDef <$> getConstInfo nat
   case def of
     Datatype { dataCons = [c1, c2] } -> do
@@ -481,7 +485,7 @@ bindBuiltinNat t = do
 
 bindBuiltinUnit :: Term -> TCM ()
 bindBuiltinUnit t = do
-  unit <- getDef t
+  unit <- fromMaybe __IMPOSSIBLE__ <$> getDef t
   def <- theDef <$> getConstInfo unit
   case def of
     Record { recFields = [], recConHead = con } -> do
@@ -490,15 +494,59 @@ bindBuiltinUnit t = do
     _ -> genericError "Builtin UNIT must be a singleton record type"
 
 -- | Bind BUILTIN EQUALITY and BUILTIN REFL.
-bindBuiltinEquality :: Term -> TCM ()
-bindBuiltinEquality t = do
-  eq <- getDef t
-  def <- theDef <$> getConstInfo eq
-  case def of
+bindBuiltinEquality :: A.Expr -> TCM ()
+bindBuiltinEquality (A.ScopedExpr scope e) = do
+  setScope scope
+  bindBuiltinEquality e
+bindBuiltinEquality e = do
+  (v, _t) <- inferExpr e
+
+  -- Equality needs to be a data type with 1 constructor
+  (eq, def) <- inductiveCheck builtinEquality 1 v
+
+  -- Check that the type is the type of a polymorphic relation, i.e.,
+  -- Γ → (A : Set _) → A → A → Set _
+  TelV eqTel eqCore <- telView $ defType def
+  let no = genericError "The type of BUILTIN EQUALITY must be a polymorphic relation"
+
+  -- The target is a sort since eq is a data type.
+  unless (isJust $ isSort $ unEl eqCore) __IMPOSSIBLE__
+
+  -- The types of the last two arguments must be the third-last argument
+  unless (size eqTel >= 3) no
+  let (a, b) = fromMaybe __IMPOSSIBLE__ $ last2 $ telToList eqTel
+  [a,b] <- reduce $ map (unEl . snd . unDom) [a,b]
+  unless (deBruijnView a == Just 0) no
+  unless (deBruijnView b == Just 1) no
+
+  -- Get the single constructor.
+  case theDef def of
     Datatype { dataCons = [c] } -> do
-      bindBuiltinName builtinEquality t
-      bindBuiltinName builtinRefl (Con (ConHead c Inductive []) ConOSystem [])
-    _ -> __IMPOSSIBLE__
+      bindBuiltinName builtinEquality v
+
+      -- Check type of REFL.  It has to be of the form
+      -- pars → (x : A) → Eq ... x x
+
+      -- Check the arguments
+      cdef <- getConstInfo c
+      TelV conTel conCore <- telView $ defType cdef
+      ts <- reduce $ map (unEl . snd . unDom) $ drop (conPars $ theDef cdef) $ telToList conTel
+      -- After dropping the parameters, there should be maximally one argument.
+      unless (length ts <= 1) wrongRefl
+      unless (all ((Just 0 ==) . deBruijnView) ts) wrongRefl
+
+      -- Check the target
+      case ignoreSharing $ unEl conCore of
+        Def _ es -> do
+          let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
+          unless (deBruijnView a == Just 0) wrongRefl
+          unless (deBruijnView b == Just 0) wrongRefl
+          bindBuiltinName builtinRefl (Con (ConHead c Inductive []) ConOSystem [])
+        _ -> __IMPOSSIBLE__
+    _ -> genericError "Builtin EQUALITY must be a data type with a single constructor"
+  where
+  wrongRefl = genericError "Wrong type of constructor of BUILTIN EQUALITY"
 
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
@@ -508,7 +556,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         v <- checkExpr e =<< t
         unless (s == builtinUnit) $ do
           void $ inductiveCheck s (length cs) v
-        if | s == builtinEquality -> bindBuiltinEquality v
+        if | s == builtinEquality -> __IMPOSSIBLE__ -- bindBuiltinEquality v
            | s == builtinBool     -> bindBuiltinBool     v
            | s == builtinNat      -> bindBuiltinNat      v
            | s == builtinInteger  -> bindBuiltinInt      v
@@ -590,6 +638,7 @@ bindBuiltin b e = do
      | b == builtinInf   -> bindBuiltinInf e
      | b == builtinSharp -> bindBuiltinSharp e
      | b == builtinFlat  -> bindBuiltinFlat e
+     | b == builtinEquality -> bindBuiltinEquality e
      | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
      | otherwise -> typeError $ NoSuchBuiltinName b
   where

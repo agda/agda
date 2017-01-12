@@ -1,0 +1,3 @@
+Issue2386BuiltinReflExtraArg.agda:9,1-29
+Wrong type of constructor of BUILTIN EQUALITY
+when checking the pragma BUILTIN EQUALITY _≡_

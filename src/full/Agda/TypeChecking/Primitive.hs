@@ -369,8 +369,7 @@ primTrustMe = do
   whenM (optSafe <$> commandLineOptions) $ typeError SafeFlagPrimTrustMe
 
   -- Get the name and type of BUILTIN EQUALITY
-  eqTm <- primEquality
-  eq   <- getDef eqTm
+  eq   <- primEqualityName
   eqTy <- defType <$> getConstInfo eq
   -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
   TelV eqTel eqCore <- telView eqTy

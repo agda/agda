@@ -4,7 +4,7 @@
 (agda2-info-action "*Type-checking*" "Checking Issue1060 (Issue1060.agda). " t)
 (agda2-info-action "*Type-checking*" "Finished Issue1060. " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : true ≡ _y_96 ?1 : Bool ?2 : _y_96 ≡ true ?3 : Bool " nil)
+(agda2-info-action "*All Goals*" "?0 : true ≡ _y_94 ?1 : Bool ?2 : _y_94 ≡ true ?3 : Bool " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 ((last . 2) . (agda2-solveAll-action '(3 "true")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))

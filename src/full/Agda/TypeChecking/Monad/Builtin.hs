@@ -13,6 +13,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad.Base
+-- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError) )
@@ -513,6 +514,7 @@ coinductionKit = tryMaybe coinductionKit'
 
 -- | Get the name of the equality type.
 primEqualityName :: TCM QName
+-- primEqualityName = getDef =<< primEquality  -- LEADS TO IMPORT CYCLE
 primEqualityName = do
   eq <- primEquality
   -- Andreas, 2014-05-17 moved this here from TC.Rules.Def
@@ -527,9 +529,11 @@ primEqualityName = do
       lamV (Shared p) = lamV (derefPtr p)
       lamV v          = ([], v)
   return $ case lamV eq of
-    ([Hidden, Hidden], Def equality _) -> equality
-    ([Hidden],         Def equality _) -> equality
-    ([],               Def equality _) -> equality
+    (_, Def equality _) -> equality
+  -- OLD:
+  --   ([Hidden, Hidden], Def equality _) -> equality
+  --   ([Hidden],         Def equality _) -> equality
+  --   ([],               Def equality _) -> equality
     _                                  -> __IMPOSSIBLE__
 
 -- | Check whether the type is actually an equality (lhs ≡ rhs)

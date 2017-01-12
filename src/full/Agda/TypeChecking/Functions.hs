@@ -89,12 +89,12 @@ etaExpandClause clause = liftTCM $ do
           setOrigin Inserted dom : useNames (x:xs) tel
 
 -- | Get the name of defined symbol of the head normal form of a term.
---   Assumes that such a head exists.
+--   Returns 'Nothing' if no such head exists.
 
-getDef :: Term -> TCM QName
+getDef :: Term -> TCM (Maybe QName)
 getDef t = (ignoreSharing <$> reduce t) >>= \case
-  Def d _    -> return d
+  Def d _    -> return $ Just d
   Lam _ v    -> underAbstraction_ v getDef
   Level v    -> getDef =<< reallyUnLevelView v
   DontCare v -> getDef v
-  _          -> __IMPOSSIBLE__
+  _          -> return Nothing
