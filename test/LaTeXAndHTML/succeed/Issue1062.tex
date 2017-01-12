@@ -1,171 +1,503 @@
-\nonstopmode
-\documentclass{article}
-\usepackage{pifont}
-\usepackage[utf8x]{inputenc}
+LATEX_COMPILE_FAILED with pdflatex
 
-\usepackage{latex/agda}
-\DeclareUnicodeCharacter{738}{$^\mathsf{s}$}
-\DeclareUnicodeCharacter{8759}{::}
-
-\setlength{\mathindent}{0pt}
-
-\begin{document}
-\begin{code}%
-\>\<%
-\\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{OPTIONS} --copatterns --sized-types \AgdaSymbol{\#-\}}\<%
-\\
-%
-\\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZE    \AgdaPostulate{Size} \<[27]%
-\>[27]\AgdaSymbol{\#-\}}\<%
-\\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZELT  \AgdaPostulate{Size<\_} \AgdaSymbol{\#-\}}\<%
-\\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZESUC \AgdaPostulate{↑\_} \<[27]%
-\>[27]\AgdaSymbol{\#-\}}\<%
-\\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZEINF \AgdaPostulate{∞} \<[27]%
-\>[27]\AgdaSymbol{\#-\}}\<%
-\\
-%
-\\
-\>\AgdaKeyword{data} \AgdaDatatype{List} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaInductiveConstructor{[]} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaInductiveConstructor{\_∷\_} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{x} \AgdaSymbol{:} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{xs} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{->} \AgdaDatatype{List} \AgdaBound{A}\<%
-\\
-%
-\\
-\>\AgdaKeyword{record} \AgdaRecord{\_×\_} \AgdaSymbol{(}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{field}\<%
-\\
-\>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{fst} \AgdaSymbol{:} \AgdaBound{A}\<%
-\\
-\>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{snd} \AgdaSymbol{:} \AgdaBound{B}\<%
-\\
-\>\AgdaKeyword{open} \AgdaModule{\_×\_}\<%
-\\
-%
-\\
-\>\AgdaComment{-- Sized streams via head/tail.}\<%
-\\
-%
-\\
-\>\AgdaKeyword{record} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i} \AgdaSymbol{:} \AgdaPostulate{Size}\AgdaSymbol{\}} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{coinductive}\AgdaSymbol{;} \AgdaKeyword{constructor} \AgdaCoinductiveConstructor{\_∷\_}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{field}\<%
-\\
-\>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{head} \<[10]%
-\>[10]\AgdaSymbol{:} \AgdaBound{A}\<%
-\\
-\>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{tail} \<[10]%
-\>[10]\AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{j} \AgdaSymbol{:} \AgdaPostulate{Size<} \AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{j}\AgdaSymbol{\}} \AgdaBound{A}\<%
-\\
-\>\AgdaKeyword{open} \AgdaModule{Stream} \AgdaKeyword{public}\<%
-\\
-%
-\\
-\>\AgdaFunction{\_∷ˢ\_} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{i} \AgdaBound{A}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaBound{A} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaPostulate{↑} \AgdaBound{i}\AgdaSymbol{\}} \AgdaBound{A}\<%
-\\
-\>\AgdaField{head} \<[6]%
-\>[6]\AgdaSymbol{(}\AgdaBound{a} \AgdaFunction{∷ˢ} \AgdaBound{as}\AgdaSymbol{)} \AgdaSymbol{=} \AgdaBound{a}\<%
-\\
-\>\AgdaField{tail} \<[6]%
-\>[6]\AgdaSymbol{(}\AgdaBound{a} \AgdaFunction{∷ˢ} \AgdaBound{as}\AgdaSymbol{)} \AgdaSymbol{=} \AgdaBound{as}\<%
-\\
-%
-\\
-\>\AgdaComment{-- Streams and lists.}\<%
-\\
-%
-\\
-\>\AgdaComment{-- Prepending a list to a stream.}\<%
-\\
-%
-\\
-\>\AgdaFunction{\_++ˢ\_} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{i} \AgdaBound{A}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{List} \AgdaBound{A} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaBound{A} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaBound{A}\<%
-\\
-\>\AgdaInductiveConstructor{[]} \<[10]%
-\>[10]\AgdaFunction{++ˢ} \AgdaBound{s} \AgdaSymbol{=} \AgdaBound{s}\<%
-\\
-\>\AgdaSymbol{(}\AgdaBound{a} \AgdaInductiveConstructor{∷} \AgdaBound{as}\AgdaSymbol{)} \<[10]%
-\>[10]\AgdaFunction{++ˢ} \AgdaBound{s} \AgdaSymbol{=} \AgdaBound{a} \AgdaFunction{∷ˢ} \AgdaSymbol{(}\AgdaBound{as} \AgdaFunction{++ˢ} \AgdaBound{s}\AgdaSymbol{)}\<%
-\\
-%
-\\
-\>\AgdaComment{-- Unfold which produces several outputs at one step}\<%
-\\
-%
-\\
-\>\AgdaKeyword{record} \AgdaRecord{List1} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_∷\_}\<%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{field}\<%
-\\
-\>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{head} \<[10]%
-\>[10]\AgdaSymbol{:} \AgdaBound{A}\<%
-\\
-\>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{tail} \<[10]%
-\>[10]\AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\<%
-\\
-\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaKeyword{using} \AgdaSymbol{(}\AgdaField{head}\AgdaSymbol{;} \AgdaField{tail}\AgdaSymbol{)}\<%
-\\
-%
-\\
-\>\AgdaKeyword{record} \AgdaRecord{⊤} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where} \AgdaKeyword{constructor} \AgdaInductiveConstructor{trivial}\<%
-\\
-\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaSymbol{(}\AgdaInductiveConstructor{trivial} \AgdaInductiveConstructor{∷} \AgdaInductiveConstructor{[]}\AgdaSymbol{)} \AgdaKeyword{using} \AgdaSymbol{(}head\AgdaSymbol{;} tail\AgdaSymbol{)} \AgdaComment{-- problem: imports not colored}\<%
-\\
-%
-\\
-\>\AgdaFunction{unfold⁺} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{S} \AgdaSymbol{:} \AgdaPostulate{Size} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}}\<%
-\\
-%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaSymbol{(}\AgdaBound{step} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaBound{S} \AgdaBound{i} \AgdaSymbol{→} \AgdaRecord{List1} \AgdaBound{A} \AgdaRecord{×} \AgdaSymbol{(∀} \AgdaSymbol{\{}\AgdaBound{j} \AgdaSymbol{:} \AgdaPostulate{Size<} \AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaBound{S} \AgdaBound{j}\AgdaSymbol{))} \AgdaSymbol{→}\<%
-\\
-%
-\\
-\>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaSymbol{(}\AgdaBound{s} \AgdaSymbol{:} \AgdaBound{S} \AgdaBound{i}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaBound{A}\<%
-\\
-%
-\\
-\>\AgdaField{head} \<[6]%
-\>[6]\AgdaSymbol{(}\AgdaFunction{unfold⁺} \AgdaBound{step} \AgdaBound{s}\AgdaSymbol{)} \AgdaSymbol{=} \<[26]%
-\>[26]\AgdaField{head} \AgdaSymbol{(}\AgdaField{fst} \AgdaSymbol{(}\AgdaBound{step} \AgdaBound{s}\AgdaSymbol{))}\<%
-\\
-\>\AgdaField{tail} \<[6]%
-\>[6]\AgdaSymbol{(}\AgdaFunction{unfold⁺} \AgdaBound{step} \AgdaBound{s}\AgdaSymbol{)} \AgdaSymbol{=} \<[26]%
-\>[26]\AgdaKeyword{let} \<[31]%
-\>[31]\AgdaSymbol{((\_} \AgdaInductiveConstructor{∷} \AgdaBound{l}\AgdaSymbol{)} \AgdaInductiveConstructor{,} \AgdaBound{s′}\AgdaSymbol{)} \AgdaSymbol{=} \AgdaBound{step} \AgdaBound{s}\<%
-\\
-\>[2]\AgdaIndent{26}{}\<[26]%
-\>[26]\AgdaKeyword{in} \<[31]%
-\>[31]\AgdaBound{l} \AgdaFunction{++ˢ} \AgdaFunction{unfold⁺} \AgdaBound{step} \AgdaBound{s′}\<%
-\end{code}
-Problem: The ∷ in the last let statement is not colored with constructor color.
-\end{document}
+ret > ExitFailure 1
+out > This is pdfTeX, Version 3.14159265-2.6-1.40.17 (TeX Live 2016) (preloaded format=pdflatex)
+out >  restricted \write18 enabled.
+out > entering extended mode
+out > (./Issue1062.tex
+out > LaTeX2e <2016/03/31> patch level 3
+out > Babel <3.9r> and hyphenation patterns for 8 language(s) loaded.
+out >
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/article.cls
+out > Document Class: article 2014/09/29 v1.4h Standard LaTeX document class
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/size10.clo)) (./agda.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/generic/ifxetex/ifxetex.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/generic/oberdiek/ifluatex.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/xifthen/xifthen.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/tools/calc.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/ifthen.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ifmtarg/ifmtarg.sty))
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/xcolor/xcolor.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/graphics-def/pdftex.def
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/generic/oberdiek/infwarerr.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/generic/oberdiek/ltxcmds.sty)))
+out > (/home/asr/src/texlive/texmf-local/tex/latex/polytable/polytable.sty
+out > (/home/asr/src/texlive/texmf-local/tex/latex/polytable/lazylist.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/tools/array.sty))
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/etoolbox/etoolbox.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/ucs.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-global.def))
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/amsfonts/amsfonts.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/amsfonts/amssymb.sty)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/tipa/tipa.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/fontenc.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/tipa/t3enc.def)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/ot1enc.def)))
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/fontenc.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/t1enc.def))
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/inputenc.sty
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/utf8x.def)))
+out > (./Issue1062.aux)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/tipa/t3cmr.fd)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+out > [Loading MPS to PDF converter (version 2006.09.02).]
+out > ) (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/ucsencs.def
+out > fontencoding T3 patched
+out > ) (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/t1cmss.fd)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-33.def)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/amsfonts/umsa.fd)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/amsfonts/umsb.fd)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-34.def)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uninames.dat)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-34.def)
+out >
+out > ! Package ucs Error: Unknown Unicode character 8759 = U+2237,
+out > (ucs)                possibly declared in uni-34.def.
+out > (ucs)                Type H to see if it is available with options.
+out >
+out > See the ucs package documentation for explanation.
+out > Type  H <return>  for immediate help.
+out >  ...                                              
+out >                                                   
+out > l.163 \end{code}
+out >                 
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-0.def)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/base/t1cmtt.fd)
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-2.def)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uninames.dat)
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-2.def)
+out >
+out > ! Package ucs Error: Unknown Unicode character 738 = U+02E2,
+out > (ucs)                possibly declared in uni-2.def.
+out > (ucs)                Type H to see if it is available with options.
+out >
+out > See the ucs package documentation for explanation.
+out > Type  H <return>  for immediate help.
+out >  ...                                              
+out >                                                   
+out > l.163 \end{code}
+out >                 
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out > (/home/asr/src/texlive/2016/texmf-dist/tex/latex/ucs/data/uni-32.def)
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 163.
+out >
+out >
+out > Package ucs Warning: Unknown character 738 = 0x02E2 appeared again. on input li
+out > ne 163.
+out >
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][][][] 
+out >
+out > Overfull \hbox (62.58318pt too wide) in paragraph at lines 7--163
+out >  [][][][][][][][] 
+out > [1{/home/asr/src/texlive/2016/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
+out >
+out > Package ucs Warning: Unknown character 8759 = 0x2237 appeared again. on input l
+out > ine 164.
+out >
+out > [2] (./Issue1062.aux) )
+out > (see the transcript file for additional information){/home/asr/src/texlive/2016
+out > /texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</home/asr/src/texlive/201
+out > 6/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></home/asr/src/texlive/2
+out > 016/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></home/asr/src/texlive/
+out > 2016/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></home/asr/src/texliv
+out > e/2016/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb></home/asr/src/texli
+out > ve/2016/texmf-dist/fonts/type1/public/cm-super/sfss0700.pfb></home/asr/src/texl
+out > ive/2016/texmf-dist/fonts/type1/public/cm-super/sfss1000.pfb></home/asr/src/tex
+out > live/2016/texmf-dist/fonts/type1/public/cm-super/sfti1000.pfb></home/asr/src/te
+out > xlive/2016/texmf-dist/fonts/type1/public/cm-super/sftt1000.pfb>
+out > Output written on Issue1062.pdf (2 pages, 102191 bytes).
+out > Transcript written on Issue1062.log.
+out >

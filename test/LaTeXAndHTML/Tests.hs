@@ -71,6 +71,9 @@ mkLaTeXOrHTMLTest k agdaBin inp =
 
   testName    = asTestName testDir inp ++ "_" ++ show k
   goldenFile  = dropAgdaExtension inp <.> extension
+  -- For testing the LaTeX-backend on @Foo.lagda@ must exist a file
+  -- called @Foo.compile@. If this file is empty, @Foo.lagda@ is
+  -- tested using all the LaTeX compilers.
   compFile    = dropAgdaExtension inp <.> ".compile"
   outFileName = takeFileName goldenFile
 
@@ -100,7 +103,7 @@ mkLaTeXOrHTMLTest k agdaBin inp =
               let latexProgs =
                     fromMaybe allLaTeXProgs
                       (readMaybe $ T.unpack $ decodeUtf8 content)
-              -- run all latex compilers
+              -- run the selected LaTeX compilers
               rl <- doesEnvContain "DONT_RUN_LATEX"
               if rl
                 then done

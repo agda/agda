@@ -4,6 +4,7 @@
 
 \begin{document}
 
+\begin{code}
 record Sigma (A : Set) (B : A → Set) : Set where
   constructor _,_
   field
