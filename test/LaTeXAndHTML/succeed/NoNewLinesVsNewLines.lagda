@@ -1,3 +1,9 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
 \begin{code}
 module NoNewLinesVsNewLines where
 \end{code}
@@ -7,3 +13,5 @@ module NoNewLinesVsNewLines where
 module Test2 where
 
 \end{code}
+
+\end{document}

@@ -1,7 +1,5 @@
 \documentclass{article}
 \usepackage{agda}
-\setmainfont[Ligatures=TeX]{XITS}
-\setmathfont{XITS Math}
 
 \begin{document}
 
