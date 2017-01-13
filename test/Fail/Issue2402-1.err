@@ -1,0 +1,4 @@
+Issue2402-1.agda:11,1-10
+Incomplete pattern matching for test. Missing cases:
+  test false
+when checking the definition of test

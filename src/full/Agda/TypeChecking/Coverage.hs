@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP              #-}
+{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -176,11 +177,13 @@ isCovered f cs sc = do
   (_, _, missing) <- cover f cs sc
   return $ null missing
 
+type CoverResult = (SplitTree, Set Nat, [(Telescope, [NamedArg DeBruijnPattern])])
+
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
 cover :: QName -> [Clause] -> SplitClause ->
-         TCM (SplitTree, Set Nat, [[NamedArg DeBruijnPattern]])
+         TCM CoverResult
 cover f cs sc@(SClause tel ps _ _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -222,12 +225,12 @@ cover f cs sc@(SClause tel ps _ _ target) = do
           -- type error before getting to this point.
           inferMissingClause f sc
           return (SplittingDone (size tel), Set.empty, [])
-        _ -> return (SplittingDone (size tel), Set.empty, [ps])
+        _ -> return (SplittingDone (size tel), Set.empty, [(tel, ps)])
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
     Block res bs -> tryIf (getAny res) splitRes $ do
-      let done = return (SplittingDone (size tel), Set.empty, [ps])
+      let (done :: TCM CoverResult) = return (SplittingDone (size tel), Set.empty, [(tel, ps)])
       if null bs then done else do
       -- Otherwise, if there are variables to split, we try them
       -- in the order determined by a split strategy.
@@ -265,7 +268,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
             ]
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n trees'
-          return (tree, Set.unions useds, concat psss)
+          return ((tree, Set.unions useds, concat psss) :: CoverResult)
 
   where
     tryIf :: Monad m => Bool -> m (Maybe a) -> m a -> m a
@@ -273,7 +276,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     tryIf False me m = m
 
     -- Try to split result
-    splitRes :: TCM (Maybe (SplitTree, Set Nat, [[NamedArg DeBruijnPattern]]))
+    splitRes :: TCM (Maybe CoverResult)
     splitRes = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- forM is a monadic map over a Maybe here
