@@ -1,0 +1,5 @@
+Issue2402-2.agda:10,1-15
+Incomplete pattern matching for .Issue2402-2.with-56. Missing
+cases:
+  test2 false | w
+when checking the definition of with-56

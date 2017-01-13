@@ -1097,15 +1097,8 @@ instance PrettyTCM TypeError where
       pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
       pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
         where
-          display ps = do
-            ps <- nicify f ps
-            prettyTCM f <+> fsep (map (prettyArg . fmap namedThing) ps)
-
-          nicify f ps = do
-            showImp <- showImplicitArguments
-            if showImp
-              then return ps
-              else return ps  -- TODO: remove implicit arguments which aren't constructors
+        display (tel, ps) = prettyTCM $ NamedClause f True $
+          I.Clause noRange tel ps Nothing Nothing False
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
