@@ -442,18 +442,23 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- Now check if type of field mentions mutually recursive symbol.
                 -- Get the type of the field by dropping record parameters and record argument.
                 let TelV tel core = telView' (defType pdef)
-                    tel' = drop n $ telToList tel
+                    (pars, tel') = splitAt n $ telToList tel
+                    mut = r : recMutual rdef
                 -- Check if any recursive symbols appear in the record type.
                 -- Q (2014-07-01): Should we normalize the type?
-                reportSDoc "term.guardedness" 40 $ sep
-                  [ text "looking for recursive occurrences in"
-                  , prettyTCM (telFromList tel')
+                -- A (2017-01-13): Yes, since we also normalize during positivity check?
+                -- See issue #1899.
+                reportSDoc "term.guardedness" 40 $ inTopContext $ sep
+                  [ text "looking for recursive occurrences of"
+                  , sep (map prettyTCM mut)
+                  , text "in"
+                  , addContext pars $ prettyTCM (telFromList tel')
                   , text "and"
-                  , prettyTCM core
+                  , addContext tel $ prettyTCM core
                   ]
-                names <- anyDefs (r : recMutual rdef) (map (snd . unDom) tel', core)
+                names <- anyDefs mut =<< normalise (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
-                  text "found" <+> sep (map prettyTCM names)
+                  text "found" <+> if null names then text "none" else sep (map prettyTCM names)
                 return $ not $ null names
       _ -> do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
