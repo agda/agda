@@ -207,7 +207,7 @@ instance Instantiate EqualityView where
   instantiate' (EqualityType s eq l t a b) = EqualityType
     <$> instantiate' s
     <*> return eq
-    <*> instantiate' l
+    <*> mapM instantiate' l
     <*> instantiate' t
     <*> instantiate' a
     <*> instantiate' b
@@ -649,7 +649,7 @@ instance Reduce EqualityView where
   reduce' (EqualityType s eq l t a b) = EqualityType
     <$> reduce' s
     <*> return eq
-    <*> reduce' l
+    <*> mapM reduce' l
     <*> reduce' t
     <*> reduce' a
     <*> reduce' b
@@ -809,7 +809,7 @@ instance Simplify EqualityView where
   simplify' (EqualityType s eq l t a b) = EqualityType
     <$> simplify' s
     <*> return eq
-    <*> simplify' l
+    <*> mapM simplify' l
     <*> simplify' t
     <*> simplify' a
     <*> simplify' b
@@ -965,7 +965,7 @@ instance Normalise EqualityView where
   normalise' (EqualityType s eq l t a b) = EqualityType
     <$> normalise' s
     <*> return eq
-    <*> normalise' l
+    <*> mapM normalise' l
     <*> normalise' t
     <*> normalise' a
     <*> normalise' b
@@ -1270,7 +1270,7 @@ instance InstantiateFull EqualityView where
   instantiateFull' (EqualityType s eq l t a b) = EqualityType
     <$> instantiateFull' s
     <*> return eq
-    <*> instantiateFull' l
+    <*> mapM instantiateFull' l
     <*> instantiateFull' t
     <*> instantiateFull' a
     <*> instantiateFull' b

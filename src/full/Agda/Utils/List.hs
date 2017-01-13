@@ -44,6 +44,14 @@ lastMaybe :: [a] -> Maybe a
 lastMaybe [] = Nothing
 lastMaybe xs = Just $ last xs
 
+-- | Last two elements (safe).
+last2 :: [a] -> Maybe (a, a)
+last2 (x : y : xs) = Just $ loop x y xs
+  where
+  loop x y []     = (x, y)
+  loop x y (z:xs) = loop y z xs
+last2 _ = Nothing
+
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing

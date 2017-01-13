@@ -36,15 +36,19 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 
+import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
+import Agda.Utils.Size
 import Agda.Utils.String ( Str(Str), unStr )
-import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -358,47 +362,69 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _       -> Nothing
 
--- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
+-- | @trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y@
 primTrustMe :: TCM PrimitiveImpl
 primTrustMe = do
-  clo <- commandLineOptions
-  when (optSafe clo) (typeError SafeFlagPrimTrustMe)
-  t    <- hPi "a" (el primLevel) $
-          hPi "A" (return $ sort $ varSort 0) $
-          hPi "x" (El (varSort 1) <$> varM 0) $
-          hPi "y" (El (varSort 2) <$> varM 1) $
-          El (varSort 3) <$>
-            primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
-  Con rf ci [] <- ignoreSharing <$> primRefl
-  n         <- conPars . theDef <$> getConInfo rf
-  -- Andreas, 2015-02-27  Forced Big vs. Forced Small should not matter here
-  let refl x | n == 2    = Con rf ci [setRelevance (Forced Small) $ hide $ defaultArg x]
-             | n == 3    = Con rf ci []
-             | otherwise = __IMPOSSIBLE__
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
-      case ts of
-        [a, t, u, v] -> do
-            -- Andreas, 2013-07-22.
-            -- Note that we cannot call the conversion checker here,
-            -- because 'reduce' might be called in a context where
-            -- some bound variables do not have a type (just 'Prop),
-            -- and the conversion checker for eliminations does not
-            -- like this.
-            -- We can only do untyped equality, e.g., by normalisation.
-            (u', v') <- normalise' (u, v)
-            if u' == v' then redReturn (refl $ unArg u) else
-              return (NoReduction $ map notReduced [a, t, u, v])
-{- OLD:
+  -- primTrustMe is not --safe
+  whenM (optSafe <$> commandLineOptions) $ typeError SafeFlagPrimTrustMe
 
-              -- BAD:
-              noConstraints $
-                equalTerm (El (Type $ lvlView $ unArg a) (unArg t)) (unArg u) (unArg v)
-              redReturn (refl $ unArg u)
-            `catchError` \_ -> return (NoReduction $ map notReduced [a, t, u, v])
--}
-        _ -> __IMPOSSIBLE__
+  -- Get the name and type of BUILTIN EQUALITY
+  eq   <- primEqualityName
+  eqTy <- defType <$> getConstInfo eq
+  -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
+  TelV eqTel eqCore <- telView eqTy
+  let eqSort = case ignoreSharing $ unEl eqCore of
+        Sort s -> s
+        _      -> __IMPOSSIBLE__
 
--- Used for both primForce and primForceLemma.
+  -- Construct the type of primTrustMe.
+  -- E.g., type of @trustMe : {a : Level} {A : Set a} {x y : A} → eq {a} {A} x y@.
+  let t = telePi_ (fmap hide eqTel) $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel
+
+  -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
+  -- Get the ArgInfo of the principal argument of refl.
+  con@(Con rf ci []) <- ignoreSharing <$> primRefl
+  minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
+  let (refl :: Arg Term -> Term) = case minfo of
+        Just ai -> Con rf ci . (:[]) . setArgInfo ai
+        Nothing -> const con
+
+  -- The implementation of primTrustMe:
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (size eqTel) $ \ ts -> do
+    let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 ts
+    -- Andreas, 2013-07-22.
+    -- Note that we cannot call the conversion checker here,
+    -- because 'reduce' might be called in a context where
+    -- some bound variables do not have a type (just 'Prop),
+    -- and the conversion checker for eliminations does not
+    -- like this.
+    -- We can only do untyped equality, e.g., by normalisation.
+    (u', v') <- normalise' (u, v)
+    if u' == v' then redReturn $ refl u else
+      return $ NoReduction $ map notReduced ts
+
+-- | Get the 'ArgInfo' of the principal argument of BUILTIN REFL.
+--
+--   Returns @Nothing@ for e.g.
+--   @
+--     data Eq {a} {A : Set a} (x : A) : A → Set a where
+--       refl : Eq x x
+--   @
+--
+--   Returns @Just ...@ for e.g.
+--   @
+--     data Eq {a} {A : Set a} : (x y : A) → Set a where
+--       refl : ∀ x → Eq x x
+--   @
+
+getReflArgInfo :: ConHead -> TCM (Maybe ArgInfo)
+getReflArgInfo rf = do
+  def <- getConInfo rf
+  TelV reflTel _ <- telView $ defType def
+  return $ fmap getArgInfo $ headMaybe $ drop (conPars $ theDef def) $ telToList reflTel
+
+
+-- | Used for both @primForce@ and @primForceLemma@.
 genPrimForce :: TCM Type -> (Term -> Arg Term -> Term) -> TCM PrimitiveImpl
 genPrimForce b ret = do
   let varEl s a = El (varSort s) <$> a

@@ -27,6 +27,36 @@ Language
 * BUILTIN REFL is now superfluous, subsumed by BUILTIN EQUALITY
   [Issue [#2389](https://github.com/agda/agda/issues/2389)].
 
+* BUILTIN EQUALITY is now more liberal
+  [Issue [#2386](https://github.com/agda/agda/issues/2386)].
+  It accepts, among others, the following new definitions of equality:
+  ```agda
+    -- Non-universe polymorphic:
+    data _≡_ {A : Set} (x : A) : A → Set where
+      refl : x ≡ x
+
+    -- ... with explicit argument to refl;
+    data _≡_ {A : Set} : (x y : A) → Set where
+      refl : {x : A} → x ≡ x
+
+    -- ... even visible
+    data _≡_ {A : Set} : (x y : A) → Set where
+      refl : (x : A) → x ≡ x
+
+    -- Equality in a different universe than domain:
+    -- (also with explicit argument to refl)
+    data _≡_ {a} {A : Set a} (x : A) : A → Set where
+      refl : x ≡ x
+
+  ```
+  The standard definition is still:
+  ```agda
+    -- Equality in same universe as domain:
+    data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+      refl : x ≡ x
+  ```
+
+
 * With-clause patterns can be replaced by _
   [Issue [#2363](https://github.com/agda/agda/issues/2363)].
   Example:

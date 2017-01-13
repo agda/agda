@@ -611,7 +611,7 @@ data EqualityView
   = EqualityType
     { eqtSort  :: Sort     -- ^ Sort of this type.
     , eqtName  :: QName    -- ^ Builtin EQUALITY.
-    , eqtLevel :: Arg Term -- ^ Hidden
+    , eqtParams :: [Arg Term] -- ^ Hidden.  Empty or @Level@.
     , eqtType  :: Arg Term -- ^ Hidden
     , eqtLhs   :: Arg Term -- ^ NotHidden
     , eqtRhs   :: Arg Term -- ^ NotHidden
@@ -756,6 +756,11 @@ levelSuc (Max as) = Max $ map inc as
 
 mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
+
+isSort :: Term -> Maybe Sort
+isSort v = case ignoreSharing v of
+  Sort s -> Just s
+  _      -> Nothing
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines

@@ -55,9 +55,10 @@ piAbstractTerm v a b = do
 
 piAbstract :: (Term, EqualityView) -> Type -> TCM Type
 piAbstract (v, OtherType a) b = piAbstractTerm v a b
-piAbstract (prf, eqt@(EqualityType s _ _ a v _)) b = do
+piAbstract (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _)) b = do
+  s <- inferSort a
   let prfTy = equalityUnview eqt
-      vTy   = El s (unArg a)
+      vTy   = El s a
   b <- abstractType prfTy prf b
   b <- addContext ("w", defaultDom prfTy) $ abstractType (raise 1 vTy) (unArg $ raise 1 v) b
   return . funType vTy . funType eqTy' . swap01 $ b

@@ -13,6 +13,11 @@ import InternalTests.Helpers
 
 ------------------------------------------------------------------------------
 
+prop_last2 a b as = last2 (a:b:as) == toPair (drop (length as) $ a:b:as)
+  where
+  toPair [x,y] = Just (x,y)
+  toPair _     = Nothing
+
 -- Trivial:
 -- prop_initLast_nil       = initLast [] == Nothing
 

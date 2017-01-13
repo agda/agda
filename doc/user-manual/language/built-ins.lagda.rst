@@ -417,6 +417,15 @@ The identity type can be bound to the built-in ``EQUALITY`` as follows::
 This lets you use proofs of type ``lhs ≡ rhs`` in the :ref:`rewrite
 construction <with-rewrite>`.
 
+Other variants of the identity type are also accepted as built-in:
+
+.. code-block:: agda
+
+  data _≡_ {A : Set} : (x y : A) → Set where
+    refl : (x : A) → x ≡ x
+
+The type of ``primTrustMe`` has to match the flavor of identity type.
+
 primTrustMe
 ~~~~~~~~~~~
 

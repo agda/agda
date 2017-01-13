@@ -190,7 +190,7 @@ countWithArgs = sum . map countArgs
 withArguments :: [Term] -> [EqualityView] -> [Term]
 withArguments vs as = concat $ for (zip vs as) $ \case
   (v, OtherType a) -> [v]
-  (prf, eqt@(EqualityType s _eq _l t v _v')) -> [unArg v, prf]
+  (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
 
 
 -- | Compute the clauses for the with-function given the original patterns.
