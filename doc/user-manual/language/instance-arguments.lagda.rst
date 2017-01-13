@@ -31,10 +31,12 @@ instances <declaring instances_>`_ and the current context.
 Usage
 -----
 
-Instance arguments are enclosed in double curly braces ``{{ }}``, or their
-unicode equivalent ``⦃ ⦄`` (``U+2983`` and ``U+2984``, which can be typed as
-``\{{`` and ``\}}`` in the :ref:`Emacs mode <unicode-input>`). For instance,
-given a function ``_==_``
+Instance arguments are enclosed in double curly braces ``{{ }}``, e.g. ``{{x : T}}``.
+Alternatively they can be enclosed, with proper spacing, e.g. ``⦃ x : T ⦄``, in the
+unicode braces ``⦃ ⦄`` (``U+2983`` and ``U+2984``, which can be typed as
+``\{{`` and ``\}}`` in the :ref:`Emacs mode <unicode-input>`).
+
+For instance, given a function ``_==_``
 
 ..
   ::
