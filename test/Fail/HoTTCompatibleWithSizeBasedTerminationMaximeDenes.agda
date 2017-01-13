@@ -36,8 +36,8 @@ postulate iso : ∀ i → (Empty → Box i) ≡ Box (↑ i)
 -- Since Agda's termination checker uses the structural order
 -- in addition to sized types, we need to conceal the subterm.
 
-conceal : {A : Set} → A → A
-conceal x = x
+postulate
+  conceal : {A : Set} → A → A
 
 mutual
   loop : ∀ i → Box i → Empty

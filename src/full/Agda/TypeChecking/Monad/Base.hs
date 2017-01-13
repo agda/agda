@@ -1663,7 +1663,8 @@ data AllowedReduction
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
   | FunctionReductions       -- ^ Functions which are not projections may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
-  | NonTerminatingReductions -- ^ Functions that have not passed termination checking.
+  | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
+  | NonTerminatingReductions -- ^ Functions that have failed termination checking.
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 type AllowedReductions = [AllowedReduction]
@@ -1714,6 +1715,12 @@ defDelayed _                                       = NotDelayed
 defNonterminating :: Definition -> Bool
 defNonterminating Defn{theDef = Function{funTerminates = Just False}} = True
 defNonterminating _                                                   = False
+
+-- | Has the definition not termination checked or did the check fail?
+defTerminationUnconfirmed :: Definition -> Bool
+defTerminationUnconfirmed Defn{theDef = Function{funTerminates = Just True}} = False
+defTerminationUnconfirmed Defn{theDef = Function{funTerminates = _        }} = True
+defTerminationUnconfirmed _ = False
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
