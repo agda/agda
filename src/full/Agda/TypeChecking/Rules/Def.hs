@@ -418,7 +418,8 @@ checkSystemCoverage f [n] t cs = do
       pbot <- primPBot
       p0 <- primP0
       p1 <- primP1
-      pUnview <- propUnview'
+      propU <- propUnview'
+      pU    <- pUnview'
       let
         btobool (ConP q _ []) | Just (conName q) == bz = Just False
         btobool (ConP q _ []) | Just (conName q) == bo = Just True
@@ -436,10 +437,10 @@ checkSystemCoverage f [n] t cs = do
         collectDirs _ _ = __IMPOSSIBLE__
 
         buildProp i RTop = var i
-        buildProp i RZero = pUnview (PEq (argN $ var i) (argN p0))
-        buildProp i ROne = pUnview (PEq (argN $ var i) (argN p1))
-        buildProp i RBridge = pUnview (PBridge (argN $ var i))
-
+        buildProp i RZero = propU (PEq (argN $ var i) (argN p0))
+        buildProp i ROne = propU (PEq (argN $ var i) (argN p1))
+        buildProp i RBridge = propU (PBridge (argN $ var i))
+        buildProp i (RB b)  = propU $ PEq (argN $ pU $ Iota $ argN $ var i) (argN $ if b then p1 else p0)
         dir = uncurry buildProp
 
         -- andI and orI have cases for singletons to improve error messages.

@@ -1482,6 +1482,9 @@ forallFaceMaps t kb k = do
           ROne -> do
             t <- primP1
             recurse t c xs
+          RB b -> do
+            t <- if b then primB1 else primB0
+            recurse t c xs
           RBridge -> do
             iota <- primIota
             ty <- el primB
@@ -1559,7 +1562,8 @@ compareTermOnFace' k cmp phi ty u v = do
   return ()
  where
   postponed ms i psi = do
-    pUnview <- propUnview'
+    propU <- propUnview'
+    pU    <- pUnview'
     ty' <- runNamesT [] $ do
              imin <- cl $ primPMin
              ty <- open ty
@@ -1567,12 +1571,15 @@ compareTermOnFace' k cmp phi ty u v = do
              let buildProp i RTop = i
                  buildProp i RZero = do
                    z <- cl primP0
-                   (\ v -> pUnview (PEq (argN v) (argN z))) <$> i
+                   (\ v -> propU (PEq (argN v) (argN z))) <$> i
                  buildProp i ROne = do
                    z <- cl primP1
-                   (\ v -> pUnview (PEq (argN v) (argN z))) <$> i
+                   (\ v -> propU (PEq (argN v) (argN z))) <$> i
                  buildProp i RBridge = do
-                   (\ v -> pUnview (PBridge (argN v))) <$> i
+                   (\ v -> propU (PBridge (argN v))) <$> i
+                 buildProp i (RB b) = do
+                   z <- if b then cl primP1 else cl primP0
+                   (\ v -> propU (PEq (argN $ pU $ Iota $ argN v) (argN z))) <$> i
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (buildProp i b) <@> r)
                           psi (Map.toList ms) -- TODO Andrea: make a view?
              pPi' "o" phi $ const ty
