@@ -10,1296 +10,1297 @@
   ><body
   ><pre
     ><a name="1" class="Comment"
-      >\documentclass{article}
+      >\nonstopmode
+\documentclass{article}
 
 \usepackage{agda}
 
 \begin{document}
 </a
-      ><a name="62"
+      ><a name="75"
       >\begin{code}
 
 </a
-      ><a name="76" class="Symbol"
+      ><a name="89" class="Symbol"
       >{-#</a
-      ><a name="79"
+      ><a name="92"
       > </a
-      ><a name="80" class="Keyword"
+      ><a name="93" class="Keyword"
       >OPTIONS</a
-      ><a name="87"
+      ><a name="100"
       > --copatterns --sized-types </a
-      ><a name="115" class="Symbol"
+      ><a name="128" class="Symbol"
       >#-}</a
-      ><a name="118"
-      >
-
-</a
-      ><a name="120" class="Symbol"
-      >{-#</a
-      ><a name="123"
-      > </a
-      ><a name="124" class="Keyword"
-      >BUILTIN</a
       ><a name="131"
-      > SIZE    </a
-      ><a name="140" href="Issue1062.html#140" class="Postulate"
-      >Size</a
-      ><a name="144"
-      >   </a
-      ><a name="147" class="Symbol"
-      >#-}</a
-      ><a name="150"
-      >
-</a
-      ><a name="151" class="Symbol"
-      >{-#</a
-      ><a name="154"
-      > </a
-      ><a name="155" class="Keyword"
-      >BUILTIN</a
-      ><a name="162"
-      > SIZELT  </a
-      ><a name="171" href="Issue1062.html#171" class="Postulate Operator"
-      >Size&lt;_</a
-      ><a name="177"
-      > </a
-      ><a name="178" class="Symbol"
-      >#-}</a
-      ><a name="181"
-      >
-</a
-      ><a name="182" class="Symbol"
-      >{-#</a
-      ><a name="185"
-      > </a
-      ><a name="186" class="Keyword"
-      >BUILTIN</a
-      ><a name="193"
-      > SIZESUC </a
-      ><a name="202" href="Issue1062.html#202" class="Postulate Operator"
-      >&#8593;_</a
-      ><a name="204"
-      >     </a
-      ><a name="209" class="Symbol"
-      >#-}</a
-      ><a name="212"
-      >
-</a
-      ><a name="213" class="Symbol"
-      >{-#</a
-      ><a name="216"
-      > </a
-      ><a name="217" class="Keyword"
-      >BUILTIN</a
-      ><a name="224"
-      > SIZEINF </a
-      ><a name="233" href="Issue1062.html#233" class="Postulate"
-      >&#8734;</a
-      ><a name="234"
-      >      </a
-      ><a name="240" class="Symbol"
-      >#-}</a
-      ><a name="243"
       >
 
 </a
-      ><a name="245" class="Keyword"
+      ><a name="133" class="Symbol"
+      >{-#</a
+      ><a name="136"
+      > </a
+      ><a name="137" class="Keyword"
+      >BUILTIN</a
+      ><a name="144"
+      > SIZE    </a
+      ><a name="153" href="Issue1062.html#153" class="Postulate"
+      >Size</a
+      ><a name="157"
+      >   </a
+      ><a name="160" class="Symbol"
+      >#-}</a
+      ><a name="163"
+      >
+</a
+      ><a name="164" class="Symbol"
+      >{-#</a
+      ><a name="167"
+      > </a
+      ><a name="168" class="Keyword"
+      >BUILTIN</a
+      ><a name="175"
+      > SIZELT  </a
+      ><a name="184" href="Issue1062.html#184" class="Postulate Operator"
+      >Size&lt;_</a
+      ><a name="190"
+      > </a
+      ><a name="191" class="Symbol"
+      >#-}</a
+      ><a name="194"
+      >
+</a
+      ><a name="195" class="Symbol"
+      >{-#</a
+      ><a name="198"
+      > </a
+      ><a name="199" class="Keyword"
+      >BUILTIN</a
+      ><a name="206"
+      > SIZESUC </a
+      ><a name="215" href="Issue1062.html#215" class="Postulate Operator"
+      >&#8593;_</a
+      ><a name="217"
+      >     </a
+      ><a name="222" class="Symbol"
+      >#-}</a
+      ><a name="225"
+      >
+</a
+      ><a name="226" class="Symbol"
+      >{-#</a
+      ><a name="229"
+      > </a
+      ><a name="230" class="Keyword"
+      >BUILTIN</a
+      ><a name="237"
+      > SIZEINF </a
+      ><a name="246" href="Issue1062.html#246" class="Postulate"
+      >&#8734;</a
+      ><a name="247"
+      >      </a
+      ><a name="253" class="Symbol"
+      >#-}</a
+      ><a name="256"
+      >
+
+</a
+      ><a name="258" class="Keyword"
       >data</a
-      ><a name="249"
+      ><a name="262"
       > </a
-      ><a name="250" href="Issue1062.html#250" class="Datatype"
+      ><a name="263" href="Issue1062.html#263" class="Datatype"
       >List</a
-      ><a name="254"
+      ><a name="267"
       > </a
-      ><a name="255" class="Symbol"
+      ><a name="268" class="Symbol"
       >(</a
-      ><a name="256" href="Issue1062.html#256" class="Bound"
+      ><a name="269" href="Issue1062.html#269" class="Bound"
       >A</a
-      ><a name="257"
-      > </a
-      ><a name="258" class="Symbol"
-      >:</a
-      ><a name="259"
-      > </a
-      ><a name="260" class="PrimitiveType"
-      >Set</a
-      ><a name="263" class="Symbol"
-      >)</a
-      ><a name="264"
-      > </a
-      ><a name="265" class="Symbol"
-      >:</a
-      ><a name="266"
-      > </a
-      ><a name="267" class="PrimitiveType"
-      >Set</a
       ><a name="270"
       > </a
-      ><a name="271" class="Keyword"
-      >where</a
-      ><a name="276"
-      >
-  </a
-      ><a name="279" href="Issue1062.html#279" class="InductiveConstructor"
-      >[]</a
-      ><a name="281"
-      > </a
-      ><a name="282" class="Symbol"
+      ><a name="271" class="Symbol"
       >:</a
+      ><a name="272"
+      > </a
+      ><a name="273" class="PrimitiveType"
+      >Set</a
+      ><a name="276" class="Symbol"
+      >)</a
+      ><a name="277"
+      > </a
+      ><a name="278" class="Symbol"
+      >:</a
+      ><a name="279"
+      > </a
+      ><a name="280" class="PrimitiveType"
+      >Set</a
       ><a name="283"
       > </a
-      ><a name="284" href="Issue1062.html#250" class="Datatype"
-      >List</a
-      ><a name="288"
-      > </a
-      ><a name="289" href="Issue1062.html#256" class="Bound"
-      >A</a
-      ><a name="290"
+      ><a name="284" class="Keyword"
+      >where</a
+      ><a name="289"
       >
   </a
-      ><a name="293" href="Issue1062.html#293" class="InductiveConstructor Operator"
-      >_&#8759;_</a
+      ><a name="292" href="Issue1062.html#292" class="InductiveConstructor"
+      >[]</a
+      ><a name="294"
+      > </a
+      ><a name="295" class="Symbol"
+      >:</a
       ><a name="296"
       > </a
-      ><a name="297" class="Symbol"
-      >:</a
-      ><a name="298"
-      > </a
-      ><a name="299" class="Symbol"
-      >(</a
-      ><a name="300" href="Issue1062.html#300" class="Bound"
-      >x</a
+      ><a name="297" href="Issue1062.html#263" class="Datatype"
+      >List</a
       ><a name="301"
       > </a
-      ><a name="302" class="Symbol"
-      >:</a
+      ><a name="302" href="Issue1062.html#269" class="Bound"
+      >A</a
       ><a name="303"
+      >
+  </a
+      ><a name="306" href="Issue1062.html#306" class="InductiveConstructor Operator"
+      >_&#8759;_</a
+      ><a name="309"
       > </a
-      ><a name="304" href="Issue1062.html#256" class="Bound"
-      >A</a
-      ><a name="305" class="Symbol"
-      >)</a
-      ><a name="306"
-      > </a
-      ><a name="307" class="Symbol"
-      >(</a
-      ><a name="308" href="Issue1062.html#308" class="Bound"
-      >xs</a
-      ><a name="310"
-      > </a
-      ><a name="311" class="Symbol"
+      ><a name="310" class="Symbol"
       >:</a
-      ><a name="312"
+      ><a name="311"
       > </a
-      ><a name="313" href="Issue1062.html#250" class="Datatype"
-      >List</a
-      ><a name="317"
+      ><a name="312" class="Symbol"
+      >(</a
+      ><a name="313" href="Issue1062.html#313" class="Bound"
+      >x</a
+      ><a name="314"
       > </a
-      ><a name="318" href="Issue1062.html#256" class="Bound"
+      ><a name="315" class="Symbol"
+      >:</a
+      ><a name="316"
+      > </a
+      ><a name="317" href="Issue1062.html#269" class="Bound"
       >A</a
-      ><a name="319" class="Symbol"
+      ><a name="318" class="Symbol"
       >)</a
-      ><a name="320"
+      ><a name="319"
       > </a
-      ><a name="321" class="Symbol"
-      >-&gt;</a
+      ><a name="320" class="Symbol"
+      >(</a
+      ><a name="321" href="Issue1062.html#321" class="Bound"
+      >xs</a
       ><a name="323"
       > </a
-      ><a name="324" href="Issue1062.html#250" class="Datatype"
-      >List</a
-      ><a name="328"
+      ><a name="324" class="Symbol"
+      >:</a
+      ><a name="325"
       > </a
-      ><a name="329" href="Issue1062.html#256" class="Bound"
-      >A</a
+      ><a name="326" href="Issue1062.html#263" class="Datatype"
+      >List</a
       ><a name="330"
+      > </a
+      ><a name="331" href="Issue1062.html#269" class="Bound"
+      >A</a
+      ><a name="332" class="Symbol"
+      >)</a
+      ><a name="333"
+      > </a
+      ><a name="334" class="Symbol"
+      >-&gt;</a
+      ><a name="336"
+      > </a
+      ><a name="337" href="Issue1062.html#263" class="Datatype"
+      >List</a
+      ><a name="341"
+      > </a
+      ><a name="342" href="Issue1062.html#269" class="Bound"
+      >A</a
+      ><a name="343"
       >
 
 </a
-      ><a name="332" class="Keyword"
+      ><a name="345" class="Keyword"
       >record</a
-      ><a name="338"
+      ><a name="351"
       > </a
-      ><a name="339" href="Issue1062.html#339" class="Record Operator"
+      ><a name="352" href="Issue1062.html#352" class="Record Operator"
       >_&#215;_</a
-      ><a name="342"
+      ><a name="355"
       > </a
-      ><a name="343" class="Symbol"
+      ><a name="356" class="Symbol"
       >(</a
-      ><a name="344" href="Issue1062.html#344" class="Bound"
+      ><a name="357" href="Issue1062.html#357" class="Bound"
       >A</a
-      ><a name="345"
+      ><a name="358"
       > </a
-      ><a name="346" href="Issue1062.html#346" class="Bound"
+      ><a name="359" href="Issue1062.html#359" class="Bound"
       >B</a
-      ><a name="347"
-      > </a
-      ><a name="348" class="Symbol"
-      >:</a
-      ><a name="349"
-      > </a
-      ><a name="350" class="PrimitiveType"
-      >Set</a
-      ><a name="353" class="Symbol"
-      >)</a
-      ><a name="354"
-      > </a
-      ><a name="355" class="Symbol"
-      >:</a
-      ><a name="356"
-      > </a
-      ><a name="357" class="PrimitiveType"
-      >Set</a
       ><a name="360"
       > </a
-      ><a name="361" class="Keyword"
+      ><a name="361" class="Symbol"
+      >:</a
+      ><a name="362"
+      > </a
+      ><a name="363" class="PrimitiveType"
+      >Set</a
+      ><a name="366" class="Symbol"
+      >)</a
+      ><a name="367"
+      > </a
+      ><a name="368" class="Symbol"
+      >:</a
+      ><a name="369"
+      > </a
+      ><a name="370" class="PrimitiveType"
+      >Set</a
+      ><a name="373"
+      > </a
+      ><a name="374" class="Keyword"
       >where</a
-      ><a name="366"
+      ><a name="379"
       >
   </a
-      ><a name="369" class="Keyword"
+      ><a name="382" class="Keyword"
       >constructor</a
-      ><a name="380"
+      ><a name="393"
       > </a
-      ><a name="381" href="Issue1062.html#381" class="InductiveConstructor Operator"
+      ><a name="394" href="Issue1062.html#394" class="InductiveConstructor Operator"
       >_,_</a
-      ><a name="384"
+      ><a name="397"
       >
   </a
-      ><a name="387" class="Keyword"
+      ><a name="400" class="Keyword"
       >field</a
-      ><a name="392"
+      ><a name="405"
       >
     </a
-      ><a name="397" href="Issue1062.html#397" class="Field"
+      ><a name="410" href="Issue1062.html#410" class="Field"
       >fst</a
-      ><a name="400"
+      ><a name="413"
       > </a
-      ><a name="401" class="Symbol"
+      ><a name="414" class="Symbol"
       >:</a
-      ><a name="402"
+      ><a name="415"
       > </a
-      ><a name="403" href="Issue1062.html#344" class="Bound"
+      ><a name="416" href="Issue1062.html#357" class="Bound"
       >A</a
-      ><a name="404"
+      ><a name="417"
       >
     </a
-      ><a name="409" href="Issue1062.html#409" class="Field"
+      ><a name="422" href="Issue1062.html#422" class="Field"
       >snd</a
-      ><a name="412"
-      > </a
-      ><a name="413" class="Symbol"
-      >:</a
-      ><a name="414"
-      > </a
-      ><a name="415" href="Issue1062.html#346" class="Bound"
-      >B</a
-      ><a name="416"
-      >
-</a
-      ><a name="417" class="Keyword"
-      >open</a
-      ><a name="421"
-      > </a
-      ><a name="422" href="Issue1062.html#339" class="Module Operator"
-      >_&#215;_</a
       ><a name="425"
+      > </a
+      ><a name="426" class="Symbol"
+      >:</a
+      ><a name="427"
+      > </a
+      ><a name="428" href="Issue1062.html#359" class="Bound"
+      >B</a
+      ><a name="429"
+      >
+</a
+      ><a name="430" class="Keyword"
+      >open</a
+      ><a name="434"
+      > </a
+      ><a name="435" href="Issue1062.html#352" class="Module Operator"
+      >_&#215;_</a
+      ><a name="438"
       >
 
 </a
-      ><a name="427" class="Comment"
+      ><a name="440" class="Comment"
       >-- Sized streams via head/tail.</a
-      ><a name="458"
+      ><a name="471"
       >
 
 </a
-      ><a name="460" class="Keyword"
+      ><a name="473" class="Keyword"
       >record</a
-      ><a name="466"
+      ><a name="479"
       > </a
-      ><a name="467" href="Issue1062.html#467" class="Record"
+      ><a name="480" href="Issue1062.html#480" class="Record"
       >Stream</a
-      ><a name="473"
+      ><a name="486"
       > </a
-      ><a name="474" class="Symbol"
+      ><a name="487" class="Symbol"
       >{</a
-      ><a name="475" href="Issue1062.html#475" class="Bound"
+      ><a name="488" href="Issue1062.html#488" class="Bound"
       >i</a
-      ><a name="476"
-      > </a
-      ><a name="477" class="Symbol"
-      >:</a
-      ><a name="478"
-      > </a
-      ><a name="479" href="Issue1062.html#140" class="Postulate"
-      >Size</a
-      ><a name="483" class="Symbol"
-      >}</a
-      ><a name="484"
-      > </a
-      ><a name="485" class="Symbol"
-      >(</a
-      ><a name="486" href="Issue1062.html#486" class="Bound"
-      >A</a
-      ><a name="487"
-      > </a
-      ><a name="488" class="Symbol"
-      >:</a
       ><a name="489"
       > </a
-      ><a name="490" class="PrimitiveType"
-      >Set</a
-      ><a name="493" class="Symbol"
-      >)</a
-      ><a name="494"
-      > </a
-      ><a name="495" class="Symbol"
+      ><a name="490" class="Symbol"
       >:</a
-      ><a name="496"
+      ><a name="491"
       > </a
-      ><a name="497" class="PrimitiveType"
-      >Set</a
+      ><a name="492" href="Issue1062.html#153" class="Postulate"
+      >Size</a
+      ><a name="496" class="Symbol"
+      >}</a
+      ><a name="497"
+      > </a
+      ><a name="498" class="Symbol"
+      >(</a
+      ><a name="499" href="Issue1062.html#499" class="Bound"
+      >A</a
       ><a name="500"
       > </a
-      ><a name="501" class="Keyword"
+      ><a name="501" class="Symbol"
+      >:</a
+      ><a name="502"
+      > </a
+      ><a name="503" class="PrimitiveType"
+      >Set</a
+      ><a name="506" class="Symbol"
+      >)</a
+      ><a name="507"
+      > </a
+      ><a name="508" class="Symbol"
+      >:</a
+      ><a name="509"
+      > </a
+      ><a name="510" class="PrimitiveType"
+      >Set</a
+      ><a name="513"
+      > </a
+      ><a name="514" class="Keyword"
       >where</a
-      ><a name="506"
+      ><a name="519"
       >
   </a
-      ><a name="509" class="Keyword"
-      >coinductive</a
-      ><a name="520" class="Symbol"
-      >;</a
-      ><a name="521"
-      > </a
       ><a name="522" class="Keyword"
-      >constructor</a
-      ><a name="533"
+      >coinductive</a
+      ><a name="533" class="Symbol"
+      >;</a
+      ><a name="534"
       > </a
-      ><a name="534" href="Issue1062.html#534" class="CoinductiveConstructor Operator"
+      ><a name="535" class="Keyword"
+      >constructor</a
+      ><a name="546"
+      > </a
+      ><a name="547" href="Issue1062.html#547" class="CoinductiveConstructor Operator"
       >_&#8759;_</a
-      ><a name="537"
+      ><a name="550"
       >
   </a
-      ><a name="540" class="Keyword"
+      ><a name="553" class="Keyword"
       >field</a
-      ><a name="545"
+      ><a name="558"
       >
     </a
-      ><a name="550" href="Issue1062.html#550" class="Field"
+      ><a name="563" href="Issue1062.html#563" class="Field"
       >head</a
-      ><a name="554"
+      ><a name="567"
       >  </a
-      ><a name="556" class="Symbol"
+      ><a name="569" class="Symbol"
       >:</a
-      ><a name="557"
+      ><a name="570"
       > </a
-      ><a name="558" href="Issue1062.html#486" class="Bound"
+      ><a name="571" href="Issue1062.html#499" class="Bound"
       >A</a
-      ><a name="559"
+      ><a name="572"
       >
     </a
-      ><a name="564" href="Issue1062.html#564" class="Field"
+      ><a name="577" href="Issue1062.html#577" class="Field"
       >tail</a
-      ><a name="568"
+      ><a name="581"
       >  </a
-      ><a name="570" class="Symbol"
+      ><a name="583" class="Symbol"
       >:</a
-      ><a name="571"
-      > </a
-      ><a name="572" class="Symbol"
-      >&#8704;</a
-      ><a name="573"
-      > </a
-      ><a name="574" class="Symbol"
-      >{</a
-      ><a name="575" href="Issue1062.html#575" class="Bound"
-      >j</a
-      ><a name="576"
-      > </a
-      ><a name="577" class="Symbol"
-      >:</a
-      ><a name="578"
-      > </a
-      ><a name="579" href="Issue1062.html#171" class="Postulate Operator"
-      >Size&lt;</a
       ><a name="584"
       > </a
-      ><a name="585" href="Issue1062.html#475" class="Bound"
-      >i</a
-      ><a name="586" class="Symbol"
-      >}</a
-      ><a name="587"
+      ><a name="585" class="Symbol"
+      >&#8704;</a
+      ><a name="586"
       > </a
-      ><a name="588" class="Symbol"
-      >&#8594;</a
+      ><a name="587" class="Symbol"
+      >{</a
+      ><a name="588" href="Issue1062.html#588" class="Bound"
+      >j</a
       ><a name="589"
       > </a
-      ><a name="590" href="Issue1062.html#467" class="Record"
-      >Stream</a
-      ><a name="596"
+      ><a name="590" class="Symbol"
+      >:</a
+      ><a name="591"
       > </a
-      ><a name="597" class="Symbol"
-      >{</a
-      ><a name="598" href="Issue1062.html#575" class="Bound"
-      >j</a
+      ><a name="592" href="Issue1062.html#184" class="Postulate Operator"
+      >Size&lt;</a
+      ><a name="597"
+      > </a
+      ><a name="598" href="Issue1062.html#488" class="Bound"
+      >i</a
       ><a name="599" class="Symbol"
       >}</a
       ><a name="600"
       > </a
-      ><a name="601" href="Issue1062.html#486" class="Bound"
-      >A</a
+      ><a name="601" class="Symbol"
+      >&#8594;</a
       ><a name="602"
+      > </a
+      ><a name="603" href="Issue1062.html#480" class="Record"
+      >Stream</a
+      ><a name="609"
+      > </a
+      ><a name="610" class="Symbol"
+      >{</a
+      ><a name="611" href="Issue1062.html#588" class="Bound"
+      >j</a
+      ><a name="612" class="Symbol"
+      >}</a
+      ><a name="613"
+      > </a
+      ><a name="614" href="Issue1062.html#499" class="Bound"
+      >A</a
+      ><a name="615"
       >
 </a
-      ><a name="603" class="Keyword"
+      ><a name="616" class="Keyword"
       >open</a
-      ><a name="607"
+      ><a name="620"
       > </a
-      ><a name="608" href="Issue1062.html#467" class="Module"
+      ><a name="621" href="Issue1062.html#480" class="Module"
       >Stream</a
-      ><a name="614"
+      ><a name="627"
       > </a
-      ><a name="615" class="Keyword"
+      ><a name="628" class="Keyword"
       >public</a
-      ><a name="621"
+      ><a name="634"
       >
 
 </a
-      ><a name="623" href="Issue1062.html#623" class="Function Operator"
+      ><a name="636" href="Issue1062.html#636" class="Function Operator"
       >_&#8759;&#738;_</a
-      ><a name="627"
+      ><a name="640"
       > </a
-      ><a name="628" class="Symbol"
+      ><a name="641" class="Symbol"
       >:</a
-      ><a name="629"
+      ><a name="642"
       > </a
-      ><a name="630" class="Symbol"
+      ><a name="643" class="Symbol"
       >&#8704;</a
-      ><a name="631"
+      ><a name="644"
       > </a
-      ><a name="632" class="Symbol"
+      ><a name="645" class="Symbol"
       >{</a
-      ><a name="633" href="Issue1062.html#633" class="Bound"
+      ><a name="646" href="Issue1062.html#646" class="Bound"
       >i</a
-      ><a name="634"
+      ><a name="647"
       > </a
-      ><a name="635" href="Issue1062.html#635" class="Bound"
+      ><a name="648" href="Issue1062.html#648" class="Bound"
       >A</a
-      ><a name="636" class="Symbol"
+      ><a name="649" class="Symbol"
       >}</a
-      ><a name="637"
-      > </a
-      ><a name="638" class="Symbol"
-      >&#8594;</a
-      ><a name="639"
-      > </a
-      ><a name="640" href="Issue1062.html#635" class="Bound"
-      >A</a
-      ><a name="641"
-      > </a
-      ><a name="642" class="Symbol"
-      >&#8594;</a
-      ><a name="643"
-      > </a
-      ><a name="644" href="Issue1062.html#467" class="Record"
-      >Stream</a
       ><a name="650"
       > </a
       ><a name="651" class="Symbol"
-      >{</a
-      ><a name="652" href="Issue1062.html#633" class="Bound"
-      >i</a
-      ><a name="653" class="Symbol"
-      >}</a
+      >&#8594;</a
+      ><a name="652"
+      > </a
+      ><a name="653" href="Issue1062.html#648" class="Bound"
+      >A</a
       ><a name="654"
       > </a
-      ><a name="655" href="Issue1062.html#635" class="Bound"
-      >A</a
+      ><a name="655" class="Symbol"
+      >&#8594;</a
       ><a name="656"
       > </a
-      ><a name="657" class="Symbol"
-      >&#8594;</a
-      ><a name="658"
-      > </a
-      ><a name="659" href="Issue1062.html#467" class="Record"
+      ><a name="657" href="Issue1062.html#480" class="Record"
       >Stream</a
-      ><a name="665"
+      ><a name="663"
       > </a
-      ><a name="666" class="Symbol"
+      ><a name="664" class="Symbol"
       >{</a
-      ><a name="667" href="Issue1062.html#202" class="Postulate Operator"
-      >&#8593;</a
-      ><a name="668"
-      > </a
-      ><a name="669" href="Issue1062.html#633" class="Bound"
+      ><a name="665" href="Issue1062.html#646" class="Bound"
       >i</a
-      ><a name="670" class="Symbol"
+      ><a name="666" class="Symbol"
       >}</a
+      ><a name="667"
+      > </a
+      ><a name="668" href="Issue1062.html#648" class="Bound"
+      >A</a
+      ><a name="669"
+      > </a
+      ><a name="670" class="Symbol"
+      >&#8594;</a
       ><a name="671"
       > </a
-      ><a name="672" href="Issue1062.html#635" class="Bound"
-      >A</a
-      ><a name="673"
-      >
-</a
-      ><a name="674" href="Issue1062.html#550" class="Field"
-      >head</a
+      ><a name="672" href="Issue1062.html#480" class="Record"
+      >Stream</a
       ><a name="678"
-      >  </a
-      ><a name="680" class="Symbol"
-      >(</a
-      ><a name="681" href="Issue1062.html#681" class="Bound"
-      >a</a
-      ><a name="682"
       > </a
-      ><a name="683" href="Issue1062.html#623" class="Function Operator"
-      >&#8759;&#738;</a
-      ><a name="685"
+      ><a name="679" class="Symbol"
+      >{</a
+      ><a name="680" href="Issue1062.html#215" class="Postulate Operator"
+      >&#8593;</a
+      ><a name="681"
       > </a
-      ><a name="686" href="Issue1062.html#686" class="Bound"
-      >as</a
-      ><a name="688" class="Symbol"
-      >)</a
-      ><a name="689"
+      ><a name="682" href="Issue1062.html#646" class="Bound"
+      >i</a
+      ><a name="683" class="Symbol"
+      >}</a
+      ><a name="684"
       > </a
-      ><a name="690" class="Symbol"
-      >=</a
-      ><a name="691"
-      > </a
-      ><a name="692" href="Issue1062.html#681" class="Bound"
-      >a</a
-      ><a name="693"
+      ><a name="685" href="Issue1062.html#648" class="Bound"
+      >A</a
+      ><a name="686"
       >
 </a
-      ><a name="694" href="Issue1062.html#564" class="Field"
-      >tail</a
-      ><a name="698"
+      ><a name="687" href="Issue1062.html#563" class="Field"
+      >head</a
+      ><a name="691"
       >  </a
-      ><a name="700" class="Symbol"
+      ><a name="693" class="Symbol"
       >(</a
-      ><a name="701" href="Issue1062.html#701" class="Bound"
+      ><a name="694" href="Issue1062.html#694" class="Bound"
       >a</a
+      ><a name="695"
+      > </a
+      ><a name="696" href="Issue1062.html#636" class="Function Operator"
+      >&#8759;&#738;</a
+      ><a name="698"
+      > </a
+      ><a name="699" href="Issue1062.html#699" class="Bound"
+      >as</a
+      ><a name="701" class="Symbol"
+      >)</a
       ><a name="702"
       > </a
-      ><a name="703" href="Issue1062.html#623" class="Function Operator"
-      >&#8759;&#738;</a
-      ><a name="705"
-      > </a
-      ><a name="706" href="Issue1062.html#706" class="Bound"
-      >as</a
-      ><a name="708" class="Symbol"
-      >)</a
-      ><a name="709"
-      > </a
-      ><a name="710" class="Symbol"
+      ><a name="703" class="Symbol"
       >=</a
+      ><a name="704"
+      > </a
+      ><a name="705" href="Issue1062.html#694" class="Bound"
+      >a</a
+      ><a name="706"
+      >
+</a
+      ><a name="707" href="Issue1062.html#577" class="Field"
+      >tail</a
       ><a name="711"
+      >  </a
+      ><a name="713" class="Symbol"
+      >(</a
+      ><a name="714" href="Issue1062.html#714" class="Bound"
+      >a</a
+      ><a name="715"
       > </a
-      ><a name="712" href="Issue1062.html#706" class="Bound"
+      ><a name="716" href="Issue1062.html#636" class="Function Operator"
+      >&#8759;&#738;</a
+      ><a name="718"
+      > </a
+      ><a name="719" href="Issue1062.html#719" class="Bound"
       >as</a
-      ><a name="714"
+      ><a name="721" class="Symbol"
+      >)</a
+      ><a name="722"
+      > </a
+      ><a name="723" class="Symbol"
+      >=</a
+      ><a name="724"
+      > </a
+      ><a name="725" href="Issue1062.html#719" class="Bound"
+      >as</a
+      ><a name="727"
       >
 
 </a
-      ><a name="716" class="Comment"
+      ><a name="729" class="Comment"
       >-- Streams and lists.</a
-      ><a name="737"
+      ><a name="750"
       >
 
 </a
-      ><a name="739" class="Comment"
+      ><a name="752" class="Comment"
       >-- Prepending a list to a stream.</a
-      ><a name="772"
+      ><a name="785"
       >
 
 </a
-      ><a name="774" href="Issue1062.html#774" class="Function Operator"
+      ><a name="787" href="Issue1062.html#787" class="Function Operator"
       >_++&#738;_</a
-      ><a name="779"
+      ><a name="792"
       > </a
-      ><a name="780" class="Symbol"
+      ><a name="793" class="Symbol"
       >:</a
-      ><a name="781"
+      ><a name="794"
       > </a
-      ><a name="782" class="Symbol"
+      ><a name="795" class="Symbol"
       >&#8704;</a
-      ><a name="783"
-      > </a
-      ><a name="784" class="Symbol"
-      >{</a
-      ><a name="785" href="Issue1062.html#785" class="Bound"
-      >i</a
-      ><a name="786"
-      > </a
-      ><a name="787" href="Issue1062.html#787" class="Bound"
-      >A</a
-      ><a name="788" class="Symbol"
-      >}</a
-      ><a name="789"
-      > </a
-      ><a name="790" class="Symbol"
-      >&#8594;</a
-      ><a name="791"
-      > </a
-      ><a name="792" href="Issue1062.html#250" class="Datatype"
-      >List</a
       ><a name="796"
       > </a
-      ><a name="797" href="Issue1062.html#787" class="Bound"
-      >A</a
-      ><a name="798"
-      > </a
-      ><a name="799" class="Symbol"
-      >&#8594;</a
-      ><a name="800"
-      > </a
-      ><a name="801" href="Issue1062.html#467" class="Record"
-      >Stream</a
-      ><a name="807"
-      > </a
-      ><a name="808" class="Symbol"
+      ><a name="797" class="Symbol"
       >{</a
-      ><a name="809" href="Issue1062.html#785" class="Bound"
+      ><a name="798" href="Issue1062.html#798" class="Bound"
       >i</a
-      ><a name="810" class="Symbol"
+      ><a name="799"
+      > </a
+      ><a name="800" href="Issue1062.html#800" class="Bound"
+      >A</a
+      ><a name="801" class="Symbol"
       >}</a
+      ><a name="802"
+      > </a
+      ><a name="803" class="Symbol"
+      >&#8594;</a
+      ><a name="804"
+      > </a
+      ><a name="805" href="Issue1062.html#263" class="Datatype"
+      >List</a
+      ><a name="809"
+      > </a
+      ><a name="810" href="Issue1062.html#800" class="Bound"
+      >A</a
       ><a name="811"
       > </a
-      ><a name="812" href="Issue1062.html#787" class="Bound"
-      >A</a
+      ><a name="812" class="Symbol"
+      >&#8594;</a
       ><a name="813"
       > </a
-      ><a name="814" class="Symbol"
-      >&#8594;</a
-      ><a name="815"
-      > </a
-      ><a name="816" href="Issue1062.html#467" class="Record"
+      ><a name="814" href="Issue1062.html#480" class="Record"
       >Stream</a
-      ><a name="822"
+      ><a name="820"
       > </a
-      ><a name="823" class="Symbol"
+      ><a name="821" class="Symbol"
       >{</a
-      ><a name="824" href="Issue1062.html#785" class="Bound"
+      ><a name="822" href="Issue1062.html#798" class="Bound"
       >i</a
-      ><a name="825" class="Symbol"
+      ><a name="823" class="Symbol"
       >}</a
+      ><a name="824"
+      > </a
+      ><a name="825" href="Issue1062.html#800" class="Bound"
+      >A</a
       ><a name="826"
       > </a
-      ><a name="827" href="Issue1062.html#787" class="Bound"
-      >A</a
+      ><a name="827" class="Symbol"
+      >&#8594;</a
       ><a name="828"
+      > </a
+      ><a name="829" href="Issue1062.html#480" class="Record"
+      >Stream</a
+      ><a name="835"
+      > </a
+      ><a name="836" class="Symbol"
+      >{</a
+      ><a name="837" href="Issue1062.html#798" class="Bound"
+      >i</a
+      ><a name="838" class="Symbol"
+      >}</a
+      ><a name="839"
+      > </a
+      ><a name="840" href="Issue1062.html#800" class="Bound"
+      >A</a
+      ><a name="841"
       >
 </a
-      ><a name="829" href="Issue1062.html#279" class="InductiveConstructor"
+      ><a name="842" href="Issue1062.html#292" class="InductiveConstructor"
       >[]</a
-      ><a name="831"
-      >        </a
-      ><a name="839" href="Issue1062.html#774" class="Function Operator"
-      >++&#738;</a
-      ><a name="842"
-      > </a
-      ><a name="843" href="Issue1062.html#843" class="Bound"
-      >s</a
       ><a name="844"
+      >        </a
+      ><a name="852" href="Issue1062.html#787" class="Function Operator"
+      >++&#738;</a
+      ><a name="855"
       > </a
-      ><a name="845" class="Symbol"
-      >=</a
-      ><a name="846"
-      > </a
-      ><a name="847" href="Issue1062.html#843" class="Bound"
+      ><a name="856" href="Issue1062.html#856" class="Bound"
       >s</a
-      ><a name="848"
+      ><a name="857"
+      > </a
+      ><a name="858" class="Symbol"
+      >=</a
+      ><a name="859"
+      > </a
+      ><a name="860" href="Issue1062.html#856" class="Bound"
+      >s</a
+      ><a name="861"
       >
 </a
-      ><a name="849" class="Symbol"
+      ><a name="862" class="Symbol"
       >(</a
-      ><a name="850" href="Issue1062.html#850" class="Bound"
-      >a</a
-      ><a name="851"
-      > </a
-      ><a name="852" href="Issue1062.html#293" class="InductiveConstructor Operator"
-      >&#8759;</a
-      ><a name="853"
-      > </a
-      ><a name="854" href="Issue1062.html#854" class="Bound"
-      >as</a
-      ><a name="856" class="Symbol"
-      >)</a
-      ><a name="857"
-      >  </a
-      ><a name="859" href="Issue1062.html#774" class="Function Operator"
-      >++&#738;</a
-      ><a name="862"
-      > </a
       ><a name="863" href="Issue1062.html#863" class="Bound"
-      >s</a
+      >a</a
       ><a name="864"
       > </a
-      ><a name="865" class="Symbol"
-      >=</a
+      ><a name="865" href="Issue1062.html#306" class="InductiveConstructor Operator"
+      >&#8759;</a
       ><a name="866"
       > </a
-      ><a name="867" href="Issue1062.html#850" class="Bound"
-      >a</a
-      ><a name="868"
-      > </a
-      ><a name="869" href="Issue1062.html#623" class="Function Operator"
-      >&#8759;&#738;</a
-      ><a name="871"
-      > </a
-      ><a name="872" class="Symbol"
-      >(</a
-      ><a name="873" href="Issue1062.html#854" class="Bound"
+      ><a name="867" href="Issue1062.html#867" class="Bound"
       >as</a
+      ><a name="869" class="Symbol"
+      >)</a
+      ><a name="870"
+      >  </a
+      ><a name="872" href="Issue1062.html#787" class="Function Operator"
+      >++&#738;</a
       ><a name="875"
       > </a
-      ><a name="876" href="Issue1062.html#774" class="Function Operator"
-      >++&#738;</a
+      ><a name="876" href="Issue1062.html#876" class="Bound"
+      >s</a
+      ><a name="877"
+      > </a
+      ><a name="878" class="Symbol"
+      >=</a
       ><a name="879"
       > </a
       ><a name="880" href="Issue1062.html#863" class="Bound"
-      >s</a
-      ><a name="881" class="Symbol"
-      >)</a
-      ><a name="882"
-      >
-
-</a
-      ><a name="884" class="Comment"
-      >-- Unfold which produces several outputs at one step</a
-      ><a name="936"
-      >
-
-</a
-      ><a name="938" class="Keyword"
-      >record</a
-      ><a name="944"
+      >a</a
+      ><a name="881"
       > </a
-      ><a name="945" href="Issue1062.html#945" class="Record"
-      >List1</a
-      ><a name="950"
+      ><a name="882" href="Issue1062.html#636" class="Function Operator"
+      >&#8759;&#738;</a
+      ><a name="884"
       > </a
-      ><a name="951" class="Symbol"
+      ><a name="885" class="Symbol"
       >(</a
-      ><a name="952" href="Issue1062.html#952" class="Bound"
-      >A</a
-      ><a name="953"
+      ><a name="886" href="Issue1062.html#867" class="Bound"
+      >as</a
+      ><a name="888"
       > </a
-      ><a name="954" class="Symbol"
-      >:</a
-      ><a name="955"
+      ><a name="889" href="Issue1062.html#787" class="Function Operator"
+      >++&#738;</a
+      ><a name="892"
       > </a
-      ><a name="956" class="PrimitiveType"
-      >Set</a
-      ><a name="959" class="Symbol"
+      ><a name="893" href="Issue1062.html#876" class="Bound"
+      >s</a
+      ><a name="894" class="Symbol"
       >)</a
-      ><a name="960"
+      ><a name="895"
+      >
+
+</a
+      ><a name="897" class="Comment"
+      >-- Unfold which produces several outputs at one step</a
+      ><a name="949"
+      >
+
+</a
+      ><a name="951" class="Keyword"
+      >record</a
+      ><a name="957"
       > </a
-      ><a name="961" class="Symbol"
-      >:</a
-      ><a name="962"
+      ><a name="958" href="Issue1062.html#958" class="Record"
+      >List1</a
+      ><a name="963"
       > </a
-      ><a name="963" class="PrimitiveType"
-      >Set</a
+      ><a name="964" class="Symbol"
+      >(</a
+      ><a name="965" href="Issue1062.html#965" class="Bound"
+      >A</a
       ><a name="966"
       > </a
-      ><a name="967" class="Keyword"
+      ><a name="967" class="Symbol"
+      >:</a
+      ><a name="968"
+      > </a
+      ><a name="969" class="PrimitiveType"
+      >Set</a
+      ><a name="972" class="Symbol"
+      >)</a
+      ><a name="973"
+      > </a
+      ><a name="974" class="Symbol"
+      >:</a
+      ><a name="975"
+      > </a
+      ><a name="976" class="PrimitiveType"
+      >Set</a
+      ><a name="979"
+      > </a
+      ><a name="980" class="Keyword"
       >where</a
-      ><a name="972"
+      ><a name="985"
       >
   </a
-      ><a name="975" class="Keyword"
+      ><a name="988" class="Keyword"
       >constructor</a
-      ><a name="986"
+      ><a name="999"
       > </a
-      ><a name="987" href="Issue1062.html#987" class="InductiveConstructor Operator"
+      ><a name="1000" href="Issue1062.html#1000" class="InductiveConstructor Operator"
       >_&#8759;_</a
-      ><a name="990"
+      ><a name="1003"
       >
   </a
-      ><a name="993" class="Keyword"
+      ><a name="1006" class="Keyword"
       >field</a
-      ><a name="998"
+      ><a name="1011"
       >
     </a
-      ><a name="1003" href="Issue1062.html#1003" class="Field"
+      ><a name="1016" href="Issue1062.html#1016" class="Field"
       >head</a
-      ><a name="1007"
+      ><a name="1020"
       >  </a
-      ><a name="1009" class="Symbol"
+      ><a name="1022" class="Symbol"
       >:</a
-      ><a name="1010"
+      ><a name="1023"
       > </a
-      ><a name="1011" href="Issue1062.html#952" class="Bound"
+      ><a name="1024" href="Issue1062.html#965" class="Bound"
       >A</a
-      ><a name="1012"
+      ><a name="1025"
       >
     </a
-      ><a name="1017" href="Issue1062.html#1017" class="Field"
+      ><a name="1030" href="Issue1062.html#1030" class="Field"
       >tail</a
-      ><a name="1021"
+      ><a name="1034"
       >  </a
-      ><a name="1023" class="Symbol"
+      ><a name="1036" class="Symbol"
       >:</a
-      ><a name="1024"
+      ><a name="1037"
       > </a
-      ><a name="1025" href="Issue1062.html#250" class="Datatype"
+      ><a name="1038" href="Issue1062.html#263" class="Datatype"
       >List</a
-      ><a name="1029"
-      > </a
-      ><a name="1030" href="Issue1062.html#952" class="Bound"
-      >A</a
-      ><a name="1031"
-      >
-</a
-      ><a name="1032" class="Keyword"
-      >open</a
-      ><a name="1036"
-      > </a
-      ><a name="1037" href="Issue1062.html#945" class="Module"
-      >List1</a
       ><a name="1042"
       > </a
-      ><a name="1043" class="Keyword"
-      >using</a
-      ><a name="1048"
+      ><a name="1043" href="Issue1062.html#965" class="Bound"
+      >A</a
+      ><a name="1044"
+      >
+</a
+      ><a name="1045" class="Keyword"
+      >open</a
+      ><a name="1049"
       > </a
-      ><a name="1049" class="Symbol"
-      >(</a
-      ><a name="1050" href="Issue1062.html#1003" class="Field"
-      >head</a
-      ><a name="1054" class="Symbol"
-      >;</a
+      ><a name="1050" href="Issue1062.html#958" class="Module"
+      >List1</a
       ><a name="1055"
       > </a
-      ><a name="1056" href="Issue1062.html#1017" class="Field"
-      >tail</a
-      ><a name="1060" class="Symbol"
-      >)</a
+      ><a name="1056" class="Keyword"
+      >using</a
       ><a name="1061"
+      > </a
+      ><a name="1062" class="Symbol"
+      >(</a
+      ><a name="1063" href="Issue1062.html#1016" class="Field"
+      >head</a
+      ><a name="1067" class="Symbol"
+      >;</a
+      ><a name="1068"
+      > </a
+      ><a name="1069" href="Issue1062.html#1030" class="Field"
+      >tail</a
+      ><a name="1073" class="Symbol"
+      >)</a
+      ><a name="1074"
       >
 
 </a
-      ><a name="1063" class="Keyword"
+      ><a name="1076" class="Keyword"
       >record</a
-      ><a name="1069"
+      ><a name="1082"
       > </a
-      ><a name="1070" href="Issue1062.html#1070" class="Record"
+      ><a name="1083" href="Issue1062.html#1083" class="Record"
       >&#8868;</a
-      ><a name="1071"
+      ><a name="1084"
       > </a
-      ><a name="1072" class="Symbol"
+      ><a name="1085" class="Symbol"
       >:</a
-      ><a name="1073"
+      ><a name="1086"
       > </a
-      ><a name="1074" class="PrimitiveType"
+      ><a name="1087" class="PrimitiveType"
       >Set</a
-      ><a name="1077"
+      ><a name="1090"
       > </a
-      ><a name="1078" class="Keyword"
+      ><a name="1091" class="Keyword"
       >where</a
-      ><a name="1083"
+      ><a name="1096"
       > </a
-      ><a name="1084" class="Keyword"
+      ><a name="1097" class="Keyword"
       >constructor</a
-      ><a name="1095"
-      > </a
-      ><a name="1096" href="Issue1062.html#1096" class="InductiveConstructor"
-      >trivial</a
-      ><a name="1103"
-      >
-</a
-      ><a name="1104" class="Keyword"
-      >open</a
       ><a name="1108"
       > </a
-      ><a name="1109" href="Issue1062.html#945" class="Module"
-      >List1</a
-      ><a name="1114"
-      > </a
-      ><a name="1115" class="Symbol"
-      >(</a
-      ><a name="1116" href="Issue1062.html#1096" class="InductiveConstructor"
+      ><a name="1109" href="Issue1062.html#1109" class="InductiveConstructor"
       >trivial</a
-      ><a name="1123"
+      ><a name="1116"
+      >
+</a
+      ><a name="1117" class="Keyword"
+      >open</a
+      ><a name="1121"
       > </a
-      ><a name="1124" href="Issue1062.html#987" class="InductiveConstructor Operator"
-      >&#8759;</a
-      ><a name="1125"
+      ><a name="1122" href="Issue1062.html#958" class="Module"
+      >List1</a
+      ><a name="1127"
       > </a
-      ><a name="1126" href="Issue1062.html#279" class="InductiveConstructor"
-      >[]</a
       ><a name="1128" class="Symbol"
-      >)</a
-      ><a name="1129"
-      > </a
-      ><a name="1130" class="Keyword"
-      >using</a
-      ><a name="1135"
-      > </a
-      ><a name="1136" class="Symbol"
       >(</a
-      ><a name="1137"
-      >head</a
+      ><a name="1129" href="Issue1062.html#1109" class="InductiveConstructor"
+      >trivial</a
+      ><a name="1136"
+      > </a
+      ><a name="1137" href="Issue1062.html#1000" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1138"
+      > </a
+      ><a name="1139" href="Issue1062.html#292" class="InductiveConstructor"
+      >[]</a
       ><a name="1141" class="Symbol"
-      >;</a
-      ><a name="1142"
-      > tail</a
-      ><a name="1147" class="Symbol"
       >)</a
+      ><a name="1142"
+      > </a
+      ><a name="1143" class="Keyword"
+      >using</a
       ><a name="1148"
       > </a
-      ><a name="1149" class="Comment"
+      ><a name="1149" class="Symbol"
+      >(</a
+      ><a name="1150"
+      >head</a
+      ><a name="1154" class="Symbol"
+      >;</a
+      ><a name="1155"
+      > tail</a
+      ><a name="1160" class="Symbol"
+      >)</a
+      ><a name="1161"
+      > </a
+      ><a name="1162" class="Comment"
       >-- problem: imports not colored</a
-      ><a name="1180"
+      ><a name="1193"
       >
 
 </a
-      ><a name="1182" href="Issue1062.html#1182" class="Function"
+      ><a name="1195" href="Issue1062.html#1195" class="Function"
       >unfold&#8314;</a
-      ><a name="1189"
+      ><a name="1202"
       > </a
-      ><a name="1190" class="Symbol"
+      ><a name="1203" class="Symbol"
       >:</a
-      ><a name="1191"
+      ><a name="1204"
       > </a
-      ><a name="1192" class="Symbol"
+      ><a name="1205" class="Symbol"
       >&#8704;</a
-      ><a name="1193"
+      ><a name="1206"
       > </a
-      ><a name="1194" class="Symbol"
+      ><a name="1207" class="Symbol"
       >{</a
-      ><a name="1195" href="Issue1062.html#1195" class="Bound"
+      ><a name="1208" href="Issue1062.html#1208" class="Bound"
       >S</a
-      ><a name="1196"
+      ><a name="1209"
       > </a
-      ><a name="1197" class="Symbol"
+      ><a name="1210" class="Symbol"
       >:</a
-      ><a name="1198"
+      ><a name="1211"
       > </a
-      ><a name="1199" href="Issue1062.html#140" class="Postulate"
+      ><a name="1212" href="Issue1062.html#153" class="Postulate"
       >Size</a
-      ><a name="1203"
+      ><a name="1216"
       > </a
-      ><a name="1204" class="Symbol"
+      ><a name="1217" class="Symbol"
       >&#8594;</a
-      ><a name="1205"
+      ><a name="1218"
       > </a
-      ><a name="1206" class="PrimitiveType"
+      ><a name="1219" class="PrimitiveType"
       >Set</a
-      ><a name="1209" class="Symbol"
+      ><a name="1222" class="Symbol"
       >}</a
-      ><a name="1210"
+      ><a name="1223"
       > </a
-      ><a name="1211" class="Symbol"
+      ><a name="1224" class="Symbol"
       >{</a
-      ><a name="1212" href="Issue1062.html#1212" class="Bound"
+      ><a name="1225" href="Issue1062.html#1225" class="Bound"
       >A</a
-      ><a name="1213"
+      ><a name="1226"
       > </a
-      ><a name="1214" class="Symbol"
+      ><a name="1227" class="Symbol"
       >:</a
-      ><a name="1215"
+      ><a name="1228"
       > </a
-      ><a name="1216" class="PrimitiveType"
+      ><a name="1229" class="PrimitiveType"
       >Set</a
-      ><a name="1219" class="Symbol"
+      ><a name="1232" class="Symbol"
       >}</a
-      ><a name="1220"
+      ><a name="1233"
       >
 
   </a
-      ><a name="1224" class="Symbol"
+      ><a name="1237" class="Symbol"
       >(</a
-      ><a name="1225" href="Issue1062.html#1225" class="Bound"
+      ><a name="1238" href="Issue1062.html#1238" class="Bound"
       >step</a
-      ><a name="1229"
+      ><a name="1242"
       > </a
-      ><a name="1230" class="Symbol"
+      ><a name="1243" class="Symbol"
       >:</a
-      ><a name="1231"
+      ><a name="1244"
       > </a
-      ><a name="1232" class="Symbol"
+      ><a name="1245" class="Symbol"
       >&#8704;</a
-      ><a name="1233"
+      ><a name="1246"
       > </a
-      ><a name="1234" class="Symbol"
+      ><a name="1247" class="Symbol"
       >{</a
-      ><a name="1235" href="Issue1062.html#1235" class="Bound"
+      ><a name="1248" href="Issue1062.html#1248" class="Bound"
       >i</a
-      ><a name="1236" class="Symbol"
+      ><a name="1249" class="Symbol"
       >}</a
-      ><a name="1237"
+      ><a name="1250"
       > </a
-      ><a name="1238" class="Symbol"
+      ><a name="1251" class="Symbol"
       >&#8594;</a
-      ><a name="1239"
+      ><a name="1252"
       > </a
-      ><a name="1240" href="Issue1062.html#1195" class="Bound"
+      ><a name="1253" href="Issue1062.html#1208" class="Bound"
       >S</a
-      ><a name="1241"
+      ><a name="1254"
       > </a
-      ><a name="1242" href="Issue1062.html#1235" class="Bound"
+      ><a name="1255" href="Issue1062.html#1248" class="Bound"
       >i</a
-      ><a name="1243"
+      ><a name="1256"
       > </a
-      ><a name="1244" class="Symbol"
+      ><a name="1257" class="Symbol"
       >&#8594;</a
-      ><a name="1245"
-      > </a
-      ><a name="1246" href="Issue1062.html#945" class="Record"
-      >List1</a
-      ><a name="1251"
-      > </a
-      ><a name="1252" href="Issue1062.html#1212" class="Bound"
-      >A</a
-      ><a name="1253"
-      > </a
-      ><a name="1254" href="Issue1062.html#339" class="Record Operator"
-      >&#215;</a
-      ><a name="1255"
-      > </a
-      ><a name="1256" class="Symbol"
-      >(&#8704;</a
       ><a name="1258"
       > </a
-      ><a name="1259" class="Symbol"
+      ><a name="1259" href="Issue1062.html#958" class="Record"
+      >List1</a
+      ><a name="1264"
+      > </a
+      ><a name="1265" href="Issue1062.html#1225" class="Bound"
+      >A</a
+      ><a name="1266"
+      > </a
+      ><a name="1267" href="Issue1062.html#352" class="Record Operator"
+      >&#215;</a
+      ><a name="1268"
+      > </a
+      ><a name="1269" class="Symbol"
+      >(&#8704;</a
+      ><a name="1271"
+      > </a
+      ><a name="1272" class="Symbol"
       >{</a
-      ><a name="1260" href="Issue1062.html#1260" class="Bound"
+      ><a name="1273" href="Issue1062.html#1273" class="Bound"
       >j</a
-      ><a name="1261"
-      > </a
-      ><a name="1262" class="Symbol"
-      >:</a
-      ><a name="1263"
-      > </a
-      ><a name="1264" href="Issue1062.html#171" class="Postulate Operator"
-      >Size&lt;</a
-      ><a name="1269"
-      > </a
-      ><a name="1270" href="Issue1062.html#1235" class="Bound"
-      >i</a
-      ><a name="1271" class="Symbol"
-      >}</a
-      ><a name="1272"
-      > </a
-      ><a name="1273" class="Symbol"
-      >&#8594;</a
       ><a name="1274"
       > </a
-      ><a name="1275" href="Issue1062.html#1195" class="Bound"
-      >S</a
+      ><a name="1275" class="Symbol"
+      >:</a
       ><a name="1276"
       > </a
-      ><a name="1277" href="Issue1062.html#1260" class="Bound"
-      >j</a
-      ><a name="1278" class="Symbol"
-      >))</a
-      ><a name="1280"
-      > </a
-      ><a name="1281" class="Symbol"
-      >&#8594;</a
+      ><a name="1277" href="Issue1062.html#184" class="Postulate Operator"
+      >Size&lt;</a
       ><a name="1282"
-      >
-
-  </a
+      > </a
+      ><a name="1283" href="Issue1062.html#1248" class="Bound"
+      >i</a
+      ><a name="1284" class="Symbol"
+      >}</a
+      ><a name="1285"
+      > </a
       ><a name="1286" class="Symbol"
-      >&#8704;</a
+      >&#8594;</a
       ><a name="1287"
       > </a
-      ><a name="1288" class="Symbol"
-      >{</a
-      ><a name="1289" href="Issue1062.html#1289" class="Bound"
-      >i</a
-      ><a name="1290" class="Symbol"
-      >}</a
-      ><a name="1291"
+      ><a name="1288" href="Issue1062.html#1208" class="Bound"
+      >S</a
+      ><a name="1289"
       > </a
-      ><a name="1292" class="Symbol"
-      >&#8594;</a
+      ><a name="1290" href="Issue1062.html#1273" class="Bound"
+      >j</a
+      ><a name="1291" class="Symbol"
+      >))</a
       ><a name="1293"
       > </a
       ><a name="1294" class="Symbol"
-      >(</a
-      ><a name="1295" href="Issue1062.html#1295" class="Bound"
-      >s</a
-      ><a name="1296"
-      > </a
-      ><a name="1297" class="Symbol"
-      >:</a
-      ><a name="1298"
-      > </a
-      ><a name="1299" href="Issue1062.html#1195" class="Bound"
-      >S</a
+      >&#8594;</a
+      ><a name="1295"
+      >
+
+  </a
+      ><a name="1299" class="Symbol"
+      >&#8704;</a
       ><a name="1300"
       > </a
-      ><a name="1301" href="Issue1062.html#1289" class="Bound"
-      >i</a
-      ><a name="1302" class="Symbol"
-      >)</a
-      ><a name="1303"
-      > </a
-      ><a name="1304" class="Symbol"
-      >&#8594;</a
-      ><a name="1305"
-      > </a
-      ><a name="1306" href="Issue1062.html#467" class="Record"
-      >Stream</a
-      ><a name="1312"
-      > </a
-      ><a name="1313" class="Symbol"
+      ><a name="1301" class="Symbol"
       >{</a
-      ><a name="1314" href="Issue1062.html#1289" class="Bound"
+      ><a name="1302" href="Issue1062.html#1302" class="Bound"
+      >i</a
+      ><a name="1303" class="Symbol"
+      >}</a
+      ><a name="1304"
+      > </a
+      ><a name="1305" class="Symbol"
+      >&#8594;</a
+      ><a name="1306"
+      > </a
+      ><a name="1307" class="Symbol"
+      >(</a
+      ><a name="1308" href="Issue1062.html#1308" class="Bound"
+      >s</a
+      ><a name="1309"
+      > </a
+      ><a name="1310" class="Symbol"
+      >:</a
+      ><a name="1311"
+      > </a
+      ><a name="1312" href="Issue1062.html#1208" class="Bound"
+      >S</a
+      ><a name="1313"
+      > </a
+      ><a name="1314" href="Issue1062.html#1302" class="Bound"
       >i</a
       ><a name="1315" class="Symbol"
-      >}</a
+      >)</a
       ><a name="1316"
       > </a
-      ><a name="1317" href="Issue1062.html#1212" class="Bound"
-      >A</a
+      ><a name="1317" class="Symbol"
+      >&#8594;</a
       ><a name="1318"
+      > </a
+      ><a name="1319" href="Issue1062.html#480" class="Record"
+      >Stream</a
+      ><a name="1325"
+      > </a
+      ><a name="1326" class="Symbol"
+      >{</a
+      ><a name="1327" href="Issue1062.html#1302" class="Bound"
+      >i</a
+      ><a name="1328" class="Symbol"
+      >}</a
+      ><a name="1329"
+      > </a
+      ><a name="1330" href="Issue1062.html#1225" class="Bound"
+      >A</a
+      ><a name="1331"
       >
 
 </a
-      ><a name="1320" href="Issue1062.html#550" class="Field"
+      ><a name="1333" href="Issue1062.html#563" class="Field"
       >head</a
-      ><a name="1324"
+      ><a name="1337"
       >  </a
-      ><a name="1326" class="Symbol"
+      ><a name="1339" class="Symbol"
       >(</a
-      ><a name="1327" href="Issue1062.html#1182" class="Function"
+      ><a name="1340" href="Issue1062.html#1195" class="Function"
       >unfold&#8314;</a
-      ><a name="1334"
+      ><a name="1347"
       > </a
-      ><a name="1335" href="Issue1062.html#1335" class="Bound"
+      ><a name="1348" href="Issue1062.html#1348" class="Bound"
       >step</a
-      ><a name="1339"
+      ><a name="1352"
       > </a
-      ><a name="1340" href="Issue1062.html#1340" class="Bound"
+      ><a name="1353" href="Issue1062.html#1353" class="Bound"
       >s</a
-      ><a name="1341" class="Symbol"
+      ><a name="1354" class="Symbol"
       >)</a
-      ><a name="1342"
-      > </a
-      ><a name="1343" class="Symbol"
-      >=</a
-      ><a name="1344"
-      >  </a
-      ><a name="1346" href="Issue1062.html#1003" class="Field"
-      >head</a
-      ><a name="1350"
-      > </a
-      ><a name="1351" class="Symbol"
-      >(</a
-      ><a name="1352" href="Issue1062.html#397" class="Field"
-      >fst</a
       ><a name="1355"
       > </a
       ><a name="1356" class="Symbol"
-      >(</a
-      ><a name="1357" href="Issue1062.html#1335" class="Bound"
-      >step</a
-      ><a name="1361"
+      >=</a
+      ><a name="1357"
+      >  </a
+      ><a name="1359" href="Issue1062.html#1016" class="Field"
+      >head</a
+      ><a name="1363"
       > </a
-      ><a name="1362" href="Issue1062.html#1340" class="Bound"
+      ><a name="1364" class="Symbol"
+      >(</a
+      ><a name="1365" href="Issue1062.html#410" class="Field"
+      >fst</a
+      ><a name="1368"
+      > </a
+      ><a name="1369" class="Symbol"
+      >(</a
+      ><a name="1370" href="Issue1062.html#1348" class="Bound"
+      >step</a
+      ><a name="1374"
+      > </a
+      ><a name="1375" href="Issue1062.html#1353" class="Bound"
       >s</a
-      ><a name="1363" class="Symbol"
+      ><a name="1376" class="Symbol"
       >))</a
-      ><a name="1365"
+      ><a name="1378"
       >
 </a
-      ><a name="1366" href="Issue1062.html#564" class="Field"
+      ><a name="1379" href="Issue1062.html#577" class="Field"
       >tail</a
-      ><a name="1370"
+      ><a name="1383"
       >  </a
-      ><a name="1372" class="Symbol"
+      ><a name="1385" class="Symbol"
       >(</a
-      ><a name="1373" href="Issue1062.html#1182" class="Function"
+      ><a name="1386" href="Issue1062.html#1195" class="Function"
       >unfold&#8314;</a
-      ><a name="1380"
+      ><a name="1393"
       > </a
-      ><a name="1381" href="Issue1062.html#1381" class="Bound"
+      ><a name="1394" href="Issue1062.html#1394" class="Bound"
       >step</a
-      ><a name="1385"
+      ><a name="1398"
       > </a
-      ><a name="1386" href="Issue1062.html#1386" class="Bound"
+      ><a name="1399" href="Issue1062.html#1399" class="Bound"
       >s</a
-      ><a name="1387" class="Symbol"
+      ><a name="1400" class="Symbol"
       >)</a
-      ><a name="1388"
+      ><a name="1401"
       > </a
-      ><a name="1389" class="Symbol"
+      ><a name="1402" class="Symbol"
       >=</a
-      ><a name="1390"
+      ><a name="1403"
       >  </a
-      ><a name="1392" class="Keyword"
+      ><a name="1405" class="Keyword"
       >let</a
-      ><a name="1395"
+      ><a name="1408"
       >  </a
-      ><a name="1397" class="Symbol"
-      >((_</a
-      ><a name="1400"
-      > </a
-      ><a name="1401" href="Issue1062.html#987" class="InductiveConstructor Operator"
-      >&#8759;</a
-      ><a name="1402"
-      > </a
-      ><a name="1403" href="Issue1062.html#1403" class="Bound"
-      >l</a
-      ><a name="1404" class="Symbol"
-      >)</a
-      ><a name="1405"
-      > </a
-      ><a name="1406" href="Issue1062.html#381" class="InductiveConstructor Operator"
-      >,</a
-      ><a name="1407"
-      > </a
-      ><a name="1408" href="Issue1062.html#1408" class="Bound"
-      >s&#8242;</a
       ><a name="1410" class="Symbol"
-      >)</a
-      ><a name="1411"
-      > </a
-      ><a name="1412" class="Symbol"
-      >=</a
+      >((_</a
       ><a name="1413"
       > </a
-      ><a name="1414" href="Issue1062.html#1381" class="Bound"
-      >step</a
+      ><a name="1414" href="Issue1062.html#1000" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1415"
+      > </a
+      ><a name="1416" href="Issue1062.html#1416" class="Bound"
+      >l</a
+      ><a name="1417" class="Symbol"
+      >)</a
       ><a name="1418"
       > </a
-      ><a name="1419" href="Issue1062.html#1386" class="Bound"
-      >s</a
+      ><a name="1419" href="Issue1062.html#394" class="InductiveConstructor Operator"
+      >,</a
       ><a name="1420"
+      > </a
+      ><a name="1421" href="Issue1062.html#1421" class="Bound"
+      >s&#8242;</a
+      ><a name="1423" class="Symbol"
+      >)</a
+      ><a name="1424"
+      > </a
+      ><a name="1425" class="Symbol"
+      >=</a
+      ><a name="1426"
+      > </a
+      ><a name="1427" href="Issue1062.html#1394" class="Bound"
+      >step</a
+      ><a name="1431"
+      > </a
+      ><a name="1432" href="Issue1062.html#1399" class="Bound"
+      >s</a
+      ><a name="1433"
       >
                           </a
-      ><a name="1447" class="Keyword"
+      ><a name="1460" class="Keyword"
       >in</a
-      ><a name="1449"
+      ><a name="1462"
       >   </a
-      ><a name="1452" href="Issue1062.html#1403" class="Bound"
+      ><a name="1465" href="Issue1062.html#1416" class="Bound"
       >l</a
-      ><a name="1453"
+      ><a name="1466"
       > </a
-      ><a name="1454" href="Issue1062.html#774" class="Function Operator"
+      ><a name="1467" href="Issue1062.html#787" class="Function Operator"
       >++&#738;</a
-      ><a name="1457"
-      > </a
-      ><a name="1458" href="Issue1062.html#1182" class="Function"
-      >unfold&#8314;</a
-      ><a name="1465"
-      > </a
-      ><a name="1466" href="Issue1062.html#1381" class="Bound"
-      >step</a
       ><a name="1470"
       > </a
-      ><a name="1471" href="Issue1062.html#1408" class="Bound"
+      ><a name="1471" href="Issue1062.html#1195" class="Function"
+      >unfold&#8314;</a
+      ><a name="1478"
+      > </a
+      ><a name="1479" href="Issue1062.html#1394" class="Bound"
+      >step</a
+      ><a name="1483"
+      > </a
+      ><a name="1484" href="Issue1062.html#1421" class="Bound"
       >s&#8242;</a
-      ><a name="1473"
+      ><a name="1486"
       >
 \end{code}
 </a
-      ><a name="1485" class="Comment"
+      ><a name="1498" class="Comment"
       >Problem: The &#8759; in the last let statement is not colored with constructor color.
 \end{document}
 </a
