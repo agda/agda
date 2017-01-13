@@ -24,11 +24,11 @@ The built-in combinators for sizes are described in :ref:`builtin_sized_types`.
     open import Data.Bool
     open import Relation.Binary.PropositionalEquality
 
--------------------------
-Example: Finite languages
--------------------------
+-----------------------------------------
+Example for coinduction: finite languages
+-----------------------------------------
 
-See `Traytel 2016`_.
+See `Abel 2017`_ and `Traytel 2016`_.
 
 Decidable languages can be represented as infinite trees. Each node has as many
 children as the number of characters in the alphabet ``A``. Each path from the root
@@ -59,14 +59,14 @@ With this data type, we can define some regular languages. The first one, the
 empty language, contains no words; so all the nodes are labelled ``false``::
 
     ∅ : ∀ {i A}  → Lang i A
-    ν ∅ = false
+    ν ∅   = false
     δ ∅ _ = ∅
 
 The second one is the language containing a single word; the empty word. The
 root node is labelled ``true``, and all the others are labelled ``false``::
 
     ε : ∀ {i A} → Lang i A
-    ν ε = true
+    ν ε   = true
     δ ε _ = ∅
 
 To compute the union (or sum) of two languages, we do a point-wise ``or``
@@ -75,7 +75,7 @@ operation on the labels of their nodes:
 ::
 
     _+_ : ∀ {i A} → Lang i A → Lang i A → Lang i A
-    ν (a + b) = ν a ∨ ν b
+    ν (a + b)   = ν a   ∨ ν b
     δ (a + b) x = δ a x + δ b x
 
     infixl 10 _+_
@@ -101,7 +101,7 @@ We have to consider two cases:
 ::
 
     _·_ : ∀ {i A} → Lang i A → Lang i A → Lang i A
-    ν (a · b) = ν a ∧ ν b
+    ν (a · b)   = ν a ∧ ν b
     δ (a · b) x = if ν a then δ a x · b + δ b x else δ a x · b
 
     infixl 20 _·_
@@ -115,7 +115,7 @@ depth as ``a`` and ``b`` are.
 In a similar spirit, we can define the Kleene star::
 
     _* : ∀ {i A} → Lang i A → Lang i A
-    ν (a *) = true
+    ν (a *)   = true
     δ (a *) x = δ a x · a *
 
     infixl 30 _*
@@ -143,7 +143,7 @@ We consider a word as a ``List`` of characters.
 ::
 
       _∈_ : ∀ {i} {A} → List i A → Lang i A → Bool
-      [] ∈ a = ν a
+      []      ∈ a = ν a
       (x ∷ w) ∈ a = w ∈ δ a x
 
 ..
@@ -161,33 +161,33 @@ language to have size ``ω``.
 ::
 
       _∈_ : ∀ {A} → List A → Lang ω A → Bool
-      [] ∈ a = ν a
+      []      ∈ a = ν a
       (x ∷ w) ∈ a = w ∈ δ a x
 
 Intuitively, ``ω`` is a ``Size`` larger than the size of any term
 than one could possibly define in Agda.
 
 Now, let's consider binary strings as words. First, we
-define the languages containing a single word of length 1::
+define the languages ``⟦ x ⟧`` containing the single word “x” of length 1,
+for alphabet ``A = Bool``::
 
     ⟦_⟧ : ∀ {i} → Bool → Lang i Bool
-    ν ⟦ _ ⟧    =  false
+    ν ⟦ _     ⟧       = false
 
     δ ⟦ false ⟧ false = ε
-    δ ⟦ true ⟧ true = ε
-    δ ⟦ false ⟧ true = ∅
-    δ ⟦ true ⟧ false = ∅
+    δ ⟦ true  ⟧ true  = ε
+    δ ⟦ false ⟧ true  = ∅
+    δ ⟦ true  ⟧ false = ∅
 
 Now we can define the bip-bop language, consisting of strings of even
-length starting with “true”, where each “true” is followed by “false”, and
-viceversa.
+length alternating letters “true” and “false”.
 
 ::
 
     bip-bop = (⟦ true ⟧ · ⟦ false ⟧)*
 
 
-We can now test words for membership in the language ``bip-bop``
+Let's test a few words for membership in the language ``bip-bop``!
 
 ..
   ::
@@ -210,6 +210,10 @@ We can now test words for membership in the language ``bip-bop``
 References
 ----------
 
+.. _`Abel 2017`:
+
+   `Equational Reasoning about Formal Languages in Coalgebraic Style, Andreas Abel <https://www.cse.chalmers.se/~abela/jlamp17.pdf>`_.
+
 .. _`Traytel 2016`:
 
-   * `Formal Languages, Formally and Coinductively, Dmitriy Traytel, FSCD (2016) <https://www21.in.tum.de/~traytel/papers/fscd16-coind_lang/paper.pdf>`_.
+   `Formal Languages, Formally and Coinductively, Dmitriy Traytel, FSCD (2016) <https://www21.in.tum.de/~traytel/papers/fscd16-coind_lang/paper.pdf>`_.
