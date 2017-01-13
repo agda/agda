@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -745,7 +746,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
     -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
     -- thus, we need to use traverseTermM.  Sharing is handled by traverseTermM,
     -- so no ignoreSharing needed here.
-    let reduceCon = traverseTermM $ \ t -> case t of
+    let (reduceCon :: Term -> TCM Term) = traverseTermM $ \ t -> case t of
            Con c ci vs -> (`apply` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
            _ -> return t
 
@@ -781,9 +782,12 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
          delayed <- terGetDelayed
          pats    <- terGetPatterns
          -- 2014-03-25 Andreas, the costs seem small, benchmark turned off.
-         es <- liftTCM $ -- billTo [Benchmark.Termination, Benchmark.Reduce] $
-           forM es0 $
-              etaContract <=< traverse reduceCon <=< instantiateFull
+         es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
+           -- forM es0 $
+           --    etaContract <=< traverse reduceCon <=< instantiateFull
+           -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
+           modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $
+              etaContract <=< normalise
 
          -- Compute the call matrix.
 

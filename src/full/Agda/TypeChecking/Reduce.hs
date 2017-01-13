@@ -432,6 +432,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       -- are not unfolded unless explicitely permitted.
       dontUnfold =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
+        || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
       copatterns =
         case def of
