@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.CompiledClause.Match where
 

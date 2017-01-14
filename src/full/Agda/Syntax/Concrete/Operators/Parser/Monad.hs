@@ -2,10 +2,9 @@
 -- | The parser monad used by the operator parser
 ------------------------------------------------------------------------
 
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE Rank2Types          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE Rank2Types    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser.Monad
   ( MemoKey(..)

@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE CPP            #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Syntax.Position ( tests ) where
 

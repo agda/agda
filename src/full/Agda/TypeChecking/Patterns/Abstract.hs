@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).

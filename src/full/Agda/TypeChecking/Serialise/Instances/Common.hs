@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                       #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}

@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
 
 module Agda.TypeChecking.Rules.Term where
 

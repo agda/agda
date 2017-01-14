@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
 
 -- | Solving size constraints under hypotheses.
 --

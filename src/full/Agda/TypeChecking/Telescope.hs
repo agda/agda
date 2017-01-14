@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Telescope where
 
