@@ -105,7 +105,7 @@ Finding the commit that introduced a regression
     git clone <agda repository> agda-bug
     cd agda-bug
     cp <some path>/Module-that-should-be-accepted.agda .
-    agda-bisect <bad commit> <good commit> \
+    agda-bisect --bad <bad commit> --good <good commit> \
       Module-that-should-be-accepted.agda
 
   See agda-bisect --help for usage information.
