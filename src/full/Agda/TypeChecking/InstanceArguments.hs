@@ -45,15 +45,13 @@ import Agda.Utils.Impossible
 --   for instance search.
 initialIFSCandidates :: Type -> TCM (Maybe [Candidate])
 initialIFSCandidates t = do
-  cands1 <- getContextVars
   otn <- getOutputTypeName t
   case otn of
-    NoOutputTypeName -> typeError $ GenericError $ "Instance search can only be used to find elements in a named type"
+    NoOutputTypeName -> typeError $ GenericError $
+      "Instance search can only be used to find elements in a named type"
     OutputTypeNameNotYetKnown -> return Nothing
-    OutputTypeVar -> return $ Just cands1
-    OutputTypeName n -> do
-      cands2 <- getScopeDefs n
-      return $ Just $ cands1 ++ cands2
+    OutputTypeVar    -> Just <$> getContextVars
+    OutputTypeName n -> Just <$> do (++) <$> getContextVars <*> getScopeDefs n
   where
     -- get a list of variables with their type, relative to current context
     getContextVars :: TCM [Candidate]
@@ -114,17 +112,19 @@ initialIFSCandidates t = do
       catMaybes <$> mapM (candidate rel) qs
 
     candidate :: Relevance -> QName -> TCM (Maybe Candidate)
-    candidate rel q =
+    candidate rel q = ifNotM (isNameInScope q <$> getScope) (return Nothing) $ do
       -- Andreas, 2012-07-07:
       -- we try to get the info for q
       -- while opening a module, q may be in scope but not in the signature
       -- in this case, we just ignore q (issue 674)
       flip catchError handle $ do
         def <- getConstInfo q
-        let r = defRelevance def
-        if not (r `moreRelevant` rel) then return Nothing else do
-          t   <- defType <$> instantiateDef def
+        if not (defRelevance def `moreRelevant` rel) then return Nothing else do
+          -- Andreas, 2017-01-14: instantiateDef is a bit of an overkill
+          -- if we anyway get the freeVarsToApply
+          -- WAS: t <- defType <$> instantiateDef def
           args <- freeVarsToApply q
+          let t = defType def `piApply` args
           let v = case theDef def of
                -- drop parameters if it's a projection function...
                Function{ funProjection = Just p } -> projDropParsApply p ProjSystem args
@@ -134,8 +134,7 @@ initialIFSCandidates t = do
                -- Ulf, 2014-08-20: constructors are always instances.
                Constructor{ conSrcCon = c }       -> Con c ConOSystem []
                _                                  -> Def q $ map Apply args
-          inScope <- isNameInScope q <$> getScope
-          return $ Candidate v t ExplicitToInstance False <$ guard inScope
+          return $ Just $ Candidate v t ExplicitToInstance False
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
