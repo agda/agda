@@ -366,14 +366,6 @@ piApply1 t v = do
   (_, b) <- mustBePi t
   return $ absApp b v
 
--- | Given a function type, introduce its domain into
---   the context and continue with its codomain.
-
-intro1 :: (MonadTCM tcm) => Type -> (Type -> tcm a) -> tcm a
-intro1 t cont = do
-  (a, b) <- mustBePi t
-  underAbstraction a b cont
-
 ---------------------------------------------------------------------------
 -- * Instance definitions
 ---------------------------------------------------------------------------

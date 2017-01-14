@@ -382,23 +382,6 @@ fitsIn t s = do
 constructs :: Int -> Type -> QName -> TCM [Int]
 constructs nofPars t q = constrT 0 t
     where
-{- OLD
-        constrT :: Nat -> Type -> TCM ()
-        constrT n (El s v) = constr n s v
-
-        constr :: Nat -> Sort -> Term -> TCM ()
-        constr n s v = do
-            v <- reduce v
-            case ignoreSharing v of
-                Pi _ (NoAbs _ b) -> constrT n b
-                Pi a b           -> underAbstraction a b $ constrT (n + 1)
-                Def d vs
-                    | d == q -> checkParams n =<< reduce (take nofPars vs)
-                                                    -- we only check the parameters
-                _ -> bad $ El s v
-
-        bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
--}
         constrT :: Nat -> Type -> TCM [Int]
         constrT n t = do
             t <- reduce t
