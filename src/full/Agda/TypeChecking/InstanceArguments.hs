@@ -45,15 +45,13 @@ import Agda.Utils.Impossible
 --   for instance search.
 initialIFSCandidates :: Type -> TCM (Maybe [Candidate])
 initialIFSCandidates t = do
-  cands1 <- getContextVars
   otn <- getOutputTypeName t
   case otn of
-    NoOutputTypeName -> typeError $ GenericError $ "Instance search can only be used to find elements in a named type"
+    NoOutputTypeName -> typeError $ GenericError $
+      "Instance search can only be used to find elements in a named type"
     OutputTypeNameNotYetKnown -> return Nothing
-    OutputTypeVar -> return $ Just cands1
-    OutputTypeName n -> do
-      cands2 <- getScopeDefs n
-      return $ Just $ cands1 ++ cands2
+    OutputTypeVar    -> Just <$> getContextVars
+    OutputTypeName n -> Just <$> do (++) <$> getContextVars <*> getScopeDefs n
   where
     -- get a list of variables with their type, relative to current context
     getContextVars :: TCM [Candidate]
@@ -68,9 +66,15 @@ initialIFSCandidates t = do
       -- {{}}-fields of variables are also candidates
       let cxtAndTypes = [ (var i, snd $ unDom $ raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
-      reportSDoc "tc.instance.fields" 30 $ text "instance field candidates" $$ nest 2 (vcat
-        [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
-              , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- fields ])
+      reportSDoc "tc.instance.fields" 30 $
+        if null fields then text "no instance field candidates" else
+          text "instance field candidates" $$ do
+            nest 2 $ vcat
+              [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
+                    , nest 2 $ prettyTCM t
+                    ]
+              | Candidate v t _ overlap <- fields
+              ]
 
       -- get let bindings
       env <- asks envLetBindings
@@ -114,17 +118,19 @@ initialIFSCandidates t = do
       catMaybes <$> mapM (candidate rel) qs
 
     candidate :: Relevance -> QName -> TCM (Maybe Candidate)
-    candidate rel q =
+    candidate rel q = ifNotM (isNameInScope q <$> getScope) (return Nothing) $ do
       -- Andreas, 2012-07-07:
       -- we try to get the info for q
       -- while opening a module, q may be in scope but not in the signature
       -- in this case, we just ignore q (issue 674)
       flip catchError handle $ do
         def <- getConstInfo q
-        let r = defRelevance def
-        if not (r `moreRelevant` rel) then return Nothing else do
-          t   <- defType <$> instantiateDef def
+        if not (defRelevance def `moreRelevant` rel) then return Nothing else do
+          -- Andreas, 2017-01-14: instantiateDef is a bit of an overkill
+          -- if we anyway get the freeVarsToApply
+          -- WAS: t <- defType <$> instantiateDef def
           args <- freeVarsToApply q
+          let t = defType def `piApply` args
           let v = case theDef def of
                -- drop parameters if it's a projection function...
                Function{ funProjection = Just p } -> projDropParsApply p ProjSystem args
@@ -134,8 +140,7 @@ initialIFSCandidates t = do
                -- Ulf, 2014-08-20: constructors are always instances.
                Constructor{ conSrcCon = c }       -> Con c ConOSystem []
                _                                  -> Def q $ map Apply args
-          inScope <- isNameInScope q <$> getScope
-          return $ Candidate v t ExplicitToInstance False <$ guard inScope
+          return $ Just $ Candidate v t ExplicitToInstance False
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
@@ -157,6 +162,7 @@ findInScope m Nothing = do
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
     t <- getMetaType m
+    reportSLn "tc.instance" 70 $ "findInScope 1: t: " ++ show t
 
 --     -- We create a new meta (which can have additional leading lambdas, if the
 --     -- type @t@ now happens to be a function type) and the associated constraint
@@ -192,7 +198,12 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
         [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
               , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- cands ]
+      reportSDoc "tc.instance" 70 $ text "raw" $$ do
+       nest 2 $ vcat
+        [ sep [ (if overlap then text "overlap" else empty) <+> (text . show) v <+> text ":"
+              , nest 2 $ (text . show) t ] | Candidate v t _ overlap <- cands ]
       t <- normalise =<< getMetaTypeInContext m
+      reportSLn "tc.instance" 70 $ "findInScope 2: t: " ++ show t
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
@@ -487,15 +498,23 @@ checkCandidates m t cands = disableDestructiveUpdate $
             reportSDoc "tc.instance" 20 $
               text "instance search: checking" <+> prettyTCM t''
               <+> text "<=" <+> prettyTCM t
-            ctxElims <- map Apply <$> getContextArgs
+            reportSDoc "tc.instance" 70 $ vcat
+              [ text "instance search: checking (raw)"
+              , nest 4 $ (text . show) t''
+              , nest 2 $ text "<="
+              , nest 4 $ (text . show) t
+              ]
             v <- (`applyDroppingParameters` args) =<< reduce term
             reportSDoc "tc.instance" 15 $ vcat
               [ text "instance search: attempting"
               , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
               ]
+            reportSDoc "tc.instance" 70 $ nest 2 $
+              text "candidate v = " <+> (text . show) v
             -- if constraints remain, we abort, but keep the candidate
             -- Jesper, 05-12-2014: When we abort, we should add a constraint to
             -- instantiate the meta at a later time (see issue 1377).
+            ctxElims <- map Apply <$> getContextArgs
             guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
             -- make a pass over constraints, to detect cases where some are made
             -- unsolvable by the assignment, but don't do this for FindInScope's

@@ -801,15 +801,16 @@ moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
 
   reportSLn "tc.sig.param" 90 $ "computing module parameters of " ++ show m
-  cxt <- getContext
   n   <- getModuleFreeVars m
   tel <- take n . telToList <$> lookupSection m
   sub <- getModuleParameterSub m
-  reportSLn "tc.sig.param" 60 $ unlines $
-    [ "  n    = " ++ show n
-    , "  cxt  = " ++ show (map (fmap fst) cxt)
-    , "  sub  = " ++ show sub
-    ]
+  verboseS "tc.sig.param" 60 $ do
+    cxt <- getContext
+    reportSLn "tc.sig.param" 60 $ unlines $
+      [ "  n    = " ++ show n
+      , "  cxt  = " ++ show (map (fmap fst) cxt)
+      , "  sub  = " ++ show sub
+      ]
   unless (size tel == n) __IMPOSSIBLE__
   let args = applySubst sub $ zipWith (\ i a -> var i <$ argFromDom a) (downFrom n) tel
   reportSLn "tc.sig.param" 60 $ "  args = " ++ show args

@@ -195,7 +195,7 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 newIFSMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
 newIFSMeta s t = do
   TelV tel t' <- telView t
-  addContext tel $ do
+  addContext' tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
     mapSnd (teleLam tel) <$> newIFSMetaCtx s (telePi_ ctx t') vs

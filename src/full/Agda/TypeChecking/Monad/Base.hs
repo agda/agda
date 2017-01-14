@@ -1027,6 +1027,7 @@ data NamedMeta = NamedMeta
 
 instance Pretty NamedMeta where
   pretty (NamedMeta "" x) = pretty x
+  pretty (NamedMeta "_" x) = pretty x
   pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
 type MetaStore = Map MetaId MetaVariable
