@@ -93,13 +93,14 @@ updateModuleParameters sub ret = do
         | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
                               (Map.toList mps)
         ]
-  cxt <- reverse <$> getContext
-  reportSLn "tc.cxt.param" 90 $ unlines $
-    [ "updatingModuleParameters"
-    , "  sub = " ++ show sub
-    , "  cxt = " ++ unwords (map (show . fst . unDom) cxt)
-    , showMP "  old = " pm
-    ]
+  verboseS "tc.cxt.param" 90 $ do
+    cxt <- reverse <$> getContext
+    reportSLn "tc.cxt.param" 90 $ unlines $
+      [ "updatingModuleParameters"
+      , "  sub = " ++ show sub
+      , "  cxt (last added last in list) = " ++ unwords (map (show . fst . unDom) cxt)
+      , showMP "  old = " pm
+      ]
   let pm' = applySubst sub pm
   reportSLn "tc.cxt.param" 90 $ showMP "  new = " pm'
   stModuleParameters .= pm'
