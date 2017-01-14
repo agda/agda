@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                       #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Auto.Typecheck where
 

@@ -1,8 +1,7 @@
-{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice

@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-cse #-}
 

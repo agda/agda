@@ -585,6 +585,7 @@ library
                     , NamedFieldPuns
                     , RankNTypes
                     , RecordWildCards
+                    , ScopedTypeVariables
                     , StandaloneDeriving
                     , TupleSections
                     , TypeSynonymInstances
@@ -757,6 +758,7 @@ test-suite internal-tests
                      , NamedFieldPuns
                      , RankNTypes
                      , RecordWildCards
+                     , ScopedTypeVariables
                      , StandaloneDeriving
                      , TupleSections
                      , TypeSynonymInstances
