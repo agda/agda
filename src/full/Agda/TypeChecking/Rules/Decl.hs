@@ -671,12 +671,15 @@ checkPragma r p =
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
+          let addCompiled = do
+                ty <- haskellType $ defType def
+                reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
+                addHaskellCode x ty hs
           case theDef def of
-            Axiom{} -> do
-              ty <- haskellType $ defType def
-              reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-              addHaskellCode x ty hs
-            _   -> typeError $ GenericError "COMPILED directive only works on postulates"
+            Axiom{} -> addCompiled
+            Function{} -> addCompiled
+            _   -> typeError $ GenericError "COMPILED directive only works on postulates and functions"
+
         A.CompiledExportPragma x hs -> do
           def <- getConstInfo x
           let correct = case theDef def of

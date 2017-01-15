@@ -119,12 +119,17 @@ The ``COMPILED`` pragma
   postulate f : ∀ a b → (a → b) → List a → List b
   {-# COMPILED f HsCode #-}
 
-The ``COMPILED`` pragma tells the compiler to compile the postulated
+The ``COMPILED`` pragma tells the compiler to compile the
 function ``f`` to the Haskell Code ``HsCode``. ``HsCode`` can be an
 arbitrary Haskell term of the right type. This is checked by
 translating the given Agda type of ``f`` into a Haskell type (see
 :ref:`translating-agda-types-to-haskell`) and checking that this
-matches the type of ``HsCode``.
+matches the type of ``HsCode``. The ``COMPILED`` pragma
+can be applied to functions and postulates.
+
+..
+  ::
+  open import Agda.Builtin.Bool
 
 Example:
 ::
@@ -142,6 +147,12 @@ Example:
   {-# COMPILED_TYPE IO IO #-}
   {-# COMPILED putStrLn putStrLn #-}
 
+  not : Bool → Bool
+  not true = false
+  not false = true
+  {-# COMPILED not not #-}
+
+
 Polymorphic functions
 ---------------------
 
@@ -154,7 +165,7 @@ Haskell functions they have to be discarded explicitly. For instance,
   postulate
     map : {A B : Set} → (A → B) → List A → List B
 
-  {-# COMPILED map (\_ _ → map) #-}
+  {-# COMPILED map (\_ _ -> map) #-}
 
 In this case compiled calls to map will still have ``A`` and ``B`` as
 arguments, so the compiled definition ignores its two first arguments
@@ -203,7 +214,7 @@ signature! The only missing part are the Agda FFI bindings:
   {-# COMPILED_TYPE Signal Signal #-}
   {-# COMPILED_TYPE MyObjectClass MyObjectClass #-}
   {-# COMPILED windowInstance (Witness :: MyObjectClass Window) #-}
-  {-# COMPILED myObjectDestroy (\_ → myObjectDestroy) #-}
+  {-# COMPILED myObjectDestroy (\_ -> myObjectDestroy) #-}
 
 Then you should be able to call this as follows in Agda::
 
