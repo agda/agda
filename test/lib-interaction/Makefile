@@ -5,7 +5,7 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 
 # Enable read -n and 2>&1 |.
-SHELL=bash
+SHELL=/usr/bin/env bash
 
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
@@ -23,7 +23,7 @@ else
 sed=sed
 endif
 
-clean=/bin/bash $(shell pwd)/clean.sh $(sed)
+clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
 
 AgdaFiles=$(shell ls *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
@@ -53,7 +53,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | $(AGDA_BIN) -v 0 -i . -i .. --interaction --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
-    else /bin/bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
+    else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
 
