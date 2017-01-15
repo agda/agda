@@ -6,12 +6,11 @@
 # with (import <nixpkgs> {}).pkgs;
 # let modifiedHaskellPackages = haskellPackages.override {
 #      overrides = self: super: {
-#        stdlib-ffi = self.callPackage std-lib/ffi {};
 #        Agda = self.callPackage ./. {
 #            sphinx = python34Packages.sphinx;
-#            sphinx_rtd_theme = python34Packages.sphinx;
+#            sphinx_rtd_theme = python34Packages.sphinx_rtd_theme;
 #            uhc-backend = true;
-#            texLive = texlive.combine { inherit (texlive) scheme-small ucs preview dvipng; };
+#            texLive = texlive.combined.scheme-full;
 #        };
 #      };
 #     };
@@ -34,6 +33,8 @@
 , uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
 , nodejs-6_x
+# additional test dependencies
+, wdiff, colordiff
 }:
 
 assert uhc-backend -> uhc != null && uhc-light != null;
@@ -59,7 +60,7 @@ mkDerivation {
     tasty-silver temporary text
   ];
   configureFlags = if uhc-backend then [ "-fuhc" ] else [];
-  buildTools = [ alex cpphs happy nodejs-6_x]
+  buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff]
     ++ stdenv.lib.optionals uhc-backend [ uhc ]
     ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
 
