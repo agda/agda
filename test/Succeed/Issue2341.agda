@@ -9,7 +9,6 @@ data _≡_ {a}{A : Set a} (x : A) : A → Set a where
   refl : x ≡ x
 
 {-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
 
 postulate
   equalLevel : (x y : Level) → x ≡ y

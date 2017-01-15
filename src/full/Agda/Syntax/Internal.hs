@@ -144,6 +144,17 @@ data Elim' a
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
 
+-- | This instance cheats on 'Proj', use with care.
+--   'Proj's are always assumed to be 'UserWritten', since they have no 'ArgInfo'.
+--   Same for IApply
+instance LensOrigin (Elim' a) where
+  getOrigin (Apply a)   = getOrigin a
+  getOrigin Proj{}      = UserWritten
+  getOrigin IApply{}    = UserWritten
+  mapOrigin f (Apply a) = Apply $ mapOrigin f a
+  mapOrigin f e@Proj{}  = e
+  mapOrigin f e@IApply{} = e
+
 -- | Names in binders and arguments.
 type ArgName = String
 
@@ -608,7 +619,7 @@ data EqualityView
   = EqualityType
     { eqtSort  :: Sort     -- ^ Sort of this type.
     , eqtName  :: QName    -- ^ Builtin EQUALITY.
-    , eqtLevel :: Arg Term -- ^ Hidden
+    , eqtParams :: [Arg Term] -- ^ Hidden.  Empty or @Level@.
     , eqtType  :: Arg Term -- ^ Hidden
     , eqtLhs   :: Arg Term -- ^ NotHidden
     , eqtRhs   :: Arg Term -- ^ NotHidden
@@ -782,6 +793,11 @@ levelSuc (Max as) = Max $ map inc as
 
 mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
+
+isSort :: Term -> Maybe Sort
+isSort v = case ignoreSharing v of
+  Sort s -> Just s
+  _      -> Nothing
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines

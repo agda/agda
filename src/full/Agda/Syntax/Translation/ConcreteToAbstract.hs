@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                    #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
@@ -227,7 +226,7 @@ recordConstructorType fields = build <$> mapM validForLet fs
 
         C.NiceMutual _ _ _
           [ C.FunSig _ _ _ _ _instanc macro _info _ _ _
-          , C.FunDef _ _ _ abstract _ _
+          , C.FunDef _ _ _ abstract _ _ _
              [ C.Clause _top _catchall (C.LHS _p [] [] []) (C.RHS _rhs) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef ->
           -- TODO: this is still too generous, we also need to check that _p
@@ -424,9 +423,18 @@ checkOpen
   :: Range -> C.QName -> C.ImportDirective                -- ^ Arguments of 'NiceOpen'
   -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
 checkOpen r x dir = do
-  reportSDoc "scope.decl" 70 $ vcat $
-    [ text $ "scope checking NiceOpen " ++ prettyShow x
-    ]
+  reportSDoc "scope.decl" 70 $ do
+    cm <- getCurrentModule
+    vcat $
+      [ text $ "scope checking NiceOpen " ++ prettyShow x
+      , text   "  getCurrentModule       = " <+> prettyA cm
+      , text $ "  getCurrentModule (raw) = " ++ show cm
+      , text $ "  C.ImportDirective      = " ++ show dir
+      ]
+  -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
+  when (publicOpen dir) $ do
+    whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
+      warning $ UselessPublic
 
   m <- toAbstract (OldModuleName x)
   printScope "open" 20 $ "opening " ++ show x
@@ -710,14 +718,14 @@ scopeCheckExtendedLam r cs = do
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
-  -- Compose a function definition an scope check it.
+  -- Compose a function definition and scope check it.
   a <- aModeToDef <$> asks envAbstractMode
   let
     insertApp (C.RawAppP r es) = C.RawAppP r $ IdentP (C.QName cname) : es
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
-    d = C.FunDef r [] noFixity' {-'-} a __IMPOSSIBLE__ cname $
+    d = C.FunDef r [] noFixity' {-'-} a NotInstanceDef __IMPOSSIBLE__ cname $
           for cs $ \ (lhs, rhs, wh, ca) -> -- wh == NoWhere, see parser for more info
             C.Clause cname ca (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
@@ -1192,7 +1200,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ _ d@[C.FunSig _ fx _ _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+      NiceMutual _ _ _ d@[C.FunSig _ fx _ _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "abstract not allowed in let expressions"
               when (macro == MacroDef) $ do
@@ -1231,7 +1239,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck True
                 [ C.FunSig r noFixity' PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
-                , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
+                , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
             where
@@ -1254,7 +1262,8 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.OpAppP{}             = __IMPOSSIBLE__
 
       -- You can't open public in a let
-      NiceOpen r x dirs | not (publicOpen dirs) -> do
+      NiceOpen r x dirs -> do
+        when (publicOpen dirs) $ warning UselessPublic
         m    <- toAbstract (OldModuleName x)
         adir <- openModule_ x dirs
         let minfo = ModuleInfo
@@ -1266,7 +1275,8 @@ instance ToAbstract LetDef [A.LetBinding] where
               }
         return [A.LetOpen minfo m adir]
 
-      NiceModuleMacro r p x modapp open dir | not (publicOpen dir) ->
+      NiceModuleMacro r p x modapp open dir -> do
+        when (publicOpen dir) $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
         checkModuleMacro LetApply r (PrivateAccess Inserted) x modapp open dir
@@ -1387,12 +1397,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
         toAbstractNiceAxiom A.FunSig m (C.Axiom r f p a i rel Nothing x t)
 
   -- Function definitions
-    C.FunDef r ds f a tc x cs -> do
+    C.FunDef r ds f a i tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
         (x',cs) <- toAbstract (OldName x,cs)
         let delayed = NotDelayed
         -- (delayed, cs) <- translateCopatternClauses cs -- TODO
-        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
+        return [ A.FunDef (mkDefInfoInstance x f PublicAccess a i NotMacroDef r) x' delayed cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls ca) ->
@@ -1714,6 +1724,15 @@ instance ToAbstract C.Pragma [A.Pragma] where
             "STATIC used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of STATIC pragma should be a function"
       return [ A.StaticPragma y ]
+  toAbstract (C.InjectivePragma _ x) = do
+      e <- toAbstract $ OldQName x Nothing
+      y <- case e of
+          A.Def  x -> return x
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
+            "INJECTIVE used on ambiguous name " ++ prettyShow x
+          _        -> genericError "Target of INJECTIVE pragma should be a defined symbol"
+      return [ A.InjectivePragma y ]
   toAbstract (C.InlinePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of

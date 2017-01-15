@@ -324,14 +324,9 @@ positiveNaN = 0.0 / 0.0
 
 primShowFloat :: Double -> String
 primShowFloat x
-  | isNaN x          = "NaN"
-  | isInfinite x     = if x < 0 then "-Infinity" else "Infinity"
-  | otherwise        = reverse . dropZeroes . reverse $ show x
-  where
-    -- GHC drops trailing zeroes, UHC doesn't seem to do so. Quick fix for now...
-    dropZeroes s@(_ : '.' : _) = s  -- don't drop the last one though
-    dropZeroes ('0' : s)       = dropZeroes s
-    dropZeroes s               = s
+  | isNaN x      = "NaN"
+  | isInfinite x = if x < 0 then "-Infinity" else "Infinity"
+  | otherwise    = show x
 
 primMkFloat :: String -> Double
 primMkFloat = read

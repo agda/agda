@@ -17,7 +17,18 @@ import System.IO
 
 extensions :: [String]
 extensions =
-  [".agda", ".cabal", ".el", ".hs", ".hs-boot", ".lhs", ".md", ".rst", ".x", ".y"]
+  [ ".agda"
+  , ".cabal"
+  , ".el"
+  , ".hs"
+  , ".hs-boot"
+  , ".lagda"
+  , ".lhs"
+  , ".md"
+  , ".rst"
+  , ".x"
+  , ".y"
+  ]
 
 -- In test/succeed/LineEndings/ we test that Agda can handle various
 -- kinds of whitespace, so we exclude this directory.
@@ -43,11 +54,12 @@ validDir base =
 --   as they test behavior of Agda with regard to tab characters.
 excludedFiles :: [FilePath]
 excludedFiles =
-  [ "Whitespace.agda"    -- in test/succeed
-  , "Issue1337.agda"     -- in test/succeed
-  , "Tabs.agda"          -- in test/fail
-  , "TabsInPragmas.agda" -- in test/fail
-  , "Lexer.hs"           -- could be in src/full/Agda/Syntax/Parser
+  [ "Whitespace.agda"                       -- in test/succeed
+  , "Issue1337.agda"                        -- in test/succeed
+  , "Tabs.agda"                             -- in test/fail
+  , "TabsInPragmas.agda"                    -- in test/fail
+  , "Lexer.hs"                              -- could be in src/full/Agda/Syntax/Parser
+  , "AccidentalSpacesAfterBeginCode.lagda"  -- in test/LaTeXAndHTML/succeed
   ]
 
 -- Auxiliary functions.

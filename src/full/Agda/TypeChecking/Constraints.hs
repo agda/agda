@@ -194,8 +194,13 @@ solveConstraint_ (TelCmp a b cmp tela telb) = compareTel a b cmp tela telb
 solveConstraint_ (SortCmp cmp s1 s2)        = compareSort cmp s1 s2
 solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b
 solveConstraint_ c0@(Guarded c pid)         = do
-  ifM (isProblemSolved pid) (solveConstraint_ c)
-                            (addConstraint c0)
+  ifM (isProblemSolved pid)
+    {-then-} (do
+      reportSLn "tc.constr.solve" 50 $ "Guarding problem " ++ show pid ++ " is solved, moving on..."
+      solveConstraint_ c)
+    {-else-} $ do
+      reportSLn "tc.constr.solve" 50 $ "Guarding problem " ++ show pid ++ " is still unsolved."
+      addConstraint c0
 solveConstraint_ (IsEmpty r t)              = isEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnBlock m)                =

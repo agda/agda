@@ -2,18 +2,16 @@
 -- | The parser monad used by the operator parser
 ------------------------------------------------------------------------
 
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE Rank2Types          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE Rank2Types    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser.Monad
   ( MemoKey(..)
   , Parser
   , parse
-  , token
+  , sat'
   , sat
-  , tok
   , doc
   , memoise
   , memoiseIfPrinting
@@ -54,22 +52,17 @@ type Parser tok a =
 parse :: forall tok a. Parser tok a -> [MaybePlaceholder tok] -> [a]
 parse = Parser.parse
 
--- | Parses a single token.
+-- | Parses a token satisfying the given predicate. The computed value
+-- is returned.
 
-token :: Parser tok (MaybePlaceholder tok)
-token = Parser.token
+sat' :: (MaybePlaceholder tok -> Maybe a) -> Parser tok a
+sat' = Parser.sat'
 
 -- | Parses a token satisfying the given predicate.
 
 sat :: (MaybePlaceholder tok -> Bool) ->
        Parser tok (MaybePlaceholder tok)
 sat = Parser.sat
-
--- | Parses a given token.
-
-tok :: (Eq tok, Show tok) =>
-       MaybePlaceholder tok -> Parser tok (MaybePlaceholder tok)
-tok = Parser.tok
 
 -- | Uses the given document as the printed representation of the
 -- given parser. The document's precedence is taken to be 'atomP'.

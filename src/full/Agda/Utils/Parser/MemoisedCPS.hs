@@ -24,7 +24,7 @@
 
 module Agda.Utils.Parser.MemoisedCPS
   ( ParserClass(..)
-  , doc
+  , sat, token, tok, doc
   , DocP, bindP, choiceP, seqP, starP, atomP
   , Parser
   , ParserWithGrammar
@@ -98,11 +98,15 @@ instance Monad (Parser k r tok) where
     p input i $ \j x -> unP (f x) input j k
 
 instance Functor (Parser k r tok) where
-  fmap f p = p >>= return . f
+  fmap f (P p) = P $ \input i k ->
+    p input i $ \i -> k i . f
 
 instance Applicative (Parser k r tok) where
-  pure x = P $ \_ i k -> k i x
-  (<*>)  = ap
+  pure x        = P $ \_ i k -> k i x
+  P p1 <*> P p2 = P $ \input i k ->
+    p1 input i $ \i f ->
+    p2 input i $ \i x ->
+    k i (f x)
 
 instance Alternative (Parser k r tok) where
   empty         = P $ \_ _ _ -> return []
@@ -118,14 +122,9 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
   -- the implementation. This function might not terminate.
   grammar :: Show k => p a -> Doc
 
-  -- | Parses a single token.
-  token :: p tok
-
-  -- | Parses a token satisfying the given predicate.
-  sat :: (tok -> Bool) -> p tok
-
-  -- | Parses a given token.
-  tok :: (Eq tok, Show tok) => tok -> p tok
+  -- | Parses a token satisfying the given predicate. The computed
+  -- value is returned.
+  sat' :: (tok -> Maybe a) -> p a
 
   -- | Uses the given function to modify the printed representation
   -- (if any) of the given parser.
@@ -152,6 +151,21 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
 doc :: ParserClass p k r tok => Doc -> p a -> p a
 doc d = annotate (\_ -> (d, atomP))
 
+-- | Parses a token satisfying the given predicate.
+
+sat :: ParserClass p k r tok => (tok -> Bool) -> p tok
+sat p = sat' (\t -> if p t then Just t else Nothing)
+
+-- | Parses a single token.
+
+token :: ParserClass p k r tok => p tok
+token = doc (text "·") (sat' Just)
+
+-- | Parses a given token.
+
+tok :: (ParserClass p k r tok, Eq tok, Show tok) => tok -> p tok
+tok t = doc (text (show t)) (sat (t ==))
+
 instance ParserClass (Parser k r tok) k r tok where
   parse p toks =
     flip evalState IntMap.empty $
@@ -161,17 +175,13 @@ instance ParserClass (Parser k r tok) k r tok where
 
   grammar _ = PP.empty
 
-  token = P $ \input i k ->
+  sat' p = P $ \input i k ->
     if inRange (bounds input) i then
-      (k $! (i + 1)) $! (input ! i)
+      case p (input ! i) of
+        Nothing -> return []
+        Just x  -> (k $! (i + 1)) $! x
     else
       return []
-
-  sat p = do
-    t <- token
-    if p t then return t else empty
-
-  tok t = sat (t ==)
 
   annotate _ p = p
 
@@ -328,9 +338,7 @@ memoiseDocs key p = do
 
 instance ParserClass (ParserWithGrammar k r tok) k r tok where
   parse p                 = parse (parser p)
-  token                   = pg token (return (text "·", atomP))
-  sat p                   = pg (sat p) (return (text "<sat ?>", atomP))
-  tok t                   = pg (tok t) (return (text (show t), atomP))
+  sat' p                  = pg (sat' p) (return (text "<sat ?>", atomP))
   annotate f p            = pg (parser p) (f <$> docs p)
   memoise key p           = pg (memoise key (parser p))
                                (memoiseDocs key p)

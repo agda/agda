@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Agda.TypeChecking.Rules.Data where
 
@@ -74,7 +75,7 @@ checkDataDef i name ps cs =
         t <- unTelV <$> telView t
 
         -- Top level free vars
-        freeVars <- getContextArgs
+        freeVars <- getContextSize
 
         -- The parameters are in scope when checking the constructors.
         dataDef <- bindParameters ps t $ \tel t0 -> do
@@ -151,7 +152,7 @@ checkDataDef i name ps cs =
                 -- so we apply to the free module variables.
                 -- Unfortunately, we lose precision here, since 'abstract', which
                 -- is then performed by addConstant, cannot restore the linearity info.
-                nonLinPars  = Drop (size freeVars) $ Perm (npars + size freeVars) nonLinPars0
+                nonLinPars  = Drop freeVars $ Perm (npars + freeVars) nonLinPars0
 
             -- Return the data definition
             return dataDef{ dataNonLinPars = nonLinPars }
@@ -236,7 +237,6 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         t <- isType_ e
         -- check that the type of the constructor ends in the data type
         n <- getContextSize
-        -- OLD: n <- size <$> getContextTelescope
         debugEndsIn t d n
         nonLinPars <- constructs n t d
         debugNonLinPars nonLinPars
@@ -254,7 +254,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $ do
 
-          cnames <- if nofIxs /= 0 then return Nothing else do
+          cnames <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef) then return Nothing else do
             cxt <- getContextTelescope
             escapeContext (size cxt) $ do
               names <- replicateM (size fields) (freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName c))
@@ -504,25 +504,61 @@ defineCompForFields applyProj name params fsT fns rect = do
 
 
 -- | Bind the parameters of a datatype.
+--
+--   We allow omission of hidden parameters at the definition site.
+--   Example:
+--   @
+--     data D {a} (A : Set a) : Set a
+--     data D A where
+--       c : A -> D A
+--   @
+
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
-bindParameters [] a ret = ret EmptyTel a
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : bs) a ret =
-  bindParameters (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TLet _ lbs))) : bs) a ret =
+bindParameters = bindParameters' []
+
+-- | Auxiliary function for 'bindParameters'.
+bindParameters'
+  :: [Type]         -- ^ @n@ replicas of type if @LamBinding@s are @DomainFree@s
+                    --   that came from a @DomainFull@ of @n@ binders.
+                    --   Should be comsumed whenever a @DomainFree@s are consumed.
+  -> [A.LamBinding] -- ^ Bindings from definition site.
+  -> Type           -- ^ Pi-type of bindings coming from signature site.
+  -> (Telescope -> Type -> TCM a)
+  -> TCM a
+
+bindParameters' _ [] a ret = ret EmptyTel a
+
+bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
+  unless (null ts) __IMPOSSIBLE__
+  t <- workOnTypes $ isType_ e
+  bindParameters' (t <$ xs) (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
+
+bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
   __IMPOSSIBLE__
-bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg b)) ret
-  -- Andreas, 2011-04-07 ignore relevance information in binding?!
-    | argInfoHiding info /= argInfoHiding (domInfo arg) =
-        __IMPOSSIBLE__
-    | otherwise = addContext' (x, arg) $ bindParameters ps (absBody b) $ \tel s ->
-                    ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
-bindParameters bs (El s (Shared p)) ret = bindParameters bs (El s $ derefPtr p) ret
-bindParameters (b : bs) t _ = __IMPOSSIBLE__
-{- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct
--- Andreas, 2012-01-13 due to separation of data declaration/definition, the user
--- could give more parameters than declared.
-bindParameters (b : bs) t _ = typeError $ DataTooManyParameters
--}
+
+bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
+  case ignoreSharing $ unEl t of
+    -- Andreas, 2011-04-07 ignore relevance information in binding?!
+    Pi arg@(Dom{domInfo = info', unDom = a}) b -> do
+      if | info == info'                  -> do
+            -- Andreas, 2016-12-30, issue #1886:
+            -- If type for binding is present, check its correctness.
+            ts <- caseList ts0 (return []) $ \ t0 ts -> do
+              equalType t0 a
+              return ts
+            continue ts ps x
+
+         | visible info, notVisible info' ->
+            continue ts0 ps0 =<< freshName_ (absName b)
+
+         | otherwise                      -> __IMPOSSIBLE__
+             -- Andreas, 2016-12-30 Concrete.Definition excludes this case
+      where
+      continue ts ps x = do
+        addContext' (x, arg) $
+          bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
+            ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
+    _ -> __IMPOSSIBLE__
 
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
@@ -567,23 +603,6 @@ fitsIn t s = do
 constructs :: Int -> Type -> QName -> TCM [Int]
 constructs nofPars t q = constrT 0 t
     where
-{- OLD
-        constrT :: Nat -> Type -> TCM ()
-        constrT n (El s v) = constr n s v
-
-        constr :: Nat -> Sort -> Term -> TCM ()
-        constr n s v = do
-            v <- reduce v
-            case ignoreSharing v of
-                Pi _ (NoAbs _ b) -> constrT n b
-                Pi a b           -> underAbstraction a b $ constrT (n + 1)
-                Def d vs
-                    | d == q -> checkParams n =<< reduce (take nofPars vs)
-                                                    -- we only check the parameters
-                _ -> bad $ El s v
-
-        bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
--}
         constrT :: Nat -> Type -> TCM [Int]
         constrT n t = do
             t <- reduce t
@@ -603,6 +622,12 @@ constructs nofPars t q = constrT 0 t
                   when (any (< 0) nl) __IMPOSSIBLE__
                   when (any (>= nofPars) nl) __IMPOSSIBLE__
                   return nl
+                MetaV{} -> do
+                  def <- getConstInfo q
+                  xs <- newArgsMeta $ defType def
+                  let t' = El (dataSort $ theDef def) $ Def q $ map Apply xs
+                  equalType t t'
+                  constrT n t'
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
         checkParams n vs = zipWithM_ sameVar vs ps

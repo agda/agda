@@ -40,7 +40,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.CheckInternal (checkType)
+import Agda.TypeChecking.CheckInternal (checkType, inferSort)
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
@@ -168,6 +168,12 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                       , funDelayed  = delayed
                       , funAbstr    = Info.defAbstract i
                       }
+
+  -- Andreas, 2017-01-01, issue #2372:
+  -- Add the definition to the instance table, if needed, to update its type.
+  when (Info.defInstance i == InstanceDef) $ do
+    addTypedInstance name t
+
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
 
@@ -383,6 +389,7 @@ data WithFunctionProblem
     { wfParentName :: QName                -- ^ Parent function name.
     , wfName       :: QName                -- ^ With function name.
     , wfParentType :: Type                 -- ^ Type of the parent function.
+    , wfParentTel  :: Telescope            -- ^ Context of the parent patterns.
     , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
     , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
     , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
@@ -677,31 +684,37 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb _) rhs0 = handleR
 
         t' <- reduce =<< instantiateFull eqt
         (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
-          eqt@(EqualityType s _eq _level dom a b) -> return (eqt, El s (unArg dom), unArg a, unArg b)
+          eqt@(EqualityType _s _eq _params (Arg _ dom) a b) -> do
+            s <- inferSort dom
+            return (eqt, El s dom, unArg a, unArg b)
+            -- Note: the sort _s of the equality need not be the sort of the type @dom@!
           OtherType{} -> typeError . GenericDocError =<< do
             text "Cannot rewrite by equation of type" <+> prettyTCM t'
 
         -- Get the name of builtin REFL.
 
         Con reflCon _ [] <- ignoreSharing <$> primRefl
+        reflInfo <- fmap (setOrigin Inserted) <$> getReflArgInfo reflCon
 
-        -- Andreas, 2014-05-17  Issue 1110:
-        -- Rewriting with @refl@ has no effect, but gives an
-        -- incomprehensible error message about the generated
-        -- with clause. Thus, we rather do simply nothing if
-        -- rewriting with @refl@ is attempted.
-
-        let isReflProof = do
-             v <- reduce proof
-             case ignoreSharing v of
-               Con c _ [] | c == reflCon -> return True
-               _ -> return False
-
-        ifM isReflProof recurse $ {- else -} do
+        -- Andreas, 2017-01-11:
+        -- The test for refl is obsolete after fixes of #520 and #1740.
+        -- -- Andreas, 2014-05-17  Issue 1110:
+        -- -- Rewriting with @refl@ has no effect, but gives an
+        -- -- incomprehensible error message about the generated
+        -- -- with clause. Thus, we rather do simply nothing if
+        -- -- rewriting with @refl@ is attempted.
+        -- let isReflProof = do
+        --      v <- reduce proof
+        --      case ignoreSharing v of
+        --        Con c _ [] | c == reflCon -> return True
+        --        _ -> return False
+        -- ifM isReflProof recurse $ {- else -} do
 
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
-        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [conName reflCon]) []
+        -- The REFL constructor might have an argument
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [conName reflCon]) $
+              maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
 
         -- Andreas, 2015-12-25  Issue #1740:
         -- After the fix of #520, rewriting with a reflexive equation
@@ -827,11 +840,12 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb _) vs0 as cs = Bench.
         reportSDoc "tc.with.top" 20 $
           text "              body" <+> prettyTCM v
 
-        return (Just v, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
+        return (Just v, WithFunction x aux t delta delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
 
+-- | Invoked in empty context.
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
 checkWithFunction _ NoWithFunction = return ()
-checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars perm' perm finalPerm cs) = do
+checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs npars perm' perm finalPerm cs) = do
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
@@ -908,7 +922,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction cxtNames f aux t qs npars withSub finalPerm (size delta1) n cs
+  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function

@@ -71,7 +71,7 @@ addConstant q d = do
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel
-              Function{ funProjection = Just Projection{ projProper = True, projIndex = n } } ->
+              Function{ funProjection = Just Projection{ projProper = Just{}, projIndex = n } } ->
                 let fallback = fmap hideOrKeepInstance tel in
                 if n > 0 then fallback else
                 -- if the record value is part of the telescope, its hiding should left unchanged
@@ -176,6 +176,9 @@ markStatic = setFunctionFlag FunStatic True
 
 markInline :: QName -> TCM ()
 markInline = setFunctionFlag FunInline True
+
+markInjective :: QName -> TCM ()
+markInjective q = modifyGlobalDefinition q $ \def -> def { defInjective = True }
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
@@ -411,6 +414,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defCopy           = True
                     , defMatchable      = False
                     , defNoCompilation  = defNoCompilation d
+                    , defInjective      = False
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
@@ -427,6 +431,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
                 -> Just $ p { projIndex = n - size ts'
                             , projLams  = projLams p `apply` ts'
+                            , projProper= fmap copyName $ projProper p
                             }
               _ -> Nothing
             def =
@@ -811,15 +816,16 @@ moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
 
   reportSLn "tc.sig.param" 90 $ "computing module parameters of " ++ show m
-  cxt <- getContext
   n   <- getModuleFreeVars m
   tel <- take n . telToList <$> lookupSection m
   sub <- getModuleParameterSub m
-  reportSLn "tc.sig.param" 60 $ unlines $
-    [ "  n    = " ++ show n
-    , "  cxt  = " ++ show (map (fmap fst) cxt)
-    , "  sub  = " ++ show sub
-    ]
+  verboseS "tc.sig.param" 60 $ do
+    cxt <- getContext
+    reportSLn "tc.sig.param" 60 $ unlines $
+      [ "  n    = " ++ show n
+      , "  cxt  = " ++ show (map (fmap fst) cxt)
+      , "  sub  = " ++ show sub
+      ]
   unless (size tel == n) __IMPOSSIBLE__
   let args = applySubst sub $ zipWith (\ i a -> var i <$ argFromDom a) (downFrom n) tel
   reportSLn "tc.sig.param" 60 $ "  args = " ++ show args
@@ -1001,7 +1007,7 @@ isInlineFun = (^. funInline)
 --   (projection applied to argument).
 isProperProjection :: Defn -> Bool
 isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
-  if projIndex isP <= 0 then False else projProper isP
+  if projIndex isP <= 0 then False else isJust $ projProper isP
 
 -- | Number of dropped initial arguments of a projection(-like) function.
 projectionArgs :: Defn -> Int
@@ -1023,5 +1029,5 @@ applyDef o f a = do
   caseMaybeM (isProjection f) fallback $ \ isP -> do
     if projIndex isP <= 0 then fallback else do
       -- Get the original projection, if existing.
-      if not (projProper isP) then fallback else do
+      if isNothing (projProper isP) then fallback else do
         return $ unArg a `applyE` [Proj o $ projOrig isP]

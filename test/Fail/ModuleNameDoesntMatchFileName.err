@@ -1,4 +1,4 @@
-ModuleNameDoesntMatchFileName.agda:1,1-35
+ModuleNameDoesntMatchFileName.agda:1,8-29
 The name of the top level module does not match the file name. The
 module Mmmmmmmmmmmmmmmmmmmmm should be defined in one of the
 following files:

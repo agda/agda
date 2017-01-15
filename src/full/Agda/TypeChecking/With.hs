@@ -45,6 +45,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -189,7 +190,7 @@ countWithArgs = sum . map countArgs
 withArguments :: [Term] -> [EqualityView] -> [Term]
 withArguments vs as = concat $ for (zip vs as) $ \case
   (v, OtherType a) -> [v]
-  (prf, eqt@(EqualityType s _eq _l t v _v')) -> [unArg v, prf]
+  (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
 
 
 -- | Compute the clauses for the with-function given the original patterns.
@@ -198,6 +199,7 @@ buildWithFunction
   -> QName                -- ^ Name of the parent function.
   -> QName                -- ^ Name of the with-function.
   -> Type                 -- ^ Types of the parent function.
+  -> Telescope            -- ^ Context of parent patterns.
   -> [NamedArg DeBruijnPattern] -- ^ Parent patterns.
   -> Nat                  -- ^ Number of module parameters in parent patterns
   -> Substitution         -- ^ Substitution from parent lhs to with function lhs
@@ -206,7 +208,7 @@ buildWithFunction
   -> Nat                  -- ^ Number of with expressions.
   -> [A.SpineClause]      -- ^ With-clauses.
   -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
-buildWithFunction cxtNames f aux t qs npars withSub perm n1 n cs = mapM buildWithClause cs
+buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
     buildWithClause (A.Clause (A.SpineLHS i _ ps wps) inheritedDots rhs wh catchall) = do
@@ -215,7 +217,7 @@ buildWithFunction cxtNames f aux t qs npars withSub perm n1 n cs = mapM buildWit
       reportSDoc "tc.with" 50 $ text "inheritedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
                                                                | A.NamedDot x v a <- inheritedDots ]
       rhs <- buildRHS rhs
-      (namedDots, ps') <- stripWithClausePatterns cxtNames f aux t qs npars perm ps
+      (namedDots, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
       let (ps1, ps2) = genericSplitAt n1 ps'
       let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) (inheritedDots ++ namedDots) rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
@@ -240,9 +242,9 @@ buildWithFunction cxtNames f aux t qs npars withSub perm n1 n cs = mapM buildWit
     permuteNamedDots (A.Clause lhs dots rhs wh catchall) =
       A.Clause lhs (applySubst withSub dots) rhs wh catchall
 
-{-| @stripWithClausePatterns cxtNames parent f t qs np π ps = ps'@
+{-| @stripWithClausePatterns cxtNames parent f t Δ qs np π ps = ps'@
 
-[@Δ@]   context bound by lhs of original function (not an argument).
+[@Δ@]   context bound by lhs of original function.
 
 [@f@]   name of @with@-function.
 
@@ -312,12 +314,13 @@ stripWithClausePatterns
   -> QName                    -- ^ Name of the parent function.
   -> QName                    -- ^ Name of with-function.
   -> Type                     -- ^ __@t@__   top-level type of the original function.
+  -> Telescope                -- ^ __@Δ@__   context of patterns of parent function.
   -> [NamedArg DeBruijnPattern] -- ^ __@qs@__  internal patterns for original function.
   -> Nat                      -- ^ __@npars@__ number of module parameters is @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
   -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
   -> TCM ([A.NamedDotPattern], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
-stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
+stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
   -- Ulf, 2016-11-16 Issue 2303: We need the module parameter
@@ -429,13 +432,14 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
       case namedArg q of
         ProjP o d -> case A.maybePostfixProjP p of
           Just (o', AmbQ ds) -> do
-            let d' = head ds
-            when (length ds /= 1) __IMPOSSIBLE__
+            -- Andreas, 2016-12-28, issue #2360:
+            -- We disambiguate the projection in the with clause
+            -- to the projection in the parent clause.
             d  <- liftTCM $ getOriginalProjection d
-            d' <- liftTCM $ getOriginalProjection d'
+            found <- anyM ds ((d ==) <.> (liftTCM . getOriginalProjection))
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
             if o /= o' then liftTCM $ mismatchOrigin o o' else do
-            if d /= d' then mismatch else do
+            if not found then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t
                 (_, self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t o d
@@ -447,11 +451,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        VarP x  -> do
-          let v = var (dbPatVarIndex x)
-          t  <- piApply1 t v
-          ps <- strip (self `apply1` v) t ps qs
-          return $ p : ps
+        VarP x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
         DotP v  -> case namedArg p of
           A.DotP r o _  -> ok p
@@ -480,9 +480,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           _ -> failDotPat
           where
             okFlex = ok . makeImplicitP
-            ok p = do
-              t' <- piApply1 t v
-              (p :) <$> strip (self `apply1` v) t' ps qs
+            ok p   = (p :) <$> recurse v
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
@@ -503,15 +501,11 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
               liftTCM $ expandImplicitPattern' (unDom a) $ makeImplicitP p
 
-          -- Andreas, 2013-03-21 if we encounter an implicit pattern
-          -- in the with-clause, we expand it and restart
-          -- Andreas, 2015-07-07 Issue 1606 do this whenever the parent
-          -- is a record pattern, regardless of whether it came from an implicit
-          -- or not.  This allows to drop hidden flexible record patterns from
-          -- the with clauses even when they were present in the parent clause.
-          A.WildP{} | Just _ <- conPRecord ci -> do
-            maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
-              liftTCM $ expandImplicitPattern' (unDom a) p
+          -- Andreas, 2016-12-29, issue #2363.
+          -- Allow _ to stand for the corresponding parent pattern.
+          A.WildP{} -> do
+            let ps' = map (updateNamedArg $ const $ A.WildP empty) qs'
+            stripConP d us b c ConOCon qs' ps'
 
           A.ConP _ (A.AmbQ cs') ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
@@ -536,10 +530,8 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
            mismatch
 
         LitP lit -> case namedArg p of
-          A.LitP lit' | lit == lit' -> do
-            (a, b) <- mustBePi t
-            let v = Lit lit
-            strip (self `apply1` v) (b `absApp` v) ps qs
+          A.LitP lit' | lit == lit' -> recurse $ Lit lit
+          A.WildP{}                 -> recurse $ Lit lit
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
@@ -548,13 +540,17 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
 
           _ -> mismatch
       where
-        mismatch = typeError $
-          WithClausePatternMismatch (namedArg p0) (dbPatVarName <$> namedArg q)
-        mismatchOrigin o o' = typeError . GenericDocError =<< fsep
+        recurse v = do
+          t' <- piApply1 t v
+          strip (self `apply1` v) t' ps qs
+
+        mismatch = addContext delta $ typeError $
+          WithClausePatternMismatch (namedArg p0) q
+        mismatchOrigin o o' = addContext delta . typeError . GenericDocError =<< fsep
           [ text "With clause pattern"
           , prettyA p0
           , text "is not an instance of its parent pattern"
-          , prettyTCM $ dbPatVarName <$> namedArg q
+          , P.fsep <$> prettyTCMPatterns [q]
           , text $ "since the parent pattern is " ++ prettyProjOrigin o ++
                    " and the with clause pattern is " ++ prettyProjOrigin o'
           ]

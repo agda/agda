@@ -136,6 +136,8 @@ instance PrettyTCM Warning where
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    UselessPublic -> fwords $ "Keyword `public' is ignored here"
+
     ParseWarning pw -> pretty pw
 
 prettyTCWarnings :: [TCWarning] -> TCM String
@@ -172,6 +174,7 @@ applyFlagsToTCWarnings ifs ws = do
           UnsolvedConstraints ucs      -> keepUnsolved ucs
           OldBuiltin{}                 -> True
           EmptyRewritePragma           -> True
+          UselessPublic                -> True
           ParseWarning{}               -> True
 
   return $ filter (cleanUp . tcWarning) ws
@@ -269,7 +272,6 @@ errorString err = case err of
   NoParseForLHS{}                          -> "NoParseForLHS"
 --  NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
-  NotInductive {}                          -> "NotInductive"
   AbsurdPatternRequiresNoRHS{}             -> "AbsurdPatternRequiresNoRHS"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
@@ -477,9 +479,6 @@ instance PrettyTCM TypeError where
       "Expected " ++ verbalize (Indefinite r') ++ " argument, but found " ++
       verbalize (Indefinite r) ++ " argument"
 
-    NotInductive t -> fsep $
-      [prettyTCM t] ++ pwords "is not an inductive data type"
-
     UninstantiatedDotPattern e -> fsep $
       pwords "Failed to infer the value of dotted pattern"
 
@@ -684,8 +683,7 @@ instance PrettyTCM TypeError where
 
     WithClausePatternMismatch p q -> fsep $
       pwords "With clause pattern " ++ [prettyA p] ++
-      pwords " is not an instance of its parent pattern " ++ [prettyTCM q]
-         -- TODO: prettier printing for internal patterns
+      pwords " is not an instance of its parent pattern " ++ [P.fsep <$> prettyTCMPatterns [q]]
 
     MetaCannotDependOn m ps i -> fsep $
       pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++
@@ -744,8 +742,9 @@ instance PrettyTCM TypeError where
       pwords "The module" ++ [prettyTCM m] ++
       pwords "can refer to either a local module or an imported module"
 
-    SolvedButOpenHoles ->
-      text "Module cannot be imported since it has open interaction points"
+    SolvedButOpenHoles -> fsep $
+      pwords "Module cannot be imported since it has open interaction points" ++
+      pwords "(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this module)"
 
     CyclicModuleDependency ms ->
       fsep (pwords "cyclic module dependency:")
@@ -1102,15 +1101,8 @@ instance PrettyTCM TypeError where
       pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
       pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
         where
-          display ps = do
-            ps <- nicify f ps
-            prettyTCM f <+> fsep (map (prettyArg . fmap namedThing) ps)
-
-          nicify f ps = do
-            showImp <- showImplicitArguments
-            if showImp
-              then return ps
-              else return ps  -- TODO: remove implicit arguments which aren't constructors
+        display (tel, ps) = prettyTCM $ NamedClause f True $
+          I.Clause noRange tel ps Nothing Nothing False
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
@@ -1238,7 +1230,7 @@ instance PrettyTCM TypeError where
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
     InstanceSearchDepthExhausted c a d -> fsep $
-      pwords ("Instance search depth exhaused (max depth: " ++ show d ++ ") for candidate") ++
+      pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
 
     where

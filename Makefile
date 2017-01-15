@@ -19,7 +19,11 @@ AGDA_MODE=agda-mode
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
 
+# We ask if GHC is available for removing a warning on Travis when
+# testing the documentation.
+ifneq ($(shell which ghc),)
 GHC_VERSION := $(shell ghc --numeric-version | cut -d. -f1-2)
+endif
 
 ifneq ($(shell which uhc),)
 ifeq "$(GHC_VERSION)" "7.10"
@@ -111,19 +115,26 @@ setup-emacs-mode : install-bin
 	@echo
 	$(AGDA_MODE) setup
 
-## Making the documentation ###############################################
+## Making and testing the documentation ######################################
 
 .PHONY : haddock
 haddock :
 	$(CABAL_CMD) configure --builddir=$(BUILD_DIR)
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
 
-.PHONY : doc
-doc :
+.PHONY : doc-html
+doc-html :
 	@echo "======================================================================"
-	@echo "========================== Documentation ============================="
+	@echo "===================== User Manual (html) ============================="
 	@echo "======================================================================"
 	$(MAKE) -C doc/user-manual html
+
+.PHONY : doc-pdf
+doc-pdf :
+	@echo "======================================================================"
+	@echo "====================== User Manual (pdf) ============================="
+	@echo "======================================================================"
+	$(MAKE) -C doc/user-manual latexpdf
 
 ## Making the full language ###############################################
 

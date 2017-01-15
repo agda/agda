@@ -8,9 +8,34 @@
 Pragmas
 *******
 
-.. note::
-   This is a stub.
+Pragmas are comments that are not ignored by Agda but have some
+special meaning. The general format is:
 
-* :ref:`NO_POSITIVITY_CHECK <no-positivity-check>`
+.. code-block:: agda
 
-* :ref:`POLARITY <polarity>`
+  {-# <PRAGMA_NAME> <arguments> #-}
+
+Index of pragmas
+----------------
+
+* :ref:`BUILTIN <built-ins>`
+
+* :ref:`COMPILED <compiled_pragma>`
+
+* :ref:`COMPILED_DATA <compiled_data_pragma>`
+
+* :ref:`COMPILED_EXPORT <compiled_export_pragma>`
+
+* :ref:`COMPILED_TYPE <compiled_type_pragma>`
+
+* :ref:`IMPORT <import_pragma>`
+
+* :ref:`NO_POSITIVITY_CHECK <no_positivity_check_pragma>`
+
+* :ref:`NO_TERMINATION_CHECK <terminating_pragma>`
+
+* :ref:`NON_TERMINATING <non_terminating_pragma>`
+
+* :ref:`POLARITY <polarity_pragma>`
+
+* :ref:`TERMINATING <terminating_pragma>`

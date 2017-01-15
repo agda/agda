@@ -15,8 +15,8 @@ Failed to solve the following constraints:
     create defNat : Default (Default ℕ)
     λ {ℓ} {A} → create (λ x → x) :
       {ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A)
-  _44 := (_ : _A_42) [id ℕ 5] :? ℕ
   _50 := (_ : _A_48) [5] :? ℕ
+  _44 := (_ : _A_42) [id ℕ 5] :? ℕ
 Unsolved metas at the following locations:
   Issue723.agda:42,6-13
   Issue723.agda:42,6-21

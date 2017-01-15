@@ -208,7 +208,7 @@ instance Instantiate EqualityView where
   instantiate' (EqualityType s eq l t a b) = EqualityType
     <$> instantiate' s
     <*> return eq
-    <*> instantiate' l
+    <*> mapM instantiate' l
     <*> instantiate' t
     <*> instantiate' a
     <*> instantiate' b
@@ -452,6 +452,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       -- are not unfolded unless explicitely permitted.
       dontUnfold =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
+        || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
       copatterns =
         case def of
@@ -669,7 +670,7 @@ instance Reduce EqualityView where
   reduce' (EqualityType s eq l t a b) = EqualityType
     <$> reduce' s
     <*> return eq
-    <*> reduce' l
+    <*> mapM reduce' l
     <*> reduce' t
     <*> reduce' a
     <*> reduce' b
@@ -830,7 +831,7 @@ instance Simplify EqualityView where
   simplify' (EqualityType s eq l t a b) = EqualityType
     <$> simplify' s
     <*> return eq
-    <*> simplify' l
+    <*> mapM simplify' l
     <*> simplify' t
     <*> simplify' a
     <*> simplify' b
@@ -987,7 +988,7 @@ instance Normalise EqualityView where
   normalise' (EqualityType s eq l t a b) = EqualityType
     <$> normalise' s
     <*> return eq
-    <*> normalise' l
+    <*> mapM normalise' l
     <*> normalise' t
     <*> normalise' a
     <*> normalise' b
@@ -1169,9 +1170,9 @@ instance InstantiateFull Char where
     instantiateFull' = return
 
 instance InstantiateFull Definition where
-    instantiateFull' (Defn rel x t pol occ df i c inst copy ma sc d) = do
+    instantiateFull' (Defn rel x t pol occ df i c inst copy ma sc inj d) = do
       (t, df, d) <- instantiateFull' (t, df, d)
-      return $ Defn rel x t pol occ df i c inst copy ma sc d
+      return $ Defn rel x t pol occ df i c inst copy ma sc inj d
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x y z) = return $ PVar x y z
@@ -1294,7 +1295,7 @@ instance InstantiateFull EqualityView where
   instantiateFull' (EqualityType s eq l t a b) = EqualityType
     <$> instantiateFull' s
     <*> return eq
-    <*> instantiateFull' l
+    <*> mapM instantiateFull' l
     <*> instantiateFull' t
     <*> instantiateFull' a
     <*> instantiateFull' b

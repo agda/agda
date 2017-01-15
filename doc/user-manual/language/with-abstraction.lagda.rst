@@ -325,6 +325,39 @@ See `The Inspect idiom`_ below for an alternative approach.
 
 ..
   ::
+  module with-clause-underscore where
+
+.. _with-clause-underscore:
+
+Using underscores in pattern repetition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If an ellipsis `...` cannot be used, the with-clause has to repeat (or
+refine) the patterns of the parent clause.  Since Agda 2.5.3, such
+patterns can be replaced by underscores `_` if the variables they bind
+are not needed.  Here is a (slightly contrived) example::
+
+    record R : Set where
+      coinductive -- disallows matching
+      field  f  :  Bool
+             n  :  Nat
+
+    data P (r : R) : Nat → Set where
+      fTrue  :  R.f r ≡ true  →  P r zero
+      nSuc   :                   P r (suc (R.n r))
+
+    data Q : (b : Bool) (n : Nat) →  Set where
+      true!  :             Q true zero
+      suc!   :  ∀{b n}  →  Q b (suc n)
+
+    test : (r : R) {n : Nat} (p : P r n) → Q (R.f r) n
+    test  r  nSuc       = suc!
+    test  r  (fTrue p)  with  R.f r
+    test  _  (fTrue ())    |  false
+    test  _  _             |  true  = true!  -- underscore instead of (isTrue _)
+
+..
+  ::
   module with-rewrite where
     open import Agda.Builtin.Nat using (_+_)
 
@@ -745,4 +778,3 @@ and try to type check it separately.
 
 .. _std-lib: https://github.com/agda/agda-stdlib
 .. _agda-prelude: https://github.com/UlfNorell/agda-prelude
-

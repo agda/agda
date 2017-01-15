@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP   #-}
+{-# LANGUAGE GADTs #-}
 
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
@@ -71,8 +70,13 @@ import Agda.Utils.Impossible
 
 -- | Bills the operator parser.
 
-billToParser :: ScopeM a -> ScopeM a
-billToParser = Bench.billTo [Bench.Parsing, Bench.Operators]
+billToParser :: ExprKind -> ScopeM a -> ScopeM a
+billToParser k = Bench.billTo
+  [ Bench.Parsing
+  , case k of
+      IsExpr    -> Bench.OperatorsExpr
+      IsPattern -> Bench.OperatorsPattern
+  ]
 
 ---------------------------------------------------------------------------
 -- * Building the parser
@@ -663,7 +667,7 @@ classifyPattern conf p =
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 parseLHS :: QName -> Pattern -> ScopeM LHSCore
-parseLHS top p = billToParser $ do
+parseLHS top p = billToParser IsPattern $ do
   (res, ops) <- parseLHS' IsLHS (Just top) p
   case res of
     Right (f, lhs) -> return lhs
@@ -678,7 +682,7 @@ parsePatternSyn :: Pattern -> ScopeM Pattern
 parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
-parsePatternOrSyn lhsOrPatSyn p = billToParser $ do
+parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
   (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     Left p -> return p
@@ -718,7 +722,7 @@ qualifierModules qs =
 -- | Parse a list of expressions into an application.
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
-parseApplication es  = billToParser $ do
+parseApplication es  = billToParser IsExpr $ do
     -- Build the parser
     let names = [ q | Ident q <- es ]
         ms    = qualifierModules names
@@ -743,7 +747,7 @@ parseModuleIdentifier (Ident m) = return m
 parseModuleIdentifier e = typeError $ NotAModuleExpr e
 
 parseRawModuleApplication :: [Expr] -> ScopeM (QName, [NamedArg Expr])
-parseRawModuleApplication es = billToParser $ do
+parseRawModuleApplication es = billToParser IsExpr $ do
     let e : es_args = es
     m <- parseModuleIdentifier e
 

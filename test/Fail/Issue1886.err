@@ -1,0 +1,4 @@
+Issue1886.agda:7,17-20
+Set₁ !=< .Agda.Primitive.Level of type Set₂
+when checking that the expression Set has type
+.Agda.Primitive.Level

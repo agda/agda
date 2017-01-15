@@ -492,7 +492,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             }
 
         let projection = Projection
-              { projProper   = True
+              { projProper   = Just r
               , projOrig     = projname
               -- name of the record type:
               , projFromType = defaultArg r

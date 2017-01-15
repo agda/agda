@@ -265,7 +265,7 @@ makeCase hole rng s = withInteractionId hole $ do
   -- In this case, we refuse to split, as this might lose the refinements.
   checkClauseIsClean :: IPClause -> TCM ()
   checkClauseIsClean ipCl = do
-    sips <- Map.elems <$> use stSolvedInteractionPoints
+    sips <- filter ipSolved . Map.elems <$> use stInteractionPoints
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 
@@ -290,7 +290,7 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel ps _ _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
-    [ text "Interaction.MakeCase.makeCase: split clause:"
+    [ text "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
       [ text "context =" <+> (prettyTCM =<< getContextTelescope)
       , text "tel =" <+> prettyTCM tel

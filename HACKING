@@ -105,7 +105,7 @@ Finding the commit that introduced a regression
     git clone <agda repository> agda-bug
     cd agda-bug
     cp <some path>/Module-that-should-be-accepted.agda .
-    agda-bisect <bad commit> <good commit> \
+    agda-bisect --bad <bad commit> --good <good commit> \
       Module-that-should-be-accepted.agda
 
   See agda-bisect --help for usage information.
@@ -134,7 +134,7 @@ the follow instructions:
 
   * Cherry-pick the commit 123 into the local stable
 
-      agda-stable$ git cherry-pick 123
+      agda-stable$ git cherry-pick -x 123
 
   * Merge the local stable into the local master
 

@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -561,7 +560,7 @@ checkExtendedLambda i di qname cs e t = do
      args     <- getContextArgs
      freevars <- getCurrentModuleFreeVars
      let argsNoParam = genericDrop freevars args -- don't count module parameters
-     let (hid, notHid) = partition isHidden argsNoParam
+     let (hid, notHid) = partition notVisible argsNoParam
      reportSDoc "tc.term.exlam" 30 $ vcat $
        [ text "dropped args: " <+> prettyTCM (take freevars args)
        , text "hidden  args: " <+> prettyTCM hid
@@ -1258,7 +1257,7 @@ inferOrCheckProjApp e o ds args mt = do
                 ]
               -- get the original projection name
               Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
-              guard proper
+              guard $ isJust proper
               -- try to eliminate
               (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
@@ -1701,7 +1700,7 @@ checkConstructorApplication org t c args = do
     --
     -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
     checkForParams args =
-      let (hargs, rest) = span isHidden args
+      let (hargs, rest) = span (not . visible) args
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
       in  any notUnderscore $ map (unScope . namedArg) hargs

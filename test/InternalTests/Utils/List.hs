@@ -13,6 +13,17 @@ import InternalTests.Helpers
 
 ------------------------------------------------------------------------------
 
+prop_last2 a b as = last2 (a:b:as) == toPair (drop (length as) $ a:b:as)
+  where
+  toPair [x,y] = Just (x,y)
+  toPair _     = Nothing
+
+-- Trivial:
+-- prop_initLast_nil       = initLast [] == Nothing
+
+prop_initLast_cons a as = initLast xs == Just (init xs, last xs)
+  where xs = a:as
+
 spec_updateHead f as = let (bs, cs) = splitAt 1 as in map f bs ++ cs
 prop_updateHead f as = updateHead f as == spec_updateHead f as
 
@@ -21,6 +32,9 @@ prop_updateLast f as = updateLast f as == spec_updateLast f as
 
 spec_updateAt n f as = let (bs, cs) = splitAt n as in bs ++ updateHead f cs
 prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
+
+prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
+prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
 
 prop_chop_intercalate :: Property
 prop_chop_intercalate =
@@ -53,7 +67,7 @@ prop_zipWith' :: (Integer -> Integer -> Integer) -> Property
 prop_zipWith' f =
   forAll natural $ \n ->
     forAll (two $ vector n) $ \(xs, ys) ->
-      zipWith' f xs ys == zipWith f xs ys
+      zipWith' f xs ys == Just (zipWith f xs ys)
 
 prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs

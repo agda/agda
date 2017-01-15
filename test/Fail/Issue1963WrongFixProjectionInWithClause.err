@@ -1,6 +1,6 @@
 Issue1963WrongFixProjectionInWithClause.agda:10,1-11,19
 With clause pattern R.f is not an instance of its parent pattern
-.Issue1963WrongFixProjectionInWithClause.R.f
+.R.f
 since the parent pattern is a postfix projection and the with clause pattern is a prefix projection
 when checking that the clause
 test .R.f with R

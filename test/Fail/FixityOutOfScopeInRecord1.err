@@ -1,6 +1,4 @@
-FixityOutOfScopeInRecord1.agda:1,1-38
-You tried to load
-FixityOutOfScopeInRecord1.agda which
-defines the module FixityOutOfScopeInRecord. However, according to
-the include path this module should be defined in
-FixityOutOfScopeInRecord.agda.
+FixityOutOfScopeInRecord1.agda:6,13-16
+The following names are not declared in the same scope as their
+syntax or fixity declaration (i.e., either not in scope at all,
+imported from another module, or declared in a super module): _+_

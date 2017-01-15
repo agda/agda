@@ -1,0 +1,4 @@
+Issue2348.agda:28,8-9
+b != Wrap.out w of type B
+when checking that the expression p has type
+P (proj-like {{r = w}})

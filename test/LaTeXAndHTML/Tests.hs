@@ -26,7 +26,6 @@ import Control.Applicative ((<$>))
 
 import Utils
 
-
 type LaTeXProg = String
 
 allLaTeXProgs :: [LaTeXProg]
@@ -42,6 +41,8 @@ tests = do
   return $ testGroup "LaTeXAndHTML"
     [ mkLaTeXOrHTMLTest k agdaBin f
     | f <- inpFiles
+    -- Note that the LaTeX-backend is only tested on the @.lagda@ and
+    -- @.lagda.tex@ files.
     , k <- HTML : [ LaTeX | any (`isSuffixOf` takeExtensions f) [".lagda",".lagda.tex"] ]
     ]
 
@@ -71,6 +72,9 @@ mkLaTeXOrHTMLTest k agdaBin inp =
 
   testName    = asTestName testDir inp ++ "_" ++ show k
   goldenFile  = dropAgdaExtension inp <.> extension
+  -- For removing a LaTeX compiler when testing @Foo.lagda@, you can
+  -- create a file @Foo.compile@ with the list of the LaTeX compilers
+  -- that you want to use (e.g. ["xelatex", "lualatex"]).
   compFile    = dropAgdaExtension inp <.> ".compile"
   outFileName = takeFileName goldenFile
 
@@ -90,21 +94,21 @@ mkLaTeXOrHTMLTest k agdaBin inp =
       case k of
         HTML  -> done
         LaTeX -> do
-          -- read compile options
-          doCompile <- readFileMaybe compFile
-          case doCompile of
-            -- there is no compile file, so we are finished
-            Nothing -> done
-            -- there is a compile file, check it's content
-            Just content -> do
-              let latexProgs =
-                    fromMaybe allLaTeXProgs
-                      (readMaybe $ T.unpack $ decodeUtf8 content)
-              -- run all latex compilers
-              rl <- doesEnvContain "DONT_RUN_LATEX"
-              if rl
-                then done
-                else
+          rl <- doesEnvContain "DONT_RUN_LATEX"
+          if rl
+            then done
+            else do
+              -- read compile options
+              doCompile <- readFileMaybe compFile
+              case doCompile of
+                -- there is no compile file, so we run all the LaTeX compilers
+                Nothing -> foldl (runLaTeX outFileName outDir) done allLaTeXProgs
+                -- there is a compile file, check it's content
+                Just content -> do
+                  let latexProgs =
+                        fromMaybe allLaTeXProgs
+                          (readMaybe $ T.unpack $ decodeUtf8 content)
+                  -- run the selected LaTeX compilers
                   foldl (runLaTeX outFileName outDir) done latexProgs
 
   runLaTeX :: FilePath -- tex file

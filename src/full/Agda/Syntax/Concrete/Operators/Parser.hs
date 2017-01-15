@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE CPP          #-}
+{-# LANGUAGE GADTs        #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
@@ -43,17 +42,11 @@ maybePlaceholder mp p = case mp of
   where
   p' = noPlaceholder <$> p
 
-notPlaceholder :: Parser e e
-notPlaceholder = do
-  tok <- token
+satNoPlaceholder :: (e -> Maybe a) -> Parser e a
+satNoPlaceholder p = sat' $ \tok ->
   case tok of
-    Placeholder _     -> empty
-    NoPlaceholder _ e -> return e
-
-sat' :: (e -> Bool) -> Parser e e
-sat' p = do
-  tok <- notPlaceholder
-  if p tok then return tok else empty
+    NoPlaceholder _ e -> p e
+    Placeholder _     -> Nothing
 
 data ExprView e
     = LocalV QName
@@ -179,16 +172,14 @@ parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
 
 -- | Parse a specific identifier as a NamePart
 partP :: IsExpr e => [Name] -> RawName -> Parser e Range
-partP ms s = doc (text (show str)) $ do
-    tok <- notPlaceholder
-    case isLocal tok of
-      Just p  -> return p
-      Nothing -> empty
-    where
-        str = show (foldr Qual (QName (Name noRange [Id s])) ms)
-        isLocal e = case exprView e of
-            LocalV y | str == show y -> Just (getRange y)
-            _                        -> Nothing
+partP ms s =
+  doc (text (show str)) $
+  satNoPlaceholder isLocal
+  where
+  str = show (foldr Qual (QName (Name noRange [Id s])) ms)
+  isLocal e = case exprView e of
+      LocalV y | str == show y -> Just (getRange y)
+      _                        -> Nothing
 
 -- | Parses a split-up, unqualified name consisting of at least two
 -- name parts.
@@ -198,27 +189,25 @@ partP ms s = doc (text (show str)) $ do
 -- first name part that is not an underscore.
 
 atLeastTwoParts :: IsExpr e => Parser e Name
-atLeastTwoParts = do
-  (r, ps) <- parts Beginning
-  case r of
-    Nothing -> __IMPOSSIBLE__
-    Just r  -> return (Name r ps)
+atLeastTwoParts =
+  (\p1 ps p2 ->
+      let all = p1 : ps ++ [p2] in
+      case catMaybes (map fst all) of
+        r : _ -> Name r (map snd all)
+        []    -> __IMPOSSIBLE__)
+  <$> part Beginning
+  <*> many (part Middle)
+  <*> part End
   where
-  parts pos = do
-    tok          <- token
-    (pos', r, p) <- case tok of
-      Placeholder pos'                   -> return (pos', Nothing, Hole)
-      NoPlaceholder (Strict.Just pos') e -> case exprView e of
-        LocalV (QName (Name r [Id s])) -> return (pos', Just r, Id s)
-        _                              -> empty
-      _ -> empty
-    if pos == Middle && pos' == End then
-      return (r, [p])
-     else if pos' == pos then do
-      (r', ps) <- parts Middle
-      return (maybe r' Just r, p : ps)
-     else
-      empty
+  part pos = sat' $ \tok -> case tok of
+    Placeholder pos'                   | pos == pos' -> Just ( Nothing
+                                                             , Hole
+                                                             )
+    NoPlaceholder (Strict.Just pos') e | pos == pos' ->
+      case exprView e of
+        LocalV (QName (Name r [Id s])) -> Just (Just r, Id s)
+        _                              -> Nothing
+    _ -> Nothing
 
 -- | Either a wildcard (@_@), or an unqualified name (possibly
 -- containing multiple name parts).
@@ -227,11 +216,11 @@ wildOrUnqualifiedName :: IsExpr e => Parser e (Maybe Name)
 wildOrUnqualifiedName =
   (Nothing <$ partP [] "_")
     <|>
-  (do e <- notPlaceholder
-      case exprView e of
-        LocalV (QName n) -> return (Just n)
-        WildV _          -> return Nothing
-        _                -> empty)
+  (satNoPlaceholder $ \e ->
+     case exprView e of
+       LocalV (QName n) -> Just (Just n)
+       WildV _          -> Just Nothing
+       _                -> Nothing)
     <|>
   Just <$> atLeastTwoParts
 
@@ -310,7 +299,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
     [Name] -> Notation ->
     Parser e (Range, [Either (MaybePlaceholder e, NamedArg Int)
                              (LamBinding, Int)])
-  worker ms []              = return (noRange, [])
+  worker ms []              = pure (noRange, [])
   worker ms (IdPart x : xs) =
     (\r1 (r2, es) -> (fuseRanges r1 r2, es))
       <$> partP ms x
@@ -360,28 +349,12 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
     isPlaceholder Placeholder{}   = 1
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
-argsP p = many (nothidden <|> hidden <|> instanceH)
-    where
-        isHidden (HiddenArgV _) = True
-        isHidden _              = False
-
-        isInstance (InstanceArgV _) = True
-        isInstance _                = False
-
-        nothidden = defaultArg . unnamed <$> do
-            e <- p
-            case exprView e of
-                HiddenArgV   _ -> empty
-                InstanceArgV _ -> empty
-                _              -> return e
-
-        instanceH = doc (text "<instance argument>") $ do
-            InstanceArgV e <- exprView <$> sat' (isInstance . exprView)
-            return $ makeInstance $ defaultArg e
-
-        hidden = doc (text "<implicit argument>") $ do
-            HiddenArgV e <- exprView <$> sat' (isHidden . exprView)
-            return $ hide $ defaultArg e
+argsP p = many (mkArg <$> p)
+  where
+  mkArg e = case exprView e of
+    HiddenArgV   e -> hide (defaultArg e)
+    InstanceArgV e -> makeInstance (defaultArg e)
+    _              -> defaultArg (unnamed e)
 
 appP :: IsExpr e => Parser e e -> Parser e [NamedArg e] -> Parser e e
 appP p pa = foldl app <$> p <*> pa
@@ -389,8 +362,9 @@ appP p pa = foldl app <$> p <*> pa
         app e = unExprView . AppV e
 
 atomP :: IsExpr e => (QName -> Bool) -> Parser e e
-atomP p = doc (text "<atom>") $ do
-    e <- notPlaceholder
-    case exprView e of
-        LocalV x | not (p x) -> empty
-        _                    -> return e
+atomP p =
+  doc (text "<atom>") $
+  satNoPlaceholder $ \e ->
+  case exprView e of
+    LocalV x | not (p x) -> Nothing
+    _                    -> Just e

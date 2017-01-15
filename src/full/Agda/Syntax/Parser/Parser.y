@@ -144,6 +144,7 @@ import Agda.Utils.Impossible
     'IMPORT'                  { TokKeyword KwIMPORT $$ }
     'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
+    'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
     'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $$ }
@@ -274,6 +275,7 @@ Token
     | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
     | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
+    | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
     | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
@@ -1383,6 +1385,7 @@ DeclarationPragma
   | CompiledDataUHCPragma    { $1 }
   | HaskellPragma            { $1 }
   | StaticPragma             { $1 }
+  | InjectivePragma          { $1 }
   | InlinePragma             { $1 }
   | ImportPragma             { $1 }
   | ImportUHCPragma          { $1 }
@@ -1474,6 +1477,11 @@ InlinePragma :: { Pragma }
 InlinePragma
   : '{-#' 'INLINE' PragmaQName '#-}'
     { InlinePragma (getRange ($1,$2,$3,$4)) $3 }
+
+InjectivePragma :: { Pragma }
+InjectivePragma
+  : '{-#' 'INJECTIVE' PragmaQName '#-}'
+    { InjectivePragma (getRange ($1,$2,$3,$4)) $3 }
 
 DisplayPragma :: { Pragma }
 DisplayPragma
@@ -1675,11 +1683,14 @@ figureOutTopLevelModule ds =
   case spanAllowedBeforeModule ds of
     -- Andreas 2016-02-01, issue #1388.
     -- We need to distinguish two additional cases.
+
     -- Case 1: Regular file layout: imports followed by one module. Nothing to do.
     (ds0, [ Module{} ]) -> ds
+
     -- Case 2: The declarations in the module are not indented.
     -- This is allowed for the top level module, and thus rectified here.
     (ds0, Module r m tel [] : ds2) -> ds0 ++ [Module r m tel ds2]
+
     -- Case 3: There is a module with indented declarations,
     -- followed by non-indented declarations.  This should be a
     -- parse error and be reported later (see @toAbstract TopLevel{}@),
@@ -1687,8 +1698,15 @@ figureOutTopLevelModule ds =
     (ds0, Module r m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
     -- OLD code causing issue 1388:
     -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
+
     -- Case 4: a top-level module declaration is missing.
-    (ds0, ds1)                      -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
+    -- Andreas, 2017-01-01, issue #2229:
+    -- Put everything (except OPTIONS pragmas) into an anonymous module.
+    _ -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
+      where
+      (ds0, ds1) = (`span` ds) $ \case
+        Pragma OptionsPragma{} -> True
+        _ -> False
 
 -- | Create a name from a string.
 

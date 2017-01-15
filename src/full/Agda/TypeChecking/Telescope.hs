@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Telescope where
 
@@ -337,6 +336,9 @@ telViewUpTo' n p t = do
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
+telViewPath :: Type -> TCM TelView
+telViewPath = telViewUpTo (-1)
+
 -- | @telViewUpToPath n t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
 telViewUpToPath :: Int -> Type -> TCM TelView
@@ -410,14 +412,6 @@ piApply1 :: MonadTCM tcm => Type -> Term -> tcm Type
 piApply1 t v = do
   (_, b) <- mustBePi t
   return $ absApp b v
-
--- | Given a function type, introduce its domain into
---   the context and continue with its codomain.
-
-intro1 :: (MonadTCM tcm) => Type -> (Type -> tcm a) -> tcm a
-intro1 t cont = do
-  (a, b) <- mustBePi t
-  underAbstraction a b cont
 
 ---------------------------------------------------------------------------
 -- * Instance definitions

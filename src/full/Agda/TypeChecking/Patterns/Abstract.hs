@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).
@@ -34,7 +33,7 @@ expandLitPattern p = traverse (traverse expand) p
   where
     expand p = case asView p of
       (xs, A.LitP (LitNat r n))
-        | n < 0     -> __IMPOSSIBLE__
+        | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
         | n > 20    -> tooBig
         | otherwise -> do
           Con z _ _ <- ignoreSharing <$> primZero
@@ -50,7 +49,8 @@ expandLitPattern p = traverse (traverse expand) p
       "Matching on natural number literals is done by expanding " ++
       "the literal to the corresponding constructor pattern, so " ++
       "you probably don't want to do it this way."
-
+    negLit = typeError $ GenericError $
+      "Negative literals are not supported in patterns"
 
 -- | Expand away (deeply) all pattern synonyms in a pattern.
 class ExpandPatternSynonyms a where

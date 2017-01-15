@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PatternGuards       #-}
-{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE BangPatterns  #-}
+{-# LANGUAGE PatternGuards #-}
+
 
 {-|
 

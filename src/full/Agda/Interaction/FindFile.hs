@@ -182,19 +182,18 @@ checkModuleName name file mexpected = do
 --
 --   No side effects!  Only in 'TCM' to raise errors.
 
-moduleName' :: AbsolutePath -> TCM (Ranged TopLevelModuleName)
+moduleName' :: AbsolutePath -> TCM TopLevelModuleName
 moduleName' file = billTo [Bench.ModuleName] $ do
   q <- runPM (parseFile' moduleParser file)
   let name = topLevelModuleName q
-  case name of
-    TopLevelModuleName ["_"] -> do
+  if moduleNameParts name == ["_"] then do
       q <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $
              GenericError $ "File name " ++ show file ++
                " is invalid as it does not correspond to a valid module name."
-      return $ Ranged (getRange q) $ TopLevelModuleName [defaultName]
-    _ -> return $ Ranged (getRange q) name
+      return $ TopLevelModuleName (getRange q) [defaultName]
+    else return name
   where
     defaultName = rootNameModule file
 
@@ -224,7 +223,8 @@ rootNameModule = dropAgdaExtension . snd . splitFileName . filePath
 
 moduleName :: AbsolutePath -> TCM TopLevelModuleName
 moduleName file = do
-  Ranged r m <- moduleName' file
+  m <- moduleName' file
+  let r = getRange m
   -- Andreas, 2016-07-11, issue 2092
   -- The error range should be set to the file with the wrong module name
   -- not the importing one (which would be the default).

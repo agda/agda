@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                    #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE CPP #-}
 
 {- | Sparse matrices.
 

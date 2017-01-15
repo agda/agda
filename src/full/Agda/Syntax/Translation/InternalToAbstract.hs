@@ -1,8 +1,7 @@
-{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
@@ -82,14 +81,17 @@ import Agda.Utils.Impossible
 
 -- Composition of reified applications ------------------------------------
 
+-- | Drops hidden arguments unless --show-implicit.
 napps :: Expr -> [NamedArg Expr] -> TCM Expr
 napps e = nelims e . map I.Apply
 
+-- | Drops hidden arguments unless --show-implicit.
 apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e = elims e . map I.Apply
 
 -- Composition of reified eliminations ------------------------------------
 
+-- | Drops hidden arguments unless --show-implicit.
 nelims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
 nelims e [] = return e
 nelims e (I.IApply x y r : es) =
@@ -105,6 +107,7 @@ nelims e (I.Proj o@ProjPrefix d  : es) =
 nelims e (I.Proj o d  : es) =
   nelims (A.App noExprInfo e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
 
+-- | Drops hidden arguments unless --show-implicit.
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e = nelims e . map (fmap unnamed)
 
@@ -295,8 +298,11 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ A.WildP patNoRange
 
-        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange Inserted <$> reify v -- __IMPOSSIBLE__
+        -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
+        -- so here we give __IMPOSSIBLE__. This is only used for printing purposes, the origin
+        -- should not be used anyway after this point.
+        termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
+        termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
 
         len = genericLength ps
 
@@ -389,14 +395,16 @@ reifyTerm expandAnonDefs0 v = do
               -- because target of constructor could be a definition
               -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
               TelV tel _ <- telView (defType def)
-              case genericDrop np $ telToList tel of
+              let (pars, rest) = splitAt np $ telToList tel
+              case rest of
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
                 -- we keep the parameters to avoid confusion.
-                (Dom {domInfo = info} : _) | isHidden info -> do
-                  let us = genericReplicate (np - n) $
-                             setRelevance Relevant $ Arg info underscore
-                  apps h $ us ++ es
+                (Dom {domInfo = info} : _) | notVisible info -> do
+                  let us = for (drop n pars) $ \ (Dom {domInfo = ai}) ->
+                             -- setRelevance Relevant $
+                             hideOrKeepInstance $ Arg ai underscore
+                  apps h $ us ++ es  -- Note: unless --show-implicit, @apps@ will drop @us@.
                 -- otherwise, we drop all parameters
                 _ -> apps h es
 
@@ -463,7 +471,8 @@ reifyTerm expandAnonDefs0 v = do
     reifyDef _ x es = reifyDef' x es
 
     reifyDef' :: QName -> I.Elims -> TCM Expr
-    reifyDef' x@(QName _ name) es = do
+    reifyDef' x es = do
+      reportSLn "reify.def" 60 $ "reifying call to " ++ show x
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
       -- If the definition is not (yet) in the signature,
@@ -518,22 +527,46 @@ reifyTerm expandAnonDefs0 v = do
               -- These are the dropped projection arguments
               scope <- getScope
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-              let pad = for as $ \ dom@Dom{} -> Arg (domInfo dom) underscore
+              let pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
+                    Arg ai $ Named (Just $ unranged x) underscore
 
               -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
                   es'  = drop (max 0 (n - size pad)) es
-              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
-              -- Keep non-hidden arguments of the padding
+              -- Andreas, 2012-04-21: get rid of hidden underscores {_} and {{_}}
+              -- Keep non-hidden arguments of the padding.
+              --
+              -- Andreas, 2016-12-20, issue #2348:
+              -- Let @padTail@ be the list of arguments of the padding
+              -- (*) after the last visible argument of the padding, and
+              -- (*) with the same visibility as the first regular argument.
+              -- If @padTail@ is not empty, we need to
+              -- print the first regular argument with name.
+              -- We further have to print all elements of @padTail@
+              -- which have the same name and visibility of the
+              -- first regular argument.
               showImp <- showImplicitArguments
-              return (filter visible pad',
-                if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden dom es'
-                   else map (fmap unnamed) es')
+
+              -- Get the visible arguments of the padding and the rest
+              -- after the last visible argument.
+              let (padVisNamed, padRest) = filterAndRest visible pad'
+
+              -- Remove the names from the visible arguments.
+              let padVis  = map (fmap (unnamed . namedThing)) padVisNamed
+
+              -- Keep only the rest with the same visibility of @dom@...
+              let padTail = filter ((getHiding dom ==) . getHiding) padRest
+
+              -- ... and even the same name.
+              let padSame = filter ((Just (fst (unDom dom)) ==) . fmap rangedThing . nameOf . unArg) padTail
+
+              return $ if null padTail || not showImp
+                then (padVis           , map (fmap unnamed) es')
+                else (padVis ++ padSame, nameFirstIfHidden dom es')
 
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
-           let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
+           let hd = foldl' (A.App noExprInfo) (A.Def x) pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
@@ -575,7 +608,7 @@ reifyTerm expandAnonDefs0 v = do
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
-nameFirstIfHidden dom (I.Apply (Arg info e) : es) | isHidden info =
+nameFirstIfHidden dom (I.Apply (Arg info e) : es) | notVisible info =
   I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
@@ -883,7 +916,9 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
       I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
       I.DotP v -> do
         t <- liftTCM $ reify v
-        return $ A.DotP patNoRange Inserted t
+        -- This is only used for printing purposes, so the Origin shouldn't be
+        -- used after this point anyway.
+        return $ A.DotP patNoRange __IMPOSSIBLE__ t
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do
@@ -918,7 +953,10 @@ instance Reify (QNamed I.Clause) A.Clause where
 
 instance Reify NamedClause A.Clause where
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
-    reportSLn "reify.clause" 60 $ "reifying NamedClause, cl = " ++ show cl
+    reportSLn "reify.clause" 60 $ "reifying NamedClause"
+      ++ "\n  f      = " ++ show f
+      ++ "\n  toDrop = " ++ show toDrop
+      ++ "\n  cl     = " ++ show cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses

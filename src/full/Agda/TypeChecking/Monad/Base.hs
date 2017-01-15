@@ -2,7 +2,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module Agda.TypeChecking.Monad.Base where
@@ -155,8 +154,6 @@ data PostScopeState = PostScopeState
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
   , stPostMetaStore           :: !MetaStore
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
-  , stPostSolvedInteractionPoints :: !InteractionPoints
-    -- ^ Interaction points that have been filled by a give or solve action.
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
   , stPostDirty               :: !Bool -- local
@@ -292,7 +289,6 @@ initPostScopeState = PostScopeState
   , stPostDisambiguatedNames   = IntMap.empty
   , stPostMetaStore            = Map.empty
   , stPostInteractionPoints    = Map.empty
-  , stPostSolvedInteractionPoints = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -418,12 +414,6 @@ stInteractionPoints :: Lens' InteractionPoints TCState
 stInteractionPoints f s =
   f (stPostInteractionPoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInteractionPoints = x}}
-
-stSolvedInteractionPoints :: Lens' InteractionPoints TCState
-stSolvedInteractionPoints f s =
-  f (stPostSolvedInteractionPoints (stPostScopeState s)) <&>
-  \ x -> s {stPostScopeState = (stPostScopeState s)
-             {stPostSolvedInteractionPoints = x}}
 
 stAwakeConstraints :: Lens' Constraints TCState
 stAwakeConstraints f s =
@@ -1037,6 +1027,7 @@ data NamedMeta = NamedMeta
 
 instance Pretty NamedMeta where
   pretty (NamedMeta "" x) = pretty x
+  pretty (NamedMeta "_" x) = pretty x
   pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
 type MetaStore = Map MetaId MetaVariable
@@ -1087,6 +1078,7 @@ getMetaRelevance = envRelevance . getMetaEnv
 data InteractionPoint = InteractionPoint
   { ipRange :: Range        -- ^ The position of the interaction point.
   , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  , ipSolved:: Bool         -- ^ Has this interaction point already been solved?
   , ipClause:: IPClause
       -- ^ The clause of the interaction point (if any).
       --   Used for case splitting.
@@ -1095,6 +1087,9 @@ data InteractionPoint = InteractionPoint
 instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
 -- | Data structure managing the interaction points.
+--
+--   We never remove interaction points from this map, only set their
+--   'ipSolved' to @True@.  (Issue #2368)
 type InteractionPoints = Map InteractionId InteractionPoint
 
 -- | Which clause is an interaction point located in?
@@ -1318,6 +1313,8 @@ data Definition = Defn
     -- ^ Is the def matched against in a rewrite rule?
   , defNoCompilation  :: Bool
     -- ^ should compilers skip this? Used for e.g. cubical's comp
+  , defInjective      :: Bool
+    -- ^ Should the def be treated as injective by the pattern matching unifier?
   , theDef            :: Defn
   }
     deriving (Typeable, Show)
@@ -1340,6 +1337,7 @@ defaultDefn info x t def = Defn
   , defCopy           = False
   , defMatchable      = False
   , defNoCompilation  = False
+  , defInjective      = False
   , theDef            = def
   }
 
@@ -1389,14 +1387,17 @@ data ExtLamInfo = ExtLamInfo
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
-  { projProper    :: Bool
-    -- ^ @False@ if only projection-like, @True@ if record projection.
+  { projProper    :: Maybe QName
+    -- ^ @Nothing@ if only projection-like, @Just r@ if record projection.
+    --   The @r@ is the name of the record type projected from.
+    --   This field is updated by module application.
   , projOrig      :: QName
     -- ^ The original projection name
     --   (current name could be from module application).
   , projFromType  :: Arg QName
-    -- ^ Type projected from. Record type if @projProper = Just{}@. Also
-    -- stores @ArgInfo@ of the principal argument.
+    -- ^ Type projected from. Original record type if @projProper = Just{}@.
+    --   Also stores @ArgInfo@ of the principal argument.
+    --   This field is unchanged by module application.
   , projIndex     :: Int
     -- ^ Index of the record argument.
     --   Start counting with 1, because 0 means that
@@ -1420,15 +1421,15 @@ newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
 -- | Building the projection function (which drops the parameters).
 projDropPars :: Projection -> ProjOrigin -> Term
 -- Proper projections:
-projDropPars (Projection True d _ _ lams) o =
+projDropPars (Projection Just{} d _ _ lams) o =
   case initLast $ getProjLams lams of
     Nothing -> Def d []
     Just (pars, Arg i y) ->
       let core = Lam i $ Abs y $ Var 0 [Proj o d] in
       List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
 -- Projection-like functions:
-projDropPars (Projection False _ _ _ lams) o | null lams = __IMPOSSIBLE__
-projDropPars (Projection False d _ _ lams) o =
+projDropPars (Projection Nothing _ _ _ lams) o | null lams = __IMPOSSIBLE__
+projDropPars (Projection Nothing d _ _ lams) o =
   List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
 
 -- | The info of the principal (record) argument.
@@ -1667,7 +1668,8 @@ data AllowedReduction
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
   | FunctionReductions       -- ^ Functions which are not projections may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
-  | NonTerminatingReductions -- ^ Functions that have not passed termination checking.
+  | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
+  | NonTerminatingReductions -- ^ Functions that have failed termination checking.
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 type AllowedReductions = [AllowedReduction]
@@ -1718,6 +1720,12 @@ defDelayed _                                       = NotDelayed
 defNonterminating :: Definition -> Bool
 defNonterminating Defn{theDef = Function{funTerminates = Just False}} = True
 defNonterminating _                                                   = False
+
+-- | Has the definition not termination checked or did the check fail?
+defTerminationUnconfirmed :: Definition -> Bool
+defTerminationUnconfirmed Defn{theDef = Function{funTerminates = Just True}} = False
+defTerminationUnconfirmed Defn{theDef = Function{funTerminates = _        }} = True
+defTerminationUnconfirmed _ = False
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
@@ -2282,6 +2290,9 @@ data Warning =
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-# REWRITE #-}@.
+  | UselessPublic
+    -- ^ If the user opens a module public before the module header.
+    --   (See issue #2377.)
   | ParseWarning             ParseWarning
   deriving Show
 
@@ -2428,8 +2439,6 @@ data TypeError
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
             -- ^ The given relevance does not correspond to the expected relevane.
-        | NotInductive Term
-          -- ^ The term does not correspond to an inductive data type.
         | UninstantiatedDotPattern A.Expr
         | IlltypedPattern A.Pattern Type
         | IllformedProjectionPattern A.Pattern
@@ -2493,14 +2502,14 @@ data TypeError
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
-        | WithClausePatternMismatch A.Pattern Pattern
+        | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
     -- Coverage errors
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
         | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageFailure QName [[NamedArg DeBruijnPattern]]
+        | CoverageFailure QName [(Telescope, [NamedArg DeBruijnPattern])]
         | UnreachableClauses QName [[NamedArg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
@@ -3018,8 +3027,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled inst copy ma nc def) =
-    killRange12 Defn ai name t pols occs displ mut compiled inst copy ma nc def
+  killRange (Defn ai name t pols occs displ mut compiled inst copy ma nc inj def) =
+    killRange12 Defn ai name t pols occs displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange CtxId where

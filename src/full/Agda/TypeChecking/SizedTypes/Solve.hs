@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
 
 -- | Solving size constraints under hypotheses.
 --
@@ -516,7 +515,8 @@ solveCluster flag ccs = do
       [ text $ "  xs = " ++ show xs
       , text $ "  u  = " ++ show u
       ]
-    assignMeta n x t xs u
+    unlessM (isFrozen x) $
+      assignMeta n x t xs u
     -- WRONG:
     -- let partialSubst = List.sort $ zip xs $ map var $ downFrom n
     -- assignMeta' n x t (length xs) partialSubst u

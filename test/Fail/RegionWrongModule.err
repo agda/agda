@@ -1,0 +1,10 @@
+RegionWrongModule.agda:10,8-26
+The name of the top level module does not match the file name. The
+module ThisIsTheWrongName should be defined in one of the following
+files:
+  ../ThisIsTheWrongName.agda
+  ../ThisIsTheWrongName.lagda
+  ThisIsTheWrongName.agda
+  ThisIsTheWrongName.lagda
+  agda-default-include-path/ThisIsTheWrongName.agda
+  agda-default-include-path/ThisIsTheWrongName.lagda

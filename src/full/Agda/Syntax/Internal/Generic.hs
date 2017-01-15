@@ -189,7 +189,7 @@ instance TermLike EqualityView where
     OtherType t -> OtherType
       (traverseTerm f t)
     EqualityType s eq l t a b -> EqualityType s eq
-      (traverseTerm f l)
+      (map (traverseTerm f) l)
       (traverseTerm f t)
       (traverseTerm f a)
       (traverseTerm f b)
@@ -198,14 +198,14 @@ instance TermLike EqualityView where
     OtherType t -> OtherType
       <$> traverseTermM f t
     EqualityType s eq l t a b -> EqualityType s eq
-      <$> traverseTermM f l
+      <$> traverse (traverseTermM f) l
       <*> traverseTermM f t
       <*> traverseTermM f a
       <*> traverseTermM f b
 
   foldTerm f v = case v of
     OtherType t -> foldTerm f t
-    EqualityType s eq l t a b -> foldTerm f [l, t, a, b]
+    EqualityType s eq l t a b -> foldTerm f (l ++ [t, a, b])
 
 -- | Put it in a monad to make it possible to do strictly.
 copyTerm

@@ -1,0 +1,6 @@
+Issue1886-omitted-not-in-scope.agda:12,9-10
+Not in scope:
+  a
+  at Issue1886-omitted-not-in-scope.agda:12,9-10
+    (did you mean 'A'?)
+when scope checking a

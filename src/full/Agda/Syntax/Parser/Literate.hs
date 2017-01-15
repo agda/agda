@@ -8,6 +8,7 @@ module Agda.Syntax.Parser.Literate (
   literateSrcFile,
   literateTeX,
   literateRsT,
+  literateMd,
   illiterate,
   isCode,
   Processor,
@@ -78,6 +79,7 @@ literateProcessors = map ((,) <$> (".lagda" ++) . fst <*> snd)
                  [(""    , literateTeX)
                  ,(".rst", literateRsT)
                  ,(".tex", literateTeX)
+                 ,(".md", literateMd)
                  ]
 
 -- | Blanks the non-code parts of a given file, preserving positions of
@@ -142,12 +144,12 @@ literateTeX pos s = mkLayers pos$ tex s
   tex [] = []
   tex s  = let (line, rest) = getLine s in
     case r_begin `matchM` line of
-      Just (getAllTextSubmatches -> [_, pre, markup]) ->
+      Just (getAllTextSubmatches -> [_, pre, _, markup]) ->
         (Comment, pre):(Markup, markup):code rest
       Just _                 -> __IMPOSSIBLE__
       Nothing                -> (Comment, line):tex rest
 
-  r_begin = rex "(.*)([[:space:]]*\\\\begin\\{code\\}[[:space:]]*)"
+  r_begin = rex "(([^\\%]|\\\\.)*)(\\\\begin\\{code\\}[[:space:]]*)"
 
 
   code :: String -> [(LayerType, String)]
@@ -161,6 +163,45 @@ literateTeX pos s = mkLayers pos$ tex s
 
   r_end   = rex "([[:space:]]*\\\\end\\{code\\}[[:space:]]*)(.*)"
 
+-- | Preprocessor for Markdown
+literateMd :: Position -> String -> [Layer]
+literateMd pos s = mkLayers pos$ md s
+  where
+  md :: String -> [(LayerType, String)]
+  md [] = []
+  md s  = let (line, rest) = getLine s in
+    case md_begin `matchM` line of
+      Just (getAllTextSubmatches -> [_, pre, markup, _]) ->
+        (Comment, pre):(Markup, markup):code rest
+      Just _                 -> __IMPOSSIBLE__
+      Nothing                ->
+        (Comment, line):
+          if md_begin_other `match` line
+            then code_other rest
+            else md rest
+
+  md_begin = rex "(.*)([[:space:]]*```(agda)?[[:space:]]*)"
+  md_begin_other = rex "[[:space:]]*```[a-zA-Z0-9-]*[[:space:]]*"
+
+  code :: String -> [(LayerType, String)]
+  code [] = []
+  code s = let (line, rest) = getLine s in
+    case md_end `matchM` line of
+      Just (getAllTextSubmatches -> [_, markup]) ->
+        (Markup, markup):md rest
+      Just _ -> __IMPOSSIBLE__
+      Nothing             -> (Code, line):code rest
+
+  -- A non-Agda code block.
+  code_other :: String -> [(LayerType, String)]
+  code_other [] = []
+  code_other s = let (line, rest) = getLine s in
+    (Comment, line):
+      if md_end `match` line
+        then md rest
+        else code_other rest
+
+  md_end   = rex "([[:space:]]*```[[:space:]]*)"
 
 -- | Preprocessor for reStructuredText
 literateRsT :: Position -> String -> [Layer]

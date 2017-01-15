@@ -44,8 +44,11 @@ main : IO Unit
 main =
   putStr "123.4 = " ,, print 123.4 ,,
   putStr "-42.9 = " ,, print -42.9 ,,
-  putStr "1.0   = " ,, print 1.0 ,,
-  putStr "-0.0  = " ,, print -0.0  ,,
+
+  -- Disabled because Issue #2359.
+  -- putStr "1.0   = " ,, print 1.0 ,,
+  -- putStr "-0.0  = " ,, print -0.0  ,,
+
   putStr "NaN   = " ,, print NaN   ,,
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
@@ -83,6 +86,7 @@ main =
   putStr "NaN  < -5.0 = " ,, printB (NaN < -5.0) ,,
   putStr "-5.0 < NaN  = " ,, printB (-5.0 < NaN) ,,
 
+  putStr "e                   = " ,, print (primExp 1.0) ,,
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,
   putStr "cos (acos 0.6)      = " ,, print (cos (acos 0.6)) ,,
   putStr "tan (atan 0.4)      = " ,, print (tan (atan 0.4)) ,,

@@ -1,0 +1,3 @@
+Issue2365a.agda:6,1-12
+Negative literals are not supported in patterns
+when checking that the clause lit -20 = 0 has type Nat → Nat

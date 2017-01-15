@@ -4,13 +4,24 @@
 
 \begin{document}
 
-record Sigma (A : Set) (B : A → Set) : Set where
-  constructor _,_
-  field
-    proj₁ : A
-    proj₂ : B proj₁
-
-open Sigma public
+\begin{code}%
+\>\AgdaKeyword{record} \AgdaRecord{Sigma} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{proj₁} \AgdaSymbol{:} \AgdaBound{A}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{proj₂} \AgdaSymbol{:} \AgdaBound{B} \AgdaField{proj₁}\<%
+\\
+%
+\\
+\>\AgdaKeyword{open} \AgdaModule{Sigma} \AgdaKeyword{public}\<%
 \end{code}
 
 \end{document}

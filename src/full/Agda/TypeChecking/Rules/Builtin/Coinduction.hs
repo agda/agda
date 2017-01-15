@@ -145,7 +145,7 @@ bindBuiltinFlat e =
                                Nothing
                                (Just False)
         projection = Projection
-          { projProper   = True
+          { projProper   = Just inf
           , projOrig     = flat
           , projFromType = defaultArg inf
           , projIndex    = 3

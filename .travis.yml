@@ -3,11 +3,15 @@
 # NB: don't set `language: haskell` here.
 language: c
 
+# Request Ubuntu Trusty (14.04 LTS).
+dist: trusty
+
 # Explicitly request sudo-enabled virtual environments [Issue #1992].
 sudo: required
 
 cache:
   directories:
+  - $HOME/.cabal
   - $HOME/.stack
 
 ##############################################################################
@@ -16,10 +20,14 @@ cache:
 # The LaTeX/HTML test-suite requires:
 # * `kpsewhich` (included in texlive-binaries)
 
-# The test of the documentation, i.e. `make doc`, requires:
-# * `latex` (included in texlive-latex-base)
-# * `utf8x.def` (included in texlive-latex-extra)
-# * `dvipng` (included in dvipng)
+# The test of the documentation, i.e. `make-doc-html` and
+# `make-user-pdf`, requires:
+#  * ecrm1000 fonts (included in texlive-fonts-recommended)
+#  * latex (included in texlive-latex-base)
+#  * lm fonts (include in lmodern)
+#  * utf8x.def (included in texlive-latex-extra)
+#  * dvipng (included in dvipng)
+#  * xelatex (included in texlive-xetex)
 
 ##############################################################################
 # Tests
@@ -32,8 +40,6 @@ cache:
 
 matrix:
   include:
-    # ASR (2016-12-18): Travis is using GHC 8.0.2 RC2.
-    # TODO: Remove GHC 8.0.1 after the release of GHC 8.0.2.
     - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
@@ -41,18 +47,6 @@ matrix:
             - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.2
-            - happy-1.19.5
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - env: TEST=MAIN GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.24
-            - ghc-8.0.1
             - happy-1.19.5
             - texlive-binaries
           sources:
@@ -94,15 +88,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.0.1
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
+    - env: TEST=STACKAGE_CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -112,24 +98,24 @@ matrix:
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - env: TEST=HADDOCK GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+    - env: TEST=HADDOCK GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
           packages:
             - alex-3.1.7
             - cabal-install-1.24
-            - ghc-8.0.1
+            - ghc-8.0.2
             - happy-1.19.5
           sources:
             - hvr-ghc
 
-    - env: TEST=UHC GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+    - env: TEST=UHC_FLAG GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
           packages:
             - happy-1.19.5
             - cabal-install-1.24
-            - ghc-8.0.1
+            - ghc-8.0.2
             - alex-3.1.7
           sources:
             - hvr-ghc
@@ -151,8 +137,11 @@ matrix:
         apt:
           packages:
             - dvipng
+            - lmodern
+            - texlive-fonts-recommended
             - texlive-latex-base
             - texlive-latex-extra
+            - texlive-xetex
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
@@ -162,9 +151,9 @@ matrix:
 ##############################################################################
 before_install:
 
-  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" || $TEST = "UHC" ]]; then
+  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" || $TEST = "UHC_FLAG" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
-    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACKAGE" ]]; then
+    elif [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:/opt/happy/1.19.5/bin:$PATH;
@@ -203,11 +192,11 @@ install:
        cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
-       if [[ $GHC_VER != "8.0.2" ]]; then
-          cabal install cabal-install;
-       fi &&
        export PATH=$HOME/.cabal/bin:$PATH &&
-       cabal --version &&
+       if [[ $CABAL_VER = "1.18" ]]; then
+          cabal install cabal-install &&
+          cabal --version;
+       fi &&
        cabal install cpphs-1.20.2 &&
        cpphs --version;
     fi
@@ -229,24 +218,18 @@ install:
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
-# The `--test` option is not required when $TEST = "CPP_AND_DEBUG"
-# because the flags `cpphs` and `debug` are not used with the Cabal
-# tests-suites.
-
 # The version installed of cpphs in ghc-7.8.4-transformers-0.3.0.0
 # should match the lower version required in Agda.cabal [Issue #2315].
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        cabal install --enable-tests --only-dependencies --force-reinstalls;
-    elif [[ $TEST = "UHC" ]]; then
+    elif [[ $TEST = "UHC_FLAG" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          stack $ARGS --no-terminal install alex-3.1.7 &&
          stack $ARGS --no-terminal install cpphs-1.20.2 &&
          stack build $ARGS --no-terminal --test --only-dependencies;
-    elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
-         stack build $ARGS --no-terminal --only-dependencies;
-    elif [[ $TEST = "STACKAGE" ]]; then
+    elif [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
          stack build $ARGS --no-terminal --test --only-dependencies;
     fi
 
@@ -321,28 +304,14 @@ install:
 # dependencies are not installed again.
 
 ##############################################################################
-# Testing compilation with cpp instead of cpphs [Issue #1647]
 
-# N.B. that this test is not include in the Makefile tests.
+# Testing compilation with Stackage, cpp instead of cpphs
+# [Issue #1647] and the `debug` flag [Issue #2070]
 
-  - if [[ $TEST = "CPP_AND_DEBUG" ]]; then
-       stack build $ARGS --no-terminal --flag Agda:-cpphs;
-    fi
+# N.B. that these tests are not include in the Makefile tests.
 
-##############################################################################
-# Testing compilation using the `debug` flag [Issue #2070]
-
-# N.B. that this test is not include in the Makefile tests.
-
-  - if [[ $TEST = "CPP_AND_DEBUG" ]]; then
-       stack build $ARGS --no-terminal --flag Agda:debug;
-    fi
-
-##############################################################################
-# Testing compilation using stack
-
-  - if [[ $TEST = "STACKAGE" ]]; then
-       stack build $ARGS --no-terminal --test --no-run-tests;
+  - if [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
+       stack build $ARGS --no-terminal --test --no-run-tests --flag Agda:-cpphs --flag Agda:debug;
     fi
 
 ##############################################################################
@@ -359,10 +328,6 @@ install:
 script:
 
 ##############################################################################
-
-# We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues 1022 and
-# 1675), but we still compare the generated tex/html files with the
-# golden files.
 
   - if [[ $TEST = "MAIN" ]]; then
        make check-whitespace;
@@ -384,6 +349,10 @@ script:
        make BUILD_DIR=$BUILD_DIR interactive;
     fi
 
+# We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
+# #1675), but we still compare the generated tex/html files with the
+# golden files.
+
   - if [[ $TEST = "MAIN" ]]; then
        make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
@@ -403,9 +372,6 @@ script:
   - if [[ $TEST = "MAIN" ]]; then
        make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR user-manual-test;
     fi
-
-# ASR (2016-07-08) TODO: Travis is re-preprocessing various Agda
-# source files when running the internal test-suite. See Issue #2083.
 
   - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR PARALLEL_TESTS=$PARALLEL_TESTS internal-tests;
@@ -449,7 +415,7 @@ script:
 ##############################################################################
 # Testing compilation using the `uhc` flag
 
-  - if [[ $TEST = "UHC" ]]; then
+  - if [[ $TEST = "UHC_FLAG" ]]; then
        make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 -f uhc" install-bin;
     fi
 
@@ -465,7 +431,7 @@ script:
 
   - if [[ $TEST = "DOC" ]]; then
        sphinx-build --version &&
-       make doc;
+       make doc-html;
     fi
 
 ##############################################################################

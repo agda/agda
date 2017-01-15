@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-}
+-- | Utility functions for lists.
 
-{-| Utitlity functions on lists.
--}
 module Agda.Utils.List where
+
+import Control.Arrow (first)
 
 import Data.Functor ((<$>))
 import Data.Function
@@ -16,9 +16,6 @@ import Text.Show.Functions ()
 import qualified Agda.Utils.Bag as Bag
 
 import Agda.Utils.Tuple
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | Case distinction for lists, with list first.
 --   Cf. 'Agda.Utils.Null.ifNull'.
@@ -47,6 +44,14 @@ lastMaybe :: [a] -> Maybe a
 lastMaybe [] = Nothing
 lastMaybe xs = Just $ last xs
 
+-- | Last two elements (safe).
+last2 :: [a] -> Maybe (a, a)
+last2 (x : y : xs) = Just $ loop x y xs
+  where
+  loop x y []     = (x, y)
+  loop x y (z:xs) = loop y z xs
+last2 _ = Nothing
+
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing
@@ -58,11 +63,10 @@ mcons ma as = maybe as (:as) ma
 
 -- | 'init' and 'last' in one go, safe.
 initLast :: [a] -> Maybe ([a],a)
-initLast [] = Nothing
-initLast as = Just $ loop as where
-  loop []       = __IMPOSSIBLE__
-  loop [a]      = ([], a)
-  loop (a : as) = mapFst (a:) $ loop as
+initLast []     = Nothing
+initLast (a:as) = Just $ loop a as where
+  loop a []      = ([], a)
+  loop a (b : bs) = mapFst (a:) $ loop b bs
 
 -- | Lookup function (partially safe).
 (!!!) :: [a] -> Int -> Maybe a
@@ -128,6 +132,20 @@ partitionMaybe f = loop
     loop (a : as) = case f a of
       Nothing -> mapFst (a :) $ loop as
       Just b  -> mapSnd (b :) $ loop as
+
+-- | Like 'filter', but additionally return the last partition
+--   of the list where the predicate is @False@ everywhere.
+filterAndRest :: (a -> Bool) -> [a] -> ([a],[a])
+filterAndRest p = mapMaybeAndRest $ \ a -> if p a then Just a else Nothing
+
+-- | Like 'mapMaybe', but additionally return the last partition
+--   of the list where the function always returns @Nothing@.
+mapMaybeAndRest :: (a -> Maybe b) -> [a] -> ([b],[a])
+mapMaybeAndRest f = loop [] where
+  loop acc = \case
+    []                   -> ([], reverse acc)
+    x:xs | Just y <- f x -> first (y:) $ loop [] xs
+         | otherwise     -> loop (x:acc) xs
 
 -- | Drops from both lists simultaneously until one list is empty.
 dropCommon :: [a] -> [b] -> ([a],[b])
@@ -281,23 +299,27 @@ genericElemIndex x xs =
   map (== x) xs
 
 -- | Requires both lists to have the same length.
+--
+--   Otherwise, @Nothing@ is returned.
 
-zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
-zipWith' f []        []      = []
-zipWith' f (x : xs) (y : ys) = f x y : zipWith' f xs ys
-zipWith' f []       (_ : _)  = {- ' -} __IMPOSSIBLE__
-zipWith' f (_ : _)  []       = {- ' -} __IMPOSSIBLE__
+zipWith' :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
+zipWith' f = loop
+  where
+  loop []        []      = Just []
+  loop (x : xs) (y : ys) = (f x y :) <$> loop xs ys
+  loop []       (_ : _)  = Nothing
+  loop (_ : _)  []       = Nothing
 
-{- UNUSED; a better type would be
-   zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], Either [a] [b])
+-- -- UNUSED; a better type would be
+-- -- zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], Either [a] [b])
 
--- | Like zipWith, but returns the leftover elements of the input lists.
-zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], [a] , [b])
-zipWithTails f xs       []       = ([], xs, [])
-zipWithTails f []       ys       = ([], [] , ys)
-zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
-  where (zs , as , bs) = zipWithTails f xs ys
--}
+-- -- | Like zipWith, but returns the leftover elements of the input lists.
+-- zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], [a] , [b])
+-- zipWithTails f xs       []       = ([], xs, [])
+-- zipWithTails f []       ys       = ([], [] , ys)
+-- zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
+--   where (zs , as , bs) = zipWithTails f xs ys
+
 
 -- | Efficient variant of 'nubBy' for finite lists.
 --

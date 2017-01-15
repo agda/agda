@@ -139,10 +139,6 @@ instance LensHiding (WithHiding a) where
 mergeHiding :: LensHiding a => WithHiding a -> a
 mergeHiding (WithHiding h a) = mapHiding (mappend h) a
 
--- | @isHidden@ does not apply to 'Instance', only to 'Hidden'.
-isHidden :: LensHiding a => a -> Bool
-isHidden a = getHiding a == Hidden
-
 -- | Visible ('NotHidden') arguments are @notHidden@. (DEPRECATED, use 'visible'.)
 notHidden :: LensHiding a => a -> Bool
 notHidden a = getHiding a == NotHidden
@@ -490,17 +486,6 @@ instance LensOrigin (Arg e) where
   getOrigin = getOrigin . argInfo
   mapOrigin = mapArgInfo . mapOrigin
 
-{- RETIRED
-hide :: Arg a -> Arg a
-hide = setArgHiding Hidden
-
-makeInstance :: Arg a -> Arg a
-makeInstance = setHiding Instance
-
-isHiddenArg :: Arg a -> Bool
-isHiddenArg arg = argHiding arg /= NotHidden
--}
-
 instance LensArgInfo (Arg a) where
   getArgInfo        = argInfo
   mapArgInfo f arg  = arg { argInfo = f $ argInfo arg }
@@ -584,6 +569,10 @@ instance LensRelevance (Dom e) where
 instance LensArgInfo (Dom e) where
   getArgInfo = domInfo
   mapArgInfo f arg = arg { domInfo = f $ domInfo arg }
+
+instance LensOrigin (Dom e) where
+  getOrigin = getOrigin . getArgInfo
+  mapOrigin = mapArgInfo . mapOrigin
 
 argFromDom :: Dom a -> Arg a
 argFromDom (Dom i _ a) = Arg i a

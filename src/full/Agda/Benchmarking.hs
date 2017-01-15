@@ -76,7 +76,9 @@ data Phase
     -- ^ Subphase for 'Serialization'.
   | Compress
     -- ^ Subphase for 'Serialization'.
-  | Operators
+  | OperatorsExpr
+    -- ^ Subphase for 'Parsing'.
+  | OperatorsPattern
     -- ^ Subphase for 'Parsing'.
   | Free
     -- ^ Subphase for 'Typing': free variable computation.

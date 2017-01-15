@@ -216,9 +216,12 @@ checkDecl d = setCurrentRange d $ do
 
       -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
+        reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
+        wakeupConstraints_   -- solve emptiness and instance constraints
         checkingWhere <- asks envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
-        wakeupConstraints_   -- solve emptiness constraints
+        wakeupConstraints_   -- Size solver might have unblocked some constraints
+        reportSLn "tc.decl" 20 $ "Freezing all metas."
         _ <- freezeMetas
         theMutualChecks
 
@@ -741,6 +744,7 @@ checkPragma r p =
           case theDef def of
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
+        A.InjectivePragma x -> markInjective x
         A.InlinePragma x -> do
           def <- getConstInfo x
           case theDef def of
@@ -855,7 +859,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
     mfv <- getCurrentModuleFreeVars
-    fv  <- size <$> getContextTelescope
+    fv  <- getContextSize
     return (fv - mfv)
   when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.

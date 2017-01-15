@@ -52,18 +52,18 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Records
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Functions
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo, billPureTo)
@@ -584,7 +584,7 @@ termClause clause = do
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
-  cl <- introHiddenLambdas clause
+  cl <- etaExpandClause clause
   let tel      = clauseTel cl
       argPats' = namedClausePats cl
       body     = clauseBody cl
@@ -623,41 +623,6 @@ termClause' clause = do
             , nest 2 $ text "rhs:" <+> prettyTCM v
             ]
 
--- | Rewrite a clause @f ps =tel= \ {xs} -> v@ to @f ps {xs} =(tel {xs})= v@.
---   The pupose is to move hidden size quantifications
---   to the lhs such that the termination checker can make use of them.
---   See, e.g., test/succeed/SizedTypesExtendedLambda.agda.
-introHiddenLambdas :: MonadTCM tcm => Clause -> tcm Clause
-introHiddenLambdas clause = liftTCM $ do
-  case clause of
-    Clause range ctel ps body        Nothing  catchall -> return clause
-
-    Clause range ctel ps Nothing     (Just t) catchall -> return clause
-    Clause range ctel ps (Just body) (Just t) catchall -> do
-      case removeHiddenLambdas body of
-        -- nobody or no hidden lambdas
-        ([], _) -> return clause
-        -- hidden lambdas
-        (axs, body') -> do
-          -- n = number of hidden lambdas
-          let n = length axs
-          -- take n abstractions from rhs type
-          TelV ttel t' <- telViewUpTo n $ unArg t
-          when (size ttel < n) __IMPOSSIBLE__
-          -- join with lhs telescope
-          let ctel' = telFromList $ telToList ctel ++ telToList ttel
-              ps'   = raise n ps ++ zipWith toPat (downFrom $ size axs) axs
-          return $ Clause range ctel' ps' (Just body') (Just (t $> t')) catchall
-  where
-    toPat i (Arg info x) = Arg info $ namedDBVarP i x
-
-    removeHiddenLambdas :: Term -> ([Arg ArgName], Term)
-    removeHiddenLambdas v =
-      case ignoreSharing v of
-        Lam info b | getHiding info == Hidden ->
-          let (xs, b') = removeHiddenLambdas $ unAbs b
-          in  (Arg info (absName b) : xs, b')
-        _ -> ([], v)
 
 -- | Extract recursive calls from expressions.
 class ExtractCalls a where
@@ -765,16 +730,16 @@ withFunction g es = do
 -- | Handles function applications @g es@.
 
 function :: QName -> Elims -> TerM Calls
-function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunction g) (withFunction g es)
+function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunction g) (withFunction g es0)
   $ {-else, no with function-} do
 
     f       <- terGetCurrent
     names   <- terGetMutual
     guarded <- terGetGuarded
 
-    let gArgs = Def g es
+    -- let gArgs = Def g es0
     liftTCM $ reportSDoc "term.function" 30 $
-      text "termination checking function call " <+> prettyTCM gArgs
+      text "termination checking function call " <+> prettyTCM (Def g es0)
 
     -- First, look for calls in the arguments of the call gArgs.
 
@@ -782,7 +747,7 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
     -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
     -- thus, we need to use traverseTermM.  Sharing is handled by traverseTermM,
     -- so no ignoreSharing needed here.
-    let reduceCon = traverseTermM $ \ t -> case t of
+    let (reduceCon :: Term -> TCM Term) = traverseTermM $ \ t -> case t of
            Con c ci vs -> (`apply` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
            _ -> return t
 
@@ -796,7 +761,7 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
     let unguards = repeat Order.unknown
     let guards = applyWhen isProj (guarded :) unguards
     -- Collect calls in the arguments of this call.
-    let args = map unArg $ argsFromElims es
+    let args = map unArg $ argsFromElims es0
     calls <- forM' (zip guards args) $ \ (guard, a) -> do
       terSetGuarded guard $ extract a
 
@@ -818,9 +783,12 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
          delayed <- terGetDelayed
          pats    <- terGetPatterns
          -- 2014-03-25 Andreas, the costs seem small, benchmark turned off.
-         es <- liftTCM $ -- billTo [Benchmark.Termination, Benchmark.Reduce] $
-           forM es $
-              etaContract <=< traverse reduceCon <=< instantiateFull
+         es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
+           -- forM es0 $
+           --    etaContract <=< traverse reduceCon <=< instantiateFull
+           -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
+           modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $
+              etaContract <=< normalise
 
          -- Compute the call matrix.
 
@@ -851,7 +819,10 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
          -- Andreas, 2015-01-21 Issue 1410: Go to the module where g is defined
          -- otherwise its free variables with be prepended to the call
          -- in the error message.
-         doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure gArgs
+         doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure $
+           Def g $ filter ((/= Inserted) . getOrigin) es0
+           -- Andreas, 2017-01-05, issue #2376
+           -- Remove arguments inserted by etaExpandClause.
 
          let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
              tgt  = gInd

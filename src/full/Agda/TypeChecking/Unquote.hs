@@ -141,11 +141,6 @@ reduceQuotedTerm t = do
 class Unquote a where
   unquote :: I.Term -> UnquoteM a
 
-unquoteH :: Unquote a => Arg Term -> UnquoteM a
-unquoteH a | isHidden a && isRelevant a =
-    unquote $ unArg a
-unquoteH a = throwException $ BadVisibility "hidden"  a
-
 unquoteN :: Unquote a => Arg Term -> UnquoteM a
 unquoteN a | notHidden a && isRelevant a =
     unquote $ unArg a

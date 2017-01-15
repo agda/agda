@@ -812,6 +812,7 @@ classifyWarning :: Warning -> WhichWarnings
 classifyWarning w = case w of
   OldBuiltin{}               -> AllWarnings
   EmptyRewritePragma         -> AllWarnings
+  UselessPublic              -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   NotStrictlyPositive{}      -> ErrorWarnings
   UnsolvedMetaVariables{}    -> ErrorWarnings
