@@ -658,11 +658,13 @@ primPOr = do
        vi <- intervalView $ unArg $ ignoreBlocking si
        case vi of
         IOne -> redReturn (unArg u)
+        IZero -> redReturn (unArg v)
         _ -> do
           sj <- reduceB' j
           vj <- intervalView $ unArg $ ignoreBlocking sj
           case vj of
             IOne -> redReturn (unArg v)
+            IZero -> redReturn (unArg u)
             _ -> return $ NoReduction [notReduced l,reduced si,reduced sj,notReduced a,notReduced u,notReduced v]
 
 
