@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Andreas, 2014-05-21, adapted from ../fail/clean.sh
 

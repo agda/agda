@@ -1,3 +1,0 @@
-CompiledMustBePostulate.agda:11,1-25
-COMPILED directive only works on postulates
-when checking the pragma COMPILED foo bar

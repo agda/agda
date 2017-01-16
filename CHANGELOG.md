@@ -126,6 +126,12 @@ Emacs mode
 Compiler backends
 -----------------
 
+* GHC Haskell backend (MAlonzo)
+
+  The COMPILED pragma is now also allowed for functions. This makes it
+  possible to have both an Agda implementation and a native Haskell runtime
+  implementation.
+
 * UHC compiler backend
 
   Required UHC 1.1.9.5
