@@ -251,7 +251,7 @@ errorString err = case err of
   IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
-  IncompletePatternMatching{}              -> "IncompletePatternMatching"
+-- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
   IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
   IndicesFreeInParameters{}                -> "IndicesFreeInParameters"
   IndicesNotConstructorApplications{}      -> "IndicesNotConstructorApplications"
@@ -1083,9 +1083,11 @@ instance PrettyTCM TypeError where
       ) $$ nest 2 (vcat $ map pretty ps)
 -}
 
+{- UNUSED
     IncompletePatternMatching v args -> fsep $
       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
       pwords "No match for" ++ map prettyTCM args
+-}
 
     UnreachableClauses f pss -> fsep $
       pwords "Unreachable" ++ pwords (plural (length pss) "clause")

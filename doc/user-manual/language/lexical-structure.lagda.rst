@@ -31,18 +31,18 @@ keywords
   Reserved words that cannot appear as a `name part <Names_>`_, but can appear
   in a name together with other characters.
 
-  ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ`` ``∀`` ``..``
-  ``...`` ``abstract`` ``codata``
-  :ref:`coinductive <copatterns-coinductive-records>` ``constructor``
-  ``data`` ``eta-equality`` ``field`` ``forall`` ``hiding`` ``import``
-  ``in`` ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance``
-  ``let`` :ref:`macro <macros>` ``module`` ``mutual``
-  ``no-eta-equality`` ``open`` :ref:`overlap <instance-fields>`
-  ``pattern`` ``postulate`` ``primitive`` ``private`` ``public``
-  :ref:`quote <reflection>` ``quoteContext`` ``quoteGoal``
-  :ref:`quoteTerm <macros>` ``record`` ``renaming`` ``rewrite``
-  ``Set`` ``syntax`` ``tactic`` :ref:`unquote <macros>`
-  :ref:`unquoteDecl <unquoting-declarations>`
+  ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
+  :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
+  ``codata`` :ref:`coinductive <copatterns-coinductive-records>`
+  ``constructor`` ``data`` ``eta-equality`` ``field``
+  :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
+  ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``let``
+  :ref:`macro <macros>` ``module`` ``mutual`` ``no-eta-equality``
+  ``open`` :ref:`overlap <instance-fields>` ``pattern`` ``postulate``
+  ``primitive`` ``private`` ``public`` :ref:`quote <reflection>`
+  ``quoteContext`` ``quoteGoal`` :ref:`quoteTerm <macros>` ``record``
+  ``renaming`` ``rewrite`` ``Set`` ``syntax`` ``tactic``
+  :ref:`unquote <macros>` :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>` ``using`` ``where``
   ``with``
 

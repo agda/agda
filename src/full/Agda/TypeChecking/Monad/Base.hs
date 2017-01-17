@@ -2502,7 +2502,7 @@ data TypeError
     -- Coverage errors
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
-        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
+-- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | CoverageFailure QName [(Telescope, [NamedArg DeBruijnPattern])]
         | UnreachableClauses QName [[NamedArg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
