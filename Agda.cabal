@@ -208,6 +208,7 @@ library
                     Agda.Auto.Syntax
                     Agda.Auto.Typecheck
                     Agda.Benchmarking
+                    Agda.Compiler.Backend
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Common
                     Agda.Compiler.Epic.AuxAST
