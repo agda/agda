@@ -66,6 +66,8 @@ You can also use the Unicode symbol ``λ`` (type “\\lambda” in the Emacs Agd
 
 The application of a function ``f : (x : A) → B`` to an argument ``a : A`` is written ``f a`` and the type of this is ``B[x := a]``.
 
+.. _notational-conventions:
+
 Notational conventions
 ----------------------
 
