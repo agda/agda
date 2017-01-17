@@ -45,7 +45,7 @@ etaExpandClause clause = liftTCM $ do
     Clause range ctel ps (Just body) (Just t) catchall -> do
 
       -- Get the telescope to expand the clause with.
-      TelV tel0 t' <- telViewPath $ unArg t
+      TelV tel0 t' <- telView $ unArg t
 
       -- If the rhs has lambdas, harvest the names of the bound variables.
       let xs   = peekLambdas body
@@ -80,7 +80,8 @@ etaExpandClause clause = liftTCM $ do
     -- it means we skipped an element of the telescope.
     useNames :: [Arg ArgName] -> ListTel -> ListTel
     useNames []     tel       = map (setOrigin Inserted) tel
-    useNames (_:_)  []        = __IMPOSSIBLE__
+    -- Andrea: we can have more Lam's than Pi's, because they might be for Path
+    useNames (_:_)  []        = []
     useNames (x:xs) (dom:tel)
       | getHiding x == getHiding dom =
           -- set the ArgName of the dom

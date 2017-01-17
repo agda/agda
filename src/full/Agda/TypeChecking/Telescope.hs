@@ -337,7 +337,7 @@ telViewUpTo' n p t = do
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 telViewPath :: Type -> TCM TelView
-telViewPath = telViewUpTo (-1)
+telViewPath = telViewUpToPath (-1)
 
 -- | @telViewUpToPath n t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
