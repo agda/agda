@@ -168,7 +168,8 @@ printVersion = do
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err = do
-  putStrLn $ "Error: " ++ err ++ "\nRun 'agda --help' for help on command line options."
+  prog <- getProgName
+  putStrLn $ "Error: " ++ err ++ "\nRun '" ++ prog ++ " --help' for help on command line options."
   exitFailure
 
 -- | Run a TCM action in IO; catch and pretty print errors.
