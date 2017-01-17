@@ -1861,13 +1861,16 @@ checkHeadApplication e t hd args = do
                     defaultResult' $ Just $ \ vs t1 -> do
                       case vs of
                        [la,lb,bA,phi,bT,f,pf,t,a] -> do
+                          let iinfo = setRelevance Irrelevant defaultArgInfo
                           v <- runNamesT [] $ do
                                 [f,t] <- mapM (open . unArg) [f,t]
-                                lam "o" $ \ o -> f <@> o <@> (t <@> o)
+                                glam iinfo "o" $ \ o -> f <..> o <@> (t <..> o)
                           ty <- runNamesT [] $ do
-                                [lb,phi,bT] <- mapM (open . unArg) [lb,phi,bT]
-                                elInf $ cl primPartialP <#> lb <@> phi <@> bT
-                          equalTerm ty (Lam defaultArgInfo (NoAbs "_" (unArg a))) v
+                                [lb,phi,bA] <- mapM (open . unArg) [lb,phi,bA]
+                                elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
+                          let a' = Lam iinfo (NoAbs "o" $ unArg a)
+                          equalTerm ty a' v
+
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
