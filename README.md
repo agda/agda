@@ -1,0 +1,5 @@
+Prerequisites
+=============
+
+* malfunction
+* stack
