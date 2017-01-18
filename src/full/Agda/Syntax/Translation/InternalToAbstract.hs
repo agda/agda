@@ -662,13 +662,21 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
       strip ps = stripArgs True ps
         where
           stripArgs _ [] = []
-          stripArgs fixedPos (a : as) =
-            if canStrip a
-            then if   all canStrip $ takeWhile isUnnamedHidden as
+          stripArgs fixedPos (a : as)
+            -- Andreas, 2017-01-18, issue #819: preserves _ when splitting:
+            -- An Inserted visible variable comes form a WildP and is restored as such.
+            | visible a, getOrigin a == Inserted, varOrDot (namedArg a) = goWild
+            -- A hidden non-UserWritten variable is removed if not needed for
+            -- correct position of the following hidden arguments.
+            | canStrip a =
+                 if   all canStrip $ takeWhile isUnnamedHidden as
                  then stripArgs False as
-                 else let a' = fmap ($> A.WildP (Info.PatRange $ getRange a)) a
-                      in  stripName fixedPos a' : stripArgs True as
-            else stripName fixedPos (stripArg a) : stripArgs True as
+                 else goWild
+            -- Other arguments are kept.
+            | otherwise = stripName fixedPos (stripArg a) : stripArgs True as
+            where
+              a'     = setNamedArg a $ A.WildP $ Info.PatRange $ getRange a
+              goWild = stripName fixedPos a' : stripArgs True as
 
           stripName True  = fmap (unnamed . namedThing)
           stripName False = id
@@ -835,7 +843,7 @@ instance Binder A.Pattern where
     A.ProjP{}            -> empty
     A.DefP _ _ ps        -> varsBoundIn ps
     A.WildP{}            -> empty
-    A.AsP _ _ p          -> varsBoundIn p
+    A.AsP _ x p          -> varsBoundIn p  -- This does not include the x because of issue #2414.
     A.DotP{}             -> empty
     A.AbsurdP{}          -> empty
     A.LitP{}             -> empty

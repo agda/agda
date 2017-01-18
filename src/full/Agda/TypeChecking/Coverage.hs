@@ -422,7 +422,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scModuleParam
     let n         = size tel
         -- Andreas, 2016-10-04 issue #2236
         -- Need to set origin to "Inserted" to avoid printing of hidden patterns.
-        xs        = map (setOrigin Inserted) $ teleNamedArgs tel
+        xs        = map (mapArgInfo hiddenInserted) $ teleNamedArgs tel
         -- Compute new split clause
         sctel'    = telFromList $ telToList (raise n sctel) ++ telToList tel
         -- Dot patterns in @ps@ need to be raised!  (Issue 1298)
@@ -456,6 +456,13 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scModuleParam
       , prettyTCM sc'
       ]
     return $ if n == 0 then (empty, sc { scTarget = newTarget }) else (tel, sc')
+
+-- Andreas, 2017-01-18, issue #819, set visible arguments to UserWritten.
+-- Otherwise, they will be printed as _.
+hiddenInserted :: ArgInfo -> ArgInfo
+hiddenInserted ai
+  | visible ai = setOrigin UserWritten ai
+  | otherwise  = setOrigin Inserted ai
 
 -- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps mpsub con@
 --
@@ -552,7 +559,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
       let conp    = ConP con noConPatternInfo $ applySubst rho2 $
-                      map (setOrigin Inserted) $ tele2NamedArgs gamma0 gamma
+                      map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
           -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
 
       -- Compute final context and substitution
