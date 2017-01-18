@@ -154,14 +154,15 @@ instance EmbPrj I.Sort where
   icod_ Prop        = icode1 1 ()
   icod_ SizeUniv    = icode1 3 ()
   icod_ Inf         = icode1 4 ()
-  icod_ (DLub a b)  = __IMPOSSIBLE__
+  icod_ (DLub a b)  = icode2 2 a b -- Andreas, 2017-01-18: not __IMPOSSIBLE__ see #2408
 
   value = vcase valu where
     valu [a]    = valu1 Type  a
     valu [1, _] = valu0 Prop
     valu [3, _] = valu0 SizeUniv
     valu [4, _] = valu0 Inf
-    valu _      = malformed
+    valu [2, a, b] = valu2 DLub a b
+    valu _         = malformed
 
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icode3' a b c
