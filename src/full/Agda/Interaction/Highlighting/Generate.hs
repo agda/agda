@@ -166,7 +166,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
-    warnInfo <- Fold.fold . map (warningHighlighting . tcWarning) <$> use stTCWarnings
+    warnInfo <- Fold.foldMap warningHighlighting <$> use stTCWarnings
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
@@ -530,12 +530,19 @@ errorHighlighting e = do
 
 -- | Generate syntax highlighting for warnings.
 
-warningHighlighting :: Warning -> File
-warningHighlighting w = case w of
-  TerminationIssue terrs    -> terminationErrorHighlighting terrs
-  NotStrictlyPositive d ocs -> positivityErrorHighlighting d ocs
-  _ -> mempty
-
+warningHighlighting :: TCWarning -> File
+warningHighlighting w = case tcWarning w of
+  TerminationIssue terrs     -> terminationErrorHighlighting terrs
+  NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
+  UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
+  -- expanded catch-all case to get a warning for new constructors
+  UnsolvedMetaVariables{}    -> mempty
+  UnsolvedInteractionMetas{} -> mempty
+  UnsolvedConstraints{}      -> mempty
+  OldBuiltin{}               -> mempty
+  EmptyRewritePragma{}       -> mempty
+  UselessPublic{}            -> mempty
+  ParseWarning{}             -> mempty
 
 -- | Generate syntax highlighting for termination errors.
 
@@ -558,6 +565,9 @@ positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
     rs = case o of Unknown -> []; Known r _ -> [r]
     m  = mempty { otherAspects = [PositivityProblem] }
 
+unreachableErrorHighlighting :: P.Range -> File
+unreachableErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = mempty { otherAspects = [ReachabilityProblem] }
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

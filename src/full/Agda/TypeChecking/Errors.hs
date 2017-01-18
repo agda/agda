@@ -125,6 +125,12 @@ instance PrettyTCM Warning where
             mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
             concatMap termErrCalls tes)
 
+    UnreachableClauses f pss -> fsep $
+      pwords "Unreachable" ++ pwords (plural (length pss) "clause")
+        where
+          plural 1 thing = thing
+          plural n thing = thing ++ "s"
+
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM (dropTopLevelModule d)] ++
       pwords "is not strictly positive, because it occurs"
@@ -176,6 +182,7 @@ applyFlagsToTCWarnings ifs ws = do
           EmptyRewritePragma           -> True
           UselessPublic                -> True
           ParseWarning{}               -> True
+          UnreachableClauses{}         -> True
 
   return $ filter (cleanUp . tcWarning) ws
 
@@ -340,7 +347,6 @@ errorString err = case err of
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   UninstantiatedModule{}                   -> "UninstantiatedModule"
-  UnreachableClauses{}                     -> "UnreachableClauses"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
@@ -1087,18 +1093,12 @@ instance PrettyTCM TypeError where
       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
       pwords "No match for" ++ map prettyTCM args
 
-    UnreachableClauses f pss -> fsep $
-      pwords "Unreachable" ++ pwords (plural (length pss) "clause")
-        where
-          plural 1 thing = thing
-          plural n thing = thing ++ "s"
-
     CoverageFailure f pss -> fsep (
       pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
       pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
         where
         display (tel, ps) = prettyTCM $ NamedClause f True $
-          I.Clause noRange tel ps Nothing Nothing False
+          I.Clause noRange noRange tel ps Nothing Nothing False
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__

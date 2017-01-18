@@ -474,7 +474,8 @@ checkAbsurdLambda i h e t = do
             $ emptyFunction
               { funClauses        =
                   [Clause
-                    { clauseRange     = getRange e
+                    { clauseLHSRange  = getRange e
+                    , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ debruijnNamedVar "()" 0]
                     , clauseBody      = Nothing

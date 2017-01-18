@@ -2276,6 +2276,7 @@ instance Free' Candidate c where
 -- we can print it later
 data Warning =
     TerminationIssue         [TerminationError]
+  | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
   | NotStrictlyPositive      QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -2299,6 +2300,9 @@ data TCWarning
         -- ^ The warning and the environment in which it was raised.
     }
   deriving Show
+
+instance HasRange TCWarning where
+  getRange = envRange . clEnv . tcWarningClosure
 
 tcWarning :: TCWarning -> Warning
 tcWarning = clValue . tcWarningClosure
@@ -2504,7 +2508,6 @@ data TypeError
     -- the SplitError constructor has been added?
         | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | CoverageFailure QName [(Telescope, [NamedArg DeBruijnPattern])]
-        | UnreachableClauses QName [[NamedArg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type

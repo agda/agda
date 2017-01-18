@@ -165,8 +165,8 @@ coverageCheck f t cs = do
   -- report an error if there are unreachable clauses
   unless (null is) $ do
       let unreached = map (cs !!) is
-      setCurrentRange unreached $
-        typeError $ UnreachableClauses f $ map namedClausePats unreached
+      setCurrentRange (map clauseFullRange unreached) $
+        warning $ UnreachableClauses f $ map namedClausePats unreached
   return splitTree
 
 -- | Top-level function for eliminating redundant clauses in the interactive
@@ -335,7 +335,8 @@ inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
                   Instance  -> newIFSMeta "" (unArg t)
                   Hidden    -> __IMPOSSIBLE__
                   NotHidden -> __IMPOSSIBLE__
-    return $ Clause { clauseRange     = noRange
+    return $ Clause { clauseLHSRange  = noRange
+                    , clauseFullRange = noRange
                     , clauseTel       = tel
                     , namedClausePats = ps
                     , clauseBody      = Just rhs
