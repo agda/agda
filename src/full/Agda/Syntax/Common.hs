@@ -636,6 +636,10 @@ defaultNamedArg = defaultArg . unnamed
 updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
 updateNamedArg = fmap . fmap
 
+-- | @setNamedArg a b = updateNamedArg (const b) a@
+setNamedArg :: NamedArg a -> b -> NamedArg b
+setNamedArg a b = (b <$) <$> a
+
 ---------------------------------------------------------------------------
 -- * Range decoration.
 ---------------------------------------------------------------------------
