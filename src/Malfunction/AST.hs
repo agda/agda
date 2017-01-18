@@ -21,6 +21,10 @@ data IntConst
   -- > A fixed-precision integer type with at least the range
   -- > [-2^29 .. 2^29-1]
   -- > https://hackage.haskell.org/package/base-4.9.0.0/docs/Data-Int.html
+  --
+  -- Jan: Just run
+  -- logBase 2 ((fromIntegral (maxBound :: Int)) :: Double)
+  -- in my computer (64 bits) --> 2 ^ 63 - 1 == (maxBound :: Int)
   = CInt Int
   | CInt32 Int32
   | CInt64 Int64
