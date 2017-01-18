@@ -1163,6 +1163,19 @@ dLub :: Sort -> Abs Sort -> Sort
 dLub s1 (NoAbs _ s2) = sLub s1 s2
 dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
   Flexible _    -> DLub s1 b
+  -- Andreas, 2017-01-18, issue #2408:
+  -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
+  -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
+  -- Alternatives:
+  -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
+  --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
+  --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
+  --    and that if we already have a neutral level @f a@
+  --    it should not hurt to have @f *@ even if type @A@ is empty.
+  --    However: sorts are printed in error messages when sorts do not match.
+  --    Also, sorts with a dummy like Prop would be ill-typed.
+  -- 2. We keep the DLub, and serialize it.
+  --    That's clean and principled, even though DLubs make level solving harder.
   Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
 --  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784
