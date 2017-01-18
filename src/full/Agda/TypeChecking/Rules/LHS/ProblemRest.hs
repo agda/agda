@@ -6,6 +6,7 @@ import Data.Functor ((<$))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Abstract.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -76,7 +77,12 @@ noProblemRest (Problem _ _ _ (ProblemRest ps _)) = null ps
 problemFromPats :: [NamedArg A.Pattern] -- ^ The user patterns.
   -> Type            -- ^ The type the user patterns eliminate.
   -> TCM Problem     -- ^ The initial problem constructed from the user patterns.
-problemFromPats ps a = do
+problemFromPats ps0 a = do
+  -- Andreas, 2017-01-18, issue #819: We set all A.WildP origins to Inserted
+  -- in order to guide the pattern printer to discard variable names it made up.
+  let ps = (`mapNamedArgPattern` ps0) $ \case
+        p | A.WildP{} <- namedArg p -> setOrigin Inserted p
+        p -> p
   -- For the initial problem, do not insert trailing implicits.
   -- This has the effect of not including trailing hidden domains in the problem telescope.
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.

@@ -286,6 +286,7 @@ library
                     Agda.Main
                     Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
+                    Agda.Syntax.Abstract.Pattern
                     Agda.Syntax.Abstract.Pretty
                     Agda.Syntax.Abstract.Views
                     Agda.Syntax.Abstract

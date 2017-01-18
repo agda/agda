@@ -123,6 +123,19 @@ Emacs mode
   The Agda input method did not bind bold digits. They are now
   available. The naming scheme is `\Bx` for digit `x`.
 
+* Case splitting now preserves underscores.
+  [Issue [#819](https://github.com/agda/agda/issues/819)]
+  ```agda
+    data ⊥ : Set where
+
+    test : {A B : Set} → A → ⊥ → B
+    test _ x = {! x !}
+  ```
+  Splitting on `x` yields
+  ```agda
+    test _ ()
+  ```
+
 Compiler backends
 -----------------
 
