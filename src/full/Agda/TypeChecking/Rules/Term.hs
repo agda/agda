@@ -403,8 +403,8 @@ checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
     -- to get better error messages.
     -- Using the type dom from the usage context would be more precise,
     -- though.
-    let add dom | isNoName x = addContext (absName b, dom)
-                | otherwise  = addContext (x, dom)
+    let add dom | isNoName x = addContext' (absName b, dom)
+                | otherwise  = addContext' (x, dom)
     v <- add (maybe dom (dom $>) mt) $
       checkPostponedLambda (Arg info (xs, mt)) body $ absBody b
     let v' = Lam info' $ Abs (nameToArgName x) v
@@ -1344,7 +1344,7 @@ checkApplication hd args e t = do
           --  Unify Z a b == A
           --  Run the tactic on H
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext tel newTypeMeta_      -- Z x y
+          target <- addContext' tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (vs, EmptyTel) <- checkArguments_ ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
@@ -1358,7 +1358,7 @@ checkApplication hd args e t = do
         metaTel (arg : args) = do
           a <- newTypeMeta_
           let dom = a <$ domFromArg arg
-          ExtendTel dom . Abs "x" <$> addContext ("x", dom) (metaTel args)
+          ExtendTel dom . Abs "x" <$> addContext' ("x", dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
@@ -1676,7 +1676,7 @@ checkHeadApplication e t hd args = do
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
         blockTerm t $ f vs <$ workOnTypes (do
-          addContext eTel $ leqType fType eType
+          addContext' eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do

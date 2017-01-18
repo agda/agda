@@ -614,7 +614,7 @@ garr f a b = do
 gpi :: ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
 gpi info name a b = do
   a <- a
-  b <- addContext (name, Dom info a) b
+  b <- addContext' (name, Dom info a) b
   let y = stringToArgName name
   return $ El (getSort a `dLub` Abs y (getSort b))
               (Pi (Dom info a) (Abs y b))

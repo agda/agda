@@ -307,7 +307,7 @@ compareTerm' cmp a m n =
     equalFun (Shared p) m n = equalFun (derefPtr p) m n
     equalFun (Pi dom@(Dom info _) b) m n = do
         name <- freshName_ $ suggest (absName b) "x"
-        addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
+        addContext' (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
     equalFun _ _ _ = __IMPOSSIBLE__
@@ -594,7 +594,7 @@ compareDom cmp dom1@(Dom i1 a1) dom2@(Dom i2 a2) b1 b2 errH errR cont
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       name <- freshName_ $ suggest b1 b2
-      addContext (name, dom) $ cont
+      addContext' (name, dom) $ cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
