@@ -1,3 +1,6 @@
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE NoMonoLocalBinds          #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.Syntax.Abstract.Pattern where
 
@@ -13,7 +16,7 @@ class MapNamedArgPattern a  where
   mapNamedArgPattern :: (NAP -> NAP) -> a -> a
 
   default mapNamedArgPattern
-     :: (Functor f, MapNamedArgPattern a) => (NAP -> NAP) -> f a -> f a
+     :: (Functor f, MapNamedArgPattern a', a ~ f a') => (NAP -> NAP) -> a -> a
   mapNamedArgPattern = fmap . mapNamedArgPattern
 
 instance MapNamedArgPattern NAP where
