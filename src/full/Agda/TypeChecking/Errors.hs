@@ -1150,7 +1150,7 @@ instance PrettyTCM TypeError where
       pwords " of type " ++ [prettyTCM a] ++
       pwords " with solution " ++ [prettyTCM u] ++
       pwords " because the variable occurs in the solution," ++
-      pwords " or in the type one of the variables in the solution"
+      pwords " or in the type of one of the variables in the solution"
 
     UnificationStuck tel us vs -> fsep $
       pwords "I got stuck on unifying" ++ [prettyList (map prettyTCM us)] ++

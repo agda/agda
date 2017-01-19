@@ -1,5 +1,5 @@
 Issue314.agda:13,9-13
 Cannot solve variable x of type A with solution _y_7 x because the
-variable occurs in the solution, or in the type one of the
+variable occurs in the solution, or in the type of one of the
 variables in the solution
 when checking that the pattern refl has type x ≡ _y_7 x
