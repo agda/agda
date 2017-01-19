@@ -6,6 +6,7 @@
 
 module Agda.TypeChecking.SizedTypes.Syntax where
 
+import Data.Maybe
 import Data.Foldable (Foldable)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -123,7 +124,7 @@ class Substitute r f a where
 instance Ord f => Substitute r f (SizeExpr' r f) where
   subst sol e =
     case e of
-      Flex x n -> Map.findWithDefault e x sol `plus` n
+      Flex x n -> maybe e (`plus` n) $ Map.lookup x sol
       _        -> e
 
 instance Ord f => Substitute r f (Constraint' r f) where
