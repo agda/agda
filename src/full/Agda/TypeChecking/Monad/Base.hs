@@ -2410,12 +2410,6 @@ data TypeError
         | ShouldBeApplicationOf Type QName
             -- ^ Expected a type to be an application of a particular datatype.
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
-        | IndicesNotConstructorApplications [Arg Term] -- ^ Indices.
-        | IndexVariablesNotDistinct [Nat] [Arg Term] -- ^ Variables, indices.
-        | IndicesFreeInParameters [Nat] [Arg Term] [Arg Term]
-          -- ^ Indices (variables), index expressions (with
-          -- constructors applied to reconstructed parameters),
-          -- parameters.
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName [QName]
           -- ^ Datatype, constructors.
         | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
@@ -2474,9 +2468,6 @@ data TypeError
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
         | UnequalBecauseOfUniverseConflict Comparison Term Term
-        | HeterogeneousEquality Term Type Term Type
-            -- ^ We ended up with an equality constraint where the terms
-            --   have different types.  This is not supported.
         | NotLeqSort Sort Sort
         | MetaCannotDependOn MetaId [Nat] Nat
             -- ^ The arguments are the meta variable, the parameters it can
