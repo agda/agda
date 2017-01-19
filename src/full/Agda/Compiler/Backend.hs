@@ -7,11 +7,13 @@
 module Agda.Compiler.Backend
   ( Backend(..), Backend'(..), Recompile(..), IsMain(..)
   , Flag
-  , runAgda
   , toTreeless
   , module Agda.Syntax.Treeless
-  , module Agda.TypeChecking.Monad )
-  where
+  , module Agda.TypeChecking.Monad
+    -- For Agda.Main
+  , backendInteraction
+  , parseBackendOptions
+  ) where
 
 import Control.Monad.State
 
@@ -38,7 +40,6 @@ import Agda.Utils.IndexedList
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
-import Agda.Main (runAgdaWithOptions, optionError, runTCMPrettyErrors, defaultInteraction)
 
 #include "undefined.h"
 
@@ -49,6 +50,8 @@ data Backend where
 
 data Backend' opts env menv mod def = Backend'
   { backendName      :: String
+  , backendVersion   :: Maybe String
+      -- ^ Optional version information to be printed with @--version@.
   , options          :: opts
       -- ^ Default options
   , commandLineFlags :: [OptDescr (Flag opts)]
@@ -75,18 +78,6 @@ data Backend' opts env menv mod def = Backend'
 
 data Recompile menv mod = Recompile menv | Skip mod
 
--- | The main entry-point for new backends. Takes a list of backends that may be
---   invoked. If none of the backends get enabled (by their corresponding
---   command-line flags) this behaves as @Agda.Main.main@.
-runAgda :: [Backend] -> IO ()
-runAgda backends = runTCMPrettyErrors $ do
-  progName <- liftIO getProgName
-  argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseOptions backends argv
-  case opts of
-    Left  err              -> liftIO $ optionError err
-    Right (backends, opts) -> () <$ runAgdaWithOptions generateHTML (interaction backends) progName opts
-
 -- Internals --------------------------------------------------------------
 
 data BackendWithOpts opts where
@@ -107,8 +98,8 @@ embedFlag l flag = l flag
 embedOpt :: Lens' a b -> OptDescr (Flag a) -> OptDescr (Flag b)
 embedOpt l = fmap (embedFlag l)
 
-parseOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
-parseOptions backends argv =
+parseBackendOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
+parseBackendOptions backends argv =
   case makeAll backendWithOpts backends of
     Some bs -> do
       let agdaFlags    = map (embedOpt lSnd) standardOptions
@@ -123,11 +114,9 @@ parseOptions backends argv =
       let enabled (Backend b) = isEnabled b (options b)
       return (filter enabled $ forgetAll forgetOpts backends, opts)
 
-interaction :: [Backend] -> TCM (Maybe Interface) -> TCM ()
-interaction [] check = do
-  opts <- commandLineOptions
-  defaultInteraction opts check
-interaction backends check = do
+backendInteraction :: [Backend] -> (TCM (Maybe Interface) -> TCM ()) -> TCM (Maybe Interface) -> TCM ()
+backendInteraction [] fallback check = fallback check
+backendInteraction backends _ check = do
   mi     <- check
   noMain <- optCompileNoMain <$> commandLineOptions
   let isMain | noMain    = NotMain
