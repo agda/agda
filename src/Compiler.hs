@@ -1,7 +1,7 @@
 module Compiler where
 
 import Malfunction.AST
-import Agda.Treeless
+import Agda.Syntax.Treeless
 
 compileTerm :: TTerm -> Term
 compileTerm t = case t of

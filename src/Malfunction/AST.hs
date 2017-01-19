@@ -46,7 +46,9 @@ data Case = Tag Int | Deftag | Intrange (Int, Int)
 
 
 
+maxTag :: Integer
 maxTag = 200
+tagOfInt :: Integer -> Integer
 tagOfInt n =
   if 0 <= n && n < maxTag
   then n
