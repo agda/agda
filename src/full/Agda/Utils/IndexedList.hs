@@ -18,7 +18,7 @@ withSome (Some x) f = f x
 --   sequence of values of types @p x₁@, .., @p xₙ@.
 data All :: (x -> *) -> [x] -> * where
   Nil  :: All p '[]
-  Cons :: p x -> All p xs -> All p (x : xs)
+  Cons :: p x -> All p xs -> All p (x ': xs)
 
 -- | Constructing an indexed list from a plain list.
 makeAll :: (a -> Some b) -> [a] -> Some (All b)
@@ -34,8 +34,8 @@ forgetAll f (Cons x xs) = f x : forgetAll f xs
 
 -- | An index into a type-level list.
 data Index :: [x] -> x -> * where
-  Zero :: Index (x : xs) x
-  Suc  :: Index xs x -> Index (y : xs) x
+  Zero :: Index (x ': xs) x
+  Suc  :: Index xs x -> Index (y ': xs) x
 
 -- | Indices are just natural numbers.
 forgetIndex :: Index xs x -> Int
