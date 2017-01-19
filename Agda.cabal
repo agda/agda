@@ -208,6 +208,7 @@ library
                     Agda.Auto.Syntax
                     Agda.Auto.Typecheck
                     Agda.Benchmarking
+                    Agda.Compiler.Backend
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Common
                     Agda.Compiler.Epic.AuxAST
@@ -469,6 +470,7 @@ library
                     Agda.Utils.HashMap
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
+                    Agda.Utils.IndexedList
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
                     Agda.Utils.IO.UTF8

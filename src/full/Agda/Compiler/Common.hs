@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.Common where
 
@@ -14,6 +15,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Char
 import Data.Function
+import Data.Monoid hiding ((<>))
 
 import Control.Monad
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
@@ -46,7 +48,7 @@ import Agda.Utils.Impossible
 data IsMain = IsMain | NotMain
   deriving (Eq, Show)
 
-doCompile :: IsMain -> Interface -> (IsMain -> Interface -> TCM ()) -> TCM ()
+doCompile :: forall r. Monoid r => IsMain -> Interface -> (IsMain -> Interface -> TCM r) -> TCM r
 doCompile isMain i f = do
   -- The Agda.Primitive module is implicitly assumed to be always imported,
   -- even though it not necesseraly occurs in iImportedModules.
@@ -54,19 +56,20 @@ doCompile isMain i f = do
   [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
     . map miInterface . Map.elems
       <$> getVisitedModules
-  flip evalStateT Set.empty $ comp NotMain agdaPrimInter >> comp isMain i
+  flip evalStateT Set.empty $ mappend <$> comp NotMain agdaPrimInter <*> comp isMain i
   where
-    comp :: IsMain -> Interface -> StateT (Set ModuleName) TCM ()
+    comp :: IsMain -> Interface -> StateT (Set ModuleName) TCM r
     comp isMain i = do
       alreadyDone <- Set.member (iModuleName i) <$> get
-      when (not alreadyDone) $ do
+      if alreadyDone then return mempty else do
         imps <- lift $
           map miInterface . catMaybes <$>
             mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
-        mapM_ (comp NotMain) imps
+        ri <- mconcat <$> mapM (comp NotMain) imps
         lift $ setInterface i
-        lift $ f isMain i
+        r <- lift $ f isMain i
         modify (Set.insert $ iModuleName i)
+        return $ mappend ri r
 
 setInterface :: Interface -> TCM ()
 setInterface i = do
