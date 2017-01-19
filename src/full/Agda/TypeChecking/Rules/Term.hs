@@ -958,12 +958,23 @@ checkExpr e t0 =
   tryInsertHiddenLambda e t fallback
     -- Insert hidden lambda if all of the following conditions are met:
         -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
-    | Pi (Dom info _) b <- ignoreSharing $ unEl t
+    | Pi (Dom info a) b <- ignoreSharing $ unEl t
         , let h = getHiding info
         , notVisible h
         -- expression is not a matching hidden lambda or question mark
         , not (hiddenLambdaOrHole h e)
-        = doInsert info $ absName b
+        = do
+      let proceed = doInsert info $ absName b
+      -- If we skip the lambda insertion for an introduction,
+      -- we will hit a dead end, so proceed no matter what.
+      if definitelyIntroduction then proceed else do
+        -- Andreas, 2017-01-19, issue #2412:
+        -- We do not want to insert a hidden lambda if A is
+        -- possibly empty type of sizes, as this will produce an error.
+        reduce a >>= isSizeType >>= \case
+          Just (BoundedLt u) -> ifBlocked u (\ _ _ -> fallback) $ \ v -> do
+            ifM (checkSizeNeverZero v) proceed fallback
+          _ -> proceed
 
     | otherwise = fallback
 
@@ -986,6 +997,21 @@ checkExpr e t0 =
     hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
     hiddenLHS _ = False
 
+    -- Things with are definitely introductions,
+    -- thus, cannot be of hidden Pi-type, unless they are hidden lambdas.
+    definitelyIntroduction = case e of
+      A.Lam{}        -> True
+      A.AbsurdLam{}  -> True
+      A.Lit{}        -> True
+      A.Pi{}         -> True
+      A.Fun{}        -> True
+      A.Set{}        -> True
+      A.Prop{}       -> True
+      A.Rec{}        -> True
+      A.RecUpdate{}  -> True
+      A.ScopedExpr{} -> __IMPOSSIBLE__
+      A.ETel{}       -> __IMPOSSIBLE__
+      _ -> False
 ---------------------------------------------------------------------------
 -- * Reflection
 ---------------------------------------------------------------------------
