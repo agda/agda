@@ -811,34 +811,9 @@ checkExpr e t0 =
 
     e <- scopedExpr e
 
-    case e of
+    tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
-
-        -- Insert hidden lambda if all of the following conditions are met:
-            -- type is a hidden function type, {x : A} -> B or {{x : A} -> B
-        _   | Pi (Dom info _) b <- ignoreSharing $ unEl t
-            , let h = getHiding info
-            , notVisible h
-            -- expression is not a matching hidden lambda or question mark
-            , not (hiddenLambdaOrHole h e)
-            -> do
-                x <- unshadowName <=< freshName rx $ notInScopeName $ absName b
-                reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-                checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
-            where
-                re = getRange e
-                rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
-
-                hiddenLambdaOrHole h e = case e of
-                  A.AbsurdLam _ h'        -> h == h'
-                  A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
-                  A.Lam _ bind _          -> h == getHiding bind
-                  A.QuestionMark{}        -> True
-                  _                       -> False
-
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
-                hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
         A.QuestionMark i ii -> checkQuestionMark (newValueMeta' DontRunMetaOccursCheck) t0 i ii
@@ -975,6 +950,41 @@ checkExpr e t0 =
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
+
+  where
+  -- | Call checkExpr with an hidden lambda inserted if appropriate,
+  --   else fallback.
+  tryInsertHiddenLambda :: A.Expr -> Type -> TCM Term -> TCM Term
+  tryInsertHiddenLambda e t fallback
+    -- Insert hidden lambda if all of the following conditions are met:
+        -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
+    | Pi (Dom info _) b <- ignoreSharing $ unEl t
+        , let h = getHiding info
+        , notVisible h
+        -- expression is not a matching hidden lambda or question mark
+        , not (hiddenLambdaOrHole h e)
+        = doInsert info $ absName b
+
+    | otherwise = fallback
+
+    where
+    re = getRange e
+    rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
+
+    doInsert info y = do
+      x <- unshadowName <=< freshName rx $ notInScopeName y
+      reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
+      checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
+
+    hiddenLambdaOrHole h e = case e of
+      A.AbsurdLam _ h'        -> h == h'
+      A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
+      A.Lam _ bind _          -> h == getHiding bind
+      A.QuestionMark{}        -> True
+      _                       -> False
+
+    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
+    hiddenLHS _ = False
 
 ---------------------------------------------------------------------------
 -- * Reflection
