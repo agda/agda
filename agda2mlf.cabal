@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Malfunction.AST
                      , Malfunction.Print
+                     , Compiler
   build-depends:       base >= 4.7 && < 5
                      , Agda >= 2.5.2
                      , containers == 0.5.*
