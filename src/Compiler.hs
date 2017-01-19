@@ -2,15 +2,17 @@ module Compiler where
 
 import Malfunction.AST
 import Agda.Syntax.Treeless
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
 
-compileTerm :: TTerm -> Term
-compileTerm t = case t of
-  TVar i            -> Mint . CInt $ i
-  TPrim tp          -> compilePrim tp
-  TDef name         -> compileName name
-  TApp t0 args      -> Mapply (compileTerm t0) (compileArgs args)
+translateTerm :: TTerm -> Term
+translateTerm t = case t of
+  TVar i            -> undefined
+  TPrim tp          -> translatePrim tp
+  TDef name         -> translateName name
+  TApp t0 args      -> Mapply (translateTerm t0) (translateArgs args)
   TLam t0           -> undefined
-  TLit lit          -> undefined
+  TLit lit          -> translateLit lit
   TCon name         -> undefined
   TLet t0 t1        -> undefined
   TCase i tp t0 alt -> undefined
@@ -19,11 +21,46 @@ compileTerm t = case t of
   TErased           -> undefined
   TError err        -> undefined
 
-compilePrim :: TPrim -> Term
-compilePrim = undefined
+f0 :: TTerm -> Term
+f0 = snd . f 0
 
-compileName :: QName -> Term
-compileName = undefined
+tt = TApp (TLam (TLam (TVar 0))) [(TLam (TVar 0))]
 
-compileArgs :: Args -> [Term]
-compileArgs = undefined
+f :: Int -> TTerm -> (Int, Term)
+f l (TLam t) = (l' + 1, Mlambda [show l'] t')
+  where (l', t') = f l t
+f l (TVar i) = (l, Mint $ CInt i)
+f l (TApp fun xs) = (l, Mapply fun' ts)
+  where
+    fun' = snd $ f l fun
+    (l', ts) = unzip $ map (f l) xs
+
+
+translateLit :: Literal -> Term
+translateLit l = case l of
+  LitNat _ x -> Mint (CInt (fromInteger x))
+  LitString _ s -> Mstring s
+  _ -> error "unsupported literal type"
+
+translatePrim :: TPrim -> Term
+translatePrim tp = Mglobal $ case tp of
+  PAdd -> undefined
+  PSub -> undefined
+  PMul -> undefined
+  PQuot -> undefined
+  PRem -> undefined
+  PGeq -> undefined
+  PLt -> undefined
+  PEqI -> undefined
+  PEqF -> undefined
+  PEqS -> undefined
+  PEqC -> undefined
+  PEqQ -> undefined
+  PIf -> undefined
+  PSeq -> undefined
+
+translateName :: QName -> Term
+translateName = undefined
+
+translateArgs :: Args -> [Term]
+translateArgs = undefined
