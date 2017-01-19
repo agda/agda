@@ -128,7 +128,8 @@ bindBuiltinFlat e =
         infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
         cpi      = ConPatternInfo Nothing $ Just $ defaultArg infA
     let clause   = Clause
-          { clauseRange     = noRange
+          { clauseLHSRange  = noRange
+          , clauseFullRange = noRange
           , clauseTel       = tel
           , namedClausePats = [ argN $ Named Nothing $
               ConP sharpCon cpi [ argN $ Named Nothing $ debruijnNamedVar "x" 0 ] ]

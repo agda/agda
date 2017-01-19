@@ -406,7 +406,8 @@ stuckOn e r =
 --  For the purpose of the permutation and the body dot patterns count
 --  as variables. TODO: Change this!
 data Clause = Clause
-    { clauseRange     :: Range
+    { clauseLHSRange  :: Range
+    , clauseFullRange :: Range
     , clauseTel       :: Telescope
       -- ^ @Δ@: The types of the pattern variables in dependency order.
     , namedClausePats :: [NamedArg DeBruijnPattern]
@@ -428,7 +429,7 @@ clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
 
 instance HasRange Clause where
-  getRange = clauseRange
+  getRange = clauseLHSRange
 
 -- | Pattern variables.
 type PatVarName = ArgName
@@ -942,8 +943,8 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty False
-  null (Clause r tel pats body t catchall)
+  empty = Clause empty empty empty empty empty empty False
+  null (Clause _ _ tel pats body _ _)
     =  null tel
     && null pats
     && null body
@@ -1111,7 +1112,8 @@ instance KillRange a => KillRange (Pattern' a) where
       ProjP o q        -> killRange1 (ProjP o) q
 
 instance KillRange Clause where
-  killRange (Clause r tel ps body t catchall) = killRange6 Clause r tel ps body t catchall
+  killRange (Clause rl rf tel ps body t catchall) =
+    killRange7 Clause rl rf tel ps body t catchall
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

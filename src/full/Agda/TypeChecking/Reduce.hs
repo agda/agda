@@ -1230,8 +1230,8 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause r tel ps b t catchall) =
-       Clause r <$> instantiateFull' tel
+    instantiateFull' (Clause rl rf tel ps b t catchall) =
+       Clause rl rf <$> instantiateFull' tel
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t
