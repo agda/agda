@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
@@ -51,6 +52,9 @@ mapWithIndex f (Cons p ps) = Cons (f Zero p) $ mapWithIndex (f . Suc) ps
 lIndex :: Index xs x -> Lens' (p x) (All p xs)
 lIndex Zero    f (Cons x xs) = f x           <&> \ x  -> Cons x xs
 lIndex (Suc i) f (Cons x xs) = lIndex i f xs <&> \ xs -> Cons x xs
+#if __GLASGOW_HASKELL__ < 800
+lIndex _ _ Nil = error "-fwarn-incomplete-pattern deficiency"
+#endif
 
 -- | Looking up an element in an indexed list.
 lookupIndex :: All p xs -> Index xs x -> p x
@@ -60,6 +64,9 @@ lookupIndex = flip ix
     ix :: Index xs x -> All p xs -> p x
     ix Zero    (Cons x xs) = x
     ix (Suc i) (Cons x xs) = ix i xs
+#if __GLASGOW_HASKELL__ < 800
+    ix _ Nil = error "-fwarn-incomplete-pattern deficiency"
+#endif
 
 -- | All indices into an indexed list.
 allIndices :: All p xs -> All (Index xs) xs
