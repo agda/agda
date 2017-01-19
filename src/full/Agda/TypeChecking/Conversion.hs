@@ -850,6 +850,8 @@ leqType = compareType CmpLeq
 --
 --   In principle, this function can host coercive subtyping, but
 --   currently it only tries to fix problems with hidden function types.
+--
+--   Precondition: @a@ and @b@ are reduced.
 coerce :: Term -> Type -> Type -> TCM Term
 coerce v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
@@ -860,6 +862,12 @@ coerce v t1 t2 = blockTerm t2 $ do
         [ text "term      v  =" <+> prettyTCM v
         , text "from type t1 =" <+> prettyTCM a1
         , text "to type   t2 =" <+> prettyTCM a2
+        ]
+    reportSDoc "tc.conv.coerce" 70 $
+      text "coerce" <+> vcat
+        [ text "term      v  =" <+> (text . show) v
+        , text "from type t1 =" <+> (text . show) a1
+        , text "to type   t2 =" <+> (text . show) a2
         ]
   -- v <$ do workOnTypes $ leqType t1 t2
   -- take off hidden/instance domains from t1 and t2
@@ -886,8 +894,16 @@ coerce v t1 t2 = blockTerm t2 $ do
 --   TODO.
 --
 --   For now, we do a cheap heuristics.
+--
+--   Precondition: types are reduced.
 coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM Term
 coerceSize leqType v t1 t2 = workOnTypes $ do
+    reportSDoc "tc.conv.coerce" 70 $
+      text "coerceSize" <+> vcat
+        [ text "term      v  =" <+> (text . show) v
+        , text "from type t1 =" <+> (text . show) t1
+        , text "to type   t2 =" <+> (text . show) t2
+        ]
     let fallback = v <$ leqType t1 t2
         done = caseMaybeM (isSizeType t1) fallback $ \ b1 -> return v
     -- Andreas, 2015-07-22, Issue 1615:
@@ -898,6 +914,7 @@ coerceSize leqType v t1 t2 = workOnTypes $ do
       ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
         -- A (most probably weaker) alternative is to just check syn.eq.
         -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
+        reportSDoc "tc.conv.coerce" 20 $ text "coercing to a size type"
         case b2 of
           -- @t2 = Size@.  We are done!
           BoundedNo -> done
