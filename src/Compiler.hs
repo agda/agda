@@ -7,6 +7,7 @@ import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
+import Control.Monad
 import Control.Monad.State
 
 type Translate = State Int
@@ -20,13 +21,24 @@ translateTerm t = case t of
   TLam t0           -> translateLam t0
   TLit lit          -> return $ translateLit lit
   TCon name         -> undefined
-  TLet t0 t1        -> undefined
-  TCase i tp t0 alt -> undefined
+  TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
+  TCase i tp t0 alt -> liftM2 Mswitch (translateTerm t0) (mapM translateSwitch alt)
   TUnit             -> undefined
   TSort             -> undefined
   TErased           -> undefined
   TError err        -> undefined
 
+translateSwitch :: TAlt -> Translate ([Case], Term)
+translateSwitch alt = case alt of
+  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
+  _           ->  error "Not implemented"
+
+translateCase :: TTerm -> Translate Case
+-- oh-oh! might be tricky to translate a general term to a "guard" in mlf.
+translateCase = error "Not implemented"
+
+translateBinding :: TTerm -> Translate Binding
+translateBinding t = Unnamed <$> translateTerm t
 
 translateLam :: TTerm -> Translate Term
 translateLam lam = do
