@@ -32,6 +32,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
+import Agda.Utils.IndexedList
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
@@ -39,7 +40,7 @@ import Agda.Main (runAgdaWithOptions, optionError, runTCMPrettyErrors, defaultIn
 
 #include "undefined.h"
 
-data Recompile menv mod = Recompile menv | Skip mod
+-- Public interface -------------------------------------------------------
 
 data Backend where
   Backend :: Backend' opts env menv mod def -> Backend
@@ -56,17 +57,18 @@ data Backend' opts env menv mod def = Backend'
   , postModule       :: env -> menv -> ModuleName -> [def] -> TCM mod
   }
 
-data All :: (x -> *) -> [x] -> * where
-  Nil  :: All p '[]
-  Cons :: p x -> All p xs -> All p (x : xs)
+data Recompile menv mod = Recompile menv | Skip mod
 
-data Elem :: x -> [x] -> * where
-  Zero :: Elem x (x : xs)
-  Suc  :: Elem x xs -> Elem x (y : xs)
+runAgda :: [Backend] -> IO ()
+runAgda backends = runTCMPrettyErrors $ do
+  progName <- liftIO getProgName
+  argv     <- liftIO getArgs
+  opts     <- liftIO $ runOptM $ parseOptions backends argv
+  case opts of
+    Left  err              -> liftIO $ optionError err
+    Right (backends, opts) -> () <$ runAgdaWithOptions generateHTML (interaction backends) progName opts
 
-ix :: Elem x xs -> Lens' (p x) (All p xs)
-ix Zero    f (Cons x xs) = f x       <&> \ x  -> Cons x xs
-ix (Suc i) f (Cons x xs) = ix i f xs <&> \ xs -> Cons x xs
+-- Internals --------------------------------------------------------------
 
 data BackendWithOpts opts where
   BackendWithOpts :: Backend' opts env menv mod def -> BackendWithOpts opts
@@ -80,34 +82,11 @@ forgetOpts (BackendWithOpts backend) = Backend backend
 bOptions :: Lens' opts (BackendWithOpts opts)
 bOptions f (BackendWithOpts b) = f (options b) <&> \ opts -> BackendWithOpts b{ options = opts }
 
-data Some :: (k -> *) -> * where
-  Some :: f i -> Some f
-
-makeAll :: (a -> Some b) -> [a] -> Some (All b)
-makeAll f [] = Some Nil
-makeAll f (x : xs) =
-  case (f x, makeAll f xs) of
-    (Some y, Some ys) -> Some (Cons y ys)
-
-data ElemAll :: (x -> *) -> [x] -> * where
-  ElemAll :: Elem x xs -> p x -> ElemAll p xs
-
-sucElemAll :: ElemAll p xs -> ElemAll p (x : xs)
-sucElemAll (ElemAll i x) = ElemAll (Suc i) x
-
-allElems :: All p xs -> [ElemAll p xs]
-allElems Nil = []
-allElems (Cons x xs) = ElemAll Zero x : map sucElemAll (allElems xs)
-
 embedFlag :: Lens' a b -> Flag a -> Flag b
 embedFlag l flag = l flag
 
 embedOpt :: Lens' a b -> OptDescr (Flag a) -> OptDescr (Flag b)
 embedOpt l = fmap (embedFlag l)
-
-forgetAll :: (forall x. b x -> a) -> All b xs -> [a]
-forgetAll f Nil         = []
-forgetAll f (Cons x xs) = f x : forgetAll f xs
 
 parseOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
 parseOptions backends argv =
@@ -115,23 +94,15 @@ parseOptions backends argv =
     Some bs -> do
       let agdaFlags    = map (embedOpt lSnd) standardOptions
           backendFlags = do
-            ElemAll i (BackendWithOpts backend) <- allElems bs
-            opt <- commandLineFlags backend
-            return $ embedOpt (lFst . ix i . bOptions) opt
+            Some i            <- forgetAll Some $ allIndices bs
+            BackendWithOpts b <- [lookupIndex bs i]
+            opt               <- commandLineFlags b
+            return $ embedOpt (lFst . lIndex i . bOptions) opt
       (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
                                             (bs, defaultOptions)
       opts <- checkOpts opts
       let enabled (Backend b) = isEnabled b (options b)
       return (filter enabled $ forgetAll forgetOpts backends, opts)
-
-runAgda :: [Backend] -> IO ()
-runAgda backends = runTCMPrettyErrors $ do
-  progName <- liftIO getProgName
-  argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseOptions backends argv
-  case opts of
-    Left  err              -> liftIO $ optionError err
-    Right (backends, opts) -> () <$ runAgdaWithOptions generateHTML (interaction backends) progName opts
 
 interaction :: [Backend] -> TCM (Maybe Interface) -> TCM ()
 interaction [] check = do
