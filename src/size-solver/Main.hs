@@ -57,7 +57,7 @@ main = do
     mapM_ (\ (x,p) -> print $ PolarityAssignment p x) $ Map.toAscList pols
 
   hg <- abortOnError $ hypGraph (rigids cs) hs
-  putStrLn $ "Hypotheses graph hg = " ++ show (graphToList hg)
+  traceM $ "Hypotheses graph hg = " ++ show (graphToList hg)
   -- Test:
   -- print $ lub' hg (NodeZero, 0) (NodeRigid "i", 0)
 
