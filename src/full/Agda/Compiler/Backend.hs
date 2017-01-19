@@ -56,12 +56,6 @@ data Backend' opts env menv mod def = Backend'
   , postModule       :: env -> menv -> ModuleName -> [def] -> TCM mod
   }
 
-_1 :: Lens' a (a, b)
-_1 f (x, y) = (, y) <$> f x
-
-_2 :: Lens' b (a, b)
-_2 f (x, y) = (x,) <$> f y
-
 data All :: (x -> *) -> [x] -> * where
   Nil  :: All p '[]
   Cons :: p x -> All p xs -> All p (x : xs)
@@ -119,12 +113,12 @@ parseOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
 parseOptions backends argv =
   case makeAll backendWithOpts backends of
     Some bs -> do
-      let agdaFlags    = map (embedOpt _2) standardOptions
+      let agdaFlags    = map (embedOpt lSnd) standardOptions
           backendFlags = do
             ElemAll i (BackendWithOpts backend) <- allElems bs
             opt <- commandLineFlags backend
-            return $ embedOpt (_1 . ix i . bOptions) opt
-      (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag _2 . inputFlag)
+            return $ embedOpt (lFst . ix i . bOptions) opt
+      (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
                                             (bs, defaultOptions)
       opts <- checkOpts opts
       let enabled (Backend b) = isEnabled b (options b)
