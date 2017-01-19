@@ -259,9 +259,6 @@ errorString err = case err of
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
 -- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
-  IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
-  IndicesFreeInParameters{}                -> "IndicesFreeInParameters"
-  IndicesNotConstructorApplications{}      -> "IndicesNotConstructorApplications"
   InternalError{}                          -> "InternalError"
   InvalidPattern{}                         -> "InvalidPattern"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
@@ -342,7 +339,6 @@ errorString err = case err of
   UnificationRecursiveEq{}                 -> "UnificationRecursiveEq"
   UnificationStuck{}                       -> "UnificationStuck"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
-  HeterogeneousEquality{}                  -> "HeterogeneousEquality"
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
@@ -526,33 +522,6 @@ instance PrettyTCM TypeError where
       [prettyTCM c] ++ pwords "is not a constructor of the datatype"
       ++ [prettyTCM d]
 
-    IndicesNotConstructorApplications [i] ->
-      fwords "The index"
-      $$ nest 2 (prettyTCM i)
-      $$ fsep (pwords "is not a constructor (or literal) applied to variables" ++
-               pwords "(note that parameters count as constructor arguments)")
-
-    IndicesNotConstructorApplications is ->
-      fwords "The indices"
-      $$ nest 2 (vcat $ map prettyTCM is)
-      $$ fsep (pwords "are not constructors (or literals) applied to variables" ++
-               pwords "(note that parameters count as constructor arguments)")
-
-    IndexVariablesNotDistinct vs is ->
-      fwords "The variables"
-      $$ nest 2 (vcat $ map (\v -> prettyTCM (I.Var v [])) vs)
-      $$ fwords "in the indices"
-      $$ nest 2 (vcat $ map prettyTCM is)
-      $$ fwords "are not distinct (note that parameters count as constructor arguments)"
-
-    IndicesFreeInParameters vs indices pars ->
-      fwords "The variables"
-      $$ nest 2 (vcat $ map (\v -> prettyTCM (I.Var v [])) vs)
-      $$ fwords "which are used (perhaps as constructor parameters) in the index expressions"
-      $$ nest 2 (vcat $ map prettyTCM indices)
-      $$ fwords "are free in the parameters"
-      $$ nest 2 (vcat $ map prettyTCM pars)
-
     ShadowedModule x [] -> __IMPOSSIBLE__
 
     ShadowedModule x ms@(m : _) -> fsep $
@@ -630,11 +599,6 @@ instance PrettyTCM TypeError where
 
     UnequalTypes cmp a b -> prettyUnequal a (notCmp cmp) b
 --              fsep $ [prettyTCM a, notCmp cmp, prettyTCM b]
-
-    HeterogeneousEquality u a v b -> fsep $
-      pwords "Refuse to solve heterogeneous constraint" ++
-      [prettyTCM u] ++ pwords ":" ++ [prettyTCM a] ++ pwords "=?=" ++
-      [prettyTCM v] ++ pwords ":" ++ [prettyTCM b]
 
     UnequalRelevance cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
