@@ -285,8 +285,6 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, \x -> optGhcCompile x]) = throwError
       "Unsolved meta variables are not allowed when compiling.\n"
-  | optCompileNoMain opts && (not (optGhcCompile opts || optUHCCompile opts)) = throwError
-      "--no-main only allowed in combination with --compile.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       throwError "Choose at most one: input file or --interaction.\n"
   | not (atMostOne $ interactive ++ [\x -> optGhcCompile x, optEpicCompile, optJSCompile]) =

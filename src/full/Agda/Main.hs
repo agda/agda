@@ -57,21 +57,51 @@ runAgda = do
   opts     <- liftIO $ runOptM $ parseStandardOptions argv
   case opts of
     Left err -> liftIO $ optionError err
-    Right opts -> runAgdaWithOptions generateHTML progName opts
+    Right opts -> () <$ runAgdaWithOptions generateHTML (defaultInteraction opts) progName opts
+
+defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
+defaultInteraction opts
+  | i                    = runIM . interactionLoop
+  | ghci                 = mimicGHCi                          . (failIfInt   =<<)
+  | ghc && compileNoMain = (MAlonzo.compilerMain NotMain =<<) . (failIfNoInt =<<)
+  | ghc                  = (MAlonzo.compilerMain IsMain  =<<) . (failIfNoInt =<<)
+  | epic                 = (Epic.compilerMain            =<<) . (failIfNoInt =<<)
+  | js                   = (JS.compilerMain              =<<) . (failIfNoInt =<<)
+  | uhc && compileNoMain = (UHC.compilerMain NotMain     =<<) . (failIfNoInt =<<)
+  | uhc                  = (UHC.compilerMain IsMain      =<<) . (failIfNoInt =<<)
+  | otherwise     = (() <$)
+  where
+    i             = optInteractive     opts
+    ghci          = optGHCiInteraction opts
+    ghc           = optGhcCompile      opts
+    compileNoMain = optCompileNoMain   opts
+    epic          = optEpicCompile     opts
+    js            = optJSCompile       opts
+    uhc           = optUHCCompile      opts
+
+    failIfNoInt (Just i) = return i
+    -- The allowed combinations of command-line
+    -- options should rule out Nothing here.
+    failIfNoInt Nothing  = __IMPOSSIBLE__
+
+    failIfInt Nothing  = return ()
+    failIfInt (Just _) = __IMPOSSIBLE__
+
 
 -- | Run Agda with parsed command line options and with a custom HTML generator
 runAgdaWithOptions
   :: TCM ()             -- ^ HTML generating action
+  -> (TCM (Maybe Interface) -> TCM a) -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
-  -> TCM ()
-runAgdaWithOptions generateHTML progName opts
-      | optShowHelp opts    = liftIO printUsage
-      | optShowVersion opts = liftIO printVersion
+  -> TCM (Maybe a)
+runAgdaWithOptions generateHTML interaction progName opts
+      | optShowHelp opts    = Nothing <$ liftIO printUsage
+      | optShowVersion opts = Nothing <$ liftIO printVersion
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)
-                            = liftIO printUsage
+                            = Nothing <$ liftIO printUsage
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
@@ -88,36 +118,8 @@ runAgdaWithOptions generateHTML progName opts
             -- Print accumulated statistics.
             printStatistics 20 Nothing =<< use lensAccumStatistics
   where
-    checkFile :: TCM ()
-    checkFile = do
-      let i             = optInteractive     opts
-          ghci          = optGHCiInteraction opts
-          ghc           = optGhcCompile      opts
-          compileNoMain = optCompileNoMain   opts
-          epic          = optEpicCompile     opts
-          js            = optJSCompile       opts
-          uhc           = optUHCCompile      opts
-      when i $ liftIO $ putStr splashScreen
-      let failIfNoInt (Just i) = return i
-          -- The allowed combinations of command-line
-          -- options should rule out Nothing here.
-          failIfNoInt Nothing  = __IMPOSSIBLE__
-
-          failIfInt Nothing  = return ()
-          failIfInt (Just _) = __IMPOSSIBLE__
-
-          interaction :: TCM (Maybe Interface) -> TCM ()
-          interaction | i             = runIM . interactionLoop
-                      | ghci          = mimicGHCi . (failIfInt =<<)
-                      | ghc && compileNoMain
-                                      = (MAlonzo.compilerMain NotMain =<<) . (failIfNoInt =<<)
-                      | ghc           = (MAlonzo.compilerMain IsMain =<<) . (failIfNoInt =<<)
-                      | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
-                      | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
-                      | uhc && compileNoMain
-                                      = (UHC.compilerMain NotMain =<<) . (failIfNoInt =<<)
-                      | uhc           = (UHC.compilerMain IsMain =<<)  . (failIfNoInt =<<)
-                      | otherwise     = (() <$)
+    checkFile = Just <$> do
+      when (optInteractive opts) $ liftIO $ putStr splashScreen
       interaction $ do
         setCommandLineOptions opts
         hasFile <- hasInputFile
@@ -166,7 +168,8 @@ printVersion = do
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err = do
-  putStrLn $ "Error: " ++ err ++ "\nRun 'agda --help' for help on command line options."
+  prog <- getProgName
+  putStrLn $ "Error: " ++ err ++ "\nRun '" ++ prog ++ " --help' for help on command line options."
   exitFailure
 
 -- | Run a TCM action in IO; catch and pretty print errors.

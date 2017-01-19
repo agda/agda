@@ -9,7 +9,7 @@ module Agda.Utils.Lens
   , (<&>) -- reexported from Agda.Utils.Functor
   ) where
 
-import Control.Applicative ( Const(Const), getConst )
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -27,6 +27,13 @@ import Agda.Utils.Functor ((<&>))
 --   Mnemoic: "Lens inner outer".
 type Lens' i o = forall f. Functor f => (i -> f i) -> o -> f o
 
+-- * Some simple lenses.
+
+lFst :: Lens' a (a, b)
+lFst f (x, y) = (, y) <$> f x
+
+lSnd :: Lens' b (a, b)
+lSnd f (x, y) = (x,) <$> f y
 
 -- * Elementary lens operations.
 

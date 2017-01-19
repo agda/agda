@@ -268,7 +268,7 @@ simplify FunctionKit{..} = simpl
       b_a  <- rewrite' (tOp PLt b a)
       b_sa <- rewrite' (tOp PLt b (tOp PAdd (tInt 1) a))
       a_b  <- rewrite' (tOp PLt a b)
-      if isTrue b_a || isTrue b_sa || isFalse b_a && isFalse a_b
+      if isTrue b_a || isTrue b_sa || isFalse a_b
         then pure $ tOp PSub a b
         else tApp f es
 
