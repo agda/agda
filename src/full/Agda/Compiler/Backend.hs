@@ -14,6 +14,8 @@ module Agda.Compiler.Backend
   where
 
 import Control.Monad.State
+
+import Data.Functor
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -151,4 +153,3 @@ compileModule backend env i = do
     Recompile menv -> do
       defs  <- map snd . sortDefs <$> curDefs
       postModule backend env menv (iModuleName i) =<< mapM (compileDef backend env menv) defs
-

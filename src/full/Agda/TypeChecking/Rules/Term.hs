@@ -812,34 +812,9 @@ checkExpr e t0 =
 
     e <- scopedExpr e
 
-    case e of
+    tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
-
-        -- Insert hidden lambda if all of the following conditions are met:
-            -- type is a hidden function type, {x : A} -> B or {{x : A} -> B
-        _   | Pi (Dom info _) b <- ignoreSharing $ unEl t
-            , let h = getHiding info
-            , notVisible h
-            -- expression is not a matching hidden lambda or question mark
-            , not (hiddenLambdaOrHole h e)
-            -> do
-                x <- unshadowName <=< freshName rx $ notInScopeName $ absName b
-                reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-                checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
-            where
-                re = getRange e
-                rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
-
-                hiddenLambdaOrHole h e = case e of
-                  A.AbsurdLam _ h'        -> h == h'
-                  A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
-                  A.Lam _ bind _          -> h == getHiding bind
-                  A.QuestionMark{}        -> True
-                  _                       -> False
-
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
-                hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
         A.QuestionMark i ii -> checkQuestionMark (newValueMeta' DontRunMetaOccursCheck) t0 i ii
@@ -977,6 +952,67 @@ checkExpr e t0 =
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
 
+  where
+  -- | Call checkExpr with an hidden lambda inserted if appropriate,
+  --   else fallback.
+  tryInsertHiddenLambda :: A.Expr -> Type -> TCM Term -> TCM Term
+  tryInsertHiddenLambda e t fallback
+    -- Insert hidden lambda if all of the following conditions are met:
+        -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
+    | Pi (Dom info a) b <- ignoreSharing $ unEl t
+        , let h = getHiding info
+        , notVisible h
+        -- expression is not a matching hidden lambda or question mark
+        , not (hiddenLambdaOrHole h e)
+        = do
+      let proceed = doInsert info $ absName b
+      -- If we skip the lambda insertion for an introduction,
+      -- we will hit a dead end, so proceed no matter what.
+      if definitelyIntroduction then proceed else do
+        -- Andreas, 2017-01-19, issue #2412:
+        -- We do not want to insert a hidden lambda if A is
+        -- possibly empty type of sizes, as this will produce an error.
+        reduce a >>= isSizeType >>= \case
+          Just (BoundedLt u) -> ifBlocked u (\ _ _ -> fallback) $ \ v -> do
+            ifM (checkSizeNeverZero v) proceed fallback
+          _ -> proceed
+
+    | otherwise = fallback
+
+    where
+    re = getRange e
+    rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
+
+    doInsert info y = do
+      x <- unshadowName <=< freshName rx $ notInScopeName y
+      reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
+      checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
+
+    hiddenLambdaOrHole h e = case e of
+      A.AbsurdLam _ h'        -> h == h'
+      A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
+      A.Lam _ bind _          -> h == getHiding bind
+      A.QuestionMark{}        -> True
+      _                       -> False
+
+    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
+    hiddenLHS _ = False
+
+    -- Things with are definitely introductions,
+    -- thus, cannot be of hidden Pi-type, unless they are hidden lambdas.
+    definitelyIntroduction = case e of
+      A.Lam{}        -> True
+      A.AbsurdLam{}  -> True
+      A.Lit{}        -> True
+      A.Pi{}         -> True
+      A.Fun{}        -> True
+      A.Set{}        -> True
+      A.Prop{}       -> True
+      A.Rec{}        -> True
+      A.RecUpdate{}  -> True
+      A.ScopedExpr{} -> __IMPOSSIBLE__
+      A.ETel{}       -> __IMPOSSIBLE__
+      _ -> False
 ---------------------------------------------------------------------------
 -- * Reflection
 ---------------------------------------------------------------------------
