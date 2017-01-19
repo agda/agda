@@ -175,6 +175,7 @@ checkSpine action a self es t = do
                    , nest 4 $ prettyTCM es <+> text ":"
                    , nest 2 $ prettyTCM t ] ]
   ((v, v'), t') <- inferSpine' action a self self es
+  t' <- reduce t'
   v' <$ coerceSize subtype v t' t
 
 checkArgs :: Action -> Type -> Term -> Args -> Type -> TCM Term

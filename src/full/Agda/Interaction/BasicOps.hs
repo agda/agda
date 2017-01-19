@@ -142,6 +142,7 @@ giveExpr mii mi e = do
         wakeupConstraints mi
         solveSizeConstraints DontDefaultToInfty
         -- Double check.
+        reportSDoc "interaction.give" 20 $ TP.text "give: double checking"
         vfull <- instantiateFull v
         checkInternal vfull t'
 
