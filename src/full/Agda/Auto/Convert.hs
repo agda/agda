@@ -686,8 +686,9 @@ frommyClause (ids, pats, mrhs) = do
           Just e -> Just <$> frommyExp e
  let cperm =  Perm nv perm
  return $ I.Clause
-   { I.clauseRange = SP.noRange
-   , I.clauseTel   = tel
+   { I.clauseLHSRange  = SP.noRange
+   , I.clauseFullRange = SP.noRange
+   , I.clauseTel       = tel
    , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
    , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type

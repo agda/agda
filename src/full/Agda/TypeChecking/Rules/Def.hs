@@ -155,7 +155,8 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                    $ set funMacro (Info.defMacro i == MacroDef) $
                      emptyFunction
                       { funClauses = [ Clause  -- trivial clause @name = v@
-                          { clauseRange     = getRange i
+                          { clauseLHSRange  = getRange i
+                          , clauseFullRange = getRange i
                           , clauseTel       = EmptyTel
                           , namedClausePats = []
                           , clauseBody      = Just $ bodyMod v
@@ -437,7 +438,8 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
               _          -> body
 
         return $
-          Clause { clauseRange     = getRange i
+          Clause { clauseLHSRange  = getRange i
+                 , clauseFullRange = getRange c
                  , clauseTel       = killRange delta
                  , namedClausePats = ps
                  , clauseBody      = bodyMod body

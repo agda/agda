@@ -813,6 +813,7 @@ classifyWarning w = case w of
   OldBuiltin{}               -> AllWarnings
   EmptyRewritePragma         -> AllWarnings
   UselessPublic              -> AllWarnings
+  UnreachableClauses{}       -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   NotStrictlyPositive{}      -> ErrorWarnings
   UnsolvedMetaVariables{}    -> ErrorWarnings

@@ -458,7 +458,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
 
-            cl = Clause { clauseRange     = getRange $ defClauses d
+            cl = Clause { clauseLHSRange  = getRange $ defClauses d
+                        , clauseFullRange = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
                         , clauseBody      = Just $ case oldDef of

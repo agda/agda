@@ -62,14 +62,15 @@ instance EmbPrj HP.Aspect where
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
-  icod_ HP.Error              = icode0 0
-  icod_ HP.DottedPattern      = icode0'
-  icod_ HP.UnsolvedMeta       = icode0 2
-  icod_ HP.TerminationProblem = icode0 3
-  icod_ HP.IncompletePattern  = icode0 4
-  icod_ HP.TypeChecks         = icode0 5
-  icod_ HP.UnsolvedConstraint = icode0 6
-  icod_ HP.PositivityProblem  = icode0 7
+  icod_ HP.Error               = icode0 0
+  icod_ HP.DottedPattern       = icode0'
+  icod_ HP.UnsolvedMeta        = icode0 2
+  icod_ HP.TerminationProblem  = icode0 3
+  icod_ HP.IncompletePattern   = icode0 4
+  icod_ HP.TypeChecks          = icode0 5
+  icod_ HP.UnsolvedConstraint  = icode0 6
+  icod_ HP.PositivityProblem   = icode0 7
+  icod_ HP.ReachabilityProblem = icode0 8
 
   value = vcase valu where
     valu [0] = valu0 HP.Error
@@ -80,6 +81,7 @@ instance EmbPrj HP.OtherAspect where
     valu [5] = valu0 HP.TypeChecks
     valu [6] = valu0 HP.UnsolvedConstraint
     valu [7] = valu0 HP.PositivityProblem
+    valu [8] = valu0 HP.ReachabilityProblem
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
