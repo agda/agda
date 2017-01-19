@@ -1,0 +1,13 @@
+# Issue2415.txt
+dist/build/size-solver/size-solver < test/succeed/Issue2415.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Constraints
+l ≤ J
+J+1 ≤ K
+I+1 ≤ K
+Solution
+fromList [(I,l),(J,l),(K,l+1)]
+>>>2
+>>>= 0
