@@ -1,7 +1,7 @@
 SHELL=bash
 
 # TOP=../../
-# include $(TOP)/mk/version.mk
+# include $(TOP)/mk/versions.mk
 
 CABAL_CMD=cabal
 
