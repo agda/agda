@@ -126,7 +126,7 @@ giveExpr mii mi e = do
             -- if there are more free variables than the context has
             -- we need to abstract over the additional ones (xs2)
             let (_xs1, xs2) = splitAt (size ctx) xs
-            v' <- return $ foldr (\ (Arg ai x) -> I.Lam ai . I.Abs x) v' xs2
+            v' <- return $ foldr mkLam v' xs2
             reportSDoc "interaction.give" 20 $ TP.sep
               [ TP.text "in meta context, v' = " TP.<+> prettyTCM v'
               ]

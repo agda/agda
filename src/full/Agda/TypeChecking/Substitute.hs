@@ -975,11 +975,11 @@ telePi' reAbs = telePi where
       s2 = getSort <$> b
       el = El $ dLub s1 s2
 
--- | Uses free variable analysis to introduce 'noAbs' bindings.
+-- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
 telePi = telePi' reAbs
 
--- | Everything will be a 'Abs'.
+-- | Everything will be an 'Abs'.
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
 
@@ -994,6 +994,10 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
     s2 = fmap getSort b
 -}
 
+-- | Abstract over a telescope in a term, producing lambdas.
+--   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
+--
+--   The implementation is sound because 'Telescope' does not use 'NoAbs'.
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel         t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
