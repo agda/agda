@@ -23,7 +23,7 @@ be followed:
     Agda.cabal (thrice)
     default.nix
     /doc/user-manual/conf.py (twice)
-    mk/version.mk
+    mk/versions.mk
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
     test/interaction/Issue1244a.out
@@ -118,7 +118,7 @@ be followed:
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
-    mk/version.mk
+    mk/versions.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
@@ -157,7 +157,7 @@ be followed:
     Agda.cabal (thrice)
     default.nix
     /doc/user-manual/conf.py (twice)
-    mk/version.mk
+    mk/versions.mk
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
     test/interaction/Issue1244a.out
