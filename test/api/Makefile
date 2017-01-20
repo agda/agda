@@ -12,7 +12,7 @@ Issue1168 : Issue1168.agdai Issue1168.hs
 	/tmp/$@
 	@rm /tmp/$@
 
-Issue1168.agdai : Issue1168.agda
+Issue1168.agdai : Issue1168.agda $(AGDA_BIN)
 	$(AGDA) $<
 
 PrettyInterface : Issue1168.agdai PrettyInterface.hs

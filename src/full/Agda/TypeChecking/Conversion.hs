@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Conversion where
 
@@ -910,6 +911,11 @@ coerceSize leqType v t1 t2 = workOnTypes $ do
     -- If t1 is a meta and t2 a type like Size< v2, we need to make sure we do not miss
     -- the constraint v < v2!
     caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+      -- Andreas, 2017-01-20, issue #2329:
+      -- If v is not a size suitable for the solver, like a neutral term,
+      -- we can only rely on the type.
+      mv <- sizeMaxView v
+      if any (\case{ DOtherSize{} -> True; _ -> False }) mv then fallback else do
       -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
       ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
         -- A (most probably weaker) alternative is to just check syn.eq.
