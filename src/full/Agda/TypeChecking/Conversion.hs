@@ -872,8 +872,8 @@ coerce v t1 t2 = blockTerm t2 $ do
         ]
   -- v <$ do workOnTypes $ leqType t1 t2
   -- take off hidden/instance domains from t1 and t2
-  TelV tel1 b1 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t1
-  TelV tel2 b2 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t2
+  TelV tel1 b1 <- telViewUpTo' (-1) notVisible t1
+  TelV tel2 b2 <- telViewUpTo' (-1) notVisible t2
   let n = size tel1 - size tel2
   -- the crude solution would be
   --   v' = λ {tel2} → v {tel1}
@@ -882,7 +882,7 @@ coerce v t1 t2 = blockTerm t2 $ do
   -- insert n many hidden args
   if n <= 0 then fallback else do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
-      (args, t1') <- implicitArgs n (NotHidden /=) t1
+      (args, t1') <- implicitArgs n notVisible t1
       coerceSize leqType (v `apply` args) t1' t2
   where
     fallback = coerceSize leqType v t1 t2
