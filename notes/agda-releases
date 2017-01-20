@@ -12,7 +12,7 @@ followed:
       Agda.cabal (twice)
       default.nix
       doc/user-manual/conf.py
-      mk/version.mk
+      mk/versions.mk
       src/data/emacs-mode/agda2-mode.el
       src/size-solver/size-solver.cabal
       test/interaction/Issue1244a.out
