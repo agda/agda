@@ -1,7 +1,6 @@
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/version.mk
 
 AGDA = $(AGDA_BIN) -v0
 
