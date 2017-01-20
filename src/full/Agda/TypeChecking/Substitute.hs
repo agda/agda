@@ -904,26 +904,6 @@ data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
 deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
 deriving instance (Subst t a, Ord a) => Ord (TelV a)
 
-type ListTel' a = [Dom (a, Type)]
-type ListTel = ListTel' ArgName
-
-telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
-telFromList' f = foldr extTel EmptyTel
-  where
-    extTel (Dom info (x, a)) = ExtendTel (Dom info a) . Abs (f x)
-
-telFromList :: ListTel -> Telescope
-telFromList = telFromList' id
-
-telToList :: Telescope -> ListTel
-telToList EmptyTel            = []
-telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel)
-  -- Andreas, 2013-12-14: This would work also for 'NoAbs',
-  -- since 'absBody' raises.
-
-telToArgs :: Telescope -> [Arg ArgName]
-telToArgs tel = [ Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
-
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
 bindsToTel' f []     t = []

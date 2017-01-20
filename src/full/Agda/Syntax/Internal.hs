@@ -214,28 +214,6 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
--- | A traversal for the names in a telescope.
-mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
-mapAbsNamesM f EmptyTel                  = pure EmptyTel
-mapAbsNamesM f (ExtendTel a (  Abs x b)) = ExtendTel a <$> (  Abs <$> f x <*> mapAbsNamesM f b)
-mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> mapAbsNamesM f b)
-  -- Ulf, 2013-11-06: Last case is really impossible but I'd rather find out we
-  --                  violated that invariant somewhere other than here.
-
-mapAbsNames :: (ArgName -> ArgName) -> Tele a -> Tele a
-mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
-
--- Ulf, 2013-11-06
--- The record parameter is named "" inside the record module so we can avoid
--- printing it (issue 208), but we don't want that to show up in the type of
--- the functions in the module (issue 892). This function is used on the record
--- module telescope before adding it to a type in
--- TypeChecking.Monad.Signature.addConstant (to handle functions defined in
--- record modules) and TypeChecking.Rules.Record.checkProjection (to handle
--- record projections).
-replaceEmptyName :: ArgName -> Tele a -> Tele a
-replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
-
 -- | Sorts.
 --
 data Sort
@@ -769,6 +747,68 @@ impossibleTerm file line = Lit $ LitString noRange $ unlines
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
 
+hackReifyToMeta :: Term
+hackReifyToMeta = DontCare $ Lit $ LitNat noRange (-42)
+
+isHackReifyToMeta :: Term -> Bool
+isHackReifyToMeta (DontCare (Lit (LitNat r (-42)))) = r == noRange
+isHackReifyToMeta _ = False
+
+---------------------------------------------------------------------------
+-- * Telescopes.
+---------------------------------------------------------------------------
+
+-- | A traversal for the names in a telescope.
+mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
+mapAbsNamesM f EmptyTel                  = pure EmptyTel
+mapAbsNamesM f (ExtendTel a (  Abs x b)) = ExtendTel a <$> (  Abs <$> f x <*> mapAbsNamesM f b)
+mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> mapAbsNamesM f b)
+  -- Ulf, 2013-11-06: Last case is really impossible but I'd rather find out we
+  --                  violated that invariant somewhere other than here.
+
+mapAbsNames :: (ArgName -> ArgName) -> Tele a -> Tele a
+mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
+
+-- Ulf, 2013-11-06
+-- The record parameter is named "" inside the record module so we can avoid
+-- printing it (issue 208), but we don't want that to show up in the type of
+-- the functions in the module (issue 892). This function is used on the record
+-- module telescope before adding it to a type in
+-- TypeChecking.Monad.Signature.addConstant (to handle functions defined in
+-- record modules) and TypeChecking.Rules.Record.checkProjection (to handle
+-- record projections).
+replaceEmptyName :: ArgName -> Tele a -> Tele a
+replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
+
+-- | Telescope as list.
+type ListTel' a = [Dom (a, Type)]
+type ListTel = ListTel' ArgName
+
+telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
+telFromList' f = List.foldr extTel EmptyTel
+  where
+    extTel (Dom info (x, a)) = ExtendTel (Dom info a) . Abs (f x)
+
+-- | Convert a list telescope to a telescope.
+telFromList :: ListTel -> Telescope
+telFromList = telFromList' id
+
+-- | Convert a telescope to its list form.
+telToList :: Telescope -> ListTel
+telToList EmptyTel                    = []
+telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
+telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
+
+-- | Drop the types from a telescope.
+class TelToArgs a where
+  telToArgs :: a -> [Arg ArgName]
+
+instance TelToArgs ListTel where
+  telToArgs = map $ \ dom -> Arg (domInfo dom) (fst $ unDom dom)
+
+instance TelToArgs Telescope where
+  telToArgs = telToArgs . telToList
+
 -- | Constructing a singleton telescope.
 class SgTel a where
   sgTel :: a -> Telescope
@@ -781,13 +821,6 @@ instance SgTel (Dom (ArgName, Type)) where
 
 instance SgTel (Dom Type) where
   sgTel dom = sgTel (stringToArgName "_", dom)
-
-hackReifyToMeta :: Term
-hackReifyToMeta = DontCare $ Lit $ LitNat noRange (-42)
-
-isHackReifyToMeta :: Term -> Bool
-isHackReifyToMeta (DontCare (Lit (LitNat r (-42)))) = r == noRange
-isHackReifyToMeta _ = False
 
 ---------------------------------------------------------------------------
 -- * Handling blocked terms.
