@@ -7,7 +7,7 @@ data IntType
   | TInt32
   | TInt64
   | TBigint
-  deriving (Show)
+  deriving (Show, Eq)
 
 data IntConst
   -- I.Int may be the wrong type.
@@ -30,26 +30,26 @@ data IntConst
   | CInt32 Int32
   | CInt64 Int64
   | CBigint Integer
-  deriving (Show)
+  deriving (Show, Eq)
 
 data UnaryIntOp = Neg | Not
-  deriving (Show)
+  deriving (Show, Eq)
 
 data BinaryIntOp
   = Add | Sub | Mul | Div | Mo | And | Or | Xor | Lsl | Lsr | Asr
   | Lt | Gt | Lte | Gte | Eq
-  deriving (Show)
+  deriving (Show, Eq)
 
 data VectorType = Array | Bytevec
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Mutability = Inm | Mut
-  deriving (Show)
+  deriving (Show, Eq)
 
 type BlockTag = Int
 
 data Case = Tag Int | Deftag | Intrange (Int, Int)
-  deriving (Show)
+  deriving (Show, Eq)
 
 
 
@@ -92,14 +92,14 @@ data Term
   -- Blocks
   | Mblock Int [Term]
   | Mfield Int Term
-  deriving (Show)
+  deriving (Show, Eq)
 
 
 data Binding
   = Unnamed Term
   | Named Ident Term
   | Recursive [(Ident, Term)]
-  deriving (Show)
+  deriving (Show, Eq)
 
 {-
 type var = Ident.t

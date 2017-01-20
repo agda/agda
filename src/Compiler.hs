@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler where
+module Compiler (translate) where
 
 import Data.Char
 
@@ -14,6 +14,9 @@ import Control.Monad.State
 
 type Translate = State Int
 type MonadTranslate = MonadState Int
+
+translate :: TTerm -> Term
+translate t = translateTerm t `evalState` 0
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm t = case t of
@@ -54,7 +57,7 @@ translateApp :: MonadTranslate m => TTerm -> [TTerm] -> m Term
 translateApp ft xst = do
   i <- get
   let f  = translateTerm ft       `evalState` i
-  let xs = mapM translateTerm xst `evalState` i
+      xs = mapM translateTerm xst `evalState` i
   return $ Mapply f xs
 
 incr :: MonadTranslate m => m ()

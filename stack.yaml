@@ -41,9 +41,15 @@ packages:
     git: git@github.com:agda/agda.git
     commit: d4e466d364534a0128276d3bbedcd6830669e3b6
   extra-dep: true
+- location:
+    git: "https://github.com/lwm/tasty-discover.git"
+    commit: "HEAD"
+  extra-dep: true
+
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
-extra-deps: []
+extra-deps:
+  - tasty-th-0.1.4
 
 # Override default flag values for local packages and extra-deps
 flags: {}
