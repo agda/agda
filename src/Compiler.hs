@@ -63,8 +63,8 @@ incr = modify succ
 decr :: MonadTranslate m => m ()
 decr = modify pred
 
--- Alphabet only has 26 unqiue values.
-ident i = pure $ chr (i + ord 'a')
+ident :: Int -> String
+ident i = "v" ++ show i
 
 translateLit :: Literal -> Term
 translateLit l = case l of
