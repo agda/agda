@@ -1,4 +1,4 @@
-include $(TOP)/mk/version.mk
+include $(TOP)/mk/versions.mk
 
 MACRO_DIR = $(TOP)/macros
 
