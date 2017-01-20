@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Compiler where
 
 import Data.Char
@@ -11,8 +13,9 @@ import Control.Monad
 import Control.Monad.State
 
 type Translate = State Int
+type MonadTranslate = MonadState Int
 
-translateTerm :: TTerm -> Translate Term
+translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm t = case t of
   TVar i            -> return . Mvar . ident $ i
   TPrim tp          -> return $ translatePrim tp
@@ -28,36 +31,36 @@ translateTerm t = case t of
   TErased           -> undefined
   TError err        -> undefined
 
-translateSwitch :: TAlt -> Translate ([Case], Term)
+translateSwitch :: MonadTranslate m => TAlt -> m ([Case], Term)
 translateSwitch alt = case alt of
   TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
   _           ->  error "Not implemented"
 
-translateCase :: TTerm -> Translate Case
+translateCase :: MonadTranslate m => TTerm -> m Case
 -- oh-oh! might be tricky to translate a general term to a "guard" in mlf.
 translateCase = error "Not implemented"
 
-translateBinding :: TTerm -> Translate Binding
+translateBinding :: MonadTranslate m => TTerm -> m Binding
 translateBinding t = Unnamed <$> translateTerm t
 
-translateLam :: TTerm -> Translate Term
+translateLam :: MonadTranslate m => TTerm -> m Term
 translateLam lam = do
   t <- translateTerm lam
   i <- ident <$> get
   incr
   return (Mlambda [i] t)
 
-translateApp :: TTerm -> [TTerm] -> Translate Term
+translateApp :: MonadTranslate m => TTerm -> [TTerm] -> m Term
 translateApp ft xst = do
   i <- get
   let f  = translateTerm ft       `evalState` i
   let xs = mapM translateTerm xst `evalState` i
   return $ Mapply f xs
 
-incr :: Translate ()
+incr :: MonadTranslate m => m ()
 incr = modify succ
 
-decr :: Translate ()
+decr :: MonadTranslate m => m ()
 decr = modify pred
 
 -- Alphabet only has 26 unqiue values.
