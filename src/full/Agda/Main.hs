@@ -176,8 +176,10 @@ optionError err = do
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
     r <- runTCMTop $ tcm `catchError` \err -> do
-      s <- prettyError err
-      unless (null s) (liftIO $ putStrLn s)
+      s2s <- prettyTCWarnings' =<< Imp.errorWarningsOfTCErr err
+      s1  <- prettyError err
+      let ss = filter (not . null) $ s2s ++ [s1]
+      unless (null s1) (liftIO $ putStr $ unlines ss)
       throwError err
     case r of
       Right _ -> exitSuccess

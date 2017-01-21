@@ -118,7 +118,16 @@ Language
 Emacs mode
 ----------
 
-* New non-fatal warning: unreachable clauses
+* New warnings:
+
+  - Unreachable clauses give rise to a simple warning. They are
+    highlighted in gray.
+
+  - Incomplete patterns are non-fatal warnings: it is possible
+    to keep interacting with the file (the reduction will simply
+    be stuck on arguments not matching any pattern).
+    The definition with incomplete patterns are highlighted in
+    wheat.
 
 * New bindings: All the bold digits are now available
 

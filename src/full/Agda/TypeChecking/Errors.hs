@@ -6,6 +6,7 @@
 module Agda.TypeChecking.Errors
   ( prettyError
   , tcErrString
+  , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
   , applyFlagsToTCWarnings
@@ -133,6 +134,13 @@ instance PrettyTCM Warning where
           plural 1 thing = thing
           plural n thing = thing ++ "s"
 
+    CoverageIssue f pss -> fsep (
+      pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
+      pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
+        where
+        display (tel, ps) = prettyTCM $ NamedClause f True $
+          I.Clause noRange noRange tel ps Nothing Nothing False
+
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
@@ -175,6 +183,7 @@ applyFlagsToTCWarnings ifs ws = do
             keepUnsolved us = not (null us) && (ignore || unsolvedNotOK)
         in case w of
           TerminationIssue{}           -> ignore || loopingNotOK
+          CoverageIssue{}              -> ignore || unsolvedNotOK
           NotStrictlyPositive{}        -> ignore || negativeNotOK
           UnsolvedMetaVariables ums    -> keepUnsolved ums
           UnsolvedInteractionMetas uis -> keepUnsolved uis
@@ -235,7 +244,6 @@ errorString err = case err of
   ClashingModuleImport{}                   -> "ClashingModuleImport"
   CompilationError{}                       -> "CompilationError"
   ConstructorPatternInWrongDatatype{}      -> "ConstructorPatternInWrongDatatype"
-  CoverageFailure{}                        -> "CoverageFailure"
   CoverageCantSplitOn{}                    -> "CoverageCantSplitOn"
   CoverageCantSplitIrrelevantType{}        -> "CoverageCantSplitIrrelevantType"
   CoverageCantSplitType{}                  -> "CoverageCantSplitType"
@@ -1064,13 +1072,6 @@ instance PrettyTCM TypeError where
       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
       pwords "No match for" ++ map prettyTCM args
 -}
-
-    CoverageFailure f pss -> fsep (
-      pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
-      pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
-        where
-        display (tel, ps) = prettyTCM $ NamedClause f True $
-          I.Clause noRange noRange tel ps Nothing Nothing False
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
