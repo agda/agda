@@ -156,10 +156,15 @@ coverageCheck f t cs = do
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
     ]
-  -- report an error if there are uncovered cases
+  -- report a warning if there are uncovered cases,
+  -- generate a catch-all clause with a metavariable as its body to avoid
+  -- internal errors in the reduction machinery.
   unless (null pss) $
-      setCurrentRange cs $
-        typeError $ CoverageFailure f pss
+      setCurrentRange cs $ do
+        warning $ CoverageIssue f pss
+        let catchAll = Clause noRange noRange empty empty Nothing empty True
+        modifySignature $ updateDefinition f $ updateTheDef
+                        $ updateFunClauses (++ [catchAll])
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses

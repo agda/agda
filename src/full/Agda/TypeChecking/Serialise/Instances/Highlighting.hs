@@ -71,6 +71,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.UnsolvedConstraint  = icode0 6
   icod_ HP.PositivityProblem   = icode0 7
   icod_ HP.ReachabilityProblem = icode0 8
+  icod_ HP.CoverageProblem     = icode0 9
 
   value = vcase valu where
     valu [0] = valu0 HP.Error
@@ -82,6 +83,7 @@ instance EmbPrj HP.OtherAspect where
     valu [6] = valu0 HP.UnsolvedConstraint
     valu [7] = valu0 HP.PositivityProblem
     valu [8] = valu0 HP.ReachabilityProblem
+    valu [9] = valu0 HP.CoverageProblem
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
