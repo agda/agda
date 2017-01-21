@@ -73,7 +73,7 @@ isFullyInstantiatedMeta :: MetaId -> TCM Bool
 isFullyInstantiatedMeta m = do
   mv <- TCM.lookupMeta m
   case mvInstantiation mv of
-    InstV sub v -> null . allMetas <$> instantiateFull (sub, v)
+    InstV _tel v -> null . allMetas <$> instantiateFull v
     _ -> return False
 
 -- | Instantiate something.

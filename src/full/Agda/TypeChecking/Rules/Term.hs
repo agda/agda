@@ -1177,9 +1177,28 @@ inferOrCheckProjApp e o ds args mt = do
                 [ text $ "trying projection " ++ show d
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
+
               -- get the original projection name
-              Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
-              guard $ isJust proper
+              isP <- isProjection d
+              reportSDoc "tc.proj.amb" 40 $ vcat $
+                [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+                ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
+                [ text $ "  proper       = " ++ show proper
+                , text $ "  orig         = " ++ show orig
+                ])
+
+              -- Andreas, 2017-01-21, issue #2422
+              -- The scope checker considers inherited projections (from nested records)
+              -- as projections and allows overloading.  However, since they are defined
+              -- as *composition* of projections, the type checker does *not* recognize them,
+              -- and @isP@ will be @Nothing@.
+              -- However, we can ignore this, as we only need the @orig@inal projection name
+              -- for removing false ambiguity.  Thus, we skip these checks:
+
+              -- Projection{ projProper = proper, projOrig = orig } <- MaybeT $ return isP
+              -- guard $ isJust proper
+              let orig = caseMaybe isP d projOrig
+
               -- try to eliminate
               (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat

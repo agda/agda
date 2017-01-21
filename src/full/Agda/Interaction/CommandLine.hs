@@ -13,6 +13,7 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
+import Agda.Syntax.Internal (telToList)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
 import Agda.Syntax.Position

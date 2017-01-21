@@ -15,7 +15,7 @@ module Agda.Compiler.Treeless.DelayCoinduction where
 
 import Control.Applicative
 
-import Agda.Syntax.Internal (Type)
+import Agda.Syntax.Internal (Type, telToList)
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Treeless
 
