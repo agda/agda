@@ -12,7 +12,6 @@ import Agda.Syntax.Position
 import Control.Monad
 import Control.Monad.State
 
-type Translate = State Int
 type MonadTranslate = MonadState Int
 
 translate :: TTerm -> Term
