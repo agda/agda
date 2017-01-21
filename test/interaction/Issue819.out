@@ -7,5 +7,5 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action '("test (() ∷ _)")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-((last . 2) . (agda2-make-case-action '("test′ (() ∷ _) (x ∷ ys) _")))
+((last . 2) . (agda2-make-case-action '("test′ (() ∷ _) (x₁ ∷ ys) _")))
 ((last . 1) . (agda2-goals-action '(0 1)))

@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v tc.cover:20 #-}
+
 -- Andreas, 2017-01-18, issue #2407
 
 -- If underscores are not preserved (issue #819),

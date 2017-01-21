@@ -25,7 +25,8 @@ import Control.Monad.Trans ( lift )
 import Control.Applicative hiding (empty)
 #endif
 
-import Data.List hiding (null)
+import Data.Either (lefts)
+import Data.List as List hiding (null)
 import Data.Monoid (Any(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -66,6 +67,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Suffix (nameVariant)
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
@@ -519,12 +521,26 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
         Just cixs = allApplyElims es
     return (gamma0, cixs)
 
+  -- Andreas, 2017-01-21, issue #2424
+  -- When generating new variable names for the split,
+  -- respect the user written names!
+  let maybeUserWritten arg | getOrigin arg == UserWritten = Just $ unArg arg
+                           | otherwise = Nothing
+      (userNames0 :: [ArgName]) = mapMaybe maybeUserWritten $ teleArgNames tel
+      (userNames :: [PatVarName]) = map dbPatVarName $ lefts $
+        mapMaybe maybeUserWritten $ patternVars ps
+      -- The name of the variable we split is of course reusable!
+      avoidNames = userNames List.\\ [n, "_", "()"]
+      avoidUserName :: ArgName -> ArgName
+      avoidUserName = nameVariant (`elem` avoidNames)
+  debugNames userNames0 userNames avoidNames
+
   -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments
   -- of constructor
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
       preserve (x, (El s (Shared p))) = preserve (x, El s $ derefPtr p)
-      preserve p = p
+      preserve (x, t) = (avoidUserName x, t)
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal
       delta1Gamma = delta1 `abstract` gamma
@@ -583,6 +599,12 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
       return $ Just $ SClause delta' ps' rho mpsub' Nothing -- target fixed later
 
   where
+    debugNames userNames0 userNames avoidNames =
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
+        [ text "  user written names in pat.tel  =" <+> sep (map text userNames0)
+        , text "  user written names in patterns =" <+> sep (map text userNames)
+        , text "  names to be avoided by split   =" <+> sep (map text avoidNames)
+        ]
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
