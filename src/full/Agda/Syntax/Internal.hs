@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
 #endif
@@ -494,12 +495,22 @@ fromConPatternInfo = fromMaybe ConOSystem . conPRecord
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
-patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
-patternVars (Arg i (VarP x)     ) = [Arg i $ Left x]
-patternVars (Arg i (DotP t)     ) = [Arg i $ Right t]
-patternVars (Arg i (ConP _ _ ps)) = List.concat $ map (patternVars . fmap namedThing) ps
-patternVars (Arg i (LitP l)     ) = []
-patternVars (Arg i ProjP{}      ) = []
+class PatternVars a b | b -> a where
+  patternVars :: b -> [Arg (Either a Term)]
+
+instance PatternVars a (Arg (Pattern' a)) where
+  -- patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
+  patternVars (Arg i (VarP x)     ) = [Arg i $ Left x]
+  patternVars (Arg i (DotP t)     ) = [Arg i $ Right t]
+  patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
+  patternVars (Arg _ (LitP _)     ) = []
+  patternVars (Arg _ ProjP{}      ) = []
+
+instance PatternVars a (NamedArg (Pattern' a)) where
+  patternVars = patternVars . fmap namedThing
+
+instance PatternVars a b => PatternVars a [b] where
+  patternVars = concatMap patternVars
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: DeBruijnPattern -> Bool
