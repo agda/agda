@@ -277,9 +277,11 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
-        s <- lift $ prettyError e
+        s1 <- lift $ prettyError e
+        s2 <- lift $ prettyTCWarnings' =<< Imp.errorWarningsOfTCErr e
+        let s = intercalate "\n" $ filter (not . null) $ s1 : s2
         x <- lift $ optShowImplicit <$> use stPragmaOptions
-        unless (null s) $ mapM_ putResponse $
+        unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info modFile ] ++
@@ -828,10 +830,10 @@ interpret Cmd_show_version = display_info Info_Version
 -- | Show warnings
 interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings Imp.AllWarnings RespectFlags
+  mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
-      let (we, wa) = Imp.classifyWarnings ws
+      let (we, wa) = classifyWarnings ws
       pwe <- lift $ prettyTCWarnings we
       pwa <- lift $ prettyTCWarnings wa
       return (pwe, pwa)

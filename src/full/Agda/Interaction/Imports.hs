@@ -804,26 +804,6 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 -- in by the user, or not (for instance when deciding if we are
 -- writing an interface file or not)
 
-data WhichWarnings = ErrorWarnings | AllWarnings
-  -- ^ order of constructors important for derived Ord instance
-  deriving (Eq, Ord)
-
-classifyWarning :: Warning -> WhichWarnings
-classifyWarning w = case w of
-  OldBuiltin{}               -> AllWarnings
-  EmptyRewritePragma         -> AllWarnings
-  UselessPublic              -> AllWarnings
-  UnreachableClauses{}       -> AllWarnings
-  TerminationIssue{}         -> ErrorWarnings
-  NotStrictlyPositive{}      -> ErrorWarnings
-  UnsolvedMetaVariables{}    -> ErrorWarnings
-  UnsolvedInteractionMetas{} -> ErrorWarnings
-  UnsolvedConstraints{}      -> ErrorWarnings
-  ParseWarning{}             -> ErrorWarnings
-
-classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
-classifyWarnings = partition $ (< AllWarnings) . classifyWarning . tcWarning
-
 getAllWarnings' :: WhichWarnings -> IgnoreFlags -> TCM [TCWarning]
 getAllWarnings' ww ifs = do
   openMetas            <- getOpenMetas
@@ -851,6 +831,18 @@ getAllWarnings ww ifs = do
     -- anymore; we want to serialize with open interaction points now!
            then NoWarnings
            else SomeWarnings allWarnings
+
+errorWarningsOfTCErr :: TCErr -> TCM [TCWarning]
+errorWarningsOfTCErr err = case err of
+  TypeError tcst cls -> case clValue cls of
+    NonFatalErrors{} -> return []
+    _ -> localState $ do
+      put tcst
+      ws <- getAllWarnings' ErrorWarnings RespectFlags
+      -- We filter out the unsolved(Metas/Constraints) to stay
+      -- true to the previous error messages.
+      return $ filter (not . isUnsolvedWarning . tcWarning) ws
+  _ -> return []
 
 -- constructIScope :: ScopeInfo -> Map ModuleName Scope
 constructIScope :: Interface -> Interface

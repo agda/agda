@@ -2277,6 +2277,8 @@ instance Free' Candidate c where
 data Warning =
     TerminationIssue         [TerminationError]
   | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
+  | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
+  -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | NotStrictlyPositive      QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -2306,6 +2308,45 @@ instance HasRange TCWarning where
 
 tcWarning :: TCWarning -> Warning
 tcWarning = clValue . tcWarningClosure
+
+-- | Classifying warnings: some are benign, others are (non-fatal) errors
+
+data WhichWarnings = ErrorWarnings | AllWarnings
+  -- ^ order of constructors important for derived Ord instance
+  deriving (Eq, Ord)
+
+isUnsolvedWarning :: Warning -> Bool
+isUnsolvedWarning w = case w of
+  UnsolvedMetaVariables{}    -> True
+  UnsolvedInteractionMetas{} -> True
+  UnsolvedConstraints{}      -> True
+ -- rest
+  OldBuiltin{}               -> False
+  EmptyRewritePragma         -> False
+  UselessPublic              -> False
+  UnreachableClauses{}       -> False
+  TerminationIssue{}         -> False
+  CoverageIssue{}            -> False
+  NotStrictlyPositive{}      -> False
+  ParseWarning{}             -> False
+
+
+classifyWarning :: Warning -> WhichWarnings
+classifyWarning w = case w of
+  OldBuiltin{}               -> AllWarnings
+  EmptyRewritePragma         -> AllWarnings
+  UselessPublic              -> AllWarnings
+  UnreachableClauses{}       -> AllWarnings
+  TerminationIssue{}         -> ErrorWarnings
+  CoverageIssue{}            -> ErrorWarnings
+  NotStrictlyPositive{}      -> ErrorWarnings
+  UnsolvedMetaVariables{}    -> ErrorWarnings
+  UnsolvedInteractionMetas{} -> ErrorWarnings
+  UnsolvedConstraints{}      -> ErrorWarnings
+  ParseWarning{}             -> ErrorWarnings
+
+classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
+classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2498,7 +2539,6 @@ data TypeError
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageFailure QName [(Telescope, [NamedArg DeBruijnPattern])]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type
