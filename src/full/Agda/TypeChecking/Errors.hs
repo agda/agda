@@ -9,6 +9,7 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings
   , tcWarningsToError
   , applyFlagsToTCWarnings
+  , dropTopLevelModule
   ) where
 
 import Prelude hiding (null)
@@ -90,7 +91,7 @@ instance PrettyTCM TCWarning where
     put tcst
     sayWhen (envRange  $ clEnv clw)
             (envCall   $ clEnv clw)
-            (prettyTCM $ clValue clw)
+            (prettyTCM clw)
 
 instance PrettyTCM Warning where
   prettyTCM wng = case wng of
@@ -115,15 +116,16 @@ instance PrettyTCM Warning where
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
-    TerminationIssue tes ->
+    TerminationIssue tes -> do
+      dropTopLevel <- topLevelModuleDropper
       fwords "Termination checking failed for the following functions:"
-      $$ (nest 2 $ fsep $ punctuate comma $
-           map (pretty . dropTopLevelModule) $
-             concatMap termErrFunctions tes)
-      $$ fwords "Problematic calls:"
-      $$ (nest 2 $ fmap (P.vcat . nub) $
-            mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-            concatMap termErrCalls tes)
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevel) $
+               concatMap termErrFunctions tes)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls tes)
 
     UnreachableClauses f pss -> fsep $
       pwords "Unreachable" ++ pwords (plural (length pss) "clause")
@@ -132,8 +134,7 @@ instance PrettyTCM Warning where
           plural n thing = thing ++ "s"
 
     NotStrictlyPositive d ocs -> fsep $
-      [prettyTCM (dropTopLevelModule d)] ++
-      pwords "is not strictly positive, because it occurs"
+      [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
     OldBuiltin old new -> fwords $
@@ -385,12 +386,20 @@ instance PrettyTCM CallInfo where
       then call
       else call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
--- | Drops the filename component of the qualified name.
+-- | Drops given amount of leading components of the qualified name.
 dropTopLevelModule' :: Int -> QName -> QName
 dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
 
-dropTopLevelModule :: QName -> QName
-dropTopLevelModule = dropTopLevelModule' 1
+-- | Drops the filename component of the qualified name.
+dropTopLevelModule :: QName -> TCM QName
+dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
+
+-- | Produces a function which drops the filename component of the qualified name.
+topLevelModuleDropper :: TCM (QName -> QName)
+topLevelModuleDropper = do
+  caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
+  m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
+  return $ dropTopLevelModule' $ size m
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -407,13 +416,10 @@ instance PrettyTCM TypeError where
     GenericDocError d -> return d
 
     TerminationCheckFailed because -> do
-      dropTopLevelModule <- do
-        caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
-        m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
-        return $ dropTopLevelModule' $ size m
+      dropTopLevel <- topLevelModuleDropper
       fwords "Termination checking failed for the following functions:"
         $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevelModule) $
+             map (pretty . dropTopLevel) $
                concatMap termErrFunctions because)
         $$ fwords "Problematic calls:"
         $$ (nest 2 $ fmap (P.vcat . nub) $

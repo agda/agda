@@ -1,6 +1,6 @@
 Imports/NonTerminating.agda:3,1-4,10
 Termination checking failed for the following functions:
-  NonTerminating.Foo
+  Foo
 Problematic calls:
   Foo
     (at Imports/NonTerminating.agda:4,7-10)

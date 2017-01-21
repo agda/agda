@@ -35,6 +35,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Errors (dropTopLevelModule)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
@@ -119,7 +120,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                 ai   = getArgInfo p
             -- Try the projection candidates.
             -- Fail hard for the last candidate.
-            msum $ mapAwareLast (tryProj o ai self fs r vs) projs
+            msum $ mapAwareLast (tryProj o ai self fs r vs $ length ds >= 2) projs
             -- -- This fails softly on all (if more than one) candidates.
             -- msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
 
@@ -131,6 +132,15 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding :: MonadTCM tcm => QName -> tcm a
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
+      -- Issue #2423: error which reports the disambiguation
+      wrongProj :: MonadTCM tcm => QName -> Bool -> tcm a
+      wrongProj d amb = typeError . GenericDocError =<< do
+        liftTCM $ sep
+          [ text "Cannot eliminate type "
+          , prettyTCM (unArg b)
+          , text " with projection "
+          , if amb then text . show =<< dropTopLevelModule d else prettyTCM d
+          ]
 
       -- | Pass 'True' unless last element of the list.
       mapAwareLast :: forall a b. (Bool -> a -> b) -> [a] -> [b]
@@ -145,15 +155,16 @@ splitProblem mf (Problem ps qs tel pr) = do
         -> [Arg QName]          -- ^ Fields of record type under consideration.
         -> QName                -- ^ Name of record type we are eliminating.
         -> Args                 -- ^ Parameters of record type we are eliminating.
+        -> Bool                 -- ^ Did we start out with an ambiguous projection in the beginning?
         -> Bool                 -- ^ More than 1 candidates?  If yes, fail softly.
         -> (QName, Projection)  -- ^ Current candidate.
         -> ListT TCM SplitProblem
-      tryProj o ai self fs r vs amb (d0, proj) = do
+      tryProj o ai self fs r vs amb soft (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
-        -- If we have several projections (amb) we just try the next one.
-        let ambErr err = if amb then mzero else err
+        -- If we have several projections we fail @soft@ly and just try the next one.
+        let ambErr err = if soft then mzero else err
             ambTry m
-             | amb = unlessM (liftTCM $ tryConversion m) mzero -- succeed without constraints
+             | soft = unlessM (liftTCM $ tryConversion m) mzero -- succeed without constraints
              -- This would leave constraints:
              -- -- | amb = whenNothingM (liftTCM $ tryMaybe $ disableDestructiveUpdate m) mzero
              | otherwise = liftTCM $ noConstraints m
@@ -177,7 +188,7 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- If the projection pattern name @d@ is not a field name,
             -- we have to try the next projection name.
             -- If this was not an ambiguous projection, that's an error.
-            argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
+            argd <- maybe (ambErr $ wrongProj d amb) return $ find ((d ==) . unArg) fs
             let ai' = setRelevance (getRelevance argd) ai
 
             -- Andreas, 2016-12-31, issue #2374:

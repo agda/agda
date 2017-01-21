@@ -1,0 +1,3 @@
+Issue2423.agda:24,1-17
+Cannot eliminate type  S  with projection  R.f
+when checking that the clause test s .f = s .f has type S → S
