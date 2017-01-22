@@ -14,12 +14,11 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Control.Monad.State
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
-import Data.Semigroup (Semigroup)
+import Data.Semigroup (Semigroup(..), Monoid(..))
 
 import Agda.Interaction.Options
 
@@ -37,7 +36,7 @@ import Agda.Termination.RecCheck (anyDefs)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty as TCP
+import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -252,10 +251,13 @@ instance HasConstInfo TerM where
   getConstInfo       = liftTCM . getConstInfo
   getRewriteRulesFor = liftTCM . getRewriteRulesFor
 
+instance Monoid m => Semigroup (TerM m) where
+  (<>) = liftA2 mappend
+
 instance Monoid m => Monoid (TerM m) where
-  mempty        = pure mempty
-  mappend ma mb = mappend <$> ma <*> mb
-  mconcat mas   = mconcat <$> sequence mas
+  mempty  = pure mempty
+  mappend = (<>)
+  mconcat = mconcat <.> sequence
 
 -- * Modifiers and accessors for the termination environment in the monad.
 
