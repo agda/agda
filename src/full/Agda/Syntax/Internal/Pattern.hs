@@ -11,7 +11,9 @@ import Control.Applicative
 import Control.Monad.State
 
 import Data.Maybe
+import Data.Monoid
 import Data.List
+import Data.Foldable (foldMap)
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -207,6 +209,13 @@ instance MapNamedArg Pattern' where
 --   Pre-applies a pattern modification, recurses, and post-applies another one.
 
 class PatternLike a b where
+  foldrPattern
+    :: Monoid m
+    => (Pattern' a -> m -> m)
+         -- ^ Combine a pattern and the value computed from its subpatterns.
+    -> b
+    -> m
+
   traversePatternM :: (Monad m
 #if __GLASGOW_HASKELL__ <= 708
     , Applicative m, Functor m
@@ -214,6 +223,10 @@ class PatternLike a b where
     ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
       -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
       -> b -> m b
+
+-- | Compute from each subpattern a value and collect them all in a monoid.
+foldPattern :: (PatternLike a b, Monoid m) => (Pattern' a -> m) -> b -> m
+foldPattern f = foldrPattern $ \ p m -> f p `mappend` m
 
 -- | Traverse pattern(s) with a modification before the recursive descent.
 preTraversePatternM :: (PatternLike a b, Monad m
@@ -233,8 +246,17 @@ postTraversePatternM :: (PatternLike a b, Monad m
     -> b -> m b
 postTraversePatternM = traversePatternM return
 
+-- This is where the action is:
 
 instance PatternLike a (Pattern' a) where
+
+  foldrPattern f p = f p $ case p of
+    ConP _ _ ps -> foldrPattern f ps
+    VarP _      -> mempty
+    LitP _      -> mempty
+    DotP _      -> mempty
+    ProjP _ _   -> mempty
+
   traversePatternM pre post = pre >=> recurse >=> post
     where
     recurse p = case p of
@@ -244,11 +266,16 @@ instance PatternLike a (Pattern' a) where
       DotP  _      -> return p
       ProjP _ _    -> return p
 
+-- Boilerplate instances:
+
 instance PatternLike a b => PatternLike a [b] where
+  foldrPattern = foldMap . foldrPattern
   traversePatternM pre post = traverse $ traversePatternM pre post
 
 instance PatternLike a b => PatternLike a (Arg b) where
+  foldrPattern = foldMap . foldrPattern
   traversePatternM pre post = traverse $ traversePatternM pre post
 
 instance PatternLike a b => PatternLike a (Named x b) where
+  foldrPattern = foldMap . foldrPattern
   traversePatternM pre post = traverse $ traversePatternM pre post
