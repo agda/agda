@@ -570,8 +570,8 @@ sameDef d1 d2 = do
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.
-whatInduction :: QName -> TCM Induction
-whatInduction c = do
+whatInduction :: MonadTCM tcm => QName -> tcm Induction
+whatInduction c = liftTCM $ do
   def <- theDef <$> getConstInfo c
   case def of
     Datatype{ dataInduction = i } -> return i

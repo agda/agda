@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                        #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
@@ -13,7 +14,7 @@
 module Agda.Termination.TermCheck
     ( termDecl
     , termMutual
-    , Result, DeBruijnPat
+    , Result
     ) where
 
 import Prelude hiding (null)
@@ -27,7 +28,7 @@ import Data.List hiding (null)
 import qualified Data.List as List
 import Data.Monoid
 import qualified Data.Set as Set
-import Data.Traversable (traverse)
+import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
 import qualified Agda.Syntax.Abstract as A
@@ -517,97 +518,183 @@ matchingTarget conf t = maybe (return True) (match t) (currentTarget conf)
 --
 --   The term is first normalized and stripped of all non-coinductive projections.
 
-termToDBP :: Term -> TerM DeBruijnPat
+termToDBP :: Term -> TerM DeBruijnPattern
 termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
-    suc <- terGetSizeSuc
-    let
-      loop :: Term -> TCM DeBruijnPat
-      loop t = do
-        t <- constructorForm t
-        case ignoreSharing t of
-          -- Constructors.
-          Con c ci args -> ConDBP (conName c) <$> mapM (loop . unArg) args
-          Def s [Apply arg] | Just s == suc
-                      -> ConDBP s . (:[]) <$> loop (unArg arg)
-          DontCare t  -> __IMPOSSIBLE__  -- removed by stripAllProjections
-          -- Leaves.
-          Var i []    -> return $ VarDBP i
-          Lit l       -> return $ LitDBP l
-          t           -> return $ TermDBP t
-    liftTCM $ loop =<< stripAllProjections =<< normalise t
+  termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
+
+-- termToDBP :: Term -> TerM DeBruijnPat
+-- termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
+--     suc <- terGetSizeSuc
+--     let
+--       loop :: Term -> TCM DeBruijnPat
+--       loop t = do
+--         t <- constructorForm t
+--         case ignoreSharing t of
+--           -- Constructors.
+--           Con c ci args -> ConDBP (conName c) <$> mapM (loop . unArg) args
+--           Def s [Apply arg] | Just s == suc
+--                       -> ConDBP s . (:[]) <$> loop (unArg arg)
+--           DontCare t  -> __IMPOSSIBLE__  -- removed by stripAllProjections
+--           -- Leaves.
+--           Var i []    -> return $ VarDBP i
+--           Lit l       -> return $ LitDBP l
+--           t           -> return $ TermDBP t
+--     liftTCM $ loop =<< stripAllProjections =<< normalise t
+
+-- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
+--
+--   @SIZESUC@ is treated as a constructor.
+
+class TermToPattern a b where
+  termToPattern :: a -> TerM b
+
+  default termToPattern :: (TermToPattern a' b', Traversable f, a ~ f a', b ~ f b') => a -> TerM b
+  termToPattern = traverse termToPattern
+
+instance TermToPattern a b => TermToPattern [a] [b] where
+instance TermToPattern a b => TermToPattern (Arg a) (Arg b) where
+instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
+
+-- OVERLAPPING
+-- instance TermToPattern a b => TermToPattern a (Named c b) where
+--   termToPattern t = unnamed <$> termToPattern t
+
+instance TermToPattern Term DeBruijnPattern where
+  termToPattern t = (liftTCM $ ignoreSharing <$> constructorForm t) >>= \case
+    -- Constructors.
+    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern args
+    Def s [Apply arg] -> do
+      suc <- terGetSizeSuc
+      if Just s == suc then ConP (ConHead s Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
+       else return $ DotP t
+    DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
+    -- Leaves.
+    Var i []    -> VarP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
+    Lit l       -> return $ LitP l
+    t           -> return $ DotP t
 
 
--- | Masks coconstructor patterns in a deBruijn pattern.
-stripCoConstructors :: DeBruijnPat -> TerM DeBruijnPat
-stripCoConstructors p = do
-  case p of
-    ConDBP c args -> do
-      ind <- ifM ((Just c ==) <$> terGetSizeSuc) (return Inductive) {- else -}
-               (liftTCM $ whatInduction c)
-      case ind of
-        Inductive   -> ConDBP c <$> mapM stripCoConstructors args
-        CoInductive -> return unusedVar
-    -- The remaining (atomic) patterns cannot contain coconstructors, obviously.
-    VarDBP{}  -> return p
-    LitDBP{}  -> return p
-    TermDBP{} -> return p  -- Can contain coconstructors, but they do not count here.
-    ProjDBP{} -> return p
+-- -- | Masks coconstructor patterns in a deBruijn pattern.
+-- class StripCoConstructors a where
+--   stripCoConstructors :: a -> TerM a
+
+--   default stripCoConstructors :: (StripCoConstructors a', Traversable f, a ~ f a') => a -> TerM a
+--   stripCoConstructor = traverse stripCoConstructor
+
+-- instance StripCoConstructors a => StripCoConstructors [a] where
+-- instance StripCoConstructors a => StripCoConstructors (Arg a) where
+-- instance StripCoConstructors a => StripCoConstructors (Named c a) where
+
+-- instance StripCoConstructors DeBruijnPattern where
+--   stripCoConstructors p = case p of
+--     ConP c ci args -> do
+--       ind <- ifM ((Just c ==) <$> terGetSizeSuc) (return Inductive) {- else -}
+--                (liftTCM $ whatInduction c)
+--       case ind of
+--         Inductive   -> ConP c ci <$> stripCoConstructors args
+--         CoInductive -> return unusedVar
+--     -- The remaining (atomic) patterns cannot contain coconstructors, obviously.
+--     VarP{}  -> return p
+--     LitP{}  -> return p
+--     DotP{}  -> return p  -- Can contain coconstructors, but they do not count here.
+--     ProjP{} -> return p
+
+-- -- | Masks coconstructor patterns in a deBruijn pattern.
+-- stripCoConstructors :: DeBruijnPat -> TerM DeBruijnPat
+-- stripCoConstructors p = do
+--   case p of
+--     ConDBP c args -> do
+--       ind <- ifM ((Just c ==) <$> terGetSizeSuc) (return Inductive) {- else -}
+--                (liftTCM $ whatInduction c)
+--       case ind of
+--         Inductive   -> ConDBP c <$> mapM stripCoConstructors args
+--         CoInductive -> return unusedVar
+--     -- The remaining (atomic) patterns cannot contain coconstructors, obviously.
+--     VarDBP{}  -> return p
+--     LitDBP{}  -> return p
+--     TermDBP{} -> return p  -- Can contain coconstructors, but they do not count here.
+--     ProjDBP{} -> return p
 
 -- | Masks all non-data/record type patterns if --without-K.
 --   See issue #1023.
-maskNonDataArgs :: [DeBruijnPat] -> TerM [Masked DeBruijnPat]
+maskNonDataArgs :: [DeBruijnPattern] -> TerM [Masked DeBruijnPattern]
 maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
   where
-    mask p@ProjDBP{} _ = Masked False p
-    mask p           d = Masked d     p
+    mask p@ProjP{} _ = Masked False p
+    mask p         d = Masked d     p
 
--- | Convert patterns to the format used by the termination checker
---   TODO: refactor termination checking to use regular patterns
-convertPatterns :: [DeBruijnPattern] -> TerM [DeBruijnPat]
-convertPatterns ps = mapM build ps
-  where
-    build :: DeBruijnPattern -> TerM DeBruijnPat
-    build (VarP x)        = return $ VarDBP $ dbPatVarIndex x
-    build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
-    build (DotP t)        = termToDBP t
-    build (LitP l)        = return $ LitDBP l
-    build (ProjP o d)     = return $ ProjDBP o d
+
+-- -- | Convert patterns to the format used by the termination checker
+-- convertPatterns :: [DeBruijnPattern] -> TerM [DeBruijnPattern]
+-- convertPatterns = traversePatternM $ \case
+--   DotP t -> termToDBP t
+--   p      -> return p
+
+-- -- | Convert patterns to the format used by the termination checker
+-- --   TODO: refactor termination checking to use regular patterns
+-- convertPatterns :: [DeBruijnPattern] -> TerM [DeBruijnPat]
+-- convertPatterns ps = mapM build ps
+--   where
+--     build :: DeBruijnPattern -> TerM DeBruijnPat
+--     build (VarP x)        = return $ VarDBP $ dbPatVarIndex x
+--     build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
+--     build (DotP t)        = termToDBP t
+--     build (LitP l)        = return $ LitDBP l
+--     build (ProjP o d)     = return $ ProjDBP o d
 
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
 termClause clause = do
   ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
     name <- terGetCurrent
-    ifM (isJust <$> do isWithFunction name) (return mempty) $
+    ifM (isJust <$> isWithFunction name) (return mempty) $
       mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
-  cl <- etaExpandClause clause
-  let tel      = clauseTel cl
-      argPats' = namedClausePats cl
-      body     = clauseBody cl
+  Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body } <- etaExpandClause clause
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
-    , nest 2 $ text "tel      =" <+> prettyTCM tel
-    , nest 2 $ text "argPats' =" <+> do
-      addContext tel $ do
-       aps <- reifyPatterns argPats'
-       fsep $ map prettyA aps
+    , nest 2 $ text "tel =" <+> prettyTCM tel
+    , nest 2 $ text "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
-  addContext tel $ do
-    dbpats <- convertPatterns $ map namedArg argPats'
-    case body of
-      Nothing -> return empty
-      Just v -> do
-        dbpats <- mapM stripCoConstructors dbpats
-        mdbpats <- maskNonDataArgs dbpats
-        terSetPatterns mdbpats $ do
-          terSetSizeDepth tel $ do
-            reportBody v
-            extract v
+  forM' body $ \ v -> addContext tel $ do
+    -- TODO: combine the following two traversals, avoid full normalisation.
+    -- Parse dot patterns as patterns as far as possible.
+    ps <- postTraversePatternM parseDotP ps
+    -- Blank out coconstructors.
+    ps <- preTraversePatternM stripCoCon ps
+    -- Mask non-data arguments.
+    mdbpats <- maskNonDataArgs $ map namedArg ps
+    terSetPatterns mdbpats $ do
+      terSetSizeDepth tel $ do
+        reportBody v
+        extract v
 
   where
+    parseDotP = \case
+      DotP t -> termToDBP t
+      p      -> return p
+    stripCoCon p = case p of
+      ConP (ConHead c _ _) _ _ -> do
+        ifM ((Just c ==) <$> terGetSizeSuc) (return p) $ {- else -} do
+        whatInduction c >>= \case
+          Inductive   -> return p
+          CoInductive -> return unusedVar
+      _ -> return p
+  -- addContext tel $ do
+  --   dbpats <- convertPatterns $ map namedArg argPats'
+  --   case body of
+  --     Nothing -> return empty
+  --     Just v -> do
+  --       dbpats <- mapM stripCoConstructors dbpats
+  --       mdbpats <- maskNonDataArgs dbpats
+  --       terSetPatterns mdbpats $ do
+  --         terSetSizeDepth tel $ do
+  --           reportBody v
+  --           extract v
+  -- where
+
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do
       f       <- terGetCurrent
@@ -618,7 +705,7 @@ termClause' clause = do
                     (if delayed == Delayed then "delayed " else "") ++
                     "clause of")
                 <+> prettyTCM f
-            , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats)
+            , nest 2 $ text "lhs:" <+> sep (map prettyTCM pats)
             , nest 2 $ text "rhs:" <+> prettyTCM v
             ]
 
@@ -686,14 +773,12 @@ constructor
 constructor c ind args = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  mapM' loopArg args
-  where
-    loopArg (arg, preserves) = terModifyGuarded g' $ extract arg where
-      g' = case (preserves, ind) of
+  forM' args $ \ (arg, preserves) -> do
+    let g' = case (preserves, ind) of
              (True,  Inductive)   -> id
              (True,  CoInductive) -> (Order.lt .*.)
              (False, _)           -> const Order.unknown
-
+    terModifyGuarded g' $ extract arg
 
 -- | Handle guardedness preserving type constructor.
 
@@ -979,16 +1064,16 @@ compareArgs es = do
 --   off, if inductive.
 --
 --   UNUSED
-annotatePatsWithUseSizeLt :: [DeBruijnPat] -> TerM [(Bool,DeBruijnPat)]
+annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
 annotatePatsWithUseSizeLt = loop where
   loop [] = return []
-  loop (p@(ProjDBP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
+  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
   loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
 
 
 -- | @compareElim e dbpat@
 
-compareElim :: Elim -> Masked DeBruijnPat -> TerM Order
+compareElim :: Elim -> Masked DeBruijnPattern -> TerM Order
 compareElim e p = do
   liftTCM $ do
     reportSDoc "term.compare" 30 $ sep
@@ -1001,13 +1086,13 @@ compareElim e p = do
       , nest 2 $ text $ "p = " ++ show p
       ]
   case (e, getMasked p) of
-    (Proj _ d, ProjDBP _ d')       -> do
-      d  <- liftTCM $ getOriginalProjection d
-      d' <- liftTCM $ getOriginalProjection d'
+    (Proj _ d, ProjP _ d') -> do
+      d  <- getOriginalProjection d
+      d' <- getOriginalProjection d'
       compareProj d d'
-    (Proj{}, _         )           -> return Order.unknown
-    (Apply{}, ProjDBP{})           -> return Order.unknown
-    (Apply arg, _)                 -> compareTerm (unArg arg) p
+    (Proj{}, _)            -> return Order.unknown
+    (Apply{}, ProjP{})     -> return Order.unknown
+    (Apply arg, _)         -> compareTerm (unArg arg) p
 
 -- | In dependent records, the types of later fields may depend on the
 --   values of earlier fields.  Thus when defining an inhabitant of a
@@ -1073,15 +1158,24 @@ offsetFromConstructor c = maybe 1 (const 0) <$> do
   liftTCM $ isRecordConstructor c
 
 -- | Compute the proper subpatterns of a 'DeBruijnPat'.
-subPatterns :: DeBruijnPat -> [DeBruijnPat]
-subPatterns p = case p of
-  ConDBP c ps -> ps ++ concatMap subPatterns ps
-  VarDBP _    -> []
-  LitDBP _    -> []
-  TermDBP _   -> []
-  ProjDBP{}   -> []
+subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
+subPatterns = foldPattern $ \case
+  ConP _ _ ps -> map namedArg ps
+  VarP _      -> mempty
+  LitP _      -> mempty
+  DotP _      -> mempty
+  ProjP _ _   -> mempty
 
-compareTerm :: Term -> Masked DeBruijnPat -> TerM Order
+-- -- | Compute the proper subpatterns of a 'DeBruijnPat'.
+-- subPatterns :: DeBruijnPat -> [DeBruijnPat]
+-- subPatterns p = case p of
+--   ConDBP c ps -> ps ++ concatMap subPatterns ps
+--   VarDBP _    -> []
+--   LitDBP _    -> []
+--   TermDBP _   -> []
+--   ProjDBP{}   -> []
+
+compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm t p = do
 --   reportSDoc "term.compare" 25 $
 --     text " comparing term " <+> prettyTCM t <+>
@@ -1143,7 +1237,7 @@ instance StripAllProjections Term where
 --
 --   Precondition: top meta variable resolved
 
-compareTerm' :: Term -> Masked DeBruijnPat -> TerM Order
+compareTerm' :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm' v mp@(Masked m p) = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
@@ -1172,8 +1266,8 @@ compareTerm' v mp@(Masked m p) = do
 
     -- Successor on both sides cancel each other.
     -- We ignore the mask for sizes.
-    (Def s [Apply t], ConDBP s' [p]) | s == s' && Just s == suc ->
-      compareTerm' (unArg t) (notMasked p)
+    (Def s [Apply t], ConP s' _ [p]) | s == conName s' && Just s == suc ->
+      compareTerm' (unArg t) (notMasked $ namedArg p)
 
     -- Register also size increase.
     (Def s [Apply t], p) | Just s == suc ->
@@ -1185,7 +1279,7 @@ compareTerm' v mp@(Masked m p) = do
 
     _ | m -> return Order.unknown
 
-    (Lit l, LitDBP l')
+    (Lit l, LitP l')
       | l == l'     -> return Order.le
       | otherwise   -> return Order.unknown
 
@@ -1197,48 +1291,48 @@ compareTerm' v mp@(Masked m p) = do
 
     -- Andreas, 2011-04-19 give subterm priority over matrix order
 
-    (Con{}, ConDBP c ps) | any (isSubTerm v) ps ->
-      decr True <$> offsetFromConstructor c
+    (Con{}, ConP c _ ps) | any (isSubTerm v . namedArg) ps ->
+      decr True <$> offsetFromConstructor (conName c)
 
-    (Con c ci ts, ConDBP c' ps) | conName c == c'->
+    (Con c _ ts, ConP c' _ ps) | conName c == conName c'->
       compareConArgs ts ps
 
-    (Con c ci [], _) -> return Order.le
+    (Con _ _ [], _) -> return Order.le
 
     -- new case for counting constructors / projections
     -- register also increase
-    (Con c ci ts, _) -> do
+    (Con c _ ts, _) -> do
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) mp) ts)
 
     (t, p) -> return $ subTerm t p
 
 -- | @subTerm@ computes a size difference (Order)
-subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPat -> Order
+subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPattern -> Order
 subTerm t p = if equal t p then Order.le else properSubTerm t p
   where
     equal (Shared p) dbp = equal (derefPtr p) dbp
-    equal (Con c ci ts) (ConDBP c' ps) =
-      and $ (conName c == c')
+    equal (Con c _ ts) (ConP c' _ ps) =
+      and $ (conName c == conName c')
           : (length ts == length ps)
-          : zipWith equal (map unArg ts) ps
-    equal (Var i []) (VarDBP i') = i == i'
-    equal (Lit l)    (LitDBP l') = l == l'
+          : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps
+    equal (Var i []) (VarP x) = i == dbPatVarIndex x
+    equal (Lit l)    (LitP l') = l == l'
     -- Terms.
     -- Checking for identity here is very fragile.
     -- However, we cannot do much more, as we are not allowed to normalize t.
     -- (It might diverge, and we are just in the process of termination checking.)
-    equal t         (TermDBP t') = t == t'
+    equal t         (DotP t') = t == t'
     equal _ _ = False
 
-    properSubTerm t (ConDBP _ ps) =
-      setUsability True $ decrease 1 $ supremum $ map (subTerm t) ps
+    properSubTerm t (ConP _ _ ps) =
+      setUsability True $ decrease 1 $ supremum $ map (subTerm t . namedArg) ps
     properSubTerm _ _ = Order.unknown
 
-isSubTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPat -> Bool
+isSubTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPattern -> Bool
 isSubTerm t p = nonIncreasing $ subTerm t p
 
-compareConArgs :: Args -> [DeBruijnPat] -> TerM Order
+compareConArgs :: Args -> [NamedArg DeBruijnPattern] -> TerM Order
 compareConArgs ts ps = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
@@ -1248,9 +1342,9 @@ compareConArgs ts ps = do
     (0,0) -> return Order.le        -- c <= c
     (0,1) -> return Order.unknown   -- c not<= c x
     (1,0) -> __IMPOSSIBLE__
-    (1,1) -> compareTerm' (unArg (head ts)) (notMasked (head ps))
+    (1,1) -> compareTerm' (unArg (head ts)) (notMasked $ namedArg $ head ps)
     (_,_) -> foldl (Order..*.) Order.le <$>
-               zipWithM compareTerm' (map unArg ts) (map notMasked ps)
+               zipWithM compareTerm' (map unArg ts) (map (notMasked . namedArg) ps)
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
 {- version which does an "order matrix"
@@ -1267,28 +1361,31 @@ compareConArgs ts ps = do
 --               else Order.infimum (zipWith compareTerm' (map unArg ts) ps)
 -}
 
-compareVar :: Nat -> Masked DeBruijnPat -> TerM Order
+compareVar :: Nat -> Masked DeBruijnPattern -> TerM Order
 compareVar i (Masked m p) = do
   suc    <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   let no = return Order.unknown
   case p of
-    ProjDBP{}   -> no
-    LitDBP{}    -> no
-    TermDBP{}   -> no
-    VarDBP j    -> compareVarVar i (Masked m j)
-    ConDBP s [p] | Just s == suc -> setUsability True . decrease 1 <$> compareVar i (notMasked p)
-    ConDBP c ps -> if m then no else setUsability True <$> do
-      decrease <$> offsetFromConstructor c
-               <*> (Order.supremum <$> mapM (compareVar i . notMasked) ps)
+    ProjP{}   -> no
+    LitP{}    -> no
+    DotP{}   -> no
+    VarP x    -> compareVarVar i (Masked m x)
+
+    ConP s _ [p] | Just (conName s) == suc ->
+      setUsability True . decrease 1 <$> compareVar i (notMasked $ namedArg p)
+
+    ConP c _ ps -> if m then no else setUsability True <$> do
+      decrease <$> offsetFromConstructor (conName c)
+               <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ps)
 
 -- | Compare two variables.
 --
 --   The first variable comes from a term, the second from a pattern.
-compareVarVar :: Nat -> Masked Nat -> TerM Order
-compareVarVar i (Masked m j)
-  | i == j    = if not m then return Order.le else liftTCM $
+compareVarVar :: Nat -> Masked DBPatVar -> TerM Order
+compareVarVar i (Masked m x@(DBPatVar _ j))
+  | i == j = if not m then return Order.le else liftTCM $
       -- If j is a size, we ignore the mask.
       ifM (isJust <$> do isSizeType =<< reduce =<< typeOfBV j)
         {- then -} (return Order.le)
@@ -1299,4 +1396,4 @@ compareVarVar i (Masked m j)
       res <- isBounded i
       case res of
         BoundedNo  -> return Order.unknown
-        BoundedLt v -> setUsability u . decrease 1 <$> compareTerm' v (Masked  m (VarDBP j))
+        BoundedLt v -> setUsability u . decrease 1 <$> compareTerm' v (Masked m $ VarP x)
