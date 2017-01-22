@@ -183,17 +183,21 @@ patternToTerm p = case patternToElim (defaultArg p) of
   Apply x -> unArg x
   Proj{}  -> __IMPOSSIBLE__
 
+
 class MapNamedArg f where
   mapNamedArg :: (NamedArg a -> NamedArg b) -> NamedArg (f a) -> NamedArg (f b)
+
+-- | Modify the content of @VarP@, and the closest surrounding @NamedArg@.
+--
+--   Note: the @mapNamedArg@ for @Pattern'@ is not expressible simply
+--   by @fmap@ or @traverse@ etc., since @ConP@ has @NamedArg@ subpatterns,
+--   which are taken into account by @mapNamedArg@.
 
 instance MapNamedArg Pattern' where
   mapNamedArg f np =
     case namedArg np of
-      VarP  x     -> map2 VarP $ f $ map2 (const x) np
-      DotP  t     -> map2 (const $ DotP t) np  -- just Haskell type conversion
-      LitP  l     -> map2 (const $ LitP l) np  -- ditto
-      ProjP o q   -> map2 (const $ ProjP o q) np -- ditto
-      ConP c i ps -> map2 (const $ ConP c i $ map (mapNamedArg f) ps) np
-    where
-    map2 :: (a -> b) -> NamedArg a -> NamedArg b
-    map2 = fmap . fmap
+      VarP  x     -> updateNamedArg VarP $ f $ setNamedArg np x
+      DotP  t     -> setNamedArg np $ DotP t     -- just Haskell type conversion
+      LitP  l     -> setNamedArg np $ LitP l     -- ditto
+      ProjP o q   -> setNamedArg np $ ProjP o q  -- ditto
+      ConP c i ps -> setNamedArg np $ ConP c i $ map (mapNamedArg f) ps
