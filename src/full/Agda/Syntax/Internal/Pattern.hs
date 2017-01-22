@@ -201,3 +201,54 @@ instance MapNamedArg Pattern' where
       LitP  l     -> setNamedArg np $ LitP l     -- ditto
       ProjP o q   -> setNamedArg np $ ProjP o q  -- ditto
       ConP c i ps -> setNamedArg np $ ConP c i $ map (mapNamedArg f) ps
+
+-- | Generic pattern traversal.
+--
+--   Pre-applies a pattern modification, recurses, and post-applies another one.
+
+class PatternLike a b where
+  traversePatternM :: (Monad m
+#if __GLASGOW_HASKELL__ <= 708
+    , Applicative m, Functor m
+#endif
+    ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+      -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+      -> b -> m b
+
+-- | Traverse pattern(s) with a modification before the recursive descent.
+preTraversePatternM :: (PatternLike a b, Monad m
+#if __GLASGOW_HASKELL__ <= 708
+  , Applicative m, Functor m
+#endif
+  ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+    -> b -> m b
+preTraversePatternM pre = traversePatternM pre return
+
+-- | Traverse pattern(s) with a modification after the recursive descent.
+postTraversePatternM :: (PatternLike a b, Monad m
+#if __GLASGOW_HASKELL__ <= 708
+  , Applicative m, Functor m
+#endif
+  ) => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+    -> b -> m b
+postTraversePatternM = traversePatternM return
+
+
+instance PatternLike a (Pattern' a) where
+  traversePatternM pre post = pre >=> recurse >=> post
+    where
+    recurse p = case p of
+      ConP c ci ps -> ConP c ci <$> traversePatternM pre post ps
+      VarP  _      -> return p
+      LitP  _      -> return p
+      DotP  _      -> return p
+      ProjP _ _    -> return p
+
+instance PatternLike a b => PatternLike a [b] where
+  traversePatternM pre post = traverse $ traversePatternM pre post
+
+instance PatternLike a b => PatternLike a (Arg b) where
+  traversePatternM pre post = traverse $ traversePatternM pre post
+
+instance PatternLike a b => PatternLike a (Named x b) where
+  traversePatternM pre post = traverse $ traversePatternM pre post
