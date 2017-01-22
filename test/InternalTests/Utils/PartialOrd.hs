@@ -88,18 +88,15 @@ prop_seqPO :: ISet -> ISet -> ISet -> Bool
 prop_seqPO (ISet a) (ISet b) (ISet c) = related a o c
   where o = comparable a b `seqPO` comparable b c
 
--- | The unit of 'seqPO' is 'POEQ'.
-prop_identity_seqPO :: PartialOrdering -> Bool
-prop_identity_seqPO = identity POEQ seqPO
+-- | 'PartialOrdering' is a monoid, i.e. 'seqPO' is associative and
+-- the unit of 'seqPO' is 'POEQ'.
+prop_monoid_seqPO :: PartialOrdering -> PartialOrdering ->
+                     PartialOrdering -> Bool
+prop_monoid_seqPO = monoid
 
 -- | The zero of 'seqPO' is 'POAny'.
 prop_zero_seqPO :: PartialOrdering -> Bool
 prop_zero_seqPO = isZero POAny seqPO
-
--- | 'seqPO' is associative.
-prop_associative_seqPO :: PartialOrdering -> PartialOrdering ->
-                          PartialOrdering -> Bool
-prop_associative_seqPO = associative seqPO
 
 -- | 'seqPO' is also commutative.
 prop_commutative_seqPO :: PartialOrdering -> PartialOrdering -> Bool
