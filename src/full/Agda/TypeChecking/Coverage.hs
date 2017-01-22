@@ -25,7 +25,8 @@ import Control.Monad.Trans ( lift )
 import Control.Applicative hiding (empty)
 #endif
 
-import Data.List hiding (null)
+import Data.Either (lefts)
+import Data.List as List hiding (null)
 import Data.Monoid (Any(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -66,6 +67,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Suffix (nameVariant)
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
@@ -189,7 +191,7 @@ type CoverResult = (SplitTree, Set Nat, [(Telescope, [NamedArg DeBruijnPattern])
 cover :: QName -> [Clause] -> SplitClause ->
          TCM CoverResult
 cover f cs sc@(SClause tel ps _ _ target) = do
-  reportSDoc "tc.cover.cover" 10 $ vcat
+  reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
     , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
@@ -508,10 +510,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
   con <- liftTCM $ getConForm c
   con <- return $ con { conName = c }  -- What if we restore the current name?
                                        -- Andreas, 2013-11-29 changes nothing!
-{-
-  con <- conSrcCon . theDef <$> getConstInfo con
-  Con con ci [] <- liftTCM $ ignoreSharing <$> (constructorForm =<< normalise (Con con ci []))
--}
 
   -- Get the type of the constructor
   ctype <- liftTCM $ defType <$> getConInfo con
@@ -523,12 +521,26 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
         Just cixs = allApplyElims es
     return (gamma0, cixs)
 
+  -- Andreas, 2017-01-21, issue #2424
+  -- When generating new variable names for the split,
+  -- respect the user written names!
+  let maybeUserWritten arg | getOrigin arg == UserWritten = Just $ unArg arg
+                           | otherwise = Nothing
+      (userNames0 :: [ArgName]) = mapMaybe maybeUserWritten $ teleArgNames tel
+      (userNames :: [PatVarName]) = map dbPatVarName $ lefts $
+        mapMaybe maybeUserWritten $ patternVars ps
+      -- The name of the variable we split is of course reusable!
+      avoidNames = userNames List.\\ [n, "_", "()"]
+      avoidUserName :: ArgName -> ArgName
+      avoidUserName = nameVariant (`elem` avoidNames)
+  debugNames userNames0 userNames avoidNames
+
   -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments
   -- of constructor
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
       preserve (x, (El s (Shared p))) = preserve (x, El s $ derefPtr p)
-      preserve p = p
+      preserve (x, t) = (avoidUserName x, t)
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal
       delta1Gamma = delta1 `abstract` gamma
@@ -576,17 +588,23 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
 
       debugTel "delta'" delta'
       debugSubst "rho" rho
-      addContext tel $ debugPs ps
+      debugPs tel ps
 
       -- Apply the substitution
       let ps' = applySubst rho ps
-      addContext delta' $ debugPlugged ps'
+      debugPlugged delta' ps'
 
       let mpsub' = applySubst (fromPatternSubstitution rho) mpsub
 
       return $ Just $ SClause delta' ps' rho mpsub' Nothing -- target fixed later
 
   where
+    debugNames userNames0 userNames avoidNames =
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
+        [ text "  user written names in pat.tel  =" <+> sep (map text userNames0)
+        , text "  user written names in patterns =" <+> sep (map text userNames)
+        , text "  names to be avoided by split   =" <+> sep (map text avoidNames)
+        ]
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
@@ -594,14 +612,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
           [ text "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , text "con    =" <+> prettyTCM con
           , text "ctype  =" <+> prettyTCM ctype
-          , text "ps     =" <+> do addContext tel $ prettyTCMPatternList ps
+          , text "ps     =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps
           , text "d      =" <+> prettyTCM d
-          , text "pars   =" <+> prettyList (map prettyTCM pars)
-          , text "ixs    =" <+> addContext delta1 (prettyList (map prettyTCM ixs))
-          , text "cixs   =" <+> do addContext gamma $ prettyList (map prettyTCM cixs)
-          , text "delta1 =" <+> prettyTCM delta1
-          , text "delta2 =" <+> prettyTCM delta2
-          , text "gamma  =" <+> prettyTCM gamma
+          , text "pars   =" <+> do prettyList $ map prettyTCM pars
+          , text "ixs    =" <+> do addContext delta1 $ prettyList $ map prettyTCM ixs
+          , text "cixs   =" <+> do addContext gamma  $ prettyList $ map prettyTCM cixs
+          , text "delta1 =" <+> do inTopContext $ prettyTCM delta1
+          , text "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
+          , text "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
           , text "hix    =" <+> text (show hix)
           ]
         ]
@@ -622,15 +640,17 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
         [ text (s ++ " =") <+> prettyTCM tel
         ]
 
-    debugPs ps =
-      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "ps     =" <+> prettyTCMPatternList ps
-        ]
+    debugPs tel ps =
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $
+        inTopContext $ addContext tel $ nest 2 $ vcat
+          [ text "ps     =" <+> prettyTCMPatternList ps
+          ]
 
-    debugPlugged ps' =
-      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "ps'    =" <+> do prettyTCMPatternList ps'
-        ]
+    debugPlugged delta' ps' =
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $
+        inTopContext $ addContext delta' $ nest 2 $ vcat
+          [ text "ps'    =" <+> do prettyTCMPatternList ps'
+          ]
 
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
@@ -776,7 +796,7 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
     inContextOfDelta2 = addContext tel . escapeContext x
 
     -- Debug printing
-    debugInit tel x ps mpsub = liftTCM $ do
+    debugInit tel x ps mpsub = liftTCM $ inTopContext $ do
       reportSDoc "tc.cover.top" 10 $ vcat
         [ text "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat

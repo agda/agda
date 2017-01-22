@@ -81,7 +81,9 @@ nameVariant
   :: (String -> Bool) -- ^ Is the given name already taken?
   -> String           -- ^ Name of which we want an available variant.
   -> String           -- ^ Name extended by suffix that is not taken already.
-nameVariant taken x = addSuffix x $ trampoline step $ Prime 0
+nameVariant taken x
+  | taken x   = addSuffix x $ trampoline step $ Subscript 1
+  | otherwise = x
   where
     -- if the current suffix is taken, repeat with next suffix, else done
     step s = if taken (addSuffix x s) then Right (nextSuffix s) else Left s

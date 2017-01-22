@@ -181,8 +181,8 @@ makeCase hole rng s = withInteractionId hole $ do
     [ text "splitting clause:"
     , nest 2 $ vcat
       [ text "f       =" <+> prettyTCM f
-      , text "context =" <+> (prettyTCM =<< getContextTelescope)
-      , text "tel     =" <+> prettyTCM tel
+      , text "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
+      , text "tel     =" <+> (inTopContext . prettyTCM) tel
       , text "perm    =" <+> text (show perm)
       , text "ps      =" <+> text (show ps)
       ]
@@ -292,9 +292,9 @@ makeAbsurdClause f (SClause tel ps _ _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
-      [ text "context =" <+> (prettyTCM =<< getContextTelescope)
-      , text "tel =" <+> prettyTCM tel
-      , text "ps =" <+> text (show ps)
+      [ text "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
+      , text "tel     =" <+> do inTopContext $ prettyTCM tel
+      , text "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
       ]
     ]
   withCurrentModule (qnameModule f) $ do

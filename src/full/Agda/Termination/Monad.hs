@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                        #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | The monad for the termination checker.
@@ -25,6 +26,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract (IsProjP(..), AllNames)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
 import Agda.Syntax.Position (noRange)
 
@@ -46,6 +48,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Monoid
 import Agda.Utils.Null
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
@@ -115,7 +118,7 @@ data TerEnv = TerEnv
     -- ^ How many @SIZELT@ relations do we have in the context
     --   (= clause telescope).  Used to approximate termination
     --   for metas in call args.
-  , terPatterns :: MaskedDeBruijnPats
+  , terPatterns :: MaskedDeBruijnPatterns
     -- ^ The patterns of the clause we are checking.
   , terPatternsRaise :: !Int
     -- ^ Number of additional binders we have gone under
@@ -249,6 +252,11 @@ instance HasConstInfo TerM where
   getConstInfo       = liftTCM . getConstInfo
   getRewriteRulesFor = liftTCM . getRewriteRulesFor
 
+instance Monoid m => Monoid (TerM m) where
+  mempty        = pure mempty
+  mappend ma mb = mappend <$> ma <*> mb
+  mconcat mas   = mconcat <$> sequence mas
+
 -- * Modifiers and accessors for the termination environment in the monad.
 
 terGetGuardingTypeConstructors :: TerM Bool
@@ -308,13 +316,13 @@ terGetMaskResult = terAsks terMaskResult
 terSetMaskResult :: Bool -> TerM a -> TerM a
 terSetMaskResult b = terLocal $ \ e -> e { terMaskResult = b }
 
-terGetPatterns :: TerM (MaskedDeBruijnPats)
+terGetPatterns :: TerM (MaskedDeBruijnPatterns)
 terGetPatterns = do
   n   <- terAsks terPatternsRaise
   mps <- terAsks terPatterns
-  return $ if n == 0 then mps else map (fmap (fmap (n +))) mps
+  return $ if n == 0 then mps else map (fmap (raise n)) mps
 
-terSetPatterns :: MaskedDeBruijnPats -> TerM a -> TerM a
+terSetPatterns :: MaskedDeBruijnPatterns -> TerM a -> TerM a
 terSetPatterns ps = terLocal $ \ e -> e { terPatterns = ps }
 
 terRaise :: TerM a -> TerM a
@@ -464,64 +472,22 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
         return False
 
+-- * De Bruijn pattern stuff
 
--- * De Bruijn patterns.
-
-type DeBruijnPats = [DeBruijnPat]
-
--- | Patterns with variables as de Bruijn indices.
-type DeBruijnPat = DeBruijnPat' Int
-
-data DeBruijnPat' a
-  = VarDBP a
-    -- ^ De Bruijn Index.
-  | ConDBP QName [DeBruijnPat' a]
-    -- ^ The name refers to either an ordinary
-    --   constructor or the successor function on sized types.
-  | LitDBP Literal
-    -- ^ Literal.  Also abused to censor part of a pattern.
-  | TermDBP Term
-    -- ^ Part of dot pattern that cannot be converted into a pattern.
-  | ProjDBP ProjOrigin QName
-    -- ^ Projection pattern.
-  deriving (Functor, Show)
-
-instance IsProjP (DeBruijnPat' a) where
-  isProjP (ProjDBP o d) = Just (o, AmbQ [d])
-  isProjP _ = Nothing
-
-instance PrettyTCM DeBruijnPat where
-  prettyTCM (VarDBP i)    = prettyTCM $ var i
-  prettyTCM (ConDBP c ps) = parens $ do prettyTCM c <+> hsep (map prettyTCM ps)
-  prettyTCM (LitDBP l)    = prettyTCM l
-  prettyTCM (TermDBP v)   = parens $ prettyTCM v
-  prettyTCM (ProjDBP o d) = text "." TCP.<> prettyTCM d
-
--- | How long is the path to the deepest variable?
-patternDepth :: DeBruijnPat' a -> Int
-patternDepth p =
-  case p of
-    ConDBP _ ps -> succ $ maximum $ 0 : map patternDepth ps
-    VarDBP{}    -> 0
-    LitDBP{}    -> 0
-    TermDBP{}   -> 0
-    ProjDBP{}   -> 0
-
+-- | How long is the path to the deepest atomic pattern?
+patternDepth :: forall a. Pattern' a -> Int
+patternDepth = getMaxNat . foldrPattern depth where
+  depth :: Pattern' a -> MaxNat -> MaxNat
+  depth ConP{} = succ      -- add 1 to the maximum of the depth of the subpatterns
+  depth _      = id        -- atomic pattern (leaf) has depth 0
 
 -- | A dummy pattern used to mask a pattern that cannot be used
 --   for structural descent.
 
-unusedVar :: DeBruijnPat
-unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
+unusedVar :: DeBruijnPattern
+unusedVar = LitP (LitString noRange "term.unused.pat.var")
 
--- | @raiseDBP n ps@ increases each de Bruijn index in @ps@ by @n@.
---   Needed when going under a binder during analysis of a term.
-
-raiseDBP :: Int -> DeBruijnPats -> DeBruijnPats
-raiseDBP 0 = id
-raiseDBP n = map $ fmap (n +)
-
--- | Extract variables from 'DeBruijnPat's that could witness a decrease
+-- | Extract variables from 'DeBruijnPattern's that could witness a decrease
 --   via a SIZELT constraint.
 --
 --   These variables must be under an inductive constructor (with no record
@@ -531,44 +497,44 @@ raiseDBP n = map $ fmap (n +)
 class UsableSizeVars a where
   usableSizeVars :: a -> TerM VarSet
 
-instance UsableSizeVars DeBruijnPat where
-  usableSizeVars p = do
-    let none = return mempty
-    case p of
-      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) {- else -} none
-      ConDBP c ps -> conUseSizeLt c $ usableSizeVars ps
-      LitDBP{}    -> none
-      TermDBP{}   -> none
-      ProjDBP{}   -> none
+instance UsableSizeVars DeBruijnPattern where
+  usableSizeVars = foldrPattern $ \case
+    VarP x    -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
+                   {-else-} return mempty
+    ConP c _ _ -> conUseSizeLt $ conName c
+    LitP{}     -> none
+    DotP{}     -> none
+    ProjP{}    -> none
+    where none _ = return mempty
 
-instance UsableSizeVars DeBruijnPats where
+instance UsableSizeVars [DeBruijnPattern] where
   usableSizeVars ps =
     case ps of
-      []                 -> return mempty
-      (ProjDBP _ q : ps) -> projUseSizeLt q $ usableSizeVars ps
-      (p           : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
+      []               -> return mempty
+      (ProjP _ q : ps) -> projUseSizeLt q $ usableSizeVars ps
+      (p         : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
-instance UsableSizeVars (Masked DeBruijnPat) where
-  usableSizeVars (Masked m p) = do
-    let none = return mempty
-    case p of
-      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) {- else -} none
-      ConDBP c ps -> if m then none else conUseSizeLt c $ usableSizeVars ps
-      LitDBP{}    -> none
-      TermDBP{}   -> none
-      ProjDBP{}   -> none
+instance UsableSizeVars (Masked DeBruijnPattern) where
+  usableSizeVars (Masked m p) = (`foldrPattern` p) $ \case
+    VarP x    -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
+                   {-else-} return mempty
+    ConP c _ _ -> if m then none else conUseSizeLt $ conName c
+    LitP{}     -> none
+    DotP{}     -> none
+    ProjP{}    -> none
+    where none _ = return mempty
 
-instance UsableSizeVars MaskedDeBruijnPats where
+instance UsableSizeVars MaskedDeBruijnPatterns where
   usableSizeVars ps =
     case ps of
-      []                            -> return mempty
-      (Masked _ (ProjDBP _ q) : ps) -> projUseSizeLt q $ usableSizeVars ps
-      (p                      : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
+      []                          -> return mempty
+      (Masked _ (ProjP _ q) : ps) -> projUseSizeLt q $ usableSizeVars ps
+      (p                    : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
 -- * Masked patterns (which are not eligible for structural descent, only for size descent)
 --   See issue #1023.
 
-type MaskedDeBruijnPats = [Masked DeBruijnPat]
+type MaskedDeBruijnPatterns = [Masked DeBruijnPattern]
 
 data Masked a = Masked
   { getMask   :: Bool  -- ^ True if thing not eligible for structural descent.

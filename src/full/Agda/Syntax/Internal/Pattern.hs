@@ -11,7 +11,9 @@ import Control.Applicative
 import Control.Monad.State
 
 import Data.Maybe
+import Data.Monoid
 import Data.List
+import Data.Foldable (foldMap)
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -183,17 +185,97 @@ patternToTerm p = case patternToElim (defaultArg p) of
   Apply x -> unArg x
   Proj{}  -> __IMPOSSIBLE__
 
+
 class MapNamedArg f where
   mapNamedArg :: (NamedArg a -> NamedArg b) -> NamedArg (f a) -> NamedArg (f b)
+
+-- | Modify the content of @VarP@, and the closest surrounding @NamedArg@.
+--
+--   Note: the @mapNamedArg@ for @Pattern'@ is not expressible simply
+--   by @fmap@ or @traverse@ etc., since @ConP@ has @NamedArg@ subpatterns,
+--   which are taken into account by @mapNamedArg@.
 
 instance MapNamedArg Pattern' where
   mapNamedArg f np =
     case namedArg np of
-      VarP  x     -> map2 VarP $ f $ map2 (const x) np
-      DotP  t     -> map2 (const $ DotP t) np  -- just Haskell type conversion
-      LitP  l     -> map2 (const $ LitP l) np  -- ditto
-      ProjP o q   -> map2 (const $ ProjP o q) np -- ditto
-      ConP c i ps -> map2 (const $ ConP c i $ map (mapNamedArg f) ps) np
+      VarP  x     -> updateNamedArg VarP $ f $ setNamedArg np x
+      DotP  t     -> setNamedArg np $ DotP t     -- just Haskell type conversion
+      LitP  l     -> setNamedArg np $ LitP l     -- ditto
+      ProjP o q   -> setNamedArg np $ ProjP o q  -- ditto
+      ConP c i ps -> setNamedArg np $ ConP c i $ map (mapNamedArg f) ps
+
+-- | Generic pattern traversal.
+--
+--   Pre-applies a pattern modification, recurses, and post-applies another one.
+
+class PatternLike a b where
+  foldrPattern
+    :: Monoid m
+    => (Pattern' a -> m -> m)
+         -- ^ Combine a pattern and the value computed from its subpatterns.
+    -> b
+    -> m
+
+  traversePatternM :: (Monad m
+#if __GLASGOW_HASKELL__ <= 708
+    , Applicative m, Functor m
+#endif
+    ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+      -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+      -> b -> m b
+
+-- | Compute from each subpattern a value and collect them all in a monoid.
+foldPattern :: (PatternLike a b, Monoid m) => (Pattern' a -> m) -> b -> m
+foldPattern f = foldrPattern $ \ p m -> f p `mappend` m
+
+-- | Traverse pattern(s) with a modification before the recursive descent.
+preTraversePatternM :: (PatternLike a b, Monad m
+#if __GLASGOW_HASKELL__ <= 708
+  , Applicative m, Functor m
+#endif
+  ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+    -> b -> m b
+preTraversePatternM pre = traversePatternM pre return
+
+-- | Traverse pattern(s) with a modification after the recursive descent.
+postTraversePatternM :: (PatternLike a b, Monad m
+#if __GLASGOW_HASKELL__ <= 708
+  , Applicative m, Functor m
+#endif
+  ) => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+    -> b -> m b
+postTraversePatternM = traversePatternM return
+
+-- This is where the action is:
+
+instance PatternLike a (Pattern' a) where
+
+  foldrPattern f p = f p $ case p of
+    ConP _ _ ps -> foldrPattern f ps
+    VarP _      -> mempty
+    LitP _      -> mempty
+    DotP _      -> mempty
+    ProjP _ _   -> mempty
+
+  traversePatternM pre post = pre >=> recurse >=> post
     where
-    map2 :: (a -> b) -> NamedArg a -> NamedArg b
-    map2 = fmap . fmap
+    recurse p = case p of
+      ConP c ci ps -> ConP c ci <$> traversePatternM pre post ps
+      VarP  _      -> return p
+      LitP  _      -> return p
+      DotP  _      -> return p
+      ProjP _ _    -> return p
+
+-- Boilerplate instances:
+
+instance PatternLike a b => PatternLike a [b] where
+  foldrPattern = foldMap . foldrPattern
+  traversePatternM pre post = traverse $ traversePatternM pre post
+
+instance PatternLike a b => PatternLike a (Arg b) where
+  foldrPattern = foldMap . foldrPattern
+  traversePatternM pre post = traverse $ traversePatternM pre post
+
+instance PatternLike a b => PatternLike a (Named x b) where
+  foldrPattern = foldMap . foldrPattern
+  traversePatternM pre post = traverse $ traversePatternM pre post

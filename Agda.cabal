@@ -484,6 +484,7 @@ library
                     Agda.Utils.Maybe.Strict
                     Agda.Utils.Memo
                     Agda.Utils.Monad
+                    Agda.Utils.Monoid
                     Agda.Utils.Null
                     Agda.Utils.Parser.MemoisedCPS
                     Agda.Utils.Parser.ReadP
