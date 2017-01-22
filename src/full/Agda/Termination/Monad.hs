@@ -472,38 +472,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
         return False
 
-
--- * De Bruijn patterns.
-
-type DeBruijnPats = [DeBruijnPat]
-
--- | Patterns with variables as de Bruijn indices.
-type DeBruijnPat = DeBruijnPat' Int
-
-data DeBruijnPat' a
-  = VarDBP a
-    -- ^ De Bruijn Index.
-  | ConDBP QName [DeBruijnPat' a]
-    -- ^ The name refers to either an ordinary
-    --   constructor or the successor function on sized types.
-  | LitDBP Literal
-    -- ^ Literal.  Also abused to censor part of a pattern.
-  | TermDBP Term
-    -- ^ Part of dot pattern that cannot be converted into a pattern.
-  | ProjDBP ProjOrigin QName
-    -- ^ Projection pattern.
-  deriving (Functor, Show)
-
-instance IsProjP (DeBruijnPat' a) where
-  isProjP (ProjDBP o d) = Just (o, AmbQ [d])
-  isProjP _ = Nothing
-
-instance PrettyTCM DeBruijnPat where
-  prettyTCM (VarDBP i)    = prettyTCM $ var i
-  prettyTCM (ConDBP c ps) = parens $ do prettyTCM c <+> hsep (map prettyTCM ps)
-  prettyTCM (LitDBP l)    = prettyTCM l
-  prettyTCM (TermDBP v)   = parens $ prettyTCM v
-  prettyTCM (ProjDBP o d) = text "." TCP.<> prettyTCM d
+-- * De Bruijn pattern stuff
 
 -- | How long is the path to the deepest atomic pattern?
 patternDepth :: forall a. Pattern' a -> Int
@@ -512,33 +481,13 @@ patternDepth = getMaxNat . foldrPattern depth where
   depth ConP{} = succ      -- add 1 to the maximum of the depth of the subpatterns
   depth _      = id        -- atomic pattern (leaf) has depth 0
 
--- -- | How long is the path to the deepest variable?
--- patternDepth :: DeBruijnPat' a -> Int
--- patternDepth p =
---   case p of
---     ConDBP _ ps -> succ $ maximum $ 0 : map patternDepth ps
---     VarDBP{}    -> 0
---     LitDBP{}    -> 0
---     TermDBP{}   -> 0
---     ProjDBP{}   -> 0
-
 -- | A dummy pattern used to mask a pattern that cannot be used
 --   for structural descent.
 
 unusedVar :: DeBruijnPattern
 unusedVar = LitP (LitString noRange "term.unused.pat.var")
 
--- unusedVar :: DeBruijnPat
--- unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
-
--- | @raiseDBP n ps@ increases each de Bruijn index in @ps@ by @n@.
---   Needed when going under a binder during analysis of a term.
-
-raiseDBP :: Int -> DeBruijnPats -> DeBruijnPats
-raiseDBP 0 = id
-raiseDBP n = map $ fmap (n +)
-
--- | Extract variables from 'DeBruijnPat's that could witness a decrease
+-- | Extract variables from 'DeBruijnPattern's that could witness a decrease
 --   via a SIZELT constraint.
 --
 --   These variables must be under an inductive constructor (with no record
@@ -582,44 +531,8 @@ instance UsableSizeVars MaskedDeBruijnPatterns where
       (Masked _ (ProjP _ q) : ps) -> projUseSizeLt q $ usableSizeVars ps
       (p                    : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
-instance UsableSizeVars DeBruijnPat where
-  usableSizeVars p = do
-    let none = return mempty
-    case p of
-      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) {- else -} none
-      ConDBP c ps -> conUseSizeLt c $ usableSizeVars ps
-      LitDBP{}    -> none
-      TermDBP{}   -> none
-      ProjDBP{}   -> none
-
-instance UsableSizeVars DeBruijnPats where
-  usableSizeVars ps =
-    case ps of
-      []                 -> return mempty
-      (ProjDBP _ q : ps) -> projUseSizeLt q $ usableSizeVars ps
-      (p           : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
-
-instance UsableSizeVars (Masked DeBruijnPat) where
-  usableSizeVars (Masked m p) = do
-    let none = return mempty
-    case p of
-      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) {- else -} none
-      ConDBP c ps -> if m then none else conUseSizeLt c $ usableSizeVars ps
-      LitDBP{}    -> none
-      TermDBP{}   -> none
-      ProjDBP{}   -> none
-
-instance UsableSizeVars MaskedDeBruijnPats where
-  usableSizeVars ps =
-    case ps of
-      []                            -> return mempty
-      (Masked _ (ProjDBP _ q) : ps) -> projUseSizeLt q $ usableSizeVars ps
-      (p                      : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
-
 -- * Masked patterns (which are not eligible for structural descent, only for size descent)
 --   See issue #1023.
-
-type MaskedDeBruijnPats = [Masked DeBruijnPat]
 
 type MaskedDeBruijnPatterns = [Masked DeBruijnPattern]
 

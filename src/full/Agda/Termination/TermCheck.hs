@@ -278,9 +278,6 @@ terminationError :: [QName] -> [CallInfo] -> TerminationError
 terminationError names calls = TerminationError names' calls
   where names' = names `intersect` toList (allNames calls)
 
--- ASR (08 November 2014). The type of the function could be
---
--- @Either a b -> TerM (Either a b)@.
 billToTerGraph :: a -> TerM a
 billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph] a
 
@@ -472,26 +469,6 @@ setMasks t cont = do
     return (ds, d)
   terSetMaskArgs (ds ++ repeat True) $ terSetMaskResult d $ cont
 
-{- Termination check clauses:
-
-   For instance
-
-   f x (cons y nil) = g x y
-
-   Clause
-     [VarP "x", ConP "List.cons" [VarP "y", ConP "List.nil" []]]
-     Bind (Abs { absName = "x"
-               , absBody = Bind (Abs { absName = "y"
-                                     , absBody = Def "g" [ Var 1 []
-                                                         , Var 0 []]})})
-
-   Outline:
-   - create "De Bruijn pattern"
-   - collect recursive calls
-   - going under a binder, lift de Bruijn pattern
-   - compare arguments of recursive call to pattern
-
--}
 
 -- | Is the current target type among the given ones?
 
@@ -521,25 +498,6 @@ matchingTarget conf t = maybe (return True) (match t) (currentTarget conf)
 termToDBP :: Term -> TerM DeBruijnPattern
 termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
   termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
-
--- termToDBP :: Term -> TerM DeBruijnPat
--- termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
---     suc <- terGetSizeSuc
---     let
---       loop :: Term -> TCM DeBruijnPat
---       loop t = do
---         t <- constructorForm t
---         case ignoreSharing t of
---           -- Constructors.
---           Con c ci args -> ConDBP (conName c) <$> mapM (loop . unArg) args
---           Def s [Apply arg] | Just s == suc
---                       -> ConDBP s . (:[]) <$> loop (unArg arg)
---           DontCare t  -> __IMPOSSIBLE__  -- removed by stripAllProjections
---           -- Leaves.
---           Var i []    -> return $ VarDBP i
---           Lit l       -> return $ LitDBP l
---           t           -> return $ TermDBP t
---     liftTCM $ loop =<< stripAllProjections =<< normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
 --
@@ -574,47 +532,6 @@ instance TermToPattern Term DeBruijnPattern where
     t           -> return $ DotP t
 
 
--- -- | Masks coconstructor patterns in a deBruijn pattern.
--- class StripCoConstructors a where
---   stripCoConstructors :: a -> TerM a
-
---   default stripCoConstructors :: (StripCoConstructors a', Traversable f, a ~ f a') => a -> TerM a
---   stripCoConstructor = traverse stripCoConstructor
-
--- instance StripCoConstructors a => StripCoConstructors [a] where
--- instance StripCoConstructors a => StripCoConstructors (Arg a) where
--- instance StripCoConstructors a => StripCoConstructors (Named c a) where
-
--- instance StripCoConstructors DeBruijnPattern where
---   stripCoConstructors p = case p of
---     ConP c ci args -> do
---       ind <- ifM ((Just c ==) <$> terGetSizeSuc) (return Inductive) {- else -}
---                (liftTCM $ whatInduction c)
---       case ind of
---         Inductive   -> ConP c ci <$> stripCoConstructors args
---         CoInductive -> return unusedVar
---     -- The remaining (atomic) patterns cannot contain coconstructors, obviously.
---     VarP{}  -> return p
---     LitP{}  -> return p
---     DotP{}  -> return p  -- Can contain coconstructors, but they do not count here.
---     ProjP{} -> return p
-
--- -- | Masks coconstructor patterns in a deBruijn pattern.
--- stripCoConstructors :: DeBruijnPat -> TerM DeBruijnPat
--- stripCoConstructors p = do
---   case p of
---     ConDBP c args -> do
---       ind <- ifM ((Just c ==) <$> terGetSizeSuc) (return Inductive) {- else -}
---                (liftTCM $ whatInduction c)
---       case ind of
---         Inductive   -> ConDBP c <$> mapM stripCoConstructors args
---         CoInductive -> return unusedVar
---     -- The remaining (atomic) patterns cannot contain coconstructors, obviously.
---     VarDBP{}  -> return p
---     LitDBP{}  -> return p
---     TermDBP{} -> return p  -- Can contain coconstructors, but they do not count here.
---     ProjDBP{} -> return p
-
 -- | Masks all non-data/record type patterns if --without-K.
 --   See issue #1023.
 maskNonDataArgs :: [DeBruijnPattern] -> TerM [Masked DeBruijnPattern]
@@ -623,24 +540,6 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
     mask p@ProjP{} _ = Masked False p
     mask p         d = Masked d     p
 
-
--- -- | Convert patterns to the format used by the termination checker
--- convertPatterns :: [DeBruijnPattern] -> TerM [DeBruijnPattern]
--- convertPatterns = traversePatternM $ \case
---   DotP t -> termToDBP t
---   p      -> return p
-
--- -- | Convert patterns to the format used by the termination checker
--- --   TODO: refactor termination checking to use regular patterns
--- convertPatterns :: [DeBruijnPattern] -> TerM [DeBruijnPat]
--- convertPatterns ps = mapM build ps
---   where
---     build :: DeBruijnPattern -> TerM DeBruijnPat
---     build (VarP x)        = return $ VarDBP $ dbPatVarIndex x
---     build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
---     build (DotP t)        = termToDBP t
---     build (LitP l)        = return $ LitDBP l
---     build (ProjP o d)     = return $ ProjDBP o d
 
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
@@ -682,19 +581,6 @@ termClause' clause = do
           Inductive   -> return p
           CoInductive -> return unusedVar
       _ -> return p
-  -- addContext tel $ do
-  --   dbpats <- convertPatterns $ map namedArg argPats'
-  --   case body of
-  --     Nothing -> return empty
-  --     Just v -> do
-  --       dbpats <- mapM stripCoConstructors dbpats
-  --       mdbpats <- maskNonDataArgs dbpats
-  --       terSetPatterns mdbpats $ do
-  --         terSetSizeDepth tel $ do
-  --           reportBody v
-  --           extract v
-  -- where
-
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do
       f       <- terGetCurrent
@@ -1157,7 +1043,7 @@ offsetFromConstructor :: MonadTCM tcm => QName -> tcm Int
 offsetFromConstructor c = maybe 1 (const 0) <$> do
   liftTCM $ isRecordConstructor c
 
--- | Compute the proper subpatterns of a 'DeBruijnPat'.
+-- | Compute the proper subpatterns of a 'DeBruijnPattern'.
 subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
 subPatterns = foldPattern $ \case
   ConP _ _ ps -> map namedArg ps
@@ -1166,14 +1052,6 @@ subPatterns = foldPattern $ \case
   DotP _      -> mempty
   ProjP _ _   -> mempty
 
--- -- | Compute the proper subpatterns of a 'DeBruijnPat'.
--- subPatterns :: DeBruijnPat -> [DeBruijnPat]
--- subPatterns p = case p of
---   ConDBP c ps -> ps ++ concatMap subPatterns ps
---   VarDBP _    -> []
---   LitDBP _    -> []
---   TermDBP _   -> []
---   ProjDBP{}   -> []
 
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm t p = do
@@ -1187,11 +1065,6 @@ compareTerm t p = do
     text " to pattern " <+> prettyTCM p <+>
     text (" results in " ++ show o)
   return o
-{-
-compareTerm t p = Order.supremum $ compareTerm' t p : map cmp (subPatterns p)
-  where
-    cmp p' = (Order..*.) Order.lt (compareTerm' t p')
--}
 
 
 -- | Remove all non-coinductive projections from an algebraic term
@@ -1202,14 +1075,6 @@ class StripAllProjections a where
 
 instance StripAllProjections a => StripAllProjections (Arg a) where
   stripAllProjections = traverse stripAllProjections
-  -- stripAllProjections (Arg info a) = Arg info <$> stripAllProjections a
-
-{- DOES NOT WORK, since s.th. special is needed for Elims
-instance StripAllProjections a => StripAllProjections [a] where
-  stripAllProjections = traverse stripAllProjections
-
-instance StripAllProjections a => StripAllProjections (Elim' a) where
--}
 
 instance StripAllProjections Elims where
   stripAllProjections es =
