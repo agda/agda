@@ -76,7 +76,7 @@ setInterface i = do
   opts <- gets (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
   mapM_ setOptionsFromPragma (iPragmaOptions i)
-  stImportedModules .= Set.empty
+  stImportedModules .= Set.fromList (map fst $ iImportedModules i)
   stCurrentModule   .= Just (iModuleName i)
 
 curIF :: TCM Interface
