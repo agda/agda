@@ -130,6 +130,7 @@ compilerMain backend isMain i =
   inCompilerEnv i $ do
     env  <- preCompile backend (options backend)
     mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env i
+    setInterface i
     postCompile backend env isMain mods
 
 compileModule :: Backend' opts env menv mod def -> env -> Interface -> TCM mod
