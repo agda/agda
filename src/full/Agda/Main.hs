@@ -52,9 +52,15 @@ import Agda.Utils.Impossible
 
 #include "undefined.h"
 
+builtinBackends :: [Backend]
+builtinBackends = []
+
 -- | The main function
 runAgda :: [Backend] -> IO ()
-runAgda backends = runTCMPrettyErrors $ do
+runAgda backends = runAgda' $ builtinBackends ++ backends
+
+runAgda' :: [Backend] -> IO ()
+runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
   opts     <- liftIO $ runOptM $ parseBackendOptions backends argv
