@@ -27,6 +27,8 @@ import System.Console.GetOpt
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Reduce
+
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.HTML
@@ -141,5 +143,6 @@ compileModule backend env i = do
   case r of
     Skip m         -> return m
     Recompile menv -> do
-      defs  <- map snd . sortDefs <$> curDefs
-      postModule backend env menv (iModuleName i) =<< mapM (compileDef backend env menv) defs
+      defs <- map snd . sortDefs <$> curDefs
+      res  <- mapM (compileDef backend env menv <=< instantiateFull) defs
+      postModule backend env menv (iModuleName i) res
