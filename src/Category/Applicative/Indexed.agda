@@ -9,7 +9,7 @@
 
 module Category.Applicative.Indexed where
 
-open import Category.Functor
+open import Category.Functor using (RawFunctor)
 open import Data.Product
 open import Function
 open import Level

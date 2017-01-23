@@ -7,6 +7,10 @@ Important changes since 0.13:
 
 * Added support for GHC 8.0.2.
 
+* Added `Category.Functor.Morphism` and module `Category.Functor.Identity`.
+
+
+
 Version 0.13
 ============
 
