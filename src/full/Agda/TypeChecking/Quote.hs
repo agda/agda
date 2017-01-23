@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
+import Control.Arrow ((&&&))
 import Control.Monad.State (runState, get, put)
 import Control.Monad.Reader (asks)
 import Control.Monad.Writer (execWriterT, tell)
@@ -241,8 +242,8 @@ quotingKit = do
                  Function{ funProjection = Just p } -> projIndex p - 1
                  _                                  -> 0
           TelV tel _ = telView' (defType def)
-          hiding     = map getHiding $ take np $ telToList tel
-          par h      = arg !@ (arginfo !@ quoteHiding h @@ pure relevant) @@ pure unsupported
+          hiding     = map (getHiding &&& getRelevance) $ take np $ telToList tel
+          par (h, r) = arg !@ (arginfo !@ quoteHiding h @@ quoteRelevance r) @@ pure unsupported
 
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =
