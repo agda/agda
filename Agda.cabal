@@ -693,6 +693,7 @@ test-suite internal-tests
                 , InternalTests.Syntax.Abstract.Name
                 , InternalTests.Syntax.Common
                 , InternalTests.Syntax.Concrete.Name
+                , InternalTests.Syntax.Internal
                 , InternalTests.Syntax.Parser.Parser
                 , InternalTests.Syntax.Position
                 , InternalTests.Termination.CallGraph
@@ -707,8 +708,10 @@ test-suite internal-tests
                 , InternalTests.TypeChecking.Free.Lazy
                 , InternalTests.TypeChecking.Generators
                 , InternalTests.TypeChecking.Irrelevance
+                , InternalTests.TypeChecking.Monad.Base
                 , InternalTests.TypeChecking.Positivity
                 , InternalTests.TypeChecking.Positivity.Occurrence
+                , InternalTests.TypeChecking.Rules.LHS.Problem
                 , InternalTests.TypeChecking.SizedTypes
                 , InternalTests.TypeChecking.SizedTypes.Syntax
                 , InternalTests.TypeChecking.SizedTypes.WarshallSolver
@@ -721,6 +724,7 @@ test-suite internal-tests
                 , InternalTests.Utils.Graph.AdjacencyMap.Unidirectional
                 , InternalTests.Utils.List
                 , InternalTests.Utils.ListT
+                , InternalTests.Utils.Monoid
                 , InternalTests.Utils.Maybe.Strict
                 , InternalTests.Utils.PartialOrd
                 , InternalTests.Utils.Permutation

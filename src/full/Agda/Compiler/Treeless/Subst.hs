@@ -69,7 +69,7 @@ instance Semigroup Occurs where
   Occurs a k s <> Occurs b l t = Occurs (a + b) (k <> l) (s <> t)
 
 instance Monoid Occurs where
-  mempty = Occurs 0 mempty mempty
+  mempty  = Occurs 0 mempty mempty
   mappend = (<>)
 
 class HasFree a where

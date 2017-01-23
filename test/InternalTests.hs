@@ -16,6 +16,8 @@ import InternalTests.Interaction.Highlighting.Generate        as InteGene     ( 
 import InternalTests.Interaction.Highlighting.Precise         as IntePrec     ( tests )
 import InternalTests.Interaction.Highlighting.Range           as InteRang     ( tests )
 import InternalTests.Interaction.Options                      as InteOpti     ( tests )
+import InternalTests.Syntax.Common                            as SyntCommon   ( tests )
+import InternalTests.Syntax.Internal                          as SyntInternal ( tests )
 import InternalTests.Syntax.Parser.Parser                     as SyntPars     ( tests )
 import InternalTests.Syntax.Position                          as SyntPosi     ( tests )
 import InternalTests.Termination.CallGraph                    as TermCall     ( tests )
@@ -24,12 +26,14 @@ import InternalTests.Termination.Order                        as TermOrd      ( 
 import InternalTests.Termination.Semiring                     as TermRing     ( tests )
 import InternalTests.Termination.Termination                  as TermTerm     ( tests )
 import InternalTests.Termination.SparseMatrix                 as TermSparse   ( tests )
+import InternalTests.TypeChecking                             as TypeChck     ( tests )
 import InternalTests.TypeChecking.Free                        as Free         ( tests )
 import InternalTests.TypeChecking.Generators                  as Generators   ( tests )
 import InternalTests.TypeChecking.Irrelevance                 as Irrel        ( tests )
+import InternalTests.TypeChecking.Monad.Base                  as MBase        ( tests )
 import InternalTests.TypeChecking.Positivity                  as Positivity   ( tests )
 import InternalTests.TypeChecking.Positivity.Occurrence       as Occurrence   ( tests )
-import InternalTests.TypeChecking                             as TypeChck     ( tests )
+import InternalTests.TypeChecking.Rules.LHS.Problem           as LHSProblem   ( tests )
 import InternalTests.TypeChecking.SizedTypes                  as SizedTypes   ( tests )
 import InternalTests.Utils.Bag                                as UtilBag      ( tests )
 import InternalTests.Utils.BiMap                              as UtilBiMap    ( tests )
@@ -40,6 +44,7 @@ import InternalTests.Utils.FileName                           as UtilFile     ( 
 import InternalTests.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
 import InternalTests.Utils.List                               as UtilList     ( tests )
 import InternalTests.Utils.ListT                              as UtilListT    ( tests )
+import InternalTests.Utils.Monoid                             as UtilMonoid   ( tests )
 import InternalTests.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import InternalTests.Utils.Permutation                        as UtilPerm     ( tests )
 import InternalTests.Utils.Trie                               as UtilTrie     ( tests )
@@ -81,6 +86,11 @@ runAllTests = runTests "QuickCheck test suite:"
   , UtilTrie.tests
   , UtilWarsh.tests
   , Generators.tests
+  , UtilMonoid.tests
+  , LHSProblem.tests
+  , MBase.tests
+  , SyntInternal.tests
+  , SyntCommon.tests
   ]
 
 main :: IO ()

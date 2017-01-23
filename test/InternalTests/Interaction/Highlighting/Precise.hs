@@ -55,6 +55,21 @@ prop_smallestPos :: CompressedFile -> Bool
 prop_smallestPos f = smallestPos (decompress f) == smallestPosC f
 
 ------------------------------------------------------------------------
+-- Algebraic properties
+
+-- | 'Aspects' is a monoid.
+prop_monoid_Aspects :: Aspects -> Aspects -> Aspects -> Bool
+prop_monoid_Aspects = monoid
+
+-- | 'File' is a monoid.
+prop_monoid_File :: File -> File -> File -> Bool
+prop_monoid_File = monoid
+
+-- | 'CompressedFile' is a monoid.
+prop_monoid_CompressedFile :: CompressedFile -> CompressedFile -> CompressedFile -> Bool
+prop_monoid_CompressedFile = monoid
+
+------------------------------------------------------------------------
 -- Generators
 
 instance Arbitrary Aspect where
@@ -179,4 +194,7 @@ tests = runTests "InternalTests.Interaction.Highlighting.Precise"
   , quickCheck' prop_merge
   , quickCheck' prop_splitAtC
   , quickCheck' prop_smallestPos
+  , quickCheck' prop_monoid_Aspects
+  , quickCheck' prop_monoid_File
+  , quickCheck' prop_monoid_CompressedFile
   ]

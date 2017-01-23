@@ -14,6 +14,7 @@ import Control.Applicative ( (<$>), (<*>) )
 import Data.Either
 import qualified Data.Map.Strict as Map
 
+import InternalTests.Helpers
 import InternalTests.Syntax.Abstract.Name ()
 
 import Test.QuickCheck
@@ -71,40 +72,27 @@ instance CoArbitrary Occurrence where
 
 prop_Occurrence_oplus_associative ::
   Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_associative x y z =
-  oplus x (oplus y z) == oplus (oplus x y) z
+prop_Occurrence_oplus_associative = associative oplus
 
 prop_Occurrence_oplus_ozero :: Occurrence -> Bool
-prop_Occurrence_oplus_ozero x =
-  oplus ozero x == x
+prop_Occurrence_oplus_ozero = identity ozero oplus
 
 prop_Occurrence_oplus_commutative :: Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_commutative x y =
-  oplus x y == oplus y x
+prop_Occurrence_oplus_commutative = commutative oplus
 
 prop_Occurrence_otimes_associative ::
   Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_otimes_associative x y z =
-  otimes x (otimes y z) == otimes (otimes x y) z
+prop_Occurrence_otimes_associative = associative otimes
 
 prop_Occurrence_otimes_oone :: Occurrence -> Bool
-prop_Occurrence_otimes_oone x =
-  otimes oone x == x
-    &&
-  otimes x oone == x
+prop_Occurrence_otimes_oone = identity oone otimes
 
 prop_Occurrence_distributive ::
   Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_distributive x y z =
-  otimes x (oplus y z) == oplus (otimes x y) (otimes x z)
-    &&
-  otimes (oplus x y) z == oplus (otimes x z) (otimes y z)
+prop_Occurrence_distributive = distributive otimes oplus
 
 prop_Occurrence_otimes_ozero :: Occurrence -> Bool
-prop_Occurrence_otimes_ozero x =
-  otimes ozero x == ozero
-    &&
-  otimes x ozero == ozero
+prop_Occurrence_otimes_ozero = isZero ozero otimes
 
 prop_Occurrence_ostar :: Occurrence -> Bool
 prop_Occurrence_ostar x =
