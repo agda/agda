@@ -56,6 +56,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
 
+import {-# SOURCE #-} Agda.Compiler.Backend
+
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Response
@@ -216,6 +218,8 @@ data PersistentTCState = PersistentTCSt
   , stLoadedFileCache   :: !(Maybe LoadedFileCache)
     -- ^ Cached typechecking state from the last loaded file.
     --   Should be Nothing when checking imports.
+  , stPersistBackends   :: [Backend]
+    -- ^ Current backends with their options
   }
 
 data LoadedFileCache = LoadedFileCache
@@ -259,6 +263,7 @@ initPersistentState = PersistentTCSt
   , stBenchmark                 = empty
   , stAccumStatistics           = Map.empty
   , stLoadedFileCache           = Nothing
+  , stPersistBackends           = []
   }
 
 -- | Empty state of type checker.
@@ -389,6 +394,11 @@ stFreshInteractionId :: Lens' InteractionId TCState
 stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
+
+stBackends :: Lens' [Backend] TCState
+stBackends f s =
+  f (stPersistBackends (stPersistentState s)) <&>
+  \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
 
 stFreshNameId :: Lens' NameId TCState
 stFreshNameId f s =

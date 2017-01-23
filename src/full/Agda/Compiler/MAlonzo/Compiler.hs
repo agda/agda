@@ -36,6 +36,7 @@ import Agda.Compiler.MAlonzo.Primitives
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
+import Agda.Compiler.Backend
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
@@ -80,27 +81,96 @@ import Paths_Agda
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-compilerMain :: IsMain -> Interface -> TCM ()
-compilerMain isMain i =
-  inCompilerEnv i $ do
-    doCompile isMain i $
-      \_ -> compile
-    copyRTEModules
-    callGHC isMain i
+-- The backend callbacks --------------------------------------------------
 
-compile :: Interface -> TCM ()
-compile i = do
-  ifM uptodate noComp $ {- else -} do
-    yesComp
-    writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
+ghcBackend :: Backend
+ghcBackend = Backend ghcBackend'
+
+ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv () [HS.Decl]
+ghcBackend' = Backend'
+  { backendName      = "GHC"
+  , backendVersion   = Nothing
+  , options          = defaultGHCOptions
+  , commandLineFlags = ghcCommandLineFlags
+  , isEnabled        = optGhcCompile
+  , preCompile       = ghcPreCompile
+  , postCompile      = ghcPostCompile
+  , preModule        = ghcPreModule
+  , postModule       = ghcPostModule
+  , compileDef       = ghcCompileDef
+  }
+
+--- Options ---
+
+data GHCOptions = GHCOptions
+  { optGhcCompile :: Bool
+  , optGhcCallGhc :: Bool
+  , optGhcFlags   :: [String]
+  }
+
+defaultGHCOptions :: GHCOptions
+defaultGHCOptions = GHCOptions
+  { optGhcCompile = False
+  , optGhcCallGhc = True
+  , optGhcFlags   = []
+  }
+
+ghcCommandLineFlags :: [OptDescr (Flag GHCOptions)]
+ghcCommandLineFlags =
+    [ Option ['c']  ["compile", "ghc"] (NoArg enable)
+                    "compile program using the GHC backend"
+    , Option []     ["ghc-dont-call-ghc"] (NoArg dontCallGHC)
+                    "don't call GHC, just write the GHC Haskell files."
+    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
+                    "give the flag GHC-FLAG to GHC"
+    ]
   where
-  decl mn ds imp = HS.Module mn [] imp (map fakeDecl (reverse $ iHaskellCode i) ++ ds)
-  uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
-  ifile    = maybe __IMPOSSIBLE__ filePath <$>
-               (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
-  yesComp  = reportSLn "compile.ghc" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [show . A.mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
+    enable      o = pure o{ optGhcCompile = True }
+    dontCallGHC o = pure o{ optGhcCallGhc = False }
+    ghcFlag f   o = pure o{ optGhcFlags   = optGhcFlags o ++ [f] }
+
+--- Top-level compilation ---
+
+ghcPreCompile :: GHCOptions -> TCM GHCOptions
+ghcPreCompile ghcOpts = do
+  allowUnsolved <- optAllowUnsolved <$> pragmaOptions
+  when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
+  return ghcOpts
+
+ghcPostCompile :: GHCOptions -> IsMain -> Map ModuleName () -> TCM ()
+ghcPostCompile opts isMain _ = copyRTEModules >> callGHC opts isMain
+
+--- Module compilation ---
+
+type GHCModuleEnv = Maybe CoinductionKit
+
+ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv ())
+ghcPreModule _ m ifile = ifM uptodate noComp yesComp
+  where
+    uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+
+    noComp = do
+      reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
+      return $ Skip ()
+
+    yesComp = do
+      m   <- show . A.mnameToConcrete <$> curMName
+      out <- outFile_
+      reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
+      stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
+      Recompile <$> coinductionKit
+
+ghcPostModule :: GHCOptions -> GHCModuleEnv -> ModuleName -> [[HS.Decl]] -> TCM ()
+ghcPostModule _ _ _ defs = do
+  m             <- curHsMod
+  imps          <- imports
+  inlineHaskell <- iHaskellCode <$> curIF
+  writeModule $ HS.Module m [] imps (map fakeDecl (reverse inlineHaskell) ++ concat defs)
+
+ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]
+ghcCompileDef _ = definition
+
+-- Compilation ------------------------------------------------------------
 
 --------------------------------------------------
 -- imported modules
@@ -137,15 +207,6 @@ imports = (++) <$> hsImps <*> imps where
 --------------------------------------------------
 -- Main compiling clauses
 --------------------------------------------------
-
-definitions :: Definitions -> TCM [HS.Decl]
-definitions defs = do
-  kit <- coinductionKit
-  concat <$>
-    (mapM (\(_, d) -> definition kit =<< instantiateFull d) $
-    -- sort defs to ensure consistent order (see Issue 1900)
-     sortDefs defs
-    )
 
 -- | Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):
@@ -700,9 +761,8 @@ outFile m = snd <$> outFile' m
 outFile_ :: TCM FilePath
 outFile_ = outFile =<< curHsMod
 
-callGHC :: IsMain -> Interface -> TCM ()
-callGHC modIsMain i = do
-  setInterface i
+callGHC :: GHCOptions -> IsMain -> TCM ()
+callGHC opts modIsMain = do
   mdir          <- compileDir
   hsmod         <- prettyPrint <$> curHsMod
   MName agdaMod <- curMName
@@ -710,7 +770,7 @@ callGHC modIsMain i = do
         [] -> __IMPOSSIBLE__
         ms -> last ms
   (mdir, fp) <- outFile' =<< curHsMod
-  opts       <- optGhcFlags <$> commandLineOptions
+  let ghcopts = optGhcFlags opts
 
   let overridableArgs =
         [ "-O"] ++
@@ -724,11 +784,11 @@ callGHC modIsMain i = do
         , "-fwarn-incomplete-patterns"
         , "-fno-warn-overlapping-patterns"
         ]
-      args     = overridableArgs ++ opts ++ otherArgs
+      args     = overridableArgs ++ ghcopts ++ otherArgs
       compiler = "ghc"
 
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
-  doCall <- optGhcCallGhc <$> commandLineOptions
+  let doCall = optGhcCallGhc opts
   callCompiler doCall compiler args
