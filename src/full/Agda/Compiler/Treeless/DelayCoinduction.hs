@@ -8,8 +8,37 @@
 --
 -- Assumes that flat/sharp are implemented as follows:
 --
--- flat = \x -> x
--- sharp = \x -> x ()
+-- sharp = \x -> x   -- delay
+-- flat = \x -> x () -- force
+--
+-- NOTE: You may be tempted to forgo this transformation and instead implement sharp
+-- as ``\x _ -> x`` . This does not work in strict languages. For example,
+-- the following Agda code
+--
+-- data Stream : Set where
+--   _::_ : Nat -> Inf Stream -> Stream
+--
+-- ones : Stream
+-- ones = 1 :: (sharp ones)
+--
+-- will be compiled to
+--
+-- ones : Stream
+-- ones = 1 :: sharp-0
+-- sharp-0 : Inf Stream
+-- sharp-0 = sharp ones
+--
+-- Evaluating ``ones`` in a strict language will evaluate ``sharp-0`` and thereby also the
+-- recursive call to ``ones``. The evaluation of the tail of the stream is *not* delayed.
+-- This transformation solves this by inserting a lambda around all expressions which
+-- need to be delayed. This yields the following code, where ``sharp`` is assumed to be
+-- the identity function:
+--
+-- ones = 1 :: sharp-0
+-- sharp-0 = \_ -> sharp ones
+--
+--
+-- This complication does not occur in lazy target languages.
 
 module Agda.Compiler.Treeless.DelayCoinduction where
 
