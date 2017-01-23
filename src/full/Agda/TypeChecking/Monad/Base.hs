@@ -2319,6 +2319,16 @@ instance HasRange TCWarning where
 tcWarning :: TCWarning -> Warning
 tcWarning = clValue . tcWarningClosure
 
+getPartialDefs :: ReadTCState tcm => tcm [QName]
+getPartialDefs = do
+  tcst <- getTCState
+  return $ catMaybes . fmap (extractQName . tcWarning)
+         $ tcst ^. stTCWarnings where
+
+    extractQName :: Warning -> Maybe QName
+    extractQName (CoverageIssue f _) = Just f
+    extractQName _                   = Nothing
+
 -- | Classifying warnings: some are benign, others are (non-fatal) errors
 
 data WhichWarnings = ErrorWarnings | AllWarnings
@@ -2339,7 +2349,6 @@ isUnsolvedWarning w = case w of
   CoverageIssue{}            -> False
   NotStrictlyPositive{}      -> False
   ParseWarning{}             -> False
-
 
 classifyWarning :: Warning -> WhichWarnings
 classifyWarning w = case w of
