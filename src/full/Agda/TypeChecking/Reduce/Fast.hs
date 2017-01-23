@@ -527,8 +527,10 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
 
 
         -- If we reach the empty stack, then pattern matching was incomplete
-        match' _ f [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-          runReduce $
-            traceSLn "impossible" 10
-              ("Incomplete pattern matching when applying " ++ show f)
-              __IMPOSSIBLE__
+        match' _ f [] = runReduce $ do
+          pds <- getPartialDefs
+          if f `elem` pds
+          then return (NoReduction $ NotBlocked MissingClauses es)
+          else traceSLn "impossible" 10
+                 ("Incomplete pattern matching when applying " ++ show f)
+                 __IMPOSSIBLE__

@@ -3,6 +3,8 @@
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
+import Control.Arrow ((&&&))
+import Control.Monad
 import Control.Monad.State (runState, get, put)
 import Control.Monad.Reader (asks)
 import Control.Monad.Writer (execWriterT, tell)
@@ -206,18 +208,26 @@ quotingKit = do
              in  var !@! Lit (LitNat noRange $ fromIntegral n) @@ quoteArgs ts
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
-            def <- getConstInfo x
-            let d = theDef def
+            defn <- getConstInfo x
             n <- getDefFreeVars x
             -- #2220: remember to restore dropped parameters
-            qx d @@ list (drop n $ defParameters def ++ map (quoteArg quoteTerm) ts)
-            where
+            let
+              conOrProjPars = defParameters defn
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } =
-                    extlam !@ list (map (quoteClause . dropArgs (h + nh)) cs)
+              qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } = do
+                    -- An extended lambda should not have any extra parameters!
+                    unless (null conOrProjPars) __IMPOSSIBLE__
+                    -- Andreas, 2017-01-23 quoting Ulf
+                    -- "One would hope that @n@ includes the @h + nh@ parameters of the ext.lam."
+                    -- Let's see!
+                    -- unless (n >= h + nh) __IMPOSSIBLE__
+                    -- Actually, no, it does not!  ExtLam is not touched by module application.
+                    -- TODO: fixe me!  See #2404.
+                    extlam !@ list (map (quoteClause . (`apply` (take (h + nh) ts))) cs)
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
+            qx (theDef defn) @@ list (drop n $ conOrProjPars ++ map (quoteArg quoteTerm) ts)
           Con x ci ts -> do
             cDef <- getConstInfo (conName x)
             n    <- getDefFreeVars (conName x)
@@ -241,8 +251,8 @@ quotingKit = do
                  Function{ funProjection = Just p } -> projIndex p - 1
                  _                                  -> 0
           TelV tel _ = telView' (defType def)
-          hiding     = map getHiding $ take np $ telToList tel
-          par h      = arg !@ (arginfo !@ quoteHiding h @@ pure relevant) @@ pure unsupported
+          hiding     = map (getHiding &&& getRelevance) $ take np $ telToList tel
+          par (h, r) = arg !@ (arginfo !@ quoteHiding h @@ quoteRelevance r) @@ pure unsupported
 
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =
