@@ -293,7 +293,7 @@ instance Semigroup NotBlocked where
 
 instance Monoid NotBlocked where
   -- ReallyNotBlocked is neutral
-  mempty = ReallyNotBlocked
+  mempty  = ReallyNotBlocked
   mappend = (<>)
 
 -- | Something where a meta variable may block reduction.

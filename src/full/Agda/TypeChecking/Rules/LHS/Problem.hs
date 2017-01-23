@@ -80,7 +80,7 @@ instance Semigroup FlexChoice where
   ChooseRight  <> ChooseRight  = ChooseRight
 
 instance Monoid FlexChoice where
-  mempty = ChooseEither
+  mempty  = ChooseEither
   mappend = (<>)
 
 class ChooseFlex a where

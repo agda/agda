@@ -5,7 +5,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Irrelevance
 
 import InternalTests.Helpers
-import InternalTests.Syntax.Common
+import InternalTests.Syntax.Common ()
 
 ------------------------------------------------------------------------
 -- * Tests

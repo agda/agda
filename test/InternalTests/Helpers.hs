@@ -16,6 +16,7 @@ module InternalTests.Helpers
   , leftDistributive
   , rightDistributive
   , distributive
+  , monoid
     -- * Generators
   , natural
   , positive
@@ -32,6 +33,7 @@ module InternalTests.Helpers
 
 import Control.Monad
 import Data.Functor
+import Data.Semigroup ( mappend, mempty, Monoid )
 import Test.QuickCheck
 
 ------------------------------------------------------------------------
@@ -123,6 +125,12 @@ distributive
 distributive (*) (+) = \ x y z ->
   leftDistributive (*) (+) x y z &&
   rightDistributive (*) (+) x y z
+
+-- | Does the operator satisfy the monoid laws?
+monoid :: (Eq a, Monoid a) => a -> a -> a -> Bool
+monoid x y z =
+  associative mappend x y z &&
+  identity mempty mappend x
 
 ------------------------------------------------------------------------
 -- Generators
