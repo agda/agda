@@ -1,6 +1,6 @@
 Issue623/B.agda:3,1-4,6
 Termination checking failed for the following functions:
-  B.S
+  S
 Problematic calls:
   S (at Issue623/B.agda:4,5-6)
 when scope checking the declaration

@@ -128,19 +128,13 @@ assignTerm' x tel v = do
     -- dontAssignMetas $ do
     --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
 
-    let i = metaInstance tel $ killRange v
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
-    modifyMetaStore $ ins x i
+    modifyMetaStore $ ins x $ InstV tel $ killRange v
     etaExpandListeners x
     wakeupConstraints x
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ prettyShow x
   where
-    metaInstance tel v = InstV tel v
-    ins x i store = Map.adjust (inst i) x store
-    inst i mv = mv { mvInstantiation = i }
-
-    -- Andreas, 2013-10-25 hack to fool the unused-imports-checking-Nazi
-    -- phantomUseToOverruleStrictImportsChecking = checkInternal
+    ins x i = Map.adjust (\ mv -> mv { mvInstantiation = i }) x
 
 -- * Creating meta variables.
 

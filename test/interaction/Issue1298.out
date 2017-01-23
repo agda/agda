@@ -5,5 +5,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : ⟦ A ⟧ " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-((last . 2) . (agda2-make-case-action '("test .(A ⇒ B ⇒ A) (K A B) = ?")))
+((last . 2) . (agda2-make-case-action '("test .(A₁ ⇒ B ⇒ A₁) (K A₁ B) = ?")))
 ((last . 1) . (agda2-goals-action '(0)))

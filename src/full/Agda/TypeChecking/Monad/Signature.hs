@@ -458,7 +458,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
 
-            cl = Clause { clauseRange     = getRange $ defClauses d
+            cl = Clause { clauseLHSRange  = getRange $ defClauses d
+                        , clauseFullRange = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
                         , clauseBody      = Just $ case oldDef of
@@ -569,8 +570,8 @@ sameDef d1 d2 = do
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.
-whatInduction :: QName -> TCM Induction
-whatInduction c = do
+whatInduction :: MonadTCM tcm => QName -> tcm Induction
+whatInduction c = liftTCM $ do
   def <- theDef <$> getConstInfo c
   case def of
     Datatype{ dataInduction = i } -> return i

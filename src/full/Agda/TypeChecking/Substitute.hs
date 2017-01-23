@@ -304,10 +304,10 @@ instance Apply Clause where
     -- It is assumed that we only apply a clause to "parameters", i.e.
     -- arguments introduced by lambda lifting. The problem is that these aren't
     -- necessarily the first elements of the clause telescope.
-    apply cls@(Clause r tel ps b t catchall) args
+    apply cls@(Clause rl rf tel ps b t catchall) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
-      Clause r
+      Clause rl rf
              tel'
              (applySubst rhoP $ drop (length args) ps)
              (applySubst rho b)
@@ -585,8 +585,8 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause r tel' ps b t catchall) =
-    Clause r (abstract tel tel')
+  abstract tel (Clause rl rf tel' ps b t catchall) =
+    Clause rl rf (abstract tel tel')
            (namedTelVars m tel ++ ps)
            b
            t -- nothing to do for t, since it lives under the telescope
@@ -904,26 +904,6 @@ data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
 deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
 deriving instance (Subst t a, Ord a) => Ord (TelV a)
 
-type ListTel' a = [Dom (a, Type)]
-type ListTel = ListTel' ArgName
-
-telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
-telFromList' f = foldr extTel EmptyTel
-  where
-    extTel (Dom info (x, a)) = ExtendTel (Dom info a) . Abs (f x)
-
-telFromList :: ListTel -> Telescope
-telFromList = telFromList' id
-
-telToList :: Telescope -> ListTel
-telToList EmptyTel            = []
-telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel)
-  -- Andreas, 2013-12-14: This would work also for 'NoAbs',
-  -- since 'absBody' raises.
-
-telToArgs :: Telescope -> [Arg ArgName]
-telToArgs tel = [ Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
-
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
 bindsToTel' f []     t = []
@@ -975,11 +955,11 @@ telePi' reAbs = telePi where
       s2 = getSort <$> b
       el = El $ dLub s1 s2
 
--- | Uses free variable analysis to introduce 'noAbs' bindings.
+-- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
 telePi = telePi' reAbs
 
--- | Everything will be a 'Abs'.
+-- | Everything will be an 'Abs'.
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
 
@@ -994,6 +974,10 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
     s2 = fmap getSort b
 -}
 
+-- | Abstract over a telescope in a term, producing lambdas.
+--   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
+--
+--   The implementation is sound because 'Telescope' does not use 'NoAbs'.
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel         t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel

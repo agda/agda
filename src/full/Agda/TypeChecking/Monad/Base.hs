@@ -2276,6 +2276,9 @@ instance Free' Candidate c where
 -- we can print it later
 data Warning =
     TerminationIssue         [TerminationError]
+  | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
+  | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
+  -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | NotStrictlyPositive      QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -2300,8 +2303,50 @@ data TCWarning
     }
   deriving Show
 
+instance HasRange TCWarning where
+  getRange = envRange . clEnv . tcWarningClosure
+
 tcWarning :: TCWarning -> Warning
 tcWarning = clValue . tcWarningClosure
+
+-- | Classifying warnings: some are benign, others are (non-fatal) errors
+
+data WhichWarnings = ErrorWarnings | AllWarnings
+  -- ^ order of constructors important for derived Ord instance
+  deriving (Eq, Ord)
+
+isUnsolvedWarning :: Warning -> Bool
+isUnsolvedWarning w = case w of
+  UnsolvedMetaVariables{}    -> True
+  UnsolvedInteractionMetas{} -> True
+  UnsolvedConstraints{}      -> True
+ -- rest
+  OldBuiltin{}               -> False
+  EmptyRewritePragma         -> False
+  UselessPublic              -> False
+  UnreachableClauses{}       -> False
+  TerminationIssue{}         -> False
+  CoverageIssue{}            -> False
+  NotStrictlyPositive{}      -> False
+  ParseWarning{}             -> False
+
+
+classifyWarning :: Warning -> WhichWarnings
+classifyWarning w = case w of
+  OldBuiltin{}               -> AllWarnings
+  EmptyRewritePragma         -> AllWarnings
+  UselessPublic              -> AllWarnings
+  UnreachableClauses{}       -> AllWarnings
+  TerminationIssue{}         -> ErrorWarnings
+  CoverageIssue{}            -> ErrorWarnings
+  NotStrictlyPositive{}      -> ErrorWarnings
+  UnsolvedMetaVariables{}    -> ErrorWarnings
+  UnsolvedInteractionMetas{} -> ErrorWarnings
+  UnsolvedConstraints{}      -> ErrorWarnings
+  ParseWarning{}             -> ErrorWarnings
+
+classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
+classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2406,12 +2451,6 @@ data TypeError
         | ShouldBeApplicationOf Type QName
             -- ^ Expected a type to be an application of a particular datatype.
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
-        | IndicesNotConstructorApplications [Arg Term] -- ^ Indices.
-        | IndexVariablesNotDistinct [Nat] [Arg Term] -- ^ Variables, indices.
-        | IndicesFreeInParameters [Nat] [Arg Term] [Arg Term]
-          -- ^ Indices (variables), index expressions (with
-          -- constructors applied to reconstructed parameters),
-          -- parameters.
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName [QName]
           -- ^ Datatype, constructors.
         | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
@@ -2470,9 +2509,6 @@ data TypeError
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
         | UnequalBecauseOfUniverseConflict Comparison Term Term
-        | HeterogeneousEquality Term Type Term Type
-            -- ^ We ended up with an equality constraint where the terms
-            --   have different types.  This is not supported.
         | NotLeqSort Sort Sort
         | MetaCannotDependOn MetaId [Nat] Nat
             -- ^ The arguments are the meta variable, the parameters it can
@@ -2503,8 +2539,6 @@ data TypeError
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageFailure QName [(Telescope, [NamedArg DeBruijnPattern])]
-        | UnreachableClauses QName [[NamedArg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type

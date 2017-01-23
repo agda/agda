@@ -1,5 +1,6 @@
 -- Andreas, 2016-02-01 KEEP in compilation loop to prevent bit-rotting.
 
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -20,7 +21,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import System.Exit
+import System.Environment (getArgs)
 
+import Agda.TypeChecking.SizedTypes.Utils (setDebugging, traceM)
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 
@@ -29,6 +32,15 @@ import Parser
 main :: IO ()
 main = do
   putStrLn "Size constraint solver (C) 2013 Andreas Abel and Felix Reihl"
+  getArgs >>= \case
+    []          -> return ()
+    ["-d"]      -> setDebugging True
+    ["--debug"] -> setDebugging True
+    _ -> do
+      putStrLn "usage: size-solver [-d|--debug]"
+      putStrLn "size problem expected on stdin"
+      exitFailure
+
   (hs, pols, cs) <- parseFile . filter (not . all isSpace) . lines <$> getContents
 
   unless (null hs) $ do
@@ -45,7 +57,7 @@ main = do
     mapM_ (\ (x,p) -> print $ PolarityAssignment p x) $ Map.toAscList pols
 
   hg <- abortOnError $ hypGraph (rigids cs) hs
-  putStrLn $ "Hypotheses graph hg = " ++ show (graphToList hg)
+  traceM $ "Hypotheses graph hg = " ++ show (graphToList hg)
   -- Test:
   -- print $ lub' hg (NodeZero, 0) (NodeRigid "i", 0)
 

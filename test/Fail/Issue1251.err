@@ -1,6 +1,6 @@
 Issue1251/NonTerminating.agda:6,1-8,20
 Termination checking failed for the following functions:
-  NonTerminating.bla
+  bla
 Problematic calls:
   bla zero
     (at Issue1251/NonTerminating.agda:7,15-18)

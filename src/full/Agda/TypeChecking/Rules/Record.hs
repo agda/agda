@@ -394,7 +394,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                      [ Arg info $ unnamed $ varP "x" | Dom info _ <- telToList ftel ]
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
-            clause = Clause { clauseRange = getRange info
+            clause = Clause { clauseLHSRange  = getRange info
+                            , clauseFullRange = getRange info
                             , clauseTel       = killRange cltel
                             , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
                             , clauseBody      = body

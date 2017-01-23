@@ -2,14 +2,21 @@
 module Agda.TypeChecking.SizedTypes.Utils where
 
 import Control.Applicative
+import Data.IORef
 import qualified Debug.Trace as Debug
+import System.IO.Unsafe
+
 import Agda.Utils.Function
 
-debug :: Bool
-debug = False
+{-# NOINLINE debug #-}
+debug :: IORef Bool
+debug = unsafePerformIO $ newIORef False
+
+setDebugging :: Bool -> IO ()
+setDebugging = writeIORef debug
 
 trace :: String -> a -> a
-trace  s = applyWhen debug $ Debug.trace s
+trace s = applyWhen (unsafePerformIO $ readIORef debug) $ Debug.trace s
 
 traceM :: Applicative f => String -> f ()
 traceM s = trace s $ pure ()

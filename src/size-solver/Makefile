@@ -1,7 +1,7 @@
 SHELL=bash
 
 TOP=../../
-include $(TOP)/mk/version.mk
+include $(TOP)/mk/versions.mk
 
 CABAL_CMD=cabal
 
@@ -12,4 +12,5 @@ install-bin :
 # Tested with shelltestrunner 1.3.5.
 .PHONY : test
 test :
+	shelltest --color --precise test/succeed.test
 	shelltest --color --precise test/fail.test

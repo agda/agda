@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Conversion where
 
@@ -850,6 +851,8 @@ leqType = compareType CmpLeq
 --
 --   In principle, this function can host coercive subtyping, but
 --   currently it only tries to fix problems with hidden function types.
+--
+--   Precondition: @a@ and @b@ are reduced.
 coerce :: Term -> Type -> Type -> TCM Term
 coerce v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
@@ -861,10 +864,16 @@ coerce v t1 t2 = blockTerm t2 $ do
         , text "from type t1 =" <+> prettyTCM a1
         , text "to type   t2 =" <+> prettyTCM a2
         ]
+    reportSDoc "tc.conv.coerce" 70 $
+      text "coerce" <+> vcat
+        [ text "term      v  =" <+> (text . show) v
+        , text "from type t1 =" <+> (text . show) a1
+        , text "to type   t2 =" <+> (text . show) a2
+        ]
   -- v <$ do workOnTypes $ leqType t1 t2
   -- take off hidden/instance domains from t1 and t2
-  TelV tel1 b1 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t1
-  TelV tel2 b2 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t2
+  TelV tel1 b1 <- telViewUpTo' (-1) notVisible t1
+  TelV tel2 b2 <- telViewUpTo' (-1) notVisible t2
   let n = size tel1 - size tel2
   -- the crude solution would be
   --   v' = λ {tel2} → v {tel1}
@@ -873,7 +882,7 @@ coerce v t1 t2 = blockTerm t2 $ do
   -- insert n many hidden args
   if n <= 0 then fallback else do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
-      (args, t1') <- implicitArgs n (NotHidden /=) t1
+      (args, t1') <- implicitArgs n notVisible t1
       coerceSize leqType (v `apply` args) t1' t2
   where
     fallback = coerceSize leqType v t1 t2
@@ -886,18 +895,32 @@ coerce v t1 t2 = blockTerm t2 $ do
 --   TODO.
 --
 --   For now, we do a cheap heuristics.
+--
+--   Precondition: types are reduced.
 coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM Term
 coerceSize leqType v t1 t2 = workOnTypes $ do
+    reportSDoc "tc.conv.coerce" 70 $
+      text "coerceSize" <+> vcat
+        [ text "term      v  =" <+> (text . show) v
+        , text "from type t1 =" <+> (text . show) t1
+        , text "to type   t2 =" <+> (text . show) t2
+        ]
     let fallback = v <$ leqType t1 t2
         done = caseMaybeM (isSizeType t1) fallback $ \ b1 -> return v
     -- Andreas, 2015-07-22, Issue 1615:
     -- If t1 is a meta and t2 a type like Size< v2, we need to make sure we do not miss
     -- the constraint v < v2!
     caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+      -- Andreas, 2017-01-20, issue #2329:
+      -- If v is not a size suitable for the solver, like a neutral term,
+      -- we can only rely on the type.
+      mv <- sizeMaxView v
+      if any (\case{ DOtherSize{} -> True; _ -> False }) mv then fallback else do
       -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
       ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
         -- A (most probably weaker) alternative is to just check syn.eq.
         -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
+        reportSDoc "tc.conv.coerce" 20 $ text "coercing to a size type"
         case b2 of
           -- @t2 = Size@.  We are done!
           BoundedNo -> done

@@ -3,3 +3,5 @@ Incomplete pattern matching for .Issue2402-2.with-56. Missing
 cases:
   test2 false | w
 when checking the definition of with-56
+Unsolved interaction metas at the following locations:
+  Issue2402-2.agda:10,18-19
