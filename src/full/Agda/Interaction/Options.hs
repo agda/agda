@@ -658,7 +658,7 @@ pragmaOptions =
     -- , Option []          ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
     --              "enable proof irrelevance (experimental feature)"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
-                    "allow unsolved meta variables (only needed in batch mode)"
+                    "succeed and create interface file regardless of unsolved meta variables"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
                     "do not warn about not strictly positive data types"
     , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)
