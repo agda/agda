@@ -49,11 +49,12 @@ import Agda.VersionCommit
 import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 #include "undefined.h"
 
 builtinBackends :: [Backend]
-builtinBackends = []
+builtinBackends = [ghcBackend]
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
@@ -78,8 +79,6 @@ defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
 defaultInteraction opts
   | i                    = runIM . interactionLoop
   | ghci                 = mimicGHCi                          . (failIfInt   =<<)
-  | ghc && compileNoMain = (MAlonzo.compilerMain NotMain =<<) . (failIfNoInt =<<)
-  | ghc                  = (MAlonzo.compilerMain IsMain  =<<) . (failIfNoInt =<<)
   | epic                 = (Epic.compilerMain            =<<) . (failIfNoInt =<<)
   | js                   = (JS.compilerMain              =<<) . (failIfNoInt =<<)
   | uhc && compileNoMain = (UHC.compilerMain NotMain     =<<) . (failIfNoInt =<<)
@@ -88,7 +87,6 @@ defaultInteraction opts
   where
     i             = optInteractive     opts
     ghci          = optGHCiInteraction opts
-    ghc           = optGhcCompile      opts
     compileNoMain = optCompileNoMain   opts
     epic          = optEpicCompile     opts
     js            = optJSCompile       opts
