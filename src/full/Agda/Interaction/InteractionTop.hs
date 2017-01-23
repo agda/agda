@@ -566,8 +566,8 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          GHC       -> MAlonzo.compilerMain IsMain i
-          GHCNoMain -> MAlonzo.compilerMain NotMain i
+          GHC       -> callBackend "GHC" IsMain  i
+          GHCNoMain -> callBackend "GHC" NotMain i
           JS        -> JS.compilerMain i
           LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
