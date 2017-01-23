@@ -66,9 +66,13 @@ runAgda' backends = runTCMPrettyErrors $ do
   opts     <- liftIO $ runOptM $ parseBackendOptions backends argv
   case opts of
     Left  err        -> liftIO $ optionError err
-    Right (bs, opts) -> () <$ runAgdaWithOptions backends generateHTML interaction progName opts
+    Right (bs, opts) -> do
+      stBackends .= bs
+      let enabled (Backend b) = isEnabled b (options b)
+          bs' = filter enabled bs
+      () <$ runAgdaWithOptions backends generateHTML (interaction bs') progName opts
       where
-        interaction = backendInteraction bs $ defaultInteraction opts
+        interaction bs = backendInteraction bs $ defaultInteraction opts
 
 defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
 defaultInteraction opts
