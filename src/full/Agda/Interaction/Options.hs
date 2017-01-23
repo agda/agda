@@ -5,7 +5,7 @@ module Agda.Interaction.Options
     , IgnoreFlags(..)
     , PragmaOptions(..)
     , OptionsPragma
-    , Flag, OptM, runOptM
+    , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
