@@ -7,14 +7,19 @@
 module Agda.Compiler.Backend
   ( Backend(..), Backend'(..), Recompile(..), IsMain(..)
   , Flag
-  , runAgda
   , toTreeless
   , module Agda.Syntax.Treeless
-  , module Agda.TypeChecking.Monad )
-  where
+  , module Agda.TypeChecking.Monad
+    -- For Agda.Main
+  , backendInteraction
+  , parseBackendOptions
+    -- For InteractionTop
+  , callBackend
+  ) where
 
 import Control.Monad.State
 
+import Data.List
 import Data.Functor
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -25,6 +30,8 @@ import System.Console.GetOpt
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Reduce
+
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.HTML
@@ -38,7 +45,6 @@ import Agda.Utils.IndexedList
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
-import Agda.Main (runAgdaWithOptions, optionError, runTCMPrettyErrors, defaultInteraction)
 
 #include "undefined.h"
 
@@ -49,6 +55,8 @@ data Backend where
 
 data Backend' opts env menv mod def = Backend'
   { backendName      :: String
+  , backendVersion   :: Maybe String
+      -- ^ Optional version information to be printed with @--version@.
   , options          :: opts
       -- ^ Default options
   , commandLineFlags :: [OptDescr (Flag opts)]
@@ -75,17 +83,12 @@ data Backend' opts env menv mod def = Backend'
 
 data Recompile menv mod = Recompile menv | Skip mod
 
--- | The main entry-point for new backends. Takes a list of backends that may be
---   invoked. If none of the backends get enabled (by their corresponding
---   command-line flags) this behaves as @Agda.Main.main@.
-runAgda :: [Backend] -> IO ()
-runAgda backends = runTCMPrettyErrors $ do
-  progName <- liftIO getProgName
-  argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseOptions backends argv
-  case opts of
-    Left  err              -> liftIO $ optionError err
-    Right (backends, opts) -> () <$ runAgdaWithOptions generateHTML (interaction backends) progName opts
+callBackend :: String -> IsMain -> Interface -> TCM ()
+callBackend name iMain i = do
+  backends <- use stBackends
+  case [ b | b@(Backend b') <- backends, backendName b' == name ] of
+    Backend b : _ -> compilerMain b iMain i
+    []            -> genericError $ "No backend called '" ++ name ++ "'"
 
 -- Internals --------------------------------------------------------------
 
@@ -107,8 +110,8 @@ embedFlag l flag = l flag
 embedOpt :: Lens' a b -> OptDescr (Flag a) -> OptDescr (Flag b)
 embedOpt l = fmap (embedFlag l)
 
-parseOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
-parseOptions backends argv =
+parseBackendOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
+parseBackendOptions backends argv =
   case makeAll backendWithOpts backends of
     Some bs -> do
       let agdaFlags    = map (embedOpt lSnd) standardOptions
@@ -120,14 +123,16 @@ parseOptions backends argv =
       (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
                                             (bs, defaultOptions)
       opts <- checkOpts opts
-      let enabled (Backend b) = isEnabled b (options b)
-      return (filter enabled $ forgetAll forgetOpts backends, opts)
+      return (forgetAll forgetOpts backends, opts)
 
-interaction :: [Backend] -> TCM (Maybe Interface) -> TCM ()
-interaction [] check = do
-  opts <- commandLineOptions
-  defaultInteraction opts check
-interaction backends check = do
+backendInteraction :: [Backend] -> (TCM (Maybe Interface) -> TCM ()) -> TCM (Maybe Interface) -> TCM ()
+backendInteraction [] fallback check = fallback check
+backendInteraction backends _ check = do
+  opts   <- commandLineOptions
+  let backendNames = [ backendName b | Backend b <- backends ]
+      err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ intercalate ", " backendNames ++ ")"
+  when (optInteractive     opts) $ err "interactive"
+  when (optGHCiInteraction opts) $ err "interaction"
   mi     <- check
   noMain <- optCompileNoMain <$> commandLineOptions
   let isMain | noMain    = NotMain
@@ -141,6 +146,7 @@ compilerMain backend isMain i =
   inCompilerEnv i $ do
     env  <- preCompile backend (options backend)
     mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env i
+    setInterface i
     postCompile backend env isMain mods
 
 compileModule :: Backend' opts env menv mod def -> env -> Interface -> TCM mod
@@ -151,5 +157,6 @@ compileModule backend env i = do
   case r of
     Skip m         -> return m
     Recompile menv -> do
-      defs  <- map snd . sortDefs <$> curDefs
-      postModule backend env menv (iModuleName i) =<< mapM (compileDef backend env menv) defs
+      defs <- map snd . sortDefs <$> curDefs
+      res  <- mapM (compileDef backend env menv <=< instantiateFull) defs
+      postModule backend env menv (iModuleName i) res

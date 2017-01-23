@@ -54,12 +54,14 @@ resetState = do
 
 -- | Resets all of the type checking state.
 --
---   Keep only 'Benchmark' information.
+--   Keep only 'Benchmark' and backend information.
 
 resetAllState :: TCM ()
 resetAllState = do
     b <- getBenchmark
+    backends <- use stBackends
     put $ updatePersistentState (\ s -> s { stBenchmark = b }) initState
+    stBackends .= backends
 -- resetAllState = put initState
 
 -- | Restore 'TCState' after performing subcomputation.

@@ -70,6 +70,7 @@ import qualified Agda.Interaction.Highlighting.Range as H
 import Agda.Compiler.Common (IsMain (..))
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
+import Agda.Compiler.Backend
 
 import qualified Agda.Auto.Auto as Auto
 
@@ -333,7 +334,7 @@ data Interaction' range
 
     -- | @cmd_compile b m argv@ compiles the module in file @m@ using
     -- the backend @b@, using @argv@ as the command-line options.
-  | Cmd_compile         Backend FilePath [String]
+  | Cmd_compile         CompilerBackend FilePath [String]
 
   | Cmd_constraints
 
@@ -565,8 +566,8 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          GHC       -> MAlonzo.compilerMain IsMain i
-          GHCNoMain -> MAlonzo.compilerMain NotMain i
+          GHC       -> callBackend "GHC" IsMain  i
+          GHCNoMain -> callBackend "GHC" NotMain i
           JS        -> JS.compilerMain i
           LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
@@ -960,10 +961,7 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data Backend = GHC
-             | GHCNoMain
-             | JS
-             | LaTeX
+data CompilerBackend = GHC | GHCNoMain | JS | LaTeX
     deriving (Show, Read, Eq)
 
 data GiveRefine = Give | Refine | Intro

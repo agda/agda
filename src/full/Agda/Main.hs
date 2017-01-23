@@ -11,6 +11,7 @@ import Data.Maybe
 
 import System.Environment
 import System.Exit
+import System.Console.GetOpt
 
 import Agda.Syntax.Position (Range)
 import Agda.Syntax.Concrete.Pretty ()
@@ -37,6 +38,8 @@ import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 import Agda.Compiler.UHC.Compiler as UHC
 
+import Agda.Compiler.Backend
+
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.String
@@ -46,25 +49,36 @@ import Agda.VersionCommit
 import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 #include "undefined.h"
 
+builtinBackends :: [Backend]
+builtinBackends = [ghcBackend]
+
 -- | The main function
-runAgda :: TCM ()
-runAgda = do
+runAgda :: [Backend] -> IO ()
+runAgda backends = runAgda' $ builtinBackends ++ backends
+
+runAgda' :: [Backend] -> IO ()
+runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseStandardOptions argv
+  opts     <- liftIO $ runOptM $ parseBackendOptions backends argv
   case opts of
-    Left err -> liftIO $ optionError err
-    Right opts -> () <$ runAgdaWithOptions generateHTML (defaultInteraction opts) progName opts
+    Left  err        -> liftIO $ optionError err
+    Right (bs, opts) -> do
+      stBackends .= bs
+      let enabled (Backend b) = isEnabled b (options b)
+          bs' = filter enabled bs
+      () <$ runAgdaWithOptions backends generateHTML (interaction bs') progName opts
+      where
+        interaction bs = backendInteraction bs $ defaultInteraction opts
 
 defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
 defaultInteraction opts
   | i                    = runIM . interactionLoop
   | ghci                 = mimicGHCi                          . (failIfInt   =<<)
-  | ghc && compileNoMain = (MAlonzo.compilerMain NotMain =<<) . (failIfNoInt =<<)
-  | ghc                  = (MAlonzo.compilerMain IsMain  =<<) . (failIfNoInt =<<)
   | epic                 = (Epic.compilerMain            =<<) . (failIfNoInt =<<)
   | js                   = (JS.compilerMain              =<<) . (failIfNoInt =<<)
   | uhc && compileNoMain = (UHC.compilerMain NotMain     =<<) . (failIfNoInt =<<)
@@ -73,7 +87,6 @@ defaultInteraction opts
   where
     i             = optInteractive     opts
     ghci          = optGHCiInteraction opts
-    ghc           = optGhcCompile      opts
     compileNoMain = optCompileNoMain   opts
     epic          = optEpicCompile     opts
     js            = optJSCompile       opts
@@ -90,18 +103,19 @@ defaultInteraction opts
 
 -- | Run Agda with parsed command line options and with a custom HTML generator
 runAgdaWithOptions
-  :: TCM ()             -- ^ HTML generating action
+  :: [Backend]          -- ^ Backends only for printing usage and version information
+  -> TCM ()             -- ^ HTML generating action
   -> (TCM (Maybe Interface) -> TCM a) -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
   -> TCM (Maybe a)
-runAgdaWithOptions generateHTML interaction progName opts
-      | optShowHelp opts    = Nothing <$ liftIO printUsage
-      | optShowVersion opts = Nothing <$ liftIO printVersion
+runAgdaWithOptions backends generateHTML interaction progName opts
+      | optShowHelp opts    = Nothing <$ liftIO (printUsage backends)
+      | optShowVersion opts = Nothing <$ liftIO (printVersion backends)
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)
-                            = Nothing <$ liftIO printUsage
+                            = Nothing <$ liftIO (printUsage backends)
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
@@ -155,15 +169,24 @@ runAgdaWithOptions generateHTML interaction progName opts
           return result
 
 -- | Print usage information.
-printUsage :: IO ()
-printUsage = do
+printUsage :: [Backend] -> IO ()
+printUsage backends = do
   progName <- getProgName
   putStr $ usage standardOptions_ progName
+  mapM_ (putStr . backendUsage) backends
+
+backendUsage :: Backend -> String
+backendUsage (Backend b) =
+  usageInfo ("\n" ++ backendName b ++ " backend options") $
+    map (fmap $ const ()) (commandLineFlags b)
 
 -- | Print version information.
-printVersion :: IO ()
-printVersion = do
+printVersion :: [Backend] -> IO ()
+printVersion backends = do
   putStrLn $ "Agda version " ++ versionWithCommitInfo
+  mapM_ putStrLn
+    [ "  - " ++ name ++ " backend version " ++ ver
+    | Backend Backend'{ backendName = name, backendVersion = Just ver } <- backends ]
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
@@ -190,4 +213,4 @@ runTCMPrettyErrors tcm = do
 
 -- | Main
 main :: IO ()
-main = runTCMPrettyErrors runAgda
+main = runAgda []

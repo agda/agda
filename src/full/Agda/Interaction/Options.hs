@@ -5,7 +5,7 @@ module Agda.Interaction.Options
     , IgnoreFlags(..)
     , PragmaOptions(..)
     , OptionsPragma
-    , Flag, OptM, runOptM
+    , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
@@ -99,9 +99,6 @@ data CommandLineOptions = Options
   , optInteractive      :: Bool
   , optGHCiInteraction  :: Bool
   , optCompileNoMain    :: Bool
-  , optGhcCompile       :: Bool
-  , optGhcCallGhc       :: Bool
-  , optGhcFlags         :: [String]
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
   , optUHCCompile       :: Bool
@@ -196,9 +193,6 @@ defaultOptions = Options
   , optInteractive      = False
   , optGHCiInteraction  = False
   , optCompileNoMain    = False
-  , optGhcCompile       = False
-  , optGhcCallGhc       = True
-  , optGhcFlags         = []
   , optEpicCompile      = False
   , optJSCompile        = False
   , optUHCCompile       = False
@@ -283,11 +277,9 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne [optAllowUnsolved . p, \x -> optGhcCompile x]) = throwError
-      "Unsolved meta variables are not allowed when compiling.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       throwError "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [\x -> optGhcCompile x, optEpicCompile, optJSCompile]) =
+  | not (atMostOne $ interactive ++ [optEpicCompile, optJSCompile]) =
       throwError "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       throwError "Choose at most one: --html/--interactive/--interaction.\n"
@@ -463,16 +455,6 @@ interactiveFlag  o = return $ o { optInteractive    = True
 compileFlagNoMain :: Flag CommandLineOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
 
-compileGhcFlag :: Flag CommandLineOptions
-compileGhcFlag o = return $ o { optGhcCompile = True }
-
-ghcDontCallGhcFlag :: Flag CommandLineOptions
-ghcDontCallGhcFlag o = return $ o { optGhcCallGhc = False }
-
--- NOTE: Quadratic in number of flags.
-ghcFlag :: String -> Flag CommandLineOptions
-ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
-
 -- The Epic backend has been removed. See Issue 1481.
 compileEpicFlag :: Flag CommandLineOptions
 -- compileEpicFlag o = return $ o { optEpicCompile = True}
@@ -571,13 +553,8 @@ standardOptions =
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
-    , Option ['c']  ["compile", "ghc"] (NoArg compileGhcFlag)
-                    "compile program using the GHC backend"
-    , Option []     ["ghc-dont-call-ghc"] (NoArg ghcDontCallGhcFlag) "Don't call ghc, just write the GHC Haskell files."
-    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
-                    "give the flag GHC-FLAG to GHC when compiling using the GHC backend"
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
-                    "when compiling using the GHC backend or the UHC backend (experimental), do not treat the requested module as the main module of a program"
+                    "do not treat the requested module as the main module of a program when compiling"
 
     -- The Epic backend has been removed. See Issue 1481.
     , Option []     ["epic"] (NoArg compileEpicFlag)
