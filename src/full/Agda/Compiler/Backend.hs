@@ -13,6 +13,8 @@ module Agda.Compiler.Backend
     -- For Agda.Main
   , backendInteraction
   , parseBackendOptions
+    -- For InteractionTop
+  , callBackend
   ) where
 
 import Control.Monad.State
@@ -81,6 +83,13 @@ data Backend' opts env menv mod def = Backend'
 
 data Recompile menv mod = Recompile menv | Skip mod
 
+callBackend :: String -> IsMain -> Interface -> TCM ()
+callBackend name iMain i = do
+  backends <- use stBackends
+  case [ b | b@(Backend b') <- backends, backendName b' == name ] of
+    Backend b : _ -> compilerMain b iMain i
+    []            -> genericError $ "No backend called '" ++ name ++ "'"
+
 -- Internals --------------------------------------------------------------
 
 data BackendWithOpts opts where
@@ -114,8 +123,7 @@ parseBackendOptions backends argv =
       (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
                                             (bs, defaultOptions)
       opts <- checkOpts opts
-      let enabled (Backend b) = isEnabled b (options b)
-      return (filter enabled $ forgetAll forgetOpts backends, opts)
+      return (forgetAll forgetOpts backends, opts)
 
 backendInteraction :: [Backend] -> (TCM (Maybe Interface) -> TCM ()) -> TCM (Maybe Interface) -> TCM ()
 backendInteraction [] fallback check = fallback check
