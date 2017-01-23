@@ -19,7 +19,7 @@ open import Category.Monad.Identity
 open import Data.Fin using (Fin)
 open import Data.Nat
 open import Data.Vec as Vec using (Vec)
-open import Data.Product
+open import Data.Product using (_,_; proj₁; proj₂)
 import Data.Vec.Properties as VecProp
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≗_)
@@ -75,8 +75,7 @@ module Naturality
 
   natural : ∀ {n} (e : Expr n) → op ∘ ⟦ e ⟧₁ ≗ ⟦ e ⟧₂ ∘ Vec.map op
   natural (var x) ρ = begin
-    op (Vec.lookup x ρ)                                            ≡⟨ P.sym $
-                                                                        Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) op ρ ⟩
+    op (Vec.lookup x ρ)                                            ≡⟨ P.sym $ VecProp.lookup-map x op ρ ⟩
     Vec.lookup x (Vec.map op ρ)                                    ∎
   natural (e₁ or e₂) ρ = begin
     op (pure₁ _∨_ ⊛₁ ⟦ e₁ ⟧₁ ρ ⊛₁ ⟦ e₂ ⟧₁ ρ)                       ≡⟨ op-⊛ _ _ ⟩
@@ -108,11 +107,11 @@ lift : ℕ → BooleanAlgebra b b
 lift n = record
   { Carrier          = Vec Carrier n
   ; _≈_              = Pointwise _≈_
-  ; _∨_              = Vec.zipWith _∨_
-  ; _∧_              = Vec.zipWith _∧_
-  ; ¬_               = Vec.map ¬_
-  ; ⊤                = Vec.replicate ⊤
-  ; ⊥                = Vec.replicate ⊥
+  ; _∨_              = zipWith _∨_
+  ; _∧_              = zipWith _∧_
+  ; ¬_               = map ¬_
+  ; ⊤                = pure ⊤
+  ; ⊥                = pure ⊥
   ; isBooleanAlgebra = record
     { isDistributiveLattice = record
       { isLattice = record
@@ -167,6 +166,9 @@ lift n = record
     }
   }
   where
+  open RawApplicative Vec.applicative
+    using (pure; zipWith) renaming (_<$>_ to map)
+
   ⟦_⟧Id : ∀ {n} → Expr n → Vec Carrier n → Carrier
   ⟦_⟧Id = Semantics.⟦_⟧ (RawMonad.rawIApplicative IdentityMonad)
 

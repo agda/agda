@@ -6,6 +6,7 @@
 
 module Data.Vec where
 
+open import Category.Functor
 open import Category.Applicative
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
@@ -74,11 +75,18 @@ applicative = record
 
 map : ∀ {a b n} {A : Set a} {B : Set b} →
       (A → B) → Vec A n → Vec B n
-map f xs = replicate f ⊛ xs
+map f []       = []
+map f (x ∷ xs) = f x ∷ map f xs
+
+functor :  ∀ {a n} → RawFunctor (λ (A : Set a) → Vec A n)
+functor = record
+  { _<$>_ = map
+  }
 
 zipWith : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
           (A → B → C) → Vec A n → Vec B n → Vec C n
-zipWith _⊕_ xs ys = replicate _⊕_ ⊛ xs ⊛ ys
+zipWith f []       []       = []
+zipWith f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
 
 zip : ∀ {a b n} {A : Set a} {B : Set b} →
       Vec A n → Vec B n → Vec (A × B) n

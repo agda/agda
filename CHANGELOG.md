@@ -9,6 +9,27 @@ Important changes since 0.13:
 
 * Added `Category.Functor.Morphism` and module `Category.Functor.Identity`.
 
+* Native (pattern-matching) definitions for `Data.Vec.map` and `Data.Vec.zipWith`.
+  Previously they were defined using the `applicative` operations of `Vec`.
+  The rationale for this change is better printing of goals involving `map`
+  or `zipWith`.  Also, it has been argued that `zipWith` is fundamental than `_⊛_`.
+
+  In the wake of this change, the following definitions have been added:
+  1. `Data.Vec.functor`, encapsulating `Data.Vec.map`.
+  2. The following properties in `Data.Vec.Properties`, relating old and new definition:
+     ```
+     ⊛-is-zipWith
+     map-is-⊛
+     zipWith-is-⊛
+     ```
+  3. The following new lemmata in `Data.Vec.Properties`:
+     ```
+     lookup-map
+     lookup-functor-morphism
+     map-replicate
+     zipWith-replicate
+     zipWith-map
+     ```
 
 
 Version 0.13

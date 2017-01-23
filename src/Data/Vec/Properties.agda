@@ -8,6 +8,8 @@ module Data.Vec.Properties where
 
 open import Algebra
 open import Category.Applicative.Indexed
+import Category.Functor as Fun
+open import Category.Functor.Identity using (IdentityFunctor)
 open import Category.Monad
 open import Category.Monad.Identity
 open import Data.Vec
@@ -55,7 +57,18 @@ open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
               (x ∷ xs) ≡ (y ∷ ys) → x ≡ y × xs ≡ ys
 ∷-injective refl = refl , refl
 
--- lookup is an applicative functor morphism.
+-- lookup is a functor morphism from Vec to Identity.
+
+lookup-map : ∀ {a b n} {A : Set a} {B : Set b} (i : Fin n) (f : A → B) (xs : Vec A n) →
+             lookup i (map f xs) ≡ f (lookup i xs)
+lookup-map zero    f (x ∷ xs) = refl
+lookup-map (suc i) f (x ∷ xs) = lookup-map i f xs
+
+lookup-functor-morphism : ∀ {a n} (i : Fin n) →
+                          Fun.Morphism (functor {a = a} {n = n}) IdentityFunctor
+lookup-functor-morphism i = record { op = lookup i ; op-<$> = lookup-map i }
+
+-- lookup is even an applicative functor morphism.
 
 lookup-morphism :
   ∀ {a n} (i : Fin n) →
@@ -67,8 +80,8 @@ lookup-morphism i = record
   ; op-⊛    = lookup-⊛ i
   }
   where
-  lookup-replicate : ∀ {a n} {A : Set a} (i : Fin n) →
-                     lookup i ∘ replicate {A = A} ≗ id {A = A}
+  lookup-replicate : ∀ {a n} {A : Set a} (i : Fin n) (x : A) →
+                     lookup i (replicate x) ≡ x
   lookup-replicate zero    = λ _ → refl
   lookup-replicate (suc i) = lookup-replicate i
 
@@ -161,6 +174,69 @@ map-∘ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c}
         _≗_ {A = Vec A n} (map (f ∘ g)) (map f ∘ map g)
 map-∘ f g []       = refl
 map-∘ f g (x ∷ xs) = P.cong (_∷_ (f (g x))) (map-∘ f g xs)
+
+-- Laws of the applicative.
+
+-- Idiomatic application is a special case of zipWith:
+-- _⊛_ = zipWith id
+
+⊛-is-zipWith : ∀ {a b n} {A : Set a} {B : Set b} →
+               (fs : Vec (A → B) n) (xs : Vec A n) →
+               (fs ⊛ xs) ≡ zipWith _$_ fs xs
+⊛-is-zipWith []       []       = refl
+⊛-is-zipWith (f ∷ fs) (x ∷ xs) = P.cong (f x ∷_) (⊛-is-zipWith fs xs)
+
+-- map is expressible via idiomatic application
+
+map-is-⊛ : ∀ {a b n} {A : Set a} {B : Set b} (f : A → B) (xs : Vec A n) →
+           map f xs ≡ (replicate f ⊛ xs)
+map-is-⊛ f []       = refl
+map-is-⊛ f (x ∷ xs) = P.cong (_ ∷_) (map-is-⊛ f xs)
+
+-- zipWith is expressible via idiomatic application
+
+zipWith-is-⊛ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
+               (f : A → B → C) (xs : Vec A n) (ys : Vec B n) →
+               zipWith f xs ys ≡ (replicate f ⊛ xs ⊛ ys)
+zipWith-is-⊛ f []       []       = refl
+zipWith-is-⊛ f (x ∷ xs) (y ∷ ys) = P.cong (_ ∷_) (zipWith-is-⊛ f xs ys)
+
+-- Applicative fusion laws for map and zipWith.
+
+-- pulling a replicate into a map
+
+map-replicate :  ∀ {a b} {A : Set a} {B : Set b} (f : A → B) (x : A) (n : ℕ) →
+                 map f (replicate {n = n} x) ≡ replicate {n = n} (f x)
+map-replicate f x zero = refl
+map-replicate f x (suc n) = P.cong (f x ∷_) (map-replicate f x n)
+
+-- pulling a replicate into a zipWith
+
+zipWith-replicate₁ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
+                    (_⊕_ : A → B → C) (x : A) (ys : Vec B n) →
+                    zipWith _⊕_ (replicate x) ys ≡ map (x ⊕_) ys
+zipWith-replicate₁ _⊕_ x []       = refl
+zipWith-replicate₁ _⊕_ x (y ∷ ys) = P.cong ((x ⊕ y) ∷_) (zipWith-replicate₁ _⊕_ x ys)
+
+zipWith-replicate₂ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
+                    (_⊕_ : A → B → C) (xs : Vec A n) (y : B) →
+                    zipWith _⊕_ xs (replicate y) ≡ map (_⊕ y) xs
+zipWith-replicate₂ _⊕_ []       y = refl
+zipWith-replicate₂ _⊕_ (x ∷ xs) y = P.cong ((x ⊕ y) ∷_) (zipWith-replicate₂ _⊕_ xs y)
+
+-- pulling a map into a zipWith
+
+zipWith-map₁ : ∀ {a b c d n} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+               (_⊕_ : B → C → D) (f : A → B) (xs : Vec A n) (ys : Vec C n) →
+               zipWith _⊕_ (map f xs) ys ≡ zipWith (λ x y → f x ⊕ y) xs ys
+zipWith-map₁ _⊕_ f [] [] = refl
+zipWith-map₁ _⊕_ f (x ∷ xs) (y ∷ ys) = P.cong ((f x ⊕ y) ∷_) (zipWith-map₁ _⊕_ f xs ys)
+
+zipWith-map₂ : ∀ {a b c d n} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+               (_⊕_ : A → C → D) (f : B → C) (xs : Vec A n) (ys : Vec B n) →
+               zipWith _⊕_ xs (map f ys) ≡ zipWith (λ x y → x ⊕ f y) xs ys
+zipWith-map₂ _⊕_ f [] [] = refl
+zipWith-map₂ _⊕_ f (x ∷ xs) (y ∷ ys) = P.cong ((x ⊕ f y) ∷_) (zipWith-map₂ _⊕_ f xs ys)
 
 -- Tabulation.
 
