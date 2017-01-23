@@ -17,6 +17,7 @@ module Agda.Compiler.Backend
 
 import Control.Monad.State
 
+import Data.List
 import Data.Functor
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -119,6 +120,11 @@ parseBackendOptions backends argv =
 backendInteraction :: [Backend] -> (TCM (Maybe Interface) -> TCM ()) -> TCM (Maybe Interface) -> TCM ()
 backendInteraction [] fallback check = fallback check
 backendInteraction backends _ check = do
+  opts   <- commandLineOptions
+  let backendNames = [ backendName b | Backend b <- backends ]
+      err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ intercalate ", " backendNames ++ ")"
+  when (optInteractive     opts) $ err "interactive"
+  when (optGHCiInteraction opts) $ err "interaction"
   mi     <- check
   noMain <- optCompileNoMain <$> commandLineOptions
   let isMain | noMain    = NotMain
