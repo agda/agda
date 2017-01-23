@@ -162,14 +162,17 @@ map-∘ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c}
 map-∘ f g []       = refl
 map-∘ f g (x ∷ xs) = P.cong (_∷_ (f (g x))) (map-∘ f g xs)
 
--- tabulate can be expressed using map and allFin.
+-- Tabulation.
+
+-- mapping over a tabulation is the tabulation of the composition
 
 tabulate-∘ : ∀ {n a b} {A : Set a} {B : Set b}
              (f : A → B) (g : Fin n → A) →
              tabulate (f ∘ g) ≡ map f (tabulate g)
 tabulate-∘ {zero}  f g = refl
-tabulate-∘ {suc n} f g =
-  P.cong (_∷_ (f (g zero))) (tabulate-∘ f (g ∘ suc))
+tabulate-∘ {suc n} f g = P.cong (f (g zero) ∷_) (tabulate-∘ f (g ∘ suc))
+
+-- tabulate can be expressed using map and allFin.
 
 tabulate-allFin : ∀ {n a} {A : Set a} (f : Fin n → A) →
                   tabulate f ≡ map f (allFin n)
