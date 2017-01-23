@@ -101,11 +101,11 @@ modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
 
 exports :: Nat -> Int -> Set [MemberId] -> [Export] -> String
 exports n i lss [] = ""
-exports n i lss (Export ls _ e : es) | member (init ls) lss =
+exports n i lss (Export ls e : es) | member (init ls) lss =
   "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n (i+1) e ++ ";" ++ br i ++
   exports n i (insert ls lss) es
-exports n i lss (Export ls isCoind e : es) | otherwise =
-  exports n i lss (Export (init ls) False (Object empty) : Export ls isCoind e : es)
+exports n i lss (Export ls e : es) | otherwise =
+  exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
   pretty n i (Module m es ex) =
