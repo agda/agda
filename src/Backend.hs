@@ -46,10 +46,13 @@ mlfDef d@Defn{ defName = q } =
         Nothing -> return ()
         Just tt -> do
           liftIO $ putStrLn (replicate 70 '=')
+          liftIO $ putStrLn "Treeless"
           liftIO $ print $ nest 2 $ hang (pretty q <+> text "=") 2 (pretty tt)
           liftIO $ putStrLn (replicate 70 '-')
+          liftIO $ putStrLn "Treeless AST"
           liftIO $ putStrLn (show q ++ " = " ++ show tt)
           liftIO $ putStrLn (replicate 70 '-')
+          liftIO $ putStrLn "Malfunction AST"
           liftIO $ putStrLn (show q ++ " = " ++ showTerm (translate tt))
     Primitive{ primName = s } -> do
       liftIO $ putStrLn $ "  primitive " ++ s
