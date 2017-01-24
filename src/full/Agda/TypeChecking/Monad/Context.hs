@@ -226,7 +226,7 @@ instance AddContext String where
 instance AddContext Telescope where
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
-    loop (ExtendTel t tel) = underAbstractionNoMPS t tel loop
+    loop (ExtendTel t tel) = underAbstraction t tel loop
   contextSize = size
 
 -- | Context entries without a type have this dummy type.
@@ -236,13 +236,8 @@ dummyDom = defaultDom typeDontCare
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
-underAbstraction t a k = underAbstractionNoMPS t a $ \ v -> weakenModuleParameters 1 $ k v
-
--- | Go under an abstraction, but do not update module parameter substitution.
-{-# SPECIALIZE underAbstractionNoMPS :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstractionNoMPS :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
-underAbstractionNoMPS _ (NoAbs _ v) k = k v
-underAbstractionNoMPS t a           k = do
+underAbstraction _ (NoAbs _ v) k = k v
+underAbstraction t a           k = do
     x <- unshadowName =<< freshName_ (realName $ absName a)
     addContext (x, t) $ k $ absBody a
   where
