@@ -65,7 +65,7 @@ tagOfInt n =
 -- TODO: Bindings for modules Ident and Longident
 type Ident = String
 
-type Longident = String
+type Longident = [Ident]
 --data Longident
 --  = Lident String
 --  | Ldot   Longident String
@@ -78,6 +78,7 @@ data Mod = MMod [Binding] [Term]
 
 data Term
   = Mvar Ident
+  | Mident Ident
   | Mlambda [Ident] Term
   | Mapply Term [Term]
   | Mlet [Binding] Term

@@ -8,17 +8,22 @@ showMod (MMod bs ts) = printf "(module %s (export %s))"
   (unwords . map showBinding $ bs)
   (unwords . map showTerm $ ts)
 
+{-# DEPRECATED showTermAsProgram "Use `showMod` instead" #-}
+showTermAsProgram :: Term -> String
+showTermAsProgram t = "(module (_ " ++ showTerm t ++ ") (export))"
+
+
 showTerm :: Term -> String
 showTerm tt = case tt of
   Mvar i              -> showIdent i
   Mlambda is t        -> printf "(lambda %s %s)" (unwords (map showIdent is)) (showTerm t)
-  Mapply t ts         -> printf "(apply %s %s)" (showTerm t) (unwords (map showTerm ts))
+  Mapply t ts         -> printf "(apply %s %s)" (showTerm t) (unwords . map showTerm $ ts)
   Mlet bs t           -> printf "(let %s %s)" (unwords (map showBinding bs)) (showTerm t)
-  Mint ic             -> printf "(%s)" (showIntConst ic)
-  Mstring s           -> printf "(%s)" (show s)
+  Mint ic             -> printf "%s" (showIntConst ic)
+  Mstring s           -> printf "%s" (show s)
   Mglobal li          -> printf "(global %s)" (showLongident li)
   Mswitch t cexps     -> printf "(switch %s %s)" (showTerm t) (unwords (map showCaseExpression cexps))
-  -- Integers
+ -- Integers
   Mintop1 op tp t0    -> printf "(%s %s)" (showUnaryIntOp op) (showTypedTerm tp t0)
   Mintop2 op tp t0 t1 -> printf "(%s %s %s)" (showBinaryIntOp op) (showTypedTerm tp t0) (showTypedTerm tp t1)
   Mconvert tp0 tp1 t0 -> printf "(convert.%s.%s %s)" (showIntType tp0) (showIntType tp1) (showTerm t0)
@@ -30,9 +35,6 @@ showTerm tt = case tt of
   -- Blocks
   Mblock i ts         -> printf "(block (tag %s) %s)" (show i) (unwords (map showTerm ts))
   Mfield i t0         -> printf "(field %s %s)" (show i) (showTerm t0)
-
-showIdent :: Ident -> String
-showIdent = id
 
 showBinding :: Binding -> String
 showBinding b = case b of
@@ -51,7 +53,10 @@ showIntConst ic = case ic of
   CBigint i -> show i
 
 showLongident :: Longident -> String
-showLongident = id
+showLongident = unwords . map showIdent
+
+showIdent :: String -> String
+showIdent = ('$':)
 
 showCaseExpression :: ([Case], Term) -> String
 showCaseExpression (cs, t) = printf "(%s %s)" (unwords (map showCase cs)) (showTerm t)

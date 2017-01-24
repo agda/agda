@@ -23,6 +23,8 @@ library
                      , Agda >= 2.5.2
                      , containers == 0.5.*
                      , mtl == 2.2.*
+                     , process == 1.4.*
+                     , temporary == 1.2.*
   default-language:    Haskell2010
 
 executable agda2mlf
