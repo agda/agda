@@ -12,7 +12,7 @@ showTerm t = case t of
   Mint ic             -> printf "(%s)" (showIntConst ic)
   Mstring s           -> printf "(%s)" s
   Mglobal li          -> printf "(%s)" (showLongident li)
-  Mswitch t cexps     -> printf "(%s %s)" (showTerm t) (unwords (map showCaseExpression cexps))
+  Mswitch t cexps     -> printf "(switch %s %s)" (showTerm t) (unwords (map showCaseExpression cexps))
   -- Integers
   Mintop1 op tp t0    -> printf "(%s %s)" (showUnaryIntOp op) (showTypedTerm tp t0)
   Mintop2 op tp t0 t1 -> printf "(%s %s %s)" (showBinaryIntOp op) (showTypedTerm tp t0) (showTypedTerm tp t1)
