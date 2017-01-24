@@ -2484,8 +2484,8 @@ data TypeError
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
         | WrongNamedArgument (NamedArg A.Expr)
             -- ^ A function is applied to a hidden named argument it does not have.
-        | WrongIrrelevanceInLambda Type
-            -- ^ Expected a relevant function and found an irrelevant lambda.
+        | WrongIrrelevanceInLambda
+            -- ^ Wrong user-given relevance annotation in lambda.
         | WrongInstanceDeclaration
             -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding
