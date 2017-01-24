@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Syntax.Internal ( tests ) where
@@ -10,6 +11,20 @@ import InternalTests.Syntax.Common ()
 ------------------------------------------------------------------------
 -- Instances
 
+-- ASR (2017-01-23). Hack!
+
+-- Why GHC <= 7.8.4 generate the error
+
+--   test/InternalTests/Syntax/Internal.hs:18:10:
+--       Duplicate instance declarations:
+--         instance [overlap ok] Eq NotBlocked
+--           -- Defined at test/InternalTests/Syntax/Internal.hs:18:10
+--         instance [overlap ok] Eq NotBlocked
+--           -- Defined in ‘Agda.TypeChecking.Substitute’
+
+-- if Agda.TypeChecking.Substitute is not imported?
+
+#if __GLASGOW_HASKELL__ > 708
 instance Eq NotBlocked where
   StuckOn _        == StuckOn _        = True  -- FIXME
   Underapplied     == Underapplied     = True
@@ -17,6 +32,7 @@ instance Eq NotBlocked where
   MissingClauses   == MissingClauses   = True
   ReallyNotBlocked == ReallyNotBlocked = True
   _                == _                = False
+#endif
 
 instance Arbitrary NotBlocked where
   arbitrary = elements [ Underapplied
