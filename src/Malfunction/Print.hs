@@ -8,11 +8,6 @@ showMod (MMod bs ts) = printf "(module %s (export %s))"
   (unwords . map showBinding $ bs)
   (unwords . map showTerm $ ts)
 
-{-# DEPRECATED showTermAsProgram "Use `showMod` instead" #-}
-showTermAsProgram :: Term -> String
-showTermAsProgram t = "(module (_ " ++ showTerm t ++ ") (export))"
-
-
 showTerm :: Term -> String
 showTerm tt = case tt of
   Mvar i              -> showIdent i
