@@ -281,7 +281,18 @@ compileTerm' kit t = go t
           _ -> qname q
       T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> kit) -> do
         x <- go x
-        return $ Object $ Map.fromList [(flatName, Lambda 0 x)]
+        let evalThunk = unlines
+              [ "function() {"
+              , "  delete this.flat;"
+              , "  var result = this.__flat_helper();"
+              , "  delete this.__flat_helper;"
+              , "  this.flat = function() { return result; };"
+              , "  return result;"
+              , "}"
+              ]
+        return $ Object $ Map.fromList
+          [(flatName, PlainJS evalThunk)
+          ,(MemberId "__flat_helper", Lambda 0 x)]
       T.TApp t xs -> curriedApply <$> go t <*> mapM go xs
       T.TLam t -> Lambda 1 <$> go t
       -- TODO This is not a lazy let, but it should be...
