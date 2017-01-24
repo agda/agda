@@ -84,8 +84,6 @@ disabledTests =
     -- primQNameFixity not yet implemented for UHC and JS
   , RFInclude "Compiler/UHC/simple/Issue1664"
   , RFInclude "Compiler/JS/simple/Issue1664"
-  , RFInclude "Compiler/JS/simple/CopatternStreamSized"
-  , RFInclude "Compiler/JS/simple/VecReverse"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   -- primQNameLess not implemented for JS
   , RFInclude "Compiler/JS/simple/QNameOrder"

@@ -24,4 +24,4 @@ downFrom zero = []
 downFrom (suc n) = n ∷ downFrom n
 
 main : IO Unit
-main = printNat (sum (reverse (downFrom 6000)))
+main = printNat (sum (reverse (downFrom 600)))
