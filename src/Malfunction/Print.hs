@@ -3,15 +3,18 @@ module Malfunction.Print where
 import Malfunction.AST
 import Text.Printf
 
+showTermAsProgram :: Term -> String
+showTermAsProgram t = "(module (_ " ++ showTerm t ++ ") (export))"
+
 showTerm :: Term -> String
 showTerm t = case t of
   Mvar i              -> showIdent i
   Mlambda is t        -> printf "(lambda %s %s)" (unwords (map showIdent is)) (showTerm t)
-  Mapply t ts         -> printf "(%s %s)" (showTerm t) (concatMap showTerm ts)
+  Mapply t ts         -> printf "(apply %s %s)" (showTerm t) (unwords . map showTerm $ ts)
   Mlet bs t           -> printf "(let %s %s)" (unwords (map showBinding bs)) (showTerm t)
   Mint ic             -> printf "(%s)" (showIntConst ic)
-  Mstring s           -> printf "(%s)" s
-  Mglobal li          -> printf "(%s)" (showLongident li)
+  Mstring s           -> printf "%s" (show s)
+  Mglobal li          -> printf "(global %s)" (showLongident li)
   Mswitch t cexps     -> printf "(%s %s)" (showTerm t) (unwords (map showCaseExpression cexps))
   -- Integers
   Mintop1 op tp t0    -> printf "(%s %s)" (showUnaryIntOp op) (showTypedTerm tp t0)
@@ -25,9 +28,6 @@ showTerm t = case t of
   -- Blocks
   Mblock i ts         -> printf "(block (tag %s) %s)" (show i) (unwords (map showTerm ts))
   Mfield i t0         -> printf "(field %s %s)" (show i) (showTerm t0)
-
-showIdent :: Ident -> String
-showIdent = id
 
 showBinding :: Binding -> String
 showBinding b = case b of
@@ -46,7 +46,10 @@ showIntConst ic = case ic of
   CBigint i -> show i
 
 showLongident :: Longident -> String
-showLongident = id
+showLongident = unwords . map showIdent
+
+showIdent :: String -> String
+showIdent = ('$':)
 
 showCaseExpression :: ([Case], Term) -> String
 showCaseExpression (cs, t) = printf "(%s %s)" (unwords (map showCase cs)) (showTerm t)
