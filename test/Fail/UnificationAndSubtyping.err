@@ -1,0 +1,3 @@
+UnificationAndSubtyping.agda:29,12-16
+s != s'' of type Size
+when checking that the pattern refl has type x₀ ≡ x

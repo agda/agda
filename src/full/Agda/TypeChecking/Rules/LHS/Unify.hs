@@ -695,14 +695,18 @@ basicUnifyStrategy k s = do
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
        let choice = chooseFlex fi fj
+           firstTryLeft  = msum [ return (Solution k ha i v)
+                                , return (Solution k ha j u)]
+           firstTryRight = msum [ return (Solution k ha j u)
+                                , return (Solution k ha i v)]
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fi = " <+> text (show fi)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fj = " <+> text (show fj)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "chooseFlex: " <+> text (show choice)
        case choice of
-         ChooseLeft   -> return $ Solution k ha i v
-         ChooseRight  -> return $ Solution k ha j u
+         ChooseLeft   -> firstTryLeft
+         ChooseRight  -> firstTryRight
          ExpandBoth   -> mzero -- This should be taken care of by etaExpandEquationStrategy
-         ChooseEither -> return $ Solution k ha j u
+         ChooseEither -> firstTryRight
     (Just i, _)
      | Just _ <- findFlexible i flex -> return $ Solution k ha i v
     (_, Just j)
@@ -967,11 +971,21 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
 
 unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solutionTerm = u } = do
   let m = varCount s
+
+  -- Check that the type of the variable is equal to the type of the equation
+  -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
+  let a' = getVarType (m-1-i) s
+  liftTCM $ addContext (varTel s) $ do
+    reportSDoc "tc.lhs.unify" 45 $ text "Equation type: " <+> prettyTCM a
+    reportSDoc "tc.lhs.unify" 45 $ text "Variable type: " <+> prettyTCM a'
+    noConstraints $ dontAssignMetas $ equalType a a'
+
   caseMaybeM (trySolveVar (m-1-i) u s) (DontKnow <$> err) $ \(s',sub) -> do
     tellUnifySubst sub
     let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
     tellUnifyProof sigma
     Unifies <$> liftTCM (reduce s'')
+  `catchError` \err -> return $ DontKnow err
   where
     trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
