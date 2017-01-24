@@ -71,6 +71,11 @@ type Longident = String
 --  | Ldot   Longident String
 --  | Lapply Longident Longident
 
+-- "The top-level sexp must begin with the atom module, followed by a
+-- list of bindings (described under let, below), followed by an sexp
+-- beginning with the atom export."
+data Mod = MMod [Binding] [Term]
+
 data Term
   = Mvar Ident
   | Mlambda [Ident] Term
@@ -96,8 +101,11 @@ data Term
 
 
 data Binding
+  -- "(_ EXP)"
   = Unnamed Term
+  -- "($var EXP)"
   | Named Ident Term
+  -- "(rec ($VAR1 EXP1) ($VAR2 EXP2) ...)"
   | Recursive [(Ident, Term)]
   deriving (Show, Eq)
 

@@ -25,7 +25,7 @@ translateTerm t = case t of
   TApp t0 args      -> translateApp t0 args
   TLam t0           -> translateLam t0
   TLit lit          -> return $ translateLit lit
-  TCon name         -> undefined
+  TCon name         -> return $ translateName name
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
 --  TCase i tp def alt -> liftM2 Mswitch (translateTerm def) (mapM translateSwitch alt)
@@ -106,4 +106,15 @@ translatePrim tp = Mglobal $ case tp of
   PSeq -> undefined
 
 translateName :: QName -> Term
-translateName = undefined
+translateName
+  ( QName
+    { qnameModule = MName
+      { mnameToList = names }
+    , qnameName = Name
+      { nameId = id
+      , nameConcrete = concrete
+      , nameBindingSite = range
+      , nameFixity = fix
+      }
+    }
+  ) = undefined

@@ -3,15 +3,20 @@ module Malfunction.Print where
 import Malfunction.AST
 import Text.Printf
 
+showMod :: Mod -> String
+showMod (MMod bs ts) = printf "(module %s (export %s))"
+  (unwords . map showBinding $ bs)
+  (unwords . map showTerm $ ts)
+
 showTerm :: Term -> String
-showTerm t = case t of
+showTerm tt = case tt of
   Mvar i              -> showIdent i
   Mlambda is t        -> printf "(lambda %s %s)" (unwords (map showIdent is)) (showTerm t)
-  Mapply t ts         -> printf "(%s %s)" (showTerm t) (concatMap showTerm ts)
+  Mapply t ts         -> printf "(apply %s %s)" (showTerm t) (unwords (map showTerm ts))
   Mlet bs t           -> printf "(let %s %s)" (unwords (map showBinding bs)) (showTerm t)
   Mint ic             -> printf "(%s)" (showIntConst ic)
-  Mstring s           -> printf "(%s)" s
-  Mglobal li          -> printf "(%s)" (showLongident li)
+  Mstring s           -> printf "(%s)" (show s)
+  Mglobal li          -> printf "(global %s)" (showLongident li)
   Mswitch t cexps     -> printf "(switch %s %s)" (showTerm t) (unwords (map showCaseExpression cexps))
   -- Integers
   Mintop1 op tp t0    -> printf "(%s %s)" (showUnaryIntOp op) (showTypedTerm tp t0)
