@@ -1,9 +1,4 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
-
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
 
 module InternalTests.Syntax.Internal ( tests ) where
 
