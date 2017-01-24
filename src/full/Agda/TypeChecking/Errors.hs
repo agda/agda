@@ -474,8 +474,8 @@ instance PrettyTCM TypeError where
     WrongHidingInLambda t ->
       fwords "Found an implicit lambda where an explicit lambda was expected"
 
-    WrongIrrelevanceInLambda t ->
-      fwords "Found an irrelevant lambda where a relevant lambda was expected"
+    WrongIrrelevanceInLambda ->
+      fwords "Found a non-strict lambda where a irrelevant lambda was expected"
 
     WrongNamedArgument a -> fsep $
       pwords "Function does not accept argument "

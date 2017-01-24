@@ -349,35 +349,59 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- Block on the type comparison
         coerce (teleLam tel v) (telePi tel t1) target
 
-    useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
+    useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
         reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ show y
 
         -- merge in the hiding info of the TBind
+        let [WithHiding h x] = xs
         info <- return $ mapHiding (mappend h) info
-        unless (getHiding arg == getHiding info) $ typeError $ WrongHidingInLambda target
+        unless (getHiding dom == getHiding info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-        let r  = getRelevance info
-            r' = getRelevance arg -- relevance of function type
-        when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
+        info <- lambdaIrrelevanceCheck info dom
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.
         -- TODO: do we need to block checkExpr?
-        let a = unDom arg
+        let a = unDom dom
         checkSizeLtSat $ unEl a
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
-        v <- add (notInScopeName y) (Dom (setRelevance r' info) argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
-      where
-        [WithHiding h x] = xs
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
-        add y dom | isNoName x = addContext' (y, dom)
-                  | otherwise  = addContext' (x, dom)
+        v <- lambdaAddContext x y (Dom info argT) $ checkExpr body btyp
+        blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
+
     useTargetType _ _ = __IMPOSSIBLE__
+
+-- | Check that irrelevance info in lambda is compatible with irrelevance
+--   coming from the function type.
+--   If lambda has no user-given relevance, copy that of function type.
+lambdaIrrelevanceCheck :: LensRelevance dom => ArgInfo -> dom -> TCM ArgInfo
+lambdaIrrelevanceCheck info dom
+    -- Case: no specific user annotation: use relevance of function type
+  | isRelevant info = return $ setRelevance (getRelevance dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let rPi  = getRelevance dom  -- relevance of function type
+      let rLam = getRelevance info -- relevance of lambda
+        -- Andreas, 2017-01-24, issue #2429
+        -- we should report an error if we try to check a relevant function
+        -- against an irrelevant function type (subtyping violation)
+      unless (moreRelevant rPi rLam) $ do
+        -- @rLam == Relevant@ is impossible here
+        -- @rLam == Irrelevant@ is impossible here (least relevant)
+        -- this error can only happen if @rLam == NonStrict@ and @rPi == Irrelevant@
+        unless (rLam == NonStrict) __IMPOSSIBLE__  -- separate tests for separate line nums
+        unless (rPi == Irrelevant) __IMPOSSIBLE__
+        typeError WrongIrrelevanceInLambda
+      return info
+
+lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
+lambdaAddContext x y dom
+  | isNoName x = addContext' (notInScopeName y, dom)  -- Note: String instance
+  | otherwise  = addContext' (x, dom)                 -- Name instance of addContext'
 
 -- | Checking a lambda whose domain type has already been checked.
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
@@ -388,11 +412,7 @@ checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
       lamHiding = mappend h $ getHiding info
   insertHiddenLambdas lamHiding target postpone $ \ t@(El _ (Pi dom b)) -> do
     -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-    let r     = getRelevance info -- relevance of lambda
-        r'    = getRelevance dom  -- relevance of function type
-        info' = setHiding lamHiding $ setRelevance r' info
-    when (r == Irrelevant && r' /= r) $
-      typeError $ WrongIrrelevanceInLambda target
+    info' <- setHiding lamHiding <$> lambdaIrrelevanceCheck info dom
     -- We only need to block the final term on the argument type
     -- comparison. The body will be blocked if necessary. We still want to
     -- compare the argument types first, so we spawn a new problem for that
@@ -403,9 +423,9 @@ checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
     -- to get better error messages.
     -- Using the type dom from the usage context would be more precise,
     -- though.
-    let add dom | isNoName x = addContext' (absName b, dom)
-                | otherwise  = addContext' (x, dom)
-    v <- add (maybe dom (dom $>) mt) $
+    let dom' = setRelevance (getRelevance info') . setHiding lamHiding $
+          maybe dom (dom $>) mt
+    v <- lambdaAddContext x (absName b) dom'  $
       checkPostponedLambda (Arg info (xs, mt)) body $ absBody b
     let v' = Lam info' $ Abs (nameToArgName x) v
     maybe (return v') (blockTermOnProblem t v') mpid
