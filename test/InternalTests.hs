@@ -44,6 +44,7 @@ import InternalTests.Utils.FileName                           as UtilFile     ( 
 import InternalTests.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
 import InternalTests.Utils.List                               as UtilList     ( tests )
 import InternalTests.Utils.ListT                              as UtilListT    ( tests )
+import InternalTests.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
 import InternalTests.Utils.Monoid                             as UtilMonoid   ( tests )
 import InternalTests.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import InternalTests.Utils.Permutation                        as UtilPerm     ( tests )
@@ -91,6 +92,7 @@ runAllTests = runTests "QuickCheck test suite:"
   , MBase.tests
   , SyntInternal.tests
   , SyntCommon.tests
+  , UtilMaybeS.tests
   ]
 
 main :: IO ()
