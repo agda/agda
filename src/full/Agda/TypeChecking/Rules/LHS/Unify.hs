@@ -720,7 +720,7 @@ dataStrategy k s = do
       npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       hpars <- mfromMaybe $ isHom k pars
-      liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
+      liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (ignoreSharing u, ignoreSharing v) of
@@ -987,7 +987,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
   -- Get constructor telescope and target indices
   ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
-  reportSDoc "tc.lhs.unify" 40 $ text "Constructor type: " <+> prettyTCM ctype
+  addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
+    text "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
   let cixs = case ignoreSharing $ unEl ctarget of
                Def d' es | d == d' ->
@@ -997,7 +998,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
   -- Get index telescope of the datatype
   dtype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
-  reportSDoc "tc.lhs.unify" 40 $ text "Datatype type: " <+> prettyTCM dtype
+  addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
+    text "Datatype type: " <+> prettyTCM dtype
 
   -- Split equation telescope into parts before and after current equation
   let (eqListTel1, _ : eqListTel2) = genericSplitAt k $ telToList $ eqTel s
@@ -1009,10 +1011,11 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- recursively (this doesn't get stuck in a loop because a type should
   -- never be indexed over itself). Note the similarity with the
   -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
+  let hduTel = eqTel1 `abstract` raise (size eqTel1) ctel
   res <- liftTCM $ addContext (varTel s) $ unifyIndices
-           (eqTel1 `abstract` ctel)
-           (allFlexVars $ eqTel1 `abstract` ctel)
-           dtype
+           hduTel
+           (allFlexVars hduTel)
+           (raise (size hduTel) dtype)
            (raise (size ctel) ixs)
            (raiseFrom (size ctel) (size eqTel1) cixs)
   case res of
