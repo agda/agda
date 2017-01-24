@@ -19,7 +19,7 @@ translate t = translateTerm t `evalState` 0
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm t = case t of
-  TVar i            -> return . Mvar . ident $ i
+  TVar i            -> return . identToVarTerm $ i
   TPrim tp          -> return $ translatePrim tp
   TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
@@ -27,20 +27,37 @@ translateTerm t = case t of
   TLit lit          -> return $ translateLit lit
   TCon name         -> undefined
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
-  TCase i tp t0 alt -> liftM2 Mswitch (translateTerm t0) (mapM translateSwitch alt)
-  TUnit             -> undefined
-  TSort             -> undefined
-  TErased           -> undefined
-  TError err        -> undefined
+  -- @def@ is the default value if all @alt@s fail.
+--  TCase i tp def alt -> liftM2 Mswitch (translateTerm def) (mapM translateSwitch alt)
+  TCase i tp def alt -> do
+    let t = identToVarTerm i
+    d <- translateTerm def
+    cs <- mapM translateSwitch alt
+    return $ Mswitch t (cs ++ pure (anything, d))
+    where
+      anything :: [Case]
+      anything = [Intrange (minBound, maxBound) , Deftag]
+  TUnit             -> error "Unimplemented"
+  TSort             -> error "Unimplemented"
+  TErased           -> error "Unimplemented"
+  TError err        -> error "Unimplemented"
+
+identToVarTerm :: Int -> Term
+identToVarTerm = Mvar . ident
 
 translateSwitch :: MonadTranslate m => TAlt -> m ([Case], Term)
 translateSwitch alt = case alt of
-  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
-  _           ->  error "Not implemented"
+--  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
+  TALit pat body -> do
+    b <- translateTerm body
+    let c = pure $ litToCase pat
+    return (c, b)
+  _              -> error "Unimplemented"
 
-translateCase :: MonadTranslate m => TTerm -> m Case
--- oh-oh! might be tricky to translate a general term to a "guard" in mlf.
-translateCase = error "Not implemented"
+litToCase :: Literal -> Case
+litToCase l = case l of
+  LitNat _ i -> let i' = fromInteger i in Intrange (i', i')
+  _          -> error "Unimplemented"
 
 translateBinding :: MonadTranslate m => TTerm -> m Binding
 translateBinding t = Unnamed <$> translateTerm t
@@ -61,9 +78,6 @@ translateApp ft xst = do
 
 incr :: MonadTranslate m => m ()
 incr = modify succ
-
-decr :: MonadTranslate m => m ()
-decr = modify pred
 
 ident :: Int -> String
 ident i = "v" ++ show i
