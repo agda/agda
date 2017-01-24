@@ -18,4 +18,4 @@ split-u : ∀ i (j : Size< ↑ i) → D i j → Set
 split-u _ _ x = {!x!}  -- split on x
 
 -- Expected: splitting on x succeeds with
---   split-u _ _ (c j₁ _ x x₁) = {!!}
+--   split-u _ _ (c j k x x₁) = {!!}

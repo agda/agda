@@ -695,14 +695,18 @@ basicUnifyStrategy k s = do
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
        let choice = chooseFlex fi fj
+           firstTryLeft  = msum [ return (Solution k ha i v)
+                                , return (Solution k ha j u)]
+           firstTryRight = msum [ return (Solution k ha j u)
+                                , return (Solution k ha i v)]
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fi = " <+> text (show fi)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fj = " <+> text (show fj)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "chooseFlex: " <+> text (show choice)
        case choice of
-         ChooseLeft   -> return $ Solution k ha i v
-         ChooseRight  -> return $ Solution k ha j u
+         ChooseLeft   -> firstTryLeft
+         ChooseRight  -> firstTryRight
          ExpandBoth   -> mzero -- This should be taken care of by etaExpandEquationStrategy
-         ChooseEither -> return $ Solution k ha j u
+         ChooseEither -> firstTryRight
     (Just i, _)
      | Just _ <- findFlexible i flex -> return $ Solution k ha i v
     (_, Just j)
@@ -720,7 +724,7 @@ dataStrategy k s = do
       npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       hpars <- mfromMaybe $ isHom k pars
-      liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
+      liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (ignoreSharing u, ignoreSharing v) of
@@ -967,11 +971,21 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
 
 unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solutionTerm = u } = do
   let m = varCount s
+
+  -- Check that the type of the variable is equal to the type of the equation
+  -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
+  let a' = getVarType (m-1-i) s
+  liftTCM $ addContext (varTel s) $ do
+    reportSDoc "tc.lhs.unify" 45 $ text "Equation type: " <+> prettyTCM a
+    reportSDoc "tc.lhs.unify" 45 $ text "Variable type: " <+> prettyTCM a'
+    noConstraints $ dontAssignMetas $ equalType a a'
+
   caseMaybeM (trySolveVar (m-1-i) u s) (DontKnow <$> err) $ \(s',sub) -> do
     tellUnifySubst sub
     let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
     tellUnifyProof sigma
     Unifies <$> liftTCM (reduce s'')
+  `catchError` \err -> return $ DontKnow err
   where
     trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
@@ -987,7 +1001,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
   -- Get constructor telescope and target indices
   ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
-  reportSDoc "tc.lhs.unify" 40 $ text "Constructor type: " <+> prettyTCM ctype
+  addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
+    text "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
   let cixs = case ignoreSharing $ unEl ctarget of
                Def d' es | d == d' ->
@@ -997,7 +1012,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
   -- Get index telescope of the datatype
   dtype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
-  reportSDoc "tc.lhs.unify" 40 $ text "Datatype type: " <+> prettyTCM dtype
+  addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
+    text "Datatype type: " <+> prettyTCM dtype
 
   -- Split equation telescope into parts before and after current equation
   let (eqListTel1, _ : eqListTel2) = genericSplitAt k $ telToList $ eqTel s
@@ -1009,10 +1025,11 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- recursively (this doesn't get stuck in a loop because a type should
   -- never be indexed over itself). Note the similarity with the
   -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
+  let hduTel = eqTel1 `abstract` raise (size eqTel1) ctel
   res <- liftTCM $ addContext (varTel s) $ unifyIndices
-           (eqTel1 `abstract` ctel)
-           (allFlexVars $ eqTel1 `abstract` ctel)
-           dtype
+           hduTel
+           (allFlexVars hduTel)
+           (raise (size hduTel) dtype)
            (raise (size ctel) ixs)
            (raiseFrom (size ctel) (size eqTel1) cixs)
   case res of
