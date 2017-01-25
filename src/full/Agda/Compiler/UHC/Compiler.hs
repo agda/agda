@@ -151,8 +151,8 @@ uhcPreModule _ m ifile = ifM uptodate noComp yesComp
     noComp  = return $ Skip ()
     yesComp = return $ Recompile ()
 
-uhcPostModule :: UHCOptions -> UHCModuleEnv -> ModuleName -> a -> TCM ()
-uhcPostModule opts _ _ _ = compileModule opts =<< curIF
+uhcPostModule :: UHCOptions -> UHCModuleEnv -> IsMain -> ModuleName -> a -> TCM ()
+uhcPostModule opts _ _ _ _ = compileModule opts =<< curIF
 
 
 -- for the time being, we just copy the base library into the generated code.
