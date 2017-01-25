@@ -56,6 +56,7 @@ import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.DelayCoinduction
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
+import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PlainJS),
@@ -64,6 +65,8 @@ import Agda.Compiler.JS.Syntax
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, subst, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
+
+import Agda.Interaction.Options
 
 import Paths_Agda
 
@@ -74,24 +77,79 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 -- Entry point into the compiler
 --------------------------------------------------
 
-compilerMain :: Interface -> TCM ()
-compilerMain mainI = inCompilerEnv mainI $ do
-  doCompile IsMain mainI $ do
-    compile
-  copyRTEModules
+jsBackend :: Backend
+jsBackend = Backend jsBackend'
 
-compile :: IsMain -> Interface -> TCM ()
-compile isMain i = do
-  ifM uptodate noComp $ do
-    yesComp
-    writeModule =<< curModule isMain
+jsBackend' :: Backend' JSOptions JSOptions JSModuleEnv () (Maybe Export)
+jsBackend' = Backend'
+  { backendName      = "JS"
+  , backendVersion   = Nothing
+  , options          = defaultJSOptions
+  , commandLineFlags = jsCommandLineFlags
+  , isEnabled        = optJSCompile
+  , preCompile       = jsPreCompile
+  , postCompile      = jsPostCompile
+  , preModule        = jsPreModule
+  , postModule       = jsPostModule
+  , compileDef       = jsCompileDef
+  }
+
+--- Options ---
+
+data JSOptions = JSOptions
+  { optJSCompile :: Bool }
+
+defaultJSOptions :: JSOptions
+defaultJSOptions = JSOptions
+  { optJSCompile = False }
+
+jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
+jsCommandLineFlags =
+    [ Option [] ["js"] (NoArg enable) "compile program using the JS backend"
+    ]
   where
-  uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
-  ifile    = maybe __IMPOSSIBLE__ filePath <$>
-               (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
-  yesComp  = reportSLn "compile.js" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [prettyShow <$> curMName, ifile, outFile_] :: TCM ()
+    enable o = pure o{ optJSCompile = True }
+
+--- Top-level compilation ---
+
+jsPreCompile :: JSOptions -> TCM JSOptions
+jsPreCompile opts = return opts
+
+jsPostCompile :: JSOptions -> IsMain -> a -> TCM ()
+jsPostCompile _ _ _ = copyRTEModules
+
+--- Module compilation ---
+
+type JSModuleEnv = Maybe CoinductionKit
+
+jsPreModule :: JSOptions -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv ())
+jsPreModule _ m ifile = ifM uptodate noComp yesComp
+  where
+    uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+
+    noComp = do
+      reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
+      return $ Skip ()
+
+    yesComp = do
+      m   <- prettyShow <$> curMName
+      out <- outFile_
+      reportSLn "compile.js" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
+      Recompile <$> coinductionKit
+
+jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM ()
+jsPostModule _ _ isMain _ defs = do
+  m             <- jsMod <$> curMName
+  is            <- map (jsMod . fst) . iImportedModules <$> curIF
+  let es = catMaybes defs
+  writeModule $ Module m (reorder es) main
+  where
+    main = case isMain of
+      IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
+      NotMain -> Nothing
+
+jsCompileDef :: JSOptions -> JSModuleEnv -> Definition -> TCM (Maybe Export)
+jsCompileDef _ kit def = definition kit (defName def, def)
 
 --------------------------------------------------
 -- Naming

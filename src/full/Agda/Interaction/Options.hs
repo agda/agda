@@ -100,7 +100,6 @@ data CommandLineOptions = Options
   , optGHCiInteraction  :: Bool
   , optCompileNoMain    :: Bool
   , optEpicCompile      :: Bool
-  , optJSCompile        :: Bool
   , optOptimSmashing    :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
@@ -188,7 +187,6 @@ defaultOptions = Options
   , optGHCiInteraction  = False
   , optCompileNoMain    = False
   , optEpicCompile      = False
-  , optJSCompile        = False
   , optOptimSmashing    = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
@@ -267,8 +265,6 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       throwError "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [optEpicCompile, optJSCompile]) =
-      throwError "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       throwError "Choose at most one: --html/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
@@ -442,9 +438,6 @@ compileEpicFlag :: Flag CommandLineOptions
 -- compileEpicFlag o = return $ o { optEpicCompile = True}
 compileEpicFlag o = throwError "the Epic backend has been disabled"
 
-compileJSFlag :: Flag CommandLineOptions
-compileJSFlag  o = return $ o { optJSCompile = True }
-
 compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 
@@ -524,7 +517,6 @@ standardOptions =
     --                "compile program using the Epic backend"
                     "the Epic backend has been removed"
 
-    , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
 
