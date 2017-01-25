@@ -18,7 +18,7 @@ instance Arbitrary Simplification where
 -- | 'Simplification' is a monoid.
 prop_monoid_Simplification :: Simplification -> Simplification ->
                               Simplification -> Bool
-prop_monoid_Simplification = monoid
+prop_monoid_Simplification = isMonoid
 
 ------------------------------------------------------------------------
 -- Hack to make $quickCheckAll work under ghc-7.8

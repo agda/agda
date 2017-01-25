@@ -19,7 +19,7 @@ instance Arbitrary MaxNat where
 
 -- | 'MaxNat' is a monoid.
 prop_monoid_MaxNat :: MaxNat -> MaxNat -> MaxNat -> Bool
-prop_monoid_MaxNat = monoid
+prop_monoid_MaxNat = isMonoid
 
 ------------------------------------------------------------------------
 -- Hack to make $quickCheckAll work under ghc-7.8
