@@ -86,24 +86,24 @@ hasCatchAll = getAny . loop
     Done{}    -> mempty
     Case _ br -> maybe (foldMap loop br) (const $ Any True) $ catchAllBranch br
 
-instance Monoid c => Semigroup (WithArity c) where
+instance Semigroup c => Semigroup (WithArity c) where
   WithArity n1 c1 <> WithArity n2 c2
-    | n1 == n2  = WithArity n1 $ mappend c1 c2
+    | n1 == n2  = WithArity n1 (c1 <> c2)
     | otherwise = __IMPOSSIBLE__   -- arity must match!
 
-instance Monoid c => Monoid (WithArity c) where
-  mempty = WithArity __IMPOSSIBLE__ mempty
+instance (Semigroup c, Monoid c) => Monoid (WithArity c) where
+  mempty  = WithArity __IMPOSSIBLE__ mempty
   mappend = (<>)
 
-instance Monoid m => Semigroup (Case m) where
+instance Semigroup m => Semigroup (Case m) where
   Branches cop  cs  ls  m <> Branches cop' cs' ls' m' =
     Branches (cop || cop') -- for @projCase <> mempty@
-             (Map.unionWith mappend cs cs')
-             (Map.unionWith mappend ls ls')
-             (mappend m m')
+             (Map.unionWith (<>) cs cs')
+             (Map.unionWith (<>) ls ls')
+             (m <> m')
 
-instance Monoid m => Monoid (Case m) where
-  mempty = empty
+instance (Semigroup m, Monoid m) => Monoid (Case m) where
+  mempty  = empty
   mappend = (<>)
 
 instance Null (Case m) where

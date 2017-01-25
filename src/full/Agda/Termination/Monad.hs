@@ -251,10 +251,10 @@ instance HasConstInfo TerM where
   getConstInfo       = liftTCM . getConstInfo
   getRewriteRulesFor = liftTCM . getRewriteRulesFor
 
-instance Monoid m => Semigroup (TerM m) where
-  (<>) = liftA2 mappend
+instance Semigroup m => Semigroup (TerM m) where
+  (<>) = liftA2 (<>)
 
-instance Monoid m => Monoid (TerM m) where
+instance (Semigroup m, Monoid m) => Monoid (TerM m) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence

@@ -246,15 +246,15 @@ matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
 --   that have to be instantiated (an projection names of copattern matches)
 --   to make the split clause an instance of the function clause.
 
-instance Monoid a => Semigroup (Match a) where
-  Yes a      <> Yes b      = Yes $ mappend a b
+instance Semigroup a => Semigroup (Match a) where
+  Yes a      <> Yes b      = Yes (a <> b)
   Yes _      <> m          = m
   No         <> _          = No
   Block{}    <> No         = No
-  Block r xs <> Block s ys = Block (mappend r s) $ mappend xs ys
+  Block r xs <> Block s ys = Block (r <> s) (xs <> ys)
   m@Block{}  <> Yes{}      = m
 
-instance Monoid a => Monoid (Match a) where
+instance (Semigroup a, Monoid a) => Monoid (Match a) where
   mempty  = Yes mempty
   mappend = (<>)
 
