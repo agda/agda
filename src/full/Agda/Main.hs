@@ -33,10 +33,11 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Common (IsMain (..))
-import Agda.Compiler.MAlonzo.Compiler as MAlonzo
+import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
-import Agda.Compiler.UHC.Compiler as UHC
+import Agda.Compiler.UHC.Compiler (uhcBackend)
+import Agda.Compiler.UHC.Bridge (uhcBackendEnabled)
 
 import Agda.Compiler.Backend
 
@@ -54,7 +55,9 @@ import Agda.Utils.Lens
 #include "undefined.h"
 
 builtinBackends :: [Backend]
-builtinBackends = [ghcBackend]
+builtinBackends =
+  [ ghcBackend ] ++
+  [ uhcBackend | uhcBackendEnabled ]
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
@@ -81,8 +84,6 @@ defaultInteraction opts
   | ghci                 = mimicGHCi                          . (failIfInt   =<<)
   | epic                 = (Epic.compilerMain            =<<) . (failIfNoInt =<<)
   | js                   = (JS.compilerMain              =<<) . (failIfNoInt =<<)
-  | uhc && compileNoMain = (UHC.compilerMain NotMain     =<<) . (failIfNoInt =<<)
-  | uhc                  = (UHC.compilerMain IsMain      =<<) . (failIfNoInt =<<)
   | otherwise     = (() <$)
   where
     i             = optInteractive     opts
@@ -90,7 +91,6 @@ defaultInteraction opts
     compileNoMain = optCompileNoMain   opts
     epic          = optEpicCompile     opts
     js            = optJSCompile       opts
-    uhc           = optUHCCompile      opts
 
     failIfNoInt (Just i) = return i
     -- The allowed combinations of command-line
