@@ -131,12 +131,6 @@ addHaskellType q hsTy = do
   where
     addHs crep = crep { compiledHaskell = Just $ HsType hsTy }
 
-addEpicCode :: QName -> EpicCode -> TCM ()
-addEpicCode q epDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addEp
-  -- TODO: sanity checking
-  where
-    addEp crep = crep { compiledEpic = Just epDef }
-
 addJSCode :: QName -> String -> TCM ()
 addJSCode q jsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addJS
   where

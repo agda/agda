@@ -34,7 +34,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
-import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler (jsBackend)
 import Agda.Compiler.UHC.Compiler (uhcBackend)
 import Agda.Compiler.UHC.Bridge (uhcBackendEnabled)
@@ -80,20 +79,12 @@ runAgda' backends = runTCMPrettyErrors $ do
 
 defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
 defaultInteraction opts
-  | i                    = runIM . interactionLoop
-  | ghci                 = mimicGHCi                          . (failIfInt   =<<)
-  | epic                 = (Epic.compilerMain            =<<) . (failIfNoInt =<<)
-  | otherwise     = (() <$)
+  | i         = runIM . interactionLoop
+  | ghci      = mimicGHCi . (failIfInt =<<)
+  | otherwise = (() <$)
   where
-    i             = optInteractive     opts
-    ghci          = optGHCiInteraction opts
-    compileNoMain = optCompileNoMain   opts
-    epic          = optEpicCompile     opts
-
-    failIfNoInt (Just i) = return i
-    -- The allowed combinations of command-line
-    -- options should rule out Nothing here.
-    failIfNoInt Nothing  = __IMPOSSIBLE__
+    i    = optInteractive     opts
+    ghci = optGHCiInteraction opts
 
     failIfInt Nothing  = return ()
     failIfInt (Just _) = __IMPOSSIBLE__

@@ -43,8 +43,8 @@ constraint solver (open terms, intensional).
 
 Up to issue 1441 (Feb 2015), the forcing analysis here relied on the
 wrong equality (II), considering type constructors as injective.  This is
-unsound for Epic's program extraction, but ok if forcing is only used
-to decide which arguments to skip during conversion checking.
+unsound for program extraction, but ok if forcing is only used to decide which
+arguments to skip during conversion checking.
 
 From now on, forcing uses equality (I) and does not search for forced
 variables under type constructors.  This may lose some savings during

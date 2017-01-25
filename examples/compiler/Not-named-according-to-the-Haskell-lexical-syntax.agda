@@ -10,7 +10,6 @@ postulate
   return : {A : Set} -> A -> IO A
 
 {-# COMPILED return (\_ -> return :: a -> IO a) #-}
-{-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
 
 data Unit : Set where
   unit : Unit

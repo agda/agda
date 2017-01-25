@@ -695,14 +695,6 @@ checkPragma r p =
             else do
               ty <- haskellType $ defType def
               addHaskellExport x ty hs
-        A.CompiledEpicPragma x ep -> do
-          def <- getConstInfo x
-          case theDef def of
-            Axiom{} -> do
-              --ty <- haskellType $ defType def
-              --reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-              addEpicCode x ep
-            _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates"
         A.CompiledJSPragma x ep ->
           addJSCode x ep
         A.CompiledUHCPragma x cr -> do

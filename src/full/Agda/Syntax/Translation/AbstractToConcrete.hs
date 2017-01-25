@@ -834,9 +834,6 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.CompiledExportPragma x hs -> do
       x <- toConcrete x
       return $ C.CompiledExportPragma r x hs
-    A.CompiledEpicPragma x e -> do
-      x <- toConcrete x
-      return $ C.CompiledEpicPragma r x e
     A.CompiledJSPragma x e -> do
       x <- toConcrete x
       return $ C.CompiledJSPragma r x e
