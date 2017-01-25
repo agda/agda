@@ -160,8 +160,8 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       Recompile <$> coinductionKit
 
-ghcPostModule :: GHCOptions -> GHCModuleEnv -> ModuleName -> [[HS.Decl]] -> TCM ()
-ghcPostModule _ _ _ defs = do
+ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM ()
+ghcPostModule _ _ _ _ defs = do
   m             <- curHsMod
   imps          <- imports
   inlineHaskell <- iHaskellCode <$> curIF

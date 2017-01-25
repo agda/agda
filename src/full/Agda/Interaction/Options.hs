@@ -99,8 +99,6 @@ data CommandLineOptions = Options
   , optInteractive      :: Bool
   , optGHCiInteraction  :: Bool
   , optCompileNoMain    :: Bool
-  , optEpicCompile      :: Bool
-  , optJSCompile        :: Bool
   , optOptimSmashing    :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
@@ -114,7 +112,6 @@ data CommandLineOptions = Options
   , optIgnoreInterfaces :: Bool
   , optForcing          :: Bool
   , optPragmaOptions    :: PragmaOptions
-  , optEpicFlags        :: [String]
   , optSafe             :: Bool
   , optSharing          :: Bool
   , optCaching          :: Bool
@@ -187,8 +184,6 @@ defaultOptions = Options
   , optInteractive      = False
   , optGHCiInteraction  = False
   , optCompileNoMain    = False
-  , optEpicCompile      = False
-  , optJSCompile        = False
   , optOptimSmashing    = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
@@ -201,7 +196,6 @@ defaultOptions = Options
   , optIgnoreInterfaces = False
   , optForcing          = True
   , optPragmaOptions    = defaultPragmaOptions
-  , optEpicFlags        = []
   , optSafe             = False
   , optSharing          = False
   , optCaching          = False
@@ -267,17 +261,12 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       throwError "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [optEpicCompile, optJSCompile]) =
-      throwError "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       throwError "Choose at most one: --html/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
       throwError "Choose at most one: --dependency-graph/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateLaTeX]) =
       throwError "Choose at most one: --latex/--interactive/--interaction.\n"
-  | (not . null . optEpicFlags $ opts)
-      && not (optEpicCompile opts) =
-      throwError "Cannot set Epic flags without using the Epic backend.\n"
   | otherwise = return opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
@@ -437,22 +426,8 @@ interactiveFlag  o = return $ o { optInteractive    = True
 compileFlagNoMain :: Flag CommandLineOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
 
--- The Epic backend has been removed. See Issue 1481.
-compileEpicFlag :: Flag CommandLineOptions
--- compileEpicFlag o = return $ o { optEpicCompile = True}
-compileEpicFlag o = throwError "the Epic backend has been disabled"
-
-compileJSFlag :: Flag CommandLineOptions
-compileJSFlag  o = return $ o { optJSCompile = True }
-
 compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
-
--- NOTE: Quadratic in number of flags.
--- The Epic backend has been removed. See Issue 1481.
-epicFlagsFlag :: String -> Flag CommandLineOptions
--- epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
-epicFlagsFlag s o = throwError "the Epic backend has been disabled"
 
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
@@ -519,19 +494,8 @@ standardOptions =
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "do not treat the requested module as the main module of a program when compiling"
 
-    -- The Epic backend has been removed. See Issue 1481.
-    , Option []     ["epic"] (NoArg compileEpicFlag)
-    --                "compile program using the Epic backend"
-                    "the Epic backend has been removed"
-
-    , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
-
-    -- The Epic backend has been removed. See Issue 1481.
-    , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")
-    --                "give the flag EPIC-FLAG to Epic when compiling using Epic"
-                    "the Epic backend has been removed"
 
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
@@ -629,9 +593,9 @@ pragmaOptions =
     , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)
                     "disable pattern matching completely"
     , Option []     ["exact-split"] (NoArg exactSplitFlag)
-                    "require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)"
+                    "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
     , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
-                    "do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)"
+                    "do not require all clauses in a definition to hold as definitional equalities (default)"
     , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
                     "disable eta rules for records"
     , Option []     ["rewriting"] (NoArg rewritingFlag)

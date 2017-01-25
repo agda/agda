@@ -381,7 +381,6 @@ data Pragma
   | CompiledTypePragma        Range QName String
   | CompiledPragma            Range QName String
   | CompiledExportPragma      Range QName String
-  | CompiledEpicPragma        Range QName String
   | CompiledJSPragma          Range QName String
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
@@ -650,7 +649,6 @@ instance HasRange Pragma where
   getRange (CompiledTypePragma r _ _)        = r
   getRange (CompiledPragma r _ _)            = r
   getRange (CompiledExportPragma r _ _)      = r
-  getRange (CompiledEpicPragma r _ _)        = r
   getRange (CompiledJSPragma r _ _)          = r
   getRange (CompiledUHCPragma r _ _)         = r
   getRange (CompiledDataUHCPragma r _ _ _)   = r
@@ -827,7 +825,6 @@ instance KillRange Pragma where
   killRange (CompiledTypePragma _ q s)        = killRange1 (\q -> CompiledTypePragma noRange q s) q
   killRange (CompiledPragma _ q s)            = killRange1 (\q -> CompiledPragma noRange q s) q
   killRange (CompiledExportPragma _ q s)      = killRange1 (\q -> CompiledExportPragma noRange q s) q
-  killRange (CompiledEpicPragma _ q s)        = killRange1 (\q -> CompiledEpicPragma noRange q s) q
   killRange (CompiledJSPragma _ q s)          = killRange1 (\q -> CompiledJSPragma noRange q s) q
   killRange (CompiledUHCPragma _ q s)         = killRange1 (\q -> CompiledUHCPragma noRange q s) q
   killRange (CompiledDataUHCPragma _ q s ss)  = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
@@ -959,7 +956,6 @@ instance NFData Pragma where
   rnf (CompiledTypePragma _ a b)        = rnf a `seq` rnf b
   rnf (CompiledPragma _ a b)            = rnf a `seq` rnf b
   rnf (CompiledExportPragma _ a b)      = rnf a `seq` rnf b
-  rnf (CompiledEpicPragma _ a b)        = rnf a `seq` rnf b
   rnf (CompiledJSPragma _ a b)          = rnf a `seq` rnf b
   rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
   rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c

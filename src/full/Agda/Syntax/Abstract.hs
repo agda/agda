@@ -198,7 +198,6 @@ data Pragma
   | CompiledDeclareDataPragma QName String
   | CompiledTypePragma QName String
   | CompiledDataPragma QName String [String]
-  | CompiledEpicPragma QName String
   | CompiledJSPragma QName String
   | CompiledUHCPragma QName String
   | CompiledDataUHCPragma QName String [String]

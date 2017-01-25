@@ -47,9 +47,6 @@ data-dir:           src/data
 data-files:         Agda.css
                     agda.sty
                     emacs-mode/*.el
-                    -- EpicInclude/AgdaPrelude.e
-                    -- EpicInclude/stdagda.c
-                    -- EpicInclude/stdagda.h
                     JS/agda-rts.js
                     JS/biginteger.js
                     lib/prim/Agda/Builtin/Bool.agda
@@ -211,21 +208,6 @@ library
                     Agda.Compiler.Backend
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Common
-                    Agda.Compiler.Epic.AuxAST
-                    Agda.Compiler.Epic.CaseOpts
-                    Agda.Compiler.Epic.Compiler
-                    Agda.Compiler.Epic.CompileState
-                    Agda.Compiler.Epic.Epic
-                    Agda.Compiler.Epic.Erasure
-                    Agda.Compiler.Epic.ForceConstrs
-                    Agda.Compiler.Epic.Forcing
-                    Agda.Compiler.Epic.FromAgda
-                    Agda.Compiler.Epic.Injection
-                    Agda.Compiler.Epic.Interface
-                    Agda.Compiler.Epic.NatDetection
-                    Agda.Compiler.Epic.Primitive
-                    Agda.Compiler.Epic.Smashing
-                    Agda.Compiler.Epic.Static
                     Agda.Compiler.HaskellTypes
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax

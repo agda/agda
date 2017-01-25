@@ -68,8 +68,6 @@ import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
-import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
-import qualified Agda.Compiler.JS.Compiler as JS
 import Agda.Compiler.Backend
 
 import qualified Agda.Auto.Auto as Auto
@@ -568,7 +566,7 @@ interpret (Cmd_compile b file argv) =
         lift $ case b of
           GHC       -> callBackend "GHC" IsMain  i
           GHCNoMain -> callBackend "GHC" NotMain i
-          JS        -> JS.compilerMain i
+          JS        -> callBackend "JS" IsMain i
           LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
       Imp.SomeWarnings w ->
