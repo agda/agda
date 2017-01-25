@@ -151,9 +151,10 @@ initFreeEnv sing = FreeEnv
 
 type FreeM c = Reader (FreeEnv c) c
 
-instance Monoid c => Semigroup (FreeM c) where
-  (<>) = liftA2 mappend
-instance Monoid c => Monoid (FreeM c) where
+instance Semigroup c => Semigroup (FreeM c) where
+  (<>) = liftA2 (<>)
+
+instance (Semigroup c, Monoid c) => Monoid (FreeM c) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence
@@ -162,7 +163,7 @@ instance Monoid c => Monoid (FreeM c) where
 --   singleton = pure . singleton
 
 -- | Base case: a variable.
-variable :: (Monoid c) => Int -> FreeM c
+variable :: (Semigroup c, Monoid c) => Int -> FreeM c
 variable n = do
   m <- (n -) <$> asks feBinders
   if m < 0 then mempty else do
@@ -204,7 +205,7 @@ class Free' a c where
   -- Misplaced SPECIALIZE pragma:
   -- {-# SPECIALIZE freeVars' :: a -> FreeM Any #-}
   -- So you cannot specialize all instances in one go. :(
-  freeVars' :: (Monoid c) => a -> FreeM c
+  freeVars' :: (Semigroup c, Monoid c) => a -> FreeM c
 
 instance Free' Term c where
   -- SPECIALIZE instance does not work as well, see
