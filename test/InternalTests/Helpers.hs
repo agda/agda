@@ -33,7 +33,7 @@ module InternalTests.Helpers
 
 import Control.Monad
 import Data.Functor
-import Data.Semigroup ( mappend, mempty, Monoid )
+import Data.Semigroup ( (<>), mappend, mempty, Monoid, Semigroup )
 import Test.QuickCheck
 
 ------------------------------------------------------------------------
@@ -126,10 +126,18 @@ isDistributive (*) (+) = \ x y z ->
   isLeftDistributive (*) (+) x y z &&
   isRightDistributive (*) (+) x y z
 
+-- | Does the operator satisfy the semigroup law?
+
+isSemigroup :: (Eq a, Semigroup a) => a -> a -> a -> Bool
+isSemigroup = isAssociative (<>)
+
 -- | Does the operator satisfy the monoid laws?
-isMonoid :: (Eq a, Monoid a) => a -> a -> a -> Bool
+
+isMonoid :: (Eq a, Semigroup a, Monoid a) => a -> a -> a -> Bool
 isMonoid x y z =
-  isAssociative mappend x y z &&
+-- ASR (2017-01-25): What if `mappend ≠ (<>)`? It isn't possible
+-- because we are using the `-Wnoncanonical-monoid-instances` flag.
+  isSemigroup x y z &&
   isIdentity mempty mappend x
 
 ------------------------------------------------------------------------
