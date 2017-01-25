@@ -56,12 +56,12 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
 
 -- | 'Hiding' is a monoid.
 -- prop_monoid_Hiding :: Hiding -> Hiding -> Hiding -> Bool
--- prop_monoid_Hiding = monoid
+-- prop_monoid_Hiding = isMonoid
 
 -- | 'Using'' is a monoid.
 prop_monoid_Using' :: Using' Int Int -> Using' Int Int -> Using' Int Int ->
                       Bool
-prop_monoid_Using' = monoid
+prop_monoid_Using' = isMonoid
 
 ------------------------------------------------------------------------
 -- Hack to make $quickCheckAll work under ghc-7.8

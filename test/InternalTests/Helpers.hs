@@ -8,15 +8,15 @@ module InternalTests.Helpers
     -- * QuickCheck module
   , module Test.QuickCheck
     -- * Algebraic properties
-  , associative
-  , commutative
-  , idempotent
+  , isAssociative
+  , isCommutative
+  , isIdempotent
   , isZero
-  , identity
-  , leftDistributive
-  , rightDistributive
-  , distributive
-  , monoid
+  , isIdentity
+  , isLeftDistributive
+  , isRightDistributive
+  , isDistributive
+  , isMonoid
     -- * Generators
   , natural
   , positive
@@ -33,7 +33,7 @@ module InternalTests.Helpers
 
 import Control.Monad
 import Data.Functor
-import Data.Semigroup ( mappend, mempty, Monoid )
+import Data.Semigroup ( (<>), mappend, mempty, Monoid, Semigroup )
 import Test.QuickCheck
 
 ------------------------------------------------------------------------
@@ -54,26 +54,26 @@ quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
 
 -- | Is the operator associative?
 
-associative :: Eq a
-            => (a -> a -> a)
-            -> a -> a -> a -> Bool
-associative (+) = \x y z ->
+isAssociative :: Eq a
+              => (a -> a -> a)
+              -> a -> a -> a -> Bool
+isAssociative (+) = \x y z ->
   x + (y + z) == (x + y) + z
 
 -- | Is the operator commutative?
 
-commutative :: Eq a
-            => (a -> a -> a)
-            -> a -> a -> Bool
-commutative (+) = \x y ->
+isCommutative :: Eq a
+              => (a -> a -> a)
+              -> a -> a -> Bool
+isCommutative (+) = \x y ->
   x + y == y + x
 
 -- | Is the operator idempotent?
 
-idempotent :: Eq a
-            => (a -> a -> a)
-            -> a -> Bool
-idempotent (/\) = \ x ->
+isIdempotent :: Eq a
+             => (a -> a -> a)
+             -> a -> Bool
+isIdempotent (/\) = \ x ->
   (x /\ x) == x
 
 -- | Is the element a zero for the operator?
@@ -88,10 +88,10 @@ isZero zer (*) = \x ->
 
 -- | Is the element a unit for the operator?
 
-identity :: Eq a
-         => a -> (a -> a -> a)
-         -> a -> Bool
-identity one (*) = \x ->
+isIdentity :: Eq a
+           => a -> (a -> a -> a)
+           -> a -> Bool
+isIdentity one (*) = \x ->
   (one * x == x)
   &&
   (x * one == x)
@@ -99,38 +99,46 @@ identity one (*) = \x ->
 -- | Does the first operator distribute (from the left) over the
 -- second one?
 
-leftDistributive
+isLeftDistributive
   :: Eq a
   => (a -> a -> a) -> (a -> a -> a)
   -> a -> a -> a -> Bool
-leftDistributive (*) (+) = \x y z ->
+isLeftDistributive (*) (+) = \x y z ->
   x * (y + z) == (x * y) + (x * z)
 
 -- | Does the first operator distribute (from the right) over the
 -- second one?
 
-rightDistributive
+isRightDistributive
   :: Eq a
   => (a -> a -> a) -> (a -> a -> a)
   -> a -> a -> a -> Bool
-rightDistributive (*) (+) = \x y z ->
+isRightDistributive (*) (+) = \x y z ->
   (x + y) * z == (x * z) + (y * z)
 
 -- | Does the first operator distribute over the second one?
 
-distributive
+isDistributive
   :: Eq a
   => (a -> a -> a) -> (a -> a -> a)
   -> a -> a -> a -> Bool
-distributive (*) (+) = \ x y z ->
-  leftDistributive (*) (+) x y z &&
-  rightDistributive (*) (+) x y z
+isDistributive (*) (+) = \ x y z ->
+  isLeftDistributive (*) (+) x y z &&
+  isRightDistributive (*) (+) x y z
+
+-- | Does the operator satisfy the semigroup law?
+
+isSemigroup :: (Eq a, Semigroup a) => a -> a -> a -> Bool
+isSemigroup = isAssociative (<>)
 
 -- | Does the operator satisfy the monoid laws?
-monoid :: (Eq a, Monoid a) => a -> a -> a -> Bool
-monoid x y z =
-  associative mappend x y z &&
-  identity mempty mappend x
+
+isMonoid :: (Eq a, Semigroup a, Monoid a) => a -> a -> a -> Bool
+isMonoid x y z =
+-- ASR (2017-01-25): What if `mappend ≠ (<>)`? It isn't possible
+-- because we are using the `-Wnoncanonical-monoid-instances` flag.
+  isSemigroup x y z &&
+  isIdentity mempty mappend x
 
 ------------------------------------------------------------------------
 -- Generators

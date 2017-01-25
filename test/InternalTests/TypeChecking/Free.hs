@@ -47,26 +47,26 @@ strictlyAscending l = and $ zipWith (<) l $ tail l
 
 prop_composeFlexRig_associative :: Free.FlexRig -> Free.FlexRig ->
                                    Free.FlexRig -> Bool
-prop_composeFlexRig_associative = associative composeFlexRig
+prop_composeFlexRig_associative = isAssociative composeFlexRig
 
 prop_composeFlexRig_commutative :: Free.FlexRig -> Free.FlexRig -> Bool
-prop_composeFlexRig_commutative = commutative composeFlexRig
+prop_composeFlexRig_commutative = isCommutative composeFlexRig
 
 prop_composeFlexRig_idempotent :: Free.FlexRig -> Bool
-prop_composeFlexRig_idempotent = idempotent  composeFlexRig
+prop_composeFlexRig_idempotent = isIdempotent  composeFlexRig
 
 prop_composeFlexRig_zero :: Free.FlexRig -> Bool
 prop_composeFlexRig_zero = isZero (Free.Flexible mempty) composeFlexRig
 
 prop_composeFlexRig_unit :: Free.FlexRig -> Bool
-prop_composeFlexRig_unit = identity Free.Unguarded composeFlexRig
+prop_composeFlexRig_unit = isIdentity Free.Unguarded composeFlexRig
 
 prop_FlexRig_distributive :: Free.FlexRig -> Free.FlexRig ->
                              Free.FlexRig -> Bool
-prop_FlexRig_distributive = distributive composeFlexRig max
+prop_FlexRig_distributive = isDistributive composeFlexRig max
 
 -- Not true (I did not expect it to be true, just for sanity I checked):
--- prop_FlexRig_distributive' = distributive max composeFlexRig
+-- prop_FlexRig_distributive' = isDistributive max composeFlexRig
 
 -- ** 'maxVarOcc'
 
@@ -74,7 +74,7 @@ prop_maxVarOcc_top :: VarOcc -> Bool
 prop_maxVarOcc_top = isZero topVarOcc maxVarOcc
 
 prop_maxVarOcc_bot :: VarOcc -> Bool
-prop_maxVarOcc_bot = identity botVarOcc maxVarOcc
+prop_maxVarOcc_bot = isIdentity botVarOcc maxVarOcc
 
 -- * Unit tests
 

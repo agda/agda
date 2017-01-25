@@ -58,11 +58,11 @@ instance Arbitrary (Blocked ()) where
 
 -- | 'NotBlocked' is a monoid.
 prop_monoid_NotBlocked :: NotBlocked -> NotBlocked -> NotBlocked -> Bool
-prop_monoid_NotBlocked = monoid
+prop_monoid_NotBlocked = isMonoid
 
 -- | 'Blocked_' is a monoid.
 prop_monoid_Blocked_ :: Blocked_ -> Blocked_ -> Blocked_ -> Bool
-prop_monoid_Blocked_ = monoid
+prop_monoid_Blocked_ = isMonoid
 
 ------------------------------------------------------------------------
 -- Hack to make $quickCheckAll work under ghc-7.8

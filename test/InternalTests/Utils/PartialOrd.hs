@@ -61,15 +61,15 @@ prop_orPO_sound p q =
 -- | 'orPO' is associative.
 prop_associative_orPO :: PartialOrdering -> PartialOrdering ->
                          PartialOrdering -> Bool
-prop_associative_orPO = associative orPO
+prop_associative_orPO = isAssociative orPO
 
 -- | 'orPO' is commutative.
 prop_commutative_orPO :: PartialOrdering -> PartialOrdering -> Bool
-prop_commutative_orPO = commutative orPO
+prop_commutative_orPO = isCommutative orPO
 
 -- | 'orPO' is idempotent.
 prop_idempotent_orPO :: PartialOrdering -> Bool
-prop_idempotent_orPO = idempotent orPO
+prop_idempotent_orPO = isIdempotent orPO
 
 -- | The dominant element wrt. 'orPO' is 'POAny'.
 prop_zero_orPO :: PartialOrdering -> Bool
@@ -92,7 +92,7 @@ prop_seqPO (ISet a) (ISet b) (ISet c) = related a o c
 -- the unit of 'seqPO' is 'POEQ'.
 prop_monoid_seqPO :: PartialOrdering -> PartialOrdering ->
                      PartialOrdering -> Bool
-prop_monoid_seqPO = monoid
+prop_monoid_seqPO = isMonoid
 
 -- | The zero of 'seqPO' is 'POAny'.
 prop_zero_seqPO :: PartialOrdering -> Bool
@@ -100,16 +100,16 @@ prop_zero_seqPO = isZero POAny seqPO
 
 -- | 'seqPO' is also commutative.
 prop_commutative_seqPO :: PartialOrdering -> PartialOrdering -> Bool
-prop_commutative_seqPO = commutative seqPO
+prop_commutative_seqPO = isCommutative seqPO
 
 -- | 'seqPO' is idempotent.
 prop_idempotent_seqPO :: PartialOrdering -> Bool
-prop_idempotent_seqPO = idempotent seqPO
+prop_idempotent_seqPO = isIdempotent seqPO
 
 -- | 'seqPO' distributes over 'orPO'.
 prop_distributive_seqPO_orPO :: PartialOrdering -> PartialOrdering ->
                                 PartialOrdering -> Bool
-prop_distributive_seqPO_orPO = distributive seqPO orPO
+prop_distributive_seqPO_orPO = isDistributive seqPO orPO
 
 -- | The result of 'toOrderings' is a sorted list without duplicates.
 prop_sorted_toOrderings :: PartialOrdering -> Bool

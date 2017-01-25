@@ -226,8 +226,8 @@ prop_add :: Size Int -> Property
 prop_add sz =
   forAll (three (matrix sz :: Gen TM)) $ \(m1, m2, m3) ->
     let m' = add (+) m1 m2 in
-      associative (add (+)) m1 m2 m3 &&
-      commutative (add (+)) m1 m2 &&
+      isAssociative (add (+)) m1 m2 m3 &&
+      isCommutative (add (+)) m1 m2 &&
       matrixInvariant m' &&
       size m' == size m1
 
@@ -277,7 +277,7 @@ prop_mul sz =
   forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->
   forAll (matrix (Size { rows = c2, cols = c3 })) $ \m3 ->
     let m' = mult m1 m2 in
-      associative mult m1 m2 m3 &&
+      isAssociative mult m1 m2 m3 &&
       matrixInvariant m' &&
       size m' == Size { rows = rows sz, cols = c2 }
   where mult = mul Semiring.intSemiring

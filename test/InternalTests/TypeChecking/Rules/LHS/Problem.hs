@@ -17,7 +17,7 @@ instance Arbitrary FlexChoice where
 
 -- | 'FlexChoice' is a monoid.
 prop_monoid_FlexChoice :: FlexChoice -> FlexChoice -> FlexChoice -> Bool
-prop_monoid_FlexChoice = monoid
+prop_monoid_FlexChoice = isMonoid
 
 ------------------------------------------------------------------------
 -- Hack to make $quickCheckAll work under ghc-7.8

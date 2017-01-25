@@ -72,24 +72,24 @@ instance CoArbitrary Occurrence where
 
 prop_Occurrence_oplus_associative ::
   Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_associative = associative oplus
+prop_Occurrence_oplus_associative = isAssociative oplus
 
 prop_Occurrence_oplus_ozero :: Occurrence -> Bool
-prop_Occurrence_oplus_ozero = identity ozero oplus
+prop_Occurrence_oplus_ozero = isIdentity ozero oplus
 
 prop_Occurrence_oplus_commutative :: Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_commutative = commutative oplus
+prop_Occurrence_oplus_commutative = isCommutative oplus
 
 prop_Occurrence_otimes_associative ::
   Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_otimes_associative = associative otimes
+prop_Occurrence_otimes_associative = isAssociative otimes
 
 prop_Occurrence_otimes_oone :: Occurrence -> Bool
-prop_Occurrence_otimes_oone = identity oone otimes
+prop_Occurrence_otimes_oone = isIdentity oone otimes
 
 prop_Occurrence_distributive ::
   Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_distributive = distributive otimes oplus
+prop_Occurrence_distributive = isDistributive otimes oplus
 
 prop_Occurrence_otimes_ozero :: Occurrence -> Bool
 prop_Occurrence_otimes_ozero = isZero ozero otimes

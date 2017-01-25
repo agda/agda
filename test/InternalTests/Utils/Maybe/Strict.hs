@@ -30,7 +30,7 @@ instance CoArbitrary a => CoArbitrary (Maybe a) where
 
 -- | 'Maybe a' is a monoid.
 prop_monoid_Maybe :: Maybe () -> Maybe () -> Maybe () -> Bool
-prop_monoid_Maybe = monoid
+prop_monoid_Maybe = isMonoid
 
 ------------------------------------------------------------------------
 -- Hack to make $quickCheckAll work under ghc-7.8
