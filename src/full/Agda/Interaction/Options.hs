@@ -621,9 +621,9 @@ pragmaOptions =
     , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)
                     "disable pattern matching completely"
     , Option []     ["exact-split"] (NoArg exactSplitFlag)
-                    "require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)"
+                    "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
     , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
-                    "do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)"
+                    "do not require all clauses in a definition to hold as definitional equalities (default)"
     , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
                     "disable eta rules for records"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
