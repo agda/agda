@@ -1684,12 +1684,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.Def x -> return x
           _       -> __IMPOSSIBLE__
     return [ A.CompiledExportPragma y hs ]
-  toAbstract (C.CompiledEpicPragma _ x ep) = do
-    e <- toAbstract $ OldQName x Nothing
-    y <- case e of
-          A.Def x -> return x
-          _       -> __IMPOSSIBLE__
-    return [ A.CompiledEpicPragma y ep ]
   toAbstract (C.CompiledJSPragma _ x ep) = do
     e <- toAbstract $ OldQName x Nothing
     y <- case e of

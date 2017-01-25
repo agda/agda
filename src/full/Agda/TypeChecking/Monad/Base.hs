@@ -1350,7 +1350,6 @@ defaultDefn info x t def = Defn
 
 type HaskellCode = String
 type HaskellType = String
-type EpicCode    = String
 type JSCode      = String
 
 data HaskellRepresentation
@@ -1377,14 +1376,13 @@ data Polarity
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
   , exportHaskell   :: Maybe HaskellExport
-  , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
   , compiledCore    :: Maybe CoreRepresentation
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
@@ -1709,9 +1707,6 @@ defParameters _                                     = Nothing
 
 defJSDef :: Definition -> Maybe JSCode
 defJSDef = compiledJS . defCompiledRep
-
-defEpicDef :: Definition -> Maybe EpicCode
-defEpicDef = compiledEpic . defCompiledRep
 
 defCoreDef :: Definition -> Maybe CoreRepresentation
 defCoreDef = compiledCore . defCompiledRep

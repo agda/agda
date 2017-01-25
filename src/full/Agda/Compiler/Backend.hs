@@ -75,7 +75,7 @@ data Backend' opts env menv mod def = Backend'
       --   @.agdai@ file to allow up-to-date checking of previously written
       --   compilation results. Should return @Skip m@ if compilation is not
       --   required.
-  , postModule       :: env -> menv -> ModuleName -> [def] -> TCM mod
+  , postModule       :: env -> menv -> IsMain -> ModuleName -> [def] -> TCM mod
       -- ^ Called after all definitions of a module has been compiled.
   , compileDef       :: env -> menv -> Definition -> TCM def
       -- ^ Compile a single definition.
@@ -145,12 +145,12 @@ compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
 compilerMain backend isMain i =
   inCompilerEnv i $ do
     env  <- preCompile backend (options backend)
-    mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env i
+    mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env isMain i
     setInterface i
     postCompile backend env isMain mods
 
-compileModule :: Backend' opts env menv mod def -> env -> Interface -> TCM mod
-compileModule backend env i = do
+compileModule :: Backend' opts env menv mod def -> env -> IsMain -> Interface -> TCM mod
+compileModule backend env isMain i = do
   ifile <- maybe __IMPOSSIBLE__ filePath <$>
             (findInterfaceFile . toTopLevelModuleName =<< curMName)
   r <- preModule backend env (iModuleName i) ifile
@@ -159,4 +159,4 @@ compileModule backend env i = do
     Recompile menv -> do
       defs <- map snd . sortDefs <$> curDefs
       res  <- mapM (compileDef backend env menv <=< instantiateFull) defs
-      postModule backend env menv (iModuleName i) res
+      postModule backend env menv isMain (iModuleName i) res
