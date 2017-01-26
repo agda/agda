@@ -168,11 +168,8 @@ makeProjection x = -- if True then return () else do
                 [ prettyTCM x <+> text " : " <+> prettyTCM t
                 , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
                 ]
-{-
-              reportSLn "tc.proj.like" 10 $
-                show (defName defn) ++ " is projection like in argument " ++
-                show n ++ " for type " ++ show d
--}
+              __CRASH_WHEN__ "tc.proj.like.crash" 1000
+
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
               -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
