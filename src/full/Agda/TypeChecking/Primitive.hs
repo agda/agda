@@ -180,6 +180,8 @@ instance ToTerm ArgInfo where
           NonStrict  -> rel
           Forced{}   -> irr
           UnusedArg  -> irr
+          _          -> rel -- Andrea TODO: fix this? i.e. represent modalities in Reflected syntax
+
       ]
 
 instance ToTerm Fixity' where
@@ -1109,7 +1111,7 @@ primGlue' = do
        nPi' "A" (sort . tmSort <$> la) $ \ a ->
        nPi' "φ" (el $ cl primProp) $ \ φ ->
        nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       nPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       csPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o))
        -- -->
        (sort . tmSort <$> lb))
@@ -1132,7 +1134,7 @@ prim_glue' = do
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" (el $ cl primProp) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
   view <- propView'
@@ -1154,7 +1156,7 @@ prim_unglue' = do
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" (el $ cl primProp) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)) --> el' la a)
   view <- propView'
@@ -1318,6 +1320,40 @@ primUnIota' = do
           _      -> return $ NoReduction [reduced si]
       _   -> __IMPOSSIBLE__
 
+
+primPi' :: Bool -> Relevance -> TCM PrimitiveImpl
+primPi' v m = do
+  let mPi' m = if v then modPi' m else hmodPi' m
+  -- ∀{ℓA ℓB} (A : Set ℓA) → (B : ♭m A → Set ℓB) → Set (ℓB ⊔ ℓA)
+  t <- runNamesT [] $
+        (hPi' "la" (el $ cl primLevel) $ \ la ->
+         hPi' "lb" (el $ cl primLevel) $ \ lb ->
+         nPi' "A" (sort . tmSort <$> la) $ \ bA ->
+         nPi' "B" (modPi' (flattenRel m) "x" (el' la bA) (\ _ -> sort . tmSort <$> lb)) $ \ bB ->
+         (sort . tmSort <$> (cl primLevelMax <@> la <@> lb)))
+  let h = setHiding Hidden defaultArgInfo
+  v <- runNamesT [] $
+       glam h "la" $ \ la ->
+       glam h "lb" $ \ lb ->
+       lam "A" $ \ bA ->
+       lam "B" $ \ bB ->
+       unEl <$> mPi' m "x" (el' la bA) (\ x -> el' lb (bB <@> x))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \ts -> redReturn v
+    -- case ts of
+    --   [la,lb,bA,bB] -> do
+    --     (redReturn . unEl =<<) . runNamesT [] $ do
+    --       [la,lb,bA,bB] <- mapM (open . unArg) [la,lb,bA,bB]
+    --       modPi' m "x" (el' la bA) (\ x -> el' lb (bB <@> x))
+    --   _ -> __IMPOSSIBLE__
+
+primCoShapePi' :: TCM PrimitiveImpl
+primCoShapePi' = primPi' True CoShape
+
+primSharpPi' :: TCM PrimitiveImpl
+primSharpPi' = primPi' True Sharp
+
+primNSSharpPi' :: TCM PrimitiveImpl
+primNSSharpPi' = primPi' True NSSharp
 
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
@@ -1551,7 +1587,7 @@ garr f a b = do
 gpi :: MonadTCM tcm => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
-  b <- addContext (name, defaultArgDom info a) b
+  b <- addContext (name, defaultArgDom info a) b -- Andrea TODO: flattenRel?
   let y = stringToArgName name
   return $ El (getSort a `dLub` Abs y (getSort b))
               (Pi (defaultArgDom info a) (Abs y b))
@@ -1570,6 +1606,27 @@ pPi' n phi b = toFinitePi <$> nPi' n (el $ cl (liftTCM primIsOne) <@> phi) b
    toFinitePi :: Type -> Type
    toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
    toFinitePi _               = __IMPOSSIBLE__
+
+
+modPi :: MonadTCM tcm => Relevance -> String -> tcm Type -> tcm Type -> tcm Type
+modPi m = gpi $ setRelevance m defaultArgInfo
+
+csPi, sPi, nsPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
+csPi = modPi CoShape
+sPi  = modPi Sharp
+nsPi = modPi NSSharp
+
+modPi' :: MonadTCM tcm => Relevance -> String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+modPi' m s a b = modPi m s a (bind' s b)
+
+hmodPi' :: MonadTCM tcm => Relevance -> String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+hmodPi' m s a b = gpi info s a (bind' s b) where info = setRelevance m $ setHiding Hidden defaultArgInfo
+
+csPi', sPi', nsPi', hcsPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+csPi' = modPi' CoShape
+hcsPi' s a b = gpi info s a (bind' s b) where info = setHiding Hidden $ setRelevance CoShape $ defaultArgInfo
+sPi'  = modPi' Sharp
+nsPi' = modPi' NSSharp
 
 
 el' :: Monad m => m Term -> m Term -> m Type
@@ -1792,6 +1849,13 @@ primitiveFunctions = Map.fromList
   , builtinPMin           |-> primPMin'
   , builtinPMax           |-> primPMax'
   , builtinUnIota         |-> primUnIota'
+  , builtinCoShapePi      |-> primCoShapePi'
+  , builtinSharpPi        |-> primSharpPi'
+  , builtinNSSharpPi      |-> primNSSharpPi'
+  , "primHCoShapePi"      |-> primPi' False CoShape
+  , "primHSharpPi"        |-> primPi' False Sharp
+  , "primHNSSharpPi"      |-> primPi' False NSSharp
+
   ]
   where
     (|->) = (,)

@@ -515,7 +515,7 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- max (getRelevance info0) <$> asks envRelevance
+  rel <- maxRelevance (getRelevance info0) <$> asks envRelevance
   let info = setRelevance rel info0
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
   t <- workOnTypes $ isType_ e

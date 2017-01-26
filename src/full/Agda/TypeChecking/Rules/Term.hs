@@ -293,7 +293,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modRel PiNotLam xp = if xp then irrToNonStrict else nonStrictToRel
+        modRel PiNotLam xp = flattenRel
         modRel _        _  = id
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
@@ -1572,7 +1572,9 @@ inferHead e = do
         , text "has type:" , text (show a)
         ]
       when (unusableRelevance $ getRelevance a) $
-        typeError $ VariableIsIrrelevant x
+        (typeError . GenericDocError)
+          =<< (fsep $
+                text "Variable" : prettyTCM x : (pwords $ "is declared " ++ show (getRelevance a) ++ ", so it cannot be used here"))
       return (applyE u, unDom a)
     (A.Def x) -> inferHeadDef ProjPrefix x
     (A.Proj o (AmbQ [d])) -> inferHeadDef o d

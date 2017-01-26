@@ -126,6 +126,8 @@ quotingKit = do
       quoteRelevance NonStrict  = pure relevant
       quoteRelevance Forced{}   = pure relevant
       quoteRelevance UnusedArg  = pure relevant
+      -- Andrea TODO: fix this?
+      quoteRelevance _          = pure relevant
 
       quoteArgInfo :: ArgInfo -> ReduceM Term
       quoteArgInfo (ArgInfo h r _ _) = arginfo !@ quoteHiding h @@ quoteRelevance r

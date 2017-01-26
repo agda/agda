@@ -24,7 +24,7 @@ import Agda.TypeChecking.Monad
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
 hideAndRelParams :: Dom a -> Dom a
-hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
+hideAndRelParams = hideOrKeepInstance -- . mapRelevance nonStrictToIrr -- Andrea TODO: why?
 
 -- | Used to modify context when going into a @rel@ argument.
 inverseApplyRelevance :: Relevance -> Dom a -> Dom a
@@ -48,10 +48,10 @@ workOnTypes cont = do
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance f) cont
-  where
-    f | experimental = irrToNonStrict
-      | otherwise    = nonStrictToRel
+workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance flattenRel) cont
+  -- where
+  --   f | experimental = irrToNonStrict
+  --     | otherwise    = nonStrictToRel
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

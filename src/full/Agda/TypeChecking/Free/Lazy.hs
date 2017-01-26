@@ -100,7 +100,7 @@ data VarOcc = VarOcc
 -- | When we extract information about occurrence, we care most about
 --   about 'StronglyRigid' 'Relevant' occurrences.
 maxVarOcc :: VarOcc -> VarOcc -> VarOcc
-maxVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (max o o') (min r r')
+maxVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (max o o') (minRelevance r r')
 
 topVarOcc :: VarOcc
 topVarOcc = VarOcc StronglyRigid Relevant

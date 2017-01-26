@@ -665,7 +665,7 @@ compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDo
   | not $ compareRelevance cmp (ignoreForced $ getRelevance dom1)
                                (ignoreForced $ getRelevance dom2) = errR
   | otherwise = do
-      let r = max (getRelevance dom1) (getRelevance dom2)
+      let r = maxRelevance (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
       pid <- newProblem_ $ compareType cmp a1 a2
@@ -684,7 +684,7 @@ compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDo
 
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
-compareRelevance CmpLeq = (<=)
+compareRelevance CmpLeq = moreRelevant
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.

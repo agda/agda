@@ -29,6 +29,7 @@ makeForcedArgs (T.El _ term) = case T.ignoreSharing term of
       Common.UnusedArg  -> Forced
       Common.NonStrict  -> Forced  -- can never be executed
       Common.Forced{}   -> Forced  -- It can be inferred
+      _                 -> NotForced  -- Andrea TODO: fix it if we ever care
 
 -- | Remove forced arguments from constructors and branches
 forceConstrs :: [Fun] -> Compile TCM [Fun]

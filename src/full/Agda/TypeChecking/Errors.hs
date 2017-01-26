@@ -1471,6 +1471,9 @@ instance Verbalize Relevance where
       NonStrict  -> "shape-irrelevant"
       Forced{}   -> __IMPOSSIBLE__
       UnusedArg  -> __IMPOSSIBLE__
+      Sharp      -> "sharp"
+      CoShape    -> "coshape"
+      NSSharp    -> "shape-irr-sharp"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

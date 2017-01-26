@@ -1149,7 +1149,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding       = min (getHiding info) (getHiding info')
-                       , argInfoRelevance    = max (getRelevance info) (getRelevance info')
+                       , argInfoRelevance    = maxRelevance (getRelevance info) (getRelevance info')
                        , argInfoOrigin       = min (getOrigin info) (getOrigin info')
                        , argInfoOverlappable = False
                        }

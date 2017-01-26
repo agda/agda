@@ -8,6 +8,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.Maybe
 import qualified Data.Set as Set
+import Data.List (foldl1')
 
 import Agda.Interaction.Options
 
@@ -101,7 +102,7 @@ checkRecDef i name ind eta con ps contel fields =
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
           -- See issue 392.
-          recordRelevance = minimum $ Irrelevant : (map getRelevance $ telToList ftel)
+          recordRelevance = foldl1' minRelevance $ Irrelevant : (map getRelevance $ telToList ftel)
 
       -- Compute correct type of constructor
 
