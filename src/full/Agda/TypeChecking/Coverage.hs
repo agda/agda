@@ -193,29 +193,32 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     , nest 2 $ text "tel  =" <+> prettyTCM tel
     , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
-  exactSplitEnabled <- optExactSplit <$> pragmaOptions
   cs' <- normaliseProjP cs
   case match cs' ps of
-    Yes (i,(mps,ls0))
-     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
-     -> do
-      reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-      -- Check if any earlier clauses could match with appropriate literals
-      let lsis = mapMaybe (\(j,c) -> (,j) <$> matchLits c ps) $ zip [0..i-1] cs
-      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show lsis
-      -- Andreas, 2016-10-08, issue #2243 (#708)
-      -- If we have several literal matches with the same literals
-      -- only take the first matching clause of these.
-      let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
-      return (SplittingDone (size tel), Set.fromList is, [])
-
-     | otherwise -> do
-         reportSDoc "tc.cover.cover" 10 $ vcat
-           [ text $ "pattern covered by clause " ++ show i ++ " but case splitting was not exact. remaining mpats: "
-           , nest 2 $ vcat $ map (text . show) mps
-           ]
-         setCurrentRange (cs !! i) $
-           typeError $ CoverageNoExactSplit f (cs !! i)
+    Yes (i,(mps,ls0)) -> do
+      exactSplitOk <- do
+        exactSplitEnabled <- optExactSplit <$> pragmaOptions
+        if (not exactSplitEnabled) || (clauseCatchall $ cs !! i) then
+          return True
+        else
+          allM mps isTrivialPattern
+      if exactSplitOk then do
+        reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
+        -- Check if any earlier clauses could match with appropriate literals
+        let lsis = mapMaybe (\(j,c) -> (,j) <$> matchLits c ps) $ zip [0..i-1] cs
+        reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show lsis
+        -- Andreas, 2016-10-08, issue #2243 (#708)
+        -- If we have several literal matches with the same literals
+        -- only take the first matching clause of these.
+        let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
+        return (SplittingDone (size tel), Set.fromList is, [])
+      else do
+        reportSDoc "tc.cover.cover" 10 $ vcat
+          [ text $ "pattern covered by clause " ++ show i ++ " but case splitting was not exact. remaining mpats: "
+          , nest 2 $ vcat $ map (text . show) mps
+          ]
+        setCurrentRange (cs !! i) $
+          typeError $ CoverageNoExactSplit f (cs !! i)
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"

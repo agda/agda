@@ -16,11 +16,14 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.List
+import Agda.Utils.Monad
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -68,13 +71,14 @@ buildPattern (Shared p)     = buildPattern (derefPtr p)
 buildPattern _              = Nothing
 
 -- | A pattern that matches anything (modulo eta).
-isTrivialPattern :: Pattern' a -> Bool
+isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
-  VarP{}      -> True
-  DotP{}      -> True
-  ConP c i ps -> isJust (conPRecord i) && all (isTrivialPattern . namedArg) ps
-  LitP{}      -> False
-  ProjP{}     -> False
+  VarP{}      -> return True
+  DotP{}      -> return True
+  ConP c i ps -> andM $ (isEtaCon $ conName c)
+                      : (map (isTrivialPattern . namedArg) ps)
+  LitP{}      -> return False
+  ProjP{}     -> return False
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
 --   to obtain the split clause pattern vector, plus the literals of the clause patterns
