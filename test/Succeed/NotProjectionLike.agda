@@ -82,3 +82,8 @@ IsTrue false = ⊥
 
 idTrue : (b : Bool) (p : IsTrue b) → Bool
 idTrue b p = b
+
+-- Not projection-like because it returns a paramter
+
+par : {A : Set} (xs : List A) → Set
+par {A} xs = A

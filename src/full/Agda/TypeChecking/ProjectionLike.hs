@@ -77,6 +77,7 @@ import Agda.TypeChecking.Reduce (reduce)
 
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -204,6 +205,8 @@ eligibleForProjectionLike d = do
 --
 --      d. @f@ cannot match deeply.
 --
+--      e. @f@s body may not mention the paramters.
+--
 -- For internal reasons:
 --
 --   3. @f@ cannot be constructor headed
@@ -243,13 +246,12 @@ makeProjection x = -- if True then return () else do
         -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
         -- Issue 700: problems with recursive funs. in term.checker and reduction
         ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
-          ps <- return $ filter (checkOccurs cls . snd) ps0
-          when (null ps) $
-            reportSLn "tc.proj.like" 50 $
+          {- else -}
+          case lastMaybe (filter (checkOccurs cls . snd) ps0) of
+            Nothing -> reportSLn "tc.proj.like" 50 $
               "  occurs check failed\n    clauses = " ++ show cls
-          case reverse ps of
-            []         -> return ()
-            (d, n) : _ -> do
+            Just (d, n) -> do
+              -- Yes, we are projection-like!
               reportSDoc "tc.proj.like" 10 $ sep
                 [ prettyTCM x <+> text " : " <+> prettyTCM t
                 , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
@@ -258,7 +260,6 @@ makeProjection x = -- if True then return () else do
 
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
-              -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
               reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
               -- Andreas, 2013-10-20 build parameter dropping function
@@ -318,8 +319,9 @@ makeProjection x = -- if True then return () else do
       where
         Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl
-        b        = compiledClauseBody cl
-        m        = size $ concatMap patternVars $ clausePats cl
+        b        = compiledClauseBody cl  -- Renumbers variables to match order in patterns
+                                          -- and includes dot patterns as variables.
+        m        = size $ concatMap patternVars ps  -- This also counts dot patterns!
 
 
     onlyMatch n ps = all (shallowMatch . namedArg) (take 1 ps1) &&
@@ -335,8 +337,9 @@ makeProjection x = -- if True then return () else do
         noMatch VarP{} = True
         noMatch DotP{} = True
 
+    -- Make sure non of the parameters occurs in the body of the function.
     checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
-      where badVar (x,_) = Any $ m-1-n < x && x < m
+      where badVar (x,_) = Any $ m-n <= x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
     -- if @t@ is a function-type with domain @t 0 .. (n-1)@

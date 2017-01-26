@@ -73,8 +73,9 @@ getConType c t = do
 data HasEta = NoEta | YesEta
   deriving (Eq)
 
-data ConstructorInfo = DataCon Nat  -- arity
-                     | RecordCon HasEta [Arg QName]
+data ConstructorInfo
+  = DataCon Nat                  -- ^ Arity.
+  | RecordCon HasEta [Arg QName] -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.
@@ -83,27 +84,15 @@ data ConstructorInfo = DataCon Nat  -- arity
 --   use @either id size <$> getConstructorArity c@.
 getConstructorInfo :: QName -> TCM ConstructorInfo
 getConstructorInfo c = do
-  Defn{ defType = t, theDef = def } <- getConstInfo c
-  case def of
-    Constructor{ conData = d, conPars = n } -> do
-      def <- theDef <$> getConstInfo d
-      case def of
+  (theDef <$> getConstInfo c) >>= \case
+    Constructor{ conData = d, conArity = n } -> do
+      (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
            return $ RecordCon (if recEtaEquality r then YesEta else NoEta) fs
-        Datatype{} -> do
-          -- TODO: I do not want to take the type of constructor apart
-          -- to see its arity!
-          TelV tel _ <- telView t
-          return $ DataCon $ size tel - n
+        Datatype{} ->
+           return $ DataCon n
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
-
-getConstructorArity :: QName -> TCM Nat
-getConstructorArity c =
-  for (getConstructorInfo c) $ \i ->
-  case i of
-    DataCon n      -> n
-    RecordCon _ fs -> size fs
 
 ---------------------------------------------------------------------------
 -- * Data types

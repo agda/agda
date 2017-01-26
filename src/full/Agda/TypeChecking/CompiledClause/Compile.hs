@@ -4,6 +4,8 @@ module Agda.TypeChecking.CompiledClause.Compile where
 
 import Prelude hiding (null)
 
+import Control.Monad
+
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
@@ -264,9 +266,15 @@ expandCatchAlls single n cs =
     expansions = nubBy ((==) `on` (classify . unArg . snd))
                . mapMaybe (notVarNth . clPats)
                $ cs
-    notVarNth ps = caseMaybe (headMaybe ps2) Nothing $ \ p ->
-      if isVar (unArg p) then Nothing else Just (ps1, p)
-      where (ps1, ps2) = splitAt n ps
+    notVarNth
+      :: [Arg Pattern]
+      -> Maybe ([Arg Pattern]  -- ^ First @n@ patterns.
+               , Arg Pattern)  -- ^ @n+1@st pattern, not a variable
+    notVarNth ps = do
+      let (ps1, ps2) = splitAt n ps
+      p <- headMaybe ps2
+      guard $ not $ isVar $ unArg p
+      return (ps1, p)
 
     expand cl (qs, q) =
       case unArg q of

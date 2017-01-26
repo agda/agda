@@ -309,6 +309,7 @@ rebindLocalRewriteRules = do
         where m = qnameModule $ rewName r
       ruleMap' = HMap.map (filter (not . isLocal)) ruleMap
       locals = map rewName $ filter isLocal $ concat $ map reverse $ HMap.elems ruleMap
+  unless (null locals) $ __CRASH_WHEN__ "rewriting.local.crash" 1000
   stSignature . sigRewriteRules .= ruleMap'
   mapM_ addRewriteRule locals
 
