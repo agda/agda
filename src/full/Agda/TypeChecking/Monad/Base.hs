@@ -1444,8 +1444,8 @@ projArgInfo (Projection _ _ _ _ lams) =
 
 -- | Should a record type admit eta-equality?
 data EtaEquality
-  = Specified !Bool  -- ^ User specifed 'eta-equality' or 'no-eta-equality'
-  | Inferred !Bool   -- ^ Positivity checker inferred whether eta is safe/
+  = Specified !Bool  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
+  | Inferred !Bool   -- ^ Positivity checker inferred whether eta is safe.
   deriving (Typeable, Show, Eq)
 
 etaEqualityToBool :: EtaEquality -> Bool
