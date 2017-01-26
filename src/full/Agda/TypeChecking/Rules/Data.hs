@@ -247,8 +247,14 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $
           addConstant c $
-            defaultDefn defaultArgInfo c (telePi tel t') $
-              Constructor (size tel) con d (Info.defAbstract i) Inductive []
+            defaultDefn defaultArgInfo c (telePi tel t') $ Constructor
+              { conPars   = size tel
+              , conSrcCon = con
+              , conData   = d
+              , conAbstr  = Info.defAbstract i
+              , conInd    = Inductive
+              , conErased = []  -- computed during compilation to treeless
+              }
 
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do

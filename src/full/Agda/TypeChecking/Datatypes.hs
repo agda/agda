@@ -73,8 +73,9 @@ getConType c t = do
 data HasEta = NoEta | YesEta
   deriving (Eq)
 
-data ConstructorInfo = DataCon Nat  -- arity
-                     | RecordCon HasEta [Arg QName]
+data ConstructorInfo
+  = DataCon Nat                  -- ^ Arity.
+  | RecordCon HasEta [Arg QName] -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.
@@ -97,13 +98,6 @@ getConstructorInfo c = do
           return $ DataCon $ size tel - n
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
-
-getConstructorArity :: QName -> TCM Nat
-getConstructorArity c =
-  for (getConstructorInfo c) $ \i ->
-  case i of
-    DataCon n      -> n
-    RecordCon _ fs -> size fs
 
 ---------------------------------------------------------------------------
 -- * Data types
