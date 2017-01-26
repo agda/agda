@@ -1,0 +1,3 @@
+Issue2436.agda:4,8-9
+Agda doesn't like coinductive records with eta-equality
+when checking the definition of U

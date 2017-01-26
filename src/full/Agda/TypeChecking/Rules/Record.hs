@@ -149,6 +149,11 @@ checkRecDef i name ind eta con ps contel fields =
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
 
+      -- Andreas, 2017-01-26, issue #2436
+      -- Disallow coinductive records with eta-equality
+      when (conInduction == CoInductive && etaEqualityToBool haveEta == True) $
+        typeError $ GenericError $ "Agda doesn't like coinductive records with eta-equality"
+
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
 
       -- Add the record definition.
