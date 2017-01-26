@@ -84,18 +84,13 @@ data ConstructorInfo
 --   use @either id size <$> getConstructorArity c@.
 getConstructorInfo :: QName -> TCM ConstructorInfo
 getConstructorInfo c = do
-  Defn{ defType = t, theDef = def } <- getConstInfo c
-  case def of
-    Constructor{ conData = d, conPars = n } -> do
-      def <- theDef <$> getConstInfo d
-      case def of
+  (theDef <$> getConstInfo c) >>= \case
+    Constructor{ conData = d, conArity = n } -> do
+      (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
            return $ RecordCon (if recEtaEquality r then YesEta else NoEta) fs
-        Datatype{} -> do
-          -- TODO: I do not want to take the type of constructor apart
-          -- to see its arity!
-          TelV tel _ <- telView t
-          return $ DataCon $ size tel - n
+        Datatype{} ->
+           return $ DataCon n
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 

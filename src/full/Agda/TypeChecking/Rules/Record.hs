@@ -185,6 +185,7 @@ checkRecDef i name ind eta con ps contel fields =
           defaultDefn defaultArgInfo conName (telh `abstract` contype) $
             Constructor
               { conPars   = npars
+              , conArity  = size fs
               , conSrcCon = con
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
@@ -197,7 +198,7 @@ checkRecDef i name ind eta con ps contel fields =
         addNamedInstance conName name
 
       -- Check that the fields fit inside the sort
-      contype `fitsIn` s
+      _ <- contype `fitsIn` s
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant

@@ -240,7 +240,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        t' `fitsIn` s
+        arity <- t' `fitsIn` s
         debugAdd c t'
 
         -- add parameters to constructor type and put into signature
@@ -249,6 +249,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t') $ Constructor
               { conPars   = size tel
+              , conArity  = arity
               , conSrcCon = con
               , conData   = d
               , conAbstr  = Info.defAbstract i
@@ -348,7 +349,10 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The first argument is the type of the constructor.
-fitsIn :: Type -> Sort -> TCM ()
+--
+--   As a side effect, return the arity of the constructor.
+
+fitsIn :: Type -> Sort -> TCM Int
 fitsIn t s = do
   reportSDoc "tc.data.fits" 10 $
     sep [ text "does" <+> prettyTCM t
@@ -367,8 +371,9 @@ fitsIn t s = do
       when (withoutK || notForced (getRelevance dom)) $ do
         sa <- reduce $ getSort dom
         unless (sa == SizeUniv) $ sa `leqSort` s
-      addContext (absName b, dom) $ fitsIn (absBody b) (raise 1 s)
-    _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
+      addContext (absName b, dom) $ do
+        succ <$> fitsIn (absBody b) (raise 1 s)
+    _ -> return 0 -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
   where
     notForced Forced{} = False
     notForced _        = True
