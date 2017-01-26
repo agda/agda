@@ -23,6 +23,6 @@ postulate
 
 {-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
 {-# COMPILED_UHC putStrLn (UHC.Agda.Builtins.primPutStrLn) #-}
-{-# COMPILED_JS putStrLn function(x) { return function(cb) { process.stdout.write(x(0) + "\n"); cb(0); }; } #-}
+{-# COMPILED_JS putStrLn function(x) { return function(cb) { process.stdout.write(x.flat() + "\n"); cb(0); }; } #-}
 
 main = putStrLn (♯ "a")

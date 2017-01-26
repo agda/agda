@@ -21,6 +21,12 @@ exports.uprimIntegerMinus = function(x,y) {
 exports.uprimIntegerMultiply = function(x,y) {
   return x.multiply(y);
 };
+exports.uprimIntegerRem = function(x, y) {
+  return x.remainder(y);
+};
+exports.uprimIntegerQuot = function(x, y) {
+  return x.quotient(y);
+};
 exports.uprimIntegerEqual = function(x,y) {
   return x.compare(y) == 0;
 };

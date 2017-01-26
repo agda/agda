@@ -4,8 +4,10 @@ import Prelude hiding ( null )
 import Data.List ( intercalate )
 import Data.Set ( Set, toList, singleton, insert, member )
 import Data.Map ( Map, toAscList, empty, null )
+import Text.Regex.TDFA (makeRegex, matchTest, Regex)
 
 import Agda.Syntax.Common ( Nat )
+import Agda.Utils.Hash
 
 import Agda.Compiler.JS.Syntax hiding (exports)
 
@@ -56,7 +58,7 @@ instance Pretty LocalId where
   pretty n i (LocalId x) = "x" ++ show (n - x - 1)
 
 instance Pretty GlobalId where
-  pretty n i (GlobalId m) = intercalate "_" m
+  pretty n i (GlobalId m) = variableName $ intercalate "_" m
 
 instance Pretty MemberId where
   pretty n i (MemberId s) = "\"" ++ unescapes s ++ "\""
@@ -99,13 +101,14 @@ block' n i e          = block n i e
 modname :: GlobalId -> String
 modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
 
+
 exports :: Nat -> Int -> Set [MemberId] -> [Export] -> String
 exports n i lss [] = ""
-exports n i lss (Export ls _ e : es) | member (init ls) lss =
+exports n i lss (Export ls e : es) | member (init ls) lss =
   "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n (i+1) e ++ ";" ++ br i ++
   exports n i (insert ls lss) es
-exports n i lss (Export ls isCoind e : es) | otherwise =
-  exports n i lss (Export (init ls) False (Object empty) : Export ls isCoind e : es)
+exports n i lss (Export ls e : es) | otherwise =
+  exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
   pretty n i (Module m es ex) =
@@ -118,3 +121,15 @@ instance Pretty Module where
             ["var agdaRTS = require(\"agda-rts\");"] ++
             ["var " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
             | e <- js]
+
+variableName :: String -> String
+variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashString s)
+
+-- | Check if a string is a valid JS identifier. The check ignores keywords
+-- as we prepend z_ to our identifiers. The check
+-- is conservative and may not admit all valid JS identifiers.
+isValidJSIdent :: String -> Bool
+isValidJSIdent s = matchTest regex s
+  where
+    regex :: Regex
+    regex = makeRegex "^[a-zA-Z_$][0-9a-zA-Z_$]*$"
