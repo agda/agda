@@ -337,6 +337,8 @@ compilePrim p =
     T.PAdd -> binOp "agdaRTS.uprimIntegerPlus"
     T.PSub -> binOp "agdaRTS.uprimIntegerMinus"
     T.PMul -> binOp "agdaRTS.uprimIntegerMultiply"
+    T.PRem -> binOp "agdaRTS.uprimIntegerRem"
+    T.PQuot -> binOp "agdaRTS.uprimIntegerQuot"
     T.PSeq -> binOp "agdaRTS.primSeq"
     _ -> __IMPOSSIBLE__
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
