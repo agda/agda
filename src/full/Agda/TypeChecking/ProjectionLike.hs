@@ -77,6 +77,7 @@ import Agda.TypeChecking.Reduce (reduce)
 
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -243,13 +244,12 @@ makeProjection x = -- if True then return () else do
         -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
         -- Issue 700: problems with recursive funs. in term.checker and reduction
         ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
-          ps <- return $ filter (checkOccurs cls . snd) ps0
-          when (null ps) $
-            reportSLn "tc.proj.like" 50 $
+          {- else -}
+          case lastMaybe (filter (checkOccurs cls . snd) ps0) of
+            Nothing -> reportSLn "tc.proj.like" 50 $
               "  occurs check failed\n    clauses = " ++ show cls
-          case reverse ps of
-            []         -> return ()
-            (d, n) : _ -> do
+            Just (d, n) -> do
+              -- Yes, we are projection-like!
               reportSDoc "tc.proj.like" 10 $ sep
                 [ prettyTCM x <+> text " : " <+> prettyTCM t
                 , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
@@ -258,7 +258,6 @@ makeProjection x = -- if True then return () else do
 
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
-              -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
               reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
               -- Andreas, 2013-10-20 build parameter dropping function
