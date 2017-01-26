@@ -205,6 +205,8 @@ eligibleForProjectionLike d = do
 --
 --      d. @f@ cannot match deeply.
 --
+--      e. @f@s body may not mention the paramters.
+--
 -- For internal reasons:
 --
 --   3. @f@ cannot be constructor headed
@@ -317,8 +319,9 @@ makeProjection x = -- if True then return () else do
       where
         Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl
-        b        = compiledClauseBody cl
-        m        = size $ concatMap patternVars $ clausePats cl
+        b        = compiledClauseBody cl  -- Renumbers variables to match order in patterns
+                                          -- and includes dot patterns as variables.
+        m        = size $ concatMap patternVars ps  -- This also counts dot patterns!
 
 
     onlyMatch n ps = all (shallowMatch . namedArg) (take 1 ps1) &&
@@ -334,8 +337,9 @@ makeProjection x = -- if True then return () else do
         noMatch VarP{} = True
         noMatch DotP{} = True
 
+    -- Make sure non of the parameters occurs in the body of the function.
     checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
-      where badVar (x,_) = Any $ m-1-n < x && x < m
+      where badVar (x,_) = Any $ m-n <= x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
     -- if @t@ is a function-type with domain @t 0 .. (n-1)@
