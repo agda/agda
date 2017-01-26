@@ -325,7 +325,7 @@ instance Match NLPat Term where
         traceSDocNLM "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx)) $ do
         cid <- getContextId
         case (maybe Nothing (\i -> elemIndex i cid) id) of
-          Just j -> if v == var (j+n)
+          Just j -> if v == Var (j+n) (map (Apply . fmap var) bvs)
                     then tellSub r i (var j)
                     else no (text $ "(CtxId = " ++ show id ++ ")")
           Nothing -> do
