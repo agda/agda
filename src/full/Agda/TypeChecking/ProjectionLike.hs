@@ -1,5 +1,61 @@
 {-# LANGUAGE CPP               #-}
 
+-- | Dropping initial arguments (``parameters'') from a function which can be
+--   easily reconstructed from its principal argument.
+--
+--   A function which has such parameters is called ``projection-like''.
+--
+--   The motivation for this optimization comes from the use of nested records.
+--
+--   First, let us look why proper projections need not store the parameters:
+--   The type of a projection @f@ is of the form
+--   @
+--      f : Γ → R Γ → C
+--   @
+--   where @R@ is the record type and @C@ is the type of the field @f@.
+--   Given a projection application
+--   @
+--      p pars u
+--   @
+--   we know that the type of the principal argument @u@ is
+--   @
+--      u : R pars
+--   @
+--   thus, the parameters @pars@ are redundant in the projection application
+--   if we can always infer the type of @u@.
+--   For projections, this is case, because the principal argument @u@ must be
+--   neutral; otherwise, if it was a record value, we would have a redex,
+--   yet Agda maintains a β-normal form.
+--
+--   The situation for projections can be generalized to ``projection-like''
+--   functions @f@.  Conditions:
+--
+--     1. The type of @f@ is of the form @f : Γ → D Γ → ...@ for some
+--        type constructor @D@ which can never reduce.
+--
+--     2. For every reduced welltyped application @f pars u ...@,
+--        the type of @u@ is inferable.
+--
+--   This then allows @pars@ to be dropped always.
+--
+--   Condition 2 is approximated by a bunch of criteria, for details see function
+--   'makeProjection'.
+--
+--   Typical projection-like functions are compositions of projections
+--   which arise from nested records.
+--
+--   Notes:
+--
+--     1. This analysis could be dualized to ``constructor-like'' functions
+--        whose parameters are reconstructable from the target type.
+--        But such functions would need to be fully applied.
+--
+--     2. A more general analysis of which arguments are reconstructible
+--        can be found in
+--
+--          Jason C. Reed, Redundancy elimination for LF
+--          LFTMP 2004.
+
 module Agda.TypeChecking.ProjectionLike where
 
 import Control.Monad
@@ -128,6 +184,36 @@ eligibleForProjectionLike d = do
       -- See test/Fail/AbstractTypeProjectionLike.
 
 -- | Turn a definition into a projection if it looks like a projection.
+--
+-- Conditions for projection-likeness of @f@:
+--
+--   1. The type of @f@ must be of the shape @Γ → D Γ → C@ for @D@
+--      a name (@Def@) which is 'eligibleForProjectionLike':
+--      @data@ / @record@ / @postulate@.
+--
+--   2. The application of f should only get stuck if the principal argument
+--      is inferable (neutral).  Thus:
+--
+--      a. @f@ cannot have absurd clauses (which are stuck even if the principal
+--         argument is a constructor)
+--
+--      b. @f@ cannot be abstract as it does not reduce outside abstract blocks
+--         (always stuck).
+--
+--      c. @f@ cannot match on other arguments than the principal argument.
+--
+--      d. @f@ cannot match deeply.
+--
+-- For internal reasons:
+--
+--   3. @f@ cannot be constructor headed
+--
+--   4. @f@ cannot be recursive, since we have not implemented a function
+--      which goes through the bodies of the @f@ and the mutually recursive
+--      functions and drops the parameters from all applications of @f@.
+--
+-- Examples for these reasons: see test/Succeed/NotProjectionLike.agda
+
 makeProjection :: QName -> TCM ()
 makeProjection x = -- if True then return () else do
  inTopContext $ do
