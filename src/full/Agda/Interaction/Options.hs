@@ -597,7 +597,7 @@ pragmaOptions =
     , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
                     "do not require all clauses in a definition to hold as definitional equalities (default)"
     , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
-                    "disable eta rules for records"
+                    "default records to no-eta-equality"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
