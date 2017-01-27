@@ -268,8 +268,8 @@ expandCatchAlls single n cs =
                $ cs
     notVarNth
       :: [Arg Pattern]
-      -> Maybe ([Arg Pattern]  -- ^ First @n@ patterns.
-               , Arg Pattern)  -- ^ @n+1@st pattern, not a variable
+      -> Maybe ([Arg Pattern]  -- First @n@ patterns.
+               , Arg Pattern)  -- @n+1@st pattern, not a variable
     notVarNth ps = do
       let (ps1, ps2) = splitAt n ps
       p <- headMaybe ps2
