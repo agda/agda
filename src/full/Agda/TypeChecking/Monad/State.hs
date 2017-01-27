@@ -186,8 +186,9 @@ getSignature = use stSignature
 --   module. This function is currently used to update the compiled
 --   representation of a function during compilation.
 modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM ()
-modifyGlobalDefinition q f = modifySignature (updateDefinition q f) >>
-                             modifyImportedSignature (updateDefinition q f)
+modifyGlobalDefinition q f = do
+  modifySignature         $ updateDefinition q f
+  modifyImportedSignature $ updateDefinition q f
 
 setSignature :: Signature -> TCM ()
 setSignature sig = modifySignature $ const sig

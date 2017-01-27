@@ -333,10 +333,13 @@ unquoteTop xs e = do
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
   reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q
-  sig <- getSignature
-  let t = defType $ fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
-  t <- instantiateFull t
-  modifySignature $ updateDefinition q $ \ def -> def { defType = t }
+  t  <- defType . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
+  t' <- instantiateFull t
+  modifySignature $ updateDefinition q $ updateDefType $ const t'
+  reportSDoc "tc.decl.inst" 30 $ vcat
+    [ text "  t  = " <+> prettyTCM t
+    , text "  t' = " <+> prettyTCM t'
+    ]
 
 -- Andreas, 2014-04-11
 -- UNUSED, costs a couple of sec on the std-lib
@@ -460,8 +463,8 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
         case term of
           Just True -> do
             inv <- checkInjectivity q cs
-            modifySignature $ updateDefinition q $ const $
-              def { theDef = d { funInv = inv }}
+            modifySignature $ updateDefinition q $ updateTheDef $ const $
+              d { funInv = inv }
           _ -> reportSLn "tc.inj.check" 20 $
              show q ++ " is not verified as terminating, thus, not considered for injectivity"
       _ -> do
