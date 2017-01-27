@@ -747,6 +747,18 @@ checkPragma r p =
             _          -> typeError $ GenericError "INLINE directive only works on functions"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
+        A.EtaPragma r -> do
+          let noRecord = typeError $ GenericError $
+                "ETA pragma is only applicable to coinductive records"
+          caseMaybeM (isRecord r) noRecord $ \case
+            Record{ recInduction = ind, recEtaEquality' = eta } -> do
+              unless (ind == Just CoInductive) $ noRecord
+              when (eta == Specified False) $ typeError $ GenericError $
+                "ETA pragram conflicts with no-eta-equality declaration"
+            _ -> __IMPOSSIBLE__
+          modifySignature $ updateDefinition r $ updateTheDef $ \case
+            def@Record{} -> def { recEtaEquality' = Specified True }
+            _ -> __IMPOSSIBLE__
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

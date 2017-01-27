@@ -846,6 +846,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
     A.InlinePragma x -> C.InlinePragma r <$> toConcrete x
+    A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (AmbQ [f]) ps) <*> toConcrete rhs
 

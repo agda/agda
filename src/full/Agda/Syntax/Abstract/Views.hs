@@ -348,6 +348,7 @@ instance ExprLike Pragma where
       StaticPragma{}              -> pure p
       InjectivePragma{}           -> pure p
       InlinePragma{}              -> pure p
+      EtaPragma{}                 -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
     where rec e = recurseExpr f e
 
