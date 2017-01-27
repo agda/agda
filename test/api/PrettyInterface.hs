@@ -16,6 +16,9 @@ import Data.Foldable
 import Agda.Interaction.Imports        ( typeCheckMain )
 import Agda.Interaction.Options        ( defaultOptions )
 
+-- import Agda.Syntax.Translation.InternalToAbstract ( reify )
+-- import Agda.Syntax.Translation.AbstractToConcrete ()
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 
@@ -39,7 +42,7 @@ mainTCM = do
   compilerMain i
 
 compilerMain :: Interface -> TCM ()
-compilerMain i = withScope_ (iInsideScope i) $ withShowAllArguments $ disableDisplayForms $ do
+compilerMain i = withScope_ (iInsideScope i) $ do -- withShowAllArguments $ disableDisplayForms $ do
   let (Sig _secs defs _rews) = iSignature i
   forM_ (HashMap.toList defs) $ \ (q, def) -> do
     let t = defType def
@@ -47,4 +50,6 @@ compilerMain i = withScope_ (iInsideScope i) $ withShowAllArguments $ disableDis
     liftIO $ putStrLn $ render doc
   -- forM_ (HashMap.toList defs) $ \ (q, def) -> do
   --   let t = defType def
+  --   ast <- reify t
   --   liftIO $ putStrLn $ show q ++ " : " ++ show t
+  --   return $ const () ast
