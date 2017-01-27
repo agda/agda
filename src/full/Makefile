@@ -119,7 +119,8 @@ TAGS : $(src_files) $(hTags) $(hTags_include)
 # Andreas: create tags for everything exept Auto and Compilers
 # ignore = $(patsubst ./%,%,$(shell find ./Agda/Auto ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
 ignore = $(shell find ./Agda/Auto ./Agda/Compiler ./Agda/Packaging -name '*.hs' -o -name '*.lhs')
-tag_files = $(filter-out $(ignore),$(src_files))
+hs_boot = $(shell find . -name '*.hs-boot')
+tag_files = $(filter-out $(hs_boot),$(filter-out $(ignore),$(src_files)))
 
 mytags :  $(tag_files) $(hTags) $(hTags_include)
 	$(hTags) $(hTags_flags) -e $(tag_files)
