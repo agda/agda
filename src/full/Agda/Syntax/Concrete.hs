@@ -393,6 +393,9 @@ data Pragma
   | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
   | ImpossiblePragma          Range
+  | EtaPragma                 Range QName
+    -- ^ For coinductive records, use pragma instead of regular
+    --   @eta-equality@ definition (as it is might make Agda loop).
   | TerminationCheckPragma    Range (TerminationCheck Name)
   | CatchallPragma            Range
   | DisplayPragma             Range Pattern Expr
@@ -659,6 +662,7 @@ instance HasRange Pragma where
   getRange (ImportPragma r _)                = r
   getRange (ImportUHCPragma r _)             = r
   getRange (ImpossiblePragma r)              = r
+  getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (CatchallPragma r)                = r
   getRange (DisplayPragma r _ _)             = r
@@ -838,6 +842,7 @@ instance KillRange Pragma where
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
+  killRange (EtaPragma _ q)                   = killRange1 (EtaPragma noRange) q
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRange1 (\q -> PolarityPragma noRange q occs) q
 
@@ -966,6 +971,7 @@ instance NFData Pragma where
   rnf (ImportPragma _ a)                = rnf a
   rnf (ImportUHCPragma _ a)             = rnf a
   rnf (ImpossiblePragma _)              = ()
+  rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b

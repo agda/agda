@@ -462,6 +462,8 @@ instance Pretty Pragma where
       hsep $ [text "IMPORT_UHC", text i]
     pretty (ImpossiblePragma _) =
       hsep $ [text "IMPOSSIBLE"]
+    pretty (EtaPragma _ x) =
+      hsep $ [text "ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__

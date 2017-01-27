@@ -151,9 +151,12 @@ checkRecDef i name ind eta con ps contel fields =
 
       -- Andreas, 2017-01-26, issue #2436
       -- Disallow coinductive records with eta-equality
-      when (conInduction == CoInductive && etaEqualityToBool haveEta == True) $
-        typeError $ GenericError $ "Agda doesn't like coinductive records with eta-equality"
-
+      when (conInduction == CoInductive && etaEqualityToBool haveEta == True) $ do
+        typeError . GenericDocError =<< do
+          sep [ text "Agda doesn't like coinductive records with eta-equality."
+              , text "If you must, use pragma"
+              , text "{-# ETA" <+> prettyTCM name <+> text "#-}"
+              ]
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
 
       -- Add the record definition.
