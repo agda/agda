@@ -975,9 +975,6 @@ instance Normalise EqualityView where
 -- * Full instantiation
 ---------------------------------------------------------------------------
 
--- STALE: Full instantiatiation = normalisation [ instantiate' / reduce' ]
--- How can we express this? We need higher order classes!
-
 -- | @instantiateFull'@ 'instantiate's metas everywhere (and recursively)
 --   but does not 'reduce'.
 class InstantiateFull t where

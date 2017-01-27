@@ -134,13 +134,16 @@ computePolarity x = inConcreteOrAbstractMode x $ \ def -> do
   --
   -- Andreas, 2015-07-01: I thought one should do this for
   -- abstract local definitions in @where@ blocks to fix Issue 1366b,
-  --but it is not necessary.
-  -- t <- if (defAbstract def == AbstractDef) && not (isAnonymousModuleName $ qnameModule x)
-  t <- if (defAbstract def == AbstractDef)
-         then return t
-         else nonvariantToUnusedArg pol t
-  modifySignature $ updateDefinition x $
-   updateTheDef (nonvariantToUnusedArgInDef pol) . updateDefType (const t)
+  -- but it is not necessary.
+  -- t <- if (defAbstract def == AbsxtractDef) && not (isAnonymousModuleName $ qnameModule x)
+  -- Andreas, 2017-01-27: Leave definition alone if there is nothing to update.
+  when (defAbstract def /= AbstractDef && any (Nonvariant ==) pol) $ do
+    reportSDoc "tc.polarity.set" 15 $
+      text "Putting UnusedArg relevances annotations into type and definition"
+    t <- nonvariantToUnusedArg pol t
+    modifySignature $ updateDefinition x
+      $ updateTheDef  (nonvariantToUnusedArgInDef pol)
+      . updateDefType (const t)
 
 -- | Data and record parameters are used as phantom arguments all over
 --   the test suite (and possibly in user developments).

@@ -78,7 +78,27 @@ RTS_Issue1785      = --library-file=issue1785.libs
 RTS_Issue1829      = --caching +RTS -M4M -RTS
 
 # No recorded output
-$(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
+########################################################################
+
+# Andreas, 2017-01-27, issue #2438
+# The following rule does not work on my system.
+#
+#   $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
+#
+# According to the gnu-make manual, the wildcard command matches
+# immediately, but files like %.agda or %.lagda is not what we are looking for.
+# It would work if pattern matching (%) is done first.
+#
+# However, we can use second expansion, following
+# http://make.mad-scientist.net/secondary-expansion/.
+# The evaluation of the automatic variable $@ is first delayed,
+# such that it remains as literal string.
+# After the pattern matches, and $@ is instantiated to the stem of the target
+# say Issue123, we force evaluation of Issue123*.agda which gives us
+# the .agda or .lagda file.
+
+.SECONDEXPANSION:
+$(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.sh)
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
@@ -91,6 +111,8 @@ $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
 #			diff -b $*.out $*.tmp;
 
 # Comparing output
+########################################################################
+
 $(Tests) : %.cmp : %.out
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)

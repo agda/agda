@@ -1437,7 +1437,13 @@ checkApplication hd args e t = do
           ExtendTel dom . Abs "x" <$> addContext' ("x", dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
-    _ -> checkHeadApplication e t hd args
+    _ -> do
+      v <- checkHeadApplication e t hd args
+      reportSDoc "tc.term.app" 30 $ vcat
+        [ text "checkApplication: checkHeadApplication returned"
+        , nest 2 $ text "v = " <+> prettyTCM v
+        ]
+      return v
 
 ---------------------------------------------------------------------------
 -- * Meta variables

@@ -87,10 +87,9 @@ addConstant q d = do
 
 -- | Set termination info of a defined function symbol.
 setTerminates :: QName -> Bool -> TCM ()
-setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ setT
-  where
-    setT def@Function{} = def { funTerminates = Just b }
-    setT def            = def
+setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ \case
+    def@Function{} -> def { funTerminates = Just b }
+    def -> def
 
 -- | Modify the clauses of a function.
 modifyFunClauses :: QName -> ([Clause] -> [Clause]) -> TCM ()
@@ -687,23 +686,21 @@ modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
 setTreeless :: QName -> TTerm -> TCM ()
-setTreeless q t = modifyGlobalDefinition q $ setTT
-  where
-    setTT def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funTreeless = Just (Compiled t [])}}
-    setTT def = __IMPOSSIBLE__
+setTreeless q t =
+  modifyGlobalDefinition q $ updateTheDef $ \case
+    fun@Function{} -> fun{ funTreeless = Just $ Compiled t [] }
+    _ -> __IMPOSSIBLE__
 
 setCompiledArgUse :: QName -> [Bool] -> TCM ()
-setCompiledArgUse q use = modifyGlobalDefinition q $ setTT
-  where
-    setTT def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use }}}
-    setTT def = __IMPOSSIBLE__
+setCompiledArgUse q use =
+  modifyGlobalDefinition q $ updateTheDef $ \case
+    fun@Function{} ->
+      fun{ funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use } }
+    _ -> __IMPOSSIBLE__
 
 getCompiled :: QName -> TCM (Maybe Compiled)
 getCompiled q = do
-  def <- theDef <$> getConstInfo q
-  return $ case def of
+  (theDef <$> getConstInfo q) <&> \case
     Function{ funTreeless = t } -> t
     _                           -> Nothing
 
@@ -722,11 +719,9 @@ getErasedConArgs q = do
     _ -> __IMPOSSIBLE__
 
 setErasedConArgs :: QName -> [Bool] -> TCM ()
-setErasedConArgs q args = modifyGlobalDefinition q setArgs
-  where
-    setArgs def@Defn{theDef = con@Constructor{}} =
-      def{ theDef = con{ conErased = args } }
-    setArgs def = def   -- no-op for non-constructors
+setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
+    def@Constructor{} -> def{ conErased = args }
+    def -> def   -- no-op for non-constructors
 
 getTreeless :: QName -> TCM (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
@@ -737,8 +732,7 @@ getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]
 getMutual d = do
-  def <- theDef <$> getConstInfo d
-  return $ case def of
+  (theDef <$> getConstInfo d) <&> \case
     Function {  funMutual = m } -> m
     Datatype { dataMutual = m } -> m
     Record   {  recMutual = m } -> m
