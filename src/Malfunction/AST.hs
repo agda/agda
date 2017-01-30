@@ -48,10 +48,23 @@ data Mutability = Inm | Mut
 
 type BlockTag = Int
 
-data Case = Tag Int | Deftag | Intrange (Int, Int)
+-- The spec and the ocaml implementation are inconsistent when defining Case.
+-- I'll use the definition (examples) from the spec to guide this implementation.
+-- I know I could've used Maybe's here, but not doing so was a concious choice.
+--
+-- Any tag value above 200 is an error in malfunction.
+data Case
+  -- (tag _)
+  = Deftag
+  -- (tag n)
+  | Tag Int
+  -- _
+  | CaseAnyInt
+  -- n
+  | CaseInt Int
+  -- (n m)
+  | Intrange (Int, Int)
   deriving (Show, Eq)
-
-
 
 maxTag :: Integer
 maxTag = 200

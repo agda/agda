@@ -60,8 +60,10 @@ showCaseExpression (cs, t) = printf "(%s %s)" (unwords (map showCase cs)) (showT
 -- using the AST define in the original implementation of malfunction.
 showCase :: Case -> String
 showCase c = case c of
-  Tag i           -> printf "(tag %s)" (show i)
   Deftag          -> "(tag _)"
+  Tag n           -> printf "(tag %s)" (show n)
+  CaseAnyInt      -> "_"
+  CaseInt n       -> show n
   Intrange (i, j) -> printf "(%s %s)" (show i) (show j)
 
 showUnaryIntOp :: UnaryIntOp -> String

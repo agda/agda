@@ -65,7 +65,7 @@ translateSwitch alt = case alt of
 
 litToCase :: Literal -> Case
 litToCase l = case l of
-  LitNat _ i -> let i' = fromInteger i in Intrange (i', i')
+  LitNat _ i -> CaseInt . fromInteger $ i
   _          -> error "Unimplemented"
 
 translateBinding :: MonadTranslate m => TTerm -> m Binding
