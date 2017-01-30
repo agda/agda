@@ -1775,6 +1775,7 @@ checkHeadApplication e t hd args = do
   pOr       <- fmap primFunName <$> getPrimitive' "primPOr"
   pComp       <- fmap primFunName <$> getPrimitive' "primComp"
   mglue     <- getPrimitiveName' builtin_glue
+  mmcoglue     <- getPrimitiveName' builtin_mcoglue
   case hd of
     A.Con (AmbQ [c]) | Just c == (nameOfSharp <$> kit) -> do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
@@ -1872,6 +1873,23 @@ checkHeadApplication e t hd args = do
                                 el' lb $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
                           let a' = Lam iinfo (NoAbs "o" $ unArg a)
                           equalTerm ty a' v
+
+                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+    (A.Def c) | Just c == mmcoglue -> do
+                    defaultResult' $ Just $ \ vs t1 -> do
+                      case vs of
+                       [la,lb,lc,bA,phi,bT,f,bC,c0,c,b] -> do
+                          -- \ (o : IsOne phi) (a : bA) -> c0 a = c o (f o a) : bC (f o a)
+                          let iinfo = setRelevance Irrelevant defaultArgInfo
+                          runNamesT [] $ do
+                                [la,lc,bA,phi,f,bC,c0,c] <- mapM (open . unArg) [la,lc,bA,phi,f,bC,c0,c]
+                                ty <- pPi' "o" phi $ \ o -> nPi' "a" (el' la bA) $ \ a ->
+                                      el' lc (bC <@> (f <..> o <@> a))
+                                l <- glam iinfo "o" $ \ o -> lam "a" $ \ a ->
+                                     c0 <@> a
+                                r <- glam iinfo "o" $ \ o -> lam "a" $ \ a ->
+                                     c <..> o <@> (f <..> o <@> a)
+                                lift $ equalTerm ty l r
 
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 

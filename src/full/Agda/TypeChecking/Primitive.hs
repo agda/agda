@@ -1126,6 +1126,33 @@ primGlue' = do
          _    -> return (NoReduction $ map notReduced [la,lb,a] ++ [reduced sphi] ++ map notReduced [t,f])
      _ -> __IMPOSSIBLE__
 
+primCoGlue' :: TCM PrimitiveImpl
+primCoGlue' = do
+  -- Glue' : ∀ {l} (A : Set l) → ∀ φ → (T : Partial (Set a) φ) (f : (PartialP φ \ o → (T o) -> A))
+  --            ([f] : PartialP φ \ o → isEquiv (T o) A (f o)) → Set l
+  t <- runNamesT [] $
+       (hPi' "la" (el $ cl primLevel) $ \ la ->
+       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       nPi' "A" (sort . tmSort <$> la) $ \ a ->
+       nPi' "φ" (el $ cl primProp) $ \ φ ->
+       nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       csPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <@> o)) $ \ f ->
+       -- (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o))
+       -- -->
+       (sort . tmSort <$> lb))
+  view <- propView'
+  one <- primItIsOne
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ts ->
+    case ts of
+     [la,lb,a,phi,t,f] -> do
+       sphi <- reduceB' phi
+       case view $ unArg $ ignoreBlocking $ sphi of
+         PTop -> redReturn $ unArg t `apply` [argN one]
+         PBot -> redReturn $ unArg a
+         _    -> return (NoReduction $ map notReduced [la,lb,a] ++ [reduced sphi] ++ map notReduced [t,f])
+     _ -> __IMPOSSIBLE__
+
+
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
   t <- runNamesT [] $
@@ -1146,6 +1173,56 @@ prim_glue' = do
        case view $ unArg $ ignoreBlocking $ sphi of
          PTop -> redReturn $ unArg t `apply` [argN one]
          _    -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,t,a])
+      _ -> __IMPOSSIBLE__
+
+prim_coglue' :: TCM PrimitiveImpl
+prim_coglue' = do
+  t <- runNamesT [] $
+       (hPi' "la" (el $ cl primLevel) $ \ la ->
+       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       hPi' "A" (sort . tmSort <$> la) $ \ a ->
+       hPi' "φ" (el $ cl primProp) $ \ φ ->
+       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <@> o)) $ \ f ->
+       (el' la a --> el' lb (cl primCoGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
+  view <- propView'
+  one <- primItIsOne
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ts ->
+    case ts of
+      [la,lb,bA,phi,bT,f,a] -> do
+       sphi <- reduceB' phi
+       case view $ unArg $ ignoreBlocking $ sphi of
+         PTop -> redReturn $ unArg f `apply` [argN one, a]
+         PBot -> redReturn $ unArg a
+         _    -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,a])
+      _ -> __IMPOSSIBLE__
+
+prim_mcoglue' :: TCM PrimitiveImpl
+prim_mcoglue' = do
+  t <- runNamesT [] $
+       (hPi' "la" (el $ cl primLevel) $ \ la ->
+       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       hPi' "lc" (el $ cl primLevel) $ \ lc ->
+       hPi' "A" (sort . tmSort <$> la) $ \ bA ->
+       hPi' "φ" (el $ cl primProp) $ \ φ ->
+       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' la bA --> el' lb (bT <@> o)) $ \ f ->
+       let gg = el' lb (cl primCoGlue <#> la <#> lb <@> bA <@> φ <@> bT <@> f) in
+       nPi' "C" (gg --> (sort . tmSort <$> lc)) $ \ bC ->
+       nPi' "c0" (nPi' "a" (el' la bA) $ \ a -> el' lc (bC <@> (cl prim_coglue <#> la <#> lb <#> bA <#> φ <#> bT <#> f <@> a))) $ \ c0 ->
+       nPi' "c" (pPi' "o" φ $ \ o -> nPi' "t" (el' lb (bT <@> o)) $ \ t -> el' lc (bC <@> t)) $ \ c ->
+       nPi' "b" gg $ \ b ->
+       el' lc (bC <@> b))
+  view <- propView'
+  one <- primItIsOne
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
+    case ts of
+      [la,lb,lc,bA,phi,bT,f,bC,c0,c,b] -> do
+       sphi <- reduceB' phi
+       case view $ unArg $ ignoreBlocking $ sphi of
+         PTop -> redReturn $ unArg c `apply` [argN one, b]
+         PBot -> redReturn $ unArg c0 `apply` [b]
+         _    -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,bC,c0,c,b])
       _ -> __IMPOSSIBLE__
 
 prim_unglue' :: TCM PrimitiveImpl
@@ -1339,12 +1416,6 @@ primPi' v m = do
        lam "B" $ \ bB ->
        unEl <$> mPi' m "x" (el' la bA) (\ x -> el' lb (bB <@> x))
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \ts -> redReturn v
-    -- case ts of
-    --   [la,lb,bA,bB] -> do
-    --     (redReturn . unEl =<<) . runNamesT [] $ do
-    --       [la,lb,bA,bB] <- mapM (open . unArg) [la,lb,bA,bB]
-    --       modPi' m "x" (el' la bA) (\ x -> el' lb (bB <@> x))
-    --   _ -> __IMPOSSIBLE__
 
 primCoShapePi' :: TCM PrimitiveImpl
 primCoShapePi' = primPi' True CoShape
@@ -1855,7 +1926,9 @@ primitiveFunctions = Map.fromList
   , "primHCoShapePi"      |-> primPi' False CoShape
   , "primHSharpPi"        |-> primPi' False Sharp
   , "primHNSSharpPi"      |-> primPi' False NSSharp
-
+  , builtinCoGlue         |-> primCoGlue'
+  , builtin_coglue        |-> prim_coglue'
+  , builtin_mcoglue       |-> prim_mcoglue'
   ]
   where
     (|->) = (,)

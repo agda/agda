@@ -120,6 +120,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     --primBridge,
     primCoShapePi, primSharpPi, primNSSharpPi,
+    primCoGlue,prim_coglue,prim_mcoglue,
     primBridgeP,
     primB, primB0, primB1,
     primP, primP0, primP1,
@@ -206,6 +207,9 @@ primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
 primIsEquiv      = getBuiltin builtinIsEquiv
 primPathToEquiv  = getBuiltin builtinPathToEquiv
+primCoGlue         = getPrimitiveTerm builtinCoGlue
+prim_coglue        = getPrimitiveTerm builtin_coglue
+prim_mcoglue      = getPrimitiveTerm builtin_mcoglue
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
 prim_unglue      = getPrimitiveTerm builtin_unglue
@@ -377,6 +381,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
   builtinSub, builtinSubIn, builtinSubOut,
+  builtinCoGlue, builtin_coglue, builtin_mcoglue,
   builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
@@ -489,6 +494,9 @@ builtinPathToEquiv                   = "PATHTOEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim^glue"
 builtin_unglue                       = "prim^unglue"
+builtinCoGlue                        = "primCoGlue"
+builtin_coglue                       = "prim^coglue"
+builtin_mcoglue                      = "prim^mcoglue"
 builtinCompGlue                      = "COMPGLUE"
 builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
