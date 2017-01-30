@@ -8,6 +8,7 @@ import Malfunction.AST
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
+import Agda.Syntax.Common (NameId)
 
 import Control.Monad
 import Control.Monad.State
@@ -18,18 +19,18 @@ translate :: TTerm -> Term
 translate t = translateTerm t `evalState` 0
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
-translateTerm t = case t of
+translateTerm tt = case tt of
   TVar i            -> return . identToVarTerm $ i
   TPrim tp          -> return $ translatePrim tp
-  TDef name         -> return $ translateName name
+  TDef name         -> translateName name
   TApp t0 args      -> translateApp t0 args
   TLam t0           -> translateLam t0
   TLit lit          -> return $ translateLit lit
-  TCon name         -> return $ translateName name
+  TCon name         -> translateName name
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
 --  TCase i tp def alt -> liftM2 Mswitch (translateTerm def) (mapM translateSwitch alt)
-  TCase i tp def alt -> do
+  TCase i _ def alt -> do
     let t = identToVarTerm i
     d <- translateTerm def
     cs <- mapM translateSwitch alt
@@ -105,16 +106,10 @@ translatePrim tp = Mglobal $ case tp of
   PIf -> undefined
   PSeq -> undefined
 
-translateName :: QName -> Term
-translateName
-  ( QName
-    { qnameModule = MName
-      { mnameToList = names }
-    , qnameName = Name
-      { nameId = id
-      , nameConcrete = concrete
-      , nameBindingSite = range
-      , nameFixity = fix
-      }
-    }
-  ) = undefined
+translateName :: MonadTranslate m => QName -> m Term
+translateName = aux . nameId . qnameName
+  where
+    aux :: MonadTranslate m => Agda.Syntax.Common.NameId -> m Term
+    aux = error
+      $  "Currently not possible, MonadTranslate needs to incorporate "
+      ++ "effects from the TCM Monad defined in the agda library"
