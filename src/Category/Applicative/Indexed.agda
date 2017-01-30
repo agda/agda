@@ -9,7 +9,7 @@
 
 module Category.Applicative.Indexed where
 
-open import Category.Functor
+open import Category.Functor using (RawFunctor)
 open import Data.Product
 open import Function
 open import Level
@@ -61,10 +61,10 @@ record Morphism {i f} {I : Set i} {F₁ F₂ : IFun I f}
     op      : ∀ {i j X} → F₁ i j X → F₂ i j X
     op-pure : ∀ {i X} (x : X) → op (A₁.pure {i = i} x) ≡ A₂.pure x
     op-⊛    : ∀ {i j k X Y} (f : F₁ i j (X → Y)) (x : F₁ j k X) →
-              op (A₁._⊛_ f x) ≡ A₂._⊛_ (op f) (op x)
+              op (f A₁.⊛ x) ≡ (op f A₂.⊛ op x)
 
   op-<$> : ∀ {i j X Y} (f : X → Y) (x : F₁ i j X) →
-           op (A₁._<$>_ f x) ≡ A₂._<$>_ f (op x)
+           op (f A₁.<$> x) ≡ (f A₂.<$> op x)
   op-<$> f x = begin
     op (A₁._⊛_ (A₁.pure f) x)       ≡⟨ op-⊛ _ _ ⟩
     A₂._⊛_ (op (A₁.pure f)) (op x)  ≡⟨ P.cong₂ A₂._⊛_ (op-pure _) P.refl ⟩

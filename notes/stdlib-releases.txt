@@ -30,7 +30,7 @@ procedure can be followed:
 * Tag version X.Y (do not forget to record the changes above first):
 
     VERSION=X.Y
-    git tag -a v$VERSION -m "Agda standard library v$VERSION"
+    git tag -a v$VERSION -m "Agda standard library version $VERSION"
 
 * Removed release-specific information from README.agda.
 
@@ -39,6 +39,12 @@ procedure can be followed:
 * Push all the changes and the new tag (requires Git >= 1.8.3):
 
     git push --follow-tags
+
+* Update submodule commit for the stable library in Agda:
+
+    cd agda
+    make fast-forward-std-lib
+    record-the-changes-and-push
 
 * Update the Agda wiki:
 

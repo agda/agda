@@ -18,7 +18,7 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 infixr 5 _∷_
 
-data Stream (A : Set) : Set where
+data Stream {a} (A : Set a) : Set a where
   _∷_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 
 {-# HASKELL data AgdaStream a = Cons a (AgdaStream a) #-}
@@ -27,38 +27,38 @@ data Stream (A : Set) : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
-head : ∀ {A} → Stream A → A
+head : ∀ {a} {A : Set a} → Stream A → A
 head (x ∷ xs) = x
 
-tail : ∀ {A} → Stream A → Stream A
+tail : ∀ {a} {A : Set a} → Stream A → Stream A
 tail (x ∷ xs) = ♭ xs
 
-map : ∀ {A B} → (A → B) → Stream A → Stream B
+map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → Stream A → Stream B
 map f (x ∷ xs) = f x ∷ ♯ map f (♭ xs)
 
-zipWith : ∀ {A B C} →
+zipWith : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
           (A → B → C) → Stream A → Stream B → Stream C
 zipWith _∙_ (x ∷ xs) (y ∷ ys) = (x ∙ y) ∷ ♯ zipWith _∙_ (♭ xs) (♭ ys)
 
-take : ∀ {A} n → Stream A → Vec A n
+take : ∀ {a} {A : Set a} n → Stream A → Vec A n
 take zero    xs       = []
 take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
 
-drop : ∀ {A} → ℕ → Stream A → Stream A
+drop : ∀ {a} {A : Set a} → ℕ → Stream A → Stream A
 drop zero    xs       = xs
 drop (suc n) (x ∷ xs) = drop n (♭ xs)
 
-repeat : ∀ {A} → A → Stream A
+repeat : ∀ {a} {A : Set a} → A → Stream A
 repeat x = x ∷ ♯ repeat x
 
-iterate : ∀ {A} → (A → A) → A → Stream A
+iterate : ∀ {a} {A : Set a} → (A → A) → A → Stream A
 iterate f x = x ∷ ♯ iterate f (f x)
 
 -- Interleaves the two streams.
 
 infixr 5 _⋎_
 
-_⋎_ : ∀ {A} → Stream A → Stream A → Stream A
+_⋎_ : ∀ {a} {A : Set a} → Stream A → Stream A → Stream A
 (x ∷ xs) ⋎ ys = x ∷ ♯ (ys ⋎ ♭ xs)
 
 mutual
@@ -66,25 +66,25 @@ mutual
   -- Takes every other element from the stream, starting with the
   -- first one.
 
-  evens : ∀ {A} → Stream A → Stream A
+  evens : ∀ {a} {A : Set a} → Stream A → Stream A
   evens (x ∷ xs) = x ∷ ♯ odds (♭ xs)
 
   -- Takes every other element from the stream, starting with the
   -- second one.
 
-  odds : ∀ {A} → Stream A → Stream A
+  odds : ∀ {a} {A : Set a} → Stream A → Stream A
   odds (x ∷ xs) = evens (♭ xs)
 
-toColist : ∀ {A} → Stream A → Colist A
+toColist : ∀ {a} {A : Set a} → Stream A → Colist A
 toColist (x ∷ xs) = x ∷ ♯ toColist (♭ xs)
 
-lookup : ∀ {A} → ℕ → Stream A → A
+lookup : ∀ {a} {A : Set a} → ℕ → Stream A → A
 lookup zero    (x ∷ xs) = x
 lookup (suc n) (x ∷ xs) = lookup n (♭ xs)
 
 infixr 5 _++_
 
-_++_ : ∀ {A} → Colist A → Stream A → Stream A
+_++_ : ∀ {a} {A : Set a} → Colist A → Stream A → Stream A
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
 
@@ -95,7 +95,7 @@ _++_ : ∀ {A} → Colist A → Stream A → Stream A
 
 infix 4 _≈_
 
-data _≈_ {A} : Stream A → Stream A → Set where
+data _≈_ {a} {A : Set a} : Stream A → Stream A → Set a where
   _∷_ : ∀ {x y xs ys}
         (x≡ : x ≡ y) (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ y ∷ ys
 
@@ -103,7 +103,7 @@ data _≈_ {A} : Stream A → Stream A → Set where
 
 infix 4 _∈_
 
-data _∈_ {A} : A → Stream A → Set where
+data _∈_ {a} {A : Set a} : A → Stream A → Set a where
   here  : ∀ {x   xs}                   → x ∈ x ∷ xs
   there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
 
@@ -111,17 +111,17 @@ data _∈_ {A} : A → Stream A → Set where
 
 infix 4 _⊑_
 
-data _⊑_ {A} : Colist A → Stream A → Set where
+data _⊑_ {a} {A : Set a} : Colist A → Stream A → Set a where
   []  : ∀ {ys}                            → []     ⊑ ys
   _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
 
 ------------------------------------------------------------------------
 -- Some proofs
 
-setoid : Set → Setoid _ _
+setoid : ∀ {a} → Set a → Setoid _ _
 setoid A = record
   { Carrier       = Stream A
-  ; _≈_           = _≈_ {A}
+  ; _≈_           = _≈_ {A = A}
   ; isEquivalence = record
     { refl  = refl
     ; sym   = sym
@@ -138,17 +138,18 @@ setoid A = record
   trans : Transitive _≈_
   trans (x≡ ∷ xs≈) (y≡ ∷ ys≈) = P.trans x≡ y≡ ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-head-cong : ∀ {A} {xs ys : Stream A} → xs ≈ ys → head xs ≡ head ys
+head-cong : ∀ {a} {A : Set a} {xs ys : Stream A} → xs ≈ ys → head xs ≡ head ys
 head-cong (x≡ ∷ _) = x≡
 
-tail-cong : ∀ {A} {xs ys : Stream A} → xs ≈ ys → tail xs ≈ tail ys
+tail-cong : ∀ {a} {A : Set a} {xs ys : Stream A} → xs ≈ ys → tail xs ≈ tail ys
 tail-cong (_ ∷ xs≈) = ♭ xs≈
 
-map-cong : ∀ {A B} (f : A → B) {xs ys} →
+map-cong : ∀ {a b} {A : Set a} {B : Set b} (f : A → B) {xs ys} →
            xs ≈ ys → map f xs ≈ map f ys
 map-cong f (x≡ ∷ xs≈) = P.cong f x≡ ∷ ♯ map-cong f (♭ xs≈)
 
-zipWith-cong : ∀ {A B C} (_∙_ : A → B → C) {xs xs′ ys ys′} →
+zipWith-cong : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
+               (_∙_ : A → B → C) {xs xs′ ys ys′} →
                xs ≈ xs′ → ys ≈ ys′ →
                zipWith _∙_ xs ys ≈ zipWith _∙_ xs′ ys′
 zipWith-cong _∙_ (x≡ ∷ xs≈) (y≡ ∷ ys≈) =
@@ -156,6 +157,6 @@ zipWith-cong _∙_ (x≡ ∷ xs≈) (y≡ ∷ ys≈) =
 
 infixr 5 _⋎-cong_
 
-_⋎-cong_ : ∀ {A} {xs xs′ ys ys′ : Stream A} →
+_⋎-cong_ : ∀ {a} {A : Set a} {xs xs′ ys ys′ : Stream A} →
            xs ≈ xs′ → ys ≈ ys′ → xs ⋎ ys ≈ xs′ ⋎ ys′
 (x ∷ xs≈) ⋎-cong ys≈ = x ∷ ♯ (ys≈ ⋎-cong ♭ xs≈)

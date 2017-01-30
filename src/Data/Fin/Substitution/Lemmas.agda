@@ -55,10 +55,9 @@ record Lemmas₀ (T : ℕ → Set) : Set where
   lookup-map-weaken-↑⋆ zero    x           = refl
   lookup-map-weaken-↑⋆ (suc k) zero        = refl
   lookup-map-weaken-↑⋆ (suc k) (suc x) {ρ} = begin
-    lookup x (map weaken (map weaken ρ ↑⋆ k))        ≡⟨ Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) weaken _ ⟩
+    lookup x (map weaken (map weaken ρ ↑⋆ k))        ≡⟨ VecProp.lookup-map x weaken _ ⟩
     weaken (lookup x (map weaken ρ ↑⋆ k))            ≡⟨ cong weaken (lookup-map-weaken-↑⋆ k x) ⟩
-    weaken (lookup (lift k suc x) ((ρ ↑) ↑⋆ k))      ≡⟨ sym $
-                                                          Applicative.Morphism.op-<$> (VecProp.lookup-morphism (lift k suc x)) weaken _ ⟩
+    weaken (lookup (lift k suc x) ((ρ ↑) ↑⋆ k))      ≡⟨ sym $ VecProp.lookup-map (lift k suc x) _ _ ⟩
     lookup (lift k suc x) (map weaken ((ρ ↑) ↑⋆ k))  ∎
 
 record Lemmas₁ (T : ℕ → Set) : Set where
@@ -73,7 +72,7 @@ record Lemmas₁ (T : ℕ → Set) : Set where
                       lookup x             ρ  ≡ var      y →
                       lookup x (map weaken ρ) ≡ var (suc y)
   lookup-map-weaken x {y} {ρ} hyp = begin
-    lookup x (map weaken ρ)  ≡⟨ Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) weaken ρ ⟩
+    lookup x (map weaken ρ)  ≡⟨ VecProp.lookup-map x _ _ ⟩
     weaken (lookup x ρ)      ≡⟨ cong weaken hyp ⟩
     weaken (var y)           ≡⟨ weaken-var ⟩
     var (suc y)              ∎
@@ -141,7 +140,7 @@ record Lemmas₂ (T : ℕ → Set) : Set where
 
   lookup-⊙ : ∀ {m n k} x {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} →
              lookup x (ρ₁ ⊙ ρ₂) ≡ lookup x ρ₁ / ρ₂
-  lookup-⊙ x = Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) _ _
+  lookup-⊙ x = VecProp.lookup-map x _ _
 
   lookup-⨀ : ∀ {m n} x (ρs : Subs T m n) →
              lookup x (⨀ ρs) ≡ var x /✶ ρs

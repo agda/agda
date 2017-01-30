@@ -66,6 +66,15 @@ record IsCommutativeMonoid {a ℓ} {A : Set a} (≈ : Rel A ℓ)
     ; identity    = identity
     }
 
+record IsIdempotentCommutativeMonoid {a ℓ} {A : Set a} (≈ : Rel A ℓ)
+                                     (_∙_ : Op₂ A) (ε : A) : Set (a ⊔ ℓ) where
+  open FunctionProperties ≈
+  field
+    isCommutativeMonoid : IsCommutativeMonoid ≈ _∙_ ε
+    idem                : Idempotent _∙_
+
+  open IsCommutativeMonoid isCommutativeMonoid public
+
 record IsGroup {a ℓ} {A : Set a} (≈ : Rel A ℓ)
                (_∙_ : Op₂ A) (ε : A) (_⁻¹ : Op₁ A) : Set (a ⊔ ℓ) where
   open FunctionProperties ≈

@@ -6,6 +6,7 @@
 
 module Data.Vec where
 
+open import Category.Functor
 open import Category.Applicative
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
@@ -74,11 +75,18 @@ applicative = record
 
 map : ∀ {a b n} {A : Set a} {B : Set b} →
       (A → B) → Vec A n → Vec B n
-map f xs = replicate f ⊛ xs
+map f []       = []
+map f (x ∷ xs) = f x ∷ map f xs
+
+functor :  ∀ {a n} → RawFunctor (λ (A : Set a) → Vec A n)
+functor = record
+  { _<$>_ = map
+  }
 
 zipWith : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
           (A → B → C) → Vec A n → Vec B n → Vec C n
-zipWith _⊕_ xs ys = replicate _⊕_ ⊛ xs ⊛ ys
+zipWith f []       []       = []
+zipWith f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
 
 zip : ∀ {a b n} {A : Set a} {B : Set b} →
       Vec A n → Vec B n → Vec (A × B) n
@@ -87,7 +95,7 @@ zip = zipWith _,_
 unzip : ∀ {a b n} {A : Set a} {B : Set b} →
         Vec (A × B) n → Vec A n × Vec B n
 unzip []              = [] , []
-unzip ((x , y) ∷ xys) = Prod.map (_∷_ x) (_∷_ y) (unzip xys)
+unzip ((x , y) ∷ xys) = Prod.map (x ∷_) (y ∷_) (unzip xys)
 
 foldr : ∀ {a b} {A : Set a} (B : ℕ → Set b) {m} →
         (∀ {n} → A → B n → B (suc n)) →
@@ -184,6 +192,8 @@ last : ∀ {a n} {A : Set a} → Vec A (1 + n) → A
 last xs         with initLast xs
 last .(ys ∷ʳ y) | (ys , y , refl) = y
 
+-- Multiplying vectors
+
 infixl 1 _>>=_
 
 _>>=_ : ∀ {a b m n} {A : Set a} {B : Set b} →
@@ -195,6 +205,10 @@ infixl 4 _⊛*_
 _⊛*_ : ∀ {a b m n} {A : Set a} {B : Set b} →
        Vec (A → B) m → Vec A n → Vec B (m * n)
 fs ⊛* xs = fs >>= λ f → map f xs
+
+allPairs : ∀ {a b} {A : Set a} {B : Set b} {m n}
+           → Vec A m → Vec B n → Vec (A × B) (m * n)
+allPairs xs ys = map _,_ xs ⊛* ys
 
 -- Interleaves the two vectors.
 
@@ -222,7 +236,6 @@ tabulate {suc n} f = f zero ∷ tabulate (f ∘ suc)
 infixl 6 _[_]≔_
 
 _[_]≔_ : ∀ {a n} {A : Set a} → Vec A n → Fin n → A → Vec A n
-[]       [ ()    ]≔ y
 (x ∷ xs) [ zero  ]≔ y = y ∷ xs
 (x ∷ xs) [ suc i ]≔ y = x ∷ xs [ i ]≔ y
 

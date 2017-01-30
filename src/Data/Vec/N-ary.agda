@@ -48,8 +48,6 @@ f $ⁿ (x ∷ xs) = f x $ⁿ xs
      N-ary n A (Set ℓ) → Set (N-ary-level a ℓ n)
 ∀ⁿ zero    P = P
 ∀ⁿ (suc n) P = ∀ x → ∀ⁿ n (P x)
-{- Normalising is very slow for this function for some reason... -}
-{-# NO_SMASHING ∀ⁿ #-}
 
 -- Universal quantifier with implicit (hidden) arguments.
 

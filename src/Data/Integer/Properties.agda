@@ -84,83 +84,81 @@ abs-cong {s₁} {s₂} {n₁} {n₂} eq = begin
 abs-*-commute : Homomorphic₂ ∣_∣ _*_ _ℕ*_
 abs-*-commute i j = abs-◃ _ _
 
--- If you subtract a natural from itself, then you get zero.
+-- Subtraction properties
 
 n⊖n≡0 : ∀ n → n ⊖ n ≡ + 0
 n⊖n≡0 zero    = refl
 n⊖n≡0 (suc n) = n⊖n≡0 n
 
+sign-⊖-< : ∀ {m n} → m < n → sign (m ⊖ n) ≡ Sign.-
+sign-⊖-< {zero}  (s≤s z≤n) = refl
+sign-⊖-< {suc n} (s≤s m<n) = sign-⊖-< m<n
+
++-⊖-left-cancel : ∀ a b c → (a ℕ+ b) ⊖ (a ℕ+ c) ≡ b ⊖ c
++-⊖-left-cancel zero    b c = refl
++-⊖-left-cancel (suc a) b c = +-⊖-left-cancel a b c
+
+⊖-swap : ∀ a b → a ⊖ b ≡ - (b ⊖ a)
+⊖-swap zero    zero    = refl
+⊖-swap (suc _) zero    = refl
+⊖-swap zero    (suc _) = refl
+⊖-swap (suc a) (suc b) = ⊖-swap a b
+
+⊖-≥ : ∀ {m n} → m ≥ n → m ⊖ n ≡ + (m ∸ n)
+⊖-≥ z≤n       = refl
+⊖-≥ (s≤s n≤m) = ⊖-≥ n≤m
+
+⊖-< : ∀ {m n} → m < n → m ⊖ n ≡ - + (n ∸ m)
+⊖-< {zero}  (s≤s z≤n) = refl
+⊖-< {suc m} (s≤s m<n) = ⊖-< m<n
+
+∣⊖∣-< : ∀ {m n} → m < n → ∣ m ⊖ n ∣ ≡ n ∸ m
+∣⊖∣-< {zero}  (s≤s z≤n) = refl
+∣⊖∣-< {suc n} (s≤s m<n) = ∣⊖∣-< m<n
+
+
 ------------------------------------------------------------------------
 -- The integers form a commutative ring
 
+-- Additive abelian group.
+
+inverseˡ : LeftInverse (+ 0) -_ _+_
+inverseˡ -[1+ n ]  = n⊖n≡0 n
+inverseˡ (+ zero)  = refl
+inverseˡ (+ suc n) = n⊖n≡0 n
+
+inverseʳ : RightInverse (+ 0) -_ _+_
+inverseʳ i = begin
+  i + - i  ≡⟨ +-comm i (- i) ⟩
+  - i + i  ≡⟨ inverseˡ i ⟩
+  + 0      ∎
+
++-isAbelianGroup : IsAbelianGroup _≡_ _+_ (+ 0) (-_)
++-isAbelianGroup = record
+  { isGroup = record
+    { isMonoid = +-isMonoid
+    ; inverse  = inverseˡ , inverseʳ
+    ; ⁻¹-cong  = cong (-_)
+    }
+  ; comm = +-comm
+  }
+
+open Algebra.Properties.AbelianGroup
+       (record { isAbelianGroup = +-isAbelianGroup })
+  using () renaming (⁻¹-involutive to -‿involutive)
+
+
+-- Distributivity
+
 private
 
-  ----------------------------------------------------------------------
-  -- Additive abelian group.
-
-  inverseˡ : LeftInverse (+ 0) -_ _+_
-  inverseˡ -[1+ n ]  = n⊖n≡0 n
-  inverseˡ (+ zero)  = refl
-  inverseˡ (+ suc n) = n⊖n≡0 n
-
-  inverseʳ : RightInverse (+ 0) -_ _+_
-  inverseʳ i = begin
-    i + - i  ≡⟨ +-comm i (- i) ⟩
-    - i + i  ≡⟨ inverseˡ i ⟩
-    + 0      ∎
-
-  +-isAbelianGroup : IsAbelianGroup _≡_ _+_ (+ 0) (-_)
-  +-isAbelianGroup = record
-    { isGroup = record
-      { isMonoid = +-isMonoid
-      ; inverse  = inverseˡ , inverseʳ
-      ; ⁻¹-cong  = cong (-_)
-      }
-    ; comm = +-comm
-    }
-
-  open Algebra.Properties.AbelianGroup
-         (record { isAbelianGroup = +-isAbelianGroup })
-    using () renaming (⁻¹-involutive to -‿involutive)
-
-  ----------------------------------------------------------------------
-  -- Distributivity
-
   -- Various lemmas used to prove distributivity.
-
-  sign-⊖-< : ∀ {m n} → m < n → sign (m ⊖ n) ≡ Sign.-
-  sign-⊖-< {zero}  (s≤s z≤n) = refl
-  sign-⊖-< {suc n} (s≤s m<n) = sign-⊖-< m<n
 
   sign-⊖-≱ : ∀ {m n} → m ≱ n → sign (m ⊖ n) ≡ Sign.-
   sign-⊖-≱ = sign-⊖-< ∘ ℕ.≰⇒>
 
-  +-⊖-left-cancel : ∀ a b c → (a ℕ+ b) ⊖ (a ℕ+ c) ≡ b ⊖ c
-  +-⊖-left-cancel zero    b c = refl
-  +-⊖-left-cancel (suc a) b c = +-⊖-left-cancel a b c
-
-  ⊖-swap : ∀ a b → a ⊖ b ≡ - (b ⊖ a)
-  ⊖-swap zero    zero    = refl
-  ⊖-swap (suc _) zero    = refl
-  ⊖-swap zero    (suc _) = refl
-  ⊖-swap (suc a) (suc b) = ⊖-swap a b
-
-  -- Lemmas relating _⊖_ and _∸_.
-
-  ∣⊖∣-< : ∀ {m n} → m < n → ∣ m ⊖ n ∣ ≡ n ∸ m
-  ∣⊖∣-< {zero}  (s≤s z≤n) = refl
-  ∣⊖∣-< {suc n} (s≤s m<n) = ∣⊖∣-< m<n
-
   ∣⊖∣-≱ : ∀ {m n} → m ≱ n → ∣ m ⊖ n ∣ ≡ n ∸ m
   ∣⊖∣-≱ = ∣⊖∣-< ∘ ℕ.≰⇒>
-
-  ⊖-≥ : ∀ {m n} → m ≥ n → m ⊖ n ≡ + (m ∸ n)
-  ⊖-≥ z≤n       = refl
-  ⊖-≥ (s≤s n≤m) = ⊖-≥ n≤m
-
-  ⊖-< : ∀ {m n} → m < n → m ⊖ n ≡ - + (n ∸ m)
-  ⊖-< {zero}  (s≤s z≤n) = refl
-  ⊖-< {suc m} (s≤s m<n) = ⊖-< m<n
 
   ⊖-≱ : ∀ {m n} → m ≱ n → m ⊖ n ≡ - + (n ∸ m)
   ⊖-≱ = ⊖-< ∘ ℕ.≰⇒>
@@ -175,8 +173,6 @@ private
   -‿◃ : ∀ n → Sign.- ◃ n ≡ - + n
   -‿◃ zero    = refl
   -‿◃ (suc _) = refl
-
-  -- The main distributivity proof.
 
   distrib-lemma :
     ∀ a b c → (c ⊖ b) * -[1+ a ] ≡ a ℕ+ b ℕ* suc a ⊖ (a ℕ+ c ℕ* suc a)
@@ -199,97 +195,97 @@ private
           | ℕ.*-distrib-∸ʳ (suc a) b c
           = refl
 
-  distribʳ : _*_ DistributesOverʳ _+_
+distribʳ : _*_ DistributesOverʳ _+_
 
-  distribʳ (+ zero) y z
-    rewrite proj₂ *-zero ∣ y ∣
-          | proj₂ *-zero ∣ z ∣
-          | proj₂ *-zero ∣ y + z ∣
-          = refl
+distribʳ (+ zero) y z
+  rewrite proj₂ *-zero ∣ y ∣
+        | proj₂ *-zero ∣ z ∣
+        | proj₂ *-zero ∣ y + z ∣
+        = refl
 
-  distribʳ x (+ zero) z
-    rewrite proj₁ +-identity z
-          | proj₁ +-identity (sign z S* sign x ◃ ∣ z ∣ ℕ* ∣ x ∣)
-          = refl
+distribʳ x (+ zero) z
+  rewrite proj₁ +-identity z
+        | proj₁ +-identity (sign z S* sign x ◃ ∣ z ∣ ℕ* ∣ x ∣)
+        = refl
 
-  distribʳ x y (+ zero)
-    rewrite proj₂ +-identity y
-          | proj₂ +-identity (sign y S* sign x ◃ ∣ y ∣ ℕ* ∣ x ∣)
-          = refl
+distribʳ x y (+ zero)
+  rewrite proj₂ +-identity y
+        | proj₂ +-identity (sign y S* sign x ◃ ∣ y ∣ ℕ* ∣ x ∣)
+        = refl
 
-  distribʳ -[1+ a ] -[1+ b ] -[1+ c ] = cong (+_) $
-    solve 3 (λ a b c → (con 2 :+ b :+ c) :* (con 1 :+ a)
-                    := (con 1 :+ b) :* (con 1 :+ a) :+
-                       (con 1 :+ c) :* (con 1 :+ a))
-            refl a b c
-
-  distribʳ (+ suc a) (+ suc b) (+ suc c) = cong (+_) $
-    solve 3 (λ a b c → (con 1 :+ b :+ (con 1 :+ c)) :* (con 1 :+ a)
-                    := (con 1 :+ b) :* (con 1 :+ a) :+
-                       (con 1 :+ c) :* (con 1 :+ a))
+distribʳ -[1+ a ] -[1+ b ] -[1+ c ] = cong (+_) $
+  solve 3 (λ a b c → (con 2 :+ b :+ c) :* (con 1 :+ a)
+                  := (con 1 :+ b) :* (con 1 :+ a) :+
+                     (con 1 :+ c) :* (con 1 :+ a))
           refl a b c
 
-  distribʳ -[1+ a ] (+ suc b) (+ suc c) = cong -[1+_] $
-    solve 3 (λ a b c → a :+ (b :+ (con 1 :+ c)) :* (con 1 :+ a)
-                     := (con 1 :+ b) :* (con 1 :+ a) :+
-                        (a :+ c :* (con 1 :+ a)))
-           refl a b c
+distribʳ (+ suc a) (+ suc b) (+ suc c) = cong (+_) $
+  solve 3 (λ a b c → (con 1 :+ b :+ (con 1 :+ c)) :* (con 1 :+ a)
+                  := (con 1 :+ b) :* (con 1 :+ a) :+
+                     (con 1 :+ c) :* (con 1 :+ a))
+        refl a b c
 
-  distribʳ (+ suc a) -[1+ b ] -[1+ c ] = cong -[1+_] $
-    solve 3 (λ a b c → a :+ (con 1 :+ a :+ (b :+ c) :* (con 1 :+ a))
-                    := (con 1 :+ b) :* (con 1 :+ a) :+
-                       (a :+ c :* (con 1 :+ a)))
-           refl a b c
+distribʳ -[1+ a ] (+ suc b) (+ suc c) = cong -[1+_] $
+  solve 3 (λ a b c → a :+ (b :+ (con 1 :+ c)) :* (con 1 :+ a)
+                   := (con 1 :+ b) :* (con 1 :+ a) :+
+                      (a :+ c :* (con 1 :+ a)))
+         refl a b c
 
-  distribʳ -[1+ a ] -[1+ b ] (+ suc c) = distrib-lemma a b c
+distribʳ (+ suc a) -[1+ b ] -[1+ c ] = cong -[1+_] $
+  solve 3 (λ a b c → a :+ (con 1 :+ a :+ (b :+ c) :* (con 1 :+ a))
+                  := (con 1 :+ b) :* (con 1 :+ a) :+
+                     (a :+ c :* (con 1 :+ a)))
+         refl a b c
 
-  distribʳ -[1+ a ] (+ suc b) -[1+ c ] = distrib-lemma a c b
+distribʳ -[1+ a ] -[1+ b ] (+ suc c) = distrib-lemma a b c
 
-  distribʳ (+ suc a) -[1+ b ] (+ suc c)
-    rewrite +-⊖-left-cancel a (c ℕ* suc a) (b ℕ* suc a)
-    with b ≤? c
-  ... | yes b≤c
-    rewrite ⊖-≥ b≤c
-          | +-comm (- (+ (a ℕ+ b ℕ* suc a))) (+ (a ℕ+ c ℕ* suc a))
-          | ⊖-≥ (b≤c *-mono ≤-refl {x = suc a})
-          | ℕ.*-distrib-∸ʳ (suc a) c b
-          | +‿◃ (c ℕ* suc a ∸ b ℕ* suc a)
-          = refl
-  ... | no b≰c
-    rewrite sign-⊖-≱ b≰c
-          | ∣⊖∣-≱ b≰c
-          | -‿◃ ((b ∸ c) ℕ* suc a)
-          | ⊖-≱ (b≰c ∘ ℕ.cancel-*-right-≤ b c a)
-          | ℕ.*-distrib-∸ʳ (suc a) b c
-          = refl
+distribʳ -[1+ a ] (+ suc b) -[1+ c ] = distrib-lemma a c b
 
-  distribʳ (+ suc c) (+ suc a) -[1+ b ]
-    rewrite +-⊖-left-cancel c (a ℕ* suc c) (b ℕ* suc c)
-    with b ≤? a
-  ... | yes b≤a
-    rewrite ⊖-≥ b≤a
-          | ⊖-≥ (b≤a *-mono ≤-refl {x = suc c})
-          | +‿◃ ((a ∸ b) ℕ* suc c)
-          | ℕ.*-distrib-∸ʳ (suc c) a b
-          = refl
-  ... | no b≰a
-    rewrite sign-⊖-≱ b≰a
-          | ∣⊖∣-≱ b≰a
-          | ⊖-≱ (b≰a ∘ ℕ.cancel-*-right-≤ b a c)
-          | -‿◃ ((b ∸ a) ℕ* suc c)
-          | ℕ.*-distrib-∸ʳ (suc c) b a
-          = refl
+distribʳ (+ suc a) -[1+ b ] (+ suc c)
+  rewrite +-⊖-left-cancel a (c ℕ* suc a) (b ℕ* suc a)
+  with b ≤? c
+... | yes b≤c
+  rewrite ⊖-≥ b≤c
+        | +-comm (- (+ (a ℕ+ b ℕ* suc a))) (+ (a ℕ+ c ℕ* suc a))
+        | ⊖-≥ (b≤c *-mono ≤-refl {x = suc a})
+        | ℕ.*-distrib-∸ʳ (suc a) c b
+        | +‿◃ (c ℕ* suc a ∸ b ℕ* suc a)
+        = refl
+... | no b≰c
+  rewrite sign-⊖-≱ b≰c
+        | ∣⊖∣-≱ b≰c
+        | -‿◃ ((b ∸ c) ℕ* suc a)
+        | ⊖-≱ (b≰c ∘ ℕ.cancel-*-right-≤ b c a)
+        | ℕ.*-distrib-∸ʳ (suc a) b c
+        = refl
 
-  -- The IsCommutativeSemiring module contains a proof of
-  -- distributivity which is used below.
+distribʳ (+ suc c) (+ suc a) -[1+ b ]
+  rewrite +-⊖-left-cancel c (a ℕ* suc c) (b ℕ* suc c)
+  with b ≤? a
+... | yes b≤a
+  rewrite ⊖-≥ b≤a
+        | ⊖-≥ (b≤a *-mono ≤-refl {x = suc c})
+        | +‿◃ ((a ∸ b) ℕ* suc c)
+        | ℕ.*-distrib-∸ʳ (suc c) a b
+        = refl
+... | no b≰a
+  rewrite sign-⊖-≱ b≰a
+        | ∣⊖∣-≱ b≰a
+        | ⊖-≱ (b≰a ∘ ℕ.cancel-*-right-≤ b a c)
+        | -‿◃ ((b ∸ a) ℕ* suc c)
+        | ℕ.*-distrib-∸ʳ (suc c) b a
+        = refl
 
-  isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ (+ 0) (+ 1)
-  isCommutativeSemiring = record
-    { +-isCommutativeMonoid = +-isCommutativeMonoid
-    ; *-isCommutativeMonoid = *-isCommutativeMonoid
-    ; distribʳ              = distribʳ
-    ; zeroˡ                 = λ _ → refl
-    }
+-- The IsCommutativeSemiring module contains a proof of
+-- distributivity which is used below.
+
+isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ (+ 0) (+ 1)
+isCommutativeSemiring = record
+  { +-isCommutativeMonoid = +-isCommutativeMonoid
+  ; *-isCommutativeMonoid = *-isCommutativeMonoid
+  ; distribʳ              = distribʳ
+  ; zeroˡ                 = λ _ → refl
+  }
 
 commutativeRing : CommutativeRing _ _
 commutativeRing = record

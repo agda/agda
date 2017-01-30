@@ -16,6 +16,7 @@ open import Data.Nat as Nat
            ; _≤_ to _N≤_; _≥_ to _N≥_; _<_ to _N<_; _≤?_ to _N≤?_)
 open import Function
 import Level
+open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
@@ -190,6 +191,9 @@ infix 4 _≤_ _<_
 
 _≤_ : ∀ {n} → Rel (Fin n) Level.zero
 _≤_ = _N≤_ on toℕ
+
+_≤?_ : ∀ {n} → (a : Fin n) → (b : Fin n) → Dec (a ≤ b)
+a ≤? b = toℕ a N≤? toℕ b
 
 _<_ : ∀ {n} → Rel (Fin n) Level.zero
 _<_ = _N<_ on toℕ

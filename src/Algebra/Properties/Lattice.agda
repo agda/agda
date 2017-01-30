@@ -12,6 +12,7 @@ open Lattice L
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
 open import Relation.Binary
+import Relation.Binary.Lattice as R
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
 open import Function.Equality using (_⟨$⟩_)
@@ -79,6 +80,62 @@ poset = record
                   y      ∎
     }
   }
+
+open Poset poset using (_≤_; isPartialOrder)
+
+-- Every algebraic lattice can be turned into an order-theoretic one.
+
+isOrderTheoreticLattice : R.IsLattice _≈_ _≤_ _∨_ _∧_
+isOrderTheoreticLattice = record
+  { isPartialOrder = isPartialOrder
+  ; supremum       = λ x y →
+                       sym (∧-absorbs-∨ x y) ,
+                       (begin
+                         y            ≈⟨ sym (∧-absorbs-∨ y x) ⟩
+                         y ∧ (y ∨ x)  ≈⟨ ∧-cong refl (∨-comm y x) ⟩
+                         y ∧ (x ∨ y)  ∎) ,
+                       (λ z x≤z y≤z → sound (begin
+                         (x ∨ y) ∨ z  ≈⟨ ∨-assoc x y z ⟩
+                         x ∨ (y ∨ z)  ≈⟨ ∨-cong refl (complete y≤z) ⟩
+                         x ∨ z        ≈⟨ complete x≤z  ⟩
+                         z            ∎))
+  ; infimum        = λ x y →
+                       (begin
+                         x ∧ y        ≈⟨ ∧-cong (sym (∧-idempotent x)) refl ⟩
+                         (x ∧ x) ∧ y  ≈⟨ ∧-assoc x x y  ⟩
+                         x ∧ (x ∧ y)  ≈⟨ ∧-comm x (x ∧ y) ⟩
+                         (x ∧ y) ∧ x  ∎) ,
+                       (begin
+                         x ∧ y        ≈⟨ ∧-cong refl (sym (∧-idempotent y)) ⟩
+                         x ∧ (y ∧ y)  ≈⟨ sym (∧-assoc x y y) ⟩
+                         (x ∧ y) ∧ y  ∎) ,
+                       (λ z z≈z∧x z≈z∧y → begin
+                         z            ≈⟨ z≈z∧y ⟩
+                         z ∧ y        ≈⟨ ∧-cong z≈z∧x refl ⟩
+                         (z ∧ x) ∧ y  ≈⟨ ∧-assoc z x y ⟩
+                         z ∧ (x ∧ y)  ∎)
+  }
+  where
+    ∧-absorbs-∨ = proj₂ absorptive
+
+    -- An alternative but equivalent interpretation of the order _≤_.
+
+    complete : ∀ {x y} → x ≤ y → x ∨ y ≈ y
+    complete {x} {y} x≈x∧y = begin
+      x ∨ y        ≈⟨ ∨-cong x≈x∧y refl ⟩
+      (x ∧ y) ∨ y  ≈⟨ ∨-cong (∧-comm x y) refl ⟩
+      (y ∧ x) ∨ y  ≈⟨ ∨-comm (y ∧ x) y ⟩
+      y ∨ (y ∧ x)  ≈⟨ proj₁ absorptive y x ⟩
+      y            ∎
+
+    sound : ∀ {x y} → x ∨ y ≈ y → x ≤ y
+    sound {x} {y} x∨y≈y = begin
+      x            ≈⟨ sym (∧-absorbs-∨ x y) ⟩
+      x ∧ (x ∨ y)  ≈⟨ ∧-cong refl x∨y≈y ⟩
+      x ∧ y        ∎
+
+orderTheoreticLattice : R.Lattice _ _ _
+orderTheoreticLattice = record { isLattice = isOrderTheoreticLattice }
 
 -- One can replace the underlying equality with an equivalent one.
 
