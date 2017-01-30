@@ -78,7 +78,6 @@ data Mod = MMod [Binding] [Term]
 
 data Term
   = Mvar Ident
-  | Mident Ident
   | Mlambda [Ident] Term
   | Mapply Term [Term]
   | Mlet [Binding] Term
