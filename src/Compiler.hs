@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (translate) where
+module Compiler (translate, Term) where
 
 import Data.Char
 

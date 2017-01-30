@@ -4,7 +4,7 @@ import Agda.Compiler.Backend
 import System.Console.GetOpt
 import Agda.Utils.Pretty
 import Control.Monad.Trans
-import Compiler
+import qualified Compiler as Mlf
 import Malfunction.Print
 
 backend :: Backend
@@ -44,7 +44,8 @@ mlfDef d@Defn{ defName = q } =
       mtt <- toTreeless q
       case mtt of
         Nothing -> return ()
-        Just tt ->
+        Just tt -> do
+          mlf <- translate tt
           liftIO . putStrLn . unwords $
             [ replicate 70 '='
             , "Treeless"
@@ -54,7 +55,7 @@ mlfDef d@Defn{ defName = q } =
             , show q ++ " = " ++ show tt
             , replicate 70 '-'
             , "Malfunction AST"
-            , show q ++ " = " ++ showTerm (translate tt)
+            , show q ++ " = " ++ showTerm mlf
             ]
     Primitive{ primName = s } ->
       liftIO $ putStrLn $ "  primitive " ++ s
@@ -63,3 +64,10 @@ mlfDef d@Defn{ defName = q } =
     Datatype{}    -> liftIO $ putStrLn $ "  data " ++ show q
     Record{}      -> liftIO $ putStrLn $ "  record " ++ show q
     Constructor{} -> liftIO $ putStrLn $ "  constructor " ++ show q
+
+-- TODO: Can we somehow extract functionality from the TCM-monad and pass
+-- it to Mlf.translate? I was thinking that if all we need from the TCM-
+-- monad is a way to translate from names to identifiers, then perhaps we
+-- could extract such a lookup-function and use it in MonadTranslate.
+translate :: TTerm -> TCMT IO Mlf.Term
+translate = return . Mlf.translate
