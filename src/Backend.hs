@@ -45,8 +45,7 @@ mlfDef d@Defn{ defName = q } =
       case mtt of
         Nothing -> return ()
         Just tt -> do
-          mlf <- translate tt
-          liftIO . putStrLn . unwords $
+          liftIO . putStrLn . unlines $
             [ replicate 70 '='
             , "Treeless"
             , show $ nest 2 $ hang (pretty q <+> text "=") 2 (pretty tt)
@@ -54,7 +53,11 @@ mlfDef d@Defn{ defName = q } =
             , "Treeless AST"
             , show q ++ " = " ++ show tt
             , replicate 70 '-'
-            , "Malfunction AST"
+            ]
+          -- Now attempting the impossible.
+          mlf <- translate tt
+          liftIO . putStrLn . unlines $
+            [ "Malfunction AST"
             , show q ++ " = " ++ showTerm mlf
             ]
     Primitive{ primName = s } ->

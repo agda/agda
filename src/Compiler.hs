@@ -26,6 +26,12 @@ translateTerm tt = case tt of
   TApp t0 args      -> translateApp t0 args
   TLam t0           -> translateLam t0
   TLit lit          -> return $ translateLit lit
+  -- TODO: Translate constructors differently from names.
+  -- Don't know if we should do the same when translating TDef's, but here we
+  -- should most likely use malfunction "tags" to represent constructors
+  -- in an "untyped but injective way". That is, we only care that each
+  -- constructor maps to a unique number such that we will be able to
+  -- distinguish it in malfunction.
   TCon name         -> translateName name
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
@@ -41,7 +47,7 @@ translateTerm tt = case tt of
   TUnit             -> error "Unimplemented"
   TSort             -> error "Unimplemented"
   TErased           -> error "Unimplemented"
-  TError err        -> error "Unimplemented"
+  TError err        -> error $ "Error: " ++ show err
 
 identToVarTerm :: Int -> Term
 identToVarTerm = Mvar . ident
@@ -53,7 +59,9 @@ translateSwitch alt = case alt of
     b <- translateTerm body
     let c = pure $ litToCase pat
     return (c, b)
-  _              -> error "Unimplemented"
+  -- TODO: Stub!
+  TACon{}        -> return ([], Mvar "TACon")
+  TAGuard{}      -> return ([], Mvar "TAGuard")
 
 litToCase :: Literal -> Case
 litToCase l = case l of
@@ -89,27 +97,43 @@ translateLit l = case l of
   LitString _ s -> Mstring s
   _ -> error "unsupported literal type"
 
+-- TODO: Needs to be passed terms as well.
+-- To fix this we need to "lookahead" when translating `TApp`
+-- Alternatively we can do so that this:
+--   TPrim PAdd
+-- Translates to this:
+--   lambda a b (+ a b)
+-- This is what I've done below, it's a bit ugly but it should work.
+-- Please note that the length of the array obviously needs
+-- to be adjusted depending on it it's a Mintop1 or Mintop2.
 translatePrim :: TPrim -> Term
-translatePrim tp = Mglobal $ case tp of
-  PAdd -> undefined
-  PSub -> undefined
-  PMul -> undefined
-  PQuot -> undefined
-  PRem -> undefined
-  PGeq -> undefined
-  PLt -> undefined
-  PEqI -> undefined
-  PEqF -> undefined
-  PEqS -> undefined
-  PEqC -> undefined
-  PEqQ -> undefined
-  PIf -> undefined
-  PSeq -> undefined
+translatePrim tp = Mlambda [varN, varM] $ case tp of
+  PAdd -> op2 Add
+  PSub -> op2 Sub
+  PMul -> op2 Mul
+  PQuot -> wrong
+  PRem -> op2 Mo
+  PGeq -> op2 Gt
+  PLt -> wrong
+  PEqI -> wrong
+  PEqF -> wrong
+  PEqS -> wrong
+  PEqC -> wrong
+  PEqQ -> wrong
+  PIf -> wrong
+  PSeq -> wrong
+  where
+    op2 t = Mintop2 t aType (Mvar varN) (Mvar varM)
+    aType = TInt
+    varN  = "n"
+    varM  = "m"
+    wrong = op2 Xor
 
 translateName :: MonadTranslate m => QName -> m Term
 translateName = aux . nameId . qnameName
   where
-    aux :: MonadTranslate m => Agda.Syntax.Common.NameId -> m Term
-    aux = error
-      $  "Currently not possible, MonadTranslate needs to incorporate "
-      ++ "effects from the TCM Monad defined in the agda library"
+    -- I know this is a sort of dicy variable name to pick but for now I'll
+    -- leave it here. It makes debugging slightly easier.
+    aux :: MonadTranslate m => NameId -> m Term
+    aux = return . Mvar . ("agda://" ++) . show
+
