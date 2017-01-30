@@ -157,7 +157,7 @@ matchCopattern pat@ProjP{} elim@(Proj _ q) = do
 matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
-matchCopattern _       IApply{}  = __IMPOSSIBLE__ -- TODO Andrea: path copatterns
+matchCopattern p       (IApply x y r) = mapSnd Apply <$> matchPattern p (defaultArg r)
 
 matchPatterns :: [NamedArg DeBruijnPattern]
               -> [Arg Term]
