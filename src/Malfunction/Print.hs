@@ -50,17 +50,19 @@ showIntConst ic = case ic of
 showLongident :: Longident -> String
 showLongident = unwords . map showIdent
 
-showIdent :: String -> String
+showIdent :: Ident -> String
 showIdent = ('$':)
 
 showCaseExpression :: ([Case], Term) -> String
 showCaseExpression (cs, t) = printf "(%s %s)" (unwords (map showCase cs)) (showTerm t)
 
+-- I don't think it's possible to create `_` and `n` as mentioned in the spec
+-- using the AST define in the original implementation of malfunction.
 showCase :: Case -> String
 showCase c = case c of
-  Tag i           -> show i
-  Deftag          -> "_"
-  Intrange (i, j) -> printf "(%s  %s)" (show i) (show j)
+  Tag i           -> printf "(tag %s)" (show i)
+  Deftag          -> "(tag _)"
+  Intrange (i, j) -> printf "(%s %s)" (show i) (show j)
 
 showUnaryIntOp :: UnaryIntOp -> String
 showUnaryIntOp op = case op of
