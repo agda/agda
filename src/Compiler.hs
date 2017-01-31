@@ -24,7 +24,7 @@ translate t = translateTerm t `evalState` 0
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
   TVar i            -> return . identToVarTerm $ i
-  TPrim tp          -> return $ translatePrim' tp
+  TPrim tp          -> return $ wrapPrimInLambda tp
   TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
   TLam{}            -> translateLam tt
@@ -114,7 +114,7 @@ translateApp ft xst = case ft of
         [t0, t1] -> liftM2 (Mintop2 op tp) (translateTerm t0) (translateTerm t1)
         _        -> error "Malformed!"
     where
-      (eOp, tp) = translatePrim p
+      (eOp, tp) = primToOpAndType p
   TCon nm -> translateCon nm xst
   _       -> do
     i <- get
@@ -134,8 +134,8 @@ translateLit l = case l of
   LitString _ s -> Mstring s
   _ -> error "unsupported literal type"
 
-translatePrim :: TPrim -> (Either UnaryIntOp BinaryIntOp, IntType)
-translatePrim tp = (op, aType)
+primToOpAndType :: TPrim -> (Either UnaryIntOp BinaryIntOp, IntType)
+primToOpAndType tp = (op, aType)
   where
     op = case tp of
       PAdd -> Right Add
@@ -153,24 +153,23 @@ translatePrim tp = (op, aType)
       PIf -> wrong
       PSeq -> wrong
     aType = TInt
+    -- TODO: Stub!
     wrong = Right Xor
 
--- TODO: Needs to be passed terms as well.
--- To fix this we need to "lookahead" when translating `TApp`
--- Alternatively we can do so that this:
---   TPrim PAdd
+-- This function wraps primites in a lambda.
+--
+--   TPrim PAdd          (abstract syntax, treeless)
+--
 -- Translates to this:
---   lambda a b (+ a b)
--- This is what I've done below, it's a bit ugly but it should work.
--- Please note that the length of the array obviously needs
--- to be adjusted depending on it it's a Mintop1 or Mintop2.
--- Remove this or implement it in terms of `translatePrim`
-translatePrim' :: TPrim -> Term
-translatePrim' tprim = case op of
+--
+--   lambda a b (+ a b)  (concrete syntax, malfunction)
+wrapPrimInLambda :: TPrim -> Term
+wrapPrimInLambda tprim = case op of
   Left  unop -> Mlambda [var0]       $ Mintop1 unop tp (Mvar var0)
   Right biop -> Mlambda [var0, var1] $ Mintop2 biop tp (Mvar var0) (Mvar var1)
   where
-    (op, tp) = translatePrim tprim
+    (op, tp) = primToOpAndType tprim
+    -- TODO: The variables declared here might shadow existing bindings.
     var0  = "n"
     var1  = "m"
 
