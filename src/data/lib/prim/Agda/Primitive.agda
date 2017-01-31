@@ -69,10 +69,3 @@ primitive
   primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial (A i) φ) → (a : A i0) → A i1
 
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
-
-postulate
-  Path : ∀ {a} {A : Set a} → A → A → Set a
-  PathP : ∀ {a} → (A : I → Set a) → A i0 → A i1 → Set a
-
-{-# BUILTIN PATH         Path     #-}
-{-# BUILTIN PATHP        PathP     #-}
