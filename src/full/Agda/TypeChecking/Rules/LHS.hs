@@ -744,8 +744,8 @@ checkLHS f st@(LHSState problem dpi psplit) = do
       (gamma,sigma) <- bindLHSVars (problemInPat p0) (problemTel p0) $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
-                 t <- checkExpr t tProp
-                 u <- checkExpr u tProp
+                 t <- workOnTypes $ checkExpr t tProp
+                 u <- workOnTypes $ checkExpr u tProp
                  reportSDoc "tc.lhs.split.partial" 10 $ prettyTCM t <+> prettyTCM u
                  u <- propView =<< reduce u
                  case u of
