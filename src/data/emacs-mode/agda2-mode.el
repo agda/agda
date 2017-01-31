@@ -929,6 +929,9 @@ The buffer is returned.")
       (set (make-local-variable 'compilation-error-regexp-alist)
            '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
               1 (2 . 5) (3 . 6))))
+      ;; Do not skip errors that start in the same position as the
+      ;; current one.
+      (set (make-local-variable 'compilation-skip-to-next-location) nil)
       ;; No support for recompilation. The key binding is removed, and
       ;; attempts to run `recompile' will (hopefully) result in an
       ;; error.
