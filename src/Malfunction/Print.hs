@@ -2,11 +2,20 @@ module Malfunction.Print where
 
 import Malfunction.AST
 import Text.Printf
+-- Bafflingly there is no type-class for pretty-printable-stuff
+-- in `Text.Printf` -- so we'll use the definition in agda.
+import Agda.Utils.Pretty
+
+instance Pretty Mod where
+  pretty = text . showMod
 
 showMod :: Mod -> String
 showMod (MMod bs ts) = printf "(module %s (export %s))"
   (unwords . map showBinding $ bs)
   (unwords . map showTerm $ ts)
+
+instance Pretty Term where
+  pretty = text . showTerm
 
 showTerm :: Term -> String
 showTerm tt = case tt of
@@ -31,6 +40,9 @@ showTerm tt = case tt of
   Mblock i ts         -> printf "(block (tag %s) %s)" (show i) (unwords (map showTerm ts))
   Mfield i t0         -> printf "(field %s %s)" (show i) (showTerm t0)
 
+instance Pretty Binding where
+  pretty = text . showBinding
+
 showBinding :: Binding -> String
 showBinding b = case b of
   Unnamed t    -> printf "(_ %s)" (showTerm t)
@@ -40,6 +52,9 @@ showBinding b = case b of
     showIdentTerm :: (Ident, Term) -> String
     showIdentTerm (i, t) = printf "(%s %s)" (showIdent i) (showTerm t)
 
+instance Pretty IntConst where
+  pretty = text . showIntConst
+
 showIntConst :: IntConst -> String
 showIntConst ic = case ic of
   CInt    i -> show i
@@ -47,14 +62,29 @@ showIntConst ic = case ic of
   CInt64  i -> show i
   CBigint i -> show i
 
+-- Problematic:
+-- instance Pretty Longident where
+--   pretty = text . showLongident
+
 showLongident :: Longident -> String
 showLongident = unwords . map showIdent
+
+-- Ditto problematic:
+-- instance Pretty Ident where
+--   pretty = text . showIdent
 
 showIdent :: Ident -> String
 showIdent = ('$':)
 
+-- Ditto problematic:
+-- instance Pretty ([Case], Term) where
+--   pretty = text . showCaseExpression
+
 showCaseExpression :: ([Case], Term) -> String
 showCaseExpression (cs, t) = printf "(%s %s)" (unwords (map showCase cs)) (showTerm t)
+
+instance Pretty Case where
+  pretty = text . showCase
 
 -- I don't think it's possible to create `_` and `n` as mentioned in the spec
 -- using the AST define in the original implementation of malfunction.
@@ -66,10 +96,16 @@ showCase c = case c of
   CaseInt n       -> show n
   Intrange (i, j) -> printf "(%s %s)" (show i) (show j)
 
+instance Pretty UnaryIntOp where
+  pretty = text . showUnaryIntOp
+
 showUnaryIntOp :: UnaryIntOp -> String
 showUnaryIntOp op = case op of
   Neg -> "?"
   Not -> "?"
+
+instance Pretty BinaryIntOp where
+  pretty = text . showBinaryIntOp
 
 showBinaryIntOp :: BinaryIntOp -> String
 showBinaryIntOp op = case op of
@@ -90,10 +126,15 @@ showBinaryIntOp op = case op of
   Gte -> ">="
   Eq  -> "=="
 
+-- Problematic:
+
 showTypedTerm :: IntType -> Term -> String
 showTypedTerm tp t = case tp of
   TInt -> showTerm t
   _    -> printf "%s.%s" (showTerm t) (showIntType tp)
+
+instance Pretty IntType where
+  pretty = text . showIntType
 
 showIntType :: IntType -> String
 showIntType tp = case tp of
