@@ -6,6 +6,7 @@ import Agda.Utils.Pretty
 import Control.Monad.Trans
 import qualified Compiler as Mlf
 import Malfunction.Print
+import Text.Printf
 
 backend :: Backend
 backend = Backend backend'
@@ -45,21 +46,16 @@ mlfDef d@Defn{ defName = q } =
       case mtt of
         Nothing -> return ()
         Just tt -> do
-          liftIO . putStrLn . unlines $
-            [ replicate 70 '='
-            , "Treeless"
-            , show $ nest 2 $ hang (pretty q <+> text "=") 2 (pretty tt)
-            , replicate 70 '-'
-            , "Treeless AST"
-            , show q ++ " = " ++ show tt
-            , replicate 70 '-'
-            ]
-          -- Now attempting the impossible.
           mlf <- translate q tt
-          liftIO . putStrLn . unlines $
-            [ "Malfunction AST"
-            , showBinding mlf
-            ]
+          let header c h = let cs = replicate 15 c in text $ printf "%s %s %s" cs h cs
+              pretty' = text . showBinding
+              sect t dc = text t $+$ nest 2 dc $+$ text ""
+          liftIO . putStrLn . render
+            $  header '=' (show q)
+            $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
+            $$ sect "Treeless (concrete syntax)"    (pretty tt)
+            $$ sect "Malfunction (abstract syntax)" (text . show $ mlf)
+            $$ sect "Malfunction (concrete syntax)" (pretty' mlf)
     Primitive{ primName = s } ->
       liftIO $ putStrLn $ "  primitive " ++ s
     Axiom         -> return ()
