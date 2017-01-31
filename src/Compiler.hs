@@ -24,7 +24,7 @@ translateTerm tt = case tt of
   TPrim tp          -> return $ translatePrim' tp
   TDef name         -> translateName name
   TApp t0 args      -> translateApp t0 args
-  TLam t0           -> translateLam t0
+  TLam{}            -> translateLam tt
   TLit lit          -> return $ translateLit lit
   -- TODO: Translate constructors differently from names.
   -- Don't know if we should do the same when translating TDef's, but here we
@@ -72,11 +72,25 @@ translateBinding :: MonadTranslate m => TTerm -> m Binding
 translateBinding t = Unnamed <$> translateTerm t
 
 translateLam :: MonadTranslate m => TTerm -> m Term
-translateLam lam = do
-  t <- translateTerm lam
-  i <- ident <$> get
-  incr
-  return (Mlambda [i] t)
+translateLam e = do
+  (is, t) <- translateLams e
+  return $ Mlambda is t
+--   t <- translateTerm body
+--   i <- ident <$> get
+--   incr
+--   return (Mlambda [i] t)
+
+freshIdent :: MonadTranslate m => m Ident
+freshIdent = do { x <- ident <$> get ; incr ; return x }
+
+translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
+translateLams (TLam body) = do
+  (xs, t) <- translateLams body
+  x       <- freshIdent
+  return (x:xs, t)
+translateLams e = do
+  e' <- translateTerm e
+  return ([], e')
 
 -- This is really ugly, but I've done this for the reason mentioned
 -- in `translatePrim'`. Note that a similiar "optimization" could be
