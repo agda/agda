@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (translate, Term) where
+module Compiler (translateDef, translate, Term, Binding) where
 
 import Data.Char
 
@@ -15,6 +15,9 @@ import Control.Monad.State
 
 type MonadTranslate = MonadState Int
 
+translateDef :: QName -> TTerm -> Binding
+translateDef qnm t = Recursive . pure $ (nameToIdent qnm, translate t)
+
 translate :: TTerm -> Term
 translate t = translateTerm t `evalState` 0
 
@@ -22,7 +25,7 @@ translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
   TVar i            -> return . identToVarTerm $ i
   TPrim tp          -> return $ translatePrim' tp
-  TDef name         -> translateName name
+  TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
   TLam{}            -> translateLam tt
   TLit lit          -> return $ translateLit lit
@@ -32,7 +35,7 @@ translateTerm tt = case tt of
   -- in an "untyped but injective way". That is, we only care that each
   -- constructor maps to a unique number such that we will be able to
   -- distinguish it in malfunction.
-  TCon name         -> translateName name
+  TCon name         -> return $ translateCon name
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
@@ -65,8 +68,12 @@ translateSwitch alt = case alt of
     b <- translateTerm body
     let c = pure $ litToCase pat
     return (c, b)
-  -- TODO: Stub!
-  TACon{}        -> return ([], Mvar "TACon")
+  -- TODO: We're probably at least also interested in the the arity at
+  -- this point since it introduces new bindings.
+  TACon n _arity t    -> do
+    tg <- nameToTag n
+    t' <- translateTerm t
+    return (pure tg, t')
   TAGuard{}      -> return ([], Mvar "TAGuard")
 
 litToCase :: Literal -> Case
@@ -186,11 +193,23 @@ translatePrim' tp = Mlambda [varN, varM] $ case tp of
     varM  = "m"
     wrong = op2 Xor
 
-translateName :: MonadTranslate m => QName -> m Term
-translateName = aux . nameId . qnameName
-  where
-    -- I know this is a sort of dicy variable name to pick but for now I'll
-    -- leave it here. It makes debugging slightly easier.
-    aux :: MonadTranslate m => NameId -> m Term
-    aux = return . Mvar . ("agda://" ++) . show
+-- FIXME: Please not the multitude of interpreting QName in the following
+-- section. This may be a problem.
+-- This is due to the fact that QName can refer to constructors and regular
+-- bindings, I think we want to handle these two cases seperately.
 
+-- Questionable implementation:
+nameToTag :: MonadTranslate m => QName -> m Case
+nameToTag = return . Tag . fromEnum . nameId . qnameName
+
+-- Constructors should probably be translated to tags
+-- Probably tags should be their own data-type and not
+-- just be used defined for Case-expressions.
+translateCon :: QName -> Term
+translateCon = Mvar . ident . fromEnum . nameId . qnameName
+
+translateName :: QName -> Term
+translateName = Mvar . nameToIdent
+
+nameToIdent :: QName -> Ident
+nameToIdent = show

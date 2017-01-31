@@ -55,10 +55,10 @@ mlfDef d@Defn{ defName = q } =
             , replicate 70 '-'
             ]
           -- Now attempting the impossible.
-          mlf <- translate tt
+          mlf <- translate q tt
           liftIO . putStrLn . unlines $
             [ "Malfunction AST"
-            , show q ++ " = " ++ showTerm mlf
+            , showBinding mlf
             ]
     Primitive{ primName = s } ->
       liftIO $ putStrLn $ "  primitive " ++ s
@@ -72,5 +72,5 @@ mlfDef d@Defn{ defName = q } =
 -- it to Mlf.translate? I was thinking that if all we need from the TCM-
 -- monad is a way to translate from names to identifiers, then perhaps we
 -- could extract such a lookup-function and use it in MonadTranslate.
-translate :: TTerm -> TCMT IO Mlf.Term
-translate = return . Mlf.translate
+translate :: QName -> TTerm -> TCMT IO Mlf.Binding
+translate nm = return . Mlf.translateDef nm
