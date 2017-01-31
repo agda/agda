@@ -47,7 +47,7 @@ translateTerm tt = case tt of
           return (cs ++ pure (anything, d))
       anything :: [Case]
       anything = [CaseAnyInt, Deftag]
-  TUnit             -> error "Unimplemented"
+  TUnit             -> return unitT
   TSort             -> error "Unimplemented"
   TErased           -> error "Unimplemented"
   TError err        -> error $ "Error: " ++ show err
@@ -228,6 +228,12 @@ translateCon nm ts = do
     -- uniqFromName = error "uh-oh! tricky!"
     -- TODO: Stub!
     uniqFromName = length . show
+
+-- Unit is treated as a glorified value in Treeless, luckily it's fairly
+-- straight-forward to encode using the scheme described in the documentation
+-- for `translateCon`.
+unitT :: Term
+unitT = Mblock 0 mempty
 
 translateName :: QName -> Term
 translateName = Mvar . nameToIdent
