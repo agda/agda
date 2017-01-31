@@ -35,13 +35,19 @@ translateTerm tt = case tt of
   TCon name         -> translateName name
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
---  TCase i tp def alt -> liftM2 Mswitch (translateTerm def) (mapM translateSwitch alt)
-  TCase i _ def alt -> do
+  TCase i _ def alts -> do
     let t = identToVarTerm i
-    d <- translateTerm def
-    cs <- mapM translateSwitch alt
-    return $ Mswitch t (cs ++ pure (anything, d))
+    alts' <- alternatives
+    return $ Mswitch t alts'
     where
+      -- Case expressions may not have an alternative, this is encoded
+      -- by @def@ being TError TUnreachable.
+      alternatives = case def of
+        TError TUnreachable -> mapM translateSwitch alts
+        _ -> do
+          d <- translateTerm def
+          cs <- mapM translateSwitch alts
+          return (cs ++ pure (anything, d))
       anything :: [Case]
       anything = [CaseAnyInt, Deftag]
   TUnit             -> error "Unimplemented"
