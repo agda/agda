@@ -7,7 +7,8 @@ import Malfunction.AST
 
 test_translate :: [TestTree]
 test_translate =
-  [
-    testCase "translate" $
-    translate (TLam (TLam (TVar 0))) @?= (Mlambda ["v1"] (Mlambda ["v0"] (Mvar "v0")))
+  -- Tests that the deBruijn index references the *closest* binding.
+  [ testCase "translate"
+    $   translate (TLam (TLam (TVar 0)))
+    @?= Mlambda ["v1", "v0"] (Mvar "v0")
   ]
