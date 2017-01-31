@@ -913,19 +913,25 @@ Assumes that <clause> = {!<variables>!} is on one line."
 major mode)."
   (setq agda2-buffer-external-status status))
 
-(defun agda2-warning-buffer nil
-  "Creates the Agda warning buffer, if it does not already exist.
-The buffer is returned."
-  (unless (buffer-live-p agda2-warning-buffer)
-    (setq agda2-warning-buffer
-          (generate-new-buffer "*Agda warnings*"))
+(defmacro agda2-warning-or-info-buffer (buffer kind title)
+  "Used to define the functions agda2-warning-buffer and agda2-info-buffer."
+  `(defun ,buffer nil
+     ,(concat "Creates the Agda " kind
+              " buffer, if it does not already exist.
+The buffer is returned.")
+  (unless (buffer-live-p ,buffer)
+    (setq ,buffer
+          (generate-new-buffer ,title))
 
-    (with-current-buffer agda2-warning-buffer
+    (with-current-buffer ,buffer
       (compilation-mode "AgdaInfo")
       ;; Support for jumping to positions mentioned in the text.
       (set (make-local-variable 'compilation-error-regexp-alist)
            '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
               1 (2 . 5) (3 . 6))))
+      ;; Do not skip errors that start in the same position as the
+      ;; current one.
+      (set (make-local-variable 'compilation-skip-to-next-location) nil)
       ;; No support for recompilation. The key binding is removed, and
       ;; attempts to run `recompile' will (hopefully) result in an
       ;; error.
@@ -939,7 +945,13 @@ The buffer is returned."
       (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
       (set-input-method "Agda")))
 
-  agda2-warning-buffer)
+  ,buffer))
+
+(agda2-warning-or-info-buffer
+ agda2-warning-buffer "warning" "*Agda warnings*")
+
+(agda2-warning-or-info-buffer
+ agda2-info-buffer "info" "*Agda information*")
 
 (defun agda2-font-syntactic-face (state)
   (cond ((nth 4 state)
@@ -948,34 +960,6 @@ The buffer is returned."
            (cond ((looking-at "--[[:space:]\n]") 'font-lock-comment-face)
                  ((looking-at "{-[^#]") 'font-lock-comment-face)
           )))))
-
-(defun agda2-info-buffer nil
-  "Creates the Agda info buffer, if it does not already exist.
-The buffer is returned."
-  (unless (buffer-live-p agda2-info-buffer)
-    (setq agda2-info-buffer
-          (generate-new-buffer "*Agda information*"))
-
-    (with-current-buffer agda2-info-buffer
-      (compilation-mode "AgdaInfo")
-      ;; Support for jumping to positions mentioned in the text.
-      (set (make-local-variable 'compilation-error-regexp-alist)
-           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
-              1 (2 . 5) (3 . 6))))
-      ;; No support for recompilation. The key binding is removed, and
-      ;; attempts to run `recompile' will (hopefully) result in an
-      ;; error.
-      (let ((map (copy-keymap (current-local-map))))
-        (define-key map (kbd "g") 'undefined)
-        (use-local-map map))
-      (set (make-local-variable 'compile-command)
-           'agda2-does-not-support-compilation-via-the-compilation-mode)
-
-      (set-syntax-table agda2-mode-syntax-table)
-      (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
-      (set-input-method "Agda")))
-
-  agda2-info-buffer)
 
 (defun agda2-info-action (name text &optional append)
   "Insert TEXT into the Agda info buffer and display it.
