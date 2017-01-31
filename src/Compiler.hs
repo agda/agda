@@ -166,27 +166,13 @@ translatePrim tp = (op, aType)
 -- to be adjusted depending on it it's a Mintop1 or Mintop2.
 -- Remove this or implement it in terms of `translatePrim`
 translatePrim' :: TPrim -> Term
-translatePrim' tp = Mlambda [varN, varM] $ case tp of
-  PAdd -> op2 Add
-  PSub -> op2 Sub
-  PMul -> op2 Mul
-  PQuot -> wrong
-  PRem -> op2 Mo
-  PGeq -> op2 Gt
-  PLt -> wrong
-  PEqI -> wrong
-  PEqF -> wrong
-  PEqS -> wrong
-  PEqC -> wrong
-  PEqQ -> wrong
-  PIf -> wrong
-  PSeq -> wrong
+translatePrim' tprim = case op of
+  Left  unop -> Mlambda [var0]       $ Mintop1 unop tp (Mvar var0)
+  Right biop -> Mlambda [var0, var1] $ Mintop2 biop tp (Mvar var0) (Mvar var1)
   where
-    op2 t = Mintop2 t aType (Mvar varN) (Mvar varM)
-    aType = TInt
-    varN  = "n"
-    varM  = "m"
-    wrong = op2 Xor
+    (op, tp) = translatePrim tprim
+    var0  = "n"
+    var1  = "m"
 
 -- FIXME: Please not the multitude of interpreting QName in the following
 -- section. This may be a problem.
