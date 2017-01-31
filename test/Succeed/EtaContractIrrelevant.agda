@@ -25,8 +25,9 @@ postulate
 πCong : {A A' : Pred}(A≡A' : A ≡ A') →
   {F  : fam A }
   {F' : fam A'}
-  (F≡F' : (λ {a} Aa → F {a = a} Aa)
-        ≡ (λ {a} Aa → F' {a = a} (subst (λ A → A a) A≡A' Aa))) →
+  (F≡F' : _≡_ {A = {a : Val} → .(A a) → Pred}
+          (λ {a} Aa → F {a = a} Aa)
+          (λ {a} Aa → F' {a = a} (subst (λ A → A a) A≡A' Aa))) →
   π A F ≡ π A' F'
 πCong refl refl = refl
 -- needs eta-contraction for irrelevant functions F F'

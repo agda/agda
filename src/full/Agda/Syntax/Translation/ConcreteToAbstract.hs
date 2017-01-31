@@ -1686,12 +1686,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.Def x -> return x
           _       -> __IMPOSSIBLE__
     return [ A.CompiledExportPragma y hs ]
-  toAbstract (C.CompiledEpicPragma _ x ep) = do
-    e <- toAbstract $ OldQName x Nothing
-    y <- case e of
-          A.Def x -> return x
-          _       -> __IMPOSSIBLE__
-    return [ A.CompiledEpicPragma y ep ]
   toAbstract (C.CompiledJSPragma _ x ep) = do
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
@@ -1773,6 +1767,14 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.HaskellCodePragma _ s) = do
     addInlineHaskell s
     return []
+  toAbstract (C.EtaPragma _ x) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.EtaPragma x ]
+      _       -> do
+       e <- showA e
+       genericError $ "Pragma ETA: expected identifier, " ++
+         "but found expression " ++ e
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
         getHead (C.IdentP x)          = return x

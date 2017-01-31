@@ -32,8 +32,7 @@ instantiateTel s tel = liftTCM $ do
   reportSDoc "tc.lhs.inst" 10 $ vcat
     [ text "instantiateTel "
     , nest 2 $ text "s    =" <+> do
-        addContext tel $
-          fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
+        addContext tel $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
     , nest 2 $ text "tel  =" <+> prettyTCM tel
 --    , nest 2 $ text "tel  =" <+> text (show tel)
     ]

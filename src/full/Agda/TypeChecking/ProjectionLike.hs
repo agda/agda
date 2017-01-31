@@ -1,5 +1,61 @@
 {-# LANGUAGE CPP               #-}
 
+-- | Dropping initial arguments (``parameters'') from a function which can be
+--   easily reconstructed from its principal argument.
+--
+--   A function which has such parameters is called ``projection-like''.
+--
+--   The motivation for this optimization comes from the use of nested records.
+--
+--   First, let us look why proper projections need not store the parameters:
+--   The type of a projection @f@ is of the form
+--   @
+--      f : Γ → R Γ → C
+--   @
+--   where @R@ is the record type and @C@ is the type of the field @f@.
+--   Given a projection application
+--   @
+--      p pars u
+--   @
+--   we know that the type of the principal argument @u@ is
+--   @
+--      u : R pars
+--   @
+--   thus, the parameters @pars@ are redundant in the projection application
+--   if we can always infer the type of @u@.
+--   For projections, this is case, because the principal argument @u@ must be
+--   neutral; otherwise, if it was a record value, we would have a redex,
+--   yet Agda maintains a β-normal form.
+--
+--   The situation for projections can be generalized to ``projection-like''
+--   functions @f@.  Conditions:
+--
+--     1. The type of @f@ is of the form @f : Γ → D Γ → ...@ for some
+--        type constructor @D@ which can never reduce.
+--
+--     2. For every reduced welltyped application @f pars u ...@,
+--        the type of @u@ is inferable.
+--
+--   This then allows @pars@ to be dropped always.
+--
+--   Condition 2 is approximated by a bunch of criteria, for details see function
+--   'makeProjection'.
+--
+--   Typical projection-like functions are compositions of projections
+--   which arise from nested records.
+--
+--   Notes:
+--
+--     1. This analysis could be dualized to ``constructor-like'' functions
+--        whose parameters are reconstructable from the target type.
+--        But such functions would need to be fully applied.
+--
+--     2. A more general analysis of which arguments are reconstructible
+--        can be found in
+--
+--          Jason C. Reed, Redundancy elimination for LF
+--          LFTMP 2004.
+
 module Agda.TypeChecking.ProjectionLike where
 
 import Control.Monad
@@ -21,6 +77,7 @@ import Agda.TypeChecking.Reduce (reduce)
 
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -131,6 +188,38 @@ eligibleForProjectionLike d = do
       -- See test/Fail/AbstractTypeProjectionLike.
 
 -- | Turn a definition into a projection if it looks like a projection.
+--
+-- Conditions for projection-likeness of @f@:
+--
+--   1. The type of @f@ must be of the shape @Γ → D Γ → C@ for @D@
+--      a name (@Def@) which is 'eligibleForProjectionLike':
+--      @data@ / @record@ / @postulate@.
+--
+--   2. The application of f should only get stuck if the principal argument
+--      is inferable (neutral).  Thus:
+--
+--      a. @f@ cannot have absurd clauses (which are stuck even if the principal
+--         argument is a constructor)
+--
+--      b. @f@ cannot be abstract as it does not reduce outside abstract blocks
+--         (always stuck).
+--
+--      c. @f@ cannot match on other arguments than the principal argument.
+--
+--      d. @f@ cannot match deeply.
+--
+--      e. @f@s body may not mention the paramters.
+--
+-- For internal reasons:
+--
+--   3. @f@ cannot be constructor headed
+--
+--   4. @f@ cannot be recursive, since we have not implemented a function
+--      which goes through the bodies of the @f@ and the mutually recursive
+--      functions and drops the parameters from all applications of @f@.
+--
+-- Examples for these reasons: see test/Succeed/NotProjectionLike.agda
+
 makeProjection :: QName -> TCM ()
 makeProjection x = -- if True then return () else do
  inTopContext $ do
@@ -160,25 +249,20 @@ makeProjection x = -- if True then return () else do
         -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
         -- Issue 700: problems with recursive funs. in term.checker and reduction
         ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
-          ps <- return $ filter (checkOccurs cls . snd) ps0
-          when (null ps) $
-            reportSLn "tc.proj.like" 50 $
+          {- else -}
+          case lastMaybe (filter (checkOccurs cls . snd) ps0) of
+            Nothing -> reportSLn "tc.proj.like" 50 $
               "  occurs check failed\n    clauses = " ++ show cls
-          case reverse ps of
-            []         -> return ()
-            (d, n) : _ -> do
+            Just (d, n) -> do
+              -- Yes, we are projection-like!
               reportSDoc "tc.proj.like" 10 $ sep
                 [ prettyTCM x <+> text " : " <+> prettyTCM t
                 , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
                 ]
-{-
-              reportSLn "tc.proj.like" 10 $
-                show (defName defn) ++ " is projection like in argument " ++
-                show n ++ " for type " ++ show d
--}
+              __CRASH_WHEN__ "tc.proj.like.crash" 1000
+
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
-              -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
               reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
               -- Andreas, 2013-10-20 build parameter dropping function
@@ -238,8 +322,9 @@ makeProjection x = -- if True then return () else do
       where
         Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl
-        b        = compiledClauseBody cl
-        m        = size $ concatMap patternVars $ clausePats cl
+        b        = compiledClauseBody cl  -- Renumbers variables to match order in patterns
+                                          -- and includes dot patterns as variables.
+        m        = size $ concatMap patternVars ps  -- This also counts dot patterns!
 
 
     onlyMatch n ps = all (shallowMatch . namedArg) (take 1 ps1) &&
@@ -255,8 +340,9 @@ makeProjection x = -- if True then return () else do
         noMatch VarP{} = True
         noMatch DotP{} = True
 
+    -- Make sure non of the parameters occurs in the body of the function.
     checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
-      where badVar (x,_) = Any $ m-1-n < x && x < m
+      where badVar (x,_) = Any $ m-n <= x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
     -- if @t@ is a function-type with domain @t 0 .. (n-1)@

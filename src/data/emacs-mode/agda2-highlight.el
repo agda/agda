@@ -349,10 +349,16 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for positivity problems."
   :group 'agda2-highlight-faces)
 
-(defface agda2-highlight-incomplete-pattern-face
+(defface agda2-highlight-reachability-problem-face
+  '((t (:background "dark gray"
+        :foreground "black")))
+  "The face used for reachability problems."
+  :group 'agda2-highlight-faces)
+
+(defface agda2-highlight-coverage-problem-face
   '((t (:background "wheat"
         :foreground "black")))
-  "The face used for incomplete patterns. (Currently unused.)"
+  "The face used for coverage problems."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-typechecks-face
@@ -385,6 +391,8 @@ If `agda2-highlight-face-groups' is nil."
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
+    (reachabilityproblem    . agda2-highlight-reachability-problem-face)
+    (coverageproblem        . agda2-highlight-coverage-problem-face)
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (typechecks             . agda2-highlight-typechecks-face))
@@ -414,6 +422,8 @@ The aspects currently recognised are the following:
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
 `positivityproblem'      Positivity problems.
+`reachabilityproblem'    Reachability problems.
+`coverageproblem'        Reachability problems.
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.

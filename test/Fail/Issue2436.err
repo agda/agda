@@ -1,0 +1,5 @@
+Issue2436.agda:4,8-9
+Agda doesn't like coinductive records with eta-equality.
+If you must, use pragma
+{-# ETA U #-}
+when checking the definition of U

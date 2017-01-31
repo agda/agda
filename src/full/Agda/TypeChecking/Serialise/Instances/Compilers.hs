@@ -6,7 +6,6 @@ module Agda.TypeChecking.Serialise.Instances.Compilers where
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 
-import qualified Agda.Compiler.Epic.Interface as Epic
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 import qualified Agda.Compiler.UHC.Bridge as UHCB
 import qualified Agda.Compiler.JS.Syntax as JS
@@ -33,11 +32,11 @@ instance EmbPrj HaskellRepresentation where
     valu _      = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icod_ (CompiledRep a b c d e) = icode5' a b c d e
+  icod_ (CompiledRep a b c d) = icode4' a b c d
 
   value = vcase valu where
-    valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
-    valu _               = malformed
+    valu [a, b, c, d] = valu4 CompiledRep a b c d
+    valu _            = malformed
 
 instance EmbPrj JS.Exp where
   icod_ (JS.Self)         = icode0 0
@@ -123,44 +122,3 @@ instance EmbPrj CR.HsName where
   icod_   = icode . B.runPut . UHCB.serialize
   value n = value n >>= return . (B.runGet UHCB.unserialize)
 
--- This is used for the Epic compiler backend
-instance EmbPrj Epic.EInterface where
-  icod_ (Epic.EInterface a b c d e f g h) = icode8' a b c d e f g h
-
-  value = vcase valu where
-    valu [a, b, c, d, e, f, g, h] = valu8 Epic.EInterface a b c d e f g h
-    valu _                        = malformed
-
-instance EmbPrj Epic.InjectiveFun where
-  icod_ (Epic.InjectiveFun a b) = icode2' a b
-
-  value = vcase valu where
-    valu [a,b] = valu2 Epic.InjectiveFun a b
-    valu _     = malformed
-
-instance EmbPrj Epic.Relevance where
-  icod_ Epic.Irr = icode0 0
-  icod_ Epic.Rel = icode0 1
-
-  value = vcase valu where
-    valu [0] = valu0 Epic.Irr
-    valu [1] = valu0 Epic.Rel
-    valu _   = malformed
-
-instance EmbPrj Epic.Forced where
-  icod_ Epic.Forced    = icode0 0
-  icod_ Epic.NotForced = icode0 1
-
-  value = vcase valu where
-    valu [0] = valu0 Epic.Forced
-    valu [1] = valu0 Epic.NotForced
-    valu _   = malformed
-
-instance EmbPrj Epic.Tag where
-  icod_ (Epic.Tag a)     = icode1 0 a
-  icod_ (Epic.PrimTag a) = icode1 1 a
-
-  value = vcase valu where
-    valu [0, a] = valu1 Epic.Tag a
-    valu [1, a] = valu1 Epic.PrimTag a
-    valu _      = malformed

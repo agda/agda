@@ -333,10 +333,13 @@ unquoteTop xs e = do
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
   reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q
-  sig <- getSignature
-  let t = defType $ fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
-  t <- instantiateFull t
-  modifySignature $ updateDefinition q $ \ def -> def { defType = t }
+  t  <- defType . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
+  t' <- instantiateFull t
+  modifySignature $ updateDefinition q $ updateDefType $ const t'
+  reportSDoc "tc.decl.inst" 30 $ vcat
+    [ text "  t  = " <+> prettyTCM t
+    , text "  t' = " <+> prettyTCM t'
+    ]
 
 -- Andreas, 2014-04-11
 -- UNUSED, costs a couple of sec on the std-lib
@@ -460,8 +463,8 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
         case term of
           Just True -> do
             inv <- checkInjectivity q cs
-            modifySignature $ updateDefinition q $ const $
-              def { theDef = d { funInv = inv }}
+            modifySignature $ updateDefinition q $ updateTheDef $ const $
+              d { funInv = inv }
           _ -> reportSLn "tc.inj.check" 20 $
              show q ++ " is not verified as terminating, thus, not considered for injectivity"
       _ -> do
@@ -671,12 +674,15 @@ checkPragma r p =
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
+          let addCompiled = do
+                ty <- haskellType $ defType def
+                reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
+                addHaskellCode x ty hs
           case theDef def of
-            Axiom{} -> do
-              ty <- haskellType $ defType def
-              reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-              addHaskellCode x ty hs
-            _   -> typeError $ GenericError "COMPILED directive only works on postulates"
+            Axiom{} -> addCompiled
+            Function{} -> addCompiled
+            _   -> typeError $ GenericError "COMPILED directive only works on postulates and functions"
+
         A.CompiledExportPragma x hs -> do
           def <- getConstInfo x
           let correct = case theDef def of
@@ -692,14 +698,6 @@ checkPragma r p =
             else do
               ty <- haskellType $ defType def
               addHaskellExport x ty hs
-        A.CompiledEpicPragma x ep -> do
-          def <- getConstInfo x
-          case theDef def of
-            Axiom{} -> do
-              --ty <- haskellType $ defType def
-              --reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-              addEpicCode x ep
-            _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates"
         A.CompiledJSPragma x ep ->
           addJSCode x ep
         A.CompiledUHCPragma x cr -> do
@@ -752,6 +750,18 @@ checkPragma r p =
             _          -> typeError $ GenericError "INLINE directive only works on functions"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
+        A.EtaPragma r -> do
+          let noRecord = typeError $ GenericError $
+                "ETA pragma is only applicable to coinductive records"
+          caseMaybeM (isRecord r) noRecord $ \case
+            Record{ recInduction = ind, recEtaEquality' = eta } -> do
+              unless (ind == Just CoInductive) $ noRecord
+              when (eta == Specified False) $ typeError $ GenericError $
+                "ETA pragram conflicts with no-eta-equality declaration"
+            _ -> __IMPOSSIBLE__
+          modifySignature $ updateDefinition r $ updateTheDef $ \case
+            def@Record{} -> def { recEtaEquality' = Specified True }
+            _ -> __IMPOSSIBLE__
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

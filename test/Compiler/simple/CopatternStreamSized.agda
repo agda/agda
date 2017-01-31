@@ -39,5 +39,5 @@ sums : Stream _ Nat
 sums = scanl (_+_) 0 (tail nats)
 
 main : IO Unit
-main = printNat (sums ! 100)
--- Expected output, due to Gauss: 5050
+main = printNat (sums ! 10)
+-- Expected output, due to Gauss: 55

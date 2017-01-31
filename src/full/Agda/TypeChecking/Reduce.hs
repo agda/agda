@@ -73,7 +73,7 @@ isFullyInstantiatedMeta :: MetaId -> TCM Bool
 isFullyInstantiatedMeta m = do
   mv <- TCM.lookupMeta m
   case mvInstantiation mv of
-    InstV sub v -> null . allMetas <$> instantiateFull (sub, v)
+    InstV _tel v -> null . allMetas <$> instantiateFull v
     _ -> return False
 
 -- | Instantiate something.
@@ -997,9 +997,6 @@ instance Normalise EqualityView where
 -- * Full instantiation
 ---------------------------------------------------------------------------
 
--- STALE: Full instantiatiation = normalisation [ instantiate' / reduce' ]
--- How can we express this? We need higher order classes!
-
 -- | @instantiateFull'@ 'instantiate's metas everywhere (and recursively)
 --   but does not 'reduce'.
 class InstantiateFull t where
@@ -1254,8 +1251,8 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause r tel ps b t catchall) =
-       Clause r <$> instantiateFull' tel
+    instantiateFull' (Clause rl rf tel ps b t catchall) =
+       Clause rl rf <$> instantiateFull' tel
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t

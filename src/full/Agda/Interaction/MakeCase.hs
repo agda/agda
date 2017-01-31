@@ -181,8 +181,8 @@ makeCase hole rng s = withInteractionId hole $ do
     [ text "splitting clause:"
     , nest 2 $ vcat
       [ text "f       =" <+> prettyTCM f
-      , text "context =" <+> (prettyTCM =<< getContextTelescope)
-      , text "tel     =" <+> prettyTCM tel
+      , text "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
+      , text "tel     =" <+> (inTopContext . prettyTCM) tel
       , text "perm    =" <+> text (show perm)
       , text "ps      =" <+> text (show ps)
       ]
@@ -292,9 +292,9 @@ makeAbsurdClause f (SClause tel ps _ _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
-      [ text "context =" <+> (prettyTCM =<< getContextTelescope)
-      , text "tel =" <+> prettyTCM tel
-      , text "ps =" <+> text (show ps)
+      [ text "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
+      , text "tel     =" <+> do inTopContext $ prettyTCM tel
+      , text "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
       ]
     ]
   withCurrentModule (qnameModule f) $ do
@@ -302,7 +302,7 @@ makeAbsurdClause f (SClause tel ps _ _ t) = do
     -- Contract implicit record patterns before printing.
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
-    let c = Clause noRange tel ps Nothing t False
+    let c = Clause noRange noRange tel ps Nothing t False
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
     reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)

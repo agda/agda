@@ -442,8 +442,6 @@ instance Pretty Pragma where
       hsep [ text "COMPILED_DECLARE_DATA", pretty x, text hs ]
     pretty (CompiledDataPragma _ x hs hcs) =
       hsep $ [text "COMPILED_DATA", pretty x] ++ map text (hs : hcs)
-    pretty (CompiledEpicPragma _ x e) =
-      hsep [ text "COMPILED_EPIC", pretty x, text e ]
     pretty (CompiledJSPragma _ x e) =
       hsep [ text "COMPILED_JS", pretty x, text e ]
     pretty (CompiledUHCPragma _ x e) =
@@ -464,6 +462,8 @@ instance Pretty Pragma where
       hsep $ [text "IMPORT_UHC", text i]
     pretty (ImpossiblePragma _) =
       hsep $ [text "IMPOSSIBLE"]
+    pretty (EtaPragma _ x) =
+      hsep $ [text "ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__

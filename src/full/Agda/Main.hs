@@ -11,6 +11,7 @@ import Data.Maybe
 
 import System.Environment
 import System.Exit
+import System.Console.GetOpt
 
 import Agda.Syntax.Position (Range)
 import Agda.Syntax.Concrete.Pretty ()
@@ -32,10 +33,12 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Common (IsMain (..))
-import Agda.Compiler.MAlonzo.Compiler as MAlonzo
-import Agda.Compiler.Epic.Compiler as Epic
-import Agda.Compiler.JS.Compiler as JS
-import Agda.Compiler.UHC.Compiler as UHC
+import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
+import Agda.Compiler.JS.Compiler (jsBackend)
+import Agda.Compiler.UHC.Compiler (uhcBackend)
+import Agda.Compiler.UHC.Bridge (uhcBackendEnabled)
+
+import Agda.Compiler.Backend
 
 import Agda.Utils.Lens
 import Agda.Utils.Monad
@@ -46,32 +49,62 @@ import Agda.VersionCommit
 import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 #include "undefined.h"
 
+builtinBackends :: [Backend]
+builtinBackends =
+  [ ghcBackend, jsBackend ] ++
+  [ uhcBackend | uhcBackendEnabled ]
+
 -- | The main function
-runAgda :: TCM ()
-runAgda = do
+runAgda :: [Backend] -> IO ()
+runAgda backends = runAgda' $ builtinBackends ++ backends
+
+runAgda' :: [Backend] -> IO ()
+runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseStandardOptions argv
+  opts     <- liftIO $ runOptM $ parseBackendOptions backends argv
   case opts of
-    Left err -> liftIO $ optionError err
-    Right opts -> runAgdaWithOptions generateHTML progName opts
+    Left  err        -> liftIO $ optionError err
+    Right (bs, opts) -> do
+      stBackends .= bs
+      let enabled (Backend b) = isEnabled b (options b)
+          bs' = filter enabled bs
+      () <$ runAgdaWithOptions backends generateHTML (interaction bs') progName opts
+      where
+        interaction bs = backendInteraction bs $ defaultInteraction opts
+
+defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
+defaultInteraction opts
+  | i         = runIM . interactionLoop
+  | ghci      = mimicGHCi . (failIfInt =<<)
+  | otherwise = (() <$)
+  where
+    i    = optInteractive     opts
+    ghci = optGHCiInteraction opts
+
+    failIfInt Nothing  = return ()
+    failIfInt (Just _) = __IMPOSSIBLE__
+
 
 -- | Run Agda with parsed command line options and with a custom HTML generator
 runAgdaWithOptions
-  :: TCM ()             -- ^ HTML generating action
+  :: [Backend]          -- ^ Backends only for printing usage and version information
+  -> TCM ()             -- ^ HTML generating action
+  -> (TCM (Maybe Interface) -> TCM a) -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
-  -> TCM ()
-runAgdaWithOptions generateHTML progName opts
-      | optShowHelp opts    = liftIO printUsage
-      | optShowVersion opts = liftIO printVersion
+  -> TCM (Maybe a)
+runAgdaWithOptions backends generateHTML interaction progName opts
+      | optShowHelp opts    = Nothing <$ liftIO (printUsage backends)
+      | optShowVersion opts = Nothing <$ liftIO (printVersion backends)
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)
-                            = liftIO printUsage
+                            = Nothing <$ liftIO (printUsage backends)
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
@@ -88,36 +121,8 @@ runAgdaWithOptions generateHTML progName opts
             -- Print accumulated statistics.
             printStatistics 20 Nothing =<< use lensAccumStatistics
   where
-    checkFile :: TCM ()
-    checkFile = do
-      let i             = optInteractive     opts
-          ghci          = optGHCiInteraction opts
-          ghc           = optGhcCompile      opts
-          compileNoMain = optCompileNoMain   opts
-          epic          = optEpicCompile     opts
-          js            = optJSCompile       opts
-          uhc           = optUHCCompile      opts
-      when i $ liftIO $ putStr splashScreen
-      let failIfNoInt (Just i) = return i
-          -- The allowed combinations of command-line
-          -- options should rule out Nothing here.
-          failIfNoInt Nothing  = __IMPOSSIBLE__
-
-          failIfInt Nothing  = return ()
-          failIfInt (Just _) = __IMPOSSIBLE__
-
-          interaction :: TCM (Maybe Interface) -> TCM ()
-          interaction | i             = runIM . interactionLoop
-                      | ghci          = mimicGHCi . (failIfInt =<<)
-                      | ghc && compileNoMain
-                                      = (MAlonzo.compilerMain NotMain =<<) . (failIfNoInt =<<)
-                      | ghc           = (MAlonzo.compilerMain IsMain =<<) . (failIfNoInt =<<)
-                      | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
-                      | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
-                      | uhc && compileNoMain
-                                      = (UHC.compilerMain NotMain =<<) . (failIfNoInt =<<)
-                      | uhc           = (UHC.compilerMain IsMain =<<)  . (failIfNoInt =<<)
-                      | otherwise     = (() <$)
+    checkFile = Just <$> do
+      when (optInteractive opts) $ liftIO $ putStr splashScreen
       interaction $ do
         setCommandLineOptions opts
         hasFile <- hasInputFile
@@ -153,28 +158,40 @@ runAgdaWithOptions generateHTML progName opts
           return result
 
 -- | Print usage information.
-printUsage :: IO ()
-printUsage = do
+printUsage :: [Backend] -> IO ()
+printUsage backends = do
   progName <- getProgName
   putStr $ usage standardOptions_ progName
+  mapM_ (putStr . backendUsage) backends
+
+backendUsage :: Backend -> String
+backendUsage (Backend b) =
+  usageInfo ("\n" ++ backendName b ++ " backend options") $
+    map (fmap $ const ()) (commandLineFlags b)
 
 -- | Print version information.
-printVersion :: IO ()
-printVersion = do
+printVersion :: [Backend] -> IO ()
+printVersion backends = do
   putStrLn $ "Agda version " ++ versionWithCommitInfo
+  mapM_ putStrLn
+    [ "  - " ++ name ++ " backend version " ++ ver
+    | Backend Backend'{ backendName = name, backendVersion = Just ver } <- backends ]
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err = do
-  putStrLn $ "Error: " ++ err ++ "\nRun 'agda --help' for help on command line options."
+  prog <- getProgName
+  putStrLn $ "Error: " ++ err ++ "\nRun '" ++ prog ++ " --help' for help on command line options."
   exitFailure
 
 -- | Run a TCM action in IO; catch and pretty print errors.
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
     r <- runTCMTop $ tcm `catchError` \err -> do
-      s <- prettyError err
-      unless (null s) (liftIO $ putStrLn s)
+      s2s <- prettyTCWarnings' =<< Imp.errorWarningsOfTCErr err
+      s1  <- prettyError err
+      let ss = filter (not . null) $ s2s ++ [s1]
+      unless (null s1) (liftIO $ putStr $ unlines ss)
       throwError err
     case r of
       Right _ -> exitSuccess
@@ -185,4 +202,4 @@ runTCMPrettyErrors tcm = do
 
 -- | Main
 main :: IO ()
-main = runTCMPrettyErrors runAgda
+main = runAgda []

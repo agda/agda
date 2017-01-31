@@ -68,8 +68,7 @@ import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
-import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
-import qualified Agda.Compiler.JS.Compiler as JS
+import Agda.Compiler.Backend
 
 import qualified Agda.Auto.Auto as Auto
 
@@ -277,9 +276,11 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
-        s <- lift $ prettyError e
+        s1 <- lift $ prettyError e
+        s2 <- lift $ prettyTCWarnings' =<< Imp.errorWarningsOfTCErr e
+        let s = intercalate "\n" $ filter (not . null) $ s1 : s2
         x <- lift $ optShowImplicit <$> use stPragmaOptions
-        unless (null s) $ mapM_ putResponse $
+        unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info modFile ] ++
@@ -331,7 +332,7 @@ data Interaction' range
 
     -- | @cmd_compile b m argv@ compiles the module in file @m@ using
     -- the backend @b@, using @argv@ as the command-line options.
-  | Cmd_compile         Backend FilePath [String]
+  | Cmd_compile         CompilerBackend FilePath [String]
 
   | Cmd_constraints
 
@@ -563,9 +564,9 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          GHC       -> MAlonzo.compilerMain IsMain i
-          GHCNoMain -> MAlonzo.compilerMain NotMain i
-          JS        -> JS.compilerMain i
+          GHC       -> callBackend "GHC" IsMain  i
+          GHCNoMain -> callBackend "GHC" NotMain i
+          JS        -> callBackend "JS" IsMain i
           LaTeX     -> LaTeX.generateLaTeX i
         display_info $ Info_CompilationOk
       Imp.SomeWarnings w ->
@@ -828,10 +829,10 @@ interpret Cmd_show_version = display_info Info_Version
 -- | Show warnings
 interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings Imp.AllWarnings RespectFlags
+  mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
-      let (we, wa) = Imp.classifyWarnings ws
+      let (we, wa) = classifyWarnings ws
       pwe <- lift $ prettyTCWarnings we
       pwa <- lift $ prettyTCWarnings wa
       return (pwe, pwa)
@@ -958,10 +959,7 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data Backend = GHC
-             | GHCNoMain
-             | JS
-             | LaTeX
+data CompilerBackend = GHC | GHCNoMain | JS | LaTeX
     deriving (Show, Read, Eq)
 
 data GiveRefine = Give | Refine | Intro

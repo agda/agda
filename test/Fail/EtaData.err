@@ -1,6 +1,3 @@
-EtaData.agda:8,5-5
-EtaData.agda:8,5: Parse error
-ETA<ERROR>
- Prod #-}
-
--- The ETA pragma d...
+EtaData.agda:8,1-17
+ETA pragma is only applicable to coinductive records
+when checking the pragma ETA Prod

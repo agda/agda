@@ -465,11 +465,14 @@ type ConGraph r f = Graph r f Label
 
 constraintGraph :: (Ord r, Ord f, Show r, Show f) => [Constraint' r f] -> HypGraph r f -> Either String (ConGraph r f)
 constraintGraph cons0 hg = do
+  traceM $ "original constraints cons0 = " ++ show cons0
   -- Simplify constraints, ensure they are locally consistent with
   -- hypotheses.
   cons <- simplifyWithHypotheses hg cons0
+  traceM $ "simplified constraints cons = " ++ show cons
   -- Build a transitive graph from constraints.
   let g = transClos $ graphFromConstraints cons
+  traceM $ "transitive graph g = " ++ show (graphToList g)
   -- Ensure it has no negative loops.
   when (negative g) $ Left $
     "size constraint graph has negative loops"
@@ -911,6 +914,7 @@ iterateSolver
 iterateSolver pols hg cs sol0 = do
   g <- constraintGraph cs hg
   sol <- solveGraph pols hg g
+  traceM $ "(partial) solution " ++ show sol
   if Map.null sol then return sol0 else
     iterateSolver pols hg (subst sol cs) (Map.unionWith __IMPOSSIBLE__ sol $ subst sol sol0)
 

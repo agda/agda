@@ -53,9 +53,9 @@ import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
-import Agda.Compiler.Treeless.DelayCoinduction
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
+import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PlainJS),
@@ -64,6 +64,8 @@ import Agda.Compiler.JS.Syntax
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, subst, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
+
+import Agda.Interaction.Options
 
 import Paths_Agda
 
@@ -74,24 +76,79 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 -- Entry point into the compiler
 --------------------------------------------------
 
-compilerMain :: Interface -> TCM ()
-compilerMain mainI = inCompilerEnv mainI $ do
-  doCompile IsMain mainI $ do
-    compile
-  copyRTEModules
+jsBackend :: Backend
+jsBackend = Backend jsBackend'
 
-compile :: IsMain -> Interface -> TCM ()
-compile isMain i = do
-  ifM uptodate noComp $ do
-    yesComp
-    writeModule =<< curModule isMain
+jsBackend' :: Backend' JSOptions JSOptions JSModuleEnv () (Maybe Export)
+jsBackend' = Backend'
+  { backendName      = "JS"
+  , backendVersion   = Nothing
+  , options          = defaultJSOptions
+  , commandLineFlags = jsCommandLineFlags
+  , isEnabled        = optJSCompile
+  , preCompile       = jsPreCompile
+  , postCompile      = jsPostCompile
+  , preModule        = jsPreModule
+  , postModule       = jsPostModule
+  , compileDef       = jsCompileDef
+  }
+
+--- Options ---
+
+data JSOptions = JSOptions
+  { optJSCompile :: Bool }
+
+defaultJSOptions :: JSOptions
+defaultJSOptions = JSOptions
+  { optJSCompile = False }
+
+jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
+jsCommandLineFlags =
+    [ Option [] ["js"] (NoArg enable) "compile program using the JS backend"
+    ]
   where
-  uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
-  ifile    = maybe __IMPOSSIBLE__ filePath <$>
-               (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
-  yesComp  = reportSLn "compile.js" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [prettyShow <$> curMName, ifile, outFile_] :: TCM ()
+    enable o = pure o{ optJSCompile = True }
+
+--- Top-level compilation ---
+
+jsPreCompile :: JSOptions -> TCM JSOptions
+jsPreCompile opts = return opts
+
+jsPostCompile :: JSOptions -> IsMain -> a -> TCM ()
+jsPostCompile _ _ _ = copyRTEModules
+
+--- Module compilation ---
+
+type JSModuleEnv = Maybe CoinductionKit
+
+jsPreModule :: JSOptions -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv ())
+jsPreModule _ m ifile = ifM uptodate noComp yesComp
+  where
+    uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+
+    noComp = do
+      reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
+      return $ Skip ()
+
+    yesComp = do
+      m   <- prettyShow <$> curMName
+      out <- outFile_
+      reportSLn "compile.js" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
+      Recompile <$> coinductionKit
+
+jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM ()
+jsPostModule _ _ isMain _ defs = do
+  m             <- jsMod <$> curMName
+  is            <- map (jsMod . fst) . iImportedModules <$> curIF
+  let es = catMaybes defs
+  writeModule $ Module m (reorder es) main
+  where
+    main = case isMain of
+      IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
+      NotMain -> Nothing
+
+jsCompileDef :: JSOptions -> JSModuleEnv -> Definition -> TCM (Maybe Export)
+jsCompileDef _ kit def = definition kit (defName def, def)
 
 --------------------------------------------------
 -- Naming
@@ -169,13 +226,13 @@ reorder' defs (e : es) =
     False -> reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
-isTopLevelValue (Export _ isCoind e) = case e of
-  _ | isCoind -> False
+isTopLevelValue (Export _ e) = case e of
+  Object m | flatName `Map.member` m -> False
   Lambda{} -> False
   _        -> True
 
 isEmptyObject :: Export -> Bool
-isEmptyObject (Export _ _ e) = case e of
+isEmptyObject (Export _ e) = case e of
   Object m -> Map.null m
   Lambda{} -> True
   _        -> False
@@ -214,25 +271,23 @@ definition' kit q d t ls =
   case theDef d of
     -- coinduction
     Constructor{} | Just q == (nameOfSharp <$> kit) -> do
-      ret $  Lambda 1 $ local 0
+      return Nothing
     Function{} | Just q == (nameOfFlat <$> kit) -> do
-      ret $ Lambda 1 $ Apply (local 0) [Integer 0]
+      ret $ Lambda 1 $ Apply (Lookup (local 0) flatName) []
 
     Axiom | Just e <- defJSDef d -> plainJS e
     Axiom | otherwise -> ret Undefined
 
     Function{} | Just e <- defJSDef d -> plainJS e
     Function{} | otherwise -> do
-      isInfVal <- outputIsInf kit t
 
       reportSDoc "compile.js" 5 $ text "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
         funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
-        funBody' <- delayCoinduction funBody t
-        reportSDoc "compile.js" 30 $ text " compiled treeless fun:" <+> pretty funBody'
-        funBody'' <- compileTerm funBody'
-        reportSDoc "compile.js" 30 $ text " compiled JS fun:" <+> (text . show) funBody''
-        return $ Just $ Export ls isInfVal funBody''
+        reportSDoc "compile.js" 30 $ text " compiled treeless fun:" <+> pretty funBody
+        funBody' <- compileTerm funBody
+        reportSDoc "compile.js" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
+        return $ Just $ Export ls funBody'
 
     Primitive{primName = p} | p `Set.member` primitives ->
       plainJS $ "agdaRTS." ++ p
@@ -261,51 +316,70 @@ definition' kit q d t ls =
 
     AbstractDefn -> __IMPOSSIBLE__
   where
-    ret = return . Just . Export ls False
-    plainJS = return . Just . Export ls False . PlainJS
-
+    ret = return . Just . Export ls
+    plainJS = return . Just . Export ls . PlainJS
 
 compileTerm :: T.TTerm -> TCM Exp
-compileTerm term = do
-  case term of
-    T.TVar x -> return $ Local $ LocalId x
-    T.TDef q -> do
-      d <- getConstInfo q
-      case theDef d of
-        -- Datatypes and records are erased
-        Datatype {} -> return (String "*")
-        Record {} -> return (String "*")
-        _ -> qname q
-    T.TApp t xs -> curriedApply <$> compileTerm t <*> mapM compileTerm xs
-    T.TLam t -> Lambda 1 <$> compileTerm t
-    -- TODO This is not a lazy let, but it should be...
-    T.TLet t e -> apply <$> (Lambda 1 <$> compileTerm e) <*> traverse compileTerm [t]
-    T.TLit l -> return $ literal l
-    T.TCon q -> do
-      d <- getConstInfo q
-      qname q
-    T.TCase sc (T.CTData dt) def alts -> do
-      dt <- getConstInfo dt
-      alts' <- traverse compileAlt alts
-      let obj = Object $ Map.fromList alts'
-      case (theDef dt, defJSDef dt) of
-        (_, Just e) -> do
-          return $ apply (PlainJS e) [Local (LocalId sc), obj]
-        (Record{}, _) -> do
-          memId <- visitorName $ recCon $ theDef dt
-          return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
-        (Datatype{}, _) -> do
-          return $ curriedApply (Local (LocalId sc)) [obj]
-        _ -> __IMPOSSIBLE__
-    T.TCase _ _ _ _ -> __IMPOSSIBLE__
+compileTerm t = do
+  kit <- coinductionKit
+  compileTerm' kit t
 
-    T.TPrim p -> return $ compilePrim p
-    T.TUnit -> unit
-    T.TSort -> unit
-    T.TErased -> unit
-    T.TError T.TUnreachable -> return Undefined
-
+compileTerm' :: Maybe CoinductionKit -> T.TTerm -> TCM Exp
+compileTerm' kit t = go t
   where
+    go :: T.TTerm -> TCM Exp
+    go t = case t of
+      T.TVar x -> return $ Local $ LocalId x
+      T.TDef q -> do
+        d <- getConstInfo q
+        case theDef d of
+          -- Datatypes and records are erased
+          Datatype {} -> return (String "*")
+          Record {} -> return (String "*")
+          _ -> qname q
+      T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> kit) -> do
+        x <- go x
+        let evalThunk = unlines
+              [ "function() {"
+              , "  delete this.flat;"
+              , "  var result = this.__flat_helper();"
+              , "  delete this.__flat_helper;"
+              , "  this.flat = function() { return result; };"
+              , "  return result;"
+              , "}"
+              ]
+        return $ Object $ Map.fromList
+          [(flatName, PlainJS evalThunk)
+          ,(MemberId "__flat_helper", Lambda 0 x)]
+      T.TApp t xs -> curriedApply <$> go t <*> mapM go xs
+      T.TLam t -> Lambda 1 <$> go t
+      -- TODO This is not a lazy let, but it should be...
+      T.TLet t e -> apply <$> (Lambda 1 <$> go e) <*> traverse go [t]
+      T.TLit l -> return $ literal l
+      T.TCon q -> do
+        d <- getConstInfo q
+        qname q
+      T.TCase sc (T.CTData dt) def alts -> do
+        dt <- getConstInfo dt
+        alts' <- traverse compileAlt alts
+        let obj = Object $ Map.fromList alts'
+        case (theDef dt, defJSDef dt) of
+          (_, Just e) -> do
+            return $ apply (PlainJS e) [Local (LocalId sc), obj]
+          (Record{}, _) -> do
+            memId <- visitorName $ recCon $ theDef dt
+            return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
+          (Datatype{}, _) -> do
+            return $ curriedApply (Local (LocalId sc)) [obj]
+          _ -> __IMPOSSIBLE__
+      T.TCase _ _ _ _ -> __IMPOSSIBLE__
+
+      T.TPrim p -> return $ compilePrim p
+      T.TUnit -> unit
+      T.TSort -> unit
+      T.TErased -> unit
+      T.TError T.TUnreachable -> return Undefined
+
     unit = return $ Integer 0
 
 compilePrim :: T.TPrim -> Exp
@@ -321,6 +395,8 @@ compilePrim p =
     T.PAdd -> binOp "agdaRTS.uprimIntegerPlus"
     T.PSub -> binOp "agdaRTS.uprimIntegerMinus"
     T.PMul -> binOp "agdaRTS.uprimIntegerMultiply"
+    T.PRem -> binOp "agdaRTS.uprimIntegerRem"
+    T.PQuot -> binOp "agdaRTS.uprimIntegerQuot"
     T.PSeq -> binOp "agdaRTS.primSeq"
     _ -> __IMPOSSIBLE__
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
@@ -336,6 +412,9 @@ compileAlt a = case a of
 
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (last ls)
+
+flatName :: MemberId
+flatName = MemberId "flat"
 
 local :: Nat -> Exp
 local = Local . LocalId

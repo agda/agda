@@ -118,19 +118,54 @@ Language
 Emacs mode
 ----------
 
+* New warnings:
+
+  - Unreachable clauses give rise to a simple warning. They are
+    highlighted in gray.
+
+  - Incomplete patterns are non-fatal warnings: it is possible
+    to keep interacting with the file (the reduction will simply
+    be stuck on arguments not matching any pattern).
+    The definition with incomplete patterns are highlighted in
+    wheat.
+
 * New bindings: All the bold digits are now available
 
   The Agda input method did not bind bold digits. They are now
   available. The naming scheme is `\Bx` for digit `x`.
 
+* Case splitting now preserves underscores.
+  [Issue [#819](https://github.com/agda/agda/issues/819)]
+  ```agda
+    data ⊥ : Set where
+
+    test : {A B : Set} → A → ⊥ → B
+    test _ x = {! x !}
+  ```
+  Splitting on `x` yields
+  ```agda
+    test _ ()
+  ```
+
 Compiler backends
 -----------------
+
+* GHC Haskell backend (MAlonzo)
+
+  The COMPILED pragma is now also allowed for functions. This makes it
+  possible to have both an Agda implementation and a native Haskell runtime
+  implementation.
 
 * UHC compiler backend
 
   Required UHC 1.1.9.5
   [Issue [#1857](https://github.com/agda/agda/issues/1857)]
 
+* Support for stand-alone backends.
+
+  There is a new API in `Agda.Compiler.Backend` for creating stand-alone
+  backends using Agda as a library. This allows prospective backend writers to
+  experiment with new backends without having to change the Agda code base.
 
 Release notes for Agda version 2.5.2
 ====================================

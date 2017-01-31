@@ -477,13 +477,16 @@ cnvh info = case Common.getHiding info of
 
 icnvh :: FMode -> Common.ArgInfo
 icnvh h = Common.setHiding h' $
-          Common.setOrigin Common.Inserted $
+          Common.setOrigin o $
           Common.defaultArgInfo
     where
-    h' = case h of
-        NotHidden -> Common.NotHidden
-        Instance  -> Common.Instance
-        Hidden    -> Common.Hidden
+    -- Andreas, 2017-01-18, issue #819.
+    -- Visible arguments are made UserWritten,
+    -- otherwise they might not be printed in patterns.
+    (h', o) = case h of
+        NotHidden -> (Common.NotHidden, Common.UserWritten)
+        Instance  -> (Common.Instance , Common.Inserted   )
+        Hidden    -> (Common.Hidden   , Common.Inserted   )
 
 -- ---------------------------------------------
 
@@ -684,8 +687,9 @@ frommyClause (ids, pats, mrhs) = do
           Just e -> Just <$> frommyExp e
  let cperm =  Perm nv perm
  return $ I.Clause
-   { I.clauseRange = SP.noRange
-   , I.clauseTel   = tel
+   { I.clauseLHSRange  = SP.noRange
+   , I.clauseFullRange = SP.noRange
+   , I.clauseTel       = tel
    , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
    , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type

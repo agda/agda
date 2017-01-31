@@ -7,7 +7,7 @@ module Tags where
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 import HsSyn
@@ -75,6 +75,7 @@ showETags = concatMap showFile
       -- it to 0. This seems to work.
 
     take' = tabAwareTake 0
+    m ! k = Map.findWithDefault (error $ "Cannot find line " ++ show k ++ " in lineMap") k m
 
     -- A variant of take which is aware of tab characters. Uses tab
     -- size 8, and only recognises the ordinary ASCII horizontal tab

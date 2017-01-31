@@ -10,7 +10,7 @@
 -- without pulling in the TCM Monad. Another minor problem might be
 -- error reporting?
 
-module Agda.Compiler.UHC.Compiler(compilerMain) where
+module Agda.Compiler.UHC.Compiler (uhcBackend) where
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
@@ -47,14 +47,113 @@ import Agda.Utils.Pretty
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
+import Agda.Utils.Monad
 
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Bridge as UB
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 import Agda.Compiler.Common
+import Agda.Compiler.Backend
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-- Backend callbacks ------------------------------------------------------
+
+uhcBackend :: Backend
+uhcBackend = Backend uhcBackend'
+
+uhcBackend' :: Backend' UHCOptions UHCOptions UHCModuleEnv () ()
+uhcBackend' = Backend'
+  { backendName    = "UHC"
+  , backendVersion = Nothing
+  , options          = defaultUHCOptions
+  , commandLineFlags = uhcCommandLineFlags
+  , isEnabled        = optUHCCompile
+  , preCompile       = uhcPreCompile
+  , postCompile      = uhcPostCompile
+  , preModule        = uhcPreModule
+  , postModule       = uhcPostModule      -- We do all compilation in postModule
+  , compileDef       = \ _ _ _ -> return ()
+  }
+
+--- Options ---
+
+data UHCOptions = UHCOptions
+  { optUHCCompile     :: Bool
+  , optUHCBin         :: Maybe FilePath
+  , optUHCTextualCore :: Bool
+  , optUHCCallUHC     :: Bool
+  , optUHCTraceLevel  :: Int
+  , optUHCFlags       :: [String]
+  }
+
+defaultUHCOptions :: UHCOptions
+defaultUHCOptions = UHCOptions
+  { optUHCCompile     = False
+  , optUHCBin         = Nothing
+  , optUHCTextualCore = False
+  , optUHCCallUHC     = True
+  , optUHCTraceLevel  = 0
+  , optUHCFlags       = []
+  }
+
+uhcCommandLineFlags :: [OptDescr (Flag UHCOptions)]
+uhcCommandLineFlags =
+    [ Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
+    , Option []     ["uhc-bin"] (ReqArg uhcBinFlag "UHC") "The uhc binary to use when compiling with the UHC backend."
+    , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
+    , Option []     ["uhc-dont-call-uhc"] (NoArg uhcDontCallUHCFlag) "Don't call uhc, just write the UHC Core files."
+    , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
+    , Option []     ["uhc-flag"] (ReqArg uhcFlagsFlag "UHC-FLAG")
+                    "give the flag UHC-FLAG to UHC when compiling using the UHC backend"
+    ]
+  where
+    compileUHCFlag o      = return $ o { optUHCCompile = True}
+    uhcBinFlag s o        = return $ o { optUHCBin  = Just s }
+    uhcTextualCoreFlag o  = return $ o { optUHCTextualCore = True }
+    uhcDontCallUHCFlag o  = return $ o { optUHCCallUHC = False }
+    -- TODO proper parsing and error handling
+    uhcTraceLevelFlag i o = return $ o { optUHCTraceLevel = read i }
+    uhcFlagsFlag s o      = return $ o { optUHCFlags = optUHCFlags o ++ [s] }
+
+--- Top-level compilation ---
+
+uhcPreCompile :: UHCOptions -> TCM UHCOptions
+uhcPreCompile opts = do
+  when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
+  -- TODO we should do a version check here at some point.
+  let uhc_exist = ExitSuccess
+  case uhc_exist of
+    ExitSuccess -> do
+      copyUHCAgdaBase =<< compileDir
+      return opts
+    ExitFailure _ -> internalError "Agda cannot find the UHC compiler."
+
+uhcPostCompile :: UHCOptions -> IsMain -> a -> TCM ()
+uhcPostCompile opts NotMain _ = runUHCMain opts Nothing
+uhcPostCompile opts IsMain _ = do
+  i <- curIF
+  main <- getMain i
+  -- get core name from modInfo
+  crMain <- getCoreName1 main
+  runUHCMain opts $ Just (iModuleName i, crMain)
+
+--- Module compilation ---
+
+type UHCModuleEnv = ()
+
+uhcPreModule :: UHCOptions -> ModuleName -> FilePath -> TCM (Recompile UHCModuleEnv ())
+uhcPreModule _ m ifile = ifM uptodate noComp yesComp
+  where
+    uptodate = liftIO =<< isNewerThan <$> corePath m <*> pure ifile
+
+    noComp  = return $ Skip ()
+    yesComp = return $ Recompile ()
+
+uhcPostModule :: UHCOptions -> UHCModuleEnv -> IsMain -> ModuleName -> a -> TCM ()
+uhcPostModule opts _ _ _ _ = compileModule opts =<< curIF
+
 
 -- for the time being, we just copy the base library into the generated code.
 -- We don't install it into the user db anymore, as that gets complicated when
@@ -69,36 +168,10 @@ copyUHCAgdaBase outDir = do
     liftIO $ copyDirContent srcDir (outDir </> "UHC")
 
 
--- | Compile an interface into an executable using UHC
-compilerMain :: IsMain -> Interface -> TCM ()
-compilerMain isMain i = inCompilerEnv i $ do
-    when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
-    -- TODO we should do a version check here at some point.
-    let uhc_exist = ExitSuccess
-    case uhc_exist of
-        ExitSuccess -> do
-
-            copyUHCAgdaBase =<< compileDir
-
-            doCompile isMain i $ \_ -> compileModule
-
-            case isMain of
-              IsMain -> do
-                main <- getMain i
-                -- get core name from modInfo
-                crMain <- getCoreName1 main
-                runUHCMain $ Just (iModuleName i, crMain)
-              NotMain -> runUHCMain Nothing
-
-        ExitFailure _ -> internalError $ unlines
-           [ "Agda cannot find the UHC compiler."
-           ]
-
-
 -- | Compiles a module and it's imports. Returns the module info
 -- of this module, and the accumulating module interface.
-compileModule :: Interface -> TCM ()
-compileModule i = do
+compileModule :: UHCOptions -> Interface -> TCM ()
+compileModule opts i = do
     -- look for the Agda.Primitive interface in visited modules.
     -- (It will not be in ImportedModules, if it has not been
     -- explicitly imported)
@@ -125,7 +198,7 @@ compileModule i = do
       "Compiling: " ++ show (iModuleName i)
     code <- compileDefns modNm (map iModuleName imports') i
     crFile <- corePath modNm
-    _ <- writeCoreFile crFile code
+    _ <- writeCoreFile opts crFile code
     return ()
 
 
@@ -161,9 +234,9 @@ compileDefns modNm curModImps iface = do
     reportSLn "compile.uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
     return crMod
 
-writeCoreFile :: String -> UB.CModule -> TCM ()
-writeCoreFile f cmod = do
-  useTextual <- optUHCTextualCore <$> commandLineOptions
+writeCoreFile :: UHCOptions -> String -> UB.CModule -> TCM ()
+writeCoreFile opts f cmod = do
+  let useTextual = optUHCTextualCore opts
 
   -- dump textual core, useful for debugging.
   when useTextual (do
@@ -177,9 +250,10 @@ writeCoreFile f cmod = do
 
 -- | Create the UHC Core main file, which calls the Agda main function
 runUHCMain
-    :: Maybe (ModuleName, HsName)  -- main module
+    :: UHCOptions
+    -> Maybe (ModuleName, HsName)  -- main module
     -> TCM ()
-runUHCMain mainInfo = do
+runUHCMain opts mainInfo = do
     otherFps <- mapM (corePath . iModuleName . miInterface) =<< (M.elems <$> getVisitedModules)
     allFps <-
       case mainInfo of
@@ -187,7 +261,7 @@ runUHCMain mainInfo = do
             Just (mainMod, mainName) -> do
                 fp <- (</> "Main.bcr") <$> compileDir
                 let mmod = FAgda.createMainModule mainMod mainName
-                writeCoreFile fp mmod
+                writeCoreFile opts fp mmod
                 return ["Main.bcr"]
 
     let extraOpts = maybe
@@ -199,18 +273,19 @@ runUHCMain mainInfo = do
 
     -- TODO drop the RTS args as soon as we don't need the additional
     -- memory anymore
-    callUHC1 $  [ "--pkg-hide-all"
+    callUHC1 opts $
+                [ "--pkg-hide-all"
                 , "--pkg-expose=uhcbase"
                 , "--pkg-expose=base"
                 , "UHC/Agda/double.c"
                 ] ++ extraOpts ++ allFps ++ ["+RTS", "-K50m", "-RTS"]
 
-callUHC1 :: [String] -> TCM ()
-callUHC1 args = do
-    uhcBin <- getUhcBin
-    doCall <- optUHCCallUHC <$> commandLineOptions
-    extraArgs <- optUHCFlags <$> commandLineOptions
+callUHC1 :: UHCOptions -> [String] -> TCM ()
+callUHC1 opts args = do
+    let uhcBin    = getUhcBin opts
+        doCall    = optUHCCallUHC opts
+        extraArgs = optUHCFlags opts
     callCompiler doCall uhcBin (args ++ extraArgs)
 
-getUhcBin :: TCM FilePath
-getUhcBin = fromMaybe ("uhc") . optUHCBin <$> commandLineOptions
+getUhcBin :: UHCOptions -> FilePath
+getUhcBin = fromMaybe ("uhc") . optUHCBin

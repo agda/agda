@@ -639,6 +639,10 @@ defaultNamedArg = defaultArg . unnamed
 updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
 updateNamedArg = fmap . fmap
 
+-- | @setNamedArg a b = updateNamedArg (const b) a@
+setNamedArg :: NamedArg a -> b -> NamedArg b
+setNamedArg a b = (b <$) <$> a
+
 ---------------------------------------------------------------------------
 -- * Range decoration.
 ---------------------------------------------------------------------------
@@ -906,12 +910,12 @@ data Using' a b = UseEverything | Using [ImportedName' a b]
   deriving (Typeable, Eq)
 
 instance Semigroup (Using' a b) where
-  UseEverything <> u = u
-  u <> UseEverything = u
-  Using xs <> Using ys = Using (xs ++ ys)
+  UseEverything <> u             = u
+  u             <> UseEverything = u
+  Using xs      <> Using ys      = Using (xs ++ ys)
 
 instance Monoid (Using' a b) where
-  mempty = UseEverything
+  mempty  = UseEverything
   mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).

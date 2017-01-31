@@ -382,7 +382,6 @@ data Pragma
   | CompiledTypePragma        Range QName String
   | CompiledPragma            Range QName String
   | CompiledExportPragma      Range QName String
-  | CompiledEpicPragma        Range QName String
   | CompiledJSPragma          Range QName String
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
@@ -395,6 +394,9 @@ data Pragma
   | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
   | ImpossiblePragma          Range
+  | EtaPragma                 Range QName
+    -- ^ For coinductive records, use pragma instead of regular
+    --   @eta-equality@ definition (as it is might make Agda loop).
   | TerminationCheckPragma    Range (TerminationCheck Name)
   | CatchallPragma            Range
   | DisplayPragma             Range Pattern Expr
@@ -652,7 +654,6 @@ instance HasRange Pragma where
   getRange (CompiledTypePragma r _ _)        = r
   getRange (CompiledPragma r _ _)            = r
   getRange (CompiledExportPragma r _ _)      = r
-  getRange (CompiledEpicPragma r _ _)        = r
   getRange (CompiledJSPragma r _ _)          = r
   getRange (CompiledUHCPragma r _ _)         = r
   getRange (CompiledDataUHCPragma r _ _ _)   = r
@@ -663,6 +664,7 @@ instance HasRange Pragma where
   getRange (ImportPragma r _)                = r
   getRange (ImportUHCPragma r _)             = r
   getRange (ImpossiblePragma r)              = r
+  getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (CatchallPragma r)                = r
   getRange (DisplayPragma r _ _)             = r
@@ -831,7 +833,6 @@ instance KillRange Pragma where
   killRange (CompiledTypePragma _ q s)        = killRange1 (\q -> CompiledTypePragma noRange q s) q
   killRange (CompiledPragma _ q s)            = killRange1 (\q -> CompiledPragma noRange q s) q
   killRange (CompiledExportPragma _ q s)      = killRange1 (\q -> CompiledExportPragma noRange q s) q
-  killRange (CompiledEpicPragma _ q s)        = killRange1 (\q -> CompiledEpicPragma noRange q s) q
   killRange (CompiledJSPragma _ q s)          = killRange1 (\q -> CompiledJSPragma noRange q s) q
   killRange (CompiledUHCPragma _ q s)         = killRange1 (\q -> CompiledUHCPragma noRange q s) q
   killRange (CompiledDataUHCPragma _ q s ss)  = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
@@ -845,6 +846,7 @@ instance KillRange Pragma where
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
+  killRange (EtaPragma _ q)                   = killRange1 (EtaPragma noRange) q
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRange1 (\q -> PolarityPragma noRange q occs) q
 
@@ -964,7 +966,6 @@ instance NFData Pragma where
   rnf (CompiledTypePragma _ a b)        = rnf a `seq` rnf b
   rnf (CompiledPragma _ a b)            = rnf a `seq` rnf b
   rnf (CompiledExportPragma _ a b)      = rnf a `seq` rnf b
-  rnf (CompiledEpicPragma _ a b)        = rnf a `seq` rnf b
   rnf (CompiledJSPragma _ a b)          = rnf a `seq` rnf b
   rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
   rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
@@ -975,6 +976,7 @@ instance NFData Pragma where
   rnf (ImportPragma _ a)                = rnf a
   rnf (ImportUHCPragma _ a)             = rnf a
   rnf (ImpossiblePragma _)              = ()
+  rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b

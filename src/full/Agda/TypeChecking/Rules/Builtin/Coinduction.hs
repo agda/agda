@@ -96,6 +96,7 @@ bindBuiltinSharp e =
     addConstant sharp $
       sharpDefn { theDef = Constructor
                     { conPars   = 2
+                    , conArity  = 1
                     , conSrcCon = ConHead sharp CoInductive [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
@@ -130,7 +131,8 @@ bindBuiltinFlat e =
         infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
         cpi      = ConPatternInfo Nothing False $ Just $ defaultArg infA
     let clause   = Clause
-          { clauseRange     = noRange
+          { clauseLHSRange  = noRange
+          , clauseFullRange = noRange
           , clauseTel       = tel
           , namedClausePats = [ argN $ Named Nothing $
               ConP sharpCon cpi [ argN $ Named Nothing $ debruijnNamedVar "x" 0 ] ]

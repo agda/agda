@@ -362,6 +362,19 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
         m  = last $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
+-- | Check whether a certain verbosity level is activated (exact match).
+
+{-# SPECIALIZE hasExactVerbosity :: VerboseKey -> Int -> TCM Bool #-}
+hasExactVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
+hasExactVerbosity k n =
+  (Just n ==) . Trie.lookup (wordsBy (`elem` ".:") k) <$> getVerbosity
+
+-- | Run a computation if a certain verbosity level is activated (exact match).
+
+{-# SPECIALIZE whenExactVerbosity :: VerboseKey -> Int -> TCM () -> TCM () #-}
+whenExactVerbosity :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
+whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
+
 -- | Displays a debug message in a suitable way.
 {-# SPECIALIZE displayDebugMessage :: Int -> String -> TCM () #-}
 displayDebugMessage :: MonadTCM tcm

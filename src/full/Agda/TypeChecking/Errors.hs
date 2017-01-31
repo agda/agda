@@ -6,9 +6,11 @@
 module Agda.TypeChecking.Errors
   ( prettyError
   , tcErrString
+  , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
   , applyFlagsToTCWarnings
+  , dropTopLevelModule
   ) where
 
 import Prelude hiding (null)
@@ -90,7 +92,7 @@ instance PrettyTCM TCWarning where
     put tcst
     sayWhen (envRange  $ clEnv clw)
             (envCall   $ clEnv clw)
-            (prettyTCM $ clValue clw)
+            (prettyTCM clw)
 
 instance PrettyTCM Warning where
   prettyTCM wng = case wng of
@@ -115,19 +117,32 @@ instance PrettyTCM Warning where
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
-    TerminationIssue tes ->
+    TerminationIssue tes -> do
+      dropTopLevel <- topLevelModuleDropper
       fwords "Termination checking failed for the following functions:"
-      $$ (nest 2 $ fsep $ punctuate comma $
-           map (pretty . dropTopLevelModule) $
-             concatMap termErrFunctions tes)
-      $$ fwords "Problematic calls:"
-      $$ (nest 2 $ fmap (P.vcat . nub) $
-            mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-            concatMap termErrCalls tes)
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevel) $
+               concatMap termErrFunctions tes)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls tes)
+
+    UnreachableClauses f pss -> fsep $
+      pwords "Unreachable" ++ pwords (plural (length pss) "clause")
+        where
+          plural 1 thing = thing
+          plural n thing = thing ++ "s"
+
+    CoverageIssue f pss -> fsep (
+      pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
+      pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
+        where
+        display (tel, ps) = prettyTCM $ NamedClause f True $
+          I.Clause noRange noRange tel ps Nothing Nothing False
 
     NotStrictlyPositive d ocs -> fsep $
-      [prettyTCM (dropTopLevelModule d)] ++
-      pwords "is not strictly positive, because it occurs"
+      [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
     OldBuiltin old new -> fwords $
@@ -168,6 +183,7 @@ applyFlagsToTCWarnings ifs ws = do
             keepUnsolved us = not (null us) && (ignore || unsolvedNotOK)
         in case w of
           TerminationIssue{}           -> ignore || loopingNotOK
+          CoverageIssue{}              -> ignore || unsolvedNotOK
           NotStrictlyPositive{}        -> ignore || negativeNotOK
           UnsolvedMetaVariables ums    -> keepUnsolved ums
           UnsolvedInteractionMetas uis -> keepUnsolved uis
@@ -176,6 +192,7 @@ applyFlagsToTCWarnings ifs ws = do
           EmptyRewritePragma           -> True
           UselessPublic                -> True
           ParseWarning{}               -> True
+          UnreachableClauses{}         -> True
 
   return $ filter (cleanUp . tcWarning) ws
 
@@ -227,7 +244,6 @@ errorString err = case err of
   ClashingModuleImport{}                   -> "ClashingModuleImport"
   CompilationError{}                       -> "CompilationError"
   ConstructorPatternInWrongDatatype{}      -> "ConstructorPatternInWrongDatatype"
-  CoverageFailure{}                        -> "CoverageFailure"
   CoverageCantSplitOn{}                    -> "CoverageCantSplitOn"
   CoverageCantSplitIrrelevantType{}        -> "CoverageCantSplitIrrelevantType"
   CoverageCantSplitType{}                  -> "CoverageCantSplitType"
@@ -251,10 +267,7 @@ errorString err = case err of
   IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
-  IncompletePatternMatching{}              -> "IncompletePatternMatching"
-  IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
-  IndicesFreeInParameters{}                -> "IndicesFreeInParameters"
-  IndicesNotConstructorApplications{}      -> "IndicesNotConstructorApplications"
+-- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
   InternalError{}                          -> "InternalError"
   InvalidPattern{}                         -> "InvalidPattern"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
@@ -336,12 +349,10 @@ errorString err = case err of
   UnificationRecursiveEq{}                 -> "UnificationRecursiveEq"
   UnificationStuck{}                       -> "UnificationStuck"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
-  HeterogeneousEquality{}                  -> "HeterogeneousEquality"
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   UninstantiatedModule{}                   -> "UninstantiatedModule"
-  UnreachableClauses{}                     -> "UnreachableClauses"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
@@ -384,12 +395,20 @@ instance PrettyTCM CallInfo where
       then call
       else call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
--- | Drops the filename component of the qualified name.
+-- | Drops given amount of leading components of the qualified name.
 dropTopLevelModule' :: Int -> QName -> QName
 dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
 
-dropTopLevelModule :: QName -> QName
-dropTopLevelModule = dropTopLevelModule' 1
+-- | Drops the filename component of the qualified name.
+dropTopLevelModule :: QName -> TCM QName
+dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
+
+-- | Produces a function which drops the filename component of the qualified name.
+topLevelModuleDropper :: TCM (QName -> QName)
+topLevelModuleDropper = do
+  caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
+  m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
+  return $ dropTopLevelModule' $ size m
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -406,13 +425,10 @@ instance PrettyTCM TypeError where
     GenericDocError d -> return d
 
     TerminationCheckFailed because -> do
-      dropTopLevelModule <- do
-        caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
-        m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
-        return $ dropTopLevelModule' $ size m
+      dropTopLevel <- topLevelModuleDropper
       fwords "Termination checking failed for the following functions:"
         $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevelModule) $
+             map (pretty . dropTopLevel) $
                concatMap termErrFunctions because)
         $$ fwords "Problematic calls:"
         $$ (nest 2 $ fmap (P.vcat . nub) $
@@ -459,8 +475,8 @@ instance PrettyTCM TypeError where
     WrongHidingInLambda t ->
       fwords "Found an implicit lambda where an explicit lambda was expected"
 
-    WrongIrrelevanceInLambda t ->
-      fwords "Found an irrelevant lambda where a relevant lambda was expected"
+    WrongIrrelevanceInLambda ->
+      fwords "Found a non-strict lambda where a irrelevant lambda was expected"
 
     WrongNamedArgument a -> fsep $
       pwords "Function does not accept argument "
@@ -520,33 +536,6 @@ instance PrettyTCM TypeError where
     ConstructorPatternInWrongDatatype c d -> fsep $
       [prettyTCM c] ++ pwords "is not a constructor of the datatype"
       ++ [prettyTCM d]
-
-    IndicesNotConstructorApplications [i] ->
-      fwords "The index"
-      $$ nest 2 (prettyTCM i)
-      $$ fsep (pwords "is not a constructor (or literal) applied to variables" ++
-               pwords "(note that parameters count as constructor arguments)")
-
-    IndicesNotConstructorApplications is ->
-      fwords "The indices"
-      $$ nest 2 (vcat $ map prettyTCM is)
-      $$ fsep (pwords "are not constructors (or literals) applied to variables" ++
-               pwords "(note that parameters count as constructor arguments)")
-
-    IndexVariablesNotDistinct vs is ->
-      fwords "The variables"
-      $$ nest 2 (vcat $ map (\v -> prettyTCM (I.Var v [])) vs)
-      $$ fwords "in the indices"
-      $$ nest 2 (vcat $ map prettyTCM is)
-      $$ fwords "are not distinct (note that parameters count as constructor arguments)"
-
-    IndicesFreeInParameters vs indices pars ->
-      fwords "The variables"
-      $$ nest 2 (vcat $ map (\v -> prettyTCM (I.Var v [])) vs)
-      $$ fwords "which are used (perhaps as constructor parameters) in the index expressions"
-      $$ nest 2 (vcat $ map prettyTCM indices)
-      $$ fwords "are free in the parameters"
-      $$ nest 2 (vcat $ map prettyTCM pars)
 
     ShadowedModule x [] -> __IMPOSSIBLE__
 
@@ -628,11 +617,6 @@ instance PrettyTCM TypeError where
 
     UnequalTypes cmp a b -> prettyUnequal a (notCmp cmp) b
 --              fsep $ [prettyTCM a, notCmp cmp, prettyTCM b]
-
-    HeterogeneousEquality u a v b -> fsep $
-      pwords "Refuse to solve heterogeneous constraint" ++
-      [prettyTCM u] ++ pwords ":" ++ [prettyTCM a] ++ pwords "=?=" ++
-      [prettyTCM v] ++ pwords ":" ++ [prettyTCM b]
 
     UnequalRelevance cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
@@ -1087,22 +1071,11 @@ instance PrettyTCM TypeError where
       ) $$ nest 2 (vcat $ map pretty ps)
 -}
 
+{- UNUSED
     IncompletePatternMatching v args -> fsep $
       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
       pwords "No match for" ++ map prettyTCM args
-
-    UnreachableClauses f pss -> fsep $
-      pwords "Unreachable" ++ pwords (plural (length pss) "clause")
-        where
-          plural 1 thing = thing
-          plural n thing = thing ++ "s"
-
-    CoverageFailure f pss -> fsep (
-      pwords "Incomplete pattern matching for" ++ [prettyTCM f <> text "."] ++
-      pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
-        where
-        display (tel, ps) = prettyTCM $ NamedClause f True $
-          I.Clause noRange tel ps Nothing Nothing False
+-}
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
@@ -1152,7 +1125,7 @@ instance PrettyTCM TypeError where
       pwords " of type " ++ [prettyTCM a] ++
       pwords " with solution " ++ [prettyTCM u] ++
       pwords " because the variable occurs in the solution," ++
-      pwords " or in the type one of the variables in the solution"
+      pwords " or in the type of one of the variables in the solution"
 
     UnificationStuck tel us vs -> fsep $
       pwords "I got stuck on unifying" ++ [prettyList (map prettyTCM us)] ++

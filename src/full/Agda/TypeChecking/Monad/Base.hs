@@ -56,6 +56,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
 
+import {-# SOURCE #-} Agda.Compiler.Backend
+
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Response
@@ -216,6 +218,8 @@ data PersistentTCState = PersistentTCSt
   , stLoadedFileCache   :: !(Maybe LoadedFileCache)
     -- ^ Cached typechecking state from the last loaded file.
     --   Should be Nothing when checking imports.
+  , stPersistBackends   :: [Backend]
+    -- ^ Current backends with their options
   }
 
 data LoadedFileCache = LoadedFileCache
@@ -259,6 +263,7 @@ initPersistentState = PersistentTCSt
   , stBenchmark                 = empty
   , stAccumStatistics           = Map.empty
   , stLoadedFileCache           = Nothing
+  , stPersistBackends           = []
   }
 
 -- | Empty state of type checker.
@@ -389,6 +394,11 @@ stFreshInteractionId :: Lens' InteractionId TCState
 stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
+
+stBackends :: Lens' [Backend] TCState
+stBackends f s =
+  f (stPersistBackends (stPersistentState s)) <&>
+  \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
 
 stFreshNameId :: Lens' NameId TCState
 stFreshNameId f s =
@@ -1343,7 +1353,6 @@ defaultDefn info x t def = Defn
 
 type HaskellCode = String
 type HaskellType = String
-type EpicCode    = String
 type JSCode      = String
 
 data HaskellRepresentation
@@ -1370,14 +1379,13 @@ data Polarity
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
   , exportHaskell   :: Maybe HaskellExport
-  , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
   , compiledCore    :: Maybe CoreRepresentation
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
@@ -1439,8 +1447,8 @@ projArgInfo (Projection _ _ _ _ lams) =
 
 -- | Should a record type admit eta-equality?
 data EtaEquality
-  = Specified !Bool  -- ^ User specifed 'eta-equality' or 'no-eta-equality'
-  | Inferred !Bool   -- ^ Positivity checker inferred whether eta is safe/
+  = Specified !Bool  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
+  | Inferred !Bool   -- ^ Positivity checker inferred whether eta is safe.
   deriving (Typeable, Show, Eq)
 
 etaEqualityToBool :: EtaEquality -> Bool
@@ -1528,7 +1536,8 @@ data Defn = Axiom
             , recComp           :: Maybe QName
             }
           | Constructor
-            { conPars   :: Nat         -- ^ Number of parameters.
+            { conPars   :: Int         -- ^ Number of parameters.
+            , conArity  :: Int         -- ^ Number of arguments (excluding parameters).
             , conSrcCon :: ConHead     -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
@@ -1704,9 +1713,6 @@ defParameters _                                     = Nothing
 
 defJSDef :: Definition -> Maybe JSCode
 defJSDef = compiledJS . defCompiledRep
-
-defEpicDef :: Definition -> Maybe EpicCode
-defEpicDef = compiledEpic . defCompiledRep
 
 defCoreDef :: Definition -> Maybe CoreRepresentation
 defCoreDef = compiledCore . defCompiledRep
@@ -2281,6 +2287,9 @@ instance Free' Candidate c where
 -- we can print it later
 data Warning =
     TerminationIssue         [TerminationError]
+  | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
+  | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
+  -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | NotStrictlyPositive      QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -2305,8 +2314,59 @@ data TCWarning
     }
   deriving Show
 
+instance HasRange TCWarning where
+  getRange = envRange . clEnv . tcWarningClosure
+
 tcWarning :: TCWarning -> Warning
 tcWarning = clValue . tcWarningClosure
+
+getPartialDefs :: ReadTCState tcm => tcm [QName]
+getPartialDefs = do
+  tcst <- getTCState
+  return $ catMaybes . fmap (extractQName . tcWarning)
+         $ tcst ^. stTCWarnings where
+
+    extractQName :: Warning -> Maybe QName
+    extractQName (CoverageIssue f _) = Just f
+    extractQName _                   = Nothing
+
+-- | Classifying warnings: some are benign, others are (non-fatal) errors
+
+data WhichWarnings = ErrorWarnings | AllWarnings
+  -- ^ order of constructors important for derived Ord instance
+  deriving (Eq, Ord)
+
+isUnsolvedWarning :: Warning -> Bool
+isUnsolvedWarning w = case w of
+  UnsolvedMetaVariables{}    -> True
+  UnsolvedInteractionMetas{} -> True
+  UnsolvedConstraints{}      -> True
+ -- rest
+  OldBuiltin{}               -> False
+  EmptyRewritePragma         -> False
+  UselessPublic              -> False
+  UnreachableClauses{}       -> False
+  TerminationIssue{}         -> False
+  CoverageIssue{}            -> False
+  NotStrictlyPositive{}      -> False
+  ParseWarning{}             -> False
+
+classifyWarning :: Warning -> WhichWarnings
+classifyWarning w = case w of
+  OldBuiltin{}               -> AllWarnings
+  EmptyRewritePragma         -> AllWarnings
+  UselessPublic              -> AllWarnings
+  UnreachableClauses{}       -> AllWarnings
+  TerminationIssue{}         -> ErrorWarnings
+  CoverageIssue{}            -> ErrorWarnings
+  NotStrictlyPositive{}      -> ErrorWarnings
+  UnsolvedMetaVariables{}    -> ErrorWarnings
+  UnsolvedInteractionMetas{} -> ErrorWarnings
+  UnsolvedConstraints{}      -> ErrorWarnings
+  ParseWarning{}             -> ErrorWarnings
+
+classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
+classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2411,12 +2471,6 @@ data TypeError
         | ShouldBeApplicationOf Type QName
             -- ^ Expected a type to be an application of a particular datatype.
         | ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
-        | IndicesNotConstructorApplications [Arg Term] -- ^ Indices.
-        | IndexVariablesNotDistinct [Nat] [Arg Term] -- ^ Variables, indices.
-        | IndicesFreeInParameters [Nat] [Arg Term] [Arg Term]
-          -- ^ Indices (variables), index expressions (with
-          -- constructors applied to reconstructed parameters),
-          -- parameters.
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName [QName]
           -- ^ Datatype, constructors.
         | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
@@ -2431,8 +2485,8 @@ data TypeError
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
         | WrongNamedArgument (NamedArg A.Expr)
             -- ^ A function is applied to a hidden named argument it does not have.
-        | WrongIrrelevanceInLambda Type
-            -- ^ Expected a relevant function and found an irrelevant lambda.
+        | WrongIrrelevanceInLambda
+            -- ^ Wrong user-given relevance annotation in lambda.
         | WrongInstanceDeclaration
             -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding
@@ -2476,9 +2530,6 @@ data TypeError
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
         | UnequalBecauseOfUniverseConflict Comparison Term Term
-        | HeterogeneousEquality Term Type Term Type
-            -- ^ We ended up with an equality constraint where the terms
-            --   have different types.  This is not supported.
         | NotLeqSort Sort Sort
         | MetaCannotDependOn MetaId [Nat] Nat
             -- ^ The arguments are the meta variable, the parameters it can
@@ -2508,9 +2559,7 @@ data TypeError
     -- Coverage errors
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
-        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageFailure QName [(Telescope, [NamedArg DeBruijnPattern])]
-        | UnreachableClauses QName [[NamedArg DeBruijnPattern]]
+-- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type
@@ -3072,7 +3121,7 @@ instance KillRange Defn where
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
-      Constructor a b c d e f g      -> killRange7 Constructor a b c d e f g
+      Constructor a b c d e f g h    -> killRange8 Constructor a b c d e f g h
       Primitive a b c d              -> killRange4 Primitive a b c d
 
 instance KillRange MutualId where

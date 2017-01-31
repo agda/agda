@@ -134,13 +134,13 @@ import Agda.Utils.Impossible
     'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $$ }
     'COMPILED_DECLARE_DATA'   { TokKeyword KwCOMPILED_DECLARE_DATA $$ }
-    'COMPILED_EPIC'           { TokKeyword KwCOMPILED_EPIC $$ }
     'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
     'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $$ }
-    'HASKELL'                 { TokKeyword KwHASKELL $$ }
     'DISPLAY'                 { TokKeyword KwDISPLAY $$ }
+    'ETA'                     { TokKeyword KwETA $$ }
+    'HASKELL'                 { TokKeyword KwHASKELL $$ }
     'IMPORT'                  { TokKeyword KwIMPORT $$ }
     'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
@@ -265,13 +265,13 @@ Token
     | 'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $1 }
     | 'COMPILED_DECLARE_DATA'   { TokKeyword KwCOMPILED_DECLARE_DATA $1 }
-    | 'COMPILED_EPIC'           { TokKeyword KwCOMPILED_EPIC $1 }
     | 'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $1 }
     | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
     | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $1 }
-    | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
     | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
+    | 'ETA'                     { TokKeyword KwETA $1 }
+    | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
     | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
     | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
@@ -1379,7 +1379,6 @@ DeclarationPragma
   | CompiledDataPragma       { $1 }
   | CompiledDeclareDataPragma { $1 }
   | CompiledTypePragma       { $1 }
-  | CompiledEpicPragma       { $1 }
   | CompiledJSPragma         { $1 }
   | CompiledUHCPragma        { $1 }
   | CompiledDataUHCPragma    { $1 }
@@ -1396,6 +1395,7 @@ DeclarationPragma
   | MeasurePragma            { $1 }
   | CatchallPragma           { $1 }
   | DisplayPragma            { $1 }
+  | EtaPragma                { $1 }
   | NoPositivityCheckPragma  { $1 }
   | PolarityPragma           { $1 }
   | OptionsPragma            { $1 }
@@ -1444,11 +1444,6 @@ CompiledDataPragma
   : '{-#' 'COMPILED_DATA' PragmaQName string PragmaStrings '#-}'
     { CompiledDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
 
-CompiledEpicPragma :: { Pragma }
-CompiledEpicPragma
-  : '{-#' 'COMPILED_EPIC' PragmaQName PragmaStrings '#-}'
-    { CompiledEpicPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
 CompiledJSPragma :: { Pragma }
 CompiledJSPragma
   : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
@@ -1488,6 +1483,11 @@ DisplayPragma
   : '{-#' 'DISPLAY' string PragmaStrings '#-}' {%
       let (r, s) = $3 in
       parseDisplayPragma (fuseRange $1 $5) (iStart r) (unwords (s : $4)) }
+
+EtaPragma :: { Pragma }
+EtaPragma
+  : '{-#' 'ETA' PragmaQName '#-}'
+    { EtaPragma (getRange ($1,$2,$3,$4)) $3 }
 
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma

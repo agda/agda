@@ -387,36 +387,59 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
         -- Block on the type comparison
         coerce (teleLam tel v) (telePi tel t1) target
 
-    useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
+    useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
         reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ show y
 
         -- merge in the hiding info of the TBind
+        let [WithHiding h x] = xs
         info <- return $ mapHiding (mappend h) info
-        unless (getHiding arg == getHiding info) $ typeError $ WrongHidingInLambda target
+        unless (getHiding dom == getHiding info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-        let r  = getRelevance info
-            r' = getRelevance arg -- relevance of function type
-        when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
+        info <- lambdaIrrelevanceCheck info dom
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.
         -- TODO: do we need to block checkExpr?
-        let a = unDom arg
+        let a = unDom dom
         checkSizeLtSat $ unEl a
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
-        let info' = setRelevance r' info
-        v <- add (notInScopeName y) (defaultArgDom info' argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam info' $ Abs (nameToArgName x) v) pid
-      where
-        [WithHiding h x] = xs
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
-        add y dom | isNoName x = addContext' (y, dom)
-                  | otherwise  = addContext' (x, dom)
+        v <- lambdaAddContext x y (defaultArgDom info argT) $ checkExpr body btyp
+        blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
+
     useTargetType _ _ = __IMPOSSIBLE__
+
+-- | Check that irrelevance info in lambda is compatible with irrelevance
+--   coming from the function type.
+--   If lambda has no user-given relevance, copy that of function type.
+lambdaIrrelevanceCheck :: LensRelevance dom => ArgInfo -> dom -> TCM ArgInfo
+lambdaIrrelevanceCheck info dom
+    -- Case: no specific user annotation: use relevance of function type
+  | isRelevant info = return $ setRelevance (getRelevance dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let rPi  = getRelevance dom  -- relevance of function type
+      let rLam = getRelevance info -- relevance of lambda
+        -- Andreas, 2017-01-24, issue #2429
+        -- we should report an error if we try to check a relevant function
+        -- against an irrelevant function type (subtyping violation)
+      unless (moreRelevant rPi rLam) $ do
+        -- @rLam == Relevant@ is impossible here
+        -- @rLam == Irrelevant@ is impossible here (least relevant)
+        -- this error can only happen if @rLam == NonStrict@ and @rPi == Irrelevant@
+        unless (rLam == NonStrict) __IMPOSSIBLE__  -- separate tests for separate line nums
+        unless (rPi == Irrelevant) __IMPOSSIBLE__
+        typeError WrongIrrelevanceInLambda
+      return info
+
+lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
+lambdaAddContext x y dom
+  | isNoName x = addContext' (notInScopeName y, dom)  -- Note: String instance
+  | otherwise  = addContext' (x, dom)                 -- Name instance of addContext'
 
 -- | Checking a lambda whose domain type has already been checked.
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
@@ -427,11 +450,7 @@ checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
       lamHiding = mappend h $ getHiding info
   insertHiddenLambdas lamHiding target postpone $ \ t@(El _ (Pi dom b)) -> do
     -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-    let r     = getRelevance info -- relevance of lambda
-        r'    = getRelevance dom  -- relevance of function type
-        info' = setHiding lamHiding $ setRelevance r' info
-    when (r == Irrelevant && r' /= r) $
-      typeError $ WrongIrrelevanceInLambda target
+    info' <- setHiding lamHiding <$> lambdaIrrelevanceCheck info dom
     -- We only need to block the final term on the argument type
     -- comparison. The body will be blocked if necessary. We still want to
     -- compare the argument types first, so we spawn a new problem for that
@@ -442,9 +461,9 @@ checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
     -- to get better error messages.
     -- Using the type dom from the usage context would be more precise,
     -- though.
-    let add dom | isNoName x = addContext (absName b, dom)
-                | otherwise  = addContext (x, dom)
-    v <- add (maybe dom (dom $>) mt) $
+    let dom' = setRelevance (getRelevance info') . setHiding lamHiding $
+          maybe dom (dom $>) mt
+    v <- lambdaAddContext x (absName b) dom'  $
       checkPostponedLambda (Arg info (xs, mt)) body $ absBody b
     let v' = Lam info' $ Abs (nameToArgName x) v
     maybe (return v') (blockTermOnProblem t v') mpid
@@ -514,7 +533,8 @@ checkAbsurdLambda i h e t = do
             $ emptyFunction
               { funClauses        =
                   [Clause
-                    { clauseRange     = getRange e
+                    { clauseLHSRange  = getRange e
+                    , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ debruijnNamedVar "()" 0]
                     , clauseBody      = Nothing
@@ -881,7 +901,8 @@ checkExpr e t0 = do
                           , clauseBody = Just $ (Lam defaultArgInfo $ NoAbs "_" $ u) -- is u in the right telescope?
                                   -- foldr (\ nm b -> Bind $ mkAbs nm b) (Body (Lam defaultArgInfo $ NoAbs "_" $ u)) (teleNames tel)
                           , namedClausePats = adjusted
-                          , clauseRange = noRange
+                          , clauseFullRange = noRange
+                          , clauseLHSRange = noRange
                           , clauseCatchall = False
                           }
 
@@ -927,34 +948,9 @@ checkExpr' e t0 =
 
     e <- scopedExpr e
 
-    case e of
+    tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
-
-        -- Insert hidden lambda if all of the following conditions are met:
-            -- type is a hidden function type, {x : A} -> B or {{x : A} -> B
-        _   | Pi (Dom{domInfo = info}) b <- ignoreSharing $ unEl t
-            , let h = getHiding info
-            , notVisible h
-            -- expression is not a matching hidden lambda or question mark
-            , not (hiddenLambdaOrHole h e)
-            -> do
-                x <- unshadowName <=< freshName rx $ notInScopeName $ absName b
-                reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-                checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
-            where
-                re = getRange e
-                rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
-
-                hiddenLambdaOrHole h e = case e of
-                  A.AbsurdLam _ h'        -> h == h'
-                  A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
-                  A.Lam _ bind _          -> h == getHiding bind
-                  A.QuestionMark{}        -> True
-                  _                       -> False
-
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
-                hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
         A.QuestionMark i ii -> checkQuestionMark (newValueMeta' DontRunMetaOccursCheck) t0 i ii
@@ -1092,6 +1088,67 @@ checkExpr' e t0 =
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
 
+  where
+  -- | Call checkExpr with an hidden lambda inserted if appropriate,
+  --   else fallback.
+  tryInsertHiddenLambda :: A.Expr -> Type -> TCM Term -> TCM Term
+  tryInsertHiddenLambda e t fallback
+    -- Insert hidden lambda if all of the following conditions are met:
+        -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
+    | Pi (Dom{domInfo = info, unDom = a}) b <- ignoreSharing $ unEl t
+        , let h = getHiding info
+        , notVisible h
+        -- expression is not a matching hidden lambda or question mark
+        , not (hiddenLambdaOrHole h e)
+        = do
+      let proceed = doInsert info $ absName b
+      -- If we skip the lambda insertion for an introduction,
+      -- we will hit a dead end, so proceed no matter what.
+      if definitelyIntroduction then proceed else do
+        -- Andreas, 2017-01-19, issue #2412:
+        -- We do not want to insert a hidden lambda if A is
+        -- possibly empty type of sizes, as this will produce an error.
+        reduce a >>= isSizeType >>= \case
+          Just (BoundedLt u) -> ifBlocked u (\ _ _ -> fallback) $ \ v -> do
+            ifM (checkSizeNeverZero v) proceed fallback
+          _ -> proceed
+
+    | otherwise = fallback
+
+    where
+    re = getRange e
+    rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
+
+    doInsert info y = do
+      x <- unshadowName <=< freshName rx $ notInScopeName y
+      reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
+      checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
+
+    hiddenLambdaOrHole h e = case e of
+      A.AbsurdLam _ h'        -> h == h'
+      A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
+      A.Lam _ bind _          -> h == getHiding bind
+      A.QuestionMark{}        -> True
+      _                       -> False
+
+    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
+    hiddenLHS _ = False
+
+    -- Things with are definitely introductions,
+    -- thus, cannot be of hidden Pi-type, unless they are hidden lambdas.
+    definitelyIntroduction = case e of
+      A.Lam{}        -> True
+      A.AbsurdLam{}  -> True
+      A.Lit{}        -> True
+      A.Pi{}         -> True
+      A.Fun{}        -> True
+      A.Set{}        -> True
+      A.Prop{}       -> True
+      A.Rec{}        -> True
+      A.RecUpdate{}  -> True
+      A.ScopedExpr{} -> __IMPOSSIBLE__
+      A.ETel{}       -> __IMPOSSIBLE__
+      _ -> False
 ---------------------------------------------------------------------------
 -- * Reflection
 ---------------------------------------------------------------------------
@@ -1255,9 +1312,28 @@ inferOrCheckProjApp e o ds args mt = do
                 [ text $ "trying projection " ++ show d
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
+
               -- get the original projection name
-              Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
-              guard $ isJust proper
+              isP <- isProjection d
+              reportSDoc "tc.proj.amb" 40 $ vcat $
+                [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+                ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
+                [ text $ "  proper       = " ++ show proper
+                , text $ "  orig         = " ++ show orig
+                ])
+
+              -- Andreas, 2017-01-21, issue #2422
+              -- The scope checker considers inherited projections (from nested records)
+              -- as projections and allows overloading.  However, since they are defined
+              -- as *composition* of projections, the type checker does *not* recognize them,
+              -- and @isP@ will be @Nothing@.
+              -- However, we can ignore this, as we only need the @orig@inal projection name
+              -- for removing false ambiguity.  Thus, we skip these checks:
+
+              -- Projection{ projProper = proper, projOrig = orig } <- MaybeT $ return isP
+              -- guard $ isJust proper
+              let orig = caseMaybe isP d projOrig
+
               -- try to eliminate
               (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
@@ -1459,7 +1535,7 @@ checkApplication hd args e t = do
           --  Unify Z a b == A
           --  Run the tactic on H
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext tel newTypeMeta_      -- Z x y
+          target <- addContext' tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
@@ -1473,10 +1549,16 @@ checkApplication hd args e t = do
         metaTel (arg : args) = do
           a <- newTypeMeta_
           let dom = a <$ domFromArg arg
-          ExtendTel dom . Abs "x" <$> addContext ("x", dom) (metaTel args)
+          ExtendTel dom . Abs "x" <$> addContext' ("x", dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
-    _ -> checkHeadApplication e t hd args
+    _ -> do
+      v <- checkHeadApplication e t hd args
+      reportSDoc "tc.term.app" 30 $ vcat
+        [ text "checkApplication: checkHeadApplication returned"
+        , nest 2 $ text "v = " <+> prettyTCM v
+        ]
+      return v
 
 ---------------------------------------------------------------------------
 -- * Meta variables
@@ -1804,7 +1886,7 @@ checkHeadApplication e t hd args = do
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
         blockTerm t $ f vs <$ workOnTypes (do
-          addContext eTel $ leqType fType eType
+          addContext' eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
     (A.Def c) | Just c == pComp -> do
         defaultResult' $ Just $ \ vs t1 -> do

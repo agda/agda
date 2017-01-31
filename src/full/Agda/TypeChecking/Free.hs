@@ -236,11 +236,12 @@ type FreeVS a = Free' a VarSet
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
 {-# SPECIALIZE freeVars :: FreeV a => a -> FreeVars #-}
-freeVars :: (Monoid c, Singleton Variable c, Free' a c) => a -> c
+freeVars :: (Semigroup c, Monoid c, Singleton Variable c, Free' a c) => a -> c
 freeVars = freeVarsIgnore IgnoreNot
 
 {-# SPECIALIZE freeVarsIgnore :: FreeV a => IgnoreSorts -> a -> FreeVars #-}
-freeVarsIgnore :: (Monoid c, Singleton Variable c, Free' a c) => IgnoreSorts -> a -> c
+freeVarsIgnore :: (Semigroup c, Monoid c, Singleton Variable c, Free' a c) =>
+                  IgnoreSorts -> a -> c
 freeVarsIgnore = runFree singleton
 
 -- Specialization to typical monoids
@@ -253,7 +254,8 @@ freeVarsIgnore = runFree singleton
 {-# SPECIALIZE runFree :: SingleVar All      -> IgnoreSorts -> Term -> All #-}
 {-# SPECIALIZE runFree :: SingleVar VarSet   -> IgnoreSorts -> Term -> VarSet #-}
 {-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
-runFree :: (Monoid c, Free' a c) => SingleVar c -> IgnoreSorts -> a -> c
+runFree :: (Semigroup c, Monoid c, Free' a c) =>
+           SingleVar c -> IgnoreSorts -> a -> c
 runFree singleton i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
 

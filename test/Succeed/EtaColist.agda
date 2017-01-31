@@ -4,14 +4,15 @@ open import Common.Equality
 
 mutual
   data Colist (A : Set) : Set where
-    [] : Colist A
+    []  : Colist A
     _∷_ : A → ∞Colist A → Colist A
 
   record ∞Colist (A : Set) : Set where
-    eta-equality
     coinductive
     constructor delay
     field       force : Colist A
+
+{-# ETA ∞Colist #-}
 
 open ∞Colist
 

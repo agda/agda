@@ -198,11 +198,13 @@ data Pragma
   | CompiledDeclareDataPragma QName String
   | CompiledTypePragma QName String
   | CompiledDataPragma QName String [String]
-  | CompiledEpicPragma QName String
   | CompiledJSPragma QName String
   | CompiledUHCPragma QName String
   | CompiledDataUHCPragma QName String [String]
   | StaticPragma QName
+  | EtaPragma QName
+    -- ^ For coinductive records, use pragma instead of regular
+    --   @eta-equality@ definition (as it is might make Agda loop).
   | InjectivePragma QName
   | InlinePragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr

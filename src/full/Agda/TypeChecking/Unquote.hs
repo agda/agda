@@ -622,7 +622,7 @@ evalTCM v = do
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
       a <- liftU $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext (domFromArg a :: Dom Type)) m
+      liftU1 (addContext' (domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do

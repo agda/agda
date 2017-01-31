@@ -129,7 +129,7 @@ giveExpr mii mi e = do
             -- if there are more free variables than the context has
             -- we need to abstract over the additional ones (xs2)
             let (_xs1, xs2) = splitAt (size ctx) xs
-            v' <- return $ foldr (\ (Arg ai x) -> I.Lam ai . I.Abs x) v' xs2
+            v' <- return $ foldr mkLam v' xs2
             reportSDoc "interaction.give" 20 $ TP.sep
               [ TP.text "in meta context, v' = " TP.<+> prettyTCM v'
               ]
@@ -148,6 +148,7 @@ giveExpr mii mi e = do
         cubical <- optCubical <$> pragmaOptions
         if cubical then return () else do -- don't double check with cubical, because it gets in the way too often.
         -- Double check.
+        reportSDoc "interaction.give" 20 $ TP.text "give: double checking"
         vfull <- instantiateFull v
         checkInternal vfull t'
 

@@ -11,3 +11,6 @@ test _ e = {!e!}
 -- test r refl = ?
 -- proj₁ r != true of type Bool
 -- when checking that the pattern refl has type proj₁ r ≡ true
+
+-- Expected: Splitting succeeds with
+--   test _ refl = ?

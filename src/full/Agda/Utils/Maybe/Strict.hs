@@ -77,13 +77,13 @@ instance Null (Maybe a) where
 
 -- The monoid instance was fixed in strict-base-types 0.5.0. See
 -- Issue 1805.
-instance Monoid a => Semigroup (Maybe a) where
+instance Semigroup a => Semigroup (Maybe a) where
   Nothing <> m       = m
   m       <> Nothing = m
-  Just x1 <> Just x2 = Just (x1 `mappend` x2)
+  Just x1 <> Just x2 = Just (x1 <> x2)
 
-instance Monoid a => Monoid (Maybe a) where
-  mempty = Nothing
+instance Semigroup a => Monoid (Maybe a) where
+  mempty  = Nothing
   mappend = (<>)
 
 instance Foldable Maybe where

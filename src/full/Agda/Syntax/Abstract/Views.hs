@@ -342,13 +342,13 @@ instance ExprLike Pragma where
       CompiledDeclareDataPragma{} -> pure p
       CompiledTypePragma{}        -> pure p
       CompiledDataPragma{}        -> pure p
-      CompiledEpicPragma{}        -> pure p
       CompiledJSPragma{}          -> pure p
       CompiledUHCPragma{}         -> pure p
       CompiledDataUHCPragma{}     -> pure p
       StaticPragma{}              -> pure p
       InjectivePragma{}           -> pure p
       InlinePragma{}              -> pure p
+      EtaPragma{}                 -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
     where rec e = recurseExpr f e
 

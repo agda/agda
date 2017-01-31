@@ -156,14 +156,15 @@ instance EmbPrj I.Sort where
   icod_ Prop        = icode1 1 ()
   icod_ SizeUniv    = icode1 3 ()
   icod_ Inf         = icode1 4 ()
-  icod_ (DLub a b)  = __IMPOSSIBLE__
+  icod_ (DLub a b)  = icode2 2 a b -- Andreas, 2017-01-18: not __IMPOSSIBLE__ see #2408
 
   value = vcase valu where
     valu [a]    = valu1 Type  a
     valu [1, _] = valu0 Prop
     valu [3, _] = valu0 SizeUniv
     valu [4, _] = valu0 Inf
-    valu _      = malformed
+    valu [2, a, b] = valu2 DLub a b
+    valu _         = malformed
 
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icode3' a b c
@@ -310,22 +311,22 @@ instance EmbPrj EtaEquality where
     valu _     = malformed
 
 instance EmbPrj Defn where
-  icod_ Axiom                                       = icode0 0
-  icod_ (Function    a b _ c d e f g h i j k m)     = icode12 1 a b c d e f g h i j k m
-  icod_ (Datatype    a b c d e f g h i j)           = icode10 2 a b c d e f g h i j
-  icod_ (Record      a b c d e f g h i j k l)       = icode12 3 a b c d e f g h i j k l
-  icod_ (Constructor a b c d e f h)                 = icode7 4 a b c d e f h
-  icod_ (Primitive   a b c d)                       = icode4 5 a b c d
+  icod_ Axiom                                   = icode0 0
+  icod_ (Function    a b _ c d e f g h i j k m) = icode12 1 a b c d e f g h i j k m
+  icod_ (Datatype    a b c d e f g h i j)       = icode10 2 a b c d e f g h i j
+  icod_ (Record      a b c d e f g h i j k l)   = icode12 3 a b c d e f g h i j k l
+  icod_ (Constructor a b c d e f g h)           = icode8 4 a b c d e f g h
+  icod_ (Primitive   a b c d)                   = icode4 5 a b c d
   icod_ AbstractDefn                            = __IMPOSSIBLE__
 
   value = vcase valu where
-    valu [0]                                           = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j, k, m]       = valu12 (\ a b -> Function a b Nothing) a b c d e f g h i j k m
-    valu [2, a, b, c, d, e, f, g, h, i, j]             = valu10 Datatype a b c d e f g h i j
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l]       = valu12 Record  a b c d e f g h i j k l
-    valu [4, a, b, c, d, e, f, h]                      = valu7 Constructor a b c d e f h
-    valu [5, a, b, c, d]                               = valu4 Primitive   a b c d
-    valu _                                             = malformed
+    valu [0]                                     = valu0 Axiom
+    valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valu12 (\ a b -> Function a b Nothing) a b c d e f g h i j k m
+    valu [2, a, b, c, d, e, f, g, h, i, j]       = valu10 Datatype a b c d e f g h i j
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Record  a b c d e f g h i j k l
+    valu [4, a, b, c, d, e, f, g, h]             = valu8 Constructor a b c d e f g h
+    valu [5, a, b, c, d]                         = valu4 Primitive   a b c d
+    valu _                                       = malformed
 
 instance EmbPrj FunctionFlag where
   icod_ FunStatic       = icode0 0
@@ -384,11 +385,11 @@ instance EmbPrj TermHead where
     valu _      = malformed
 
 instance EmbPrj I.Clause where
-  icod_ (Clause a b c d e f) = icode6' a b c d e f
+  icod_ (Clause a b c d e f g) = icode7' a b c d e f g
 
   value = vcase valu where
-    valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
-    valu _                  = malformed
+    valu [a, b, c, d, e, f, g] = valu7 Clause a b c d e f g
+    valu _                     = malformed
 
 instance EmbPrj I.ConPatternInfo where
   icod_ (ConPatternInfo a b c) = icode3' a b c

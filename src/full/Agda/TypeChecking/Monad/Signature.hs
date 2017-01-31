@@ -90,10 +90,9 @@ addConstant q d = do
 
 -- | Set termination info of a defined function symbol.
 setTerminates :: QName -> Bool -> TCM ()
-setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ setT
-  where
-    setT def@Function{} = def { funTerminates = Just b }
-    setT def            = def
+setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ \case
+    def@Function{} -> def { funTerminates = Just b }
+    def -> def
 
 -- | Set CompiledClauses of a defined function symbol.
 setCompiledClauses :: QName -> CompiledClauses -> TCM ()
@@ -140,12 +139,6 @@ addHaskellType q hsTy = do
   modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   where
     addHs crep = crep { compiledHaskell = Just $ HsType hsTy }
-
-addEpicCode :: QName -> EpicCode -> TCM ()
-addEpicCode q epDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addEp
-  -- TODO: sanity checking
-  where
-    addEp crep = crep { compiledEpic = Just epDef }
 
 addJSCode :: QName -> String -> TCM ()
 addJSCode q jsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addJS
@@ -469,7 +462,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
 
-            cl = Clause { clauseRange     = getRange $ defClauses d
+            cl = Clause { clauseLHSRange  = getRange $ defClauses d
+                        , clauseFullRange = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
                         , clauseBody      = Just $ case oldDef of
@@ -580,8 +574,8 @@ sameDef d1 d2 = do
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.
-whatInduction :: QName -> TCM Induction
-whatInduction c = do
+whatInduction :: MonadTCM tcm => QName -> tcm Induction
+whatInduction c = liftTCM $ do
   def <- theDef <$> getConstInfo c
   mz <- getBuiltinName' builtinIZero
   mo <- getBuiltinName' builtinIOne
@@ -707,23 +701,21 @@ modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
 setTreeless :: QName -> TTerm -> TCM ()
-setTreeless q t = modifyGlobalDefinition q $ setTT
-  where
-    setTT def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funTreeless = Just (Compiled t [])}}
-    setTT def = __IMPOSSIBLE__
+setTreeless q t =
+  modifyGlobalDefinition q $ updateTheDef $ \case
+    fun@Function{} -> fun{ funTreeless = Just $ Compiled t [] }
+    _ -> __IMPOSSIBLE__
 
 setCompiledArgUse :: QName -> [Bool] -> TCM ()
-setCompiledArgUse q use = modifyGlobalDefinition q $ setTT
-  where
-    setTT def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use }}}
-    setTT def = __IMPOSSIBLE__
+setCompiledArgUse q use =
+  modifyGlobalDefinition q $ updateTheDef $ \case
+    fun@Function{} ->
+      fun{ funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use } }
+    _ -> __IMPOSSIBLE__
 
 getCompiled :: QName -> TCM (Maybe Compiled)
 getCompiled q = do
-  def <- theDef <$> getConstInfo q
-  return $ case def of
+  (theDef <$> getConstInfo q) <&> \case
     Function{ funTreeless = t } -> t
     _                           -> Nothing
 
@@ -742,11 +734,9 @@ getErasedConArgs q = do
     _ -> __IMPOSSIBLE__
 
 setErasedConArgs :: QName -> [Bool] -> TCM ()
-setErasedConArgs q args = modifyGlobalDefinition q setArgs
-  where
-    setArgs def@Defn{theDef = con@Constructor{}} =
-      def{ theDef = con{ conErased = args } }
-    setArgs def = def   -- no-op for non-constructors
+setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
+    def@Constructor{} -> def{ conErased = args }
+    def -> def   -- no-op for non-constructors
 
 getTreeless :: QName -> TCM (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
@@ -757,8 +747,7 @@ getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]
 getMutual d = do
-  def <- theDef <$> getConstInfo d
-  return $ case def of
+  (theDef <$> getConstInfo d) <&> \case
     Function {  funMutual = m } -> m
     Datatype { dataMutual = m } -> m
     Record   {  recMutual = m } -> m

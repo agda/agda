@@ -154,6 +154,14 @@ checkRecDef i name ind eta con ps contel fields =
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
 
+      -- Andreas, 2017-01-26, issue #2436
+      -- Disallow coinductive records with eta-equality
+      when (conInduction == CoInductive && etaEqualityToBool haveEta == True) $ do
+        typeError . GenericDocError =<< do
+          sep [ text "Agda doesn't like coinductive records with eta-equality."
+              , text "If you must, use pragma"
+              , text "{-# ETA" <+> prettyTCM name <+> text "#-}"
+              ]
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
 
       -- Add the record definition.
@@ -191,6 +199,7 @@ checkRecDef i name ind eta con ps contel fields =
           defaultDefn defaultArgInfo conName (telh `abstract` contype) $
             Constructor
               { conPars   = npars
+              , conArity  = size fs
               , conSrcCon = con
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
@@ -204,7 +213,7 @@ checkRecDef i name ind eta con ps contel fields =
         addNamedInstance conName name
 
       -- Check that the fields fit inside the sort
-      contype `fitsIn` s
+      _ <- contype `fitsIn` s
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant
@@ -354,7 +363,8 @@ defineCompR' name params fsT fns rect = do
               c = Clause { clauseTel       = gamma
                          , clauseType      = Just $ argN (unDom clause_ty)
                          , namedClausePats = pats
-                         , clauseRange     = noRange
+                         , clauseFullRange = noRange
+                         , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just body -- abstract gamma $ Body $ body
                          }
@@ -483,7 +493,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                      [ Arg info $ unnamed $ varP "x" | Dom{domInfo = info} <- telToList ftel ]
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
-            clause = Clause { clauseRange = getRange info
+            clause = Clause { clauseLHSRange  = getRange info
+                            , clauseFullRange = getRange info
                             , clauseTel       = killRange cltel
                             , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
                             , clauseBody      = body

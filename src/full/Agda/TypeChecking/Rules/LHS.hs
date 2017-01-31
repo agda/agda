@@ -287,7 +287,7 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = return ()
   noShadowing (A.EqualP    {}) t = return ()
-  noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
+  noShadowing (A.AsP       {}) t = __IMPOSSIBLE__ -- removed by asView
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
   noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
   noShadowing (A.VarP x)       t = do
@@ -416,12 +416,13 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.VarP _     -> return idv
       A.WildP _    -> return idv
       A.AbsurdP _  -> return idv
+      -- Andreas, 2017-01-18, issue #2413, AsP is not __IMPOSSIBLE__
+      A.AsP _ _ p0 -> checkUserDot (setNamedArg p p0) v a idv
       A.ConP _ _ _ -> __IMPOSSIBLE__
       A.LitP _     -> __IMPOSSIBLE__
       A.ProjP _ _ _-> __IMPOSSIBLE__
       A.DefP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _   -> __IMPOSSIBLE__
-      A.AsP  _ _ _ -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.EqualP{}   -> __IMPOSSIBLE__
 
@@ -493,7 +494,7 @@ bindLHSVars []        tel@ExtendTel{}  _   = do
   __IMPOSSIBLE__
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
-bindLHSVars (p : ps) (ExtendTel a tel) ret = do
+bindLHSVars (p : ps) tel0@(ExtendTel a tel) ret = do
   -- see test/Fail/WronHidingInLHS:
   unless (getHiding p == getHiding a) $ typeError WrongHidingInLHS
 
@@ -509,11 +510,13 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret = do
       isEmptyType (getRange pi) $ unDom a
       -- OLD CODE: isReallyEmptyType $ unArg a
       bindDummy (absName tel)
+    -- Andreas, 2017-01-18, issue #2413
+    -- A.AsP is not __IMPOSSIBLE__
+    A.AsP _ _ p0    -> bindLHSVars (setNamedArg p p0 : ps) tel0 ret
     A.ConP{}        -> __IMPOSSIBLE__
     A.RecP{}        -> __IMPOSSIBLE__
     A.ProjP{}       -> __IMPOSSIBLE__
     A.DefP{}        -> __IMPOSSIBLE__
-    A.AsP{}         -> __IMPOSSIBLE__
     A.LitP{}        -> __IMPOSSIBLE__
     A.PatternSynP{} -> __IMPOSSIBLE__
     A.EqualP{}      -> __IMPOSSIBLE__

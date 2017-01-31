@@ -3,7 +3,7 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 
 # Enable read -n and 2>&1 |.
-SHELL=bash
+SHELL=/usr/bin/env bash
 
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
@@ -21,7 +21,7 @@ else
 sed=sed
 endif
 
-clean=/bin/bash $(shell pwd)/clean.sh $(sed)
+clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
 
 AgdaFiles=$(shell ls *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
@@ -56,7 +56,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | $(AGDA_BIN) -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
-    else /bin/bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
+    else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
 
@@ -78,7 +78,27 @@ RTS_Issue1785      = --library-file=issue1785.libs
 RTS_Issue1829      = --caching +RTS -M4M -RTS
 
 # No recorded output
-$(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
+########################################################################
+
+# Andreas, 2017-01-27, issue #2438
+# The following rule does not work on my system.
+#
+#   $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
+#
+# According to the gnu-make manual, the wildcard command matches
+# immediately, but files like %.agda or %.lagda is not what we are looking for.
+# It would work if pattern matching (%) is done first.
+#
+# However, we can use second expansion, following
+# http://make.mad-scientist.net/secondary-expansion/.
+# The evaluation of the automatic variable $@ is first delayed,
+# such that it remains as literal string.
+# After the pattern matches, and $@ is instantiated to the stem of the target
+# say Issue123, we force evaluation of Issue123*.agda which gives us
+# the .agda or .lagda file.
+
+.SECONDEXPANSION:
+$(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.sh)
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
@@ -91,6 +111,8 @@ $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
 #			diff -b $*.out $*.tmp;
 
 # Comparing output
+########################################################################
+
 $(Tests) : %.cmp : %.out
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)

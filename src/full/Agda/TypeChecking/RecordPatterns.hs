@@ -114,8 +114,7 @@ cutSublist i n row =
 
 getEtaAndArity :: QName -> TCM (Bool, Nat)
 getEtaAndArity c =
-  for (getConstructorInfo c) $ \i ->
-  case i of
+  for (getConstructorInfo c) $ \case
     DataCon n        -> (False, n)
     RecordCon eta fs -> (eta == YesEta, size fs)
 

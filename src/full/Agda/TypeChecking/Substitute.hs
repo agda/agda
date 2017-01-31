@@ -307,10 +307,10 @@ instance Apply Clause where
     -- It is assumed that we only apply a clause to "parameters", i.e.
     -- arguments introduced by lambda lifting. The problem is that these aren't
     -- necessarily the first elements of the clause telescope.
-    apply cls@(Clause r tel ps b t catchall) args
+    apply cls@(Clause rl rf tel ps b t catchall) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
-      Clause r
+      Clause rl rf
              tel'
              (applySubst rhoP $ drop (length args) ps)
              (applySubst rho b)
@@ -590,8 +590,8 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause r tel' ps b t catchall) =
-    Clause r (abstract tel tel')
+  abstract tel (Clause rl rf tel' ps b t catchall) =
+    Clause rl rf (abstract tel tel')
            (namedTelVars m tel ++ ps)
            b
            t -- nothing to do for t, since it lives under the telescope
@@ -910,26 +910,6 @@ data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
 deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
 deriving instance (Subst t a, Ord a) => Ord (TelV a)
 
-type ListTel' a = [Dom (a, Type)]
-type ListTel = ListTel' ArgName
-
-telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
-telFromList' f = foldr extTel EmptyTel
-  where
-    extTel !dom = ExtendTel (snd <$> dom) . Abs (f . fst $ unDom dom)
-
-telFromList :: ListTel -> Telescope
-telFromList = telFromList' id
-
-telToList :: Telescope -> ListTel
-telToList EmptyTel            = []
-telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel)
-  -- Andreas, 2013-12-14: This would work also for 'NoAbs',
-  -- since 'absBody' raises.
-
-telToArgs :: Telescope -> [Arg ArgName]
-telToArgs tel = [ Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
-
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
 bindsToTel' f []     t = []
@@ -983,11 +963,11 @@ telePi' reAbs = telePi where
       s2 = getSort <$> b
       el = El $ dLub s1 s2
 
--- | Uses free variable analysis to introduce 'noAbs' bindings.
+-- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
 telePi = telePi' reAbs
 
--- | Everything will be a 'Abs'.
+-- | Everything will be an 'Abs'.
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
 
@@ -1002,6 +982,10 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
     s2 = fmap getSort b
 -}
 
+-- | Abstract over a telescope in a term, producing lambdas.
+--   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
+--
+--   The implementation is sound because 'Telescope' does not use 'NoAbs'.
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel         t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
@@ -1177,6 +1161,19 @@ dLub Inf _ = Inf
 dLub s1 (NoAbs _ s2) = sLub s1 s2
 dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
   Flexible _    -> DLub s1 b
+  -- Andreas, 2017-01-18, issue #2408:
+  -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
+  -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
+  -- Alternatives:
+  -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
+  --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
+  --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
+  --    and that if we already have a neutral level @f a@
+  --    it should not hurt to have @f *@ even if type @A@ is empty.
+  --    However: sorts are printed in error messages when sorts do not match.
+  --    Also, sorts with a dummy like Prop would be ill-typed.
+  -- 2. We keep the DLub, and serialize it.
+  --    That's clean and principled, even though DLubs make level solving harder.
   Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
 --  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784

@@ -47,9 +47,6 @@ data-dir:           src/data
 data-files:         Agda.css
                     agda.sty
                     emacs-mode/*.el
-                    -- EpicInclude/AgdaPrelude.e
-                    -- EpicInclude/stdagda.c
-                    -- EpicInclude/stdagda.h
                     JS/agda-rts.js
                     JS/biginteger.js
                     lib/prim/Agda/Builtin/Bool.agda
@@ -155,7 +152,7 @@ library
                 -- some cases.
                 , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.1.3 && < 0.8
-                , ieee754 >= 0.7.8 && < 0.8
+                , ieee754 >= 0.7.8 && < 0.9
                 , monadplus >= 1.4 && < 1.5
                 -- mtl-2.1 contains a severe bug.
                 --
@@ -208,23 +205,9 @@ library
                     Agda.Auto.Syntax
                     Agda.Auto.Typecheck
                     Agda.Benchmarking
+                    Agda.Compiler.Backend
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Common
-                    Agda.Compiler.Epic.AuxAST
-                    Agda.Compiler.Epic.CaseOpts
-                    Agda.Compiler.Epic.Compiler
-                    Agda.Compiler.Epic.CompileState
-                    Agda.Compiler.Epic.Epic
-                    Agda.Compiler.Epic.Erasure
-                    Agda.Compiler.Epic.ForceConstrs
-                    Agda.Compiler.Epic.Forcing
-                    Agda.Compiler.Epic.FromAgda
-                    Agda.Compiler.Epic.Injection
-                    Agda.Compiler.Epic.Interface
-                    Agda.Compiler.Epic.NatDetection
-                    Agda.Compiler.Epic.Primitive
-                    Agda.Compiler.Epic.Smashing
-                    Agda.Compiler.Epic.Static
                     Agda.Compiler.HaskellTypes
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax
@@ -239,7 +222,6 @@ library
                     Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin
                     Agda.Compiler.Treeless.Compare
-                    Agda.Compiler.Treeless.DelayCoinduction
                     Agda.Compiler.Treeless.EliminateLiteralPatterns
                     Agda.Compiler.Treeless.Erase
                     Agda.Compiler.Treeless.GuardsToPrims
@@ -286,6 +268,7 @@ library
                     Agda.Main
                     Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
+                    Agda.Syntax.Abstract.Pattern
                     Agda.Syntax.Abstract.Pretty
                     Agda.Syntax.Abstract.Views
                     Agda.Syntax.Abstract
@@ -469,6 +452,7 @@ library
                     Agda.Utils.HashMap
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
+                    Agda.Utils.IndexedList
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
                     Agda.Utils.IO.UTF8
@@ -482,6 +466,7 @@ library
                     Agda.Utils.Maybe.Strict
                     Agda.Utils.Memo
                     Agda.Utils.Monad
+                    Agda.Utils.Monoid
                     Agda.Utils.Null
                     Agda.Utils.Parser.MemoisedCPS
                     Agda.Utils.Parser.ReadP
@@ -690,6 +675,7 @@ test-suite internal-tests
                 , InternalTests.Syntax.Abstract.Name
                 , InternalTests.Syntax.Common
                 , InternalTests.Syntax.Concrete.Name
+                , InternalTests.Syntax.Internal
                 , InternalTests.Syntax.Parser.Parser
                 , InternalTests.Syntax.Position
                 , InternalTests.Termination.CallGraph
@@ -704,8 +690,10 @@ test-suite internal-tests
                 , InternalTests.TypeChecking.Free.Lazy
                 , InternalTests.TypeChecking.Generators
                 , InternalTests.TypeChecking.Irrelevance
+                , InternalTests.TypeChecking.Monad.Base
                 , InternalTests.TypeChecking.Positivity
                 , InternalTests.TypeChecking.Positivity.Occurrence
+                , InternalTests.TypeChecking.Rules.LHS.Problem
                 , InternalTests.TypeChecking.SizedTypes
                 , InternalTests.TypeChecking.SizedTypes.Syntax
                 , InternalTests.TypeChecking.SizedTypes.WarshallSolver
@@ -718,6 +706,7 @@ test-suite internal-tests
                 , InternalTests.Utils.Graph.AdjacencyMap.Unidirectional
                 , InternalTests.Utils.List
                 , InternalTests.Utils.ListT
+                , InternalTests.Utils.Monoid
                 , InternalTests.Utils.Maybe.Strict
                 , InternalTests.Utils.PartialOrd
                 , InternalTests.Utils.Permutation

@@ -1435,7 +1435,7 @@ garr f a b = do
 gpi :: MonadTCM tcm => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
-  b <- addContext (name, defaultArgDom info a) b
+  b <- addContext' (name, defaultArgDom info a) b
   let y = stringToArgName name
   return $ El (getSort a `dLub` Abs y (getSort b))
               (Pi (defaultArgDom info a) (Abs y b))
