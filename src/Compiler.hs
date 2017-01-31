@@ -29,13 +29,7 @@ translateTerm tt = case tt of
   TApp t0 args      -> translateApp t0 args
   TLam{}            -> translateLam tt
   TLit lit          -> return $ translateLit lit
-  -- TODO: Translate constructors differently from names.
-  -- Don't know if we should do the same when translating TDef's, but here we
-  -- should most likely use malfunction "tags" to represent constructors
-  -- in an "untyped but injective way". That is, we only care that each
-  -- constructor maps to a unique number such that we will be able to
-  -- distinguish it in malfunction.
-  TCon name         -> return $ translateCon name
+  TCon nm           -> translateCon nm []
   TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
@@ -121,6 +115,7 @@ translateApp ft xst = case ft of
         _        -> error "Malformed!"
     where
       (eOp, tp) = translatePrim p
+  TCon nm -> translateCon nm xst
   _       -> do
     i <- get
     let f  = translateTerm ft       `evalState` i
@@ -202,11 +197,37 @@ translatePrim' tp = Mlambda [varN, varM] $ case tp of
 nameToTag :: MonadTranslate m => QName -> m Case
 nameToTag = return . Tag . fromEnum . nameId . qnameName
 
--- Constructors should probably be translated to tags
--- Probably tags should be their own data-type and not
--- just be used defined for Case-expressions.
-translateCon :: QName -> Term
-translateCon = Mvar . ident . fromEnum . nameId . qnameName
+-- TODO: Translate constructors differently from names.
+-- Don't know if we should do the same when translating TDef's, but here we
+-- should most likely use malfunction "blocks" to represent constructors
+-- in an "untyped but injective way". That is, we only care that each
+-- constructor maps to a unique number such that we will be able to
+-- distinguish it in malfunction. This also means that we should carry
+-- some state around mapping each constructor to it's corresponding
+-- "block-representation".
+--
+-- An example for clarity. Consider type:
+--
+--   T a b = L a | R b | B a b | E
+--
+-- We need to encode the constructors in an injective way and we need to
+-- encode the arity of the constructors as well.
+--
+--   translate (L a)   = (block (tag 2) (tag 0) a')
+--   translate (R b)   = (block (tag 2) (tag 1) b')
+--   translate (B a b) = (block (tag 3) (tag 2) a' b')
+--   translate E       = (block (tag 1) (tag 3))
+translateCon :: MonadTranslate m => QName -> [TTerm] -> m Term
+translateCon nm ts = do
+  ts' <- mapM translateTerm ts
+  return $ Mblock (uniqFromName nm) ts'
+  where
+    -- Should return a number that unique for this constructor
+    -- within the data-type.
+    uniqFromName :: QName -> Int
+    -- uniqFromName = error "uh-oh! tricky!"
+    -- TODO: Stub!
+    uniqFromName = length . show
 
 translateName :: QName -> Term
 translateName = Mvar . nameToIdent
