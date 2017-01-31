@@ -20,6 +20,7 @@ import Data.Monoid (mempty)
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
@@ -365,7 +366,7 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
 primTrustMe :: TCM PrimitiveImpl
 primTrustMe = do
   -- primTrustMe is not --safe
-  whenM (optSafe <$> commandLineOptions) $ typeError SafeFlagPrimTrustMe
+  whenM (Lens.getSafeMode <$> commandLineOptions) $ warning SafeFlagPrimTrustMe
 
   -- Get the name and type of BUILTIN EQUALITY
   eq   <- primEqualityName

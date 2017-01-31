@@ -105,9 +105,13 @@ class LensSafeMode a where
   setSafeMode     = mapSafeMode . const
   mapSafeMode f a = setSafeMode (f $ getSafeMode a) a
 
-instance LensSafeMode CommandLineOptions where
+instance LensSafeMode PragmaOptions where
   getSafeMode = optSafe
   setSafeMode is opts = opts { optSafe = is }
+
+instance LensSafeMode CommandLineOptions where
+  getSafeMode = getSafeMode . getPragmaOptions
+  mapSafeMode = mapPragmaOptions . mapSafeMode
 
 instance LensSafeMode PersistentTCState where
   getSafeMode = getSafeMode . getCommandLineOptions

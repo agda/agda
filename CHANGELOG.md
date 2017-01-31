@@ -167,6 +167,16 @@ Compiler backends
   backends using Agda as a library. This allows prospective backend writers to
   experiment with new backends without having to change the Agda code base.
 
+Pragmas and options
+-------------------
+
+* The `--safe` option is now a valid pragma
+
+  This makes it possible to declare a module as being part of the safe
+  subset of the language by stating `{-# OPTIONS --safe #-}` at the top
+  of the corresponding file. Incompatibilities between the `--safe` option
+  and other options or language constructs are non-fatal errors.
+
 Release notes for Agda version 2.5.2
 ====================================
 

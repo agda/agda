@@ -1,4 +1,5 @@
-F : Set → Set
-F A = A → A
+{-# OPTIONS --safe #-}
+
+postulate F : Set → Set
 
 {-# POLARITY F ++ #-}

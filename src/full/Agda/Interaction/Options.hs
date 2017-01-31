@@ -112,7 +112,6 @@ data CommandLineOptions = Options
   , optIgnoreInterfaces :: Bool
   , optForcing          :: Bool
   , optPragmaOptions    :: PragmaOptions
-  , optSafe             :: Bool
   , optSharing          :: Bool
   , optCaching          :: Bool
   }
@@ -148,6 +147,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
   , optInstanceSearchDepth       :: Int
+  , optSafe                      :: Bool
   }
   deriving (Show,Eq)
 
@@ -196,7 +196,6 @@ defaultOptions = Options
   , optIgnoreInterfaces = False
   , optForcing          = True
   , optPragmaOptions    = defaultPragmaOptions
-  , optSafe             = False
   , optSharing          = False
   , optCaching          = False
   }
@@ -227,6 +226,7 @@ defaultPragmaOptions = PragmaOptions
   , optRewriting                 = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
+  , optSafe                      = False
   }
 
 -- | The default termination depth.
@@ -302,7 +302,7 @@ versionFlag o = return $ o { optShowVersion = True }
 helpFlag :: Flag CommandLineOptions
 helpFlag o = return $ o { optShowHelp = True }
 
-safeFlag :: Flag CommandLineOptions
+safeFlag :: Flag PragmaOptions
 safeFlag o = return $ o { optSafe = True }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
@@ -527,8 +527,6 @@ standardOptions =
                     "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
-    , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primTrustMe"
     , Option []     ["sharing"] (NoArg $ sharingFlag True)
                     "enable sharing and call-by-need evaluation (experimental) (default: OFF)"
     , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
@@ -604,6 +602,8 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
+    , Option []     ["safe"] (NoArg safeFlag)
+                    "disable postulates, unsafe OPTION pragmas and primTrustMe"
     ]
 
 -- | Used for printing usage info.
