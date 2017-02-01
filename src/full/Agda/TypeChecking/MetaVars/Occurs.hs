@@ -553,11 +553,7 @@ isNeutral b f es = liftTCM $ do
   if defMatchable def then no else do
   case theDef def of
     AbstractDefn -> yes
-    Axiom{}    -> do i <- intervalView (Def f es) -- TODO Andrea: hackish, should declare "I" as data?
-                     case i of
-                       IZero       -> no
-                       IOne        -> no
-                       _           -> yes
+    Axiom{}    -> yes
     Datatype{} -> yes
     Record{}   -> yes
     Function{} -> case b of
