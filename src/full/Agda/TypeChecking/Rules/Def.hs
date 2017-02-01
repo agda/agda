@@ -499,6 +499,7 @@ checkBodyEndPoints delta t self es body = do
   reportSDoc "endpoints" 20 $ text $ show (cs,t)
   checkBoundary cs t body
  where
+   checkBoundary [] _ _ = return ()
    checkBoundary cs t body = do
      neg <- primINeg
      forM_ cs $ \ (i,(x,y)) -> do
