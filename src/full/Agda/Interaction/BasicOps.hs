@@ -707,7 +707,7 @@ metaHelperType norm ii rng s = case words s of
 
 -- Gives a list of names and corresponding types.
 
-contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' Expr Name]
+contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' Expr (Name,Relevance)]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   withMetaInfo info $ do
@@ -720,12 +720,12 @@ contextOfMeta ii norm = do
     letVars <- mapM mkLet . Map.toDescList =<< asks envLetBindings
     gfilter visible . reverse <$> mapM out (letVars ++ localVars)
   where gfilter p = catMaybes . map p
-        visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
+        visible (OfType x y) | not (isNoName (fst x)) = Just (OfType' x y)
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
-        out (Dom{unDom = (x, t)}) = do
+        out dom@(Dom{unDom = (x, t)}) = do
           t' <- reify =<< normalForm norm t
-          return $ OfType x t'
+          return $ (OfType (x, getRelevance dom) t')
 
 
 -- | Returns the type of the expression in the current environment
