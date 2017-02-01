@@ -1,17 +1,19 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (translateDef, Term, Binding) where
+module Compiler (runReaderEnv, translateDef, Term, Binding) where
 
 import           Agda.Syntax.Common (NameId)
 import           Agda.Syntax.Literal
 import           Agda.Syntax.Position
 import           Agda.Syntax.Treeless
 import           Control.Monad
+import           Control.Monad.Extra
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Ix
 import           Data.Map (Map)
 import qualified Data.Map as Map
+import           Data.Maybe
 import           Malfunction.AST
 
 type MonadTranslate m = (MonadState Int m, MonadReader Env m)
@@ -19,14 +21,15 @@ type MonadTranslate m = (MonadState Int m, MonadReader Env m)
 data Env = Env {
   _mapConToTag :: Map QName Int
   }
+  deriving (Show)
 
-runtReaderEnv :: [[QName]] -> Reader Env a -> a
-runtReaderEnv cons ma
-  | any ((>rangeSize tagRange) . length) cons = error "too many constructors"
-  | otherwise = ma `runReader` mkEnv cons
+runReaderEnv :: [[QName]] -> Reader Env a -> a
+runReaderEnv allcons ma
+  | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
+  | otherwise = ma `runReader` mkEnv
   where
     tagRange = (0, 199)
-    mkEnv allcons = Env {
+    mkEnv = Env {
       _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
       }
 
@@ -196,11 +199,19 @@ wrapPrimInLambda tprim = case op of
 -- FIXME: Please not the multitude of interpreting QName in the following
 -- section. This may be a problem.
 -- This is due to the fact that QName can refer to constructors and regular
--- bindings, I think we want to handle these two cases seperately.
+-- bindings, I think we want to handle these two cases separately.
 
 -- Questionable implementation:
-nameToTag :: MonadTranslate m => QName -> m Case
-nameToTag = return . Tag . fromEnum . nameId . qnameName
+nameToTag :: MonadReader Env m => QName -> m Case
+nameToTag nm =
+  ifM (isConstructor nm)
+    (Tag <$> constrTag nm)
+    (return . Tag . fromEnum . nameId . qnameName $ nm)
+
+
+isConstructor :: MonadReader Env m => QName -> m Bool
+isConstructor nm = (nm`Map.member`) <$> asks _mapConToTag
+
 
 -- TODO: Translate constructors differently from names.
 -- Don't know if we should do the same when translating TDef's, but here we
@@ -225,14 +236,13 @@ nameToTag = return . Tag . fromEnum . nameId . qnameName
 translateCon :: MonadTranslate m => QName -> [TTerm] -> m Term
 translateCon nm ts = do
   ts' <- mapM translateTerm ts
-  return $ Mblock (uniqFromName nm) ts'
-  where
-    -- Should return a number that unique for this constructor
-    -- within the data-type.
-    uniqFromName :: QName -> Int
-    -- uniqFromName = error "uh-oh! tricky!"
-    -- TODO: Stub!
-    uniqFromName = length . show
+  tag <- constrTag nm
+  return $ Mblock tag ts'
+
+-- Should return a number that unique for this constructor
+-- within the data-type.
+constrTag :: MonadReader Env m => QName -> m Int
+constrTag ns = (Map.! ns) <$> asks _mapConToTag
 
 -- Unit is treated as a glorified value in Treeless, luckily it's fairly
 -- straight-forward to encode using the scheme described in the documentation

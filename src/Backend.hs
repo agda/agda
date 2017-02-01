@@ -45,19 +45,22 @@ backend' = Backend' {
 
 mlfModule :: [Definition] -> TCM Mod
 mlfModule defs = do
-  mlfMod <- (`MMod`[]) . catMaybes <$> mapM mlfDef defs
+  mlfMod <- (`MMod`[]) . catMaybes <$> mapM (mlfDef defs) defs
   liftIO (putStrLn (showMod mlfMod))
   return mlfMod
+  where defns = map theDef defs
 
-mlfDef :: Definition -> TCM (Maybe Binding)
-mlfDef d@Defn{ defName = q } =
+mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
+mlfDef alldefs d@Defn{ defName = q } =
   case theDef d of
     Function{} -> do
       mtt <- toTreeless q
       case mtt of
         Nothing -> return Nothing
         Just tt -> do
-          let mlf = Mlf.translateDef q tt
+          let -- TODO: this works fine, but runReaderEnv is being used for each
+              -- definition... use a monad transformer?
+              mlf = Mlf.runReaderEnv (getConstructors (map theDef alldefs)) $ Mlf.translateDef q tt
               header c h = let cs = replicate 15 c
                            in text $ printf "%s %s %s" cs h cs
               pretty' = text . showBinding
