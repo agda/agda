@@ -48,6 +48,7 @@ instance PrettyTCM ElimType where
   prettyTCM (ProjT a) = text "." <> prettyTCM a
   prettyTCM (ArgT a)  = prettyTCM a
 
+-- prerequisite: no IApply elims
 smashType :: Type -> Term -> Elims -> TCM [ElimType]
 smashType a _ [] = return []
 smashType a self (e : es) =
@@ -60,7 +61,7 @@ smashType a self (e : es) =
       a <- reduce a
       Just (_, self, a) <- projectTyped self a o f
       (ProjT a :) <$> smashType a self es
-    IApply{} -> __IMPOSSIBLE__ -- TODO Andrea: not actually impossible
+    IApply{} -> __IMPOSSIBLE__
 
 smashTel :: Telescope -> [Term] -> [Type]
 smashTel _ []                       = []

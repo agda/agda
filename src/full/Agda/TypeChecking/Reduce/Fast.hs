@@ -304,7 +304,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         Var i es -> runReduce $ reduceIApp es (return done)
         _     -> runReduce (slowReduceTerm v)
       where
-        reduceIApp es d = reduceIApply' (return . reduceB' steps) d es -- TODO Andrea: is it ok to reduce with same number of steps?
+        reduceIApp es d = reduceIApply' (return . reduceB' steps) d es
         done = notBlocked v
 
         reduceNat v@(Con c ci [])
@@ -328,7 +328,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
     unfoldCorecursionE (Proj o p)           = notBlocked $ Proj o $ originalProjection p
     unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) $
       unfoldCorecursion 0 v
-    unfoldCorecursionE (IApply x y r) = -- TODO Andrea, check if this makes sense
+    unfoldCorecursionE (IApply x y r) =
       IApply <$> unfoldCorecursion 0 x <*> unfoldCorecursion 0 y <*> unfoldCorecursion 0 r
 
     unfoldCorecursion :: Int -> Term -> Blocked Term
@@ -512,7 +512,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                     Blocked x _       -> no (Blocked x) es'
                     NotBlocked blk elim ->
                       case elim of
-                        IApply{} -> __IMPOSSIBLE__ -- TODO Andrea not actually impossible, but let's get it to build first
+                        IApply{} -> __IMPOSSIBLE__ -- Cannot define a path by cases
                         Apply (Arg info v) ->
                           case v of
 

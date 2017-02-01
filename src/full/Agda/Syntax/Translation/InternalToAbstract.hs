@@ -237,13 +237,13 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okDisplayTerm DDef{}    = False
     okDisplayTerm _         = False
 
-    okDElim (I.IApply x y r) = okDisplayTerm r -- TODO Andrea: making sense?
+    okDElim (I.IApply x y r) = okDisplayTerm r
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
 
     okToDropE (I.Apply v) = okToDrop v
     okToDropE I.Proj{}    = False
-    okToDropE (I.IApply x y r) = False  -- TODO Andrea: making sense?
+    okToDropE (I.IApply x y r) = False
 
     okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
       I.Var _ []   -> True
