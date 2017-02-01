@@ -1,25 +1,42 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (translateDef, translate, Term, Binding) where
+module Compiler (translateDef, Term, Binding) where
 
-import Data.Char
+import           Agda.Syntax.Common (NameId)
+import           Agda.Syntax.Literal
+import           Agda.Syntax.Position
+import           Agda.Syntax.Treeless
+import           Control.Monad
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.Ix
+import           Data.Map (Map)
+import qualified Data.Map as Map
+import           Malfunction.AST
 
-import Malfunction.AST
-import Agda.Syntax.Treeless
-import Agda.Syntax.Literal
-import Agda.Syntax.Position
-import Agda.Syntax.Common (NameId)
+type MonadTranslate m = (MonadState Int m, MonadReader Env m)
 
-import Control.Monad
-import Control.Monad.State
+data Env = Env {
+  _mapConToTag :: Map QName Int
+  }
 
-type MonadTranslate = MonadState Int
+runtReaderEnv :: [[QName]] -> Reader Env a -> a
+runtReaderEnv cons ma
+  | any ((>rangeSize tagRange) . length) cons = error "too many constructors"
+  | otherwise = ma `runReader` mkEnv cons
+  where
+    tagRange = (0, 199)
+    mkEnv allcons = Env {
+      _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
+      }
 
-translateDef :: QName -> TTerm -> Binding
-translateDef qnm t = Recursive . pure $ (nameToIdent qnm, translate t)
+translateDef :: MonadReader Env m => QName -> TTerm -> m Binding
+translateDef qnm t = do
+  tt <- translate t
+  return . Recursive . pure $ (nameToIdent qnm, tt)
 
-translate :: TTerm -> Term
-translate t = translateTerm t `evalState` 0
+translate :: MonadReader Env m => TTerm -> m Term
+translate t = translateTerm t `evalStateT` 0
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
@@ -121,8 +138,8 @@ translateApp ft xst = case ft of
   TCon nm -> translateCon nm xst
   _       -> do
     i <- get
-    let f  = translateTerm ft       `evalState` i
-        xs = mapM translateTerm xst `evalState` i
+    f <- translateTerm ft       `evalStateT` i
+    xs <- mapM translateTerm xst `evalStateT` i
     return $ Mapply f xs
 
 incr :: MonadTranslate m => m ()

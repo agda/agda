@@ -1,12 +1,16 @@
 module Backend (backend) where
 
-import Agda.Compiler.Backend
-import System.Console.GetOpt
-import Agda.Utils.Pretty
-import Control.Monad.Trans
+import           Agda.Compiler.Backend
+import           Agda.Syntax.Internal
+import           Agda.Utils.Pretty
 import qualified Compiler as Mlf
-import Malfunction.Print
-import Text.Printf
+import           Control.Monad.Trans
+import           Data.List.Extra
+import           Data.Maybe
+import           Malfunction.AST
+import           Malfunction.Print
+import           System.Console.GetOpt
+import           Text.Printf
 
 backend :: Backend
 backend = Backend backend'
@@ -25,7 +29,7 @@ ttFlags =
   [ Option [] ["mlf"] (NoArg $ \ o -> return o{ _enabled = True }) "Generate Malfunction"
   ]
 
-backend' :: Backend' MlfOptions () () () Definition
+backend' :: Backend' MlfOptions () () Mod Definition
 backend' = Backend' {
   backendName = "malfunction"
   , options = defOptions
@@ -39,19 +43,23 @@ backend' = Backend' {
   , backendVersion = Nothing
   }
 
-mlfModule :: [Definition] -> TCM ()
-mlfModule defs = mapM_ mlfDef defs
+mlfModule :: [Definition] -> TCM Mod
+mlfModule defs = do
+  mlfMod <- (`MMod`[]) . catMaybes <$> mapM mlfDef defs
+  liftIO (putStrLn (showMod mlfMod))
+  return mlfMod
 
-mlfDef :: Definition -> TCM ()
+mlfDef :: Definition -> TCM (Maybe Binding)
 mlfDef d@Defn{ defName = q } =
   case theDef d of
     Function{} -> do
       mtt <- toTreeless q
       case mtt of
-        Nothing -> return ()
+        Nothing -> return Nothing
         Just tt -> do
-          mlf <- translate q tt
-          let header c h = let cs = replicate 15 c in text $ printf "%s %s %s" cs h cs
+          let mlf = Mlf.translateDef q tt
+              header c h = let cs = replicate 15 c
+                           in text $ printf "%s %s %s" cs h cs
               pretty' = text . showBinding
               sect t dc = text t $+$ nest 2 dc $+$ text ""
           liftIO . putStrLn . render
@@ -60,17 +68,29 @@ mlfDef d@Defn{ defName = q } =
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
             $$ sect "Malfunction (abstract syntax)" (text . show $ mlf)
             $$ sect "Malfunction (concrete syntax)" (pretty' mlf)
+          return (Just mlf)
     Primitive{ primName = s } ->
-      liftIO $ putStrLn $ "  primitive " ++ s
-    Axiom         -> return ()
+      liftIO (putStrLn $ "  primitive " ++ s) >> return Nothing
+    Axiom         -> return Nothing
     AbstractDefn  -> error "impossible"
-    Datatype{}    -> liftIO $ putStrLn $ "  data " ++ show q
-    Record{}      -> liftIO $ putStrLn $ "  record " ++ show q
-    Constructor{} -> liftIO $ putStrLn $ "  constructor " ++ show q
+    Datatype{}    -> liftIO (putStrLn $ "  data " ++ show q) >> return Nothing
+    Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
+    c@Constructor{} -> do
+      liftIO (putStrLn $ "  constructor " ++ show q)
+      liftIO (putStrLn $ "conSrcCon " ++ show (conName $ conSrcCon c))
+      return Nothing
+
+-- | Returns a list of constructor names grouped by data type
+getConstructors :: [Defn] -> [[QName]]
+getConstructors = map snd . groupSort . mapMaybe getCons
+  where
+    getCons :: Defn -> Maybe (QName, QName)
+    getCons c@Constructor{} = Just (conData c, conName (conSrcCon c))
+    getCons _ = Nothing
 
 -- TODO: Can we somehow extract functionality from the TCM-monad and pass
 -- it to Mlf.translate? I was thinking that if all we need from the TCM-
 -- monad is a way to translate from names to identifiers, then perhaps we
 -- could extract such a lookup-function and use it in MonadTranslate.
-translate :: QName -> TTerm -> TCMT IO Mlf.Binding
-translate nm = return . Mlf.translateDef nm
+-- translate :: QName -> TTerm -> TCMT IO Mlf.Binding
+-- translate nm = return . Mlf.translateDef nm

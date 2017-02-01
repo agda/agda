@@ -22,6 +22,7 @@ library
   build-depends:       base >= 4.7 && < 5
                      , Agda >= 2.5.2
                      , containers == 0.5.*
+                     , extra == 1.4.*
                      , mtl == 2.2.*
                      , process == 1.4.*
                      , temporary == 1.2.*
