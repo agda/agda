@@ -24,18 +24,22 @@ ttFlags =
   [ Option [] ["mlf"] (NoArg $ \ o -> return o{ _enabled = True }) "Generate Malfunction"
   ]
 
-backend' :: Backend' MlfOptions () () () ()
+backend' :: Backend' MlfOptions () () () Definition
 backend' = Backend' {
   backendName = "malfunction"
   , options = defOptions
   , commandLineFlags = ttFlags
   , isEnabled = _enabled
   , preCompile = const $ return ()
-  , postCompile = \env isMain r -> return ()
+  , postCompile = \env isMain r -> liftIO (putStrLn "post compile")
   , preModule = \enf m ifile -> return $ Recompile ()
-  , compileDef = \env menv -> mlfDef
-  , postModule = \env menv m defs -> return ()
+  , compileDef = \env menv -> return
+  , postModule = \env menv m mod -> mlfModule
+  , backendVersion = Nothing
   }
+
+mlfModule :: [Definition] -> TCM ()
+mlfModule defs = mapM_ mlfDef defs
 
 mlfDef :: Definition -> TCM ()
 mlfDef d@Defn{ defName = q } =
