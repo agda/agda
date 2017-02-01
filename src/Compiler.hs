@@ -159,7 +159,7 @@ primToOpAndType tp = (op, aType)
     -- TODO: Stub!
     wrong = Right Xor
 
--- This function wraps primites in a lambda.
+-- This function wraps primitives in a lambda.
 --
 --   TPrim PAdd          (abstract syntax, treeless)
 --
