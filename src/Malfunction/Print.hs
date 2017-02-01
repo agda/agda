@@ -11,7 +11,7 @@ showMod (MMod bs ts) = printf "(module %s (export %s))"
 showTerm :: Term -> String
 showTerm tt = case tt of
   Mvar i              -> showIdent i
-  Mlambda is t        -> printf "(lambda %s %s)" (unwords (map showIdent is)) (showTerm t)
+  Mlambda is t        -> printf "(lambda (%s) %s)" (unwords (map showIdent is)) (showTerm t)
   Mapply t ts         -> printf "(apply %s %s)" (showTerm t) (unwords . map showTerm $ ts)
   Mlet bs t           -> printf "(let %s %s)" (unwords (map showBinding bs)) (showTerm t)
   Mint ic             -> printf "%s" (showIntConst ic)
