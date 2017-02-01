@@ -78,10 +78,21 @@ litToCase l = case l of
 translateBinding :: MonadTranslate m => TTerm -> m Binding
 translateBinding t = Unnamed <$> translateTerm t
 
+-- The argument is the lambda itself and not its body.
 translateLam :: MonadTranslate m => TTerm -> m Term
-translateLam e = do
-  (is, t) <- translateLams e
+translateLam lam = do
+  (is, t) <- translateLams lam
   return $ Mlambda is t
+  where
+    translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
+    translateLams (TLam body) = do
+      (xs, t) <- translateLams body
+      x       <- freshIdent
+      return (x:xs, t)
+    translateLams e = do
+      e' <- translateTerm e
+      return ([], e')
+
 --   t <- translateTerm body
 --   i <- ident <$> get
 --   incr
@@ -90,14 +101,6 @@ translateLam e = do
 freshIdent :: MonadTranslate m => m Ident
 freshIdent = do { x <- ident <$> get ; incr ; return x }
 
-translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
-translateLams (TLam body) = do
-  (xs, t) <- translateLams body
-  x       <- freshIdent
-  return (x:xs, t)
-translateLams e = do
-  e' <- translateTerm e
-  return ([], e')
 
 -- This is really ugly, but I've done this for the reason mentioned
 -- in `translatePrim'`. Note that a similiar "optimization" could be
