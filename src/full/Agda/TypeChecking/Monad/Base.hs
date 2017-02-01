@@ -2297,6 +2297,14 @@ data Warning =
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
+  -- Safe flag errors
+  | SafeFlagPostulate C.Name
+  | SafeFlagPragma [String]
+  | SafeFlagNonTerminating
+  | SafeFlagTerminating
+  | SafeFlagPrimTrustMe
+  | SafeFlagNoPositivityCheck
+  | SafeFlagPolarity
   | ParseWarning             ParseWarning
   deriving Show
 
@@ -2337,14 +2345,7 @@ isUnsolvedWarning w = case w of
   UnsolvedInteractionMetas{} -> True
   UnsolvedConstraints{}      -> True
  -- rest
-  OldBuiltin{}               -> False
-  EmptyRewritePragma         -> False
-  UselessPublic              -> False
-  UnreachableClauses{}       -> False
-  TerminationIssue{}         -> False
-  CoverageIssue{}            -> False
-  NotStrictlyPositive{}      -> False
-  ParseWarning{}             -> False
+  _                          -> False
 
 classifyWarning :: Warning -> WhichWarnings
 classifyWarning w = case w of
@@ -2358,6 +2359,13 @@ classifyWarning w = case w of
   UnsolvedMetaVariables{}    -> ErrorWarnings
   UnsolvedInteractionMetas{} -> ErrorWarnings
   UnsolvedConstraints{}      -> ErrorWarnings
+  SafeFlagPostulate{}        -> ErrorWarnings
+  SafeFlagPragma{}           -> ErrorWarnings
+  SafeFlagNonTerminating     -> ErrorWarnings
+  SafeFlagTerminating        -> ErrorWarnings
+  SafeFlagPrimTrustMe        -> ErrorWarnings
+  SafeFlagNoPositivityCheck  -> ErrorWarnings
+  SafeFlagPolarity           -> ErrorWarnings
   ParseWarning{}             -> ErrorWarnings
 
 classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
@@ -2630,14 +2638,6 @@ data TypeError
     -- Reflection errors
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
-    -- Safe flag errors
-        | SafeFlagPostulate C.Name
-        | SafeFlagPragma [String]
-        | SafeFlagNonTerminating
-        | SafeFlagTerminating
-        | SafeFlagPrimTrustMe
-        | SafeFlagNoPositivityCheck
-        | SafeFlagPolarity
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting

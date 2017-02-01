@@ -1,0 +1,4 @@
+(agda2-info-action "*Error*" "Issue639-2.agda:2,8-16 You tried to load Issue639-2.agda which defines the module Issue639. However, according to the include path this module should be defined in Issue639.agda." nil)
+((last . 3) . (agda2-maybe-goto '("Issue639-2.agda" . 31)))
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")

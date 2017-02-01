@@ -544,6 +544,14 @@ warningHighlighting w = case tcWarning w of
   EmptyRewritePragma{}       -> mempty
   UselessPublic{}            -> mempty
   ParseWarning{}             -> mempty
+  SafeFlagPostulate{}        -> mempty
+  SafeFlagPragma{}           -> mempty
+  SafeFlagNonTerminating     -> mempty
+  SafeFlagTerminating        -> mempty
+  SafeFlagPrimTrustMe        -> mempty
+  SafeFlagNoPositivityCheck  -> mempty
+  SafeFlagPolarity           -> mempty
+
 
 -- | Generate syntax highlighting for termination errors.
 
