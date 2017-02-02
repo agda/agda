@@ -76,7 +76,9 @@ translateTerm tt = case tt of
   TLam{}            -> translateLam tt
   TLit lit          -> return $ translateLit lit
   TCon nm           -> translateCon nm []
-  TLet t0 t1        -> liftM2 Mlet (pure <$> translateBinding t0) (translateTerm t1)
+  TLet t0 t1        -> do
+    var <- freshIdent
+    liftM2 Mlet (pure <$> translateBinding (Just var) t0) (translateTerm t1)
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
     let t = identToVarTerm i
@@ -120,8 +122,11 @@ litToCase l = case l of
   LitNat _ i -> CaseInt . fromInteger $ i
   _          -> error "Unimplemented"
 
-translateBinding :: MonadTranslate m => TTerm -> m Binding
-translateBinding t = Unnamed <$> translateTerm t
+translateBinding :: MonadTranslate m => Maybe Ident -> TTerm -> m Binding
+translateBinding var t =
+  (case var of
+      Nothing -> Unnamed
+      Just var -> Named var) <$> translateTerm t
 
 -- The argument is the lambda itself and not its body.
 translateLam :: MonadTranslate m => TTerm -> m Term
