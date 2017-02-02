@@ -46,9 +46,10 @@ import Agda.Utils.Impossible
 
 setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
+  stPragmaOptions %= Lens.mapSafeMode (Lens.getSafeMode opts ||)
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions opts
-  when (optSafe clo && not (null unsafe)) $ typeError (SafeFlagPragma unsafe)
+  when (Lens.getSafeMode clo && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
   ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
   case ok of
     Left err   -> __IMPOSSIBLE__

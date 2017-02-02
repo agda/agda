@@ -154,8 +154,6 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-# We don't run the `epic-test` because the Epic backend has been
-# disabled. See Issue 1481.
 test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test
 
 .PHONY : quicktest
@@ -255,14 +253,6 @@ lib-interaction :
 	@echo "========== Interaction tests using the standard library =============="
 	@echo "======================================================================"
 	@$(MAKE) -C test/$@
-
-# The Epic backend has been removed. See Issue 1481.
-.PHONY : epic-test
-epic-test :
-	@echo "======================================================================"
-	@echo "============================ Epic backend ============================"
-	@echo "======================================================================"
-	@$(MAKE) -C test/epic
 
 .PHONY : compiler-test
 compiler-test :
@@ -373,7 +363,7 @@ hpc-build:
 	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_OPTS)
 	$(CABAL_CMD) build $(CABAL_OPTS)
 
-agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/fail/Epic/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
+agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
 
 .PHONY: hpc

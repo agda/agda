@@ -23,7 +23,6 @@ config.status
 configure
 dist/
 dist-*/
-Epic
 examples/compiler/main
 hlint-report.html
 MAlonzo
@@ -36,12 +35,9 @@ src/full/tags
 src/full/TAGS
 stack.yaml
 test/compiler/Main
-test/epic/RunTests
-test/epic/tests/bin/
 test/hello
 test/latex-backend/succeed/latex/
 test/succeed/latex/
-test/succeed/EpicNat
 test/succeed/Issue1441
 exec-test*
 pkg-build*

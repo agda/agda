@@ -1,4 +1,4 @@
-SafeFlagPrimTrustMe.agda:9,4-21
+SafeFlagPrimTrustMe.agda:7,4-53
 Cannot use primTrustMe with safe flag
 when checking that the type of the primitive function primTrustMe
-is Set
+is ∀ {a} {A : Set a} {x y : A} → x ≡ y

@@ -288,8 +288,8 @@ deriving instance Show AmbiguousQName
 instance Show Name where
   -- Andreas, 2014-10-02: Reverted to nice printing.
   -- Reason: I do not have time just now to properly fix the
-  -- use of Show Name for pretty printing everywhere, e.g. in
-  -- the Epic backend.  But I want to push the fix for Issue 836 now.
+  -- use of Show Name for pretty printing everywhere.
+  -- But I want to push the fix for Issue 836 now.
   show = prettyShow
 
 -- | Only use this @show@ function in debugging!  To convert an

@@ -72,6 +72,7 @@ import Agda.Interaction.FindFile (checkModuleName)
 -- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -1166,7 +1167,7 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     -- When --safe is active the termination checker (Issue 586) and
     -- positivity checker (Issue 1614) may not be switched off, and
     -- polarities may not be assigned.
-    ds <- ifM (optSafe <$> commandLineOptions)
+    ds <- ifM (Lens.getSafeMode <$> commandLineOptions)
               (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity) ds)
               (return ds)
     toAbstract =<< niceDecls ds
@@ -1175,20 +1176,21 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
     -- was removed. See Issue 1763.
     noNoTermCheck :: C.Declaration -> TCM C.Declaration
-    noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
-      typeError $ SafeFlagNonTerminating
-    noNoTermCheck (C.Pragma (C.TerminationCheckPragma r Terminating)) =
-      typeError $ SafeFlagTerminating
+    noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
+      d <$ (setCurrentRange d $ warning SafeFlagNonTerminating)
+    noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r Terminating)) =
+      d <$ (setCurrentRange d $ warning SafeFlagTerminating)
     noNoTermCheck d = return d
 
     noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
-    noNoPositivityCheck (C.Pragma (C.NoPositivityCheckPragma _)) =
-      typeError $ SafeFlagNoPositivityCheck
+    noNoPositivityCheck d@(C.Pragma (C.NoPositivityCheckPragma _)) =
+      d <$ (setCurrentRange d $ warning SafeFlagNoPositivityCheck)
     noNoPositivityCheck d = return d
 
     noPolarity :: C.Declaration -> TCM C.Declaration
-    noPolarity (C.Pragma C.PolarityPragma{}) = typeError SafeFlagPolarity
-    noPolarity d                             = return d
+    noPolarity d@(C.Pragma C.PolarityPragma{}) =
+      d <$ (setCurrentRange d $ warning SafeFlagPolarity)
+    noPolarity d                               = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
@@ -1334,7 +1336,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.Axiom r f p a i rel _ x t -> do
       -- check that we do not postulate in --safe mode
       clo <- commandLineOptions
-      when (optSafe clo) (typeError (SafeFlagPostulate x))
+      when (Lens.getSafeMode clo) (warning $ SafeFlagPostulate x)
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 

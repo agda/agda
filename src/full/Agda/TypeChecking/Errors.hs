@@ -18,6 +18,10 @@ import Prelude hiding (null)
 import Control.Monad.Reader
 import Control.Monad.State
 
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Foldable (foldMap)
+#endif
+
 import Data.Function
 import Data.List (nub, sortBy, intersperse, isInfixOf)
 import Data.Maybe
@@ -153,6 +157,29 @@ instance PrettyTCM Warning where
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
+    SafeFlagPostulate e -> fsep $
+      pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
+
+    SafeFlagPragma xs ->
+      let plural | length xs == 1 = ""
+                 | otherwise      = "s"
+      in fsep $ [fwords ("Cannot set OPTION pragma" ++ plural)]
+                ++ map text xs ++ [fwords "with safe flag."]
+
+    SafeFlagNonTerminating -> fsep $
+      pwords "Cannot use NON_TERMINATING pragma with safe flag."
+
+    SafeFlagTerminating -> fsep $
+      pwords "Cannot use TERMINATING pragma with safe flag."
+
+    SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
+
+    SafeFlagNoPositivityCheck -> fsep $
+      pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
+
+    SafeFlagPolarity -> fsep $
+      pwords "The POLARITY pragma must not be used in safe mode."
+
     ParseWarning pw -> pretty pw
 
 prettyTCWarnings :: [TCWarning] -> TCM String
@@ -174,6 +201,14 @@ tcWarningsToError ws = typeError $ case ws of
 applyFlagsToTCWarnings :: IgnoreFlags -> [TCWarning] -> TCM [TCWarning]
 applyFlagsToTCWarnings ifs ws = do
 
+  -- For some reason some SafeFlagPragma seem to be created multiple times.
+  -- This is a way to collect all of them and remove duplicates.
+  let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
+  let sfp = case fmap nub (foldMap pragmas ws) of
+              (TCWarning tcst cl:_, sfp) ->
+                 [TCWarning tcst (cl { clValue = SafeFlagPragma sfp })]
+              _           -> []
+
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
   loopingNotOK  <- optTerminationCheck <$> pragmaOptions
@@ -193,8 +228,15 @@ applyFlagsToTCWarnings ifs ws = do
           UselessPublic                -> True
           ParseWarning{}               -> True
           UnreachableClauses{}         -> True
+          SafeFlagPostulate{}          -> True
+          SafeFlagPragma{}             -> False
+          SafeFlagNonTerminating       -> True
+          SafeFlagTerminating          -> True
+          SafeFlagPrimTrustMe          -> True
+          SafeFlagNoPositivityCheck    -> True
+          SafeFlagPolarity             -> True
 
-  return $ filter (cleanUp . tcWarning) ws
+  return $ sfp ++ filter (cleanUp . tcWarning) ws
 
 ---------------------------------------------------------------------------
 -- * Helpers
@@ -309,13 +351,6 @@ errorString err = case err of
   PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
   PropMustBeSingleton                      -> "PropMustBeSingleton"
   RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
-  SafeFlagPostulate{}                      -> "SafeFlagPostulate"
-  SafeFlagPragma{}                         -> "SafeFlagPragma"
-  SafeFlagNonTerminating{}                 -> "SafeFlagNonTerminating"
-  SafeFlagTerminating{}                    -> "SafeFlagTerminating"
-  SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
-  SafeFlagNoPositivityCheck{}              -> "SafeFlagNoPositivityCheck"
-  SafeFlagPolarity{}                       -> "SafeFlagPolarity"
   ShadowedModule{}                         -> "ShadowedModule"
   ShouldBeASort{}                          -> "ShouldBeASort"
   ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
@@ -1170,29 +1205,6 @@ instance PrettyTCM TypeError where
         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
         nameCxt [] = EmptyTel
         nameCxt (x : xs) = ExtendTel (defaultDom (El I.Prop $ I.Var 0 [])) $ NoAbs (show x) $ nameCxt xs
-
-    SafeFlagPostulate e -> fsep $
-      pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
-
-    SafeFlagPragma xs ->
-      let plural | length xs == 1 = ""
-                 | otherwise      = "s"
-      in fsep $ [fwords ("Cannot set OPTION pragma" ++ plural)]
-                ++ map text xs ++ [fwords "with safe flag."]
-
-    SafeFlagNonTerminating -> fsep $
-      pwords "Cannot use NON_TERMINATING pragma with safe flag."
-
-    SafeFlagTerminating -> fsep $
-      pwords "Cannot use TERMINATING pragma with safe flag."
-
-    SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
-
-    SafeFlagNoPositivityCheck -> fsep $
-      pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
-
-    SafeFlagPolarity -> fsep $
-      pwords "The POLARITY pragma must not be used in safe mode."
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
