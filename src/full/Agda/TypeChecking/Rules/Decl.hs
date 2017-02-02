@@ -19,7 +19,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
-import Agda.Compiler.HaskellTypes
+import Agda.Compiler.MAlonzo.HaskellTypes
 import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
