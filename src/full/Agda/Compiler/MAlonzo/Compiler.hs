@@ -33,6 +33,7 @@ import Agda.Compiler.Common
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
+import Agda.Compiler.MAlonzo.HaskellTypes
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
@@ -240,9 +241,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
-      _ | Just (HsDefn hsty hs) <- compiledHaskell compiled -> do
+      _ | Just (HsDefn hs) <- compiledHaskell compiled -> do
         -- Make sure we have imports for all names mentioned in the type.
-        ty <- normalise ty
+        hsty <- haskellType q
+        ty   <- normalise ty
         sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
         return $ fbWithType hsty (fakeExp hs)
 
@@ -313,12 +315,13 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
         return $ tvaldecl q Inductive noFields ar [cd] cl
       AbstractDefn -> __IMPOSSIBLE__
   where
-  function :: Maybe HaskellExport -> TCM [HS.Decl] -> TCM [HS.Decl]
+  function :: Maybe String -> TCM [HS.Decl] -> TCM [HS.Decl]
   function mhe fun = do
     ccls <- mkwhere <$> fun
     case mhe of
       Nothing -> return ccls
-      Just (HsExport t name) -> do
+      Just name -> do
+        t <- haskellType q
         let tsig :: HS.Decl
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
@@ -418,7 +421,8 @@ intros n cont = freshNames n $ \xs ->
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
-  Just (HsDefn ty hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
+  Just (HsDefn hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
+  ty <- haskellType q
   return [ HS.TypeSig [unqhname "check" q] $ fakeType ty
          , HS.FunBind [HS.Match (unqhname "check" q) []
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
@@ -429,7 +433,7 @@ checkCover q ty n cs = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c = do
         a <- erasedArity c
-        Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
+        Just (HsDefn hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
         return $ HS.Alt pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
 

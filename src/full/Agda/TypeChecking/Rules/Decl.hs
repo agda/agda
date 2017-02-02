@@ -19,7 +19,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
-import Agda.Compiler.MAlonzo.HaskellTypes
+-- import Agda.Compiler.MAlonzo.HaskellTypes
 import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
@@ -636,21 +636,7 @@ checkPragma r p =
               "as their corresponding datatype definition,"
           let addCompiledData cs = do
                 addHaskellType x hs
-                let computeHaskellType c = do
-                      def <- getConstInfo c
-                      let Constructor{ conPars = np } = theDef def
-                          underPars 0 a = haskellType a
-                          underPars n a = do
-                            a <- reduce a
-                            case unEl a of
-                              Pi a (NoAbs _ b) -> underPars (n - 1) b
-                              Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
-                              _       -> __IMPOSSIBLE__
-                      ty <- underPars np $ defType def
-                      reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show c ++ ": " ++ ty
-                      return ty
-                hts <- mapM computeHaskellType cs
-                sequence_ $ zipWith3 addHaskellCode cs hts hcs
+                sequence_ $ zipWith addHaskellCode cs hcs
           case theDef def of
             Datatype{dataCons = cs}
               | length cs /= length hcs -> do
@@ -674,10 +660,7 @@ checkPragma r p =
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
-          let addCompiled = do
-                ty <- haskellType $ defType def
-                reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-                addHaskellCode x ty hs
+          let addCompiled = addHaskellCode x hs
           case theDef def of
             Axiom{} -> addCompiled
             Function{} -> addCompiled
@@ -686,18 +669,12 @@ checkPragma r p =
         A.CompiledExportPragma x hs -> do
           def <- getConstInfo x
           let correct = case theDef def of
-                            -- Axiom{} -> do
-                            --   ty <- haskellType $ defType def
-                            --   reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-                            --   addHaskellCode x ty hs
                             Function{} -> True
                             Constructor{} -> False
                             _   -> False
           if not correct
             then typeError $ GenericError "COMPILED_EXPORT directive only works on functions"
-            else do
-              ty <- haskellType $ defType def
-              addHaskellExport x ty hs
+            else addHaskellExport x hs
         A.CompiledJSPragma x ep ->
           addJSCode x ep
         A.CompiledUHCPragma x cr -> do

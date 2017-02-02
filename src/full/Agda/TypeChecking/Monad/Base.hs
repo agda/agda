@@ -1353,11 +1353,9 @@ type HaskellType = String
 type JSCode      = String
 
 data HaskellRepresentation
-      = HsDefn HaskellType HaskellCode
+      = HsDefn HaskellCode
       | HsType HaskellType
   deriving (Typeable, Show)
-
-data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
 
 data CoreRepresentation
       = CrDefn CR.CoreExpr -- ^ Core code for functions.
@@ -1375,7 +1373,7 @@ data Polarity
 
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
-  , exportHaskell   :: Maybe HaskellExport
+  , exportHaskell   :: Maybe String
   , compiledJS      :: Maybe JSCode
   , compiledCore    :: Maybe CoreRepresentation
   }
