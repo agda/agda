@@ -15,12 +15,12 @@ For instance @x@ is forced in @sing@ and @n@ is forced in @zero@ and @suc@:
 @
 
 At runtime, forced constructor arguments may be erased as they can be
-recovered from dot patterns.  In the epic backend,
+recovered from dot patterns.  For instance,
 @
   unsing : {A : Set} (x : A) -> Sing x -> A
   unsing .x (sing x) = x
 @
-becomes
+can become
 @
   unsing x sing = x
 @
