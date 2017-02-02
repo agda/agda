@@ -475,7 +475,7 @@ instance Pretty Pragma where
     pretty (DisplayPragma _ lhs rhs) = text "DISPLAY" <+> sep [ pretty lhs <+> text "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = text "NO_POSITIVITY_CHECK"
     pretty (PolarityPragma _ q occs) =
-      hsep (text "NO_POSITIVITY_CHECK" : pretty q : map pretty occs)
+      hsep (text "POLARITY" : pretty q : map pretty occs)
 
 instance Pretty Fixity where
     pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
