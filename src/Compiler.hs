@@ -14,6 +14,8 @@ import           Data.Ix
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe
+import           Data.Set (Set)
+import qualified Data.Set as Set
 import           Malfunction.AST
 
 type MonadTranslate m = (MonadState Int m, MonadReader Env m)
@@ -34,9 +36,33 @@ runReaderEnv allcons ma
       }
 
 translateDef :: MonadReader Env m => QName -> TTerm -> m Binding
-translateDef qnm t = do
-  tt <- translate t
-  return . Recursive . pure $ (nameToIdent qnm, tt)
+translateDef qnm t
+  | isRecursive = do
+      tt <- translate t
+      return . Recursive . pure $ (nameToIdent qnm, tt)
+  | otherwise = do
+      tt <- translate t
+      return (Named (nameToIdent qnm) tt)
+  where
+    isRecursive = Set.member qnm (qnamesInTerm t) -- TODO: is this enough? think of shadowing
+
+qnamesInTerm :: TTerm -> Set QName
+qnamesInTerm t = go t mempty
+  where
+    go:: TTerm -> Set QName -> Set QName
+    go t qs = case t of
+      TDef q -> Set.insert q qs
+      TApp f args -> foldr go qs (f:args)
+      TLam b -> go b qs
+      TCon q -> Set.insert q qs
+      TLet a b -> foldr go qs [a, b]
+      TCase _ _ p alts -> foldr qnamesInAlt (go p qs) alts
+      _  -> qs
+      where
+        qnamesInAlt a qs = case a of
+          TACon q _ t -> Set.insert q (go t qs)
+          TAGuard t b -> foldr go qs [t, b]
+          TALit _ b -> go b qs
 
 translate :: MonadReader Env m => TTerm -> m Term
 translate t = translateTerm t `evalStateT` 0
@@ -64,7 +90,7 @@ translateTerm tt = case tt of
         _ -> do
           d <- translateTerm def
           cs <- mapM translateSwitch alts
-          return (cs ++ pure (anything, d))
+          return (cs ++ [(anything, d)])
       anything :: [Case]
       anything = [CaseAnyInt, Deftag]
   TUnit             -> return unitT
@@ -82,11 +108,10 @@ translateSwitch alt = case alt of
     b <- translateTerm body
     let c = pure $ litToCase pat
     return (c, b)
-  -- TODO: We're probably at least also interested in the the arity at
-  -- this point since it introduces new bindings.
   TACon n _arity t    -> do
     tg <- nameToTag n
     t' <- translateTerm t
+          -- TODO: It is not clear how to deal with bindings in a pattern
     return (pure tg, t')
   TAGuard{}      -> return ([], Mvar "TAGuard")
 
@@ -106,19 +131,14 @@ translateLam lam = do
   where
     translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
     translateLams (TLam body) = do
-      (xs, t) <- translateLams body
       x       <- freshIdent
+      (xs, t) <- translateLams body
       return (x:xs, t)
     translateLams e = do
       e' <- translateTerm e
       return ([], e')
 
---   t <- translateTerm body
---   i <- ident <$> get
---   incr
---   return (Mlambda [i] t)
-
-freshIdent :: MonadTranslate m => m Ident
+freshIdent :: MonadState Int m => m Ident
 freshIdent = do { x <- ident <$> get ; incr ; return x }
 
 
@@ -145,7 +165,7 @@ translateApp ft xst = case ft of
     xs <- mapM translateTerm xst `evalStateT` i
     return $ Mapply f xs
 
-incr :: MonadTranslate m => m ()
+incr :: MonadState Int m => m ()
 incr = modify succ
 
 ident :: Int -> String
@@ -248,7 +268,7 @@ constrTag ns = (Map.! ns) <$> asks _mapConToTag
 -- straight-forward to encode using the scheme described in the documentation
 -- for `translateCon`.
 unitT :: Term
-unitT = Mblock 0 mempty
+unitT = Mblock 0 []
 
 translateName :: QName -> Term
 translateName = Mvar . nameToIdent

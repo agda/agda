@@ -78,10 +78,7 @@ mlfDef alldefs d@Defn{ defName = q } =
     AbstractDefn  -> error "impossible"
     Datatype{}    -> liftIO (putStrLn $ "  data " ++ show q) >> return Nothing
     Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
-    c@Constructor{} -> do
-      liftIO (putStrLn $ "  constructor " ++ show q)
-      liftIO (putStrLn $ "conSrcCon " ++ show (conName $ conSrcCon c))
-      return Nothing
+    Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
 
 -- | Returns a list of constructor names grouped by data type
 getConstructors :: [Defn] -> [[QName]]
@@ -90,10 +87,3 @@ getConstructors = map snd . groupSort . mapMaybe getCons
     getCons :: Defn -> Maybe (QName, QName)
     getCons c@Constructor{} = Just (conData c, conName (conSrcCon c))
     getCons _ = Nothing
-
--- TODO: Can we somehow extract functionality from the TCM-monad and pass
--- it to Mlf.translate? I was thinking that if all we need from the TCM-
--- monad is a way to translate from names to identifiers, then perhaps we
--- could extract such a lookup-function and use it in MonadTranslate.
--- translate :: QName -> TTerm -> TCMT IO Mlf.Binding
--- translate nm = return . Mlf.translateDef nm
