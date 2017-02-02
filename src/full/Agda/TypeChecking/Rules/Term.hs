@@ -854,85 +854,9 @@ scopedExpr :: A.Expr -> TCM A.Expr
 scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 scopedExpr e                      = return e
 
-isRestrict :: Type -> TCM Bool
-isRestrict t0 = do
-  restr <- fmap getPrimName <$> getBuiltin' builtinRestrict
-  case unEl t0 of -- reduce?
-    Def q [Apply l,Apply phi,Apply a] -> return $ Just q == restr
-    _ -> return False
-
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
-checkExpr e t0 = do
-  restr <- fmap getPrimName <$> getBuiltin' builtinRestrict
-  case unEl t0 of -- reduce?
-    Def q [Apply l,Apply phi,Apply a] | Just q == restr -> do
-     ifBlocked (unArg phi) (\ m _ -> postponeTypeCheckingProblem (CheckExpr e t0)
-                                (isInstantiatedMeta m)) $ \ phi' -> do
-         iphi <- intervalView phi'
-         case iphi of
-          IZero -> checkExpr' e t0
-          _ -> do
-           gamma <- getContext
-           gamma_tel <- getContextTelescope
-           ts <- forallFaceMaps phi' (\ _ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
-             gamma' <- getContext
-             let (l_sigma, a_sigma) = applySubst sigma (unArg l, unArg a)
-             tel <- getContextTelescope
-             u <- checkExpr' e =<< (el' (pure l_sigma) $ pure a_sigma <@> primItIsOne)
-             tinv <- El (mkType 0) <$> primInterval
-             let
-                 pats :: [NamedArg DeBruijnPattern]
-                 pats = teleNamedArgs gamma_tel
---type DeBruijnPattern = Pattern' DBPatVar
-
-                 mkConP q = ConP (ConHead q Inductive []) (noConPatternInfo { conPType = Just (Arg defaultArgInfo tinv) })
-                                                           []
-                 adjusted :: [NamedArg DeBruijnPattern]
-                 adjusted = map (fmap (fmap (\ p@(VarP v) -> case lookupS sigma (dbPatVarIndex v) of
-                                                                      t@(Con q _ []) -> DotP t
-                                                                      Var j [] -> VarP (v {dbPatVarIndex = j})
-                                                                      _        -> p))) pats
---             reportSDoc "tc.partial" 80 $ text (show adjusted)
-             reportSDoc "tc.partial" 50 $ prettyTCM sigma
-             ty <- elInf $ primPartialP <#> pure l_sigma <@> primIOne <@> pure a_sigma
-             let c = Clause { clauseTel = tel
-                          , clauseType = Just $ Arg defaultArgInfo ty
-                          , clauseBody = Just $ (Lam defaultArgInfo $ NoAbs "_" $ u) -- is u in the right telescope?
-                                  -- foldr (\ nm b -> Bind $ mkAbs nm b) (Body (Lam defaultArgInfo $ NoAbs "_" $ u)) (teleNames tel)
-                          , namedClausePats = adjusted
-                          , clauseFullRange = noRange
-                          , clauseLHSRange = noRange
-                          , clauseCatchall = False
-                          }
-
-             return (u,c)
-           case ts of
-             [(_,c)] -> do
-               t0 <- elInf $ primPartialP <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
-               q <- inTopContext $ do
-                    bname <- getPrimName <$> primPartial
-                    q <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName bname)
-
-                    let ty = (abstract gamma_tel t0)
-                    reportSDoc "tc.partial" 60 $ prettyTCM ty
-                    addConstant q (defaultDefn defaultArgInfo q ty (emptyFunction { funClauses = [c]
-                                                                                  -- TODO Andrea: figure out the right numbers.
-                                                                                  , funExtLam = Just (ExtLamInfo 0 0)
-                                                                                  }))
-                    return q
-               args <- getContextArgs
-               let t = (Def q [] `apply` args)
-               reportSDoc "tc.partial" 50 $ text (show c)
---            reportSDoc "tc.partial" 50 $ prettyTCM t
-               reportSDoc "tc.partial" 50 $ prettyTCM =<< reduce t
-               return t
-             _   -> typeError $ GenericError "Each component in a system must be a face map"
-    _ -> checkExpr' e t0
-
--- | Type check an expression.
-checkExpr' :: A.Expr -> Type -> TCM Term
-checkExpr' e t0 =
+checkExpr e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
   traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared =<< do
     reportSDoc "tc.term.expr.top" 15 $
@@ -1851,7 +1775,6 @@ checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Ter
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
   conId     <- fmap getPrimName <$> getBuiltin' builtinConId
-  psingl    <- fmap getPrimName <$> getBuiltin' builtinPSingl
   pOr       <- fmap primFunName <$> getPrimitive' "primPOr"
   pComp       <- fmap primFunName <$> getPrimitive' "primComp"
   mglue     <- getPrimitiveName' builtin_glue
@@ -1919,14 +1842,6 @@ checkHeadApplication e t hd args = do
                           --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
                           --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
                           --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G,phi |- p = \ i . x
-                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
-    (A.Def c) | Just c == psingl -> do
-       (f, t0) <- inferHead hd
-       expandLast <- asks envExpandLast
-       checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 ->
-                      case allApplyElims vs of
-                       Just [_,_,_,v] -> do
-                          coerce (unArg v) t1 t
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
     (A.Def c) | Just c == pOr -> do
                     defaultResult' $ Just $ \ vs t1 -> do
@@ -2109,10 +2024,9 @@ checkNamedArg arg@(Arg info e0) t0 = do
           [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
           ]
     reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
-    restrict <- isRestrict t0  -- TODO Andrea: remove, it's a quick hack to keep r[_] working
     let checkU = checkMeta (newMetaArg info x) t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0
-    if (not $ isHole e) || restrict then checkExpr e t0 else localScope $ do
+    if (not $ isHole e) then checkExpr e t0 else localScope $ do
       -- Note: we need localScope here,
       -- as scopedExpr manipulates the scope in the state.
       -- However, we may not pull localScope over checkExpr!

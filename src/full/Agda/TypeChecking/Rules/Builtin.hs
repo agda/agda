@@ -114,19 +114,6 @@ coreBuiltins =
   , (builtinIOne               |-> BuiltinDataCons (elInf primInterval))
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinPartialP           |-> BuiltinPrim "primPartialP" (const $ return ()))
-  , (builtinRestrict           |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                     nPi "phi" tinterval $
-                                                     nPi "A" (elInf $ primPartial <#> (primLevelSuc <@> varM 1)
-                                                                                  <@> (pure $ Sort $ varSort 1)
-                                                                                  <@> varM 0) $
-                                                     return (sort $ Inf)))
-  , (builtinPSingl             |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                     hPi "i"  tinterval $
-                                                     hPi "A" (elInf $ primPartial <#> (primLevelSuc <@> varM 1)
-                                                                                  <@> (pure $ Sort $ varSort 1)
-                                                                                  <@> varM 0) $
-                                                     (El (varSort 2) <$> primRestrict <#> varM 2 <@> varM 1 <@> varM 0)
-                                                     --> (elInf $ primPartialP <#> varM 2 <@> varM 1 <@> varM 0)))
   , (builtinIsOne              |-> builtinPostulate (tinterval --> return (sort $ Inf)))
   , (builtinItIsOne            |-> builtinPostulate (elInf $ primIsOne <@> primIOne))
   , (builtinIsOne1             |-> builtinPostulate (runNamesT [] $
