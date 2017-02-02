@@ -1612,13 +1612,13 @@ inferDef mkTerm x =
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
     let drel = defRelevance d
-    when (drel /= Relevant) $ do
+    when (True || drel /= Relevant) $ do
       rel <- asks envRelevance
       reportSDoc "tc.irr" 50 $ vcat
         [ text "declaration relevance =" <+> text (show drel)
         , text "context     relevance =" <+> text (show rel)
         ]
-      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x drel rel
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
