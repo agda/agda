@@ -77,8 +77,10 @@ translateTerm tt = case tt of
   TLit lit          -> return $ translateLit lit
   TCon nm           -> translateCon nm []
   TLet t0 t1        -> do
+    t0' <- translateTerm t0
     var <- freshIdent
-    liftM2 Mlet (pure <$> translateBinding (Just var) t0) (translateTerm t1)
+    t1' <- translateTerm t1
+    return (Mlet [Named var t0'] t1')
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
     let t = identToVarTerm i
@@ -132,7 +134,7 @@ translateBinding var t =
 translateLam :: MonadTranslate m => TTerm -> m Term
 translateLam lam = do
   (is, t) <- translateLams lam
-  return $ Mlambda is t
+  return $ Mlambda (reverse is) t
   where
     translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
     translateLams (TLam body) = do
