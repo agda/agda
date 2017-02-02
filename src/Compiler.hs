@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (runReaderEnv, translateDef, Term, Binding) where
+module Compiler (runReaderEnv, translate', translateDef, Term, Binding) where
 
 import           Agda.Syntax.Common (NameId)
 import           Agda.Syntax.Literal
@@ -63,6 +63,9 @@ qnamesInTerm t = go t mempty
           TACon q _ t -> Set.insert q (go t qs)
           TAGuard t b -> foldr go qs [t, b]
           TALit _ b -> go b qs
+
+translate' :: [[QName]] -> [TTerm] -> [Term]
+translate' qs = runReaderEnv qs . mapM translate
 
 translate :: MonadReader Env m => TTerm -> m Term
 translate t = translateTerm t `evalStateT` 0

@@ -8,11 +8,14 @@ import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 import Malfunction.AST
 
+translate'1 :: TTerm -> Term
+translate'1 = head . translate' [] . pure
+
 test_translate :: [TestTree]
 test_translate =
   -- Tests that the deBruijn index references the *closest* binding.
   [ testCase "sequences lambda-expressions"
-    $   translate (TLam (TLam (TVar 0)))
+    $   translate'1 (TLam (TLam (TVar 0)))
     @?= Mlambda ["v1", "v0"] (Mvar "v0")
 -- TODO: Still not sure what this should translate to:
 --  , testCase "pattern match constructor"
