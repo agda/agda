@@ -610,17 +610,6 @@ checkPragma r p =
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
         A.RewritePragma q   -> addRewriteRule q
-        A.CompiledDeclareDataPragma x hs -> do
-          def <- getConstInfo x
-          assertCurrentModule x $
-              "COMPILED_DECLARE_DATA directives must appear in the same module " ++
-              "as their corresponding datatype definition,"
-          case theDef def of
-            Datatype{} -> addHaskellType x hs
-            Axiom{}    -> -- possible when the data type has only been declared yet
-              addHaskellType x hs
-            _          -> typeError $ GenericError
-                          "COMPILED_DECLARE_DATA directive only works on data types"
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x
           case theDef def of

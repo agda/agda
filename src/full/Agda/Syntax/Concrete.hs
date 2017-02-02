@@ -377,7 +377,6 @@ data Pragma
   | BuiltinPragma             Range String Expr
   | RewritePragma             Range [QName]
   | CompiledDataPragma        Range QName String [String]
-  | CompiledDeclareDataPragma Range QName String
   | CompiledTypePragma        Range QName String
   | CompiledPragma            Range QName String
   | CompiledExportPragma      Range QName String
@@ -648,7 +647,6 @@ instance HasRange Pragma where
   getRange (BuiltinPragma r _ _)             = r
   getRange (RewritePragma r _)               = r
   getRange (CompiledDataPragma r _ _ _)      = r
-  getRange (CompiledDeclareDataPragma r _ _) = r
   getRange (CompiledTypePragma r _ _)        = r
   getRange (CompiledPragma r _ _)            = r
   getRange (CompiledExportPragma r _ _)      = r
@@ -825,7 +823,6 @@ instance KillRange Pragma where
   killRange (BuiltinPragma _ s e)             = killRange1 (BuiltinPragma noRange s) e
   killRange (RewritePragma _ qs)              = killRange1 (RewritePragma noRange) qs
   killRange (CompiledDataPragma _ q s ss)     = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
-  killRange (CompiledDeclareDataPragma _ q s) = killRange1 (\q -> CompiledDeclareDataPragma noRange q s) q
   killRange (CompiledTypePragma _ q s)        = killRange1 (\q -> CompiledTypePragma noRange q s) q
   killRange (CompiledPragma _ q s)            = killRange1 (\q -> CompiledPragma noRange q s) q
   killRange (CompiledExportPragma _ q s)      = killRange1 (\q -> CompiledExportPragma noRange q s) q
@@ -957,7 +954,6 @@ instance NFData Pragma where
   rnf (BuiltinPragma _ a b)             = rnf a `seq` rnf b
   rnf (RewritePragma _ a)               = rnf a
   rnf (CompiledDataPragma _ a b c)      = rnf a `seq` rnf b `seq` rnf c
-  rnf (CompiledDeclareDataPragma _ a b) = rnf a `seq` rnf b
   rnf (CompiledTypePragma _ a b)        = rnf a `seq` rnf b
   rnf (CompiledPragma _ a b)            = rnf a `seq` rnf b
   rnf (CompiledExportPragma _ a b)      = rnf a `seq` rnf b

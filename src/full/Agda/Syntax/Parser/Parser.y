@@ -133,7 +133,6 @@ import Agda.Utils.Impossible
     'COMPILED'                { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $$ }
-    'COMPILED_DECLARE_DATA'   { TokKeyword KwCOMPILED_DECLARE_DATA $$ }
     'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
     'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
@@ -264,7 +263,6 @@ Token
     | 'COMPILED'                { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $1 }
-    | 'COMPILED_DECLARE_DATA'   { TokKeyword KwCOMPILED_DECLARE_DATA $1 }
     | 'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $1 }
     | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
     | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
@@ -1377,7 +1375,6 @@ DeclarationPragma
   | CompiledPragma           { $1 }
   | CompiledExportPragma     { $1 }
   | CompiledDataPragma       { $1 }
-  | CompiledDeclareDataPragma { $1 }
   | CompiledTypePragma       { $1 }
   | CompiledJSPragma         { $1 }
   | CompiledUHCPragma        { $1 }
@@ -1428,11 +1425,6 @@ CompiledExportPragma :: { Pragma }
 CompiledExportPragma
   : '{-#' 'COMPILED_EXPORT' PragmaQName PragmaString '#-}'
     { CompiledExportPragma (getRange ($1,$2,$3,$5)) $3 $4 }
-
-CompiledDeclareDataPragma :: { Pragma }
-CompiledDeclareDataPragma
-  : '{-#' 'COMPILED_DECLARE_DATA' PragmaQName PragmaStrings '#-}'
-    { CompiledDeclareDataPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledTypePragma :: { Pragma }
 CompiledTypePragma
