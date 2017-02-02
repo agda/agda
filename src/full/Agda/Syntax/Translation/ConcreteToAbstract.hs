@@ -1176,18 +1176,19 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     -- was removed. See Issue 1763.
     noNoTermCheck :: C.Declaration -> TCM C.Declaration
     noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
-      d <$ warning SafeFlagNonTerminating
+      d <$ (setCurrentRange d $ warning SafeFlagNonTerminating)
     noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r Terminating)) =
-      d <$ warning SafeFlagTerminating
+      d <$ (setCurrentRange d $ warning SafeFlagTerminating)
     noNoTermCheck d = return d
 
     noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
     noNoPositivityCheck d@(C.Pragma (C.NoPositivityCheckPragma _)) =
-      d <$ warning SafeFlagNoPositivityCheck
+      d <$ (setCurrentRange d $ warning SafeFlagNoPositivityCheck)
     noNoPositivityCheck d = return d
 
     noPolarity :: C.Declaration -> TCM C.Declaration
-    noPolarity d@(C.Pragma C.PolarityPragma{}) = d <$ warning SafeFlagPolarity
+    noPolarity d@(C.Pragma C.PolarityPragma{}) =
+      d <$ (setCurrentRange d $ warning SafeFlagPolarity)
     noPolarity d                               = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
