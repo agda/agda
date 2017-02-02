@@ -243,14 +243,6 @@ install:
     fi
 
 ##############################################################################
-# Installing Epic
-
-# The Epic backend has been removed. See Issue 1481.
-
-  # - sudo apt-get install libgc-dev
-  # - cabal install epic
-
-##############################################################################
 # Getting the standard library
 
   - if [[ $TEST = "MAIN" ]]; then

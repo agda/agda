@@ -22,8 +22,7 @@ default : ac \
           relocatable-interfaces \
           simplelib \
           view \
-          test \
-          # epic
+          test
 
 agda = $(AGDA_BIN)
 
@@ -155,19 +154,6 @@ malonzo : compiler/main.agda
 				# checked.
 	@rm -rf compiler/main compiler/MAlonzo
 	@$(agda) --compile --compile-dir=compiler -icompiler $<
-	@./compiler/main
-	@$(echo) "ok"
-
-# The Epic backend was removed in Agda 2.4.2.3.
-.PHONY : epic
-epic : compiler/main.agda
-	@$(echo) "Testing the Epic backend"
-	@$(agda) --ignore-interfaces --epic --compile-dir=compiler -icompiler $<
-	@./compiler/main
-				# Compilation works also if the code has already been type
-				# checked.
-	@rm -rf compiler/main compiler/Epic
-	@$(agda) --epic --compile-dir=compiler -icompiler $<
 	@./compiler/main
 	@$(echo) "ok"
 
