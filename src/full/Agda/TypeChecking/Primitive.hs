@@ -1159,7 +1159,7 @@ prim_glue' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       hPi' "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
@@ -1181,7 +1181,7 @@ prim_coglue' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       hPi' "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <@> o)) $ \ f ->
        (el' la a --> el' lb (cl primCoGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
@@ -1204,7 +1204,7 @@ prim_mcoglue' = do
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "lc" (el $ cl primLevel) $ \ lc ->
        hPi' "A" (sort . tmSort <$> la) $ \ bA ->
-       hPi' "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' la bA --> el' lb (bT <@> o)) $ \ f ->
        let gg = el' lb (cl primCoGlue <#> la <#> lb <@> bA <@> φ <@> bT <@> f) in
@@ -1231,7 +1231,7 @@ prim_unglue' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       hPi' "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
