@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
 module Compiler (runReaderEnv, translate', translateDef, Term, Binding) where
@@ -22,6 +23,7 @@ type MonadTranslate m = (MonadState Int m, MonadReader Env m)
 
 data Env = Env {
   _mapConToTag :: Map QName Int
+  , _nextIdx :: Int
   }
   deriving (Show)
 
@@ -33,6 +35,7 @@ runReaderEnv allcons ma
     tagRange = (0, 199)
     mkEnv = Env {
       _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
+      , _nextIdx = 0
       }
 
 translateDef :: MonadReader Env m => QName -> TTerm -> m Binding
@@ -44,7 +47,7 @@ translateDef qnm t
       tt <- translate t
       return (Named (nameToIdent qnm) tt)
   where
-    isRecursive = Set.member qnm (qnamesInTerm t) -- TODO: is this enough? think of shadowing
+    isRecursive = Set.member qnm (qnamesInTerm t) -- TODO: is this enough?
 
 qnamesInTerm :: TTerm -> Set QName
 qnamesInTerm t = go t mempty
@@ -72,7 +75,7 @@ translate t = translateTerm t `evalStateT` 0
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
-  TVar i            -> return . identToVarTerm $ i
+  TVar i            -> identToVarTerm i
   TPrim tp          -> return $ wrapPrimInLambda tp
   TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
@@ -81,12 +84,11 @@ translateTerm tt = case tt of
   TCon nm           -> translateCon nm []
   TLet t0 t1        -> do
     t0' <- translateTerm t0
-    var <- freshIdent
-    t1' <- translateTerm t1
+    (var, t1') <- introVar (translateTerm t1)
     return (Mlet [Named var t0'] t1')
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
-    let t = identToVarTerm i
+    t <- identToVarTerm i
     alts' <- alternatives
     return $ Mswitch t alts'
     where
@@ -105,8 +107,11 @@ translateTerm tt = case tt of
   TErased           -> error "Unimplemented"
   TError err        -> error $ "Error: " ++ show err
 
-identToVarTerm :: Int -> Term
-identToVarTerm = Mvar . ident
+identToVarTerm :: MonadReader Env m => Int -> m Term
+identToVarTerm i = do
+  ni <- asks _nextIdx
+  return (Mvar (ident (ni - i - 1)))
+
 
 translateSwitch :: MonadTranslate m => TAlt -> m ([Case], Term)
 translateSwitch alt = case alt of
@@ -137,20 +142,28 @@ translateBinding var t =
 translateLam :: MonadTranslate m => TTerm -> m Term
 translateLam lam = do
   (is, t) <- translateLams lam
-  return $ Mlambda (reverse is) t
+  return $ Mlambda is t
   where
     translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
     translateLams (TLam body) = do
-      x       <- freshIdent
-      (xs, t) <- translateLams body
-      return (x:xs, t)
+      -- x       <- freshIdent
+      (thisVar, (xs, t)) <- introVar (translateLams body)
+      return (thisVar:xs, t)
     translateLams e = do
       e' <- translateTerm e
       return ([], e')
 
-freshIdent :: MonadState Int m => m Ident
-freshIdent = do { x <- ident <$> get ; incr ; return x }
+-- freshIdent :: MonadState Int m => m Ident
+-- freshIdent = do { x <- ident <$> get ; incr ; return x }
 
+
+introVar :: MonadReader Env m => m a -> m (Ident, a)
+introVar ma = do
+  name <- nextIdent
+  r <- local incrNextIdent ma
+  return (name, r)
+    where incrNextIdent e@Env{..} = e{_nextIdx = _nextIdx + 1}
+          nextIdent = ident <$> asks _nextIdx
 
 -- This is really ugly, but I've done this for the reason mentioned
 -- in `translatePrim'`. Note that a similiar "optimization" could be
