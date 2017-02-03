@@ -16,7 +16,10 @@ test_translate =
   -- Tests that the deBruijn index references the *closest* binding.
   [ testCase "sequences lambda-expressions"
     $   translate'1 (TLam (TLam (TVar 0)))
-    @?= Mlambda ["v1", "v0"] (Mvar "v0")
+    @?= Mlambda ["v0", "v1"] (Mvar "v1")
+  , testCase "de Bruijn indices" $
+    translate'1 (TLam (TApp (TVar 0) [TLam (TVar 1)]))
+    @?= Mlambda ["v0"] (Mapply (Mvar "v0") [Mlambda ["v1"] (Mvar "v0")])
 -- TODO: Still not sure what this should translate to:
 --  , testCase "pattern match constructor"
 --    $   translate patternMatchConstructor
