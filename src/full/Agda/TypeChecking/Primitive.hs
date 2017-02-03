@@ -785,7 +785,7 @@ primComp = do
     let
         ineg t = (unview . INeg . argN) <$> t
         imax u t = do u <- u; t <- t; return $ unview (IMax (argN u) (argN t))
-        iz :: Monad m => m Term
+        iz :: Applicative m => m Term
         iz = pure $ unview IZero
     case ts of
       [l,c,phi,u,a0] -> do
@@ -1458,8 +1458,12 @@ pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
    toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
    toFinitePi _               = __IMPOSSIBLE__
 
-
-el' :: Monad m => m Term -> m Term -> m Type
+#if __GLASGOW_HASKELL__ <= 708
+el' :: (Functor m, Applicative m, Monad m)
+#else
+el' :: Monad m
+#endif
+    => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
 elInf :: Functor m => m Term -> m Type
@@ -1504,7 +1508,7 @@ io t = primIO <@> t
 path :: TCM Term -> TCM Term
 path t = primPath <@> t
 
-el :: Monad tcm => tcm Term -> tcm Type
+el :: Functor tcm => tcm Term -> tcm Type
 el t = El (mkType 0) <$> t
 
 tset :: Monad tcm => tcm Type

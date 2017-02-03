@@ -3,7 +3,9 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
-import Data.Functor ((<$))
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Functor ( (<$), (<$>) )
+#endif
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

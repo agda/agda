@@ -78,13 +78,18 @@ inCxt ctx a = do
 
 
 -- closed terms
-cl' :: Monad m => a -> NamesT m a
+cl' :: Applicative m => a -> NamesT m a
 cl' = pure
 
 cl :: Monad m => m a -> NamesT m a
 cl = lift
 
-open :: (Monad m, Subst t a) => a -> NamesT m (NamesT m a)
+open :: ( Monad m
+#if __GLASGOW_HASKELL__ <= 708
+        , Applicative m
+#endif
+        , Subst t a
+        ) => a -> NamesT m (NamesT m a)
 open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
@@ -94,13 +99,32 @@ bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
-bind :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
+bind :: ( Monad m
+#if __GLASGOW_HASKELL__ <= 708
+        , Functor m
+#endif
+        , Subst t' b
+        , DeBruijn b
+        , Subst t a
+        , Free a
+        ) =>
+        ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
 bind n f = mkAbs n <$> bind' n f
 
-glam :: Monad m => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
+#if __GLASGOW_HASKELL__ <= 708
+glam :: (Functor m, Monad m)
+#else
+glam :: Monad m
+#endif
+     => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 glam info n f = Lam info <$> bind n f
 
-lam :: Monad m => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
+#if __GLASGOW_HASKELL__ <= 708
+lam :: (Functor m, Monad m)
+#else
+lam :: Monad m
+#endif
+    => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 lam n f = glam defaultArgInfo n f
 
 
