@@ -331,9 +331,8 @@ checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ show xs
-  cubical <- optCubical <$> pragmaOptions
   let numbinds = length xs
-      possiblePath = cubical && numbinds == 1
+      possiblePath = numbinds == 1
                    && (case unScope typ of
                          A.Underscore{} -> True
                          _              -> False)
@@ -345,12 +344,15 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
     else useTargetType tel btyp
   where
     trySeeingIfPath = do
+      cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
-
-      ifBlockedType target postpone $ \tgt -> do
+      let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
+      ifBlockedType target postpone' $ \tgt -> do
           let t = ignoreSharing <$> tgt
-              fallback = dontUseTargetType
-          ifPath t fallback $ checkPath b body t
+          ifPath t dontUseTargetType $
+            if cubical then checkPath b body t
+                       else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
+
     postpone = \ m tgt -> postponeTypeCheckingProblem_ $ CheckExpr (A.Lam A.exprNoRange (A.DomainFull (A.TypedBindings noRange b)) body) tgt
     dontUseTargetType = do
       -- Checking λ (xs : argsT) → body : target
