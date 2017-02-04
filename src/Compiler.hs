@@ -17,7 +17,9 @@ import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import           Data.Tuple.Extra
 import           Malfunction.AST
+
 
 type MonadTranslate m = (MonadState Int m, MonadReader Env m)
 
@@ -153,17 +155,20 @@ translateLam lam = do
       e' <- translateTerm e
       return ([], e')
 
--- freshIdent :: MonadState Int m => m Ident
--- freshIdent = do { x <- ident <$> get ; incr ; return x }
-
+introVars :: MonadReader Env m => Int -> m a -> m ([Ident], a)
+introVars k ma = do
+  (names, e') <- nextIdxs k
+  r <- local (const e') ma
+  return (names, r)
+  where
+    nextIdxs :: MonadReader Env m => Int -> m ([Ident], Env)
+    nextIdxs k = do
+      i0 <- asks _nextIdx
+      e <- ask
+      return (map ident [i0..i0 + k - 1], e{_nextIdx = _nextIdx e + k})
 
 introVar :: MonadReader Env m => m a -> m (Ident, a)
-introVar ma = do
-  name <- nextIdent
-  r <- local incrNextIdent ma
-  return (name, r)
-    where incrNextIdent e@Env{..} = e{_nextIdx = _nextIdx + 1}
-          nextIdent = ident <$> asks _nextIdx
+introVar ma = first head <$> introVars 1 ma
 
 -- This is really ugly, but I've done this for the reason mentioned
 -- in `translatePrim'`. Note that a similiar "optimization" could be
