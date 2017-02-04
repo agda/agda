@@ -358,8 +358,8 @@ instance Apply Clause where
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
             LitP{}  -> __IMPOSSIBLE__
-            ConP q _ [] -> mkSub tm n ps vs
-            ConP{}  -> __IMPOSSIBLE__
+            p'@ConP{} | noVarP p'  -> mkSub tm n ps vs
+                      | otherwise  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
         mkSub _ _ _ _ = __IMPOSSIBLE__
 
@@ -377,10 +377,13 @@ instance Apply Clause where
             VarP (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
             LitP{}              -> __IMPOSSIBLE__
-            ConP q _ [] -> newTel n tel ps vs
-            ConP{}              -> __IMPOSSIBLE__
+            p'@ConP{} | noVarP p' -> newTel n tel ps vs
+                      | otherwise -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
         newTel _ tel _ _ = __IMPOSSIBLE__
+
+        noVarP :: Pattern' DBPatVar  -> Bool
+        noVarP p = null [ () | Left{} <- map unArg $ patternVars $ defaultArg p ]
 
         -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
         subTel i v EmptyTel = __IMPOSSIBLE__
