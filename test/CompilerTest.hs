@@ -2,6 +2,7 @@ module CompilerTest where
 
 -- TODO: Emacs keeps complaining that Test.Tasty.Discover is a member
 -- of a hidden package and keeps prompting me to add it to the .cabal-file.
+-- Solution M-x haskell-session-change-target -> agda2mlf:test
 import Test.Tasty.Discover
 import Compiler
 import Agda.Syntax.Treeless

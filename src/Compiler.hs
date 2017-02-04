@@ -255,8 +255,9 @@ wrapPrimInLambda tprim = case op of
 nameToTag :: MonadReader Env m => QName -> m Case
 nameToTag nm =
   ifM (isConstructor nm)
-    (Tag <$> constrTag nm)
-    (return . Tag . fromEnum . nameId . qnameName $ nm)
+  (Tag <$> constrTag nm)
+  (error "nameToTag only implemented for constructors")
+    -- (return . Tag . fromEnum . nameId . qnameName $ nm)
 
 
 isConstructor :: MonadReader Env m => QName -> m Bool
