@@ -10,7 +10,6 @@ import           Agda.Syntax.Treeless
 import           Control.Monad
 import           Control.Monad.Extra
 import           Control.Monad.Reader
-import           Control.Monad.State
 import           Data.Ix
 import           Data.Map (Map)
 import qualified Data.Map as Map
@@ -21,7 +20,7 @@ import           Data.Tuple.Extra
 import           Malfunction.AST
 
 
-type MonadTranslate m = (MonadState Int m, MonadReader Env m)
+type MonadTranslate m = (MonadReader Env m)
 
 data Env = Env {
   _mapConToTag :: Map QName Int
@@ -76,11 +75,11 @@ translate' :: [[QName]] -> [TTerm] -> [Term]
 translate' qs = runReaderEnv qs . mapM translate
 
 translate :: MonadReader Env m => TTerm -> m Term
-translate t = translateTerm t `evalStateT` 0
+translate = translateTerm
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
-  TVar i            -> identToVarTerm i
+  TVar i            -> indexToVarTerm i
   TPrim tp          -> return $ wrapPrimInLambda tp
   TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
@@ -93,7 +92,7 @@ translateTerm tt = case tt of
     return (Mlet [Named var t0'] t1')
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
-    t <- identToVarTerm i
+    t <- indexToVarTerm i
     alts' <- alternatives t
     return $ Mswitch t alts'
     where
@@ -112,8 +111,9 @@ translateTerm tt = case tt of
   TErased           -> error "Unimplemented"
   TError err        -> error $ "Error: " ++ show err
 
-identToVarTerm :: MonadReader Env m => Int -> m Term
-identToVarTerm i = do
+
+indexToVarTerm :: MonadReader Env m => Int -> m Term
+indexToVarTerm i = do
   ni <- asks _nextIdx
   return (Mvar (ident (ni - i - 1)))
 
@@ -136,15 +136,15 @@ translateSwitch tcase alt = case alt of
   TAGuard{}      -> return ([], Mvar "TAGuard")
 
 bindFields :: [Ident] -> Set Int -> Term -> Term -> Term
-bindFields vars used termc body = case mapMaybe bind varsRev of
+bindFields vars used termc body = case map bind varsRev of
   [] -> body
   binds -> Mlet binds body
   where
     varsRev = zip [0..] (reverse vars)
     arity = length vars
     bind (ix, iden)
-      | Set.member ix used = Just (Named iden (Mfield (arity - ix - 1) termc))
-      | otherwise = Just (Named iden (Mint (CInt 0)))
+      | Set.member ix used = Named iden (Mfield (arity - ix - 1) termc)
+      | otherwise = Named iden (Mint (CInt 0))
 
 litToCase :: Literal -> Case
 litToCase l = case l of
@@ -196,23 +196,24 @@ translateApp ft xst = case ft of
     case eOp of
       (Left op) -> case xst of
         [t0]     -> Mintop1 op tp <$> translateTerm t0
-        _        -> error "Malformed!"
+        _        -> error ("Malformed! Unary: " ++ show op)
       (Right op) -> case xst of
         [t0, t1] -> liftM2 (Mintop2 op tp) (translateTerm t0) (translateTerm t1)
-        _        -> error "Malformed!"
+        [t0] -> do
+          -- TODO: review this
+          -- translate (3*) ==> \x -> 3*x
+          (var, t0') <- introVar (translateTerm t0)
+          return (Mlambda [var] (Mintop2 op tp (Mvar var) (t0')))
+        _        -> error ("Malformed! Binary: " ++ show op ++ "\nxst = " ++ show xst)
     where
       (eOp, tp) = primToOpAndType p
   TCon nm -> translateCon nm xst
   _       -> do
-    i <- get
-    f <- translateTerm ft       `evalStateT` i
-    xs <- mapM translateTerm xst `evalStateT` i
+    f <- translateTerm ft
+    xs <- mapM translateTerm xst
     return $ Mapply f xs
 
-incr :: MonadState Int m => m ()
-incr = modify succ
-
-ident :: Int -> String
+ident :: Int -> Ident
 ident i = "v" ++ show i
 
 translateLit :: Literal -> Term
