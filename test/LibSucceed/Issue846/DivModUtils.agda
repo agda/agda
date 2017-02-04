@@ -7,7 +7,7 @@ open import Issue846.OldDivMod
 open import Relation.Nullary
 open import Data.Nat.Properties
 open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
-open import Data.Fin.Properties
+open import Data.Fin.Properties using ( bounded; toℕ-fromℕ≤; toℕ-injective )
 open import Relation.Binary.PropositionalEquality
 open import Function
 open import Data.Product
