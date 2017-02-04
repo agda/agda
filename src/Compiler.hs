@@ -107,8 +107,8 @@ translateTerm tt = case tt of
       anything :: [Case]
       anything = [CaseAnyInt, Deftag]
   TUnit             -> return unitT
-  TSort             -> error "Unimplemented"
-  TErased           -> error "Unimplemented"
+  TSort             -> error ("Unimplemented " ++ show tt)
+  TErased           -> return (Mint (CInt 0)) -- TODO: so... anything can go here?
   TError err        -> error $ "Error: " ++ show err
 
 
