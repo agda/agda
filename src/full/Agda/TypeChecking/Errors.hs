@@ -608,8 +608,8 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match" ++ [prettyA p] ++
       pwords "against irrelevant type" ++ [prettyTCM t]
 
-    DefinitionIsIrrelevant x rel crel -> fsep $
-      text "Identifier" : prettyTCM x : pwords ("is declared " ++ show rel ++ ", so it cannot be used in " ++ show crel ++ " position.")
+    DefinitionIsIrrelevant x -> fsep $
+      text "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
     VariableIsIrrelevant x -> fsep $
       text "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $

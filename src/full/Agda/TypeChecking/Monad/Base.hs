@@ -2455,7 +2455,7 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant A.Pattern (Dom Type)
-        | DefinitionIsIrrelevant QName Relevance Relevance
+        | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
 --        | UnequalLevel Comparison Term Term  -- UNUSED
         | UnequalTerms Comparison Term Term Type
