@@ -58,19 +58,22 @@ mlfDef alldefs d@Defn{ defName = q } =
       case mtt of
         Nothing -> return Nothing
         Just tt -> do
-          let
-              mlf = Mlf.translateDef' (getConstructors alldefs) q tt
-              header c h = let cs = replicate 15 c
-                           in text $ printf "%s %s %s" cs h cs
-              pretty' = text . showBinding
-              sect t dc = text t $+$ nest 2 dc $+$ text ""
           liftIO . putStrLn . render
             $  header '=' (show q)
             $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
-            $$ sect "Malfunction (abstract syntax)" (text . show $ mlf)
+          let
+            mlf = Mlf.translateDef' (getConstructors alldefs) q tt
+            pretty' = text . showBinding
+          liftIO . putStrLn . render $
+            sect "Malfunction (abstract syntax)" (text . show $ mlf)
             $$ sect "Malfunction (concrete syntax)" (pretty' mlf)
           return (Just mlf)
+            where
+              sect t dc = text t $+$ nest 2 dc $+$ text ""
+              header c h = let cs = replicate 15 c
+                           in text $ printf "%s %s %s" cs h cs
+
     Primitive{ primName = s } ->
       liftIO (putStrLn $ "  primitive " ++ s) >> return Nothing
     Axiom         -> return Nothing
