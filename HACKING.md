@@ -1,3 +1,17 @@
+Testing and documenting your changes
+------------------------------------
+
+When you implement a new feature of fix a bug:
+
+1. Document it in `CHANGELOG.md`.
+
+2. Test your changes by running
+
+   ```
+   make clean
+   make test
+   ```
+
 Where to commit changes
 -----------------------
 
