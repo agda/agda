@@ -1,5 +1,10 @@
 AGDA=agda
 
+# Before running `make test` the `fix-agda-whitespace` program should
+# be installed:
+#
+#   cd agda-development-version-path/src/fix-agda-whitespace
+#   cabal install
 test: Everything.agda
 	fix-agda-whitespace --check
 	$(AGDA) -i. -isrc README.agda
