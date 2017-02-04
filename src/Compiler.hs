@@ -94,16 +94,16 @@ translateTerm tt = case tt of
   -- @def@ is the default value if all @alt@s fail.
   TCase i _ def alts -> do
     t <- identToVarTerm i
-    alts' <- alternatives
+    alts' <- alternatives t
     return $ Mswitch t alts'
     where
       -- Case expressions may not have an alternative, this is encoded
       -- by @def@ being TError TUnreachable.
-      alternatives = case def of
-        TError TUnreachable -> mapM translateSwitch alts
+      alternatives t = case def of
+        TError TUnreachable -> mapM (translateSwitch t) alts
         _ -> do
           d <- translateTerm def
-          cs <- mapM translateSwitch alts
+          cs <- mapM (translateSwitch t) alts
           return (cs ++ [(anything, d)])
       anything :: [Case]
       anything = [CaseAnyInt, Deftag]
@@ -118,19 +118,33 @@ identToVarTerm i = do
   return (Mvar (ident (ni - i - 1)))
 
 
-translateSwitch :: MonadTranslate m => TAlt -> m ([Case], Term)
-translateSwitch alt = case alt of
+translateSwitch :: MonadTranslate m => Term -> TAlt -> m ([Case], Term)
+translateSwitch tcase alt = case alt of
 --  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
   TALit pat body -> do
     b <- translateTerm body
     let c = pure $ litToCase pat
     return (c, b)
-  TACon n _arity t    -> do
-    tg <- nameToTag n
-    t' <- translateTerm t
+  TACon con arity t -> do
+    tg <- nameToTag con
+    usedFields <- snd <$> introVars arity
+      (Set.map (\ix -> arity - ix - 1) . Set.filter (<arity) <$> usedVars t)
+    (vars, t') <- introVars arity (translateTerm t)
+    let bt = bindFields vars usedFields tcase t'
           -- TODO: It is not clear how to deal with bindings in a pattern
-    return (pure tg, t')
+    return (pure tg, bt)
   TAGuard{}      -> return ([], Mvar "TAGuard")
+
+bindFields :: [Ident] -> Set Int -> Term -> Term -> Term
+bindFields vars used termc body = case mapMaybe bind varsRev of
+  [] -> body
+  binds -> Mlet binds body
+  where
+    varsRev = zip [0..] (reverse vars)
+    arity = length vars
+    bind (ix, iden)
+      | Set.member ix used = Just (Named iden (Mfield (arity - ix - 1) termc))
+      | otherwise = Just (Named iden (Mint (CInt 0)))
 
 litToCase :: Literal -> Case
 litToCase l = case l of
@@ -253,15 +267,50 @@ wrapPrimInLambda tprim = case op of
 
 -- Questionable implementation:
 nameToTag :: MonadReader Env m => QName -> m Case
-nameToTag nm =
+nameToTag nm = do
+  e <- ask
   ifM (isConstructor nm)
-  (Tag <$> constrTag nm)
-  (error "nameToTag only implemented for constructors")
+    (Tag <$> constrTag nm)
+    (error $ "nameToTag only implemented for constructors, qname=" ++ show nm
+     ++ "\nenv:" ++ show e)
     -- (return . Tag . fromEnum . nameId . qnameName $ nm)
 
 
 isConstructor :: MonadReader Env m => QName -> m Bool
 isConstructor nm = (nm`Map.member`) <$> asks _mapConToTag
+
+-- |
+-- Set of indices of the variables that are referenced inside the term.
+--
+-- Example
+-- Env{_nextIdx = 2} usedVars (λλ (Var 3) λ (Var 4) ) == {1}
+usedVars :: MonadReader Env m => TTerm -> m (Set Int)
+usedVars term = asks _nextIdx >>= go mempty term
+   where
+     go vars t topnext = goterm vars t
+       where
+         goterms vars = foldM (\acvars tt -> goterm acvars tt) vars
+         goterm vars t = do
+           nextix <- asks _nextIdx
+           case t of
+             (TVar v) -> return $ govar vars v nextix
+             (TApp t args) -> goterms vars (t:args)
+             (TLam t) -> snd <$> introVar (goterm vars t)
+             (TLet t1 t2) -> do
+               vars1 <- goterm vars t1
+               snd <$> introVar (goterm vars1 t2)
+             (TCase v _ def alts) -> do
+               vars1 <- goterm (govar vars v nextix) def
+               foldM (\acvars alt -> goalt acvars alt) vars1 alts
+             _ -> return vars
+         govar vars v nextix
+           | 0 <= v' && v' < topnext = Set.insert v' vars
+           | otherwise = vars
+           where v' = v + topnext - nextix
+         goalt vars alt = case alt of
+           TACon _ _ b -> goterm vars b
+           TAGuard g b -> goterms vars [g, b]
+           TALit{} -> return vars
 
 
 -- TODO: Translate constructors differently from names.

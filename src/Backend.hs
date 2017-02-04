@@ -39,7 +39,7 @@ backend' = Backend' {
   , postCompile = \env isMain r -> liftIO (putStrLn "post compile")
   , preModule = \enf m ifile -> return $ Recompile ()
   , compileDef = \env menv -> return
-  , postModule = \env menv m mod -> mlfModule
+  , postModule = \env menv m mod defs -> mlfModule defs
   , backendVersion = Nothing
   }
 
@@ -58,9 +58,8 @@ mlfDef alldefs d@Defn{ defName = q } =
       case mtt of
         Nothing -> return Nothing
         Just tt -> do
-          let -- TODO: this works fine, but runReaderEnv is being used for each
-              -- definition... use a monad transformer?
-              mlf = Mlf.runReaderEnv (getConstructors (map theDef alldefs)) $ Mlf.translateDef q tt
+          let
+              mlf = Mlf.translateDef' (getConstructors alldefs) q tt
               header c h = let cs = replicate 15 c
                            in text $ printf "%s %s %s" cs h cs
               pretty' = text . showBinding
@@ -81,9 +80,9 @@ mlfDef alldefs d@Defn{ defName = q } =
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
 
 -- | Returns a list of constructor names grouped by data type
-getConstructors :: [Defn] -> [[QName]]
-getConstructors = map snd . groupSort . mapMaybe getCons
+getConstructors :: [Definition] -> [[QName]]
+getConstructors = map (getCons . theDef)
   where
-    getCons :: Defn -> Maybe (QName, QName)
-    getCons c@Constructor{} = Just (conData c, conName (conSrcCon c))
-    getCons _ = Nothing
+    getCons :: Defn -> [QName]
+    getCons c@Datatype{} = dataCons c
+    getCons _ = []
