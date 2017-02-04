@@ -26,13 +26,28 @@ open import Relation.Binary.PropositionalEquality as P
 open import Category.Functor
 open import Category.Applicative
 
-open DecTotalOrder N.decTotalOrder using () renaming (refl to ℕ≤-refl)
+open DecTotalOrder N.decTotalOrder using () renaming (
+  refl to ℕ≤-refl
+  ; trans to ℕ≤-trans
+  ; antisym to ℕ≤-antisym
+  ; total to ℕ≤-total
+  ; _≤?_ to _ℕ≤?_)
 
 ------------------------------------------------------------------------
--- Properties
+-- Equality properties
+
+infix 4 _≟_
 
 suc-injective : ∀ {o} {m n : Fin o} → Fin.suc m ≡ suc n → m ≡ n
 suc-injective refl = refl
+
+_≟_ : {n : ℕ} → Decidable {A = Fin n} _≡_
+zero  ≟ zero    = yes refl
+zero  ≟ suc y = no λ()
+suc x ≟ zero    = no λ()
+suc x ≟ suc y with x ≟ y
+... | yes x≡y = yes (cong suc x≡y)
+... | no  x≢y = no (x≢y ∘ suc-injective)
 
 preorder : ℕ → Preorder _ _ _
 preorder n = P.preorder (Fin n)
@@ -40,35 +55,19 @@ preorder n = P.preorder (Fin n)
 setoid : ℕ → Setoid _ _
 setoid n = P.setoid (Fin n)
 
-cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
-cmp zero    zero    = tri≈ (λ())     refl  (λ())
-cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
-cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
-cmp (suc i) (suc j) with cmp i j
-... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ suc-injective) (¬gt ∘ N.≤-pred)
-... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ suc-injective) (s≤s gt)
-... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
-
-strictTotalOrder : ℕ → StrictTotalOrder _ _ _
-strictTotalOrder n = record
-  { Carrier            = Fin n
-  ; _≈_                = _≡_
-  ; _<_                = _<_
-  ; isStrictTotalOrder = record
-    { isEquivalence = P.isEquivalence
-    ; trans         = N.<-trans
-    ; compare       = cmp
-    }
-  }
-
+isDecEquivalence : ∀ {n} → IsDecEquivalence (_≡_ {A = Fin n})
+isDecEquivalence = record {
+  isEquivalence = P.isEquivalence
+  ; _≟_ = _≟_ }
 
 decSetoid : ℕ → DecSetoid _ _
-decSetoid n = StrictTotalOrder.decSetoid (strictTotalOrder n)
+decSetoid n = record {
+  Carrier = Fin n
+  ; _≈_ = _≡_
+  ; isDecEquivalence = isDecEquivalence }
 
-infix 4 _≟_
-
-_≟_ : {n : ℕ} → Decidable {A = Fin n} _≡_
-_≟_ {n} = DecSetoid._≟_ (decSetoid n)
+------------------------------------------------------------------------
+-- Converting between Fin n and Nat
 
 to-from : ∀ n → toℕ (fromℕ n) ≡ n
 to-from zero    = refl
@@ -105,6 +104,99 @@ prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
 -- it can be removed in favor of prop-toℕ-≤′.
 prop-toℕ-≤′ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
 prop-toℕ-≤′ i = N.<⇒≤pred (bounded i)
+
+fromℕ≤-toℕ : ∀ {m} (i : Fin m) (i<m : toℕ i ℕ< m) → fromℕ≤ i<m ≡ i
+fromℕ≤-toℕ zero    (s≤s z≤n)       = refl
+fromℕ≤-toℕ (suc i) (s≤s (s≤s m≤n)) = cong suc (fromℕ≤-toℕ i (s≤s m≤n))
+
+toℕ-fromℕ≤ : ∀ {m n} (m<n : m ℕ< n) → toℕ (fromℕ≤ m<n) ≡ m
+toℕ-fromℕ≤ (s≤s z≤n)       = refl
+toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
+
+-- fromℕ is a special case of fromℕ≤.
+fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
+fromℕ-def zero    = refl
+fromℕ-def (suc n) = cong suc (fromℕ-def n)
+
+-- fromℕ≤ and fromℕ≤″ give the same result.
+
+fromℕ≤≡fromℕ≤″ :
+  ∀ {m n} (m<n : m N.< n) (m<″n : m N.<″ n) →
+  fromℕ≤ m<n ≡ fromℕ≤″ m m<″n
+fromℕ≤≡fromℕ≤″ (s≤s z≤n)       (N.less-than-or-equal refl) = refl
+fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
+  cong suc (fromℕ≤≡fromℕ≤″ (s≤s m<n) (N.less-than-or-equal refl))
+
+------------------------------------------------------------------------
+-- Ordering properties
+
+-- _≤_ ordering
+
+≤-reflexive : ∀ {n} → _≡_ ⇒ (_≤_ {n})
+≤-reflexive refl = ℕ≤-refl
+
+≤-refl : ∀ {n} → Reflexive (_≤_ {n})
+≤-refl = ≤-reflexive refl
+
+≤-trans : ∀ {n} → Transitive (_≤_ {n})
+≤-trans = ℕ≤-trans
+
+≤-antisym : ∀ {n} → Antisymmetric _≡_ (_≤_ {n})
+≤-antisym x≤y y≤x = toℕ-injective (ℕ≤-antisym x≤y y≤x)
+
+≤-total : ∀ {n} → Total (_≤_ {n})
+≤-total x y = ℕ≤-total (toℕ x) (toℕ y)
+
+≤-isPreorder : ∀ {n} → IsPreorder _≡_ (_≤_ {n})
+≤-isPreorder = record {
+  isEquivalence = P.isEquivalence
+  ; reflexive = ≤-reflexive
+  ; trans = ≤-trans }
+
+≤-isPartialOrder : ∀ {n} → IsPartialOrder _≡_ (_≤_ {n})
+≤-isPartialOrder = record {
+  isPreorder = ≤-isPreorder ;
+  antisym = ≤-antisym }
+
+≤-isTotalOrder : ∀ {n} → IsTotalOrder _≡_ (_≤_ {n})
+≤-isTotalOrder = record {
+  isPartialOrder = ≤-isPartialOrder
+  ; total = ≤-total }
+
+-- _<_ ordering
+
+<-trans : ∀ {n} → Transitive (_<_ {n})
+<-trans = N.<-trans
+
+cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
+cmp zero    zero    = tri≈ (λ())     refl  (λ())
+cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
+cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
+cmp (suc i) (suc j) with cmp i j
+... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ suc-injective) (¬gt ∘ N.≤-pred)
+... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ suc-injective) (s≤s gt)
+... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
+
+_<?_ : ∀ {n} → Decidable (_<_ {n})
+m <? n = suc (toℕ m) ℕ≤? toℕ n
+
+<-isStrictTotalOrder : ∀ {n} → IsStrictTotalOrder _≡_ (_<_ {n})
+<-isStrictTotalOrder = record {
+  isEquivalence = P.isEquivalence
+  ; trans = <-trans
+  ; compare = cmp
+  }
+
+strictTotalOrder : ℕ → StrictTotalOrder _ _ _
+strictTotalOrder n = record
+  { Carrier            = Fin n
+  ; _≈_                = _≡_
+  ; _<_                = _<_
+  ; isStrictTotalOrder = <-isStrictTotalOrder
+  }
+
+------------------------------------------------------------------------
+-- Injection properties
 
 -- Lemma:  n - i ≤ n.
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
@@ -153,28 +245,6 @@ inject≤-refl (suc i) (s≤s n≤n) = cong suc (inject≤-refl i n≤n)
 toℕ-raise : ∀ {m} n (i : Fin m) → toℕ (raise n i) ≡ n ℕ+ toℕ i
 toℕ-raise zero    i = refl
 toℕ-raise (suc n) i = cong suc (toℕ-raise n i)
-
-fromℕ≤-toℕ : ∀ {m} (i : Fin m) (i<m : toℕ i ℕ< m) → fromℕ≤ i<m ≡ i
-fromℕ≤-toℕ zero    (s≤s z≤n)       = refl
-fromℕ≤-toℕ (suc i) (s≤s (s≤s m≤n)) = cong suc (fromℕ≤-toℕ i (s≤s m≤n))
-
-toℕ-fromℕ≤ : ∀ {m n} (m<n : m ℕ< n) → toℕ (fromℕ≤ m<n) ≡ m
-toℕ-fromℕ≤ (s≤s z≤n)       = refl
-toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
-
--- fromℕ is a special case of fromℕ≤.
-fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
-fromℕ-def zero    = refl
-fromℕ-def (suc n) = cong suc (fromℕ-def n)
-
--- fromℕ≤ and fromℕ≤″ give the same result.
-
-fromℕ≤≡fromℕ≤″ :
-  ∀ {m n} (m<n : m N.< n) (m<″n : m N.<″ n) →
-  fromℕ≤ m<n ≡ fromℕ≤″ m m<″n
-fromℕ≤≡fromℕ≤″ (s≤s z≤n)       (N.less-than-or-equal refl) = refl
-fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
-  cong suc (fromℕ≤≡fromℕ≤″ (s≤s m<n) (N.less-than-or-equal refl))
 
 ------------------------------------------------------------------------
 -- Operations

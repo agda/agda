@@ -30,7 +30,27 @@ Important changes since 0.13:
      zipWith-replicate
      zipWith-map
      ```
+
+* Added `isDecEquivalence` proof for `_≡_` to `Data.Fin.Properties`
+
+* Added additional ordering properties to `Data.Fin.Properties` including:
+  ```agda
+  ≤-reflexive
+  ≤-refl
+  ≤-trans
+  ≤-antisymmetric
+  ≤-total
+  ≤-isPreorder
+  ≤-isPartialOrder
+  ≤-isTotalOrder
+
+  _<?_
+  <-trans
+  <-isStrictTotalOrder
+  ```
+  
 * Added `⊓-idem` and `⊔-idem` to `Data.Nat.Properties`
+
 
 Version 0.13
 ============
