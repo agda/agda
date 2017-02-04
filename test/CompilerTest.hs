@@ -16,7 +16,7 @@ translate'1 = head . translate' [] . pure
 
 simpleName :: String -> Name
 simpleName name = Name {
-  nameId = C.NameId 0 0 -- TODO: fix
+  nameId = C.NameId 0 0 -- NOTE: we don't use this but it has an unpacked type so it cannot be undefined
   , nameConcrete = C.Name undefined [C.Id name]
   , nameBindingSite = undefined
   , nameFixity = undefined
