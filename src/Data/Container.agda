@@ -38,7 +38,7 @@ open Container public
 
 -- The semantics ("extension") of a container.
 
-⟦_⟧ : ∀ {ℓ₁ ℓ₂} → Container ℓ₁ → Set ℓ₂ → Set (ℓ₁ ⊔ ℓ₂)
+⟦_⟧ : ∀ {ℓ} → Container ℓ → Set ℓ → Set ℓ
 ⟦ C ⟧ X = Σ[ s ∈ Shape C ] (Position C s → X)
 
 -- The least and greatest fixpoints of a container.
@@ -93,7 +93,7 @@ setoid C X = record
 
 -- Containers are functors.
 
-map : ∀ {c ℓ} {C : Container c} {X Y : Set ℓ} → (X → Y) → ⟦ C ⟧ X → ⟦ C ⟧ Y
+map : ∀ {c} {C : Container c} {X Y} → (X → Y) → ⟦ C ⟧ X → ⟦ C ⟧ Y
 map f = Prod.map ⟨id⟩ (λ g → f ⟨∘⟩ g)
 
 module Map where
@@ -123,8 +123,8 @@ open _⇒_ public
 
 -- Interpretation of _⇒_.
 
-⟪_⟫ : ∀ {c ℓ} {C₁ C₂ : Container c} →
-      C₁ ⇒ C₂ → {X : Set ℓ} → ⟦ C₁ ⟧ X → ⟦ C₂ ⟧ X
+⟪_⟫ : ∀ {c} {C₁ C₂ : Container c} →
+      C₁ ⇒ C₂ → ∀ {X} → ⟦ C₁ ⟧ X → ⟦ C₂ ⟧ X
 ⟪ m ⟫ xs = (shape m (proj₁ xs) , proj₂ xs ⟨∘⟩ position m)
 
 module Morphism where
@@ -205,7 +205,7 @@ record _⊸_ {c} (C₁ C₂ : Container c) : Set c where
     ; position = _⟨$⟩_ (Inverse.to position⊸)
     }
 
-  ⟪_⟫⊸ : ∀ {ℓ} {X : Set ℓ} → ⟦ C₁ ⟧ X → ⟦ C₂ ⟧ X
+  ⟪_⟫⊸ : ∀ {X} → ⟦ C₁ ⟧ X → ⟦ C₂ ⟧ X
   ⟪_⟫⊸ = ⟪ morphism ⟫
 
 open _⊸_ public using (shape⊸; position⊸; ⟪_⟫⊸)
