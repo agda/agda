@@ -31,6 +31,9 @@ Important changes since 0.13:
      zipWith-map
      ```
 
+* `Data.Container` now allows for different levels in the container
+  and in the data it contains.
+
 * Added `isDecEquivalence` proof for `_≡_` to `Data.Fin.Properties`
 
 * Added additional ordering properties to `Data.Fin.Properties` including:

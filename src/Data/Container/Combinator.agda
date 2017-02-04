@@ -82,7 +82,7 @@ const[ X ]⟶ C = Π {I = X} (F.const C)
 
 module Identity where
 
-  correct : ∀ {c} {X : Set c} → ⟦ id ⟧ X ↔ F.id X
+  correct : ∀ {c} {X : Set c} → ⟦ id {c} ⟧ X ↔ F.id X
   correct {c} = record
     { to         = P.→-to-⟶ {a  = c} λ xs → proj₂ xs _
     ; from       = P.→-to-⟶ {b₁ = c} λ x → (_ , λ _ → x)
