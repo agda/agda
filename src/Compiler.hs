@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (runReaderEnv, translate', translateDef, Term, Binding) where
+module Compiler (runReaderEnv, translate', translateDef, translateDef', Term, Binding) where
 
 import           Agda.Syntax.Common (NameId)
 import           Agda.Syntax.Literal
@@ -68,6 +68,9 @@ qnamesInTerm t = go t mempty
           TACon q _ t -> Set.insert q (go t qs)
           TAGuard t b -> foldr go qs [t, b]
           TALit _ b -> go b qs
+
+translateDef' :: [[QName]] -> QName -> TTerm -> Binding
+translateDef' qs qn = runReaderEnv qs . translateDef qn
 
 translate' :: [[QName]] -> [TTerm] -> [Term]
 translate' qs = runReaderEnv qs . mapM translate
@@ -148,7 +151,6 @@ translateLam lam = do
   where
     translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
     translateLams (TLam body) = do
-      -- x       <- freshIdent
       (thisVar, (xs, t)) <- introVar (translateLams body)
       return (thisVar:xs, t)
     translateLams e = do
@@ -157,8 +159,8 @@ translateLam lam = do
 
 introVars :: MonadReader Env m => Int -> m a -> m ([Ident], a)
 introVars k ma = do
-  (names, e') <- nextIdxs k
-  r <- local (const e') ma
+  (names, env') <- nextIdxs k
+  r <- local (const env') ma
   return (names, r)
   where
     nextIdxs :: MonadReader Env m => Int -> m ([Ident], Env)
