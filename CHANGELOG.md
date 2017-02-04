@@ -30,7 +30,7 @@ Important changes since 0.13:
      zipWith-replicate
      zipWith-map
      ```
-
+* Added `⊓-idem` and `⊔-idem` to `Data.Nat.Properties`
 
 Version 0.13
 ============

@@ -228,7 +228,7 @@ distributiveLattice = record
   ; isDistributiveLattice = isDistributiveLattice
   }
 
--- Selectivity of ⊓ and ⊔
+-- Selectivity and idempotence of ⊓ and ⊔
 
 ⊓-sel : Selective _⊓_
 ⊓-sel zero    _    = inj₁ refl
@@ -243,6 +243,16 @@ distributiveLattice = record
 ⊔-sel (suc m) (suc n) with ⊔-sel m n
 ... | inj₁ m⊔n≡m = inj₁ (cong suc m⊔n≡m)
 ... | inj₂ m⊔n≡n = inj₂ (cong suc m⊔n≡n)
+
+⊓-idem : Idempotent _⊓_
+⊓-idem x with ⊓-sel x x
+... | inj₁ x⊓x≈x = x⊓x≈x
+... | inj₂ x⊓x≈x = x⊓x≈x
+
+⊔-idem : Idempotent _⊔_
+⊔-idem x with ⊔-sel x x
+... | inj₁ x⊔x≈x = x⊔x≈x
+... | inj₂ x⊔x≈x = x⊔x≈x
 
 ------------------------------------------------------------------------
 -- Converting between ≤ and ≤′
