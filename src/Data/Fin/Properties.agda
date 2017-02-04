@@ -26,12 +26,13 @@ open import Relation.Binary.PropositionalEquality as P
 open import Category.Functor
 open import Category.Applicative
 
-open DecTotalOrder N.decTotalOrder using () renaming (
-  refl to ℕ≤-refl
-  ; trans to ℕ≤-trans
+open DecTotalOrder N.decTotalOrder using () renaming
+  ( refl    to ℕ≤-refl
+  ; trans   to ℕ≤-trans
   ; antisym to ℕ≤-antisym
-  ; total to ℕ≤-total
-  ; _≤?_ to _ℕ≤?_)
+  ; total   to ℕ≤-total
+  ; _≤?_    to _ℕ≤?_
+  )
 
 ------------------------------------------------------------------------
 -- Equality properties
@@ -42,9 +43,9 @@ suc-injective : ∀ {o} {m n : Fin o} → Fin.suc m ≡ suc n → m ≡ n
 suc-injective refl = refl
 
 _≟_ : {n : ℕ} → Decidable {A = Fin n} _≡_
-zero  ≟ zero    = yes refl
+zero  ≟ zero  = yes refl
 zero  ≟ suc y = no λ()
-suc x ≟ zero    = no λ()
+suc x ≟ zero  = no λ()
 suc x ≟ suc y with x ≟ y
 ... | yes x≡y = yes (cong suc x≡y)
 ... | no  x≢y = no (x≢y ∘ suc-injective)
@@ -56,15 +57,17 @@ setoid : ℕ → Setoid _ _
 setoid n = P.setoid (Fin n)
 
 isDecEquivalence : ∀ {n} → IsDecEquivalence (_≡_ {A = Fin n})
-isDecEquivalence = record {
-  isEquivalence = P.isEquivalence
-  ; _≟_ = _≟_ }
+isDecEquivalence = record
+  { isEquivalence = P.isEquivalence
+  ; _≟_           = _≟_
+  }
 
 decSetoid : ℕ → DecSetoid _ _
-decSetoid n = record {
-  Carrier = Fin n
-  ; _≈_ = _≡_
-  ; isDecEquivalence = isDecEquivalence }
+decSetoid n = record
+  { Carrier          = Fin n
+  ; _≈_              = _≡_
+  ; isDecEquivalence = isDecEquivalence
+  }
 
 ------------------------------------------------------------------------
 -- Converting between Fin n and Nat
@@ -148,20 +151,23 @@ fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
 ≤-total x y = ℕ≤-total (toℕ x) (toℕ y)
 
 ≤-isPreorder : ∀ {n} → IsPreorder _≡_ (_≤_ {n})
-≤-isPreorder = record {
-  isEquivalence = P.isEquivalence
-  ; reflexive = ≤-reflexive
-  ; trans = ≤-trans }
+≤-isPreorder = record
+  { isEquivalence = P.isEquivalence
+  ; reflexive     = ≤-reflexive
+  ; trans         = ≤-trans
+  }
 
 ≤-isPartialOrder : ∀ {n} → IsPartialOrder _≡_ (_≤_ {n})
-≤-isPartialOrder = record {
-  isPreorder = ≤-isPreorder ;
-  antisym = ≤-antisym }
+≤-isPartialOrder = record
+  { isPreorder = ≤-isPreorder
+  ; antisym    = ≤-antisym
+  }
 
 ≤-isTotalOrder : ∀ {n} → IsTotalOrder _≡_ (_≤_ {n})
-≤-isTotalOrder = record {
-  isPartialOrder = ≤-isPartialOrder
-  ; total = ≤-total }
+≤-isTotalOrder = record
+  { isPartialOrder = ≤-isPartialOrder
+  ; total          = ≤-total
+  }
 
 -- _<_ ordering
 
@@ -181,10 +187,10 @@ _<?_ : ∀ {n} → Decidable (_<_ {n})
 m <? n = suc (toℕ m) ℕ≤? toℕ n
 
 <-isStrictTotalOrder : ∀ {n} → IsStrictTotalOrder _≡_ (_<_ {n})
-<-isStrictTotalOrder = record {
-  isEquivalence = P.isEquivalence
-  ; trans = <-trans
-  ; compare = cmp
+<-isStrictTotalOrder = record
+  { isEquivalence = P.isEquivalence
+  ; trans         = <-trans
+  ; compare       = cmp
   }
 
 strictTotalOrder : ℕ → StrictTotalOrder _ _ _
