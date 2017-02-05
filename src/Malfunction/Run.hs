@@ -23,6 +23,12 @@ runMod t = withSystemTempFile "term.mlf" $ \tfp th
   hClose th >> hClose xh
   readProcess xfp [] ""
 
+runModPrintInts :: [Ident] -> Mod -> IO String
+runModPrintInts ids (MMod bs expo) = runMod (MMod bs' expo)
+  where
+    bs' = bs ++ map printInt ids
+    printInt var = Unnamed $ Mapply (Mglobal ["Pervasives", "print_int"]) [Mvar var]
+
 -- Example:
 --   (module
 --     (_ (apply (global $Pervasives $print_string) "Hello, world!\n"))

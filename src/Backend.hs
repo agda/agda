@@ -9,6 +9,7 @@ import           Data.List.Extra
 import           Data.Maybe
 import           Malfunction.AST
 import           Malfunction.Print
+import           Malfunction.Run
 import           System.Console.GetOpt
 import           Text.Printf
 
@@ -17,38 +18,52 @@ backend = Backend backend'
 
 data MlfOptions = Opts {
   _enabled :: Bool
+  , _resultVar :: Maybe Ident
   }
 
 defOptions :: MlfOptions
 defOptions = Opts {
   _enabled = False
+  , _resultVar = Nothing
   }
 
 ttFlags :: [OptDescr (Flag MlfOptions)]
 ttFlags =
-  [ Option [] ["mlf"] (NoArg $ \ o -> return o{ _enabled = True }) "Generate Malfunction"
+  [ Option [] ["mlf"] (NoArg $ \ o -> return o{ _enabled = True })
+    "Generate Malfunction"
+  , Option ['r'] [] (ReqArg (\r o -> return o{_resultVar = Just r}) "VAR")
+    "(DEBUG) Run the module and print the integer value of a variable"
   ]
 
-backend' :: Backend' MlfOptions () () Mod Definition
+backend' :: Backend' MlfOptions MlfOptions () Mod Definition
 backend' = Backend' {
   backendName = "malfunction"
   , options = defOptions
   , commandLineFlags = ttFlags
   , isEnabled = _enabled
-  , preCompile = const $ return ()
+  , preCompile = return
   , postCompile = \env isMain r -> liftIO (putStrLn "post compile")
   , preModule = \enf m ifile -> return $ Recompile ()
   , compileDef = \env menv -> return
-  , postModule = \env menv m mod defs -> mlfModule defs
+  , postModule = \env menv m mod defs -> mlfModule env defs
   , backendVersion = Nothing
   }
 
-mlfModule :: [Definition] -> TCM Mod
-mlfModule defs = do
+mlfModule :: MlfOptions -> [Definition] -> TCM Mod
+mlfModule mlfopt defs = do
   mlfMod <- (`MMod`[]) . catMaybes <$> mapM (mlfDef defs) defs
   liftIO (putStrLn (showMod mlfMod))
+  printRes mlfMod
   return mlfMod
   where defns = map theDef defs
+        printRes mlfMod@(MMod binds _) = do
+          liftIO (putStrLn "\n=======================")
+          liftIO (case _resultVar mlfopt of
+                    Just var
+                      | any defVar binds -> runModPrintInts [var] mlfMod >>= putStrLn
+                      where defVar (Named v _) = v == var
+                            defVar _ = False
+                    _ -> return ())
 
 mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
 mlfDef alldefs d@Defn{ defName = q } =
