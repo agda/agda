@@ -109,14 +109,12 @@ translateTerm tt = case tt of
   TUnit             -> return unitT
   TSort             -> error ("Unimplemented " ++ show tt)
   TErased           -> return (Mint (CInt 0)) -- TODO: so... anything can go here?
-  TError{}          -> return exFalso
+  TError TUnreachable -> return unreachableT
 
--- TODO: I am not entirely sure this is the correct implementation.
--- But at least the function `f : ⊥ -> a` is encoded as `error TUnreachable`
--- in Treeless
--- | exFalso is the function from the empty set.
-exFalso :: Term
-exFalso = Mlambda [] (Mvar "")
+-- | `unreachableT` is an expression that can never be executed (in a type-
+-- correct term), so in malfunction this can be encoded as anything.
+unreachableT :: Term
+unreachableT = unitT
 
 indexToVarTerm :: MonadReader Env m => Int -> m Term
 indexToVarTerm i = do

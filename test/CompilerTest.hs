@@ -41,6 +41,12 @@ test_translate =
       translateDef' [] qn
       (TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub) [TVar 0,TLit (LitNat undefined 1)]) (TApp (TPrim PMul) [TVar 1,TApp (TDef qn) [TVar 0]])) [TALit {aLit = LitNat undefined 0, aBody = TLit (LitNat undefined 1)}]))
     @?= Recursive [("Test.fact",Mlambda ["v0"] (Mswitch (Mvar "v0") [([CaseInt 0],Mint (CInt 1)), ([CaseAnyInt,Deftag],Mlet [Named "v1" (Mintop2 Sub TInt (Mvar "v0") (Mint (CInt 1)))] (Mintop2 Mul TInt (Mvar "v0") (Mapply (Mvar "Test.fact") [Mvar "v1"])))]))]
+  -- This test-case is a bit silly, since `TError TUnreachable` could be encoded
+  -- as anything in malfunction. E.g. the function `f : ⊥ -> a` will never be
+  -- applied to any arguments!
+  , testCase "function from an uninhabited type"
+    $ translate'1 (TError TUnreachable)
+    @?= Mblock 0 []
 -- TODO: Still not sure what this should translate to:
 --  , testCase "pattern match constructor"
 --    $   translate patternMatchConstructor
