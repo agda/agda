@@ -7,7 +7,7 @@ import GHC.IO.Handle
 import System.Process
 
 printMod :: Mod -> Handle -> IO ()
-printMod m h = print prog >> hPutStr h prog >> hFlush h
+printMod m h = putStrLn prog >> hPutStr h prog >> hFlush h
   where prog = showMod m
 
 compileMod :: Mod -> (FilePath, Handle) -> FilePath -> IO ()
