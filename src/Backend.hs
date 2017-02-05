@@ -1,11 +1,9 @@
 module Backend (backend) where
 
 import           Agda.Compiler.Backend
-import           Agda.Syntax.Internal
 import           Agda.Utils.Pretty
 import qualified Compiler as Mlf
 import           Control.Monad.Trans
-import           Data.List.Extra
 import           Data.Maybe
 import           Malfunction.AST
 import           Malfunction.Print
@@ -55,15 +53,15 @@ mlfModule mlfopt defs = do
   liftIO (putStrLn (showMod mlfMod))
   printRes mlfMod
   return mlfMod
-  where defns = map theDef defs
-        printRes mlfMod@(MMod binds _) = do
-          liftIO (putStrLn "\n=======================")
-          liftIO (case _resultVar mlfopt of
-                    Just var
-                      | any defVar binds -> runModPrintInts [var] mlfMod >>= putStrLn
-                      where defVar (Named v _) = v == var
-                            defVar _ = False
-                    _ -> return ())
+  where
+    printRes mlfMod@(MMod binds _) = do
+      liftIO (putStrLn "\n=======================")
+      liftIO (case _resultVar mlfopt of
+                 Just var
+                   | any defVar binds -> runModPrintInts [var] mlfMod >>= putStrLn
+                   where defVar (Named v _) = v == var
+                         defVar _ = False
+                 _ -> return ())
 
 mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
 mlfDef alldefs d@Defn{ defName = q } =
