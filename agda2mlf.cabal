@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Malfunction.AST
                      , Malfunction.Print
+                     , Malfunction.Run
                      , Compiler
                      , Test
                      , Backend
