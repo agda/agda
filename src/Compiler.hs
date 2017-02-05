@@ -48,6 +48,10 @@ translateDef qnm t
       tt <- translate t
       return (Named (nameToIdent qnm) tt)
   where
+    -- TODO: I don't believe this is enough, consider the example
+    -- where functions are mutually recursive.
+    --     a = b
+    --     b = a
     isRecursive = Set.member qnm (qnamesInTerm t) -- TODO: is this enough?
 
 qnamesInTerm :: TTerm -> Set QName
