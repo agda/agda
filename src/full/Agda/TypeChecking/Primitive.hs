@@ -803,7 +803,7 @@ primComp = do
                           IZero -> reduced $ notBlocked $ argN $ runNames [] $ do
                                       [l,c] <- mapM (open . unArg) [l, ignoreBlocking sc]
                                       lam "i" $ \ i -> pure tEmpty <#> (l <@> i)
-                                                                   <#> (lam "o" $ \ _ -> c <@> i)
+                                                                   <#> (ilam "o" $ \ _ -> c <@> i)
                           _     -> notReduced u
 
            case ignoreSharing $ unArg $ ignoreBlocking sc of
@@ -880,7 +880,7 @@ primComp = do
                    IZero -> notBlocked $ argN $ runNames [] $ do
                                [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
                                lam "i" $ \ i -> pure tEmpty <#> (l <@> i)
-                                                            <#> (lam "o" $ \ _ -> c <@> i)
+                                                            <#> (ilam "o" $ \ _ -> c <@> i)
                    _     -> su
         sameConHead h u = allComponents unview phi u $ \ t ->
           case ignoreSharing t of
@@ -916,11 +916,11 @@ primComp = do
     [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
     let transp p = pure tComp <#> l <@> p <@> iz
                               <@> lam "i" (\ i -> pure tEmpty <#> (l <@> i)
-                                                              <#> (lam "o" $ \ _ -> p <@> i))
+                                                              <#> (ilam "o" $ \ _ -> p <@> i))
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
                <@> a0 <@> phi <@> (e <@> pure io)
-               <@> lam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
-               <@> lam "o" (\ o -> pure p2equiv <#> l <@> (lam "i" $ \ i -> e <@> ineg i <@> o))
+               <@> ilam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
+               <@> ilam "o" (\ o -> pure p2equiv <#> l <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
 
   compId sphi u a0 l bA x y = do
     unview <- intervalUnview'
@@ -947,12 +947,12 @@ primComp = do
           [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [bA, x, y]
           conId <#> (l <@> io) <#> (bA <@> io) <#> (x <@> io) <#> (y <@> io)
                 <@> (pure tIMin <@> phi
-                                <@> (lam "o" $ \ o -> pure tFace <#> (l <@> io) <#> (bA <@> io) <#> (x <@> io) <#> (y <@> io)
+                                <@> (ilam "o" $ \ o -> pure tFace <#> (l <@> io) <#> (bA <@> io) <#> (x <@> io) <#> (y <@> io)
                                                                  <@> (gApply' irrInfo (p <@> io) o)))
                 <@> (pure tComp <#> l
                                 <@> (lam "i" $ \ i -> pure tPathType <#> (l <@> i) <#> (bA <@> i) <@> (x <@> i) <@> (y <@> i))
                                 <@> phi
-                                <@> (lam "i" $ \ i -> lam "o" $ \ o -> pure tPath <#> (l <@> i) <#> (bA <@> i)
+                                <@> (lam "i" $ \ i -> ilam "o" $ \ o -> pure tPath <#> (l <@> i) <#> (bA <@> i)
                                                                                   <#> (x <@> i) <#> (y <@> i)
                                                                                   <@> (gApply' irrInfo (p <@> i) o)
                                     )
@@ -974,9 +974,9 @@ primComp = do
                     <@> (lam "i'" $ \ i ->
                           let or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i) in
                                      or phi (ineg j `imax` j)
-                                        <@> (lam "o" $ \ o -> p <@> i <@> o <@@> (x <@> i, y <@> i, j))
-                                        <@> (or (ineg j) j <@> (lam "_" $ const (x <@> i))
-                                                                <@> (lam "_" $ const (y <@> i))))
+                                        <@> (ilam "o" $ \ o -> p <@> i <@> o <@@> (x <@> i, y <@> i, j))
+                                        <@> (or (ineg j) j <@> (ilam "_" $ const (x <@> i))
+                                                                <@> (ilam "_" $ const (y <@> i))))
                     <@> (p0 <@@> (x <@> iz, y <@> iz, j))
 
   lam_i = Lam defaultArgInfo . Abs "i"

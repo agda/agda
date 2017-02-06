@@ -748,7 +748,9 @@ bindBuiltinNoDef b q = do
       let
         ch = ConHead q Inductive []
         def = Constructor 0 0 ch d ConcreteDef Inductive Nothing [] -- Andrea TODO: fix zeros
+
       addConstant q $ defaultDefn defaultArgInfo q t def
+      addDataCons d [q]
       bindBuiltinName b $ Con ch ConOSystem []
     Just (BuiltinData mt cs) -> do
       t <- mt

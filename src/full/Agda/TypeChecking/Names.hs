@@ -127,6 +127,14 @@ lam :: Monad m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 lam n f = glam defaultArgInfo n f
 
+#if __GLASGOW_HASKELL__ <= 708
+ilam :: (Functor m, Monad m)
+#else
+ilam :: Monad m
+#endif
+    => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
+ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
+
 
 instance MonadTCM m => MonadTCM (NamesT m) where
    liftTCM = lift . liftTCM

@@ -744,6 +744,14 @@ getTreeless q = fmap cTreeless <$> getCompiled q
 getCompiledArgUse :: QName -> TCM [Bool]
 getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 
+-- | add data constructors to a datatype
+addDataCons :: QName -> [QName] -> TCM ()
+addDataCons d cs = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
+  let !cs' = cs ++ dataCons def in
+  case def of
+    Datatype{} -> def {dataCons = cs' }
+    _          -> __IMPOSSIBLE__
+
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]
 getMutual d = do
