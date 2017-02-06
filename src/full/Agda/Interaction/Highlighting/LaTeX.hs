@@ -17,10 +17,12 @@ import Control.Monad.RWS.Strict
 import System.Directory
 import System.FilePath
 import Data.Text (Text)
-import qualified Data.Text          as T
-import qualified Data.Text.IO       as T
-import qualified Data.Text.Encoding as E
-import qualified Data.ByteString    as BS
+import qualified Data.Text               as T
+import qualified Data.Text.IO            as T
+import qualified Data.Text.Lazy          as L
+import qualified Data.Text.Lazy.Builder  as B
+import qualified Data.Text.Lazy.Encoding as E
+import qualified Data.ByteString.Lazy    as BS
 
 import qualified Data.IntMap as IntMap
 import qualified Data.List   as List
@@ -53,7 +55,13 @@ import Agda.Utils.Impossible
 -- or not, the reader part isn't used, the writer is where the output
 -- goes and the state is for keeping track of the tokens and some other
 -- useful info, and the I/O part is used for printing debugging info.
-type LaTeX = ExceptT String (RWST () Text State IO)
+
+-- NOTE: This type used to be defined using Text instead of B.Builder.
+-- However, this led to seemingly quadratic behaviour, presumably
+-- because a Text value was constructed by repeatedly appending things
+-- to it.
+
+type LaTeX = ExceptT String (RWST () B.Builder State IO)
 
 data State = State
   { tokens     :: Tokens
@@ -84,7 +92,8 @@ debugs :: [Debug]
 debugs = []
 
 -- | Run function for the @LaTeX@ monad.
-runLaTeX :: LaTeX a -> () -> State -> IO (Either String a, State, Text)
+runLaTeX ::
+  LaTeX a -> () -> State -> IO (Either String a, State, B.Builder)
 runLaTeX = runRWST . runExceptT
 
 emptyState :: State
@@ -244,7 +253,7 @@ log' d = log d . T.pack
 output :: Text -> LaTeX ()
 output text = do
   log Output text
-  tell text
+  tell (B.fromText text)
 
 ------------------------------------------------------------------------
 -- * LaTeX and polytable strings.
@@ -593,7 +602,7 @@ generateLaTeX i = do
     modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
 
 -- | Transforms the source code into LaTeX.
-toLaTeX :: String -> HighlightingInfo -> IO Text
+toLaTeX :: String -> HighlightingInfo -> IO L.Text
 toLaTeX source hi
 
   = processTokens
@@ -624,9 +633,9 @@ toLaTeX source hi
   where
   infoMap = toMap (decompress hi)
 
-processTokens :: Tokens -> IO Text
+processTokens :: Tokens -> IO L.Text
 processTokens ts = do
   (x, _, s) <- runLaTeX nonCode () (emptyState { tokens = ts })
   case x of
-    Left "Done" -> return s
+    Left "Done" -> return (B.toLazyText s)
     _           -> __IMPOSSIBLE__
