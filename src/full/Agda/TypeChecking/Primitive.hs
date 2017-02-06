@@ -1203,12 +1203,12 @@ prim_mcoglue' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "lc" (el $ cl primLevel) $ \ lc ->
-       hPi' "A" (sort . tmSort <$> la) $ \ bA ->
+       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ bA ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
+       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' la bA --> el' lb (bT <@> o)) $ \ f ->
        let gg = el' lb (cl primCoGlue <#> la <#> lb <@> bA <@> φ <@> bT <@> f) in
-       nPi' "C" (gg --> (sort . tmSort <$> lc)) $ \ bC ->
+       hmodPi' Sharp "C" (gg --> (sort . tmSort <$> lc)) $ \ bC ->
        nPi' "c0" (nPi' "a" (el' la bA) $ \ a -> el' lc (bC <@> (cl prim_coglue <#> la <#> lb <#> bA <#> φ <#> bT <#> f <@> a))) $ \ c0 ->
        nPi' "c" (pPi' "o" φ $ \ o -> nPi' "t" (el' lb (bT <@> o)) $ \ t -> el' lc (bC <@> t)) $ \ c ->
        nPi' "b" gg $ \ b ->
