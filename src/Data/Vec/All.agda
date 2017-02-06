@@ -17,6 +17,7 @@ import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using (Decidable) renaming (_⊆_ to _⋐_)
 open import Relation.Binary.PropositionalEquality using (subst)
 
+------------------------------------------------------------------------
 -- All P xs means that all elements in xs satisfy P.
 
 infixr 5 _∷_
@@ -67,23 +68,24 @@ zipWith _⊕_ {xs = x ∷ xs} {y ∷ ys} (px ∷ pxs) (qy ∷ qys) =
   px ⊕ qy ∷ zipWith _⊕_ pxs qys
 
 
--- A shorthand for a pair of vectors being point-wise related.
+------------------------------------------------------------------------
+-- All₂ P xs ys means that every pointwise pair in xs ys satisfy P.
 
-All₂ : ∀ {a p} {A B : Set a} (P : A → B → Set p) {k} →
-       Vec A k → Vec B k → Set _
-All₂ P xs ys = All (uncurry P) (zip xs ys)
+data All₂ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) :
+          ∀ {n} → Vec A n → Vec B n → Set (a ⊔ b ⊔ p) where
+    []  : All₂ P [] []
+    _∷_ : ∀ {n x y} {xs : Vec A n} {ys : Vec B n} →
+            P x y → All₂ P xs ys → All₂ P (x ∷ xs) (y ∷ ys)
 
--- A variant of lookup tailored to All₂.
-
-lookup₂ : ∀ {a p} {A B : Set a} {P : A → B → Set p} {k}
+lookup₂ : ∀ {a b p} {A : Set a} {B : Set b} {P : A → B → Set p} {k}
             {xs : Vec A k} {ys : Vec B k} →
-          (i : Fin k) → All₂ P xs ys → P (Vec.lookup i xs) (Vec.lookup i ys)
-lookup₂ {P = P} {xs = xs} {ys} i pxys =
-  subst (uncurry P) (lookup-zip i xs ys) (lookup i pxys)
+            ∀ i → All₂ P xs ys → P (Vec.lookup i xs) (Vec.lookup i ys)
+lookup₂ zero    (pxy ∷ _)    = pxy
+lookup₂ (suc i) (_   ∷ pxys) = lookup₂ i pxys
 
--- A variant of map tailored to All₂.
-
-map₂ : ∀ {a p q} {A B : Set a} {P : A → B → Set p} {Q : A → B → Set q} →
-       (∀ {x y} → P x y → Q x y) →
-       ∀ {k xs ys} → All₂ P {k} xs ys → All₂ Q {k} xs ys
-map₂ g = map g
+map₂ : ∀ {a b p q} {A : Set a} {B : Set b}
+         {P : A → B → Set p} {Q : A → B → Set q} →
+         (∀ {x y} → P x y → Q x y) →
+         ∀ {k xs ys} → All₂ P {k} xs ys → All₂ Q {k} xs ys
+map₂ g [] = []
+map₂ g (pxy ∷ pxys) = g pxy  ∷ map₂ g pxys

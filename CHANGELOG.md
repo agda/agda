@@ -62,6 +62,10 @@ Important changes since 0.13:
   Data.List.Any.Properties
   ```
 
+* Changed `Data.Vec.All.All₂` to a native version which allows better
+  pattern matching. The new version (and the associated proofs in
+  `Data.Vec.All.Properties`) are more generic with respect to types and
+  levels.
 
 Version 0.13
 ============

@@ -38,47 +38,50 @@ gmap : ∀ {a b p q}
        P ⋐ Q ∘ f → All P {k} ⋐ All Q {k} ∘ Vec.map f
 gmap g = All-map ∘ All.map g
 
--- A variant of All-map tailored to All₂.
+-- A variant of All-map for All₂.
 
-All₂-map : ∀ {a b p} {A₁ A₂ : Set a} {B₁ B₂ : Set b} {P : B₁ → B₂ → Set p}
-           {f₁ : A₁ → B₁} {f₂ : A₂ → B₂} {k} {xs : Vec A₁ k} {ys : Vec A₂ k} →
+All₂-map : ∀ {a b c d p} {A : Set a} {B : Set b} {C : Set c} {D : Set d}
+           {P : C → D → Set p}
+           {f₁ : A → C} {f₂ : B → D} {k} {xs : Vec A k} {ys : Vec B k} →
            All₂ (λ x y → P (f₁ x) (f₂ y)) xs ys →
            All₂ P (Vec.map f₁ xs) (Vec.map f₂ ys)
-All₂-map {xs = []}    {ys = []}    []         = []
-All₂-map {xs = _ ∷ _} {ys = _ ∷ _} (px ∷ pxs) = px ∷ All₂-map pxs
+All₂-map []         = []
+All₂-map (px ∷ pxs) = px ∷ All₂-map pxs
 
--- A variant of gmap tailored to All₂.
+-- A variant of gmap for All₂.
 
-gmap₂ : ∀ {a b p q} {A₁ A₂ : Set a} {B₁ B₂ : Set b}
-          {P : A₁ → A₂ → Set p} {Q : B₁ → B₂ → Set q}
-          {f₁ : A₁ → B₁} {f₂ : A₂ → B₂} →
+gmap₂ : ∀ {a b c d p q} {A : Set a} {B : Set b} {C : Set c} {D : Set d}
+          {P : A → B → Set p} {Q : C → D → Set q}
+          {f₁ : A → C} {f₂ : B → D} →
         (∀ {x y} → P x y → Q (f₁ x) (f₂ y)) → ∀ {k xs ys} →
         All₂ P {k} xs ys → All₂ Q {k} (Vec.map f₁ xs) (Vec.map f₂ ys)
-gmap₂ g = All₂-map ∘ All.map g
+gmap₂ g [] = []
+gmap₂ g (pxy ∷ pxys) = g pxy ∷ gmap₂ g pxys
 
 -- A variant of gmap₂ shifting only the first function from the binary
 -- relation to the vector.
 
-gmap₂₁ : ∀ {a p q} {A₁ A₂ : Set a} {B : Set a}
-           {P : A₁ → A₂ → Set p} {Q : B → A₂ → Set q} {f : A₁ → B} →
+gmap₂₁ : ∀ {a b c p q} {A : Set a} {B : Set b} {C : Set c}
+           {P : A → B → Set p} {Q : C → B → Set q} {f : A → C} →
          (∀ {x y} → P x y → Q (f x) y) → ∀ {k xs ys} →
          All₂ P {k} xs ys → All₂ Q {k} (Vec.map f xs) ys
-gmap₂₁ g = P.subst (All₂ _ _) (map-id _) ∘ All₂-map {f₂ = id} ∘ All.map g
+gmap₂₁ g [] = []
+gmap₂₁ g (pxy ∷ pxys) = g pxy ∷ gmap₂₁ g pxys
 
 -- A variant of gmap₂ shifting only the second function from the
 -- binary relation to the vector.
 
-gmap₂₂ : ∀ {a p q} {A₁ A₂ : Set a} {B : Set a}
-           {P : A₁ → A₂ → Set p} {Q : A₁ → B → Set q} {f : A₂ → B} →
+gmap₂₂ : ∀ {a b c p q} {A : Set a} {B : Set b} {C : Set c}
+           {P : A → B → Set p} {Q : A → C → Set q} {f : B → C} →
          (∀ {x y} → P x y → Q x (f y)) → ∀ {k xs ys} →
          All₂ P {k} xs ys → All₂ Q {k} xs (Vec.map f ys)
-gmap₂₂ g =
-  P.subst (flip (All₂ _) _) (map-id _) ∘ All₂-map {f₁ = id} ∘ All.map g
+gmap₂₂ g [] = []
+gmap₂₂ g (pxy ∷ pxys) = g pxy ∷ gmap₂₂ g pxys
 
 -- Abstract composition of binary relations lifted to All₂.
 
-comp : ∀ {a p} {A : Set a} {B : Set a} {C : Set a}
-       {P : A → B → Set p} {Q : B → C → Set p} {R : A → C → Set p} →
+comp : ∀ {a b c p q r} {A : Set a} {B : Set b} {C : Set c}
+       {P : A → B → Set p} {Q : B → C → Set q} {R : A → C → Set r} →
        (∀ {x y z} → P x y → Q y z → R x z) →
        ∀ {k xs ys zs} → All₂ P {k} xs ys → All₂ Q {k} ys zs → All₂ R {k} xs zs
 comp _⊙_ {xs = []}     {[]}     {[]}     []           []           = []
