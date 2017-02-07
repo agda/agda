@@ -97,8 +97,8 @@ mlfDef alldefs d@Defn{ defName = q } =
 
 -- | Returns a list of constructor names grouped by data type
 getConstructors :: [Definition] -> [[QName]]
-getConstructors = map (getCons . theDef)
+getConstructors = mapMaybe (getCons . theDef)
   where
-    getCons :: Defn -> [QName]
-    getCons c@Datatype{} = dataCons c
-    getCons _ = []
+    getCons :: Defn -> Maybe [QName]
+    getCons c@Datatype{} = Just (dataCons c)
+    getCons _ = Nothing
