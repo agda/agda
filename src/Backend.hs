@@ -92,7 +92,7 @@ mlfDef alldefs d@Defn{ defName = q } =
             $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
           let
-            mlf = Mlf.translateDef' (map getConstructors alldefs) q tt
+            mlf = Mlf.translateDef' (getConstructors alldefs) q tt
             pretty' = text . showBinding
           liftIO . putStrLn . render $
             sect "Malfunction (abstract syntax)" (text . show $ mlf)
@@ -112,15 +112,15 @@ mlfDef alldefs d@Defn{ defName = q } =
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
 
 -- | Returns all constructors for the given definition.
-getConstructors :: Definition -> [QName]
-getConstructors = getCons . theDef
+getConstructors :: [Definition] -> [[QName]]
+getConstructors = mapMaybe (getCons . theDef)
   where
-    getCons :: Defn -> [QName]
-    getCons c@Datatype{} = dataCons c
+    getCons :: Defn -> Maybe [QName]
+    getCons c@Datatype{} = Just (dataCons c)
     -- The way I understand it a record is just like a data-type
     -- except it only has one constructor and that one constructor
     -- takes as many arguments as the number of fields in that
     -- record.
-    getCons c@Record{} = pure . recCon $ c
+    getCons c@Record{} = Just . pure . recCon $ c
     -- TODO: Stub value here!
-    getCons _ = []
+    getCons _ = Nothing
