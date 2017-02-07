@@ -1222,7 +1222,14 @@ prim_mcoglue' = do
        case view $ unArg $ ignoreBlocking $ sphi of
          PTop -> redReturn $ unArg c `apply` [argN one, b]
          PBot -> redReturn $ unArg c0 `apply` [b]
-         _    -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,bC,c0,c,b])
+
+         _    -> do
+           sb <- reduceB' b
+           cogluem <- getPrimitiveName' builtin_coglue
+           case unArg $ ignoreBlocking $ sb of
+             Def q [la,lb,bA,phi,bT,f,Apply a] | Just q == cogluem -> redReturn (unArg c0 `apply` [argN $ unArg a])
+             _ -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi]
+                                     ++ map notReduced [bT,f,bC,c0,c] ++ [reduced sb])
       _ -> __IMPOSSIBLE__
 
 prim_unglue' :: TCM PrimitiveImpl
