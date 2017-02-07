@@ -170,6 +170,7 @@ library
                 , strict >= 0.3.2 && < 0.4
                 , template-haskell >= 2.8.0.0 && < 2.12
                 , text >= 0.11.3.1 && < 1.3
+                , text-icu == 0.7.*
                 , time >= 1.4.0.1 && < 1.7
                 -- transformers 0.4.0.0 was deprecated.
                 , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6

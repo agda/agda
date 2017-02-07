@@ -18,6 +18,7 @@ import System.Directory
 import System.FilePath
 import Data.Text (Text)
 import qualified Data.Text               as T
+import qualified Data.Text.ICU           as ICU
 import qualified Data.Text.IO            as T
 import qualified Data.Text.Lazy          as L
 import qualified Data.Text.Lazy.Builder  as B
@@ -108,6 +109,14 @@ emptyState = State
 ------------------------------------------------------------------------
 -- * Some helpers.
 
+-- | Counts the number of grapheme clusters in the string, rather than
+-- the number of code points.
+--
+-- Uses the root locale.
+
+graphemeClusters :: Text -> Int
+graphemeClusters = length . ICU.breaks (ICU.breakCharacter ICU.Root)
+
 (<+>) :: Text -> Text -> Text
 (<+>) = T.append
 
@@ -161,7 +170,7 @@ nextToken' = do
           -- Spaces take care of their own column tracking.
           unless (isSpaces (text t)) $ do
             log MoveColumn $ text t
-            moveColumn $ T.length $ text t
+            moveColumn $ graphemeClusters $ text t
 
           return t
 
@@ -196,7 +205,7 @@ nextToken' = do
 
           unless (isSpaces pre) $ do
             log MoveColumn pre
-            moveColumn $ T.length pre
+            moveColumn $ graphemeClusters pre
 
           modify $ \s -> s { tokens = toksToPutBack ++ tokens s }
           return tokToReturn
@@ -467,7 +476,7 @@ spaces ((T.uncons -> Just (' ', s)) : []) | T.null s = do
 
 -- Multiple spaces.
 spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
-  let len = T.length s
+  let len = graphemeClusters s
 
   col <- gets column
   moveColumn len
@@ -514,14 +523,14 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
 -- Newlines.
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   resetColumn
-  output $ ptClose <+> T.replicate (T.length s) ptNL
+  output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
   spaces ss
 
 -- Treat tabs and non-standard spaces as if they were spaces
 -- [Issue_#2019].
 spaces (s@(T.uncons -> Just (c, _)) : ss)
   | isSpace c && (c /= '\n') =
-      spaces $ T.replicate (T.length s) (T.singleton ' ') : ss
+      spaces $ T.replicate (graphemeClusters s) (T.singleton ' ') : ss
   | otherwise = __IMPOSSIBLE__
 
 spaces (_ : ss) = __IMPOSSIBLE__
@@ -543,7 +552,7 @@ stringLiteral t | aspect (info t) == Just String =
     insertShifted :: (Int, Tokens) -> Text -> (Int, Tokens)
     insertShifted (i, xs) x =
       let tx = t { text = x, position = position t + i }
-      in (i + T.length x, tx : xs)
+      in (i + graphemeClusters x, tx : xs)
 
 stringLiteral t = [t]
 

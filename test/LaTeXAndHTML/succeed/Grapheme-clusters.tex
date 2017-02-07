@@ -1,0 +1,21 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+\AgdaPostulate{A} and \AgdaPostulate{B} should be aligned.
+
+\begin{code}%
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{postulate}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaPostulate{+̲+̲+̲+̲+̲+̲} \<[12]%
+\>[12]\AgdaPostulate{A}\<%
+\\
+\>[4]\AgdaIndent{12}{}\<[12]%
+\>[12]\AgdaPostulate{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\end{document}
