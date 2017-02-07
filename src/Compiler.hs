@@ -17,7 +17,7 @@ import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Tuple.Extra
 import           Malfunction.AST
-
+import           Data.Char
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -362,5 +362,24 @@ unitT = Mblock 0 []
 translateName :: QName -> Term
 translateName = Mvar . nameToIdent
 
+-- | Translate a Treeless name to a valid identifier in Malfunction
+--
+-- Not all names in agda are valid names in Treleess. Valid names in Agda are
+-- given by [1]. Valid identifiers in Malfunction is subject to change:
+--
+-- > "Atoms: sequences of ASCII letters, digits, or symbols (the exact set of
+-- > allowed symbols isn't quite nailed down yet)"[2]
+--
+-- This function translates non-alpha-numerical characters to `{n}` where
+-- `n` is the ascii-value of that character.
+--
+-- [1]: http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers
+-- [2]: https://github.com/stedolan/malfunction/blob/master/docs/spec.md
 nameToIdent :: QName -> Ident
-nameToIdent = show
+nameToIdent = concatMap go . show
+  where
+    go :: Char -> Ident
+    go c
+      | isValidInMlf c = pure c
+      | otherwise      = "{" ++ show (ord c) ++ "}"
+    isValidInMlf c = isAlphaNum c || c == '.'
