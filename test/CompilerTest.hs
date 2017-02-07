@@ -38,47 +38,36 @@ test_translate =
     translate'1 (TLam (TApp (TVar 0) [TLam (TVar 1)]))
     @?= Mlambda ["v0"] (Mapply (Mvar "v0") [Mlambda ["v1"] (Mvar "v0")])
   , testCase "factorial" $ let qn = simpleQName ["Test"] "fact" in
-      translateDef' [] qn (facTT qn) @?= facT
+      translateDef' [] qn (facTT qn) @?= facT qn
   -- This test-case is a bit silly, since `TError TUnreachable` could be encoded
   -- as anything in malfunction. E.g. the function `f : ⊥ -> a` will never be
   -- applied to any arguments!
   , testCase "function from an uninhabited type"
     $ translate'1 (TError TUnreachable)
     @?= Mblock 0 []
--- TODO: Still not sure what this should translate to:
---  , testCase "pattern match constructor"
---    $   translate patternMatchConstructor
---    @?= Mswitch (MVar "v0") [([Tag _], _)]
+  , testCase "fst"
+    $ let fstqn = simpleQName ["Test"] "fst"
+          tupqn = simpleQName ["Test", "Tuple"] "Tup"
+      in translateDef' [[tupqn]] fstqn (fstTT fstqn) @?= fstT fstqn
   ]
 
 facTT :: QName -> TTerm
-facTT qn = (TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)
+facTT qn = TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)
       [TVar 0,TLit (LitNat undefined 1)]
       ) (TApp (TPrim PMul) [TVar 1,TApp (TDef qn) [TVar 0]])
-  ) [TALit {aLit = LitNat undefined 0, aBody = TLit (LitNat undefined 1)}]))
+  ) [TALit {aLit = LitNat undefined 0, aBody = TLit (LitNat undefined 1)}])
 
-facT :: Binding
-facT  = Recursive [("Test.fact",Mlambda ["v0"]
+facT :: QName -> Binding
+facT qn = Recursive [(show qn, Mlambda ["v0"]
   (Mswitch (Mvar "v0") [([CaseInt 0],Mint (CInt 1))
     , ([CaseAnyInt,Deftag],Mlet [Named "v1" (Mintop2 Sub TInt
       (Mvar "v0") (Mint (CInt 1)))
     ] (Mintop2 Mul TInt (Mvar "v0")
-  (Mapply (Mvar "Test.fact") [Mvar "v1"])))]))]
--- Please note that this example is incomplete since not all fields
--- in `dummy` fields (that are needed) are instantiated.
--- patternMatchConstructor :: TTerm
--- patternMatchConstructor = TCase 0 (CTData typName) (TError TUnreachable) [TACon conName arity body]
---   where
---     typName, conName :: QName
---     -- The name of the data-type
---     typName = dummy 0
---     -- The name of the constructor for that data-type
---     conName  = dummy 1
---     dummy :: Int -> QName
---     dummy n = QName { qnameName = Name { nameId = toEnum n } }
---     -- The arity of the constructor
---     arity :: Int
---     arity = 2
---     -- The body of the case-expression
---     body  :: TTerm
---     body = TLit $ LitNat (error "Not used, I promise!") 0
+  (Mapply (Mvar (show qn)) [Mvar "v1"])))]))]
+
+fstTT qn = TLam (TCase 0 (CTData qn) (TError TUnreachable) [TACon {aCon = qn, aArity = 2, aBody = TVar 1}])
+
+fstT qn = Named (show qn) (Mlambda ["v0"] (Mswitch (Mvar "v0") [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CInt 0))] (Mvar "v1"))]))
+
+a = let qn = simpleQName ["Test", "Tuple"] "fst" in
+      translateDef' [[qn]] qn (fstTT qn)
