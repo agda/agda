@@ -71,8 +71,10 @@ mlfPostModule mlfopt defs = do
 printVar :: MonadIO m => Mod -> Ident -> m ()
 printVar modl@(MMod binds _) v = do
   liftIO (putStrLn "\n=======================")
-  when (any defVar binds)
-    $ liftIO $ runModPrintInts [v] modl >>= putStrLn
+  liftIO $
+    if any defVar binds
+    then runModPrintInts [v] modl >>= putStrLn
+    else putStrLn "Variable not bound, did you specify the *fully quailified* name?"
     where
       defVar (Named u _) = u == v
       defVar _ = False
@@ -90,7 +92,7 @@ mlfDef alldefs d@Defn{ defName = q } =
             $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
           let
-            mlf = Mlf.translateDef' (getConstructors alldefs) q tt
+            mlf = Mlf.translateDef' (map getConstructors alldefs) q tt
             pretty' = text . showBinding
           liftIO . putStrLn . render $
             sect "Malfunction (abstract syntax)" (text . show $ mlf)
@@ -109,10 +111,16 @@ mlfDef alldefs d@Defn{ defName = q } =
     Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
 
--- | Returns a list of constructor names grouped by data type
-getConstructors :: [Definition] -> [[QName]]
-getConstructors = map (getCons . theDef)
+-- | Returns all constructors for the given definition.
+getConstructors :: Definition -> [QName]
+getConstructors = getCons . theDef
   where
     getCons :: Defn -> [QName]
     getCons c@Datatype{} = dataCons c
+    -- The way I understand it a record is just like a data-type
+    -- except it only has one constructor and that one constructor
+    -- takes as many arguments as the number of fields in that
+    -- record.
+    getCons c@Record{} = pure . recCon $ c
+    -- TODO: Stub value here!
     getCons _ = []
