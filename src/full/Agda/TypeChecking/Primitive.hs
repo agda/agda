@@ -1158,9 +1158,9 @@ prim_glue' = do
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
-       hPi' "A" (sort . tmSort <$> la) $ \ a ->
+       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
@@ -1180,9 +1180,9 @@ prim_coglue' = do
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
-       hPi' "A" (sort . tmSort <$> la) $ \ a ->
+       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <@> o)) $ \ f ->
        (el' la a --> el' lb (cl primCoGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
   view <- propView'
@@ -1230,9 +1230,9 @@ prim_unglue' = do
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
-       hPi' "A" (sort . tmSort <$> la) $ \ a ->
+       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)) --> el' la a)
