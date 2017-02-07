@@ -530,7 +530,9 @@ typeCheck x file includeStateChanges = do
               -- be able to forget some of the local state from
               -- checking the module.
               -- Note that this doesn't actually read the interface
-              -- file, only the cached interface.
+              -- file, only the cached interface. (This comment is not
+              -- correct, see
+              -- test/Fail/customised/NestedProjectRoots.err.)
               getStoredInterface x file includeStateChanges
             _ -> return (False, r)
 
