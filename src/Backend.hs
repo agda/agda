@@ -1,11 +1,9 @@
 module Backend (backend) where
 
 import           Agda.Compiler.Backend
-import           Agda.Syntax.Internal
 import           Agda.Utils.Pretty
 import qualified Compiler as Mlf
 import           Control.Monad.Trans
-import           Data.List.Extra
 import           Data.Maybe
 import           Malfunction.AST
 import           Malfunction.Print
