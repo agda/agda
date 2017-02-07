@@ -23,7 +23,7 @@ type MonadTranslate m = (MonadReader Env m)
 
 data Env = Env {
   _mapConToTag :: Map QName Int
-  , _nextIdx :: Int
+  , _level :: Int
   }
   deriving (Show)
 
@@ -35,7 +35,7 @@ runReaderEnv allcons ma
     tagRange = (0, 199)
     mkEnv = Env {
       _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
-      , _nextIdx = 0
+      , _level = 0
       }
 
 translateDef :: MonadReader Env m => QName -> TTerm -> m Binding
@@ -121,7 +121,7 @@ unreachableT = unitT
 
 indexToVarTerm :: MonadReader Env m => Int -> m Term
 indexToVarTerm i = do
-  ni <- asks _nextIdx
+  ni <- asks _level
   return (Mvar (ident (ni - i - 1)))
 
 
@@ -150,7 +150,8 @@ bindFields vars used termc body = case map bind varsRev of
     varsRev = zip [0..] (reverse vars)
     arity = length vars
     bind (ix, iden)
-      | Set.member ix used = Named iden (Mfield (arity - ix - 1) termc)
+      -- | Set.member ix used = Named iden (Mfield (arity - ix - 1) termc)
+      | Set.member ix used = Named iden (Mfield ix termc)
       | otherwise = Named iden (Mint (CInt 0))
 
 litToCase :: Literal -> Case
@@ -186,9 +187,9 @@ introVars k ma = do
   where
     nextIdxs :: MonadReader Env m => Int -> m ([Ident], Env)
     nextIdxs k = do
-      i0 <- asks _nextIdx
+      i0 <- asks _level
       e <- ask
-      return (map ident [i0..i0 + k - 1], e{_nextIdx = _nextIdx e + k})
+      return (map ident $ reverse [i0..i0 + k - 1], e{_level = _level e + k})
 
 introVar :: MonadReader Env m => m a -> m (Ident, a)
 introVar ma = first head <$> introVars 1 ma
@@ -291,15 +292,15 @@ isConstructor nm = (nm`Map.member`) <$> asks _mapConToTag
 -- Set of indices of the variables that are referenced inside the term.
 --
 -- Example
--- Env{_nextIdx = 2} usedVars (λλ (Var 3) λ (Var 4) ) == {1}
+-- λλ Env{_level = 2} usedVars (λ(λ ((Var 3) (λ (Var 4)))) ) == {1}
 usedVars :: MonadReader Env m => TTerm -> m (Set Int)
-usedVars term = asks _nextIdx >>= go mempty term
+usedVars term = asks _level >>= go mempty term
    where
      go vars t topnext = goterm vars t
        where
          goterms vars = foldM (\acvars tt -> goterm acvars tt) vars
          goterm vars t = do
-           nextix <- asks _nextIdx
+           nextix <- asks _level
            case t of
              (TVar v) -> return $ govar vars v nextix
              (TApp t args) -> goterms vars (t:args)
