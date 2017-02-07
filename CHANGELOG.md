@@ -167,6 +167,26 @@ Compiler backends
   backends using Agda as a library. This allows prospective backend writers to
   experiment with new backends without having to change the Agda code base.
 
+LaTeX backend
+-------------
+
+* The user can now control the typesetting of (certain) individual tokens
+  by redefining the `\AgdaFormat` command. Example:
+  ```latex
+  \usepackage{ifthen}
+
+  % Insert extra space before some tokens.
+  \DeclareRobustCommand{\AgdaFormat}[2]{%
+    \ifthenelse{
+      \equal{#1}{≡⟨} \OR
+      \equal{#1}{≡⟨⟩} \OR
+      \equal{#1}{∎}
+    }{\ }{}#2}
+  ```
+  Note the use of `\DeclareRobustCommand`. The first argument to
+  `\AgdaFormat` is the token, and the second argument the thing to
+  be typeset.
+
 Pragmas and options
 -------------------
 
