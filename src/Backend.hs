@@ -10,6 +10,7 @@ import           Malfunction.Print
 import           Malfunction.Run
 import           System.Console.GetOpt
 import           Text.Printf
+import           Control.Monad (when)
 
 backend :: Backend
 backend = Backend backend'
@@ -17,12 +18,14 @@ backend = Backend backend'
 data MlfOptions = Opts {
   _enabled :: Bool
   , _resultVar :: Maybe Ident
+  , _outputFile :: Maybe FilePath
   }
 
 defOptions :: MlfOptions
 defOptions = Opts {
   _enabled = False
   , _resultVar = Nothing
+  , _outputFile = Nothing
   }
 
 ttFlags :: [OptDescr (Flag MlfOptions)]
@@ -31,6 +34,8 @@ ttFlags =
     "Generate Malfunction"
   , Option ['r'] [] (ReqArg (\r o -> return o{_resultVar = Just r}) "VAR")
     "(DEBUG) Run the module and print the integer value of a variable"
+  , Option ['o'] [] (ReqArg (\r o -> return o{_outputFile = Just r}) "FILE")
+    "(DEBUG) Place outputFile resulting module into FILE"
   ]
 
 backend' :: Backend' MlfOptions MlfOptions () Mod Definition
@@ -43,25 +48,36 @@ backend' = Backend' {
   , postCompile = \env isMain r -> liftIO (putStrLn "post compile")
   , preModule = \enf m ifile -> return $ Recompile ()
   , compileDef = \env menv -> return
-  , postModule = \env menv m mod defs -> mlfModule env defs
+  , postModule = \env menv m mod defs -> mlfPostModule env defs
   , backendVersion = Nothing
   }
 
-mlfModule :: MlfOptions -> [Definition] -> TCM Mod
-mlfModule mlfopt defs = do
-  mlfMod <- (`MMod`[]) . catMaybes <$> mapM (mlfDef defs) defs
-  liftIO (putStrLn (showMod mlfMod))
-  printRes mlfMod
-  return mlfMod
-  where
-    printRes mlfMod@(MMod binds _) = do
-      liftIO (putStrLn "\n=======================")
-      liftIO (case _resultVar mlfopt of
-                 Just var
-                   | any defVar binds -> runModPrintInts [var] mlfMod >>= putStrLn
-                   where defVar (Named v _) = v == var
-                         defVar _ = False
-                 _ -> return ())
+mlfMod :: [Definition] -> TCM Mod
+mlfMod defs = (`MMod`[]) . catMaybes <$> mapM (mlfDef defs) defs
+
+mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
+mlfPostModule mlfopt defs = do
+  modl <- mlfMod defs
+  let modlTxt = showMod modl
+  liftIO . putStrLn $ modlTxt
+  case _resultVar mlfopt of
+    Just v   -> printVar modl v
+    Nothing  -> return ()
+  case _outputFile mlfopt of
+    Just fp -> liftIO $ writeFile fp modlTxt
+    Nothing -> return ()
+  return modl
+
+printVar :: MonadIO m => Mod -> Ident -> m ()
+printVar modl@(MMod binds _) v = do
+  liftIO (putStrLn "\n=======================")
+  liftIO $
+    if any defVar binds
+    then runModPrintInts [v] modl >>= putStrLn
+    else putStrLn "Variable not bound, did you specify the *fully quailified* name?"
+    where
+      defVar (Named u _) = u == v
+      defVar _ = False
 
 mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
 mlfDef alldefs d@Defn{ defName = q } =
@@ -76,7 +92,7 @@ mlfDef alldefs d@Defn{ defName = q } =
             $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
           let
-            mlf = Mlf.translateDef' (getConstructors alldefs) q tt
+            mlf = Mlf.translateDef' (map getConstructors alldefs) q tt
             pretty' = text . showBinding
           liftIO . putStrLn . render $
             sect "Malfunction (abstract syntax)" (text . show $ mlf)
@@ -95,10 +111,16 @@ mlfDef alldefs d@Defn{ defName = q } =
     Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
 
--- | Returns a list of constructor names grouped by data type
-getConstructors :: [Definition] -> [[QName]]
-getConstructors = mapMaybe (getCons . theDef)
+-- | Returns all constructors for the given definition.
+getConstructors :: Definition -> [QName]
+getConstructors = getCons . theDef
   where
-    getCons :: Defn -> Maybe [QName]
-    getCons c@Datatype{} = Just (dataCons c)
-    getCons _ = Nothing
+    getCons :: Defn -> [QName]
+    getCons c@Datatype{} = dataCons c
+    -- The way I understand it a record is just like a data-type
+    -- except it only has one constructor and that one constructor
+    -- takes as many arguments as the number of fields in that
+    -- record.
+    getCons c@Record{} = pure . recCon $ c
+    -- TODO: Stub value here!
+    getCons _ = []

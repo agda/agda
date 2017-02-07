@@ -47,6 +47,10 @@ translateDef qnm t
       tt <- translate t
       return (Named (nameToIdent qnm) tt)
   where
+    -- TODO: I don't believe this is enough, consider the example
+    -- where functions are mutually recursive.
+    --     a = b
+    --     b = a
     isRecursive = Set.member qnm (qnamesInTerm t) -- TODO: is this enough?
 
 qnamesInTerm :: TTerm -> Set QName
@@ -108,8 +112,12 @@ translateTerm tt = case tt of
   TUnit             -> return unitT
   TSort             -> error ("Unimplemented " ++ show tt)
   TErased           -> return (Mint (CInt 0)) -- TODO: so... anything can go here?
-  TError err        -> error $ "Error: " ++ show err
+  TError TUnreachable -> return unreachableT
 
+-- | `unreachableT` is an expression that can never be executed (in a type-
+-- correct term), so in malfunction this can be encoded as anything.
+unreachableT :: Term
+unreachableT = unitT
 
 indexToVarTerm :: MonadReader Env m => Int -> m Term
 indexToVarTerm i = do
