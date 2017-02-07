@@ -168,7 +168,7 @@ relocatable-interfaces : relocatable/originals/*.agda
 	@$(agda) -irelocatable/copies relocatable/copies/C.agda > relocatable/copies/output
 	@cat relocatable/copies/output
 				# ...and skips one of the modules (A).
-	@[ `grep "^ *Skipping" relocatable/copies/output | wc -l` = 1 ]
+	@[ `grep "^ *Loading" relocatable/copies/output | wc -l` = 1 ]
 	@rm -rf relocatable/copies
 
 .PHONY : malformed-interfaces

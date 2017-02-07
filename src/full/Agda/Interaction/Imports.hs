@@ -421,7 +421,7 @@ getStoredInterface x file includeStateChanges = do
           -- liftIO close -- Close the interface file. See above.
           fallback
         else do
-          unless cached $ chaseMsg "Skipping" x $ Just ifile
+          unless cached $ chaseMsg "Loading " x $ Just ifile
           -- We set the pragma options of the skipped file here,
           -- because if the top-level file is skipped we want the
           -- pragmas to apply to interactive commands in the UI.
@@ -535,10 +535,10 @@ typeCheck x file includeStateChanges = do
             _ -> return (False, r)
 
 
--- | Formats and outputs the "Checking", "Finished" and "Skipping" messages.
+-- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
 
 chaseMsg
-  :: String               -- ^ The prefix, like @Checking@, @Finished@, @Skipping@.
+  :: String               -- ^ The prefix, like @Checking@, @Finished@, @Loading @.
   -> C.TopLevelModuleName -- ^ The module name.
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
