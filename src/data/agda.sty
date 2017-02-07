@@ -305,30 +305,49 @@
 \newcommand{\AgdaNoSpaceMath}[1]
     {\begingroup\thickmuskip=0mu\medmuskip=0mu#1\endgroup}
 
+% The user can control the typesetting of (certain) individual tokens
+% by redefining the following command. The first argument is the token
+% and the second argument the thing to be typeset (sometimes just the
+% token, sometimes \AgdaLink{<the token>}). Example:
+%
+%   \usepackage{ifthen}
+%
+%   % Insert extra space before some tokens.
+%   \DeclareRobustCommand{\AgdaFormat}[2]{%
+%     \ifthenelse{
+%       \equal{#1}{≡⟨} \OR
+%       \equal{#1}{≡⟨⟩} \OR
+%       \equal{#1}{∎}
+%     }{\ }{}#2}
+%
+% Note the use of \DeclareRobustCommand.
+
+\newcommand{\AgdaFormat}[2]{#2}
+
 \newcommand{\AgdaBound}[1]
-    {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaBound}{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaBound}{\AgdaFormat{#1}{#1}}}}}
 \newcommand{\AgdaInductiveConstructor}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaCoinductiveConstructor}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaCoinductiveConstructor}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaCoinductiveConstructor}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaDatatype}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaDatatype}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaDatatype}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaField}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaField}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaField}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaFunction}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaFunction}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaFunction}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaMacro}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaMacro}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaMacro}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaModule}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaModule}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaModule}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaPostulate}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPostulate}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPostulate}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaPrimitive}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPrimitive}{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPrimitive}{\AgdaFormat{#1}{#1}}}}}
 \newcommand{\AgdaRecord}[1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaRecord}{\AgdaLink{#1}}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaRecord}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaArgument}[1]
-    {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaArgument}{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaArgument}{\AgdaFormat{#1}{#1}}}}}
 
 % Other aspect commands.
 \newcommand{\AgdaFixityOp}          [1]{\AgdaNoSpaceMath{$#1$}}
@@ -527,6 +546,6 @@
   \ignorespacesafterend}
 
 % Default column for polytable.
-\defaultcolumn{@{~}l@{~}}
+\defaultcolumn{@{}l@{ }}
 
 \endinput

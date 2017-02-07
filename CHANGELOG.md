@@ -167,6 +167,38 @@ Compiler backends
   backends using Agda as a library. This allows prospective backend writers to
   experiment with new backends without having to change the Agda code base.
 
+LaTeX backend
+-------------
+
+* Some spacing issues
+  [[#2353](https://github.com/agda/agda/issues/2353),
+  [#2441](https://github.com/agda/agda/issues/2441)] have been fixed.
+
+  This change can affect spacing in existing documents, if they are
+  recompiled using the new `agda.sty`. To avoid this change you can
+  use the old `agda.sty`, or insert
+  ```latex
+  \defaultcolumn{@{~}l@{~}}
+  ```
+  just after the import of `agda.sty`.
+
+* The user can now control the typesetting of (certain) individual tokens
+  by redefining the `\AgdaFormat` command. Example:
+  ```latex
+  \usepackage{ifthen}
+
+  % Insert extra space before some tokens.
+  \DeclareRobustCommand{\AgdaFormat}[2]{%
+    \ifthenelse{
+      \equal{#1}{≡⟨} \OR
+      \equal{#1}{≡⟨⟩} \OR
+      \equal{#1}{∎}
+    }{\ }{}#2}
+  ```
+  Note the use of `\DeclareRobustCommand`. The first argument to
+  `\AgdaFormat` is the token, and the second argument the thing to
+  be typeset.
+
 Pragmas and options
 -------------------
 
