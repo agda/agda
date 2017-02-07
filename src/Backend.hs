@@ -3,14 +3,17 @@ module Backend (backend) where
 import           Agda.Compiler.Backend
 import           Agda.Utils.Pretty
 import qualified Compiler as Mlf
+import           Control.Monad
 import           Control.Monad.Trans
+import           Data.Map (Map)
+import qualified Data.Map as Map
 import           Data.Maybe
+import           Debug.Trace
 import           Malfunction.AST
 import           Malfunction.Print
 import           Malfunction.Run
 import           System.Console.GetOpt
 import           Text.Printf
-import           Control.Monad (when)
 
 backend :: Backend
 backend = Backend backend'
@@ -38,22 +41,30 @@ ttFlags =
     "(DEBUG) Place outputFile resulting module into FILE"
   ]
 
-backend' :: Backend' MlfOptions MlfOptions () Mod Definition
+backend' :: Backend' MlfOptions MlfOptions () [Definition] Definition
 backend' = Backend' {
   backendName = "malfunction"
   , options = defOptions
   , commandLineFlags = ttFlags
   , isEnabled = _enabled
   , preCompile = return
-  , postCompile = \env isMain r -> liftIO (putStrLn "post compile")
+  , postCompile = mlfPostCompile --liftIO (putStrLn "post compile")
   , preModule = \enf m ifile -> return $ Recompile ()
-  , compileDef = \env menv -> return
-  , postModule = \env menv m mod defs -> mlfPostModule env defs
+  , compileDef = \env menv def -> return def
+  , postModule = \env menv m mod defs -> return defs --mlfPostModule env defs
   , backendVersion = Nothing
   }
 
 mlfMod :: [Definition] -> TCM Mod
 mlfMod defs = (`MMod`[]) . catMaybes <$> mapM (mlfDef defs) defs
+
+mlfPostCompile :: MlfOptions -> IsMain -> Map ModuleName [Definition] -> TCM ()
+mlfPostCompile opts _ modToDefs = do
+  liftIO (putStrLn "sdlkfj")
+  void $ mlfPostModule opts allDefs
+  where
+    allDefs :: [Definition]
+    allDefs = concat (Map.elems modToDefs)
 
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
