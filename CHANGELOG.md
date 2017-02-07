@@ -170,6 +170,18 @@ Compiler backends
 LaTeX backend
 -------------
 
+* Some spacing issues
+  [[#2353](https://github.com/agda/agda/issues/2353),
+  [#2441](https://github.com/agda/agda/issues/2441)] have been fixed.
+
+  This change can affect spacing in existing documents, if they are
+  recompiled using the new `agda.sty`. To avoid this change you can
+  use the old `agda.sty`, or insert
+  ```latex
+  \defaultcolumn{@{~}l@{~}}
+  ```
+  just after the import of `agda.sty`.
+
 * The user can now control the typesetting of (certain) individual tokens
   by redefining the `\AgdaFormat` command. Example:
   ```latex
