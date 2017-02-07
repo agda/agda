@@ -3,3 +3,6 @@ resolver: lts-7.19
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+extra-deps:
+- equivalence-0.3.2
+- STMonadTrans-0.4.1
