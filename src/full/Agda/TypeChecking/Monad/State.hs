@@ -358,29 +358,31 @@ getBenchmark = gets $ theBenchmark
 modifyBenchmark :: (Benchmark -> Benchmark) -> TCM ()
 modifyBenchmark = modify' . updateBenchmark
 
--- | Run a fresh instance of the TCM (with initial state).
---   'Benchmark' info is preserved.
+-- | A fresh TCM instance.
+--
+-- The computation is run in a fresh state, with the exception that
+-- the persistent state is preserved. If the computation changes the
+-- state, then these changes are ignored, except for changes to the
+-- persistent state. (Changes to the persistent state are also ignored
+-- if errors other than type errors or IO exceptions are encountered.)
+
 freshTCM :: TCM a -> TCM (Either TCErr a)
 freshTCM m = do
-  -- Prepare an initial state with current benchmark info.
-  b <- getBenchmark
-  a <- use lensAccumStatistics
-  let s = updateBenchmark (const b)
-        . set lensAccumStatistics a
-        $ initState
-  -- Run subcomputation in initial state.
-  -- If we encounter an exception, we lose the state and the
-  -- benchmark info.
-  -- We could retrieve i from a type error, which carries the state,
-  -- but we do not care for benchmarking in the presence of errors.
+  ps <- use lensPersistentState
+  let s = set lensPersistentState ps initState
   r <- liftIO $ (Right <$> runTCM initEnv s m) `E.catch` (return . Left)
   case r of
-    Left err     -> return $ Left err
     Right (a, s) -> do
-      -- Keep only the benchmark info from the final state of the subcomp.
-      modifyBenchmark $ const $ theBenchmark s
-      lensAccumStatistics .= (s^.lensAccumStatistics)
+      lensPersistentState .= s ^. lensPersistentState
       return $ Right a
+    Left err -> do
+      case err of
+        TypeError { tcErrState = s } ->
+          lensPersistentState .= s ^. lensPersistentState
+        IOException s _ _ ->
+          lensPersistentState .= s ^. lensPersistentState
+        _ -> return ()
+      return $ Left err
 
 ---------------------------------------------------------------------------
 -- * Instance definitions
