@@ -488,7 +488,8 @@ typeCheck x file includeStateChanges = do
     ho       <- getInteractionOutputCallback
     -- Every interface is treated in isolation. Note: Some changes to
     -- the persistent state may not be preserved if an error other
-    -- than a type error is encountered in an imported module.
+    -- than a type error or an IO exception is encountered in an
+    -- imported module.
     -- Andreas, 2014-03-23: freshTCM spawns a new TCM computation
     -- with initial state and environment
     -- but on the same Benchmark accounts.
@@ -585,12 +586,12 @@ readInterface file = do
   `catchError` handler
   where
     handler e = case e of
-      IOException _ e -> do
+      IOException _ _ e -> do
         reportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
-      _               -> throwError e
+      _ -> throwError e
 
 -- | Writes the given interface to the given file.
 

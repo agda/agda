@@ -364,7 +364,7 @@ modifyBenchmark = modify' . updateBenchmark
 -- the persistent state is preserved. If the computation changes the
 -- state, then these changes are ignored, except for changes to the
 -- persistent state. (Changes to the persistent state are also ignored
--- if errors other than type errors are encountered.)
+-- if errors other than type errors or IO exceptions are encountered.)
 
 freshTCM :: TCM a -> TCM (Either TCErr a)
 freshTCM m = do
@@ -378,6 +378,8 @@ freshTCM m = do
     Left err -> do
       case err of
         TypeError { tcErrState = s } ->
+          lensPersistentState .= s ^. lensPersistentState
+        IOException s _ _ ->
           lensPersistentState .= s ^. lensPersistentState
         _ -> return ()
       return $ Left err

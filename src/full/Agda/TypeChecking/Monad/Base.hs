@@ -2668,7 +2668,9 @@ data TCErr
         -- ^ The environment in which the error as raised plus the error.
     }
   | Exception Range Doc
-  | IOException Range E.IOException
+  | IOException TCState Range E.IOException
+    -- ^ The first argument is the state in which the error was
+    -- raised.
   | PatternErr
       -- ^ The exception which is usually caught.
       --   Raised for pattern violations during unification ('assignV')
@@ -2679,16 +2681,16 @@ instance Error TCErr where
   strMsg = Exception noRange . text . strMsg
 
 instance Show TCErr where
-    show (TypeError _ e) = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
-    show (Exception r d) = show r ++ ": " ++ render d
-    show (IOException r e) = show r ++ ": " ++ show e
-    show PatternErr{}  = "Pattern violation (you shouldn't see this)"
+  show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
+  show (Exception r d)     = show r ++ ": " ++ render d
+  show (IOException _ r e) = show r ++ ": " ++ show e
+  show PatternErr{}        = "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where
-    getRange (TypeError _ cl)  = envRange $ clEnv cl
-    getRange (Exception r _)   = r
-    getRange (IOException r _) = r
-    getRange PatternErr{}      = noRange
+  getRange (TypeError _ cl)    = envRange $ clEnv cl
+  getRange (Exception r _)     = r
+  getRange (IOException s r _) = r
+  getRange PatternErr{}        = noRange
 
 instance E.Exception TCErr
 
@@ -2928,13 +2930,13 @@ apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \s e -> do
                let r = envRange e
-               liftIO $ wrap r $ do
+               liftIO $ wrap s r $ do
                  x <- m
                  x `seq` return x
     where
-      wrap r m = E.catch m (handleIOException r)
-
-      handleIOException r e = E.throwIO $ IOException r e
+      wrap s r m = E.catch m $ \e -> do
+        s <- readIORef s
+        E.throwIO $ IOException s r e
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
