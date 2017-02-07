@@ -1215,7 +1215,7 @@ prim_mcoglue' = do
        el' lc (bC <@> b))
   view <- propView'
   one <- primItIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 11 $ \ts ->
     case ts of
       [la,lb,lc,bA,phi,bT,f,bC,c0,c,b] -> do
        sphi <- reduceB' phi
