@@ -27,3 +27,11 @@ Identity f = ∀ x → f x ≡ x
 
 plus-0 : Identity (_+ 0)
 plus-0 = plus0
+
+my-Fun : ∀{a b} (A : Set a) (F : A → Set b) → Set (a ⊔ b)
+my-Fun A F = (x : A) → F x
+
+syntax my-Fun A (λ x → B) = [ x ∷ A ]=> B
+
+my-id : [ A ∷ Set ]=> [ x ∷ A ]=> A
+my-id A x = x
