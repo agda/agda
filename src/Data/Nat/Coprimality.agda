@@ -164,7 +164,7 @@ prime⇒coprime (suc (suc m)) p (suc n) _ 1+n<2+m {suc (suc i)}
     3 + i  ≤⟨ s≤s (∣⇒≤ 2+i∣1+n) ⟩
     2 + n  ≤⟨ 1+n<2+m ⟩
     2 + m  ∎)
-    where open ≤-Reasoning
+    where open NatProp.≤-Reasoning
 
   2+i′∣2+m : 2 + toℕ (fromℕ≤ i<m) ∣ 2 + m
   2+i′∣2+m = PropEq.subst

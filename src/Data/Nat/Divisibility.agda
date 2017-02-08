@@ -47,7 +47,7 @@ quotient (divides q _) = q
   m          ≤⟨ NatProp.m≤m+n m (q * m) ⟩
   suc q * m  ≡⟨ sym eq ⟩
   suc n      ∎
-  where open ≤-Reasoning
+  where open NatProp.≤-Reasoning
 
 -- _∣_ is a partial order.
 
@@ -66,7 +66,7 @@ poset = record
     }
   }
   where
-  module DTO = DecTotalOrder Nat.decTotalOrder
+  module DTO = DecTotalOrder NatProp.≤-decTotalOrder
   open PropEq.≡-Reasoning
 
   reflexive : _≡_ ⇒ _∣_
@@ -190,7 +190,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
       ≤⟨ ≤-pred $ FP.bounded r ⟩
     m
       ∎
-  where open ≤-Reasoning
+  where open NatProp.≤-Reasoning
 nonZeroDivisor-lemma m (suc q) r r≢zero d =
   nonZeroDivisor-lemma m q r r≢zero (∣-∸ d' P.refl)
   where

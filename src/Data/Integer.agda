@@ -7,6 +7,7 @@
 module Data.Integer where
 
 import Data.Nat as ℕ
+import Data.Nat.Properties as ℕP
 import Data.Nat.Show as ℕ
 open import Data.Sign as Sign using (Sign)
 open import Data.String.Base using (String; _++_)
@@ -97,28 +98,27 @@ decTotalOrder = record
       }
   }
   where
-  module ℕO = DecTotalOrder ℕ.decTotalOrder
 
   refl′ : _≡_ ⇒ _≤_
-  refl′ { -[1+ n ]} refl = -≤- ℕO.refl
-  refl′ {+ n}       refl = +≤+ ℕO.refl
+  refl′ { -[1+ n ]} refl = -≤- ℕP.≤-refl
+  refl′ {+ n}       refl = +≤+ ℕP.≤-refl
 
   trans : Transitive _≤_
   trans -≤+       (+≤+ n≤m) = -≤+
   trans (-≤- n≤m) -≤+       = -≤+
-  trans (-≤- n≤m) (-≤- k≤n) = -≤- (ℕO.trans k≤n n≤m)
-  trans (+≤+ m≤n) (+≤+ n≤k) = +≤+ (ℕO.trans m≤n n≤k)
+  trans (-≤- n≤m) (-≤- k≤n) = -≤- (ℕP.≤-trans k≤n n≤m)
+  trans (+≤+ m≤n) (+≤+ n≤k) = +≤+ (ℕP.≤-trans m≤n n≤k)
 
   antisym : Antisymmetric _≡_ _≤_
   antisym -≤+       ()
-  antisym (-≤- n≤m) (-≤- m≤n) = cong -[1+_] $ ℕO.antisym m≤n n≤m
-  antisym (+≤+ m≤n) (+≤+ n≤m) = cong (+_)   $ ℕO.antisym m≤n n≤m
+  antisym (-≤- n≤m) (-≤- m≤n) = cong -[1+_] $ ℕP.≤-antisym m≤n n≤m
+  antisym (+≤+ m≤n) (+≤+ n≤m) = cong (+_)   $ ℕP.≤-antisym m≤n n≤m
 
   total : Total _≤_
-  total (-[1+ m ]) (-[1+ n ]) = [ inj₂ ∘′ -≤- , inj₁ ∘′ -≤- ]′ $ ℕO.total m n
+  total (-[1+ m ]) (-[1+ n ]) = [ inj₂ ∘′ -≤- , inj₁ ∘′ -≤- ]′ $ ℕP.≤-total m n
   total (-[1+ m ]) (+    n  ) = inj₁ -≤+
   total (+    m  ) (-[1+ n ]) = inj₂ -≤+
-  total (+    m  ) (+    n  ) = [ inj₁ ∘′ +≤+ , inj₂ ∘′ +≤+ ]′ $ ℕO.total m n
+  total (+    m  ) (+    n  ) = [ inj₁ ∘′ +≤+ , inj₂ ∘′ +≤+ ]′ $ ℕP.≤-total m n
 
 poset : Poset _ _ _
 poset = DecTotalOrder.poset decTotalOrder

@@ -20,7 +20,7 @@ open import Agda.Builtin.Nat using ( div-helper; mod-helper )
 
 open NatP.SemiringSolver
 open P.≡-Reasoning
-open Nat.≤-Reasoning
+open NatP.≤-Reasoning
   renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩′_)
 
 infixl 7 _div_ _mod_ _divMod_

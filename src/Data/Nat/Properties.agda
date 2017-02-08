@@ -10,10 +10,8 @@
 module Data.Nat.Properties where
 
 open import Data.Nat as Nat
-open ≤-Reasoning
-  renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩'_)
 open import Relation.Binary
-open DecTotalOrder Nat.decTotalOrder using () renaming (refl to ≤-refl)
+import Relation.Binary.PartialOrderReasoning as POR
 open import Function
 open import Algebra
 open import Algebra.Structures
@@ -24,6 +22,81 @@ open PropEq.≡-Reasoning
 import Algebra.FunctionProperties as P; open P (_≡_ {A = ℕ})
 open import Data.Product
 open import Data.Sum
+
+
+------------------------------------------------------------------------
+-- Ordering
+
+≤-reflexive : _≡_ ⇒ _≤_
+≤-reflexive {zero}  refl = z≤n
+≤-reflexive {suc m} refl = s≤s (≤-reflexive refl)
+
+≤-refl : Reflexive _≤_
+≤-refl = ≤-reflexive refl
+
+≤-antisym : Antisymmetric _≡_ _≤_
+≤-antisym z≤n       z≤n       = refl
+≤-antisym (s≤s m≤n) (s≤s n≤m) with ≤-antisym m≤n n≤m
+... | refl = refl
+
+≤-trans : Transitive _≤_
+≤-trans z≤n       _         = z≤n
+≤-trans (s≤s m≤n) (s≤s n≤o) = s≤s (≤-trans m≤n n≤o)
+
+≤-total : Total _≤_
+≤-total zero    _       = inj₁ z≤n
+≤-total _       zero    = inj₂ z≤n
+≤-total (suc m) (suc n) with ≤-total m n
+... | inj₁ m≤n = inj₁ (s≤s m≤n)
+... | inj₂ n≤m = inj₂ (s≤s n≤m)
+
+≤-isPreorder : IsPreorder _≡_ _≤_
+≤-isPreorder = record
+  { isEquivalence = PropEq.isEquivalence
+  ; reflexive     = ≤-reflexive
+  ; trans         = ≤-trans
+  }
+
+≤-isPartialOrder : IsPartialOrder _≡_ _≤_
+≤-isPartialOrder = record
+  { isPreorder = ≤-isPreorder
+  ; antisym  = ≤-antisym
+  }
+
+≤-isTotalOrder : IsTotalOrder _≡_ _≤_
+≤-isTotalOrder = record
+  { isPartialOrder = ≤-isPartialOrder
+  ; total = ≤-total
+  }
+
+≤-isDecTotalOrder : IsDecTotalOrder _≡_ _≤_
+≤-isDecTotalOrder = record
+  { isTotalOrder = ≤-isTotalOrder
+  ; _≟_          = _≟_
+  ; _≤?_         = _≤?_
+  }
+
+≤-decTotalOrder : DecTotalOrder _ _ _
+≤-decTotalOrder = record
+  { Carrier         = ℕ
+  ; _≈_             = _≡_
+  ; _≤_             = _≤_
+  ; isDecTotalOrder = ≤-isDecTotalOrder
+  }
+
+
+
+module ≤-Reasoning where
+  open POR (DecTotalOrder.poset ≤-decTotalOrder) public
+    renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+
+  infixr 2 _<⟨_⟩_
+
+  _<⟨_⟩_ : ∀ x {y z} → x < y → y IsRelatedTo z → suc x IsRelatedTo z
+  x <⟨ x<y ⟩ y≤z = suc x ≤⟨ x<y ⟩ y≤z
+
+open ≤-Reasoning
+  renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩'_)
 
 ------------------------------------------------------------------------
 
@@ -588,8 +661,7 @@ im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
   n                      ∎
 
 i+1+j≢i : ∀ i {j} → i + suc j ≢ i
-i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
-  where open DecTotalOrder decTotalOrder
+i+1+j≢i i eq = ¬i+1+j≤i i (≤-reflexive eq)
 
 ⌊n/2⌋-mono : ⌊_/2⌋ Preserves _≤_ ⟶ _≤_
 ⌊n/2⌋-mono z≤n             = z≤n

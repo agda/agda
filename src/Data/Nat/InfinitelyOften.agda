@@ -33,7 +33,7 @@ Fin P = ∃ λ i → ∀ j → i ≤ j → ¬ P j
 _∪-Fin_ : ∀ {P Q} → Fin P → Fin Q → Fin (P ∪ Q)
 _∪-Fin_ {P} {Q} (i , ¬p) (j , ¬q) = (i ⊔ j , helper)
   where
-  open ≤-Reasoning
+  open NatProp.≤-Reasoning
 
   helper : ∀ k → i ⊔ j ≤ k → ¬ (P ∪ Q) k
   helper k i⊔j≤k (inj₁ p) = ¬p k (begin

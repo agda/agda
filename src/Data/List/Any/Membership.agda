@@ -26,7 +26,7 @@ open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
 open import Data.Nat as Nat
-import Data.Nat.Properties as NatProp
+open import Data.Nat.Properties as NatProp using (≤-trans)
 open import Data.Product as Prod
 open import Data.Sum as Sum
 open import Relation.Binary
@@ -219,9 +219,8 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
   where
   open Inj.Injection inj
 
-  module DTO = DecTotalOrder Nat.decTotalOrder
   module STO = StrictTotalOrder
-                 (DTOProperties.strictTotalOrder Nat.decTotalOrder)
+                 (DTOProperties.strictTotalOrder NatProp.≤-decTotalOrder)
   module CS  = CommutativeSemiring NatProp.commutativeSemiring
 
   not-x : ∀ {i} → ¬ (to ⟨$⟩ i ≡ x) → to ⟨$⟩ i ∈ xs
@@ -259,11 +258,11 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
     injective′ {j} {k} eq with STO.compare i j | STO.compare i k
     ... | tri< _ _ _         | tri< _ _ _         = cong pred                                   $ injective eq
     ... | tri< _ _ _         | tri≈ _ _ _         = cong pred                                   $ injective eq
-    ... | tri< (i≤j , _) _ _ | tri> _ _ (k≤i , _) = ⊥-elim (lemma (DTO.trans k≤i i≤j)           $ injective eq)
+    ... | tri< (i≤j , _) _ _ | tri> _ _ (k≤i , _) = ⊥-elim (lemma (≤-trans k≤i i≤j)           $ injective eq)
     ... | tri≈ _ _ _         | tri< _ _ _         = cong pred                                   $ injective eq
     ... | tri≈ _ _ _         | tri≈ _ _ _         = cong pred                                   $ injective eq
     ... | tri≈ _ i≡j _       | tri> _ _ (k≤i , _) = ⊥-elim (lemma (subst (_≤_ k) i≡j k≤i)       $ injective eq)
-    ... | tri> _ _ (j≤i , _) | tri< (i≤k , _) _ _ = ⊥-elim (lemma (DTO.trans j≤i i≤k)     $ sym $ injective eq)
+    ... | tri> _ _ (j≤i , _) | tri< (i≤k , _) _ _ = ⊥-elim (lemma (≤-trans j≤i i≤k)     $ sym $ injective eq)
     ... | tri> _ _ (j≤i , _) | tri≈ _ i≡k _       = ⊥-elim (lemma (subst (_≤_ j) i≡k j≤i) $ sym $ injective eq)
     ... | tri> _ _ (j≤i , _) | tri> _ _ (k≤i , _) =                                               injective eq
 

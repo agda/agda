@@ -8,8 +8,8 @@ module Data.Bin where
 
 open import Data.Nat as Nat
   using (ℕ; zero; z≤n; s≤s) renaming (suc to 1+_)
-open Nat.≤-Reasoning
 import Data.Nat.Properties as NP
+open NP.≤-Reasoning
 open import Data.Digit
 open import Data.Fin as Fin using (Fin; zero) renaming (suc to 1+_)
 open import Data.Fin.Properties as FP using (_+′_)
@@ -128,7 +128,6 @@ private
     )
     where
     open Nat; open NP
-    open DecTotalOrder decTotalOrder renaming (refl to ≤-refl)
     m₁ = Fin.toℕ b₁;   m₂ = Fin.toℕ b₂
     n₁ = toℕ (bs₁ 1#); n₂ = toℕ (bs₂ 1#)
 
@@ -140,7 +139,6 @@ private
          m₂  + n * 2   ∎)
     where
     open Nat; open NP
-    open DecTotalOrder decTotalOrder renaming (refl to ≤-refl)
     open CommutativeSemiring commutativeSemiring using (+-assoc)
     m₁ = Fin.toℕ b₁; m₂ = Fin.toℕ b₂; n = toℕ (bs 1#)
 

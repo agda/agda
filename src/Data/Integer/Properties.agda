@@ -18,7 +18,7 @@ open import Data.Nat
   using (ℕ; suc; zero; _∸_; _≤?_; _<_; _≥_; _≱_; s≤s; z≤n; ≤-pred)
   hiding (module ℕ)
   renaming (_+_ to _ℕ+_; _*_ to _ℕ*_)
-open import Data.Nat.Properties as ℕ using (_*-mono_)
+open import Data.Nat.Properties as ℕ using (_*-mono_; ≤-refl)
 open import Data.Product using (proj₁; proj₂; _,_)
 open import Data.Sign as Sign using () renaming (_*_ to _S*_)
 import Data.Sign.Properties as SignProp
@@ -43,8 +43,6 @@ open CommutativeMonoid Mul.commutativeMonoid
            )
 open CommutativeSemiring ℕ.commutativeSemiring
   using () renaming (zero to *-zero; distrib to *-distrib)
-open DecTotalOrder Data.Nat.decTotalOrder
-  using () renaming (refl to ≤-refl)
 open Morphism.Definitions ℤ ℕ _≡_
 open ℕ.SemiringSolver
 open ≡-Reasoning

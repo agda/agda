@@ -9,9 +9,10 @@ module Data.Fin.Properties where
 
 open import Algebra
 open import Data.Fin
-open import Data.Nat as N
-  using (ℕ; zero; suc; s≤s; z≤n; _∸_)
-  renaming (_≤_ to _ℕ≤_; _<_ to _ℕ<_; _+_ to _ℕ+_)
+open import Data.Nat as N using (ℕ; zero; suc; s≤s; z≤n; _∸_) renaming
+  (_≤_ to _ℕ≤_
+  ; _<_ to _ℕ<_
+  ; _+_ to _ℕ+_)
 import Data.Nat.Properties as N
 open import Data.Product
 open import Function
@@ -25,14 +26,6 @@ open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; cong; subst)
 open import Category.Functor
 open import Category.Applicative
-
-open DecTotalOrder N.decTotalOrder using () renaming
-  ( refl    to ℕ≤-refl
-  ; trans   to ℕ≤-trans
-  ; antisym to ℕ≤-antisym
-  ; total   to ℕ≤-total
-  ; _≤?_    to _ℕ≤?_
-  )
 
 ------------------------------------------------------------------------
 -- Equality properties
@@ -117,7 +110,7 @@ toℕ-fromℕ≤ (s≤s z≤n)       = refl
 toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
 
 -- fromℕ is a special case of fromℕ≤.
-fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
+fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ N.≤-refl
 fromℕ-def zero    = refl
 fromℕ-def (suc n) = cong suc (fromℕ-def n)
 
@@ -136,19 +129,19 @@ fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
 -- _≤_ ordering
 
 ≤-reflexive : ∀ {n} → _≡_ ⇒ (_≤_ {n})
-≤-reflexive refl = ℕ≤-refl
+≤-reflexive refl = N.≤-refl
 
 ≤-refl : ∀ {n} → Reflexive (_≤_ {n})
 ≤-refl = ≤-reflexive refl
 
 ≤-trans : ∀ {n} → Transitive (_≤_ {n})
-≤-trans = ℕ≤-trans
+≤-trans = N.≤-trans
 
 ≤-antisym : ∀ {n} → Antisymmetric _≡_ (_≤_ {n})
-≤-antisym x≤y y≤x = toℕ-injective (ℕ≤-antisym x≤y y≤x)
+≤-antisym x≤y y≤x = toℕ-injective (N.≤-antisym x≤y y≤x)
 
 ≤-total : ∀ {n} → Total (_≤_ {n})
-≤-total x y = ℕ≤-total (toℕ x) (toℕ y)
+≤-total x y = N.≤-total (toℕ x) (toℕ y)
 
 ≤-isPreorder : ∀ {n} → IsPreorder _≡_ (_≤_ {n})
 ≤-isPreorder = record
@@ -184,7 +177,7 @@ cmp (suc i) (suc j) with cmp i j
 ... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
 
 _<?_ : ∀ {n} → Decidable (_<_ {n})
-m <? n = suc (toℕ m) ℕ≤? toℕ n
+m <? n = suc (toℕ m) N.≤? toℕ n
 
 <-isStrictTotalOrder : ∀ {n} → IsStrictTotalOrder _≡_ (_<_ {n})
 <-isStrictTotalOrder = record
@@ -206,7 +199,7 @@ strictTotalOrder n = record
 
 -- Lemma:  n - i ≤ n.
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
-nℕ-ℕi≤n n       zero     = ℕ≤-refl
+nℕ-ℕi≤n n       zero     = N.≤-refl
 nℕ-ℕi≤n zero    (suc ())
 nℕ-ℕi≤n (suc n) (suc i)  = begin
   n ℕ-ℕ i  ≤⟨ nℕ-ℕi≤n n i ⟩
@@ -258,7 +251,7 @@ toℕ-raise (suc n) i = cong suc (toℕ-raise n i)
 infixl 6 _+′_
 
 _+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
-i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ℕ≤-refl)
+i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) N.≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 

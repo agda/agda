@@ -52,6 +52,24 @@ Important changes since 0.13:
   <-isStrictTotalOrder
   ```
 
+* Added additional ordering properties to `Data.Nat.Properties` including:
+  ```agda
+  ≤-reflexive
+  ≤-refl
+  ≤-trans
+  ≤-antisymmetric
+  ≤-total
+  ≤-isPreorder
+  ≤-isPartialOrder
+  ≤-isTotalOrder
+  ≤-isDecTotalOrder
+  ```
+
+* Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
+
+* Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
+  `Data.Nat.Properties`
+
 * Added `⊓-idem` and `⊔-idem` to `Data.Nat.Properties`
 
 * Useful lemmas and properties that were previously in private scope,
