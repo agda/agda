@@ -222,6 +222,20 @@ LaTeX backend
   │ │
   ```
 
+* The `\AgdaIndent` command no longer takes an argument.
+
+  Previously the command was given the target column as an argument.
+  However, the command was not always invoked at the start of the
+  left-most column, so it is unclear what the argument should be used
+  for. One could perhaps get the current column name from polytable,
+  but presumably no one did that. The argument was not used by the
+  default implementation of `AgdaIndent`, and hopefully not by any
+  reimplemenation either.
+
+  Calls to `\AgdaIndent` have the form `\AgdaIndent{}`, so
+  redefinitions of `\AgdaIndent` that take (and ignore) one argument
+  still work.
+
 Pragmas and options
 -------------------
 

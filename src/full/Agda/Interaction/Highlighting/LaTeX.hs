@@ -296,9 +296,8 @@ cmdPrefix = T.pack "\\Agda"
 cmdArg :: Text -> Text
 cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
 
-cmdIndent :: Show a => a -> Text
-cmdIndent i = cmdPrefix <+> T.pack "Indent" <+>
-                  cmdArg (T.pack (show i)) <+> cmdArg T.empty
+cmdIndent :: Text
+cmdIndent = cmdPrefix <+> T.pack "Indent" <+> cmdArg T.empty
 
 ------------------------------------------------------------------------
 -- * Automaton.
@@ -447,13 +446,13 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
            setIndent len
            setIndentPrev indent
            output $ ptOpen' indent
-           output $ cmdIndent len
+           output cmdIndent
            output $ ptClose' len <+> nl <+> ptOpen' len
 
          EQ -> do
            log' Spaces "EQ"
            output $ ptOpen' indentPrev
-           output $ cmdIndent len
+           output cmdIndent
            output $ ptClose' len <+> nl <+> ptOpen' len
 
          LT -> do
@@ -461,7 +460,7 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
            setIndent len
            resetIndentPrev
            output $ ptOpen' 0
-           output $ cmdIndent len
+           output cmdIndent
            output $ ptClose' len <+> nl <+> ptOpen' len
 
   spaces ss
