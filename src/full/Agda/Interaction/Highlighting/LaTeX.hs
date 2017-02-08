@@ -109,8 +109,8 @@ emptyState = State
 ------------------------------------------------------------------------
 -- * Some helpers.
 
--- | Counts the number of grapheme clusters in the string, rather than
--- the number of code points.
+-- | Counts the number of extended grapheme clusters in the string,
+-- rather than the number of code points.
 --
 -- Uses the root locale.
 
