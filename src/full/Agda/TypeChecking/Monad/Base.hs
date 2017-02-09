@@ -1607,6 +1607,11 @@ defIsDataOrRecord Record{}   = True
 defIsDataOrRecord Datatype{} = True
 defIsDataOrRecord _          = False
 
+defConstructors :: Defn -> [QName]
+defConstructors Datatype{dataCons = cs} = cs
+defConstructors Record{recCon = c} = [conName c]
+defConstructors _ = __IMPOSSIBLE__
+
 newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable, Null)
 
