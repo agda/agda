@@ -404,19 +404,28 @@ escape _                         = __IMPOSSIBLE__
 -- spaces determine the alignment of the code and consecutive newline
 -- characters need special treatment as well.
 spaces :: [Text] -> LaTeX ()
-spaces []                                 = return ()
-spaces ((T.uncons -> Nothing)       : ss) = __IMPOSSIBLE__
+spaces [] = return ()
 
--- Single spaces are ignored.
-spaces ((T.uncons -> Just (' ', s)) : []) | T.null s = do
+-- Newlines.
+spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
+  resetColumn
+  output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
+  spaces ss
+
+-- Single spaces, or multiple spaces followed by a newline character.
+spaces ((T.uncons -> Just (' ', s)) : ss)
+  | T.null s || not (null ss) = do
+
   col <- gets column
   when (col == 0) $ do
     output ptOpen
 
-  moveColumn 1
+  moveColumn (1 + graphemeClusters s)
   output $ T.singleton ' '
 
--- Multiple spaces.
+  spaces ss
+
+-- Multiple spaces, not followed by a newline character.
 spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
   let len = graphemeClusters s
 
@@ -462,13 +471,7 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
 
   spaces ss
 
--- Newlines.
-spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
-  resetColumn
-  output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
-  spaces ss
-
-spaces (_ : ss) = __IMPOSSIBLE__
+spaces _ = __IMPOSSIBLE__
 
 -- Split multi-lines string literals into multiple string literals
 -- Isolating leading spaces for the alignment machinery to work
