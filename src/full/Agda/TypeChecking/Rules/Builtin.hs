@@ -639,8 +639,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let v@(Con h _ []) = name v0
             c = conName h
-        when (s == builtinTrue)  $ addHaskellCode c "Bool" "True"
-        when (s == builtinFalse) $ addHaskellCode c "Bool" "False"
+        when (s == builtinTrue)  $ addHaskellCode c "True"
+        when (s == builtinFalse) $ addHaskellCode c "False"
         bindBuiltinName s v
 
       BuiltinPrim pfname axioms -> do

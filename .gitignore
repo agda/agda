@@ -25,7 +25,8 @@ dist/
 dist-*/
 examples/compiler/main
 hlint-report.html
-MAlonzo
+test/**/MAlonzo
+examples/**/MAlonzo
 mk/config.mk
 mk/parallel-tests.mk
 notes/style/haskell-style.tex

@@ -339,7 +339,6 @@ instance ExprLike Pragma where
       RewritePragma{}             -> pure p
       CompiledPragma{}            -> pure p
       CompiledExportPragma{}      -> pure p
-      CompiledDeclareDataPragma{} -> pure p
       CompiledTypePragma{}        -> pure p
       CompiledDataPragma{}        -> pure p
       CompiledJSPragma{}          -> pure p

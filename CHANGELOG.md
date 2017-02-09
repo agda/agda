@@ -56,6 +56,7 @@ Language
       refl : x ≡ x
   ```
 
+* The COMPILED_DECLARE_DATA pragma is no longer necessary and has been removed.
 
 * With-clause patterns can be replaced by _
   [Issue [#2363](https://github.com/agda/agda/issues/2363)].

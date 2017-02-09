@@ -1658,11 +1658,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
-  toAbstract (C.CompiledDeclareDataPragma _ x hs) = do
-    e <- toAbstract $ OldQName x Nothing
-    case e of
-      A.Def x -> return [ A.CompiledDeclareDataPragma x hs ]
-      _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
   toAbstract (C.CompiledTypePragma _ x hs) = do
     e <- toAbstract $ OldQName x Nothing
     case e of
