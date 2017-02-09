@@ -51,6 +51,7 @@ import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.Compiler.UHC.Bridge
 import Agda.Compiler.UHC.Pragmas.Base
+import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Compiler.Common
 
 import Agda.Utils.Lens
@@ -81,6 +82,14 @@ instance Monoid CoreMeta where
 data CompileState = CompileState
   { coreMeta :: CoreMeta
   , nameSupply :: Integer
+  , coreConstructors :: Map.Map QName CoreConstr
+    -- ^ This keeps a cache of 'CoreConstr's for constructors. The reason for
+    --   this is that COMPILED pragmas are no longer parsed and stored in
+    --   interfaces, so we have to reparse pragmas for imported modules. The
+    --   cache means we only have to do it once per module instead of once per
+    --   constructor use. An alternative would be to have a separate uhc
+    --   interface file where we stored parsed pragmas, but parsing should be
+    --   fast enough that this isn't a problem.
   }
 
 -- | Compiler monad
@@ -102,6 +111,7 @@ runCompileT amod comp = do
   where initial = CompileState
             { coreMeta = mempty
             , nameSupply = 0
+            , coreConstructors = Map.empty
             }
 
 appendCoreMeta :: Monad m => CoreMeta -> CompileT m ()
@@ -122,6 +132,43 @@ addMetaCon q c = do
 addMetaData :: QName -> ([CDataCon] -> CDeclMeta) -> Compile ()
 addMetaData q d =
   appendCoreMeta (mempty { coreMetaData = Map.singleton q d })
+
+setCoreCon :: QName -> CoreConstr -> Compile ()
+setCoreCon c cc = CompileT $ modify $ \ s -> s { coreConstructors = Map.insert c cc $ coreConstructors s }
+
+getCachedCoreCon :: QName -> Compile (Maybe CoreConstr)
+getCachedCoreCon c = CompileT $ gets $ Map.lookup c . coreConstructors
+
+getCoreCon :: QName -> Compile CoreConstr
+getCoreCon c = do
+  mcc <- getCachedCoreCon c
+  case mcc of
+    Just cc -> return cc
+    Nothing -> do -- compute CoreConstr for all constructors of the datatype and cache the result
+      cDef@Constructor{ conData = dtQ } <- lift $ theDef <$> getConstInfo c
+      dDef <- lift $ getConstInfo dtQ
+      let cs = dataRecCons $ theDef dDef
+      when (null cs) __IMPOSSIBLE__
+      case defCoreDef dDef of
+        -- not COMPILED
+        Nothing -> do
+          let addCon tag q = setCoreCon q =<< CCNormal <$> getCoreName dtQ <*> getCoreName q <*> pure tag
+          zipWithM_ addCon [0..] cs
+        -- COMPILED type. In this case we parse the COMPILED pragmas again
+        -- (although caching ensures only once per module). This should be
+        -- cheap but one might consider writing this information to a special
+        -- uhc interface file.
+        Just (CrType ct) -> do
+          ct <- parseCoreData ct
+          let coreCon c = lift $ do
+                Just (CrConstr ccr) <- defCoreDef <$> getConstInfo c
+                return ccr
+          ccrs <- mapM coreCon cs
+          ccrs <- parseCoreConstrs ct ccrs
+          zipWithM_ setCoreCon cs ccrs
+        Just{} -> __IMPOSSIBLE__
+      Just cc <- getCachedCoreCon c  -- it's now cached, so we get Just here
+      return cc
 
 getExports :: Compile [CExport]
 getExports = CompileT $ gets (coreExports . coreMeta)
@@ -149,28 +196,22 @@ getConstrCTag :: QName -> Compile CTag
 getConstrCTag q = do
   def <- lift $ getConstInfo q
   (arity, _) <- lift $ conArityAndPars q
-  case compiledCore $ defCompiledRep def of
-    Nothing -> do
-      let dtQ = conData $ theDef def
-      -- get tag, which is the index of current con in datatype con list
-      tag <- fromJust . elemIndex q . dataRecCons . theDef <$> lift (getConstInfo dtQ)
-      mkCTag <$> getCoreName dtQ <*> (getCoreName q) <*> pure tag <*> pure arity
-    Just (CrConstr crCon) -> do
-      return $ coreConstrToCTag crCon arity
-    _ -> __IMPOSSIBLE__
+  crCon <- getCoreCon q
+  return $ coreConstrToCTag crCon arity
 
 
 -- | Returns the expression to use to build a value of the given datatype/constructor.
 getConstrFun :: QName -> Compile HsName
 getConstrFun q = do
-  def <- lift $ getConstInfo q
-  case compiledCore $ defCompiledRep def of
-    Nothing -> getCoreName q
-    Just (CrConstr crCon) ->
+  def <- lift $ theDef <$> getConstInfo q
+  cc  <- getCoreCon q
+  case def of
+    Constructor{} -> do
+      crCon <- getCoreCon q
       return $
         destructCTag builtinUnitCtor (\_ con _ _ -> con)
           (coreConstrToCTag crCon 0) -- Arity doesn't matter here, as we immediately destruct the ctag again!
-    _ -> __IMPOSSIBLE__
+    _ -> getCoreName q
 
 dataRecCons :: Defn -> [QName]
 dataRecCons r@(Record{}) = [recCon r]

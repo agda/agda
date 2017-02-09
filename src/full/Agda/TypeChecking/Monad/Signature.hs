@@ -109,19 +109,19 @@ ensureNoCompiledHaskell q =
                                "Note that builtin numbers, booleans, chars and strings don't need " ++
                                "COMPILED pragmas."
 
-addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
-addHaskellCode q hsTy hsDef = do
+addHaskellCode :: QName -> HaskellCode -> TCM ()
+addHaskellCode q hsCode = do
   ensureNoCompiledHaskell q
   modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   where
-    addHs crep = crep { compiledHaskell = Just $ HsDefn hsTy hsDef }
+    addHs crep = crep { compiledHaskell = Just $ HsDefn hsCode }
 
-addHaskellExport :: QName -> HaskellType -> String -> TCM ()
-addHaskellExport q hsTy hsName = do
+addHaskellExport :: QName -> String -> TCM ()
+addHaskellExport q hsName = do
   ensureNoCompiledHaskell q
   modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   where
-    addHs crep = crep { exportHaskell = Just (HsExport hsTy hsName)}
+    addHs crep = crep { exportHaskell = Just hsName }
 
 addHaskellType :: QName -> HaskellType -> TCM ()
 addHaskellType q hsTy = do
@@ -135,17 +135,17 @@ addJSCode q jsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep 
   where
     addJS crep = crep { compiledJS = Just jsDef }
 
-addCoreCode :: QName -> CR.CoreExpr -> TCM ()
+addCoreCode :: QName -> CoreCode -> TCM ()
 addCoreCode q crDef =  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore crDef
   where
     addCore e crep = crep { compiledCore = Just $ CrDefn e }
 
-addCoreConstr :: QName -> CR.CoreConstr -> TCM ()
+addCoreConstr :: QName -> CoreCode -> TCM ()
 addCoreConstr q con = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore
   where
     addCore crep = crep {compiledCore = Just $ CrConstr con }
 
-addCoreType :: QName -> CR.CoreType -> TCM ()
+addCoreType :: QName -> CoreCode -> TCM ()
 addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCr
   -- TODO: sanity checking
   where

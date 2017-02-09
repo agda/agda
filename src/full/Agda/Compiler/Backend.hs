@@ -158,5 +158,9 @@ compileModule backend env isMain i = do
     Skip m         -> return m
     Recompile menv -> do
       defs <- map snd . sortDefs <$> curDefs
-      res  <- mapM (compileDef backend env menv <=< instantiateFull) defs
+      res  <- mapM (compileDef' backend env menv <=< instantiateFull) defs
       postModule backend env menv isMain (iModuleName i) res
+
+compileDef' :: Backend' opts env menv mod def -> env -> menv -> Definition -> TCM def
+compileDef' backend env menv def = setCurrentRange (defName def) $ compileDef backend env menv def
+

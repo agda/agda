@@ -85,8 +85,8 @@ conhqn q = do
     cname <- xhqn "C" cq  -- Do this even if it has custom compiledHaskell code
                           -- to make sure we get the import.
     case (compiledHaskell (defCompiledRep def), theDef def) of
-      (Just (HsDefn _ hs), Constructor{}) -> return $ hsName hs
-      _                                   -> return cname
+      (Just (HsDefn hs), Constructor{}) -> return $ hsName hs
+      _                                 -> return cname
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName

@@ -15,20 +15,13 @@ import Agda.TypeChecking.Serialise.Instances.Common ()
 
 import Agda.TypeChecking.Monad
 
-instance EmbPrj HaskellExport where
-  icod_ (HsExport a b) = icode2' a b
-
-  value = vcase valu where
-    valu [a,b] = valu2 HsExport a b
-    valu _     = malformed
-
 instance EmbPrj HaskellRepresentation where
-  icod_ (HsType a)   = icode1' a
-  icod_ (HsDefn a b) = icode2' a b
+  icod_ (HsType a) = icode1 0 a
+  icod_ (HsDefn a) = icode1 1 a
 
   value = vcase valu where
-    valu [a]    = valu1 HsType a
-    valu [a, b] = valu2 HsDefn a b
+    valu [0, a] = valu1 HsType a
+    valu [1, a] = valu1 HsDefn a
     valu _      = malformed
 
 instance EmbPrj CompiledRepresentation where

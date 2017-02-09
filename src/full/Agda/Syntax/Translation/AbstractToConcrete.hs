@@ -825,9 +825,6 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.CompiledDataPragma x hs hcs -> do
       x <- toConcrete x
       return $ C.CompiledDataPragma r x hs hcs
-    A.CompiledDeclareDataPragma x hs -> do
-      x <- toConcrete x
-      return $ C.CompiledDeclareDataPragma r x hs
     A.CompiledPragma x hs -> do
       x <- toConcrete x
       return $ C.CompiledPragma r x hs

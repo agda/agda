@@ -65,8 +65,6 @@ import Agda.Interaction.Response
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
-import qualified Agda.Compiler.UHC.Pragmas.Base as CR
-
 import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
@@ -1351,18 +1349,17 @@ defaultDefn info x t def = Defn
 type HaskellCode = String
 type HaskellType = String
 type JSCode      = String
+type CoreCode    = String
 
 data HaskellRepresentation
-      = HsDefn HaskellType HaskellCode
+      = HsDefn HaskellCode
       | HsType HaskellType
   deriving (Typeable, Show)
 
-data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
-
 data CoreRepresentation
-      = CrDefn CR.CoreExpr -- ^ Core code for functions.
-      | CrType CR.CoreType -- ^ Core type for agda type.
-      | CrConstr CR.CoreConstr  -- ^ Core constructor for agda constructor.
+      = CrDefn CoreCode -- ^ Core code for functions.
+      | CrType CoreCode -- ^ Core type for agda type.
+      | CrConstr CoreCode -- ^ Core constructor for agda constructor.
     deriving (Typeable, Show)
 
 -- | Polarity for equality and subtype checking.
@@ -1375,7 +1372,7 @@ data Polarity
 
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
-  , exportHaskell   :: Maybe HaskellExport
+  , exportHaskell   :: Maybe String
   , compiledJS      :: Maybe JSCode
   , compiledCore    :: Maybe CoreRepresentation
   }
