@@ -375,7 +375,9 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
   tokenToCFile (T.TokId {})                     = mempty
   tokenToCFile (T.TokQId {})                    = mempty
-  tokenToCFile (T.TokString {})                 = mempty
+  tokenToCFile (T.TokString (i,s))
+    | "--" `isPrefixOf` s                       = aToF Option (P.getRange i)
+    | otherwise                                 = mempty
   tokenToCFile (T.TokDummy {})                  = mempty
   tokenToCFile (T.TokEOF {})                    = mempty
 

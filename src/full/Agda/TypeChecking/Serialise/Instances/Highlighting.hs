@@ -44,21 +44,23 @@ instance EmbPrj HP.NameKind where
 
 instance EmbPrj HP.Aspect where
   icod_ HP.Comment       = icode0 0
-  icod_ HP.Keyword       = icode0 1
-  icod_ HP.String        = icode0 2
-  icod_ HP.Number        = icode0 3
+  icod_ HP.Option        = icode0 1
+  icod_ HP.Keyword       = icode0 2
+  icod_ HP.String        = icode0 3
+  icod_ HP.Number        = icode0 4
   icod_ HP.Symbol        = icode0'
-  icod_ HP.PrimitiveType = icode0 5
-  icod_ (HP.Name mk b)   = icode2 6 mk b
+  icod_ HP.PrimitiveType = icode0 6
+  icod_ (HP.Name mk b)   = icode2 7 mk b
 
   value = vcase valu where
     valu [0]        = valu0 HP.Comment
-    valu [1]        = valu0 HP.Keyword
-    valu [2]        = valu0 HP.String
-    valu [3]        = valu0 HP.Number
+    valu [1]        = valu0 HP.Option
+    valu [2]        = valu0 HP.Keyword
+    valu [3]        = valu0 HP.String
+    valu [4]        = valu0 HP.Number
     valu []         = valu0 HP.Symbol
-    valu [5]        = valu0 HP.PrimitiveType
-    valu [6, mk, b] = valu2 HP.Name mk b
+    valu [6]        = valu0 HP.PrimitiveType
+    valu [7, mk, b] = valu2 HP.Name mk b
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
