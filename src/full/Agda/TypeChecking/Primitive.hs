@@ -771,8 +771,6 @@ primIdPath' = do
 
 primComp :: TCM PrimitiveImpl
 primComp = do
-  whenM (Lens.getSafeMode <$> commandLineOptions) $
-    typeError $ GenericError "Cannot use primComp with safe flag"
   t    <- runNamesT [] $
           hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
