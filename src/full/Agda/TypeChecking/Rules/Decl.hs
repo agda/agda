@@ -19,8 +19,6 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
--- import Agda.Compiler.MAlonzo.HaskellTypes
-import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 
@@ -669,9 +667,7 @@ checkPragma r p =
         A.CompiledUHCPragma x cr -> do
           def <- getConstInfo x
           case theDef def of
-            Axiom{} -> case parseCoreExpr cr of
-                    Left msg -> typeError $ GenericError $ "Could not parse COMPILED_UHC pragma: " ++ msg
-                    Right cr -> addCoreCode x cr
+            Axiom{} -> addCoreCode x cr
             _ -> typeError $ GenericError "COMPILED_UHC directive only works on postulates" -- only allow postulates for the time being
         A.CompiledDataUHCPragma x crd crcs -> do
           -- TODO mostly copy-paste from the CompiledDataPragma, should be refactored into a seperate function
@@ -698,10 +694,8 @@ checkPragma r p =
                   typeError $ GenericError $ show err
               | otherwise -> do
                 -- Remark: core pragmas are not type-checked
-                dt' <- parseCoreData crd
-                cons' <- parseCoreConstrs dt' crcs
-                addCoreType x dt'
-                sequence_ $ zipWith addCoreConstr cs cons'
+                addCoreType x crd
+                sequence_ $ zipWith addCoreConstr cs crcs
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x

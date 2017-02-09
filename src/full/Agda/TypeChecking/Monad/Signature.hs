@@ -135,17 +135,17 @@ addJSCode q jsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep 
   where
     addJS crep = crep { compiledJS = Just jsDef }
 
-addCoreCode :: QName -> CR.CoreExpr -> TCM ()
+addCoreCode :: QName -> CoreCode -> TCM ()
 addCoreCode q crDef =  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore crDef
   where
     addCore e crep = crep { compiledCore = Just $ CrDefn e }
 
-addCoreConstr :: QName -> CR.CoreConstr -> TCM ()
+addCoreConstr :: QName -> CoreCode -> TCM ()
 addCoreConstr q con = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore
   where
     addCore crep = crep {compiledCore = Just $ CrConstr con }
 
-addCoreType :: QName -> CR.CoreType -> TCM ()
+addCoreType :: QName -> CoreCode -> TCM ()
 addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCr
   -- TODO: sanity checking
   where
