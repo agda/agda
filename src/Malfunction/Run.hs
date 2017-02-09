@@ -7,7 +7,7 @@ import System.Process
 
 printMod :: Mod -> Handle -> IO ()
 printMod m h = putStrLn prog >> hPutStr h prog >> hFlush h
-  where prog = showMod m
+  where prog = prettyShow m
 
 compileMod :: Mod -> (FilePath, Handle) -> FilePath -> IO ()
 compileMod m (tfp, th) xfp = do

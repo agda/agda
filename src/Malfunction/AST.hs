@@ -1,4 +1,24 @@
-module Malfunction.AST where
+module Malfunction.AST
+  ( IntType(..)
+  , IntConst(..)
+  , UnaryIntOp(..)
+  , BinaryIntOp(..)
+  , VectorType(..)
+  , Mutability(..)
+  , BlockTag
+  , Case(..)
+  , Ident
+  , Longident
+  , Mod(..)
+  , Term(..)
+  , Binding(..)
+  -- NOTE: I don't know which of these is preferable
+  --  * Don't re-export anything from Agda.Utils.Pretty
+  --  * export a few things (like we do currently)
+  --  * Re-export the whole module
+  , pretty
+  , prettyShow
+  ) where
 
 import Data.Int
 import Text.Printf

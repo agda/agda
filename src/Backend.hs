@@ -75,7 +75,7 @@ mlfPostCompile opts _ modToDefs = do
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
   modl <- mlfMod defs
-  let modlTxt = showMod modl
+  let modlTxt = prettyShow modl
   liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
     Just v   -> printVar modl v
@@ -110,10 +110,9 @@ mlfDef alldefs d@Defn{ defName = q } =
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
           let
             mlf = Mlf.translateDef' (getConstructors alldefs) q tt
-            pretty' = text . showBinding
           liftIO . putStrLn . render $
             sect "Malfunction (abstract syntax)" (text . show $ mlf)
-            $$ sect "Malfunction (concrete syntax)" (pretty' mlf)
+            $$ sect "Malfunction (concrete syntax)" (pretty mlf)
           return (Just mlf)
             where
               sect t dc = text t $+$ nest 2 dc $+$ text ""
