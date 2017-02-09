@@ -497,7 +497,7 @@ stringLiteral t | aspect (info t) == Just String =
     insertShifted :: (Int, Tokens) -> Text -> (Int, Tokens)
     insertShifted (i, xs) x =
       let tx = t { text = x, position = position t + i }
-      in (i + graphemeClusters x, tx : xs)
+      in (i + T.length x, tx : xs)
 
 stringLiteral t = [t]
 
