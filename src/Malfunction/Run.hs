@@ -1,7 +1,6 @@
 module Malfunction.Run where
 
 import Malfunction.AST
-import Malfunction.Print
 import System.IO.Temp
 import GHC.IO.Handle
 import System.Process

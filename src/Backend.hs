@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import           Data.Maybe
 import           Debug.Trace
 import           Malfunction.AST
-import           Malfunction.Print
 import           Malfunction.Run
 import           System.Console.GetOpt
 import           Text.Printf
