@@ -15,16 +15,16 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Malfunction.AST
-                     , Malfunction.Print
                      , Malfunction.Run
                      , Compiler
                      , Test
                      , Backend
-  build-depends:       base >= 4.7 && < 5
-                     , Agda >= 2.5.2
+  build-depends:       Agda >= 2.5.2
+                     , base >= 4.7 && < 5
                      , containers == 0.5.*
                      , extra == 1.4.*
                      , mtl == 2.2.*
+                     , pretty == 1.1.*
                      , process == 1.4.*
                      , temporary == 1.2.*
   default-language:    Haskell2010
@@ -48,7 +48,7 @@ test-suite test
                      , tasty-discover == 1.1.*
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-  
+
 source-repository head
   type:     git
   location: git@gitlab.com:janmasrovira/agda2mlf.git

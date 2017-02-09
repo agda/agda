@@ -1,6 +1,32 @@
-module Malfunction.AST where
+{-# LANGUAGE OverloadedStrings #-}
+module Malfunction.AST
+  ( IntType(..)
+  , IntConst(..)
+  , UnaryIntOp(..)
+  , BinaryIntOp(..)
+  , VectorType(..)
+  , Mutability(..)
+  , BlockTag
+  , Case(..)
+  , Ident
+  , Longident
+  , Mod(..)
+  , Term(..)
+  , Binding(..)
+  -- NOTE: I don't know which of these is preferable
+  --  * Don't re-export anything from Agda.Utils.Pretty
+  --  * export a few things (like we do currently)
+  --  * Re-export the whole module
+  , pretty
+  , prettyShow
+  ) where
 
 import Data.Int
+-- There does exist a definition of a type-class `Pretty` in the package
+-- `pretty` but this is not the one used for Treeless terms, so for consistency,
+-- let's go with Agda's choice.
+import Agda.Utils.Pretty
+import Text.PrettyPrint
 
 data IntType
   = TInt
@@ -76,6 +102,8 @@ tagOfInt n =
 
 -- `Term` references OCaml modules `Ident` and `Longident`
 -- TODO: Bindings for modules Ident and Longident
+-- TODO: I would maybe like to stay clear of type-synonyms in this
+-- module altogether.
 type Ident = String
 
 type Longident = [Ident]
@@ -122,69 +150,153 @@ data Binding
   | Recursive [(Ident, Term)]
   deriving (Show, Eq)
 
-{-
-type var = Ident.t
+-- Pretty-printing functionality
+-- TODO: There is one issue with the current implementation:
+-- Consider this example:
+--
+--     ($12.8247419466833350538 (lambda ($v0)
+--                                 (switch $v0 ((tag 0) (let ($v1 (field 0 $v0)) $v1)))))
+--
+-- What we see here is that when `nest` is invoked after the parameters of the
+-- lambda-expression the nesting references the beginning of the
+-- lambda-expression. Ideally it should reference the beggining of that line.
+-- Also, brackets should be closed in the same column that they are opened. So
+-- the above example would become:
+--
+--     ($12.8247419466833350538
+--       (lambda ($v0)
+--         (switch $v0 ((tag 0) (let ($v1 (field 0 $v0)) $v1)))
+--       )
+--     )
+--
+-- Also, it would be nice to have a way of deferring line-skips in case the stuff
+-- we're printing fits within some limit (say 70 characters). So that we won't print
+-- stuff like:
+--
+--     ( apply
+--       $f
+--       0
+--       1
+--     )
 
-let fresh n = Ident.create n
+textShow :: Show a => a -> Doc
+textShow = text . show
 
-let bind_val e body =
-  let v = fresh "x" in
-  Mlet ([`Named (v, e)], body (Mvar v))
+nst :: Doc -> Doc
+nst = nest 2
 
-let bind_rec e body =
-  let v = fresh "x" in
-  Mlet ([`Recursive [v, e (Mvar v)]], body (Mvar v))
+(<.>) :: Doc -> Doc -> Doc
+a <.> b = a <> "." <> b
 
-let tuple xs = Mblock(0, xs)
+level :: Doc -> Doc -> Doc
+level a b = "(" $$ nst (a $$ b) $$ ")"
 
-let lambda f =
-  let v = fresh "x" in
-  Mlambda ([v], f (Mvar v))
+instance Pretty Mod where
+--   pretty (MMod bs ts) = "(module " $$ nst (vcat (map pretty bs)) $$ "(export" <+> prettyList ts <+> "))"
+  pretty (MMod bs ts) = level ("module" <+> vcat (map pretty bs)) (parens $ "export" <+> prettyList ts)
 
-let lambda2 f =
-  let vx = fresh "x" and vy = fresh "y" in
-  Mlambda ([vx; vy], f (Mvar vx) (Mvar vy))
+instance Pretty Term where
+  pretty tt = case tt of
+    Mvar i              -> prettyIdent i
+    Mlambda is t        -> level ("lambda" <+> parens (hsep (map prettyIdent is))) (pretty t)
+    Mapply t ts         -> parens $ "apply " <> pretty t <+> prettyList ts
+    Mlet bs t           -> parens $ "let" <+> prettyList bs <+> pretty t
+    Mint ic             -> pretty ic
+    Mstring s           -> textShow s
+    Mglobal li          -> parens $ "global" <+> prettyLongident li
+    Mswitch t cexps     -> parens $ "switch" <+> pretty t <+> mconcat (map prettyCaseExpression cexps)
+    -- Integers
+    Mintop1 op tp t0    -> parens $ pretty op <+> prettyTypedTerm tp t0
+    Mintop2 op tp t0 t1 -> parens $ hsep [pretty op, prettyTypedTerm tp t0, prettyTypedTerm tp t1]
+    Mconvert tp0 tp1 t0 -> parens $ "convert" <.> pretty tp0 <.> pretty tp1 <+> pretty t0
+    -- Vectors
+    Mvecnew tp t0 t1    -> parens $ "makevec" <+> pretty t0 <+> pretty t1
+    Mvecget tp t0 t1    -> parens $ "load" <+> pretty t0 <+> pretty t1
+    Mvecset tp t0 t1 t2 -> parens $ "store" <+> pretty t0 <+> pretty t1 <+> pretty t2
+    Mveclen tp t0       -> parens $ "length" <+> pretty t0
+    -- Blocks
+    Mblock i ts         -> parens $ "block" <+> parens ("tag" <+> pretty i) <+> prettyList ts
+    Mfield i t0         -> parens $ "field" <+> pretty i <+> pretty t0
 
-let if_ c tt ff =
-  Mswitch (c, [[`Intrange(0,0)], ff; [`Intrange(min_int,max_int);`Deftag], tt])
+instance Pretty Binding where
+  pretty b = case b of
+    Unnamed t    -> parens ("_" <+> pretty t)
+    Named i t    -> level (prettyIdent i) (pretty t)
+    Recursive bs -> parens $ "rec" <+> prettyList (map showIdentTerm bs)
+    where
+      showIdentTerm :: (Ident, Term) -> Doc
+      showIdentTerm (i, t) = parens $ pretty i <+> pretty t
 
-module IntArith = struct
-  let of_int n = Mint (`Int n)
-  let zero = of_int 0
-  let one = of_int 1
-  let (~-) a = Mintop1(`Neg, `Int, a)
-  let lnot a = Mintop1(`Not, `Int, a)
-  let (+) a b = Mintop2(`Add, `Int, a, b)
-  let (-) a b = Mintop2(`Sub, `Int, a, b)
-  let ( * ) a b = Mintop2(`Mul, `Int, a, b)
-  let (/) a b = Mintop2(`Div, `Int, a, b)
-  let (mod) a b = Mintop2(`Mod, `Int, a, b)
-  let (land) a b = Mintop2(`And, `Int, a, b)
-  let (lor) a b = Mintop2(`Or, `Int, a, b)
-  let (lxor) a b = Mintop2(`Xor, `Int, a, b)
-  let (lsl) a b = Mintop2(`Lsl, `Int, a, b)
-  let (lsr) a b = Mintop2(`Lsr, `Int, a, b)
-  let (asr) a b = Mintop2(`Asr, `Int, a, b)
-  let (<) a b = Mintop2(`Lt, `Int, a, b)
-  let (>) a b = Mintop2(`Gt, `Int, a, b)
-  let (<=) a b = Mintop2(`Lte, `Int, a, b)
-  let (>=) a b = Mintop2(`Gte, `Int, a, b)
-  let (=) a b = Mintop2(`Eq, `Int, a, b)
-end
+instance Pretty IntConst where
+  pretty ic = case ic of
+    CInt    i -> pretty i
+    CInt32  i -> pretty i
+    CInt64  i -> textShow i
+    CBigint i -> pretty i
 
-let with_error_reporting ppf def f =
-  try f () with
-  | Malfunction_sexp.SyntaxError ((locstart, locend), msg) ->
-     let open Lexing in
-     if locstart.pos_lnum = locend.pos_lnum then
-       Format.fprintf ppf "%s:%d:%d-%d: %s\n%!"
-         locstart.pos_fname locstart.pos_lnum (locstart.pos_cnum - locstart.pos_bol) (locend.pos_cnum - locend.pos_bol) msg
-     else
-       Format.fprintf ppf "%s:%d:%d-%d:%d %s\n%!"
-         locstart.pos_fname locstart.pos_lnum (locstart.pos_cnum - locstart.pos_bol) locend.pos_lnum (locend.pos_cnum - locend.pos_bol) msg;
-     def
-  | x ->
-     Location.report_exception ppf x;
-    def
+-- Problematic:
+-- instance Pretty Longident where
+--   pretty = text . showLongident
 
--}
+prettyLongident :: Longident -> Doc
+prettyLongident = hcat . map prettyIdent
+
+-- Ditto problematic:
+-- instance Pretty Ident where
+--   pretty = text . showIdent
+
+prettyIdent :: Ident -> Doc
+prettyIdent = text . ('$':)
+
+-- Ditto problematic:
+-- instance Pretty ([Case], Term) where
+--   pretty = text . showCaseExpression
+
+prettyCaseExpression :: ([Case], Term) -> Doc
+prettyCaseExpression (cs, t) = "(" <> prettyList cs <+> pretty t <> ")"
+
+instance Pretty Case where
+  pretty c = case c of
+    Deftag          -> "(tag _)"
+    Tag n           -> "(tag " <> pretty n <> ")"
+    CaseAnyInt      -> "_"
+    CaseInt n       -> pretty n
+    Intrange (i, j) -> "(" <> pretty i <+> pretty j <> ")"
+
+instance Pretty UnaryIntOp where
+  pretty op = case op of
+    Neg -> "?"
+    Not -> "?"
+
+instance Pretty BinaryIntOp where
+  pretty op = case op of
+    Add -> "+"
+    Sub -> "-"
+    Mul -> "*"
+    Div -> "/"
+    Mo  -> "%"
+    And -> "&"
+    Or  -> "|"
+    Xor -> "^"
+    Lsl -> "<<"
+    Lsr -> ">>"
+    Asr  -> "a>>"
+    Lt  -> "<"
+    Gt  -> ">"
+    Lte -> "<="
+    Gte -> ">="
+    Eq  -> "=="
+
+-- Problematic:
+
+prettyTypedTerm :: IntType -> Term -> Doc
+prettyTypedTerm tp t = case tp of
+  TInt -> pretty t
+  _    -> pretty t <.> pretty tp
+
+instance Pretty IntType where
+  pretty tp = case tp of
+    TInt    -> "int"
+    TInt32  -> "int32"
+    TInt64  -> "int64"
+    TBigint -> "bigint"

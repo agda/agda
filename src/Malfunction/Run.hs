@@ -1,14 +1,13 @@
 module Malfunction.Run where
 
 import Malfunction.AST
-import Malfunction.Print
 import System.IO.Temp
 import GHC.IO.Handle
 import System.Process
 
 printMod :: Mod -> Handle -> IO ()
 printMod m h = putStrLn prog >> hPutStr h prog >> hFlush h
-  where prog = showMod m
+  where prog = prettyShow m
 
 compileMod :: Mod -> (FilePath, Handle) -> FilePath -> IO ()
 compileMod m (tfp, th) xfp = do
