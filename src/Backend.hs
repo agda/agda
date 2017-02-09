@@ -66,6 +66,13 @@ mlfPostCompile opts _ modToDefs = do
     allDefs :: [Definition]
     allDefs = concat (Map.elems modToDefs)
 
+-- TODO: `Definition`'s should be sorted *and* grouped by `defMutual` (a field
+-- in Definition). each group should compile to:
+--
+--    (rec
+--       x0 = def0
+--       ...
+--    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
   modl <- mlfMod defs

@@ -10,7 +10,7 @@ data IntType
   deriving (Show, Eq)
 
 data IntConst
-  -- I.Int may be the wrong type.
+  -- Int may be the wrong type.
   --
   -- In malfunction Int is:
   --

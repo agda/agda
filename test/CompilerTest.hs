@@ -28,6 +28,7 @@ simpleQName mods nm = QName {
   , qnameName = simpleName nm
   }
 
+-- TODO: Update test-case to reflect new name-translation-scheme
 test_translate :: [TestTree]
 test_translate =
   -- Tests that the deBruijn index references the *closest* binding.

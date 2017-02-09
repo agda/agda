@@ -18,6 +18,7 @@ import qualified Data.Set as Set
 import           Data.Tuple.Extra
 import           Malfunction.AST
 import           Data.Char
+import Agda.Syntax.Common (NameId(..))
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -226,8 +227,9 @@ ident i = "v" ++ show i
 
 translateLit :: Literal -> Term
 translateLit l = case l of
-  LitNat _ x -> Mint (CInt (fromInteger x))
+  LitNat _ x -> Mint (CBigint x)
   LitString _ s -> Mstring s
+  LitChar _ c-> Mint . CInt . fromEnum $ c
   _ -> error "unsupported literal type"
 
 primToOpAndType :: TPrim -> (Either UnaryIntOp BinaryIntOp, IntType)
@@ -362,6 +364,7 @@ unitT = Mblock 0 []
 translateName :: QName -> Term
 translateName = Mvar . nameToIdent
 
+-- TODO: Update documentatiom:
 -- | Translate a Treeless name to a valid identifier in Malfunction
 --
 -- Not all names in agda are valid names in Treleess. Valid names in Agda are
@@ -376,10 +379,6 @@ translateName = Mvar . nameToIdent
 -- [1]: http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers
 -- [2]: https://github.com/stedolan/malfunction/blob/master/docs/spec.md
 nameToIdent :: QName -> Ident
-nameToIdent = concatMap go . show
+nameToIdent = t . nameId . qnameName
   where
-    go :: Char -> Ident
-    go c
-      | isValidInMlf c = pure c
-      | otherwise      = "{" ++ show (ord c) ++ "}"
-    isValidInMlf c = isAlphaNum c || c == '.'
+    t (NameId a b) = show a ++ "." ++ show b
