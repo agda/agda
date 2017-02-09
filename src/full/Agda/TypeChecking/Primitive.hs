@@ -49,6 +49,7 @@ import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, 
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Names
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -1717,13 +1718,16 @@ lookupPrimitiveFunctionQ q = do
 
 getBuiltinName :: String -> TCM (Maybe QName)
 getBuiltinName b = do
-  caseMaybeM (getBuiltin' b) (return Nothing) $ \v -> do
-    v <- normalise v
-    let getName (Def x _) = x
-        getName (Con x _ _) = conName x
-        getName (Lam _ b) = getName $ ignoreSharing $ unAbs b
-        getName _         = __IMPOSSIBLE__
-    return $ Just $ getName (ignoreSharing v)
+  caseMaybeM (getBuiltin' b) (return Nothing) (Just <.> getName)
+  where
+  getName v = do
+    v <- reduce v
+    case unSpine $ ignoreSharing v of
+      Def x _   -> return x
+      Con x _ _ -> return $ conName x
+      Lam _ b   -> getName $ unAbs b
+      _ -> __IMPOSSIBLE__
+
 
 isBuiltin :: QName -> String -> TCM Bool
 isBuiltin q b = (Just q ==) <$> getBuiltinName b
