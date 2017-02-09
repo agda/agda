@@ -63,6 +63,7 @@ import Agda.Interaction.Highlighting.Range
 
 data Aspect
   = Comment
+  | Option
   | Keyword
   | String
   | Number
@@ -71,7 +72,7 @@ data Aspect
   | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
     deriving (Eq, Show, Typeable)
 
--- | @NameKind@s are figured our during scope checking.
+-- | @NameKind@s are figured out during scope checking.
 
 data NameKind
   = Bound                         -- ^ Bound variable.

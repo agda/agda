@@ -38,7 +38,7 @@ import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Interaction.Options
+import Agda.Interaction.Options (optGHCiInteraction, optLaTeXDir)
 import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath)
@@ -378,6 +378,7 @@ code = do
   cmd :: Aspect -> String
   cmd a = let s = show a in case a of
     Comment        -> s
+    Option         -> s
     Keyword        -> s
     String         -> s
     Number         -> s
@@ -417,6 +418,7 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '~'  -> "\\textasciitilde{}"
     '^'  -> "\\textasciicircum{}"
     '\\' -> "\\textbackslash{}"
+    '-'  -> "{-}"
     -- Escaping newlines seems to fix the problem caused by pattern
     -- synonyms.
     '\n' -> "\\<\\\\\n\\>"

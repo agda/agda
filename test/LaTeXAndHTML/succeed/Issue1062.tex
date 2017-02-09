@@ -7,20 +7,20 @@
 \begin{code}%
 \>\<%
 \\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{OPTIONS} --copatterns --sized-types \AgdaSymbol{\#-\}}\<%
+\>\AgdaSymbol{\{{-}\#} \AgdaKeyword{OPTIONS} \AgdaOption{{-}{-}copatterns} \AgdaOption{{-}{-}sized{-}types} \AgdaSymbol{\#{-}\}}\<%
 \\
 %
 \\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZE    \AgdaPostulate{Size} \<[27]%
-\>[27]\AgdaSymbol{\#-\}}\<%
+\>\AgdaSymbol{\{{-}\#} \AgdaKeyword{BUILTIN} SIZE    \AgdaPostulate{Size} \<[27]%
+\>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZELT  \AgdaPostulate{Size<\_} \AgdaSymbol{\#-\}}\<%
+\>\AgdaSymbol{\{{-}\#} \AgdaKeyword{BUILTIN} SIZELT  \AgdaPostulate{Size<\_} \AgdaSymbol{\#{-}\}}\<%
 \\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZESUC \AgdaPostulate{↑\_} \<[27]%
-\>[27]\AgdaSymbol{\#-\}}\<%
+\>\AgdaSymbol{\{{-}\#} \AgdaKeyword{BUILTIN} SIZESUC \AgdaPostulate{↑\_} \<[27]%
+\>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} SIZEINF \AgdaPostulate{∞} \<[27]%
-\>[27]\AgdaSymbol{\#-\}}\<%
+\>\AgdaSymbol{\{{-}\#} \AgdaKeyword{BUILTIN} SIZEINF \AgdaPostulate{∞} \<[27]%
+\>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
 %
 \\
@@ -30,7 +30,7 @@
 \>[2]\AgdaInductiveConstructor{[]} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\<%
 \\
 \>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaInductiveConstructor{\_∷\_} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{x} \AgdaSymbol{:} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{xs} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{->} \AgdaDatatype{List} \AgdaBound{A}\<%
+\>[2]\AgdaInductiveConstructor{\_∷\_} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{x} \AgdaSymbol{:} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{xs} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{{-}>} \AgdaDatatype{List} \AgdaBound{A}\<%
 \\
 %
 \\
@@ -52,7 +52,7 @@
 \\
 %
 \\
-\>\AgdaComment{-- Sized streams via head/tail.}\<%
+\>\AgdaComment{{-}{-} Sized streams via head/tail.}\<%
 \\
 %
 \\
@@ -86,11 +86,11 @@
 \\
 %
 \\
-\>\AgdaComment{-- Streams and lists.}\<%
+\>\AgdaComment{{-}{-} Streams and lists.}\<%
 \\
 %
 \\
-\>\AgdaComment{-- Prepending a list to a stream.}\<%
+\>\AgdaComment{{-}{-} Prepending a list to a stream.}\<%
 \\
 %
 \\
@@ -104,7 +104,7 @@
 \\
 %
 \\
-\>\AgdaComment{-- Unfold which produces several outputs at one step}\<%
+\>\AgdaComment{{-}{-} Unfold which produces several outputs at one step}\<%
 \\
 %
 \\
@@ -130,7 +130,7 @@
 \\
 \>\AgdaKeyword{record} \AgdaRecord{⊤} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where} \AgdaKeyword{constructor} \AgdaInductiveConstructor{trivial}\<%
 \\
-\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaSymbol{(}\AgdaInductiveConstructor{trivial} \AgdaInductiveConstructor{∷} \AgdaInductiveConstructor{[]}\AgdaSymbol{)} \AgdaKeyword{using} \AgdaSymbol{(}head\AgdaSymbol{;} tail\AgdaSymbol{)} \AgdaComment{-- problem: imports not colored}\<%
+\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaSymbol{(}\AgdaInductiveConstructor{trivial} \AgdaInductiveConstructor{∷} \AgdaInductiveConstructor{[]}\AgdaSymbol{)} \AgdaKeyword{using} \AgdaSymbol{(}head\AgdaSymbol{;} tail\AgdaSymbol{)} \AgdaComment{{-}{-} problem: imports not colored}\<%
 \\
 %
 \\

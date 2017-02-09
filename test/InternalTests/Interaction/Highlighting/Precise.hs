@@ -74,7 +74,7 @@ prop_monoid_CompressedFile = isMonoid
 
 instance Arbitrary Aspect where
   arbitrary =
-    frequency [ (3, elements [ Comment, Keyword, String, Number
+    frequency [ (3, elements [ Comment, Option, Keyword, String, Number
                              , Symbol, PrimitiveType ])
               , (1, liftM2 Name (maybeGen arbitrary) arbitrary)
               ]
@@ -84,13 +84,14 @@ instance Arbitrary Aspect where
 
 instance CoArbitrary Aspect where
   coarbitrary Comment       = variant 0
-  coarbitrary Keyword       = variant 1
-  coarbitrary String        = variant 2
-  coarbitrary Number        = variant 3
-  coarbitrary Symbol        = variant 4
-  coarbitrary PrimitiveType = variant 5
+  coarbitrary Option        = variant 1
+  coarbitrary Keyword       = variant 2
+  coarbitrary String        = variant 3
+  coarbitrary Number        = variant 4
+  coarbitrary Symbol        = variant 5
+  coarbitrary PrimitiveType = variant 6
   coarbitrary (Name nk b)   =
-    variant 6 . maybeCoGen coarbitrary nk . coarbitrary b
+    variant 7 . maybeCoGen coarbitrary nk . coarbitrary b
 
 instance Arbitrary NameKind where
   arbitrary = oneof $ [liftM Constructor arbitrary] ++

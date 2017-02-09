@@ -181,6 +181,7 @@
 
     % Aspect colours.
     \definecolor{AgdaComment}      {HTML}{000000}
+    \definecolor{AgdaOption}       {HTML}{000000}
     \definecolor{AgdaKeyword}      {HTML}{000000}
     \definecolor{AgdaString}       {HTML}{000000}
     \definecolor{AgdaNumber}       {HTML}{000000}
@@ -218,6 +219,7 @@
 
     % Aspect colours.
     \definecolor{AgdaComment}      {HTML}{B22222}
+    \definecolor{AgdaOption}       {HTML}{000000}
     \definecolor{AgdaKeyword}      {HTML}{000000}
     \definecolor{AgdaString}       {HTML}{000000}
     \definecolor{AgdaNumber}       {HTML}{000000}
@@ -254,6 +256,7 @@
 }{
     % Aspect colours.
     \definecolor{AgdaComment}      {HTML}{B22222}
+    \definecolor{AgdaOption}       {HTML}{000000}
     \definecolor{AgdaKeyword}      {HTML}{CD6600}
     \definecolor{AgdaString}       {HTML}{B22222}
     \definecolor{AgdaNumber}       {HTML}{A020F0}
@@ -292,6 +295,8 @@
 % Aspect commands.
 \newcommand{\AgdaComment}     [1]
     {\AgdaCommentFontStyle{\textcolor{AgdaComment}{#1}}}
+\newcommand{\AgdaOption}      [1]
+    {\AgdaCommentFontStyle{\textcolor{AgdaOption}{#1}}}
 \newcommand{\AgdaKeyword}     [1]
     {\AgdaKeywordFontStyle{\textcolor{AgdaKeyword}{#1}}}
 \newcommand{\AgdaString}      [1]{\AgdaStringFontStyle{\textcolor{AgdaString}{#1}}}
