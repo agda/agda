@@ -133,7 +133,7 @@ isInfixOfRev needle haystack
       Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
 
 isSpaces :: Text -> Bool
-isSpaces = T.all isSpace
+isSpaces = T.all (\c -> c == ' ' || c == '\n')
 
 isActualSpaces :: Text -> Bool
 isActualSpaces = T.all (== ' ')
@@ -189,7 +189,7 @@ nextToken' = do
                     then case T.singleton '\n' `isInfixOfRev` pre of
                            Nothing           -> (code, [ suf ])
                            Just (pre', suf') ->
-                             (pre' <+> T.dropWhile (`elem` [' ', '\t']) suf',
+                             (pre' <+> T.dropWhile (== ' ') suf',
                               [ code, suf ])
 
               -- This case happens for example when you have two code
@@ -468,13 +468,6 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
   spaces ss
 
--- Treat tabs and non-standard spaces as if they were spaces
--- [Issue_#2019].
-spaces (s@(T.uncons -> Just (c, _)) : ss)
-  | isSpace c && (c /= '\n') =
-      spaces $ T.replicate (graphemeClusters s) (T.singleton ' ') : ss
-  | otherwise = __IMPOSSIBLE__
-
 spaces (_ : ss) = __IMPOSSIBLE__
 
 -- Split multi-lines string literals into multiple string literals
@@ -573,9 +566,15 @@ toLaTeX source hi
 
   -- Add position in file to each character.
   . zip [1..]
+  . map replaceWhitespace
   $ source
   where
   infoMap = toMap (decompress hi)
+
+  -- Treat everything but new-line characters as spaces [Issue_#2019].
+  replaceWhitespace c
+    | isSpace c && c /= '\n' = ' '
+    | otherwise              = c
 
 processTokens :: Tokens -> IO L.Text
 processTokens ts = do
