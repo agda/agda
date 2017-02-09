@@ -78,9 +78,6 @@ type Tokens = [Token]
 data Token = Token
   { text     :: !Text
   , info     :: Aspects
-  , position :: !Int     -- ^ Is not used currently, but could
-                         -- potentially be used for hyperlinks as in
-                         -- the HTML output?
   }
   deriving Show
 
@@ -485,19 +482,14 @@ spaces (_ : ss) = __IMPOSSIBLE__
 -- properly
 stringLiteral :: Token -> Tokens
 stringLiteral t | aspect (info t) == Just String =
-  reverse $ snd $ foldl insertShifted (0, [])
-                $ concatMap leadingSpaces
-                $ List.intersperse (T.pack "\n")
-                $ T.lines (text t) where
-
-    leadingSpaces :: Text -> [Text]
-    leadingSpaces t = [pre, suf]
-      where (pre , suf) = T.span (== ' ') t
-
-    insertShifted :: (Int, Tokens) -> Text -> (Int, Tokens)
-    insertShifted (i, xs) x =
-      let tx = t { text = x, position = position t + i }
-      in (i + T.length x, tx : xs)
+  reverse $ foldl (\xs x -> t { text = x } : xs) []
+          $ concatMap leadingSpaces
+          $ List.intersperse (T.pack "\n")
+          $ T.lines (text t)
+  where
+  leadingSpaces :: Text -> [Text]
+  leadingSpaces t = [pre, suf]
+    where (pre , suf) = T.span (== ' ') t
 
 stringLiteral t = [t]
 
@@ -566,20 +558,18 @@ toLaTeX source hi
   -- Head the list (the grouped chars contain the same meta info) and
   -- collect the characters into a string.
   . map (\xs -> case xs of
-                    (mi, (pos, _)) : _ ->
-                        Token { text     = T.pack $ map (\(_, (_, c)) -> c) xs
-                              , info     = fromMaybe mempty mi
-                              , position = pos
-                              }
-                    []                 -> __IMPOSSIBLE__)
+                    []          -> __IMPOSSIBLE__
+                    (mi, _) : _ ->
+                        Token { text = T.pack $ map (\(_, c) -> c) xs
+                              , info = fromMaybe mempty mi
+                              })
 
   . List.groupBy ((==) `on` fst)  -- Characters which share the same
                                   -- meta info are the same token, so
                                   -- group them together.
 
   -- Look up the meta info at each position in the highlighting info.
-  . map (\(pos, char) ->
-        (IntMap.lookup pos infoMap, (pos, char)))
+  . map (\(pos, char) -> (IntMap.lookup pos infoMap, char))
 
   -- Add position in file to each character.
   . zip [1..]
