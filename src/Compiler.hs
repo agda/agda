@@ -151,7 +151,7 @@ bindFields vars used termc body = case map bind varsRev of
     varsRev = zip [0..] (reverse vars)
     arity = length vars
     bind (ix, iden)
-      -- | Set.member ix used = Named iden (Mfield (arity - ix - 1) termc)
+      -- Set.member ix used = Named iden (Mfield (arity - ix - 1) termc)
       | Set.member ix used = Named iden (Mfield ix termc)
       | otherwise = Named iden (Mint (CInt 0))
 
