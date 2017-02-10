@@ -32,10 +32,10 @@ import qualified Agda.Compiler.MAlonzo.Pragmas as GHC -- borrow pragma parsing f
 import Agda.Utils.Impossible
 
 parseCorePragma :: MonadTCM m => CompilerPragma -> m CoreRepresentation
-parseCorePragma (CompilerPragma r s) = liftTCM $ setCurrentRange r $
-  case GHC.parsePragma s of
-    Right (GHC.HsDefn code)        -> return $ CrDefn code
-    Right (GHC.HsData crTy crCons) -> return $ CrData crTy crCons
+parseCorePragma p@(CompilerPragma _ s) = liftTCM $ setCurrentRange p $
+  case GHC.parsePragma p of
+    Right (GHC.HsDefn r code)        -> return $ CrDefn r code
+    Right (GHC.HsData r crTy crCons) -> return $ CrData r crTy crCons
     _ -> genericError $ "Failed to parse UHC pragma '" ++ s ++ "'"
 
 getCorePragma :: MonadTCM m => QName -> m (Maybe CoreRepresentation)

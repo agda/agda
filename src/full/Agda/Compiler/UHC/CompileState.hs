@@ -8,6 +8,7 @@ module Agda.Compiler.UHC.CompileState
   ( CompileT
   , Compile
   , runCompileT
+  , lift1
   , CoreMeta
 
   , addExports
@@ -117,6 +118,9 @@ runCompileT amod comp = do
             , coreConstructors = Map.empty
             }
 
+lift1 :: Monad m => (forall a. m a -> m a) -> CompileT m a -> CompileT m a
+lift1 f (CompileT m) = CompileT $ StateT $ \ s -> f (runStateT m s)
+
 appendCoreMeta :: Monad m => CoreMeta -> CompileT m ()
 appendCoreMeta cm =
   CompileT $ modify (\s -> s { coreMeta = cm `mappend` coreMeta s })
@@ -162,7 +166,7 @@ getCoreCon c = do
         -- (although caching ensures only once per module). This should be
         -- cheap but one might consider writing this information to a special
         -- uhc interface file.
-        Just (CrData ct ccrs) -> do
+        Just (CrData r ct ccrs) -> lift1 (setCurrentRange r) $ do
           ct <- parseCoreData ct
           ccrs <- parseCoreConstrs ct ccrs
           zipWithM_ setCoreCon cs ccrs

@@ -64,11 +64,11 @@ notAHaskellType a = do
 getHsType :: QName -> TCM HaskellType
 getHsType x = do
   d <- getHaskellPragma x
-  case d of
-    Just (HsType t)   -> return t
-    Just HsDefn{}     -> return hsUnit
-    Just (HsData t _) -> return t
-    _                 -> notAHaskellType (El Prop $ Def x [])
+  setCurrentRange d $ case d of
+    Just (HsType _ t)   -> return t
+    Just HsDefn{}       -> return hsUnit
+    Just (HsData _ t _) -> return t
+    _                   -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i

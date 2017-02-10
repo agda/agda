@@ -18,6 +18,7 @@ where
 import Data.Typeable
 import qualified Data.Map as M
 
+import Agda.Syntax.Position
 import Agda.Compiler.UHC.Bridge as CA
 import Agda.Compiler.UHC.MagicTypes
 
@@ -25,8 +26,8 @@ import Agda.Compiler.UHC.MagicTypes
 import Agda.Utils.Impossible
 
 data CoreRepresentation
-    = CrDefn String          -- ^ Core code for functions.
-    | CrData String [String] -- ^ Core type for agda type.
+    = CrDefn Range String          -- ^ Core code for functions.
+    | CrData Range String [String] -- ^ Core type for agda type.
   deriving (Typeable, Show)
 
 data CoreType

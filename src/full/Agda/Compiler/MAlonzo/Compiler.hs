@@ -243,9 +243,9 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
-      _ | Just (HsDefn hs) <- pragma -> do
+      _ | Just (HsDefn r hs) <- pragma -> do
         -- Make sure we have imports for all names mentioned in the type.
-        hsty <- haskellType q
+        hsty <- setCurrentRange r $ haskellType q
         ty   <- normalise ty
         sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
         return $ fbWithType hsty (fakeExp hs)
@@ -294,7 +294,7 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
       Function{} -> function pragma $ functionViaTreeless q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
-        | Just (HsData ty hsCons) <- pragma -> do
+        | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
         ccscov <- ifM (noCheckCover q) (return []) $ do
             ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
             cov <- checkCover q ty (np + ni) cs hsCons
@@ -321,8 +321,8 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
   function mhe fun = do
     ccls <- mkwhere <$> fun
     case mhe of
-      Just (HsExport name) -> do
-        t <- haskellType q
+      Just (HsExport r name) -> do
+        t <- setCurrentRange r $ haskellType q
         let tsig :: HS.Decl
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 

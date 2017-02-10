@@ -17,19 +17,25 @@ import Agda.Utils.Impossible
 #include "undefined.h"
 
 data HaskellPragma
-      = HsDefn HaskellCode
-      | HsType HaskellType
-      | HsData HaskellType [HaskellCode]
-      | HsExport HaskellCode
+      = HsDefn Range HaskellCode
+      | HsType Range HaskellType
+      | HsData Range HaskellType [HaskellCode]
+      | HsExport Range HaskellCode
   deriving (Show, Eq)
+
+instance HasRange HaskellPragma where
+  getRange (HsDefn   r _)   = r
+  getRange (HsType   r _)   = r
+  getRange (HsData   r _ _) = r
+  getRange (HsExport r _)   = r
 
 -- Syntax for Haskell pragmas:
 --  HsDefn CODE       "= CODE"
 --  HsType TYPE       "= type TYPE"
 --  HsData NAME CONS  "= data NAME (CON₁ | .. | CONₙ)"
 --  HsExport NAME     "as NAME"
-parsePragma :: String -> Either String HaskellPragma
-parsePragma s =
+parsePragma :: CompilerPragma -> Either String HaskellPragma
+parsePragma (CompilerPragma r s) =
   case parse pragmaP s of
     []  -> Left $ "Failed to parse GHC pragma '" ++ s ++ "'"
     [p] -> Right p
@@ -54,15 +60,15 @@ parsePragma s =
       s <- look
       guard $ not $ any (`isPrefixOf` s) ["type", "data"]
 
-    exportP = HsExport <$ wordsP ["as"]        <* whitespace <*> hsIdent <* skipSpaces
-    typeP   = HsType   <$ wordsP ["=", "type"] <* whitespace <*> hsCode
-    dataP   = HsData   <$ wordsP ["=", "data"] <* whitespace <*> hsIdent <*>
-                                                  paren (sepBy (skipSpaces *> hsIdent) barP) <* skipSpaces
-    defnP   = HsDefn   <$ wordsP ["="]         <* whitespace <*  notTypeOrData <*> hsCode
+    exportP = HsExport r <$ wordsP ["as"]        <* whitespace <*> hsIdent <* skipSpaces
+    typeP   = HsType   r <$ wordsP ["=", "type"] <* whitespace <*> hsCode
+    dataP   = HsData   r <$ wordsP ["=", "data"] <* whitespace <*> hsIdent <*>
+                                                    paren (sepBy (skipSpaces *> hsIdent) barP) <* skipSpaces
+    defnP   = HsDefn   r <$ wordsP ["="]         <* whitespace <*  notTypeOrData <*> hsCode
 
 parseHaskellPragma :: CompilerPragma -> TCM HaskellPragma
-parseHaskellPragma (CompilerPragma r s) = setCurrentRange r $
-  case parsePragma s of
+parseHaskellPragma p = setCurrentRange p $
+  case parsePragma p of
     Left err -> genericError err
     Right p  -> return p  -- TODO: sanity checks
 
@@ -80,7 +86,7 @@ getHaskellConstructor c = do
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of
-        Just (HsData _ hsCons) -> do
+        Just (HsData _ _ hsCons) -> do
           cons <- defConstructors . theDef <$> getConstInfo d
           return $ Just $ fromMaybe __IMPOSSIBLE__ $ lookup c $ zip cons hsCons
         _ -> return Nothing
