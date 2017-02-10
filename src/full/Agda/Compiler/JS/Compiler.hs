@@ -29,6 +29,7 @@ import Agda.Syntax.Internal
   ( Name, Args, Type,
     conName,
     toTopLevelModuleName, arity, unEl, unAbs, nameFixity )
+import Agda.Syntax.Position
 import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
@@ -81,7 +82,7 @@ jsBackend = Backend jsBackend'
 
 jsBackend' :: Backend' JSOptions JSOptions JSModuleEnv () (Maybe Export)
 jsBackend' = Backend'
-  { backendName      = "JS"
+  { backendName      = jsBackendName
   , backendVersion   = Nothing
   , options          = defaultJSOptions
   , commandLineFlags = jsCommandLineFlags
@@ -266,8 +267,20 @@ definition kit (q,d) = do
 
   definition' kit q d (defType d) ls
 
+-- | Ensure that there is at most one pragma for a name.
+checkCompilerPragmas :: QName -> TCM ()
+checkCompilerPragmas q = () <$ getUniqueCompilerPragma jsBackendName q
+
+defJSDef :: Definition -> Maybe String
+defJSDef def =
+  case defCompilerPragmas jsBackendName def of
+    [CompilerPragma _ s] -> Just s
+    []                   -> Nothing
+    _:_:_                -> __IMPOSSIBLE__
+
 definition' :: Maybe CoinductionKit -> QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Export)
-definition' kit q d t ls =
+definition' kit q d t ls = do
+  checkCompilerPragmas q
   case theDef d of
     -- coinduction
     Constructor{} | Just q == (nameOfSharp <$> kit) -> do

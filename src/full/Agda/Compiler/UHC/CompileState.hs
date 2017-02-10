@@ -8,6 +8,7 @@ module Agda.Compiler.UHC.CompileState
   ( CompileT
   , Compile
   , runCompileT
+  , lift1
   , CoreMeta
 
   , addExports
@@ -35,6 +36,7 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Char
+import Data.Traversable (traverse)
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
@@ -42,6 +44,7 @@ import Control.Applicative
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 
 import Agda.Compiler.UHC.MagicTypes
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
@@ -54,7 +57,10 @@ import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Compiler.Common
 
+import Agda.Compiler.MAlonzo.HaskellTypes (checkConstructorCount)
+
 import Agda.Utils.Lens
+import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -114,6 +120,9 @@ runCompileT amod comp = do
             , coreConstructors = Map.empty
             }
 
+lift1 :: Monad m => (forall a. m a -> m a) -> CompileT m a -> CompileT m a
+lift1 f (CompileT m) = CompileT $ StateT $ \ s -> f (runStateT m s)
+
 appendCoreMeta :: Monad m => CoreMeta -> CompileT m ()
 appendCoreMeta cm =
   CompileT $ modify (\s -> s { coreMeta = cm `mappend` coreMeta s })
@@ -147,9 +156,10 @@ getCoreCon c = do
     Nothing -> do -- compute CoreConstr for all constructors of the datatype and cache the result
       cDef@Constructor{ conData = dtQ } <- lift $ theDef <$> getConstInfo c
       dDef <- lift $ getConstInfo dtQ
-      let cs = dataRecCons $ theDef dDef
+      let cs = defConstructors $ theDef dDef
       when (null cs) __IMPOSSIBLE__
-      case defCoreDef dDef of
+      dtCr <- getCorePragma dtQ
+      case dtCr of
         -- not COMPILED
         Nothing -> do
           let addCon tag q = setCoreCon q =<< CCNormal <$> getCoreName dtQ <*> getCoreName q <*> pure tag
@@ -158,12 +168,9 @@ getCoreCon c = do
         -- (although caching ensures only once per module). This should be
         -- cheap but one might consider writing this information to a special
         -- uhc interface file.
-        Just (CrType ct) -> do
+        Just (CrData r ct ccrs) -> lift1 (setCurrentRange r) $ do
+          lift $ checkConstructorCount dtQ (dataCons $ theDef dDef) ccrs  -- borrowed from GHC backend
           ct <- parseCoreData ct
-          let coreCon c = lift $ do
-                Just (CrConstr ccr) <- defCoreDef <$> getConstInfo c
-                return ccr
-          ccrs <- mapM coreCon cs
           ccrs <- parseCoreConstrs ct ccrs
           zipWithM_ setCoreCon cs ccrs
         Just{} -> __IMPOSSIBLE__

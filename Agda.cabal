@@ -219,6 +219,7 @@ library
                     Agda.Compiler.MAlonzo.Encode
                     Agda.Compiler.MAlonzo.HaskellTypes
                     Agda.Compiler.MAlonzo.Misc
+                    Agda.Compiler.MAlonzo.Pragmas
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
                     Agda.Compiler.ToTreeless

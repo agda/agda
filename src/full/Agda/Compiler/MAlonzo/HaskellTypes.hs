@@ -17,6 +17,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
+import Agda.Compiler.MAlonzo.Pragmas
+
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Impossible
 
@@ -61,11 +63,12 @@ notAHaskellType a = do
 
 getHsType :: QName -> TCM HaskellType
 getHsType x = do
-  d <- compiledHaskell . defCompiledRep <$> getConstInfo x
-  case d of
-    Just (HsType t) -> return t
-    Just HsDefn{}   -> return hsUnit
-    _               -> notAHaskellType (El Prop $ Def x [])
+  d <- getHaskellPragma x
+  setCurrentRange d $ case d of
+    Just (HsType _ t)   -> return t
+    Just HsDefn{}       -> return hsUnit
+    Just (HsData _ t _) -> return t
+    _                   -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
@@ -131,3 +134,20 @@ haskellType q = do
   reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show q ++ ": " ++ ty
   return ty
 
+checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()
+checkConstructorCount d cs hsCons
+  | n == hn   = return ()
+  | otherwise = do
+    let n_forms_are = case hn of
+          1 -> "1 Haskell constructor is"
+          n -> show n ++ " Haskell constructors are"
+        only | hn == 0   = ""
+             | hn < n    = "only "
+             | otherwise = ""
+
+    genericDocError =<<
+      fsep ([prettyTCM d] ++ pwords ("has " ++ show n ++
+            " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hsCons ++ "]"))
+  where
+    n  = length cs
+    hn = length hsCons
