@@ -384,6 +384,7 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
+  checkConstructorCount q cs hsCons
   ifM (noCheckCover q) (return []) $ do
     ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
     cov <- checkCover q hsTy np cs hsCons

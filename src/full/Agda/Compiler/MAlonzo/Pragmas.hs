@@ -77,7 +77,7 @@ parseHaskellPragma :: CompilerPragma -> TCM HaskellPragma
 parseHaskellPragma p = setCurrentRange p $
   case parsePragma p of
     Left err -> genericError err
-    Right p  -> return p  -- TODO: sanity checks
+    Right p  -> return p
 
 getHaskellPragma :: QName -> TCM (Maybe HaskellPragma)
 getHaskellPragma q =

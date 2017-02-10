@@ -621,27 +621,9 @@ checkPragma r p =
           assertCurrentModule x $
               "COMPILED_DATA directives must appear in the same module " ++
               "as their corresponding datatype definition,"
-          let addCompiledData cs = addHaskellData x hs hcs
           case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length hcs -> do
-                  let n_forms_are = case length hcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null hcs               = ""
-                           | length hcs < length cs = "only "
-                           | otherwise              = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> addCompiledData cs
-            Record{recConHead = ch}
-              | length hcs == 1 -> addCompiledData [conName ch]
-              | otherwise -> do
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has 1 constructor, but " ++
-                                show (length hcs) ++ " Haskell constructors are given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
+            Datatype{dataCons = cs} -> addHaskellData x hs hcs
+            Record{recConHead = ch} -> addHaskellData x hs hcs
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
