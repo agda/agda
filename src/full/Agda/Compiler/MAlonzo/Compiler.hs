@@ -295,25 +295,26 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
-        ccscov <- ifM (noCheckCover q) (return []) $ do
-            ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
-            cov <- checkCover q ty (np + ni) cs hsCons
-            return $ ccs ++ cov
+        computeErasedConstructorArgs q
+        ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         computeErasedConstructorArgs q
         (ars, cds) <- unzip <$> mapM condecl cs
         return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
       Constructor{} -> return []
+      Record{ recPars = np, recClause = cl, recConHead = con }
+        | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+        let cs = [conName con]
+        computeErasedConstructorArgs q
+        ccscov <- constructorCoverageCode q np cs ty hsCons
+        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++ ccscov
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         computeErasedConstructorArgs q
         let c = conName con
         let noFields = length flds
         let ar = I.arity ty
         cd <- snd <$> condecl c
-  --       cd <- case c of
-  --         Nothing -> return $ cdecl q noFields
-  --         Just c  -> snd <$> condecl c
         return $ tvaldecl q Inductive noFields ar [cd] cl
       AbstractDefn -> __IMPOSSIBLE__
   where
@@ -380,6 +381,13 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
+
+constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
+constructorCoverageCode q np cs hsTy hsCons = do
+  ifM (noCheckCover q) (return []) $ do
+    ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
+    cov <- checkCover q hsTy np cs hsCons
+    return $ ccs ++ cov
 
 -- | Environment for naming of local variables.
 --   Invariant: @reverse ccCxt ++ ccNameSupply@
