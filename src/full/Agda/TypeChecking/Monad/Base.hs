@@ -1346,22 +1346,6 @@ defaultDefn info x t def = Defn
   , theDef            = def
   }
 
-type HaskellCode = String
-type HaskellType = String
-type JSCode      = String
-type CoreCode    = String
-
-data HaskellRepresentation
-      = HsDefn HaskellCode
-      | HsType HaskellType
-  deriving (Typeable, Show)
-
-data CoreRepresentation
-      = CrDefn CoreCode -- ^ Core code for functions.
-      | CrType CoreCode -- ^ Core type for agda type.
-      | CrConstr CoreCode -- ^ Core constructor for agda constructor.
-    deriving (Typeable, Show)
-
 -- | Polarity for equality and subtype checking.
 data Polarity
   = Covariant      -- ^ monotone
@@ -1370,16 +1354,26 @@ data Polarity
   | Nonvariant     -- ^ constant
   deriving (Typeable, Show, Eq)
 
-data CompiledRepresentation = CompiledRep
-  { compiledHaskell :: Maybe HaskellRepresentation
-  , exportHaskell   :: Maybe String
-  , compiledJS      :: Maybe JSCode
-  , compiledCore    :: Maybe CoreRepresentation
-  }
-  deriving (Typeable, Show)
+-- | The backends are responsible for parsing their own pragmas.
+data CompilerPragma = CompilerPragma Range String
+  deriving (Typeable, Show, Eq)
+
+instance HasRange CompilerPragma where
+  getRange (CompilerPragma r _) = r
+
+type BackendName    = String
+
+-- Temporary: while we still parse the old pragmas we need to know the names of
+-- the corresponding backends.
+jsBackendName, ghcBackendName, uhcBackendName :: BackendName
+jsBackendName  = "JS"
+ghcBackendName = "GHC"
+uhcBackendName = "UHC"
+
+type CompiledRepresentation = Map BackendName [CompilerPragma]
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
+noCompiledRep = Map.empty
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
@@ -1607,6 +1601,11 @@ defIsDataOrRecord Record{}   = True
 defIsDataOrRecord Datatype{} = True
 defIsDataOrRecord _          = False
 
+defConstructors :: Defn -> [QName]
+defConstructors Datatype{dataCons = cs} = cs
+defConstructors Record{recConHead = c} = [conName c]
+defConstructors _ = __IMPOSSIBLE__
+
 newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable, Null)
 
@@ -1703,11 +1702,9 @@ defParameters Defn{theDef = Datatype{dataPars = n}} = Just n
 defParameters Defn{theDef = Record  {recPars  = n}} = Just n
 defParameters _                                     = Nothing
 
-defJSDef :: Definition -> Maybe JSCode
-defJSDef = compiledJS . defCompiledRep
-
-defCoreDef :: Definition -> Maybe CoreRepresentation
-defCoreDef = compiledCore . defCompiledRep
+defCompilerPragmas :: BackendName -> Definition -> [CompilerPragma]
+defCompilerPragmas b = reverse . fromMaybe [] . Map.lookup b . defCompiledRep
+  -- reversed because we add new pragmas to the front of the list
 
 -- | Are the clauses of this definition delayed?
 defDelayed :: Definition -> Delayed

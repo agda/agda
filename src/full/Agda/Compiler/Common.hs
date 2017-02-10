@@ -162,6 +162,7 @@ inCompilerEnv mainI cont =
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 
+    setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode $ do
       cont
 

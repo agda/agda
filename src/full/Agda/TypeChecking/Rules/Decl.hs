@@ -621,29 +621,9 @@ checkPragma r p =
           assertCurrentModule x $
               "COMPILED_DATA directives must appear in the same module " ++
               "as their corresponding datatype definition,"
-          let addCompiledData cs = do
-                addHaskellType x hs
-                sequence_ $ zipWith addHaskellCode cs hcs
           case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length hcs -> do
-                  let n_forms_are = case length hcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null hcs               = ""
-                           | length hcs < length cs = "only "
-                           | otherwise              = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> addCompiledData cs
-            Record{recConHead = ch}
-              | length hcs == 1 -> addCompiledData [conName ch]
-              | otherwise -> do
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has 1 constructor, but " ++
-                                show (length hcs) ++ " Haskell constructors are given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
+            Datatype{dataCons = cs} -> addHaskellData x hs hcs
+            Record{recConHead = ch} -> addHaskellData x hs hcs
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
@@ -680,22 +660,7 @@ checkPragma r p =
               "COMPILED_DATA_UHC directives must appear in the same module " ++
               "as their corresponding datatype definition,"
           case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length crcs -> do
-                  let n_forms_are = case length crcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null crcs               = ""
-                           | length crcs < length cs = "only "
-                           | otherwise               = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords crcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> do
-                -- Remark: core pragmas are not type-checked
-                addCoreType x crd
-                sequence_ $ zipWith addCoreConstr cs crcs
+            Datatype{dataCons = cs} -> addCoreType x crd crcs
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x

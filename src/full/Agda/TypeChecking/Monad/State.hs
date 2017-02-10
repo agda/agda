@@ -240,6 +240,9 @@ updateDefPolarity f def = def { defPolarity = f (defPolarity def) }
 updateDefCompiledRep :: (CompiledRepresentation -> CompiledRepresentation) -> (Definition -> Definition)
 updateDefCompiledRep f def = def { defCompiledRep = f (defCompiledRep def) }
 
+addCompilerPragma :: BackendName -> CompilerPragma -> Definition -> Definition
+addCompilerPragma backend pragma = updateDefCompiledRep $ Map.insertWith (++) backend [pragma]
+
 updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
 updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
 updateFunClauses f _                              = __IMPOSSIBLE__
