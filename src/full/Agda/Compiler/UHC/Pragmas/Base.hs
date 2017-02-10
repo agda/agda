@@ -4,7 +4,8 @@
 -- | Defines UHC Core functions used in other parts of Agda.
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
 module Agda.Compiler.UHC.Pragmas.Base
-  ( CoreExpr,
+  ( CoreRepresentation(..),
+    CoreExpr,
     CoreType (..),
     CoreConstr (..),
     coreConstrToCTag,
@@ -23,7 +24,10 @@ import Agda.Compiler.UHC.MagicTypes
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-
+data CoreRepresentation
+    = CrDefn String          -- ^ Core code for functions.
+    | CrData String [String] -- ^ Core type for agda type.
+  deriving (Typeable, Show)
 
 data CoreType
   = CTMagic MagicName -- ^ Magic name

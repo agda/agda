@@ -43,7 +43,7 @@ import Agda.Compiler.Treeless.GuardsToPrims
 import Agda.Compiler.Treeless.NormalizeNames
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.UHC.Pragmas.Base
-import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr)
+import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr, getCorePragma)
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.MagicTypes
@@ -101,7 +101,7 @@ translateDefn :: (QName, Definition) -> Compile [CBind]
 translateDefn (n, defini) = do
 
   crName <- getCoreName n
-  let crRep = compiledCore $ defCompiledRep defini
+  crRep  <- getCorePragma $ defName defini
   kit <- lift coinductionKit
   case theDef defini of
     d@(Datatype {}) -> do

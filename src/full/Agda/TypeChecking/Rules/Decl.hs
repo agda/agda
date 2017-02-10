@@ -621,9 +621,7 @@ checkPragma r p =
           assertCurrentModule x $
               "COMPILED_DATA directives must appear in the same module " ++
               "as their corresponding datatype definition,"
-          let addCompiledData cs = do
-                addHaskellType x hs
-                sequence_ $ zipWith addHaskellCode cs hcs
+          let addCompiledData cs = addHaskellData x hs hcs
           case theDef def of
             Datatype{dataCons = cs}
               | length cs /= length hcs -> do
@@ -694,8 +692,7 @@ checkPragma r p =
                   typeError $ GenericError $ show err
               | otherwise -> do
                 -- Remark: core pragmas are not type-checked
-                addCoreType x crd
-                sequence_ $ zipWith addCoreConstr cs crcs
+                addCoreType x crd crcs
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x
