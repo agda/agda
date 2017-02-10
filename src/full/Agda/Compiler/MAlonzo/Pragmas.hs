@@ -6,6 +6,7 @@ import Control.Monad
 import Data.Maybe
 import Data.Char
 import Data.List
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
