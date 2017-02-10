@@ -23,6 +23,7 @@ the following procedure can be followed:
     /doc/user-manual/conf.py
     mk/versions.mk
     src/data/emacs-mode/agda2-mode.el
+    src/data/emacs-mode/agda2-mode-pkg.el
     src/size-solver/size-solver.cabal
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
