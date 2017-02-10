@@ -660,21 +660,7 @@ checkPragma r p =
               "COMPILED_DATA_UHC directives must appear in the same module " ++
               "as their corresponding datatype definition,"
           case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length crcs -> do
-                  let n_forms_are = case length crcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null crcs               = ""
-                           | length crcs < length cs = "only "
-                           | otherwise               = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords crcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> do
-                -- Remark: core pragmas are not type-checked
-                addCoreType x crd crcs
+            Datatype{dataCons = cs} -> addCoreType x crd crcs
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x

@@ -57,6 +57,8 @@ import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Compiler.Common
 
+import Agda.Compiler.MAlonzo.HaskellTypes (checkConstructorCount)
+
 import Agda.Utils.Lens
 import Agda.Utils.Pretty hiding ((<>))
 
@@ -167,6 +169,7 @@ getCoreCon c = do
         -- cheap but one might consider writing this information to a special
         -- uhc interface file.
         Just (CrData r ct ccrs) -> lift1 (setCurrentRange r) $ do
+          lift $ checkConstructorCount dtQ (dataCons $ theDef dDef) ccrs  -- borrowed from GHC backend
           ct <- parseCoreData ct
           ccrs <- parseCoreConstrs ct ccrs
           zipWithM_ setCoreCon cs ccrs
