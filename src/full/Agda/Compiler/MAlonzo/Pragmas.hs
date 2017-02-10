@@ -51,7 +51,14 @@ parsePragma (CompilerPragma r s) =
 
     barP = skipSpaces *> char '|'
 
-    hsIdent = many1 (satisfy (not . isSpace)) -- quite liberal
+    -- quite liberal
+    isIdent c = isAlphaNum c || elem c "_.':[]"
+    isOp c    = not $ isSpace c || elem c "()"
+    hsIdent = fst <$> gather (choice
+                [ string "()"
+                , many1 (satisfy isIdent)
+                , between (char '(') (char ')') (many1 (satisfy isOp))
+                ])
     hsCode  = many1 get -- very liberal
 
     paren = between (skipSpaces *> char '(') (skipSpaces *> char ')')
