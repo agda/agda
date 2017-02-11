@@ -18,17 +18,19 @@ import           Text.Printf
 backend :: Backend
 backend = Backend backend'
 
-data MlfOptions = Opts {
-  _enabled :: Bool
-  , _resultVar :: Maybe Ident
+data MlfOptions = Opts
+  { _enabled    :: Bool
+  , _resultVar  :: Maybe Ident
   , _outputFile :: Maybe FilePath
+  , _debug      :: Bool
   }
 
 defOptions :: MlfOptions
-defOptions = Opts {
-  _enabled = False
-  , _resultVar = Nothing
+defOptions = Opts
+  { _enabled    = False
+  , _resultVar  = Nothing
   , _outputFile = Nothing
+  , _debug      = False
   }
 
 ttFlags :: [OptDescr (Flag MlfOptions)]
@@ -39,6 +41,8 @@ ttFlags =
     "(DEBUG) Run the module and print the integer value of a variable"
   , Option ['o'] [] (ReqArg (\r o -> return o{_outputFile = Just r}) "FILE")
     "(DEBUG) Place outputFile resulting module into FILE"
+  , Option ['d'] ["debug"] (NoArg $ \ o -> return o{ _enabled = True })
+    "Generate Malfunction"
   ]
 
 backend' :: Backend' MlfOptions MlfOptions () [Definition] Definition
@@ -96,7 +100,7 @@ mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
   modl <- mlfMod defs . groupNSort $ defs
   let modlTxt = prettyShow modl
-  liftIO . putStrLn $ modlTxt
+  when (_debug mlfopt) $ liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
     Just v   -> printVar modl v
     Nothing  -> return ()
@@ -121,6 +125,9 @@ printVar modl@(MMod binds _) v = do
       defVar (Named u _) = u == v
       defVar _ = False
 
+-- TODO: `mlfDef` should honor the flag "--debug" and only print to stdout in
+-- case this is enabled. Also it would be nice to split up IO and the actual
+-- translation into two different functions.
 mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
 mlfDef alldefs d@Defn{ defName = q } =
   case theDef d of
