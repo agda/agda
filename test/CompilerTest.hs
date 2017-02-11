@@ -47,9 +47,12 @@ test_translate =
     $ translate'1 (TError TUnreachable)
     @?= Mblock 0 []
   , testCase "fst"
-    $ let fstqn = simpleQName ["Test"] "fst"
-          tupqn = simpleQName ["Test", "Tuple"] "Tup"
-      in translateDef' [[tupqn]] fstqn (fstTT fstqn) @?= fstT fstqn
+    $ let funqn = simpleQName ["Test"] "fst"
+          dataqn = simpleQName ["Test"] "Tuple"
+          conqn = simpleQName ["Test", "Tuple"] "Tup"
+      in translateDef' [[conqn]] funqn fstTT @?= fstT
+  , testCase "variables with strange chars" $
+    translate'1 (TCon $ simpleQName ["mod''"] "asdf''") @?= undefined
   ]
 
 facTT :: QName -> TTerm
@@ -66,9 +69,15 @@ facT qn = Recursive [(show qn, Mlambda ["v0"]
     ] (Mintop2 Mul TInt (Mvar "v0")
   (Mapply (Mvar (show qn)) [Mvar "v1"])))]))]
 
-fstTT qn = TLam (TCase 0 (CTData qn) (TError TUnreachable) [TACon {aCon = qn, aArity = 2, aBody = TVar 1}])
+fstT = Named "Test.fst" (Mlambda ["v0"] (Mswitch (Mvar "v0")
+          [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CInt 0))]
+             (Mvar "v1"))]))
+fstTT  = TLam (TCase 0 (CTData (simpleQName ["Test"] "Tuple"))
+              (TError TUnreachable) [
+                 TACon {aCon = simpleQName ["Test", "Tuple"] "Tup", aArity = 2,
+                         aBody = TVar 1}])
 
-fstT qn = Named (show qn) (Mlambda ["v0"] (Mswitch (Mvar "v0") [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CInt 0))] (Mvar "v1"))]))
+-- fstTT qcons qdata = TLam (TCase 0 (CTData qdata) (TError TUnreachable)
+                          -- [TACon {aCon = qcons, aArity = 2, aBody = TVar 1}])
 
-a = let qn = simpleQName ["Test", "Tuple"] "fst" in
-      translateDef' [[qn]] qn (fstTT qn)
+-- fstT qn = Named (show qn) (Mlambda ["v0"] (Mswitch (Mvar "v0") [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CInt 0))] (Mvar "v1"))]))
