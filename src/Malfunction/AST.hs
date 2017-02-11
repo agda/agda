@@ -189,7 +189,7 @@ nst = nest 2
 a <.> b = a <> "." <> b
 
 level :: Doc -> Doc -> Doc
-level a b = vcat [ "(" <+> a, nst b, ")" ]
+level a b = sep [ "(" <+> a, nst b, ")" ]
 
 instance Pretty Mod where
 --   pretty (MMod bs ts) = "(module " $$ nst (vcat (map pretty bs)) $$ "(export" <+> prettyList ts <+> "))"
