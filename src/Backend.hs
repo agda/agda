@@ -8,6 +8,8 @@ import           Control.Monad.Trans
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe
+import           Data.List
+import           Data.Function
 import           Debug.Trace
 import           Malfunction.AST
 import           Malfunction.Run
@@ -54,8 +56,27 @@ backend' = Backend' {
   , backendVersion = Nothing
   }
 
-mlfMod :: [Definition] -> TCM Mod
-mlfMod defs = (`MMod`[]) . catMaybes <$> mapM (mlfDef defs) defs
+mlfMod :: [Definition] -> [[Definition]] -> TCM Mod
+mlfMod allDefs = fmap ((`MMod` []) . catMaybes) . mapM (recGrp allDefs)
+
+recGrp :: [Definition] -> [Definition] -> TCM (Maybe Binding)
+recGrp allDefs defs = toGrp <$> bs
+  where
+    toGrp [] = Nothing
+    toGrp [x] = Just x
+    toGrp xs = Just  . Recursive . concatMap bindingToPair $ xs
+    bs = catMaybes <$> mapM (mlfDef allDefs) defs
+    -- TODO: It's a bit ugly to take apart the bindings we just created.
+    -- Also it's perhaps a bit ugly that *everything* get translated to groups
+    -- of recursive bindings. We could e.g. handle the special case where
+    -- there is only one definition.
+    -- I've also discovered another restriction. All bindings in a `rec`-group
+    -- have to be functions. Moreover, the groups can't contain unnamed bindings.
+    bindingToPair :: Binding -> [(Ident, Term)]
+    bindingToPair b = case b of
+      Unnamed{} -> error "Can't handle unnamed bindings in rec-groups"
+      Recursive bs -> bs
+      Named i t -> [(i, t)]
 
 mlfPostCompile :: MlfOptions -> IsMain -> Map ModuleName [Definition] -> TCM ()
 mlfPostCompile opts _ modToDefs = do
@@ -74,7 +95,7 @@ mlfPostCompile opts _ modToDefs = do
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
-  modl <- mlfMod defs
+  modl <- mlfMod defs . (\x -> trace (show . map (map defName) $ x) x) . groupNSort $ defs
   let modlTxt = prettyShow modl
   liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
@@ -84,6 +105,11 @@ mlfPostModule mlfopt defs = do
     Just fp -> liftIO $ writeFile fp modlTxt
     Nothing -> return ()
   return modl
+  where
+    groupNSort :: [Definition] -> [[Definition]]
+    groupNSort
+      = sortBy (compare `on` defMutual . head)
+      . groupBy ((==) `on` defMutual)
 
 printVar :: MonadIO m => Mod -> Ident -> m ()
 printVar modl@(MMod binds _) v = do
