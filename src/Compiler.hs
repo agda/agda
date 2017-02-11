@@ -17,8 +17,8 @@ import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Tuple.Extra
 import           Malfunction.AST
-import           Data.Char
-import Agda.Syntax.Common (NameId(..))
+import           Numeric (showHex)
+import           Agda.Syntax.Common (NameId(..))
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -381,4 +381,5 @@ translateName = Mvar . nameToIdent
 nameToIdent :: QName -> Ident
 nameToIdent = t . nameId . qnameName
   where
-    t (NameId a b) = show a ++ "." ++ show b
+    t (NameId a b) = hex a ++ "." ++ hex b
+    hex = (`showHex` "") . toInteger
