@@ -189,43 +189,45 @@ nst = nest 2
 a <.> b = a <> "." <> b
 
 level :: Doc -> Doc -> Doc
-level a b = "(" $$ nst (a $$ b) $$ ")"
+level a b = vcat [ "(" <+> a, nst b, ")" ]
 
 instance Pretty Mod where
 --   pretty (MMod bs ts) = "(module " $$ nst (vcat (map pretty bs)) $$ "(export" <+> prettyList ts <+> "))"
-  pretty (MMod bs ts) = level ("module" <+> vcat (map pretty bs)) (parens $ "export" <+> prettyList ts)
+  pretty (MMod bs ts) = vcat ["module", nest 2 (vcat (map pretty bs ++ [parens ("export" <+> prettyList ts)]))]
+  prettyPrec _ = pretty
 
 instance Pretty Term where
   pretty tt = case tt of
     Mvar i              -> prettyIdent i
     Mlambda is t        -> level ("lambda" <+> parens (hsep (map prettyIdent is))) (pretty t)
-    Mapply t ts         -> parens $ "apply " <> pretty t <+> prettyList ts
-    Mlet bs t           -> parens $ "let" <+> prettyList bs <+> pretty t
+    Mapply t ts         -> level ("apply " <> pretty t) (vcat . map pretty $ ts)
+    Mlet bs t           -> level "let" (prettyList bs $$ pretty t)
     Mint ic             -> pretty ic
     Mstring s           -> textShow s
     Mglobal li          -> parens $ "global" <+> prettyLongident li
-    Mswitch t cexps     -> parens $ "switch" <+> pretty t <+> hsep (map prettyCaseExpression cexps)
+    Mswitch t cexps     -> level ("switch" <+> pretty t) (vcat (map prettyCaseExpression cexps))
     -- Integers
-    Mintop1 op tp t0    -> parens $ pretty op <+> prettyTypedTerm tp t0
-    Mintop2 op tp t0 t1 -> parens $ hsep [pretty op, prettyTypedTerm tp t0, prettyTypedTerm tp t1]
+    Mintop1 op tp t0    -> pretty op <+> prettyTypedTerm tp t0
+    Mintop2 op tp t0 t1 -> level (pretty op) (vcat [prettyTypedTerm tp t0, prettyTypedTerm tp t1])
     Mconvert tp0 tp1 t0 -> parens $ "convert" <.> pretty tp0 <.> pretty tp1 <+> pretty t0
     -- Vectors
-    Mvecnew tp t0 t1    -> parens $ "makevec" <+> pretty t0 <+> pretty t1
-    Mvecget tp t0 t1    -> parens $ "load" <+> pretty t0 <+> pretty t1
-    Mvecset tp t0 t1 t2 -> parens $ "store" <+> pretty t0 <+> pretty t1 <+> pretty t2
-    Mveclen tp t0       -> parens $ "length" <+> pretty t0
+    Mvecnew tp t0 t1    -> level "makevec" (vcat [pretty t0, pretty t1])
+    Mvecget tp t0 t1    -> level "load" (vcat [pretty t0, pretty t1])
+    Mvecset tp t0 t1 t2 -> level "store" (vcat [pretty t0, pretty t1, pretty t2])
+    Mveclen tp t0       -> level "length" (pretty t0)
     -- Blocks
-    Mblock i ts         -> parens $ "block" <+> parens ("tag" <+> pretty i) <+> prettyList ts
+    Mblock i ts         -> level ("block" <+> parens ("tag" <+> pretty i)) (prettyList ts)
     Mfield i t0         -> parens $ "field" <+> pretty i <+> pretty t0
+  prettyPrec _ = pretty
 
 instance Pretty Binding where
   pretty b = case b of
-    Unnamed t    -> parens ("_" <+> pretty t)
+    Unnamed t    -> level "_" (pretty t)
     Named i t    -> level (prettyIdent i) (pretty t)
-    Recursive bs -> parens $ "rec" <+> prettyList (map showIdentTerm bs)
+    Recursive bs -> level "rec" (vcat (map showIdentTerm bs))
     where
       showIdentTerm :: (Ident, Term) -> Doc
-      showIdentTerm (i, t) = parens $ pretty i <+> pretty t
+      showIdentTerm (i, t) = level (pretty i) (pretty t)
 
 instance Pretty IntConst where
   pretty ic = case ic of
@@ -253,7 +255,7 @@ prettyIdent = text . ('$':)
 --   pretty = text . showCaseExpression
 
 prettyCaseExpression :: ([Case], Term) -> Doc
-prettyCaseExpression (cs, t) = "(" <> prettyList cs <+> pretty t <> ")"
+prettyCaseExpression (cs, t) = level (prettyList cs) (pretty t)
 
 instance Pretty Case where
   pretty c = case c of
