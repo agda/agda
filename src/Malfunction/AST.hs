@@ -204,7 +204,7 @@ instance Pretty Term where
     Mint ic             -> pretty ic
     Mstring s           -> textShow s
     Mglobal li          -> parens $ "global" <+> prettyLongident li
-    Mswitch t cexps     -> parens $ "switch" <+> pretty t <+> mconcat (map prettyCaseExpression cexps)
+    Mswitch t cexps     -> parens $ "switch" <+> pretty t <+> hsep (map prettyCaseExpression cexps)
     -- Integers
     Mintop1 op tp t0    -> parens $ pretty op <+> prettyTypedTerm tp t0
     Mintop2 op tp t0 t1 -> parens $ hsep [pretty op, prettyTypedTerm tp t0, prettyTypedTerm tp t1]
