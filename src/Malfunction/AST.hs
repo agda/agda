@@ -196,7 +196,7 @@ levelPlus a bs = sep $ [ "(" <+> a ] ++ map nst bs ++ [")"]
 
 instance Pretty Mod where
 --   pretty (MMod bs ts) = "(module " $$ nst (vcat (map pretty bs)) $$ "(export" <+> prettyList ts <+> "))"
-  pretty (MMod bs ts) = vcat ["module", nest 2 (vcat (map pretty bs ++ [parens ("export" <+> prettyList ts)]))]
+  pretty (MMod bs ts) = levelPlus "module" (map pretty bs ++ [levelPlus "export" (map pretty ts)])
   prettyPrec _ = pretty
 
 instance Pretty Term where
