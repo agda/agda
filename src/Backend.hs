@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.List
 import           Data.Function
-import           Debug.Trace
 import           Malfunction.AST
 import           Malfunction.Run
 import           System.Console.GetOpt
@@ -95,7 +94,7 @@ mlfPostCompile opts _ modToDefs = do
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
-  modl <- mlfMod defs . (\x -> trace (show . map (map defName) $ x) x) . groupNSort $ defs
+  modl <- mlfMod defs . groupNSort $ defs
   let modlTxt = prettyShow modl
   liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
