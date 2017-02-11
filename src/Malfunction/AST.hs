@@ -230,7 +230,7 @@ instance Pretty Binding where
     Recursive bs -> levelPlus "rec" (map showIdentTerm bs)
     where
       showIdentTerm :: (Ident, Term) -> Doc
-      showIdentTerm (i, t) = level (pretty i) (pretty t)
+      showIdentTerm (i, t) = level (prettyIdent i) (pretty t)
 
 instance Pretty IntConst where
   pretty ic = case ic of
