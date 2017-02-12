@@ -14,15 +14,15 @@ import qualified Agda.Syntax.Common as C
 translate'1 :: TTerm -> Term
 translate'1 = head . translate' [] . pure
 
-simpleName :: String -> Name
-simpleName name = Name {
-  nameId = C.NameId 0 0 -- NOTE: we don't use this but it has an unpacked type so it cannot be undefined
-  , nameConcrete = C.Name undefined [C.Id name]
+simpleName :: C.NameId -> Name
+simpleName id = Name
+  { nameId = id
+  , nameConcrete = undefined
   , nameBindingSite = undefined
   , nameFixity = undefined
   }
 
-simpleQName :: [String] -> String -> QName
+simpleQName :: [C.NameId] -> C.NameId -> QName
 simpleQName mods nm = QName {
   qnameModule = MName (map simpleName mods)
   , qnameName = simpleName nm
@@ -38,8 +38,7 @@ test_translate =
   , testCase "de Bruijn indices" $
     translate'1 (TLam (TApp (TVar 0) [TLam (TVar 1)]))
     @?= Mlambda ["v0"] (Mapply (Mvar "v0") [Mlambda ["v1"] (Mvar "v0")])
-  , testCase "factorial" $ let qn = simpleQName ["Test"] "fact" in
-      translateDef' [] qn (facTT qn) @?= facT qn
+  , testCase "factorial" $ translateDef' [] aName (facTT aName) @?= facT aName
   -- This test-case is a bit silly, since `TError TUnreachable` could be encoded
   -- as anything in malfunction. E.g. the function `f : ⊥ -> a` will never be
   -- applied to any arguments!
@@ -47,13 +46,11 @@ test_translate =
     $ translate'1 (TError TUnreachable)
     @?= Mblock 0 []
   , testCase "fst"
-    $ let funqn = simpleQName ["Test"] "fst"
-          dataqn = simpleQName ["Test"] "Tuple"
-          conqn = simpleQName ["Test", "Tuple"] "Tup"
-      in translateDef' [[conqn]] funqn fstTT @?= fstT
-  , testCase "variables with strange chars" $
-    translate'1 (TCon $ simpleQName ["mod''"] "asdf''") @?= undefined
+    $ translateDef' [[aName]] aName (fstTT aName) @?= fstT aName
   ]
+  where
+    aName = simpleQName [anId] anId
+    anId = C.NameId 0 0
 
 facTT :: QName -> TTerm
 facTT qn = TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)
@@ -62,19 +59,21 @@ facTT qn = TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)
   ) [TALit {aLit = LitNat undefined 0, aBody = TLit (LitNat undefined 1)}])
 
 facT :: QName -> Binding
-facT qn = Recursive [(show qn, Mlambda ["v0"]
-  (Mswitch (Mvar "v0") [([CaseInt 0],Mint (CInt 1))
+facT qn = Recursive [(nameToIdent qn, Mlambda ["v0"]
+  (Mswitch (Mvar "v0") [([CaseInt 0],Mint (CBigint 1))
     , ([CaseAnyInt,Deftag],Mlet [Named "v1" (Mintop2 Sub TInt
-      (Mvar "v0") (Mint (CInt 1)))
+      (Mvar "v0") (Mint (CBigint 1)))
     ] (Mintop2 Mul TInt (Mvar "v0")
-  (Mapply (Mvar (show qn)) [Mvar "v1"])))]))]
+  (Mapply (Mvar (nameToIdent qn)) [Mvar "v1"])))]))]
 
-fstT = Named "Test.fst" (Mlambda ["v0"] (Mswitch (Mvar "v0")
-          [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CInt 0))]
+fstT :: QName -> Binding
+fstT qn = Named (nameToIdent qn) (Mlambda ["v0"] (Mswitch (Mvar "v0")
+          [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CBigint 0))]
              (Mvar "v1"))]))
-fstTT  = TLam (TCase 0 (CTData (simpleQName ["Test"] "Tuple"))
+fstTT :: QName -> TTerm
+fstTT qn = TLam (TCase 0 (CTData qn)
               (TError TUnreachable) [
-                 TACon {aCon = simpleQName ["Test", "Tuple"] "Tup", aArity = 2,
+                 TACon {aCon = qn, aArity = 2,
                          aBody = TVar 1}])
 
 -- fstTT qcons qdata = TLam (TCase 0 (CTData qdata) (TError TUnreachable)

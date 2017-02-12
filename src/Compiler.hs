@@ -1,6 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler (runReaderEnv, translate', translateDef, translateDef', Term, Binding) where
+module Compiler
+  ( runReaderEnv
+  , translate'
+  , translateDef
+  , translateDef'
+  , Term
+  , Binding
+  , nameToIdent
+  ) where
 
 import           Agda.Syntax.Common (NameId)
 import           Agda.Syntax.Literal
@@ -212,7 +220,7 @@ translateApp ft xst = case ft of
           -- TODO: review this
           -- translate (3*) ==> \x -> 3*x
           (var, t0') <- introVar (translateTerm t0)
-          return (Mlambda [var] (Mintop2 op tp (Mvar var) (t0')))
+          return (Mlambda [var] (Mintop2 op tp (Mvar var) t0' ))
         _        -> error ("Malformed! Binary: " ++ show op ++ "\nxst = " ++ show xst)
     where
       (eOp, tp) = primToOpAndType p
