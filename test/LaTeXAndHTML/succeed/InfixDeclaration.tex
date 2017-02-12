@@ -30,14 +30,14 @@ Let's try some infix declaration with surrounding text.
 In the following, we declare the fixity of two operators.
 
 \begin{code}%
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{1}}]\<[2]%
 \>[2]\AgdaKeyword{infix} \AgdaNumber{5} \AgdaPostulate{\_+\_} \AgdaPostulate{\_*\_}\<%
 \end{code}
 
 A fixity declaration can preceed the actual declaration of the names.
 
 \begin{code}%
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{2}}]\<[2]%
 \>[2]\AgdaKeyword{postulate} \AgdaPostulate{\_+\_} \AgdaPostulate{\_*\_} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \end{code}
 

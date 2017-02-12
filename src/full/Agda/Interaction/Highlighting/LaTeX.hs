@@ -64,13 +64,29 @@ import Agda.Utils.Impossible
 
 type LaTeX = ExceptT String (RWST () B.Builder State IO)
 
+-- | Alignment columns.
+
+data AlignmentColumn = AlignmentColumn
+  { columnCodeBlock :: !Int
+    -- ^ The alignment column's code block.
+  , columnColumn    :: !Int
+    -- ^ The alignment column.
+  } deriving Show
+
 data State = State
-  { tokens     :: Tokens
-  , column     :: !Int    -- ^ Column number, used for polytable alignment.
-  , indent     :: !Int    -- ^ Indentation level, also for alignment.
-  , indentPrev :: !Int
-  , inCode     :: !Bool   -- ^ Keeps track of whether we are in a code
-                          -- block or not.
+  { tokens      :: Tokens
+  , codeBlock   :: !Int   -- ^ The number of the current code block.
+  , column      :: !Int   -- ^ Column number, used for polytable
+                          --   alignment.
+  , columns     :: [Int]  -- ^ All alignment columns found on the
+                          --   current line (so far), in reverse
+                          --   order.
+  , columnsPrev :: [AlignmentColumn]
+                          -- ^ All alignment columns found in
+                          --   previous lines (in any code block),
+                          --   with larger columns coming first.
+  , inCode      :: !Bool  -- ^ Keeps track of whether we are in a
+                          --   code block or not.
   }
 
 type Tokens = [Token]
@@ -96,11 +112,12 @@ runLaTeX = runRWST . runExceptT
 
 emptyState :: State
 emptyState = State
-  { tokens     = []
-  , column     = 0
-  , indent     = 0
-  , indentPrev = 0
-  , inCode     = False
+  { codeBlock   = 0
+  , tokens      = []
+  , column      = 0
+  , columns     = []
+  , columnsPrev = []
+  , inCode      = False
   }
 
 ------------------------------------------------------------------------
@@ -200,9 +217,9 @@ nextToken' = do
           let tokToReturn   = t { text = textToReturn }
           let toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
 
-          unless (isSpaces pre) $ do
-            log MoveColumn pre
-            moveColumn $ graphemeClusters pre
+          unless (isSpaces textToReturn) $ do
+            log MoveColumn textToReturn
+            moveColumn $ graphemeClusters textToReturn
 
           modify $ \s -> s { tokens = toksToPutBack ++ tokens s }
           return tokToReturn
@@ -210,29 +227,60 @@ nextToken' = do
 nextToken :: LaTeX Text
 nextToken = text `fmap` nextToken'
 
+-- | Merges 'columns' into 'columnsPrev', resets 'column' and
+-- 'columns'
+
 resetColumn :: LaTeX ()
-resetColumn = modify $ \s -> s { column = 0 }
+resetColumn = modify $ \s ->
+  s { column      = 0
+    , columnsPrev = merge (codeBlock s) (columns s) (columnsPrev s)
+    , columns     = []
+    }
+  where
+  -- Remove shadowed columns from old.
+  merge b []  old = old
+  merge b new old = new' ++ old'
+    where
+    new'     = map (\c -> AlignmentColumn
+                            { columnCodeBlock = b
+                            , columnColumn    = c
+                            })
+                   new
+    old'     = filter ((< leastNew) . columnColumn) old
+    leastNew = last new
 
 moveColumn :: Int -> LaTeX ()
 moveColumn i = modify $ \s -> s { column = i + column s }
 
-setIndent :: Int -> LaTeX ()
-setIndent i = modify $ \s -> s { indent = i }
+-- | Registers an alignment column.
 
-resetIndent :: LaTeX ()
-resetIndent = modify $ \s -> s { indent = 0 }
+registerColumn :: LaTeX ()
+registerColumn = modify $ \s -> s { columns = column s : columns s }
 
-setIndentPrev :: Int -> LaTeX ()
-setIndentPrev i = modify $ \s -> s { indentPrev = i }
+-- | Registers column zero as an alignment column.
 
-resetIndentPrev :: LaTeX ()
-resetIndentPrev = modify $ \s -> s { indentPrev = 0 }
+registerColumnZero :: LaTeX ()
+registerColumnZero = modify $ \s -> s { columns = [0] }
 
-setInCode :: LaTeX ()
-setInCode = modify $ \s -> s { inCode = True }
+-- | Changes to the state that are performed at the start of a code
+-- block.
 
-unsetInCode :: LaTeX ()
-unsetInCode = modify $ \s -> s { inCode = False }
+-- This code is based on the assumption that there are no
+-- non-whitespace characters following \begin{code}. For occurrences
+-- of \begin{code} which start a code block this is true. However, the
+-- LaTeX backend does not identify code blocks correctly, see Issue
+-- #2400.
+
+enterCode :: LaTeX ()
+enterCode = do
+  resetColumn
+  modify $ \s -> s { codeBlock = codeBlock s + 1, inCode = True }
+
+-- | Changes to the state that are performed at the end of a code
+-- block.
+
+leaveCode :: LaTeX ()
+leaveCode = modify $ \s -> s { inCode = False }
 
 logHelper :: Debug -> Text -> [String] -> LaTeX ()
 logHelper debug text extra =
@@ -245,12 +293,12 @@ logHelper debug text extra =
 
 log :: Debug -> Text -> LaTeX ()
 log MoveColumn text = do
-  ind <- gets indent
-  logHelper MoveColumn text ["ind=", show ind]
+  cols <- gets columns
+  logHelper MoveColumn text ["columns=", show cols]
 log Code text = do
-  ind <- gets indent
+  cols <- gets columns
   col <- gets column
-  logHelper Code text ["ind=", show ind, "col=", show col]
+  logHelper Code text ["columns=", show cols, "col=", show col]
 log debug text = logHelper debug text []
 
 log' :: Debug -> String -> LaTeX ()
@@ -275,6 +323,14 @@ endCode   = T.pack "\\end{code}"
 ptOpen :: Show a => a -> Text
 ptOpen i = T.pack "\\>" <+> T.pack ("[" ++ show i ++ "]")
 
+ptOpenIndent :: Show a => a -> Text -> Text
+ptOpenIndent i delta =
+  ptOpen i <+> T.pack "[@{}l@{"
+           <+> cmdPrefix
+           <+> T.pack "Indent"
+           <+> cmdArg delta
+           <+> T.pack "}]"
+
 ptClose :: Text
 ptClose = T.pack "\\<"
 
@@ -290,9 +346,6 @@ cmdPrefix = T.pack "\\Agda"
 cmdArg :: Text -> Text
 cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
 
-cmdIndent :: Text
-cmdIndent = cmdPrefix <+> T.pack "Indent" <+> cmdArg T.empty
-
 ------------------------------------------------------------------------
 -- * Automaton.
 
@@ -307,8 +360,7 @@ nonCode = do
 
      then do
        output $ beginCode <+> nl
-       resetColumn
-       setInCode
+       enterCode
        code
 
      else do
@@ -331,11 +383,15 @@ code = do
   when (tok == T.empty) code
 
   when (col == 0 && not (isActualSpaces tok)) $ do
+    -- Non-whitespace tokens at the start of a line trigger an
+    -- indentation column.
+    when (not (isSpaces tok))
+      registerColumnZero
     output $ ptOpen 0
 
   when (tok == endCode) $ do
     output $ ptClose <+> nl <+> endCode
-    unsetInCode
+    leaveCode
     nonCode
 
   when (isSpaces tok) $ do
@@ -414,11 +470,22 @@ spaces ((T.uncons -> Just (' ', s)) : ss)
   | T.null s || not (null ss) = do
 
   col <- gets column
-  when (col == 0) $ do
-    output $ ptOpen 0
-
   moveColumn (1 + graphemeClusters s)
-  output $ T.singleton ' '
+
+  when (col == 0) $ do
+    -- Single spaces at the start of the line, not followed by more
+    -- whitespace, trigger an indentation column and indentation.
+    if T.null s && null ss then do
+      log' MoveColumn "Register: col = 0, one space"
+      registerColumn
+      indent 1
+    else
+      output $ ptOpen 0
+
+  -- For single spaces that are neither at the start nor at the end of
+  -- a line a space character is emitted.
+  when (col /= 0 && null ss) $
+    output $ T.singleton ' '
 
   spaces ss
 
@@ -428,6 +495,7 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
 
   col <- gets column
   moveColumn len
+  registerColumn
 
   if col /= 0
 
@@ -439,36 +507,28 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
 
      else do
        log' Spaces "col == 0"
-       indent <- gets indent
-       indentPrev <- gets indentPrev
-
-       case compare len indent of
-
-         GT -> do
-           log' Spaces "GT"
-           setIndent len
-           setIndentPrev indent
-           output $ ptOpen indent
-           output cmdIndent
-           output $ ptClose' len <+> nl <+> ptOpen len
-
-         EQ -> do
-           log' Spaces "EQ"
-           output $ ptOpen indentPrev
-           output cmdIndent
-           output $ ptClose' len <+> nl <+> ptOpen len
-
-         LT -> do
-           log' Spaces "LT"
-           setIndent len
-           resetIndentPrev
-           output $ ptOpen 0
-           output cmdIndent
-           output $ ptClose' len <+> nl <+> ptOpen len
+       indent len
 
   spaces ss
 
 spaces _ = __IMPOSSIBLE__
+
+-- | Indents the following code to the given column.
+
+indent :: Int -> LaTeX ()
+indent len = do
+  columns   <- gets columnsPrev
+  codeBlock <- gets codeBlock
+  let defaultCol = AlignmentColumn { columnCodeBlock = codeBlock
+                                   , columnColumn    = 0
+                                   }
+      indentFrom = head (filter ((< len) . columnColumn) columns ++
+                         [defaultCol])
+      blockDelta = codeBlock - columnCodeBlock indentFrom
+      delta      = T.pack (show blockDelta)
+  log' Spaces (show (indentFrom, len, columns))
+  output $ ptOpenIndent (columnColumn indentFrom) delta
+  output $ ptClose' len <+> nl <+> ptOpen len
 
 -- Split multi-lines string literals into multiple string literals
 -- Isolating leading spaces for the alignment machinery to work

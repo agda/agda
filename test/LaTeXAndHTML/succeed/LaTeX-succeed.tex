@@ -13,11 +13,11 @@
 \begin{code}%
 \>[0]\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{true} \<[9]%
 \>[9]\AgdaSymbol{:} \AgdaDatatype{Bool}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{false} \<[9]%
 \>[9]\AgdaSymbol{:} \AgdaDatatype{Bool}\<%
 \\
@@ -35,11 +35,11 @@
 \\
 \>[0]\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{zero} \<[8]%
 \>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{suc} \<[8]%
 \>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
 \\
@@ -99,14 +99,14 @@
 \\
 \>[0]\AgdaKeyword{record} \AgdaRecord{R} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{f} \<[7]%
 \>[7]\AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{g} \<[7]%
 \>[7]\AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \\
@@ -114,18 +114,18 @@
 \\
 \>[0]\AgdaKeyword{record} \AgdaRecord{R′} \AgdaSymbol{(}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{h} \<[7]%
 \>[7]\AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{j} \<[7]%
 \>[7]\AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{r} \<[7]%
 \>[7]\AgdaSymbol{:} \AgdaRecord{R}\<%
 \end{code}
@@ -133,35 +133,35 @@
 \begin{code}%
 \>[0]\AgdaKeyword{module} \AgdaModule{M} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaFunction{r′} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaRecord{R′} \AgdaBound{A} \AgdaBound{B}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaFunction{r′} \AgdaSymbol{=} \AgdaKeyword{record}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaSymbol{\{} \AgdaField{h} \<[9]%
 \>[9]\AgdaSymbol{=} \AgdaDatatype{⊥}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaSymbol{;} \AgdaField{j} \<[9]%
 \>[9]\AgdaSymbol{=} \AgdaDatatype{⊥}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaSymbol{;} \AgdaField{r} \AgdaSymbol{=} \AgdaKeyword{record}\<%
 \\
-\>[4]\AgdaIndent{}\<[8]%
+\>[4][@{}l@{\AgdaIndent{0}}]\<[8]%
 \>[8]\AgdaSymbol{\{} \AgdaField{f} \<[13]%
 \>[13]\AgdaSymbol{=} \AgdaDatatype{⊥}\<%
 \\
-\>[4]\AgdaIndent{}\<[8]%
+\>[4][@{}l@{\AgdaIndent{0}}]\<[8]%
 \>[8]\AgdaSymbol{;} \AgdaField{g} \<[13]%
 \>[13]\AgdaSymbol{=} \AgdaDatatype{⊥}\<%
 \\
-\>[4]\AgdaIndent{}\<[8]%
+\>[4][@{}l@{\AgdaIndent{0}}]\<[8]%
 \>[8]\AgdaSymbol{\}}\<%
 \\
-\>[0]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaSymbol{\}}\<%
 \end{code}
 

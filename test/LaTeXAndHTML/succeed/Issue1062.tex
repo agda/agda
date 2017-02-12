@@ -26,26 +26,26 @@
 \\
 \>[0]\AgdaKeyword{data} \AgdaDatatype{List} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{[]} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{\_∷\_} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{x} \AgdaSymbol{:} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{xs} \AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{->} \AgdaDatatype{List} \AgdaBound{A}\<%
 \\
 %
 \\
 \>[0]\AgdaKeyword{record} \AgdaRecord{\_×\_} \AgdaSymbol{(}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{fst} \AgdaSymbol{:} \AgdaBound{A}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{snd} \AgdaSymbol{:} \AgdaBound{B}\<%
 \\
 \>[0]\AgdaKeyword{open} \AgdaModule{\_×\_}\<%
@@ -58,17 +58,17 @@
 \\
 \>[0]\AgdaKeyword{record} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i} \AgdaSymbol{:} \AgdaPostulate{Size}\AgdaSymbol{\}} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{coinductive}\AgdaSymbol{;} \AgdaKeyword{constructor} \AgdaCoinductiveConstructor{\_∷\_}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{head} \<[10]%
 \>[10]\AgdaSymbol{:} \AgdaBound{A}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{tail} \<[10]%
 \>[10]\AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{j} \AgdaSymbol{:} \AgdaPostulate{Size<} \AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{j}\AgdaSymbol{\}} \AgdaBound{A}\<%
 \\
@@ -110,17 +110,17 @@
 \\
 \>[0]\AgdaKeyword{record} \AgdaRecord{List1} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_∷\_}\<%
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{head} \<[10]%
 \>[10]\AgdaSymbol{:} \AgdaBound{A}\<%
 \\
-\>[2]\AgdaIndent{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaField{tail} \<[10]%
 \>[10]\AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\<%
 \\
@@ -138,12 +138,12 @@
 \\
 %
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaSymbol{(}\AgdaBound{step} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaBound{S} \AgdaBound{i} \AgdaSymbol{→} \AgdaRecord{List1} \AgdaBound{A} \AgdaRecord{×} \AgdaSymbol{(∀} \AgdaSymbol{\{}\AgdaBound{j} \AgdaSymbol{:} \AgdaPostulate{Size<} \AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaBound{S} \AgdaBound{j}\AgdaSymbol{))} \AgdaSymbol{→}\<%
 \\
 %
 \\
-\>[0]\AgdaIndent{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaSymbol{(}\AgdaBound{s} \AgdaSymbol{:} \AgdaBound{S} \AgdaBound{i}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i}\AgdaSymbol{\}} \AgdaBound{A}\<%
 \\
 %
@@ -157,7 +157,7 @@
 \>[26]\AgdaKeyword{let} \<[31]%
 \>[31]\AgdaSymbol{((\_} \AgdaInductiveConstructor{∷} \AgdaBound{l}\AgdaSymbol{)} \AgdaInductiveConstructor{,} \AgdaBound{s′}\AgdaSymbol{)} \AgdaSymbol{=} \AgdaBound{step} \AgdaBound{s}\<%
 \\
-\>[2]\AgdaIndent{}\<[26]%
+\>[6][@{}l@{\AgdaIndent{0}}]\<[26]%
 \>[26]\AgdaKeyword{in} \<[31]%
 \>[31]\AgdaBound{l} \AgdaFunction{++ˢ} \AgdaFunction{unfold⁺} \AgdaBound{step} \AgdaBound{s′}\<%
 \end{code}
