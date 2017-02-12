@@ -28,11 +28,10 @@ simpleQName mods nm = QName {
   , qnameName = simpleName nm
   }
 
--- TODO: Update test-case to reflect new name-translation-scheme
 test_translate :: [TestTree]
 test_translate =
   -- Tests that the deBruijn index references the *closest* binding.
-  [ testCase "sequences lambda-expressions"
+  [ testCase "sequenced lambda-expressions"
     $   translate'1 (TLam (TLam (TVar 0)))
     @?= Mlambda ["v0", "v1"] (Mvar "v1")
   , testCase "de Bruijn indices" $
