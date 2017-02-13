@@ -166,8 +166,6 @@ library
                 , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
                 , process >= 1.1.0.2 && < 1.5
                 , regex-tdfa >= 1.2.2 && < 1.3
-                -- Artificial dependency. Temporal fix for #2443.
-                , STMonadTrans >= 0.4.3 && < 0.5
                 , strict >= 0.3.2 && < 0.4
                 , template-haskell >= 2.8.0.0 && < 2.12
                 , text >= 0.11.3.1 && < 1.3
