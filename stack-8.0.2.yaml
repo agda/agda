@@ -1,8 +1,5 @@
-resolver: lts-7.19
+resolver: lts-8.0
 
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-extra-deps:
-- equivalence-0.3.2
-- STMonadTrans-0.4.3

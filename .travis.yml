@@ -88,11 +88,11 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE_CPP_AND_DEBUG GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml --system-ghc"
+    - env: TEST=STACKAGE_CPP_AND_DEBUG GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
       addons:
         apt:
           packages:
-            - ghc-8.0.1
+            - ghc-8.0.2
           sources:
             - hvr-ghc
 

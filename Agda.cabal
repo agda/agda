@@ -42,6 +42,7 @@ extra-source-files: CHANGELOG.md
                     src/full/undefined.h
                     stack-7.8.4.yaml
                     stack-8.0.1.yaml
+                    stack-8.0.2.yaml
 
 data-dir:           src/data
 data-files:         Agda.css
@@ -137,7 +138,7 @@ library
                 , directory >= 1.2.0.1 && < 1.4
                 , EdisonCore >= 1.3.1.1 && < 1.3.2
                 , edit-distance >= 0.2.1.2 && < 0.3
-                , equivalence >= 0.2.5 && < 0.4
+                , equivalence >= 0.3.2 && < 0.4
                 , filepath >= 1.3.0.1 && < 1.5
                 , geniplate-mirror >= 0.6.0.6 && < 0.8
                 , gitrev >= 1.2 && < 2.0
@@ -166,7 +167,7 @@ library
                 , process >= 1.1.0.2 && < 1.5
                 , regex-tdfa >= 1.2.2 && < 1.3
                 -- Artificial dependency. Temporal fix for #2443.
-                , STMonadTrans >=0.3.3 && < 0.4
+                , STMonadTrans >= 0.4.3 && < 0.5
                 , strict >= 0.3.2 && < 0.4
                 , template-haskell >= 2.8.0.0 && < 2.12
                 , text >= 0.11.3.1 && < 1.3
@@ -636,7 +637,7 @@ test-suite agda-tests
                 , filepath >= 1.3.0.1 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
                 , process >= 1.1.0.2 && < 1.5
-                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.2 && < 0.5
+                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
                 , regex-tdfa >= 1.2.0 && < 1.3
                 , regex-tdfa-text >= 1.0.0.3 && < 1.1
                 , tasty >= 0.10 && < 0.12
