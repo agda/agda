@@ -316,7 +316,7 @@ instance Pretty DeclarationException where
     case b of
       PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
       DataBlock -> "A data definition can only contain type signatures, possibly under keyword instance"
-      _ -> __IMPOSSIBLE__
+      _ -> "Unexpected declaration"
   pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (InvalidTerminationCheckPragma _) = fsep $
