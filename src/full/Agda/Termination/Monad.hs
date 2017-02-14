@@ -103,6 +103,9 @@ data TerEnv = TerEnv
   , terUserNames :: [QName]
     -- ^ The list of name actually appearing in the file (abstract syntax).
     --   Excludes the internally generated functions.
+  , terHaveInlinedWith :: Bool
+    -- ^ Does the actual clause result from with-inlining?
+    --   (If yes, it may be ill-typed.)
   , terTarget  :: Maybe Target
     -- ^ Target type of the function we are currently termination checking.
     --   Only the constructors of 'Target' are considered guarding.
@@ -160,6 +163,7 @@ defaultTerEnv = TerEnv
   , terUserNames                = __IMPOSSIBLE__ -- needs to be set!
   , terMutual                   = __IMPOSSIBLE__ -- needs to be set!
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
+  , terHaveInlinedWith          = False
   , terTarget                   = Nothing
   , terDelayed                  = NotDelayed
   , terMaskArgs                 = repeat False   -- use all arguments (mask none)
@@ -299,6 +303,12 @@ terGetTarget = terAsks terTarget
 
 terSetTarget :: Maybe Target -> TerM a -> TerM a
 terSetTarget t = terLocal $ \ e -> e { terTarget = t }
+
+terGetHaveInlinedWith :: TerM Bool
+terGetHaveInlinedWith = terAsks terHaveInlinedWith
+
+terSetHaveInlinedWith :: TerM a -> TerM a
+terSetHaveInlinedWith = terLocal $ \ e -> e { terHaveInlinedWith = True }
 
 terGetDelayed :: TerM Delayed
 terGetDelayed = terAsks terDelayed

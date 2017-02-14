@@ -562,7 +562,7 @@ termClause clause = do
 
       (liftTCM $ inlineWithClauses name clause) >>= \case
         Nothing  -> fallback
-        Just cls -> mapM' termClause' cls
+        Just cls -> terSetHaveInlinedWith $ mapM' termClause' cls
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
@@ -766,12 +766,16 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
        Just gInd -> do
          delayed <- terGetDelayed
          pats    <- terGetPatterns
-         liftTCM $ reportSLn "term.reduce" 90 $ "normalizing call arguments"
-         -- 2014-03-25 Andreas, the costs seem small, benchmark turned off.
-         es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
+         -- Andreas, 2017-02-14, issue #2458:
+         -- If we have inlined with-functions, we could be illtyped,
+         -- hence, do not reduce anything.
+         es <- ifM terGetHaveInlinedWith (return es0) {-else-} $ do
+          -- WAS: 2014-03-25 Andreas, the costs seem small, benchmark turned off.
+          liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ do
            -- forM es0 $
            --    etaContract <=< traverse reduceCon <=< instantiateFull
            -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
+           reportSLn "term.reduce" 90 $ "normalizing call arguments"
            modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $
               etaContract <=< normalise
 
