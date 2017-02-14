@@ -542,12 +542,27 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
 
 
 -- | Extract recursive calls from one clause.
+
 termClause :: Clause -> TerM Calls
 termClause clause = do
-  ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
+
+  -- If with-function inlining is disallowed (e.g. --without-K),
+  -- we check the original clause.
+
+  let fallback = termClause' clause
+  ifNotM (terGetInlineWithFunctions) fallback $ {- else -} do
+
+    -- Otherwise, we will do inlining, hence, can skip with-generated functions.
+
     name <- terGetCurrent
-    ifM (isJust <$> isWithFunction name) (return mempty) $
-      mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
+    ifM (isJust <$> isWithFunction name) (return mempty) $ {- else -} do
+
+      -- With inlining, the termination check for all subordinated
+      -- with-functions is included in the parent function.
+
+      (liftTCM $ inlineWithClauses name clause) >>= \case
+        Nothing  -> fallback
+        Just cls -> mapM' termClause' cls
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
