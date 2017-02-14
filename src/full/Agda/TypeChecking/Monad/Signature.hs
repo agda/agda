@@ -782,7 +782,11 @@ getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m)
 getDefFreeVars = getModuleFreeVars . qnameModule
 
 freeVarsToApply :: QName -> TCM Args
-freeVarsToApply = moduleParamsToApply . qnameModule
+freeVarsToApply q = do
+  vs <- moduleParamsToApply $ qnameModule q
+  t <- defType <$> getConstInfo q
+  let TelV tel _ = telView'UpTo (size vs) t
+  return $ zipWith (\ (Arg _ v) (Dom ai _ _) -> Arg ai v) vs $ telToList tel
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
