@@ -24,12 +24,15 @@ import Data.Foldable (foldMap)
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as Map
 import Data.Traversable (traverse)
 
 import qualified Agda.Benchmarking as Bench
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -178,19 +181,25 @@ abort Rigid         err = patternViolation' 70 (show err)
 abort Irrel         err = patternViolation' 70 (show err)
 
 -- | Distinguish relevant and irrelevant variables in occurs check.
-type Vars = ([Nat],[Nat])
+type Vars = IntMap Relevance
+
+goRel :: Relevance -> Vars -> Vars
+goRel r = Map.map (r `inverseComposeRelevance`)
 
 goIrrelevant :: Vars -> Vars
-goIrrelevant (relVs, irrVs) = (irrVs ++ relVs, [])
+goIrrelevant = goRel Irrelevant
 
 allowedVar :: Nat -> Vars -> Bool
-allowedVar i (relVs, irrVs) = i `elem` relVs
+allowedVar i m = maybe False usableRelevance (Map.lookup i m)
 
-takeRelevant :: Vars -> [Nat]
-takeRelevant = fst
+takeAllowed :: Vars -> [Nat]
+takeAllowed = map fst . filter (usableRelevance . snd) . Map.toList
 
-liftUnderAbs :: Vars -> Vars
-liftUnderAbs (relVs, irrVs) = (0 : map (1+) relVs, map (1+) irrVs)
+takeVars :: Vars -> [Nat]
+takeVars = Map.keys
+
+liftUnderAbs :: Relevance -> Vars -> Vars
+liftUnderAbs r m = Map.insert 0 r $! Map.mapKeys (1+) m
 
 -- | Extended occurs check.
 class Occurs t where
@@ -218,7 +227,7 @@ occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Ben
             fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
                  , prettyTCM =<< instantiateFull v
                  ]
-        MetaCannotDependOn _ _ i ->
+        MetaCannotDependOn _ vs i ->
           ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
           ( typeError . GenericError . show =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
@@ -226,16 +235,26 @@ occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Ben
                  , text "since universe polymorphism is disabled"
                  ]
           ) {- else -}
-          ( typeError . GenericError . show =<<
-              fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+          (do
+              typeError . GenericDocError =<<
+               vcat [fsep [ text (prettyShow m ++ " :=")
                    , prettyTCM v
-                   , text "since it contains the variable"
-                   , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                   , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
+                   , text "cannot be assigned because it contains the variable"
+                   , enterClosure cl $ \_ -> prettyTCM (Var i []) ]
+                   , prettyTCM (mvJudgement mv)
+                   , text "location:" <+> enterClosure (miClosRange (mvInfo mv)) (\ r -> text $ show r)
                    ]
             )
         _ -> throwError err
       _ -> throwError err
+
+
+isLevel :: Type -> TCM Bool
+isLevel t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
+              mLevel <- getBuiltinName' builtinLevel
+              case unEl t of
+                Def q [] | Just q == mLevel -> return True
+                _                           -> return False
 
 instance Occurs Term where
   occurs red ctx m xs v = do
@@ -254,25 +273,28 @@ instance Occurs Term where
           nest 2 $ text $ show v
         case v of
           Var i es   -> do
-            if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) es else do
+            let done = Var i <$> occ (weakly ctx) es
+            if (i `allowedVar` xs) then done else do
+              ty <- typeOfBV i
+              ifM (and2M (return $ Map.member i xs) (isLevel ty)) done $ do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
-              isST <- isSingletonType =<< typeOfBV i
-              case isST of
-                -- cannot decide, blocked by meta-var
-                Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
-                -- not a singleton type
-                Right Nothing -> -- abort Rigid turns this error into PatternErr
-                  abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
-                -- is a singleton type with unique inhabitant sv
-                Right (Just sv) -> return $ sv `applyE` es
-          Lam h f     -> Lam h <$> occ (leaveTop ctx) f
+                isST <- isSingletonType ty
+                case isST of
+                  -- cannot decide, blocked by meta-var
+                  Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
+                  -- not a singleton type
+                  Right Nothing -> -- abort Rigid turns this error into PatternErr
+                    abort (strongly ctx) $ MetaCannotDependOn m (takeAllowed xs) i
+                  -- is a singleton type with unique inhabitant sv
+                  Right (Just sv) -> return $ sv `applyE` es
+          Lam h f     -> Lam h <$> occAbs (getRelevance h) (leaveTop ctx) f
           Level l     -> Level <$> occ ctx l  -- stay in Top
           Lit l       -> return v
           DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
           Def d es    -> Def d <$> occDef d (leaveTop ctx) es
           Con c ci vs -> Con c ci <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
-          Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
+          Pi a b      -> Pi <$> occ (leaveTop ctx) a <*> occAbs (flattenRel (getRelevance a)) (leaveTop ctx) b
           Sort s      -> Sort <$> occ (leaveTop ctx) s
           v@Shared{}  -> updateSharedTerm (occ ctx) v
           MetaV m' es -> do
@@ -307,7 +329,7 @@ instance Occurs Term where
                     -- Andreas, 2014-03-02, see issue 1070:
                     -- Do not prune when meta is projected!
                     caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
-                      killResult <- prune m' vs (takeRelevant xs)
+                      killResult <- prune m' vs (takeVars xs)
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
                         then occurs red ctx m xs =<< instantiate (MetaV m' es)
@@ -315,6 +337,7 @@ instance Occurs Term where
                   _ -> throwError err
           where
             occ ctx v = occurs red ctx m xs v
+            occAbs r ctx v = occursAbs r red ctx m xs v
             -- a data or record type constructor propagates strong occurrences
             -- since e.g. x = List x is unsolvable
             occDef d ctx vs = do
@@ -327,13 +350,13 @@ instance Occurs Term where
     v <- instantiate v
     case v of
       Var i vs   -> metaOccurs m vs
-      Lam h f    -> metaOccurs m f
+      Lam h f    -> metaOccursAbs m f
       Level l    -> metaOccurs m l
       Lit l      -> return ()
       DontCare v -> metaOccurs m v
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
       Con c _ vs -> metaOccurs m vs
-      Pi a b     -> metaOccurs m (a,b)
+      Pi a b     -> metaOccurs m a >> metaOccursAbs m b
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
       MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ prettyShow m
@@ -412,7 +435,7 @@ instance Occurs Sort where
             YesUnfold -> reduce s
             NoUnfold  -> instantiate s
     case s' of
-      DLub s1 s2 -> uncurry DLub <$> occurs red (weakly ctx) m xs (s1,s2)
+      DLub s1 s2 -> DLub <$> occurs red (weakly ctx) m xs s1 <*> occursAbs Relevant red (weakly ctx) m xs s2
       Type a     -> Type <$> occurs red ctx m xs a
       Prop       -> return s'
       Inf        -> return s'
@@ -421,7 +444,7 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      DLub s1 s2 -> metaOccurs m (s1,s2)
+      DLub s1 s2 -> metaOccurs m s1 >> metaOccursAbs m s2
       Type a     -> metaOccurs m a
       Prop       -> return ()
       Inf        -> return ()
@@ -439,18 +462,21 @@ instance Occurs a => Occurs (Elim' a) where
   metaOccurs m (Apply a) = metaOccurs m a
   metaOccurs m (IApply x y a) = metaOccurs m (x,(y,a))
 
-instance (Occurs a, Subst t a) => Occurs (Abs a) where
-  occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (liftUnderAbs xs))
-  occurs red ctx m xs b@(NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
+-- instance (Occurs a, Subst t a) => Occurs (Abs a) where
+--   -- Andrea TODO: everything relevant? c.f liftUnderAbs
+occursAbs :: (Occurs a, Subst t a) => Relevance -> UnfoldStrategy -> OccursCtx -> MetaId -> Vars -> Abs a -> TCM (Abs a)
+occursAbs r red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (liftUnderAbs r xs))
+occursAbs r red ctx m xs b@(NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
-  metaOccurs m (Abs   s x) = metaOccurs m x
-  metaOccurs m (NoAbs s x) = metaOccurs m x
+metaOccursAbs :: Occurs a => MetaId -> Abs a -> TCM ()
+metaOccursAbs m (Abs   s x) = metaOccurs m x
+metaOccursAbs m (NoAbs s x) = metaOccurs m x
 
 instance Occurs a => Occurs (Arg a) where
   occurs red ctx m xs (Arg info x) | isIrrelevant info = Arg info <$>
     occurs red Irrel m (goIrrelevant xs) x
   occurs red ctx m xs (Arg info x) = Arg info <$>
-    occurs red ctx m xs x
+    occurs red ctx m (goRel (getRelevance info) xs) x
 
   metaOccurs m a = metaOccurs m (unArg a)
 

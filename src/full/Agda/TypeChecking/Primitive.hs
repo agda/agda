@@ -655,13 +655,13 @@ primIdElim' = do
                  (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
        (nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
         nPi' "y" (elInf $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ const x)) $ \ y ->
-        let pathxy = (cl primPath <#> a <@> bA <@> x <@> oucy)
+        let pathxy = (cl primPath <#> a <@> bA <@> x <..> oucy)
             oucy = (cl primSubOut <#> a <#> bA <#> phi <#> (lam "o" $ const x) <@> y)
             reflx = (lam "o" $ \ _ -> lam "i" $ \ _ -> x) -- TODO Andrea, should block on o
         in
         nPi' "w" (elInf $ cl primSub <#> a <#> pathxy <@> phi <@> reflx) $ \ w ->
         let oucw = (cl primSubOut <#> a <#> pathxy <#> phi <#> reflx <@> w) in
-        el' c $ bC <@> oucy <@> (cl primConId <#> a <#> bA <#> x <#> oucy <@> phi <@> oucw))
+        el' c $ bC <..> oucy <@> (cl primConId <#> a <#> bA <#> x <#> oucy <@> phi <..> oucw))
        -->
        (nPi' "y" (el' a bA) $ \ y ->
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
@@ -978,8 +978,8 @@ primComp = do
                                                               <#> (lam "o" $ \ _ -> p <@> i))
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
                <@> a0 <@> phi <@> (e <@> pure io)
-               <@> lam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
-               <@> lam "o" (\ o -> pure p2equiv <#> l <@> (lam "i" $ \ i -> e <@> ineg i <@> o))
+               <@> lam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <..> o))
+               <@> lam "o" (\ o -> pure p2equiv <#> l <@> (lam "i" $ \ i -> e <@> ineg i <..> o))
 
   compId sphi u a0 l bA x y = do
     unview <- intervalUnview'
@@ -1033,7 +1033,7 @@ primComp = do
                     <@> (lam "i'" $ \ i ->
                           let or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i) in
                                      or phi (ineg j `imax` j)
-                                        <@> (lam "o" $ \ o -> p <@> i <@> o <@@> (x <@> i, y <@> i, j))
+                                        <@> (lam "o" $ \ o -> p <@> i <..> o <@@> (x <@> i, y <@> i, j))
                                         <@> (or (ineg j) j <@> (lam "_" $ const (x <@> i))
                                                                 <@> (lam "_" $ const (y <@> i))))
                     <@> (p0 <@@> (x <@> iz, y <@> iz, j))
@@ -1111,7 +1111,7 @@ primGlue' = do
        nPi' "A" (sort . tmSort <$> la) $ \ a ->
        nPi' "φ" (el $ cl primProp) $ \ φ ->
        nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       csPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       csPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <..> o) --> el' la a) $ \ f ->
        -- (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o))
        -- -->
        (sort . tmSort <$> lb))
@@ -1136,7 +1136,7 @@ primCoGlue' = do
        nPi' "A" (sort . tmSort <$> la) $ \ a ->
        nPi' "φ" (el $ cl primProp) $ \ φ ->
        nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       csPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <@> o)) $ \ f ->
+       csPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <..> o)) $ \ f ->
        -- (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o))
        -- -->
        (sort . tmSort <$> lb))
@@ -1161,9 +1161,9 @@ prim_glue' = do
        hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <..> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
-       (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
+       (pPi' "o" φ $ \ o -> el' lb (t <..> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
   view <- propView'
   one <- primItIsOne
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
@@ -1183,7 +1183,7 @@ prim_coglue' = do
        hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hcsPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <@> o)) $ \ f ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <..> o)) $ \ f ->
        (el' la a --> el' lb (cl primCoGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
   view <- propView'
   one <- primItIsOne
@@ -1206,11 +1206,11 @@ prim_mcoglue' = do
        hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ bA ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
-       hcsPi' "f" (pPi' "o" φ $ \ o -> el' la bA --> el' lb (bT <@> o)) $ \ f ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' la bA --> el' lb (bT <..> o)) $ \ f ->
        let gg = el' lb (cl primCoGlue <#> la <#> lb <@> bA <@> φ <@> bT <@> f) in
        hmodPi' Sharp "C" (gg --> (sort . tmSort <$> lc)) $ \ bC ->
        nPi' "c0" (nPi' "a" (el' la bA) $ \ a -> el' lc (bC <@> (cl prim_coglue <#> la <#> lb <#> bA <#> φ <#> bT <#> f <@> a))) $ \ c0 ->
-       nPi' "c" (pPi' "o" φ $ \ o -> nPi' "t" (el' lb (bT <@> o)) $ \ t -> el' lc (bC <@> t)) $ \ c ->
+       nPi' "c" (pPi' "o" φ $ \ o -> nPi' "t" (el' lb (bT <..> o)) $ \ t -> el' lc (bC <@> t)) $ \ c ->
        nPi' "b" gg $ \ b ->
        el' lc (bC <@> b))
   view <- propView'
@@ -1240,7 +1240,7 @@ prim_unglue' = do
        hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
        hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
        hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
-       hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <..> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)) --> el' la a)
   view <- propView'

@@ -337,6 +337,10 @@ irrelevantOrUnused r =
 unusableRelevance :: Relevance -> Bool
 unusableRelevance rel = NonStrict `moreRelevant` rel || Sharp `moreRelevant` rel
 
+-- | @usableRelevance rel == True@ iff we can use a variable of @rel@.
+usableRelevance :: Relevance -> Bool
+usableRelevance = not . unusableRelevance
+
 -- modalities we conflate with Relevant
 asRelevant :: Relevance -> Bool
 asRelevant Relevant  = True

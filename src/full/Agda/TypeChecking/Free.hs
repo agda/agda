@@ -24,6 +24,7 @@ module Agda.TypeChecking.Free
     , allFreeVars
     , allRelevantVars, allRelevantVarsIgnoring
     , allRelevantOrUnusedVars, allRelevantOrUnusedVarsIgnoring
+    , RelMap(..), allNonIrrelevantVarsWithRelevance
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
@@ -312,3 +313,17 @@ allRelevantOrUnusedVarsIgnoring = runFree sg
 -- | Collect all relevant free variables.
 allRelevantOrUnusedVars :: Free' a VarSet => a -> VarSet
 allRelevantOrUnusedVars = allRelevantOrUnusedVarsIgnoring IgnoreNot
+
+
+newtype RelMap = RM {unRM :: IntMap Relevance}
+
+instance Monoid RelMap where
+  mempty = RM Map.empty
+  mappend = (<>)
+
+instance Semigroup RelMap where
+  (<>) (RM m) (RM m') = RM $ Map.unionWith minRelevance m m'
+
+allNonIrrelevantVarsWithRelevance :: Free' a RelMap => a -> RelMap
+allNonIrrelevantVarsWithRelevance = runFree sg IgnoreNot
+  where sg (i, VarOcc _ r) = if isIrrelevant r then mempty else RM $ Map.singleton i r

@@ -11,6 +11,7 @@ import Data.Function
 import Data.List hiding (sort, null)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.IntMap as IMap
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Abstract.Name as A
@@ -644,13 +645,13 @@ assign dir x args v = do
         if False -- irrelevantOrUnused $ getMetaRelevance mvar
           then do
             reportSDoc "tc.meta.assign" 25 $ text "meta is irrelevant or unused"
-            return (Set.toList $ allFreeVars args, empty)
+            return __IMPOSSIBLE__ -- (Set.toList $ allFreeVars args, empty)
           else do
             -- Andreas, 2016-11-03, issue #2211
             -- treating UnusedArg as Irrelevant bears trouble
             -- since the UnusedArg info is not consistently present
             -- Thus, make sure we include the "unused" variables.
-            let relVL = Set.toList $ allRelevantOrUnusedVars args
+            let relVL = allNonIrrelevantVarsWithRelevance args
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may
             -- appear on the rhs.  (test/fail/Issue483b)
@@ -671,8 +672,8 @@ assign dir x args v = do
               pr _          = text ".."
           in vcat
                [ text "mvar args:" <+> sep (map (pr . unArg) args)
-               , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
-               , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
+               , text "fvars lhs (rel):" <+> sep (map (text . show) $ IMap.keys $ unRM relVL)
+               , text "fvars lhs (irr):" <+> sep (map (text . show) $ irrVL)
                ]
 
       -- Check that the x doesn't occur in the right hand side.
@@ -680,7 +681,8 @@ assign dir x args v = do
       -- Herein, distinguish relevant and irrelevant vars,
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
-      v <- liftTCM $ occursCheck x (relVL, irrVL) v
+      let ovars = unRM $ relVL `mappend` (RM $ IMap.fromList (zip irrVL (repeat Irrelevant)))
+      v <- liftTCM $ occursCheck x ovars v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
       verboseS "tc.meta.assign" 30 $ do
