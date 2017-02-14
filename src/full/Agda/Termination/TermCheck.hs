@@ -751,6 +751,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
        Just gInd -> do
          delayed <- terGetDelayed
          pats    <- terGetPatterns
+         liftTCM $ reportSLn "term.reduce" 90 $ "normalizing call arguments"
          -- 2014-03-25 Andreas, the costs seem small, benchmark turned off.
          es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
            -- forM es0 $
@@ -919,6 +920,9 @@ maskSizeLt dom@(Dom info a) = liftTCM $ do
  -}
 compareArgs :: (Integral n) => [Elim] -> TerM (n, n, [[Order]])
 compareArgs es = do
+  liftTCM $ reportSDoc "term.compareArgs" 90 $ vcat
+    [ text $ "comparing " ++ show (length es) ++ " args"
+    ]
   pats <- terGetPatterns
   -- apats <- annotatePatsWithUseSizeLt pats
   -- reportSDoc "term.compare" 20 $
