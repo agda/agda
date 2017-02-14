@@ -14,6 +14,7 @@ import           Malfunction.AST
 import           Malfunction.Run
 import           System.Console.GetOpt
 import           Text.Printf
+import           Data.List.Extra
 
 backend :: Backend
 backend = Backend backend'
@@ -98,7 +99,7 @@ mlfPostCompile opts _ modToDefs = do
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
-  modl <- mlfMod defs . groupNSort $ defs
+  modl <- mlfMod defs . groupSortOn defMutual $ defs
   let modlTxt = prettyShow modl
   when (_debug mlfopt) $ liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
@@ -108,11 +109,6 @@ mlfPostModule mlfopt defs = do
     Just fp -> liftIO $ writeFile fp modlTxt
     Nothing -> return ()
   return modl
-  where
-    groupNSort :: [Definition] -> [[Definition]]
-    groupNSort
-      = sortBy (compare `on` defMutual . head)
-      . groupBy ((==) `on` defMutual)
 
 printVar :: MonadIO m => Mod -> Ident -> m ()
 printVar modl@(MMod binds _) v = do
