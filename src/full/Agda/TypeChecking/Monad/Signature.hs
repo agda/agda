@@ -81,7 +81,7 @@ addConstant q d = do
                     Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
               _ -> tel
   let d' = abstract tel' $ d { defName = q }
-  reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
+  reportSLn "tc.signature" 60 $ "lambda-lifted definition = " ++ show d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
   setMutualBlock i q

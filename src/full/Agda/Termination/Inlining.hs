@@ -48,8 +48,9 @@ module Agda.Termination.Inlining
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Traversable (traverse)
 import Data.List as List
+import Data.Maybe
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -70,10 +71,12 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 #include "undefined.h"
 
-inlineWithClauses :: QName -> Clause -> TCM [Clause]
+-- | Returns 'Nothing' if no inlining happened, otherwise, the new clauses.
+
+inlineWithClauses :: QName -> Clause -> TCM (Maybe [Clause])
 inlineWithClauses f cl = inTopContext $ do
   -- Clauses are relative to the empty context, so we operate @inTopContext@.
-  let noInline = return [cl]
+  let noInline = return Nothing
   -- The de Bruijn indices of @body@ are relative to the @clauseTel cl@.
   body <- traverse instantiate $ clauseBody cl
   case body of
@@ -104,8 +107,14 @@ inlineWithClauses f cl = inTopContext $ do
         reportSDoc "term.with.inline" 20 $ vcat $
           text "inlinedClauses" : map (nest 2 . prettyTCM . QNamed f) cs2
 
-        return $ cs1 ++ cs2
+        return $ Just $ cs1 ++ cs2
     _ -> noInline
+
+-- | Returns the original clause if no inlining happened, otherwise,
+--   the new clauses.
+
+inlineWithClauses' :: QName -> Clause -> TCM [Clause]
+inlineWithClauses' f cl = fromMaybe [cl] <$> inlineWithClauses f cl
 
 -- | @withExprClauses cl t as@ generates a clause containing a fake
 --   call to with-expression @a@ for each @a@ in @as@ that is not
@@ -146,7 +155,7 @@ inlinedClauses :: QName -> Clause -> Type -> QName -> TCM [Clause]
 inlinedClauses f cl t wf = do
   -- @wf@ might define a with-function itself, so we first construct
   -- the with-inlined clauses @wcs@ of @wf@ recursively.
-  wcs <- concat <$> (mapM (inlineWithClauses wf) =<< defClauses <$> getConstInfo wf)
+  wcs <- concat <$> (mapM (inlineWithClauses' wf) =<< defClauses <$> getConstInfo wf)
   reportSDoc "term.with.inline" 30 $ vcat $ text "With-clauses to inline" :
                                        map (nest 2 . prettyTCM . QNamed wf) wcs
   mapM (inline f cl t wf) wcs

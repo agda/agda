@@ -543,12 +543,27 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
 
 
 -- | Extract recursive calls from one clause.
+
 termClause :: Clause -> TerM Calls
 termClause clause = do
-  ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
+
+  -- If with-function inlining is disallowed (e.g. --without-K),
+  -- we check the original clause.
+
+  let fallback = termClause' clause
+  ifNotM (terGetInlineWithFunctions) fallback $ {- else -} do
+
+    -- Otherwise, we will do inlining, hence, can skip with-generated functions.
+
     name <- terGetCurrent
-    ifM (isJust <$> isWithFunction name) (return mempty) $
-      mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
+    ifM (isJust <$> isWithFunction name) (return mempty) $ {- else -} do
+
+      -- With inlining, the termination check for all subordinated
+      -- with-functions is included in the parent function.
+
+      (liftTCM $ inlineWithClauses name clause) >>= \case
+        Nothing  -> fallback
+        Just cls -> terSetHaveInlinedWith $ mapM' termClause' cls
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
@@ -753,11 +768,16 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
        Just gInd -> do
          delayed <- terGetDelayed
          pats    <- terGetPatterns
-         -- 2014-03-25 Andreas, the costs seem small, benchmark turned off.
-         es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
+         -- Andreas, 2017-02-14, issue #2458:
+         -- If we have inlined with-functions, we could be illtyped,
+         -- hence, do not reduce anything.
+         es <- ifM terGetHaveInlinedWith (return es0) {-else-} $ do
+          -- WAS: 2014-03-25 Andreas, the costs seem small, benchmark turned off.
+          liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ do
            -- forM es0 $
            --    etaContract <=< traverse reduceCon <=< instantiateFull
            -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
+           reportSLn "term.reduce" 90 $ "normalizing call arguments"
            modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $
               etaContract <=< normalise
 
@@ -922,6 +942,9 @@ maskSizeLt !dom = liftTCM $ do
  -}
 compareArgs :: (Integral n) => [Elim] -> TerM (n, n, [[Order]])
 compareArgs es = do
+  liftTCM $ reportSDoc "term.compareArgs" 90 $ vcat
+    [ text $ "comparing " ++ show (length es) ++ " args"
+    ]
   pats <- terGetPatterns
   -- apats <- annotatePatsWithUseSizeLt pats
   -- reportSDoc "term.compare" 20 $

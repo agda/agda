@@ -301,8 +301,11 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
         -- so here we give __IMPOSSIBLE__. This is only used for printing purposes, the origin
         -- should not be used anyway after this point.
-        termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
+        -- Andreas, 2017-02-14: This crashes with -v 100.
+        -- termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
+        -- termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
+        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
+        termToPat v                    = A.DotP patNoRange Inserted <$> reify v
 
         len = genericLength ps
 
@@ -926,7 +929,9 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         t <- liftTCM $ reify v
         -- This is only used for printing purposes, so the Origin shouldn't be
         -- used after this point anyway.
-        return $ A.DotP patNoRange __IMPOSSIBLE__ t
+        return $ A.DotP patNoRange Inserted t
+        -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
+        -- Crashes on -v 100.
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do
