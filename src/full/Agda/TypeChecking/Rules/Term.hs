@@ -2193,9 +2193,18 @@ inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr = inferExpr' DontExpandLast
 
 inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
-inferExpr' exh e = case e of
-  _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
-    case hd of
+inferExpr' exh e = do
+  let Application hd args = appView e
+  reportSDoc "tc.infer" 30 $ vcat
+    [ text "inferExpr': appView of " <+> prettyA e
+    , text "  hd   = " <+> prettyA hd
+    , text "  args = " <+> prettyAs args
+    ]
+  reportSDoc "tc.infer" 60 $ vcat
+    [ text $ "  hd (raw) = " ++ show hd
+    ]
+  if not $ defOrVar hd then fallback else traceCall (InferExpr e) $ do
+    case unScope $ hd of
       A.Proj o (AmbQ ds@(_:_:_)) -> inferProjApp e o ds args
       _ -> do
         (f, t0) <- inferHead hd
@@ -2203,7 +2212,6 @@ inferExpr' exh e = case e of
         case res of
           Right (vs, t1) -> return (f vs, t1)
           Left t1 -> fallback -- blocked on type t1
-  _ -> fallback
   where
     fallback = do
       t <- workOnTypes $ newTypeMeta_
