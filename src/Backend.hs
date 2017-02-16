@@ -62,7 +62,6 @@ backend' = Backend' {
   , backendVersion = Nothing
   }
 
--- TODO: This implementation ignores any `Defn` that is not a `Function`.
 -- | Compiles a whole module
 mlfMod
   :: [Definition]   -- ^ All visible definitions
