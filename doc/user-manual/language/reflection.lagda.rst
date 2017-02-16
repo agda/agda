@@ -231,8 +231,8 @@ below <reflection-tc-monad>`.
   data Definition : Set where
     function    : (cs : List Clause) → Definition
     data-type   : (pars : Nat) (cs : List Name) → Definition  -- parameters and constructors
-    record-type : (c : Name) → Definition                     -- name of data/record type
-    data-cons   : (d : Name) → Definition                     -- name of constructor
+    record-type : (c : Name) → Definition                     -- c is name of record constructor
+    data-cons   : (d : Name) → Definition                     -- d is name of data type
     axiom       : Definition
     prim-fun    : Definition
 
