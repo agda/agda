@@ -8,6 +8,7 @@ module Compiler
   , Term
   , Binding
   , nameToIdent
+  , compile
   ) where
 
 import           Agda.Syntax.Common (NameId(..))
@@ -119,7 +120,6 @@ indexToVarTerm i = do
   ni <- asks _level
   return (Mvar (ident (ni - i - 1)))
 
-
 translateSwitch :: MonadTranslate m => Term -> TAlt -> m ([Case], Term)
 translateSwitch tcase alt = case alt of
 --  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
@@ -153,12 +153,6 @@ litToCase :: Literal -> Case
 litToCase l = case l of
   LitNat _ i -> CaseInt . fromInteger $ i
   _          -> error "Unimplemented"
-
-translateBinding :: MonadTranslate m => Maybe QName -> TTerm -> m Binding
-translateBinding var t =
-  (case var of
-      Nothing -> Unnamed
-      Just var -> (Named . nameToIdent) var) <$> translateTerm t
 
 -- The argument is the lambda itself and not its body.
 translateLam :: MonadTranslate m => TTerm -> m Term
@@ -391,6 +385,35 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
 
 qnameNameId :: QName -> NameId
 qnameNameId = nameId . qnameName
+
+-- | Should take lists of "bindings" already sorted by rec-groups (allegedly for efficiency).
+compile
+  :: [[QName]]          -- ^ Contains all visible definitions (grouped in a weird way) TODO: Which?
+  -> [[(QName, TTerm)]] -- ^ A list of mutually recursive bindings
+  -> Mod
+compile allDefs bs = runReaderEnv allDefs (compile' bs)
+
+compile' :: MonadTranslate m => [[(QName, TTerm)]] -> m Mod
+compile' allDefs = do
+  -- TODO: Are we loosing important information here by just flattening the SCC?
+  bs <- mapM (translateMutualGroup . flattenSCC) recGrps
+  return $ MMod (concat bs) []
+  where
+    recGrps :: [SCC (QName, TTerm)]
+    recGrps = concatMap dependencyGraph allDefs
+
+translateMutualGroup :: MonadTranslate m => [(QName, TTerm)] -> m [Binding]
+translateMutualGroup bs = case bs of
+  []  -> return []
+  [x] -> pure             <$>      (uncurry translateBinding)     x
+  xs  -> pure . Recursive <$> mapM (uncurry translateBindingPair) xs
+
+translateBinding :: MonadTranslate m => QName -> TTerm -> m Binding
+translateBinding q t = uncurry Named <$> translateBindingPair q t
+
+translateBindingPair
+  :: MonadTranslate m => QName -> TTerm -> m (Ident, Term)
+translateBindingPair q t = (\t' -> (nameToIdent q, t')) <$> translateTerm t
 
 dependencyGraph :: [(QName, TTerm)] -> [SCC (QName, TTerm)]
 dependencyGraph qs = stronglyConnComp [ ((qn, tt), qnameNameId qn, edgesFrom tt)

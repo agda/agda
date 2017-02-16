@@ -62,8 +62,36 @@ backend' = Backend' {
   , backendVersion = Nothing
   }
 
-mlfMod :: [Definition] -> [[Definition]] -> TCM Mod
-mlfMod allDefs = fmap ((`MMod` []) . catMaybes) . mapM (recGrp allDefs)
+-- TODO: This implementation ignores any `Defn` that is not a `Function`.
+-- | Compiles a whole module
+mlfMod
+  :: [Definition]   -- ^ All visible definitions
+  -> [[Definition]] -- ^ A list of mutually recursive definitions
+  -> TCM Mod
+mlfMod allDefs grps = do
+  -- grps' <- mapM (mapM getBindings . filter (isFunction . theDef)) grps
+  grps' <- mapM (mapM act) grps
+  let justs = map catMaybes grps'
+      lefts = concatMap catLefts justs
+      rights = map catRights justs
+      (MMod bs ts) = Mlf.compile (getConstructors allDefs) rights
+  return $ MMod (lefts ++ bs) ts
+    where
+      act :: Definition -> TCM (Maybe (Either Binding (QName, TTerm)))
+      act def@Defn{defName = q, theDef = d} = case d of
+        Function{} -> fmap Right <$> getBindings def
+        Primitive{ primName = s } -> fmap Left <$> compilePrim q s
+        _          -> return Nothing
+      catRights :: [Either a b] -> [b]
+      catRights [] = []
+      catRights (Right x:xs) = x : catRights xs
+      catRights (Left _:xs) = catRights xs
+      catLefts [] = []
+      catLefts (Right _:xs) = catLefts xs
+      catLefts (Left x:xs) = x : catLefts xs
+
+getBindings :: Definition -> TCM (Maybe (QName, TTerm))
+getBindings Defn{defName = q} = fmap (\t -> (q, t)) <$> toTreeless q
 
 recGrp :: [Definition] -> [Definition] -> TCM (Maybe Binding)
 recGrp allDefs defs = toGrp <$> bs
@@ -85,9 +113,7 @@ recGrp allDefs defs = toGrp <$> bs
       Named i t -> [(i, t)]
 
 mlfPostCompile :: MlfOptions -> IsMain -> Map ModuleName [Definition] -> TCM ()
-mlfPostCompile opts _ modToDefs = do
-  liftIO (putStrLn "sdlkfj")
-  void $ mlfPostModule opts allDefs
+mlfPostCompile opts _ modToDefs = void $ mlfPostModule opts allDefs
   where
     allDefs :: [Definition]
     allDefs = concat (Map.elems modToDefs)
