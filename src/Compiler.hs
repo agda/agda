@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
 module Compiler
@@ -10,6 +11,7 @@ module Compiler
   , nameToIdent
   ) where
 
+import           Agda.Syntax.Common (NameId(..))
 import           Agda.Syntax.Common (NameId)
 import           Agda.Syntax.Literal
 import           Agda.Syntax.Position
@@ -17,16 +19,19 @@ import           Agda.Syntax.Treeless
 import           Control.Monad
 import           Control.Monad.Extra
 import           Control.Monad.Reader
+import           Data.Graph
 import           Data.Ix
+import           Data.List
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Tuple.Extra
+import           GHC.Word
+import           Instances
 import           Malfunction.AST
 import           Numeric (showHex)
-import           Agda.Syntax.Common (NameId(..))
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -60,25 +65,7 @@ translateDef qnm t
     -- where functions are mutually recursive.
     --     a = b
     --     b = a
-    isRecursive = Set.member qnm (qnamesInTerm t) -- TODO: is this enough?
-
-qnamesInTerm :: TTerm -> Set QName
-qnamesInTerm t = go t mempty
-  where
-    go:: TTerm -> Set QName -> Set QName
-    go t qs = case t of
-      TDef q -> Set.insert q qs
-      TApp f args -> foldr go qs (f:args)
-      TLam b -> go b qs
-      TCon q -> Set.insert q qs
-      TLet a b -> foldr go qs [a, b]
-      TCase _ _ p alts -> foldr qnamesInAlt (go p qs) alts
-      _  -> qs
-      where
-        qnamesInAlt a qs = case a of
-          TACon q _ t -> Set.insert q (go t qs)
-          TAGuard t b -> foldr go qs [t, b]
-          TALit _ b -> go b qs
+    isRecursive = Set.member (qnameNameId qnm) (qnamesIdsInTerm t) -- TODO: is this enough?
 
 translateDef' :: [[QName]] -> QName -> TTerm -> Binding
 translateDef' qs qn = runReaderEnv qs . translateDef qn
@@ -221,6 +208,10 @@ translateApp ft xst = case ft of
           -- translate (3*) ==> \x -> 3*x
           (var, t0') <- introVar (translateTerm t0)
           return (Mlambda [var] (Mintop2 op tp (Mvar var) t0' ))
+        [] -> do
+          -- translate (*) ==> \a -> \b -> a * b == \a b -> a * b
+          [a,b] <- fst <$> introVars 2 (return ())
+          return (Mlambda [a, b] (Mintop2 op tp (Mvar a) (Mvar b)))
         _        -> error ("Malformed! Binary: " ++ show op ++ "\nxst = " ++ show xst)
     where
       (eOp, tp) = primToOpAndType p
@@ -387,7 +378,41 @@ translateName = Mvar . nameToIdent
 -- [1]: http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers
 -- [2]: https://github.com/stedolan/malfunction/blob/master/docs/spec.md
 nameToIdent :: QName -> Ident
-nameToIdent = t . nameId . qnameName
+nameToIdent qn = t' (hex a ++ "." ++ hex b)
   where
-    t (NameId a b) = hex a ++ "." ++ hex b
+    t'
+      | debug = (++ "." ++ showNames (mnameToList (qnameModule qn) ++ [qnameName qn]))
+      | otherwise = id
+    NameId a b = qnameNameId qn
     hex = (`showHex` "") . toInteger
+    debug = True
+    showNames = intercalate "." . map (filterValid . show . nameConcrete)
+    filterValid =
+      filter (\c -> any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')])
+
+qnameNameId :: QName -> NameId
+qnameNameId = nameId . qnameName
+
+dependencyGraph :: [(QName, TTerm)] -> [SCC (QName, TTerm)]
+dependencyGraph qs = stronglyConnComp [ ((qn, tt), qnameNameId qn, edgesFrom tt)
+                                    | (qn, tt) <- qs ]
+  where edgesFrom = Set.toList . qnamesIdsInTerm
+
+qnamesIdsInTerm :: TTerm -> Set NameId
+qnamesIdsInTerm t = go t mempty
+  where
+    insertId q = Set.insert (qnameNameId q)
+    go :: TTerm -> Set NameId -> Set NameId
+    go t qs = case t of
+      TDef q -> insertId q qs
+      TApp f args -> foldr go qs (f:args)
+      TLam b -> go b qs
+      TCon q -> insertId q qs
+      TLet a b -> foldr go qs [a, b]
+      TCase _ _ p alts -> foldr qnamesInAlt (go p qs) alts
+      _  -> qs
+      where
+        qnamesInAlt a qs = case a of
+          TACon q _ t -> insertId q (go t qs)
+          TAGuard t b -> foldr go qs [t, b]
+          TALit _ b -> go b qs
