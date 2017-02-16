@@ -272,11 +272,8 @@ nl        = T.pack "%\n"
 beginCode = T.pack "\\begin{code}"
 endCode   = T.pack "\\end{code}"
 
-ptOpen :: Text
-ptOpen = T.pack "\\>"
-
-ptOpen' :: Show a => a -> Text
-ptOpen' i = ptOpen <+> T.pack ("[" ++ show i ++ "]")
+ptOpen :: Show a => a -> Text
+ptOpen i = T.pack "\\>" <+> T.pack ("[" ++ show i ++ "]")
 
 ptClose :: Text
 ptClose = T.pack "\\<"
@@ -334,7 +331,7 @@ code = do
   when (tok == T.empty) code
 
   when (col == 0 && not (isActualSpaces tok)) $ do
-    output ptOpen
+    output $ ptOpen 0
 
   when (tok == endCode) $ do
     output $ ptClose <+> nl <+> endCode
@@ -418,7 +415,7 @@ spaces ((T.uncons -> Just (' ', s)) : ss)
 
   col <- gets column
   when (col == 0) $ do
-    output ptOpen
+    output $ ptOpen 0
 
   moveColumn (1 + graphemeClusters s)
   output $ T.singleton ' '
@@ -438,7 +435,7 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
        log' Spaces "col /= 0"
        output $ T.singleton ' '
        col <- gets column
-       output $ ptClose' col <+> nl <+> ptOpen' col
+       output $ ptClose' col <+> nl <+> ptOpen col
 
      else do
        log' Spaces "col == 0"
@@ -451,23 +448,23 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
            log' Spaces "GT"
            setIndent len
            setIndentPrev indent
-           output $ ptOpen' indent
+           output $ ptOpen indent
            output cmdIndent
-           output $ ptClose' len <+> nl <+> ptOpen' len
+           output $ ptClose' len <+> nl <+> ptOpen len
 
          EQ -> do
            log' Spaces "EQ"
-           output $ ptOpen' indentPrev
+           output $ ptOpen indentPrev
            output cmdIndent
-           output $ ptClose' len <+> nl <+> ptOpen' len
+           output $ ptClose' len <+> nl <+> ptOpen len
 
          LT -> do
            log' Spaces "LT"
            setIndent len
            resetIndentPrev
-           output $ ptOpen' 0
+           output $ ptOpen 0
            output cmdIndent
-           output $ ptClose' len <+> nl <+> ptOpen' len
+           output $ ptClose' len <+> nl <+> ptOpen len
 
   spaces ss
 

@@ -6,12 +6,12 @@
 
 \AgdaHide{
 \begin{code}%
-\>\AgdaKeyword{module} \AgdaModule{LaTeX-succeed} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module} \AgdaModule{LaTeX-succeed} \AgdaKeyword{where}\<%
 \end{code}
 }
 
 \begin{code}%
-\>\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
 \>[0]\AgdaIndent{}\<[2]%
 \>[2]\AgdaInductiveConstructor{true} \<[9]%
@@ -23,17 +23,17 @@
 \\
 %
 \\
-\>\AgdaFunction{if\_then\_else\_} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{Bool} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
+\>[0]\AgdaFunction{if\_then\_else\_} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{Bool} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
 \\
-\>\AgdaFunction{if} \AgdaInductiveConstructor{true} \<[10]%
+\>[0]\AgdaFunction{if} \AgdaInductiveConstructor{true} \<[10]%
 \>[10]\AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{t}\<%
 \\
-\>\AgdaFunction{if} \AgdaInductiveConstructor{false} \<[10]%
+\>[0]\AgdaFunction{if} \AgdaInductiveConstructor{false} \<[10]%
 \>[10]\AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{f}\<%
 \\
 %
 \\
-\>\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
 \>[0]\AgdaIndent{}\<[2]%
 \>[2]\AgdaInductiveConstructor{zero} \<[8]%
@@ -45,23 +45,23 @@
 \\
 %
 \\
-\>\AgdaFunction{\_+\_} \AgdaSymbol{:} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
+\>[0]\AgdaFunction{\_+\_} \AgdaSymbol{:} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
 \\
-\>\AgdaInductiveConstructor{zero} \<[17]%
+\>[0]\AgdaInductiveConstructor{zero} \<[17]%
 \>[17]\AgdaFunction{+} \AgdaBound{n} \AgdaSymbol{=} \AgdaBound{n}\<%
 \\
-\>\AgdaInductiveConstructor{suc} \AgdaBound{m} \AgdaComment{\{- ugh -\}} \<[17]%
+\>[0]\AgdaInductiveConstructor{suc} \AgdaBound{m} \AgdaComment{\{- ugh -\}} \<[17]%
 \>[17]\AgdaFunction{+} \AgdaBound{n} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaBound{m} \AgdaFunction{+} \AgdaBound{n}\AgdaSymbol{)}\<%
 \\
 %
 \\
-\>\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} NATURAL \AgdaDatatype{ℕ} \AgdaSymbol{\#-\}}\<%
+\>[0]\AgdaSymbol{\{-\#} \AgdaKeyword{BUILTIN} NATURAL \AgdaDatatype{ℕ} \AgdaSymbol{\#-\}}\<%
 \\
 %
 \\
-\>\AgdaFunction{alignment} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{m} \AgdaBound{n} \AgdaBound{o} \AgdaBound{p} \AgdaSymbol{:} \AgdaDatatype{ℕ}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
+\>[0]\AgdaFunction{alignment} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{m} \AgdaBound{n} \AgdaBound{o} \AgdaBound{p} \AgdaSymbol{:} \AgdaDatatype{ℕ}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
 \\
-\>\AgdaFunction{alignment} \<[11]%
+\>[0]\AgdaFunction{alignment} \<[11]%
 \>[11]\AgdaNumber{0} \<[14]%
 \>[14]\AgdaNumber{1} \<[20]%
 \>[20]\AgdaNumber{2} \<[23]%
@@ -69,7 +69,7 @@
 \>[29]\AgdaSymbol{=} \<[32]%
 \>[32]\AgdaNumber{4}\<%
 \\
-\>\AgdaFunction{alignment} \<[14]%
+\>[0]\AgdaFunction{alignment} \<[14]%
 \>[14]\AgdaNumber{1} \<[17]%
 \>[17]\AgdaNumber{2} \<[20]%
 \>[20]\AgdaNumber{3} \<[23]%
@@ -77,14 +77,14 @@
 \>[26]\AgdaSymbol{=} \<[29]%
 \>[29]\AgdaNumber{5}\<%
 \\
-\>\AgdaFunction{alignment} \<[17]%
+\>[0]\AgdaFunction{alignment} \<[17]%
 \>[17]\AgdaNumber{2} \<[20]%
 \>[20]\AgdaNumber{3} \<[23]%
 \>[23]\AgdaNumber{4} \<[26]%
 \>[26]\AgdaNumber{5} \<[32]%
 \>[32]\AgdaSymbol{=} \AgdaNumber{6}\<%
 \\
-\>\AgdaFunction{alignment} \<[20]%
+\>[0]\AgdaFunction{alignment} \<[20]%
 \>[20]\AgdaSymbol{\_} \<[23]%
 \>[23]\AgdaSymbol{\_} \<[26]%
 \>[26]\AgdaSymbol{\_} \<[29]%
@@ -93,11 +93,11 @@
 \end{code}
 
 \begin{code}%
-\>\AgdaKeyword{data} \AgdaDatatype{⊥} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data} \AgdaDatatype{⊥} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
 %
 \\
-\>\AgdaKeyword{record} \AgdaRecord{R} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{record} \AgdaRecord{R} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
 \\
 \>[0]\AgdaIndent{}\<[2]%
 \>[2]\AgdaKeyword{field}\<%
@@ -112,7 +112,7 @@
 \\
 %
 \\
-\>\AgdaKeyword{record} \AgdaRecord{R′} \AgdaSymbol{(}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{record} \AgdaRecord{R′} \AgdaSymbol{(}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
 \\
 \>[0]\AgdaIndent{}\<[2]%
 \>[2]\AgdaKeyword{field}\<%
@@ -131,7 +131,7 @@
 \end{code}
 
 \begin{code}%
-\>\AgdaKeyword{module} \AgdaModule{M} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module} \AgdaModule{M} \AgdaKeyword{where}\<%
 \\
 \>[0]\AgdaIndent{}\<[2]%
 \>[2]\AgdaFunction{r′} \AgdaSymbol{:} \AgdaSymbol{∀} \AgdaSymbol{\{}\AgdaBound{A} \AgdaBound{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaRecord{R′} \AgdaBound{A} \AgdaBound{B}\<%
