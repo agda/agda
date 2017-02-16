@@ -27,6 +27,7 @@ library
                      , pretty == 1.1.*
                      , process == 1.4.*
                      , temporary == 1.2.*
+                     , uniplate == 1.6.*
   default-language:    Haskell2010
 
 executable agda2mlf
