@@ -202,7 +202,14 @@ nextToken' = do
                else if code == endCode && isSpaces pre
                     then case T.singleton '\n' `isInfixOfRev` pre of
                            Nothing        -> (code, [ suf ])
-                           Just (pre', _) -> (pre', [ code, suf ])
+                           Just (pre', _) ->
+                               -- Remove trailing whitespace from the
+                               -- final line; the function spaces
+                               -- expects trailing whitespace to be
+                               -- followed by a newline character.
+                             ( T.dropWhileEnd (== ' ') pre'
+                             , [ code, suf ]
+                             )
 
               -- This case happens for example when you have two code
               -- blocks after each other, i.e. the begin code of the
