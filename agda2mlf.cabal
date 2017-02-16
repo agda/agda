@@ -20,6 +20,7 @@ library
                      , Test
                      , Backend
   other-modules:       Primitive
+                     , Instances
   build-depends:       Agda >= 2.5.2
                      , base >= 4.7 && < 5
                      , containers == 0.5.*
