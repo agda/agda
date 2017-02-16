@@ -152,9 +152,6 @@ isInfixOfRev needle haystack
 isSpaces :: Text -> Bool
 isSpaces = T.all (\c -> c == ' ' || c == '\n')
 
-isActualSpaces :: Text -> Bool
-isActualSpaces = T.all (== ' ')
-
 -- | Yields the next token, taking special care to begin/end code
 -- blocks. Junk occuring before and after the code blocks is separated
 -- into separate tokens, this makes it easier to keep track of whether
@@ -380,11 +377,10 @@ code = do
 
   when (tok == T.empty) code
 
-  when (col == 0 && not (isActualSpaces tok)) $ do
+  when (col == 0 && not (isSpaces tok)) $ do
     -- Non-whitespace tokens at the start of a line trigger an
     -- indentation column.
-    when (not (isSpaces tok))
-      registerColumnZero
+    registerColumnZero
     output $ ptOpen 0
 
   when (tok == endCode) $ do
@@ -459,8 +455,11 @@ spaces [] = return ()
 
 -- Newlines.
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
-  resetColumn
+  col <- gets column
+  when (col == 0) $
+    output $ ptOpen 0
   output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
+  resetColumn
   spaces ss
 
 -- Single spaces, or multiple spaces followed by a newline character.
