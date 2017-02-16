@@ -28,6 +28,10 @@ simpleQName mods nm = QName {
   , qnameName = simpleName nm
   }
 
+-- TODO: Add this test-case:
+-- Agda:
+--    f = \ x -> g x
+--    g = f
 test_translate :: [TestTree]
 test_translate =
   -- Tests that the deBruijn index references the *closest* binding.

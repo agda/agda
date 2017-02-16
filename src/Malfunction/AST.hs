@@ -62,7 +62,7 @@ data UnaryIntOp = Neg | Not
   deriving (Show, Eq)
 
 data BinaryIntOp
-  = Add | Sub | Mul | Div | Mo | And | Or | Xor | Lsl | Lsr | Asr
+  = Add | Sub | Mul | Div | Mod | And | Or | Xor | Lsl | Lsr | Asr
   | Lt | Gt | Lte | Gte | Eq
   deriving (Show, Eq)
 
@@ -279,7 +279,7 @@ instance Pretty BinaryIntOp where
     Sub -> "-"
     Mul -> "*"
     Div -> "/"
-    Mo  -> "%"
+    Mod -> "%"
     And -> "&"
     Or  -> "|"
     Xor -> "^"

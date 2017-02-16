@@ -16,6 +16,8 @@ import           System.Console.GetOpt
 import           Text.Printf
 import           Data.List.Extra
 
+import           Primitive (compilePrim)
+
 backend :: Backend
 backend = Backend backend'
 
@@ -147,8 +149,7 @@ mlfDef alldefs d@Defn{ defName = q } =
               header c h = let cs = replicate 15 c
                            in text $ printf "%s %s %s" cs h cs
 
-    Primitive{ primName = s } ->
-      liftIO (putStrLn $ "  primitive " ++ s) >> return Nothing
+    Primitive{ primName = s } -> compilePrim q s
     Axiom         -> return Nothing
     AbstractDefn  -> error "impossible"
     Datatype{}    -> liftIO (putStrLn $ "  data " ++ show q) >> return Nothing

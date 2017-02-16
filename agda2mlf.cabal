@@ -19,6 +19,7 @@ library
                      , Compiler
                      , Test
                      , Backend
+  other-modules:       Primitive
   build-depends:       Agda >= 2.5.2
                      , base >= 4.7 && < 5
                      , containers == 0.5.*

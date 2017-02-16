@@ -168,11 +168,11 @@ litToCase l = case l of
   LitNat _ i -> CaseInt . fromInteger $ i
   _          -> error "Unimplemented"
 
-translateBinding :: MonadTranslate m => Maybe Ident -> TTerm -> m Binding
+translateBinding :: MonadTranslate m => Maybe QName -> TTerm -> m Binding
 translateBinding var t =
   (case var of
       Nothing -> Unnamed
-      Just var -> Named var) <$> translateTerm t
+      Just var -> (Named . nameToIdent) var) <$> translateTerm t
 
 -- The argument is the lambda itself and not its body.
 translateLam :: MonadTranslate m => TTerm -> m Term
@@ -248,7 +248,7 @@ primToOpAndType tp = (op, aType)
       PSub -> Right Sub
       PMul -> Right Mul
       PQuot -> wrong
-      PRem -> Right Mo
+      PRem -> Right Mod
       PGeq -> Right Gt
       PLt -> wrong
       PEqI -> wrong
