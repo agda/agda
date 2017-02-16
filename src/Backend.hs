@@ -62,6 +62,14 @@ backend' = Backend' {
   , backendVersion = Nothing
   }
 
+-- TODO: Maybe we'd like to refactor this so that we first do something like
+-- this (in the calling function)
+--
+--    partition [Definition] -> ([Function], [Primitive], ...)
+--
+-- And then we can simply do the topologic sorting stuff on the functions only.
+-- This would certainly make this funciton a helluva lot cleaner.
+--
 -- | Compiles a whole module
 mlfMod
   :: [Definition]   -- ^ All visible definitions
