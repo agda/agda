@@ -14,17 +14,17 @@ import qualified Agda.Syntax.Common as C
 translate'1 :: TTerm -> Term
 translate'1 = head . translate' [] . pure
 
-simpleName :: C.NameId -> Name
-simpleName id = Name
+simpleName :: (C.NameId, String) -> Name
+simpleName (id, concrete) = Name
   { nameId = id
-  , nameConcrete = undefined
+  , nameConcrete = C.Name undefined [C.Id concrete]
   , nameBindingSite = undefined
   , nameFixity = undefined
   }
 
-simpleQName :: [C.NameId] -> C.NameId -> QName
+simpleQName :: [(C.NameId, String)] -> (C.NameId, String) -> QName
 simpleQName mods nm = QName {
-  qnameModule = MName (map simpleName mods)
+  qnameModule = MName (map (simpleName) mods)
   , qnameName = simpleName nm
   }
 
@@ -49,7 +49,7 @@ test_translate =
   ]
   where
     aName = simpleQName [anId] anId
-    anId = C.NameId 0 0
+    anId = (C.NameId 0 0, "someId")
 
 facTT :: QName -> TTerm
 facTT qn = TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)

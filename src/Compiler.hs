@@ -27,6 +27,7 @@ import           Data.Tuple.Extra
 import           Malfunction.AST
 import           Numeric (showHex)
 import           Agda.Syntax.Common (NameId(..))
+import Data.List
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -387,7 +388,14 @@ translateName = Mvar . nameToIdent
 -- [1]: http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers
 -- [2]: https://github.com/stedolan/malfunction/blob/master/docs/spec.md
 nameToIdent :: QName -> Ident
-nameToIdent = t . nameId . qnameName
+nameToIdent qn = t' . t . nameId . qnameName $ qn
   where
+    t'
+      | debug = (++ "." ++ showNames (mnameToList (qnameModule qn) ++ [qnameName qn]))
+      | otherwise = id
     t (NameId a b) = hex a ++ "." ++ hex b
     hex = (`showHex` "") . toInteger
+    debug = True
+    showNames = intercalate "." . map (filterValid . show . nameConcrete)
+    filterValid =
+      filter (\c -> any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')])
