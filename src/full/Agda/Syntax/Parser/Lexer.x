@@ -202,6 +202,7 @@ tokens :-
 <0,code> ".."           { symbol SymDotDot }
 <0,code> "."            { symbol SymDot }
 <0,code> ";"            { symbol SymSemi }
+<0,code> ":{"           { symbol SymColonBrace }
 <0,code> ":"            { symbol SymColon }
 <0,code> "="            { symbol SymEqual }
 <0,code> "_"            { symbol SymUnderscore }

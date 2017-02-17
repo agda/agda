@@ -163,6 +163,7 @@ import Agda.Utils.Impossible
     '..'                      { TokSymbol SymDotDot $$ }
     '.'                       { TokSymbol SymDot $$ }
     ';'                       { TokSymbol SymSemi $$ }
+    ':{'                      { TokSymbol SymColonBrace $$ }
     ':'                       { TokSymbol SymColon $$ }
     '='                       { TokSymbol SymEqual $$ }
     '_'                       { TokSymbol SymUnderscore $$ }
@@ -179,7 +180,6 @@ import Agda.Utils.Impossible
     '}}'                      { TokSymbol SymDoubleCloseBrace $$ }
     '{'                       { TokSymbol SymOpenBrace $$ }
     '}'                       { TokSymbol SymCloseBrace $$ }
---    ':{'                      { TokSymbol SymColonBrace $$ }
     vopen                     { TokSymbol SymOpenVirtualBrace $$ }
     vclose                    { TokSymbol SymCloseVirtualBrace $$ }
     vsemi                     { TokSymbol SymVirtualSemi $$ }
@@ -293,6 +293,7 @@ Token
     | '..'                      { TokSymbol SymDotDot $1 }
     | '.'                       { TokSymbol SymDot $1 }
     | ';'                       { TokSymbol SymSemi $1 }
+    | ':{'                       { TokSymbol SymColonBrace $1 }
     | ':'                       { TokSymbol SymColon $1 }
     | '='                       { TokSymbol SymEqual $1 }
     | '_'                       { TokSymbol SymUnderscore $1 }
@@ -767,6 +768,9 @@ TypedBindings
     | '(' Open ')'               { tLet (getRange ($1,$3)) $2 }
     | '(' 'let' Declarations ')' { tLet (getRange ($1,$4)) $3 }
 
+Modality :: { (Range, Relevance) }
+Modality : id {% modality $1 }
+
 
 -- x1 .. xn : A
 -- x1 .. xn :{i1 i2 ..} A
@@ -776,7 +780,9 @@ TBind : CommaBIds ':' Expr  {
     in TypedBindings r $ defaultArg $ TBind r (map (pure . mkBoundName_) $1) $3
   }
 -- | Colors are not yet allowed in the syntax.
---      | CommaBIds ':{' Colors '}' Expr  { ( $3, TBind (getRange ($1,$2,$3,$4,$5)) (map mkBoundName_ $1) $5 ) }
+      | CommaBIds ':{' Modality '}' Expr  {
+    let r = getRange ($1,$2,fst $3,$4,$5)
+    in setRelevance (snd $3) $ TypedBindings r $ defaultArg $ TBind r (map (pure . mkBoundName_) $1) $5 }
 {-
 Colors :: { [Color] }
 Colors : QId Colors { Ident $1 : $2 }
@@ -789,6 +795,9 @@ TBindWithHiding : BIdsWithHiding ':' Expr  {
     let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
     in TypedBindings r $ defaultArg $ TBind r (map (fmap mkBoundName_) $1) $3
   }
+      | BIdsWithHiding ':{' Modality '}' Expr   {
+    let r = getRange ($1,$2,fst $3,$4,$5)
+    in setRelevance (snd $3) $ TypedBindings r $ defaultArg $ TBind r (map (fmap mkBoundName_) $1) $5 }
 
 -- A non-empty sequence of lambda bindings.
 LamBindings :: { [LamBinding] }
@@ -1075,6 +1084,7 @@ Declaration
 -- one bound name.
 TypeSigs :: { [Declaration] }
 TypeSigs : SpaceIds ':' Expr { map (\ x -> TypeSig defaultArgInfo x $3) $1 }
+         | SpaceIds ':{' Modality '}' Expr { map (\ x -> TypeSig defaultArgInfo x $5) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
@@ -1099,7 +1109,8 @@ FunClause : LHS RHS WhereClause {% funClauseOrTypeSigs $1 $2 $3 }
 
 RHS :: { RHSOrTypeSigs }
 RHS : '=' Expr      { JustRHS (RHS $2) }
-    | ':' Expr      { TypeSigsRHS $2 }
+    | ':' Expr      { TypeSigsRHS Nothing $2 }
+    | ':{' Modality '}' Expr { TypeSigsRHS (Just (snd $2)) $4 }
     | {- empty -}   { JustRHS AbsurdRHS }
 
 -- Data declaration. Can be local.
@@ -1740,6 +1751,23 @@ polarity (i, s) =
   where
   ret x = return (getRange i, x)
 
+modality :: (Interval, String) -> Parser (Range, Relevance)
+modality (i, s) =
+  case s of
+    "#"  -> ret Sharp
+    ".." -> ret NonStrict
+    "÷"  -> ret NonStrict
+    "."  -> ret Irrelevant
+    "irrelevant"  -> ret Irrelevant
+    "¶"  -> ret CoShape
+    "÷#"  -> ret NSSharp
+    "id"   -> ret Relevant
+    "_"   -> ret Relevant
+    ""   -> ret Relevant
+    _    -> fail $ "Not a valid modality: " ++ s
+  where
+  ret x = return (getRange i, x)
+
 recoverLayout :: [(Interval, String)] -> String
 recoverLayout [] = ""
 recoverLayout xs@((i, _) : _) = go (iStart i) xs
@@ -1950,7 +1978,7 @@ parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report t
 
 data RHSOrTypeSigs
  = JustRHS RHS
- | TypeSigsRHS Expr
+ | TypeSigsRHS (Maybe Relevance) Expr
  deriving Show
 
 patternToNames :: Pattern -> Parser [(ArgInfo, Name)]
@@ -1968,13 +1996,13 @@ funClauseOrTypeSigs lhs mrhs wh = do
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> return [FunClause lhs rhs wh False]
-    TypeSigsRHS e -> case wh of
+    TypeSigsRHS r e -> case wh of
       NoWhere -> case lhs of
         Ellipsis{}      -> parseError "The ellipsis ... cannot have a type signature"
         LHS _ _ _ (_:_) -> parseError "Illegal: with in type signature"
         LHS _ _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
         LHS _ (_:_) _ _ -> parseError "Illegal: with patterns in type signature"
-        LHS p [] [] []  -> map (\ (x, y) -> TypeSig x y e) <$> patternToNames p
+        LHS p [] [] []  -> map (\ (x, y) -> TypeSig (maybe id setRelevance r x) y e) <$> patternToNames p
       _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
