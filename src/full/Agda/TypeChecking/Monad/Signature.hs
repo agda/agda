@@ -787,7 +787,7 @@ freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
   t <- defType <$> getConstInfo q
   let TelV tel _ = telView'UpTo (size vs) t
-  return $ zipWith (\ (Arg _ v) (Dom ai _) -> Arg ai v) vs $ telToList tel
+  return $ zipWith (\ (Arg{unArg = v}) (Dom{domInfo = ai}) -> Arg ai v) vs $ telToList tel
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}

@@ -1609,26 +1609,38 @@ inferDef mkTerm x =
     traceCall (InferDef x) $ do
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
-    d  <- instantiateDef =<< getConstInfo x
+
+    d  <- getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
-    let drel = defRelevance d
-    when (drel /= Relevant) $ do
-      rel <- asks envRelevance
-      reportSDoc "tc.irr" 50 $ vcat
-        [ text "declaration relevance =" <+> text (show drel)
-        , text "context     relevance =" <+> text (show rel)
-        ]
-      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+    -- let drel = defRelevance d
+    -- when (drel /= Relevant) $ do
+    --   rel <- asks envRelevance
+    --   reportSDoc "tc.irr" 50 $ vcat
+    --     [ text "declaration relevance =" <+> text (show drel)
+    --     , text "context     relevance =" <+> text (show rel)
+    --     ]
+    --   unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
+
     reportSDoc "tc.term.def" 10 $ do
       text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
-    let t = defType d
+    reportSDoc "tc.term.def" 20 $ do
+      text "inferred def " <+> prettyTCM x <+> hsep (map (text . show) vs)
+
+    t <- workOnTypes $ defType d `piApplyM` vs
+
     reportSDoc "tc.term.def" 10 $ nest 2 $ text " : " <+> prettyTCM t
+
     let v = mkTerm vs -- applies x to vs, dropping parameters
+    v1 <- do
+      (_,v1) <- newValueMeta RunMetaOccursCheck t
+      pid <- newProblem_ $ equalTerm t v1 v
+      blockTermOnProblem t v pid
+
     reportSDoc "tc.term.def" 10 $ nest 2 $ text " --> " <+> prettyTCM v
-    return (v, t)
+    return (v1, t)
 
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted

@@ -515,8 +515,11 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- maxRelevance (getRelevance info0) <$> asks envRelevance
-  let info = setRelevance rel info0
+ -- rel <- maxRelevance (getRelevance info0) <$> asks envRelevance
+  -- Andrea, 2017, not sure if we still need the above, but it surely messes with CoShape, so disabled.
+ let rel = getRelevance (info0)
+ let info = setRelevance rel info0
+ applyRelevanceToContext (getRelevance info) $ do
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
   t <- workOnTypes $ isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep

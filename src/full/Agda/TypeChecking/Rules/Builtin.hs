@@ -593,7 +593,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             name (Shared p) = name $ ignoreSharing (derefPtr p)
             name _          = __IMPOSSIBLE__
 
-        e' <- checkExpr e =<< t
+        e' <- normalise =<< checkExpr e =<< t
 
         case e of
           A.Con{} -> return ()
@@ -640,7 +640,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                 when (s == builtinChar)   $ addHaskellType q "Char"
                 when (s == builtinString) $ addHaskellType q "Data.Text.Text"
                 when (s == builtinFloat)  $ addHaskellType q "Double"
-                bindBuiltinName s e'
+                bindBuiltinName s =<< normalise e'
               _        -> err
           _ -> err
 

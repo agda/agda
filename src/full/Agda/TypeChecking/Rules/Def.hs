@@ -76,8 +76,8 @@ import Agda.Utils.Impossible
 checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
-        t    <- typeOfConst name
         info  <- flip setRelevance defaultArgInfo <$> relOfConst name
+        t    <- applyRelevanceToContext (getRelevance info) $ typeOfConst name
         case isAlias cs t of
           Just (e, mc, x) ->
             traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
@@ -121,7 +121,7 @@ isAlias cs t =
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
-checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
+checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ applyRelevanceToContext (getRelevance ai) $ do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
@@ -135,7 +135,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
 -}
 
   -- Infer the type of the rhs
-  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast e t'
+  v <- checkDontExpandLast e t'
   let t = t'
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
@@ -198,7 +198,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
 checkFunDefS t ai delayed extlam with i name withSub cs =
-
+  applyRelevanceToContext (getRelevance ai) $
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
           sep [ text "checking body of" <+> prettyTCM name
@@ -229,7 +229,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo (A.clauseRHS c) $ do
-              (c,b) <- applyRelevanceToContext (argInfoRelevance ai) $ do
+              (c,b) <- do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
