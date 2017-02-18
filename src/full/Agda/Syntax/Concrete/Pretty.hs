@@ -209,7 +209,7 @@ instance Pretty LamBinding where
     pretty (DomainFull b)   = pretty b
 
 instance Pretty TypedBindings where
-  pretty (TypedBindings _ a) = prettyRelevance a $ prettyHiding a p $
+  pretty (TypedBindings _ a) = (pretty (getRelevance a) <>) $ prettyHiding a p $
     pretty $ unArg a
       where
         p | isUnderscore (unArg a) = id
@@ -301,7 +301,7 @@ instance Pretty Declaration where
     pretty d =
         case d of
             TypeSig i x e ->
-                sep [ prettyRelevance i $ pretty x <+> text ":"
+                sep [ pretty x <+> text ":" <> pretty (getRelevance i)
                     , nest 2 $ pretty e
                     ]
             Field inst x (Arg i e) ->

@@ -409,7 +409,7 @@ reifyTerm expandAnonDefs0 v = do
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | notHidden a -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          | notHidden a && ignorable (getRelevance a) -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.
@@ -420,6 +420,11 @@ reifyTerm expandAnonDefs0 v = do
             {- then -} (pure $ Arg (domInfo a) underscore)
             {- else -} (reify a)
       where
+        ignorable Irrelevant = True
+        ignorable NonStrict = True
+        ignorable r | asRelevant r = True
+        ignorable _ = False
+
         mkPi b (Arg info a) = do
           (x, b) <- reify b
           return $ A.Pi noExprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure x] a)] b
