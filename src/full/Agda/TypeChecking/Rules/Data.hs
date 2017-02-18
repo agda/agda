@@ -249,7 +249,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         t' `fitsIn` s
         debugAdd c t'
 
-        TelV fields tgt <- telView t'
+        TelV fields _ <- telView t'
         -- add parameters to constructor type and put into signature
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $ do
@@ -260,7 +260,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               names <- replicateM (size fields) (freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName c))
               let params = abstract cxt tel
                   fsT    = fields
-                  t   = applySubst (strengthenS __IMPOSSIBLE__ (size fields)) tgt
+                  t      = El s $ Def d [] `apply` teleArgs tel
               defineProjections d con params names fsT t
               comp <- defineCompData d con params names fsT t
               return $ fmap (\ x -> (x,names)) comp
