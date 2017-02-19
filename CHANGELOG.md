@@ -285,6 +285,15 @@ LaTeX backend
   │ │
   ```
 
+  Note also that the layout machinery does not count extended grapheme
+  clusters, but code points. The following code is syntactically
+  correct, but the LaTeX backend does not align the two `field`
+  keywords:
+  ```agda
+    record +̲ : Set₁ where  field A : Set
+                            field B : Set
+  ```
+
 Pragmas and options
 -------------------
 
