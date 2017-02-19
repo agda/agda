@@ -68,6 +68,7 @@ import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive ( getBuiltinName )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -148,7 +149,7 @@ relView t = do
 addRewriteRule :: QName -> TCM ()
 addRewriteRule q = do
   requireOptionRewriting
-  Def rel _ <- primRewrite
+  rel <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName builtinRewrite
   def <- instantiateDef =<< getConstInfo q
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.

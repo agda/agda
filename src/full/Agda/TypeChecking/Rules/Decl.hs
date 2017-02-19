@@ -19,8 +19,6 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
-import Agda.Compiler.HaskellTypes
-import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 
@@ -610,17 +608,6 @@ checkPragma r p =
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
         A.RewritePragma q   -> addRewriteRule q
-        A.CompiledDeclareDataPragma x hs -> do
-          def <- getConstInfo x
-          assertCurrentModule x $
-              "COMPILED_DECLARE_DATA directives must appear in the same module " ++
-              "as their corresponding datatype definition,"
-          case theDef def of
-            Datatype{} -> addHaskellType x hs
-            Axiom{}    -> -- possible when the data type has only been declared yet
-              addHaskellType x hs
-            _          -> typeError $ GenericError
-                          "COMPILED_DECLARE_DATA directive only works on data types"
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x
           case theDef def of
@@ -634,50 +621,13 @@ checkPragma r p =
           assertCurrentModule x $
               "COMPILED_DATA directives must appear in the same module " ++
               "as their corresponding datatype definition,"
-          let addCompiledData cs = do
-                addHaskellType x hs
-                let computeHaskellType c = do
-                      def <- getConstInfo c
-                      let Constructor{ conPars = np } = theDef def
-                          underPars 0 a = haskellType a
-                          underPars n a = do
-                            a <- reduce a
-                            case unEl a of
-                              Pi a (NoAbs _ b) -> underPars (n - 1) b
-                              Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
-                              _       -> __IMPOSSIBLE__
-                      ty <- underPars np $ defType def
-                      reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show c ++ ": " ++ ty
-                      return ty
-                hts <- mapM computeHaskellType cs
-                sequence_ $ zipWith3 addHaskellCode cs hts hcs
           case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length hcs -> do
-                  let n_forms_are = case length hcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null hcs               = ""
-                           | length hcs < length cs = "only "
-                           | otherwise              = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> addCompiledData cs
-            Record{recConHead = ch}
-              | length hcs == 1 -> addCompiledData [conName ch]
-              | otherwise -> do
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has 1 constructor, but " ++
-                                show (length hcs) ++ " Haskell constructors are given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
+            Datatype{dataCons = cs} -> addHaskellData x hs hcs
+            Record{recConHead = ch} -> addHaskellData x hs hcs
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
-          let addCompiled = do
-                ty <- haskellType $ defType def
-                reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-                addHaskellCode x ty hs
+          let addCompiled = addHaskellCode x hs
           case theDef def of
             Axiom{} -> addCompiled
             Function{} -> addCompiled
@@ -686,26 +636,18 @@ checkPragma r p =
         A.CompiledExportPragma x hs -> do
           def <- getConstInfo x
           let correct = case theDef def of
-                            -- Axiom{} -> do
-                            --   ty <- haskellType $ defType def
-                            --   reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
-                            --   addHaskellCode x ty hs
                             Function{} -> True
                             Constructor{} -> False
                             _   -> False
           if not correct
             then typeError $ GenericError "COMPILED_EXPORT directive only works on functions"
-            else do
-              ty <- haskellType $ defType def
-              addHaskellExport x ty hs
+            else addHaskellExport x hs
         A.CompiledJSPragma x ep ->
           addJSCode x ep
         A.CompiledUHCPragma x cr -> do
           def <- getConstInfo x
           case theDef def of
-            Axiom{} -> case parseCoreExpr cr of
-                    Left msg -> typeError $ GenericError $ "Could not parse COMPILED_UHC pragma: " ++ msg
-                    Right cr -> addCoreCode x cr
+            Axiom{} -> addCoreCode x cr
             _ -> typeError $ GenericError "COMPILED_UHC directive only works on postulates" -- only allow postulates for the time being
         A.CompiledDataUHCPragma x crd crcs -> do
           -- TODO mostly copy-paste from the CompiledDataPragma, should be refactored into a seperate function
@@ -718,24 +660,7 @@ checkPragma r p =
               "COMPILED_DATA_UHC directives must appear in the same module " ++
               "as their corresponding datatype definition,"
           case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length crcs -> do
-                  let n_forms_are = case length crcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null crcs               = ""
-                           | length crcs < length cs = "only "
-                           | otherwise               = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords crcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> do
-                -- Remark: core pragmas are not type-checked
-                dt' <- parseCoreData crd
-                cons' <- parseCoreConstrs dt' crcs
-                addCoreType x dt'
-                sequence_ $ zipWith addCoreConstr cs cons'
+            Datatype{dataCons = cs} -> addCoreType x crd crcs
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x
@@ -877,7 +802,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     -- We are now in the context @ptel@.
     -- Get the correct parameter telescope of @m2@.
     tel <- lookupSection m2
-    vs  <- freeVarsToApply $ mnameToQName m2
+    vs  <- moduleParamsToApply $ qnameModule $ mnameToQName m2
     let tel'  = apply tel vs
     -- Compute the remaining parameter telescope after stripping of
     -- the initial parameters that are determined by the @args@.
@@ -924,7 +849,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
 checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
   let name = mnameToQName x
   tel' <- lookupSection x
-  vs   <- freeVarsToApply name
+  vs   <- moduleParamsToApply $ qnameModule name
   let tel = tel' `apply` vs
       args = teleArgs tel
 
@@ -962,7 +887,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
     typeError $ GenericError $ show (qnameToConcrete name) ++ " is not a parameterised section"
 
   addContext' telInst $ do
-    vs <- freeVarsToApply name
+    vs <- moduleParamsToApply $ qnameModule name
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
       , nest 2 $ text "args    =" <+> sep (map (parens . prettyTCM) args)

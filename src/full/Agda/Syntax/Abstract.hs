@@ -195,7 +195,6 @@ data Pragma
   | RewritePragma QName
   | CompiledPragma QName String
   | CompiledExportPragma QName String
-  | CompiledDeclareDataPragma QName String
   | CompiledTypePragma QName String
   | CompiledDataPragma QName String [String]
   | CompiledJSPragma QName String

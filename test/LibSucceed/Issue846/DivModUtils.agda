@@ -5,7 +5,7 @@ open import Data.Bool
 
 open import Issue846.OldDivMod
 open import Relation.Nullary
-open import Data.Nat.Properties
+open import Data.Nat.Properties hiding (≤-antisym)
 open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
 open import Data.Fin.Properties using ( bounded; toℕ-fromℕ≤; toℕ-injective )
 open import Relation.Binary.PropositionalEquality
@@ -17,7 +17,7 @@ open import Relation.Nullary.Negation
 open ≡-Reasoning
 open ≤-Reasoning
   renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩'_)
-open DecTotalOrder decTotalOrder using () renaming (refl to ≤-refl; antisym to ≤-antisym)
+open DecTotalOrder ≤-decTotalOrder using () renaming (refl to ≤-refl; antisym to ≤-antisym)
 
 import Algebra
 open Algebra.CommutativeSemiring commutativeSemiring using (+-comm; +-assoc)

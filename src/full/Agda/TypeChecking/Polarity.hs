@@ -120,6 +120,7 @@ computePolarity x = inConcreteOrAbstractMode x $ \ def -> do
   -- t <- instantiateFull t -- Andreas, 2014-04-11 Issue 1099: needed for
   --                        -- variable occurrence test in  dependentPolarity.
   reportSDoc "tc.polarity.set" 15 $ text "Refining polarity with type " <+> prettyTCM t
+  reportSDoc "tc.polarity.set" 60 $ text "Refining polarity with type (raw): " <+> (text .show) t
   pol <- dependentPolarity t (enablePhantomTypes (theDef def) pol1) pol1
   reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ show x ++ ": " ++ show pol
 
@@ -189,20 +190,21 @@ dependentPolarity t _      []          = return []  -- all remaining are 'Invari
 dependentPolarity t []     (_ : _)     = __IMPOSSIBLE__
 dependentPolarity t (q:qs) pols@(p:ps) = do
   t <- reduce $ unEl t
+  reportSDoc "tc.polarity.dep" 20 $ text "dependentPolarity t = " <+> prettyTCM t
+  reportSDoc "tc.polarity.dep" 70 $ text "dependentPolarity t = " <+> (text . show) t
   case ignoreSharing t of
     Pi dom b -> do
-      let c = absBody b
-      ps <- dependentPolarity c qs ps
-      let mp = ifM (isJust <$> isSizeType (unDom dom)) (return p) (return q)
-      p  <- case b of
-              Abs{} | p /= Invariant  ->
-                -- Andreas, 2014-04-11 see Issue 1099
-                -- Free variable analysis is not in the monad,
-                -- hence metas must have been instantiated before!
-                ifM (relevantInIgnoringNonvariant 0 c ps)
-                  (return Invariant)
-                  mp
-              _ -> mp
+      ps <- underAbstraction dom b $ \ c -> dependentPolarity c qs ps
+      let fallback = ifM (isJust <$> isSizeType (unDom dom)) (return p) (return q)
+      p <- case b of
+        Abs{} | p /= Invariant  ->
+          -- Andreas, 2014-04-11 see Issue 1099
+          -- Free variable analysis is not in the monad,
+          -- hence metas must have been instantiated before!
+          ifM (relevantInIgnoringNonvariant 0 (absBody b) ps)
+            {- then -} (return Invariant)
+            {- else -} fallback
+        _ -> fallback
       return $ p : ps
     _ -> return pols
 

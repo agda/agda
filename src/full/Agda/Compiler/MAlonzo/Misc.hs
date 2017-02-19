@@ -12,6 +12,7 @@ import Data.Function
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
+import Agda.Compiler.MAlonzo.Pragmas
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -22,6 +23,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -84,9 +86,8 @@ conhqn q = do
     def <- getConstInfo cq
     cname <- xhqn "C" cq  -- Do this even if it has custom compiledHaskell code
                           -- to make sure we get the import.
-    case (compiledHaskell (defCompiledRep def), theDef def) of
-      (Just (HsDefn _ hs), Constructor{}) -> return $ hsName hs
-      _                                   -> return cname
+    caseMaybeM (getHaskellConstructor cq) (return cname) $ \ hsCon ->
+      return $ hsName hsCon
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName

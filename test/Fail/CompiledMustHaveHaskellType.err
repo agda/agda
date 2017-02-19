@@ -1,3 +1,2 @@
 CompiledMustHaveHaskellType.agda:12,1-25
 The type N cannot be translated to a Haskell type.
-when checking the pragma COMPILED foo bar

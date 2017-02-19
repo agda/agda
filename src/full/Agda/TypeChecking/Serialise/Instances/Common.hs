@@ -8,7 +8,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Agda.TypeChecking.Serialise.Instances.Common () where
+module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
 import Control.Applicative
 import Control.Monad.Reader

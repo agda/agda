@@ -33,6 +33,8 @@ import Agda.Compiler.Common
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
+import Agda.Compiler.MAlonzo.HaskellTypes
+import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
@@ -232,17 +234,19 @@ definition kit Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
   reportSDoc "compile.ghc.definition" 10 $
     text "Not compiling" <+> prettyTCM q <> text "."
   return []
-definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef = d} = do
+definition kit Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ text "Compiling" <+> prettyTCM q <> text ":"
     , nest 2 $ text (show d)
     ]
+  pragma <- getHaskellPragma q
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
-      _ | Just (HsDefn hsty hs) <- compiledHaskell compiled -> do
+      _ | Just (HsDefn r hs) <- pragma -> do
         -- Make sure we have imports for all names mentioned in the type.
-        ty <- normalise ty
+        hsty <- setCurrentRange r $ haskellType q
+        ty   <- normalise ty
         sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
         return $ fbWithType hsty (fakeExp hs)
 
@@ -287,44 +291,46 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       Axiom{} -> return $ fb axiomErr
       Primitive{ primName = s } -> fb <$> primBody s
 
-      Function{} -> function (exportHaskell compiled) $ functionViaTreeless q
+      Function{} -> function pragma $ functionViaTreeless q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
-        | Just (HsType ty) <- compiledHaskell compiled -> do
-        ccscov <- ifM (noCheckCover q) (return []) $ do
-            ccs <- List.concat <$> mapM checkConstructorType cs
-            cov <- checkCover q ty (np + ni) cs
-            return $ ccs ++ cov
+        | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+        computeErasedConstructorArgs q
+        ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         computeErasedConstructorArgs q
         (ars, cds) <- unzip <$> mapM condecl cs
         return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
       Constructor{} -> return []
+      Record{ recPars = np, recClause = cl, recConHead = con }
+        | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+        let cs = [conName con]
+        computeErasedConstructorArgs q
+        ccscov <- constructorCoverageCode q np cs ty hsCons
+        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++ ccscov
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         computeErasedConstructorArgs q
         let c = conName con
         let noFields = length flds
         let ar = I.arity ty
         cd <- snd <$> condecl c
-  --       cd <- case c of
-  --         Nothing -> return $ cdecl q noFields
-  --         Just c  -> snd <$> condecl c
         return $ tvaldecl q Inductive noFields ar [cd] cl
       AbstractDefn -> __IMPOSSIBLE__
   where
-  function :: Maybe HaskellExport -> TCM [HS.Decl] -> TCM [HS.Decl]
+  function :: Maybe HaskellPragma -> TCM [HS.Decl] -> TCM [HS.Decl]
   function mhe fun = do
     ccls <- mkwhere <$> fun
     case mhe of
-      Nothing -> return ccls
-      Just (HsExport t name) -> do
+      Just (HsExport r name) -> do
+        t <- setCurrentRange r $ haskellType q
         let tsig :: HS.Decl
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
             def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
+      _ -> return ccls
 
   functionViaTreeless :: QName -> TCM [HS.Decl]
   functionViaTreeless q = caseMaybeM (toTreeless q) (pure []) $ \ treeless -> do
@@ -376,6 +382,14 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
 
+constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
+constructorCoverageCode q np cs hsTy hsCons = do
+  checkConstructorCount q cs hsCons
+  ifM (noCheckCover q) (return []) $ do
+    ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
+    cov <- checkCover q hsTy np cs hsCons
+    return $ ccs ++ cov
+
 -- | Environment for naming of local variables.
 --   Invariant: @reverse ccCxt ++ ccNameSupply@
 data CCEnv = CCEnv
@@ -416,24 +430,23 @@ intros :: Int -> ([HS.Name] -> CC a) -> CC a
 intros n cont = freshNames n $ \xs ->
   local (mapContext (reverse xs ++)) $ cont xs
 
-checkConstructorType :: QName -> TCM [HS.Decl]
-checkConstructorType q = do
-  Just (HsDefn ty hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
+checkConstructorType :: QName -> HaskellCode -> TCM [HS.Decl]
+checkConstructorType q hs = do
+  ty <- haskellType q
   return [ HS.TypeSig [unqhname "check" q] $ fakeType ty
          , HS.FunBind [HS.Match (unqhname "check" q) []
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
-checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
-checkCover q ty n cs = do
+checkCover :: QName -> HaskellType -> Nat -> [QName] -> [HaskellCode] -> TCM [HS.Decl]
+checkCover q ty n cs hsCons = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
-      makeClause c = do
+      makeClause c hsc = do
         a <- erasedArity c
-        Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
         return $ HS.Alt pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
 
-  cs <- mapM makeClause cs
+  cs <- zipWithM makeClause cs hsCons
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
               _  -> HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs

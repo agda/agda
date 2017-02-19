@@ -3,7 +3,7 @@
 -- | Translating Agda types to Haskell types. Used to ensure that imported
 --   Haskell functions have the right type.
 
-module Agda.Compiler.HaskellTypes where
+module Agda.Compiler.MAlonzo.HaskellTypes where
 
 import Control.Applicative
 import Data.Maybe (fromMaybe)
@@ -16,6 +16,8 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+
+import Agda.Compiler.MAlonzo.Pragmas
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Impossible
@@ -61,11 +63,12 @@ notAHaskellType a = do
 
 getHsType :: QName -> TCM HaskellType
 getHsType x = do
-  d <- compiledHaskell . defCompiledRep <$> getConstInfo x
-  case d of
-    Just (HsType t)   -> return t
-    Just (HsDefn t c) -> return hsUnit
-    _                 -> notAHaskellType (El Prop $ Def x [])
+  d <- getHaskellPragma x
+  setCurrentRange d $ case d of
+    Just (HsType _ t)   -> return t
+    Just HsDefn{}       -> return hsUnit
+    Just (HsData _ t _) -> return t
+    _                   -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
@@ -77,8 +80,8 @@ getHsVar i = hsVar <$> nameOfBV i
 -- Note that if @haskellType@ supported universe polymorphism then the
 -- special treatment of INFINITY might not be needed.
 
-haskellType :: Type -> TCM HaskellType
-haskellType t = fromType t
+haskellType' :: Type -> TCM HaskellType
+haskellType' t = fromType t
   where
     err      = notAHaskellType t
     fromArgs = mapM (fromTerm . unArg)
@@ -113,3 +116,38 @@ haskellType t = fromType t
         Shared p   -> fromTerm $ derefPtr p
         MetaV{}    -> err
         DontCare{} -> err
+
+haskellType :: QName -> TCM HaskellType
+haskellType q = do
+  def <- getConstInfo q
+  let np = case theDef def of
+             Constructor{ conPars = np } -> np
+             _                           -> 0
+      underPars 0 a = haskellType' a
+      underPars n a = do
+        a <- reduce a
+        case unEl a of
+          Pi a (NoAbs _ b) -> underPars (n - 1) b
+          Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
+          _       -> __IMPOSSIBLE__
+  ty <- underPars np $ defType def
+  reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show q ++ ": " ++ ty
+  return ty
+
+checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()
+checkConstructorCount d cs hsCons
+  | n == hn   = return ()
+  | otherwise = do
+    let n_forms_are = case hn of
+          1 -> "1 Haskell constructor is"
+          n -> show n ++ " Haskell constructors are"
+        only | hn == 0   = ""
+             | hn < n    = "only "
+             | otherwise = ""
+
+    genericDocError =<<
+      fsep ([prettyTCM d] ++ pwords ("has " ++ show n ++
+            " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hsCons ++ "]"))
+  where
+    n  = length cs
+    hn = length hsCons

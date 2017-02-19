@@ -5,6 +5,8 @@
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
 module Agda.Compiler.UHC.Pragmas.Parse
   ( module Agda.Compiler.UHC.Pragmas.Base
+  , parseCorePragma
+  , getCorePragma
   , parseCoreExpr
   , coreExprToCExpr
   , parseCoreData
@@ -16,15 +18,28 @@ where
 
 import Data.List
 import qualified Data.Map as M
+import Data.Traversable (traverse)
 
+import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.MagicTypes
 
 import Agda.Compiler.UHC.Bridge as CA
+import qualified Agda.Compiler.MAlonzo.Pragmas as GHC -- borrow pragma parsing from GHC backend
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+parseCorePragma :: MonadTCM m => CompilerPragma -> m CoreRepresentation
+parseCorePragma p@(CompilerPragma _ s) = liftTCM $ setCurrentRange p $
+  case GHC.parsePragma p of
+    Right (GHC.HsDefn r code)        -> return $ CrDefn r code
+    Right (GHC.HsData r crTy crCons) -> return $ CrData r crTy crCons
+    _ -> genericError $ "Failed to parse UHC pragma '" ++ s ++ "'"
+
+getCorePragma :: MonadTCM m => QName -> m (Maybe CoreRepresentation)
+getCorePragma q = liftTCM $ traverse parseCorePragma =<< getUniqueCompilerPragma uhcBackendName q
 
 -- | Parse a COMPILED_DATA_UHC specification.
 parseCoreData :: MonadTCM m => String -> m CoreType
