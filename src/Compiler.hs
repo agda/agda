@@ -395,7 +395,7 @@ compile allDefs bs = runReaderEnv allDefs (compile' bs)
 
 compile' :: MonadTranslate m => [[(QName, TTerm)]] -> m Mod
 compile' allDefs = do
-  -- TODO: Are we loosing important information here by just flattening the SCC?
+  -- TODO: Are we losing important information here by just flattening the SCC?
   bs <- mapM (translateMutualGroup . flattenSCC) recGrps
   return $ MMod (concat bs) []
   where
