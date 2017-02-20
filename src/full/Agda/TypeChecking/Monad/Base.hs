@@ -2141,8 +2141,8 @@ eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems =
 eAbstractMode :: Lens' AbstractMode TCEnv
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
-eRelevance :: Lens' Relevance TCEnv
-eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
+-- eRelevance :: Lens' Relevance TCEnv
+-- eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }

@@ -502,7 +502,8 @@ checkAbsurdLambda i h e t = do
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant position, the helper function
           -- is added as irrelevant
-          rel <- asks envRelevance
+          -- The above is not true anymore.
+          rel <- return Relevant
           reportSDoc "tc.term.absurd" 10 $ vcat
             [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
             , nest 2 $ text "of type" <+> prettyTCM t'
@@ -543,7 +544,7 @@ checkExtendedLambda i di qname cs e t = do
    t <- instantiateFull t
    ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t -> do
      j   <- currentOrFreshMutualBlock
-     rel <- asks envRelevance
+     rel <- return Relevant
      let info = setRelevance rel defaultArgInfo
      -- Andreas, 2016-07-13, issue 2028.
      -- Save the state to rollback the changes to the signature.
@@ -1936,7 +1937,7 @@ checkHeadApplication e t hd args = do
                                (freshName_ name)
 
         -- Define and type check the fresh function.
-        rel <- asks envRelevance
+        rel <- return Relevant
         abs <- aModeToDef <$> asks envAbstractMode
         let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                  PublicAccess abs noRange

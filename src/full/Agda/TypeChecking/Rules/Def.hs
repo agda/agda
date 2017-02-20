@@ -615,7 +615,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
           ]
 
         -- compute body modification for irrelevant definitions, see issue 610
-        rel <- asks envRelevance
+        rel <- asks envRelevance -- body modification
         let bodyMod body = case rel of
               Irrelevant -> dontCare <$> body
               _          -> body
