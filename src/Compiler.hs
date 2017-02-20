@@ -9,6 +9,8 @@ module Compiler
   , Binding
   , nameToIdent
   , compile
+  -- * Others
+  , qnameNameId
   ) where
 
 import           Agda.Syntax.Common (NameId(..))
@@ -141,7 +143,7 @@ translateSwitch tcase alt = case alt of
     let bt = bindFields vars usedFields tcase t'
           -- TODO: It is not clear how to deal with bindings in a pattern
     return (pure tg, bt)
-  TAGuard{}      -> return ([], Mvar "TAGuard")
+  TAGuard{}      -> return ([], Mvar "TAGuard.undefined")
 
 bindFields :: [Ident] -> Set Int -> Term -> Term -> Term
 bindFields vars used termc body = case map bind varsRev of
@@ -239,8 +241,8 @@ primToOpAndType tp = (op, aType)
       PMul -> Right Mul
       PQuot -> wrong
       PRem -> Right Mod
-      PGeq -> Right Gt
-      PLt -> wrong
+      PGeq -> Right Gte
+      PLt -> Right Lt
       PEqI -> wrong
       PEqF -> wrong
       PEqS -> wrong
@@ -250,7 +252,7 @@ primToOpAndType tp = (op, aType)
       PSeq -> wrong
     aType = TInt
     -- TODO: Stub!
-    wrong = Right Xor
+    wrong = error "stub"
 
 -- This function wraps primitives in a lambda.
 --
