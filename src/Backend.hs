@@ -4,6 +4,7 @@ import           Agda.Compiler.Backend
 import           Agda.Utils.Pretty
 import qualified Compiler              as Mlf
 import           Control.Monad
+import           Control.Monad.Extra
 import           Control.Monad.Trans
 import           Data.Bifunctor
 import           Data.Either
@@ -64,6 +65,37 @@ backend' = Backend' {
   , backendVersion = Nothing
   }
 
+
+definitionSummary :: Definition -> TCM ()
+definitionSummary def = do
+  liftIO (putStrLn ("Summary for: " ++ show q))
+  liftIO $ putStrLn $ unlines [
+    show (defName def)
+      ++ "  (" ++ show (Mlf.qnameNameId q)++ "), " ++ defntype
+    ]
+  case theDef def of
+    Function{} ->
+      whenJustM (toTreeless q) $
+        \tt ->
+          liftIO . putStrLn . render
+          $  header '=' (show q)
+          $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
+          $$ sect "Treeless (concrete syntax)"    (pretty tt)
+    _ -> return ()
+    where
+      sect t dc = text t $+$ nest 2 dc $+$ text ""
+      header c h = let cs = replicate 15 c
+                   in text $ printf "%s %s %s" cs h cs
+      q = defName def
+      defntype = case theDef def of
+        Constructor{}  -> "constructor"
+        Primitive{}    -> "primitive"
+        Function{}     -> "function"
+        Datatype{}     -> "datatype"
+        Record{}       -> "record"
+        AbstractDefn{} -> "abstract"
+        Axiom{}        -> "axiom"
+
 -- TODO: Maybe we'd like to refactor this so that we first do something like
 -- this (in the calling function)
 --
@@ -78,18 +110,26 @@ mlfMod
   -> TCM Mod
 mlfMod allDefs = do
   -- grps' <- mapM (mapM getBindings . filter (isFunction . theDef)) grps
-  grps' <- mapM (mapM act) defsByDefmutual
-  let justs = map catMaybes grps'
-      (primBindings, tlFunBindings) = first concat (unzip (map partitionEithers justs))
-      (MMod funBindings ts) = Mlf.compile (getConstructors allDefs) tlFunBindings
+  grps' <- mapM (mapMaybeM act) defsByDefmutual
+  let
+    (primBindings, tlFunBindings) = first concat (unzip (map partitionEithers grps'))
+    (MMod funBindings ts) = Mlf.compile (getConstructors allDefs) tlFunBindings
+  -- liftIO $ summaryRecGroups tlFunBindings
   return $ MMod (primBindings ++ funBindings) ts
     where
-      defsByDefmutual = groupSortOn defMutual allDefs
+      -- defsByDefmutual = groupSortOn defMutual allDefs
+      defsByDefmutual = [allDefs]
       act :: Definition -> TCM (Maybe (Either Binding (QName, TTerm)))
       act def@Defn{defName = q, theDef = d} = case d of
         Function{}                -> fmap Right <$> getBindings def
         Primitive{ primName = s } -> fmap Left <$> compilePrim q s
         _                         -> return Nothing
+
+summaryRecGroups :: [[(QName,TTerm)]] -> IO ()
+summaryRecGroups = putStrLn . intercalate "\n----------------\n" . map summaryRecGroup
+  where summaryRecGroup :: [(QName, TTerm)] -> String
+        summaryRecGroup g = intercalate ", " (map show qs)
+          where (qs, ts) = unzip g
 
 getBindings :: Definition -> TCM (Maybe (QName, TTerm))
 getBindings Defn{defName = q} = fmap (\t -> (q, t)) <$> toTreeless q
@@ -114,7 +154,9 @@ recGrp allDefs defs = toGrp <$> bs
       Named i t    -> [(i, t)]
 
 mlfPostCompile :: MlfOptions -> IsMain -> Map ModuleName [Definition] -> TCM ()
-mlfPostCompile opts _ modToDefs = void $ mlfPostModule opts allDefs
+mlfPostCompile opts _ modToDefs = do
+  mapM_ definitionSummary allDefs
+  void $ mlfPostModule opts allDefs
   where
     allDefs :: [Definition]
     allDefs = concat (Map.elems modToDefs)
