@@ -1,6 +1,9 @@
 -- 2011-10-01 Andreas
 {-# OPTIONS --show-implicit #-}
--- {-# OPTIONS -v tc.polarity:15 -v tc.pos.args:10 #-}
+
+-- {-# OPTIONS -v tc.polarity:15 -v tc.decl:10 #-}
+-- {-# OPTIONS -v tc.pos.args:10 #-}
+
 module EtaContractIrrelevant where
 
 import Common.Level
@@ -25,9 +28,12 @@ postulate
 πCong : {A A' : Pred}(A≡A' : A ≡ A') →
   {F  : fam A }
   {F' : fam A'}
-  (F≡F' : _≡_ {A = {a : Val} → .(A a) → Pred}
+  (F≡F' : _≡_ {A = fam A}
           (λ {a} Aa → F {a = a} Aa)
           (λ {a} Aa → F' {a = a} (subst (λ A → A a) A≡A' Aa))) →
   π A F ≡ π A' F'
 πCong refl refl = refl
--- needs eta-contraction for irrelevant functions F F'
+
+-- needed eta-contraction for irrelevant functions F F'
+
+-- No longer.

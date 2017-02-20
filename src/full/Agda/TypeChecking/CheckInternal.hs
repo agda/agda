@@ -12,7 +12,7 @@ module Agda.TypeChecking.CheckInternal
   ( checkType
   , checkInternal
   , checkInternal'
-  , defaultAction, Action(..)
+  , Action(..), defaultAction, fixUnusedArgAction
   , infer
   , inferSort
   ) where
@@ -99,11 +99,46 @@ checkType' t = do
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
 
-data Action = Action { preAction  :: Type -> Term -> TCM Term
-                     , postAction :: Type -> Term -> TCM Term }
 
+-- | 'checkInternal' traverses the whole 'Term', and we can use this
+--   traversal to modify the term.
+data Action = Action
+  { preAction  :: Type -> Term -> TCM Term
+    -- ^ Called on each subterm before the checker runs.
+  , postAction :: Type -> Term -> TCM Term
+    -- ^ Called on each subterm after the type checking.
+  , relevanceAction :: Relevance -> Relevance -> Relevance
+    -- ^ Called for each @ArgInfo@.
+    --   The first 'Relevance' is from the type,
+    --   the second from the term.
+  }
+
+-- | The default action is to not change the 'Term' at all.
 defaultAction :: Action
-defaultAction = Action (\ _ v -> return v) (\ _ v -> return v)
+defaultAction = Action
+  { preAction       = \ _ -> return
+  , postAction      = \ _ -> return
+  , relevanceAction = \ _ -> id
+  }
+
+-- | This action propagates 'UnusedArg' from 'Type' to 'Term' but leaves
+--   the term otherwise intact.
+fixUnusedArgAction :: Action
+fixUnusedArgAction = defaultAction { relevanceAction = propagateUnusedArg }
+
+-- | Propagate a 'UnusedArg' 'Relevance' from type to term,
+--   overriding 'Relevant'
+propagateUnusedArg :: Relevance -> Relevance -> Relevance
+propagateUnusedArg UnusedArg = \case
+  UnusedArg -> UnusedArg
+  Relevant  -> UnusedArg
+  -- If it is forced in the constructor, it is because it appears
+  -- in the type in a pattern position, thus, cannot be unused in the type.
+  Forced{}   -> __IMPOSSIBLE__
+  -- The remaining cases have been excluded by 'checkRelevance'.
+  NonStrict  -> __IMPOSSIBLE__
+  Irrelevant -> __IMPOSSIBLE__
+propagateUnusedArg _ = id
 
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
@@ -142,7 +177,7 @@ checkInternal' action v t = do
     Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
-      checkArgInfo ai $ domInfo a
+      ai <- checkArgInfo action ai $ domInfo a
       addContext (suggest vb b, a) $ do
         Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) (absBody b)
     Pi a b     -> do
@@ -184,16 +219,30 @@ checkArgs :: Action -> Type -> Term -> Args -> Type -> TCM Term
 checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
-checkArgInfo :: ArgInfo -> ArgInfo -> TCM ()
-checkArgInfo ai ai' = do
+--
+--   The @expected@ 'ArgInfo' comes from the type.
+--   The @actual@ 'ArgInfo' comes from the term and can be updated
+--   by an action.
+checkArgInfo :: Action -> ArgInfo -> ArgInfo -> TCM ArgInfo
+checkArgInfo action ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')
-  checkRelevance (getRelevance ai)  (getRelevance ai')
+  r <- checkRelevance action (getRelevance ai)  (getRelevance ai')
+  return $ setRelevance r ai
 
 checkHiding    :: Hiding -> Hiding -> TCM ()
 checkHiding    h h' = unless (h == h') $ typeError $ HidingMismatch h h'
 
-checkRelevance :: Relevance -> Relevance -> TCM ()
-checkRelevance r0 r0' = unless (r == r') $ typeError $ RelevanceMismatch r r'
+-- | @checkRelevance action term type@.
+--
+--   The @term@ 'Relevance' can be updated by the @action@.
+--   Note that the relevances might not match precisedly,
+--   because of the non-semantic 'Forced' and the presently somewhat
+--   unreliable 'UnusedArg' relevances.
+--
+checkRelevance :: Action -> Relevance -> Relevance -> TCM Relevance
+checkRelevance action r0 r0' = do
+  unless (r == r') $ typeError $ RelevanceMismatch r r'
+  return $ relevanceAction action r0' r0  -- Argument order for actions: @type@ @term@
   where
     r  = canon r0
     r' = canon r0'
@@ -264,7 +313,7 @@ inferSpine' action t self self' (e : es) = do
       inferSpine' action (b `absApp` r) (self `applyE` [e]) (self' `applyE` [IApply x' y' r']) es
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t
-      checkArgInfo ai $ domInfo a
+      ai <- checkArgInfo action ai $ domInfo a
       v' <- checkInternal' action v $ unDom a
       inferSpine' action (b `absApp` v) (self `applyE` [e]) (self' `applyE` [Apply (Arg ai v')]) es
     -- case: projection or projection-like
