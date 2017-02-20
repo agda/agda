@@ -11,6 +11,7 @@ module Compiler
   , compile
   -- * Others
   , qnameNameId
+  , errorT
   ) where
 
 import           Agda.Syntax.Common (NameId(..))
@@ -83,7 +84,7 @@ translate = translateTerm
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
   TVar i            -> indexToVarTerm i
-  TPrim tp          -> return $ wrapPrimInLambda tp
+  TPrim tp          -> primToTerm tp
   TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
   TLam{}            -> translateLam tt
@@ -93,22 +94,19 @@ translateTerm tt = case tt of
     t0' <- translateTerm t0
     (var, t1') <- introVar (translateTerm t1)
     return (Mlet [Named var t0'] t1')
-  -- @def@ is the default value if all @alt@s fail.
-  TCase i _ def alts -> do
+  -- @deflt@ is the default value if all @alt@s fail.
+  TCase i _ deflt alts -> do
     t <- indexToVarTerm i
     alts' <- alternatives t
     return $ Mswitch t alts'
     where
       -- Case expressions may not have an alternative, this is encoded
-      -- by @def@ being TError TUnreachable.
-      alternatives t = case def of
-        TError TUnreachable -> mapM (translateSwitch t) alts
+      -- by @deflt@ being TError TUnreachable.
+      alternatives t = case deflt of
+        TError TUnreachable -> translateAltsChain t Nothing alts
         _ -> do
-          d <- translateTerm def
-          cs <- mapM (translateSwitch t) alts
-          return (cs ++ [(anything, d)])
-      anything :: [Case]
-      anything = [CaseAnyInt, Deftag]
+          d <- translateTerm deflt
+          translateAltsChain t (Just d) alts
   TUnit             -> return unitT
   TSort             -> error ("Unimplemented " ++ show tt)
   TErased           -> return wildcardTerm -- TODO: so... anything can go here?
@@ -128,22 +126,52 @@ indexToVarTerm i = do
   ni <- asks _level
   return (Mvar (ident (ni - i - 1)))
 
-translateSwitch :: MonadTranslate m => Term -> TAlt -> m ([Case], Term)
-translateSwitch tcase alt = case alt of
---  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
-  TALit pat body -> do
-    b <- translateTerm body
-    let c = pure $ litToCase pat
-    return (c, b)
-  TACon con arity t -> do
-    tg <- nameToTag con
-    usedFields <- snd <$> introVars arity
-      (Set.map (\ix -> arity - ix - 1) . Set.filter (<arity) <$> usedVars t)
-    (vars, t') <- introVars arity (translateTerm t)
-    let bt = bindFields vars usedFields tcase t'
-          -- TODO: It is not clear how to deal with bindings in a pattern
-    return (pure tg, bt)
-  TAGuard{}      -> return ([], Mvar "TAGuard.undefined")
+-- translateSwitch :: MonadTranslate m => Term -> TAlt -> m ([Case], Term)
+-- translateSwitch tcase alt = case alt of
+-- --  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
+--   TALit pat body -> do
+--     b <- translateTerm body
+--     let c = pure $ litToCase pat
+--     return (c, b)
+--   TACon con arity t -> do
+--     tg <- nameToTag con
+--     usedFields <- snd <$> introVars arity
+--       (Set.map (\ix -> arity - ix - 1) . Set.filter (<arity) <$> usedVars t)
+--     (vars, t') <- introVars arity (translateTerm t)
+--     let bt = bindFields vars usedFields tcase t'
+--           -- TODO: It is not clear how to deal with bindings in a pattern
+--     return (pure tg, bt)
+--   TAGuard gd rhs -> return ([], Mvar "TAGuard.undefined")
+
+translateAltsChain :: MonadTranslate m => Term -> Maybe Term -> [TAlt] -> m [([Case], Term)]
+translateAltsChain tcase defaultt [] = return $ maybe [] (\d -> [(defaultCase, d)]) defaultt
+translateAltsChain tcase defaultt (ta:tas) =
+  case ta of
+    TALit pat body -> do
+      b <- translateTerm body
+      let c = litToCase pat
+      (([c], b):) <$> go
+    TACon con arity t -> do
+      tg <- nameToTag con
+      usedFields <- snd <$> introVars arity
+        (Set.map (\ix -> arity - ix - 1) . Set.filter (<arity) <$> usedVars t)
+      (vars, t') <- introVars arity (translateTerm t)
+      let bt = bindFields vars usedFields tcase t'
+      -- TODO: It is not clear how to deal with bindings in a pattern
+      (([tg], bt):) <$> go
+    TAGuard grd t -> do
+      tgrd <- translateTerm grd
+      t' <- translateTerm t
+      tailAlts <- go
+      return [(defaultCase,
+                Mswitch tgrd
+                [(trueCase, t')
+                , (defaultCase, Mswitch tcase tailAlts)])]
+  where
+    go = translateAltsChain tcase defaultt tas
+
+defaultCase :: [Case]
+defaultCase = [CaseAnyInt, Deftag]
 
 bindFields :: [Ident] -> Set Int -> Term -> Term -> Term
 bindFields vars used termc body = case map bind varsRev of
@@ -197,25 +225,25 @@ introVar ma = first head <$> introVars 1 ma
 --   TLam (TLam ...)
 translateApp :: MonadTranslate m => TTerm -> [TTerm] -> m Term
 translateApp ft xst = case ft of
-  TPrim p ->
-    case eOp of
-      (Left op) -> case xst of
-        [t0]     -> Mintop1 op tp <$> translateTerm t0
-        _        -> error ("Malformed! Unary: " ++ show op)
-      (Right op) -> case xst of
-        [t0, t1] -> liftM2 (Mintop2 op tp) (translateTerm t0) (translateTerm t1)
-        [t0] -> do
-          -- TODO: review this
-          -- translate (3*) ==> \x -> 3*x
-          (var, t0') <- introVar (translateTerm t0)
-          return (Mlambda [var] (Mintop2 op tp (Mvar var) t0' ))
-        [] -> do
-          -- translate (*) ==> \a -> \b -> a * b == \a b -> a * b
-          [a,b] <- fst <$> introVars 2 (return ())
-          return (Mlambda [a, b] (Mintop2 op tp (Mvar a) (Mvar b)))
-        _        -> error ("Malformed! Binary: " ++ show op ++ "\nxst = " ++ show xst)
-    where
-      (eOp, tp) = primToOpAndType p
+  -- TPrim p ->
+  --   case eOp of
+  --     (Left op) -> case xst of
+  --       [t0]     -> Mintop1 op tp <$> translateTerm t0
+  --       _        -> error ("Malformed! Unary: " ++ show op)
+  --     (Right op) -> case xst of
+  --       [t0, t1] -> liftM2 (Mintop2 op tp) (translateTerm t0) (translateTerm t1)
+  --       [t0] -> do
+  --         -- TODO: review this
+  --         -- translate (3*) ==> \x -> 3*x
+  --         (var, t0') <- introVar (translateTerm t0)
+  --         return (Mlambda [var] (Mintop2 op tp (Mvar var) t0' ))
+  --       [] -> do
+  --         -- translate (*) ==> \a -> \b -> a * b == \a b -> a * b
+  --         [a,b] <- fst <$> introVars 2 (return ())
+  --         return (Mlambda [a, b] (Mintop2 op tp (Mvar a) (Mvar b)))
+  --       _        -> error ("Malformed! Binary: " ++ show op ++ "\nxst = " ++ show xst)
+  --   where
+  --     (eOp, tp) = primToOpAndType p
   TCon nm -> translateCon nm xst
   _       -> do
     f <- translateTerm ft
@@ -232,27 +260,58 @@ translateLit l = case l of
   LitChar _ c-> Mint . CInt . fromEnum $ c
   _ -> error "unsupported literal type"
 
-primToOpAndType :: TPrim -> (Either UnaryIntOp BinaryIntOp, IntType)
-primToOpAndType tp = (op, aType)
+-- primToOpAndType :: TPrim -> (Either UnaryIntOp BinaryIntOp, IntType)
+-- primToOpAndType tp = (op, aType)
+--   where
+--     op = case tp of
+--       PAdd -> Right Add
+--       PSub -> Right Sub
+--       PMul -> Right Mul
+--       PQuot -> wrong
+--       PRem -> Right Mod
+--       PGeq -> Right Gte
+--       PLt -> Right Lt
+--       PEqI -> wrong
+--       PEqF -> wrong
+--       PEqS -> wrong
+--       PEqC -> wrong
+--       PEqQ -> wrong
+--       PIf -> wrong
+--       PSeq -> wrong
+--     aType = TInt
+--     -- TODO: Stub!
+--     wrong = error $ "stub : " ++ show tp
+
+primToTerm :: MonadTranslate m => TPrim -> m Term
+primToTerm tp =
+  case tp of
+    PAdd -> intbinop Add
+    PSub -> intbinop Sub
+    PMul -> intbinop Mul
+    PQuot -> intbinop Div
+    PRem -> intbinop Mod
+    PGeq -> intbinop Gte
+    PLt -> intbinop Lt
+    PEqI -> intbinop Eq
+    PEqF -> wrong
+    PEqS -> wrong
+    PEqC -> wrong
+    PEqQ -> wrong
+    PIf -> wrong
+    PSeq -> pseq
   where
-    op = case tp of
-      PAdd -> Right Add
-      PSub -> Right Sub
-      PMul -> Right Mul
-      PQuot -> wrong
-      PRem -> Right Mod
-      PGeq -> Right Gte
-      PLt -> Right Lt
-      PEqI -> wrong
-      PEqF -> wrong
-      PEqS -> wrong
-      PEqC -> wrong
-      PEqQ -> wrong
-      PIf -> wrong
-      PSeq -> wrong
     aType = TInt
+    intbinop op = do
+      [a, b] <- fst <$> introVars 2 (return ())
+      return $ Mlambda [a, b] $ Mintop2 op aType (Mvar a) (Mvar b)
+    -- NOTE: if the semantics of PSeq are equivalent to haskell's seq
+    -- then this is simply (\a b -> b) because malfunction is a strict
+    -- language
+    pseq      = return $ Mlambda ["a", "b"] $ Mvar "b"
     -- TODO: Stub!
-    wrong = error "stub"
+    -- wrong = return $ errorT $ "stub : " ++ show tp
+    wrong = undefined
+
 
 -- This function wraps primitives in a lambda.
 --
@@ -261,15 +320,15 @@ primToOpAndType tp = (op, aType)
 -- Translates to this:
 --
 --   lambda a b (+ a b)  (concrete syntax, malfunction)
-wrapPrimInLambda :: TPrim -> Term
-wrapPrimInLambda tprim = case op of
-  Left  unop -> Mlambda [var0]       $ Mintop1 unop tp (Mvar var0)
-  Right biop -> Mlambda [var0, var1] $ Mintop2 biop tp (Mvar var0) (Mvar var1)
-  where
-    (op, tp) = primToOpAndType tprim
-    -- TODO: The variables declared here might shadow existing bindings.
-    var0  = "n"
-    var1  = "m"
+-- wrapPrimInLambda :: TPrim -> Term
+-- wrapPrimInLambda tprim = case op of
+--   Left  unop -> Mlambda [var0]       $ Mintop1 unop tp (Mvar var0)
+--   Right biop -> Mlambda [var0, var1] $ Mintop2 biop tp (Mvar var0) (Mvar var1)
+--   where
+--     (op, tp) = primToOpAndType tprim
+--     -- TODO: The variables declared here might shadow existing bindings.
+--     var0  = "n"
+--     var1  = "m"
 
 -- FIXME: Please not the multitude of interpreting QName in the following
 -- section. This may be a problem.
@@ -451,3 +510,12 @@ qnamesIdsInTerm t = go t mempty
           TACon q _ t -> insertId q (go t qs)
           TAGuard t b -> foldr go qs [t, b]
           TALit _ b -> go b qs
+
+errorT :: String -> Term
+errorT err = Mapply (Mglobal ["Pervasives", "failwith"]) [Mstring err]
+
+boolT :: Bool -> Term
+boolT b = Mint (CInt $ if b then 1 else 0)
+
+trueCase :: [Case]
+trueCase = [CaseInt 1]
