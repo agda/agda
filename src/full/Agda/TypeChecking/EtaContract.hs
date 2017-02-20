@@ -70,7 +70,11 @@ etaOnce v = case v of
       tyty <- typeInType
       case binAppView b of
         App u (Arg info v)
-          | (isIrrelevant info || isVar0 tyty v)
+          | isVar0 tyty v
+          -- Andreas, 2017-02-20 issue #2464
+          -- Contracting with any irrelevant argument breaks subject reduction.
+          -- E.g. \ .x -> f .(subst P eq x)  can in general not be contracted to f.
+          -- -- | (isIrrelevant info || isVar0 tyty v)
                     && getHiding i == getHiding info
                     && not (freeIn 0 u) ->
             return $ strengthen __IMPOSSIBLE__ u
