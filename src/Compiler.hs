@@ -32,6 +32,8 @@ import           GHC.Word
 import           Instances
 import           Malfunction.AST
 import           Numeric (showHex)
+import Data.Char
+
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -384,9 +386,12 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
     NameId a b = qnameNameId qn
     hex = (`showHex` "") . toInteger
     withConcreteName = True
-    showNames = intercalate "." . map (filterValid . show . nameConcrete)
-    filterValid =
-      filter (\c -> any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')])
+    showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
+    toValid :: Char -> String
+    toValid c
+      | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
+        || c`elem`"_" = [c]
+      | otherwise      = "{" ++ show (ord c) ++ "}"
 
 qnameNameId :: QName -> NameId
 qnameNameId = nameId . qnameName

@@ -84,7 +84,7 @@ mlfMod allDefs = do
       (MMod funBindings ts) = Mlf.compile (getConstructors allDefs) tlFunBindings
   return $ MMod (primBindings ++ funBindings) ts
     where
-      defsByDefmutual = groupSortOn defMutual $ allDefs
+      defsByDefmutual = groupSortOn defMutual allDefs
       act :: Definition -> TCM (Maybe (Either Binding (QName, TTerm)))
       act def@Defn{defName = q, theDef = d} = case d of
         Function{}                -> fmap Right <$> getBindings def
