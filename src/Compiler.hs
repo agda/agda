@@ -402,20 +402,17 @@ compile allConstructors bs = runReaderEnv allConstructors (compile' bs)
 
 compile' :: MonadTranslate m => [[(QName, TTerm)]] -> m Mod
 compile' allDefsByDefMutual = do
-  bs <- mapM translate recGrps
-  return $ MMod (concat bs) []
+  bs <- mapM translateSCC recGrps
+  return $ MMod bs []
   where
-    translate scc = case scc of
-      AcyclicSCC single -> pure <$> uncurry translateBinding single
+    translateSCC scc = case scc of
+      AcyclicSCC single -> uncurry translateBinding single
       CyclicSCC grp -> translateMutualGroup grp
     recGrps :: [SCC (QName, TTerm)]
     recGrps = concatMap dependencyGraph allDefsByDefMutual
 
-translateMutualGroup :: MonadTranslate m => [(QName, TTerm)] -> m [Binding]
-translateMutualGroup bs = case bs of
-  []  -> return []
-  [x] -> pure             <$>      (uncurry translateBinding)     x
-  xs  -> pure . Recursive <$> mapM (uncurry translateBindingPair) xs
+translateMutualGroup :: MonadTranslate m => [(QName, TTerm)] -> m Binding
+translateMutualGroup bs = Recursive <$> mapM (uncurry translateBindingPair) bs
 
 translateBinding :: MonadTranslate m => QName -> TTerm -> m Binding
 translateBinding q t = uncurry Named <$> translateBindingPair q t
