@@ -392,21 +392,24 @@ qnameNameId :: QName -> NameId
 qnameNameId = nameId . qnameName
 
 
--- | Should take lists of "bindings" already sorted by rec-groups (allegedly for efficiency).
+-- | Should take lists of "bindings" already sorted by defMutual (for efficiency).
 compile
   :: [[QName]]          -- ^ All constructors grouped by data type.
   -> [[(QName, TTerm)]] -- ^ List of treeless bindings sorted and grouped by defMutual.
   -> Mod
 compile allConstructors bs = runReaderEnv allConstructors (compile' bs)
 
+
 compile' :: MonadTranslate m => [[(QName, TTerm)]] -> m Mod
-compile' allDefs = do
-  -- TODO: Are we losing important information here by just flattening the SCC?
-  bs <- mapM (translateMutualGroup . flattenSCC) recGrps
+compile' allDefsByDefMutual = do
+  bs <- mapM translate recGrps
   return $ MMod (concat bs) []
   where
+    translate scc = case scc of
+      AcyclicSCC single -> pure <$> uncurry translateBinding single
+      CyclicSCC grp -> translateMutualGroup grp
     recGrps :: [SCC (QName, TTerm)]
-    recGrps = concatMap dependencyGraph allDefs
+    recGrps = concatMap dependencyGraph allDefsByDefMutual
 
 translateMutualGroup :: MonadTranslate m => [(QName, TTerm)] -> m [Binding]
 translateMutualGroup bs = case bs of
