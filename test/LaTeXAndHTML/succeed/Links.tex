@@ -6,13 +6,13 @@
 \AgdaTarget{ℕ}
 \AgdaTarget{zero}
 \begin{code}%
-\>\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{zero} \<[8]%
 \>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{suc} \<[8]%
 \>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
 \end{code}
@@ -26,9 +26,9 @@ manually though; \hyperlink{two}{\AgdaDatatype{two}}.
 \AgdaTarget{two}
 \hypertarget{two}{}
 \begin{code}%
-\>\AgdaFunction{two} \AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
+\>[0]\AgdaFunction{two} \AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
 \\
-\>\AgdaFunction{two} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
+\>[0]\AgdaFunction{two} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
 \end{code}
 
 \AgdaInductiveConstructor{zero} is of type
@@ -41,9 +41,9 @@ Now that the target for \AgdaFunction{two} has been defined the link
 works automatically.
 
 \begin{code}%
-\>\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaInductiveConstructor{true} \AgdaInductiveConstructor{false} \AgdaSymbol{:} \AgdaDatatype{Bool}\<%
 \end{code}
 
@@ -52,11 +52,11 @@ to be specified as follows:
 
 \AgdaTarget{if, then, else, if\_then\_else\_}
 \begin{code}%
-\>\AgdaFunction{if\_then\_else\_} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{Bool} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
+\>[0]\AgdaFunction{if\_then\_else\_} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{Bool} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
 \\
-\>\AgdaFunction{if} \AgdaInductiveConstructor{true} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{t}\<%
+\>[0]\AgdaFunction{if} \AgdaInductiveConstructor{true} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{t}\<%
 \\
-\>\AgdaFunction{if} \AgdaInductiveConstructor{false} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{f}\<%
+\>[0]\AgdaFunction{if} \AgdaInductiveConstructor{false} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{f}\<%
 \end{code}
 
 \newpage

@@ -369,8 +369,6 @@
 \newcommand{\AgdaHole}[1]{\colorbox{AgdaHole}{#1}}
 \long\def\AgdaHide#1{\ignorespaces} % Used to hide code from LaTeX.
 
-\newcommand{\AgdaIndent}[1]{$\;\;$}
-
 % ----------------------------------------------------------------------
 % The code environment.
 
@@ -552,5 +550,20 @@
 
 % Default column for polytable.
 \defaultcolumn{@{}l@{ }}
+
+% \AgdaIndent expects a non-negative integer as its only argument.
+% This integer should be the distance, in code blocks, to the thing
+% relative to which the text is indented.
+%
+% The default implementation only indents if the thing that the text
+% is indented relative to exists in the same code block or is wrapped
+% in the same AgdaAlign or AgdaMultiCode environment.
+\newcommand{\AgdaIndent}[1]{%
+  \ifthenelse{#1 = 0
+                \OR
+              \( \value{Agda@Align} = 1
+                   \AND
+                 #1 < \value{Agda@AlignCurrent}
+              \)}{ $\;\;$}{}}
 
 \endinput

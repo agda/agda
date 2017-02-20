@@ -1,0 +1,17 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+% Redefining \AgdaIndent as a one-argument command should work.
+\renewcommand{\AgdaIndent}[1]{~~}
+
+\begin{document}
+
+\begin{code}%
+\>[0]\AgdaKeyword{postulate}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
+\>[2]\AgdaPostulate{Whatever} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\end{document}

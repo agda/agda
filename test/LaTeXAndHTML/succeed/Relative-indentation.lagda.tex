@@ -1,0 +1,94 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+\begin{code}
+postulate
+  A  B
+      C : Set
+\end{code}
+
+\begin{code}
+postulate
+  D  E
+
+      F : Set
+\end{code}
+
+\begin{code}
+postulate
+  G  H  : Set
+  I
+      J : Set
+\end{code}
+
+\begin{AgdaMultiCode}{2}
+\begin{code}
+postulate
+  K  L
+\end{code}
+\begin{code}
+      M : Set
+\end{code}
+\end{AgdaMultiCode}
+
+\begin{code}
+record R : Set₁ where
+  field N :
+            Set
+\end{code}
+
+% There is (and should be) trailing whitespace at the end of some
+% lines below.
+
+\begin{AgdaAlign}
+text \begin{code}        
+module _ where
+\end{code} more text
+    also text  \begin{code}
+    postulate O : Set  
+  \end{code} text again
+
+ text          \begin{code}            
+    postulate o : O    
+  \end{code}   text             
+\end{AgdaAlign}
+
+\begin{code}
+postulate
+ P : Set
+\end{code}
+
+\begin{code}
+module _ where
+ postulate
+  Q : Set
+\end{code}
+
+\begin{code}
+module _ where
+         postulate
+          S : Set
+\end{code}
+
+\begin{AgdaMultiCode}{1}
+\begin{code}
+module _ where
+\end{code}
+\begin{code}
+  postulate T : Set
+\end{code}
+\end{AgdaMultiCode}
+
+\begin{AgdaSuppressSpace}{1}
+\begin{code}
+module _ where
+\end{code}
+\begin{code}
+  postulate U : Set
+\end{code}
+\end{AgdaSuppressSpace}
+
+\end{document}

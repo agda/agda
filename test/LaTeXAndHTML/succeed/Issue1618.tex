@@ -6,29 +6,29 @@
 The let should be properly aligned in the following code:
 
 \begin{code}%
-\>\AgdaFunction{id} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
+\>[0]\AgdaFunction{id} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
 \\
-\>\AgdaFunction{id} \AgdaBound{A} \AgdaSymbol{=}\<%
+\>[0]\AgdaFunction{id} \AgdaBound{A} \AgdaSymbol{=}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{let}\<%
 \\
-\>[2]\AgdaIndent{4}{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaBound{id'} \AgdaSymbol{:} \AgdaFunction{B} \AgdaSymbol{→} \AgdaFunction{B}\<%
 \\
-\>[2]\AgdaIndent{4}{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaBound{id'} \AgdaSymbol{=} \AgdaSymbol{λ} \AgdaBound{a} \AgdaSymbol{→} \AgdaBound{a}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{in} \AgdaBound{id'}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{where}\<%
 \\
-\>[2]\AgdaIndent{4}{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaFunction{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \\
-\>[2]\AgdaIndent{4}{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaFunction{B} \AgdaSymbol{=} \AgdaBound{A}\<%
 \end{code}
 
@@ -36,25 +36,25 @@ This should also work if the new block is following after the
 keyword, as opposed to on a new line.
 
 \begin{code}%
-\>\AgdaFunction{di} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
+\>[0]\AgdaFunction{di} \AgdaSymbol{:} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
 \\
-\>\AgdaFunction{di} \AgdaBound{A} \AgdaSymbol{=}\<%
+\>[0]\AgdaFunction{di} \AgdaBound{A} \AgdaSymbol{=}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{let} \<[7]%
 \>[7]\AgdaBound{id'} \AgdaSymbol{:} \AgdaFunction{B} \AgdaSymbol{→} \AgdaFunction{B}\<%
 \\
-\>[2]\AgdaIndent{7}{}\<[7]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[7]%
 \>[7]\AgdaBound{id'} \AgdaSymbol{=} \AgdaSymbol{λ} \AgdaBound{a} \AgdaSymbol{→} \AgdaBound{a}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{in} \AgdaBound{id'}\<%
 \\
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{where} \<[9]%
 \>[9]\AgdaFunction{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \\
-\>[2]\AgdaIndent{9}{}\<[9]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[9]%
 \>[9]\AgdaFunction{B} \AgdaSymbol{=} \AgdaBound{A}\<%
 \end{code}
 \end{document}

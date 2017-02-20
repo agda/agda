@@ -4,18 +4,27 @@
 
 \begin{document}
 
-\AgdaPostulate{A} and \AgdaPostulate{B} should be aligned.
-
+\AgdaPostulate{A} and \AgdaPostulate{B} should be aligned:
 \begin{code}%
-\>[0]\AgdaIndent{2}{}\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{postulate}\<%
 \\
-\>[2]\AgdaIndent{4}{}\<[4]%
+\>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
 \>[4]\AgdaPostulate{+̲+̲+̲+̲+̲+̲} \<[12]%
 \>[12]\AgdaPostulate{A}\<%
 \\
-\>[4]\AgdaIndent{12}{}\<[12]%
+\>[4][@{}l@{\AgdaIndent{0}}]\<[12]%
 \>[12]\AgdaPostulate{B} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
+The two \AgdaKeyword{field} keywords should not be aligned:
+\begin{code}%
+\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
+\>[2]\AgdaKeyword{record} \AgdaRecord{+̲} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where} \<[25]%
+\>[25]\AgdaKeyword{field} \AgdaField{C} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\\
+\>[25][@{}l@{\AgdaIndent{0}}]\<[26]%
+\>[26]\AgdaKeyword{field} \AgdaField{D} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \end{document}
