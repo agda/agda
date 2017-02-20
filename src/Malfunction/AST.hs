@@ -244,7 +244,7 @@ instance Pretty IntConst where
 --   pretty = text . showLongident
 
 prettyLongident :: Longident -> Doc
-prettyLongident = hcat . map prettyIdent
+prettyLongident = hsep . map prettyIdent
 
 -- Ditto problematic:
 -- instance Pretty Ident where
