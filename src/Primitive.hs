@@ -23,93 +23,93 @@ primitiveFunctions = Map.fromList
   , "primIntegerMod"      |-> binOp Mod
   , "primIntegerEquality" |-> binOp Eq
   , "primIntegerLess"     |-> binOp Lt
-  , "primIntegerAbs"      |-> errorT -- Probably needs to call OCaml
-  , "primNatToInteger"    |-> errorT
-  , "primShowInteger"     |-> errorT
+  , "primIntegerAbs"      |-> errorTPrim -- Probably needs to call OCaml
+  , "primNatToInteger"    |-> errorTPrim
+  , "primShowInteger"     |-> errorTPrim
 
   -- Natural number functions
-  , "primNatPlus"         |-> errorT
-  , "primNatMinus"        |-> errorT
-  , "primNatTimes"        |-> errorT
-  , "primNatDivSucAux"    |-> errorT
-  , "primNatModSucAux"    |-> errorT
-  , "primNatEquality"     |-> errorT
-  , "primNatLess"         |-> errorT
+  , "primNatPlus"         |-> errorTPrim
+  , "primNatMinus"        |-> errorTPrim
+  , "primNatTimes"        |-> errorTPrim
+  , "primNatDivSucAux"    |-> errorTPrim
+  , "primNatModSucAux"    |-> errorTPrim
+  , "primNatEquality"     |-> errorTPrim
+  , "primNatLess"         |-> errorTPrim
 
   -- Level functions
-  , "primLevelZero"       |-> errorT
-  , "primLevelSuc"        |-> errorT
-  , "primLevelMax"        |-> errorT
+  , "primLevelZero"       |-> errorTPrim
+  , "primLevelSuc"        |-> errorTPrim
+  , "primLevelMax"        |-> errorTPrim
 
   -- Floating point functions
-  , "primNatToFloat"      |-> errorT
-  , "primFloatPlus"       |-> errorT
-  , "primFloatMinus"      |-> errorT
-  , "primFloatTimes"      |-> errorT
-  , "primFloatNegate"     |-> errorT
-  , "primFloatDiv"        |-> errorT
+  , "primNatToFloat"      |-> errorTPrim
+  , "primFloatPlus"       |-> errorTPrim
+  , "primFloatMinus"      |-> errorTPrim
+  , "primFloatTimes"      |-> errorTPrim
+  , "primFloatNegate"     |-> errorTPrim
+  , "primFloatDiv"        |-> errorTPrim
   -- ASR (2016-09-29). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  , "primFloatEquality"   |-> errorT
-  , "primFloatNumericalEquality" |-> errorT
-  , "primFloatNumericalLess"     |-> errorT
-  , "primFloatSqrt"       |-> errorT
-  , "primRound"           |-> errorT
-  , "primFloor"           |-> errorT
-  , "primCeiling"         |-> errorT
-  , "primExp"             |-> errorT
-  , "primLog"             |-> errorT
-  , "primSin"             |-> errorT
-  , "primCos"             |-> errorT
-  , "primTan"             |-> errorT
-  , "primASin"            |-> errorT
-  , "primACos"            |-> errorT
-  , "primATan"            |-> errorT
-  , "primATan2"           |-> errorT
-  , "primShowFloat"       |-> errorT
+  , "primFloatEquality"   |-> errorTPrim
+  , "primFloatNumericalEquality" |-> errorTPrim
+  , "primFloatNumericalLess"     |-> errorTPrim
+  , "primFloatSqrt"       |-> errorTPrim
+  , "primRound"           |-> errorTPrim
+  , "primFloor"           |-> errorTPrim
+  , "primCeiling"         |-> errorTPrim
+  , "primExp"             |-> errorTPrim
+  , "primLog"             |-> errorTPrim
+  , "primSin"             |-> errorTPrim
+  , "primCos"             |-> errorTPrim
+  , "primTan"             |-> errorTPrim
+  , "primASin"            |-> errorTPrim
+  , "primACos"            |-> errorTPrim
+  , "primATan"            |-> errorTPrim
+  , "primATan2"           |-> errorTPrim
+  , "primShowFloat"       |-> errorTPrim
 
   -- Character functions
-  , "primCharEquality"    |-> errorT
-  , "primIsLower"         |-> errorT
-  , "primIsDigit"         |-> errorT
-  , "primIsAlpha"         |-> errorT
-  , "primIsSpace"         |-> errorT
-  , "primIsAscii"         |-> errorT
-  , "primIsLatin1"        |-> errorT
-  , "primIsPrint"         |-> errorT
-  , "primIsHexDigit"      |-> errorT
-  , "primToUpper"         |-> errorT
-  , "primToLower"         |-> errorT
-  , "primCharToNat"       |-> errorT
-  , "primNatToChar"       |-> errorT
-  , "primShowChar"        |-> errorT
+  , "primCharEquality"    |-> errorTPrim
+  , "primIsLower"         |-> errorTPrim
+  , "primIsDigit"         |-> errorTPrim
+  , "primIsAlpha"         |-> errorTPrim
+  , "primIsSpace"         |-> errorTPrim
+  , "primIsAscii"         |-> errorTPrim
+  , "primIsLatin1"        |-> errorTPrim
+  , "primIsPrint"         |-> errorTPrim
+  , "primIsHexDigit"      |-> errorTPrim
+  , "primToUpper"         |-> errorTPrim
+  , "primToLower"         |-> errorTPrim
+  , "primCharToNat"       |-> errorTPrim
+  , "primNatToChar"       |-> errorTPrim
+  , "primShowChar"        |-> errorTPrim
 
   -- String functions
-  , "primStringToList"    |-> errorT
-  , "primStringFromList"  |-> errorT
-  , "primStringAppend"    |-> errorT
-  , "primStringEquality"  |-> errorT
-  , "primShowString"      |-> errorT
+  , "primStringToList"    |-> errorTPrim
+  , "primStringFromList"  |-> errorTPrim
+  , "primStringAppend"    |-> errorTPrim
+  , "primStringEquality"  |-> errorTPrim
+  , "primShowString"      |-> errorTPrim
 
   -- Other stuff
-  , "primTrustMe"         |-> errorT
+  , "primTrustMe"         |-> errorTPrim
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
-  , "primForce"           |-> errorT
-  , "primForceLemma"      |-> errorT
-  , "primQNameEquality"   |-> errorT
-  , "primQNameLess"       |-> errorT
-  , "primShowQName"       |-> errorT
-  , "primQNameFixity"     |-> errorT
-  , "primMetaEquality"    |-> errorT
-  , "primMetaLess"        |-> errorT
-  , "primShowMeta"        |-> errorT
+  , "primForce"           |-> errorTPrim
+  , "primForceLemma"      |-> errorTPrim
+  , "primQNameEquality"   |-> errorTPrim
+  , "primQNameLess"       |-> errorTPrim
+  , "primShowQName"       |-> errorTPrim
+  , "primQNameFixity"     |-> errorTPrim
+  , "primMetaEquality"    |-> errorTPrim
+  , "primMetaLess"        |-> errorTPrim
+  , "primShowMeta"        |-> errorTPrim
   ]
   where
     (|->) = (,)
 
-errorT :: Term
-errorT = Mapply (Mglobal ["Pervasives", "failwith"]) [Mstring "Primitive function not implemented"]
+errorTPrim :: Term
+errorTPrim = errorT "Primitive function not implemented"
 
 binOp :: BinaryIntOp -> Term
 binOp op = Mlambda ["a", "b"] (Mintop2 op TInt (Mvar "a") (Mvar "b"))
