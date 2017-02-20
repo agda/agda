@@ -386,12 +386,13 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
 qnameNameId :: QName -> NameId
 qnameNameId = nameId . qnameName
 
+
 -- | Should take lists of "bindings" already sorted by rec-groups (allegedly for efficiency).
 compile
-  :: [[QName]]          -- ^ Contains all visible definitions (grouped in a weird way) TODO: Which?
-  -> [[(QName, TTerm)]] -- ^ A list of mutually recursive bindings
+  :: [[QName]]          -- ^ All constructors grouped by data type.
+  -> [[(QName, TTerm)]] -- ^ List of treeless bindings sorted and grouped by defMutual.
   -> Mod
-compile allDefs bs = runReaderEnv allDefs (compile' bs)
+compile allConstructors bs = runReaderEnv allConstructors (compile' bs)
 
 compile' :: MonadTranslate m => [[(QName, TTerm)]] -> m Mod
 compile' allDefs = do

@@ -75,16 +75,16 @@ backend' = Backend' {
 -- | Compiles a whole module
 mlfMod
   :: [Definition]   -- ^ All visible definitions
-  -> [[Definition]] -- ^ A list of mutually recursive definitions
   -> TCM Mod
-mlfMod allDefs grps = do
+mlfMod allDefs = do
   -- grps' <- mapM (mapM getBindings . filter (isFunction . theDef)) grps
-  grps' <- mapM (mapM act) grps
+  grps' <- mapM (mapM act) defsByDefmutual
   let justs = map catMaybes grps'
-      (lefts', rights') = first concat (unzip (map partitionEithers justs))
-      (MMod bs ts) = Mlf.compile (getConstructors allDefs) rights'
-  return $ MMod (lefts' ++ bs) ts
+      (primBindings, tlFunBindings) = first concat (unzip (map partitionEithers justs))
+      (MMod funBindings ts) = Mlf.compile (getConstructors allDefs) tlFunBindings
+  return $ MMod (primBindings ++ funBindings) ts
     where
+      defsByDefmutual = groupSortOn defMutual $ allDefs
       act :: Definition -> TCM (Maybe (Either Binding (QName, TTerm)))
       act def@Defn{defName = q, theDef = d} = case d of
         Function{}                -> fmap Right <$> getBindings def
@@ -128,7 +128,7 @@ mlfPostCompile opts _ modToDefs = void $ mlfPostModule opts allDefs
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule mlfopt defs = do
-  modl <- mlfMod defs . groupSortOn defMutual $ defs
+  modl <- mlfMod defs
   let modlTxt = prettyShow modl
   when (_debug mlfopt) $ liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
@@ -183,7 +183,7 @@ mlfDef alldefs d@Defn{ defName = q } =
     Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
 
--- | Returns all constructors for the given definition.
+-- | Returns all constructors grouped by data type.
 getConstructors :: [Definition] -> [[QName]]
 getConstructors = mapMaybe (getCons . theDef)
   where
