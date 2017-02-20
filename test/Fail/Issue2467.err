@@ -1,0 +1,3 @@
+Issue2467.agda:8,1-18
+Cannot add rewrite rule without prior BUILTIN REWRITE
+when checking the pragma REWRITE A

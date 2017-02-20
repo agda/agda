@@ -149,7 +149,9 @@ relView t = do
 addRewriteRule :: QName -> TCM ()
 addRewriteRule q = do
   requireOptionRewriting
-  rel <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName builtinRewrite
+  let failNoBuiltin = typeError $ GenericError $
+        "Cannot add rewrite rule without prior BUILTIN REWRITE"
+  rel <- fromMaybeM failNoBuiltin $ getBuiltinName builtinRewrite
   def <- instantiateDef =<< getConstInfo q
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
