@@ -797,7 +797,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                             (applyPatSubst rho0 $ flattenTel delta1)
                             (problemInPat p0)
                             (applySubst rho0 $ teleArgs delta1)
-      let dpi' = applyPatSubst rho dpi ++ newDpi
+      let dpi' = applyPatSubst rho dpi -- ++ newDpi
           ps' = p0' ++ problemInPat (absBody p1)
 
       reportSDoc "tc.lhs.split.problem" 10 $ sep
