@@ -107,12 +107,12 @@ translateTerm tt = case tt of
       anything = [CaseAnyInt, Deftag]
   TUnit             -> return unitT
   TSort             -> error ("Unimplemented " ++ show tt)
-  TErased           -> return wildCardTerm -- TODO: so... anything can go here?
+  TErased           -> return wildcardTerm -- TODO: so... anything can go here?
   TError TUnreachable -> return unreachableT
 
 -- | We use this when we don't care about the translation.
-wildCardTerm :: Term
-wildCardTerm = Mint (CInt 666)
+wildcardTerm :: Term
+wildcardTerm = Mint (CInt 666)
 
 -- | `unreachableT` is an expression that can never be executed (in a type-
 -- correct term), so in malfunction this can be encoded as anything.
@@ -151,7 +151,7 @@ bindFields vars used termc body = case map bind varsRev of
     bind (ix, iden)
       -- Set.member ix used = Named iden (Mfield (arity - ix - 1) termc)
       | Set.member ix used = Named iden (Mfield ix termc)
-      | otherwise = Named iden wildCardTerm
+      | otherwise = Named iden wildcardTerm
 
 litToCase :: Literal -> Case
 litToCase l = case l of
