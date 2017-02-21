@@ -92,4 +92,6 @@ goldenTests :: TestTree
 goldenTests = testGroup "Compiler golden tests"
   [ mkGoldenTest "FstSnd" "a"
   , mkGoldenTest "FstSnd" "b"
+  , mkGoldenTest "Factorial" "a"
+  , mkGoldenTest "Factorial" "b"
   ]
