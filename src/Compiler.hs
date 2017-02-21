@@ -446,6 +446,7 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
       | otherwise = id
     NameId a b = qnameNameId qn
     hex = (`showHex` "") . toInteger
+    -- TODO: Make this configurable or don't use it at all:
     withConcreteName = True
     showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
     toValid :: Char -> String
