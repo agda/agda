@@ -17,6 +17,10 @@ import           Data.Maybe
 import           Malfunction.AST
 import           Malfunction.Run
 import           System.Console.GetOpt
+import           System.FilePath       (takeBaseName)
+import           System.IO             (hPutStr, hFlush)
+import           System.IO.Temp        (withSystemTempFile)
+import           System.Process
 import           Text.Printf
 
 import           Primitive             (compilePrim)
@@ -28,6 +32,7 @@ data MlfOptions = Opts
   { _enabled    :: Bool
   , _resultVar  :: Maybe Ident
   , _outputFile :: Maybe FilePath
+  , _outputMlf  :: Maybe FilePath
   , _debug      :: Bool
   }
 
@@ -36,6 +41,7 @@ defOptions = Opts
   { _enabled    = False
   , _resultVar  = Nothing
   , _outputFile = Nothing
+  , _outputMlf  = Nothing
   , _debug      = False
   }
 
@@ -49,6 +55,8 @@ ttFlags =
     "(DEBUG) Place outputFile resulting module into FILE"
   , Option ['d'] ["debug"] (NoArg $ \ o -> return o{ _enabled = True })
     "Generate Malfunction"
+  , Option [] ["compilemlf"] (ReqArg (\r o -> return o{_outputMlf = Just r}) "MODNAME")
+    "Runs the malfunction compiler on the output file"
   ]
 
 backend' :: Backend' MlfOptions MlfOptions () [Definition] Definition
@@ -160,7 +168,19 @@ mlfPostModule mlfopt defs = do
   case _outputFile mlfopt of
     Just fp -> liftIO $ writeFile fp modlTxt
     Nothing -> return ()
+  case _outputMlf mlfopt of
+    Just fp -> liftIO $ runMalfunction fp modlTxt
+    Nothing -> return ()
   return modl
+
+-- | `runMalfunction fp inp` calls the malfunction compiler on the input `inp`
+-- and places the output at `fp`. Assumes that the executable `malfunction` is
+-- in `PATH`.
+runMalfunction :: FilePath -> String -> IO ()
+runMalfunction nm modl = takeBaseName nm `withSystemTempFile` \fp h -> do
+  hPutStr h modl
+  hFlush h
+  callProcess "malfunction" ["compile", fp, "-o", nm]
 
 printVar :: MonadIO m => Mod -> Ident -> m ()
 printVar modl@(MMod binds _) v = do
