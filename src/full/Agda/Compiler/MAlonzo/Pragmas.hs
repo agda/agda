@@ -7,12 +7,17 @@ import Data.Maybe
 import Data.Char
 import Data.List
 import Data.Traversable (traverse)
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.Parser.ReadP
+import Agda.Utils.Lens
+
+import Agda.Compiler.Common
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -99,4 +104,16 @@ getHaskellConstructor c = do
           return $ Just $ fromMaybe __IMPOSSIBLE__ $ lookup c $ zip cons hsCons
         _ -> return Nothing
     _ -> return Nothing
+
+isImport :: String -> Bool
+isImport = isPrefixOf "import " . dropWhile isSpace
+
+foreignHaskell :: TCM [String]
+foreignHaskell = fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+
+inlineHaskell :: TCM [String]
+inlineHaskell = filter (not . isImport) <$> foreignHaskell
+
+haskellImports :: TCM [String]
+haskellImports = filter isImport <$> foreignHaskell
 

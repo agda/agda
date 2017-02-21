@@ -164,10 +164,11 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
 
 ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM ()
 ghcPostModule _ _ _ _ defs = do
-  m             <- curHsMod
-  imps          <- imports
-  inlineHaskell <- iHaskellCode <$> curIF
-  writeModule $ HS.Module m [] imps (map fakeDecl (reverse inlineHaskell) ++ concat defs)
+  m      <- curHsMod
+  imps   <- imports
+  code   <- inlineHaskell
+  hsImps <- haskellImports
+  writeModule $ HS.Module m [] imps (map fakeDecl (hsImps ++ code) ++ concat defs)
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]
 ghcCompileDef _ = definition
@@ -181,11 +182,9 @@ ghcCompileDef _ = definition
 --------------------------------------------------
 
 imports :: TCM [HS.ImportDecl]
-imports = (++) <$> hsImps <*> imps where
-  hsImps :: TCM [HS.ImportDecl]
-  hsImps = (unqualRTE :) . List.map decl . Set.toList .
-            Set.insert mazRTE . Set.map HS.ModuleName . iHaskellImports <$>
-             curIF
+imports = (hsImps ++) <$> imps where
+  hsImps :: [HS.ImportDecl]
+  hsImps = [unqualRTE, decl mazRTE]
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl mazRTE False $ Just $
