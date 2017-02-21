@@ -77,17 +77,17 @@ primitiveFunctions = Map.fromList
   , notMapped "primShowInteger"
 
   -- Natural number functions
-  , notMapped "primNatPlus"
-  , notMapped "primNatMinus"
-  , notMapped "primNatTimes"
-  , notMapped "primNatDivSucAux"
-  , notMapped "primNatModSucAux"
-  , notMapped "primNatEquality"
-  , notMapped "primNatLess"
+  , "primNatPlus"         |-> binOp Add
+  , "primNatMinus"        |-> binOp Sub
+  , "primNatTimes"        |-> binOp Mul
+  , "primNatDivSucAux"    |-> binOp Div
+  , "primNatModSucAux"    |-> binOp Mod
+  , "primNatEquality"     |-> binOp Eq
+  , "primNatLess"         |-> binOp Lt
 
   -- Level functions
-  , notMapped "primLevelZero"
-  , notMapped "primLevelSuc"
+  , "primLevelZero"       |-> zeroT
+  , "primLevelSuc"        |-> sucT
   , notMapped "primLevelMax"
 
   -- Floating point functions
@@ -162,3 +162,8 @@ primitiveFunctions = Map.fromList
 
 binOp :: BinaryIntOp -> Term
 binOp op = Mlambda ["a", "b"] (Mintop2 op TInt (Mvar "a") (Mvar "b"))
+
+zeroT :: Term
+zeroT = Mint (CInt 0)
+sucT :: Term
+sucT = Mlambda ["a"] (Mintop2 Add TInt (Mvar "a") (Mint (CInt 1)))

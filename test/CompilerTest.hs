@@ -3,13 +3,15 @@ module CompilerTest where
 -- TODO: Emacs keeps complaining that Test.Tasty.Discover is a member
 -- of a hidden package and keeps prompting me to add it to the .cabal-file.
 -- Solution M-x haskell-session-change-target -> agda2mlf:test
-import Test.Tasty.Discover
-import Compiler
-import Agda.Syntax.Treeless
-import Agda.Syntax.Literal
-import Malfunction.AST
+import qualified Agda.Syntax.Common        as C
 import qualified Agda.Syntax.Concrete.Name as C
-import qualified Agda.Syntax.Common as C
+import           Agda.Syntax.Literal
+import           Agda.Syntax.Treeless
+import           Compiler
+import           Malfunction.AST
+import           Test.Tasty
+import           Test.Tasty.HUnit
+import           Utils
 
 translate'1 :: TTerm -> Term
 translate'1 = head . translate' [] . pure
@@ -27,6 +29,8 @@ simpleQName mods nm = QName {
   qnameModule = MName (map (simpleName) mods)
   , qnameName = simpleName nm
   }
+
+unitTests = testGroup "Compiler unit tests" test_translate
 
 -- TODO: Add this test-case:
 -- Agda:
@@ -83,3 +87,11 @@ fstTT qn = TLam (TCase 0 (CTData qn)
                           -- [TACon {aCon = qcons, aArity = 2, aBody = TVar 1}])
 
 -- fstT qn = Named (show qn) (Mlambda ["v0"] (Mswitch (Mvar "v0") [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CInt 0))] (Mvar "v1"))]))
+
+goldenTests :: TestTree
+goldenTests = testGroup "Compiler golden tests"
+  [ mkGoldenTest "FstSnd" "a"
+  , mkGoldenTest "FstSnd" "b"
+  , mkGoldenTest "Factorial" "a"
+  , mkGoldenTest "Factorial" "b"
+  ]

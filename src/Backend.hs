@@ -11,6 +11,7 @@ import           Data.Either
 import           Data.Function
 import           Data.List
 import           Data.List.Extra
+import           Data.List.Extra
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe
@@ -49,7 +50,7 @@ ttFlags :: [OptDescr (Flag MlfOptions)]
 ttFlags =
   [ Option [] ["mlf"] (NoArg $ \ o -> return o{ _enabled = True })
     "Generate Malfunction"
-  , Option ['r'] [] (ReqArg (\r o -> return o{_resultVar = Just r}) "VAR")
+  , Option ['r'] ["print-var"] (ReqArg (\r o -> return o{_resultVar = Just r}) "VAR")
     "(DEBUG) Run the module and print the integer value of a variable"
   , Option ['o'] [] (ReqArg (\r o -> return o{_outputFile = Just r}) "FILE")
     "(DEBUG) Place outputFile resulting module into FILE"
@@ -74,8 +75,8 @@ backend' = Backend' {
   }
 
 
-definitionSummary :: Definition -> TCM ()
-definitionSummary def = do
+definitionSummary :: MlfOptions -> Definition -> TCM ()
+definitionSummary opts def = when (_debug opts) $ do
   liftIO (putStrLn ("Summary for: " ++ show q))
   liftIO $ putStrLn $ unlines [
     show (defName def)
@@ -145,7 +146,7 @@ getBindings Defn{defName = q} = fmap (\t -> (q, t)) <$> toTreeless q
 
 mlfPostCompile :: MlfOptions -> IsMain -> Map ModuleName [Definition] -> TCM ()
 mlfPostCompile opts _ modToDefs = do
-  mapM_ definitionSummary allDefs
+  mapM_ (definitionSummary opts) allDefs
   void $ mlfPostModule opts allDefs
   where
     allDefs :: [Definition]
@@ -159,21 +160,19 @@ mlfPostCompile opts _ modToDefs = do
 --       ...
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
-mlfPostModule mlfopt defs = do
-  modl <- mlfMod defs
-  let modlTxt = prettyShow modl
-  when (_debug mlfopt) $ liftIO . putStrLn $ modlTxt
-  case _resultVar mlfopt of
-    Just v  -> printVar modl v
-    Nothing -> return ()
-  case _outputFile mlfopt of
-    Just fp -> liftIO $ writeFile fp modlTxt
-    Nothing -> return ()
-  case _outputMlf mlfopt of
-    Just fp -> liftIO $ runMalfunction fp modlTxt
-    Nothing -> return ()
+mlfPostModule opts defs = do
+  modl@(MMod binds _) <- mlfMod defs
+  let modlTxt = prettyShow $ fromMaybe modl
+       ((withPrintInts modl . pure)  <$>  (_resultVar opts >>=  fromSimpleIdent binds))
+  when (_debug opts) $ liftIO . putStrLn $ modlTxt
+  whenJust (_resultVar opts) (printVars opts modl . pure)
+  whenJust (_outputFile opts) (liftIO . (`writeFile`modlTxt))
+  whenJust (_outputMlf opts) $ \fp -> liftIO $ runMalfunction fp modlTxt
   return modl
 
+-- FIXME: I do realize that similar functionality exists in `Malfunction.Run` I
+-- didn't use this because it also prints some stuff to stdout, so I felt it was
+-- easier to just repeat these 3 lines of code.
 -- | `runMalfunction fp inp` calls the malfunction compiler on the input `inp`
 -- and places the output at `fp`. Assumes that the executable `malfunction` is
 -- in `PATH`.
@@ -183,35 +182,45 @@ runMalfunction nm modl = takeBaseName nm `withSystemTempFile` \fp h -> do
   hFlush h
   callProcess "malfunction" ["compile", fp, "-o", nm]
 
-printVar :: MonadIO m => Mod -> Ident -> m ()
-printVar modl@(MMod binds _) v = do
+printVars :: MonadIO m => MlfOptions -> Mod -> [Ident] -> m ()
+printVars opts modl@(MMod binds _) simpleVars = when (_debug opts) $ do
   liftIO (putStrLn "\n=======================")
-  liftIO $
-    if any defVar binds
-    then runModPrintInts [v] modl >>= putStrLn
-    else putStrLn "Variable not bound, did you specify the *fully quailified* name?"
-    where
-      defVar (Named u _) = u == v
-      defVar _           = False
+  case fullNames of
+    Just vars -> liftIO $ runModPrintInts modl vars >>= putStrLn
+    _ ->
+      liftIO $
+      putStrLn
+        "Variable not bound, did you specify the *fully quailified* name, e.g. \"Test.var\"?"
+  where
+    fullNames = mapM (fromSimpleIdent binds) simpleVars
+
+-- | "Test2.a" --> 24.1932f7ddf4cc7d3a.Test2.a
+fromSimpleIdent :: [Binding] -> Ident -> Maybe Ident
+fromSimpleIdent binds simple = listToMaybe (filter (isSuffixOf simple) (getNames binds))
+  where
+    getNames = mapMaybe getName
+    getName (Named u _) = Just u
+    getName _ = Nothing
+
 
 -- TODO: `mlfDef` should honor the flag "--debug" and only print to stdout in
 -- case this is enabled. Also it would be nice to split up IO and the actual
 -- translation into two different functions.
-mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
-mlfDef alldefs d@Defn{ defName = q } =
+mlfDef :: MlfOptions -> [Definition] -> Definition -> TCM (Maybe Binding)
+mlfDef opts alldefs d@Defn{ defName = q } =
   case theDef d of
     Function{} -> do
       mtt <- toTreeless q
       case mtt of
         Nothing -> return Nothing
         Just tt -> do
-          liftIO . putStrLn . render
+          logd . render
             $  header '=' (show q)
             $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
           let
             mlf = Mlf.translateDef' (getConstructors alldefs) q tt
-          liftIO . putStrLn . render $
+          logd . render $
             sect "Malfunction (abstract syntax)" (text . show $ mlf)
             $$ sect "Malfunction (concrete syntax)" (pretty mlf)
           return (Just mlf)
@@ -226,6 +235,8 @@ mlfDef alldefs d@Defn{ defName = q } =
     Datatype{}    -> liftIO (putStrLn $ "  data " ++ show q) >> return Nothing
     Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
+  where logd = liftIO . when (_debug opts) . putStrLn
+
 
 -- | Returns all constructors grouped by data type.
 getConstructors :: [Definition] -> [[QName]]
