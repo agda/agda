@@ -481,9 +481,10 @@ compileAxiom
 compileAxiom q = Just
   $ Named (nameToIdent q)
   $ fromMaybe unknownAxiom
-  $ Map.lookup (show q) Primitive.axioms
+  $ Map.lookup (show q') Primitive.axioms
   where
-    unknownAxiom = Mlambda [] $ errorT $ "Unknown axiom: " ++ show q
+    unknownAxiom = Mlambda [] $ errorT $ "Unknown axiom: " ++ show q'
+    q' = last . qnameToList $ q
 
 compilePrim
   :: QName -- ^ The qname of the primitive
@@ -494,4 +495,4 @@ compilePrim q s = Just
   $ fromMaybe unknownPrimitive
   $ Map.lookup s Primitive.primitives
   where
-    unknownPrimitive = Mlambda [] $ errorT $ "Unknown primitive: " ++ show q
+    unknownPrimitive = Mlambda [] $ errorT $ "Unknown primitive: " ++ s

@@ -10,31 +10,30 @@ import Malfunction.AST
 
 axioms :: Map String Term
 axioms = Map.fromList
-  [ notMapped "Agda.Builtin.Char.Char"
-  , notMapped "Agda.Builtin.IO.IO"
-  , notMapped "Agda.Builtin.String.String"
-  , notMapped "Agda.Primitive.IsOne"
-  , notMapped "Agda.Primitive.IsOne1"
-  , notMapped "Agda.Primitive.IsOne2"
-  , notMapped "Agda.Primitive.isOneEmpty"
-  , notMapped "Agda.Primitive.itIsOne"
-  , notMapped "Agda.Primitive.Level"
-  , notMapped "Prelude.Bytes.Bytes"
-  , notMapped "Prelude.Bytes.eqBytes"
-  , notMapped "Prelude.Bytes.Internal.append"
-  , notMapped "Prelude.Bytes.Internal.empty"
-  , notMapped "Prelude.Empty.erasedBottom"
-  , notMapped "Prelude.Equality.Unsafe._.trustme"
-  , notMapped "Prelude.IO.exitWith'"
-  , notMapped "Prelude.IO.getArgs"
-  , notMapped "Prelude.IO.getChar"
-  , notMapped "Prelude.IO.getProgName"
-  , notMapped "Prelude.IO.ioReturn"
-  , notMapped "Prelude.IO.putChar"
-  , "Prelude.IO.putStrLn" |-> Mglobal ["Pervasives", "print_string"]
-  , "Prelude.IO.putStr"   |-> Mglobal ["Pervasives", "print_string"]
-  , notMapped "Prelude.IO.ioBind"
-  , "HelloWorld.putStr" |-> Mglobal ["Pervasives", "print_string"]
+  [ notMapped "Char.Char"
+  , notMapped "IO.IO"
+  , notMapped "String.String"
+  , notMapped "IsOne"
+  , notMapped "IsOne1"
+  , notMapped "IsOne2"
+  , notMapped "isOneEmpty"
+  , notMapped "itIsOne"
+  , notMapped "Level"
+  , notMapped "Bytes"
+  , notMapped "eqBytes"
+  , notMapped "append"
+  , notMapped "empty"
+  , notMapped "erasedBottom"
+  , notMapped "Unsafe._.trustme"
+  , notMapped "exitWith'"
+  , notMapped "getArgs"
+  , notMapped "getChar"
+  , notMapped "getProgName"
+  , notMapped "ioReturn"
+  , notMapped "putChar"
+  , "putStrLn" |-> Mglobal ["Pervasives", "print_string"]
+  , "putStr"   |-> Mglobal ["Pervasives", "print_string"]
+  , notMapped "ioBind"
   ]
   where
     notMapped n = (n, Mlambda [] $ errorT $ "Axiom not yet mapped: " ++ n)
