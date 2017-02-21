@@ -459,6 +459,9 @@ escape _                         = __IMPOSSIBLE__
 -- | Spaces are grouped before processed, because multiple consecutive
 -- spaces determine the alignment of the code and consecutive newline
 -- characters need special treatment as well.
+--
+-- If the final element of the list consists of spaces, then these
+-- spaces are assumed to not be trailing whitespace.
 spaces :: [Text] -> LaTeX ()
 spaces [] = return ()
 
