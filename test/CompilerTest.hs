@@ -17,8 +17,8 @@ translate'1 :: TTerm -> Term
 translate'1 = head . translate' [] . pure
 
 simpleName :: (C.NameId, String) -> Name
-simpleName (id, concrete) = Name
-  { nameId = id
+simpleName (idf, concrete) = Name
+  { nameId = idf
   , nameConcrete = C.Name undefined [C.Id concrete]
   , nameBindingSite = undefined
   , nameFixity = undefined
@@ -26,10 +26,11 @@ simpleName (id, concrete) = Name
 
 simpleQName :: [(C.NameId, String)] -> (C.NameId, String) -> QName
 simpleQName mods nm = QName {
-  qnameModule = MName (map (simpleName) mods)
+  qnameModule = MName (map simpleName mods)
   , qnameName = simpleName nm
   }
 
+unitTests :: TestTree
 unitTests = testGroup "Compiler unit tests" test_translate
 
 -- TODO: Add this test-case:
