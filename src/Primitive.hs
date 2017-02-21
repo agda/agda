@@ -31,9 +31,10 @@ axioms = Map.fromList
   , notMapped "getProgName"
   , notMapped "ioReturn"
   , notMapped "putChar"
-  , "putStrLn" |-> Mglobal ["Pervasives", "print_string"]
+  , "putStrLn" |-> Mglobal ["Pervasives", "print_endline"]
   , "putStr"   |-> Mglobal ["Pervasives", "print_string"]
   , notMapped "ioBind"
+  , "primStringAppend" |-> primStringAppend
   ]
   where
     notMapped n = (n, Mlambda [] $ errorT $ "Axiom not yet mapped: " ++ n)
@@ -113,7 +114,7 @@ primitives = Map.fromList
   -- String functions
   , notMapped "primStringToList"
   , notMapped "primStringFromList"
-  , notMapped "primStringAppend"
+  , "primStringAppend" |-> primStringAppend
   , notMapped "primStringEquality"
   , notMapped "primShowString"
 
@@ -147,3 +148,6 @@ sucT = Mlambda ["a"] (Mintop2 Add TInt (Mvar "a") (Mint (CInt 1)))
 -- FIXME: Copied from `Compiler` due to an otherwise cyclic dependency
 errorT :: String -> Term
 errorT err = Mapply (Mglobal ["Pervasives", "failwith"]) [Mstring err]
+
+primStringAppend :: Term
+primStringAppend = Mglobal ["Pervasives", "^"]
