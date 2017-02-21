@@ -11,6 +11,7 @@ import           Data.Either
 import           Data.Function
 import           Data.List
 import           Data.List.Extra
+import           Data.List.Extra
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe
@@ -43,7 +44,7 @@ ttFlags :: [OptDescr (Flag MlfOptions)]
 ttFlags =
   [ Option [] ["mlf"] (NoArg $ \ o -> return o{ _enabled = True })
     "Generate Malfunction"
-  , Option ['r'] [] (ReqArg (\r o -> return o{_resultVar = Just r}) "VAR")
+  , Option ['r'] ["print-var"] (ReqArg (\r o -> return o{_resultVar = Just r}) "VAR")
     "(DEBUG) Run the module and print the integer value of a variable"
   , Option ['o'] [] (ReqArg (\r o -> return o{_outputFile = Just r}) "FILE")
     "(DEBUG) Place outputFile resulting module into FILE"
@@ -182,16 +183,22 @@ mlfPostModule mlfopt defs = do
   return modl
 
 printVars :: MonadIO m => Mod -> [Ident] -> m ()
-printVars modl@(MMod binds _) vars = do
+printVars modl@(MMod binds _) simpleVars = do
   liftIO (putStrLn "\n=======================")
-  liftIO $
-    if all defined vars
-    then runModPrintInts vars modl >>= putStrLn
-    else putStrLn "Variable not bound, did you specify the *fully quailified* name?"
-    where
-      defined v = any (defVar v) binds
-      defVar v (Named u _) = u == v
-      defVar _ _           = False
+  case fullNames of
+    Just vars -> liftIO $ runModPrintInts vars modl >>= putStrLn
+    _ ->
+      liftIO $
+      putStrLn
+        "Variable not bound, did you specify the *fully quailified* name, e.g. \"Test.var\"?"
+  where
+    getName (Named u _) = Just u
+    getName _ = Nothing
+    allVars = mapMaybe getName binds
+    endsWith str end = takeEnd (length end) str == end
+    fullNames = mapM fromSimpleIdent simpleVars
+    fromSimpleIdent :: Ident -> Maybe Ident
+    fromSimpleIdent simple = listToMaybe (filter (`endsWith`simple) allVars)
 
 -- TODO: `mlfDef` should honor the flag "--debug" and only print to stdout in
 -- case this is enabled. Also it would be nice to split up IO and the actual
