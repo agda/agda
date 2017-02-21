@@ -193,9 +193,8 @@ printVars modl@(MMod binds _) simpleVars = do
 
 -- | "Test2.a" --> 24.1932f7ddf4cc7d3a.Test2.a
 fromSimpleIdent :: [Binding] -> Ident -> Maybe Ident
-fromSimpleIdent binds simple = listToMaybe (filter (`endsWith`simple) (getNames binds))
+fromSimpleIdent binds simple = listToMaybe (filter (isSuffixOf simple) (getNames binds))
   where
-    endsWith str end = takeEnd (length end) str == end
     getNames = mapMaybe getName
     getName (Named u _) = Just u
     getName _ = Nothing
