@@ -553,6 +553,7 @@ warningHighlighting w = case tcWarning w of
   SafeFlagPrimTrustMe        -> mempty
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
+  DeprecationWarning{}       -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.

@@ -2276,6 +2276,9 @@ data Warning =
   | SafeFlagNoPositivityCheck
   | SafeFlagPolarity
   | ParseWarning             ParseWarning
+  | DeprecationWarning String String String
+    -- ^ `DeprecationWarning old new version`:
+    --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
   deriving Show
 
 data TCWarning
@@ -2323,6 +2326,7 @@ classifyWarning w = case w of
   EmptyRewritePragma         -> AllWarnings
   UselessPublic              -> AllWarnings
   UnreachableClauses{}       -> AllWarnings
+  DeprecationWarning{}       -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   NotStrictlyPositive{}      -> ErrorWarnings
