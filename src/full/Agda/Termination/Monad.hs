@@ -387,7 +387,10 @@ terSetUseSizeLt = terModifyUseSizeLt . const
 withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
-  reportSLn "term.size" 20 $ "usableSizeVars = " ++ show vars
+  reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
+  reportSDoc "term.size" 20 $ vcat
+    [ text "the size variables amoung these variables are usable: " <+> sep (map (prettyTCM . var) $ VarSet.toList vars)
+    ]
   terSetUsableVars vars $ m
 
 -- | Set 'terUseSizeLt' when going under constructor @c@.
