@@ -243,11 +243,18 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
-      _ | Just (HsDefn r hs) <- pragma -> do
+      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
         -- Make sure we have imports for all names mentioned in the type.
-        hsty <- setCurrentRange r $ haskellType q
+        hsty <- haskellType q
         ty   <- normalise ty
         sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
+
+        -- Check that the function isn't INLINE (since that will make this
+        -- definition pointless).
+        inline <- (^. funInline) . theDef <$> getConstInfo q
+        when inline $ genericDocError =<< do
+                      fsep $ pwords "INLINE'd function" ++ [prettyTCM q] ++ pwords "cannot have a separate Haskell definition"
+
         return $ fbWithType hsty (fakeExp hs)
 
       -- Special treatment of coinductive builtins.
