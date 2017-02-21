@@ -30,6 +30,7 @@ import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
@@ -364,7 +365,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     copyDef ts (x, y) = do
       def <- getConstInfo x
       np  <- argsToUse (qnameModule x)
-      copyDef' np def
+      applyRelevanceToContext (defRelevance def) $ copyDef' np def
       where
         copyDef' np d = do
           reportSLn "tc.mod.apply" 60 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args " ++ show (defAbstract d)

@@ -1629,6 +1629,8 @@ inferDef mkTerm x =
       text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
     reportSDoc "tc.term.def" 20 $ do
       text "inferred def " <+> prettyTCM x <+> hsep (map (text . show) vs)
+    reportSDoc "tc.term.def" 10 $ do
+      text "type of def " <+> prettyTCM (defType d)
 
     t <- workOnTypes $ defType d `piApplyM` vs
 
