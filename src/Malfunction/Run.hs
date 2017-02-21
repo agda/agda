@@ -1,4 +1,10 @@
-module Malfunction.Run where
+module Malfunction.Run
+  ( compileRunPrint
+  , compileModFile
+  , runModPrintInts
+  , withPrintInts
+  , runModFile
+  ) where
 
 import           GHC.IO.Handle
 import           Malfunction.AST
@@ -45,19 +51,8 @@ runModPrintInts :: Mod -> [Ident] -> IO String
 runModPrintInts ids = runMod . withPrintInts ids
 
 compileRunPrint :: FilePath -> Ident -> IO String
-compileRunPrint agdap var = do
+compileRunPrint agdap var =
   withSystemTempFile "module.mlf" $
     \mlfp mlfh -> do
       callProcess "stack" ["exec", "agda2mlf", "--", "-v0", "--mlf", agdap, "-o", mlfp, "-r", var]
       runModFile' mlfp mlfh
-
--- Example:
---   (module
---     (_ (apply (global $Pervasives $print_string) "Hello, world!\n"))
---     (export))
-helloMod :: Mod
-helloMod = MMod [Unnamed helloT] []
-  where
-    helloT = Mapply (Mglobal ["Pervasives", "print_string"])
-                 [Mstring "Hello, world!\n"]
-
