@@ -84,7 +84,7 @@ translate = translateTerm
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
   TVar i            -> indexToVarTerm i
-  TPrim tp          -> primToTerm tp
+  TPrim tp          -> return $ translatePrimApp tp []
   TDef name         -> return $ translateName name
   TApp t0 args      -> translateApp t0 args
   TLam{}            -> translateLam tt
@@ -225,25 +225,7 @@ introVar ma = first head <$> introVars 1 ma
 --   TLam (TLam ...)
 translateApp :: MonadTranslate m => TTerm -> [TTerm] -> m Term
 translateApp ft xst = case ft of
-  -- TPrim p ->
-  --   case eOp of
-  --     (Left op) -> case xst of
-  --       [t0]     -> Mintop1 op tp <$> translateTerm t0
-  --       _        -> error ("Malformed! Unary: " ++ show op)
-  --     (Right op) -> case xst of
-  --       [t0, t1] -> liftM2 (Mintop2 op tp) (translateTerm t0) (translateTerm t1)
-  --       [t0] -> do
-  --         -- TODO: review this
-  --         -- translate (3*) ==> \x -> 3*x
-  --         (var, t0') <- introVar (translateTerm t0)
-  --         return (Mlambda [var] (Mintop2 op tp (Mvar var) t0' ))
-  --       [] -> do
-  --         -- translate (*) ==> \a -> \b -> a * b == \a b -> a * b
-  --         [a,b] <- fst <$> introVars 2 (return ())
-  --         return (Mlambda [a, b] (Mintop2 op tp (Mvar a) (Mvar b)))
-  --       _        -> error ("Malformed! Binary: " ++ show op ++ "\nxst = " ++ show xst)
-  --   where
-  --     (eOp, tp) = primToOpAndType p
+  TPrim p -> translatePrimApp p <$> mapM translateTerm xst
   TCon nm -> translateCon nm xst
   _       -> do
     f <- translateTerm ft
@@ -260,30 +242,8 @@ translateLit l = case l of
   LitChar _ c-> Mint . CInt . fromEnum $ c
   _ -> error "unsupported literal type"
 
--- primToOpAndType :: TPrim -> (Either UnaryIntOp BinaryIntOp, IntType)
--- primToOpAndType tp = (op, aType)
---   where
---     op = case tp of
---       PAdd -> Right Add
---       PSub -> Right Sub
---       PMul -> Right Mul
---       PQuot -> wrong
---       PRem -> Right Mod
---       PGeq -> Right Gte
---       PLt -> Right Lt
---       PEqI -> wrong
---       PEqF -> wrong
---       PEqS -> wrong
---       PEqC -> wrong
---       PEqQ -> wrong
---       PIf -> wrong
---       PSeq -> wrong
---     aType = TInt
---     -- TODO: Stub!
---     wrong = error $ "stub : " ++ show tp
-
-primToTerm :: MonadTranslate m => TPrim -> m Term
-primToTerm tp =
+translatePrimApp :: TPrim -> [Term] -> Term
+translatePrimApp tp args =
   case tp of
     PAdd -> intbinop Add
     PSub -> intbinop Sub
@@ -295,40 +255,28 @@ primToTerm tp =
     PEqI -> intbinop Eq
     PEqF -> wrong
     PEqS -> wrong
-    PEqC -> wrong
+    PEqC -> intbinop Eq
     PEqQ -> wrong
     PIf -> wrong
     PSeq -> pseq
   where
     aType = TInt
-    intbinop op = do
-      [a, b] <- fst <$> introVars 2 (return ())
-      return $ Mlambda [a, b] $ Mintop2 op aType (Mvar a) (Mvar b)
-    -- NOTE: if the semantics of PSeq are equivalent to haskell's seq
-    -- then this is simply (\a b -> b) because malfunction is a strict
-    -- language
-    pseq      = return $ Mlambda ["a", "b"] $ Mvar "b"
+    intbinop op = case args of
+      [a, b] -> Mintop2 op aType a b
+      [a] -> Mlambda ["b"] $ Mintop2 op aType a (Mvar "b")
+      [] -> Mlambda ["a", "b"] $ Mintop2 op aType (Mvar "a") (Mvar "b")
+      _ -> wrongargs
+    -- NOTE: pseq is simply (\a b -> b) because malfunction is a strict language
+    pseq      = case args of
+      [_, b] -> b
+      [_] -> Mlambda ["b"] $ Mvar "b"
+      [] -> Mlambda ["a", "b"] $ Mvar "b"
+      _ -> wrongargs
     -- TODO: Stub!
     -- wrong = return $ errorT $ "stub : " ++ show tp
+    wrongargs = error "unexpected number of arguments"
     wrong = undefined
 
-
--- This function wraps primitives in a lambda.
---
---   TPrim PAdd          (abstract syntax, treeless)
---
--- Translates to this:
---
---   lambda a b (+ a b)  (concrete syntax, malfunction)
--- wrapPrimInLambda :: TPrim -> Term
--- wrapPrimInLambda tprim = case op of
---   Left  unop -> Mlambda [var0]       $ Mintop1 unop tp (Mvar var0)
---   Right biop -> Mlambda [var0, var1] $ Mintop2 biop tp (Mvar var0) (Mvar var1)
---   where
---     (op, tp) = primToOpAndType tprim
---     -- TODO: The variables declared here might shadow existing bindings.
---     var0  = "n"
---     var1  = "m"
 
 -- FIXME: Please not the multitude of interpreting QName in the following
 -- section. This may be a problem.
