@@ -1,29 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Primitive
-  ( compilePrim
-  , compileAxiom
+  ( axioms
+  , primitives
   ) where
 
-import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Malfunction.AST
-import Compiler
-import Agda.Compiler.Backend
-
--- TODO: Stub implementation!
--- Translating axioms seem to be problematic. For the other compiler they are
--- defined in Agda.TypeChecking.Monad.Base. It is a field of
--- `CompiledRepresentation`. We do not have this luxury. So what do we do?
-compileAxiom
-  :: QName                  -- The name of the axiomm
-  -> TCM (Maybe Binding)    -- The resulting binding
-compileAxiom q = return $ Just
-  $ Named (nameToIdent q)
-  $ fromMaybe unkownAxiom
-  $ Map.lookup (show q) axioms
-  where
-    unkownAxiom = errorT $ "Unkown axiom: " ++ show q
 
 axioms :: Map String Term
 axioms = Map.fromList
@@ -55,15 +38,8 @@ axioms = Map.fromList
   where
     notMapped n = (n, Mlambda [] $ errorT $ "Axiom not yet mapped: " ++ n)
 
-compilePrim
-  :: QName -- ^ The qname of the primitive
-  -> String -- ^ The name of the primitive
-  -> TCM (Maybe Binding)
-compilePrim q s = return $ Named (nameToIdent q) <$> Map.lookup s primitiveFunctions
-
-primitiveFunctions :: Map String Term
-primitiveFunctions = Map.fromList
-
+primitives :: Map String Term
+primitives = Map.fromList
   -- Integer functions
   [ "primIntegerPlus"     |-> binOp Add
   , "primIntegerMinus"    |-> binOp Sub
@@ -167,3 +143,7 @@ zeroT :: Term
 zeroT = Mint (CInt 0)
 sucT :: Term
 sucT = Mlambda ["a"] (Mintop2 Add TInt (Mvar "a") (Mint (CInt 1)))
+
+-- FIXME: Copied from `Compiler` due to an otherwise cyclic dependency
+errorT :: String -> Term
+errorT err = Mapply (Mglobal ["Pervasives", "failwith"]) [Mstring err]

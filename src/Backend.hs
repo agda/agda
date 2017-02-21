@@ -18,7 +18,6 @@ import qualified Compiler              as Mlf
 import           Malfunction.AST
 import           Malfunction.Run
 import qualified Malfunction.Run       as Run
-import           Primitive             (compilePrim, compileAxiom)
 
 backend :: Backend
 backend = Backend backend'
@@ -124,8 +123,8 @@ mlfMod allDefs = do
       act :: Definition -> TCM (Maybe (Either Binding (QName, TTerm)))
       act def@Defn{defName = q, theDef = d} = case d of
         Function{}                -> fmap Right <$> getBindings def
-        Primitive{ primName = s } -> fmap Left <$> compilePrim q s
-        Axiom{}                   -> fmap Left <$> compileAxiom q
+        Primitive{ primName = s } -> return $ Left <$> Mlf.compilePrim q s
+        Axiom{}                   -> return $ Left <$> Mlf.compileAxiom q
         _                         -> return Nothing
 
 getBindings :: Definition -> TCM (Maybe (QName, TTerm))

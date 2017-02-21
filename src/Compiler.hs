@@ -13,12 +13,13 @@ module Compiler
   , qnameNameId
   , errorT
   , wildcardTerm
+  -- * Primitives
+  , compilePrim
+  , compileAxiom
   ) where
 
 import           Agda.Syntax.Common (NameId(..))
-import           Agda.Syntax.Common (NameId)
 import           Agda.Syntax.Literal
-import           Agda.Syntax.Position
 import           Agda.Syntax.Treeless
 import           Control.Monad
 import           Control.Monad.Extra
@@ -36,8 +37,9 @@ import           GHC.Word
 import           Instances
 import           Malfunction.AST
 import           Numeric (showHex)
-import Data.Char
+import           Data.Char
 
+import qualified Primitive
 
 type MonadTranslate m = (MonadReader Env m)
 
@@ -470,3 +472,23 @@ boolT b = Mint (CInt $ if b then 1 else 0)
 
 trueCase :: [Case]
 trueCase = [CaseInt 1]
+
+-- TODO: Stub implementation!
+-- Translating axioms seem to be problematic. For the other compiler they are
+-- defined in Agda.TypeChecking.Monad.Base. It is a field of
+-- `CompiledRepresentation`. We do not have this luxury. So what do we do?
+compileAxiom
+  :: QName                  -- The name of the axiomm
+  -> Maybe Binding    -- The resulting binding
+compileAxiom q = Just
+  $ Named (nameToIdent q)
+  $ fromMaybe unkownAxiom
+  $ Map.lookup (show q) Primitive.axioms
+  where
+    unkownAxiom = errorT $ "Unkown axiom: " ++ show q
+
+compilePrim
+  :: QName -- ^ The qname of the primitive
+  -> String -- ^ The name of the primitive
+  -> Maybe Binding
+compilePrim q s = Named (nameToIdent q) <$> Map.lookup s Primitive.primitives
