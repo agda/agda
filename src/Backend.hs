@@ -8,10 +8,7 @@ import           Control.Monad.Extra
 import           Control.Monad.Trans
 import           Data.Bifunctor
 import           Data.Either
-import           Data.Function
 import           Data.List
-import           Data.List.Extra
-import           Data.List.Extra
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe
@@ -68,12 +65,11 @@ backend' = Backend' {
   , isEnabled = _enabled
   , preCompile = return
   , postCompile = mlfPostCompile --liftIO (putStrLn "post compile")
-  , preModule = \enf m ifile -> return $ Recompile ()
-  , compileDef = \env menv def -> return def
-  , postModule = \env menv m mod defs -> return defs --mlfPostModule env defs
+  , preModule = \_enf _m _ifile -> return $ Recompile ()
+  , compileDef = \_env _menv def -> return def
+  , postModule = \_env _menv _m _mod defs -> return defs --mlfPostModule env defs
   , backendVersion = Nothing
   }
-
 
 definitionSummary :: MlfOptions -> Definition -> TCM ()
 definitionSummary opts def = when (_debug opts) $ do
@@ -135,12 +131,6 @@ mlfMod allDefs = do
         Axiom{}                   -> fmap Left <$> compileAxiom q
         _                         -> return Nothing
 
-summaryRecGroups :: [[(QName,TTerm)]] -> IO ()
-summaryRecGroups = putStrLn . intercalate "\n----------------\n" . map summaryRecGroup
-  where summaryRecGroup :: [(QName, TTerm)] -> String
-        summaryRecGroup g = intercalate ", " (map show qs)
-          where (qs, ts) = unzip g
-
 getBindings :: Definition -> TCM (Maybe (QName, TTerm))
 getBindings Defn{defName = q} = fmap (\t -> (q, t)) <$> toTreeless q
 
@@ -201,42 +191,6 @@ fromSimpleIdent binds simple = listToMaybe (filter (isSuffixOf simple) (getNames
     getNames = mapMaybe getName
     getName (Named u _) = Just u
     getName _ = Nothing
-
-
--- TODO: `mlfDef` should honor the flag "--debug" and only print to stdout in
--- case this is enabled. Also it would be nice to split up IO and the actual
--- translation into two different functions.
-mlfDef :: MlfOptions -> [Definition] -> Definition -> TCM (Maybe Binding)
-mlfDef opts alldefs d@Defn{ defName = q } =
-  case theDef d of
-    Function{} -> do
-      mtt <- toTreeless q
-      case mtt of
-        Nothing -> return Nothing
-        Just tt -> do
-          logd . render
-            $  header '=' (show q)
-            $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
-            $$ sect "Treeless (concrete syntax)"    (pretty tt)
-          let
-            mlf = Mlf.translateDef' (getConstructors alldefs) q tt
-          logd . render $
-            sect "Malfunction (abstract syntax)" (text . show $ mlf)
-            $$ sect "Malfunction (concrete syntax)" (pretty mlf)
-          return (Just mlf)
-            where
-              sect t dc = text t $+$ nest 2 dc $+$ text ""
-              header c h = let cs = replicate 15 c
-                           in text $ printf "%s %s %s" cs h cs
-
-    Primitive{ primName = s } -> compilePrim q s
-    Axiom         -> return Nothing
-    AbstractDefn  -> error "impossible"
-    Datatype{}    -> liftIO (putStrLn $ "  data " ++ show q) >> return Nothing
-    Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
-    Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
-  where logd = liftIO . when (_debug opts) . putStrLn
-
 
 -- | Returns all constructors grouped by data type.
 getConstructors :: [Definition] -> [[QName]]
