@@ -6,4 +6,4 @@ record ⊤ : Set where
   instance constructor tt
 
 {-# BUILTIN UNIT ⊤ #-}
-{-# COMPILED_DATA ⊤ () () #-}
+{-# COMPILE GHC ⊤ = data () (()) #-}

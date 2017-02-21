@@ -625,6 +625,7 @@ checkPragma r p =
             Datatype{dataCons = cs} -> addHaskellData x hs hcs
             Record{recConHead = ch} -> addHaskellData x hs hcs
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
+        A.CompilePragma b x s -> addPragma b x s
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
           let addCompiled = addHaskellCode x hs

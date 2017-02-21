@@ -337,6 +337,7 @@ instance ExprLike Pragma where
       OptionsPragma{}             -> pure p
       BuiltinNoDefPragma{}        -> pure p
       RewritePragma{}             -> pure p
+      CompilePragma{}             -> pure p
       CompiledPragma{}            -> pure p
       CompiledExportPragma{}      -> pure p
       CompiledTypePragma{}        -> pure p

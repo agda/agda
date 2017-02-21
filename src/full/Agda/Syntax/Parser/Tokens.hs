@@ -20,7 +20,7 @@ data Keyword
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
         | KwOPTIONS | KwBUILTIN | KwLINE
         | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EXPORT
-        | KwHASKELL
+        | KwHASKELL | KwFOREIGN | KwCOMPILE
         | KwCOMPILED_JS | KwCOMPILED_UHC | KwCOMPILED_DATA_UHC
         | KwIMPORT | KwIMPORT_UHC | KwIMPOSSIBLE | KwSTATIC | KwINJECTIVE | KwINLINE
         | KwETA
