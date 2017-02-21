@@ -8,9 +8,11 @@ module Agda.TypeChecking.Monad.State where
 import Control.Arrow (first)
 import Control.Applicative
 import qualified Control.Exception as E
+import Control.Monad.Reader (asks)
 import Control.Monad.State (put, get, gets, modify)
 import Control.Monad.Trans (liftIO)
 
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
@@ -275,27 +277,30 @@ withTopLevelModule x m = do
   return y
 
 ---------------------------------------------------------------------------
--- * Haskell imports
+-- * Foreign code
+---------------------------------------------------------------------------
+
+addForeignCode :: BackendName -> String -> TCM ()
+addForeignCode backend code = do
+  r <- asks envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
+  stForeignCode . key backend %= Just . (ForeignCode r code :) . fromMaybe []
+
+---------------------------------------------------------------------------
+-- * Temporary: Haskell imports
+--   These will go away when we remove the IMPORT and HASKELL pragmas in
+--   favour of the FOREIGN pragma.
 ---------------------------------------------------------------------------
 
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImport :: String -> TCM ()
-addHaskellImport i = stHaskellImports %= Set.insert i
-
--- | Get the Haskell imports.
-getHaskellImports :: TCM (Set String)
-getHaskellImports = use stHaskellImports
+addHaskellImport i = addForeignCode ghcBackendName $ "import qualified " ++ i
 
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImportUHC :: String -> TCM ()
-addHaskellImportUHC i = stHaskellImportsUHC %= Set.insert i
-
--- | Get the Haskell imports.
-getHaskellImportsUHC :: TCM (Set String)
-getHaskellImportsUHC = use stHaskellImportsUHC
+addHaskellImportUHC i = addForeignCode ghcBackendName $ "__IMPORT__ " ++ i
 
 addInlineHaskell :: String -> TCM ()
-addInlineHaskell s = stHaskellCode %= (s :)
+addInlineHaskell s = addForeignCode ghcBackendName s
 
 ---------------------------------------------------------------------------
 -- * Interaction output callback

@@ -43,7 +43,7 @@ import Agda.Compiler.Treeless.GuardsToPrims
 import Agda.Compiler.Treeless.NormalizeNames
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.UHC.Pragmas.Base
-import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr, getCorePragma)
+import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr, getCorePragma, parseUHCImport)
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.MagicTypes
@@ -80,14 +80,12 @@ fromAgdaModule modNm curModImps iface = do
     funs' <- concat <$> mapM translateDefn defs
     let funs = mkLetRec funs' (mkInt opts 0)
 
-
-
-    additionalImports <- lift getHaskellImportsUHC
+    additionalImports <- mapM parseUHCImport . fromMaybe [] . M.lookup uhcBackendName . iForeignCode $ iface
     let imps = map mkImport $ nub $
           [ mkHsName1 "UHC.Base"
           , mkHsName1 "UHC.Agda.Builtins" ]
           ++ map moduleNameToCoreName curModImps
-          ++ map mkHsName1 (Set.toList additionalImports)
+          ++ map mkHsName1 additionalImports
 
         crModNm = moduleNameToCoreName modNm
 

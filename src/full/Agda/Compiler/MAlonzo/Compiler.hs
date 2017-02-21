@@ -164,10 +164,11 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
 
 ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM ()
 ghcPostModule _ _ _ _ defs = do
-  m             <- curHsMod
-  imps          <- imports
-  inlineHaskell <- iHaskellCode <$> curIF
-  writeModule $ HS.Module m [] imps (map fakeDecl (reverse inlineHaskell) ++ concat defs)
+  m      <- curHsMod
+  imps   <- imports
+  code   <- inlineHaskell
+  hsImps <- haskellImports
+  writeModule $ HS.Module m [] imps (map fakeDecl (hsImps ++ code) ++ concat defs)
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]
 ghcCompileDef _ = definition
@@ -181,11 +182,9 @@ ghcCompileDef _ = definition
 --------------------------------------------------
 
 imports :: TCM [HS.ImportDecl]
-imports = (++) <$> hsImps <*> imps where
-  hsImps :: TCM [HS.ImportDecl]
-  hsImps = ((unqualRTE :) . List.map decl . Set.toList .
-            Set.insert mazRTE . Set.map HS.ModuleName) <$>
-             getHaskellImports
+imports = (hsImps ++) <$> imps where
+  hsImps :: [HS.ImportDecl]
+  hsImps = [unqualRTE, decl mazRTE]
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl mazRTE False $ Just $
@@ -243,11 +242,18 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
-      _ | Just (HsDefn r hs) <- pragma -> do
+      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
         -- Make sure we have imports for all names mentioned in the type.
-        hsty <- setCurrentRange r $ haskellType q
+        hsty <- haskellType q
         ty   <- normalise ty
         sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
+
+        -- Check that the function isn't INLINE (since that will make this
+        -- definition pointless).
+        inline <- (^. funInline) . theDef <$> getConstInfo q
+        when inline $ genericDocError =<< do
+                      fsep $ pwords "INLINE'd function" ++ [prettyTCM q] ++ pwords "cannot have a separate Haskell definition"
+
         return $ fbWithType hsty (fakeExp hs)
 
       -- Special treatment of coinductive builtins.

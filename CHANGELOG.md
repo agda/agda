@@ -151,7 +151,7 @@ Emacs mode
 Compiler backends
 -----------------
 
-* GHC Haskell backend (MAlonzo)
+* GHC Haskell backend
 
   The COMPILED pragma is now also allowed for functions. This makes it
   possible to have both an Agda implementation and a native Haskell runtime
@@ -161,6 +161,11 @@ Compiler backends
 
   Required UHC 1.1.9.5
   [Issue [#1857](https://github.com/agda/agda/issues/1857)]
+
+* Haskell imports are no longer transitively inherited from imported modules.
+
+  The IMPORT and IMPORT_UHC pragmas no longer cause import statements in
+  modules importing the module containing the pragma.
 
 * Support for stand-alone backends.
 

@@ -112,7 +112,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iHaskellImports i) (iHaskellImportsUHC i) (iPatternSyns i) (iDisplayForms i)
+    addImportedThings sig bi (iPatternSyns i) (iDisplayForms i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -123,14 +123,10 @@ mergeInterface i = do
 
 addImportedThings ::
   Signature -> BuiltinThings PrimFun ->
-  Set String -> -- MAlonzo imoprts
-  Set String -> -- UHC backend imports
   A.PatternSynDefns -> DisplayForms -> TCM ()
-addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns display = do
+addImportedThings isig ibuiltin patsyns display = do
   stImports              %= \ imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
   stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
-  stHaskellImports       %= \ imp -> Set.union imp hsImports
-  stHaskellImportsUHC    %= \ imp -> Set.union imp hsImportsUHC
   stPatternSynImports    %= \ imp -> Map.union imp patsyns
   stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
   addImportedInstances isig
@@ -467,7 +463,7 @@ typeCheck x file includeStateChanges = do
      sig     <- getSignature
      patsyns <- getPatternSyns
      display <- use stImportsDisplayForms
-     addImportedThings sig Map.empty Set.empty Set.empty patsyns display
+     addImportedThings sig Map.empty patsyns display
      setSignature emptySignature
      setPatternSyns Map.empty
 
@@ -508,7 +504,7 @@ typeCheck x file includeStateChanges = do
              setInteractionOutputCallback ho
              stModuleToSource .= mf
              setVisitedModules vs
-             addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns display
+             addImportedThings isig ibuiltin ipatsyns display
 
              r  <- withMsgs $ createInterface file x includeStateChanges
              mf <- use stModuleToSource
@@ -648,9 +644,6 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ intercalate ", " (map prettyShow visited)
 
-    previousHsImports <- getHaskellImports
-    previousHsImportsUHC <- getHaskellImportsUHC
-
     -- Parsing.
     (pragmas, top) <- Bench.billTo [Bench.Parsing] $
       runPM $ parseFile' moduleParser file
@@ -762,7 +755,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     syntaxInfo <- use stSyntaxInfo
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
-      buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC options
+      buildInterface file topLevel syntaxInfo options
 
     reportSLn "tc.top" 101 $ concat $
       "Signature:\n" :
@@ -860,14 +853,10 @@ buildInterface
      -- ^ 'TopLevelInfo' for the current module.
   -> HighlightingInfo
      -- ^ Syntax highlighting info for the module.
-  -> Set String
-     -- ^ MAlonzo: Haskell modules imported in imported modules (transitively).
-  -> Set String
-     -- ^ UHC backend: Haskell modules imported in imported modules (transitively).
   -> [OptionsPragma]
      -- ^ Options set in @OPTIONS@ pragmas.
   -> TCM Interface
-buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC pragmas = do
+buildInterface file topLevel syntaxInfo pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
     scope'  <- getScope
@@ -885,9 +874,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     builtin <- use stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
-    hsImps  <- getHaskellImports
-    uhcHsImps <- getHaskellImportsUHC
-    hsCode  <- use stHaskellCode
+    foreignCode <- use stForeignCode
     -- Ulf, 2016-04-12:
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
@@ -910,9 +897,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
       , iSignature       = sig
       , iDisplayForms    = display
       , iBuiltin         = builtin'
-      , iHaskellImports  = hsImps `Set.difference` previousHsImports
-      , iHaskellImportsUHC = uhcHsImps `Set.difference` previousHsImportsUHC
-      , iHaskellCode     = hsCode
+      , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns
