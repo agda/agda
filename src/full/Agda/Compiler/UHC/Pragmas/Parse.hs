@@ -119,8 +119,8 @@ isMagic :: String -> Bool
 isMagic xs = "__" `isPrefixOf` xs && "__" `isSuffixOf` xs
 
 -- | Parse a IMPORT_UHC expression
-parseUHCImport :: MonadTCM m => String -> m String
-parseUHCImport s =
+parseUHCImport :: MonadTCM m => ForeignCode -> m String
+parseUHCImport (ForeignCode r s) = liftTCM $ setCurrentRange r $
   case words s of
     "__IMPORT__" : ws -> return $ unwords ws
     _                 -> typeError $ GenericError $ "FOREIGN UHC code must be __IMPORT__ <module>"

@@ -652,7 +652,8 @@ data ModuleInfo = ModuleInfo
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName Interface
 
-type ForeignCode = String
+data ForeignCode = ForeignCode Range String
+  deriving (Show, Typeable)
 
 data Interface = Interface
   { iSourceHash      :: Hash

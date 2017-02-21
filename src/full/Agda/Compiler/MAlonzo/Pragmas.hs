@@ -109,7 +109,8 @@ isImport :: String -> Bool
 isImport = isPrefixOf "import " . dropWhile isSpace
 
 foreignHaskell :: TCM [String]
-foreignHaskell = fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+foreignHaskell = map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+  where getCode (ForeignCode _ code) = code
 
 inlineHaskell :: TCM [String]
 inlineHaskell = filter (not . isImport) <$> foreignHaskell

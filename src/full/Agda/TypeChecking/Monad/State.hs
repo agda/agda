@@ -8,6 +8,7 @@ module Agda.TypeChecking.Monad.State where
 import Control.Arrow (first)
 import Control.Applicative
 import qualified Control.Exception as E
+import Control.Monad.Reader (asks)
 import Control.Monad.State (put, get, gets, modify)
 import Control.Monad.Trans (liftIO)
 
@@ -279,9 +280,10 @@ withTopLevelModule x m = do
 -- * Foreign code
 ---------------------------------------------------------------------------
 
-addForeignCode :: BackendName -> ForeignCode -> TCM ()
-addForeignCode backend code =
-  stForeignCode . key backend %= Just . (code :) . fromMaybe []
+addForeignCode :: BackendName -> String -> TCM ()
+addForeignCode backend code = do
+  r <- asks envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
+  stForeignCode . key backend %= Just . (ForeignCode r code :) . fromMaybe []
 
 ---------------------------------------------------------------------------
 -- * Temporary: Haskell imports
