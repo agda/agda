@@ -183,9 +183,9 @@ ghcCompileDef _ = definition
 imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
   hsImps :: TCM [HS.ImportDecl]
-  hsImps = ((unqualRTE :) . List.map decl . Set.toList .
-            Set.insert mazRTE . Set.map HS.ModuleName) <$>
-             getHaskellImports
+  hsImps = (unqualRTE :) . List.map decl . Set.toList .
+            Set.insert mazRTE . Set.map HS.ModuleName . iHaskellImports <$>
+             curIF
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl mazRTE False $ Just $

@@ -80,9 +80,7 @@ fromAgdaModule modNm curModImps iface = do
     funs' <- concat <$> mapM translateDefn defs
     let funs = mkLetRec funs' (mkInt opts 0)
 
-
-
-    additionalImports <- lift getHaskellImportsUHC
+    let additionalImports = iHaskellImportsUHC iface
     let imps = map mkImport $ nub $
           [ mkHsName1 "UHC.Base"
           , mkHsName1 "UHC.Agda.Builtins" ]
