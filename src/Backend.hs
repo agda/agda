@@ -2,7 +2,6 @@ module Backend (backend) where
 
 import           Agda.Compiler.Backend
 import           Agda.Utils.Pretty
-import qualified Compiler              as Mlf
 import           Control.Monad
 import           Control.Monad.Extra
 import           Control.Monad.Trans
@@ -12,13 +11,14 @@ import           Data.List
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe
-import           Malfunction.AST
-import           Malfunction.Run
 import           System.Console.GetOpt
 import           Text.Printf
 
-import           Primitive             (compilePrim, compileAxiom)
+import qualified Compiler              as Mlf
+import           Malfunction.AST
+import           Malfunction.Run
 import qualified Malfunction.Run       as Run
+import           Primitive             (compilePrim, compileAxiom)
 
 backend :: Backend
 backend = Backend backend'
