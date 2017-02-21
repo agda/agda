@@ -548,8 +548,14 @@
   \stepcounter{Agda@SuppressCurrent}%
   \ignorespacesafterend}
 
+% Space inserted after tokens.
+\newcommand{\AgdaSpace}{ }
+
+% Space inserted to indent something.
+\newcommand{\AgdaIndentSpace}{\AgdaSpace{}$\;\;$}
+
 % Default column for polytable.
-\defaultcolumn{@{}l@{ }}
+\defaultcolumn{@{}l@{\AgdaSpace{}}}
 
 % \AgdaIndent expects a non-negative integer as its only argument.
 % This integer should be the distance, in code blocks, to the thing
@@ -564,6 +570,6 @@
               \( \value{Agda@Align} = 1
                    \AND
                  #1 < \value{Agda@AlignCurrent}
-              \)}{ $\;\;$}{}}
+              \)}{\AgdaIndentSpace{}}{}}
 
 \endinput
