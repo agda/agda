@@ -171,10 +171,9 @@ mlfPostCompile opts _ modToDefs = do
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
 mlfPostModule opts defs = do
-  modl <- mlfMod defs
-  let modlTxt = prettyShow $ case _resultVar opts of
-        Just v -> withPrintInts [v] modl
-        Nothing -> modl
+  modl@(MMod binds _) <- mlfMod defs
+  let modlTxt = prettyShow $ fromMaybe modl
+       ((withPrintInts modl . pure)  <$>  (_resultVar opts >>=  fromSimpleIdent binds))
   when (_debug opts) $ liftIO . putStrLn $ modlTxt
   whenJust (_resultVar opts) (printVars modl . pure)
   whenJust (_outputFile opts) (liftIO . (`writeFile`modlTxt))
@@ -184,19 +183,23 @@ printVars :: MonadIO m => Mod -> [Ident] -> m ()
 printVars modl@(MMod binds _) simpleVars = do
   liftIO (putStrLn "\n=======================")
   case fullNames of
-    Just vars -> liftIO $ runModPrintInts vars modl >>= putStrLn
+    Just vars -> liftIO $ runModPrintInts modl vars >>= putStrLn
     _ ->
       liftIO $
       putStrLn
         "Variable not bound, did you specify the *fully quailified* name, e.g. \"Test.var\"?"
   where
+    fullNames = mapM (fromSimpleIdent binds) simpleVars
+
+-- | "Test2.a" --> 24.1932f7ddf4cc7d3a.Test2.a
+fromSimpleIdent :: [Binding] -> Ident -> Maybe Ident
+fromSimpleIdent binds simple = listToMaybe (filter (`endsWith`simple) (getNames binds))
+  where
+    endsWith str end = takeEnd (length end) str == end
+    getNames = mapMaybe getName
     getName (Named u _) = Just u
     getName _ = Nothing
-    allVars = mapMaybe getName binds
-    endsWith str end = takeEnd (length end) str == end
-    fullNames = mapM fromSimpleIdent simpleVars
-    fromSimpleIdent :: Ident -> Maybe Ident
-    fromSimpleIdent simple = listToMaybe (filter (`endsWith`simple) allVars)
+
 
 -- TODO: `mlfDef` should honor the flag "--debug" and only print to stdout in
 -- case this is enabled. Also it would be nice to split up IO and the actual
