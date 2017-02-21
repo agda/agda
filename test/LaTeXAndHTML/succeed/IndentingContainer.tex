@@ -5,51 +5,127 @@
 \begin{document}
 
 \begin{code}%
-\>[0]\AgdaKeyword{record} \AgdaRecord{Sigma} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{record}\<[0I]%
+\>[0I]\AgdaRecord{Sigma}\<[1I]%
+\>[1I]\AgdaSymbol{(}\AgdaBound{A}\<[2I]%
+\>[2I]\AgdaSymbol{:}\<[3I]%
+\>[3I]\AgdaPrimitiveType{Set}\AgdaSymbol{)}\<[4I]%
+\>[4I]\AgdaSymbol{(}\AgdaBound{B}\<[5I]%
+\>[5I]\AgdaSymbol{:}\<[6I]%
+\>[6I]\AgdaBound{A}\<[7I]%
+\>[7I]\AgdaSymbol{→}\<[8I]%
+\>[8I]\AgdaPrimitiveType{Set}\AgdaSymbol{)}\<[9I]%
+\>[9I]\AgdaSymbol{:}\<[10I]%
+\>[10I]\AgdaPrimitiveType{Set}\<[11I]%
+\>[11I]\AgdaKeyword{where}\<%
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
+\>[2]\AgdaKeyword{constructor}\<[12I]%
+\>[12I]\AgdaInductiveConstructor{\_,\_}\<%
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
-\>[4]\AgdaField{proj₁} \AgdaSymbol{:} \AgdaBound{A}\<%
+\>[4]\AgdaField{proj₁}\<[13I]%
+\>[13I]\AgdaSymbol{:}\<[14I]%
+\>[14I]\AgdaBound{A}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
-\>[4]\AgdaField{proj₂} \AgdaSymbol{:} \AgdaBound{B} \AgdaField{proj₁}\<%
+\>[4]\AgdaField{proj₂}\<[15I]%
+\>[15I]\AgdaSymbol{:}\<[16I]%
+\>[16I]\AgdaBound{B}\<[17I]%
+\>[17I]\AgdaField{proj₁}\<%
 \\
 %
 \\
-\>[0]\AgdaKeyword{open} \AgdaModule{Sigma} \AgdaKeyword{public}\<%
+\>[0]\AgdaKeyword{open}\<[18I]%
+\>[18I]\AgdaModule{Sigma}\<[19I]%
+\>[19I]\AgdaKeyword{public}\<%
 \end{code}
 
 \begin{code}%
-\>[0]\AgdaFunction{uncurry} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{\{}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{\{}\AgdaBound{C} \AgdaSymbol{:} \AgdaRecord{Sigma} \AgdaBound{A} \AgdaBound{B} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→}\<%
+\>[0]\AgdaFunction{uncurry}\<[20I]%
+\>[20I]\AgdaSymbol{:}\<[21I]%
+\>[21I]\AgdaSymbol{\{}\AgdaBound{A}\<[22I]%
+\>[22I]\AgdaSymbol{:}\<[23I]%
+\>[23I]\AgdaPrimitiveType{Set}\AgdaSymbol{\}}\<[24I]%
+\>[24I]\AgdaSymbol{\{}\AgdaBound{B}\<[25I]%
+\>[25I]\AgdaSymbol{:}\<[26I]%
+\>[26I]\AgdaBound{A}\<[27I]%
+\>[27I]\AgdaSymbol{→}\<[28I]%
+\>[28I]\AgdaPrimitiveType{Set}\AgdaSymbol{\}}\<[29I]%
+\>[29I]\AgdaSymbol{\{}\AgdaBound{C}\<[30I]%
+\>[30I]\AgdaSymbol{:}\<[31I]%
+\>[31I]\AgdaRecord{Sigma}\<[32I]%
+\>[32I]\AgdaBound{A}\<[33I]%
+\>[33I]\AgdaBound{B}\<[34I]%
+\>[34I]\AgdaSymbol{→}\<[35I]%
+\>[35I]\AgdaPrimitiveType{Set}\AgdaSymbol{\}}\<[36I]%
+\>[36I]\AgdaSymbol{→}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[10]%
-\>[10]\AgdaSymbol{((}\AgdaBound{x} \AgdaSymbol{:} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaSymbol{(}\AgdaBound{y} \AgdaSymbol{:} \AgdaBound{B} \AgdaBound{x}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{C} \AgdaSymbol{(}\AgdaBound{x} \AgdaInductiveConstructor{,} \AgdaBound{y}\AgdaSymbol{))} \AgdaSymbol{→}\<%
+\>[20I][@{}l@{\AgdaIndent{0}}]\<[21I]%
+\>[10]\AgdaSymbol{((}\AgdaBound{x}\<[37I]%
+\>[37I]\AgdaSymbol{:}\<[38I]%
+\>[38I]\AgdaBound{A}\AgdaSymbol{)}\<[39I]%
+\>[39I]\AgdaSymbol{→}\<[40I]%
+\>[40I]\AgdaSymbol{(}\AgdaBound{y}\<[41I]%
+\>[41I]\AgdaSymbol{:}\<[42I]%
+\>[42I]\AgdaBound{B}\<[43I]%
+\>[43I]\AgdaBound{x}\AgdaSymbol{)}\<[44I]%
+\>[44I]\AgdaSymbol{→}\<[45I]%
+\>[45I]\AgdaBound{C}\<[46I]%
+\>[46I]\AgdaSymbol{(}\AgdaBound{x}\<[47I]%
+\>[47I]\AgdaInductiveConstructor{,}\<[48I]%
+\>[48I]\AgdaBound{y}\AgdaSymbol{))}\<[49I]%
+\>[49I]\AgdaSymbol{→}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[10]%
-\>[10]\AgdaSymbol{((}\AgdaBound{p} \AgdaSymbol{:} \AgdaRecord{Sigma} \AgdaBound{A} \AgdaBound{B}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{C} \AgdaBound{p}\AgdaSymbol{)}\<%
+\>[20I][@{}l@{\AgdaIndent{0}}]\<[10]%
+\>[10]\AgdaSymbol{((}\AgdaBound{p}\<[50I]%
+\>[50I]\AgdaSymbol{:}\<[51I]%
+\>[51I]\AgdaRecord{Sigma}\<[52I]%
+\>[52I]\AgdaBound{A}\<[53I]%
+\>[53I]\AgdaBound{B}\AgdaSymbol{)}\<[54I]%
+\>[54I]\AgdaSymbol{→}\<[55I]%
+\>[55I]\AgdaBound{C}\<[56I]%
+\>[56I]\AgdaBound{p}\AgdaSymbol{)}\<%
 \\
-\>[0]\AgdaFunction{uncurry} \AgdaBound{f} \AgdaSymbol{(}\AgdaBound{x} \AgdaInductiveConstructor{,} \AgdaBound{y}\AgdaSymbol{)} \AgdaSymbol{=} \AgdaBound{f} \AgdaBound{x} \AgdaBound{y}\<%
+\>[0]\AgdaFunction{uncurry}\<[57I]%
+\>[57I]\AgdaBound{f}\<[58I]%
+\>[58I]\AgdaSymbol{(}\AgdaBound{x}\<[59I]%
+\>[59I]\AgdaInductiveConstructor{,}\<[60I]%
+\>[60I]\AgdaBound{y}\AgdaSymbol{)}\<[61I]%
+\>[61I]\AgdaSymbol{=}\<[62I]%
+\>[62I]\AgdaBound{f}\<[63I]%
+\>[63I]\AgdaBound{x}\<[64I]%
+\>[64I]\AgdaBound{y}\<%
 \end{code}
 
 \begin{code}%
-\>[0]\AgdaKeyword{record} \AgdaRecord{Container} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{record}\<[65I]%
+\>[65I]\AgdaRecord{Container}\<[66I]%
+\>[66I]\AgdaSymbol{:}\<[67I]%
+\>[67I]\AgdaPrimitiveType{Set₁}\<[68I]%
+\>[68I]\AgdaKeyword{where}\<%
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_◃\_}\<%
+\>[2]\AgdaKeyword{constructor}\<[69I]%
+\>[69I]\AgdaInductiveConstructor{\_◃\_}\<%
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
-\>[4]\AgdaField{Parameter} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[4]\AgdaField{Parameter}\<[70I]%
+\>[70I]\AgdaSymbol{:}\<[71I]%
+\>[71I]\AgdaPrimitiveType{Set}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
-\>[4]\AgdaField{Arity} \AgdaSymbol{:} \AgdaField{Parameter} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\<%
+\>[4]\AgdaField{Arity}\<[72I]%
+\>[72I]\AgdaSymbol{:}\<[73I]%
+\>[73I]\AgdaField{Parameter}\<[74I]%
+\>[74I]\AgdaSymbol{→}\<[75I]%
+\>[75I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \end{document}

@@ -73,22 +73,39 @@ module _ where
           S : Set
 \end{code}
 
-\begin{AgdaMultiCode}{1}
+\begin{AgdaMultiCode}{2}
 \begin{code}
 module _ where
 \end{code}
 \begin{code}
   postulate T : Set
+            U : Set
 \end{code}
 \end{AgdaMultiCode}
 
-\begin{AgdaSuppressSpace}{1}
+\begin{AgdaSuppressSpace}{2}
 \begin{code}
 module _ where
 \end{code}
 \begin{code}
-  postulate U : Set
+  postulate V : Set
+            W : Set
 \end{code}
 \end{AgdaSuppressSpace}
+
+\begin{code}
+X : Set₁
+X =
+  Set
+\end{code}
+
+\begin{code}
+Y : Set₁
+Y =       Set
+
+Zzzzzzzzz : Set → Set
+Zzzzzzzzz X
+          = X
+\end{code}
 
 \end{document}

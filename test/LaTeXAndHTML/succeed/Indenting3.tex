@@ -5,23 +5,43 @@
 \begin{document}
 
 \begin{code}%
-\>[0]\AgdaKeyword{record} \AgdaRecord{Sigma} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{record}\<[0I]%
+\>[0I]\AgdaRecord{Sigma}\<[1I]%
+\>[1I]\AgdaSymbol{(}\AgdaBound{A}\<[2I]%
+\>[2I]\AgdaSymbol{:}\<[3I]%
+\>[3I]\AgdaPrimitiveType{Set}\AgdaSymbol{)}\<[4I]%
+\>[4I]\AgdaSymbol{(}\AgdaBound{B}\<[5I]%
+\>[5I]\AgdaSymbol{:}\<[6I]%
+\>[6I]\AgdaBound{A}\<[7I]%
+\>[7I]\AgdaSymbol{→}\<[8I]%
+\>[8I]\AgdaPrimitiveType{Set}\AgdaSymbol{)}\<[9I]%
+\>[9I]\AgdaSymbol{:}\<[10I]%
+\>[10I]\AgdaPrimitiveType{Set}\<[11I]%
+\>[11I]\AgdaKeyword{where}\<%
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
+\>[2]\AgdaKeyword{constructor}\<[12I]%
+\>[12I]\AgdaInductiveConstructor{\_,\_}\<%
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
 \>[2]\AgdaKeyword{field}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
-\>[4]\AgdaField{proj₁} \AgdaSymbol{:} \AgdaBound{A}\<%
+\>[4]\AgdaField{proj₁}\<[13I]%
+\>[13I]\AgdaSymbol{:}\<[14I]%
+\>[14I]\AgdaBound{A}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]\<[4]%
-\>[4]\AgdaField{proj₂} \AgdaSymbol{:} \AgdaBound{B} \AgdaField{proj₁}\<%
+\>[4]\AgdaField{proj₂}\<[15I]%
+\>[15I]\AgdaSymbol{:}\<[16I]%
+\>[16I]\AgdaBound{B}\<[17I]%
+\>[17I]\AgdaField{proj₁}\<%
 \\
 %
 \\
-\>[0]\AgdaKeyword{open} \AgdaModule{Sigma} \AgdaKeyword{public}\<%
+\>[0]\AgdaKeyword{open}\<[18I]%
+\>[18I]\AgdaModule{Sigma}\<[19I]%
+\>[19I]\AgdaKeyword{public}\<%
 \end{code}
 
 \end{document}
