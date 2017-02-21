@@ -1,10 +1,59 @@
-module Primitive (compilePrim) where
+{-# LANGUAGE OverloadedStrings #-}
+module Primitive
+  ( compilePrim
+  , compileAxiom
+  ) where
 
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Malfunction.AST
 import Compiler
 import Agda.Compiler.Backend
+
+-- TODO: Stub implementation!
+-- Translating axioms seem to be problematic. For the other compiler they are
+-- defined in Agda.TypeChecking.Monad.Base. It is a field of
+-- `CompiledRepresentation`. We do not have this luxury. So what do we do?
+compileAxiom
+  :: QName                  -- The name of the axiomm
+  -> TCM (Maybe Binding)    -- The resulting binding
+compileAxiom q = return $ Just
+  $ Named (nameToIdent q)
+  $ fromMaybe unkownAxiom
+  $ Map.lookup (show q) axioms
+  where
+    unkownAxiom = errorT $ "Unkown axiom: " ++ show q
+
+axioms :: Map String Term
+axioms = Map.fromList
+  [ notMapped "Agda.Builtin.Char.Char"
+  , notMapped "Agda.Builtin.IO.IO"
+  , notMapped "Agda.Builtin.String.String"
+  , notMapped "Agda.Primitive.IsOne"
+  , notMapped "Agda.Primitive.IsOne1"
+  , notMapped "Agda.Primitive.IsOne2"
+  , notMapped "Agda.Primitive.isOneEmpty"
+  , notMapped "Agda.Primitive.itIsOne"
+  , notMapped "Agda.Primitive.Level"
+  , notMapped "Prelude.Bytes.Bytes"
+  , notMapped "Prelude.Bytes.eqBytes"
+  , notMapped "Prelude.Bytes.Internal.append"
+  , notMapped "Prelude.Bytes.Internal.empty"
+  , notMapped "Prelude.Empty.erasedBottom"
+  , notMapped "Prelude.Equality.Unsafe._.trustme"
+  , notMapped "Prelude.IO.exitWith'"
+  , notMapped "Prelude.IO.getArgs"
+  , notMapped "Prelude.IO.getChar"
+  , notMapped "Prelude.IO.getProgName"
+  , notMapped "Prelude.IO.ioReturn"
+  , notMapped "Prelude.IO.putChar"
+  , "Prelude.IO.putStrLn" |-> Mglobal ["Pervasives", "print_string"]
+  , "Prelude.IO.putStr"   |-> Mglobal ["Pervasives", "print_string"]
+  , notMapped "Prelude.IO.ioBind"
+  ]
+  where
+    notMapped n = (n, Mlambda [] $ errorT $ "Axiom not yet mapped: " ++ n)
 
 compilePrim
   :: QName -- ^ The qname of the primitive
@@ -23,93 +72,93 @@ primitiveFunctions = Map.fromList
   , "primIntegerMod"      |-> binOp Mod
   , "primIntegerEquality" |-> binOp Eq
   , "primIntegerLess"     |-> binOp Lt
-  , "primIntegerAbs"      |-> errorTPrim -- Probably needs to call OCaml
-  , "primNatToInteger"    |-> errorTPrim
-  , "primShowInteger"     |-> errorTPrim
+  , notMapped "primIntegerAbs"
+  , notMapped "primNatToInteger"
+  , notMapped "primShowInteger"
 
   -- Natural number functions
-  , "primNatPlus"         |-> errorTPrim
-  , "primNatMinus"        |-> errorTPrim
-  , "primNatTimes"        |-> errorTPrim
-  , "primNatDivSucAux"    |-> errorTPrim
-  , "primNatModSucAux"    |-> errorTPrim
-  , "primNatEquality"     |-> errorTPrim
-  , "primNatLess"         |-> errorTPrim
+  , notMapped "primNatPlus"
+  , notMapped "primNatMinus"
+  , notMapped "primNatTimes"
+  , notMapped "primNatDivSucAux"
+  , notMapped "primNatModSucAux"
+  , notMapped "primNatEquality"
+  , notMapped "primNatLess"
 
   -- Level functions
-  , "primLevelZero"       |-> errorTPrim
-  , "primLevelSuc"        |-> errorTPrim
-  , "primLevelMax"        |-> errorTPrim
+  , notMapped "primLevelZero"
+  , notMapped "primLevelSuc"
+  , notMapped "primLevelMax"
 
   -- Floating point functions
-  , "primNatToFloat"      |-> errorTPrim
-  , "primFloatPlus"       |-> errorTPrim
-  , "primFloatMinus"      |-> errorTPrim
-  , "primFloatTimes"      |-> errorTPrim
-  , "primFloatNegate"     |-> errorTPrim
-  , "primFloatDiv"        |-> errorTPrim
+  , notMapped "primNatToFloat"
+  , notMapped "primFloatPlus"
+  , notMapped "primFloatMinus"
+  , notMapped "primFloatTimes"
+  , notMapped "primFloatNegate"
+  , notMapped "primFloatDiv"
   -- ASR (2016-09-29). We use bitwise equality for comparing Double
-  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
+  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  , "primFloatEquality"   |-> errorTPrim
-  , "primFloatNumericalEquality" |-> errorTPrim
-  , "primFloatNumericalLess"     |-> errorTPrim
-  , "primFloatSqrt"       |-> errorTPrim
-  , "primRound"           |-> errorTPrim
-  , "primFloor"           |-> errorTPrim
-  , "primCeiling"         |-> errorTPrim
-  , "primExp"             |-> errorTPrim
-  , "primLog"             |-> errorTPrim
-  , "primSin"             |-> errorTPrim
-  , "primCos"             |-> errorTPrim
-  , "primTan"             |-> errorTPrim
-  , "primASin"            |-> errorTPrim
-  , "primACos"            |-> errorTPrim
-  , "primATan"            |-> errorTPrim
-  , "primATan2"           |-> errorTPrim
-  , "primShowFloat"       |-> errorTPrim
+  , notMapped "primFloatEquality"
+  , notMapped "primFloatNumericalEquality"
+  , notMapped "primFloatNumericalLess"
+  , notMapped "primFloatSqrt"
+  , notMapped "primRound"
+  , notMapped "primFloor"
+  , notMapped "primCeiling"
+  , notMapped "primExp"
+  , notMapped "primLog"
+  , notMapped "primSin"
+  , notMapped "primCos"
+  , notMapped "primTan"
+  , notMapped "primASin"
+  , notMapped "primACos"
+  , notMapped "primATan"
+  , notMapped "primATan2"
+  , notMapped "primShowFloat"
 
   -- Character functions
-  , "primCharEquality"    |-> errorTPrim
-  , "primIsLower"         |-> errorTPrim
-  , "primIsDigit"         |-> errorTPrim
-  , "primIsAlpha"         |-> errorTPrim
-  , "primIsSpace"         |-> errorTPrim
-  , "primIsAscii"         |-> errorTPrim
-  , "primIsLatin1"        |-> errorTPrim
-  , "primIsPrint"         |-> errorTPrim
-  , "primIsHexDigit"      |-> errorTPrim
-  , "primToUpper"         |-> errorTPrim
-  , "primToLower"         |-> errorTPrim
-  , "primCharToNat"       |-> errorTPrim
-  , "primNatToChar"       |-> errorTPrim
-  , "primShowChar"        |-> errorTPrim
+  , notMapped "primCharEquality"
+  , notMapped "primIsLower"
+  , notMapped "primIsDigit"
+  , notMapped "primIsAlpha"
+  , notMapped "primIsSpace"
+  , notMapped "primIsAscii"
+  , notMapped "primIsLatin1"
+  , notMapped "primIsPrint"
+  , notMapped "primIsHexDigit"
+  , notMapped "primToUpper"
+  , notMapped "primToLower"
+  , notMapped "primCharToNat"
+  , notMapped "primNatToChar"
+  , notMapped "primShowChar"
 
   -- String functions
-  , "primStringToList"    |-> errorTPrim
-  , "primStringFromList"  |-> errorTPrim
-  , "primStringAppend"    |-> errorTPrim
-  , "primStringEquality"  |-> errorTPrim
-  , "primShowString"      |-> errorTPrim
+  , notMapped "primStringToList"
+  , notMapped "primStringFromList"
+  , notMapped "primStringAppend"
+  , notMapped "primStringEquality"
+  , notMapped "primShowString"
 
   -- Other stuff
-  , "primTrustMe"         |-> errorTPrim
+  , notMapped "primTrustMe"
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
-  , "primForce"           |-> errorTPrim
-  , "primForceLemma"      |-> errorTPrim
-  , "primQNameEquality"   |-> errorTPrim
-  , "primQNameLess"       |-> errorTPrim
-  , "primShowQName"       |-> errorTPrim
-  , "primQNameFixity"     |-> errorTPrim
-  , "primMetaEquality"    |-> errorTPrim
-  , "primMetaLess"        |-> errorTPrim
-  , "primShowMeta"        |-> errorTPrim
+  , notMapped "primForce"
+  , notMapped "primForceLemma"
+  , notMapped "primQNameEquality"
+  , notMapped "primQNameLess"
+  , notMapped "primShowQName"
+  , notMapped "primQNameFixity"
+  , notMapped "primMetaEquality"
+  , notMapped "primMetaLess"
+  , notMapped "primShowMeta"
   ]
   where
-    (|->) = (,)
+    notMapped n = (n, Mlambda [] $ errorT $ "Primitive not yet mapped: " ++ n)
 
-errorTPrim :: Term
-errorTPrim = errorT "Primitive function not implemented"
+(|->) :: a -> b -> (a, b)
+(|->) = (,)
 
 binOp :: BinaryIntOp -> Term
 binOp op = Mlambda ["a", "b"] (Mintop2 op TInt (Mvar "a") (Mvar "b"))
