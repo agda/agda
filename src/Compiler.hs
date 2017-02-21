@@ -33,8 +33,6 @@ import           Data.Maybe
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Tuple.Extra
-import           GHC.Word
-import           Instances
 import           Malfunction.AST
 import           Numeric (showHex)
 import           Data.Char
