@@ -170,16 +170,14 @@ mlfPostCompile opts _ modToDefs = do
 --       ...
 --    )
 mlfPostModule :: MlfOptions -> [Definition] -> TCM Mod
-mlfPostModule mlfopt defs = do
+mlfPostModule opts defs = do
   modl <- mlfMod defs
-  let modlTxt = prettyShow modl
-  when (_debug mlfopt) $ liftIO . putStrLn $ modlTxt
-  case _resultVar mlfopt of
-    Just v  -> printVars modl [v]
-    Nothing -> return ()
-  case _outputFile mlfopt of
-    Just fp -> liftIO $ writeFile fp modlTxt
-    Nothing -> return ()
+  let modlTxt = prettyShow $ case _resultVar opts of
+        Just v -> withPrintInts [v] modl
+        Nothing -> modl
+  when (_debug opts) $ liftIO . putStrLn $ modlTxt
+  whenJust (_resultVar opts) (printVars modl . pure)
+  whenJust (_outputFile opts) (liftIO . (`writeFile`modlTxt))
   return modl
 
 printVars :: MonadIO m => Mod -> [Ident] -> m ()
