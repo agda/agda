@@ -76,7 +76,7 @@ facT qn = Recursive [(nameToIdent qn, Mlambda ["v0"]
 
 fstT :: QName -> Binding
 fstT qn = Named (nameToIdent qn) (Mlambda ["v0"] (Mswitch (Mvar "v0")
-          [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CBigint 0))]
+          [([Tag 0],Mlet [Named "v1" (Mfield 0 (Mvar "v0")),Named "v2" (Mint (CBigint 666))]
              (Mvar "v1"))]))
 fstTT :: QName -> TTerm
 fstTT qn = TLam (TCase 0 (CTData qn)
