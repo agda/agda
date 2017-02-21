@@ -3,13 +3,14 @@ module CompilerTest where
 -- TODO: Emacs keeps complaining that Test.Tasty.Discover is a member
 -- of a hidden package and keeps prompting me to add it to the .cabal-file.
 -- Solution M-x haskell-session-change-target -> agda2mlf:test
-import Test.Tasty.Discover
 import Compiler
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 import Malfunction.AST
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Common as C
+import Test.Tasty
+import Test.Tasty.HUnit
 
 translate'1 :: TTerm -> Term
 translate'1 = head . translate' [] . pure
@@ -27,6 +28,8 @@ simpleQName mods nm = QName {
   qnameModule = MName (map (simpleName) mods)
   , qnameName = simpleName nm
   }
+
+unitTests = testGroup "Compiler unit tests" test_translate
 
 -- TODO: Add this test-case:
 -- Agda:
