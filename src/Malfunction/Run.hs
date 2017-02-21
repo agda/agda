@@ -1,9 +1,9 @@
 module Malfunction.Run where
 
-import Malfunction.AST
-import System.IO.Temp
-import GHC.IO.Handle
-import System.Process
+import           GHC.IO.Handle
+import           Malfunction.AST
+import           System.IO.Temp
+import           System.Process
 
 printMod :: Mod -> Handle -> IO ()
 printMod m h = putStrLn prog >> hPutStr h prog >> hFlush h
@@ -22,11 +22,14 @@ runMod t = withSystemTempFile "term.mlf" $ \tfp th
   hClose th >> hClose xh
   readProcess xfp [] ""
 
-runModPrintInts :: [Ident] -> Mod -> IO String
-runModPrintInts ids (MMod bs expo) = runMod (MMod bs' expo)
+withPrintInts :: [Ident] -> Mod -> Mod
+withPrintInts ids (MMod bs expo) = MMod bs' expo
   where
     bs' = bs ++ map printInt ids
     printInt var = Unnamed $ Mapply (Mglobal ["Pervasives", "print_int"]) [Mvar var]
+
+runModPrintInts :: [Ident] -> Mod -> IO String
+runModPrintInts ids = runMod . withPrintInts ids
 
 -- Example:
 --   (module
