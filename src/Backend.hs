@@ -131,7 +131,18 @@ mlfMod allDefs = do
       act def@Defn{defName = q, theDef = d} = case d of
         Function{}                -> fmap Right <$> getBindings def
         Primitive{ primName = s } -> fmap Left <$> compilePrim q s
+        Axiom{}                   -> fmap Left <$> (compileAxiom q . defCompiledRep) def
         _                         -> return Nothing
+
+-- TODO: Stub implementation!
+-- Translating axioms seem to be problematic. For the other compiler they are
+-- defined in Agda.TypeChecking.Monad.Base. It is a field of
+-- `CompiledRepresentation`. We do not have this luxury. So what do we do?
+compileAxiom
+  :: QName                  -- The name of the axiomm
+  -> CompiledRepresentation -- The compiled representation of that axiom
+  -> TCM (Maybe Binding)    -- The resulting binding
+compileAxiom _ _ = return Nothing
 
 summaryRecGroups :: [[(QName,TTerm)]] -> IO ()
 summaryRecGroups = putStrLn . intercalate "\n----------------\n" . map summaryRecGroup
