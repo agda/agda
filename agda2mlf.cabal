@@ -44,14 +44,17 @@ test-suite test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:       CompilerTest
+                     , Utils
   main-is:             Tasty.hs
   build-depends:       base
                      , agda2mlf
                      , Agda
+                     , bytestring == 0.10.*
+                     , filepath == 1.4.*
                      , tasty == 0.11.*
                      , tasty-hunit == 0.9.*
                      , tasty-golden == 2.3.*
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  -- ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
 source-repository head

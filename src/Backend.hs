@@ -175,12 +175,12 @@ mlfPostModule opts defs = do
   let modlTxt = prettyShow $ fromMaybe modl
        ((withPrintInts modl . pure)  <$>  (_resultVar opts >>=  fromSimpleIdent binds))
   when (_debug opts) $ liftIO . putStrLn $ modlTxt
-  whenJust (_resultVar opts) (printVars modl . pure)
+  whenJust (_resultVar opts) (printVars opts modl . pure)
   whenJust (_outputFile opts) (liftIO . (`writeFile`modlTxt))
   return modl
 
-printVars :: MonadIO m => Mod -> [Ident] -> m ()
-printVars modl@(MMod binds _) simpleVars = do
+printVars :: MonadIO m => MlfOptions -> Mod -> [Ident] -> m ()
+printVars opts modl@(MMod binds _) simpleVars = when (_debug opts) $ do
   liftIO (putStrLn "\n=======================")
   case fullNames of
     Just vars -> liftIO $ runModPrintInts modl vars >>= putStrLn

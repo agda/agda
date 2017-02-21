@@ -48,7 +48,7 @@ compileRunPrint :: FilePath -> Ident -> IO String
 compileRunPrint agdap var = do
   withSystemTempFile "module.mlf" $
     \mlfp mlfh -> do
-      callProcess "stack" ["exec", "agda2mlf", "--", "--mlf", agdap, "-o", mlfp, "-r", var]
+      callProcess "stack" ["exec", "agda2mlf", "--", "-v0", "--mlf", agdap, "-o", mlfp, "-r", var]
       runModFile' mlfp mlfh
 
 -- Example:

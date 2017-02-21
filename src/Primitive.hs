@@ -28,17 +28,17 @@ primitiveFunctions = Map.fromList
   , "primShowInteger"     |-> errorTPrim
 
   -- Natural number functions
-  , "primNatPlus"         |-> errorTPrim
-  , "primNatMinus"        |-> errorTPrim
-  , "primNatTimes"        |-> errorTPrim
-  , "primNatDivSucAux"    |-> errorTPrim
-  , "primNatModSucAux"    |-> errorTPrim
-  , "primNatEquality"     |-> errorTPrim
-  , "primNatLess"         |-> errorTPrim
+  , "primNatPlus"         |-> binOp Add
+  , "primNatMinus"        |-> binOp Sub
+  , "primNatTimes"        |-> binOp Mul
+  , "primNatDivSucAux"    |-> binOp Div
+  , "primNatModSucAux"    |-> binOp Mod
+  , "primNatEquality"     |-> binOp Eq
+  , "primNatLess"         |-> binOp Lt
 
   -- Level functions
-  , "primLevelZero"       |-> errorTPrim
-  , "primLevelSuc"        |-> errorTPrim
+  , "primLevelZero"       |-> zeroT
+  , "primLevelSuc"        |-> sucT
   , "primLevelMax"        |-> errorTPrim
 
   -- Floating point functions
@@ -109,7 +109,14 @@ primitiveFunctions = Map.fromList
     (|->) = (,)
 
 errorTPrim :: Term
-errorTPrim = errorT "Primitive function not implemented"
+errorTPrim
+  | False = errorT "Primitive function not implemented"
+  | otherwise = wildcardTerm
 
 binOp :: BinaryIntOp -> Term
 binOp op = Mlambda ["a", "b"] (Mintop2 op TInt (Mvar "a") (Mvar "b"))
+
+zeroT :: Term
+zeroT = Mint (CInt 0)
+sucT :: Term
+sucT = Mlambda ["a"] (Mintop2 Add TInt (Mvar "a") (Mint (CInt 1)))
