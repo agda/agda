@@ -66,8 +66,8 @@ backend' = Backend' {
   }
 
 
-definitionSummary :: Definition -> TCM ()
-definitionSummary def = do
+definitionSummary :: MlfOptions -> Definition -> TCM ()
+definitionSummary opts def = when (_debug opts) $ do
   liftIO (putStrLn ("Summary for: " ++ show q))
   liftIO $ putStrLn $ unlines [
     show (defName def)
@@ -125,22 +125,22 @@ mlfMod allDefs = do
         Primitive{ primName = s } -> fmap Left <$> compilePrim q s
         _                         -> return Nothing
 
-summaryRecGroups :: [[(QName,TTerm)]] -> IO ()
-summaryRecGroups = putStrLn . intercalate "\n----------------\n" . map summaryRecGroup
-  where summaryRecGroup :: [(QName, TTerm)] -> String
-        summaryRecGroup g = intercalate ", " (map show qs)
-          where (qs, ts) = unzip g
+-- summaryRecGroups :: [[(QName,TTerm)]] -> IO ()
+-- summaryRecGroups = putStrLn . intercalate "\n----------------\n" . map summaryRecGroup
+--   where summaryRecGroup :: [(QName, TTerm)] -> String
+--         summaryRecGroup g = intercalate ", " (map show qs)
+--           where (qs, ts) = unzip g
 
 getBindings :: Definition -> TCM (Maybe (QName, TTerm))
 getBindings Defn{defName = q} = fmap (\t -> (q, t)) <$> toTreeless q
 
-recGrp :: [Definition] -> [Definition] -> TCM (Maybe Binding)
-recGrp allDefs defs = toGrp <$> bs
+recGrp :: MlfOptions -> [Definition] -> [Definition] -> TCM (Maybe Binding)
+recGrp opts allDefs defs = toGrp <$> bs
   where
     toGrp []  = Nothing
     toGrp [x] = Just x
     toGrp xs  = Just  . Recursive . concatMap bindingToPair $ xs
-    bs = catMaybes <$> mapM (mlfDef allDefs) defs
+    bs = catMaybes <$> mapM (mlfDef opts allDefs) defs
     -- TODO: It's a bit ugly to take apart the bindings we just created.
     -- Also it's perhaps a bit ugly that *everything* get translated to groups
     -- of recursive bindings. We could e.g. handle the special case where
@@ -155,7 +155,7 @@ recGrp allDefs defs = toGrp <$> bs
 
 mlfPostCompile :: MlfOptions -> IsMain -> Map ModuleName [Definition] -> TCM ()
 mlfPostCompile opts _ modToDefs = do
-  mapM_ definitionSummary allDefs
+  mapM_ (definitionSummary opts) allDefs
   void $ mlfPostModule opts allDefs
   where
     allDefs :: [Definition]
@@ -174,42 +174,43 @@ mlfPostModule mlfopt defs = do
   let modlTxt = prettyShow modl
   when (_debug mlfopt) $ liftIO . putStrLn $ modlTxt
   case _resultVar mlfopt of
-    Just v  -> printVar modl v
+    Just v  -> printVars modl [v]
     Nothing -> return ()
   case _outputFile mlfopt of
     Just fp -> liftIO $ writeFile fp modlTxt
     Nothing -> return ()
   return modl
 
-printVar :: MonadIO m => Mod -> Ident -> m ()
-printVar modl@(MMod binds _) v = do
+printVars :: MonadIO m => Mod -> [Ident] -> m ()
+printVars modl@(MMod binds _) vars = do
   liftIO (putStrLn "\n=======================")
   liftIO $
-    if any defVar binds
-    then runModPrintInts [v] modl >>= putStrLn
+    if all defined vars
+    then runModPrintInts vars modl >>= putStrLn
     else putStrLn "Variable not bound, did you specify the *fully quailified* name?"
     where
-      defVar (Named u _) = u == v
-      defVar _           = False
+      defined v = any (defVar v) binds
+      defVar v (Named u _) = u == v
+      defVar _ _           = False
 
 -- TODO: `mlfDef` should honor the flag "--debug" and only print to stdout in
 -- case this is enabled. Also it would be nice to split up IO and the actual
 -- translation into two different functions.
-mlfDef :: [Definition] -> Definition -> TCM (Maybe Binding)
-mlfDef alldefs d@Defn{ defName = q } =
+mlfDef :: MlfOptions -> [Definition] -> Definition -> TCM (Maybe Binding)
+mlfDef opts alldefs d@Defn{ defName = q } =
   case theDef d of
     Function{} -> do
       mtt <- toTreeless q
       case mtt of
         Nothing -> return Nothing
         Just tt -> do
-          liftIO . putStrLn . render
+          logd . render
             $  header '=' (show q)
             $$ sect "Treeless (abstract syntax)"    (text . show $ tt)
             $$ sect "Treeless (concrete syntax)"    (pretty tt)
           let
             mlf = Mlf.translateDef' (getConstructors alldefs) q tt
-          liftIO . putStrLn . render $
+          logd . render $
             sect "Malfunction (abstract syntax)" (text . show $ mlf)
             $$ sect "Malfunction (concrete syntax)" (pretty mlf)
           return (Just mlf)
@@ -224,6 +225,8 @@ mlfDef alldefs d@Defn{ defName = q } =
     Datatype{}    -> liftIO (putStrLn $ "  data " ++ show q) >> return Nothing
     Record{}      -> liftIO (putStrLn $ "  record " ++ show q) >> return Nothing
     Constructor{} -> liftIO (putStrLn $ "  constructor " ++ show q) >> return Nothing
+  where logd = liftIO . when (_debug opts) . putStrLn
+
 
 -- | Returns all constructors grouped by data type.
 getConstructors :: [Definition] -> [[QName]]
