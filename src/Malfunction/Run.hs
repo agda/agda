@@ -4,13 +4,15 @@ module Malfunction.Run
   , runModPrintInts
   , withPrintInts
   , runModFile
+  , runMalfunction
   ) where
 
 import           GHC.IO.Handle
 import           Malfunction.AST
+import           System.FilePath
+import           System.IO
 import           System.IO.Temp
 import           System.Process
-import System.IO
 
 catMod :: Mod -> Handle -> IO ()
 catMod m h = hPutStr h prog >> hFlush h
@@ -62,3 +64,18 @@ compileRunPrint agdap var =
     \mlfp mlfh -> do
       callProcess "stack" ["exec", "agda2mlf", "--", "-v0", "--mlf", agdap, "-o", mlfp, "-r", var]
       runModFile' mlfp mlfh
+
+-- FIXME: I do almost the same as existing functions in this module.
+--
+-- I do realize that similar functionality exists in `Malfunction.Run` I didn't
+-- use this because it also prints some stuff to stdout, so I felt it was easier
+-- to just repeat these 3 lines of code.
+--
+-- | `runMalfunction fp inp` calls the malfunction compiler on the input `inp`
+-- and places the output at `fp`. Assumes that the executable `malfunction` is
+-- in `PATH`.
+runMalfunction :: FilePath -> String -> IO ()
+runMalfunction nm modl = takeBaseName nm `withSystemTempFile` \fp h -> do
+  hPutStr h modl
+  hFlush h
+  callProcess "malfunction" ["compile", fp, "-o", nm]

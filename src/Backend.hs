@@ -15,13 +15,10 @@ import           Data.Maybe
 import           Malfunction.AST
 import           Malfunction.Run
 import           System.Console.GetOpt
-import           System.FilePath       (takeBaseName)
-import           System.IO             (hPutStr, hFlush)
-import           System.IO.Temp        (withSystemTempFile)
-import           System.Process
 import           Text.Printf
 
 import           Primitive             (compilePrim, compileAxiom)
+import qualified Malfunction.Run       as Run
 
 backend :: Backend
 backend = Backend backend'
@@ -157,20 +154,8 @@ mlfPostModule opts defs = do
   when (_debug opts) $ liftIO . putStrLn $ modlTxt
   whenJust (_resultVar opts) (printVars opts modl . pure)
   whenJust (_outputFile opts) (liftIO . (`writeFile`modlTxt))
-  whenJust (_outputMlf opts) $ \fp -> liftIO $ runMalfunction fp modlTxt
+  whenJust (_outputMlf opts) $ \fp -> liftIO $ Run.runMalfunction fp modlTxt
   return modl
-
--- FIXME: I do realize that similar functionality exists in `Malfunction.Run` I
--- didn't use this because it also prints some stuff to stdout, so I felt it was
--- easier to just repeat these 3 lines of code.
--- | `runMalfunction fp inp` calls the malfunction compiler on the input `inp`
--- and places the output at `fp`. Assumes that the executable `malfunction` is
--- in `PATH`.
-runMalfunction :: FilePath -> String -> IO ()
-runMalfunction nm modl = takeBaseName nm `withSystemTempFile` \fp h -> do
-  hPutStr h modl
-  hFlush h
-  callProcess "malfunction" ["compile", fp, "-o", nm]
 
 printVars :: MonadIO m => MlfOptions -> Mod -> [Ident] -> m ()
 printVars opts modl@(MMod binds _) simpleVars = when (_debug opts) $ do
