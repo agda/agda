@@ -34,6 +34,7 @@ axioms = Map.fromList
   , "Prelude.IO.putStrLn" |-> Mglobal ["Pervasives", "print_string"]
   , "Prelude.IO.putStr"   |-> Mglobal ["Pervasives", "print_string"]
   , notMapped "Prelude.IO.ioBind"
+  , "HelloWorld.putStr" |-> Mglobal ["Pervasives", "print_string"]
   ]
   where
     notMapped n = (n, Mlambda [] $ errorT $ "Axiom not yet mapped: " ++ n)

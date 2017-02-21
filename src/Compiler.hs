@@ -480,13 +480,18 @@ compileAxiom
   -> Maybe Binding    -- The resulting binding
 compileAxiom q = Just
   $ Named (nameToIdent q)
-  $ fromMaybe unkownAxiom
+  $ fromMaybe unknownAxiom
   $ Map.lookup (show q) Primitive.axioms
   where
-    unkownAxiom = errorT $ "Unkown axiom: " ++ show q
+    unknownAxiom = Mlambda [] $ errorT $ "Unknown axiom: " ++ show q
 
 compilePrim
   :: QName -- ^ The qname of the primitive
   -> String -- ^ The name of the primitive
   -> Maybe Binding
-compilePrim q s = Named (nameToIdent q) <$> Map.lookup s Primitive.primitives
+compilePrim q s = Just
+  $ Named (nameToIdent q)
+  $ fromMaybe unknownPrimitive
+  $ Map.lookup s Primitive.primitives
+  where
+    unknownPrimitive = Mlambda [] $ errorT $ "Unknown primitive: " ++ show q
