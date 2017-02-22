@@ -72,7 +72,7 @@ data Kind
     -- on a line, relative to tokens on previous lines).
   | Alignment
     -- ^ Used both for indentation and for alignment.
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Alignment and indentation columns.
 
@@ -530,36 +530,35 @@ spaces [ s ] = do
   moveColumn len
   column <- registerColumn kind
 
-  close <-
-    if col /= 0
-    then do
-      log' Spaces "col /= 0"
-      return column
-    else do
-      columns    <- gets columnsPrev
-      codeBlock  <- gets codeBlock
-      defaultCol <- columnZero
+  if col /= 0
+  then log' Spaces "col /= 0"
+  else do
+    columns    <- gets columnsPrev
+    codeBlock  <- gets codeBlock
+    defaultCol <- columnZero
 
-      let (alignWith, indentFrom) =
-            case filter ((<= len) . columnColumn) columns ++
-                 [defaultCol] of
-              c1 : c2 : _ | columnColumn c1 == len -> (Just c1, c2)
-              c : _       | columnColumn c  <  len -> (Nothing, c)
-              _                                    -> __IMPOSSIBLE__
+    let (alignWith, indentFrom) =
+          case filter ((<= len) . columnColumn) columns ++
+               [defaultCol] of
+            c1 : c2 : _ | columnColumn c1 == len -> (Just c1, c2)
+            c : _       | columnColumn c  <  len -> (Nothing, c)
+            _                                    -> __IMPOSSIBLE__
 
-      log' Spaces $
-        "col == 0: " ++ show (alignWith, indentFrom, len, columns)
+    log' Spaces $
+      "col == 0: " ++ show (alignWith, indentFrom, len, columns)
 
-      -- Indent.
-      output $
-        ptOpenIndent indentFrom (codeBlock - columnCodeBlock indentFrom)
+    -- Indent.
+    output $
+      ptOpenIndent indentFrom (codeBlock - columnCodeBlock indentFrom)
 
-      -- Align (in some cases).
-      case alignWith of
-        Nothing        -> return column
-        Just alignWith -> return alignWith
+    -- Align (in some cases).
+    case alignWith of
+      Just alignWith
+        | columnKind alignWith == Indentation ->
+          output $ ptClose' alignWith
+      _ -> return ()
 
-  output $ ptClose' close <+> nl <+> ptOpen column
+  output $ nl <+> ptOpen column
 
 -- Split multi-lines string literals into multiple string literals
 -- Isolating leading spaces for the alignment machinery to work
