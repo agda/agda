@@ -13,6 +13,8 @@ import qualified Data.Map as Map
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Primitive
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.Parser.ReadP
 import Agda.Utils.Lens
@@ -93,9 +95,13 @@ getHaskellPragma q =
 --       occurrence!
 getHaskellConstructor :: QName -> TCM (Maybe HaskellCode)
 getHaskellConstructor c = do
-  c <- canonicalName c
-  cDef <- theDef <$> getConstInfo c
+  c     <- canonicalName c
+  cDef  <- theDef <$> getConstInfo c
+  true  <- getBuiltinName builtinTrue
+  false <- getBuiltinName builtinFalse
   case cDef of
+    _ | Just c == true  -> return $ Just "True"
+      | Just c == false -> return $ Just "False"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of
