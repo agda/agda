@@ -13,6 +13,7 @@ import Prelude hiding (log)
 import Data.Char
 import Data.Maybe
 import Data.Function
+import Control.Applicative
 import Control.Monad.RWS.Strict
 import System.Directory
 import System.FilePath
