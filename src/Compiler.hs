@@ -402,7 +402,7 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
     toValid c
       | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
         || c`elem`"_" = [c]
-        -- || True = [c]
+        -- > || True = [c]
       | otherwise      = "{" ++ show (ord c) ++ "}"
 
 qnameNameId :: QName -> NameId
