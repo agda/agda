@@ -30,6 +30,7 @@
 , transformers, transformers-compat, unordered-containers, xhtml
 , murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
+, text-icu
 , uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
 , nodejs-6_x
@@ -52,7 +53,7 @@ mkDerivation {
     hashable hashtables haskeline haskell-src-exts mtl parallel pretty
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib uhc-light tasty-quickcheck
-    monadplus EdisonCore EdisonAPI murmur-hash ieee754 gitrev
+    monadplus EdisonCore EdisonAPI murmur-hash ieee754 gitrev text-icu
   ];
   testDepends = [
     base containers directory filepath process-extras tasty
