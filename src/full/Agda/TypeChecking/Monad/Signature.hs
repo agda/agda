@@ -142,7 +142,7 @@ addHaskellData :: QName -> HaskellType -> [HaskellCode] -> TCM ()
 addHaskellData q hsTy hsCons = addDeprecatedPragma "COMPILED_DATA" ghcBackendName q $ dataFormat hsTy hsCons
 
 addJSCode :: QName -> JSCode -> TCM ()
-addJSCode q jsDef = addDeprecatedPragma "COMPILED_JS" jsBackendName q jsDef
+addJSCode q jsDef = addDeprecatedPragma "COMPILED_JS" jsBackendName q ("= " ++ jsDef)
 
 addCoreCode :: QName -> CoreCode -> TCM ()
 addCoreCode q crDef = addDeprecatedPragma "COMPILED_UHC" uhcBackendName q $ "= " ++ crDef
