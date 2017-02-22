@@ -475,10 +475,11 @@ term tm0 = case tm0 of
     return $ hsVarUQ x
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
+    isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
     let given   = length ts
         needed  = length used
         missing = drop given used
-    if any not used
+    if not isCompiled && any not used
       then if any not missing then term (etaExpand (needed - given) tm0) else do
         f <- lift $ HS.Var <$> xhqn "du" f  -- used stripped function
         f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
