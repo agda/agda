@@ -3,7 +3,9 @@ Module      :  Malfunction.AST
 Maintainer  :  janmasrovira@gmail.com, hanghj@student.chalmers.se
 
 This module defines the abstract syntax of
-<https://github.com/stedolan/malfunction Malfunction>.
+<https://github.com/stedolan/malfunction Malfunction>. Please see the
+<https://github.com/stedolan/malfunction/blob/master/docs/spec.md Malfunction
+language specification>
 -}
 {-# LANGUAGE OverloadedStrings #-}
 module Malfunction.AST
@@ -110,19 +112,6 @@ data Case
   | Intrange (Int, Int)
   deriving (Show, Eq)
 
-maxTag :: Integer
-maxTag = 200
-tagOfInt :: Integer -> Integer
-tagOfInt n =
-  if 0 <= n && n < maxTag
-  then n
-  else error "tag out of range"
-
--- `Term` references OCaml modules `Ident` and `Longident`
--- TODO: Bindings for modules Ident and Longident
--- TODO: I would maybe like to stay clear of type-synonyms in this
--- module altogether.
---
 -- | An identifier used to reference other values in the malfunction module.
 type Ident = String
 
@@ -188,35 +177,6 @@ data Binding
   | Recursive [(Ident, Term)]
   deriving (Show, Eq)
 
--- Pretty-printing functionality
--- TODO: There is one issue with the current implementation:
--- Consider this example:
---
---     ($12.8247419466833350538 (lambda ($v0)
---                                 (switch $v0 ((tag 0) (let ($v1 (field 0 $v0)) $v1)))))
---
--- What we see here is that when `nest` is invoked after the parameters of the
--- lambda-expression the nesting references the beginning of the
--- lambda-expression. Ideally it should reference the beggining of that line.
--- Also, brackets should be closed in the same column that they are opened. So
--- the above example would become:
---
---     ($12.8247419466833350538
---       (lambda ($v0)
---         (switch $v0 ((tag 0) (let ($v1 (field 0 $v0)) $v1)))
---       )
---     )
---
--- Also, it would be nice to have a way of deferring line-skips in case the stuff
--- we're printing fits within some limit (say 70 characters). So that we won't print
--- stuff like:
---
---     ( apply
---       $f
---       0
---       1
---     )
-
 textShow :: Show a => a -> Doc
 textShow = text . show
 
@@ -233,7 +193,6 @@ levelPlus :: Doc -> [Doc] -> Doc
 levelPlus a bs = sep $ [ "(" <+> a ] ++ map nst bs ++ [")"]
 
 instance Pretty Mod where
---   pretty (MMod bs ts) = "(module " $$ nst (vcat (map pretty bs)) $$ "(export" <+> prettyList ts <+> "))"
   pretty (MMod bs ts) = levelPlus "module" (map pretty bs ++ [levelPlus "export" (map pretty ts)])
   prettyPrec _ = pretty
 
@@ -252,10 +211,10 @@ instance Pretty Term where
     Mintop2 op tp t0 t1 -> levelPlus (pretty op) [prettyTypedTerm tp t0, prettyTypedTerm tp t1]
     Mconvert tp0 tp1 t0 -> parens $ "convert" <.> pretty tp0 <.> pretty tp1 <+> pretty t0
     -- Vectors
-    Mvecnew tp t0 t1    -> levelPlus "makevec" [pretty t0, pretty t1]
-    Mvecget tp t0 t1    -> levelPlus "load" [pretty t0, pretty t1]
-    Mvecset tp t0 t1 t2 -> levelPlus "store" [pretty t0, pretty t1, pretty t2]
-    Mveclen tp t0       -> level "length" (pretty t0)
+    Mvecnew _tp t0 t1    -> levelPlus "makevec" [pretty t0, pretty t1]
+    Mvecget _tp t0 t1    -> levelPlus "load" [pretty t0, pretty t1]
+    Mvecset _tp t0 t1 t2 -> levelPlus "store" [pretty t0, pretty t1, pretty t2]
+    Mveclen _tp t0       -> level "length" (pretty t0)
     -- Blocks
     Mblock i ts         -> level ("block" <+> parens ("tag" <+> pretty i)) (prettyList ts)
     Mfield i t0         -> parens $ "field" <+> pretty i <+> pretty t0
@@ -277,23 +236,11 @@ instance Pretty IntConst where
     CInt64  i -> textShow i
     CBigint i -> pretty i
 
--- Problematic:
--- instance Pretty Longident where
---   pretty = text . showLongident
-
 prettyLongident :: Longident -> Doc
 prettyLongident = hsep . map prettyIdent
 
--- Ditto problematic:
--- instance Pretty Ident where
---   pretty = text . showIdent
-
 prettyIdent :: Ident -> Doc
 prettyIdent = text . ('$':)
-
--- Ditto problematic:
--- instance Pretty ([Case], Term) where
---   pretty = text . showCaseExpression
 
 prettyCaseExpression :: ([Case], Term) -> Doc
 prettyCaseExpression (cs, t) = level (prettyList cs) (pretty t)
@@ -329,8 +276,6 @@ instance Pretty BinaryIntOp where
     Lte -> "<="
     Gte -> ">="
     Eq  -> "=="
-
--- Problematic:
 
 prettyTypedTerm :: IntType -> Term -> Doc
 prettyTypedTerm tp t = case tp of
