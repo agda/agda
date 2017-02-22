@@ -9,4 +9,4 @@ id x = x
 -- treeless compiler will inline all uses of the function. Hence, we
 -- throw an error rather than confusing the user by allowing the
 -- pointless pragma.
-{-# COMPILED id \ _ x -> x #-}
+{-# COMPILE GHC id = \ _ x -> x #-}

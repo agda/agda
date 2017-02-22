@@ -11,7 +11,7 @@ abstract
   doNothing : IO Unit
   doNothing = unit
 
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 
 main : IO unit
 main = doNothing

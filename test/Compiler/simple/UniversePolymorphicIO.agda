@@ -7,8 +7,8 @@ open import Common.Level
 postulate
   IO : ∀ {ℓ} → Set ℓ → Set ℓ
 
-{-# IMPORT UniversePolymorphicIO #-}
-{-# COMPILED_TYPE IO UniversePolymorphicIO.AgdaIO #-}
+{-# FOREIGN GHC import qualified UniversePolymorphicIO #-}
+{-# COMPILE GHC IO = type UniversePolymorphicIO.AgdaIO #-}
 {-# BUILTIN IO IO #-}
 
 postulate
@@ -20,19 +20,18 @@ postulate
 
 {-# BUILTIN STRING String #-}
 
-{-# COMPILED return (\_ _ -> return :: a -> IO a) #-}
-{-# COMPILED _>>=_  (\_ _ _ _ ->
-                        (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
+{-# COMPILE GHC return = \_ _ -> return :: a -> IO a #-}
+{-# COMPILE GHC _>>=_  = \_ _ _ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b #-}
 
-{-# IMPORT Data.Text.IO #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 postulate
   Unit : Set
   putStrLn : String →  IO Unit
 
-{-# COMPILED_TYPE Unit () #-}
+{-# COMPILE GHC Unit = type () #-}
 
-{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
+{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
 
 data List A : Set where
   [] : List A

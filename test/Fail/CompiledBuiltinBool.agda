@@ -9,4 +9,4 @@ data Bool : Set where
 {-# BUILTIN FALSE false #-}
 
 -- Not allowed:
-{-# COMPILED_DATA Bool Bool True False #-}
+{-# COMPILE GHC Bool = data Bool (True | False) #-}

@@ -14,7 +14,7 @@ record _×_ (A B : Set) : Set where
 
 open _×_ public
 
-{-# COMPILED_DATA _×_ (,) (,) #-}
+{-# COMPILE GHC _×_ = data (,) ((,)) #-}
 
 -- Note: could not get this to work for Σ.
 -- Also, the universe-polymorphic version of _×_ would require more trickery.

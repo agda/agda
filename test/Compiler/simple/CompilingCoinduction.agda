@@ -8,21 +8,21 @@ open import Common.String
 data Unit : Set where
   unit : Unit
 
-{-# COMPILED_DATA Unit () () #-}
+{-# COMPILE GHC Unit = data () (()) #-}
 
 postulate
   IO : Set → Set
 
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 {-# BUILTIN IO IO #-}
 
-{-# IMPORT Data.Text.IO #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 postulate
   putStrLn : ∞ String → IO Unit
 
-{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
-{-# COMPILED_UHC putStrLn (UHC.Agda.Builtins.primPutStrLn) #-}
-{-# COMPILED_JS putStrLn function(x) { return function(cb) { process.stdout.write(x.flat() + "\n"); cb(0); }; } #-}
+{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
+{-# COMPILE UHC putStrLn = UHC.Agda.Builtins.primPutStrLn #-}
+{-# COMPILE JS  putStrLn = function(x) { return function(cb) { process.stdout.write(x.flat() + "\n"); cb(0); }; } #-}
 
 main = putStrLn (♯ "a")

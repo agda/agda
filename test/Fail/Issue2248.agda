@@ -1,30 +1,30 @@
 -- Andreas, 2016-10-11, AIM XXIV
--- COMPILED pragma accidentially also accepted for abstract definitions
+-- COMPILE GHC pragma accidentially also accepted for abstract definitions
 
 open import Common.String
 
 data Unit : Set where
   unit : Unit
 
-{-# COMPILED_DATA Unit () () #-}
+{-# COMPILE GHC Unit = data () (()) #-}
 
 postulate
   IO : Set → Set
   doNothing : IO Unit
 
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 {-# BUILTIN IO IO #-}
-{-# COMPILED doNothing (return ()) #-}
+{-# COMPILE GHC doNothing = return () #-}
 
-{-# IMPORT Data.Text.IO #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 abstract
   putStrLn : String → IO Unit
   putStrLn _ = doNothing
 
-{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
+{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
 
 main = putStrLn "Hello, world!"
 
 -- WAS: compiler produced ill-formed Haskell-code
--- NOW: Error on COMPILED pragma
+-- NOW: Error on COMPILE GHC pragma
