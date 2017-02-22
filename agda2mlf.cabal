@@ -17,7 +17,7 @@ library
   exposed-modules:     Malfunction.AST
                      , Malfunction.Run
                      , Compiler
-                     , Test
+                     , Malfunction
                      , Backend
   other-modules:       Primitive
                      , Instances

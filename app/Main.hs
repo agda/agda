@@ -1,3 +1,6 @@
 module Main (main) where
 
-import Test
+import qualified Malfunction
+
+main :: IO ()
+main = Malfunction.main
