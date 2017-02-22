@@ -1,3 +1,10 @@
+{- |
+Module      :  Malfunction.AST
+Maintainer  :  janmasrovira@gmail.com, hanghj@student.chalmers.se
+
+This module defines the abstract syntax of
+<https://github.com/stedolan/malfunction Malfunction>.
+-}
 {-# LANGUAGE OverloadedStrings #-}
 module Malfunction.AST
   ( IntType(..)
@@ -26,8 +33,8 @@ import Data.Int
 -- `pretty` but this is not the one used for Treeless terms, so for consistency,
 -- let's go with Agda's choice.
 import Agda.Utils.Pretty
-import Text.PrettyPrint
 
+-- | The integer types.
 data IntType
   = TInt
   | TInt32
@@ -35,6 +42,7 @@ data IntType
   | TBigint
   deriving (Show, Eq)
 
+-- | An integer value tagged with its corresponding type.
 data IntConst
   -- Int may be the wrong type.
   --
@@ -58,27 +66,37 @@ data IntConst
   | CBigint Integer
   deriving (Show, Eq)
 
+-- | A unary operator.
 data UnaryIntOp = Neg | Not
   deriving (Show, Eq)
 
+-- | A binary operator.
 data BinaryIntOp
   = Add | Sub | Mul | Div | Mod | And | Or | Xor | Lsl | Lsr | Asr
   | Lt | Gt | Lte | Gte | Eq
   deriving (Show, Eq)
 
+-- | Vector types.
 data VectorType = Array | Bytevec
   deriving (Show, Eq)
 
+-- | Mutability
 data Mutability = Inm | Mut
   deriving (Show, Eq)
 
+-- NOTE: Any tag value above 200 is an error in malfunction.
+--
+-- For this reason we may want to make BlockTag a newtype and only export a constructor.
+--
+-- | A tag used in the construction of $Block@s.
 type BlockTag = Int
 
 -- The spec and the ocaml implementation are inconsistent when defining Case.
 -- I'll use the definition (examples) from the spec to guide this implementation.
 -- I know I could've used Maybe's here, but not doing so was a concious choice.
 --
--- Any tag value above 200 is an error in malfunction.
+-- | Used in switch-statements. See
+-- <https://github.com/stedolan/malfunction/blob/master/docs/spec.md#conditionals>
 data Case
   -- (tag _)
   = Deftag
@@ -104,9 +122,13 @@ tagOfInt n =
 -- TODO: Bindings for modules Ident and Longident
 -- TODO: I would maybe like to stay clear of type-synonyms in this
 -- module altogether.
+--
+-- | An identifier used to reference other values in the malfunction module.
 type Ident = String
 
+-- | A long identifier is used to reference OCaml values (using @Mglobal@).
 type Longident = [Ident]
+
 --data Longident
 --  = Lident String
 --  | Ldot   Longident String
@@ -115,8 +137,11 @@ type Longident = [Ident]
 -- "The top-level sexp must begin with the atom module, followed by a
 -- list of bindings (described under let, below), followed by an sexp
 -- beginning with the atom export."
+--
+-- | Defines a malfunction module.
 data Mod = MMod [Binding] [Term]
 
+-- | The overall syntax of malfunction terms.
 data Term
   = Mvar Ident
   | Mlambda [Ident] Term
@@ -140,13 +165,26 @@ data Term
   | Mfield Int Term
   deriving (Show, Eq)
 
-
+-- | Bindings
+--
+-- The atom `let` introduces a sequence of bindings:
+--
+--     (let BINDING BINDING BINDING ... BODY)
+--
+-- Each binding is of one of the forms:
+--
+--   - @Named@: @($var EXP)@: binds @$var@ to the result of evaluating @EXP@.
+--              @$var@ scopes over subsequent bindings and the body.
+--
+--   - @Unnamed@: @(_ EXP)@: evaluates @EXP@ and ignores the result.
+--
+--   - @Recursive@: @(rec ($VAR1 EXP1) ($VAR2 EXP2) ...)@: binds each @$VAR@ mutually
+--                  recursively. Each @EXP@ must be of the form @(lambda ...)@.
+--                  Bindings scope over themselves, each other, subsequent
+--                  bindings, and the body.
 data Binding
-  -- "(_ EXP)"
   = Unnamed Term
-  -- "($var EXP)"
   | Named Ident Term
-  -- "(rec ($VAR1 EXP1) ($VAR2 EXP2) ...)"
   | Recursive [(Ident, Term)]
   deriving (Show, Eq)
 
