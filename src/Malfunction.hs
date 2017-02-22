@@ -1,7 +1,8 @@
 module Malfunction (main) where
 
-import Backend
+import qualified Backend as Malfunction
 import Agda.Main (runAgda)
 
+-- | Invokes the agda-compiler with the additional malfunction backend.
 main :: IO ()
-main = runAgda [backend]
+main = runAgda [Malfunction.backend]
