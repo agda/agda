@@ -12,6 +12,7 @@ module Compiler
   -- * Others
   , qnameNameId
   , errorT
+  , boolT
   , wildcardTerm
   -- * Primitives
   , compilePrim
@@ -378,14 +379,14 @@ translateName = Mvar . nameToIdent
 -- Not all names in agda are valid names in Treleess. Valid names in Agda are
 -- given by [1]. Valid identifiers in Malfunction is subject to change:
 --
--- > "Atoms: sequences of ASCII letters, digits, or symbols (the exact set of
--- > allowed symbols isn't quite nailed down yet)"[2]
+-- "Atoms: sequences of ASCII letters, digits, or symbols (the exact set of
+-- allowed symbols isn't quite nailed down yet)"[2]
 --
--- This function translates non-alpha-numerical characters to `{n}` where
+-- This function translates non-alpha-numerical characters to @{n}@ where
 -- `n` is the ascii-value of that character.
 --
--- [1]: http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers
--- [2]: https://github.com/stedolan/malfunction/blob/master/docs/spec.md
+-- [1. The Agda Wiki]: <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers>
+-- [2. Malfunction Spec]: <https://github.com/stedolan/malfunction/blob/master/docs/spec.md>
 nameToIdent :: QName -> Ident
 nameToIdent qn = t' (hex a ++ "." ++ hex b)
   where
@@ -405,14 +406,14 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
         -- > || True = [c]
       | otherwise      = "{" ++ show (ord c) ++ "}"
 
+-- | Translates a treeless identifier to a malfunction identifier.
 qnameNameId :: QName -> NameId
 qnameNameId = nameId . qnameName
 
-
--- | Should take lists of "bindings" already sorted by defMutual (for efficiency).
+-- | Compiles treeless "bindings" to a malfunction module given groups of defintions.
 compile
   :: [[QName]]          -- ^ All constructors grouped by data type.
-  -> [[(QName, TTerm)]] -- ^ List of treeless bindings sorted and grouped by defMutual.
+  -> [[(QName, TTerm)]] -- ^ List of treeless bindings.
   -> Mod
 compile allConstructors bs = runReaderEnv allConstructors (compile' bs)
 
@@ -462,9 +463,11 @@ qnamesIdsInTerm t = go t mempty
           TAGuard t b -> foldr go qs [t, b]
           TALit _ b -> go b qs
 
+-- | Defines a run-time error in Malfunction - equivalent to @error@ in Haskell.
 errorT :: String -> Term
 errorT err = Mapply (Mglobal ["Pervasives", "failwith"]) [Mstring err]
 
+-- | Encodes a boolean value as a numerical Malfunction value.
 boolT :: Bool -> Term
 boolT b = Mint (CInt $ if b then 1 else 0)
 
@@ -475,6 +478,8 @@ trueCase = [CaseInt 1]
 -- Translating axioms seem to be problematic. For the other compiler they are
 -- defined in Agda.TypeChecking.Monad.Base. It is a field of
 -- `CompiledRepresentation`. We do not have this luxury. So what do we do?
+--
+-- | Translates an axiom to a malfunction binding. Returns `Nothing` if the axiom is unmapped.
 compileAxiom
   :: QName                  -- The name of the axiomm
   -> Maybe Binding    -- The resulting binding
@@ -486,6 +491,7 @@ compileAxiom q = Just
     unknownAxiom = Mlambda [] $ errorT $ "Unknown axiom: " ++ show q'
     q' = last . qnameToList $ q
 
+-- | Translates a primitive to a malfunction binding. Returns `Nothing` if the primitive is unmapped.
 compilePrim
   :: QName -- ^ The qname of the primitive
   -> String -- ^ The name of the primitive
