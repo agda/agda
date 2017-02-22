@@ -1,3 +1,10 @@
+{- |
+Module      :  Compiler
+Maintainer  :  janmasrovira@gmail.com, hanghj@student.chalmers.se
+
+This module includes functions that compile from <agda.readthedocs.io Agda> to
+<https://github.com/stedolan/malfunction Malfunction>.
+-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
 module Compiler
