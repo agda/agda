@@ -1,3 +1,2 @@
-Issue2248_COMPILED_TYPE.agda:14,1-28
-COMPILED_TYPE directive only works on postulates
-when checking the pragma COMPILED_TYPE IO IO
+Issue2248_COMPILED_TYPE.agda:20,1-34
+Haskell types can only be given for postulates.
