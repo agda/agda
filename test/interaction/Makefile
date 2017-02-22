@@ -128,7 +128,7 @@ $(Tests) : %.cmp : %.out
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			wdiff $*.out $*.tmp | colordiff; \
-			/bin/echo -n "Accept new error [y/N/q]? "; \
+			echo -n "Accept new error [y/N/q]? "; \
 			read -n 1; \
 			echo ""; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
