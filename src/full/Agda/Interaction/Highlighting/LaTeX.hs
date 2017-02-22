@@ -13,7 +13,6 @@ import Prelude hiding (log)
 import Data.Char
 import Data.Maybe
 import Data.Function
-import Control.Applicative
 import Control.Monad.RWS.Strict
 import System.Directory
 import System.FilePath
@@ -22,12 +21,13 @@ import qualified Data.Text               as T
 import qualified Data.Text.ICU           as ICU
 import qualified Data.Text.IO            as T
 import qualified Data.Text.Lazy          as L
-import qualified Data.Text.Lazy.Builder  as B
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.ByteString.Lazy    as BS
 
-import qualified Data.IntMap as IntMap
-import qualified Data.List   as List
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as Set
+import qualified Data.IntMap  as IntMap
+import qualified Data.List    as List
 
 import Paths_Agda
 
@@ -58,12 +58,18 @@ import Agda.Utils.Impossible
 -- goes and the state is for keeping track of the tokens and some other
 -- useful info, and the I/O part is used for printing debugging info.
 
--- NOTE: This type used to be defined using Text instead of B.Builder.
--- However, this led to seemingly quadratic behaviour, presumably
--- because a Text value was constructed by repeatedly appending things
--- to it.
+type LaTeX = ExceptT String (RWST () [Output] State IO)
 
-type LaTeX = ExceptT String (RWST () B.Builder State IO)
+-- | Output items.
+
+data Output
+  = Text !Text
+    -- ^ A piece of text.
+  | MaybeColumn !AlignmentColumn
+    -- ^ A column. If it turns out to be an indentation column that is
+    --   not used to indent or align something, then no column will be
+    --   generated, only whitespace ('agdaSpace').
+  deriving Show
 
 -- | Column kinds.
 
@@ -75,6 +81,10 @@ data Kind
     -- ^ Used both for indentation and for alignment.
   deriving (Eq, Show)
 
+-- | Unique identifiers for indentation columns.
+
+type IndentationColumnId = Int
+
 -- | Alignment and indentation columns.
 
 data AlignmentColumn = AlignmentColumn
@@ -82,10 +92,10 @@ data AlignmentColumn = AlignmentColumn
     -- ^ The column's code block.
   , columnColumn :: !Int
     -- ^ The column number.
-  , columnKind :: !Kind
-    -- ^ The column kind.
-  , columnName :: !Text
-    -- ^ The column's name.
+  , columnKind :: Maybe IndentationColumnId
+    -- ^ The column kind. 'Nothing' for alignment columns and @'Just'
+    -- i@ for indentation columns, where @i@ is the column's unique
+    -- identifier.
   } deriving Show
 
 data State = State
@@ -102,7 +112,11 @@ data State = State
                           --   with larger columns coming first.
   , inCode      :: !Bool  -- ^ Keeps track of whether we are in a
                           --   code block or not.
-  , nextName    :: !Int   -- ^ The next indentation column number.
+  , nextId      :: !IndentationColumnId
+                          -- ^ The next indentation column identifier.
+  , usedColumns :: HashSet IndentationColumnId
+                          -- ^ Indentation columns that have actually
+                          --   been used.
   }
 
 type Tokens = [Token]
@@ -123,7 +137,7 @@ debugs = []
 
 -- | Run function for the @LaTeX@ monad.
 runLaTeX ::
-  LaTeX a -> () -> State -> IO (Either String a, State, B.Builder)
+  LaTeX a -> () -> State -> IO (Either String a, State, [Output])
 runLaTeX = runRWST . runExceptT
 
 emptyState :: State
@@ -134,7 +148,8 @@ emptyState = State
   , columns     = []
   , columnsPrev = []
   , inCode      = False
-  , nextName    = 0
+  , nextId      = 0
+  , usedColumns = Set.empty
   }
 
 ------------------------------------------------------------------------
@@ -265,27 +280,33 @@ resetColumn = modify $ \s ->
 moveColumn :: Int -> LaTeX ()
 moveColumn i = modify $ \s -> s { column = i + column s }
 
--- | Registers an alignment column. The column is returned.
+-- | Registers a column of the given kind. The column is returned.
 
 registerColumn :: Kind -> LaTeX AlignmentColumn
 registerColumn kind = do
   column    <- gets column
   codeBlock <- gets codeBlock
-               -- Indentation columns have unique names, distinct from
-               -- all alignment column names.
-  name      <- T.pack <$> case kind of
-                 Alignment   -> return (show column)
+  kind      <- case kind of
+                 Alignment   -> return Nothing
                  Indentation -> do
-                   nextName <- gets nextName
-                   modify $ \s -> s { nextName = succ nextName }
-                   return (show nextName ++ "I")
+                   nextId <- gets nextId
+                   modify $ \s -> s { nextId = succ nextId }
+                   return (Just nextId)
   let c = AlignmentColumn { columnColumn    = column
                           , columnCodeBlock = codeBlock
                           , columnKind      = kind
-                          , columnName      = name
                           }
   modify $ \s -> s { columns = c : columns s }
   return c
+
+-- | Registers the given column as used (if it is an indentation
+-- column).
+
+useColumn :: AlignmentColumn -> LaTeX ()
+useColumn c = case columnKind c of
+  Nothing -> return ()
+  Just i  -> modify $ \s ->
+               s { usedColumns = Set.insert i (usedColumns s) }
 
 -- | Alignment column zero in the current code block.
 
@@ -294,8 +315,7 @@ columnZero = do
   codeBlock <- gets codeBlock
   return $ AlignmentColumn { columnColumn    = 0
                            , columnCodeBlock = codeBlock
-                           , columnKind      = Alignment
-                           , columnName      = T.singleton '0'
+                           , columnKind      = Nothing
                            }
 
 -- | Registers column zero as an alignment column.
@@ -347,10 +367,10 @@ log debug text = logHelper debug text []
 log' :: Debug -> String -> LaTeX ()
 log' d = log d . T.pack
 
-output :: Text -> LaTeX ()
-output text = do
-  log Output text
-  tell (B.fromText text)
+output :: Output -> LaTeX ()
+output item = do
+  log' Output (show item)
+  tell [item]
 
 ------------------------------------------------------------------------
 -- * LaTeX and polytable strings.
@@ -362,6 +382,22 @@ nl, beginCode, endCode :: Text
 nl        = T.pack "%\n"
 beginCode = T.pack "\\begin{code}"
 endCode   = T.pack "\\end{code}"
+
+-- | A command that is used when two tokens are put next to each other
+-- in the same column.
+
+agdaSpace :: Text
+agdaSpace = cmdPrefix <+> T.pack "Space" <+> cmdArg T.empty <+> nl
+
+-- | The column's name.
+--
+-- Indentation columns have unique names, distinct from all alignment
+-- column names.
+
+columnName :: AlignmentColumn -> Text
+columnName c = T.pack $ case columnKind c of
+  Nothing -> show (columnColumn c)
+  Just i  -> show i ++ "I"
 
 ptOpen :: AlignmentColumn -> Text
 ptOpen c = T.pack "\\>[" <+> columnName c <+> T.singleton ']'
@@ -403,12 +439,12 @@ nonCode = do
   if tok == beginCode
 
      then do
-       output $ beginCode <+> nl
+       output $ Text $ beginCode <+> nl
        enterCode
        code
 
      else do
-       output tok
+       output $ Text tok
        nonCode
 
 -- | Deals with code blocks. Every token, except spaces, is pretty
@@ -430,10 +466,10 @@ code = do
     -- Non-whitespace tokens at the start of a line trigger an
     -- alignment column.
     registerColumnZero
-    output . ptOpen =<< columnZero
+    output . Text . ptOpen =<< columnZero
 
   when (tok == endCode) $ do
-    output $ ptClose <+> nl <+> endCode
+    output $ Text $ ptClose <+> nl <+> endCode
     leaveCode
     nonCode
 
@@ -442,8 +478,9 @@ code = do
     code
 
   case aspect (info tok') of
-    Nothing -> output $ escape tok
-    Just a  -> output $ cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+    Nothing -> output $ Text $ escape tok
+    Just a  -> output $ Text $
+                 cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
 
   code
 
@@ -511,8 +548,8 @@ spaces [] = return ()
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
   when (col == 0) $
-    output . ptOpen =<< columnZero
-  output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
+    output . Text . ptOpen =<< columnZero
+  output $ Text $ ptClose <+> T.replicate (graphemeClusters s) ptNL
   resetColumn
   spaces ss
 
@@ -549,17 +586,18 @@ spaces [ s ] = do
       "col == 0: " ++ show (alignWith, indentFrom, len, columns)
 
     -- Indent.
-    output $
+    useColumn indentFrom
+    output $ Text $
       ptOpenIndent indentFrom (codeBlock - columnCodeBlock indentFrom)
 
     -- Align (in some cases).
     case alignWith of
-      Just alignWith
-        | columnKind alignWith == Indentation ->
-          output $ ptClose' alignWith
+      Just (alignWith@AlignmentColumn { columnKind = Just _ }) -> do
+          useColumn alignWith
+          output $ Text $ ptClose' alignWith
       _ -> return ()
 
-  output $ nl <+> ptOpen column
+  output $ MaybeColumn column
 
 -- Split multi-lines string literals into multiple string literals
 -- Isolating leading spaces for the alignment machinery to work
@@ -669,7 +707,13 @@ toLaTeX source hi
 
 processTokens :: Tokens -> IO L.Text
 processTokens ts = do
-  (x, _, s) <- runLaTeX nonCode () (emptyState { tokens = ts })
+  (x, s, os) <- runLaTeX nonCode () (emptyState { tokens = ts })
   case x of
-    Left "Done" -> return (B.toLazyText s)
+    Left "Done" -> return $ L.fromChunks $ map (render s) os
     _           -> __IMPOSSIBLE__
+  where
+  render _ (Text s)        = s
+  render s (MaybeColumn c)
+    | Just i <- columnKind c,
+      not (Set.member i (usedColumns s)) = agdaSpace
+    | otherwise                          = nl <+> ptOpen c
