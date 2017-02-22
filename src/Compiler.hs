@@ -1,12 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
 module Compiler
-  ( runReaderEnv
-  , translate'
+  (
+  -- * Translation functions
+    translateTerms
   , translateDef
-  , translateDef'
-  , Term
-  , Binding
   , nameToIdent
   , compile
   -- * Others
@@ -17,6 +15,8 @@ module Compiler
   -- * Primitives
   , compilePrim
   , compileAxiom
+  -- * Malfunction AST
+  , module Malfunction.AST
   ) where
 
 import           Agda.Syntax.Common (NameId(..))
@@ -59,13 +59,13 @@ runReaderEnv allcons ma
       , _level = 0
       }
 
-translateDef :: MonadReader Env m => QName -> TTerm -> m Binding
-translateDef qnm t
+translateDefM :: MonadReader Env m => QName -> TTerm -> m Binding
+translateDefM qnm t
   | isRecursive = do
-      tt <- translate t
+      tt <- translateM t
       return . Recursive . pure $ (nameToIdent qnm, tt)
   | otherwise = do
-      tt <- translate t
+      tt <- translateM t
       return (Named (nameToIdent qnm) tt)
   where
     -- TODO: I don't believe this is enough, consider the example
@@ -74,14 +74,21 @@ translateDef qnm t
     --     b = a
     isRecursive = Set.member (qnameNameId qnm) (qnamesIdsInTerm t) -- TODO: is this enough?
 
-translateDef' :: [[QName]] -> QName -> TTerm -> Binding
-translateDef' qs qn = runReaderEnv qs . translateDef qn
+-- | Translate a single treeless term to a list of malfunction terms.
+--
+-- Note that this does not handle mutual dependencies correctly. For this you
+-- would need @compile@.
+translateDef :: [[QName]] -> QName -> TTerm -> Binding
+translateDef qs qn = runReaderEnv qs . translateDefM qn
 
-translate' :: [[QName]] -> [TTerm] -> [Term]
-translate' qs = runReaderEnv qs . mapM translate
+-- | Translates a list treeless terms to a list of malfunction terms.
+--
+-- Pluralized version of @translateDef@.
+translateTerms :: [[QName]] -> [TTerm] -> [Term]
+translateTerms qs = runReaderEnv qs . mapM translateM
 
-translate :: MonadReader Env m => TTerm -> m Term
-translate = translateTerm
+translateM :: MonadReader Env m => TTerm -> m Term
+translateM = translateTerm
 
 translateTerm :: MonadTranslate m => TTerm -> m Term
 translateTerm tt = case tt of
