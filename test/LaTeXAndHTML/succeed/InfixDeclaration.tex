@@ -4,30 +4,30 @@
 \begin{document}
 
 \begin{code}%
-\>[0]\AgdaKeyword{module}%
-\>[0I]\AgdaModule{InfixDeclaration}%
-\>[1I]\AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{InfixDeclaration}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
 \\
 %
 \\
-\>[0]\AgdaKeyword{infix}%
-\>[2I]\AgdaNumber{5}%
-\>[3I]\AgdaDatatype{\_>>\_}%
-\>[4I]\AgdaDatatype{\_<<\_}\<%
+\>[0]\AgdaKeyword{infix}\AgdaSpace{}%
+\AgdaNumber{5}\AgdaSpace{}%
+\AgdaDatatype{\_>>\_}\AgdaSpace{}%
+\AgdaDatatype{\_<<\_}\<%
 \\
 %
 \\
-\>[0]\AgdaKeyword{data}%
-\>[5I]\AgdaDatatype{\_>>\_}%
-\>[6I]\AgdaSymbol{:}%
-\>[7I]\AgdaPrimitiveType{Set}%
-\>[8I]\AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{\_>>\_}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
 \\
-\>[0]\AgdaKeyword{data}%
-\>[9I]\AgdaDatatype{\_<<\_}%
-\>[10I]\AgdaSymbol{:}%
-\>[11I]\AgdaPrimitiveType{Set}%
-\>[12I]\AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{\_<<\_}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
 \\
 \>[0]\<%
 \end{code}
@@ -35,9 +35,9 @@
 Let's try some infix declaration with surrounding text.
 
 \begin{code}%
-\>[0]\AgdaKeyword{module}%
-\>[13I]\AgdaModule{SurroundingText}%
-\>[14I]\AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{SurroundingText}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
 \\
 \>[0]\<%
 \end{code}
@@ -46,21 +46,21 @@ In the following, we declare the fixity of two operators.
 
 \begin{code}%
 \>[0][@{}l@{\AgdaIndent{1}}]%
-\>[2]\AgdaKeyword{infix}%
-\>[15I]\AgdaNumber{5}%
-\>[16I]\AgdaPostulate{\_+\_}%
-\>[17I]\AgdaPostulate{\_*\_}\<%
+\>[2]\AgdaKeyword{infix}\AgdaSpace{}%
+\AgdaNumber{5}\AgdaSpace{}%
+\AgdaPostulate{\_+\_}\AgdaSpace{}%
+\AgdaPostulate{\_*\_}\<%
 \end{code}
 
 A fixity declaration can preceed the actual declaration of the names.
 
 \begin{code}%
 \>[0][@{}l@{\AgdaIndent{2}}]%
-\>[2]\AgdaKeyword{postulate}%
-\>[18I]\AgdaPostulate{\_+\_}%
-\>[19I]\AgdaPostulate{\_*\_}%
-\>[20I]\AgdaSymbol{:}%
-\>[21I]\AgdaPrimitiveType{Set}\<%
+\>[2]\AgdaKeyword{postulate}\AgdaSpace{}%
+\AgdaPostulate{\_+\_}\AgdaSpace{}%
+\AgdaPostulate{\_*\_}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \end{document}
