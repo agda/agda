@@ -5,7 +5,9 @@
 
 \AgdaHide{
 \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{OneSpaceIndent} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[0I]\AgdaModule{OneSpaceIndent}%
+\>[1I]\AgdaKeyword{where}\<%
 \end{code}
 }
 
@@ -14,11 +16,13 @@ Text1
 
 \AgdaHide{
 \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{Defs} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[2I]\AgdaModule{Defs}%
+\>[3I]\AgdaKeyword{where}\<%
 \\
 %
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[1]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
 \>[1]\AgdaKeyword{postulate}\<%
 \end{code}
 }
@@ -26,8 +30,10 @@ Text1
 Text2
 
 \begin{code}%
-\>[1][@{}l@{\AgdaIndent{1}}]\<[2]%
-\>[2]\AgdaPostulate{Base} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[1][@{}l@{\AgdaIndent{1}}]%
+\>[2]\AgdaPostulate{Base}%
+\>[4I]\AgdaSymbol{:}%
+\>[5I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 Text3

@@ -6,15 +6,23 @@
 \AgdaTarget{ℕ}
 \AgdaTarget{zero}
 \begin{code}%
-\>[0]\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data}%
+\>[0I]\AgdaDatatype{ℕ}%
+\>[1I]\AgdaSymbol{:}%
+\>[2I]\AgdaPrimitiveType{Set}%
+\>[3I]\AgdaKeyword{where}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaInductiveConstructor{zero} \<[8]%
-\>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{zero}%
+\>[8]\AgdaSymbol{:}%
+\>[4I]\AgdaDatatype{ℕ}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaInductiveConstructor{suc} \<[8]%
-\>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{suc}%
+\>[8]\AgdaSymbol{:}%
+\>[5I]\AgdaDatatype{ℕ}%
+\>[6I]\AgdaSymbol{→}%
+\>[7I]\AgdaDatatype{ℕ}\<%
 \end{code}
 
 See next page for how to define \AgdaFunction{two} (doesn't turn into a
@@ -26,9 +34,15 @@ manually though; \hyperlink{two}{\AgdaDatatype{two}}.
 \AgdaTarget{two}
 \hypertarget{two}{}
 \begin{code}%
-\>[0]\AgdaFunction{two} \AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
+\>[0]\AgdaFunction{two}%
+\>[8I]\AgdaSymbol{:}%
+\>[9I]\AgdaDatatype{ℕ}\<%
 \\
-\>[0]\AgdaFunction{two} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
+\>[0]\AgdaFunction{two}%
+\>[10I]\AgdaSymbol{=}%
+\>[11I]\AgdaInductiveConstructor{suc}%
+\>[12I]\AgdaSymbol{(}\AgdaInductiveConstructor{suc}%
+\>[13I]\AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
 \end{code}
 
 \AgdaInductiveConstructor{zero} is of type
@@ -41,10 +55,17 @@ Now that the target for \AgdaFunction{two} has been defined the link
 works automatically.
 
 \begin{code}%
-\>[0]\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data}%
+\>[14I]\AgdaDatatype{Bool}%
+\>[15I]\AgdaSymbol{:}%
+\>[16I]\AgdaPrimitiveType{Set}%
+\>[17I]\AgdaKeyword{where}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaInductiveConstructor{true} \AgdaInductiveConstructor{false} \AgdaSymbol{:} \AgdaDatatype{Bool}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{true}%
+\>[18I]\AgdaInductiveConstructor{false}%
+\>[19I]\AgdaSymbol{:}%
+\>[20I]\AgdaDatatype{Bool}\<%
 \end{code}
 
 The AgdaTarget command takes a list as input, enabling several targets
@@ -52,11 +73,37 @@ to be specified as follows:
 
 \AgdaTarget{if, then, else, if\_then\_else\_}
 \begin{code}%
-\>[0]\AgdaFunction{if\_then\_else\_} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{Bool} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
+\>[0]\AgdaFunction{if\_then\_else\_}%
+\>[21I]\AgdaSymbol{:}%
+\>[22I]\AgdaSymbol{\{}\AgdaBound{A}%
+\>[23I]\AgdaSymbol{:}%
+\>[24I]\AgdaPrimitiveType{Set}\AgdaSymbol{\}}%
+\>[25I]\AgdaSymbol{→}%
+\>[26I]\AgdaDatatype{Bool}%
+\>[27I]\AgdaSymbol{→}%
+\>[28I]\AgdaBound{A}%
+\>[29I]\AgdaSymbol{→}%
+\>[30I]\AgdaBound{A}%
+\>[31I]\AgdaSymbol{→}%
+\>[32I]\AgdaBound{A}\<%
 \\
-\>[0]\AgdaFunction{if} \AgdaInductiveConstructor{true} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{t}\<%
+\>[0]\AgdaFunction{if}%
+\>[33I]\AgdaInductiveConstructor{true}%
+\>[34I]\AgdaFunction{then}%
+\>[35I]\AgdaBound{t}%
+\>[36I]\AgdaFunction{else}%
+\>[37I]\AgdaBound{f}%
+\>[38I]\AgdaSymbol{=}%
+\>[39I]\AgdaBound{t}\<%
 \\
-\>[0]\AgdaFunction{if} \AgdaInductiveConstructor{false} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{f}\<%
+\>[0]\AgdaFunction{if}%
+\>[40I]\AgdaInductiveConstructor{false}%
+\>[41I]\AgdaFunction{then}%
+\>[42I]\AgdaBound{t}%
+\>[43I]\AgdaFunction{else}%
+\>[44I]\AgdaBound{f}%
+\>[45I]\AgdaSymbol{=}%
+\>[46I]\AgdaBound{f}\<%
 \end{code}
 
 \newpage

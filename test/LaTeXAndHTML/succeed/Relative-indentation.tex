@@ -7,63 +7,78 @@
 \begin{code}%
 \>[0]\AgdaKeyword{postulate}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaPostulate{A} \<[5]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{A}%
 \>[5]\AgdaPostulate{B}\<%
 \\
-\>[5][@{}l@{\AgdaIndent{0}}]\<[6]%
-\>[6]\AgdaPostulate{C} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[5][@{}l@{\AgdaIndent{0}}]%
+\>[6]\AgdaPostulate{C}%
+\>[0I]\AgdaSymbol{:}%
+\>[1I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \begin{code}%
 \>[0]\AgdaKeyword{postulate}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaPostulate{D} \<[5]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{D}%
 \>[5]\AgdaPostulate{E}\<%
 \\
 %
 \\
-\>[5][@{}l@{\AgdaIndent{0}}]\<[6]%
-\>[6]\AgdaPostulate{F} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[5][@{}l@{\AgdaIndent{0}}]%
+\>[6]\AgdaPostulate{F}%
+\>[2I]\AgdaSymbol{:}%
+\>[3I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \begin{code}%
 \>[0]\AgdaKeyword{postulate}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaPostulate{G} \<[5]%
-\>[5]\AgdaPostulate{H} \<[8]%
-\>[8]\AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{G}%
+\>[5]\AgdaPostulate{H}%
+\>[8]\AgdaSymbol{:}%
+\>[4I]\AgdaPrimitiveType{Set}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
 \>[2]\AgdaPostulate{I}\<%
 \\
-\>[2][@{}l@{\AgdaIndent{0}}]\<[6]%
-\>[6]\AgdaPostulate{J} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[6]\AgdaPostulate{J}%
+\>[5I]\AgdaSymbol{:}%
+\>[6I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \begin{AgdaMultiCode}{2}
 \begin{code}%
 \>[0]\AgdaKeyword{postulate}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaPostulate{K} \<[5]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{K}%
 \>[5]\AgdaPostulate{L}\<%
 \end{code}
 \begin{code}%
-\>[5][@{}l@{\AgdaIndent{1}}]\<[6]%
-\>[6]\AgdaPostulate{M} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[5][@{}l@{\AgdaIndent{1}}]%
+\>[6]\AgdaPostulate{M}%
+\>[7I]\AgdaSymbol{:}%
+\>[8I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 \end{AgdaMultiCode}
 
 \begin{code}%
-\>[0]\AgdaKeyword{record} \AgdaRecord{R} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{record}%
+\>[9I]\AgdaRecord{R}%
+\>[10I]\AgdaSymbol{:}%
+\>[11I]\AgdaPrimitiveType{Set₁}%
+\>[12I]\AgdaKeyword{where}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaKeyword{field} \AgdaField{N} \AgdaSymbol{:}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{field}%
+\>[13I]\AgdaField{N}%
+\>[14I]\AgdaSymbol{:}\<%
 \\
-\>[2][@{}l@{\AgdaIndent{0}}]\<[12]%
+\>[14I][@{}l@{\AgdaIndent{0}}]%
 \>[12]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
@@ -72,64 +87,139 @@
 
 \begin{AgdaAlign}
 text \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{\_} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[15I]\AgdaModule{\_}%
+\>[16I]\AgdaKeyword{where}\<%
 \end{code} more text
     also text  \begin{code}%
-\>[0][@{}l@{\AgdaIndent{1}}]\<[4]%
-\>[4]\AgdaKeyword{postulate} \AgdaPostulate{O} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[0][@{}l@{\AgdaIndent{1}}]%
+\>[4]\AgdaKeyword{postulate}%
+\>[17I]\AgdaPostulate{O}%
+\>[18I]\AgdaSymbol{:}%
+\>[19I]\AgdaPrimitiveType{Set}\<%
 \end{code} text again
 
  text          \begin{code}%
-\>[0][@{}l@{\AgdaIndent{2}}]\<[4]%
-\>[4]\AgdaKeyword{postulate} \AgdaPostulate{o} \AgdaSymbol{:} \AgdaPostulate{O}\<%
+\>[0][@{}l@{\AgdaIndent{2}}]%
+\>[4]\AgdaKeyword{postulate}%
+\>[20I]\AgdaPostulate{o}%
+\>[21I]\AgdaSymbol{:}%
+\>[22I]\AgdaPostulate{O}\<%
 \end{code}   text             
 \end{AgdaAlign}
 
 \begin{code}%
 \>[0]\AgdaKeyword{postulate}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[1]%
-\>[1]\AgdaPostulate{P} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[1]\AgdaPostulate{P}%
+\>[23I]\AgdaSymbol{:}%
+\>[24I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{\_} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[25I]\AgdaModule{\_}%
+\>[26I]\AgdaKeyword{where}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[1]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
 \>[1]\AgdaKeyword{postulate}\<%
 \\
-\>[1][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaPostulate{Q} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[1][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{Q}%
+\>[27I]\AgdaSymbol{:}%
+\>[28I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
 \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{\_} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[29I]\AgdaModule{\_}%
+\>[30I]\AgdaKeyword{where}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[9]%
+\>[29I][@{}l@{\AgdaIndent{0}}]\<[30I]%
 \>[9]\AgdaKeyword{postulate}\<%
 \\
-\>[9][@{}l@{\AgdaIndent{0}}]\<[10]%
-\>[10]\AgdaPostulate{S} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[9][@{}l@{\AgdaIndent{0}}]%
+\>[10]\AgdaPostulate{S}%
+\>[31I]\AgdaSymbol{:}%
+\>[32I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 
-\begin{AgdaMultiCode}{1}
+\begin{AgdaMultiCode}{2}
 \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{\_} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[33I]\AgdaModule{\_}%
+\>[34I]\AgdaKeyword{where}\<%
 \end{code}
 \begin{code}%
-\>[0][@{}l@{\AgdaIndent{1}}]\<[2]%
-\>[2]\AgdaKeyword{postulate} \AgdaPostulate{T} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[0][@{}l@{\AgdaIndent{1}}]%
+\>[2]\AgdaKeyword{postulate}%
+\>[35I]\AgdaPostulate{T}%
+\>[36I]\AgdaSymbol{:}%
+\>[37I]\AgdaPrimitiveType{Set}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]\<[35I]%
+\>[12]\AgdaPostulate{U}%
+\>[38I]\AgdaSymbol{:}%
+\>[39I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 \end{AgdaMultiCode}
 
-\begin{AgdaSuppressSpace}{1}
+\begin{AgdaSuppressSpace}{2}
 \begin{code}%
-\>[0]\AgdaKeyword{module} \AgdaModule{\_} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[40I]\AgdaModule{\_}%
+\>[41I]\AgdaKeyword{where}\<%
 \end{code}
 \begin{code}%
-\>[0][@{}l@{\AgdaIndent{1}}]\<[2]%
-\>[2]\AgdaKeyword{postulate} \AgdaPostulate{U} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\>[0][@{}l@{\AgdaIndent{1}}]%
+\>[2]\AgdaKeyword{postulate}%
+\>[42I]\AgdaPostulate{V}%
+\>[43I]\AgdaSymbol{:}%
+\>[44I]\AgdaPrimitiveType{Set}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]\<[42I]%
+\>[12]\AgdaPostulate{W}%
+\>[45I]\AgdaSymbol{:}%
+\>[46I]\AgdaPrimitiveType{Set}\<%
 \end{code}
 \end{AgdaSuppressSpace}
+
+\begin{code}%
+\>[0]\AgdaFunction{X}%
+\>[47I]\AgdaSymbol{:}%
+\>[48I]\AgdaPrimitiveType{Set₁}\<%
+\\
+\>[0]\AgdaFunction{X}%
+\>[49I]\AgdaSymbol{=}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]\<[49I]%
+\>[2]\AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\begin{code}%
+\>[0]\AgdaFunction{Y}%
+\>[50I]\AgdaSymbol{:}%
+\>[51I]\AgdaPrimitiveType{Set₁}\<%
+\\
+\>[0]\AgdaFunction{Y}%
+\>[52I]\AgdaSymbol{=}%
+\>[10]\AgdaPrimitiveType{Set}\<%
+\\
+%
+\\
+\>[0]\AgdaFunction{Zzzzzzzzz}%
+\>[53I]\AgdaSymbol{:}%
+\>[54I]\AgdaPrimitiveType{Set}%
+\>[55I]\AgdaSymbol{→}%
+\>[56I]\AgdaPrimitiveType{Set}\<%
+\\
+\>[0]\AgdaFunction{Zzzzzzzzz}%
+\>[57I]\AgdaBound{X}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]\<[57I]%
+\>[10]\AgdaSymbol{=}%
+\>[58I]\AgdaBound{X}\<%
+\end{code}
 
 \end{document}

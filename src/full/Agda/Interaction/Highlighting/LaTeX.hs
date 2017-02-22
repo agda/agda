@@ -64,21 +64,35 @@ import Agda.Utils.Impossible
 
 type LaTeX = ExceptT String (RWST () B.Builder State IO)
 
--- | Alignment columns.
+-- | Column kinds.
+
+data Kind
+  = Indentation
+    -- ^ Used only for indentation (the placement of the first token
+    -- on a line, relative to tokens on previous lines).
+  | Alignment
+    -- ^ Used both for indentation and for alignment.
+  deriving (Eq, Show)
+
+-- | Alignment and indentation columns.
 
 data AlignmentColumn = AlignmentColumn
   { columnCodeBlock :: !Int
-    -- ^ The alignment column's code block.
-  , columnColumn    :: !Int
-    -- ^ The alignment column.
+    -- ^ The column's code block.
+  , columnColumn :: !Int
+    -- ^ The column number.
+  , columnKind :: !Kind
+    -- ^ The column kind.
+  , columnName :: !Text
+    -- ^ The column's name.
   } deriving Show
 
 data State = State
   { tokens      :: Tokens
   , codeBlock   :: !Int   -- ^ The number of the current code block.
-  , column      :: !Int   -- ^ Column number, used for polytable
-                          --   alignment.
-  , columns     :: [Int]  -- ^ All alignment columns found on the
+  , column      :: !Int   -- ^ The current column number.
+  , columns     :: [AlignmentColumn]
+                          -- ^ All alignment columns found on the
                           --   current line (so far), in reverse
                           --   order.
   , columnsPrev :: [AlignmentColumn]
@@ -87,6 +101,7 @@ data State = State
                           --   with larger columns coming first.
   , inCode      :: !Bool  -- ^ Keeps track of whether we are in a
                           --   code block or not.
+  , nextName    :: !Int   -- ^ The next indentation column number.
   }
 
 type Tokens = [Token]
@@ -118,6 +133,7 @@ emptyState = State
   , columns     = []
   , columnsPrev = []
   , inCode      = False
+  , nextName    = 0
   }
 
 ------------------------------------------------------------------------
@@ -235,34 +251,58 @@ nextToken = text `fmap` nextToken'
 resetColumn :: LaTeX ()
 resetColumn = modify $ \s ->
   s { column      = 0
-    , columnsPrev = merge (codeBlock s) (columns s) (columnsPrev s)
+    , columnsPrev = merge (columns s) (columnsPrev s)
     , columns     = []
     }
   where
   -- Remove shadowed columns from old.
-  merge b []  old = old
-  merge b new old = new' ++ old'
+  merge []  old = old
+  merge new old = new ++ filter ((< leastNew) . columnColumn) old
     where
-    new'     = map (\c -> AlignmentColumn
-                            { columnCodeBlock = b
-                            , columnColumn    = c
-                            })
-                   new
-    old'     = filter ((< leastNew) . columnColumn) old
-    leastNew = last new
+    leastNew = columnColumn (last new)
 
 moveColumn :: Int -> LaTeX ()
 moveColumn i = modify $ \s -> s { column = i + column s }
 
--- | Registers an alignment column.
+-- | Registers an alignment column. The column is returned.
 
-registerColumn :: LaTeX ()
-registerColumn = modify $ \s -> s { columns = column s : columns s }
+registerColumn :: Kind -> LaTeX AlignmentColumn
+registerColumn kind = do
+  column    <- gets column
+  codeBlock <- gets codeBlock
+               -- Indentation columns have unique names, distinct from
+               -- all alignment column names.
+  name      <- T.pack <$> case kind of
+                 Alignment   -> return (show column)
+                 Indentation -> do
+                   nextName <- gets nextName
+                   modify $ \s -> s { nextName = succ nextName }
+                   return (show nextName ++ "I")
+  let c = AlignmentColumn { columnColumn    = column
+                          , columnCodeBlock = codeBlock
+                          , columnKind      = kind
+                          , columnName      = name
+                          }
+  modify $ \s -> s { columns = c : columns s }
+  return c
+
+-- | Alignment column zero in the current code block.
+
+columnZero :: LaTeX AlignmentColumn
+columnZero = do
+  codeBlock <- gets codeBlock
+  return $ AlignmentColumn { columnColumn    = 0
+                           , columnCodeBlock = codeBlock
+                           , columnKind      = Alignment
+                           , columnName      = T.singleton '0'
+                           }
 
 -- | Registers column zero as an alignment column.
 
 registerColumnZero :: LaTeX ()
-registerColumnZero = modify $ \s -> s { columns = [0] }
+registerColumnZero = do
+  c <- columnZero
+  modify $ \s -> s { columns = [c] }
 
 -- | Changes to the state that are performed at the start of a code
 -- block.
@@ -322,22 +362,23 @@ nl        = T.pack "%\n"
 beginCode = T.pack "\\begin{code}"
 endCode   = T.pack "\\end{code}"
 
-ptOpen :: Show a => a -> Text
-ptOpen i = T.pack "\\>" <+> T.pack ("[" ++ show i ++ "]")
+ptOpen :: AlignmentColumn -> Text
+ptOpen c = T.pack "\\>[" <+> columnName c <+> T.singleton ']'
 
-ptOpenIndent :: Show a => a -> Text -> Text
-ptOpenIndent i delta =
-  ptOpen i <+> T.pack "[@{}l@{"
+ptOpenIndent :: AlignmentColumn -> Int -> Text
+ptOpenIndent c delta =
+  ptOpen c <+> T.pack "[@{}l@{"
            <+> cmdPrefix
            <+> T.pack "Indent"
-           <+> cmdArg delta
+           <+> cmdArg (T.pack $ show delta)
            <+> T.pack "}]"
 
 ptClose :: Text
 ptClose = T.pack "\\<"
 
-ptClose' :: Show a => a -> Text
-ptClose' i = ptClose <+> T.pack ("[" ++ show i ++ "]")
+ptClose' :: AlignmentColumn -> Text
+ptClose' c =
+  ptClose <+> T.singleton '[' <+> columnName c <+> T.singleton ']'
 
 ptNL :: Text
 ptNL = nl <+> T.pack "\\\\\n"
@@ -386,9 +427,9 @@ code = do
 
   when (col == 0 && not (isSpaces tok)) $ do
     -- Non-whitespace tokens at the start of a line trigger an
-    -- indentation column.
+    -- alignment column.
     registerColumnZero
-    output $ ptOpen 0
+    output . ptOpen =<< columnZero
 
   when (tok == endCode) $ do
     output $ ptClose <+> nl <+> endCode
@@ -459,6 +500,9 @@ escape _                         = __IMPOSSIBLE__
 -- | Spaces are grouped before processed, because multiple consecutive
 -- spaces determine the alignment of the code and consecutive newline
 -- characters need special treatment as well.
+--
+-- If the final element of the list consists of spaces, then these
+-- spaces are assumed to not be trailing whitespace.
 spaces :: [Text] -> LaTeX ()
 spaces [] = return ()
 
@@ -466,75 +510,55 @@ spaces [] = return ()
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
   when (col == 0) $
-    output $ ptOpen 0
+    output . ptOpen =<< columnZero
   output $ ptClose <+> T.replicate (graphemeClusters s) ptNL
   resetColumn
   spaces ss
 
--- Single spaces, or multiple spaces followed by a newline character.
-spaces ((T.uncons -> Just (' ', s)) : ss)
-  | T.null s || not (null ss) = do
+-- Spaces followed by a newline character.
+spaces (_ : ss@(_ : _)) = spaces ss
 
+-- Spaces that are not followed by a newline character.
+spaces [ s ] = do
   col <- gets column
-  moveColumn (1 + graphemeClusters s)
 
-  when (col == 0) $ do
-    -- Single spaces at the start of the line, not followed by more
-    -- whitespace, trigger an indentation column and indentation.
-    if T.null s && null ss then do
-      log' MoveColumn "Register: col = 0, one space"
-      registerColumn
-      indent 1
-    else
-      output $ ptOpen 0
+  let len  = graphemeClusters s
+      kind = if col /= 0 && len == 1
+             then Indentation
+             else Alignment
 
-  -- For single spaces that are neither at the start nor at the end of
-  -- a line a space character is emitted.
-  when (col /= 0 && null ss) $
-    output $ T.singleton ' '
-
-  spaces ss
-
--- Multiple spaces, not followed by a newline character.
-spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
-  let len = graphemeClusters s
-
-  col <- gets column
   moveColumn len
-  registerColumn
+  column <- registerColumn kind
 
   if col /= 0
+  then log' Spaces "col /= 0"
+  else do
+    columns    <- gets columnsPrev
+    codeBlock  <- gets codeBlock
+    defaultCol <- columnZero
 
-     then do
-       log' Spaces "col /= 0"
-       output $ T.singleton ' '
-       col <- gets column
-       output $ ptClose' col <+> nl <+> ptOpen col
+    let (alignWith, indentFrom) =
+          case filter ((<= len) . columnColumn) columns ++
+               [defaultCol] of
+            c1 : c2 : _ | columnColumn c1 == len -> (Just c1, c2)
+            c : _       | columnColumn c  <  len -> (Nothing, c)
+            _                                    -> __IMPOSSIBLE__
 
-     else do
-       log' Spaces "col == 0"
-       indent len
+    log' Spaces $
+      "col == 0: " ++ show (alignWith, indentFrom, len, columns)
 
-  spaces ss
+    -- Indent.
+    output $
+      ptOpenIndent indentFrom (codeBlock - columnCodeBlock indentFrom)
 
-spaces _ = __IMPOSSIBLE__
+    -- Align (in some cases).
+    case alignWith of
+      Just alignWith
+        | columnKind alignWith == Indentation ->
+          output $ ptClose' alignWith
+      _ -> return ()
 
--- | Indents the following code to the given column.
-
-indent :: Int -> LaTeX ()
-indent len = do
-  columns   <- gets columnsPrev
-  codeBlock <- gets codeBlock
-  let defaultCol = AlignmentColumn { columnCodeBlock = codeBlock
-                                   , columnColumn    = 0
-                                   }
-      indentFrom = head (filter ((< len) . columnColumn) columns ++
-                         [defaultCol])
-      blockDelta = codeBlock - columnCodeBlock indentFrom
-      delta      = T.pack (show blockDelta)
-  log' Spaces (show (indentFrom, len, columns))
-  output $ ptOpenIndent (columnColumn indentFrom) delta
-  output $ ptClose' len <+> nl <+> ptOpen len
+  output $ nl <+> ptOpen column
 
 -- Split multi-lines string literals into multiple string literals
 -- Isolating leading spaces for the alignment machinery to work

@@ -3,30 +3,54 @@
 \begin{document}
 
 \begin{code}%
-\>[0]\AgdaKeyword{data} \AgdaDatatype{Nat} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{data}%
+\>[0I]\AgdaDatatype{Nat}%
+\>[1I]\AgdaSymbol{:}%
+\>[2I]\AgdaPrimitiveType{Set}%
+\>[3I]\AgdaKeyword{where}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaInductiveConstructor{zero} \AgdaSymbol{:} \AgdaDatatype{Nat}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{zero}%
+\>[4I]\AgdaSymbol{:}%
+\>[5I]\AgdaDatatype{Nat}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaInductiveConstructor{suc} \AgdaSymbol{:} \AgdaDatatype{Nat} \AgdaSymbol{→} \AgdaDatatype{Nat}\<%
-\\
-%
-\\
-\>[0]\AgdaKeyword{module} \AgdaModule{\_} \AgdaKeyword{where}\<%
-\\
-%
-\\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaKeyword{pattern} \AgdaInductiveConstructor{two} \<[16]%
-\>[16]\AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
-\\
-\>[0][@{}l@{\AgdaIndent{0}}]\<[2]%
-\>[2]\AgdaKeyword{pattern} \AgdaInductiveConstructor{three} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{two}\<%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{suc}%
+\>[6I]\AgdaSymbol{:}%
+\>[7I]\AgdaDatatype{Nat}%
+\>[8I]\AgdaSymbol{→}%
+\>[9I]\AgdaDatatype{Nat}\<%
 \\
 %
 \\
-\>[0]\AgdaKeyword{data} \AgdaDatatype{Bot} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\>[0]\AgdaKeyword{module}%
+\>[10I]\AgdaModule{\_}%
+\>[11I]\AgdaKeyword{where}\<%
+\\
+%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{pattern}%
+\>[12I]\AgdaInductiveConstructor{two}%
+\>[16]\AgdaSymbol{=}%
+\>[13I]\AgdaInductiveConstructor{suc}%
+\>[14I]\AgdaSymbol{(}\AgdaInductiveConstructor{suc}%
+\>[15I]\AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{pattern}%
+\>[16I]\AgdaInductiveConstructor{three}%
+\>[17I]\AgdaSymbol{=}%
+\>[18I]\AgdaInductiveConstructor{suc}%
+\>[19I]\AgdaInductiveConstructor{two}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{data}%
+\>[20I]\AgdaDatatype{Bot}%
+\>[21I]\AgdaSymbol{:}%
+\>[22I]\AgdaPrimitiveType{Set}%
+\>[23I]\AgdaKeyword{where}\<%
 \end{code}
 
 \end{document}

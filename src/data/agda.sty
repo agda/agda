@@ -292,23 +292,28 @@
 % ----------------------------------------------------------------------
 % Commands.
 
-% Aspect commands.
-\newcommand{\AgdaComment}     [1]
-    {\AgdaCommentFontStyle{\textcolor{AgdaComment}{#1}}}
-\newcommand{\AgdaOption}      [1]
-    {\AgdaCommentFontStyle{\textcolor{AgdaOption}{#1}}}
-\newcommand{\AgdaKeyword}     [1]
-    {\AgdaKeywordFontStyle{\textcolor{AgdaKeyword}{#1}}}
-\newcommand{\AgdaString}      [1]{\AgdaStringFontStyle{\textcolor{AgdaString}{#1}}}
-\newcommand{\AgdaNumber}      [1]{\AgdaFontStyle{\textcolor{AgdaNumber}{#1}}}
-\newcommand{\AgdaSymbol}      [1]{\AgdaFontStyle{\textcolor{AgdaSymbol}{#1}}}
-\newcommand{\AgdaPrimitiveType}[1]
-    {\AgdaFontStyle{\textcolor{AgdaPrimitiveType}{#1}}}
-\newcommand{\AgdaOperator}    [1]{\AgdaFontStyle{\textcolor{AgdaOperator}{#1}}}
-
-% NameKind commands.
 \newcommand{\AgdaNoSpaceMath}[1]
     {\begingroup\thickmuskip=0mu\medmuskip=0mu#1\endgroup}
+
+% Aspect commands.
+\newcommand{\AgdaComment}     [1]
+    {\AgdaNoSpaceMath{\AgdaCommentFontStyle{\textcolor{AgdaComment}{#1}}}}
+\newcommand{\AgdaOption}      [1]
+    {\AgdaNoSpaceMath{\AgdaCommentFontStyle{\textcolor{AgdaOption}{#1}}}}
+\newcommand{\AgdaKeyword}     [1]
+    {\AgdaNoSpaceMath{\AgdaKeywordFontStyle{\textcolor{AgdaKeyword}{#1}}}}
+\newcommand{\AgdaString}      [1]
+    {\AgdaNoSpaceMath{\AgdaStringFontStyle{\textcolor{AgdaString}{#1}}}}
+\newcommand{\AgdaNumber}      [1]
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaNumber}{#1}}}}
+\newcommand{\AgdaSymbol}      [1]
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaSymbol}{#1}}}}
+\newcommand{\AgdaPrimitiveType}[1]
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPrimitiveType}{#1}}}}
+\newcommand{\AgdaOperator}    [1]
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaOperator}{#1}}}}
+
+% NameKind commands.
 
 % The user can control the typesetting of (certain) individual tokens
 % by redefining the following command. The first argument is the token
@@ -548,8 +553,14 @@
   \stepcounter{Agda@SuppressCurrent}%
   \ignorespacesafterend}
 
+% Space inserted after tokens.
+\newcommand{\AgdaSpace}{ }
+
+% Space inserted to indent something.
+\newcommand{\AgdaIndentSpace}{\AgdaSpace{}$\;\;$}
+
 % Default column for polytable.
-\defaultcolumn{@{}l@{ }}
+\defaultcolumn{@{}l@{\AgdaSpace{}}}
 
 % \AgdaIndent expects a non-negative integer as its only argument.
 % This integer should be the distance, in code blocks, to the thing
@@ -564,6 +575,6 @@
               \( \value{Agda@Align} = 1
                    \AND
                  #1 < \value{Agda@AlignCurrent}
-              \)}{ $\;\;$}{}}
+              \)}{\AgdaIndentSpace{}}{}}
 
 \endinput
