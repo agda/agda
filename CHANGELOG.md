@@ -151,11 +151,39 @@ Emacs mode
 Compiler backends
 -----------------
 
+* Unified compiler pragmas
+
+  The compiler pragmas (`COMPILED`, `COMPILED_DATA`, etc.) have been unified across
+  backends into two new pragmas:
+
+  ```
+    {-# COMPILE <Backend> <Name> <Text> #-}
+    {-# FOREIGN <Backend> <Text> #-}
+  ```
+
+  The old pragmas still work, but will emit a warning if used. They will be
+  removed completely in Agda 2.6.
+
+  The translation of old pragmas into new ones is as follows:
+
+  Old | New
+  --- | ---
+  `{-# COMPILED f e #-}` | `{-# COMPILE GHC f = e #-}`
+  `{-# COMPILED_TYPE A T #-}` | `{-# COMPILE GHC A = type T #-}`
+  `{-# COMPILED_DATA A D C1 .. CN #-}` | `{-# COMPILE GHC A = data D (C1 | .. | CN) #-}`
+  `{-# COMPILED_EXPORT f g #-}` | `{-# COMPILE GHC f as g #-}`
+  `{-# IMPORT M #-}` | `{-# FOREIGN GHC import qualified M #-}`
+  `{-# HASKELL code #-}` | `{-# FOREIGN GHC code #-}`
+  `{-# COMPILED_UHC f e #-}` | `{-# COMPILE UHC f = e #-}`
+  `{-# COMPILED_DATA_UHC A D C1 .. CN #-}` | `{-# COMPILE UHC A = data D (C1 | .. | CN) #-}`
+  `{-# IMPORT_UHC M #-}` | `{-# FOREIGN UHC __IMPORT__ M #-}`
+  `{-# COMPILED_JS f e #-}` | `{-# COMPILE JS f = e #-}`
+
 * GHC Haskell backend
 
-  The COMPILED pragma is now also allowed for functions. This makes it
-  possible to have both an Agda implementation and a native Haskell runtime
-  implementation.
+  The COMPILED pragma (and the corresponding COMPILE GHC pragma) is now also
+  allowed for functions. This makes it possible to have both an Agda
+  implementation and a native Haskell runtime implementation.
 
 * UHC compiler backend
 
@@ -164,8 +192,10 @@ Compiler backends
 
 * Haskell imports are no longer transitively inherited from imported modules.
 
-  The IMPORT and IMPORT_UHC pragmas no longer cause import statements in
-  modules importing the module containing the pragma.
+  The (now deprecated) IMPORT and IMPORT_UHC pragmas no longer cause import
+  statements in modules importing the module containing the pragma.
+
+  The same is true for the corresponding FOREIGN pragmas.
 
 * Support for stand-alone backends.
 

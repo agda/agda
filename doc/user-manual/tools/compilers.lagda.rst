@@ -12,8 +12,12 @@ Compilers
    :depth: 2
    :local:
 
+See also :ref:`foreign-function-interface`.
+
 Backends
 --------
+
+.. _ghc-backend:
 
 GHC Backend
 ~~~~~~~~~~~
@@ -43,12 +47,12 @@ and uses the :ref:`foreign-function-interface`:
 
   module HelloWorld where
 
-  {-# IMPORT Data.Text.IO #-}
+  {-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
 
   data Unit : Set where
     unit : Unit
 
-  {-# COMPILED_DATA Unit () () #-}
+  {-# COMPILE GHC Unit = data () (()) #-}
 
   postulate
     String : Set
@@ -59,12 +63,12 @@ and uses the :ref:`foreign-function-interface`:
     IO : Set → Set
 
   {-# BUILTIN IO IO #-}
-  {-# COMPILED_TYPE IO IO #-}
+  {-# COMPILE GHC IO = type IO #-}
 
   postulate
     putStr : String → IO Unit
 
-  {-# COMPILED putStr Data.Text.IO.putStr #-}
+  {-# COMPILE GHC putStr = Text.putStr #-}
 
   main : IO Unit
   main = putStr "Hello, World!"
@@ -127,6 +131,8 @@ flag ``--uhc``:
   agda --uhc [--compile-dir=<DIR>]
       [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
 
+
+.. _javascript-backend:
 
 JavaScript Backend
 ~~~~~~~~~~~~~~~~~~
