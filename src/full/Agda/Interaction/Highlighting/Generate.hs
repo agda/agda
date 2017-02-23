@@ -129,20 +129,24 @@ data Level
     --   constructors.
 
 -- | Generate syntax highlighting information for the given
--- declaration, and (if appropriate) print it. If the
--- 'HighlightingLevel' is @'Full'@, then the state is
--- additionally updated with the new highlighting info (in case of a
--- conflict new info takes precedence over old info).
+-- declaration, and (if appropriate) print it. If the boolean is
+-- 'True', then the state is additionally updated with the new
+-- highlighting info (in case of a conflict new info takes precedence
+-- over old info).
 --
 -- The procedure makes use of some of the token highlighting info in
 -- 'stTokens' (that corresponding to the interval covered by the
--- declaration). If the 'HighlightingLevel' is @'Full'@,
--- then this token highlighting info is additionally removed from
--- 'stTokens'.
+-- declaration). If the boolean is 'True', then this token
+-- highlighting info is additionally removed from 'stTokens'.
 
-generateAndPrintSyntaxInfo :: A.Declaration -> Level -> TCM ()
-generateAndPrintSyntaxInfo decl _ | null $ P.getRange decl = return ()
-generateAndPrintSyntaxInfo decl hlLevel = do
+generateAndPrintSyntaxInfo
+  :: A.Declaration
+  -> Level
+  -> Bool
+     -- ^ Update the state?
+  -> TCM ()
+generateAndPrintSyntaxInfo decl _ _ | null $ P.getRange decl = return ()
+generateAndPrintSyntaxInfo decl hlLevel updateState = do
   file <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
 
   reportSLn "import.iface.create" 15 $
@@ -189,10 +193,9 @@ generateAndPrintSyntaxInfo decl hlLevel = do
                        `mappend`
                      curTokens
 
-    case hlLevel of
-      Full{} -> do stSyntaxInfo %= mappend syntaxInfo
-                   stTokens     .= prevTokens `mappend` postTokens
-      _      -> return ()
+    when updateState $ do
+      stSyntaxInfo %= mappend syntaxInfo
+      stTokens     .= prevTokens `mappend` postTokens
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printHighlightingInfo syntaxInfo

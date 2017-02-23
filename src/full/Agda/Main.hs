@@ -133,7 +133,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
         -- resetState
         if not hasFile then return Nothing else do
           file    <- getInputFile
-          (i, mw) <- Imp.typeCheckMain file
+          (i, mw) <- Imp.typeCheckMain file Imp.TypeCheck
 
           -- An interface is only generated if NoWarnings.
           result <- case mw of

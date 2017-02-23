@@ -358,7 +358,7 @@ instantiateDefinitionType q = do
 -- | Highlight a declaration.
 highlight_ :: A.Declaration -> TCM ()
 highlight_ d = do
-  let highlight d = generateAndPrintSyntaxInfo d Full
+  let highlight d = generateAndPrintSyntaxInfo d Full True
   Bench.billTo [Bench.Highlighting] $ case d of
     A.Axiom{}                -> highlight d
     A.Field{}                -> __IMPOSSIBLE__

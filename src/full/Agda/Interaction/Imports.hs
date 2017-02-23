@@ -75,7 +75,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.IO.Binary
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding (Mode)
 import Agda.Utils.Time
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
@@ -84,24 +84,32 @@ import qualified Agda.Utils.Trie as Trie
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Is the aim to type-check the top-level module, or only to
+-- scope-check it?
+
+data Mode
+  = ScopeCheck
+  | TypeCheck
+  deriving (Eq, Show)
+
 -- | Are we loading the interface for the user-loaded file
 --   or for an import?
 data MainInterface
-  = MainInterface     -- ^ For the main file.
-                      --
-                      --   In this case state changes inflicted by
-                      --   'createInterface' are preserved.
-  | NotMainInterface  -- ^ For an imported file.
-                      --
-                      --   In this case state changes inflicted by
-                      --   'createInterface' are not preserved.
+  = MainInterface Mode -- ^ For the main file.
+                       --
+                       --   In this case state changes inflicted by
+                       --   'createInterface' are preserved.
+  | NotMainInterface   -- ^ For an imported file.
+                       --
+                       --   In this case state changes inflicted by
+                       --   'createInterface' are not preserved.
   deriving (Eq, Show)
 
 -- | Should state changes inflicted by 'createInterface' be preserved?
 
 includeStateChanges :: MainInterface -> Bool
-includeStateChanges MainInterface    = True
-includeStateChanges NotMainInterface = False
+includeStateChanges (MainInterface _) = True
+includeStateChanges NotMainInterface  = False
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -182,12 +190,14 @@ hasWarnings = not . null
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
 -- used to find the interface and the computed interface is stored for
--- potential later use.
+-- potential later use (unless the 'MainInterface' is @'MainInterface'
+-- 'ScopeCheck'@).
 
 alreadyVisited :: C.TopLevelModuleName ->
+                  MainInterface ->
                   TCM (Interface, MaybeWarnings) ->
                   TCM (Interface, MaybeWarnings)
-alreadyVisited x getIface = do
+alreadyVisited x isMain getIface = do
     mm <- getVisitedModule x
     case mm of
         -- A module with warnings should never be allowed to be
@@ -199,10 +209,11 @@ alreadyVisited x getIface = do
           reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
           r@(i, wt) <- getIface
           reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
-          visitModule $ ModuleInfo
-            { miInterface  = i
-            , miWarnings   = hasWarnings wt
-            }
+          unless (isMain == MainInterface ScopeCheck) $
+            visitModule $ ModuleInfo
+              { miInterface  = i
+              , miWarnings   = hasWarnings wt
+              }
           return r
 
 -- | Type checks the main file of the interaction.
@@ -211,9 +222,16 @@ alreadyVisited x getIface = do
 --
 --   First, the primitive modules are imported.
 --   Then, @getInterface'@ is called to do the main work.
+--
+--   If the 'Mode' is 'ScopeCheck', then type-checking is not
+--   performed, only scope-checking. (This may include type-checking
+--   of imported modules.) In this case the generated, partial
+--   interface is not stored in the state ('stDecodedModules'). Note,
+--   however, that if the file has already been type-checked, then a
+--   complete interface is returned.
 
-typeCheckMain :: AbsolutePath -> TCM (Interface, MaybeWarnings)
-typeCheckMain f = do
+typeCheckMain :: AbsolutePath -> Mode -> TCM (Interface, MaybeWarnings)
+typeCheckMain f mode = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 $ "Importing the primitive modules."
@@ -237,7 +255,7 @@ typeCheckMain f = do
 
   -- Now do the type checking via getInterface.
   m <- moduleName f
-  getInterface' m MainInterface
+  getInterface' m (MainInterface mode)
 
 -- | Tries to return the interface associated to the given (imported) module.
 --   The time stamp of the relevant interface file is also returned.
@@ -281,7 +299,7 @@ getInterface' x isMain = do
      -- Forget the pragma options (locally).
      setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
 
-     alreadyVisited x $ addImportCycleCheck x $ do
+     alreadyVisited x isMain $ addImportCycleCheck x $ do
       file <- findFile x  -- requires source to exist
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
@@ -333,10 +351,12 @@ getInterface' x isMain = do
 
       stCurrentModule .= Just (iModuleName i)
 
-      -- Interfaces are only stored if no warnings were encountered.
-      case wt of
-        SomeWarnings w -> return ()
-        NoWarnings     -> storeDecodedModule i
+      -- Interfaces are not stored if we are only scope-checking, or
+      -- if any warnings were encountered.
+      case (isMain, wt) of
+        (MainInterface ScopeCheck, _) -> return ()
+        (_, SomeWarnings w)           -> return ()
+        _                             -> storeDecodedModule i
 
       return (i, wt)
 
@@ -444,8 +464,11 @@ typeCheck
      -- ^ @Bool@ is: do we have to merge the interface?
 typeCheck x file isMain = do
   unless (includeStateChanges isMain) cleanCachedLog
-  let withMsgs = bracket_
-       (chaseMsg "Checking" x $ Just $ filePath file)
+  let checkMsg = case isMain of
+                   MainInterface ScopeCheck -> "Reading "
+                   _                        -> "Checking"
+      withMsgs = bracket_
+       (chaseMsg checkMsg x $ Just $ filePath file)
        (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
                    let (we, wa) = classifyWarnings ws
                    unless (null wa) $ reportSDoc "warning" 1
@@ -455,7 +478,7 @@ typeCheck x file isMain = do
   -- Do the type checking.
 
   case isMain of
-    MainInterface -> do
+    MainInterface _ -> do
       r <- withMsgs $ createInterface file x isMain
 
       -- Merge the signature with the signature for imported
@@ -668,10 +691,12 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     -- Highlighting from scope checker.
     reportSLn "import.iface.create" 7 $ "Starting highlighting from scope."
     Bench.billTo [Bench.Highlighting] $ do
-      ifTopLevelAndHighlightingLevelIs NonInteractive $ do
-        -- Generate and print approximate syntax highlighting info.
+      -- Generate and print approximate syntax highlighting info.
+      ifTopLevelAndHighlightingLevelIs NonInteractive $
         printHighlightingInfo fileTokenInfo
-        mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
+      let onlyScope = isMain == MainInterface ScopeCheck
+      ifTopLevelAndHighlightingLevelIsOr NonInteractive onlyScope $
+        mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial onlyScope) ds
     reportSLn "import.iface.create" 7 $ "Finished highlighting from scope."
 
 
@@ -689,9 +714,14 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
         cleanCachedLog
     writeToCurrentLog $ Pragmas opts
 
-    reportSLn "import.iface.create" 7 $ "Starting type checking."
-    Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
-    reportSLn "import.iface.create" 7 $ "Finished type checking."
+    case isMain of
+      MainInterface ScopeCheck -> do
+        reportSLn "import.iface.create" 7 $ "Skipping type checking."
+        cacheCurrentLog
+      _ -> do
+        reportSLn "import.iface.create" 7 $ "Starting type checking."
+        Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
+        reportSLn "import.iface.create" 7 $ "Finished type checking."
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
@@ -768,13 +798,14 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     mallWarnings <- getAllWarnings ErrorWarnings
                       $ case isMain of
-                          MainInterface    -> IgnoreFlags
+                          MainInterface _  -> IgnoreFlags
                           NotMainInterface -> RespectFlags
 
     reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
-    case mallWarnings of
-      SomeWarnings allWarnings -> return ()
-      NoWarnings               -> Bench.billTo [Bench.Serialization] $ do
+    case (mallWarnings, isMain) of
+      (SomeWarnings allWarnings, _) -> return ()
+      (_, MainInterface ScopeCheck) -> return ()
+      _ -> Bench.billTo [Bench.Serialization] $ do
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
         let ifile = filePath $ toIFile file
