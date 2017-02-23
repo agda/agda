@@ -138,7 +138,8 @@ backendInteraction backends _ check = do
   let isMain | noMain    = NotMain
              | otherwise = IsMain
   case mi of
-    Nothing -> __IMPOSSIBLE__
+    Nothing -> genericError $ "Cannot invoke compiler backends (" ++ intercalate ", " backendNames ++ ") because no " ++
+                              "interface was generated. Did you use --allow-unsolved-metas?"
     Just i  -> sequence_ [ compilerMain backend isMain i | Backend backend <- backends ]
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
