@@ -1,0 +1,1 @@
+--compile --no-main --ghc-flag=-idoc/user-manual
