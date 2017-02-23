@@ -45,7 +45,7 @@
 (agda2-info-action "*Type-checking*" " Finished Common.Maybe. " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Prelude. " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Unit → Nat " nil)
+(agda2-info-action "*All Goals*" "?0 : ⊤ → Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "Cannot apply the auto tactic here, we are not in a function clause" nil)
 (agda2-highlight-load-and-delete-action)

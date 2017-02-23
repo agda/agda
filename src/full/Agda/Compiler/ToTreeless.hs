@@ -167,9 +167,11 @@ casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
     CC.Fail -> return C.tUnreachable
-    CC.Done xs v -> lambdasUpTo (length xs) $ do
-        v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v
-        substTerm v
+    CC.Done xs v -> withContextSize (length xs) $ do
+      -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
+      -- if some arguments are not used in the body.
+      v <- lift (putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v)
+      substTerm v
     CC.Case _ (CC.Branches True _ _ Just{} _) -> __IMPOSSIBLE__
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
       -- lift $ do
@@ -230,6 +232,28 @@ updateCatchAll (Just cc) cont = do
   local (\e -> e { ccCatchAll = Just 0, ccCxt = shift 1 (ccCxt e) }) $ do
     C.mkLet def <$> cont
 
+-- | Shrinks or grows the context to the given size.
+-- Does not update the catchAll expression, the catchAll expression
+-- MUST NOT be used inside `cont`.
+withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
+withContextSize n cont = do
+  diff <- (n -) . length <$> asks ccCxt
+
+  if diff <= 0
+  then do
+    local (\e -> e { ccCxt = shift diff $ drop (-diff) (ccCxt e)}) $
+      C.mkTApp <$> cont <*> pure [C.TVar i | i <- reverse [0..(-diff - 1)]]
+  else do
+    local (\e -> e { ccCxt = [0..(diff - 1)] ++ shift diff (ccCxt e)}) $ do
+      createLambdas diff <$> do
+        cont
+  where createLambdas :: Int -> C.TTerm -> C.TTerm
+        createLambdas 0 cont' = cont'
+        createLambdas i cont' | i > 0 = C.TLam (createLambdas (i - 1) cont')
+        createLambdas _ _ = __IMPOSSIBLE__
+
+-- | Adds lambdas until the context has at least the given size.
+-- Updates the catchAll expression to take the additional lambdas into account.
 lambdasUpTo :: Int -> CC C.TTerm -> CC C.TTerm
 lambdasUpTo n cont = do
   diff <- (n -) . length <$> asks ccCxt
@@ -238,23 +262,18 @@ lambdasUpTo n cont = do
   else do
     catchAll <- asks ccCatchAll
 
-    local (\e -> e { ccCxt = [0..(diff - 1)] ++ shift diff (ccCxt e)}) $ do
-      createLambdas diff <$> do
-        case catchAll of
-          Just catchAll' -> do
-            -- the catch all doesn't know about the additional lambdas, so just directly
-            -- apply it again to the newly introduced lambda arguments.
-            -- we also bind the catch all to a let, to avoid code duplication
-            local (\e -> e { ccCatchAll = Just 0
-                           , ccCxt = shift 1 (ccCxt e)}) $ do
-              let catchAllArgs = map C.TVar $ reverse [0..(diff - 1)]
-              C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
-                <$> cont
-          Nothing -> cont
-  where createLambdas :: Int -> C.TTerm -> C.TTerm
-        createLambdas 0 cont' = cont'
-        createLambdas i cont' | i > 0 = C.TLam (createLambdas (i - 1) cont')
-        createLambdas _ _ = __IMPOSSIBLE__
+    withContextSize n $ do
+      case catchAll of
+        Just catchAll' -> do
+          -- the catch all doesn't know about the additional lambdas, so just directly
+          -- apply it again to the newly introduced lambda arguments.
+          -- we also bind the catch all to a let, to avoid code duplication
+          local (\e -> e { ccCatchAll = Just 0
+                         , ccCxt = shift 1 (ccCxt e)}) $ do
+            let catchAllArgs = map C.TVar $ reverse [0..(diff - 1)]
+            C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
+              <$> cont
+        Nothing -> cont
 
 conAlts :: Int -> Map QName (CC.WithArity CC.CompiledClauses) -> CC [C.TAlt]
 conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do

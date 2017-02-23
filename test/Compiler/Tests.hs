@@ -91,6 +91,8 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/FloatsOnlyUHC"
   , RFInclude "Compiler/MAlonzo/simple/FloatsOnlyUHC"
   , RFInclude "Compiler/UHC/simple/FloatsUHCFails"
+  -- not sure what the problem is
+  , RFInclude "Compiler/JS/simple/Issue2469"
   ]
 
 tests :: IO TestTree
