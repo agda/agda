@@ -81,6 +81,8 @@ data Backend' opts env menv mod def = Backend'
       -- ^ Called after all definitions of a module has been compiled.
   , compileDef       :: env -> menv -> Definition -> TCM def
       -- ^ Compile a single definition.
+  , scopeCheckingSuffices :: Bool
+    -- ^ True if the backend works if @--only-scope-checking@ is used.
   }
 
 data Recompile menv mod = Recompile menv | Skip mod
@@ -155,6 +157,11 @@ backendInteraction backends _ check = do
 compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
 compilerMain backend isMain i =
   inCompilerEnv i $ do
+    onlyScoping <- optOnlyScopeChecking <$> commandLineOptions
+    when (not (scopeCheckingSuffices backend) && onlyScoping) $
+      genericError $
+        "The --only-scope-checking flag cannot be combined with " ++
+        backendName backend ++ "."
     env  <- preCompile backend (options backend)
     mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env isMain i
     setInterface i
@@ -174,4 +181,3 @@ compileModule backend env isMain i = do
 
 compileDef' :: Backend' opts env menv mod def -> env -> menv -> Definition -> TCM def
 compileDef' backend env menv def = setCurrentRange (defName def) $ compileDef backend env menv def
-

@@ -500,29 +500,37 @@ code = do
   where
   cmd :: Aspect -> String
   cmd a = let s = show a in case a of
-    Comment        -> s
-    Option         -> s
-    Keyword        -> s
-    String         -> s
-    Number         -> s
-    Symbol         -> s
-    PrimitiveType  -> s
-    Name mKind _   -> maybe __IMPOSSIBLE__ showKind mKind
+    Comment           -> s
+    Option            -> s
+    Keyword           -> s
+    String            -> s
+    Number            -> s
+    Symbol            -> s
+    PrimitiveType     -> s
+    Name Nothing isOp -> cmd (Name (Just Postulate) isOp)
+      -- At the time of writing the case above can be encountered in
+      -- --only-scope-checking mode, for instance for the token "Size"
+      -- in the following code:
+      --
+      --   {-# BUILTIN SIZE Size #-}
+      --
+      -- The choice of "Postulate" works for this example, but might
+      -- be less appropriate for others.
+    Name (Just kind) _ -> case kind of
+      Bound                     -> s
+      Constructor Inductive     -> "InductiveConstructor"
+      Constructor CoInductive   -> "CoinductiveConstructor"
+      Datatype                  -> s
+      Field                     -> s
+      Function                  -> s
+      Module                    -> s
+      Postulate                 -> s
+      Primitive                 -> s
+      Record                    -> s
+      Argument                  -> s
+      Macro                     -> s
       where
-      showKind :: NameKind -> String
-      showKind n = let s = show n in case n of
-        Bound                     -> s
-        Constructor Inductive     -> "InductiveConstructor"
-        Constructor CoInductive   -> "CoinductiveConstructor"
-        Datatype                  -> s
-        Field                     -> s
-        Function                  -> s
-        Module                    -> s
-        Postulate                 -> s
-        Primitive                 -> s
-        Record                    -> s
-        Argument                  -> s
-        Macro                     -> s
+      s = show kind
 
 -- Escapes special characters.
 escape :: Text -> Text
@@ -651,7 +659,7 @@ generateLaTeX i = do
                  </> optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
-  TCM.reportSLn "latex" 1 $ unlines
+  TCM.reportSLn "compile.latex" 1 $ unlines
     [ ""
     , "Checking if " ++ defaultStyFile ++ " is found by the LaTeX environment."
     ]
@@ -659,7 +667,7 @@ generateLaTeX i = do
   merrors <- callCompiler' "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ]
 
   when (isJust merrors) $ do
-    TCM.reportSLn "latex" 1 $ unlines
+    TCM.reportSLn "compile.latex" 1 $ unlines
       [ ""
       , defaultStyFile ++ " was not found. Copying a default version of " ++
           defaultStyFile

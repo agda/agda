@@ -1,0 +1,301 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><title
+    >QuickLaTeX</title
+    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><meta http-equiv="Content-Style-Type" content="text/css"
+     /><link href="Agda.css" rel="stylesheet" type="text/css"
+     /></head
+  ><body
+  ><pre
+    ><a name="1" class="Comment"
+      >\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+</a
+      ><a name="63"
+      >\begin{code}
+</a
+      ><a name="76" class="Symbol"
+      >{-#</a
+      ><a name="79"
+      > </a
+      ><a name="80" class="Keyword"
+      >BUILTIN</a
+      ><a name="87"
+      > SIZE </a
+      ><a name="93" href="QuickLaTeX.html#93" class="Postulate"
+      >Size</a
+      ><a name="97"
+      > </a
+      ><a name="98" class="Symbol"
+      >#-}</a
+      ><a name="101"
+      >
+
+</a
+      ><a name="103" class="Keyword"
+      >record</a
+      ><a name="109"
+      > </a
+      ><a name="110" href="QuickLaTeX.html#110" class="Record"
+      >Sigma</a
+      ><a name="115"
+      > </a
+      ><a name="116" class="Symbol"
+      >(</a
+      ><a name="117" href="QuickLaTeX.html#117" class="Bound"
+      >A</a
+      ><a name="118"
+      > </a
+      ><a name="119" class="Symbol"
+      >:</a
+      ><a name="120"
+      > </a
+      ><a name="121" class="PrimitiveType"
+      >Set</a
+      ><a name="124" class="Symbol"
+      >)</a
+      ><a name="125"
+      > </a
+      ><a name="126" class="Symbol"
+      >(</a
+      ><a name="127" href="QuickLaTeX.html#127" class="Bound"
+      >B</a
+      ><a name="128"
+      > </a
+      ><a name="129" class="Symbol"
+      >:</a
+      ><a name="130"
+      > </a
+      ><a name="131" href="QuickLaTeX.html#117" class="Bound"
+      >A</a
+      ><a name="132"
+      > </a
+      ><a name="133" class="Symbol"
+      >&#8594;</a
+      ><a name="134"
+      > </a
+      ><a name="135" class="PrimitiveType"
+      >Set</a
+      ><a name="138" class="Symbol"
+      >)</a
+      ><a name="139"
+      > </a
+      ><a name="140" class="Symbol"
+      >:</a
+      ><a name="141"
+      > </a
+      ><a name="142" class="PrimitiveType"
+      >Set</a
+      ><a name="145"
+      > </a
+      ><a name="146" class="Keyword"
+      >where</a
+      ><a name="151"
+      >
+  </a
+      ><a name="154" class="Keyword"
+      >coinductive</a
+      ><a name="165"
+      >
+  </a
+      ><a name="168" class="Keyword"
+      >constructor</a
+      ><a name="179"
+      > </a
+      ><a name="180" href="QuickLaTeX.html#180" class="CoinductiveConstructor"
+      >c</a
+      ><a name="181"
+      >
+  </a
+      ><a name="184" class="Keyword"
+      >field</a
+      ><a name="189"
+      >
+    </a
+      ><a name="194" href="QuickLaTeX.html#194" class="Field"
+      >proj&#8321;</a
+      ><a name="199"
+      > </a
+      ><a name="200" class="Symbol"
+      >:</a
+      ><a name="201"
+      > </a
+      ><a name="202" href="QuickLaTeX.html#117" class="Bound"
+      >A</a
+      ><a name="203"
+      >
+    </a
+      ><a name="208" href="QuickLaTeX.html#208" class="Field"
+      >proj&#8322;</a
+      ><a name="213"
+      > </a
+      ><a name="214" class="Symbol"
+      >:</a
+      ><a name="215"
+      > </a
+      ><a name="216" href="QuickLaTeX.html#127" class="Bound"
+      >B</a
+      ><a name="217"
+      > </a
+      ><a name="218" href="QuickLaTeX.html#194" class="Field"
+      >proj&#8321;</a
+      ><a name="223"
+      >
+
+</a
+      ><a name="225" class="Keyword"
+      >data</a
+      ><a name="229"
+      > </a
+      ><a name="230" href="QuickLaTeX.html#230" class="Datatype"
+      >D</a
+      ><a name="231"
+      > </a
+      ><a name="232" class="Symbol"
+      >:</a
+      ><a name="233"
+      > </a
+      ><a name="234" class="PrimitiveType"
+      >Set</a
+      ><a name="237"
+      > </a
+      ><a name="238" class="Keyword"
+      >where</a
+      ><a name="243"
+      >
+  </a
+      ><a name="246" href="QuickLaTeX.html#246" class="InductiveConstructor"
+      >c</a
+      ><a name="247"
+      > </a
+      ><a name="248" class="Symbol"
+      >:</a
+      ><a name="249"
+      > </a
+      ><a name="250" href="QuickLaTeX.html#230" class="Datatype"
+      >D</a
+      ><a name="251"
+      >
+
+</a
+      ><a name="253" href="QuickLaTeX.html#253" class="Function"
+      >f</a
+      ><a name="254"
+      > </a
+      ><a name="255" class="Symbol"
+      >:</a
+      ><a name="256"
+      > </a
+      ><a name="257" class="Symbol"
+      >{</a
+      ><a name="258" href="QuickLaTeX.html#258" class="Bound"
+      >A</a
+      ><a name="259"
+      > </a
+      ><a name="260" class="Symbol"
+      >:</a
+      ><a name="261"
+      > </a
+      ><a name="262" class="PrimitiveType"
+      >Set</a
+      ><a name="265" class="Symbol"
+      >}</a
+      ><a name="266"
+      > </a
+      ><a name="267" class="Symbol"
+      >{</a
+      ><a name="268" href="QuickLaTeX.html#268" class="Bound"
+      >B</a
+      ><a name="269"
+      > </a
+      ><a name="270" class="Symbol"
+      >:</a
+      ><a name="271"
+      > </a
+      ><a name="272" href="QuickLaTeX.html#258" class="Bound"
+      >A</a
+      ><a name="273"
+      > </a
+      ><a name="274" class="Symbol"
+      >&#8594;</a
+      ><a name="275"
+      > </a
+      ><a name="276" class="PrimitiveType"
+      >Set</a
+      ><a name="279" class="Symbol"
+      >}</a
+      ><a name="280"
+      > </a
+      ><a name="281" class="Symbol"
+      >(</a
+      ><a name="282" href="QuickLaTeX.html#282" class="Bound"
+      >x</a
+      ><a name="283"
+      > </a
+      ><a name="284" class="Symbol"
+      >:</a
+      ><a name="285"
+      > </a
+      ><a name="286" href="QuickLaTeX.html#258" class="Bound"
+      >A</a
+      ><a name="287" class="Symbol"
+      >)</a
+      ><a name="288"
+      > </a
+      ><a name="289" class="Symbol"
+      >&#8594;</a
+      ><a name="290"
+      > </a
+      ><a name="291" href="QuickLaTeX.html#268" class="Bound"
+      >B</a
+      ><a name="292"
+      > </a
+      ><a name="293" href="QuickLaTeX.html#282" class="Bound"
+      >x</a
+      ><a name="294"
+      > </a
+      ><a name="295" class="Symbol"
+      >&#8594;</a
+      ><a name="296"
+      > </a
+      ><a name="297" href="QuickLaTeX.html#110" class="Record"
+      >Sigma</a
+      ><a name="302"
+      > </a
+      ><a name="303" href="QuickLaTeX.html#258" class="Bound"
+      >A</a
+      ><a name="304"
+      > </a
+      ><a name="305" href="QuickLaTeX.html#268" class="Bound"
+      >B</a
+      ><a name="306"
+      >
+</a
+      ><a name="307" href="QuickLaTeX.html#253" class="Function"
+      >f</a
+      ><a name="308"
+      > </a
+      ><a name="309" class="Symbol"
+      >=</a
+      ><a name="310"
+      > </a
+      ><a name="311" href="QuickLaTeX.html#180" class="CoinductiveConstructor"
+      >c</a
+      ><a name="312"
+      >
+\end{code}
+</a
+      ><a name="324" class="Comment"
+      >
+\end{document}
+</a
+      ></pre
+    ></body
+  ></html
+>

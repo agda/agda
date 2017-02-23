@@ -82,16 +82,17 @@ jsBackend = Backend jsBackend'
 
 jsBackend' :: Backend' JSOptions JSOptions JSModuleEnv () (Maybe Export)
 jsBackend' = Backend'
-  { backendName      = jsBackendName
-  , backendVersion   = Nothing
-  , options          = defaultJSOptions
-  , commandLineFlags = jsCommandLineFlags
-  , isEnabled        = optJSCompile
-  , preCompile       = jsPreCompile
-  , postCompile      = jsPostCompile
-  , preModule        = jsPreModule
-  , postModule       = jsPostModule
-  , compileDef       = jsCompileDef
+  { backendName           = jsBackendName
+  , backendVersion        = Nothing
+  , options               = defaultJSOptions
+  , commandLineFlags      = jsCommandLineFlags
+  , isEnabled             = optJSCompile
+  , preCompile            = jsPreCompile
+  , postCompile           = jsPostCompile
+  , preModule             = jsPreModule
+  , postModule            = jsPostModule
+  , compileDef            = jsCompileDef
+  , scopeCheckingSuffices = False
   }
 
 --- Options ---

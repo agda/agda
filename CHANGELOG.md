@@ -280,6 +280,23 @@ LaTeX backend
                             field B : Set
   ```
 
+* A faster variant of the LaTeX backend: QuickLaTeX.
+
+  When this variant of the backend is used the top-level module is not
+  type-checked, only scope-checked. This implies that some
+  highlighting information is not available. For instance, overloaded
+  constructors are not resolved.
+
+  QuickLaTeX can be invoked from the Emacs mode, or using `agda
+  --latex --only-scope-checking`. If the module has already been
+  type-checked successfully, then this information is reused; in this
+  case QuickLaTeX behaves like the regular LaTeX backend.
+
+  The `--only-scope-checking` flag can also be used independently, but
+  it is perhaps unclear what purpose that would serve. (The flag can
+  currently not be combined with `--html`, `--dependency-graph` or
+  `--vim`.) The flag is not allowed in safe mode.
+
 Pragmas and options
 -------------------
 

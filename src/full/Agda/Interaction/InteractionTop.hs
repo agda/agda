@@ -562,15 +562,19 @@ interpret (Cmd_load m argv) =
   cmd_load' m argv True Imp.TypeCheck $ \_ -> interpret Cmd_metas
 
 interpret (Cmd_compile b file argv) =
-  cmd_load' file argv (b == LaTeX) Imp.TypeCheck $ \(i, mw) -> do
+  cmd_load' file argv (b `elem` [LaTeX, QuickLaTeX])
+            (if b == QuickLaTeX
+             then Imp.ScopeCheck
+             else Imp.TypeCheck) $ \(i, mw) -> do
     mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          GHC       -> callBackend "GHC" IsMain  i
-          GHCNoMain -> callBackend "GHC" NotMain i
-          JS        -> callBackend "JS" IsMain i
-          LaTeX     -> LaTeX.generateLaTeX i
+          GHC        -> callBackend "GHC" IsMain  i
+          GHCNoMain  -> callBackend "GHC" NotMain i
+          JS         -> callBackend "JS" IsMain i
+          LaTeX      -> LaTeX.generateLaTeX i
+          QuickLaTeX -> LaTeX.generateLaTeX i
         (pwe, pwa) <- interpretWarnings
         display_info $ Info_CompilationOk pwa pwe
       Imp.SomeWarnings w -> do
@@ -968,7 +972,7 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data CompilerBackend = GHC | GHCNoMain | JS | LaTeX
+data CompilerBackend = GHC | GHCNoMain | JS | LaTeX | QuickLaTeX
     deriving (Show, Read, Eq)
 
 data GiveRefine = Give | Refine | Intro

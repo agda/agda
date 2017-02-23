@@ -1,0 +1,114 @@
+\documentclass{article}
+\usepackage{hyperref}
+\usepackage[links]{agda}
+\begin{document}
+
+\AgdaTarget{ℕ}
+\AgdaTarget{zero}
+\begin{code}%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{zero}%
+\>[8]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{suc}%
+\>[8]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\<%
+\end{code}
+
+See next page for how to define \AgdaFunction{two} (doesn't turn into a
+link because the target hasn't been defined yet). We could do it
+manually though; \hyperlink{two}{\AgdaDatatype{two}}.
+
+\newpage
+
+\AgdaTarget{two}
+\hypertarget{two}{}
+\begin{code}%
+\>[0]\AgdaFunction{two}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\<%
+\\
+\>[0]\AgdaFunction{two}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{suc}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
+\end{code}
+
+\AgdaInductiveConstructor{zero} is of type
+\AgdaDatatype{ℕ}. \AgdaInductiveConstructor{suc} has not been defined to
+be a target so it doesn't turn into a link.
+
+\newpage
+
+Now that the target for \AgdaFunction{two} has been defined the link
+works automatically.
+
+\begin{code}%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{true}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Bool}\<%
+\end{code}
+
+The AgdaTarget command takes a list as input, enabling several targets
+to be specified as follows:
+
+\AgdaTarget{if, then, else, if\_then\_else\_}
+\begin{code}%
+\>[0]\AgdaFunction{if\_then\_else\_}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{A}\<%
+\\
+\>[0]\AgdaFunction{if}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\AgdaSpace{}%
+\AgdaFunction{then}\AgdaSpace{}%
+\AgdaBound{t}\AgdaSpace{}%
+\AgdaFunction{else}\AgdaSpace{}%
+\AgdaBound{f}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{t}\<%
+\\
+\>[0]\AgdaFunction{if}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\AgdaSpace{}%
+\AgdaFunction{then}\AgdaSpace{}%
+\AgdaBound{t}\AgdaSpace{}%
+\AgdaFunction{else}\AgdaSpace{}%
+\AgdaBound{f}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{f}\<%
+\end{code}
+
+\newpage
+
+Mixfix identifier need their underscores escaped:
+\AgdaFunction{if\_then\_else\_}.
+
+\end{document}

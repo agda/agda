@@ -65,16 +65,17 @@ uhcBackend = Backend uhcBackend'
 
 uhcBackend' :: Backend' UHCOptions UHCOptions UHCModuleEnv () ()
 uhcBackend' = Backend'
-  { backendName    = "UHC"
-  , backendVersion = Nothing
-  , options          = defaultUHCOptions
-  , commandLineFlags = uhcCommandLineFlags
-  , isEnabled        = optUHCCompile
-  , preCompile       = uhcPreCompile
-  , postCompile      = uhcPostCompile
-  , preModule        = uhcPreModule
-  , postModule       = uhcPostModule      -- We do all compilation in postModule
-  , compileDef       = \ _ _ _ -> return ()
+  { backendName           = "UHC"
+  , backendVersion        = Nothing
+  , options               = defaultUHCOptions
+  , commandLineFlags      = uhcCommandLineFlags
+  , isEnabled             = optUHCCompile
+  , preCompile            = uhcPreCompile
+  , postCompile           = uhcPostCompile
+  , preModule             = uhcPreModule
+  , postModule            = uhcPostModule      -- We do all compilation in postModule
+  , compileDef            = \ _ _ _ -> return ()
+  , scopeCheckingSuffices = False
   }
 
 --- Options ---
