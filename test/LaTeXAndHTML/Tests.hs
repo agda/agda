@@ -70,6 +70,7 @@ mkLaTeXOrHTMLTest k agdaBin inp =
     QuickLaTeX -> "quick.tex"
     HTML       -> "html"
 
+  flags :: FilePath -> [String]
   flags dir = case k of
     LaTeX      -> latexFlags
     QuickLaTeX -> latexFlags ++ ["--only-scope-checking"]
