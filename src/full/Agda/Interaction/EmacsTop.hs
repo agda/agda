@@ -79,37 +79,44 @@ mimicGHCi setup = do
       lift Bench.print
       unless done interact'
 
+-- | Given strings of goals, warnings and errors, return a pair of the
+--   body and the title for the info buffer
+formatWarningsAndErrors :: String -> String -> String -> (String, String)
+formatWarningsAndErrors g w e = (body, title)
+  where
+    isG = not $ null g
+    isW = not $ null w
+    isE = not $ null e
+    title = intercalate "," $ catMaybes
+              [ " Goals"    <$ guard isG
+              , " Warnings" <$ guard isW
+              , " Errors"   <$ guard isE
+              , " Done"     <$ guard (not (isG || isW || isE))
+              ]
+    delimiter s = concat [ replicate 4 '\x2014'
+                         , " ", s, " "
+                         , replicate (54 - length s) '\x2014'
+                         ]
+
+    body = intercalate "\n" $ catMaybes
+             [ g                    <$ guard isG
+             , delimiter "Warnings" <$ guard (isW && (isG || isE))
+             , w                    <$ guard isW
+             , delimiter "Errors"   <$ guard (isE && (isG || isW))
+             , e                    <$ guard isE
+             ]
+
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
 lispifyResponse :: Response -> TCM [Lisp String]
 lispifyResponse (Resp_HighlightingInfo info modFile) =
   (:[]) <$> lispifyHighlightingInfo info modFile
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
-    Info_CompilationOk -> f "The module was successfully compiled." "*Compilation result*"
+    Info_CompilationOk w e -> f body "*Compilation result*"
+      where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
     Info_Constraints s -> f s "*Constraints*"
-    Info_AllGoalsWarnings g  w e -> f body ("*All" ++ title ++ "*")
-      where
-        isG = not $ null g
-        isW = not $ null w
-        isE = not $ null e
-        title = intercalate "," $ catMaybes
-                  [ " Goals"    <$ guard isG
-                  , " Warnings" <$ guard isW
-                  , " Errors"   <$ guard isE
-                  , " Done"     <$ guard (not (isG || isW || isE))
-                  ]
-        delimiter s = concat [ replicate 4 '\x2014'
-                             , " ", s, " "
-                             , replicate (54 - length s) '\x2014'
-                             ]
-
-        body = intercalate "\n" $ catMaybes
-                 [ g                    <$ guard isG
-                 , delimiter "Warnings" <$ guard (isW && (isG || isE))
-                 , w                    <$ guard isW
-                 , delimiter "Errors"   <$ guard (isE && (isG || isW))
-                 , e                    <$ guard isE
-                 ]
+    Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
+      where (body, title) = formatWarningsAndErrors g w e
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"
     -- FNF: if Info_Warning comes back into use, the above should be

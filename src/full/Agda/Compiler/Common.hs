@@ -142,11 +142,13 @@ conArityAndPars q = do
 
 -- | Sets up the compilation environment.
 inCompilerEnv :: Interface -> TCM a -> TCM a
-inCompilerEnv mainI cont =
+inCompilerEnv mainI cont = do
   -- Preserve the state (the compiler modifies the state).
   -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
   -- so use localTCState.
-  localTCState $ do
+  -- FNF, 2017-02-22 we also want to keep the warnings we have encountered,
+  -- so use localTCStateSaving and pick them out.
+  (a , s) <- localTCStateSaving $ do
 
     -- Compute the output directory. Note: using commandLineOptions would make
     -- the current pragma options persistent when we setCommandLineOptions
@@ -165,6 +167,10 @@ inCompilerEnv mainI cont =
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode $ do
       cont
+  -- keep generated warnings
+  let newWarnings = stPostTCWarnings $  stPostScopeState $ s
+  stTCWarnings .= newWarnings
+  return a
 
 topLevelModuleName :: ModuleName -> TCM ModuleName
 topLevelModuleName m = do

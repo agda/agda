@@ -2247,9 +2247,6 @@ instance Free' Candidate c where
 -- | A non-fatal error is an error which does not prevent us from
 -- checking the document further and interacting with the user.
 
--- We keep the state for termination issues, positivity issues and
--- unsolved constraints from when we encountered the warning so that
--- we can print it later
 data Warning =
     TerminationIssue         [TerminationError]
   | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
@@ -2267,6 +2264,12 @@ data Warning =
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
+  | UselessInline            QName
+  -- Generic warnings for one-off things
+  | GenericWarning           Doc
+    -- ^ Harmless generic warning (not an error)
+  | GenericNonFatalError     Doc
+    -- ^ Generic error which doesn't abort proceedings (not a warning)
   -- Safe flag errors
   | SafeFlagPostulate C.Name
   | SafeFlagPragma [String]
@@ -2278,6 +2281,8 @@ data Warning =
   | ParseWarning             ParseWarning
   deriving Show
 
+-- we also keep the state so that we can print the warning correctly
+-- later
 data TCWarning
   = TCWarning
     { tcWarningState   :: TCState
@@ -2305,8 +2310,10 @@ getPartialDefs = do
 
 -- | Classifying warnings: some are benign, others are (non-fatal) errors
 
-data WhichWarnings = ErrorWarnings | AllWarnings
-  -- ^ order of constructors important for derived Ord instance
+data WhichWarnings =
+    ErrorWarnings -- ^ warnings that will be turned into errors
+  | AllWarnings   -- ^ all warnings, including errors and benign ones
+  -- Note: order of constructors is important for the derived Ord instance
   deriving (Eq, Ord)
 
 isUnsolvedWarning :: Warning -> Bool
@@ -2323,12 +2330,15 @@ classifyWarning w = case w of
   EmptyRewritePragma         -> AllWarnings
   UselessPublic              -> AllWarnings
   UnreachableClauses{}       -> AllWarnings
+  UselessInline{}            -> AllWarnings
+  GenericWarning{}           -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   NotStrictlyPositive{}      -> ErrorWarnings
   UnsolvedMetaVariables{}    -> ErrorWarnings
   UnsolvedInteractionMetas{} -> ErrorWarnings
   UnsolvedConstraints{}      -> ErrorWarnings
+  GenericNonFatalError{}     -> ErrorWarnings
   SafeFlagPostulate{}        -> ErrorWarnings
   SafeFlagPragma{}           -> ErrorWarnings
   SafeFlagNonTerminating     -> ErrorWarnings
@@ -2948,6 +2958,14 @@ typeError err = liftTCM $ throwError =<< typeError_ err
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
 typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
 typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
+
+{-# SPECIALIZE genericWarning :: Doc -> TCM () #-}
+genericWarning :: MonadTCM tcm => Doc -> tcm ()
+genericWarning = warning . GenericWarning
+
+{-# SPECIALIZE genericNonFatalError :: Doc -> TCM () #-}
+genericNonFatalError :: MonadTCM tcm => Doc -> tcm ()
+genericNonFatalError = warning . GenericNonFatalError
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
 warning_ :: MonadTCM tcm => Warning -> tcm TCWarning

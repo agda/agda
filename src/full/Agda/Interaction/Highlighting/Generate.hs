@@ -545,7 +545,10 @@ warningHighlighting w = case tcWarning w of
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> mempty
   UselessPublic{}            -> mempty
+  UselessInline{}            -> mempty
   ParseWarning{}             -> mempty
+  GenericWarning{}           -> mempty
+  GenericNonFatalError{}     -> mempty
   SafeFlagPostulate{}        -> mempty
   SafeFlagPragma{}           -> mempty
   SafeFlagNonTerminating     -> mempty

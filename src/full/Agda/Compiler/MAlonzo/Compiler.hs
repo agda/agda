@@ -251,8 +251,7 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
         -- Check that the function isn't INLINE (since that will make this
         -- definition pointless).
         inline <- (^. funInline) . theDef <$> getConstInfo q
-        when inline $ genericDocError =<< do
-                      fsep $ pwords "INLINE'd function" ++ [prettyTCM q] ++ pwords "cannot have a separate Haskell definition"
+        when inline $ warning $ UselessInline q
 
         return $ fbWithType hsty (fakeExp hs)
 
