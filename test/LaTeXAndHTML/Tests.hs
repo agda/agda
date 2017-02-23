@@ -41,9 +41,12 @@ tests = do
   return $ testGroup "LaTeXAndHTML"
     [ mkLaTeXOrHTMLTest k agdaBin f
     | f <- inpFiles
-    -- Note that the LaTeX-backend is only tested on the @.lagda@ and
-    -- @.lagda.tex@ files.
-    , k <- HTML : [ LaTeX | any (`isSuffixOf` takeExtensions f) [".lagda",".lagda.tex"] ]
+    -- Note that the LaTeX backends are only tested on the @.lagda@
+    -- and @.lagda.tex@ files.
+    , k <- HTML : concat [ [ LaTeX, QuickLaTeX ]
+                         | any (`isSuffixOf` takeExtensions f)
+                               [".lagda",".lagda.tex"]
+                         ]
     ]
 
 data LaTeXResult
@@ -51,7 +54,7 @@ data LaTeXResult
   | LaTeXFailed LaTeXProg ProgramResult
   | Success T.Text -- ^ The resulting LaTeX or HTML file.
 
-data Kind = LaTeX | HTML
+data Kind = LaTeX | QuickLaTeX | HTML
   deriving Show
 
 mkLaTeXOrHTMLTest
@@ -63,12 +66,16 @@ mkLaTeXOrHTMLTest k agdaBin inp =
   goldenVsAction testName goldenFile doRun printLaTeXResult
   where
   extension = case k of
-    LaTeX -> "tex"
-    HTML  -> "html"
+    LaTeX      -> "tex"
+    QuickLaTeX -> "quick.tex"
+    HTML       -> "html"
 
-  flag = case k of
-    LaTeX -> "latex"
-    HTML  -> "html"
+  flags dir = case k of
+    LaTeX      -> latexFlags
+    QuickLaTeX -> latexFlags ++ ["--only-scope-checking"]
+    HTML       -> ["--html", "--html-dir=" ++ dir]
+    where
+    latexFlags = ["--latex", "--latex-dir=" ++ dir]
 
   testName    = asTestName testDir inp ++ "_" ++ show k
   goldenFile  = dropAgdaExtension inp <.> extension
@@ -76,26 +83,28 @@ mkLaTeXOrHTMLTest k agdaBin inp =
   -- create a file @Foo.compile@ with the list of the LaTeX compilers
   -- that you want to use (e.g. ["xelatex", "lualatex"]).
   compFile    = dropAgdaExtension inp <.> ".compile"
-  outFileName = takeFileName goldenFile
+  outFileName = case k of
+    LaTeX      -> golden
+    HTML       -> golden
+    QuickLaTeX -> replaceExtension (dropExtension golden) "tex"
+    where
+    golden = takeFileName goldenFile
 
   doRun = withTempDirectory "." testName $ \outDir -> do
-    let agdaArgs = [ "--" ++ flag
-                   , "-i" ++ testDir
+    let agdaArgs = flags outDir ++
+                   [ "-i" ++ testDir
                    , inp
                    , "--ignore-interfaces"
-                   , "--" ++ flag ++ "-dir=" ++ outDir
                    ]
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
     if ret /= ExitSuccess then
       return $ AgdaFailed res
     else do
       output <- decodeUtf8 <$> BS.readFile (outDir </> outFileName)
-      let done = return $ Success output
-      case k of
-        HTML  -> done
-        LaTeX -> do
-          rl <- doesEnvContain "DONT_RUN_LATEX"
-          if rl
+      let done    = return $ Success output
+          compile = do
+            rl <- doesEnvContain "DONT_RUN_LATEX"
+            if rl
             then done
             else do
               -- read compile options
@@ -110,6 +119,10 @@ mkLaTeXOrHTMLTest k agdaBin inp =
                           (readMaybe $ T.unpack $ decodeUtf8 content)
                   -- run the selected LaTeX compilers
                   foldl (runLaTeX outFileName outDir) done latexProgs
+      case k of
+        HTML       -> done
+        LaTeX      -> compile
+        QuickLaTeX -> compile
 
   runLaTeX :: FilePath -- tex file
       -> FilePath -- working dir

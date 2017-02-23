@@ -1,0 +1,24 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+\begin{code}
+{-# BUILTIN SIZE Size #-}
+
+record Sigma (A : Set) (B : A → Set) : Set where
+  coinductive
+  constructor c
+  field
+    proj₁ : A
+    proj₂ : B proj₁
+
+data D : Set where
+  c : D
+
+f : {A : Set} {B : A → Set} (x : A) → B x → Sigma A B
+f = c
+\end{code}
+
+\end{document}

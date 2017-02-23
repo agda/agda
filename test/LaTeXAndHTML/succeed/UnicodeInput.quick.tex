@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage{agda}
+\begin{document}
+
+\begin{code}%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{αβγδεζθικλμνξρστυφχψω}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set₁}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{postulate}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{→⇒⇛⇉⇄↦⇨↠⇀⇁}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\[
+∀X [ ∅ ∉ X ⇒ ∃f:X ⟶  ⋃ X\ ∀A ∈ X (f(A) ∈ A) ]
+\]
+\end{document}

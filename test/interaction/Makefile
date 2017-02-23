@@ -72,6 +72,8 @@ setup_Auto-IndexedDatatypes = $(setup_Auto)
 setup_Auto-Misc = $(setup_Auto)
 setup_Auto-Modules = $(setup_Auto)
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
+setup_QuickLaTeX-Caching = rm -rf latex
+cleanup_QuickLaTeX-Caching = rm -rf latex
 RTS_Issue637       = +RTS -K10000 -RTS
 RTS_Issue639       = --safe
 RTS_Issue1785      = --library-file=issue1785.libs

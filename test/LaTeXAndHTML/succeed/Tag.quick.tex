@@ -1,0 +1,98 @@
+\documentclass{article}
+
+\usepackage[references]{agda}
+
+\begin{document}
+
+\begin{code}%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{Tag}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{Apa}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+%
+\\
+\>[0]\AgdaFunction{bepa}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\\
+\>[0]\AgdaFunction{bepa}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{x}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{Cepa}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{cepa}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Cepa}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{record}\AgdaSpace{}%
+\AgdaRecord{Depa}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set₁}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaField{depa}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{postulate}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{epa}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\\
+%
+\\
+\>[0]\AgdaKeyword{postulate}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{α}%
+\>[6]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaPostulate{\_∘\_}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\begin{tabular}{ll}
+  Name & Test \\
+  \hline
+  Apa   & \AgdaRef{Apa} \\
+  bepa  & \AgdaRef{bepa} \\
+  Cepa  & \AgdaRef{Cepa} \\
+  cepa  & \AgdaRef{cepa} \\
+  Depa  & \AgdaRef{Depa} \\
+  depa  & \AgdaRef{depa} \\
+  epa   & \AgdaRef{epa} \\
+  α     & \AgdaRef{α} \\
+  \_∘\_ & \AgdaRef{\_∘\_} \\
+\end{tabular}
+
+\end{document}

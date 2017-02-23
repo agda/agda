@@ -559,18 +559,22 @@ independent _                               = False
 interpret :: Interaction -> CommandM ()
 
 interpret (Cmd_load m argv) =
-  cmd_load' m argv True $ \_ -> interpret Cmd_metas
+  cmd_load' m argv True Imp.TypeCheck $ \_ -> interpret Cmd_metas
 
 interpret (Cmd_compile b file argv) =
-  cmd_load' file argv (b == LaTeX) $ \(i, mw) -> do
+  cmd_load' file argv (b `elem` [LaTeX, QuickLaTeX])
+            (if b == QuickLaTeX
+             then Imp.ScopeCheck
+             else Imp.TypeCheck) $ \(i, mw) -> do
     mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          GHC       -> callBackend "GHC" IsMain  i
-          GHCNoMain -> callBackend "GHC" NotMain i
-          JS        -> callBackend "JS" IsMain i
-          LaTeX     -> LaTeX.generateLaTeX i
+          GHC        -> callBackend "GHC" IsMain  i
+          GHCNoMain  -> callBackend "GHC" NotMain i
+          JS         -> callBackend "JS" IsMain i
+          LaTeX      -> LaTeX.generateLaTeX i
+          QuickLaTeX -> LaTeX.generateLaTeX i
         (pwe, pwa) <- interpretWarnings
         display_info $ Info_CompilationOk pwa pwe
       Imp.SomeWarnings w -> do
@@ -902,10 +906,12 @@ showOpenMetas = do
 -- result of 'Imp.typeCheckMain'.
 
 cmd_load' :: FilePath -> [String]
-          -> Bool -- ^ Allow unsolved meta-variables?
+          -> Bool      -- ^ Allow unsolved meta-variables?
+          -> Imp.Mode  -- ^ Full type-checking, or only
+                       --   scope-checking?
           -> ((Interface, Imp.MaybeWarnings) -> CommandM ())
           -> CommandM ()
-cmd_load' file argv unsolvedOK cmd = do
+cmd_load' file argv unsolvedOK mode cmd = do
     f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
     let relativeTo | ex        = ProjectRoot f
@@ -944,7 +950,7 @@ cmd_load' file argv unsolvedOK cmd = do
     -- We activate the cache only when agda is used interactively
     lift activateLoadedFileCache
 
-    ok <- lift $ Imp.typeCheckMain f
+    ok <- lift $ Imp.typeCheckMain f mode
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
@@ -966,7 +972,7 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data CompilerBackend = GHC | GHCNoMain | JS | LaTeX
+data CompilerBackend = GHC | GHCNoMain | JS | LaTeX | QuickLaTeX
     deriving (Show, Read, Eq)
 
 data GiveRefine = Give | Refine | Intro
@@ -1057,7 +1063,7 @@ highlightExpr e =
   local (\e -> e { envModuleNestingLevel = 0
                  , envHighlightingLevel  = NonInteractive
                  , envHighlightingMethod = Direct }) $
-    generateAndPrintSyntaxInfo decl Full
+    generateAndPrintSyntaxInfo decl Full True
   where
     dummy = mkName_ (NameId 0 0) "dummy"
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
@@ -1260,7 +1266,7 @@ status = do
           mm <- lookupModuleFromSource f
           case mm of
             Nothing -> return False -- work-around for Issue1007
-            Just m  -> not . miWarnings . fromMaybe __IMPOSSIBLE__ <$> getVisitedModule m
+            Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
 
   return $ Status { sShowImplicitArguments = showImpl
                   , sChecked               = checked

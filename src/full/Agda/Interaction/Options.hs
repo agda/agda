@@ -114,6 +114,9 @@ data CommandLineOptions = Options
   , optPragmaOptions    :: PragmaOptions
   , optSharing          :: Bool
   , optCaching          :: Bool
+  , optOnlyScopeChecking :: Bool
+    -- ^ Should the top-level module only be scope-checked, and not
+    --   type-checked?
   }
   deriving Show
 
@@ -199,6 +202,7 @@ defaultOptions = Options
   , optPragmaOptions    = defaultPragmaOptions
   , optSharing          = False
   , optCaching          = False
+  , optOnlyScopeChecking = False
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -261,21 +265,42 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
+  | not (matches [optGHCiInteraction, isJust . optInputFile] <= 1) =
       throwError "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [optGenerateHTML]) =
-      throwError "Choose at most one: --html/--interactive/--interaction.\n"
-  | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
-      throwError "Choose at most one: --dependency-graph/--interactive/--interaction.\n"
-  | not (atMostOne $ interactive ++ [optGenerateLaTeX]) =
-      throwError "Choose at most one: --latex/--interactive/--interaction.\n"
+  | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
+      throwError exclusiveMessage
   | otherwise = return opts
   where
-  atMostOne bs = length (filter ($ opts) bs) <= 1
+  matches = length . filter ($ opts)
 
-  p = optPragmaOptions
+  atMostOne =
+    [ optGenerateHTML
+    , isJust . optDependencyGraph
+    ] ++
+    map fst exclusive
 
-  interactive = [optInteractive, optGHCiInteraction]
+  exclusive =
+    [ ( optOnlyScopeChecking
+      , optSafe . optPragmaOptions :
+        optGenerateVimFile :
+        atMostOne
+      )
+    , ( optInteractive
+      , optGenerateLaTeX : atMostOne
+      )
+    , ( optGHCiInteraction
+      , optGenerateLaTeX : atMostOne
+      )
+    ]
+
+  exclusiveMessage = unlines $
+    [ "The options --interactive, --interaction and"
+    , "--only-scope-checking cannot be combined with each other or"
+    , "with --html or --dependency-graph. Furthermore"
+    , "--interactive and --interaction cannot be combined with"
+    , "--latex, and --only-scope-checking cannot be combined with"
+    , "--safe or --vim."
+    ]
 
 -- | Check for unsafe pramas. Gives a list of used unsafe flags.
 
@@ -342,6 +367,9 @@ vimFlag o = return $ o { optGenerateVimFile = True }
 
 latexFlag :: Flag CommandLineOptions
 latexFlag o = return $ o { optGenerateLaTeX = True }
+
+onlyScopeCheckingFlag :: Flag CommandLineOptions
+onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -540,6 +568,8 @@ standardOptions =
                     "enable caching of typechecking (experimental) (default: OFF)"
     , Option []     ["no-caching"] (NoArg $ cachingFlag False)
                     "disable caching of typechecking"
+    , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
+                    "only scope-check the top-level module, do not type-check it"
     ] ++ map (fmap lift) pragmaOptions
   where
   lift :: Flag PragmaOptions -> Flag CommandLineOptions

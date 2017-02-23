@@ -1,0 +1,4 @@
+top_command (cmd_load currentFile ["--caching"])
+goal_command 0 cmd_give "Set"
+top_command (cmd_compile QuickLaTeX currentFile ["--caching"])
+top_command (cmd_compile QuickLaTeX currentFile ["--caching"])

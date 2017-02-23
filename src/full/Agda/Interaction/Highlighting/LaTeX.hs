@@ -181,8 +181,21 @@ isInfixOfRev needle haystack
       Nothing         -> Nothing
       Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
 
+-- | Does the string consist solely of whitespace?
+
 isSpaces :: Text -> Bool
-isSpaces = T.all (\c -> c == ' ' || c == '\n')
+isSpaces = T.all isSpace
+
+-- | Is the character a whitespace character distinct from '\n'?
+
+isSpaceNotNewline :: Char -> Bool
+isSpaceNotNewline c = isSpace c && c /= '\n'
+
+-- | Replaces all forms of whitespace, except for new-line characters,
+-- with spaces.
+
+replaceSpaces :: Text -> Text
+replaceSpaces = T.map (\c -> if isSpaceNotNewline c then ' ' else c)
 
 -- | Yields the next token, taking special care to begin/end code
 -- blocks. Junk occuring before and after the code blocks is separated
@@ -239,7 +252,7 @@ nextToken' = do
                                -- final line; the function spaces
                                -- expects trailing whitespace to be
                                -- followed by a newline character.
-                             ( T.dropWhileEnd (== ' ') pre'
+                             ( T.dropWhileEnd isSpaceNotNewline pre'
                              , [ code, suf ]
                              )
 
@@ -248,8 +261,8 @@ nextToken' = do
               -- second ends up in the suffix of the first's end code.
                     else (pre, [ code, suf ])
 
-          let tokToReturn   = t { text = textToReturn }
-          let toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
+              tokToReturn   = t { text = textToReturn }
+              toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
 
           unless (isSpaces textToReturn) $ do
             log MoveColumn textToReturn
@@ -474,7 +487,7 @@ code = do
     nonCode
 
   when (isSpaces tok) $ do
-    spaces $ T.group tok
+    spaces $ T.group $ replaceSpaces tok
     code
 
   case aspect (info tok') of
@@ -487,29 +500,37 @@ code = do
   where
   cmd :: Aspect -> String
   cmd a = let s = show a in case a of
-    Comment        -> s
-    Option         -> s
-    Keyword        -> s
-    String         -> s
-    Number         -> s
-    Symbol         -> s
-    PrimitiveType  -> s
-    Name mKind _   -> maybe __IMPOSSIBLE__ showKind mKind
+    Comment           -> s
+    Option            -> s
+    Keyword           -> s
+    String            -> s
+    Number            -> s
+    Symbol            -> s
+    PrimitiveType     -> s
+    Name Nothing isOp -> cmd (Name (Just Postulate) isOp)
+      -- At the time of writing the case above can be encountered in
+      -- --only-scope-checking mode, for instance for the token "Size"
+      -- in the following code:
+      --
+      --   {-# BUILTIN SIZE Size #-}
+      --
+      -- The choice of "Postulate" works for this example, but might
+      -- be less appropriate for others.
+    Name (Just kind) _ -> case kind of
+      Bound                     -> s
+      Constructor Inductive     -> "InductiveConstructor"
+      Constructor CoInductive   -> "CoinductiveConstructor"
+      Datatype                  -> s
+      Field                     -> s
+      Function                  -> s
+      Module                    -> s
+      Postulate                 -> s
+      Primitive                 -> s
+      Record                    -> s
+      Argument                  -> s
+      Macro                     -> s
       where
-      showKind :: NameKind -> String
-      showKind n = let s = show n in case n of
-        Bound                     -> s
-        Constructor Inductive     -> "InductiveConstructor"
-        Constructor CoInductive   -> "CoinductiveConstructor"
-        Datatype                  -> s
-        Field                     -> s
-        Function                  -> s
-        Module                    -> s
-        Postulate                 -> s
-        Primitive                 -> s
-        Record                    -> s
-        Argument                  -> s
-        Macro                     -> s
+      s = show kind
 
 -- Escapes special characters.
 escape :: Text -> Text
@@ -529,15 +550,12 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '^'  -> "\\textasciicircum{}"
     '\\' -> "\\textbackslash{}"
     '-'  -> "{-}"
-    -- Escaping newlines seems to fix the problem caused by pattern
-    -- synonyms.
-    '\n' -> "\\<\\\\\n\\>"
     _    -> [ c ]
 escape _                         = __IMPOSSIBLE__
 
--- | Spaces are grouped before processed, because multiple consecutive
--- spaces determine the alignment of the code and consecutive newline
--- characters need special treatment as well.
+-- | Every element in the list should consist of either one or more
+-- newline characters, or one or more space characters. Two adjacent
+-- list elements must not contain the same character.
 --
 -- If the final element of the list consists of spaces, then these
 -- spaces are assumed to not be trailing whitespace.
@@ -611,7 +629,7 @@ stringLiteral t | aspect (info t) == Just String =
   where
   leadingSpaces :: Text -> [Text]
   leadingSpaces t = [pre, suf]
-    where (pre , suf) = T.span (== ' ') t
+    where (pre , suf) = T.span isSpaceNotNewline t
 
 stringLiteral t = [t]
 
@@ -621,7 +639,11 @@ stringLiteral t = [t]
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
--- | The only exported function.
+-- | Generates a LaTeX file for the given interface.
+--
+-- The underlying source file is assumed to match the interface, but
+-- this is not checked. TODO: Fix this problem, perhaps by storing the
+-- source code in the interface.
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   let mod = toTopLevelModuleName $ iModuleName i
@@ -637,7 +659,7 @@ generateLaTeX i = do
                  </> optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
-  TCM.reportSLn "latex" 1 $ unlines
+  TCM.reportSLn "compile.latex" 1 $ unlines
     [ ""
     , "Checking if " ++ defaultStyFile ++ " is found by the LaTeX environment."
     ]
@@ -645,7 +667,7 @@ generateLaTeX i = do
   merrors <- callCompiler' "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ]
 
   when (isJust merrors) $ do
-    TCM.reportSLn "latex" 1 $ unlines
+    TCM.reportSLn "compile.latex" 1 $ unlines
       [ ""
       , defaultStyFile ++ " was not found. Copying a default version of " ++
           defaultStyFile
@@ -695,15 +717,9 @@ toLaTeX source hi
 
   -- Add position in file to each character.
   . zip [1..]
-  . map replaceWhitespace
   $ source
   where
   infoMap = toMap (decompress hi)
-
-  -- Treat everything but new-line characters as spaces [Issue_#2019].
-  replaceWhitespace c
-    | isSpace c && c /= '\n' = ' '
-    | otherwise              = c
 
 processTokens :: Tokens -> IO L.Text
 processTokens ts = do

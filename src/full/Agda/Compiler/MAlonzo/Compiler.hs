@@ -90,16 +90,17 @@ ghcBackend = Backend ghcBackend'
 
 ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv () [HS.Decl]
 ghcBackend' = Backend'
-  { backendName      = "GHC"
-  , backendVersion   = Nothing
-  , options          = defaultGHCOptions
-  , commandLineFlags = ghcCommandLineFlags
-  , isEnabled        = optGhcCompile
-  , preCompile       = ghcPreCompile
-  , postCompile      = ghcPostCompile
-  , preModule        = ghcPreModule
-  , postModule       = ghcPostModule
-  , compileDef       = ghcCompileDef
+  { backendName           = "GHC"
+  , backendVersion        = Nothing
+  , options               = defaultGHCOptions
+  , commandLineFlags      = ghcCommandLineFlags
+  , isEnabled             = optGhcCompile
+  , preCompile            = ghcPreCompile
+  , postCompile           = ghcPostCompile
+  , preModule             = ghcPreModule
+  , postModule            = ghcPostModule
+  , compileDef            = ghcCompileDef
+  , scopeCheckingSuffices = False
   }
 
 --- Options ---
