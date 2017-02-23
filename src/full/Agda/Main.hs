@@ -157,6 +157,8 @@ runAgdaWithOptions backends generateHTML interaction progName opts
 
           return result
 
+
+
 -- | Print usage information.
 printUsage :: [Backend] -> IO ()
 printUsage backends = do

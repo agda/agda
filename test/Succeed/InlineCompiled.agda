@@ -1,4 +1,3 @@
-
 module _ where
 
 id : {A : Set} → A → A
@@ -7,6 +6,6 @@ id x = x
 
 -- Adding COMPILED to an INLINE'd function has no effect, since the
 -- treeless compiler will inline all uses of the function. Hence, we
--- throw an error rather than confusing the user by allowing the
--- pointless pragma.
+-- warn the user that the pragma is pointless when compiling.
 {-# COMPILED id \ _ x -> x #-}
+

@@ -31,10 +31,12 @@ import System.Console.GetOpt
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Pretty as P
 
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.HTML
+import Agda.Interaction.Imports (getAllWarnings')
 
 import Agda.Utils.Pretty
 import Agda.Utils.FileName
@@ -134,12 +136,21 @@ backendInteraction backends _ check = do
   when (optInteractive     opts) $ err "interactive"
   when (optGHCiInteraction opts) $ err "interaction"
   mi     <- check
+
+  -- reset warnings
+  stTCWarnings .= []
+
   noMain <- optCompileNoMain <$> commandLineOptions
   let isMain | noMain    = NotMain
              | otherwise = IsMain
   case mi of
     Nothing -> __IMPOSSIBLE__
     Just i  -> sequence_ [ compilerMain backend isMain i | Backend backend <- backends ]
+
+  -- print warnings that might have accumulated during compilation
+  ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings' AllWarnings RespectFlags
+  unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
 compilerMain backend isMain i =

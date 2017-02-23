@@ -54,7 +54,8 @@ data MakeCaseVariant = Function | ExtendedLambda
 -- | Info to display at the end of an interactive command
 
 data DisplayInfo
-    = Info_CompilationOk
+    = Info_CompilationOk String String
+      -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Constraints String
     | Info_AllGoalsWarnings String String String
         -- ^ Strings are the goals, the warnings and the (non-fatal) errors

@@ -157,6 +157,14 @@ instance PrettyTCM Warning where
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
+    UselessInline q -> fsep $
+      pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
+      pwords "to have a separate Haskell definition"
+
+    GenericWarning d -> return d
+
+    GenericNonFatalError d -> return d
+
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
@@ -213,6 +221,7 @@ applyFlagsToTCWarnings ifs ws = do
   negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
   loopingNotOK  <- optTerminationCheck <$> pragmaOptions
 
+  -- filter out the warnings the flags told us to ignore
   let cleanUp w =
         let ignore = ifs == IgnoreFlags
             keepUnsolved us = not (null us) && (ignore || unsolvedNotOK)
@@ -228,8 +237,11 @@ applyFlagsToTCWarnings ifs ws = do
           UselessPublic                -> True
           ParseWarning{}               -> True
           UnreachableClauses{}         -> True
+          UselessInline{}              -> True
+          GenericWarning{}             -> True
+          GenericNonFatalError{}       -> True
           SafeFlagPostulate{}          -> True
-          SafeFlagPragma{}             -> False
+          SafeFlagPragma{}             -> False -- dealt with separately
           SafeFlagNonTerminating       -> True
           SafeFlagTerminating          -> True
           SafeFlagPrimTrustMe          -> True

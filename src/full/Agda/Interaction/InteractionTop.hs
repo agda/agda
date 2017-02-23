@@ -571,11 +571,15 @@ interpret (Cmd_compile b file argv) =
           GHCNoMain -> callBackend "GHC" NotMain i
           JS        -> callBackend "JS" IsMain i
           LaTeX     -> LaTeX.generateLaTeX i
-        display_info $ Info_CompilationOk
-      Imp.SomeWarnings w ->
+        (pwe, pwa) <- interpretWarnings
+        display_info $ Info_CompilationOk pwa pwe
+      Imp.SomeWarnings w -> do
+        pw <- lift $ prettyTCWarnings w
         display_info $ Info_Error $ unlines
-          [ "You can only compile modules without unsolved metavariables"
-          , "or termination checking problems."
+          [ "You need to fix the following errors before you can compile"
+          , "the module:"
+          , ""
+          , pw
           ]
 
 interpret Cmd_constraints =
