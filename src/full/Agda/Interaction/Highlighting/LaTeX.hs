@@ -631,7 +631,11 @@ stringLiteral t = [t]
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
--- | The only exported function.
+-- | Generates a LaTeX file for the given interface.
+--
+-- The underlying source file is assumed to match the interface, but
+-- this is not checked. TODO: Fix this problem, perhaps by storing the
+-- source code in the interface.
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   let mod = toTopLevelModuleName $ iModuleName i
