@@ -181,8 +181,21 @@ isInfixOfRev needle haystack
       Nothing         -> Nothing
       Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
 
+-- | Does the string consist solely of whitespace?
+
 isSpaces :: Text -> Bool
-isSpaces = T.all (\c -> c == ' ' || c == '\n')
+isSpaces = T.all isSpace
+
+-- | Is the character a whitespace character distinct from '\n'?
+
+isSpaceNotNewline :: Char -> Bool
+isSpaceNotNewline c = isSpace c && c /= '\n'
+
+-- | Replaces all forms of whitespace, except for new-line characters,
+-- with spaces.
+
+replaceSpaces :: Text -> Text
+replaceSpaces = T.map (\c -> if isSpaceNotNewline c then ' ' else c)
 
 -- | Yields the next token, taking special care to begin/end code
 -- blocks. Junk occuring before and after the code blocks is separated
@@ -239,7 +252,7 @@ nextToken' = do
                                -- final line; the function spaces
                                -- expects trailing whitespace to be
                                -- followed by a newline character.
-                             ( T.dropWhileEnd (== ' ') pre'
+                             ( T.dropWhileEnd isSpaceNotNewline pre'
                              , [ code, suf ]
                              )
 
@@ -248,8 +261,8 @@ nextToken' = do
               -- second ends up in the suffix of the first's end code.
                     else (pre, [ code, suf ])
 
-          let tokToReturn   = t { text = textToReturn }
-          let toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
+              tokToReturn   = t { text = textToReturn }
+              toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
 
           unless (isSpaces textToReturn) $ do
             log MoveColumn textToReturn
@@ -474,7 +487,7 @@ code = do
     nonCode
 
   when (isSpaces tok) $ do
-    spaces $ T.group tok
+    spaces $ T.group $ replaceSpaces tok
     code
 
   case aspect (info tok') of
@@ -535,9 +548,9 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     _    -> [ c ]
 escape _                         = __IMPOSSIBLE__
 
--- | Spaces are grouped before processed, because multiple consecutive
--- spaces determine the alignment of the code and consecutive newline
--- characters need special treatment as well.
+-- | Every element in the list should consist of either one or more
+-- newline characters, or one or more space characters. Two adjacent
+-- list elements must not contain the same character.
 --
 -- If the final element of the list consists of spaces, then these
 -- spaces are assumed to not be trailing whitespace.
@@ -611,7 +624,7 @@ stringLiteral t | aspect (info t) == Just String =
   where
   leadingSpaces :: Text -> [Text]
   leadingSpaces t = [pre, suf]
-    where (pre , suf) = T.span (== ' ') t
+    where (pre , suf) = T.span isSpaceNotNewline t
 
 stringLiteral t = [t]
 
@@ -695,15 +708,9 @@ toLaTeX source hi
 
   -- Add position in file to each character.
   . zip [1..]
-  . map replaceWhitespace
   $ source
   where
   infoMap = toMap (decompress hi)
-
-  -- Treat everything but new-line characters as spaces [Issue_#2019].
-  replaceWhitespace c
-    | isSpace c && c /= '\n' = ' '
-    | otherwise              = c
 
 processTokens :: Tokens -> IO L.Text
 processTokens ts = do
