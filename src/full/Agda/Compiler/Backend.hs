@@ -144,7 +144,7 @@ backendInteraction backends _ check = do
   let isMain | noMain    = NotMain
              | otherwise = IsMain
   case mi of
-    Nothing -> __IMPOSSIBLE__
+    Nothing -> genericError $ "You can only compile modules without unsolved metavariables."
     Just i  -> sequence_ [ compilerMain backend isMain i | Backend backend <- backends ]
 
   -- print warnings that might have accumulated during compilation
