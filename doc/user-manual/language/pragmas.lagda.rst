@@ -20,15 +20,9 @@ Index of pragmas
 
 * :ref:`BUILTIN <built-ins>`
 
-* :ref:`COMPILED <compiled_pragma>`
+* :ref:`COMPILE <foreign-function-interface>`
 
-* :ref:`COMPILED_DATA <compiled_data_pragma>`
-
-* :ref:`COMPILED_EXPORT <compiled_export_pragma>`
-
-* :ref:`COMPILED_TYPE <compiled_type_pragma>`
-
-* :ref:`IMPORT <import_pragma>`
+* :ref:`FOREIGN <foreign-function-interface>`
 
 * :ref:`NO_POSITIVITY_CHECK <no_positivity_check_pragma>`
 
