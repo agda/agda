@@ -35,8 +35,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
 import Agda.Compiler.JS.Compiler (jsBackend)
-import Agda.Compiler.UHC.Compiler (uhcBackend)
-import Agda.Compiler.UHC.Bridge (uhcBackendEnabled)
 
 import Agda.Compiler.Backend
 
@@ -54,9 +52,7 @@ import Agda.Utils.Lens
 #include "undefined.h"
 
 builtinBackends :: [Backend]
-builtinBackends =
-  [ ghcBackend, jsBackend ] ++
-  [ uhcBackend | uhcBackendEnabled ]
+builtinBackends = [ ghcBackend, jsBackend ]
 
 -- | The main function
 runAgda :: [Backend] -> IO ()

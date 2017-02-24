@@ -27,8 +27,6 @@ import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
-import qualified Agda.Compiler.UHC.Pragmas.Base as CR
-
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
