@@ -771,6 +771,8 @@ checkLHS f st@(LHSState problem dpi psplit) = do
          return (gamma,sigma)
       itisone <- primItIsOne
       -- substitute the literal in p1 and dpi
+      reportSDoc "tc.lhs.faces" 10 $ text $ show sigma
+
       let delta1 = problemTel p0
           oix = size (problemTel $ unAbs p1) -- de brujin index of IsOne
           Just o_n = flip findIndex ip (\ x -> case namedThing (unArg x) of
@@ -778,10 +780,13 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                                            _      -> False)
           delta2' = absApp (fmap problemTel p1) itisone
           delta2 = applySubst sigma delta2'
-          mkConP c = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
+          mkConP (Con c _ [])
+             = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                               , conPFallThrough = True })
                           []
-          rho0 = fmap (\ (Con c _ []) -> mkConP c) sigma
+          mkConP (Var i []) = VarP (DBPatVar "x" i)
+          mkConP _          = __IMPOSSIBLE__
+          rho0 = fmap mkConP sigma
 
           rho    = liftS (size delta2) $ consS (DotP itisone) rho0
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
