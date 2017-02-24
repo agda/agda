@@ -88,50 +88,6 @@ Required libraries for the :ref:`built-ins`
   <http://hackage.haskell.org/package/ieee754>`_ library.
 
 
-UHC Backend
-~~~~~~~~~~~
-
-.. versionadded::
-   2.5.1
-.. note::
-   The Agda Standard Library has been updated to support this new backend.
-   This backend is currently experimental.
-
-The Agda UHC backend targets the Core language of the Utrecht Haskell Compiler (UHC).
-This backend works on the Mac and Linux platforms and requires GHC >= 7.10.
-
-The backend is disabled by default, as it will pull in some large
-dependencies. To enable the backend, use the "uhc" cabal flag when
-installing Agda:
-
-.. code-block:: bash
-
-  cabal install Agda -fuhc
-
-The backend also requires UHC to be installed. UHC is not available on
-Hackage and needs to be installed manually. This version of Agda has
-been tested with UHC 1.1.9.5. To install UHC, the following commands
-can be used:
-
-.. code-block:: bash
-
-  cabal install uhc-util-0.1.6.7 uulib-0.9.22
-  wget https://github.com/UU-ComputerScience/uhc/archive/v1.1.9.5.tar.gz
-  tar -xf v1.1.9.5.tar.gz
-  cd uhc-1.1.9.5/EHC
-  ./configure
-  make
-  make install
-
-The Agda UHC compiler can be invoked from the command line using the
-flag ``--uhc``:
-
-.. code-block:: bash
-
-  agda --uhc [--compile-dir=<DIR>]
-      [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
-
-
 .. _javascript-backend:
 
 JavaScript Backend
