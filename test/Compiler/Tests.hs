@@ -43,7 +43,7 @@ data ExecResult
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo | UHC | JS
+data Compiler = MAlonzo | JS
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -59,7 +59,7 @@ data TestOptions
     } deriving (Show, Read)
 
 allCompilers :: [Compiler]
-allCompilers = [MAlonzo, UHC, JS]
+allCompilers = [MAlonzo, JS]
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -71,35 +71,21 @@ defaultOptions = TestOptions
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -- See Issue 1866
-    RFInclude "Compiler/UHC/with-stdlib/.*"
-    -- See issue 1528
-  , RFInclude "Compiler/.*/simple/Sharing"
-    -- This is quadratic under UHC even when the length index is erased
-  , RFInclude "Compiler/UHC/simple/VecReverseIrr"
-#if !defined(UHC_BACKEND)
-    -- Disable UHC backend tests if the backend is also disabled.
-  , RFInclude "Compiler/UHC/"
-#endif
-    -- primQNameFixity not yet implemented for UHC and JS
-  , RFInclude "Compiler/UHC/simple/Issue1664"
+  [ -- See issue 1528
+    RFInclude "Compiler/.*/simple/Sharing"
+    -- primQNameFixity not yet implemented for JS
   , RFInclude "Compiler/JS/simple/Issue1664"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   -- primQNameLess not implemented for JS
   , RFInclude "Compiler/JS/simple/QNameOrder"
-  -- Floats
-  , RFInclude "Compiler/JS/simple/FloatsOnlyUHC"
-  , RFInclude "Compiler/MAlonzo/simple/FloatsOnlyUHC"
-  , RFInclude "Compiler/UHC/simple/FloatsUHCFails"
   -- not sure what the problem is
   , RFInclude "Compiler/JS/simple/Issue2469"
   ]
 
 tests :: IO TestTree
 tests = do
-  hasUHC <- doesCommandExist "uhc"
   hasNode <- doesCommandExist "node"
-  let enabledCompilers = [MAlonzo] ++ [UHC | hasUHC] ++ [JS | hasNode]
+  let enabledCompilers = [MAlonzo] ++ [JS | hasNode]
 
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Compiler" ts
@@ -123,7 +109,6 @@ simpleTests comp = do
   return $ testGroup "simple" $ catMaybes tests'
 
   where compArgs :: Compiler -> AgdaArgs
-        compArgs UHC = []
         compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/"]
         compArgs JS = []
 
@@ -167,7 +152,6 @@ specialTests MAlonzo = do
                     T.empty
             -- ignore stderr, as there may be some GHC warnings in it
             return $ ExecutedProg (ret, out <> sout, err)
-specialTests UHC = return Nothing
 specialTests JS = return Nothing
 
 ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
@@ -230,12 +214,8 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
             ExitFailure _ -> return $ CompileFailed res
           )
 
+        argsForComp :: Compiler -> IO [String]
         argsForComp MAlonzo = return ["--compile"]
-        argsForComp UHC     = do
-            uhc <- getEnvVar "UHC_BIN"
-            let uhcBinArg = maybe [] (\x -> ["--uhc-bin", x]) uhc
-            -- TODO remove the memory arg again, as soon as we fixed the memory leak
-            return $ ["--uhc"] ++ uhcBinArg ++ ["+RTS", "-K50m", "-RTS"]
         argsForComp JS = return ["--js"]
 
 readOptions :: FilePath -- file name of the agda file
