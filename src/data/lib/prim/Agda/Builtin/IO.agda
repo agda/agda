@@ -5,5 +5,5 @@ module Agda.Builtin.IO where
 postulate IO : ∀ {a} → Set a → Set a
 {-# BUILTIN IO IO #-}
 
-{-# HASKELL type AgdaIO a b = IO b #-}
-{-# COMPILED_TYPE IO MAlonzo.Code.Agda.Builtin.IO.AgdaIO #-}
+{-# FOREIGN GHC type AgdaIO a b = IO b #-}
+{-# COMPILE GHC IO = type MAlonzo.Code.Agda.Builtin.IO.AgdaIO #-}

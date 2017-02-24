@@ -512,17 +512,20 @@ bindPostulatedName builtin e m = do
 --     Def d _ -> return d
 --     _ -> __IMPOSSIBLE__
 
-bindAndSetHaskellType :: String -> String -> Term -> TCM ()
-bindAndSetHaskellType b hs t = do
+addHaskellPragma :: QName -> String -> TCM ()
+addHaskellPragma = addPragma ghcBackendName
+
+bindAndSetHaskellCode :: String -> String -> Term -> TCM ()
+bindAndSetHaskellCode b hs t = do
   d <- fromMaybe __IMPOSSIBLE__ <$> getDef t
-  addHaskellType d hs
+  addHaskellPragma d hs
   bindBuiltinName b t
 
 bindBuiltinBool :: Term -> TCM ()
-bindBuiltinBool = bindAndSetHaskellType builtinBool "Bool"
+bindBuiltinBool = bindAndSetHaskellCode builtinBool "= type Bool"
 
 bindBuiltinInt :: Term -> TCM ()
-bindBuiltinInt = bindAndSetHaskellType builtinInteger "Integer"
+bindBuiltinInt = bindAndSetHaskellCode builtinInteger "= type Integer"
 
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
@@ -537,7 +540,7 @@ bindBuiltinNat t = do
                       | otherwise = (c2, c1)
           tnat = el primNat
           rerange = setRange (getRange nat)
-      addHaskellType nat "Integer"
+      addHaskellPragma nat "= type Integer"
       bindBuiltinInfo (BuiltinInfo builtinZero $ BuiltinDataCons tnat)
                       (A.Con $ AmbQ [rerange zero])
       bindBuiltinInfo (BuiltinInfo builtinSuc  $ BuiltinDataCons (tnat --> tnat))
@@ -639,8 +642,6 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let v@(Con h _ []) = name v0
             c = conName h
-        when (s == builtinTrue)  $ addHaskellCode c "True"
-        when (s == builtinFalse) $ addHaskellCode c "False"
         bindBuiltinName s v
 
       BuiltinPrim pfname axioms -> do
@@ -675,9 +676,9 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
-                when (s == builtinChar)   $ addHaskellType q "Char"
-                when (s == builtinString) $ addHaskellType q "Data.Text.Text"
-                when (s == builtinFloat)  $ addHaskellType q "Double"
+                when (s == builtinChar)   $ addHaskellPragma q "= type Char"
+                when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
+                when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
                 bindBuiltinName s v
               _        -> err
           _ -> err

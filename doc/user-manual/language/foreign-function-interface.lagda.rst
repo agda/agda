@@ -2,156 +2,217 @@
   ::
   module language.foreign-function-interface where
 
+  open import Agda.Primitive
+  open import Agda.Builtin.Bool
+
+  postulate <Name> : Set
+
 .. _foreign-function-interface:
 
 **************************
 Foreign Function Interface
 **************************
 
+.. contents::
+   :depth: 2
+   :local:
+
+Compiler Pragmas
+================
+
+.. versionadded:: 2.5.3
+
+There are two backend-generic pragmas used for the FFI::
+
+  {-# COMPILE <Backend> <Name> <Text> #-}
+  {-# FOREIGN <Backend> <Text> #-}
+
+The ``COMPILE`` pragma associates some information ``<Text>`` with a name
+``<Name>`` defined in the same module, and the ``FOREIGN`` pragma associates
+``<Text>`` with the current top-level module. This information is interpreted
+by the specific backend during compilation (see below).
+
 Haskell FFI
 ===========
 
 .. note::
-   This section currently only applies
-   to the GHC backend.
+   This section applies to the :ref:`ghc-backend`.
 
-The FFI is controlled by five pragmas:
+The ``FOREIGN`` pragma
+----------------------
 
-- ``IMPORT``
-- ``COMPILED_TYPE``
-- ``COMPILED_DATA``
-- ``COMPILED``
-- ``COMPILED_EXPORT``
+The GHC backend interprets ``FOREIGN`` pragmas as inline Haskell code and can
+contain arbitrary code (including import statements) that will be added to the
+compiled module. For instance::
 
-All FFI bindings are only used when executing programs and do not
-influence the type checking phase.
+  {-# FOREIGN GHC import Data.Maybe #-}
 
-.. _import_pragma:
+  {-# FOREIGN GHC
+    data Foo = Foo | Bar Foo
 
-The ``IMPORT`` pragma
----------------------
+    countBars :: Foo -> Integer
+    countBars Foo = 0
+    countBars (Bar f) = 1 + countBars f
+  #-}
 
-::
+The ``COMPILE`` pragma
+----------------------
 
-  {-# IMPORT HsModule #-}
-
-The ``IMPORT`` pragma instructs the compiler to generate a Haskell
-import statement in the compiled code. The pragma above will generate
-the following Haskell code:
-
-.. code-block:: haskell
-
-  import qualified HsModule
-
-``IMPORT`` pragmas can appear anywhere in a file.
-
-.. _compiled_type_pragma:
-
-The ``COMPILED_TYPE`` pragma
-----------------------------
-
-::
-
-  postulate D : Set
-  {-# COMPILED_TYPE D HsType #-}
-
-The ``COMPILED_TYPE`` pragma tells the compiler that the postulated
-Agda type ``D`` corresponds to the Haskell type ``HsType``. This
-information is used when checking the types of ``COMPILED`` functions
-and constructors.
-
-.. _compiled_data_pragma:
-
-The ``COMPILED_DATA`` pragma
-----------------------------
+There are four forms of ``COMPILE`` annotations recognized by the GHC backend
 
 .. code-block:: agda
 
-  {-# COMPILED_DATA D HsD HsC1 .. HsCn #-}
+  {-# COMPILE GHC <Name> = <HaskellCode> #-}
+  {-# COMPILE GHC <Name> = type <HaskellType> #-}
+  {-# COMPILE GHC <Name> = data <HaskellData> (<HsCon1> | .. | <HsConN>) #-}
+  {-# COMPILE GHC <Name> as <HaskellName> #-}
 
-The ``COMPILED_DATA`` pragma tells the compiler that the Agda datatype
-``D`` corresponds to the Haskell datatype ``HsD`` and that its
-constructors should be compiled to the Haskell constructors
-``HsC1 .. HsCn``. The compiler checks that the Haskell constructors
-have the right types and that all constructors are covered.
+The first three tells the compiler how to compile a given Agda definition and the last
+exposes an Agda definition under a particular Haskell name allowing Agda libraries to
+be used from Haskell.
 
-Example:
-::
+.. _compiled_type_pragma:
 
-  data List (A : Set) : Set where
-    []   : List A
-    _::_ : A → List A → List A
+Using Haskell Types from Agda
+-----------------------------
 
-  {-# COMPILED_DATA List [] [] (:) #-}
+In order to use a Haskell function from Agda its type must be mapped to an Agda
+type. This mapping can be configured using the ``type`` and ``data`` forms of the
+``COMPILE`` pragma.
+
+Opaque types
+^^^^^^^^^^^^
+
+Opaque Haskell types are exposed to Agda by postulating an Agda type and
+associating it to the Haskell type using the ``type`` form of the ``COMPILE``
+pragma::
+
+  {-# FOREIGN GHC import qualified System.IO #-}
+
+  postulate FileHandle : Set
+  {-# COMPILE GHC FileHandle = type System.IO.Handle #-}
+
+This tells the compiler that the Agda type ``FileHandle`` corresponds to the Haskell
+type ``System.IO.Handle`` and will enable functions using file handles to be used
+from Agda.
+
+Data types
+^^^^^^^^^^
+
+Non-opaque Haskell data types can be mapped to Agda datatypes using the ``data`` form
+of the ``COMPILED`` pragma::
+
+  data Maybe (A : Set) : Set where
+    nothing : Maybe A
+    just    : A → Maybe A
+
+  {-# COMPILE GHC Maybe = data Maybe (Nothing | Just) #-}
+
+The compiler checks that the types of the Agda constructors match the types of the
+corresponding Haskell constructors and that no constructors have been left out
+(on either side).
 
 Built-in Types
 ^^^^^^^^^^^^^^
 
-The GHC backend compiles certain Agda built-ins to special Haskell
-types. The mapping between Agda built-in types and Haskell types is as
-follows:
+The GHC backend compiles certain Agda :ref:`built-in types <built-ins>` to
+special Haskell types. The mapping between Agda built-in types and Haskell
+types is as follows:
 
 
 =============  ==================
 Agda Built-in  Haskell Type
 =============  ==================
+``NAT``        ``Integer``
+``INTEGER``    ``Integer``
 ``STRING``     ``Data.Text.Text``
 ``CHAR``       ``Char``
-``INTEGER``    ``Integer``
 ``BOOL``       ``Boolean``
 ``FLOAT``      ``Double``
 =============  ==================
 
+.. warning::
+   Haskell code manipulating Agda natural numbers as integers must take
+   care to avoid negative values.
 
 .. warning::
    Agda ``FLOAT`` values have only one logical ``NaN`` value. At runtime,
    there might be multiple different ``NaN`` representations present. All
-   such ``NaN`` values must be treated equal by FFI calls to avoid making
-   Agda inconsistent.
+   such ``NaN`` values must be treated equal by FFI calls.
 
 .. _compiled_pragma:
 
-The ``COMPILED`` pragma
------------------------
+Using Haskell functions from Agda
+---------------------------------
 
-::
+Once a suitable mapping between Haskell types and Agda types has been set
+up, Haskell functions whose types map to an Agda type can be exposed to Agda
+code with a ``COMPILE`` pragma::
 
-  postulate f : ∀ a b → (a → b) → List a → List b
-  {-# COMPILED f HsCode #-}
+  open import Agda.Builtin.IO
+  open import Agda.Builtin.String
+  open import Agda.Builtin.Unit
 
-The ``COMPILED`` pragma tells the compiler to compile the
-function ``f`` to the Haskell Code ``HsCode``. ``HsCode`` can be an
-arbitrary Haskell term of the right type. This is checked by
-translating the given Agda type of ``f`` into a Haskell type (see
-:ref:`translating-agda-types-to-haskell`) and checking that this
-matches the type of ``HsCode``. The ``COMPILED`` pragma
-can be applied to functions and postulates.
-
-..
-  ::
-  open import Agda.Builtin.Bool
-
-Example:
-::
-
-  postulate String : Set
-  {-# BUILTIN STRING String #-}
-
-  data Unit : Set where unit : Unit
-  {-# COMPILED_DATA Unit () () #-}
+  {-# FOREIGN GHC
+    import qualified Data.Text.IO as Text
+    import qualified System.IO as IO
+  #-}
 
   postulate
-    IO       : Set → Set
-    putStrLn : String → IO Unit
+    stdout    : FileHandle
+    hPutStrLn : FileHandle → String → IO ⊤
+  {-# COMPILE GHC stdout    = IO.stdout #-}
+  {-# COMPILE GHC hPutStrLn = Text.hPutStrLn #-}
 
-  {-# COMPILED_TYPE IO IO #-}
-  {-# COMPILED putStrLn putStrLn #-}
+The compiler checks that the type of the given Haskell code matches the
+type of the Agda function. Note that the ``COMPILE`` pragma only affects
+the runtime behaviour--at type-checking time the functions are treated as
+postulates.
 
-  not : Bool → Bool
-  not true = false
-  not false = true
-  {-# COMPILED not not #-}
+.. warning::
+   It is possible to give Haskell definitions to defined (non-postulate)
+   Agda functions. In this case the Agda definition will be used at
+   type-checking time and the Haskell definition at runtime. However, there
+   are no checks to ensure that the Agda code and the Haskell code behave
+   the same and **discrepancies may lead to undefined behaviour**.
 
+   This feature can be used to let you reason about code involving calls to
+   Haskell functions under the assumption that you have a correct Agda model
+   of the behaviour of the Haskell code.
+
+Using Agda functions from Haskell
+---------------------------------
+.. versionadded:: 2.3.4
+
+Agda functions can be exposed to Haskell code using the ``as`` form of the
+``COMPILE`` pragma::
+
+  module IdAgda where
+
+    idAgda : ∀ {A : Set} → A → A
+    idAgda x = x
+
+    {-# COMPILE GHC idAgda as idAgdaFromHs #-}
+
+This tells the compiler that the Agda function ``idAgda`` should be compiled
+to a Haskell function called ``idAgdaFromHs``. Without this pragma, functions
+are compiled to Haskell functions with unpredictable names and, as a result,
+cannot be invoked from Haskell. The type of ``idAgdaFromHs`` will be the translated
+type of ``idAgda``.
+
+The compiled and exported function ``idAgdaFromHs`` can then be imported and
+invoked from Haskell like this:
+
+.. code-block:: haskell
+
+  -- file UseIdAgda.hs
+  module UseIdAgda where
+
+  import MAlonzo.Code.IdAgda (idAgdaFromHs)
+  -- idAgdaFromHs :: () -> a -> a
+
+  idAgdaApplied :: a -> a
+  idAgdaApplied = idAgdaFromHs ()
 
 Polymorphic functions
 ---------------------
@@ -163,157 +224,122 @@ Haskell functions they have to be discarded explicitly. For instance,
 ::
 
   postulate
-    map : {A B : Set} → (A → B) → List A → List B
+    ioReturn : {A : Set} → A → IO A
 
-  {-# COMPILED map (\_ _ -> map) #-}
+  {-# COMPILE GHC ioReturn = \ _ x -> return x #-}
 
-In this case compiled calls to map will still have ``A`` and ``B`` as
-arguments, so the compiled definition ignores its two first arguments
-and then calls the polymorphic Haskell ``map`` function.
+In this case compiled calls to ``ioReturn`` will still have ``A`` as an
+argument, so the compiled definition ignores its first argument
+and then calls the polymorphic Haskell ``return`` function.
+
+Level-polymorphic types
+-----------------------
+
+:ref:`Level-polymorphic types <universe-levels>` face a similar problem to
+polymorphic functions. Since Haskell does not have universe levels the Agda
+type will have more arguments than the corresponding type. This can be solved
+by defining a Haskell type synonym with the appropriate number of phantom
+arguments. For instance
+
+::
+
+  data Either {a b} (A : Set a) (B : Set b) : Set (a ⊔ b) where
+    left  : A → Either A B
+    right : B → Either A B
+
+  {-# FOREIGN GHC type AgdaEither a b = Either #-}
+  {-# COMPILE GHC Either = data AgdaEither (Left | Right) #-}
 
 Handling typeclass constraints
 ------------------------------
 
-The problem here is that Agda’s Haskell FFI doesn’t understand
-Haskell’s class system. If you look at this error message, GHC
-complains about a missing class constraint:
+There is (currently) no way to map a Haskell type with type class constraints to an
+Agda type. This means that functions with class constraints cannot be used from Agda.
+However, this can be worked around by wrapping class constraints in Haskell data types,
+and providing Haskell functions using explicit dictionary passing.
 
-.. code-block:: text
-
-  No instance for (Graphics.UI.Gtk.ObjectClass xA)
-    arising from a use of Graphics.UI.Gtk.objectDestroy’
-
-A work around to represent Haskell Classes in Agda is to use a Haskell
-datatype to represent the class constraint in a way Agda understands:
+For instance, suppose we have a simple GUI library in Haskell:
 
 .. code-block:: haskell
 
-  {-# LANGUAGE GADTs #-}
-  data MyObjectClass a = ObjectClass a => Witness
+  module GUILib where
+    class Widget w
+    setVisible :: Widget w => w -> Bool -> IO ()
 
-We also need to write a small wrapper for the ``objectDestroy``
-function in Haskell:
+    data Window
+    instance Widget Window
+    newWindow :: IO Window
 
-.. code-block:: haskell
+To use this library from Agda we first define a Haskell type for widget dictionaries and map this
+to an Agda type ``Widget``::
 
-  myObjectDestroy :: MyObjectClass a -> Signal a (IO ())
-  myObjectDestroy Witness = objectDestroy
-
-Notice that the class constraint disappeared from the Haskell type
-signature! The only missing part are the Agda FFI bindings:
-
-::
+  {-# FOREIGN GHC import GUILib #-}
+  {-# FOREIGN GHC data WidgetDict w = Widget w => WidgetDict #-}
 
   postulate
-    Window : Set
-    Signal : Set → Set → Set
-    MyObjectClass : Set → Set
-    windowInstance : MyObjectClass Window
-    myObjectDestroy : ∀ {a} → MyObjectClass a → Signal a Unit
-  {-# COMPILED_TYPE Window Window #-}
-  {-# COMPILED_TYPE Signal Signal #-}
-  {-# COMPILED_TYPE MyObjectClass MyObjectClass #-}
-  {-# COMPILED windowInstance (Witness :: MyObjectClass Window) #-}
-  {-# COMPILED myObjectDestroy (\_ -> myObjectDestroy) #-}
+    Widget : Set → Set
+  {-# COMPILE GHC Widget = type WidgetDict #-}
 
-Then you should be able to call this as follows in Agda::
+We can then expose ``setVisible`` as an Agda function taking a Widget
+:ref:`instance argument <instance-arguments>`::
 
-  p : Signal Window Unit
-  p = myObjectDestroy windowInstance
+  postulate
+    setVisible : {w : Set} {{_ : Widget w}} → w → Bool → IO ⊤
+  {-# COMPILE GHC setVisible = \ _ WidgetDict -> setVisible #-}
 
-This is somewhat similar to doing a dictionary-translation of the
-Haskell class system and generates quite a bit of boilerplate code.
+Note that the Agda ``Widget`` argument corresponds to a ``WidgetDict`` argument
+on the Haskell side. When we match on the ``WidgetDict`` constructor in the Haskell
+code, the packed up dictionary will become available for the call to ``setVisible``.
 
-.. _compiled_export_pragma:
+The window type and functions are mapped as expected and we also add an Agda instance
+packing up the ``Widget Window`` Haskell instance into a ``WidgetDict``::
 
-The ``COMPILED_EXPORT`` pragma
-------------------------------
-.. versionadded:: 2.3.4
+  postulate
+    Window    : Set
+    newWindow : IO Window
+    instance WidgetWindow : Widget Window
+  {-# COMPILE GHC Window       = type Window #-}
+  {-# COMPILE GHC newWindow    = newWindow #-}
+  {-# COMPILE GHC WidgetWindow = WidgetDict #-}
 
-::
+..
+  ::
+  infixr 1 _>>=_
+  postulate
+    return : {A : Set} → A → IO A
+    _>>=_ : {A B : Set} → IO A → (A → IO B) → IO B
+  {-# COMPILE GHC return = \ _ -> return #-}
+  {-# COMPILE GHC _>>=_ = \ _ _ -> (>>=) #-}
 
-  g : ∀ {a : Set} → a → a
-  g x = x
+We can then write code like this::
 
-  {-# COMPILED_EXPORT g hsNameForG #-}
+  openWindow : IO Window
+  openWindow = newWindow         >>= λ w →
+               setVisible w true >>= λ _ →
+               return w
 
-The ``COMPILED_EXPORT`` pragma tells the compiler that the Agda
-function ``f`` should be compiled to a Haskell function called
-``hsNameForF``. Without this pragma, functions are compiled to Haskell
-functions with unpredictable names and, as a result, cannot be invoked
-from Haskell. The type of ``hsNameForF`` will be the translated type
-of ``f`` (see :ref:`translating-agda-types-to-haskell`). If f is
-defined in file A/B.agda, then ``hsNameForF`` should be imported from
-module ``MAlonzo.Code.A.B``.
+JavaScript FFI
+==============
 
-Example:
-::
+The :ref:`JavaScript backend <javascript-backend>` recognizes ``COMPILE`` pragmas of the following form::
 
-  -- file IdAgda.agda
-  module IdAgda where
+  {-# COMPILE JS <Name> = <JsCode> #-}
 
-  idAgda : {A : Set} → A → A
-  idAgda x = x
+where ``<Name>`` is a postulate, constructor, or data type. The code for a data type is used to compile
+pattern matching and should be a function taking a value of the data type and a table of functions
+(corresponding to case branches) indexed by the constructor names. For instance, this is the compiled
+code for the ``List`` type, compiling lists to JavaScript arrays::
 
-  {-# COMPILED_EXPORT idAgda idAgda #-}
+  data List {a} (A : Set a) : Set a where
+    []  : List A
+    _∷_ : (x : A) (xs : List A) → List A
 
-The compiled and exported function ``idAgda`` can then be imported and
-invoked from Haskell like this:
-
-.. code-block:: haskell
-
-  -- file UseIdAgda.hs
-  module UseIdAgda where
-
-  import MAlonzo.Code.IdAgda (idAgda)
-  -- idAgda :: () -> a -> a
-
-  idAgdaApplied :: a -> a
-  idAgdaApplied = idAgda ()
-
-
-.. _translating-agda-types-to-haskell:
-
-Translating Agda types to Haskell
----------------------------------
-
-.. note::
-   This section may contain outdated material!
-
-When checking the type of COMPILED function f : A, the Agda type A is translated to a Haskell type TA and the Haskell code Ef is checked against this type. The core of the translation on kinds K[[M]], types T[[M]] and expressions E[[M]] is:
-
-.. code-block:: text
-
-    K[[ Set A ]] = *
-    K[[ x As ]] = undef
-    K[[ fn (x : A) B ]] = undef
-    K[[ Pi (x : A) B ]] = K[[ A ]] ->  K[[ B ]]
-    K[[ k As ]] =
-      if COMPILED_TYPE k
-      then *
-      else undef
-
-    T[[ Set A ]] = Unit
-    T[[ x As ]] = x T[[ As ]]
-    T[[ fn (x : A) B ]] = undef
-    T[[ Pi (x : A) B ]] =
-      if x in fv B
-      then forall x . T[[ A ]] -> T[[ B ]]
-      else T[[ A ]] -> T[[ B ]]
-    T[[ k As ]] =
-      if COMPILED_TYPE k T
-      then T T[[ As ]]
-      else if COMPILED k E
-      then Unit
-      else undef
-
-    E[[ Set A ]] = unit
-    E[[ x As ]] = x E[[ As ]]
-    E[[ fn (x : A) B ]] = fn x . E[[ B ]]
-    E[[ Pi (x : A) B ]] = unit
-    E[[ k As ]] =
-      if COMPILED k E
-      then E E[[ As ]]
-      else runtime-error
-
-The T[[ Pi (x : A) B ]] case is worth mentioning. Since the compiler doesn’t erase type arguments we can’t translate (a : Set) → B to forall a. B — an argument of type Set will still be passed to a function of this type. Therefore, the translated type is forall a. () → B where the type argument is assumed to have unit type. This is safe since we will never actually look at the argument, and the compiler compiles types to ().
+  {-# COMPILE JS List = function(x,v) {
+      if (x.length < 1) {
+        return v["[]"]();
+      } else {
+        return v["_∷_"](x[0], x.slice(1));
+      }
+    } #-}
+  {-# COMPILE JS []  = Array() #-}
+  {-# COMPILE JS _∷_ = function (x) { return function(y) { return Array(x).concat(y); }; } #-}

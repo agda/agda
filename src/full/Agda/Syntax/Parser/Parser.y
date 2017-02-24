@@ -142,6 +142,8 @@ import Agda.Utils.Impossible
     'HASKELL'                 { TokKeyword KwHASKELL $$ }
     'IMPORT'                  { TokKeyword KwIMPORT $$ }
     'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
+    'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
+    'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
@@ -272,6 +274,8 @@ Token
     | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
     | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
     | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
+    | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
+    | 'COMPILE'                 { TokKeyword KwCOMPILE $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
@@ -1380,6 +1384,8 @@ DeclarationPragma
   | CompiledUHCPragma        { $1 }
   | CompiledDataUHCPragma    { $1 }
   | HaskellPragma            { $1 }
+  | CompilePragma            { $1 }
+  | ForeignPragma            { $1 }
   | StaticPragma             { $1 }
   | InjectivePragma          { $1 }
   | InlinePragma             { $1 }
@@ -1454,6 +1460,15 @@ CompiledDataUHCPragma
 HaskellPragma :: { Pragma }
 HaskellPragma
   : '{-#' 'HASKELL' Strings '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
+
+ForeignPragma :: { Pragma }
+ForeignPragma
+  : '{-#' 'FOREIGN' string Strings '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (snd $3) (recoverLayout $4) }
+
+CompilePragma :: { Pragma }
+CompilePragma
+  : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
+    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (snd $3) $4 (unwords $5) }
 
 StaticPragma :: { Pragma }
 StaticPragma

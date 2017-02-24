@@ -11,12 +11,12 @@ data List {a} (A : Set a) : Set a where
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
 
-{-# HASKELL type AgdaList a b = [b] #-}
+{-# FOREIGN GHC type AgdaList a b = [b] #-}
 
-{-# COMPILED_DATA List MAlonzo.Code.Agda.Builtin.List.AgdaList [] (:) #-}
-{-# COMPILED_DATA_UHC List __LIST__ __NIL__ __CONS__ #-}
-{-# COMPILED_JS List function(x,v) {
+{-# COMPILE GHC List = data MAlonzo.Code.Agda.Builtin.List.AgdaList ([] | (:)) #-}
+{-# COMPILE UHC List = data __LIST__ (__NIL__ | __CONS__) #-}
+{-# COMPILE JS  List = function(x,v) {
   if (x.length < 1) { return v["[]"](); } else { return v["_∷_"](x[0], x.slice(1)); }
 } #-}
-{-# COMPILED_JS [] Array() #-}
-{-# COMPILED_JS _∷_ function (x) { return function(y) { return Array(x).concat(y); }; } #-}
+{-# COMPILE JS [] = Array() #-}
+{-# COMPILE JS _∷_ = function (x) { return function(y) { return Array(x).concat(y); }; } #-}

@@ -13,6 +13,8 @@ import qualified Data.Map as Map
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Primitive
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.Parser.ReadP
 import Agda.Utils.Lens
@@ -86,16 +88,61 @@ parseHaskellPragma p = setCurrentRange p $
     Right p  -> return p
 
 getHaskellPragma :: QName -> TCM (Maybe HaskellPragma)
-getHaskellPragma q =
-  traverse parseHaskellPragma =<< getUniqueCompilerPragma ghcBackendName q
+getHaskellPragma q = do
+  pragma <- traverse parseHaskellPragma =<< getUniqueCompilerPragma ghcBackendName q
+  def <- getConstInfo q
+  setCurrentRange pragma $ pragma <$ sanityCheckPragma def pragma
+
+sanityCheckPragma :: Definition -> Maybe HaskellPragma -> TCM ()
+sanityCheckPragma _ Nothing = return ()
+sanityCheckPragma def (Just HsDefn{}) =
+  case theDef def of
+    Axiom{}        -> return ()
+    Function{}     -> return ()
+    AbstractDefn{} -> __IMPOSSIBLE__
+    Datatype{}     -> recOrDataErr "data"
+    Record{}       -> recOrDataErr "record"
+    _              -> typeError $ GenericError "Haskell definitions can only be given for postulates and functions."
+    where
+      recOrDataErr which =
+        typeError $ GenericDocError $
+          sep [ text $ "Bad COMPILE GHC pragma for " ++ which ++ " type. Use"
+              , text "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}" ]
+sanityCheckPragma def (Just HsData{}) =
+  case theDef def of
+    Datatype{} -> return ()
+    Record{}   -> return ()
+    _          -> typeError $ GenericError "Haskell data types can only be given for data or record types."
+sanityCheckPragma def (Just HsType{}) =
+  case theDef def of
+    Axiom{} -> return ()
+    Datatype{} -> do
+      -- We use HsType pragmas for Nat, Int and Bool
+      nat  <- getBuiltinName builtinNat
+      int  <- getBuiltinName builtinInteger
+      bool <- getBuiltinName builtinBool
+      unless (Just (defName def) `elem` [nat, int, bool]) err
+    _ -> err
+  where
+    err = typeError $ GenericError "Haskell types can only be given for postulates."
+sanityCheckPragma def (Just HsExport{}) =
+  case theDef def of
+    Function{} -> return ()
+    _ -> typeError $ GenericError "Only functions can be exported to Haskell using {-# COMPILE GHC <Name> as <HsName> #-}"
+
+
 
 -- TODO: cache this to avoid parsing the pragma for every constructor
 --       occurrence!
 getHaskellConstructor :: QName -> TCM (Maybe HaskellCode)
 getHaskellConstructor c = do
-  c <- canonicalName c
-  cDef <- theDef <$> getConstInfo c
+  c     <- canonicalName c
+  cDef  <- theDef <$> getConstInfo c
+  true  <- getBuiltinName builtinTrue
+  false <- getBuiltinName builtinFalse
   case cDef of
+    _ | Just c == true  -> return $ Just "True"
+      | Just c == false -> return $ Just "False"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of

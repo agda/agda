@@ -19,8 +19,8 @@ postulate
 -- MAlonzo compiles Level to (). This should be safe, because it is
 -- not possible to pattern match on levels.
 
-{-# COMPILED_TYPE Level () #-}
-{-# BUILTIN LEVEL Level    #-}
+{-# COMPILE GHC Level = type () #-}
+{-# BUILTIN LEVEL Level #-}
 
 postulate
   lzero : Level

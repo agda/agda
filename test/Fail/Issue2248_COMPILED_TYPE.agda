@@ -4,14 +4,25 @@
 data Unit : Set where
   unit : Unit
 
-abstract
+postulate
   IO : Set → Set
-  IO A = A
 
-  doNothing : IO Unit
+{-# BUILTIN IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
+
+abstract
+  IO' : Set → Set
+  IO' A = A
+
+  doNothing : IO' Unit
   doNothing = unit
 
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO' = type IO #-}
 
-main : IO unit
-main = doNothing
+postulate
+  toIO : {A : Set} → IO' A → IO A
+
+{-# COMPILE GHC toIO = \ _ x -> x #-}
+
+main : IO Unit
+main = toIO doNothing

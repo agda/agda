@@ -3,13 +3,13 @@ module ExportAndUse where
 data Bool : Set where
   true false : Bool
 
-{-# COMPILED_DATA Bool Bool True False #-}
+{-# COMPILE GHC Bool = data Bool (True | False) #-}
 
 foo : Bool → Bool
 foo true  = false
 foo false = true
 
-{-# COMPILED_EXPORT foo foohs #-}
+{-# COMPILE GHC foo as foohs #-}
 
 test : Bool
 test = foo true

@@ -13,12 +13,12 @@ module Sharing where
 open import Common.Prelude
 open import Common.IO
 
-{-# IMPORT Debug.Trace #-}
+{-# FOREIGN GHC import qualified Debug.Trace #-}
 
 postulate
   primTrace : {b : Set} → String → b → b
-{-# COMPILED primTrace (\_ -> Debug.Trace.trace) #-}
-{-# COMPILED_UHC primTrace (\_ -> UHC.Agda.Builtins.primTrace) #-}
+{-# COMPILE GHC primTrace = \ _ -> Debug.Trace.trace #-}
+{-# COMPILE UHC primTrace = \ _ -> UHC.Agda.Builtins.primTrace #-}
 
 main : IO Unit
 main = (λ x → putStrLn x ,, putStrLn x ) (primTrace "Eval" "hoi")

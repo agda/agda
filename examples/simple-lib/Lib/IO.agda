@@ -4,7 +4,7 @@ module Lib.IO where
 open import Lib.List
 open import Lib.Prelude
 
-{-# IMPORT System.Environment #-}
+{-# FOREIGN GHC import qualified System.Environment #-}
 
 FilePath = String
 
@@ -20,19 +20,19 @@ postulate
   writeFile : FilePath -> String -> IO Unit
 
 {-# BUILTIN IO IO #-}
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 
-{-# COMPILED putStr putStr #-}
-{-# COMPILED putStrLn putStrLn #-}
-{-# COMPILED bindIO (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
-{-# COMPILED returnIO (\_ -> return :: a -> IO a) #-}
+{-# COMPILE GHC putStr = putStr #-}
+{-# COMPILE GHC putStrLn = putStrLn #-}
+{-# COMPILE GHC bindIO = \_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b #-}
+{-# COMPILE GHC returnIO = \_ -> return :: a -> IO a #-}
   -- we need to throw away the type argument to return and bind
   -- and resolve the overloading explicitly (since Alonzo
   -- output is sprinkled with unsafeCoerce#).
-{-# COMPILED getLine getLine #-}
-{-# COMPILED getArgs System.Environment.getArgs #-}
-{-# COMPILED readFile readFile #-}
-{-# COMPILED writeFile writeFile #-}
+{-# COMPILE GHC getLine = getLine #-}
+{-# COMPILE GHC getArgs = System.Environment.getArgs #-}
+{-# COMPILE GHC readFile = readFile #-}
+{-# COMPILE GHC writeFile = writeFile #-}
 
 mapM : {A B : Set} -> (A -> IO B) -> List A -> IO (List B)
 mapM f [] = returnIO []

@@ -9,4 +9,4 @@ postulate
 -- It is necessary add something like
 -- {-# COMPILED_TYPE N Int #-}
 
-{-# COMPILED foo bar #-}
+{-# COMPILE GHC foo = bar #-}

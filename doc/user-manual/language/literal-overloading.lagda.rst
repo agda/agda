@@ -4,8 +4,8 @@
 
   open import Agda.Builtin.Nat
   open import Agda.Primitive
-  open import Data.Bool
-  open import Data.String.Base
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.String
 
   data Fin : Nat → Set where
     zero : ∀ {n} → Fin (suc n)
@@ -135,4 +135,3 @@ Other types
 -----------
 
 Currently only integer and string literals can be overloaded.
-

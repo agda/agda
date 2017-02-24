@@ -1706,6 +1706,21 @@ instance ToAbstract C.Pragma [A.Pragma] where
     case e of
       A.Def x -> return [ A.CompiledDataUHCPragma x crd crcs ]
       _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+  toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
+  toAbstract (C.CompilePragma _ b x s) = do
+    e <- toAbstract $ OldQName x Nothing
+    let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ show x
+    y <- case e of
+          A.Def x             -> return x
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x          -> err "ambiguous projection"
+          A.Con (AmbQ [x])    -> return x
+          A.Con x             -> err "ambiguous constructor"
+          A.PatternSyn{}      -> err "pattern synonym"
+          A.Var{}             -> err "local variable"
+          _                   -> __IMPOSSIBLE__
+    return [ A.CompilePragma b y s ]
+
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of

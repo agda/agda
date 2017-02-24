@@ -385,6 +385,8 @@ data Pragma
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
   | HaskellCodePragma         Range String
+  | ForeignPragma             Range String String       -- ^ first string is backend name
+  | CompilePragma             Range String QName String -- ^ first string is backend name
   | StaticPragma              Range QName
   | InjectivePragma           Range QName
   | InlinePragma              Range QName
@@ -656,6 +658,8 @@ instance HasRange Pragma where
   getRange (CompiledUHCPragma r _ _)         = r
   getRange (CompiledDataUHCPragma r _ _ _)   = r
   getRange (HaskellCodePragma r _)           = r
+  getRange (CompilePragma r _ _ _)           = r
+  getRange (ForeignPragma r _ _)             = r
   getRange (StaticPragma r _)                = r
   getRange (InjectivePragma r _)             = r
   getRange (InlinePragma r _)                = r
@@ -839,6 +843,8 @@ instance KillRange Pragma where
   killRange (InlinePragma _ q)                = killRange1 (InlinePragma noRange) q
   killRange (ImportPragma _ s)                = ImportPragma noRange s
   killRange (ImportUHCPragma _ s)             = ImportUHCPragma noRange s
+  killRange (CompilePragma _ b q s)           = killRange1 (\ q -> CompilePragma noRange b q s) q
+  killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
   killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)                = CatchallPragma noRange
@@ -966,6 +972,8 @@ instance NFData Pragma where
   rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
   rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (HaskellCodePragma _ s)           = rnf s
+  rnf (CompilePragma _ a b c)           = rnf a `seq` rnf b `seq` rnf c
+  rnf (ForeignPragma _ b s)             = rnf b `seq` rnf s
   rnf (StaticPragma _ a)                = rnf a
   rnf (InjectivePragma _ a)             = rnf a
   rnf (InlinePragma _ a)                = rnf a

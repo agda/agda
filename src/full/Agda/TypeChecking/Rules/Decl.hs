@@ -599,7 +599,7 @@ assertCurrentModule x err =
   do def <- getConstInfo x
      m <- currentModule
      let m' = qnameModule $ defName def
-     unless (m == m') $ typeError $ GenericError err
+     unless (m == m' || isSubModuleOf m' m) $ typeError $ GenericError err
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
@@ -625,6 +625,11 @@ checkPragma r p =
             Datatype{dataCons = cs} -> addHaskellData x hs hcs
             Record{recConHead = ch} -> addHaskellData x hs hcs
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
+        A.CompilePragma b x s -> do
+          assertCurrentModule x $
+              "COMPILE pragmas must appear in the same module " ++
+              "as their corresponding definitions,"
+          addPragma b x s
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
           let addCompiled = addHaskellCode x hs

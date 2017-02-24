@@ -2,10 +2,10 @@
   ::
   module language.coinduction where
 
-  open import Data.Nat
-  open import Data.Bool
-  open import Relation.Binary.PropositionalEquality
-  open import Data.List
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.List
 
   module newcoinduction where
 
@@ -115,7 +115,7 @@ To use coinduction it is recommended that you import the module Coinduction from
 ..
   ::
 
-  open import Coinduction
+  open import Agda.Builtin.Coinduction
 
 ::
 

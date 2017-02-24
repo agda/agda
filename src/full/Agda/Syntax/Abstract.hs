@@ -193,6 +193,7 @@ data Pragma
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
   | RewritePragma QName
+  | CompilePragma String QName String
   | CompiledPragma QName String
   | CompiledExportPragma QName String
   | CompiledTypePragma QName String

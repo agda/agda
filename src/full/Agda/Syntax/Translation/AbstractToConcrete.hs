@@ -828,6 +828,9 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.CompiledPragma x hs -> do
       x <- toConcrete x
       return $ C.CompiledPragma r x hs
+    A.CompilePragma b x s -> do
+      x <- toConcrete x
+      return $ C.CompilePragma r b x s
     A.CompiledExportPragma x hs -> do
       x <- toConcrete x
       return $ C.CompiledExportPragma r x hs
