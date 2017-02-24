@@ -19,8 +19,8 @@ data _⊎_ {a b} (A : Set a) (B : Set b) : Set (a ⊔ b) where
   inj₁ : (x : A) → A ⊎ B
   inj₂ : (y : B) → A ⊎ B
 
-{-# HASKELL type AgdaEither a b c d = Either c d #-}
-{-# COMPILED_DATA _⊎_ MAlonzo.Code.Data.Sum.AgdaEither Left Right #-}
+{-# FOREIGN GHC type AgdaEither a b c d = Either c d #-}
+{-# COMPILE GHC _⊎_ = data MAlonzo.Code.Data.Sum.AgdaEither (Left | Right) #-}
 
 ------------------------------------------------------------------------
 -- Functions

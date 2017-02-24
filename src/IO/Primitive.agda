@@ -21,10 +21,10 @@ postulate
   return : ∀ {a} {A : Set a} → A → IO A
   _>>=_  : ∀ {a b} {A : Set a} {B : Set b} → IO A → (A → IO B) → IO B
 
-{-# COMPILED return (\_ _ -> return)    #-}
-{-# COMPILED _>>=_  (\_ _ _ _ -> (>>=)) #-}
-{-# COMPILED_UHC return (\_ _ x -> UHC.Agda.Builtins.primReturn x) #-}
-{-# COMPILED_UHC _>>=_ (\_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y) #-}
+{-# COMPILE GHC return = \_ _ -> return    #-}
+{-# COMPILE GHC _>>=_  = \_ _ _ _ -> (>>=) #-}
+{-# COMPILE UHC return = \_ _ x -> UHC.Agda.Builtins.primReturn x #-}
+{-# COMPILE UHC _>>=_  = \_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y #-}
 
 ------------------------------------------------------------------------
 -- Simple lazy IO
@@ -38,10 +38,10 @@ postulate
 -- the locale. For older versions of the library (going back to at
 -- least version 3) the functions use ISO-8859-1.
 
-{-# IMPORT Data.Text    #-}
-{-# IMPORT Data.Text.IO #-}
-{-# IMPORT System.IO    #-}
-{-# IMPORT Control.Exception #-}
+{-# FOREIGN GHC import qualified Data.Text    #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
+{-# FOREIGN GHC import qualified System.IO    #-}
+{-# FOREIGN GHC import qualified Control.Exception #-}
 
 postulate
   getContents : IO Costring
@@ -56,7 +56,7 @@ postulate
 
   readFiniteFile : String → IO String
 
-{-# HASKELL
+{-# FOREIGN GHC
   readFiniteFile :: Data.Text.Text -> IO Data.Text.Text
   readFiniteFile f = do
     h <- System.IO.openFile (Data.Text.unpack f) System.IO.ReadMode
@@ -65,17 +65,17 @@ postulate
     Data.Text.IO.hGetContents h
 #-}
 
-{-# COMPILED getContents    getContents #-}
-{-# COMPILED readFile       (readFile . Data.Text.unpack)           #-}
-{-# COMPILED writeFile      (\x -> writeFile (Data.Text.unpack x))  #-}
-{-# COMPILED appendFile     (\x -> appendFile (Data.Text.unpack x)) #-}
-{-# COMPILED putStr         putStr      #-}
-{-# COMPILED putStrLn       putStrLn    #-}
-{-# COMPILED readFiniteFile readFiniteFile    #-}
-{-# COMPILED_UHC getContents    (UHC.Agda.Builtins.primGetContents) #-}
-{-# COMPILED_UHC readFile       (UHC.Agda.Builtins.primReadFile) #-}
-{-# COMPILED_UHC writeFile      (UHC.Agda.Builtins.primWriteFile) #-}
-{-# COMPILED_UHC appendFile     (UHC.Agda.Builtins.primAppendFile) #-}
-{-# COMPILED_UHC putStr         (UHC.Agda.Builtins.primPutStr) #-}
-{-# COMPILED_UHC putStrLn       (UHC.Agda.Builtins.primPutStrLn) #-}
-{-# COMPILED_UHC readFiniteFile (UHC.Agda.Builtins.primReadFiniteFile) #-}
+{-# COMPILE GHC getContents    = getContents                           #-}
+{-# COMPILE GHC readFile       = readFile . Data.Text.unpack           #-}
+{-# COMPILE GHC writeFile      = \x -> writeFile (Data.Text.unpack x)  #-}
+{-# COMPILE GHC appendFile     = \x -> appendFile (Data.Text.unpack x) #-}
+{-# COMPILE GHC putStr         = putStr                                #-}
+{-# COMPILE GHC putStrLn       = putStrLn                              #-}
+{-# COMPILE GHC readFiniteFile = readFiniteFile                        #-}
+{-# COMPILE UHC getContents    = UHC.Agda.Builtins.primGetContents     #-}
+{-# COMPILE UHC readFile       = UHC.Agda.Builtins.primReadFile        #-}
+{-# COMPILE UHC writeFile      = UHC.Agda.Builtins.primWriteFile       #-}
+{-# COMPILE UHC appendFile     = UHC.Agda.Builtins.primAppendFile      #-}
+{-# COMPILE UHC putStr         = UHC.Agda.Builtins.primPutStr          #-}
+{-# COMPILE UHC putStrLn       = UHC.Agda.Builtins.primPutStrLn        #-}
+{-# COMPILE UHC readFiniteFile = UHC.Agda.Builtins.primReadFiniteFile  #-}

@@ -28,3 +28,5 @@ future release. Don't remove this message please!
   ** Added BUILTIN binding in Data/Unit.agda.
 
   ** Various changes in Reflection.agda
+
+  ** Use COMPILE and FOREIGN compiler pragmas instead of old deprecated ones.
