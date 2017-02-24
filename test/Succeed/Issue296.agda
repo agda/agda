@@ -7,9 +7,9 @@ postulate
   bar  : (A B : Set) → Unit
 
 {-# BUILTIN IO IO #-}
-{-# COMPILED_TYPE IO IO #-}
-{-# COMPILED_TYPE Unit () #-}
-{-# COMPILED bar undefined #-}
+{-# COMPILE GHC IO = type IO #-}
+{-# COMPILE GHC Unit = type () #-}
+{-# COMPILE GHC bar = undefined #-}
 
 main : IO Unit
 main = foo bar

@@ -14,13 +14,13 @@ postulate
   return  : ∀ {a} {A : Set a} → A → IO A
   _>>=_   : ∀ {a b} {A : Set a} {B : Set b} → IO A → (A → IO B) → IO B
 
-{-# COMPILED return (\_ _ -> return) #-}
-{-# COMPILED _>>=_ (\_ _ _ _ -> (>>=)) #-}
-{-# COMPILED_UHC return (\_ _ x -> UHC.Agda.Builtins.primReturn x) #-}
-{-# COMPILED_UHC _>>=_ (\_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y) #-}
-{-# COMPILED_JS return
+{-# COMPILE GHC return = \_ _ -> return #-}
+{-# COMPILE GHC _>>=_ = \_ _ _ _ -> (>>=) #-}
+{-# COMPILE UHC return = \_ _ x -> UHC.Agda.Builtins.primReturn x #-}
+{-# COMPILE UHC _>>=_ = \_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y #-}
+{-# COMPILE JS return =
     function(u0) { return function(u1) { return function(x) { return function(cb) { cb(x); }; }; }; } #-}
-{-# COMPILED_JS _>>=_
+{-# COMPILE JS _>>=_ =
   function(u0) { return function(u1) { return function(u2) { return function(u3) {
     return function(x) { return function(y) { return function(cb) {
       x(function (xx) { y(xx)(cb); });
@@ -29,14 +29,14 @@ postulate
 #-}
 
 
-{-# IMPORT Data.Text.IO #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 postulate
   putStr     : String -> IO Unit
 
-{-# COMPILED putStr Data.Text.IO.putStr #-}
-{-# COMPILED_UHC putStr (UHC.Agda.Builtins.primPutStr) #-}
-{-# COMPILED_JS putStr function (x) { return function(cb) { process.stdout.write(x); cb(0); }; } #-}
+{-# COMPILE GHC putStr = Data.Text.IO.putStr #-}
+{-# COMPILE UHC putStr = UHC.Agda.Builtins.primPutStr #-}
+{-# COMPILE JS putStr = function (x) { return function(cb) { process.stdout.write(x); cb(0); }; } #-}
 
 
 printChar : Char -> IO Unit

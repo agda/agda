@@ -2,10 +2,6 @@ module Common.Bool where
 
 open import Agda.Builtin.Bool public
 
-{-# COMPILED_JS Bool function (x,v) { return (x? v["true"](): v["false"]()); } #-}
-{-# COMPILED_JS true true #-}
-{-# COMPILED_JS false false #-}
-
 not : Bool -> Bool
 not true  = false
 not false = true

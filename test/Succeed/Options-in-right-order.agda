@@ -6,12 +6,12 @@ data Unit : Set where
 postulate
   IO : Set → Set
 
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 {-# BUILTIN IO IO #-}
 
 postulate
   return : {A : Set} → A → IO A
 
-{-# COMPILED return (\_ -> return) #-}
+{-# COMPILE GHC return = \_ -> return #-}
 
 main = return unit

@@ -4,12 +4,12 @@ module Common.MAlonzo where
 open import Common.Prelude hiding (putStrLn)
 open import Common.Coinduction
 
-{-# IMPORT Data.Text.IO #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 postulate
   putStrLn : ∞ String → IO Unit
 
-{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
+{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
 
 main = putStrLn (♯ "This is a dummy main routine.")
 

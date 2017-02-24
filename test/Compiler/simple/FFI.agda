@@ -6,13 +6,13 @@ open import Common.Prelude
 _+'_ : Nat → Nat → Nat
 zero +' y = y
 suc x +' y = suc (x +' y)
-{-# COMPILED _+'_ ((+) :: Integer -> Integer -> Integer) #-}
+{-# COMPILE GHC _+'_ = (+) :: Integer -> Integer -> Integer #-}
 
 -- on-purpose buggy haskell implementation!
 _+''_ : Nat → Nat → Nat
 zero +'' y = y
 suc x +'' y = suc (x +'' y)
-{-# COMPILED _+''_ ((-) :: Integer -> Integer -> Integer) #-}
+{-# COMPILE GHC _+''_ = (-) :: Integer -> Integer -> Integer #-}
 
 
 open import Common.IO

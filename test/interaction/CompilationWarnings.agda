@@ -6,5 +6,5 @@ id x = x
 {-# INLINE id #-}
 
 -- this is pointless and should generate a warning in the info buffer
-{-# COMPILED id \ _ x -> x #-}
+{-# COMPILE GHC id = \ _ x -> x #-}
 

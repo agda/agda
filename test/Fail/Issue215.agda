@@ -3,4 +3,4 @@ module Issue215 where
 
 open import Imports.Bool
 
-{-# COMPILED_DATA Bool Bool True False #-}
+{-# COMPILE GHC Bool = data Bool (True | False) #-}

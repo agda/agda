@@ -291,16 +291,27 @@ addForeignCode backend code = do
 --   favour of the FOREIGN pragma.
 ---------------------------------------------------------------------------
 
+addDeprecatedForeignCode :: String -> BackendName -> String -> TCM ()
+addDeprecatedForeignCode old backend code = do
+  warning $ DeprecationWarning (unwords ["The", old, "pragma"])
+                               foreignPragma "2.6"
+  addForeignCode backend code
+  where
+    spc | length (lines code) > 1 = "\n"
+        | otherwise               = " "
+    foreignPragma =
+      "{-# FOREIGN " ++ backend ++ spc ++ code ++ spc ++ "#-}"
+
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImport :: String -> TCM ()
-addHaskellImport i = addForeignCode ghcBackendName $ "import qualified " ++ i
+addHaskellImport i = addDeprecatedForeignCode "IMPORT" ghcBackendName $ "import qualified " ++ i
 
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImportUHC :: String -> TCM ()
-addHaskellImportUHC i = addForeignCode ghcBackendName $ "__IMPORT__ " ++ i
+addHaskellImportUHC i = addDeprecatedForeignCode "IMPORT_UHC" ghcBackendName $ "__IMPORT__ " ++ i
 
 addInlineHaskell :: String -> TCM ()
-addInlineHaskell s = addForeignCode ghcBackendName s
+addInlineHaskell s = addDeprecatedForeignCode "HASKELL" ghcBackendName s
 
 ---------------------------------------------------------------------------
 -- * Interaction output callback

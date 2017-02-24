@@ -15,7 +15,7 @@ _∘_ : {A : Set}{B : A -> Set}{C : {x : A} -> B x -> Set}
 data Unit : Set where
   unit : Unit
 
-{-# COMPILED_DATA Unit () () #-}
+{-# COMPILE GHC Unit = data () (()) #-}
 
 postulate String : Set
 
@@ -24,7 +24,7 @@ postulate String : Set
 data _×_ (A B : Set) : Set where
   _,_ : A -> B -> A × B
 
-{-# COMPILED_DATA _×_ (,) (,) #-}
+{-# COMPILE GHC _×_ = data (,) ((,)) #-}
 
 fst : {A B : Set} -> A × B -> A
 fst (x , y) = x

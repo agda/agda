@@ -42,8 +42,8 @@ guard false = []
 postulate
   getArgs′ : Primitive.IO (List String)
 
-{-# IMPORT System.Environment #-}
-{-# COMPILED getArgs′ System.Environment.getArgs #-}
+{-# FOREIGN GHC System.Environment #-}
+{-# COMPILE GHC getArgs′ = System.Environment.getArgs #-}
 
 getArgs : IO (List String)
 getArgs = lift getArgs′

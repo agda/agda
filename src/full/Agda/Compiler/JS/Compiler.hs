@@ -6,6 +6,7 @@ import Prelude hiding ( null, writeFile )
 import Control.Applicative
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.Trans
+import Data.Char ( isSpace )
 import Data.List ( intercalate, genericLength, partition )
 import Data.Maybe ( isJust )
 import Data.Set ( Set, null, insert, difference, delete )
@@ -270,14 +271,21 @@ definition kit (q,d) = do
 
 -- | Ensure that there is at most one pragma for a name.
 checkCompilerPragmas :: QName -> TCM ()
-checkCompilerPragmas q = () <$ getUniqueCompilerPragma jsBackendName q
+checkCompilerPragmas q =
+  caseMaybeM (getUniqueCompilerPragma jsBackendName q) (return ()) $ \ (CompilerPragma r s) ->
+  setCurrentRange r $ case words s of
+    "=" : _ -> return ()
+    _       -> genericDocError $ P.sep [ P.text "Badly formed COMPILE JS pragma. Expected",
+                                         P.text "{-# COMPILE JS <name> = <js> #-}" ]
 
 defJSDef :: Definition -> Maybe String
 defJSDef def =
   case defCompilerPragmas jsBackendName def of
-    [CompilerPragma _ s] -> Just s
+    [CompilerPragma _ s] -> Just (dropEquals s)
     []                   -> Nothing
     _:_:_                -> __IMPOSSIBLE__
+  where
+    dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
 definition' :: Maybe CoinductionKit -> QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Export)
 definition' kit q d t ls = do

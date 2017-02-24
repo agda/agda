@@ -4,14 +4,14 @@ postulate
   IO : Set -> Set
 
 {-# BUILTIN IO IO #-}
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 
 postulate
   return : {A : Set} -> A -> IO A
 
-{-# COMPILED return (\_ -> return :: a -> IO a) #-}
+{-# COMPILE GHC return = \ _ -> return :: a -> IO a #-}
 
 data Unit : Set where
   unit : Unit
 
-{-# COMPILED_DATA Unit () () #-}
+{-# COMPILE GHC Unit = data () (()) #-}

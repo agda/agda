@@ -3,14 +3,14 @@ module Issue373 where
 data ⊤ : Set where
     tt : ⊤
 
-{-# COMPILED_DATA ⊤ () () #-}
+{-# COMPILE GHC ⊤ = data () (()) #-}
 
 data ℕ : Set where
   zero : ℕ
   suc  : (n : ℕ) → ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
-{-# IMPORT Imports.Nat #-}
+{-# FOREIGN GHC import qualified Imports.Nat #-}
 
 data List (A : Set) : Set where
   []   : List A
@@ -19,7 +19,7 @@ data List (A : Set) : Set where
 {-# BUILTIN LIST List #-}
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
-{-# COMPILED_DATA List [] [] (:) #-}
+{-# COMPILE GHC List = data [] ([] | (:)) #-}
 
 postulate
   String : Set
@@ -30,21 +30,21 @@ postulate
   IO : Set → Set
 
 {-# BUILTIN IO IO #-}
-{-# COMPILED_TYPE IO IO #-}
+{-# COMPILE GHC IO = type IO #-}
 
 infixl 1 _>>=_
 
 postulate
   _>>=_ : ∀ {A B} → IO A → (A → IO B) → IO B
 
-{-# COMPILED _>>=_ (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
+{-# COMPILE GHC _>>=_ = \_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b #-}
 
-{-# IMPORT Data.Text.IO #-}
+{-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 postulate
   putStrLn : String → IO ⊤
 
-{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
+{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
 
 f : ℕ → String
 f zero = "bad"
