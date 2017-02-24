@@ -2,9 +2,14 @@
   ::
   module language.lambda-abstraction where
 
-  open import Data.Bool
-  open import Data.Product
-  import Relation.Binary.PropositionalEquality as P
+  open import Agda.Primitive
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Equality
+
+  record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+    constructor _,_
+    field fst : A
+          snd : B fst
 
 .. _lambda-abstraction:
 
@@ -41,13 +46,13 @@ This means that anonymous pattern matching functions are generative. For instanc
 
 ::
 
-    (λ { true → true ; false → false }) ≡
+    (λ { true → true ; false → false }) ==
     (λ { true → true ; false → false })
 
 ..
   ::
     where
-      _≡_ = P._≡_ {_} {Bool → Bool}
+      _==_ = _≡_ {A = Bool → Bool}
 
 because this is equivalent to ``extlam1 ≡ extlam2`` for some distinct fresh names ``extlam1`` and ``extlam2``.
 Currently the ``where`` and ``with`` constructions are not allowed in (the top-level clauses of) anonymous pattern matching functions.

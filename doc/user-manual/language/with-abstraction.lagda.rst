@@ -13,7 +13,7 @@
     []  : List A
     _∷_ : A → List A → List A
 
-  open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+  open import Agda.Builtin.Equality using (_≡_; refl)
 
   data ⊥ : Set where
 

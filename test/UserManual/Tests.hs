@@ -21,7 +21,9 @@ tests = do
   -- Andreas, Victor, 2016-07-25:
   -- Don't --ignore-interfaces for user manual test!
   -- Otherwise parts of the standard library are type-checked again.
-  let extraOpts = [] :: [String]
+  -- Ulf, 2017-02-24: Or, we could just not depend on the standard library
+  -- for the user manual...
+  let extraOpts = ["--ignore-interfaces"] :: [String]
 
   let tests' = map (mkSucceedTest extraOpts testDir) inpFiles
 

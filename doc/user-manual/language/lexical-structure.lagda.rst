@@ -2,7 +2,7 @@
   ::
   module language.lexical-structure where
 
-  open import Data.String.Base
+  open import Agda.Builtin.String
 
 .. _lexical-structure:
 
@@ -259,4 +259,3 @@ literate Agda is to generate LaTeX documents from Agda code. See
   \end{document}
 
 .. _literate: https://en.wikipedia.org/wiki/Literate_programming
-

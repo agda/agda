@@ -21,8 +21,24 @@ The built-in combinators for sizes are described in :ref:`builtin_sized_types`.
     module coinduction-lang where
 
     open import Agda.Builtin.Size
-    open import Data.Bool
-    open import Relation.Binary.PropositionalEquality
+    open import Agda.Builtin.Bool
+    open import Agda.Builtin.Equality
+
+    infix 0 if_then_else_
+    infixr 3 _∧_
+    infixr 2 _∨_
+
+    _∨_ : Bool → Bool → Bool
+    true  ∨ _ = true
+    false ∨ x = x
+
+    _∧_ : Bool → Bool → Bool
+    true  ∧ x = x
+    false ∧ _ = false
+
+    if_then_else_ : ∀ {a} {A : Set a} → Bool → A → A → A
+    if true  then x else y = x
+    if false then x else y = y
 
 -----------------------------------------
 Example for coinduction: finite languages
@@ -150,7 +166,7 @@ We consider a word as a ``List`` of characters.
   ::
     module UnsizedMembership where
 
-      open import Data.List
+      open import Agda.Builtin.List
 
 Note how the size of the word we test for membership cannot be
 larger than the depth to which the language tree is defined.
