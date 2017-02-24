@@ -99,8 +99,6 @@ followed:
 
   ** The Emacs mode
 
-  ** The UHC backend (`cabal install -f uhc`)
-
 * Tag the release (do not forget to record the changes above first):
 
     cd $BASE

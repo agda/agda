@@ -601,7 +601,7 @@ i.e. one of the following:
 
 Similarly ``primForceLemma x f``, which lets you reason about programs using
 ``primForce``, evaluates to ``refl`` when ``x`` is in whnf.  At run-time,
-``primForce e f`` is compiled (by the GHC and UHC :ref:`backends <compilers>`)
+``primForce e f`` is compiled (by the GHC :ref:`backend <compilers>`)
 to ``let x = e in seq x (f x)``.
 
 For example, consider the following function::

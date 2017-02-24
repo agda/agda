@@ -109,17 +109,6 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=UHC_FLAG GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - happy-1.19.5
-            - cabal-install-1.24
-            - ghc-8.0.2
-            - alex-3.1.7
-          sources:
-            - hvr-ghc
-
     # We don't use Alex from multi-ghc-travis [Issue 2316].
     - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc"
       addons:
@@ -151,7 +140,7 @@ matrix:
 ##############################################################################
 before_install:
 
-  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" || $TEST = "UHC_FLAG" ]]; then
+  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
     elif [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
@@ -223,8 +212,6 @@ install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        cabal install --enable-tests --only-dependencies --force-reinstalls;
-    elif [[ $TEST = "UHC_FLAG" ]]; then
-         cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          stack $ARGS --no-terminal install alex-3.1.7 &&
          stack $ARGS --no-terminal install cpphs-1.20.2 &&
@@ -402,13 +389,6 @@ script:
 
   - if [[ $TEST = "MAIN" ]]; then
        make install-agda-bisect;
-    fi
-
-##############################################################################
-# Testing compilation using the `uhc` flag
-
-  - if [[ $TEST = "UHC_FLAG" ]]; then
-       make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 -f uhc" install-bin;
     fi
 
 ##############################################################################

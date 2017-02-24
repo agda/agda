@@ -342,12 +342,6 @@ Some Agda Hacking Lore
 
   at the top of the module containing the instance.
 
-* To test the UHC backend, you need to install UHC first.
-  Follow the process described in the Agda user manual,
-  but do ignore the `cabal install -fuhc Agda` command.
-  Instead, just call `make` after UHC has been installed,
-  and the UHC backend will be enabled automically.
-
 Haskell-mode and the Agda codebase
 -----------------------------------
 

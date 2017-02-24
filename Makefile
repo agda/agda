@@ -16,15 +16,6 @@ CABAL_CMD=cabal
 
 AGDA_MODE=agda-mode
 
-ifneq ($(shell which uhc),)
-ifeq "$(GHC_VERSION)" "7.10"
-override CABAL_OPTS+=-fuhc
-endif
-ifeq "$(GHC_VERSION)" "8.0"
-override CABAL_OPTS+=-fuhc
-endif
-endif
-
 # Run in interactive and parallel mode by default
 
 # You can use the $(PARALLEL_TESTS_FILE) file for setting the number of

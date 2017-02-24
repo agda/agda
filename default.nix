@@ -9,7 +9,6 @@
 #        Agda = self.callPackage ./. {
 #            sphinx = python34Packages.sphinx;
 #            sphinx_rtd_theme = python34Packages.sphinx_rtd_theme;
-#            uhc-backend = true;
 #            texLive = texlive.combined.scheme-full;
 #        };
 #      };
@@ -31,14 +30,12 @@
 , murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , text-icu
-, uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
 , nodejs-6_x
 # additional test dependencies
 , wdiff, colordiff
 }:
 
-assert uhc-backend -> uhc != null && uhc-light != null;
 assert user-manual -> sphinx != null && sphinx_rtd_theme != null && texLive != null;
 
 mkDerivation {
@@ -52,7 +49,7 @@ mkDerivation {
     directory edit-distance equivalence filepath geniplate-mirror
     hashable hashtables haskeline haskell-src-exts mtl parallel pretty
     process QuickCheck strict template-haskell text time transformers filemanip
-    transformers-compat unordered-containers xhtml zlib uhc-light tasty-quickcheck
+    transformers-compat unordered-containers xhtml zlib tasty-quickcheck
     monadplus EdisonCore EdisonAPI murmur-hash ieee754 gitrev text-icu
   ];
   testDepends = [
@@ -60,9 +57,8 @@ mkDerivation {
     regex-tdfa regex-tdfa-text
     tasty-silver temporary text
   ];
-  configureFlags = if uhc-backend then [ "-fuhc" ] else [];
+  configureFlags = [];
   buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff]
-    ++ stdenv.lib.optionals uhc-backend [ uhc ]
     ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
 
   executableToolDepends = [ emacs ];

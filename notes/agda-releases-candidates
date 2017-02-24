@@ -81,8 +81,6 @@ following procedure can be followed:
 
   ** The Emacs mode
 
-  ** The UHC backend (`cabal install -f uhc`)
-
 * Tag the release candidate (do not forget to record the changes above
   first):
 

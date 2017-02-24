@@ -1,5 +1,4 @@
 TestOptions
-  { forCompilers   = [(MAlonzo, CompilerOptions {extraAgdaArgs = ["--no-ignore-interfaces", "--ghc-flag=-j3"]}),
-                      (UHC,     CompilerOptions {extraAgdaArgs = ["--no-ignore-interfaces"]})]
+  { forCompilers   = [(MAlonzo, CompilerOptions {extraAgdaArgs = ["--no-ignore-interfaces", "--ghc-flag=-j3"]})]
   , runtimeOptions = []
   , executeProg    = True }
