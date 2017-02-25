@@ -56,16 +56,21 @@ data Env = Env {
   }
   deriving (Show)
 
-runReaderEnv :: [[QName]] -> Reader Env a -> a
+type Translate a = Reader Env a
+
+runReaderEnv :: [[QName]] -> Translate a -> a
 runReaderEnv allcons ma
   | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
-  | otherwise = ma `runReader` mkEnv
+  | otherwise = ma `runTranslate` mkEnv
   where
     tagRange = (0, 199)
     mkEnv = Env {
       _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
       , _level = 0
       }
+
+runTranslate :: Translate a -> Env -> a
+runTranslate = runReader
 
 translateDefM :: MonadReader Env m => QName -> TTerm -> m Binding
 translateDefM qnm t
