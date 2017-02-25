@@ -411,6 +411,7 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
     NameId a b = qnameNameId qn
     hex = (`showHex` "") . toInteger
     -- TODO: Make this configurable or don't use it at all:
+    -- This feature is harmful. Symbols can be imported under different names, so the pretty-name does not actually identify a symbol.
     withConcreteName = True
     showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
     toValid :: Char -> String

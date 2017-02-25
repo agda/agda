@@ -1,26 +1,19 @@
-resolver: lts-8.0
+resolver: lts-8.2
 
-
-# A package marked 'extra-dep: true' will only be built if demanded by a
-# non-dependency (i.e. a user package), and its test suites and benchmarks
-# will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
 - location:
     git: git@github.com:agda/agda.git
-    commit: 6e027b878f2896954982210458777c7a5b0b1004
+    commit: e89edb8f15b6fb5e6b9707b349526b7f11b874f8
   extra-dep: true
 - location:
     git: "https://github.com/lwm/tasty-discover.git"
     commit: "HEAD"
   extra-dep: true
 
-# Dependency packages to be pulled from upstream that are not in the resolver
 extra-deps:
   - tasty-th-0.1.4
 
-# Override default flag values for local packages and extra-deps
 flags: {}
 
-# Extra package databases containing global packages
 extra-package-dbs: []

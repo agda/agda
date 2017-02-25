@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Instances where
 
 import           Agda.Syntax.Common
@@ -13,7 +14,6 @@ import           Agda.Syntax.Position
 import           Agda.Syntax.Treeless
 import           Agda.Utils.FileName
 import           Data.Data
-import           Data.Generics.Uniplate.Data
 import           Data.Graph
 
 deriving instance Data F.Fixity'

@@ -65,6 +65,7 @@ backend' = Backend' {
   , compileDef = \_env _menv def -> return def
   , postModule = \_env _menv _m _mod defs -> return defs --mlfPostModule env defs
   , backendVersion = Nothing
+  , scopeCheckingSuffices = False
   }
 
 definitionSummary :: MlfOptions -> Definition -> TCM ()
