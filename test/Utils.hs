@@ -1,11 +1,12 @@
 module Utils where
 
 import           Data.ByteString.Lazy.Char8
-import           Malfunction.AST
-import           Malfunction.Run
 import           System.FilePath
 import           Test.Tasty
 import           Test.Tasty.Golden
+
+import           Agda.Compiler.Malfunction.AST
+import           Agda.Compiler.Malfunction.Run
 
 -- | .\/Golden\/FstSnd.agda  .\/Golden\/FstSnd_a.golden
 -- mkdGoldenTest "FstSnd" "a"

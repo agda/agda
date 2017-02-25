@@ -1,5 +1,5 @@
 {- |
-Module      :  Malfunction.AST
+Module      :  Agda.Compiler.Malfunction.AST
 Maintainer  :  janmasrovira@gmail.com, hanghj@student.chalmers.se
 
 This module defines the abstract syntax of
@@ -8,7 +8,7 @@ This module defines the abstract syntax of
 language specification>
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Malfunction.AST
+module Agda.Compiler.Malfunction.AST
   ( IntType(..)
   , IntConst(..)
   , UnaryIntOp(..)

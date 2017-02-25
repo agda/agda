@@ -1,4 +1,4 @@
-module Backend (backend) where
+module Agda.Compiler.Malfunction (backend) where
 
 import           Agda.Compiler.Backend
 import           Agda.Utils.Pretty
@@ -15,10 +15,10 @@ import           Data.Maybe
 import           System.Console.GetOpt
 import           Text.Printf
 
-import qualified Compiler              as Mlf
-import           Malfunction.AST
-import           Malfunction.Run
-import qualified Malfunction.Run       as Run
+import qualified Agda.Compiler.Malfunction.Compiler as Mlf
+import           Agda.Compiler.Malfunction.AST
+import           Agda.Compiler.Malfunction.Run
+import qualified Agda.Compiler.Malfunction.Run as Run
 
 backend :: Backend
 backend = Backend backend'

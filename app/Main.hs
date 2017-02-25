@@ -1,6 +1,6 @@
 module Main (main) where
 
-import qualified Malfunction
+import qualified Agda.Compiler.Malfunction.Main as Malfunction
 
 main :: IO ()
 main = Malfunction.main

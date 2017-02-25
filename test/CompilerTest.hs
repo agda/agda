@@ -7,12 +7,13 @@ import qualified Agda.Syntax.Common        as C
 import qualified Agda.Syntax.Concrete.Name as C
 import           Agda.Syntax.Literal
 import           Agda.Syntax.Treeless
-import           Compiler
-import           Malfunction.AST
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Utils
 import qualified Data.Map                  as Map
+
+import           Agda.Compiler.Malfunction.Compiler
+import           Agda.Compiler.Malfunction.AST
 
 translate'1 :: TTerm -> Term
 translate'1 = head . translateTerms' [] . pure

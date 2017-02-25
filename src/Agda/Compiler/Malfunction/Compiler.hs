@@ -1,5 +1,5 @@
 {- |
-Module      :  Compiler
+Module      :  Agda.Compiler.Malfunction.Compiler
 Maintainer  :  janmasrovira@gmail.com, hanghj@student.chalmers.se
 
 This module includes functions that compile from <agda.readthedocs.io Agda> to
@@ -7,7 +7,7 @@ This module includes functions that compile from <agda.readthedocs.io Agda> to
 -}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Compiler
+module Agda.Compiler.Malfunction.Compiler
   (
   -- * Translation functions
     translateTerms
@@ -27,7 +27,7 @@ module Compiler
   , compilePrim
   , compileAxiom
   -- * Malfunction AST
-  , module Malfunction.AST
+  , module Agda.Compiler.Malfunction.AST
   ) where
 
 import           Agda.Syntax.Common (NameId(..))
@@ -46,11 +46,11 @@ import           Data.Maybe
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Tuple.Extra
-import           Malfunction.AST
 import           Numeric (showHex)
 import           Data.Char
 
-import qualified Primitive
+import           Agda.Compiler.Malfunction.AST
+import qualified Agda.Compiler.Malfunction.Primitive as Primitive
 
 data Env = Env
   { _conMap :: Map QName ConRep
@@ -424,7 +424,7 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
     hex = (`showHex` "") . toInteger
     -- TODO: This feature is harmful. Symbols can be imported under different names,
     -- so the pretty-name does not actually identify a symbol.
-    withConcreteName = False
+    withConcreteName = True
     showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
     toValid :: Char -> String
     toValid c

@@ -3,7 +3,7 @@
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Instances where
+module Agda.Compiler.Malfunction.Instances where
 
 import           Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete        as C

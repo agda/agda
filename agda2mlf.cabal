@@ -14,13 +14,13 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Malfunction.AST
-                     , Malfunction.Run
-                     , Compiler
-                     , Malfunction
-                     , Backend
-  other-modules:       Primitive
-                     , Instances
+  exposed-modules:     Agda.Compiler.Malfunction.AST
+                     , Agda.Compiler.Malfunction.Run
+                     , Agda.Compiler.Malfunction.Compiler
+                     , Agda.Compiler.Malfunction.Main
+                     , Agda.Compiler.Malfunction
+                     , Agda.Compiler.Malfunction.Primitive
+                     , Agda.Compiler.Malfunction.Instances
   build-depends:       Agda >= 2.5.2
                      , base >= 4.7 && < 5
                      , containers == 0.5.*

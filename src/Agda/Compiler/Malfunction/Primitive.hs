@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Primitive
+module Agda.Compiler.Malfunction.Primitive
   ( axioms
   , primitives
   ) where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Malfunction.AST
+
+import Agda.Compiler.Malfunction.AST
 
 axioms :: Map String Term
 axioms = Map.fromList

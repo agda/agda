@@ -1,4 +1,4 @@
-module Malfunction.Run
+module Agda.Compiler.Malfunction.Run
   ( compileRunPrint
   , compileModFile
   , runModPrintInts
@@ -8,11 +8,12 @@ module Malfunction.Run
   ) where
 
 import           GHC.IO.Handle
-import           Malfunction.AST
 import           System.FilePath
 import           System.IO
 import           System.IO.Temp
 import           System.Process
+
+import           Agda.Compiler.Malfunction.AST
 
 catMod :: Mod -> Handle -> IO ()
 catMod m h = hPutStr h prog >> hFlush h
