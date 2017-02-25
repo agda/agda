@@ -133,7 +133,10 @@ translateTerm tt = case tt of
 
 -- | We use this when we don't care about the translation.
 wildcardTerm :: Term
-wildcardTerm = errorT "__UNREACHABLE__"
+wildcardTerm = nullary $ errorT "__UNREACHABLE__"
+
+nullary :: Term -> Term
+nullary = Mlambda []
 
 indexToVarTerm :: MonadReader Env m => Int -> m Term
 indexToVarTerm i = do
