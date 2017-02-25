@@ -408,7 +408,6 @@ unitT = Mblock 0 []
 translateName :: QName -> Term
 translateName = Mvar . nameToIdent
 
--- TODO: Update documentatiom:
 -- | Translate a Treeless name to a valid identifier in Malfunction
 --
 -- Not all names in agda are valid names in Treleess. Valid names in Agda are
@@ -416,9 +415,6 @@ translateName = Mvar . nameToIdent
 --
 -- "Atoms: sequences of ASCII letters, digits, or symbols (the exact set of
 -- allowed symbols isn't quite nailed down yet)"[2]
---
--- This function translates non-alpha-numerical characters to @{n}@ where
--- `n` is the ascii-value of that character.
 --
 -- [1. The Agda Wiki]: <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers>
 -- [2. Malfunction Spec]: <https://github.com/stedolan/malfunction/blob/master/docs/spec.md>
@@ -431,15 +427,14 @@ nameToIdent qn = t' (hex a ++ "." ++ hex b)
       | otherwise = id
     NameId a b = qnameNameId qn
     hex = (`showHex` "") . toInteger
-    -- TODO: Make this configurable or don't use it at all:
-    -- This feature is harmful. Symbols can be imported under different names, so the pretty-name does not actually identify a symbol.
-    withConcreteName = True
+    -- TODO: This feature is harmful. Symbols can be imported under different names,
+    -- so the pretty-name does not actually identify a symbol.
+    withConcreteName = False
     showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
     toValid :: Char -> String
     toValid c
       | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
         || c`elem`"_" = [c]
-        -- > || True = [c]
       | otherwise      = "{" ++ show (ord c) ++ "}"
 
 -- | Translates a treeless identifier to a malfunction identifier.
