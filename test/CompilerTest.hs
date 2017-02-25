@@ -48,6 +48,11 @@ simpleQName mods nm = QName {
   , qnameName = simpleName nm
   }
 
+simplerQName :: String -> QName
+simplerQName s = simpleQName [anId] anId
+  where
+    anId = (C.NameId 0 0, s)
+
 unitTests :: TestTree
 unitTests = testGroup "Compiler unit tests" test_translate
 
@@ -73,10 +78,11 @@ test_translate =
     @?= Mblock 0 []
   , testCase "fst"
     $ translateDef' [[aName]] aName (fstTT aName) @?= fstT aName
+  , testCase "non-nullary constructor application"
+    $ runModExample constructorExample
   ]
   where
-    aName = simpleQName [anId] anId
-    anId = (C.NameId 0 0, "someId")
+    aName = simplerQName "someId"
 
 facTT :: QName -> TTerm
 facTT qn = TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)
@@ -114,3 +120,31 @@ goldenTests = testGroup "Compiler golden tests"
   , mkGoldenTest "Factorial" "a"
   , mkGoldenTest "Factorial" "b"
   ]
+
+runModExample :: ((Env, [[(QName, TTerm)]]), Mod) -> Assertion
+runModExample (inp, expected) = uncurry compile inp @?= expected
+
+constructorExample :: ((Env, [[(QName, TTerm)]]), Mod)
+constructorExample = (constructorT zero suc f one, constructorTT zero suc f one)
+  where
+    zero = simplerQName "zero"
+    suc  = simplerQName "suc"
+    f    = simplerQName "f"
+    one  = simplerQName "one"
+
+constructorT :: QName -> QName -> QName -> QName -> (Env, [[(QName, TTerm)]])
+constructorT zero suc fQ oneQ = (env, bindings)
+  where
+    env = Env (Map.fromList [(zero, ConRep 1 0), (suc, ConRep 0 0)]) 0
+    bindings = [[(fQ, f)], [(oneQ, one)]]
+    f   = TLam (TApp (TVar 0) [TCon zero])
+    one = TApp (TDef fQ) [TCon suc]
+
+constructorTT :: QName -> QName -> QName -> QName -> Mod
+constructorTT _zero _suc f one = MMod
+  [ Named f'   (Mlambda ["v0"] (Mapply (Mvar "v0") [Mblock 0 []]))
+  , Named one' (Mapply (Mvar f') [Mlambda ["a"] (Mblock 1 [Mvar "a"])])
+  ] []
+  where
+    f' = nameToIdent f
+    one' = nameToIdent one

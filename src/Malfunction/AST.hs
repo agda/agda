@@ -128,7 +128,7 @@ type Longident = [Ident]
 -- beginning with the atom export."
 --
 -- | Defines a malfunction module.
-data Mod = MMod [Binding] [Term]
+data Mod = MMod [Binding] [Term] deriving (Eq, Show)
 
 -- | The overall syntax of malfunction terms.
 data Term
