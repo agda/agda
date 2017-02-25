@@ -14,6 +14,9 @@ module Compiler
   , translateDef
   , nameToIdent
   , compile
+  -- * Data needed for compilation
+  , Env(..)
+  , ConRep(..)
   -- * Others
   , qnameNameId
   , errorT
@@ -30,6 +33,7 @@ module Compiler
 import           Agda.Syntax.Common (NameId(..))
 import           Agda.Syntax.Literal
 import           Agda.Syntax.Treeless
+
 import           Control.Monad
 import           Control.Monad.Extra
 import           Control.Monad.Reader
@@ -48,31 +52,24 @@ import           Data.Char
 
 import qualified Primitive
 
-type MonadTranslate m = (MonadReader Env m)
-
-data Env = Env {
-  _mapConToTag :: Map QName Int
+data Env = Env
+  { _conMap :: Map QName ConRep
   , _level :: Int
   }
   deriving (Show)
 
-type Translate a = Reader Env a
+-- | Data needed to represent a constructor
+data ConRep = ConRep
+  { _conTag   :: Int
+  , _conArity :: Int
+  } deriving (Show)
 
-runReaderEnv :: [[QName]] -> Translate a -> a
-runReaderEnv allcons ma
-  | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
-  | otherwise = ma `runTranslate` mkEnv
-  where
-    tagRange = (0, 199)
-    mkEnv = Env {
-      _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
-      , _level = 0
-      }
+type Translate a = Reader Env a
 
 runTranslate :: Translate a -> Env -> a
 runTranslate = runReader
 
-translateDefM :: MonadReader Env m => QName -> TTerm -> m Binding
+translateDefM :: QName -> TTerm -> Translate Binding
 translateDefM qnm t
   | isRecursive = do
       tt <- translateM t
@@ -91,19 +88,19 @@ translateDefM qnm t
 --
 -- Note that this does not handle mutual dependencies correctly. For this you
 -- would need @compile@.
-translateDef :: [[QName]] -> QName -> TTerm -> Binding
-translateDef qs qn = runReaderEnv qs . translateDefM qn
+translateDef :: Env -> QName -> TTerm -> Binding
+translateDef env qn = (`runTranslate` env) . translateDefM qn
 
 -- | Translates a list treeless terms to a list of malfunction terms.
 --
 -- Pluralized version of @translateDef@.
-translateTerms :: [[QName]] -> [TTerm] -> [Term]
-translateTerms qs = runReaderEnv qs . mapM translateM
+translateTerms :: Env -> [TTerm] -> [Term]
+translateTerms env = (`runTranslate` env) . mapM translateM
 
-translateM :: MonadReader Env m => TTerm -> m Term
+translateM :: TTerm -> Translate Term
 translateM = translateTerm
 
-translateTerm :: MonadTranslate m => TTerm -> m Term
+translateTerm :: TTerm -> Translate Term
 translateTerm tt = case tt of
   TVar i            -> indexToVarTerm i
   TPrim tp          -> return $ translatePrimApp tp []
@@ -165,7 +162,7 @@ indexToVarTerm i = do
 --     return (pure tg, bt)
 --   TAGuard gd rhs -> return ([], Mvar "TAGuard.undefined")
 
-translateAltsChain :: MonadTranslate m => Term -> Maybe Term -> [TAlt] -> m [([Case], Term)]
+translateAltsChain :: Term -> Maybe Term -> [TAlt] -> Translate [([Case], Term)]
 translateAltsChain tcase defaultt [] = return $ maybe [] (\d -> [(defaultCase, d)]) defaultt
 translateAltsChain tcase defaultt (ta:tas) =
   case ta of
@@ -213,12 +210,12 @@ litToCase l = case l of
   _          -> error "Unimplemented"
 
 -- The argument is the lambda itself and not its body.
-translateLam :: MonadTranslate m => TTerm -> m Term
+translateLam :: TTerm -> Translate Term
 translateLam lam = do
   (is, t) <- translateLams lam
   return $ Mlambda is t
   where
-    translateLams :: MonadTranslate m => TTerm -> m ([Ident], Term)
+    translateLams :: TTerm -> Translate ([Ident], Term)
     translateLams (TLam body) = do
       (thisVar, (xs, t)) <- introVar (translateLams body)
       return (thisVar:xs, t)
@@ -245,7 +242,7 @@ introVar ma = first head <$> introVars 1 ma
 -- in `translatePrim'`. Note that a similiar "optimization" could be
 -- done for chained lambda-expressions:
 --   TLam (TLam ...)
-translateApp :: MonadTranslate m => TTerm -> [TTerm] -> m Term
+translateApp :: TTerm -> [TTerm] -> Translate Term
 translateApp ft xst = case ft of
   TPrim p -> translatePrimApp p <$> mapM translateTerm xst
   TCon nm -> translateCon nm xst
@@ -310,14 +307,17 @@ nameToTag :: MonadReader Env m => QName -> m Case
 nameToTag nm = do
   e <- ask
   ifM (isConstructor nm)
-    (Tag <$> constrTag nm)
+    (Tag <$> askConTag nm)
     (error $ "nameToTag only implemented for constructors, qname=" ++ show nm
      ++ "\nenv:" ++ show e)
     -- (return . Tag . fromEnum . nameId . qnameName $ nm)
 
 
 isConstructor :: MonadReader Env m => QName -> m Bool
-isConstructor nm = (nm`Map.member`) <$> asks _mapConToTag
+isConstructor nm = (nm`Map.member`) <$> askConMap
+
+askConMap :: MonadReader Env m => m (Map QName ConRep)
+askConMap = asks _conMap
 
 -- |
 -- Set of indices of the variables that are referenced inside the term.
@@ -373,16 +373,31 @@ usedVars term = asks _level >>= go mempty term
 --   translate (R b)   = (block (tag 2) (tag 1) b')
 --   translate (B a b) = (block (tag 3) (tag 2) a' b')
 --   translate E       = (block (tag 1) (tag 3))
-translateCon :: MonadTranslate m => QName -> [TTerm] -> m Term
+-- TODO: If the length of `ts` does not match the arity of `nm` then a lambda-expression must be returned.
+translateCon :: QName -> [TTerm] -> Translate Term
 translateCon nm ts = do
   ts' <- mapM translateTerm ts
-  tag <- constrTag nm
-  return $ Mblock tag ts'
+  tag <- askConTag nm
+  arity <- askArity nm
+  let diff = arity - length ts'
+      vs   = take diff $ map pure ['a'..]
+  return $ if diff == 0
+  then Mblock tag ts'
+  else Mlambda vs (Mblock tag (ts' ++ map Mvar vs))
 
--- Should return a number that unique for this constructor
--- within the data-type.
-constrTag :: MonadReader Env m => QName -> m Int
-constrTag ns = (Map.! ns) <$> asks _mapConToTag
+askArity :: QName -> Translate Int
+askArity = fmap _conArity . nontotalLookupConRep
+
+askConTag :: MonadReader Env m => QName -> m Int
+askConTag = fmap _conTag . nontotalLookupConRep
+
+nontotalLookupConRep :: MonadReader Env f => QName -> f ConRep
+nontotalLookupConRep q = fromMaybe err <$> lookupConRep q
+  where
+    err = error $ "Could not find constructor with qname: " ++ show q
+
+lookupConRep :: MonadReader Env f => QName -> f (Maybe ConRep)
+lookupConRep ns = (Map.lookup ns) <$> asks _conMap
 
 -- Unit is treated as a glorified value in Treeless, luckily it's fairly
 -- straight-forward to encode using the scheme described in the documentation
@@ -433,14 +448,14 @@ qnameNameId = nameId . qnameName
 
 -- | Compiles treeless "bindings" to a malfunction module given groups of defintions.
 compile
-  :: [[QName]]          -- ^ All constructors grouped by data type.
+  :: Env                -- ^ All constructors grouped by data type.
   -> [[(QName, TTerm)]] -- ^ List of treeless bindings.
   -> Mod
-compile allConstructors bs = runReaderEnv allConstructors (compile' bs)
+compile env bs = runTranslate (compileM bs) env
 
 
-compile' :: MonadTranslate m => [[(QName, TTerm)]] -> m Mod
-compile' allDefsByDefMutual = do
+compileM :: [[(QName, TTerm)]] -> Translate Mod
+compileM allDefsByDefMutual = do
   bs <- mapM translateSCC recGrps
   return $ MMod bs []
   where
@@ -450,14 +465,14 @@ compile' allDefsByDefMutual = do
     recGrps :: [SCC (QName, TTerm)]
     recGrps = concatMap dependencyGraph allDefsByDefMutual
 
-translateMutualGroup :: MonadTranslate m => [(QName, TTerm)] -> m Binding
+translateMutualGroup :: [(QName, TTerm)] -> Translate Binding
 translateMutualGroup bs = Recursive <$> mapM (uncurry translateBindingPair) bs
 
-translateBinding :: MonadTranslate m => QName -> TTerm -> m Binding
+translateBinding :: QName -> TTerm -> Translate Binding
 translateBinding q t = uncurry Named <$> translateBindingPair q t
 
 translateBindingPair
-  :: MonadTranslate m => QName -> TTerm -> m (Ident, Term)
+  :: QName -> TTerm -> Translate (Ident, Term)
 translateBindingPair q t = (\t' -> (nameToIdent q, t')) <$> translateTerm t
 
 dependencyGraph :: [(QName, TTerm)] -> [SCC (QName, TTerm)]

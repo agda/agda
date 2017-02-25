@@ -10,6 +10,7 @@ import           Data.Either
 import           Data.List
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
+import           Data.Ix               (rangeSize)
 import           Data.Maybe
 import           System.Console.GetOpt
 import           Text.Printf
@@ -115,7 +116,7 @@ mlfMod allDefs = do
   grps' <- mapM (mapMaybeM act) defsByDefmutual
   let
     (primBindings, tlFunBindings) = first concat (unzip (map partitionEithers grps'))
-    (MMod funBindings ts) = Mlf.compile (getConstructors allDefs) tlFunBindings
+  (MMod funBindings ts) <- compile (getConstructors allDefs) tlFunBindings
   -- liftIO $ summaryRecGroups tlFunBindings
   return $ MMod (primBindings ++ funBindings) ts
     where
@@ -127,6 +128,48 @@ mlfMod allDefs = do
         Primitive{ primName = s } -> return $ Left <$> Mlf.compilePrim q s
         Axiom{}                   -> return $ Left <$> Mlf.compileAxiom q
         _                         -> return Nothing
+
+compile :: [[QName]] -> [[(QName, TTerm)]] -> TCM Mod
+compile qs bs = do
+  qs' <- getCompilerEnv qs
+  return $ Mlf.compile qs' bs
+
+getCompilerEnv :: [[QName]] -> TCM Mlf.Env
+getCompilerEnv allcons
+  | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
+  | otherwise = do
+      conMap <- mapM mkConMap allcons
+      return Mlf.Env
+        -- _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
+        { Mlf._conMap = Map.unions conMap
+        , Mlf._level = 0
+        }
+  where
+    tagRange :: (Integer, Integer)
+    tagRange = (0, 199)
+
+-- | Creates a mapping for all the constructors in the array. The constructors
+-- should reference the same data-type.
+mkConMap :: [QName] -> TCM (Map QName Mlf.ConRep)
+mkConMap ns = sequence $ Map.fromList $ snd $ foldl step (0, []) ns
+  where
+    step (i, qs) q = (succ i, (q, mkConRep i q):qs)
+
+mkConRep :: Int -> QName -> TCM Mlf.ConRep
+mkConRep tg qn = do
+  arity <- arityQName qn
+  return Mlf.ConRep
+    { Mlf._conTag   = tg
+    , Mlf._conArity = arity
+    }
+
+-- | If the qnames references a constructor the arity of that constructor is returned.
+arityQName :: QName -> TCM Int
+arityQName q = f . theDef <$> getConstInfo q
+  where
+    f def = case def of
+      Constructor{} -> conArity def
+      _             -> error "Not a constructor :("
 
 getBindings :: Definition -> TCM (Maybe (QName, TTerm))
 getBindings Defn{defName = q} = fmap (\t -> (q, t)) <$> toTreeless q

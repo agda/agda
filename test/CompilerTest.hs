@@ -12,9 +12,27 @@ import           Malfunction.AST
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Utils
+import qualified Data.Map                  as Map
 
 translate'1 :: TTerm -> Term
-translate'1 = head . translateTerms [] . pure
+translate'1 = head . translateTerms' [] . pure
+
+translateTerms' :: [[QName]] -> [TTerm] -> [Term]
+translateTerms' qs = translateTerms (mkFakeEnv qs)
+
+translateDef' :: [[QName]] -> QName -> TTerm -> Binding
+translateDef' qs = translateDef (mkFakeEnv qs)
+
+mkFakeEnv :: [[QName]] -> Env
+mkFakeEnv qs = Env
+  { _conMap = Map.unions $ map mkMap qs
+  , _level  = 0
+  }
+
+mkMap :: [QName] -> Map.Map QName ConRep
+mkMap qs = Map.fromList $ zipWith go qs [0..]
+  where
+    go q i = (q, ConRep i 0)
 
 simpleName :: (C.NameId, String) -> Name
 simpleName (idf, concrete) = Name
@@ -46,7 +64,7 @@ test_translate =
   , testCase "de Bruijn indices" $
     translate'1 (TLam (TApp (TVar 0) [TLam (TVar 1)]))
     @?= Mlambda ["v0"] (Mapply (Mvar "v0") [Mlambda ["v1"] (Mvar "v0")])
-  , testCase "factorial" $ translateDef [] aName (facTT aName) @?= facT aName
+  , testCase "factorial" $ translateDef' [] aName (facTT aName) @?= facT aName
   -- This test-case is a bit silly, since `TError TUnreachable` could be encoded
   -- as anything in malfunction. E.g. the function `f : ⊥ -> a` will never be
   -- applied to any arguments!
@@ -54,7 +72,7 @@ test_translate =
     $ translate'1 (TError TUnreachable)
     @?= Mblock 0 []
   , testCase "fst"
-    $ translateDef [[aName]] aName (fstTT aName) @?= fstT aName
+    $ translateDef' [[aName]] aName (fstTT aName) @?= fstT aName
   ]
   where
     aName = simpleQName [anId] anId
