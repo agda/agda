@@ -19,6 +19,7 @@ module Compiler
   , errorT
   , boolT
   , wildcardTerm
+  , namedBinding
   -- * Primitives
   , compilePrim
   , compileAxiom
@@ -73,7 +74,7 @@ translateDefM qnm t
       return . Recursive . pure $ (nameToIdent qnm, tt)
   | otherwise = do
       tt <- translateM t
-      return (Named (nameToIdent qnm) tt)
+      return (namedBinding qnm tt)
   where
     -- TODO: I don't believe this is enough, consider the example
     -- where functions are mutually recursive.
@@ -499,7 +500,7 @@ compileAxiom
   :: QName                  -- The name of the axiomm
   -> Maybe Binding    -- The resulting binding
 compileAxiom q = Just
-  $ Named (nameToIdent q)
+  $ namedBinding q
   $ fromMaybe unknownAxiom
   $ Map.lookup (show q') Primitive.axioms
   where
@@ -512,8 +513,11 @@ compilePrim
   -> String -- ^ The name of the primitive
   -> Maybe Binding
 compilePrim q s = Just
-  $ Named (nameToIdent q)
+  $ namedBinding q
   $ fromMaybe unknownPrimitive
   $ Map.lookup s Primitive.primitives
   where
     unknownPrimitive = Mlambda [] $ errorT $ "Unknown primitive: " ++ s
+
+namedBinding :: QName -> Term -> Binding
+namedBinding q = Named (nameToIdent q)
