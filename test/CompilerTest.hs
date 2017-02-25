@@ -75,9 +75,10 @@ test_translate =
   -- applied to any arguments!
   , testCase "function from an uninhabited type"
     $ translate'1 (TError TUnreachable)
-    @?= Mblock 0 []
+    @?= wildcardTerm
   , testCase "fst"
     $ translateDef' [[aName]] aName (fstTT aName) @?= fstT aName
+  -- This test-case fails for the same reason `fst` fails
   , testCase "non-nullary constructor application"
     $ runModExample constructorExample
   ]

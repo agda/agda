@@ -129,16 +129,11 @@ translateTerm tt = case tt of
   TUnit             -> return unitT
   TSort             -> error ("Unimplemented " ++ show tt)
   TErased           -> return wildcardTerm -- TODO: so... anything can go here?
-  TError TUnreachable -> return unreachableT
+  TError TUnreachable -> return wildcardTerm
 
 -- | We use this when we don't care about the translation.
 wildcardTerm :: Term
 wildcardTerm = Mint (CInt 666)
-
--- | `unreachableT` is an expression that can never be executed (in a type-
--- correct term), so in malfunction this can be encoded as anything.
-unreachableT :: Term
-unreachableT = unitT
 
 indexToVarTerm :: MonadReader Env m => Int -> m Term
 indexToVarTerm i = do
