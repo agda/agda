@@ -163,6 +163,7 @@ sizeMax vs = case vs of
 -- | A useful view on sizes.
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
+-- | Expects argument to be 'reduce'd.
 sizeView :: Term -> TCM SizeView
 sizeView v = do
   Def inf [] <- ignoreSharing <$> primSizeInf

@@ -16,6 +16,7 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
@@ -136,7 +137,7 @@ computePolarity x = inConcreteOrAbstractMode x $ \ def -> do
   -- Andreas, 2015-07-01: I thought one should do this for
   -- abstract local definitions in @where@ blocks to fix Issue 1366b,
   -- but it is not necessary.
-  -- t <- if (defAbstract def == AbsxtractDef) && not (isAnonymousModuleName $ qnameModule x)
+  -- t <- if (defAbstract def == AbstractDef) && not (isAnonymousModuleName $ qnameModule x)
   -- Andreas, 2017-01-27: Leave definition alone if there is nothing to update.
   when (defAbstract def /= AbstractDef && any (Nonvariant ==) pol) $ do
     reportSDoc "tc.polarity.set" 15 $
@@ -346,9 +347,9 @@ checkSizeIndex d np i a = do
   case ignoreSharing $ unEl a of
     Def d0 es -> do
       whenNothingM (sameDef d d0) __IMPOSSIBLE__
-      s <- sizeView $ unArg ix
+      s <- deepSizeView $ unArg ix
       case s of
-        SizeSuc v | Var j [] <- ignoreSharing v, i == j
+        DSizeVar j 1 | i == j
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
       where
