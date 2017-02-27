@@ -23,8 +23,9 @@ Instance Arguments
 Instance arguments are the Agda equivalent of Haskell type class
 constraints and can be used for many of the same purposes. In Agda
 terms, they are :ref:`implicit arguments <implicit-arguments>` that
-get solved by a special `instance resolution`_ algorithm, rather than
-by the unification algorithm used for normal implicit arguments. In
+get solved by a special :ref:`instance
+resolution <instance-resolution>` algorithm, rather than by the
+unification algorithm used for normal implicit arguments. In
 principle, an instance argument is resolved, if a unique *instance* of
 the required type can be built from :ref:`declared
 instances <declaring-instances>` and the current context.
@@ -119,12 +120,13 @@ Note that instance arguments in types are always named, but the name can be ``_`
 Defining type classes
 ~~~~~~~~~~~~~~~~~~~~~
 
-The type of an instance argument must have the form ``{Γ} → C vs``, where ``C``
-is a bound variable or the name of a data or record type, and ``{Γ}`` denotes
-an arbitrary number of (ordinary) implicit arguments (see `dependent
-instances`_ below for an example where ``Γ`` is non-empty). Other than that
-there are no requirements on the type of an instance argument. In particular,
-there is no special declaration to say that a type is a "type class". Instead,
+The type of an instance argument must have the form ``{Γ} → C vs``,
+where ``C`` is a bound variable or the name of a data or record type,
+and ``{Γ}`` denotes an arbitrary number of (ordinary) implicit
+arguments (see :ref:`dependent-instances` below for an example where
+``Γ`` is non-empty). Other than that there are no requirements on the
+type of an instance argument. In particular, there is no special
+declaration to say that a type is a "type class". Instead,
 Haskell-style type classes are usually defined as :ref:`record types
 <record-types>`. For instance,
 
@@ -280,12 +282,14 @@ and return the solution ``eqList {{eqNat}}``.
 Constructor instances
 +++++++++++++++++++++
 
-Although instance arguments are most commonly used for record types, mimicking
-Haskell-style type classes, they can also be used with data types. In this case
-you often want the constructors to be instances, which is achieved by declaring
-them inside an ``instance`` block. Typically arguments to constructors are not
-instance arguments, so during instance resolution explicit arguments are
-treated as instance arguments. See `instance resolution`_ below for the details.
+Although instance arguments are most commonly used for record types,
+mimicking Haskell-style type classes, they can also be used with data
+types. In this case you often want the constructors to be instances,
+which is achieved by declaring them inside an ``instance``
+block. Typically arguments to constructors are not instance arguments,
+so during instance resolution explicit arguments are treated as
+instance arguments. See :ref:`instance-resolution` below for the
+details.
 
 A simple example of a constructor that can be made an instance is the
 reflexivity constructor of the equality type::
@@ -372,6 +376,8 @@ arguments must be unique. For example,
   fail₂ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ x ∷ xs
   fail₂ x y xs = it -- suc zero or suc (suc i)
 
+.. _dependent-instances:
+
 Dependent instances
 +++++++++++++++++++
 
@@ -418,10 +424,14 @@ An ``Eq`` instance for ``Σ`` can be defined as follows::
       _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl    | nothing   = nothing
       _==_ {{eqΣ}} (x , y) (.x , .y)    | just refl    | just refl = just refl
 
-Note that the instance argument for ``B`` states that there should be an ``Eq``
-instance for ``B x``, for any ``x : A``. The argument ``x`` must be implicit,
-indicating that it needs to be inferred by unification whenever the ``B``
-instance is used. See `instance resolution`_ below for more details.
+Note that the instance argument for ``B`` states that there should be
+an ``Eq`` instance for ``B x``, for any ``x : A``. The argument ``x``
+must be implicit, indicating that it needs to be inferred by
+unification whenever the ``B`` instance is used. See
+:ref:`instance-resolution` below for more details.
+
+.. _instance-resolution:
+
 
 Instance resolution
 -------------------
