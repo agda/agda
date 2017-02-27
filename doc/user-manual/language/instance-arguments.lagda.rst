@@ -20,13 +20,14 @@ Instance Arguments
    :depth: 2
    :local:
 
-Instance arguments are the Agda equivalent of Haskell type class constraints
-and can be used for many of the same purposes. In Agda terms, they are
-:ref:`implicit arguments <implicit-arguments>` that get solved by a special
-`instance resolution`_ algorithm, rather than by the unification algorithm used
-for normal implicit arguments. In principle, an instance argument is resolved,
-if a unique *instance* of the required type can be built from `declared
-instances <declaring instances_>`_ and the current context.
+Instance arguments are the Agda equivalent of Haskell type class
+constraints and can be used for many of the same purposes. In Agda
+terms, they are :ref:`implicit arguments <implicit-arguments>` that
+get solved by a special `instance resolution`_ algorithm, rather than
+by the unification algorithm used for normal implicit arguments. In
+principle, an instance argument is resolved, if a unique *instance* of
+the required type can be built from :ref:`declared
+instances <declaring-instances>` and the current context.
 
 Usage
 -----
@@ -176,8 +177,12 @@ the module application is desugared. If defined by hand, ``mempty`` would be
     mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
     mempty {{mon}} = Monoid.mempty mon
 
-Although record types are a natural fit for Haskell-style type classes, you can
-use instance arguments with data types to good effect. See the `examples`_ below.
+Although record types are a natural fit for Haskell-style type
+classes, you can use instance arguments with data types to good
+effect. See the :ref:`instance-arguments-examples` below.
+
+.. _declaring-instances:
+
 
 Declaring instances
 ~~~~~~~~~~~~~~~~~~~
@@ -315,11 +320,14 @@ natural number and gives back a ``Fin n`` (the type of naturals smaller than
   badfive = mkFin 5 -- Error: No instance of type 1 ≡ 0 was found in scope.
 
 In the first clause of ``mkFin`` we use an :ref:`absurd pattern
-<absurd-patterns>` to discharge the impossible assumption ``suc m ≡ 0``.  See
-the `next section <examples_>`_ for another example of constructor instances.
+<absurd-patterns>` to discharge the impossible assumption ``suc m ≡
+0``.  See the :ref:`next section <instance-arguments-examples>` for
+another example of constructor instances.
 
 Record fields can also be declared instances, with the effect that the
 corresponding projection function is considered a top-level instance.
+
+.. _instance-arguments-examples:
 
 Examples
 ~~~~~~~~

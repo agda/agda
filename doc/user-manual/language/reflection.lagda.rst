@@ -247,10 +247,10 @@ below <reflection-tc-monad>`.
 Type errors
 ~~~~~~~~~~~
 
-Type checking computations (see `below <Type checking computations_>`_) can
-fail with an error, which is a list of ``ErrorPart``\s. This allows
-metaprograms to generate nice errors without having to implement pretty
-printing for reflected terms.
+Type checking computations (see :ref:`below <reflection-tc-monad>`)
+can fail with an error, which is a list of ``ErrorPart``\s. This
+allows metaprograms to generate nice errors without having to
+implement pretty printing for reflected terms.
 
 ::
 
@@ -388,10 +388,11 @@ following primitive operations::
 Metaprogramming
 ---------------
 
-There are three ways to run a metaprogram (``TC`` computation). To run a
-metaprogram in a term position you use a `macro <macros_>`_. To run
-metaprograms to create top-level definitions you can use the ``unquoteDecl``
-and ``unquoteDef`` primitives (see `Unquoting Declarations`_).
+There are three ways to run a metaprogram (``TC`` computation). To run
+a metaprogram in a term position you use a :ref:`macro <macros>`. To
+run metaprograms to create top-level definitions you can use the
+``unquoteDecl`` and ``unquoteDef`` primitives (see `Unquoting
+Declarations`_).
 
 .. _macros:
 

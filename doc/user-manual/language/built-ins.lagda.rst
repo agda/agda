@@ -199,6 +199,9 @@ properties
   div n (suc m) ≡ div-helper 0 m n m
   mod n (suc m) ≡ mod-helper 0 m n m
 
+
+.. _built-in-integer:
+
 Integers
 --------
 
@@ -224,8 +227,8 @@ numbers, there is no special representation of integers at compile-time since
 the overhead of using the data type compared to Haskell integers is not that
 big.
 
-Built-in integers support the following primitive operation (given a suitable
-binding for `String <Strings_>`_)::
+Built-in integers support the following primitive operation (given a
+suitable binding for :ref:`String <built-in-string>`)::
 
   primitive
     primShowInteger : Int → String
@@ -244,12 +247,13 @@ Floating point numbers are bound with the ``FLOAT`` built-in::
   postulate Float : Set
   {-# BUILTIN FLOAT Float #-}
 
-This lets you use :ref:`floating point literals <lexical-structure-float-literals>`.
-Floats are represented by the type checker as IEEE 754 binary64 double precision floats, with the restriction
-that there is exactly one NaN value. The following
-primitive functions are available (with suitable bindings for `Nat <Natural
-numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
-<Integers_>`_)::
+This lets you use :ref:`floating point literals
+<lexical-structure-float-literals>`.  Floats are represented by the
+type checker as IEEE 754 binary64 double precision floats, with the
+restriction that there is exactly one NaN value. The following
+primitive functions are available (with suitable bindings for
+:ref:`Nat <built-in-nat>`, :ref:`Bool <built-in-bool>`,
+:ref:`String <built-in-string>` and :ref:`Int <built-in-integer>`)::
 
   primitive
     primNatToFloat             : Nat → Float
@@ -304,6 +308,8 @@ exceptions:
    propositional equality. Doing so makes Agda inconsistent, see
    Issue `#2169 <https://github.com/agda/agda/issues/2169>`_.
 
+.. _built-in-list:
+
 Lists
 -----
 
@@ -343,9 +349,10 @@ The character type is bound with the ``CHARACTER`` built-in::
   {-# BUILTIN CHAR Char #-}
 
 Binding the character type lets you use :ref:`character literals
-<lexical-structure-char-literals>`. The following primitive functions are
-available on characters (given suitable bindings for `Bool <Booleans_>`_,
-`Nat <Natural numbers_>`_ and `String <Strings_>`_)::
+<lexical-structure-char-literals>`. The following primitive functions
+are available on characters (given suitable bindings for
+:ref:`Bool <built-in-bool>`, :ref:`Nat <built-in-nat>` and
+:ref:`String <built-in-string>`)::
 
   primitive
     primIsLower    : Char → Bool
@@ -386,9 +393,10 @@ The string type is bound with the ``STRING`` built-in:
   {-# BUILTIN STRING String #-}
 
 Binding the string type lets you use :ref:`string literals
-<lexical-structure-string-literals>`. The following primitive functions are
-available on strings (given suitable bindings for `Bool <Booleans_>`_, `Char
-<Characters_>`_ and `List <Lists_>`_)::
+<lexical-structure-string-literals>`. The following primitive
+functions are available on strings (given suitable bindings for
+:ref:`Bool <built-in-bool>`, :ref:`Char <built-in-char>` and
+:ref:`List <built-in-list>`)::
 
   postulate primStringToList   : String → List Char
   postulate primStringFromList : List Char → String
@@ -438,11 +446,12 @@ Binding the built-in equality type also enables the ``primTrustMe`` primitive::
   primitive
     primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
 
-As can be seen from the type, ``primTrustMe`` must be used with the utmost care
-to avoid inconsistencies.  What makes it different from a postulate is that if
-``x`` and ``y`` are actually definitionally equal, ``primTrustMe`` reduces to
-``refl``. One use of ``primTrustMe`` is to lift the primitive boolean equality
-on built-in types like `String <Strings_>`_ to something that returns a proof
+As can be seen from the type, ``primTrustMe`` must be used with the
+utmost care to avoid inconsistencies.  What makes it different from a
+postulate is that if ``x`` and ``y`` are actually definitionally
+equal, ``primTrustMe`` reduces to ``refl``. One use of ``primTrustMe``
+is to lift the primitive boolean equality on built-in types like
+:ref:`String <built-in-string>` to something that returns a proof
 object::
 
   eqString : (a b : String) → Maybe (a ≡ b)
@@ -588,7 +597,7 @@ There are two primitives for controlling evaluation order::
     primForce      : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
     primForceLemma : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
 
-where ``_≡_`` is the `built-in equality <built-in-equality_>`_. At compile-time
+where ``_≡_`` is the :ref:`built-in equality <built-in-equality>`. At compile-time
 ``primForce x f`` evaluates to ``f x`` when ``x`` is in weak head normal form (whnf),
 i.e. one of the following:
 
