@@ -10,12 +10,15 @@
 Lexical Structure
 *****************
 
-Agda code is written in UTF-8 encoded plain text files with the extension
-``.agda``. Most unicode characters can be used in identifiers and whitespace is
-important, see Names_ and Layout_ below.
+Agda code is written in UTF-8 encoded plain text files with the
+extension ``.agda``. Most unicode characters can be used in
+identifiers and whitespace is important, see :ref:`names` and
+:ref:`lexical-structure-layout` below.
 
 Tokens
 ------
+
+.. _keywords-and-special-symbols:
 
 Keywords and special symbols
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,8 +31,8 @@ special symbols
   ``.;{}()@"``.
 
 keywords
-  Reserved words that cannot appear as a `name part <Names_>`_, but can appear
-  in a name together with other characters.
+  Reserved words that cannot appear as a :ref:`name part <names>`, but
+  can appear in a name together with other characters.
 
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
   :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
@@ -51,16 +54,20 @@ keywords
   keywords.
 
 
+.. _names:
+
 Names
 ~~~~~
 
-A `qualified name` is a non-empty sequence of `names` separated by dots
-(``.``). A `name` is an alternating sequence of `name parts` and underscores
-(``_``), containing at least one name part. A `name part` is a non-empty
-sequence of unicode characters, excluding whitespace, ``_``, and `special symbols
-<Keywords and special symbols_>`_. A name part cannot be one of the `keywords
-<Keywords and special symbols_>`_ above, and cannot start with a single quote,
-``'`` (which are used for character literals, see Literals_ below).
+A `qualified name` is a non-empty sequence of `names` separated by
+dots (``.``). A `name` is an alternating sequence of `name parts` and
+underscores (``_``), containing at least one name part. A `name part`
+is a non-empty sequence of unicode characters, excluding whitespace,
+``_``, and :ref:`special symbols <keywords-and-special-symbols>`. A
+name part cannot be one of the
+:ref:`keywords <keywords-and-special-symbols>` above, and cannot start
+with a single quote, ``'`` (which are used for character literals, see
+Literals_ below).
 
 Examples
   - Valid: ``data?``, ``::``, ``if_then_else_``, ``0b``, ``_⊢_∈_``, ``x=y``
@@ -150,12 +157,12 @@ Characters
 .. _lexical-structure-string-literals:
 
 Strings
-  String literals are sequences of, possibly escaped, characters enclosed in
-  double quotes ``"``. They follow the same rules as `character literals
-  <characters_>`_ except that double quotes ``"`` need to be escaped rather
-  than single quotes ``'``. String literals map to the :ref:`built-in string
-  type <built-in-string>` by default, but can be :ref:`overloaded
-  <overloaded-strings>`.
+  String literals are sequences of, possibly escaped, characters
+  enclosed in double quotes ``"``. They follow the same rules as
+  :ref:`character literals <characters>` except that double quotes
+  ``"`` need to be escaped rather than single quotes ``'``. String
+  literals map to the :ref:`built-in string type <built-in-string>` by
+  default, but can be :ref:`overloaded <overloaded-strings>`.
 
   Example: ``"Привет \"мир\"\n"``.
 
@@ -174,9 +181,10 @@ Example: ``{! f {!x!} 5 !}``
 Comments
 ~~~~~~~~
 
-Single-line comments are written with a double dash ``--`` followed by arbitrary
-text. Multi-line comments are enclosed in ``{-`` and ``-}`` and can be nested.
-Comments cannot appear in `string literals <lexical-structure-string-literals_>`_.
+Single-line comments are written with a double dash ``--`` followed by
+arbitrary text. Multi-line comments are enclosed in ``{-`` and ``-}``
+and can be nested.  Comments cannot appear in :ref:`string
+literals <lexical-structure-string-literals>`.
 
 Example::
 
