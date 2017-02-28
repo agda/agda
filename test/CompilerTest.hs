@@ -115,6 +115,7 @@ goldenTests = testGroup "Compiler golden tests"
   , mkGoldenGroup "Index" ["l0", "l1", "l2"]
   , mkGoldenGroup "Insertion" ["l0", "l1"]
   , mkGoldenGroup "InsertionSort" ["l0", "l1", "l2"]
+  , mkGoldenTest "RedBlack" (Left "short")
   ]
 
 runModExample :: ((Env, [(QName, TTerm)]), Mod) -> Assertion

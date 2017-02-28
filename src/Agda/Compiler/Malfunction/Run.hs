@@ -1,6 +1,7 @@
 module Agda.Compiler.Malfunction.Run
   ( compileRunPrint
   , compileModFile
+  , compileRun
   , runModPrintInts
   , withPrintInts
   , runModFile
@@ -66,6 +67,15 @@ compileRunPrint agdap var =
       callProcess "stack" ["exec", "agda2mlf", "--", "-v0", "--mlf", agdap
                           , "-o", mlfp, "--print-var", var]
       runModFile' mlfp mlfh
+
+compileRun :: FilePath -> IO String
+compileRun agdap =
+  withSystemTempFile "module.mlf" $
+    \mlfp mlfh -> do
+      callProcess "stack" ["exec", "agda2mlf", "--", "-v0", "--mlf", agdap
+                          , "-o", mlfp]
+      runModFile' mlfp mlfh
+
 
 -- FIXME: I do almost the same as existing functions in this module.
 --

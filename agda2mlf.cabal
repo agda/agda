@@ -52,6 +52,7 @@ test-suite test
                      , base
                      , bytestring == 0.10.*
                      , containers == 0.5.*
+                     , extra == 1.5.*
                      , filepath == 1.4.*
                      , tasty == 0.11.*
                      , tasty-golden == 2.3.*
