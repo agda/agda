@@ -18,12 +18,14 @@ module Agda.Compiler.Malfunction.Compiler
   -- * Data needed for compilation
   , Env(..)
   , ConRep(..)
+  , mkCompilerEnv
   -- * Others
   , qnameNameId
   , errorT
   , boolT
   , wildcardTerm
   , namedBinding
+  , nameIdToIdent'
   -- * Primitives
   , compilePrim
   , compileAxiom
@@ -87,6 +89,23 @@ translateDefM qnm t
     --     a = b
     --     b = a
     isRecursive = Set.member (qnameNameId qnm) (qnamesIdsInTerm t) -- TODO: is this enough?
+
+mkCompilerEnv :: [QName] -> Map NameId ConRep -> Env
+mkCompilerEnv allNames conMap = Env {
+  _conMap = conMap
+  , _level = 0
+  , _qnameConcreteMap = qnameMap
+  }
+  where
+    qnameMap = Map.fromList [ (qnameNameId qn, concreteName qn) | qn <- allNames ]
+    showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
+    concreteName qn = showNames (mnameToList (qnameModule qn) ++ [qnameName qn])
+    toValid :: Char -> String
+    toValid c
+      | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
+        || c`elem`"_" = [c]
+      | otherwise      = "{" ++ show (ord c) ++ "}"
+
 
 -- | Translate a single treeless term to a list of malfunction terms.
 --
@@ -420,16 +439,20 @@ translateName qn = Mvar <$> nameToIdent qn
 --
 -- [1. The Agda Wiki]: <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers>
 -- [2. Malfunction Spec]: <https://github.com/stedolan/malfunction/blob/master/docs/spec.md>
-nameToIdent  :: MonadReader Env m => QName -> m Ident
+nameToIdent :: MonadReader Env m => QName -> m Ident
 nameToIdent qn = nameIdToIdent (qnameNameId qn)
 
-nameIdToIdent :: MonadReader Env m => NameId -> m Ident
-nameIdToIdent n@(NameId a b) = do
-  x <- fromMaybe "" . Map.lookup n <$> asks _qnameConcreteMap
-  return (hex a ++ "." ++ hex b ++ "." ++ x)
+nameIdToIdent' :: NameId -> Maybe String -> Ident
+nameIdToIdent' (NameId a b) msuffix = (hex a ++ "." ++ hex b ++ suffix)
   where
+    suffix = maybe "" ('.':) msuffix
     hex = (`showHex` "") . toInteger
     withConcreteName = False
+
+nameIdToIdent :: MonadReader Env m => NameId -> m Ident
+nameIdToIdent nid = do
+  x <- Map.lookup nid <$> asks _qnameConcreteMap
+  return (nameIdToIdent' nid x)
 
 -- | Translates a treeless identifier to a malfunction identifier.
 qnameNameId :: QName -> NameId

@@ -165,28 +165,12 @@ getCompilerEnv allcons bs
   | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
   | otherwise = do
       conMap <- Map.unions <$> mapM mkConMap allcons
-      return Mlf.Env
-        { Mlf._conMap = conMap
-        , Mlf._level = 0
-        , Mlf._qnameConcreteMap = qnameMap
-        }
+      return (Mlf.mkCompilerEnv allNames conMap)
   where
     allNames = Set.toList $ foldr step mempty bs
     step (qn, tt) acc = qnamesInTerm (Set.insert qn acc) tt
     tagRange :: (Integer, Integer)
     tagRange = (0, 199)
-    qnameMap = Map.fromList [ (Mlf.qnameNameId qn, concreteName qn) | qn <- allNames ]
-    hex = (`showHex` "") . toInteger
-    -- TODO: This feature is harmful. Symbols can be imported under different names,
-    -- so the pretty-name does not actually identify a symbol.
-    withConcreteName = False
-    showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
-    concreteName qn = showNames (mnameToList (qnameModule qn) ++ [qnameName qn])
-    toValid :: Char -> String
-    toValid c
-      | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
-        || c`elem`"_" = [c]
-      | otherwise      = "{" ++ show (ord c) ++ "}"
 
 
 -- | Creates a mapping for all the constructors in the array. The constructors
