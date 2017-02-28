@@ -327,10 +327,14 @@ translatePrimApp tp args =
 nameToTag :: MonadReader Env m => QName -> m Case
 nameToTag nm = do
   e <- ask
-  ifM (isConstructor nm)
-    (Tag <$> askConTag nm)
-    (error $ "nameToTag only implemented for constructors, qname=" ++ show nm
-     ++ "\nenv:" ++ show e)
+  builtinbool <- builtinBool nm
+  case builtinbool of
+    Just b -> return (CaseInt (boolToInt b))
+    Nothing ->
+      ifM (isConstructor nm)
+      (Tag <$> askConTag nm)
+      (error $ "nameToTag only implemented for constructors, qname=" ++ show nm
+       ++ "\nenv:" ++ show e)
     -- (return . Tag . fromEnum . nameId . qnameName $ nm)
 
 
@@ -397,14 +401,35 @@ usedVars term = asks _level >>= go mempty term
 -- TODO: If the length of `ts` does not match the arity of `nm` then a lambda-expression must be returned.
 translateCon :: MonadReader Env m => QName -> [TTerm] -> m Term
 translateCon nm ts = do
-  ts' <- mapM translateTerm ts
-  tag <- askConTag nm
-  arity <- askArity nm
-  let diff = arity - length ts'
-      vs   = take diff $ map pure ['a'..]
-  return $ if diff == 0
-  then Mblock tag ts'
-  else Mlambda vs (Mblock tag (ts' ++ map Mvar vs))
+  builtinbool <- builtinBool nm
+  case builtinbool of
+    Just t -> return (boolT t)
+    Nothing -> do
+      ts' <- mapM translateTerm ts
+      tag <- askConTag nm
+      arity <- askArity nm
+      let diff = arity - length ts'
+          vs   = take diff $ map pure ['a'..]
+      return $ if diff == 0
+      then Mblock tag ts'
+      else Mlambda vs (Mblock tag (ts' ++ map Mvar vs))
+
+-- | Ugly hack to represent builtin bools as integers.
+-- For now it checks whether the concrete name ends with "Bool.true" or "Bool.false"
+builtinBool :: MonadReader Env m => QName -> m (Maybe Bool)
+builtinBool qn = do
+  isTrue <- isBuiltinTrue qn
+  if isTrue then return (Just True)
+    else do
+    isFalse <- isBuiltinFalse qn
+    if isFalse then return (Just False)
+      else return Nothing
+  where
+    isBuiltinTrue :: MonadReader Env m => QName -> m Bool
+    isBuiltinTrue qn = return ("Bool.true" `isSuffixOf` show qn)
+    isBuiltinFalse :: MonadReader Env m => QName -> m Bool
+    isBuiltinFalse qn = return ("Bool.false" `isSuffixOf` show qn)
+
 
 askArity :: MonadReader Env m => QName -> m Int
 askArity = fmap _conArity . nontotalLookupConRep
@@ -518,7 +543,10 @@ errorT err = Mapply (Mglobal ["Pervasives", "failwith"]) [Mstring err]
 
 -- | Encodes a boolean value as a numerical Malfunction value.
 boolT :: Bool -> Term
-boolT b = Mint (CInt $ if b then 1 else 0)
+boolT b = Mint (CInt $ boolToInt b)
+
+boolToInt :: Bool -> Int
+boolToInt b = if b then 1 else 0
 
 trueCase :: [Case]
 trueCase = [CaseInt 1]
