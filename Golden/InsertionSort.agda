@@ -28,9 +28,11 @@ lst = 4 ∷ 2 ∷ 7 ∷ []
 slst : List Nat
 slst = insertSort lst
 
-a : Nat
-a = atDef 0 slst 0
-b : Nat
-b = atDef 0 slst 1
-c : Nat
-c = atDef 0 slst 2
+l0 : Nat
+l0 = atDef 0 slst 0
+
+l1 : Nat
+l1 = atDef 0 slst 1
+
+l2 : Nat
+l2 = atDef 0 slst 2

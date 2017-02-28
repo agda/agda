@@ -447,7 +447,6 @@ nameIdToIdent' (NameId a b) msuffix = (hex a ++ "." ++ hex b ++ suffix)
   where
     suffix = maybe "" ('.':) msuffix
     hex = (`showHex` "") . toInteger
-    withConcreteName = False
 
 nameIdToIdent :: MonadReader Env m => NameId -> m Ident
 nameIdToIdent nid = do

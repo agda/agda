@@ -112,7 +112,7 @@ goldenTests = testGroup "Compiler golden tests"
   [ mkGoldenGroup "FstSnd" ["a", "b"]
   , mkGoldenGroup "Factorial" ["a", "b"]
   , mkGoldenGroup "Constructor" ["one", "a"]
-  , mkGoldenGroup "InsertionSort" (map pure ['a'..'c'])
+  , mkGoldenGroup "InsertionSort" ["l0", "l1", "l2"]
   ]
 
 runModExample :: ((Env, [(QName, TTerm)]), Mod) -> Assertion
