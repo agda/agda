@@ -36,8 +36,8 @@ mkFakeEnv qs = Env
   }
 
 mkMap :: [(QName, Arity)] -> Map.Map NameId ConRep
-mkMap qs = Map.fromList $ [ (qnameNameId qn, ConRep i arity)
-                          | (i, (qn, arity)) <- zip [0..] qs ]
+mkMap qs = Map.fromList [ (qnameNameId qn, ConRep i arity)
+                        | (i, (qn, arity)) <- zip [0..] qs ]
 
 simpleName :: (C.NameId, String) -> Name
 simpleName (idf, concrete) = Name
@@ -125,6 +125,7 @@ goldenTests = testGroup "Compiler golden tests"
   , mkGoldenTest "Factorial" "a"
   , mkGoldenTest "Factorial" "b"
   , mkGoldenTest "Constructor" "one"
+  , mkGoldenTest "Constructor" "a"
   ]
 
 runModExample :: ((Env, [[(QName, TTerm)]]), Mod) -> Assertion
@@ -142,7 +143,7 @@ constructorT :: QName -> QName -> QName -> QName -> (Env, [[(QName, TTerm)]])
 constructorT zero suc fQ oneQ = (env, bindings)
   where
     env = Env {
-      _conMap = Map.fromList [(qnameNameId zero, ConRep 1 0), (qnameNameId suc, ConRep 0 0)]
+      _conMap = Map.fromList [(qnameNameId zero, ConRep 0 0), (qnameNameId suc, ConRep 1 1)]
       , _level =  0
       }
     bindings = [[(fQ, f)], [(oneQ, one)]]
