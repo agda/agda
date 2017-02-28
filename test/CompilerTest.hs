@@ -112,6 +112,8 @@ goldenTests = testGroup "Compiler golden tests"
   [ mkGoldenGroup "FstSnd" ["a", "b"]
   , mkGoldenGroup "Factorial" ["a", "b"]
   , mkGoldenGroup "Constructor" ["one", "a"]
+  , mkGoldenGroup "Index" ["l0", "l1", "l2"]
+  , mkGoldenGroup "Insertion" ["l0", "l1"]
   , mkGoldenGroup "InsertionSort" ["l0", "l1", "l2"]
   ]
 
