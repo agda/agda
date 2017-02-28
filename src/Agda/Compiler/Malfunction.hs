@@ -56,7 +56,7 @@ ttFlags =
     "(DEBUG) Run the module and print the integer value of a variable"
   , Option ['o'] [] (ReqArg (\r o -> return o{_outputFile = Just r}) "FILE")
     "(DEBUG) Place outputFile resulting module into FILE"
-  , Option ['d'] ["debug"] (NoArg $ \ o -> return o{ _enabled = True })
+  , Option ['d'] ["debug"] (NoArg $ \ o -> return o{ _debug = True })
     "Generate Malfunction"
   , Option [] ["compilemlf"] (ReqArg (\r o -> return o{_outputMlf = Just r}) "MODNAME")
     "Runs the malfunction compiler on the output file"
