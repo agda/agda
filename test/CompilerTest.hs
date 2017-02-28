@@ -109,12 +109,10 @@ facT facIden = Recursive [(facIden, Mlambda ["v0"]
 
 goldenTests :: TestTree
 goldenTests = testGroup "Compiler golden tests"
-  [ mkGoldenTest "FstSnd" "a"
-  , mkGoldenTest "FstSnd" "b"
-  , mkGoldenTest "Factorial" "a"
-  , mkGoldenTest "Factorial" "b"
-  , mkGoldenTest "Constructor" "one"
-  , mkGoldenTest "Constructor" "a"
+  [ mkGoldenGroup "FstSnd" ["a", "b"]
+  , mkGoldenGroup "Factorial" ["a", "b"]
+  , mkGoldenGroup "Constructor" ["one", "a"]
+  , mkGoldenGroup "InsertionSort" (map pure ['a'..'c'])
   ]
 
 runModExample :: ((Env, [(QName, TTerm)]), Mod) -> Assertion
