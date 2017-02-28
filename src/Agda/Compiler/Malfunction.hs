@@ -6,20 +6,27 @@ import           Control.Monad
 import           Control.Monad.Extra
 import           Control.Monad.Trans
 import           Data.Bifunctor
+import           Data.Char
 import           Data.Either
-import           Data.Ix                            (rangeSize)
+import           Data.Generics.Uniplate
+import           Data.Ix                             (rangeSize)
+import           Data.Ix
 import           Data.List
-import           Data.Map                           (Map)
-import qualified Data.Map                           as Map
+import           Data.Map                            (Map)
+import qualified Data.Map                            as Map
 import           Data.Maybe
+import           Data.Set                            (Set)
+import qualified Data.Set                            as Set
+import           Numeric                             (showHex)
 import           System.Console.GetOpt
 import           Text.Printf
 
 import           Agda.Compiler.Malfunction.AST
-import qualified Agda.Compiler.Malfunction.Compiler as Mlf
+import qualified Agda.Compiler.Malfunction.Compiler  as Mlf
+import           Agda.Compiler.Malfunction.Instances
 import           Agda.Compiler.Malfunction.Run
-import qualified Agda.Compiler.Malfunction.Run      as Run
-import           Agda.Syntax.Common                 (NameId)
+import qualified Agda.Compiler.Malfunction.Run       as Run
+import           Agda.Syntax.Common                  (NameId)
 
 backend :: Backend
 backend = Backend backend'
@@ -113,41 +120,74 @@ mlfMod
   :: [Definition]   -- ^ All visible definitions
   -> TCM Mod
 mlfMod allDefs = do
-  -- grps' <- mapM (mapM getBindings . filter (isFunction . theDef)) grps
-  grps' <- mapM (mapMaybeM act) defsByDefmutual
-  let
-    (primBindings, tlFunBindings) = first concat (unzip (map partitionEithers grps'))
-  (MMod funBindings ts) <- compile (getConstructors allDefs) tlFunBindings
-  -- liftIO $ summaryRecGroups tlFunBindings
-  return $ MMod (primBindings ++ funBindings) ts
+  grps' <- mapMaybeM act allDefs
+  let (primsAndAxioms, tlFunBindings) = partitionEithers grps'
+      (prims, axioms) = partitionEithers primsAndAxioms
+  env <- getCompilerEnv (getConstructors allDefs) tlFunBindings
+  let (MMod funBindings ts) = compile env tlFunBindings
+      primBindings = catMaybes $ Mlf.runTranslate (mapM (uncurry Mlf.compilePrim) prims) env
+      axiomBindings = catMaybes $ Mlf.runTranslate (mapM Mlf.compileAxiom axioms) env
+  return $ MMod (axiomBindings ++ primBindings ++ funBindings) ts
     where
-      -- defsByDefmutual = groupSortOn defMutual allDefs
-      defsByDefmutual = [allDefs]
-      act :: Definition -> TCM (Maybe (Either Binding (QName, TTerm)))
+      act :: Definition -> TCM (Maybe (Either (Either (QName, String) QName) (QName, TTerm)))
       act def@Defn{defName = q, theDef = d} = case d of
         Function{}                -> fmap Right <$> getBindings def
-        Primitive{ primName = s } -> return $ Left <$> Mlf.compilePrim q s
-        Axiom{}                   -> return $ Left <$> Mlf.compileAxiom q
+        Primitive{ primName = s } -> return $ Just $ Left $ Left (q, s)
+        Axiom{}                   -> return $ Just $ Left $ Right q
         _                         -> return Nothing
 
-compile :: [[QName]] -> [[(QName, TTerm)]] -> TCM Mod
-compile qs bs = do
-  qs' <- getCompilerEnv qs
-  return $ Mlf.compile qs' bs
+compile :: Mlf.Env -> [(QName, TTerm)] -> Mod
+compile env bs = Mlf.compile env bs
 
-getCompilerEnv :: [[QName]] -> TCM Mlf.Env
-getCompilerEnv allcons
+qnamesInTerm :: Set QName -> TTerm -> Set QName
+qnamesInTerm s t = go t s
+  where
+    go :: TTerm -> Set QName -> Set QName
+    go t qs = case t of
+      TDef q           -> Set.insert q qs
+      TApp f args      -> foldr go qs (f:args)
+      TLam b           -> go b qs
+      TCon q           -> Set.insert q qs
+      TLet a b         -> foldr go qs [a, b]
+      TCase _ _ p alts -> foldr qnamesInAlt (go p qs) alts
+      _                -> qs
+      where
+        qnamesInAlt a qs = case a of
+          TACon q _ t -> Set.insert q (go t qs)
+          TAGuard t b -> foldr go qs [t, b]
+          TALit _ b   -> go b qs
+
+
+-- | The argument allNames is optional. If you provide an empty list concrete
+-- names will not be appended to the NameId
+getCompilerEnv :: [[QName]] -> [(QName, TTerm)] -> TCM Mlf.Env
+getCompilerEnv allcons bs
   | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
   | otherwise = do
-      conMap <- mapM mkConMap allcons
+      conMap <- Map.unions <$> mapM mkConMap allcons
       return Mlf.Env
-        -- _mapConToTag = Map.unions [ Map.fromList (zip cons (range tagRange)) | cons <- allcons ]
-        { Mlf._conMap = Map.unions conMap
+        { Mlf._conMap = conMap
         , Mlf._level = 0
+        , Mlf._qnameConcreteMap = qnameMap
         }
   where
+    allNames = Set.toList $ foldr step mempty bs
+    step (qn, tt) acc = qnamesInTerm (Set.insert qn acc) tt
     tagRange :: (Integer, Integer)
     tagRange = (0, 199)
+    qnameMap = Map.fromList [ (Mlf.qnameNameId qn, concreteName qn) | qn <- allNames ]
+    hex = (`showHex` "") . toInteger
+    -- TODO: This feature is harmful. Symbols can be imported under different names,
+    -- so the pretty-name does not actually identify a symbol.
+    withConcreteName = False
+    showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
+    concreteName qn = showNames (mnameToList (qnameModule qn) ++ [qnameName qn])
+    toValid :: Char -> String
+    toValid c
+      | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
+        || c`elem`"_" = [c]
+      | otherwise      = "{" ++ show (ord c) ++ "}"
+
 
 -- | Creates a mapping for all the constructors in the array. The constructors
 -- should reference the same data-type.

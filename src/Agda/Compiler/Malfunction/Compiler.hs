@@ -14,6 +14,7 @@ module Agda.Compiler.Malfunction.Compiler
   , translateDef
   , nameToIdent
   , compile
+  , runTranslate
   -- * Data needed for compilation
   , Env(..)
   , ConRep(..)
@@ -36,6 +37,7 @@ import           Agda.Syntax.Treeless
 
 import           Control.Monad
 import           Control.Monad.Extra
+import           Control.Monad.Identity
 import           Control.Monad.Reader
 import           Data.Graph
 import           Data.Ix
@@ -54,6 +56,7 @@ import qualified Agda.Compiler.Malfunction.Primitive as Primitive
 
 data Env = Env
   { _conMap :: Map NameId ConRep
+  , _qnameConcreteMap :: Map NameId String
   , _level :: Int
   }
   deriving (Show)
@@ -66,17 +69,18 @@ data ConRep = ConRep
 
 type Translate a = Reader Env a
 
-runTranslate :: Translate a -> Env -> a
+runTranslate :: Reader Env a -> Env -> a
 runTranslate = runReader
 
-translateDefM :: QName -> TTerm -> Translate Binding
+translateDefM :: MonadReader Env m => QName -> TTerm -> m Binding
 translateDefM qnm t
   | isRecursive = do
       tt <- translateM t
-      return . Recursive . pure $ (nameToIdent qnm, tt)
+      iden <- nameToIdent qnm
+      return . Recursive . pure $ (iden, tt)
   | otherwise = do
       tt <- translateM t
-      return (namedBinding qnm tt)
+      namedBinding qnm tt
   where
     -- TODO: I don't believe this is enough, consider the example
     -- where functions are mutually recursive.
@@ -97,14 +101,14 @@ translateDef env qn = (`runTranslate` env) . translateDefM qn
 translateTerms :: Env -> [TTerm] -> [Term]
 translateTerms env = (`runTranslate` env) . mapM translateM
 
-translateM :: TTerm -> Translate Term
+translateM :: MonadReader Env m => TTerm -> m Term
 translateM = translateTerm
 
-translateTerm :: TTerm -> Translate Term
+translateTerm :: MonadReader Env m => TTerm -> m Term
 translateTerm tt = case tt of
   TVar i            -> indexToVarTerm i
   TPrim tp          -> return $ translatePrimApp tp []
-  TDef name         -> return $ translateName name
+  TDef name         -> translateName name
   TApp t0 args      -> translateApp t0 args
   TLam{}            -> translateLam tt
   TLit lit          -> return $ translateLit lit
@@ -143,7 +147,7 @@ indexToVarTerm i = do
   ni <- asks _level
   return (Mvar (ident (ni - i - 1)))
 
--- translateSwitch :: MonadTranslate m => Term -> TAlt -> m ([Case], Term)
+-- translateSwitch :: MonadReader m => Term -> TAlt -> m ([Case], Term)
 -- translateSwitch tcase alt = case alt of
 -- --  TAGuard c t -> liftM2 (,) (pure <$> translateCase c) (translateTerm t)
 --   TALit pat body -> do
@@ -160,7 +164,7 @@ indexToVarTerm i = do
 --     return (pure tg, bt)
 --   TAGuard gd rhs -> return ([], Mvar "TAGuard.undefined")
 
-translateAltsChain :: Term -> Maybe Term -> [TAlt] -> Translate [([Case], Term)]
+translateAltsChain :: MonadReader Env m => Term -> Maybe Term -> [TAlt] -> m [([Case], Term)]
 translateAltsChain tcase defaultt [] = return $ maybe [] (\d -> [(defaultCase, d)]) defaultt
 translateAltsChain tcase defaultt (ta:tas) =
   case ta of
@@ -208,12 +212,12 @@ litToCase l = case l of
   _          -> error "Unimplemented"
 
 -- The argument is the lambda itself and not its body.
-translateLam :: TTerm -> Translate Term
+translateLam :: MonadReader Env m => TTerm -> m Term
 translateLam lam = do
   (is, t) <- translateLams lam
   return $ Mlambda is t
   where
-    translateLams :: TTerm -> Translate ([Ident], Term)
+    translateLams :: MonadReader Env m => TTerm -> m ([Ident], Term)
     translateLams (TLam body) = do
       (thisVar, (xs, t)) <- introVar (translateLams body)
       return (thisVar:xs, t)
@@ -240,7 +244,7 @@ introVar ma = first head <$> introVars 1 ma
 -- in `translatePrim'`. Note that a similiar "optimization" could be
 -- done for chained lambda-expressions:
 --   TLam (TLam ...)
-translateApp :: TTerm -> [TTerm] -> Translate Term
+translateApp :: MonadReader Env m => TTerm -> [TTerm] -> m Term
 translateApp ft xst = case ft of
   TPrim p -> translatePrimApp p <$> mapM translateTerm xst
   TCon nm -> translateCon nm xst
@@ -372,7 +376,7 @@ usedVars term = asks _level >>= go mempty term
 --   translate (B a b) = (block (tag 3) (tag 2) a' b')
 --   translate E       = (block (tag 1) (tag 3))
 -- TODO: If the length of `ts` does not match the arity of `nm` then a lambda-expression must be returned.
-translateCon :: QName -> [TTerm] -> Translate Term
+translateCon :: MonadReader Env m => QName -> [TTerm] -> m Term
 translateCon nm ts = do
   ts' <- mapM translateTerm ts
   tag <- askConTag nm
@@ -383,7 +387,7 @@ translateCon nm ts = do
   then Mblock tag ts'
   else Mlambda vs (Mblock tag (ts' ++ map Mvar vs))
 
-askArity :: QName -> Translate Int
+askArity :: MonadReader Env m => QName -> m Int
 askArity = fmap _conArity . nontotalLookupConRep
 
 askConTag :: MonadReader Env m => QName -> m Int
@@ -403,8 +407,8 @@ lookupConRep ns = Map.lookup (qnameNameId ns) <$> asks _conMap
 unitT :: Term
 unitT = Mblock 0 []
 
-translateName :: QName -> Term
-translateName = Mvar . nameToIdent
+translateName :: MonadReader Env m => QName -> m Term
+translateName qn = Mvar <$> nameToIdent qn
 
 -- | Translate a Treeless name to a valid identifier in Malfunction
 --
@@ -416,24 +420,16 @@ translateName = Mvar . nameToIdent
 --
 -- [1. The Agda Wiki]: <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual2.Identifiers>
 -- [2. Malfunction Spec]: <https://github.com/stedolan/malfunction/blob/master/docs/spec.md>
-nameToIdent :: QName -> Ident
-nameToIdent qn = t' (hex a ++ "." ++ hex b)
+nameToIdent  :: MonadReader Env m => QName -> m Ident
+nameToIdent qn = nameIdToIdent (qnameNameId qn)
+
+nameIdToIdent :: MonadReader Env m => NameId -> m Ident
+nameIdToIdent n@(NameId a b) = do
+  x <- fromMaybe "" . Map.lookup n <$> asks _qnameConcreteMap
+  return (hex a ++ "." ++ hex b ++ "." ++ x)
   where
-    t'
-      | withConcreteName = (++ "." ++
-                            showNames (mnameToList (qnameModule qn) ++ [qnameName qn]))
-      | otherwise = id
-    NameId a b = qnameNameId qn
     hex = (`showHex` "") . toInteger
-    -- TODO: This feature is harmful. Symbols can be imported under different names,
-    -- so the pretty-name does not actually identify a symbol.
-    withConcreteName = True
-    showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
-    toValid :: Char -> String
-    toValid c
-      | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
-        || c`elem`"_" = [c]
-      | otherwise      = "{" ++ show (ord c) ++ "}"
+    withConcreteName = False
 
 -- | Translates a treeless identifier to a malfunction identifier.
 qnameNameId :: QName -> NameId
@@ -441,14 +437,14 @@ qnameNameId = nameId . qnameName
 
 -- | Compiles treeless "bindings" to a malfunction module given groups of defintions.
 compile
-  :: Env                -- ^ All constructors grouped by data type.
-  -> [[(QName, TTerm)]] -- ^ List of treeless bindings.
+  :: Env                -- ^ Environment.
+  -> [(QName, TTerm)] -- ^ List of treeless bindings.
   -> Mod
 compile env bs = runTranslate (compileM bs) env
 
 
-compileM :: [[(QName, TTerm)]] -> Translate Mod
-compileM allDefsByDefMutual = do
+compileM :: MonadReader Env m => [(QName, TTerm)] -> m Mod
+compileM allDefs = do
   bs <- mapM translateSCC recGrps
   return $ MMod bs []
   where
@@ -456,22 +452,24 @@ compileM allDefsByDefMutual = do
       AcyclicSCC single -> uncurry translateBinding single
       CyclicSCC grp -> translateMutualGroup grp
     recGrps :: [SCC (QName, TTerm)]
-    recGrps = concatMap dependencyGraph allDefsByDefMutual
+    recGrps = dependencyGraph allDefs
 
-translateMutualGroup :: [(QName, TTerm)] -> Translate Binding
+translateMutualGroup :: MonadReader Env m => [(QName, TTerm)] -> m Binding
 translateMutualGroup bs = Recursive <$> mapM (uncurry translateBindingPair) bs
 
-translateBinding :: QName -> TTerm -> Translate Binding
+translateBinding :: MonadReader Env m => QName -> TTerm -> m Binding
 translateBinding q t = uncurry Named <$> translateBindingPair q t
 
-translateBindingPair
-  :: QName -> TTerm -> Translate (Ident, Term)
-translateBindingPair q t = (\t' -> (nameToIdent q, t')) <$> translateTerm t
+translateBindingPair :: MonadReader Env m => QName -> TTerm -> m (Ident, Term)
+translateBindingPair q t = do
+  iden <- nameToIdent q
+  (\t' -> (iden, t')) <$> translateTerm t
 
 dependencyGraph :: [(QName, TTerm)] -> [SCC (QName, TTerm)]
 dependencyGraph qs = stronglyConnComp [ ((qn, tt), qnameNameId qn, edgesFrom tt)
                                     | (qn, tt) <- qs ]
   where edgesFrom = Set.toList . qnamesIdsInTerm
+
 
 qnamesIdsInTerm :: TTerm -> Set NameId
 qnamesIdsInTerm t = go t mempty
@@ -509,28 +507,28 @@ trueCase = [CaseInt 1]
 -- `CompiledRepresentation`. We do not have this luxury. So what do we do?
 --
 -- | Translates an axiom to a malfunction binding. Returns `Nothing` if the axiom is unmapped.
-compileAxiom
-  :: QName                  -- The name of the axiomm
-  -> Maybe Binding    -- The resulting binding
-compileAxiom q = Just
-  $ namedBinding q
-  $ fromMaybe unknownAxiom
-  $ Map.lookup (show q') Primitive.axioms
+compileAxiom ::
+  MonadReader Env m =>
+  QName                   -- The name of the axiomm
+  -> m (Maybe Binding)    -- The resulting binding
+compileAxiom q = Just <$> namedBinding q x
   where
+    x = fromMaybe unknownAxiom
+      $ Map.lookup (show q') Primitive.axioms
     unknownAxiom = Mlambda [] $ errorT $ "Unknown axiom: " ++ show q'
     q' = last . qnameToList $ q
 
 -- | Translates a primitive to a malfunction binding. Returns `Nothing` if the primitive is unmapped.
 compilePrim
-  :: QName -- ^ The qname of the primitive
+  :: MonadReader Env m =>
+    QName -- ^ The qname of the primitive
   -> String -- ^ The name of the primitive
-  -> Maybe Binding
-compilePrim q s = Just
-  $ namedBinding q
-  $ fromMaybe unknownPrimitive
-  $ Map.lookup s Primitive.primitives
+  -> m (Maybe Binding)
+compilePrim q s = Just <$> namedBinding q x
   where
+    x = fromMaybe unknownPrimitive
+      $ Map.lookup s Primitive.primitives
     unknownPrimitive = Mlambda [] $ errorT $ "Unknown primitive: " ++ s
 
-namedBinding :: QName -> Term -> Binding
-namedBinding q = Named (nameToIdent q)
+namedBinding :: MonadReader Env m => QName -> Term -> m Binding
+namedBinding q t = (`Named`t) <$> nameToIdent q
