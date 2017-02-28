@@ -3,37 +3,41 @@ module CompilerTest where
 -- TODO: Emacs keeps complaining that Test.Tasty.Discover is a member
 -- of a hidden package and keeps prompting me to add it to the .cabal-file.
 -- Solution M-x haskell-session-change-target -> agda2mlf:test
-import qualified Agda.Syntax.Common        as C
-import qualified Agda.Syntax.Concrete.Name as C
+import qualified Agda.Syntax.Common                 as C
+import qualified Agda.Syntax.Concrete.Name          as C
 import           Agda.Syntax.Literal
 import           Agda.Syntax.Treeless
+import qualified Data.Map                           as Map
+import           GHC.Word
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Utils
-import qualified Data.Map                  as Map
 
-import           Agda.Compiler.Malfunction.Compiler
+
 import           Agda.Compiler.Malfunction.AST
+import           Agda.Compiler.Malfunction.Compiler
+import           Agda.Syntax.Common                 (NameId)
+
+type Arity = Int
 
 translate'1 :: TTerm -> Term
 translate'1 = head . translateTerms' [] . pure
 
-translateTerms' :: [[QName]] -> [TTerm] -> [Term]
+translateTerms' :: [[(QName, Arity)]] -> [TTerm] -> [Term]
 translateTerms' qs = translateTerms (mkFakeEnv qs)
 
-translateDef' :: [[QName]] -> QName -> TTerm -> Binding
+translateDef' :: [[(QName, Arity)]] -> QName -> TTerm -> Binding
 translateDef' qs = translateDef (mkFakeEnv qs)
 
-mkFakeEnv :: [[QName]] -> Env
+mkFakeEnv :: [[(QName, Arity)]] -> Env
 mkFakeEnv qs = Env
   { _conMap = Map.unions $ map mkMap qs
   , _level  = 0
   }
 
-mkMap :: [QName] -> Map.Map QName ConRep
-mkMap qs = Map.fromList $ zipWith go qs [0..]
-  where
-    go q i = (q, ConRep i 0)
+mkMap :: [(QName, Arity)] -> Map.Map NameId ConRep
+mkMap qs = Map.fromList $ [ (qnameNameId qn, ConRep i arity)
+                          | (i, (qn, arity)) <- zip [0..] qs ]
 
 simpleName :: (C.NameId, String) -> Name
 simpleName (idf, concrete) = Name
@@ -49,10 +53,9 @@ simpleQName mods nm = QName {
   , qnameName = simpleName nm
   }
 
-simplerQName :: String -> QName
-simplerQName s = simpleQName [anId] anId
-  where
-    anId = (C.NameId 0 0, s)
+simplerQName :: (Word64, String) -> QName
+simplerQName (sndNameId, concrete) = simpleQName [] (nameId, concrete)
+  where nameId = C.NameId 0 sndNameId
 
 unitTests :: TestTree
 unitTests = testGroup "Compiler unit tests" test_translate
@@ -78,13 +81,13 @@ test_translate =
     $ translate'1 (TError TUnreachable)
     @?= wildcardTerm
   , testCase "fst"
-    $ translateDef' [[aName]] aName (fstTT aName) @?= fstT aName
+    $ translateDef' [] aName (fstTT aName) @?= fstT aName
   -- This test-case fails for the same reason `fst` fails
   , testCase "non-nullary constructor application"
     $ runModExample constructorExample
   ]
   where
-    aName = simplerQName "someId"
+    aName = simplerQName (0, "someId")
 
 facTT :: QName -> TTerm
 facTT qn = TLam (TCase 0 CTNat (TLet (TApp (TPrim PSub)
@@ -121,6 +124,7 @@ goldenTests = testGroup "Compiler golden tests"
   , mkGoldenTest "FstSnd" "b"
   , mkGoldenTest "Factorial" "a"
   , mkGoldenTest "Factorial" "b"
+  , mkGoldenTest "Constructor" "one"
   ]
 
 runModExample :: ((Env, [[(QName, TTerm)]]), Mod) -> Assertion
@@ -129,15 +133,18 @@ runModExample (inp, expected) = uncurry compile inp @?= expected
 constructorExample :: ((Env, [[(QName, TTerm)]]), Mod)
 constructorExample = (constructorT zero suc f one, constructorTT zero suc f one)
   where
-    zero = simplerQName "zero"
-    suc  = simplerQName "suc"
-    f    = simplerQName "f"
-    one  = simplerQName "one"
+    zero = simplerQName (0, "zero")
+    suc  = simplerQName (1, "suc")
+    f    = simplerQName (2, "f")
+    one  = simplerQName (3, "one")
 
 constructorT :: QName -> QName -> QName -> QName -> (Env, [[(QName, TTerm)]])
 constructorT zero suc fQ oneQ = (env, bindings)
   where
-    env = Env (Map.fromList [(zero, ConRep 1 0), (suc, ConRep 0 0)]) 0
+    env = Env {
+      _conMap = Map.fromList [(qnameNameId zero, ConRep 1 0), (qnameNameId suc, ConRep 0 0)]
+      , _level =  0
+      }
     bindings = [[(fQ, f)], [(oneQ, one)]]
     f   = TLam (TApp (TVar 0) [TCon zero])
     one = TApp (TDef fQ) [TCon suc]
