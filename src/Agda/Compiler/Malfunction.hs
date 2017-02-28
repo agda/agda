@@ -7,18 +7,19 @@ import           Control.Monad.Extra
 import           Control.Monad.Trans
 import           Data.Bifunctor
 import           Data.Either
+import           Data.Ix                            (rangeSize)
 import           Data.List
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Ix               (rangeSize)
+import           Data.Map                           (Map)
+import qualified Data.Map                           as Map
 import           Data.Maybe
 import           System.Console.GetOpt
 import           Text.Printf
 
-import qualified Agda.Compiler.Malfunction.Compiler as Mlf
 import           Agda.Compiler.Malfunction.AST
+import qualified Agda.Compiler.Malfunction.Compiler as Mlf
 import           Agda.Compiler.Malfunction.Run
-import qualified Agda.Compiler.Malfunction.Run as Run
+import qualified Agda.Compiler.Malfunction.Run      as Run
+import           Agda.Syntax.Common                 (NameId)
 
 backend :: Backend
 backend = Backend backend'
@@ -150,10 +151,9 @@ getCompilerEnv allcons
 
 -- | Creates a mapping for all the constructors in the array. The constructors
 -- should reference the same data-type.
-mkConMap :: [QName] -> TCM (Map QName Mlf.ConRep)
-mkConMap ns = sequence $ Map.fromList $ snd $ foldl step (0, []) ns
-  where
-    step (i, qs) q = (succ i, (q, mkConRep i q):qs)
+mkConMap :: [QName] -> TCM (Map NameId Mlf.ConRep)
+mkConMap ns = sequence $ Map.fromList [ (Mlf.qnameNameId q, mkConRep i q)
+                                      | (i, q) <- zip [0..] ns ]
 
 mkConRep :: Int -> QName -> TCM Mlf.ConRep
 mkConRep tg qn = do
@@ -218,7 +218,7 @@ fromSimpleIdent binds simple = listToMaybe (filter (isSuffixOf simple) (getNames
   where
     getNames = mapMaybe getName
     getName (Named u _) = Just u
-    getName _ = Nothing
+    getName _           = Nothing
 
 -- | Returns all constructors grouped by data type.
 getConstructors :: [Definition] -> [[QName]]

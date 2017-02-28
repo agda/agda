@@ -53,7 +53,7 @@ import           Agda.Compiler.Malfunction.AST
 import qualified Agda.Compiler.Malfunction.Primitive as Primitive
 
 data Env = Env
-  { _conMap :: Map QName ConRep
+  { _conMap :: Map NameId ConRep
   , _level :: Int
   }
   deriving (Show)
@@ -312,9 +312,9 @@ nameToTag nm = do
 
 
 isConstructor :: MonadReader Env m => QName -> m Bool
-isConstructor nm = (nm`Map.member`) <$> askConMap
+isConstructor nm = (qnameNameId nm`Map.member`) <$> askConMap
 
-askConMap :: MonadReader Env m => m (Map QName ConRep)
+askConMap :: MonadReader Env m => m (Map NameId ConRep)
 askConMap = asks _conMap
 
 -- |
@@ -395,7 +395,7 @@ nontotalLookupConRep q = fromMaybe err <$> lookupConRep q
     err = error $ "Could not find constructor with qname: " ++ show q
 
 lookupConRep :: MonadReader Env f => QName -> f (Maybe ConRep)
-lookupConRep ns = (Map.lookup ns) <$> asks _conMap
+lookupConRep ns = Map.lookup (qnameNameId ns) <$> asks _conMap
 
 -- Unit is treated as a glorified value in Treeless, luckily it's fairly
 -- straight-forward to encode using the scheme described in the documentation
