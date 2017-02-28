@@ -171,3 +171,9 @@ module _ {A : Set} {{_ : Ord A}} where
 
 test : List Nat
 test = treeSort $ 5 ∷ 1 ∷ 2 ∷ 10 ∷ 13 ∷ 0 ∷ 141 ∷ 7 ∷ []
+
+hest : String
+hest = show test
+
+main : IO Unit
+main = putStrLn hest
