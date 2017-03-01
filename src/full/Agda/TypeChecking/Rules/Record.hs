@@ -533,7 +533,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               -- functions.
         cc <- compileClauses Nothing [clause]
 
-        reportSDoc "tc.cc" 10 $ do
+        reportSDoc "tc.cc" 60 $ do
           sep [ text "compiled clauses of " <+> prettyTCM projname
               , nest 2 $ text (show cc)
               ]

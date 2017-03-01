@@ -646,7 +646,8 @@ instance PrettyTCM TypeError where
 
     SplitOnIrrelevant p t -> fsep $
       pwords "Cannot pattern match" ++ [prettyA p] ++
-      pwords "against irrelevant type" ++ [prettyTCM t]
+      pwords "against" ++ [text $ verbalize $ getRelevance t] ++
+      pwords "argument of type" ++ [prettyTCM t]
 
     DefinitionIsIrrelevant x -> fsep $
       text "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
@@ -1463,8 +1464,8 @@ instance Verbalize Relevance where
       Relevant   -> "relevant"
       Irrelevant -> "irrelevant"
       NonStrict  -> "shape-irrelevant"
-      Forced{}   -> __IMPOSSIBLE__
-      UnusedArg  -> __IMPOSSIBLE__
+      Forced{}   -> "forced"
+      UnusedArg  -> "unused"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

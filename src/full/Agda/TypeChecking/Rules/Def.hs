@@ -65,6 +65,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -326,7 +327,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
 
-        reportSDoc "tc.cc" 10 $ do
+        reportSDoc "tc.cc" 60 $ do
           sep [ text "compiled clauses of" <+> prettyTCM name
               , nest 2 $ text (show cc)
               ]
@@ -595,14 +596,21 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
              self = Def x []
          in maybe (return ()) (checkBodyEndPoints delta closed_t self ps') body)
 
-        reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 10 $ vcat
           [ text "Clause before translation:"
           , nest 2 $ vcat
-            [ text "delta =" <+> prettyTCM delta
-            , text "ps    =" <+> text (show ps)
-            , text "body  =" <+> text (show body)
+            [ text "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
+            , text "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , text "body  =" <+> maybe (text "_|_") prettyTCM body
             , text "type  =" <+> text (show t)
+            ]
+          ]
+
+        reportSDoc "tc.lhs.top" 60 $ escapeContext (size delta) $ vcat
+          [ text "Clause before translation (raw):"
+          , nest 2 $ vcat
+            [ text "ps    =" <+> text (show ps)
+            , text "body  =" <+> text (show body)
             ]
           ]
 

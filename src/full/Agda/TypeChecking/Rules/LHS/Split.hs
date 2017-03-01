@@ -87,6 +87,11 @@ splitProblem mf (Problem ps qs tel pr) = do
       , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . namedArg) qs)
       , nest 2 $ text "tel  =" <+> prettyTCM tel
       ]
+    reportSDoc "tc.lhs.split" 60 $ sep
+      [ nest 2 $ text "ps  (raw) =" <+> sep (map (P.parens <.> text . show) ps)
+      , nest 2 $ text "qs  (raw) =" <+> sep (map (P.parens <.> text . show . namedArg) qs)
+      , nest 2 $ text "tel (raw) =" <+> (text . show) tel
+      ]
   splitP ps tel
   where
     -- Result splitting
@@ -387,6 +392,7 @@ splitProblem mf (Problem ps qs tel pr) = do
 
                 -- We cannot split on (shape-)irrelevant non-records.
                 -- Andreas, 2011-10-04 unless allowed by option
+                lift $ reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show ai
                 unless (defIsRecord def) $
                   when (unusableRelevance $ getRelevance ai) $
                   unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
