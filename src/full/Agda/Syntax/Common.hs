@@ -286,8 +286,13 @@ irrelevantOrUnused r =
     Forced{}   -> False
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
-unusableRelevance :: Relevance -> Bool
-unusableRelevance rel = NonStrict `moreRelevant` rel
+unusableRelevance :: LensRelevance a => a -> Bool
+unusableRelevance a = case getRelevance a of
+  Irrelevant -> True
+  NonStrict  -> True
+  UnusedArg  -> True  -- Andreas, 2017-03-01, issue #2480
+  Forced{}   -> False -- @Forced@ has no semantic relevance
+  Relevant   -> False
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.

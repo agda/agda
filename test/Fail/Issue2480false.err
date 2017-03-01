@@ -1,0 +1,3 @@
+Issue2480false.agda:29,1-13
+Cannot pattern match tt against unused argument of type Bool
+when checking that the clause swap tt = ff has type Bool→cBool

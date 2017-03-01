@@ -1,0 +1,3 @@
+Issue2480-experimental-irrelevance.agda:31,1-32,13
+Cannot split on argument of irrelevant datatype Bool
+when checking the definition of swap
