@@ -148,6 +148,8 @@ Emacs mode
     test _ ()
   ```
 
+* Fewer commands have the side effect that the buffer is saved.
+
 Compiler backends
 -----------------
 
