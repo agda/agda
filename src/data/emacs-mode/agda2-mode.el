@@ -1466,10 +1466,11 @@ computation."
 
 (defun agda2-highlight-reload nil
   "Loads precomputed syntax highlighting info for the current buffer.
-If there is any to load."
-  (agda2-go nil t t
-            "Cmd_load_highlighting_info"
-            (agda2-string-quote (buffer-file-name))))
+Only if the buffer is unmodified, and only if there is anything to load."
+ (unless (buffer-modified-p)
+   (agda2-go nil t t
+             "Cmd_load_highlighting_info"
+             (agda2-string-quote (buffer-file-name)))))
 
 (defun agda2-literate-p ()
   "Is the current buffer a literate Agda buffer?"
