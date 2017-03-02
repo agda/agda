@@ -93,14 +93,13 @@ argument, and does not need to be listed here."
   :type '(repeat string)
   :group 'agda2)
 
-(defvar agda2-backends '("GHC" "GHCNoMain" "JS" "LaTeX" "QuickLaTeX")
+(defvar agda2-backends '("GHC" "JS" "LaTeX" "QuickLaTeX")
   "Compilation backends.")
 
 (defcustom agda2-backend
   'ask
-  "The backend used to compile Agda programs."
-  :type `(choice (const :tag "Ask every time" ask)
-                 ,@(mapcar (lambda (x) `(const ,x)) agda2-backends))
+  "The backend used to compile Agda programs (leave blank to ask every time)."
+  :type 'string
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
@@ -809,15 +808,12 @@ The variable `agda2-backend' determines which backend is used."
   (interactive)
   (let ((backend (cond ((equal agda2-backend "MAlonzo")       "GHC")
                        ((equal agda2-backend "MAlonzoNoMain") "GHCNoMain")
-                       ((equal agda2-backend 'ask)
+                       ((equal agda2-backend "")
                         (completing-read "Backend: " agda2-backends
-                                         nil t nil nil nil
+                                         nil nil nil nil nil
                                          'inherit-input-method))
                        (t agda2-backend))))
-    (unless (member backend agda2-backends)
-      (if (equal backend "")
-          (error "No backend chosen")
-        (error "Invalid backend: %s" backend)))
+    (when (equal backend "") (error "No backend chosen"))
     (agda2-go t t t "Cmd_compile"
               backend
               (agda2-string-quote (buffer-file-name))
