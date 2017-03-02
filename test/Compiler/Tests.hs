@@ -39,6 +39,7 @@ data ExecResult
   = CompileFailed
     { result :: ProgramResult }
   | CompileSucceeded
+    { result :: ProgramResult }
   | ExecutedProg
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
@@ -180,7 +181,7 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
               (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
               return $ ExecutedProg (ret, out <> out', err <> err')
         else
-          return CompileSucceeded
+          return $ CompileSucceeded (ExitSuccess, out, err)
         )
   where inpFile = dropAgdaExtension inp <.> ".inp"
 
@@ -239,5 +240,5 @@ getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherEx
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
-printExecResult CompileSucceeded  = "COMPILE_SUCCEEDED"
+printExecResult (CompileSucceeded r) = "COMPILE_SUCCEEDED\n\n" `T.append` printProcResult r
 printExecResult (ExecutedProg r)  = "EXECUTED_PROGRAM\n\n" `T.append` printProcResult r
