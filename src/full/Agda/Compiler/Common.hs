@@ -15,6 +15,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Char
 import Data.Function
+import Data.Semigroup
 import Data.Monoid hiding ((<>))
 
 import Control.Monad
@@ -30,7 +31,7 @@ import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -40,13 +41,22 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
 data IsMain = IsMain | NotMain
   deriving (Eq, Show)
+
+instance Semigroup IsMain where
+  NotMain <> _ = NotMain
+  _       <> NotMain = NotMain
+  IsMain  <> IsMain = IsMain
+
+instance Monoid IsMain where
+  mempty = IsMain
+  mappend = (<>)
 
 doCompile :: forall r. Monoid r => IsMain -> Interface -> (IsMain -> Interface -> TCM r) -> TCM r
 doCompile isMain i f = do

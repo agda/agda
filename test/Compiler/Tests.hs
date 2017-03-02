@@ -39,6 +39,7 @@ data ExecResult
   = CompileFailed
     { result :: ProgramResult }
   | CompileSucceeded
+    { result :: ProgramResult }
   | ExecutedProg
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
@@ -180,7 +181,7 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
               (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
               return $ ExecutedProg (ret, out <> out', err <> err')
         else
-          return CompileSucceeded
+          return $ CompileSucceeded (ExitSuccess, out, err)
         )
   where inpFile = dropAgdaExtension inp <.> ".inp"
 
@@ -205,7 +206,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           let cArgs   = cleanUpOptions (extraAgdaArgs cOpts)
               defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
                         ["--no-default-libraries"] ++
-                        ["--compile-dir", compDir, "-v0"] ++ extraArgs' ++ cArgs ++ [inp]
+                        ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
@@ -239,5 +240,5 @@ getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherEx
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
-printExecResult CompileSucceeded  = "COMPILE_SUCCEEDED"
+printExecResult (CompileSucceeded r) = "COMPILE_SUCCEEDED\n\n" `T.append` printProcResult r
 printExecResult (ExecutedProg r)  = "EXECUTED_PROGRAM\n\n" `T.append` printProcResult r

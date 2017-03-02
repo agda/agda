@@ -23,32 +23,26 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
 import Agda.Utils.Except
+import Agda.Utils.Lens
 import qualified Agda.Utils.HashMap as HMap
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-{- OLD
--- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: QName -> Type -> TCM ()
-checkTypeOfMain q ty
-  | show (qnameName q) /= "main" = return ()
-  | otherwise = do
-    Def io _ <- ignoreSharing <$> primIO
-    ty <- normalise ty
-    case ignoreSharing $ unEl ty of
-      Def d _ | d == io -> return ()
-      _                 -> do
-        err <- fsep $
-          pwords "The type of main should be" ++
-          [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
-        typeError $ GenericError $ show err
--}
+isMainFunction :: QName -> Bool
+isMainFunction q = "main" == show (nameConcrete $ qnameName q)
+
+hasMainFunction :: Interface -> IsMain
+hasMainFunction i
+  | L.any isMainFunction names = IsMain
+  | otherwise                  = NotMain
+  where
+    names = HMap.keys $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
 checkTypeOfMain :: QName -> Type -> TCM [HS.Decl] -> TCM [HS.Decl]
 checkTypeOfMain q ty ret
-  | show (nameConcrete $ qnameName q) /= "main" = ret
+  | not (isMainFunction q) = ret
   | otherwise = do
     Def io _ <- ignoreSharing <$> primIO
     ty <- normalise ty

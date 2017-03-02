@@ -20,6 +20,7 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable hiding (for)
+import Data.Monoid hiding ((<>))
 
 import Numeric.IEEE
 
@@ -88,7 +89,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv () [HS.Decl]
+ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv IsMain [HS.Decl]
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -140,21 +141,21 @@ ghcPreCompile ghcOpts = do
   when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
   return ghcOpts
 
-ghcPostCompile :: GHCOptions -> IsMain -> Map ModuleName () -> TCM ()
-ghcPostCompile opts isMain _ = copyRTEModules >> callGHC opts isMain
+ghcPostCompile :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
+ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 --- Module compilation ---
 
 type GHCModuleEnv = Maybe CoinductionKit
 
-ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv ())
+ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv IsMain)
 ghcPreModule _ m ifile = ifM uptodate noComp yesComp
   where
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
-      return $ Skip ()
+      Skip . hasMainFunction <$> curIF
 
     yesComp = do
       m   <- show . A.mnameToConcrete <$> curMName
@@ -163,13 +164,14 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       Recompile <$> coinductionKit
 
-ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM ()
+ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
 ghcPostModule _ _ _ _ defs = do
   m      <- curHsMod
   imps   <- imports
   code   <- inlineHaskell
   hsImps <- haskellImports
   writeModule $ HS.Module m [] imps (map fakeDecl (hsImps ++ code) ++ concat defs)
+  hasMainFunction <$> curIF
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]
 ghcCompileDef _ = definition
@@ -781,24 +783,32 @@ outFile m = snd <$> outFile' m
 outFile_ :: TCM FilePath
 outFile_ = outFile =<< curHsMod
 
-callGHC :: GHCOptions -> IsMain -> TCM ()
-callGHC opts modIsMain = do
-  mdir          <- compileDir
-  hsmod         <- prettyPrint <$> curHsMod
-  MName agdaMod <- curMName
-  let outputName = case agdaMod of
+callGHC :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
+callGHC opts modIsMain mods = do
+  mdir    <- compileDir
+  hsmod   <- prettyPrint <$> curHsMod
+  agdaMod <- curMName
+  let outputName = case mnameToList agdaMod of
         [] -> __IMPOSSIBLE__
         ms -> last ms
   (mdir, fp) <- outFile' =<< curHsMod
   let ghcopts = optGhcFlags opts
 
+  let modIsReallyMain = fromMaybe __IMPOSSIBLE__ $ Map.lookup agdaMod mods
+      isMain = mappend modIsMain modIsReallyMain  -- both need to be IsMain
+
+  -- Warn if no main function and not --no-main
+  when (modIsMain /= isMain) $
+    genericWarning =<< fsep (pwords "No main function defined in" ++ [prettyTCM agdaMod <> text "."] ++
+                             pwords "Use --no-main to suppress this warning.")
+
   let overridableArgs =
         [ "-O"] ++
-        (if modIsMain == IsMain then ["-o", mdir </> show (nameConcrete outputName)] else []) ++
+        (if isMain == IsMain then ["-o", mdir </> show (nameConcrete outputName)] else []) ++
         [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++
-        (if modIsMain == IsMain then ["-main-is", hsmod] else []) ++
+        (if isMain == IsMain then ["-main-is", hsmod] else []) ++
         [ fp
         , "--make"
         , "-fwarn-incomplete-patterns"
