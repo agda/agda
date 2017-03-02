@@ -57,14 +57,16 @@ initialIFSCandidates t = do
     getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit (argInfoOverlappable info)
-                 | (Dom{domInfo = info, unDom = (x, t)}, i) <- zip ctx [0..]
+          -- Context variables with their types lifted to live in the full context
+      let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
+          vars = [ Candidate x t ExplicitStayExplicit (argInfoOverlappable info)
+                 | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
 
       -- {{}}-fields of variables are also candidates
-      let cxtAndTypes = [ (var i, snd $ unDom $ raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
+      let cxtAndTypes = [ (x, t) | (x, Dom{unDom = (_, t)}) <- varsAndRaisedTypes ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then text "no instance field candidates" else
