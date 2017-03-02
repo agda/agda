@@ -570,11 +570,10 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          GHC        -> callBackend "GHC" IsMain  i
-          GHCNoMain  -> callBackend "GHC" NotMain i
-          JS         -> callBackend "JS" IsMain i
-          LaTeX      -> LaTeX.generateLaTeX i
-          QuickLaTeX -> LaTeX.generateLaTeX i
+          LaTeX                    -> LaTeX.generateLaTeX i
+          QuickLaTeX               -> LaTeX.generateLaTeX i
+          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
+          OtherBackend b           -> callBackend b IsMain  i
         (pwe, pwa) <- interpretWarnings
         display_info $ Info_CompilationOk pwa pwe
       Imp.SomeWarnings w -> do
@@ -972,8 +971,22 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data CompilerBackend = GHC | GHCNoMain | JS | LaTeX | QuickLaTeX
-    deriving (Show, Read, Eq)
+data CompilerBackend = LaTeX | QuickLaTeX | OtherBackend String
+    deriving (Eq)
+
+instance Show CompilerBackend where
+  show LaTeX            = "LaTeX"
+  show QuickLaTeX       = "QuickLaTeX"
+  show (OtherBackend s) = s
+
+instance Read CompilerBackend where
+  readsPrec _ s = do
+    (t, s) <- lex s
+    let b = case t of
+              "LaTeX"      -> LaTeX
+              "QuickLaTeX" -> QuickLaTeX
+              _            -> OtherBackend t
+    return (b, s)
 
 data GiveRefine = Give | Refine | Intro
   deriving (Eq, Show)

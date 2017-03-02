@@ -92,7 +92,9 @@ callBackend name iMain i = do
   backends <- use stBackends
   case [ b | b@(Backend b') <- backends, backendName b' == name ] of
     Backend b : _ -> compilerMain b iMain i
-    []            -> genericError $ "No backend called '" ++ name ++ "'"
+    []            -> genericError $ "No backend called '" ++ name ++ "' " ++
+                                    "(installed backends: " ++
+                                    intercalate ", " [ backendName b | Backend b <- backends ] ++ ")"
 
 -- Internals --------------------------------------------------------------
 
