@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Agda.Compiler.Malfunction.Compiler
 Maintainer  :  janmasrovira@gmail.com, hanghj@student.chalmers.se
@@ -18,14 +19,18 @@ module Agda.Compiler.Malfunction.Compiler
   -- * Data needed for compilation
   , Env(..)
   , ConRep(..)
-  , mkCompilerEnv
+  , Arity
+  -- , mkCompilerEnv
+  , mkCompilerEnv2
   -- * Others
   , qnameNameId
   , errorT
   , boolT
   , wildcardTerm
   , namedBinding
+  , nameIdToIdent
   , nameIdToIdent'
+  , mlfTagRange
   -- * Primitives
   , compilePrim
   , compileAxiom
@@ -40,6 +45,7 @@ import           Agda.Syntax.Treeless
 import           Control.Monad
 import           Control.Monad.Extra
 import           Control.Monad.Identity
+import           Data.List.Extra
 import           Control.Monad.Reader
 import           Data.Graph
 import           Data.Ix
@@ -60,6 +66,7 @@ data Env = Env
   { _conMap :: Map NameId ConRep
   , _qnameConcreteMap :: Map NameId String
   , _level :: Int
+  , _biBool :: Maybe (NameId, NameId)
   }
   deriving (Show)
 
@@ -70,6 +77,7 @@ data ConRep = ConRep
   } deriving (Show)
 
 type Translate a = Reader Env a
+type Arity = Int
 
 runTranslate :: Reader Env a -> Env -> a
 runTranslate = runReader
@@ -95,6 +103,7 @@ mkCompilerEnv allNames conMap = Env {
   _conMap = conMap
   , _level = 0
   , _qnameConcreteMap = qnameMap
+  , _biBool = Nothing
   }
   where
     qnameMap = Map.fromList [ (qnameNameId qn, concreteName qn) | qn <- allNames ]
@@ -106,6 +115,30 @@ mkCompilerEnv allNames conMap = Env {
         || c`elem`"_" = [c]
       | otherwise      = "{" ++ show (ord c) ++ "}"
 
+mlfTagRange :: (Int, Int)
+mlfTagRange = (0, 199)
+
+mkCompilerEnv2 :: [QName] -> [[(QName, Arity)]] -> Env
+mkCompilerEnv2 allNames consByDtype = Env {
+  _conMap = conMap
+  , _level = 0
+  , _qnameConcreteMap = qnameMap
+  , _biBool = findBuiltinBool (map (map fst) consByDtype)
+  }
+  where
+    conMap = Map.fromList [ (qnameNameId qn, ConRep {..} )
+                          | typeCons <- consByDtype
+                           , (length consByDtype <= rangeSize mlfTagRange)
+                             || (error "too many constructors")
+                           , (_conTag, (qn, _conArity)) <- zip (range mlfTagRange) typeCons ]
+    qnameMap = Map.fromList [ (qnameNameId qn, concreteName qn) | qn <- allNames ]
+    showNames = intercalate "." . map (concatMap toValid . show . nameConcrete)
+    concreteName qn = showNames (mnameToList (qnameModule qn) ++ [qnameName qn])
+    toValid :: Char -> String
+    toValid c
+      | any (`inRange`c) [('0','9'), ('a', 'z'), ('A', 'Z')]
+        || c`elem`"_" = [c]
+      | otherwise      = "{" ++ show (ord c) ++ "}"
 
 -- | Translate a single treeless term to a list of malfunction terms.
 --
@@ -327,7 +360,7 @@ translatePrimApp tp args =
 nameToTag :: MonadReader Env m => QName -> m Case
 nameToTag nm = do
   e <- ask
-  builtinbool <- builtinBool nm
+  builtinbool <- builtinBool (qnameNameId nm)
   case builtinbool of
     Just b -> return (CaseInt (boolToInt b))
     Nothing ->
@@ -401,7 +434,7 @@ usedVars term = asks _level >>= go mempty term
 -- TODO: If the length of `ts` does not match the arity of `nm` then a lambda-expression must be returned.
 translateCon :: MonadReader Env m => QName -> [TTerm] -> m Term
 translateCon nm ts = do
-  builtinbool <- builtinBool nm
+  builtinbool <- builtinBool (qnameNameId nm)
   case builtinbool of
     Just t -> return (boolT t)
     Nothing -> do
@@ -416,7 +449,7 @@ translateCon nm ts = do
 
 -- | Ugly hack to represent builtin bools as integers.
 -- For now it checks whether the concrete name ends with "Bool.true" or "Bool.false"
-builtinBool :: MonadReader Env m => QName -> m (Maybe Bool)
+builtinBool :: MonadReader Env m => NameId -> m (Maybe Bool)
 builtinBool qn = do
   isTrue <- isBuiltinTrue qn
   if isTrue then return (Just True)
@@ -425,11 +458,21 @@ builtinBool qn = do
     if isFalse then return (Just False)
       else return Nothing
   where
-    isBuiltinTrue :: MonadReader Env m => QName -> m Bool
-    isBuiltinTrue qn = return ("Bool.true" `isSuffixOf` show qn)
-    isBuiltinFalse :: MonadReader Env m => QName -> m Bool
-    isBuiltinFalse qn = return ("Bool.false" `isSuffixOf` show qn)
+    isBuiltinTrue :: MonadReader Env m => NameId -> m Bool
+    isBuiltinTrue qn = maybe False ((==qn) . snd) <$> asks _biBool
+    isBuiltinFalse :: MonadReader Env m => NameId -> m Bool
+    isBuiltinFalse qn = maybe False ((==qn) . fst) <$> asks _biBool
 
+-- | The argument are all data constructors grouped by datatype.
+-- returns Maybe (false NameId, true NameId)
+findBuiltinBool :: [[QName]] -> Maybe (NameId, NameId)
+findBuiltinBool =  firstJust maybeBool
+  where maybeBool l@[_,_] = firstJust falseTrue (permutations l)
+          where falseTrue [f, t]
+                  | "Bool.false" `isSuffixOf` show f
+                  && "Bool.true" `isSuffixOf` show t = Just (qnameNameId f, qnameNameId t)
+                falseTrue _ = Nothing
+        maybeBool _ = Nothing
 
 askArity :: MonadReader Env m => QName -> m Int
 askArity = fmap _conArity . nontotalLookupConRep

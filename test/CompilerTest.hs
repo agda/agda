@@ -18,7 +18,6 @@ import           Agda.Compiler.Malfunction.AST
 import           Agda.Compiler.Malfunction.Compiler
 import           Agda.Syntax.Common                 (NameId)
 
-type Arity = Int
 
 translate'1 :: TTerm -> Term
 translate'1 = head . translateTerms' [] [] . pure
@@ -30,7 +29,7 @@ translateDef' :: [QName] -> [[(QName, Arity)]] -> QName -> TTerm -> Binding
 translateDef' ns qs = translateDef (mkFakeEnv ns qs)
 
 mkFakeEnv :: [QName] -> [[(QName, Arity)]] -> Env
-mkFakeEnv ns cons = mkCompilerEnv ns (Map.unions (map mkMap cons))
+mkFakeEnv ns cons = mkCompilerEnv2 ns cons -- ns (Map.unions (map mkMap cons))
 
 mkMap :: [(QName, Arity)] -> Map.Map NameId ConRep
 mkMap qs = Map.fromList [ (qnameNameId qn, ConRep i arity)
@@ -132,8 +131,7 @@ constructorExample = (constructorTT qzero qsuc qf qone, constructorT if_ ione)
 constructorTT :: QName -> QName -> QName -> QName -> (Env, [(QName, TTerm)])
 constructorTT zero suc fQ oneQ = (env, bindings)
   where
-    env = mkCompilerEnv [zero, suc, fQ, oneQ]
-      (Map.fromList [(qnameNameId zero, ConRep 0 0), (qnameNameId suc, ConRep 1 1)])
+    env = mkFakeEnv [zero, suc, fQ, oneQ] [[(zero, 0), (suc, 1)]]
     bindings = [(fQ, f), (oneQ, one)]
     f   = TLam (TApp (TVar 0) [TCon zero])
     one = TApp (TDef fQ) [TCon suc]

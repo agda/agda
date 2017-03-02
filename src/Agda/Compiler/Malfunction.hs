@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Agda.Compiler.Malfunction (backend) where
 
 import           Agda.Compiler.Backend
@@ -162,30 +163,18 @@ qnamesInTerm s t = go t s
 -- names will not be appended to the NameId
 getCompilerEnv :: [[QName]] -> [(QName, TTerm)] -> TCM Mlf.Env
 getCompilerEnv allcons bs
-  | any ((>rangeSize tagRange) . length) allcons = error "too many constructors"
+  | any ((>rangeSize Mlf.mlfTagRange) . length) allcons = error "too many constructors"
   | otherwise = do
-      conMap <- Map.unions <$> mapM mkConMap allcons
-      return (Mlf.mkCompilerEnv allNames conMap)
+      wa <- withArity allcons
+      return (Mlf.mkCompilerEnv2 allNames wa)
   where
     allNames = Set.toList $ foldr step mempty bs
     step (qn, tt) acc = qnamesInTerm (Set.insert qn acc) tt
-    tagRange :: (Integer, Integer)
-    tagRange = (0, 199)
-
 
 -- | Creates a mapping for all the constructors in the array. The constructors
 -- should reference the same data-type.
-mkConMap :: [QName] -> TCM (Map NameId Mlf.ConRep)
-mkConMap ns = sequence $ Map.fromList [ (Mlf.qnameNameId q, mkConRep i q)
-                                      | (i, q) <- zip [0..] ns ]
-
-mkConRep :: Int -> QName -> TCM Mlf.ConRep
-mkConRep tg qn = do
-  arity <- arityQName qn
-  return Mlf.ConRep
-    { Mlf._conTag   = tg
-    , Mlf._conArity = arity
-    }
+withArity :: [[QName]] -> TCM [[(QName, Int)]]
+withArity = mapM (mapM (\q -> (q,) <$> arityQName q))
 
 -- | If the qnames references a constructor the arity of that constructor is returned.
 arityQName :: QName -> TCM Int
