@@ -722,6 +722,7 @@ hsCast' e =
 -- functions.
 hsCastApp :: HS.Exp -> HS.Exp
 hsCastApp (HS.Lambda ps b) = HS.Lambda ps (hsCastApp b)
+hsCastApp (HS.Let bs e) = HS.Let bs $ hsCastApp e
 hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
 hsCastApp (HS.InfixApp e1 op e2) = HS.InfixApp (hsCastApp e1) op (hsCastApp e2)
 hsCastApp e =
