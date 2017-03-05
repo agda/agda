@@ -194,6 +194,17 @@ followed:
 
   ** Update the Main page.
 
+* Update Agda Manual on Readthedocs.org
+
+  * You need Admin permissions on the Agda readthedocs.org project
+    (current admins: asr, andreasabel, phile314)
+
+  * Go to readthedocs.org -> Agda Project -> Admin -> Versions
+
+  * Mark $VERSION as active
+
+  * Set the default documentation version to $VERSION
+
 * Announce the release of the new version on the Agda mailing lists
   (users and developers).
 
