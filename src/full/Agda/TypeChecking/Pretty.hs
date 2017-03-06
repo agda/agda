@@ -259,6 +259,13 @@ instance PrettyTCM Constraint where
                       ]
                 , nest 2 $ text ":" <+> prettyTCM ty
                 ]
+        ValueCmpOnFace cmp p ty s t ->
+            sep [ prettyTCM p <+> text "|"
+                , sep [ prettyTCM s
+                      , prettyTCM cmp <+> prettyTCM t
+                      ]
+                , nest 2 $ text ":" <+> prettyTCM ty
+                ]
         ElimCmp cmps t v us vs ->
           sep [ sep [ prettyTCM us
                     , nest 2 $ text "~~" <+> prettyTCM vs

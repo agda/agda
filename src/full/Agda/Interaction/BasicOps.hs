@@ -53,6 +53,8 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
+import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
@@ -361,6 +363,13 @@ reifyElimToExpr e = case e of
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
+      where
+        lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
+        ty = runNamesT [] $ do
+          p <- open p
+          t <- open t
+          pPi' "o" p (\ o -> t)
     reify (ElimCmp cmp t v es1 es2) =
       CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
                               <*> mapM reifyElimToExpr es2

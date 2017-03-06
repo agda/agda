@@ -754,6 +754,7 @@ instance HasRange ProblemConstraint where
 
 data Constraint
   = ValueCmp Comparison Type Term Term
+  | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] Type Term [Elim] [Elim]
   | TypeCmp Comparison Type Type
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
@@ -793,6 +794,7 @@ instance Free' Constraint c where
   freeVars' c =
     case c of
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
+      ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ t u es es'  -> freeVars' ((t, u), (es, es'))
       TypeCmp _ t t'        -> freeVars' (t, t')
       TelCmp _ _ _ tel tel' -> freeVars' (tel, tel')
@@ -807,6 +809,7 @@ instance Free' Constraint c where
 instance TermLike Constraint where
   foldTerm f = \case
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
+      ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ t u es es'   -> foldTerm f (t, u, es, es')
       TypeCmp _ t t'         -> foldTerm f (t, t')
       LevelCmp _ l l'        -> foldTerm f (l, l')

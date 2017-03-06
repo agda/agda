@@ -1603,17 +1603,14 @@ compareTermOnFace' k cmp phi ty u v = do
   return ()
  where
   postponed ms i psi = do
-    ty' <- runNamesT [] $ do
+    phi <- runNamesT [] $ do
              imin <- cl $ getPrimitiveTerm "primIMin"
              ineg <- cl $ getPrimitiveTerm "primINeg"
-             ty <- open ty
              psi <- open psi
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
                           psi (Map.toList ms) -- TODO Andrea: make a view?
-             pPi' "o" phi $ const ty
-    let
-      lam_o = Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
-    addConstraint (ValueCmp cmp ty' (lam_o u) (lam_o v))
+             phi
+    addConstraint (ValueCmpOnFace cmp phi ty u v)
 ---------------------------------------------------------------------------
 -- * Definitions
 ---------------------------------------------------------------------------

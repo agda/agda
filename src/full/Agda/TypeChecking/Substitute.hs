@@ -778,6 +778,7 @@ instance Subst t a => Subst t (Tele a) where
 instance Subst Term Constraint where
   applySubst rho c = case c of
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
+    ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
     TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
     TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)

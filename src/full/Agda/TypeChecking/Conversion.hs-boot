@@ -5,6 +5,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 
 compareTerm  :: Comparison -> Type -> Term -> Term -> TCM ()
+compareTermOnFace :: Comparison -> Term -> Type -> Term -> Term -> TCM ()
 compareAtom  :: Comparison -> Type -> Term -> Term -> TCM ()
 compareArgs  :: [Polarity] -> Type -> Term -> Args -> Args -> TCM ()
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()

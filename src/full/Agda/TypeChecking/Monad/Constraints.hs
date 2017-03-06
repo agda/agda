@@ -153,6 +153,7 @@ addConstraint' c = do
     isBlocking SortCmp{}     = False
     isBlocking LevelCmp{}    = False
     isBlocking ValueCmp{}    = True
+    isBlocking ValueCmpOnFace{} = True
     isBlocking ElimCmp{}     = True
     isBlocking TypeCmp{}     = True
     isBlocking TelCmp{}      = True

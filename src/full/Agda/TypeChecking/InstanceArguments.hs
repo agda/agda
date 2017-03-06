@@ -295,6 +295,7 @@ rigidlyConstrainedMetas = do
             (MetaV m us, _) | isJust (allApplyElims us) -> ifM (isRigid v) (return $ Just m) (return Nothing)
             (_, MetaV m vs) | isJust (allApplyElims vs) -> ifM (isRigid u) (return $ Just m) (return Nothing)
             _              -> return Nothing
+        ValueCmpOnFace{} -> return Nothing -- applying the face could remove the meta
         ElimCmp{}     -> return Nothing
         TypeCmp{}     -> return Nothing
         TelCmp{}      -> return Nothing
