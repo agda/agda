@@ -12,6 +12,7 @@ Tools
    command-line-options
    compilers
    emacs-mode
+   literate-programming
    generating-html
    generating-latex
    package-system
