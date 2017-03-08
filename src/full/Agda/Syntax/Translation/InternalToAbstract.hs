@@ -478,6 +478,7 @@ reifyTerm expandAnonDefs0 v = do
       reportSLn "reify.def" 60 $ "reifying call to " ++ show x
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
+      reportSLn "reify.def" 70 $ "freeVars for " ++ show x ++ " = " ++ show n
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
       let fallback = elims (A.Def x) =<< reify (drop n es)
@@ -515,6 +516,8 @@ reifyTerm expandAnonDefs0 v = do
            (pad, nes :: [Elim' (Named_ Term)]) <- case def of
 
             Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
+              reportSLn "reify.def" 70 $ "  def. is a projection with projIndex = " ++ show np
+
               -- This is tricky:
               --  * getDefFreeVars x tells us how many arguments
               --    are part of the local context
@@ -569,6 +572,11 @@ reifyTerm expandAnonDefs0 v = do
 
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
+
+           reportSLn "reify.def" 70 $ unlines
+             [ "  pad = " ++ show pad
+             , "  nes = " ++ show nes
+             ]
            let hd = foldl' (A.App noExprInfo) (A.Def x) pad
            nelims hd =<< reify nes
 
