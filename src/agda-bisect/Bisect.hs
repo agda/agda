@@ -10,8 +10,8 @@ import Options.Applicative
 import System.Directory
 import System.Exit
 import System.IO
+import System.Posix.Signals
 import System.Process
-import System.Timeout
 import Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Text.Printf
@@ -90,10 +90,10 @@ options =
     <*> (optional $
            option
              (do n <- auto
-                 if n < 0 || n > maxBound `div` 10^6 then
+                 if n < 0 || n > maxBound then
                    readerError "Argument out of range"
                   else
-                   return (n * 10^6))
+                   return n)
              (long "timeout" <>
               metavar "N" <>
               help ("The command must finish in less than " ++
@@ -216,7 +216,7 @@ options =
         , "commands before running the script (in addition to any"
         , "programs invoked by cabal install):"
         ] PP.<$>
-      indent 2 (fillSep $ map string ["cabal", "git", "sed"])
+      indent 2 (fillSep $ map string ["cabal", "git", "sed", "timeout"])
 
     , paragraph
         [ "The script may not work on all platforms." ]
@@ -383,20 +383,32 @@ runAgda agda opts = do
 
   putStrLn $ "Command: " ++ showCommandForUser prog args
 
-  let maybeTimeout c = case mustFinishWithin opts of
-        Nothing -> (\r -> Just (r, Nothing)) <$> c
+  let -- The timeout functionality is implemented using the GNU
+      -- timeout command.
+      runMaybeTimeout prog args = case mustFinishWithin opts of
+        Nothing -> (\r -> Just (r, Nothing)) <$>
+                     readProcessWithExitCode prog args ""
         Just n  -> do
-          before <- getCurrentTime
-          r      <- timeout n c
-          after  <- getCurrentTime
-          return $ case r of
-            Nothing -> Nothing
-            Just r  -> Just (r, Just (diffUTCTime after before))
-            -- The documentation of Data.Time.Clock suggests that the
-            -- time difference computed here may be off due to the
-            -- presence of a leap second.
+          before      <- getCurrentTime
+          r@(c, _, _) <- readProcessWithExitCode
+                           "timeout"
+                           ("--kill-after=3" : show n : prog : args)
+                           ""
+          after       <- getCurrentTime
+          return $ case c of
+            -- The documentation of the GNU timeout command states
+            -- that if the program is timed out, then the exit code is
+            -- 124, and if the command is killed using the KILL
+            -- signal, then the exit code is 128+9.
+            ExitFailure c
+              | c `elem` [124, fromEnum (-sigKILL)] -> Nothing
+            _                                       ->
+              Just (r, Just (diffUTCTime after before))
+              -- The documentation of Data.Time.Clock suggests that
+              -- the time difference computed here may be off due to
+              -- the presence of a leap second.
 
-  result <- maybeTimeout (readProcessWithExitCode prog args "")
+  result <- runMaybeTimeout prog args
   case result of
     Nothing -> do
       putStrLn "Timeout"
