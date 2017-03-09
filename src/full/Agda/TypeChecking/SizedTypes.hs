@@ -43,18 +43,31 @@ import Agda.Utils.Impossible
 -- | Check whether a type is either not a SIZELT or a SIZELT that is non-empty.
 checkSizeLtSat :: Term -> TCM ()
 checkSizeLtSat t = do
-  reportSDoc "tc.size" 10 $ sep
-    [ text "checking that " <+> prettyTCM t <+> text " is not an empty type of sizes"
-    , text "in context " <+> do inTopContext . prettyTCM =<< getContextTelescope
-    ]
+  reportSDoc "tc.size" 10 $ do
+    tel <- getContextTelescope
+    sep
+      [ text "checking that " <+> prettyTCM t <+> text " is not an empty type of sizes"
+      , if null tel then empty else do
+        text "in context " <+> inTopContext (prettyTCM tel)
+      ]
+  reportSLn "tc.size" 60 $ "- raw type = " ++ show t
   let postpone :: Term -> TCM ()
-      postpone t = addConstraint $ CheckSizeLtSat t
+      postpone t = do
+        reportSDoc "tc.size.lt" 20 $ sep
+          [ text "- postponing `not empty type of sizes' check for " <+> prettyTCM t ]
+        addConstraint $ CheckSizeLtSat t
+  let ok :: TCM ()
+      ok = reportSLn "tc.size.lt" 20 $ "- succeeded: not an empty type of sizes"
   ifBlocked t (const postpone) $ \ t -> do
-    caseMaybeM (isSizeType t) (return ()) $ \ b -> do
+    reportSLn "tc.size.lt" 20 $ "- type is not blocked"
+    caseMaybeM (isSizeType t) ok $ \ b -> do
+      reportSLn "tc.size.lt" 20 $ " - type is a size type"
       case b of
-        BoundedNo -> return ()
+        BoundedNo -> ok
         BoundedLt b -> do
+          reportSDoc "tc.size.lt" 20 $ text " - type is SIZELT" <+> prettyTCM b
           ifBlocked b (\ _ _ -> postpone t) $ \ b -> do
+            reportSLn "tc.size.lt" 20 $ " - size bound is not blocked"
             catchConstraint (CheckSizeLtSat t) $ do
               unlessM (checkSizeNeverZero b) $ do
                 typeError . GenericDocError =<< do
