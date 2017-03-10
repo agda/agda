@@ -27,6 +27,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
+import Control.Monad.State
 
 import qualified Data.Map as Map
 import Data.Maybe
@@ -41,6 +42,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Info
 import Agda.Syntax.Internal (MetaId(..))
+import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
@@ -48,7 +50,7 @@ import Agda.Syntax.Abstract.Views as AV
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope)
-import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
+import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..))
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
@@ -392,6 +394,7 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e
+        $ tryToRecoverNatural e
         -- or fallback to App
         $ bracket appBrackets
         $ do e1' <- toConcreteCtx FunctionCtx e1
@@ -969,6 +972,29 @@ cOpApp :: Range -> C.QName -> A.Name -> [C.Expr] -> C.Expr
 cOpApp r x n es =
   C.OpApp r x (Set.singleton n)
           (map (defaultNamedArg . noPlaceholder . Ordinary) es)
+
+tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
+tryToRecoverNatural e def = do
+  builtins <- stBuiltinThings <$> lift get
+  let reified = do
+        zero <- getAQName "ZERO" builtins
+        suc  <- getAQName "SUC"  builtins
+        explore zero suc 0 e
+  case reified of
+    Just n  -> return $ C.Lit $ LitNat noRange n
+    Nothing -> def
+  where
+
+    getAQName :: String -> BuiltinThings a -> Maybe A.QName
+    getAQName str bs = do
+      Builtin (I.Con hd _ _) <- Map.lookup str bs
+      return $ I.conName hd
+
+    explore :: A.QName -> A.QName -> Integer -> A.Expr -> Maybe Integer
+    explore z s k (A.App _ (A.Con (AmbQ [f])) t) | f == s = explore z s (1+k) $ namedArg t
+    explore z s k (A.Con (AmbQ [x]))             | x == z = Just k
+    explore z s k (A.Lit (LitNat _ l))                    = Just (k + l)
+    explore _ _ _ _ = Nothing
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket cOpApp view e) def return
