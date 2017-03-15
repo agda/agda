@@ -53,6 +53,10 @@ instance Pretty Doc where
 instance Pretty String where
   pretty = text
 
+instance Pretty a => Pretty (Maybe a) where
+  prettyPrec p Nothing  = text "Nothing"
+  prettyPrec p (Just x) = mparens (p > 0) $ text "Just" <+> prettyPrec 10 x
+
 -- * 'Doc' utilities
 
 pwords :: String -> [Doc]
