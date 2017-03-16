@@ -377,6 +377,31 @@ etaInequal cmp t m n = do
 compareAtomDir :: CompareDirection -> Type -> Term -> Term -> TCM ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
+-- | Compute the head type of an elimination. For projection-like functions
+--   this requires inferring the type of the principal argument.
+computeElimHeadType :: QName -> Elims -> Elims -> TCM Type
+computeElimHeadType f es es' = do
+  def <- getConstInfo f
+  -- To compute the type @a@ of a projection-like @f@,
+  -- we have to infer the type of its first argument.
+  if projectionArgs (theDef def) <= 0 then return $ defType def else do
+    -- Find an first argument to @f@.
+    let arg = case (es, es') of
+              (Apply arg : _, _) -> arg
+              (_, Apply arg : _) -> arg
+              _ -> __IMPOSSIBLE__
+    -- Infer its type.
+    reportSDoc "tc.conv.infer" 30 $
+      text "inferring type of internal arg: " <+> prettyTCM arg
+    targ <- infer $ unArg arg
+    reportSDoc "tc.conv.infer" 30 $
+      text "inferred type: " <+> prettyTCM targ
+    -- getDefType wants the argument type reduced.
+    -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
+    -- a meta-variable, e.g. in interactive development.
+    -- In this case, we postpone.
+    fromMaybeM patternViolation $ getDefType f =<< reduce targ
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: Comparison -> Type -> Term -> Term -> TCM ()
@@ -493,26 +518,7 @@ compareAtom cmp t m n =
                 compareElims [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> do
-                def <- getConstInfo f
-                -- To compute the type @a@ of a projection-like @f@,
-                -- we have to infer the type of its first argument.
-                a <- if projectionArgs (theDef def) <= 0 then return $ defType def else do
-                  -- Find an first argument to @f@.
-                  let arg = case (es, es') of
-                            (Apply arg : _, _) -> arg
-                            (_, Apply arg : _) -> arg
-                            _ -> __IMPOSSIBLE__
-                  -- Infer its type.
-                  reportSDoc "tc.conv.infer" 30 $
-                    text "inferring type of internal arg: " <+> prettyTCM arg
-                  targ <- infer $ unArg arg
-                  reportSDoc "tc.conv.infer" 30 $
-                    text "inferred type: " <+> prettyTCM targ
-                  -- getDefType wants the argument type reduced.
-                  -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
-                  -- a meta-variable, e.g. in interactive development.
-                  -- In this case, we postpone.
-                  fromMaybeM patternViolation $ getDefType f =<< reduce targ
+                a <- computeElimHeadType f es es'
                 -- The polarity vector of projection-like functions
                 -- does not include the parameters.
                 pol <- getPolarity' cmp f
