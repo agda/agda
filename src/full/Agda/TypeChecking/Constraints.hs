@@ -151,7 +151,7 @@ whenConstraints action handler =
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints (return . const True) -- (mentionsMeta x) -- TODO: needs fixing to cope with shared updates
+  wakeConstraints (return . mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
