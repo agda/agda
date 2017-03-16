@@ -1,11 +1,11 @@
 Failed to solve the following constraints:
-  _34 := refl [blocked on problem 49]
-  [49, 52, 56] true , wrap zero = Beta , Beta : _33
-  [49, 52] _32 := Bool × Wrap Nat [blocked on problem 53]
+  _36 := refl [blocked on problem 49]
+  [49, 52, 56, 58] wrap zero = true : _35
+  [49, 52] _34 := Wrap Nat [blocked on problem 53]
+  [49, 52] _32 := Bool [blocked on problem 53]
   [49, 52, 53, 55] Wrap Nat = Foo _28 : Set
   [49, 52, 53] _30 := Bool [blocked on problem 54]
   [49, 52, 53, 54] Bool = Foo _28 : Set
 Unsolved metas at the following locations:
   Issue1258-2.agda:36,9-10
-  Issue1258-2.agda:37,9-10
   Issue1258-2.agda:38,9-13
