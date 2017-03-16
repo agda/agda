@@ -1,4 +1,4 @@
 Issue1976-constraints.agda:29,3-15
 Failed to solve the following constraints:
-  [14, 15, 14] _2 = B : Set
+  [14, 15] _2 = B : Set
 when checking that the clause F test = Set has type M.R B
