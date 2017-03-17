@@ -59,8 +59,11 @@ import Debug.Trace
 instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
-newtype NamesT m a = NamesT { unName :: ReaderT Names m a } deriving (Functor,Applicative,Monad,MonadTrans,MonadIO)
+newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
+  deriving (Functor, Applicative, Monad, MonadTrans, MonadIO, HasOptions)
+
 deriving instance MonadState s m => MonadState s (NamesT m)
+
 type Names = [String]
 
 runNamesT :: Names -> NamesT m a -> m a
