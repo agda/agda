@@ -84,6 +84,8 @@ Important changes since 0.13:
   pattern matching. The new version (and the associated proofs in
   `Data.Vec.All.Properties`) are more generic with respect to types and
   levels.
+  
+* Added syntax for existential quantifiers as `∃[ x ] B` and `∄[ x ] B`.
 
 Version 0.13
 ============

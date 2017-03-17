@@ -38,8 +38,18 @@ syntax Σ-syntax A (λ x → B) = Σ[ x ∈ A ] B
 ∃ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
 ∃ = Σ _
 
+∃-syntax : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
+∃-syntax = ∃
+
+syntax ∃-syntax (λ x → B) = ∃[ x ] B
+
 ∄ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
 ∄ P = ¬ ∃ P
+
+∄-syntax : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
+∄-syntax = ∄
+
+syntax ∄-syntax (λ x → B) = ∄[ x ] B
 
 ∃₂ : ∀ {a b c} {A : Set a} {B : A → Set b}
      (C : (x : A) → B x → Set c) → Set (a ⊔ b ⊔ c)
