@@ -127,12 +127,6 @@ isInstantiatedMeta i = do
     InstV{} -> True
     _       -> False
 
--- | Run a computation if a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-verboseS :: VerboseKey -> Int -> ReduceM () -> ReduceM ()
-verboseS k n action = whenM (hasVerbosity k n) action
-
 -- | Apply a function if a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.

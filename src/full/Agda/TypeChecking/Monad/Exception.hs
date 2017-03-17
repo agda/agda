@@ -113,3 +113,7 @@ instance
 
 instance (Error err, MonadTCM tcm) => MonadTCM (ExceptionT err tcm) where
   liftTCM m = ExceptionT $ Right `liftM` liftTCM m
+
+instance (Error err, HasOptions m) => HasOptions (ExceptionT err m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
