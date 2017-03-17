@@ -778,8 +778,9 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
            --    etaContract <=< traverse reduceCon <=< instantiateFull
            -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
            reportSLn "term.reduce" 90 $ "normalizing call arguments"
-           modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $
-              etaContract <=< normalise
+           modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $ \ e -> do
+             reportSDoc "term.reduce" 95 $ text "normalizing " <+> prettyTCM e
+             etaContract =<< normalise e
 
          -- Compute the call matrix.
 

@@ -511,9 +511,26 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       case (def,rewr) of
         _ | dontUnfold -> defaultResult -- non-terminating or delayed
         ([],[])        -> defaultResult -- no definition for head
-        (cls,rewr)     -> appDefE_ f v0 cls mcc rewr es
-      where defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
-            vfull         = v0 `applyE` map ignoreReduced es
+        (cls,rewr)     -> do
+          ev <- appDefE_ f v0 cls mcc rewr es
+          debugReduce ev
+          return ev
+      where
+      defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
+      vfull         = v0 `applyE` map ignoreReduced es
+      debugReduce ev = verboseS "tc.reduce" 90 $ do
+        case ev of
+          NoReduction v -> do
+            traceSDocM "tc.reduce" 90 $ vcat
+              [ text "*** tried to reduce " <+> prettyTCM f
+              , text "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
+              -- , text "*** tried to reduce " <+> prettyTCM vfull
+              , text "    stuck on" <+> prettyTCM (ignoreBlocking v)
+              ]
+          YesReduction _simpl v -> do
+            traceSDocM "tc.reduce"  90 $ text "*** reduced definition: " <+> prettyTCM f
+            traceSDocM "tc.reduce"  95 $ text "    result" <+> prettyTCM v
+            traceSDocM "tc.reduce" 100 $ text "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
 reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)

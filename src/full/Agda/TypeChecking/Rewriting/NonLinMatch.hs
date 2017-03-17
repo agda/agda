@@ -197,10 +197,6 @@ nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 liftRed :: ReduceM a -> NLM a
 liftRed = lift . lift
 
-instance HasOptions NLM where
-  pragmaOptions      = liftRed pragmaOptions
-  commandLineOptions = liftRed commandLineOptions
-
 runNLM :: NLM () -> ReduceM (Either Blocked_ NLMState)
 runNLM nlm = do
   (ok,out) <- runStateT (runExceptT nlm) empty
