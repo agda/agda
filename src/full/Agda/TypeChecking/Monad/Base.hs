@@ -2705,7 +2705,11 @@ instance MonadIO m => HasOptions (TCMT m) where
     cl <- stPersistentOptions . stPersistentState <$> get
     return $ cl { optPragmaOptions = p }
 
-instance HasOptions m => HasOptions (ExceptT e m) where
+instance ( HasOptions m
+#if !MIN_VERSION_transformers(0,4,1)
+         , Error e
+#endif
+         ) => HasOptions (ExceptT e m) where
   pragmaOptions      = lift pragmaOptions
   commandLineOptions = lift commandLineOptions
 
