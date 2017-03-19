@@ -2333,6 +2333,7 @@ data Warning
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
+  | UselessImport            ModuleName
   -- Generic warnings for one-off things
   | GenericWarning           Doc
     -- ^ Harmless generic warning (not an error)
@@ -2419,6 +2420,7 @@ classifyWarning w = case w of
   OldBuiltin{}               -> AllWarnings
   EmptyRewritePragma         -> AllWarnings
   UselessPublic              -> AllWarnings
+  UselessImport{}            -> AllWarnings
   UnreachableClauses{}       -> AllWarnings
   UselessInline{}            -> AllWarnings
   GenericWarning{}           -> AllWarnings

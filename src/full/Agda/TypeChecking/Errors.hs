@@ -172,6 +172,9 @@ instance PrettyTCM Warning where
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
 
+    UselessImport q -> fsep $
+      pwords "The import of" ++ [prettyTCM q] ++ pwords "is redundant"
+
     GenericWarning d -> return d
 
     GenericNonFatalError d -> return d
@@ -255,6 +258,7 @@ applyFlagsToTCWarnings ifs ws = do
           OldBuiltin{}                 -> True
           EmptyRewritePragma           -> True
           UselessPublic                -> True
+          UselessImport{}              -> True
           ParseWarning{}               -> True
           UnreachableClauses{}         -> True
           CoverageNoExactSplit{}       -> catchallNotOK

@@ -14,7 +14,7 @@ open import Agda.Builtin.Reflection public renaming
   ; instance′      to inst
   ; Visibility    to Hiding
   ; Name          to QName)
-open import Common.Level
+
 open import Common.Prelude hiding (_>>=_)
 
 pattern vArg x = arg (argInfo visible relevant) x

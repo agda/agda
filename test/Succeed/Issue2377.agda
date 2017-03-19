@@ -22,3 +22,7 @@ test-let = let open B public in Set
 -- Warning #4
 test-letm : Set₁
 test-letm = let open module C = B public in Set
+
+-- extra definition to avoid "redundant import" warnings
+_ : (0 == 0) ≡ true
+_ = refl

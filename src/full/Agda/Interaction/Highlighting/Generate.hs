@@ -561,6 +561,7 @@ warningHighlighting w = case tcWarning w of
   EmptyRewritePragma{}       -> mempty
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
+  UselessImport{}            -> mempty
   ParseWarning{}             -> mempty
   GenericWarning{}           -> mempty
   GenericNonFatalError{}     -> mempty

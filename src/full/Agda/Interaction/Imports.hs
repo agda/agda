@@ -45,6 +45,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Names (namesIn)
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
@@ -923,7 +924,7 @@ buildInterface file topLevel syntaxInfo pragmas = do
     -- and should be dead-code eliminated (#1928).
     display <- HMap.filter (not . null) . HMap.map (filter isGlobal) <$> use stImportsDisplayForms
     -- TODO: Kill some ranges?
-    (display, sig) <- eliminateDeadCode display =<< getSignature
+    sig <- getSignature
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
@@ -947,8 +948,31 @@ buildInterface file topLevel syntaxInfo pragmas = do
       , iPatternSyns     = patsyns
       , iWarnings        = warnings
       }
+    -- We need to check useless imports *before* dead code elimination
+    -- otherwise we will miss the identifiers used in private definitions
+    checkUselessImports i
+    (display', sig') <- eliminateDeadCode (iDisplayForms i) (iSignature i)
+    let i' = i { iDisplayForms = display', iSignature = sig' }
     reportSLn "import.iface" 7 "  interface complete"
-    return i
+    return i'
+
+-- | Collect the modules of origin of all the identifiers used
+--   in definitions and produce a warning if any of the imported
+--   modules are unused
+checkUselessImports :: Interface -> TCM ()
+checkUselessImports i = do
+  let ums  = getUsedModules i `execState` Set.empty
+  let ims  = Set.fromList $ fst <$> iImportedModules i
+  let diff = ims Set.\\ ums
+  unless (null diff) $ mapM_ (warning . UselessImport) diff
+
+  where
+
+    getUsedModules :: Interface -> State (Set ModuleName) ()
+    getUsedModules i = do
+      let defs = _sigDefinitions $ iSignature i
+      forM_ defs $ \ d -> modify (Set.union $ Set.map qnameModule $ namesIn d)
+
 
 -- | Returns (iSourceHash, iFullHash)
 getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))
