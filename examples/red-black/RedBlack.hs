@@ -28,6 +28,3 @@ bench = sum $ fromList longReversedList
 main :: IO ()
 -- main = print . fromList $ longReversedList
 main = print bench
-
-instance Foldable Tree where
-  foldr = undefined
