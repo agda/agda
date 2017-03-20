@@ -7,25 +7,25 @@ data RB a = E | T { color :: Color , left :: RB a , rootLabel :: a , right :: RB
 {- Insertion and membership test as by Okasaki -}
 insert :: Ord a => a -> RB a -> RB a
 insert x s =
-	T B a z b
-	where
-	T _ a z b = ins s
-	ins E = T R E x E
-	ins s@(T B a y b)
-		| x<y = balance (ins a) y b
-		| x>y = balance a y (ins b)
-		| otherwise = s
-	ins s@(T R a y b)
-		| x<y = T R (ins a) y b
-		| x>y = T R a y (ins b)
-		| otherwise = s
+  T B a z b
+  where
+    T _ a z b = ins s
+    ins E = T R E x E
+    ins s@(T B a y b)
+      | x<y = balance (ins a) y b
+      | x>y = balance a y (ins b)
+      | otherwise = s
+    ins s@(T R a y b)
+      | x<y = T R (ins a) y b
+      | x>y = T R a y (ins b)
+      | otherwise = s
 
 member :: Ord a => a -> RB a -> Bool
 member x E = False
 member x (T _ a y b)
-	| x<y = member x a
-	| x>y = member x b
-	| otherwise = True
+  | x<y = member x a
+  | x>y = member x b
+  | otherwise = True
 
 {- balance: first equation is new,
    to make it work with a weaker invariant -}
@@ -40,17 +40,17 @@ balance a x b = T B a x b
 {- deletion a la SMK -}
 delete :: Ord a => a -> RB a -> RB a
 delete x t =
-	case del t of {T _ a y b -> T B a y b; _ -> E}
-	where
-	del E = E
-	del (T _ a y b)
-	    | x<y = delformLeft a y b
-	    | x>y = delformRight a y b
+        case del t of {T _ a y b -> T B a y b; _ -> E}
+        where
+        del E = E
+        del (T _ a y b)
+            | x<y = delformLeft a y b
+            | x>y = delformRight a y b
             | otherwise = app a b
-	delformLeft a@(T B _ _ _) y b = balleft (del a) y b
-	delformLeft a y b = T R (del a) y b
-	delformRight a y b@(T B _ _ _) = balright a y (del b)
-	delformRight a y b = T R a y (del b)
+        delformLeft a@(T B _ _ _) y b = balleft (del a) y b
+        delformLeft a y b = T R (del a) y b
+        delformRight a y b@(T B _ _ _) = balright a y (del b)
+        delformRight a y b = T R a y (del b)
 
 balleft :: RB a -> a -> RB a -> RB a
 balleft (T R a x b) y c = T R (T B a x b) y c
@@ -70,13 +70,13 @@ app :: RB a -> RB a -> RB a
 app E x = x
 app x E = x
 app (T R a x b) (T R c y d) =
-	case app b c of
-	    T R b' z c' -> T R(T R a x b') z (T R c' y d)
-	    bc -> T R a x (T R bc y d)
+        case app b c of
+            T R b' z c' -> T R(T R a x b') z (T R c' y d)
+            bc -> T R a x (T R bc y d)
 app (T B a x b) (T B c y d) = 
-	case app b c of
-	    T R b' z c' -> T R(T B a x b') z (T B c' y d)
-	    bc -> balleft a x (T B bc y d)
+        case app b c of
+            T R b' z c' -> T R(T B a x b') z (T B c' y d)
+            bc -> balleft a x (T B bc y d)
 app a (T R b x c) = T R (app a b) x c
 app (T R a x b) c = T R a x (app b c)
 

@@ -9,7 +9,6 @@ auto/
 /benchmark/RedBlack.mlf
 /benchmark/RedBlackMlf
 /benchmark/TheList.agda
-/benchmark/Typed.hs
 /benchmark/RedBlack
 /benchmark/RbUntyped
 /benchmark/RbTypedExist
