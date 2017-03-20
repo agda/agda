@@ -541,6 +541,11 @@ instance Underscore Doc where
 --   @Dom@ is used in 'Pi' of internal syntax, in 'Context' and 'Telescope'.
 --   'Arg' is used for actual arguments ('Var', 'Con', 'Def' etc.)
 --   and in 'Abstract' syntax and other situations.
+--
+--   [ cubical ] When @domFinite = True@ for the domain of a 'Pi'
+--   type, the elements should be compared by tabulating the domain type.
+--   Only supported in case the domain type is primIsOne, to obtain
+--   the correct equality for partial elements.
 data Dom e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
