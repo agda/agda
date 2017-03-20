@@ -9,7 +9,7 @@ module Agda.TypeChecking.Reduce.Monad
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
-  , traceSLn, traceSDoc
+  , traceSLn, traceSDoc, traceSDocM
   , askR, applyWhenVerboseS
   ) where
 
@@ -127,18 +127,15 @@ isInstantiatedMeta i = do
     InstV{} -> True
     _       -> False
 
--- | Run a computation if a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-verboseS :: VerboseKey -> Int -> ReduceM () -> ReduceM ()
-verboseS k n action = whenM (hasVerbosity k n) action
-
 -- | Apply a function if a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.
 {-# SPECIALIZE applyWhenVerboseS :: VerboseKey -> Int -> (ReduceM a -> ReduceM a) -> ReduceM a-> ReduceM a #-}
 applyWhenVerboseS :: HasOptions m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
 applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
+
+traceSDocM :: VerboseKey -> Int -> TCM Doc -> ReduceM ()
+traceSDocM k n doc = traceSDoc k n doc $ return ()
 
 traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
 traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do

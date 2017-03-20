@@ -40,7 +40,9 @@ traceCallM :: MonadTCM tcm => tcm Call -> tcm a -> tcm a
 traceCallM mkCall m = flip traceCall m =<< mkCall
 
 -- | Record a function call in the trace.
-{-# SPECIALIZE traceCall :: Call -> TCM a -> TCM a #-}
+
+-- RULE left-hand side too complicated to desugar
+-- {-# SPECIALIZE traceCall :: Call -> TCM a -> TCM a #-}
 traceCall :: MonadTCM tcm => Call -> tcm a -> tcm a
 traceCall mkCall m = do
   let call      = mkCall
@@ -107,11 +109,13 @@ traceCall mkCall m = do
   isNoHighlighting NoHighlighting{} = True
   isNoHighlighting _                = False
 
-{-# SPECIALIZE traceCallCPS :: Call -> (r -> TCM a) -> ((r -> TCM a) -> TCM b) -> TCM b #-}
+-- RULE left-hand side too complicated to desugar
+-- {-# SPECIALIZE traceCallCPS :: Call -> (r -> TCM a) -> ((r -> TCM a) -> TCM b) -> TCM b #-}
 traceCallCPS :: MonadTCM tcm => Call -> (r -> tcm a) -> ((r -> tcm a) -> tcm b) -> tcm b
 traceCallCPS mkCall ret cc = traceCall mkCall (cc ret)
 
-{-# SPECIALIZE traceCallCPS_ :: Call -> TCM a -> (TCM a -> TCM b) -> TCM b #-}
+-- RULE left-hand side too complicated to desugar
+-- {-# SPECIALIZE traceCallCPS_ :: Call -> TCM a -> (TCM a -> TCM b) -> TCM b #-}
 traceCallCPS_ :: MonadTCM tcm => Call -> tcm a -> (tcm a -> tcm b) -> tcm b
 traceCallCPS_ mkCall ret cc =
     traceCallCPS mkCall (const ret) (\k -> cc $ k ())

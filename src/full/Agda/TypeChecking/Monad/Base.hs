@@ -2688,6 +2688,52 @@ instance HasRange TCErr where
 instance E.Exception TCErr
 
 -----------------------------------------------------------------------------
+-- * Accessing options
+-----------------------------------------------------------------------------
+
+class (Functor m, Applicative m, Monad m) => HasOptions m where
+  -- | Returns the pragma options which are currently in effect.
+  pragmaOptions      :: m PragmaOptions
+  -- | Returns the command line options which are currently in effect.
+  commandLineOptions :: m CommandLineOptions
+
+instance MonadIO m => HasOptions (TCMT m) where
+  pragmaOptions = use stPragmaOptions
+
+  commandLineOptions = do
+    p  <- use stPragmaOptions
+    cl <- stPersistentOptions . stPersistentState <$> get
+    return $ cl { optPragmaOptions = p }
+
+instance ( HasOptions m
+#if !MIN_VERSION_transformers(0,4,1)
+         , Error e
+#endif
+         ) => HasOptions (ExceptT e m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
+
+instance HasOptions m => HasOptions (ListT m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
+
+instance HasOptions m => HasOptions (MaybeT m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
+
+instance HasOptions m => HasOptions (ReaderT r m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
+
+instance HasOptions m => HasOptions (StateT s m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
+
+instance (HasOptions m, Monoid w) => HasOptions (WriterT w m) where
+  pragmaOptions      = lift pragmaOptions
+  commandLineOptions = lift commandLineOptions
+
+-----------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------
 
@@ -2774,6 +2820,7 @@ type TCM = TCMT IO
 class ( Applicative tcm, MonadIO tcm
       , MonadReader TCEnv tcm
       , MonadState TCState tcm
+      , HasOptions tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 

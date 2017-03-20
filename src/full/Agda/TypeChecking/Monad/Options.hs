@@ -114,20 +114,6 @@ addDefaultLibraries rel o
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
   return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
 
-class (Functor m, Applicative m, Monad m) => HasOptions m where
-  -- | Returns the pragma options which are currently in effect.
-  pragmaOptions      :: m PragmaOptions
-  -- | Returns the command line options which are currently in effect.
-  commandLineOptions :: m CommandLineOptions
-
-instance MonadIO m => HasOptions (TCMT m) where
-  pragmaOptions = use stPragmaOptions
-
-  commandLineOptions = do
-    p  <- use stPragmaOptions
-    cl <- stPersistentOptions . stPersistentState <$> get
-    return $ cl { optPragmaOptions = p }
-
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
@@ -389,8 +375,10 @@ displayDebugMessage n s = liftTCM $
 --
 --   Precondition: The level must be non-negative.
 {-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
-verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
-verboseS k n action = whenM (liftTCM $ hasVerbosity k n) action
+-- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
+{-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
+verboseS :: HasOptions m => VerboseKey -> Int -> m () -> m ()
+verboseS k n action = whenM (hasVerbosity k n) action
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
