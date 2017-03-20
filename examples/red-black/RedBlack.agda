@@ -154,7 +154,8 @@ module _ {A : Set} {{_ : Ord A}} where
   ... | maybe-black leaf = mkT leaf
 
   fromList : List A → RedBlackTree A
-  fromList = foldr insert (mkT leaf)
+  -- we changed `foldr` here to `foldl!` for efficiency reasons
+  fromList = foldl! (flip insert) (mkT leaf)
 
   toList′ : ∀ {b n c} → Tree′ A b n c → List A → List A
   toList′ (leaf′ _)   xs = xs
@@ -167,13 +168,24 @@ module _ {A : Set} {{_ : Ord A}} where
   treeSort : List A → List A
   treeSort = toList ∘ fromList
 
--- Example
+-------------
+-- Example --
+-------------
+
+-- Non-tail recursive functions are bad in the OCaml backend!
+-- downFrom : Nat -> List Nat
+-- downFrom 0 = []
+-- downFrom (suc n) = n ∷ downFrom ( n )
+downFrom : Nat -> List Nat
+downFrom = f []
+  where
+    f : List Nat -> Nat -> List Nat
+    f xs 0 = xs
+    f xs (suc x) = f ( x ∷ xs ) x
 
 test : List Nat
-test = treeSort $ 5 ∷ 1 ∷ 2 ∷ 10 ∷ 13 ∷ 0 ∷ 141 ∷ 7 ∷ []
-
-hest : String
-hest = show test
+-- test = treeSort $ 5 ∷ 1 ∷ 2 ∷ 10 ∷ 13 ∷ 0 ∷ 141 ∷ 7 ∷ []
+test = treeSort $ downFrom 1000000
 
 main : IO Unit
-main = putStrLn hest
+main = putStrLn $ show $ sum test
