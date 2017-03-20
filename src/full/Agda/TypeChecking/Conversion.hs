@@ -377,6 +377,31 @@ etaInequal cmp t m n = do
 compareAtomDir :: CompareDirection -> Type -> Term -> Term -> TCM ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
+-- | Compute the head type of an elimination. For projection-like functions
+--   this requires inferring the type of the principal argument.
+computeElimHeadType :: QName -> Elims -> Elims -> TCM Type
+computeElimHeadType f es es' = do
+  def <- getConstInfo f
+  -- To compute the type @a@ of a projection-like @f@,
+  -- we have to infer the type of its first argument.
+  if projectionArgs (theDef def) <= 0 then return $ defType def else do
+    -- Find an first argument to @f@.
+    let arg = case (es, es') of
+              (Apply arg : _, _) -> arg
+              (_, Apply arg : _) -> arg
+              _ -> __IMPOSSIBLE__
+    -- Infer its type.
+    reportSDoc "tc.conv.infer" 30 $
+      text "inferring type of internal arg: " <+> prettyTCM arg
+    targ <- infer $ unArg arg
+    reportSDoc "tc.conv.infer" 30 $
+      text "inferred type: " <+> prettyTCM targ
+    -- getDefType wants the argument type reduced.
+    -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
+    -- a meta-variable, e.g. in interactive development.
+    -- In this case, we postpone.
+    fromMaybeM patternViolation $ getDefType f =<< reduce targ
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: Comparison -> Type -> Term -> Term -> TCM ()
@@ -493,26 +518,7 @@ compareAtom cmp t m n =
                 compareElims [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> do
-                def <- getConstInfo f
-                -- To compute the type @a@ of a projection-like @f@,
-                -- we have to infer the type of its first argument.
-                a <- if projectionArgs (theDef def) <= 0 then return $ defType def else do
-                  -- Find an first argument to @f@.
-                  let arg = case (es, es') of
-                            (Apply arg : _, _) -> arg
-                            (_, Apply arg : _) -> arg
-                            _ -> __IMPOSSIBLE__
-                  -- Infer its type.
-                  reportSDoc "tc.conv.infer" 30 $
-                    text "inferring type of internal arg: " <+> prettyTCM arg
-                  targ <- infer $ unArg arg
-                  reportSDoc "tc.conv.infer" 30 $
-                    text "inferred type: " <+> prettyTCM targ
-                  -- getDefType wants the argument type reduced.
-                  -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
-                  -- a meta-variable, e.g. in interactive development.
-                  -- In this case, we postpone.
-                  fromMaybeM patternViolation $ getDefType f =<< reduce targ
+                a <- computeElimHeadType f es es'
                 -- The polarity vector of projection-like functions
                 -- does not include the parameters.
                 pol <- getPolarity' cmp f
@@ -606,6 +612,72 @@ compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
 compareRelevance CmpLeq = (<=)
 
+-- | When comparing argument spines (in compareElims) where the first arguments
+--   don't match, we keep going, substituting the anti-unification of the two
+--   terms in the telescope. More precisely:
+--
+--  @@
+--    (u = v : A)[pid]   w = antiUnify pid A u v   us = vs : Δ[w/x]
+--    -------------------------------------------------------------
+--                    u us = v vs : (x : A) Δ
+--  @@
+--
+--   The simplest case of anti-unification is to return a fresh metavariable
+--   (created by blockTermOnProblem), but if there's shared structure between
+--   the two terms we can expose that.
+--
+--   This is really a crutch that lets us get away with things that otherwise
+--   would require heterogenous conversion checking. See for instance issue
+--   #2384.
+antiUnify :: ProblemId -> Type -> Term -> Term -> TCM Term
+antiUnify pid a u v = do
+  ((u, v), eq) <- runReduceM (SynEq.checkSyntacticEquality u v)
+  case (ignoreSharing u, ignoreSharing v) of
+    _ | eq -> return u
+    (Pi ua ub, Pi va vb) -> do
+      wa0 <- antiUnifyType pid (unDom ua) (unDom va)
+      let wa = wa0 <$ ua
+      wb <- addContext wa $ antiUnifyType pid (unAbs ub) (unAbs vb)
+      return $ Pi wa (wb <$ ub)
+    (Lam i u, Lam _ v) ->
+      case ignoreSharing $ unEl a of
+        Pi a b -> Lam i . (<$ u) <$> addContext a (antiUnify pid (unAbs b) (unAbs u) (unAbs v))
+        _      -> fallback
+    (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
+      a <- typeOfBV i
+      antiUnifyElims pid a (var i) us vs
+    (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
+      a <- maybe patternViolation return =<< getConType x a
+      antiUnifyElims pid a (Con x ci []) (map Apply us) (map Apply vs)
+    (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
+      a <- computeElimHeadType f us vs
+      antiUnifyElims pid a (Def f []) us vs
+    _ -> fallback
+  where
+    fallback = blockTermOnProblem a u pid
+    maybeGiveUp m = m `catchError_` \ err ->
+      case err of
+        PatternErr{} -> fallback
+        _            -> throwError err
+
+antiUnifyType :: ProblemId -> Type -> Type -> TCM Type
+antiUnifyType pid (El s a) (El _ b) = El s <$> antiUnify pid (sort s) a b
+
+antiUnifyElims :: ProblemId -> Type -> Term -> Elims -> Elims -> TCM Term
+antiUnifyElims pid a self [] [] = return self
+antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
+  res <- projectTyped self a o f
+  case res of
+    Just (_, self, a) -> antiUnifyElims pid a self es1 es2
+    Nothing -> patternViolation -- can fail for projection like
+antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
+  case ignoreSharing $ unEl a of
+    Pi a b -> do
+      w <- antiUnify pid (unDom a) (unArg u) (unArg v)
+      antiUnifyElims pid (b `lazyAbsApp` w) (apply self [w <$ u]) es1 es2
+    _ -> patternViolation
+antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
+
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
@@ -673,8 +745,13 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                   _          -> compareWithPol pol (flip compareTerm b)
                                   (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
-            arg <- if dependent
-                   then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
+            solved <- isProblemSolved pid
+            arg <- if dependent && not solved
+                   then do
+                    arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
+                    reportSDoc "tc.conv.elims" 30 $ hang (text "Anti-unification:") 2 (prettyTCM arg)
+                    reportSDoc "tc.conv.elims" 70 $ nest 2 $ text "raw:" <+> pretty arg
+                    return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
             compareElims pols (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2

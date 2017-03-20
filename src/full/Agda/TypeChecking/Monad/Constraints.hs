@@ -8,6 +8,8 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 import Data.List as List
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
@@ -21,36 +23,32 @@ import Agda.Utils.Except
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Get the current problem
-currentProblem :: TCM ProblemId
-currentProblem = headWithDefault 0 <$> asks envActiveProblems
-
--- | Steal all constraints belonging to the given problem and add them to the current problem.
+-- | Add all constraints belonging to the given problem to the current problem(s).
 stealConstraints :: ProblemId -> TCM ()
 stealConstraints pid = do
-  current <- currentProblem
-  reportSLn "tc.constr.steal" 50 $ "problem " ++ show current ++ " is stealing problem " ++ show pid ++ "'s constraints!"
-  -- Rename @pid@ to @current@ in all constraints.
-  let rename pc@(PConstr pids c) | elem pid pids = PConstr (current : pids) c
-                                 | otherwise     = pc
+  current <- asks envActiveProblems
+  reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
+  -- Add current to any constraint in pid.
+  let rename pc@(PConstr pids c) | Set.member pid pids = PConstr (Set.union current pids) c
+                                 | otherwise           = pc
   -- We should never steal from an active problem.
-  whenM (elem pid <$> asks envActiveProblems) __IMPOSSIBLE__
+  whenM (Set.member pid <$> asks envActiveProblems) __IMPOSSIBLE__
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
 solvingProblem :: ProblemId -> TCM a -> TCM a
-solvingProblem pid = solvingProblems [pid]
+solvingProblem pid = solvingProblems (Set.singleton pid)
 
-solvingProblems :: [ProblemId] -> TCM a -> TCM a
-solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show pids) $ do
-  x <- local (\e -> e { envActiveProblems = pids ++ envActiveProblems e }) m
+solvingProblems :: Set ProblemId -> TCM a -> TCM a
+solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
+  x <- local (\e -> e { envActiveProblems = pids `Set.union` envActiveProblems e }) m
   sequence_
     [ ifNotM (isProblemSolved pid)
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
         reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
         wakeConstraints (return . blockedOn pid . clValue . theConstraint)
-    | pid <- pids ]
+    | pid <- Set.toList pids ]
   return x
   where
     blockedOn pid (Guarded _ pid') = pid == pid'
@@ -73,8 +71,8 @@ wakeConstraints wake = do
   c <- use stSleepingConstraints
   (wakeup, sleepin) <- partitionM wake c
   reportSLn "tc.constr.wake" 50 $
-    "waking up         " ++ show (List.map constraintProblems wakeup) ++ "\n" ++
-    "  still sleeping: " ++ show (List.map constraintProblems sleepin)
+    "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
+    "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
   modifySleepingConstraints $ const sleepin
   modifyAwakeConstraints (++ wakeup)
 
@@ -132,14 +130,14 @@ withConstraint f (PConstr pids c) = do
     local (\e -> e { envActiveProblems = pids', envSolvingConstraints = isSolving }) $
     solvingProblems pids (f c)
 
-buildProblemConstraint :: [ProblemId] -> Constraint -> TCM ProblemConstraint
+buildProblemConstraint :: Set ProblemId -> Constraint -> TCM ProblemConstraint
 buildProblemConstraint pids c = PConstr pids <$> buildClosure c
 
 buildProblemConstraint_ :: Constraint -> TCM ProblemConstraint
-buildProblemConstraint_ = buildProblemConstraint []
+buildProblemConstraint_ = buildProblemConstraint Set.empty
 
 buildConstraint :: Constraint -> TCM ProblemConstraint
-buildConstraint c = flip buildProblemConstraint c . nub . filter (> 0) =<< asks envActiveProblems
+buildConstraint c = flip buildProblemConstraint c =<< asks envActiveProblems
 
 -- | Add new a constraint
 addConstraint' :: Constraint -> TCM ()

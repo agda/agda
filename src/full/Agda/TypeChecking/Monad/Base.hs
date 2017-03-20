@@ -744,7 +744,7 @@ buildClosure x = do
 type Constraints = [ProblemConstraint]
 
 data ProblemConstraint = PConstr
-  { constraintProblems :: [ProblemId]
+  { constraintProblems :: Set ProblemId
   , theConstraint      :: Closure Constraint
   }
   deriving (Typeable, Show)
@@ -1954,7 +1954,7 @@ data TCEnv =
                 --   Everything under a @where@ will be checked with this flag on.
           , envAssignMetas         :: Bool
             -- ^ Are we allowed to assign metas?
-          , envActiveProblems      :: [ProblemId]
+          , envActiveProblems      :: Set ProblemId
           , envAbstractMode        :: AbstractMode
                 -- ^ When checking the typesignature of a public definition
                 --   or the body of a non-abstract definition this is true.
@@ -2037,7 +2037,7 @@ initEnv = TCEnv { envContext             = []
                 , envTerminationCheck    = TerminationCheck
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
-                , envActiveProblems      = [0]
+                , envActiveProblems      = Set.empty
                 , envAssignMetas         = True
                 , envAbstractMode        = ConcreteMode
   -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
@@ -2123,7 +2123,7 @@ eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x 
 eAssignMetas :: Lens' Bool TCEnv
 eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
 
-eActiveProblems :: Lens' [ProblemId] TCEnv
+eActiveProblems :: Lens' (Set ProblemId) TCEnv
 eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems = x }
 
 eAbstractMode :: Lens' AbstractMode TCEnv
