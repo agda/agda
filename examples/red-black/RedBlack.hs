@@ -1,15 +1,16 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module RedBlack where
 
 #ifdef RbUntyped
-import Untyped    (fromList)
+import           Untyped    (fromList)
 #endif
 #ifdef RbTyped
-import Typed      (fromList)
+import           Typed      (fromList)
 #endif
 #ifdef RbTypedExist
-import TypedExist (fromList)
+import           TypedExist (fromList)
 #endif
 
 -- downFrom
