@@ -22,27 +22,43 @@
 # echo "number of solved instances within the time limit:"
 # echo "$solved out of $total"
 
-lengths="200000 400000 600000 800000 1000000"
-# order_types="LRandom LSorted LRSorted"
-order_types="LRSorted LSorted"
-time_cmd='/usr/bin/time --format "%e %M"'
+lengths=`seq 250000 250000 2000000`
+execs="RedBlack RedBlackMlf RbUntyped RbTyped"
+
 date=`date`
 datedash=${date// /-}
 runsdir="runs"
 outdir="$runsdir/$datedash"
+mkdir -p $outdir
 echo $outdir
+lengths_file=$outdir/lengths.txt
+for len in $lengths
+do
+    echo $len >> $lengths_file
+done
+
+# order_types="LRandom LSorted LRSorted"
+order_types="LRSorted LSorted"
+time_cmd='/usr/bin/time --format "%e %M"'
+
+# $1 is the name of the executable
+# $2 is the order of the list
+getOutFile () {
+    echo "$outdir/$1-$2.bench"
+}
+
 # $1 is the name of the executable
 # $2 is the order of the list
 bench () {
-    eval "$time_cmd ./$1 > /dev/null 2>> out-$2.bench"
+    outfile=$(getOutFile $1 $2)
+    eval "$time_cmd ./$1 > /dev/null 2>> $outfile"
 }
 
-mkdir -p $outdir
 source ./spinner.sh
 for order in $order_types
 do
+    echo "--------------------"
     echo "order = $order"
-    printf "" > out-$order.bench # empty file
     for len in $lengths
     do
         echo "length = $len"
@@ -51,41 +67,53 @@ do
         stack exec runhaskell -- tmp.hs > TheList.agda
 
         start_spinner "Compiling Agda"
-        # stack exec agda2mlf -- -c RedBlack.agda > /dev/null
+        stack exec agda2mlf -- -c RedBlack.agda > /dev/null
         stop_spinner $?
 
         start_spinner "Compiling Mlf"
-        # stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlf -o RedBlack.mlf > /dev/null
+        stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlf -o RedBlack.mlf > /dev/null
         stop_spinner $?
 
         start_spinner "Compiling haskell programs"
-        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dlen=$len -o RbUntyped > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dlen=$len -o RbUntyped > /dev/null
         ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -Dlen=$len -o RbTyped > /dev/null
         # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -Dlen=$len -o RbTypedExist > /dev/null
         stop_spinner $?
 
-        start_spinner "Running Agda with MAlonzo backend, length=$len, order=$order"
-        # $time_cmd ./RedBlack     > /dev/null
-        bench RedBlack $order
-        stop_spinner $?
-
-        start_spinner "Running Agda with Ocaml backend, length=$len, order=$order"
-        # $time_cmd ./RedBlackMlf  > /dev/null
-        bench RedBlackMlf $order
-        stop_spinner $?
-
-        start_spinner "Running Haskell Untyped, length=$len, order=$order"
-        bench RbUntyped $order
-        stop_spinner $?
-
-        start_spinner "Running Haskell Typed, length=$len, order=$order"
-        bench RbTyped $order
-        stop_spinner $?
-
-        # start_spinner "Running Haskell TypedExist, length=$len, order=$order"
-        # bench RbTypedExist $order
-        # stop_spinner $?
-
+        for exec in $execs
+        do
+            start_spinner "Running $exec, length = $len, order = $order"
+            bench $exec $order
+            stop_spinner $?
+        done
     done
-    cp out-* $outdir
 done
+
+headfile=$outdir/head.txt
+printf "lengths" > $headfile
+for exec in $execs
+do
+    for meas in time memory
+    do
+        printf " $exec-$meas" >> $headfile
+    done
+done
+printf "\n" >> $headfile
+tablefile=$outdir/table.tmp
+for order in $order_types
+do
+    cat $lengths_file > $tablefile
+    for exec in $execs
+    do
+        file=$(getOutFile $exec $order)
+        paste -d " " $tablefile $file > tmp
+        mv tmp $tablefile
+    done
+    allfile=$outdir/$order.data
+    cp $headfile $allfile
+    cat $tablefile >> $allfile
+    printf "\nBenchmark for $order\n"
+    cat $allfile
+    echo ""
+done
+rm $tablefile
