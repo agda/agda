@@ -7,7 +7,23 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-{-| Primitive functions, such as addition on builtin integers.
+{-| EDSL to construct terms without touching De Bruijn indices.
+
+e.g. if given t, u :: Term, Γ ⊢ t, u : A, we can build "λ f. f t u" like this:
+
+runNames [] $ do
+  -- @open@ binds @t@ and @u@ to computations that know how to weaken themselves in
+  -- an extended context
+
+  [t,u] <- mapM open [t,u]
+
+  -- @lam@ gives the illusion of HOAS by providing f as a computation
+  -- It also extends the internal context with the name "f", so that
+  -- @t@ and @u@ will get weakened in the body.
+  -- Then we finish the job using the (<@>) combinator from Agda.TypeChecking.Primitive
+
+  lam "f" $ \ f -> f <@> t <@> u
+
 -}
 module Agda.TypeChecking.Names where
 
