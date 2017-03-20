@@ -22,9 +22,9 @@
 # echo "number of solved instances within the time limit:"
 # echo "$solved out of $total"
 
-lengths="10"
+lengths="200000 400000 600000 800000 1000000"
 # order_types="LRandom LSorted LRSorted"
-order_types="LRandom LSorted"
+order_types="LRSorted LSorted"
 time_cmd='/usr/bin/time --format "%e %M"'
 date=`date`
 datedash=${date// /-}
@@ -34,32 +34,34 @@ echo $outdir
 # $1 is the name of the executable
 # $2 is the order of the list
 bench () {
-    eval "$time_cmd ./$1.x > /dev/null 2>> out-$2.bench"
+    eval "$time_cmd ./$1 > /dev/null 2>> out-$2.bench"
 }
 
 mkdir -p $outdir
 source ./spinner.sh
 for order in $order_types
 do
+    echo "order = $order"
     printf "" > out-$order.bench # empty file
     for len in $lengths
     do
+        echo "length = $len"
         # Generates the agda hardcoded list
         cpp AgdaListGen.hs -Dlen=$len -D$order > tmp.hs
         stack exec runhaskell -- tmp.hs > TheList.agda
 
         start_spinner "Compiling Agda"
-        stack exec agda2mlf -- -c RedBlack.agda > /dev/null
+        # stack exec agda2mlf -- -c RedBlack.agda > /dev/null
         stop_spinner $?
 
         start_spinner "Compiling Mlf"
-        stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlf -o RedBlack.mlf > /dev/null
+        # stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlf -o RedBlack.mlf > /dev/null
         stop_spinner $?
 
         start_spinner "Compiling haskell programs"
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dlen=$len -o RbUntyped > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dlen=$len -o RbUntyped > /dev/null
         ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -Dlen=$len -o RbTyped > /dev/null
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -Dlen=$len -o RbTypedExist > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -Dlen=$len -o RbTypedExist > /dev/null
         stop_spinner $?
 
         start_spinner "Running Agda with MAlonzo backend, length=$len, order=$order"

@@ -2,6 +2,7 @@ module RedBlack where
 
 open import Prelude hiding (insert)
 open import TheList
+open import Extra
 
 -- Version of comparison that lets us use instance search for the proof objects.
 data Comparison! {a} {A : Set a} (_<_ : A → A → Set a) (x y : A) : Set a where
@@ -177,12 +178,6 @@ module _ {A : Set} {{_ : Ord A}} where
 -- downFrom : Nat -> List Nat
 -- downFrom 0 = []
 -- downFrom (suc n) = n ∷ downFrom ( n )
-downFrom : Nat -> List Nat
-downFrom = f []
-  where
-    f : List Nat -> Nat -> List Nat
-    f xs 0 = xs
-    f xs (suc x) = f ( x ∷ xs ) x
 
 test : List Nat
 -- test = treeSort $ 5 ∷ 1 ∷ 2 ∷ 10 ∷ 13 ∷ 0 ∷ 141 ∷ 7 ∷ []

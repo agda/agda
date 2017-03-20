@@ -7,20 +7,23 @@ import Data.List
 theListLength :: Int
 theListLength = len
 
-theList :: [Int]
 #ifdef LSorted
-theList = [1..theListLength]
+theListDef = "theList = fromTo " ++ show theListLength
 #endif
 #ifdef LRSorted
-theList = [theListLength, theListLength - 1..1]
+theListDef = "theList = downFrom " ++ show theListLength
 #endif
 #ifdef LRandom
+theList :: [Int]
 theList = take theListLength (randomRs (0, 10^8) (mkStdGen randSeed))
+theListDef = "theList = " ++ showAgdaList theList
 #endif
 
-main = putStrLn $ unlines ["open import Prelude", ""
+main = putStrLn $ unlines ["open import Prelude"
+                          , "open import Extra"
+                          , ""
                           , "theList : List Nat"
-                          , "theList = " ++ showAgdaList theList]
+                          , theListDef]
 
 showAgdaList :: Show a => [a] -> String
 showAgdaList l = intercalate " ∷ " (map show l ++ ["[]"])
