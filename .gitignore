@@ -1,2 +1,5 @@
 .stack-work/*
 *.agdai
+/presentation/presentation.pdf
+/presentation/presentation.tex
+auto/

@@ -1,0 +1,39 @@
+#+BEAMER_THEME: Rochester
+#+TITLE: An strict backend for Agda
+#+SUBTITLE: agda2mlf
+#+AUTHOR: Frederik Hanghøj Iversen, Jan Mas Rovira
+#+OPTIONS: H:2
+#+DATE: \today
+
+* Introduction
+  # Describe design-considerations and challenges and limitations (backlog)
+* Implementation
+  # Describe design-considerations and challenges and limitations (backlog)
+
+* Red/Black-tree
+  # Briefly describe red-black algorithm and give a brief overview of how dependent
+  # types can be helpful in this domain. Compare the different implementations
+** Description
+   A red-black tree is a balanced binary search tree that has the following
+   properties:
+   1. Every node is either \textcolor{red}{red} or \textbf{black}.
+   2. The root node is \textbf{black}.
+   3. Every leaf is \textbf{black}.
+   4. If a node is \textcolor{red}{red}, then its children must be \textbf{black}.
+   5. For each node, all paths from the node to descendant leaves contain the
+      same number of \textbf{black} nodes.
+** Example
+    #+ATTR_LATEX: :width \textwidth :float
+    #+CAPTION: A red-black tree.
+    #+NAME:   fig:redblack
+    [[./img/redblack.png]]
+
+* Analysis
+  # Describe tests and test-results, compare result from Agda backend and the
+  # Haskell versions that to varying degree try to emulate some dependent-types
+
+* Discussion
+  # What have we learned. Is the compiler we wrote the one to rule the all?
+
+* Perspectives
+  # What further work could be done?
