@@ -16,6 +16,7 @@ import Control.Monad.State
 import Control.Monad.Identity
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.List hiding (null)
 import Data.Maybe
 import Data.Traversable hiding (mapM, forM, for)
@@ -350,7 +351,7 @@ outputFormId (OutputForm _ _ o) = out o
       FindInScopeOF _ _ _        -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) pids <$> reify c)
+  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
 
 reifyElimToExpr :: I.Elim -> TCM Expr
 reifyElimToExpr e = case e of

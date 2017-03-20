@@ -178,8 +178,8 @@ compareTerm cmp a u v = do
         assignE dir x es v $ compareTermDir dir a
       _ <- instantiate u
       -- () <- seq u' $ return ()
-      reportSLn "tc.conv.term.shortcut" 50 $
-        "shortcut successful\n  result: " ++ show u
+      reportSDoc "tc.conv.term.shortcut" 50 $
+        text "shortcut successful" $$ nest 2 (text "result:" <+> pretty u)
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     orelse m h = catchError m (\_ -> h)
@@ -244,8 +244,8 @@ compareTerm' cmp a m n =
     s        <- reduce $ getSort a'
     mlvl     <- tryMaybe primLevel
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
-      [ text $ "a'   = " ++ show a'
-      , text $ "mlvl = " ++ show mlvl
+      [ text "a'   =" <+> pretty a'
+      , text "mlvl =" <+> pretty mlvl
       , text $ "(Just (ignoreSharing $ unEl a') == mlvl) = " ++ show (Just (ignoreSharing $ unEl a') == mlvl)
       ]
     case s of
@@ -418,6 +418,31 @@ etaInequal cmp t m n = do
 compareAtomDir :: CompareDirection -> Type -> Term -> Term -> TCM ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
+-- | Compute the head type of an elimination. For projection-like functions
+--   this requires inferring the type of the principal argument.
+computeElimHeadType :: QName -> Elims -> Elims -> TCM Type
+computeElimHeadType f es es' = do
+  def <- getConstInfo f
+  -- To compute the type @a@ of a projection-like @f@,
+  -- we have to infer the type of its first argument.
+  if projectionArgs (theDef def) <= 0 then return $ defType def else do
+    -- Find an first argument to @f@.
+    let arg = case (es, es') of
+              (Apply arg : _, _) -> arg
+              (_, Apply arg : _) -> arg
+              _ -> __IMPOSSIBLE__
+    -- Infer its type.
+    reportSDoc "tc.conv.infer" 30 $
+      text "inferring type of internal arg: " <+> prettyTCM arg
+    targ <- infer $ unArg arg
+    reportSDoc "tc.conv.infer" 30 $
+      text "inferred type: " <+> prettyTCM targ
+    -- getDefType wants the argument type reduced.
+    -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
+    -- a meta-variable, e.g. in interactive development.
+    -- In this case, we postpone.
+    fromMaybeM patternViolation $ getDefType f =<< reduce targ
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: Comparison -> Type -> Term -> Term -> TCM ()
@@ -534,26 +559,7 @@ compareAtom cmp t m n =
                 compareElims [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> ifM (compareEtaPrims f es es') (return ()) $ do
-                def <- getConstInfo f
-                -- To compute the type @a@ of a projection-like @f@,
-                -- we have to infer the type of its first argument.
-                a <- if projectionArgs (theDef def) <= 0 then return $ defType def else do
-                  -- Find an first argument to @f@.
-                  let arg = case (es, es') of
-                            (Apply arg : _, _) -> arg
-                            (_, Apply arg : _) -> arg
-                            _ -> __IMPOSSIBLE__
-                  -- Infer its type.
-                  reportSDoc "tc.conv.infer" 30 $
-                    text "inferring type of internal arg: " <+> prettyTCM arg
-                  targ <- infer $ unArg arg
-                  reportSDoc "tc.conv.infer" 30 $
-                    text "inferred type: " <+> prettyTCM targ
-                  -- getDefType wants the argument type reduced.
-                  -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
-                  -- a meta-variable, e.g. in interactive development.
-                  -- In this case, we postpone.
-                  fromMaybeM patternViolation $ getDefType f =<< reduce targ
+                a <- computeElimHeadType f es es'
                 -- The polarity vector of projection-like functions
                 -- does not include the parameters.
                 pol <- getPolarity' cmp f
@@ -618,7 +624,7 @@ compareAtom cmp t m n =
           let impossible = do
                 reportSDoc "impossible" 10 $
                   text "expected data/record type, found " <+> prettyTCM t
-                reportSLn "impossible" 70 $ "  raw = " ++ show t
+                reportSDoc "impossible" 70 $ nest 2 $ text "raw =" <+> pretty t
                 -- __IMPOSSIBLE__
                 -- Andreas, 2013-10-20:  in case termination checking fails
                 -- we might get some unreduced types here.
@@ -690,6 +696,72 @@ compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
 compareRelevance CmpLeq = (<=)
 
+-- | When comparing argument spines (in compareElims) where the first arguments
+--   don't match, we keep going, substituting the anti-unification of the two
+--   terms in the telescope. More precisely:
+--
+--  @@
+--    (u = v : A)[pid]   w = antiUnify pid A u v   us = vs : Δ[w/x]
+--    -------------------------------------------------------------
+--                    u us = v vs : (x : A) Δ
+--  @@
+--
+--   The simplest case of anti-unification is to return a fresh metavariable
+--   (created by blockTermOnProblem), but if there's shared structure between
+--   the two terms we can expose that.
+--
+--   This is really a crutch that lets us get away with things that otherwise
+--   would require heterogenous conversion checking. See for instance issue
+--   #2384.
+antiUnify :: ProblemId -> Type -> Term -> Term -> TCM Term
+antiUnify pid a u v = do
+  ((u, v), eq) <- runReduceM (SynEq.checkSyntacticEquality u v)
+  case (ignoreSharing u, ignoreSharing v) of
+    _ | eq -> return u
+    (Pi ua ub, Pi va vb) -> do
+      wa0 <- antiUnifyType pid (unDom ua) (unDom va)
+      let wa = wa0 <$ ua
+      wb <- addContext wa $ antiUnifyType pid (unAbs ub) (unAbs vb)
+      return $ Pi wa (wb <$ ub)
+    (Lam i u, Lam _ v) ->
+      case ignoreSharing $ unEl a of
+        Pi a b -> Lam i . (<$ u) <$> addContext a (antiUnify pid (unAbs b) (unAbs u) (unAbs v))
+        _      -> fallback
+    (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
+      a <- typeOfBV i
+      antiUnifyElims pid a (var i) us vs
+    (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
+      a <- maybe patternViolation return =<< getConType x a
+      antiUnifyElims pid a (Con x ci []) (map Apply us) (map Apply vs)
+    (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
+      a <- computeElimHeadType f us vs
+      antiUnifyElims pid a (Def f []) us vs
+    _ -> fallback
+  where
+    fallback = blockTermOnProblem a u pid
+    maybeGiveUp m = m `catchError_` \ err ->
+      case err of
+        PatternErr{} -> fallback
+        _            -> throwError err
+
+antiUnifyType :: ProblemId -> Type -> Type -> TCM Type
+antiUnifyType pid (El s a) (El _ b) = El s <$> antiUnify pid (sort s) a b
+
+antiUnifyElims :: ProblemId -> Type -> Term -> Elims -> Elims -> TCM Term
+antiUnifyElims pid a self [] [] = return self
+antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
+  res <- projectTyped self a o f
+  case res of
+    Just (_, self, a) -> antiUnifyElims pid a self es1 es2
+    Nothing -> patternViolation -- can fail for projection like
+antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
+  case ignoreSharing $ unEl a of
+    Pi a b -> do
+      w <- antiUnify pid (unDom a) (unArg u) (unArg v)
+      antiUnifyElims pid (b `lazyAbsApp` w) (apply self [w <$ u]) es1 es2
+    _ -> patternViolation
+antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
+
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
@@ -749,9 +821,9 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         , text "arg2 =" <+> prettyTCM arg2
         ]
       reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
-        [ text "v    =" <+> text (show v)
-        , text "arg1 =" <+> text (show arg1)
-        , text "arg2 =" <+> text (show arg2)
+        [ text "v    =" <+> pretty v
+        , text "arg1 =" <+> pretty arg1
+        , text "arg2 =" <+> pretty arg2
         , text ""
         ]
       let (pol, pols) = nextPolarity pols0
@@ -781,8 +853,13 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                   _          -> compareWithPol pol (flip compareTerm b)
                                   (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
-            arg <- if dependent
-                   then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
+            solved <- isProblemSolved pid
+            arg <- if dependent && not solved
+                   then do
+                    arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
+                    reportSDoc "tc.conv.elims" 30 $ hang (text "Anti-unification:") 2 (prettyTCM arg)
+                    reportSDoc "tc.conv.elims" 70 $ nest 2 $ text "raw:" <+> pretty arg
+                    return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
             compareElims pols (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
@@ -817,7 +894,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
           a -> do
             reportSDoc "impossible" 10 $
               text "unexpected type when comparing apply eliminations " <+> prettyTCM a
-            reportSLn "impossible" 50 $ "raw type: " ++ show a
+            reportSDoc "impossible" 50 $ text "raw type:" <+> pretty a
             patternViolation
             -- Andreas, 2013-10-22
             -- in case of disabled reductions (due to failing termination check)
@@ -861,8 +938,8 @@ compareIrrelevant t v w = do
     , nest 2 $ text "w =" <+> prettyTCM w
     ]
   reportSDoc "tc.conv.irr" 50 $ vcat
-    [ nest 2 $ text $ "v = " ++ show v
-    , nest 2 $ text $ "w = " ++ show w
+    [ nest 2 $ text "v =" <+> pretty v
+    , nest 2 $ text "w =" <+> pretty w
     ]
   try v w $ try w v $ return ()
   where
@@ -875,7 +952,7 @@ compareIrrelevant t v w = do
                    _       -> False
       reportSDoc "tc.conv.irr" 20 $ vcat
         [ nest 2 $ text $ "rel  = " ++ show rel
-        , nest 2 $ text $ "inst = " ++ show inst
+        , nest 2 $ text "inst =" <+> pretty inst
         ]
       if not (irrelevantOrUnused rel) || inst
         then fallback
@@ -974,9 +1051,9 @@ coerce v t1 t2 = blockTerm t2 $ do
         ]
     reportSDoc "tc.conv.coerce" 70 $
       text "coerce" <+> vcat
-        [ text "term      v  =" <+> (text . show) v
-        , text "from type t1 =" <+> (text . show) a1
-        , text "to type   t2 =" <+> (text . show) a2
+        [ text "term      v  =" <+> pretty v
+        , text "from type t1 =" <+> pretty t1
+        , text "to type   t2 =" <+> pretty t2
         ]
   -- v <$ do workOnTypes $ leqType t1 t2
   -- take off hidden/instance domains from t1 and t2
@@ -1009,9 +1086,9 @@ coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM Term
 coerceSize leqType v t1 t2 = workOnTypes $ do
     reportSDoc "tc.conv.coerce" 70 $
       text "coerceSize" <+> vcat
-        [ text "term      v  =" <+> (text . show) v
-        , text "from type t1 =" <+> (text . show) t1
-        , text "to type   t2 =" <+> (text . show) t2
+        [ text "term      v  =" <+> pretty v
+        , text "from type t1 =" <+> pretty t1
+        , text "to type   t2 =" <+> pretty t2
         ]
     let fallback = v <$ leqType t1 t2
         done = caseMaybeM (isSizeType t1) fallback $ \ b1 -> return v
@@ -1116,8 +1193,8 @@ leqLevel a b = liftTCM $ do
     leqView a@(Max as) b@(Max bs) = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.nat" 30 $
         text "compareLevelView" <+>
-          sep [ text (show a) <+> text "=<"
-              , text (show b) ]
+          sep [ pretty a <+> text "=<"
+              , pretty b ]
       wrap $ case (as, bs) of
 
         -- same term
@@ -1231,7 +1308,7 @@ equalLevel a b = do
 -- | Precondition: levels are 'normalise'd.
 equalLevel' :: Level -> Level -> TCM ()
 equalLevel' a b = do
-  reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
+  reportSDoc "tc.conv.level" 50 $ sep [ text "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
   liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
     check a b
   where
@@ -1263,8 +1340,8 @@ equalLevel' a b = do
             ]
       reportSDoc "tc.conv.level" 50 $
         sep [ text "equalLevel"
-            , vcat [ nest 2 $ sep [ text (show (Max as)) <+> text "=="
-                                  , text (show (Max bs))
+            , vcat [ nest 2 $ sep [ pretty (Max as) <+> text "=="
+                                  , pretty (Max bs)
                                   ]
                    ]
             ]
@@ -1329,7 +1406,7 @@ equalLevel' a b = do
         notok    = unlessM typeInType notOk
         notOk    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = do
-          reportSLn "tc.conv.level" 30 $ "postponing: " ++ show a ++ " == " ++ show b
+          reportSDoc "tc.conv.level" 30 $ hang (text "postponing:") 2 $ hang (pretty a <+> text "==") 0 (pretty b)
           patternViolation
 
         closed0 [] = [ClosedLevel 0]
@@ -1338,7 +1415,7 @@ equalLevel' a b = do
         -- perform assignment (Plus n (MetaLevel x as)) := bs
         meta n x as bs = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
-          reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
+          reportSDoc "tc.meta.level" 50 $ text "meta" <+> sep [prettyList $ map pretty as, prettyList $ map pretty bs]
           bs' <- mapM (subtr n) bs
           assignE DirEq x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
 
@@ -1422,8 +1499,8 @@ equalSort s1 s2 = do
           [ text "equalSort"
           , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
                                  , prettyTCM s2 ]
-                 , nest 2 $ fsep [ text (show s1) <+> text "=="
-                                 , text (show s2) ]
+                 , nest 2 $ fsep [ pretty s1 <+> text "=="
+                                 , pretty s2 ]
                  ]
           ]
 

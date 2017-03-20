@@ -13,6 +13,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
 import Data.List as List hiding (null)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Internal
 
@@ -24,6 +25,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.MetaVars.Mention
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -61,7 +63,7 @@ addConstraint c = do
     pids <- asks envActiveProblems
     reportSDoc "tc.constr.add" 20 $ hsep
       [ text "adding constraint"
-      , text (show pids)
+      , text (show $ Set.toList pids)
       , prettyTCM c ]
     -- Need to reduce to reveal possibly blocking metas
     c <- reduce =<< instantiateFull c
@@ -149,7 +151,7 @@ whenConstraints action handler =
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints (return . const True) -- (mentionsMeta x) -- TODO: needs fixing to cope with shared updates
+  wakeConstraints (return . mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
@@ -168,7 +170,7 @@ solveAwakeConstraints' force = do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
      -- Ulf, 2016-12-06: Don't inherit problems here! Stored constraints
      -- already contain all their dependencies.
-     locally eActiveProblems (const []) solve
+     locally eActiveProblems (const Set.empty) solve
   where
     solve = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
@@ -183,7 +185,7 @@ solveConstraint c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
       pids <- asks envActiveProblems
-      reportSDoc "tc.constr.solve" 20 $ text (show pids) <+> prettyTCM c
+      reportSDoc "tc.constr.solve" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
       solveConstraint_ c
 
 solveConstraint_ :: Constraint -> TCM ()

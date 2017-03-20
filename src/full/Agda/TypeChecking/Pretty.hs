@@ -21,6 +21,8 @@ import Control.Monad
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Maybe
 
 import Agda.Syntax.Position
@@ -248,8 +250,9 @@ instance PrettyTCM Relevance where
   prettyTCM UnusedArg  = empty
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr []   c) = prettyTCM c
-  prettyTCM (PConstr pids c) = prettyList (map prettyTCM pids) <+> prettyTCM c
+  prettyTCM (PConstr pids c)
+    | Set.null pids = prettyTCM c
+    | otherwise     = prettyList (map prettyTCM $ Set.toList pids) <+> prettyTCM c
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of

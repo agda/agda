@@ -1,8 +1,8 @@
 Failed to solve the following constraints:
   _42 := (λ {.i} x → .Issue118Comment9.♯-1 x) [blocked on problem 62]
   [62, 64, 65] F (♭ x) = _20 x : I
-  [52, 53] G x = _14 x : I
   _35 := λ {.i} x → c (g x) [blocked on problem 52]
+  [52, 53] G x = _14 x : I
 Unsolved metas at the following locations:
   Issue118Comment9.agda:16,11-12
   Issue118Comment9.agda:19,11-12
