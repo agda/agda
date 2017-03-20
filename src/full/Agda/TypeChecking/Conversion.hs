@@ -643,7 +643,7 @@ antiUnify pid a u v = do
       case ignoreSharing $ unEl a of
         Pi a b -> Lam i . (<$ u) <$> addContext a (antiUnify pid (unAbs b) (unAbs u) (unAbs v))
         _      -> fallback
-    (Var i us, Var j vs) | i == j -> do
+    (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
       a <- typeOfBV i
       antiUnifyElims pid a (var i) us vs
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
