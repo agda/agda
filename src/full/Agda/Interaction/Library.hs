@@ -153,10 +153,11 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
     file <- getLibrariesFile overrideLibFile
     return $ runWriter ((dot ++) . incs <$> find file [] xs)
   where
-    xs = map trim $ delete "." xs0
+    xsTr = map trim xs0
+    xs   = delete "." xsTr
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
     incs = nub . concatMap libIncludes
-    dot = [ "." | elem "." xs0 ]
+    dot  = [ "." | elem "." xsTr ]
 
     find :: FilePath -> [LibName] -> [LibName] -> Writer [LibError] [AgdaLibFile]
     find _ _ [] = pure []
