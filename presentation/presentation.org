@@ -213,7 +213,7 @@
    [kahrs-homepage]).
 
    The first haskell-implementation is the straight-forward implementation
-   presented by Okasaki and does not encode tree-invariants in it's type. The
+   presented by Okasaki and does not encode tree-invariants in its type. The
    second haskell implementation uses *nested higher-order types* and the last
    uses *existential types*.
 
@@ -223,7 +223,7 @@
    We also present a slight variant on the Agda version. One where =fromList= is
    implemented using a lazy- and strict- fold respectively. We expect that this
    change won't have an impact on the version compiled using the OCaml backend,
-   but would expect a speed-up in the strict variant using the Haskell-variant:
+   but would expect a speed-up in the strict variant using the Haskell-variant.
 
    [okasaki-1993]:   Okasaki, Chris; "Red-Black Trees in a Functional Setting", 1993
 
@@ -238,9 +238,82 @@
 * Benchmarks
   # Describe tests and test-results, compare result from Agda backend and the
   # Haskell versions that to varying degree try to emulate some dependent-types
+  For our benchmarks we tested the following variants:
+
+  * An Agda implementation using a lazy   fold compiled to Haskell
+  * An Agda implementation using a strict fold compiled to Haskell
+  * An Agda implementation using a lazy   fold compiled to OCaml
+  * An Agda implementation using a strict fold compiled to OCaml
+  * A Haskell implementation
+  * A Haskell implementation using nested higher-order types
+  * A Haskell implementation using existential types
+
+  We also varied; 1) the length of the list and 2) the sorted-ness of the lists
+  (sorted, reversed, randomized). WARNING HYPOTHESIS: We did not see any
+  variation based on the "sortedness" so we just present these results:
+
+  # WARNING HYPOTHESIS:
+  We can see that the OCaml backend versions have similar performance
+  characteristics, and we can further see that they are similarly performant to
+  the performance characteristics of the haskell version with a strict fold.
+
+  Quite surprisingly the Haskell versions all perform worse than the Agda
+  implementation. We suspect this may be an issue with the implementations, but
+  we can't explain this.
+
+  # TODO: Incorporate:
+  # The expensive part in the haskell implementations seem to do with how the
+  # lists are generated and summed.
+
+  # TODO: Incorporate:
+  # Looking at the profiler output we see that =fromList= accounts for ~95% of
+  # the execution time. We don't have the luxury of inspecting this value in the
+  # Agda-implementations but we expect that it's similar.
 
 * Discussion
   # What have we learned. Is the compiler we wrote the one to rule the all?
+  The difference in implementation of the lazy- and strict-versions of the
+  red/black-algorithm in Agda boils down to the addition of a single character.
+  So in this example writing a more strict and better performing immplementation
+  using the Haskell backend requires a trivial change. Of course identifying
+  where to use and where not to use strictness in a lazy setting may not be as
+  easy as in this case.
+
+  Compiling to a language with strict call-semantics means that "adding
+  strictness" shouldn't have much of an impact on the resulting program, and
+  indeed we implemented =seq= like so:
+
+  #-BEGIN_EXAMPLE
+  seq _ a = a
+  #-END_EXAMPLE
+
+  Strictness forced us to reformulate parts of the program to avoid a
+  stack-overflow when constructing the red-black tree. Similarly we reformulated
+  explicitly added a strict fold to gain a performance boost in the using the
+  MAlonzo backend. This highlights that there are different things to be aware
+  of depending on which call-semantics you are writing a program for. We also
+  conclude that the example illustrates the benefit of using strict evaluation
+  but also that it may be easy to acheive similar effects using the MAlonzo
+  backend.
+
+  As we've already mentioned our compiler suffers from some limitations due to
+  lack of support for mapping primitives to the host-languages. This means that
+  there are features that we've not been able to compare but at least in the
+  case of the red/black-algorithm we've managed to make an implementation that
+  is not slower than it's counterpart using the Haskell backend.
 
 * Perspectives
   # What further work could be done?
+  Further effort should be put into figuring out why the haskell implementations
+  are running so slowly.
+
+  Further work should be put into figuring out why we get a stack-overflow when
+  using =foldr=.
+
+  In our backlog for the compiler we have the folling things:
+
+  * Support for =COMPILE= and =FOREGIN= pragma.
+  * Merge codebase into Agda
+
+* Conclusion
+We have presented our work with implementing a new backedn
