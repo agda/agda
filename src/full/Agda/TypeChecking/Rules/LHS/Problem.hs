@@ -46,6 +46,7 @@ data FlexibleVarKind
 --   in order to make a choice which one to assign when two flexibles are unified.
 data FlexibleVar a = FlexibleVar
   { flexHiding :: Hiding
+  , flexOrigin :: Origin
   , flexKind   :: FlexibleVarKind
   , flexPos    :: Maybe Int
   , flexVar    :: a
@@ -55,16 +56,22 @@ instance LensHiding (FlexibleVar a) where
   getHiding     = flexHiding
   mapHiding f x = x { flexHiding = f (flexHiding x) }
 
-defaultFlexibleVar :: a -> FlexibleVar a
-defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex Nothing a
+instance LensOrigin (FlexibleVar a) where
+  getOrigin     = flexOrigin
+  mapOrigin f x = x { flexOrigin = f (flexOrigin x) }
 
-flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
-flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
+-- UNUSED
+-- defaultFlexibleVar :: a -> FlexibleVar a
+-- defaultFlexibleVar a = FlexibleVar Hidden Inserted ImplicitFlex Nothing a
+
+-- UNUSED
+-- flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
+-- flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
 
 allFlexVars :: Telescope -> FlexibleVars
 allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
   where
-    makeFlex i d = FlexibleVar (getHiding d) ImplicitFlex (Just i) i
+    makeFlex i d = FlexibleVar (getHiding d) (getOrigin d) ImplicitFlex (Just i) i
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -113,6 +120,15 @@ instance ChooseFlex Hiding where
   chooseFlex _        Instance = ChooseRight
   chooseFlex _        _        = ChooseEither
 
+instance ChooseFlex Origin where
+  chooseFlex Inserted  Inserted  = ChooseEither
+  chooseFlex Inserted  _         = ChooseLeft
+  chooseFlex _         Inserted  = ChooseRight
+  chooseFlex Reflected Reflected = ChooseEither
+  chooseFlex Reflected _         = ChooseLeft
+  chooseFlex _         Reflected = ChooseRight
+  chooseFlex _         _         = ChooseEither
+
 instance ChooseFlex Int where
   chooseFlex x y = case compare x y of
     LT -> ChooseLeft
@@ -120,8 +136,8 @@ instance ChooseFlex Int where
     GT -> ChooseRight
 
 instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
-  chooseFlex (FlexibleVar h1 f1 p1 i1) (FlexibleVar h2 f2 p2 i2) =
-    firstChoice [ chooseFlex f1 f2, chooseFlex h1 h2
+  chooseFlex (FlexibleVar h1 o1 f1 p1 i1) (FlexibleVar h2 o2 f2 p2 i2) =
+    firstChoice [ chooseFlex f1 f2, chooseFlex o1 o2, chooseFlex h1 h2
                 , chooseFlex p1 p2, chooseFlex i1 i2]
       where
         firstChoice :: [FlexChoice] -> FlexChoice
