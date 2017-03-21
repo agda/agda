@@ -1,4 +1,6 @@
-module Untyped where
+module Untyped (fromList, toList) where
+
+import qualified Data.Foldable as F
 
 {- Version 1, 'untyped' -}
 data Color = R | B deriving Show
@@ -96,3 +98,6 @@ instance Foldable RB where
         a = rootLabel t
         l = foldr f (f a x) (left t)
         r = foldr f l (right t)
+
+toList :: Tree a -> [a]
+toList = F.toList

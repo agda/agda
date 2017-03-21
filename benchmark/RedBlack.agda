@@ -2,6 +2,7 @@ module RedBlack where
 
 open import Prelude hiding (insert)
 open import TheList
+open import Fold
 open import Extra
 
 -- Version of comparison that lets us use instance search for the proof objects.
@@ -157,7 +158,7 @@ module _ {A : Set} {{_ : Ord A}} where
 
   fromList : List A → RedBlackTree A
   -- we changed `foldr` here to `foldl!` for efficiency reasons
-  fromList = foldl! (flip insert) (mkT leaf)
+  fromList = myfold (flip insert) (mkT leaf)
 
   toList′ : ∀ {b n c} → Tree′ A b n c → List A → List A
   toList′ (leaf′ _)   xs = xs

@@ -1,29 +1,7 @@
 #!/bin/bash
 
-# limit="120s"
-# solverid="0"  # 0=picosat, 1=lingeling
-# inst_dir="../instances/"
-# tmp_file="out.tmp"
-
-# rm -f $tmp_file
-# instances=$(find $inst_dir -name *1.in)
-# a=1
-# total=$(echo "$instances" | wc -l)
-# for f in $instances
-# do
-#     base=$(basename $f .in)
-#     outfile="$inst_dir$base.SAT.out"
-#     # drawfile="$inst_dir$base.charmap"
-#     timeout $limit $main $inst_dir$f $outfile $solverid >> $tmp_file
-#     stop_spinner $?
-#     (( a+=1 ))
-# done
-# solved=$(grep -o Optimal $tmp_file | wc -l)
-# echo "number of solved instances within the time limit:"
-# echo "$solved out of $total"
-
-lengths=`seq 250000 250000 2000000`
-execs="RedBlack RedBlackMlf RbUntyped RbTyped"
+lengths=`seq 250000 250000 1000000`
+execs="RedBlack RedBlackStrict RedBlackMlf RbUntyped RbTyped RbTypedExist"
 
 date=`date`
 datedash=${date// /-}
@@ -62,12 +40,21 @@ do
     for len in $lengths
     do
         echo "length = $len"
-        # Generates the agda hardcoded list
+        # Generates the definition of the list in agda
         cpp AgdaListGen.hs -Dlen=$len -D$order > tmp.hs
         stack exec runhaskell -- tmp.hs > TheList.agda
 
+        start_spinner "Compiling Agda Strict"
+        cpp Fold0.agda -Dstrict Fold.agda
+        sed '/^#/ d' Fold.agda -i
+        stack exec agda2mlf -- -c RedBlack.agda
+        cp RedBlack RedBlackStrict
+        stop_spinner $?
+
         start_spinner "Compiling Agda"
-        stack exec agda2mlf -- -c RedBlack.agda > /dev/null
+        cpp Fold0.agda Fold.agda
+        sed '/^#/ d' Fold.agda -i
+        stack exec agda2mlf -- -c RedBlack.agda
         stop_spinner $?
 
         start_spinner "Compiling Mlf"
@@ -75,9 +62,9 @@ do
         stop_spinner $?
 
         start_spinner "Compiling haskell programs"
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dlen=$len -o RbUntyped > /dev/null
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -Dlen=$len -o RbTyped > /dev/null
-        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -Dlen=$len -o RbTypedExist > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -D$order -DLen=$len -o RbUntyped > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -D$order -DLen=$len -o RbTyped > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o RbTypedExist > /dev/null
         stop_spinner $?
 
         for exec in $execs
@@ -114,6 +101,9 @@ do
     cat $tablefile >> $allfile
     printf "\nBenchmark for $order\n"
     cat $allfile
+    set -v
+    set -x
+    gnuplot -c plot.plt "$outdir/$order.data" "$outdir/time.pdf" "$outdir/mem.pdf"
     echo ""
 done
 rm $tablefile

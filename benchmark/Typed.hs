@@ -1,6 +1,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Typed where
+module Typed (fromList, toList) where
+
+import qualified Data.Foldable as F
 
 {- Version 2, 1st typed version -}
 data Unit a = E deriving Show
@@ -211,3 +213,6 @@ instance Foldable a => Foldable (Red a) where
       where
         l = foldr f (f a x) lhs
         r = foldr f l rhs
+
+toList :: Tree a -> [a]
+toList = F.toList

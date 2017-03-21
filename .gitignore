@@ -22,3 +22,5 @@ MAlonzo
 /examples/red-black/RedBlack.mlf
 /examples/red-black/RedBlackMlf
 tmp.hs
+/benchmark/Fold.agda
+/benchmark/RedBlackStrict

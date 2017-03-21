@@ -1,17 +1,21 @@
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ExistentialQuantification #-}
-module TypedExist where
+module TypedExist (fromList, toList) where
 {- 3rd Version, 2nd typed version -}
 {- note that the type variable b is never used anywhere, only passed on. -}
 
-type Tr t a b = (t a b,a,t a b)
+
+type Tr t a b = (t a b, a, t a b)
 data Red t a b = C (t a b) | R (Tr t a b)
-data Black a b = E | B(Tr (Red Black) a [b])
+data Black a b = E | B (Tr (Red Black) a [b])
 
 instance Show a => Show (Black a b) where
     showsPrec _ E = ('E':)
     showsPrec _ (B(a,x,b)) = ("B("++) . showRed a . (","++) . shows x .
                              (","++) . showRed b . (")"++)
 
+showRed :: (Show (t1 a t), Show a) => Red t1 a t -> ShowS
 showRed (C x) = shows x
 showRed (R(a,x,b)) = ("R("++) . shows a . (","++) . shows x . (","++) .
                      shows b . (")"++)
@@ -146,7 +150,14 @@ threeformR a x (C b) y c = R(R(a,x,b),y,C c)
 fromList :: Ord a => [a] -> Tree a
 fromList = foldr insert empty
 
-instance Foldable Tree where
-  foldr f x (ENC t) = case t of
-    E -> x
-    B (lhs, a, rhs) -> error "Tricky"
+toList :: Tree a -> [a]
+toList (ENC tr) = toListBlack tr
+
+toListRed :: Red Black a [b] -> [a]
+toListRed (C rd) = toListBlack rd
+toListRed (R (l, a, r)) = toListBlack l ++ [a] ++ toListBlack r
+
+toListBlack :: Black a b -> [a]
+toListBlack E  = []
+toListBlack (B (l, a, r)) = toListRed l ++ [a] ++ toListRed r
+
