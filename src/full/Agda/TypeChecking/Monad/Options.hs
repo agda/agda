@@ -11,7 +11,6 @@ import Control.Monad.State  hiding (mapM)
 import Data.Maybe
 import Data.Traversable
 
-import Text.PrettyPrint
 import System.Directory
 import System.FilePath
 
@@ -34,6 +33,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Pretty
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Except
@@ -195,6 +195,13 @@ setIncludeDirs incs relativeTo = do
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
   incs <- return $ incs ++ [primdir]
+
+  reportSDoc "setIncludeDirs" 10 $ return $ vcat
+    [ text "Old include directories:"
+    , nest 2 $ vcat $ map pretty oldIncs
+    , text "New include directories:"
+    , nest 2 $ vcat $ map pretty incs
+    ]
 
   -- Check whether the include dirs have changed.  If yes, reset state.
   -- Andreas, 2013-10-30 comments:
