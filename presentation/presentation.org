@@ -17,12 +17,12 @@
    red/black-trees in Agda as well as three reference implementations in Haskell
    emulating dependent types to varying degrees.
 
-
+   # TODO: explain what available backends there are (Malonzo, js)
 * Implementation
   The project is designed to fit into the "Agda framework". Agda has a notion of
   a =Backend= which is essentially what we have designed.
 
-  Our compiler translates Treeless[^1] to [malfunction]:
+  Our compiler translates Treeless[fn::Treeless is an intermediate representation of Agda.] to [[https://github.com/stedolan/malfunction][malfunction]]:
 
   #+BEGIN_QUOTE
   Malfunction is an untyped program representation intended as a compilation
@@ -43,8 +43,6 @@
   Where =$SRC= is your source-file and =$EXE= is the resulting executable.
   =--mlf= tells Agda to invoke the malfunction backend.
 
-  [^1]: Treeless is an intermediate representation of Agda.
-  [malfunction]: https://github.com/stedolan/malfunction
   [dolan-2016]: Dolan, Stephen; "Malfunction Programming" 2016.
 
   # Describe design-considerations and challenges and limitations (backlog)
@@ -87,12 +85,12 @@
    implementation of red/black trees to compile and as such have provided a
    direct guide for our efforts. The current implementation is able to compile
    the program =RedBlack.agda= (presented later). This program imports the agda
-   prelude[^2] which contains a decent amount of Agda code. It should be said
+   prelude[fn::https://github.com/UlfNorell/agda-prelude] which contains a decent amount of Agda code. It should be said
    though that this does not mean that all parts of the Agda prelude will work
-   with our compiler. Far from it. But it does give us a fair amount of
+   with our compiler. But it does give us a fair amount of
    confidence that we are able to translate Treeless correctly. The reason most
    of the stuff from the Agda prelude will not work is due to the limited
-   support for primitives
+   support for primitives.
 
 *** Primitives
    When we started our project we decided to keep things simple and not use a
@@ -103,21 +101,23 @@
    The lack of support for parsing malfunction means that we also have not
    included support for the new Agda pragmas =COMPILE= and =FOREIGN= that
    essentially map fundamental operations to their counterparts in the target
-   language. Our implementation in stead makes use of a hack. We've manually
+   language. Our implementation instead makes use of a hack. We've manually
    written this mapping for a few reserved names, and only the ones we happened
-   to need for the red-black examples. This means, amongst other things that you
+   to need for the red-black example. This means, amongst other things that you
    cannot do IO with our backend.
 
 *** Lazyness/strictness
     The behaviour of programs change when using this backend. This is a
-    consequence of using strict evaluation. Consider the program
+    consequence of using strict evaluation. Consider the Agda program:
 
-    #+BEGIN_SRC treeless
+    #+BEGIN_SRC agda
     {-# TERMINATING #-}
     fac : Nat -> Nat
     fac 0 = 1
     fac n = fac (n - 1) * suc n
     #+BEGIN_SRC
+
+    This gets translated into treeless.
 
     #+BEGIN_SRC treeless
     example.fac =
@@ -130,21 +130,21 @@
 
     Note 2 things: We've disabled the termination-checker (and are therefore
     asking for trouble) and also note that the binding-site of =b= is outside
-    the case-expression (allowing it to postentially be used across branches).
-    This means that evaluating the treeless in a strict setting would result in
+    the case-expression (allowing it to potentially be used across branches).
+    This means that evaluating the treeless program in a strict setting would result in
     a divergent computation which would not occur in a lazy setting. Our
-    compiler does not try to fix this by pusing the let-binding down the
+    compiler does not try to fix this by e.g. pushing the let-binding down the
     expression tree.
 
     We disabled the termination checker, but a similar example could be given
     for which termnation *can* be guaranteed but where the value may not be
     needed. In this case the resulting program would converge, but be slower.
-
+    # TODO: add converving example
 *** Tail-recursion
     We also uncovered an issue with our implementation relating to non-
     tail-recursive functions that resulted in a stack-overflow with our backend
     that was not exhibited by MAlonzo. This may be due to some optimization
-    provided by ghc that is not provided by malfunciton, but this is not known
+    provided by ghc that is not provided by malfunction, but this is not known
     to us at this time.
 
     In testing the implementation of RedBlack we needed a helper function =downFrom=:
@@ -167,20 +167,8 @@
         f xs (suc x) = f ( x :: xs ) x
     #-END_SRC
 
-# We exposed a "bug" that has to do with the order (the depth) of let-bindings in
-# treeless.
-
-# "all programs that terminate in a strict semantic terminate in a lazy
-# semantic, but not the other way around" - jan mas
-# Example:
-#     
-# Tail recursion problem
-
-   [^2]: https://github.com/UlfNorell/agda-prelude
 
 * Red/Black-tree
-  # Briefly describe red-black algorithm and give a brief overview of how dependent
-  # types can be helpful in this domain. Compare the different implementations
 ** Description
    * A red-black tree is a balanced binary search tree which nodes are either red
      or black.
@@ -203,7 +191,8 @@
     #+NAME:   fig:redblack
     [[./img/redblack.png]]
 
-** Algorithm
+** Implementation variants
+   # TODO: think a better title
    For benchmarking we used an implementation in Agda using dependent types and
    three haskell-versions that "emulate" dependent types to varying degrees by
    using various language-extenssions. All implementations are based on
@@ -236,8 +225,6 @@
                      Downloaded: 2017-03-21 10:23
 
 * Benchmarks
-  # Describe tests and test-results, compare result from Agda backend and the
-  # Haskell versions that to varying degree try to emulate some dependent-types
   For our benchmarks we tested the following variants:
 
   * An Agda implementation using a lazy   fold compiled to Haskell
@@ -249,21 +236,20 @@
   * A Haskell implementation using existential types
 
   We also varied; 1) the length of the list and 2) the sorted-ness of the lists
-  (sorted, reversed, randomized). WARNING HYPOTHESIS: We did not see any
-  variation based on the "sortedness" so we just present these results:
+  (sorted, reversed, randomized).
+  # TODO: talk about the blumblubshub TODO: talk about CPP TODO: talk about how
+  # sortedness effects the performance. In the random case the MAlonzo backend performs worse.
 
   # WARNING HYPOTHESIS:
-  We can see that the OCaml backend versions have similar performance
-  characteristics, and we can further see that they are similarly performant to
-  the performance characteristics of the haskell version with a strict fold.
+  We can see that the OCaml backend versions have a very similar
+  performance[fn::In fact, we know that they compile to the same program. See
+  section [[sec:discussion]]] characteristics, and we can further see that they
+  perform similarly to the Haskell version with a strict fold.
 
+  # TODO: revise
   Quite surprisingly the Haskell versions all perform worse than the Agda
   implementation. We suspect this may be an issue with the implementations, but
   we can't explain this.
-
-  # TODO: Incorporate:
-  # The expensive part in the haskell implementations seem to do with how the
-  # lists are generated and summed.
 
   # TODO: Incorporate:
   # Looking at the profiler output we see that =fromList= accounts for ~95% of
@@ -271,7 +257,9 @@
   # Agda-implementations but we expect that it's similar.
 
 * Discussion
-  # What have we learned. Is the compiler we wrote the one to rule the all?
+  #+NAME: sec:discussion
+
+  # TODO: clarify
   The difference in implementation of the lazy- and strict-versions of the
   red/black-algorithm in Agda boils down to the addition of a single character.
   So in this example writing a more strict and better performing immplementation
@@ -280,7 +268,7 @@
   easy as in this case.
 
   Compiling to a language with strict call-semantics means that "adding
-  strictness" shouldn't have much of an impact on the resulting program, and
+  strictness" should have close to no impact on the resulting program, and
   indeed we implemented =seq= like so:
 
   #-BEGIN_EXAMPLE
@@ -288,19 +276,21 @@
   #-END_EXAMPLE
 
   Strictness forced us to reformulate parts of the program to avoid a
-  stack-overflow when constructing the red-black tree. Similarly we reformulated
-  explicitly added a strict fold to gain a performance boost in the using the
-  MAlonzo backend. This highlights that there are different things to be aware
-  of depending on which call-semantics you are writing a program for. We also
+  stack-overflow when constructing the red-black tree. Similarly we explicitly
+  added a strict fold to gain a performance boost when using the MAlonzo
+  backend. This highlights that there are different things to be aware of
+  depending on which call-semantics you are writing a program for. We also
   conclude that the example illustrates the benefit of using strict evaluation
-  but also that it may be easy to acheive similar effects using the MAlonzo
+  but also that it may be easy to achieve similar effects using the MAlonzo
   backend.
 
   As we've already mentioned our compiler suffers from some limitations due to
   lack of support for mapping primitives to the host-languages. This means that
   there are features that we've not been able to compare but at least in the
-  case of the red/black-algorithm we've managed to make an implementation that
-  is not slower than it's counterpart using the Haskell backend.
+  case of the red/black-algorithm we've shown that compiling using the
+  Malfunction backend generates roughly twice as fast a program than using the
+  MAlonzo backend.
+  # TODO: revise 'twice as fast' claim
 
 * Perspectives
   # What further work could be done?
@@ -310,10 +300,12 @@
   Further work should be put into figuring out why we get a stack-overflow when
   using =foldr=.
 
-  In our backlog for the compiler we have the folling things:
+  Benchmark other algorithms.
+
+  In our backlog for the compiler we have the following things:
 
   * Support for =COMPILE= and =FOREGIN= pragma.
   * Merge codebase into Agda
 
 * Conclusion
-We have presented our work with implementing a new backedn
+  We have presented our work with implementing a new backend
