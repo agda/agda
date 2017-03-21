@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP               #-}
 module AgdaListGen where
 
-import System.Random
 import Data.List
 
 theListLength :: Int
@@ -14,9 +13,7 @@ theListDef = "theList = fromTo " ++ show theListLength
 theListDef = "theList = downFrom " ++ show theListLength
 #endif
 #ifdef LRandom
-theList :: [Int]
-theList = take theListLength (randomRs (0, 10^8) (mkStdGen randSeed))
-theListDef = "theList = " ++ showAgdaList theList
+theListDef = "theList = downFromBbs 43 " ++ show theListLength
 #endif
 
 main = putStrLn $ unlines ["open import Prelude"
