@@ -2,6 +2,7 @@ module RedBlack where
 
 open import Prelude hiding (insert)
 open import TheList
+open import Fold
 open import Extra
 
 -- Version of comparison that lets us use instance search for the proof objects.
@@ -157,7 +158,7 @@ module _ {A : Set} {{_ : Ord A}} where
 
   fromList : List A → RedBlackTree A
   -- we changed `foldr` here to `foldl!` for efficiency reasons
-  fromList = foldl! (flip insert) (mkT leaf)
+  fromList = myfold (flip insert) (mkT leaf)
 
   toList′ : ∀ {b n c} → Tree′ A b n c → List A → List A
   toList′ (leaf′ _)   xs = xs
@@ -174,30 +175,6 @@ module _ {A : Set} {{_ : Ord A}} where
 -- Example --
 -------------
 
--- Non-tail recursive functions are bad in the OCaml backend!
--- downFrom : Nat -> List Nat
--- downFrom 0 = []
--- downFrom (suc n) = n ∷ downFrom ( n )
-
-test : List Nat
--- test = treeSort $ 5 ∷ 1 ∷ 2 ∷ 10 ∷ 13 ∷ 0 ∷ 141 ∷ 7 ∷ []
-test = treeSort theList
-
-blumblumshub : Nat -> (m : Nat) -> {{ nz : NonZero m }} -> Nat
-blumblumshub xn M = natMod M (xn ^ 2)
-
-downFromBbs : Nat -> Nat -> List Nat
-downFromBbs seed = f seed []
-  where
-    f : Nat -> List Nat -> Nat -> List Nat
-    f _ acc 0       = acc
-    f x acc (suc l) = f (blumblumshub x M) ( x ∷ acc ) l
-      where
-        M M17 M31 : Nat
-        M           = M17 * M31
-        M17         = 131071
-        M31         = 2147483647
-
 main : IO Unit
-main = putStrLn $ show $ sum test
--- main = putStrLn $ show $ sum $ treeSort $ downFromBbs 42 40000
+-- main = putStrLn $ show $ sum $ theList
+main = putStrLn $ show $ sum $ treeSort theList

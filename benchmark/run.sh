@@ -1,29 +1,8 @@
 #!/bin/bash
 
-# limit="120s"
-# solverid="0"  # 0=picosat, 1=lingeling
-# inst_dir="../instances/"
-# tmp_file="out.tmp"
-
-# rm -f $tmp_file
-# instances=$(find $inst_dir -name *1.in)
-# a=1
-# total=$(echo "$instances" | wc -l)
-# for f in $instances
-# do
-#     base=$(basename $f .in)
-#     outfile="$inst_dir$base.SAT.out"
-#     # drawfile="$inst_dir$base.charmap"
-#     timeout $limit $main $inst_dir$f $outfile $solverid >> $tmp_file
-#     stop_spinner $?
-#     (( a+=1 ))
-# done
-# solved=$(grep -o Optimal $tmp_file | wc -l)
-# echo "number of solved instances within the time limit:"
-# echo "$solved out of $total"
-
-lengths=`seq 250000 250000 2000000`
-execs="RedBlack RedBlackMlf RbUntyped RbTyped"
+lengths=`seq 500000 500000 4000000`
+# lengths=`seq 50000000 50000000`
+execs="RedBlack RedBlackStrict RedBlackMlf RedBlackMlfStrict RbUntyped RbTyped RbTypedExist"
 
 date=`date`
 datedash=${date// /-}
@@ -38,7 +17,7 @@ do
 done
 
 # order_types="LRandom LSorted LRSorted"
-order_types="LRSorted LSorted"
+order_types="LRandom"
 time_cmd='/usr/bin/time --format "%e %M"'
 
 # $1 is the name of the executable
@@ -62,11 +41,25 @@ do
     for len in $lengths
     do
         echo "length = $len"
-        # Generates the agda hardcoded list
+        # Generates the definition of the list in agda
         cpp AgdaListGen.hs -Dlen=$len -D$order > tmp.hs
         stack exec runhaskell -- tmp.hs > TheList.agda
 
+        start_spinner "Compiling Agda Strict"
+        cpp Fold0.agda -Dstrict Fold.agda
+        sed '/^#/ d' Fold.agda -i
+        stack exec agda2mlf -- -c RedBlack.agda > /dev/null
+        cp RedBlack RedBlackStrict
+        stop_spinner $?
+
+        start_spinner "Compiling Mlf Strict"
+        stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlfStrict -o RedBlack.mlf > /dev/null
+        stop_spinner $?
+
+
         start_spinner "Compiling Agda"
+        cpp Fold0.agda Fold.agda
+        sed '/^#/ d' Fold.agda -i
         stack exec agda2mlf -- -c RedBlack.agda > /dev/null
         stop_spinner $?
 
@@ -74,10 +67,14 @@ do
         stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlf -o RedBlack.mlf > /dev/null
         stop_spinner $?
 
+
         start_spinner "Compiling haskell programs"
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dlen=$len -o RbUntyped > /dev/null
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -Dlen=$len -o RbTyped > /dev/null
-        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -Dlen=$len -o RbTypedExist > /dev/null
+        # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbUntyped    -D$order -DLen=$len -o RbUntypedProf > /dev/null
+        # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbTyped      -D$order -DLen=$len -o RbTypedProf > /dev/null
+        # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o RbTypedExistProf > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -D$order -DLen=$len -o RbUntyped > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -D$order -DLen=$len -o RbTyped > /dev/null
+        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o RbTypedExist > /dev/null
         stop_spinner $?
 
         for exec in $execs
@@ -114,6 +111,8 @@ do
     cat $tablefile >> $allfile
     printf "\nBenchmark for $order\n"
     cat $allfile
+    cp plot1.plt $outdir/plot.plt
+    (cd $outdir && gnuplot plot.plt)
     echo ""
 done
 rm $tablefile
