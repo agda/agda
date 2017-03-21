@@ -46,6 +46,9 @@ data Response
       -- ^ The integer is the message's debug level.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting
+    | Resp_DoneAborting
+      -- ^ A command sent when an abort command has completed
+      -- successfully.
 
 -- | There are two kinds of \"make case\" commands.
 
@@ -140,3 +143,4 @@ defaultInteractionOutputCallback r = case r of
                                  hFlush stdout
   Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
+  Resp_DoneAborting {}      -> __IMPOSSIBLE__

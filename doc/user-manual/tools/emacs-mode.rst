@@ -25,6 +25,7 @@ Global commands
 ``C-c C-x C-c``      **C**\ ompile file
 ``C-c C-x C-q``      **Q**\ uit, kill the Agda process
 ``C-c C-x C-r``      Kill and **r**\ estart the Agda process
+``C-c C-x C-a``      **A**\ bort a command
 ``C-c C-x C-d``      Remove goals and highlighting (**d**\ eactivate)
 ``C-c C-x C-h``      Toggle display of **h**\ idden arguments
 ``C-c C-=``          Show constraints
