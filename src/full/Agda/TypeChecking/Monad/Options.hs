@@ -202,6 +202,13 @@ setIncludeDirs incs relativeTo = do
   -- for the interaction, qualifies for a code-obfuscation contest.
   -- I guess one Boolean more in the state cost 10.000 EUR at the time
   -- of this implementation...
+  --
+  -- Andreas, perhaps you have misunderstood something: If the include
+  -- directories have changed and we do not reset the decoded modules,
+  -- then we might (depending on how the rest of the code works) end
+  -- up in a situation in which we use the contents of the file
+  -- "old-path/M.agda", when the user actually meant
+  -- "new-path/M.agda".
   when (oldIncs /= incs) $ do
     ho <- getInteractionOutputCallback
     resetAllState
