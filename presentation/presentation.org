@@ -1,6 +1,6 @@
 #+BEAMER_THEME: default
 #+BEAMER_COLOR_THEME: default
-#+TITLE: An strict backend for Agda
+#+TITLE: A strict backend for Agda
 #+SUBTITLE: agda2mlf
 #+AUTHOR: Frederik Hanghøj Iversen, Jan Mas Rovira
 #+OPTIONS: H:2
@@ -11,13 +11,13 @@
 ** Introduction
    We present our efforts to implement a backend for Agda targeting OCaml. We
    present some of the problems we ran into along the way as well as limitations
-   of the current implementation. The motivation for the project was to explore
-   if it was possible to gain a performance boost by targeting a strict
-   language. To test this hypothesis we did a case-study of implementations of
-   red/black-trees in Agda as well as three reference implementations in Haskell
-   emulating dependent types to varying degrees.
-
-   # TODO: explain what available backends there are (Malonzo, js)
+   of the current implementation. There already exists two backends for Agda.
+   The MAlonzo backend that targets ghc and a compiler that targets the
+   JavaScript language. The motivation for the project was to explore if it was
+   possible to gain a performance boost by targeting a strict language. To test
+   this hypothesis we did a case-study of implementations of red/black-trees in
+   Agda as well as three reference implementations in Haskell emulating
+   dependent types to varying degrees.
 * Implementation
   The project is designed to fit into the "Agda framework". Agda has a notion of
   a =Backend= which is essentially what we have designed.
@@ -191,8 +191,7 @@
     #+NAME:   fig:redblack
     [[./img/redblack.png]]
 
-** Implementation variants
-   # TODO: think a better title
+** Implementations
    For benchmarking we used an implementation in Agda using dependent types and
    three haskell-versions that "emulate" dependent types to varying degrees by
    using various language-extenssions. All implementations are based on
@@ -225,6 +224,7 @@
                      Downloaded: 2017-03-21 10:23
 
 * Benchmarks
+** Procedure
   For our benchmarks we tested the following variants:
 
   * An Agda implementation using a lazy   fold compiled to Haskell
@@ -235,33 +235,75 @@
   * A Haskell implementation using nested higher-order types
   * A Haskell implementation using existential types
 
-  We also varied; 1) the length of the list and 2) the sorted-ness of the lists
-  (sorted, reversed, randomized).
-  # TODO: talk about the blumblubshub TODO: talk about CPP TODO: talk about how
-  # sortedness effects the performance. In the random case the MAlonzo backend performs worse.
+  We also varied; 1) the length of the list and 2) the sortedness of the lists
+  (sorted, reversed sorted, randomized). For the randomized lists we used the
+  Blum Blum Shub pseudo-random number generation algorithm to generate
+  (pseudo-)randmoized lists. The advantage of using this approach is the the
+  results are deterministic, and therefore reproducible, and it is fairly easy
+  to compute.
 
-  # WARNING HYPOTHESIS:
-  We can see that the OCaml backend versions have a very similar
+  We used the C Preprocessor to handle these different variants. So the programs
+  do not do any input. All tests procede by sorting a list using
+  =toList . fromList=, so converting to and from a red/black tree and then summing the
+  resulting list. Profiling output from the Haskell-implementations show us that
+  the largest cost-center (around 95%) is the generation of the tree. We do not
+  have access to similar resources for the Agda implementations but we don't
+  expect that the picture should be any different here.
+
+  # TODO: talk about how sortedness effects the performance. In the random case
+  # the MAlonzo backend performs worse.
+
+** Results
+   # TODO: Include graphs, explain findings
+*** Summing sorted lists
+  # TODO: Jan revise
+  Result: We see that haskell uses constant memory and is a lot faster than the agda-version.
+
+  Malfunction version is faster than MAlonzo.
+
+  Jan: "Optimization stuff"
+
+  We also did a benchmark with reversed lists, the results look similar.
+
+*** Summing random lists
+  Here the Malfunction implementation is the fastest.
+
+  We see that Haskell is still about as fast as the Malfunction implementation.
+
+  Furthermore we see that adding (pseudo-)randomization to the generation of the
+  list, has an impact on the performance on the Haskell version, but it still
+  ranks as one of the fastest implementations.
+
+*** Summing and tree-sorting random lists
+
+  We can see that the strict- and lazy Malfunction-versions have a very similar
   performance[fn::In fact, we know that they compile to the same program. See
   section [[sec:discussion]]] characteristics, and we can further see that they
-  perform similarly to the Haskell version with a strict fold.
+  perform similarly to the MAlonzo version with a strict fold.
 
-  # TODO: revise
-  Quite surprisingly the Haskell versions all perform worse than the Agda
-  implementation. We suspect this may be an issue with the implementations, but
-  we can't explain this.
+  Quite surprisingly the Haskell versions all perform worse thasn the Agda
+  implementations. We suspect this may be an issue with how the red/black
+  algorithm was implemented.
 
-  # TODO: Incorporate:
-  # Looking at the profiler output we see that =fromList= accounts for ~95% of
-  # the execution time. We don't have the luxury of inspecting this value in the
-  # Agda-implementations but we expect that it's similar.
+  We also see that the Malfunction backend performs better than the MAlonzo
+  backend.
 
 * Discussion
   #+NAME: sec:discussion
 
   # TODO: clarify
   The difference in implementation of the lazy- and strict-versions of the
-  red/black-algorithm in Agda boils down to the addition of a single character.
+  red/black-algorithm in Agda boil down to how =fromList= is implemented:
+
+  #+BEGIN_SRC agda
+  fromList = foldl! (flip insert) (mkT leaf)
+  #+BEGIN_SRC
+
+  #+BEGIN_SRC agda
+  fromList = foldl  (flip insert) empty
+  fromList = foldr insert empty
+  #+BEGIN_SRC
+
   So in this example writing a more strict and better performing immplementation
   using the Haskell backend requires a trivial change. Of course identifying
   where to use and where not to use strictness in a lazy setting may not be as
@@ -294,18 +336,33 @@
 
 * Perspectives
   # What further work could be done?
-  Further effort should be put into figuring out why the haskell implementations
-  are running so slowly.
+  Further effort should be put into figuring out why the Haskell implementations
+  are running so slowly. Comparing the results with Haskell reference
+  implementations is problematic because they are entirely different programs.
+  And it is very surprising that an implementation of a program that compiles to
+  Haskell is able to outperform a program written directly in Haskell.
 
   Further work should be put into figuring out why we get a stack-overflow when
   using =foldr=.
 
-  Benchmark other algorithms.
+  To be able to more confidently compare the efficiency of the executables
+  produced by our compiler benchmark of more algorithms would be useful.
 
-  In our backlog for the compiler we have the following things:
+  It would be desirable to have support for =COMPILE= and =FOREGIN= pragma.
 
-  * Support for =COMPILE= and =FOREGIN= pragma.
-  * Merge codebase into Agda
+  The compiler should ideally be merged into the Agda codebase.
+
+  Adding optimizations to the compiler would also be beneficial.
 
 * Conclusion
-  We have presented our work with implementing a new backend
+  We have presented our work with implementing a new backend for the Agda
+  compiler targeting Malfunction a backend for the OCaml programming language.
+  We've discussed some of the limitations of this implementation. We've
+  successfully used it to compile an implementation of the red/black
+  tree-sorting algorithm. We then performed benchmarks using this Agda
+  implementation as well as three reference Haskell implementations. These
+  benchmarks showed that our backend outperforms the other configurations for
+  sorting randomized lists and ties with the MAlonzo backend for sorting already
+  sorted lists. We also pointed out the fact that our comparison with the
+  Haskell reference implementations is problematic since it is an entirely
+  different implementation.
