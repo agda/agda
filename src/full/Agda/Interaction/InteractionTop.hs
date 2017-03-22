@@ -362,6 +362,7 @@ data Command
     -- ^ Stop processing commands.
   | Error String
     -- ^ An error message for a command that could not be parsed.
+  deriving Show
 
 -- | Command queues.
 
@@ -572,7 +573,7 @@ data Interaction' range
     -- ^ Abort the current computation.
     --
     -- Does nothing if no computation is in progress.
-        deriving (Read, Functor, Foldable, Traversable)
+        deriving (Show, Read, Functor, Foldable, Traversable)
 
 type IOTCM = IOTCM' Range
 data IOTCM' range
@@ -585,7 +586,7 @@ data IOTCM' range
         HighlightingMethod
         (Interaction' range)
          -- -^ What to do
-            deriving (Read, Functor, Foldable, Traversable)
+            deriving (Show, Read, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------
 -- Read instances
