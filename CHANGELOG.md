@@ -130,6 +130,13 @@ Emacs mode
     The definition with incomplete patterns are highlighted in
     wheat.
 
+* Aborting commands.
+
+  Now one can (try to) abort an Agda command by using `C-c C-x C-a` or
+  a menu entry. The effect is similar to that of restarting Agda (`C-c
+  C-x C-r`), but some state is preserved, which could mean that it
+  takes less time to reload the module.
+
 * New bindings: All the bold digits are now available
 
   The Agda input method did not bind bold digits. They are now

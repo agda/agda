@@ -63,6 +63,7 @@ run_test=if test -f $*.in; \
 # Note that RTS_... variables are ignored when .sh files are used.
 
 setup_Issue591     = rm -f Issue591/M.agdai
+setup_Issue2217    = rm -f Issue2217/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
 setup_Auto = $(AGDA_BIN) Auto/Prelude.agda
 setup_Auto-BasicLogic = $(setup_Auto)

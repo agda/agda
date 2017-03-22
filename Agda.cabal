@@ -106,7 +106,8 @@ library
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
 
-  build-depends:  array >= 0.4.0.1 && < 0.6
+  build-depends:  async >= 2.1.1 && < 2.2
+                , array >= 0.4.0.1 && < 0.6
                 , base >= 4.6.0.1 && < 4.10
                 , binary >= 0.7.2.1 && < 0.9
                 , boxes >= 0.1.3 && < 0.2
@@ -145,6 +146,7 @@ library
                 , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
                 , process >= 1.1.0.2 && < 1.5
                 , regex-tdfa >= 1.2.2 && < 1.3
+                , stm >= 2.4.4.1 && < 2.5
                 , strict >= 0.3.2 && < 0.4
                 , template-haskell >= 2.8.0.0 && < 2.12
                 , text >= 0.11.3.1 && < 1.3

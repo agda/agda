@@ -12,10 +12,14 @@ module Agda.Interaction.InteractionTop
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Concurrent
+import Control.Concurrent.Async
+import Control.Concurrent.STM.TChan
 import qualified Control.Exception as E
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.STM
 
 import qualified Data.Char as Char
 import Data.Foldable (Foldable)
@@ -95,7 +99,8 @@ import Agda.Utils.Time
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-------------------------------------------
+------------------------------------------------------------------------
+-- The CommandM monad
 
 -- | Auxiliary state of an interactive computation.
 
@@ -117,20 +122,30 @@ data CommandState = CommandState
     -- ^ We remember (the scope of) old interaction points to make it
     --   possible to parse and compute highlighting information for the
     --   expression that it got replaced by.
+  , commandQueue :: CommandQueue
+    -- ^ Command queue.
+    --
+    -- The commands in the queue are processed in the order in which
+    -- they are received. Abort commands do not have precedence over
+    -- other commands, they only abort the immediately preceding
+    -- command. (The Emacs mode is expected not to send a new command,
+    -- other than the abort command, before the previous command has
+    -- completed.)
   }
 
 type OldInteractionScopes = Map InteractionId ScopeInfo
 
 -- | Initial auxiliary interaction state
 
-initCommandState :: CommandState
-initCommandState = CommandState
-  { theInteractionPoints = []
-  , theCurrentFile       = Nothing
-  , optionsOnReload      = defaultOptions
-  , oldInteractionScopes = Map.empty
-  }
-
+initCommandState :: CommandQueue -> CommandState
+initCommandState commandQueue =
+  CommandState
+    { theInteractionPoints = []
+    , theCurrentFile       = Nothing
+    , optionsOnReload      = defaultOptions
+    , oldInteractionScopes = Map.empty
+    , commandQueue         = commandQueue
+    }
 
 -- | Monad for computing answers to interactive commands.
 --
@@ -260,12 +275,24 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       put s'
       return x
 
-    -- | Handle nasty errors like stack space overflow (issue 637)
-    -- We assume that the input action handles other kind of errors.
+    -- | Handle every possible kind of error (#637), except for
+    -- ThreadKilled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
-    handleNastyErrors m = commandMToIO $ \ toIO ->
-        toIO m `E.catch` \ (e :: E.SomeException) ->
-          toIO $ handleErr $ Exception noRange $ text $ show e
+    handleNastyErrors m = commandMToIO $ \ toIO -> do
+      let handle e =
+            Right <$>
+              (toIO $ handleErr $ Exception noRange $ text $ show e)
+
+          asyncHandler e@E.ThreadKilled = return (Left e)
+          asyncHandler e                = handle e
+
+          generalHandler (e :: E.SomeException) = handle e
+
+      r <- ((Right <$> toIO m) `E.catch` asyncHandler)
+             `E.catch` generalHandler
+      case r of
+        Right x -> return x
+        Left e  -> E.throwIO e
 
     -- | Displays an error and instructs Emacs to jump to the site of the
     -- error. Because this function may switch the focus to another file
@@ -322,6 +349,95 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     -- If an independent command fails we should reset theCurrentFile (Issue853).
     onFail | independent cmd = modify $ \ s -> s { theCurrentFile = Nothing }
            | otherwise       = return ()
+
+------------------------------------------------------------------------
+-- Command queues
+
+-- | Commands.
+
+data Command
+  = Command IOTCM
+    -- ^ An 'IOTCM' command.
+  | Done
+    -- ^ Stop processing commands.
+  | Error String
+    -- ^ An error message for a command that could not be parsed.
+  deriving Show
+
+-- | Command queues.
+
+type CommandQueue = TChan Command
+
+-- | The next command.
+
+nextCommand :: CommandM Command
+nextCommand =
+  liftIO . atomically . readTChan =<< gets commandQueue
+
+-- | Runs the given computation, but if an abort command is
+-- encountered (and acted upon), then the computation is
+-- interrupted, the persistent state and the pragma options are
+-- restored, and some commands are sent to the frontend.
+
+-- TODO: It might be nice if some of the changes to the persistent
+-- state inflicted by the interrupted computation were preserved.
+
+maybeAbort :: CommandM () -> CommandM ()
+maybeAbort c = do
+  commandState <- get
+  tcState      <- lift get
+  tcEnv        <- lift ask
+  result       <- liftIO $ race
+                    (runTCM tcEnv tcState $ runStateT c commandState)
+                    (waitForAbort $ commandQueue commandState)
+  case result of
+    Left (((), commandState), tcState) -> do
+      lift $ put tcState
+      put commandState
+    Right () -> do
+      lift $ put $ initState
+        { stPersistentState = stPersistentState tcState
+        , stPreScopeState   =
+            (stPreScopeState initState)
+              { stPrePragmaOptions =
+                  stPrePragmaOptions
+                    (stPreScopeState tcState)
+              }
+        }
+      put $ (initCommandState (commandQueue commandState))
+        { optionsOnReload = optionsOnReload commandState
+        }
+      putResponse Resp_DoneAborting
+      displayStatus
+  where
+
+  -- | Returns if the first element in the queue is an abort command.
+  -- The abort command is removed from the queue.
+
+  waitForAbort :: CommandQueue -> IO ()
+  waitForAbort q = atomically $ do
+    c <- peekTChan q
+    case c of
+      Command (IOTCM _ _ _ Cmd_abort) -> void $ readTChan q
+      _                               -> retry
+
+-- | Creates a command queue, and forks a thread that writes commands
+-- to the queue. The queue is returned.
+
+initialiseCommandQueue
+  :: IO Command
+     -- ^ Returns the next command.
+  -> IO CommandQueue
+initialiseCommandQueue next = do
+  q <- newTChanIO
+  let readCommands = do
+        c <- next
+        atomically $ writeTChan q c
+        case c of
+          Done -> return ()
+          _    -> readCommands
+  _ <- forkIO readCommands
+  return q
 
 ----------------------------------------------------------------------------
 -- | An interactive computation.
@@ -453,8 +569,11 @@ data Interaction' range
   | Cmd_why_in_scope_toplevel String
     -- | Displays version of the running Agda
   | Cmd_show_version
-        deriving (Read, Functor, Foldable, Traversable)
-
+  | Cmd_abort
+    -- ^ Abort the current computation.
+    --
+    -- Does nothing if no computation is in progress.
+        deriving (Show, Read, Functor, Foldable, Traversable)
 
 type IOTCM = IOTCM' Range
 data IOTCM' range
@@ -467,7 +586,7 @@ data IOTCM' range
         HighlightingMethod
         (Interaction' range)
          -- -^ What to do
-            deriving (Read, Functor, Foldable, Traversable)
+            deriving (Show, Read, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------
 -- Read instances
@@ -835,6 +954,8 @@ interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
 
 
 interpret Cmd_show_version = display_info Info_Version
+
+interpret Cmd_abort = return ()
 
 -- | Show warnings
 interpretWarnings :: CommandM (String, String)

@@ -23,7 +23,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
-import Agda.Interaction.EmacsCommand
+import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Options
 
@@ -48,36 +48,52 @@ mimicGHCi setup = do
     setInteractionOutputCallback $
         liftIO . mapM_ print <=< lispifyResponse
 
-    handleCommand_ (lift setup) `evalStateT` initCommandState
+    commands <- liftIO $ initialiseCommandQueue readCommand
+
+    handleCommand_ (lift setup) `evalStateT` initCommandState commands
 
     opts <- commandLineOptions
-    _ <- interact' `runStateT` initCommandState { optionsOnReload = opts{ optAbsoluteIncludePaths = [] } }
+    _ <- interact' `runStateT`
+           (initCommandState commands)
+             { optionsOnReload = opts{ optAbsoluteIncludePaths = [] } }
     return ()
   where
+  interact' :: CommandM ()
+  interact' = do
+    Bench.reset
+    done <- Bench.billTo [] $ do
 
-    interact' :: CommandM ()
-    interact' = do
-      Bench.reset
-      done <- Bench.billTo [] $ do
+      liftIO $ do
+        putStr "Agda2> "
+        hFlush stdout
+      c <- nextCommand
+      case c of
+        Done      -> return True -- Done.
+        Error s   -> liftIO (putStrLn s) >> return False
+        Command c -> do
+          maybeAbort (runInteraction c)
+          return False
 
-        liftIO $ do
-          putStr "Agda2> "
-          hFlush stdout
-        done <- liftIO isEOF
-        unless done $ do
-            r <- liftIO getLine
-            _ <- return $! length r     -- force to read the full input line
-            case dropWhile isSpace r of
-                ""  -> return ()
-                ('-':'-':_) -> return ()
-                _ -> case listToMaybe $ reads r of
-                    Just (x, "")  -> runInteraction x
-                    Just (_, rem) -> liftIO $ putStrLn $ "not consumed: " ++ rem
-                    _ ->             liftIO $ putStrLn $ "cannot read: " ++ r
-        return done
+    lift Bench.print
+    unless done interact'
 
-      lift Bench.print
-      unless done interact'
+  -- Reads the next command from stdin.
+
+  readCommand :: IO Command
+  readCommand = do
+    done <- isEOF
+    if done then
+      return Done
+    else do
+      r <- getLine
+      _ <- return $! length r     -- force to read the full input line
+      case dropWhile isSpace r of
+        ""          -> readCommand
+        ('-':'-':_) -> readCommand
+        _           -> case listToMaybe $ reads r of
+          Just (x, "")  -> return $ Command x
+          Just (_, rem) -> return $ Error $ "not consumed: " ++ rem
+          _             -> return $ Error $ "cannot read: " ++ r
 
 -- | Given strings of goals, warnings and errors, return a pair of the
 --   body and the title for the info buffer
@@ -141,6 +157,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
   where f content bufname = [ display_info' False bufname content ]
 lispifyResponse Resp_ClearHighlighting = return [ L [ A "agda2-highlight-clear" ] ]
+lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
 lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
 -- FNF: if Info_Warning comes back into use, the above should be
 -- return [ clearRunningInfo, clearWarning ]

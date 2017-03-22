@@ -275,7 +275,7 @@ evalInMeta ii e =
 
 
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
-    deriving (Read)
+    deriving (Show, Read)
 
 normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
 normalForm AsIs         t = return t
@@ -285,7 +285,7 @@ normalForm Simplified   t = {- etaContract =<< -} simplify t
 normalForm Normalised   t = {- etaContract =<< -} normalise t
 
 data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
-  deriving (Read, Eq)
+  deriving (Show, Read, Eq)
 
 computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False

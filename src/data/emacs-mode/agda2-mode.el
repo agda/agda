@@ -227,6 +227,7 @@ constituents.")
     (agda2-compile                           "\C-c\C-x\C-c"       (global)       "Compile")
     (agda2-quit                              "\C-c\C-x\C-q"       (global)       "Quit")
     (agda2-restart                           "\C-c\C-x\C-r"       (global)       "Kill and restart Agda")
+    (agda2-abort                             "\C-c\C-x\C-a"       (global)       "Abort a command")
     (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
     (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
     (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
@@ -351,8 +352,8 @@ nil) and the time at which the measurement was started.")
 
 ;; The following variables are used by the filter process,
 ;; `agda2-output-filter'. Their values are only modified by the filter
-;; process, `agda2-go', `agda2-restart', and
-;; `agda2-abort-highlighting'.
+;; process, `agda2-go', `agda2-restart', `agda2-abort-highlighting',
+;; and `agda2-abort-done'.
 
 (defvar agda2-responses-expected nil
   "Is the Agda process expected to produce at least one response?")
@@ -574,6 +575,25 @@ highlighting may be updated."
          "("
          (append args '(")"))))
 
+(defun agda2-abort ()
+  "Tries to abort the current computation, if any.
+May be more efficient than restarting Agda."
+  (interactive)
+  (agda2-send-command nil
+                      "IOTCM"
+                      (agda2-string-quote (buffer-file-name))
+                      "None"
+                      "Indirect"
+                      "Cmd_abort"))
+
+(defun agda2-abort-done ()
+  "Removes annotations, resets certain variables.
+Intended to be used by the backend if an abort command was
+successful."
+  (agda2-remove-annotations)
+  (setq agda2-highlight-in-progress nil
+        agda2-responses-expected    nil
+        agda2-last-responses        nil))
 
 (defun agda2-output-filter (proc chunk)
   "Evaluate the Agda process's commands.
