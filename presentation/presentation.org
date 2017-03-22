@@ -224,7 +224,7 @@
   * A Haskell implementation using nested higher-order types.
   * A Haskell implementation using existential types.
 
-    We benchmarked each implementation using sorted lists and random lists.
+  We benchmarked each implementation using sorted lists and random lists.
 ** Tree-sorting and summing random lists
     #+BEGIN_SRC haskell
     fromList, fromList' :: Ord a => [a] -> Tree a
