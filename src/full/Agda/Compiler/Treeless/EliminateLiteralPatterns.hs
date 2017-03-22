@@ -49,7 +49,10 @@ transform kit = tr
           litAlt _ _ = __IMPOSSIBLE__
       TCase sc t@(CTData dt) def alts -> TCase sc t (tr def) (map trAlt alts)
         where
-          trAlt a = a { aBody = tr (aBody a) }
+          trAlt a = case a of
+            TAGuard g b -> TAGuard (tr g) (tr b)
+            TACon q a b -> TACon q a (tr b)
+            TALit l b   -> TALit l (tr b)
       TCase _ _ _ _ -> __IMPOSSIBLE__
 
       TVar{}    -> t
