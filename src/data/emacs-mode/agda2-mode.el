@@ -97,7 +97,7 @@ argument, and does not need to be listed here."
   "Compilation backends.")
 
 (defcustom agda2-backend
-  'ask
+  ""
   "The backend used to compile Agda programs (leave blank to ask every time)."
   :type 'string
   :group 'agda2)
