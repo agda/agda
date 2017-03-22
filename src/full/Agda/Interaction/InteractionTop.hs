@@ -375,9 +375,9 @@ nextCommand =
   liftIO . atomically . readTChan =<< gets commandQueue
 
 -- | Runs the given computation, but if an abort command is
--- encountered (and acted upon), then the computation is
--- interrupted, the persistent state and the pragma options are
--- restored, and some commands are sent to the frontend.
+-- encountered (and acted upon), then the computation is interrupted,
+-- the persistent state and all options are restored, and some
+-- commands are sent to the frontend.
 
 -- TODO: It might be nice if some of the changes to the persistent
 -- state inflicted by the interrupted computation were preserved.
