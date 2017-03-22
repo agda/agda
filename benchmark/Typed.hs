@@ -1,8 +1,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Typed (fromList, toList) where
+module Typed (Tree, fromList, fromList', toList) where
 
 import qualified Data.Foldable as F
+import Data.List (foldl')
 
 {- Version 2, 1st typed version -}
 data Unit a = E deriving Show
@@ -31,26 +32,6 @@ empty = Base E
 
 type RR t a = Red (Red t) a
 type RL t a = Red (AddLayer t) a
-
-member :: Ord a => a -> Tree a -> Bool
-member x t = rbmember x t (\ _ -> False)
-
-rbmember :: Ord a => a -> RB t a -> (t a->Bool) -> Bool
-rbmember x (Base t) m = m t
-rbmember x (Next u) m = rbmember x u (bmem x m)
-
-bmem :: Ord a => a -> (t a->Bool) -> AddLayer t a -> Bool
-bmem x m (B(l,y,r))
- | x<y = rmem x m l
- | x>y = rmem x m r
- | otherwise = True
-
-rmem :: Ord a => a -> (t a->Bool) -> Red t a->Bool
-rmem x m (C t) = m t
-rmem x m (R(l,y,r))
- | x<y = m l
- | x>y = m r
- | otherwise = True
 
 insert :: Ord a => a -> Tree a -> Tree a
 insert = rbinsert
@@ -168,21 +149,12 @@ instance (Append t, DelRed t) => Del t where
 instance Deletion t => Deletion (AddLayer t)
 instance Deletion Unit
 
-rbdelete :: (Ord a,Deletion t) => a -> RB (AddLayer t) a -> RB t a
-rbdelete x (Next t) = Next (rbdelete x t)
-rbdelete x (Base t) = blacken2 (del x t)
-
-blacken2 :: RR t a -> RB t a
-blacken2 (C(C t)) = Base t
-blacken2 (C(R(a,x,b))) = Next(Base(B(C a,x,C b)))
-blacken2 (R p) = Next(Base(B p))
-
-delete :: Ord a => a -> Tree a -> Tree a
-delete x (Next u) = rbdelete x u
-delete x _ = empty
+fromList' :: Ord a => [a] -> Tree a
+fromList' = foldl' (flip insert) empty
 
 fromList :: Ord a => [a] -> Tree a
 fromList = foldr insert empty
+
 
 instance Foldable Unit where
   foldr _ x E = x

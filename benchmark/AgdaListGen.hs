@@ -7,13 +7,26 @@ theListLength :: Int
 theListLength = len
 
 #ifdef LSorted
+#ifdef tail
+theListDef = "theList = fromTo' " ++ show theListLength
+#else
 theListDef = "theList = fromTo " ++ show theListLength
 #endif
+#endif
+
 #ifdef LRSorted
+#ifdef tail
+theListDef = "theList = downFrom' " ++ show theListLength
+#else
 theListDef = "theList = downFrom " ++ show theListLength
 #endif
+#endif
 #ifdef LRandom
-theListDef = "theList = downFromBbs 43 " ++ show theListLength
+#ifdef tail
+theListDef = "theList = downFromBbs' 43 " ++ show theListLength
+#else
+theListDef = "theList = fromToBbs 43 " ++ show theListLength
+#endif
 #endif
 
 main = putStrLn $ unlines ["open import Prelude"
@@ -22,8 +35,3 @@ main = putStrLn $ unlines ["open import Prelude"
                           , "theList : List Nat"
                           , theListDef]
 
-showAgdaList :: Show a => [a] -> String
-showAgdaList l = intercalate " ∷ " (map show l ++ ["[]"])
-
-randSeed :: Int
-randSeed = 0

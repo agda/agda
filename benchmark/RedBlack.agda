@@ -176,5 +176,5 @@ module _ {A : Set} {{_ : Ord A}} where
 -------------
 
 main : IO Unit
--- main = putStrLn $ show $ sum $ theList
-main = putStrLn $ show $ sum $ treeSort theList
+main = putStrLn $ show $ sum $ theList
+-- main = putStrLn $ show $ sum $ treeSort theList

@@ -1,8 +1,11 @@
 #!/bin/bash
 
-lengths=`seq 500000 500000 4000000`
-# lengths=`seq 50000000 50000000`
-execs="RedBlack RedBlackStrict RedBlackMlf RedBlackMlfStrict RbUntyped RbTyped RbTypedExist"
+# suffix S ==> -Dstrict (foldl!)
+# suffix T ==> -Dtail
+# lengths=`seq 250000 750000 30000000`
+lengths=`seq 1000000 2500000 50000000`
+execs="MAlonzox Malfunction"
+order_types="LRandom"
 
 date=`date`
 datedash=${date// /-}
@@ -16,8 +19,6 @@ do
     echo $len >> $lengths_file
 done
 
-# order_types="LRandom LSorted LRSorted"
-order_types="LRandom"
 time_cmd='/usr/bin/time --format "%e %M"'
 
 # $1 is the name of the executable
@@ -41,41 +42,55 @@ do
     for len in $lengths
     do
         echo "length = $len"
-        # Generates the definition of the list in agda
-        cpp AgdaListGen.hs -Dlen=$len -D$order > tmp.hs
+
+
+        start_spinner "Compiling MAlonzo"
+        cpp AgdaListGen.hs -Dtail -Dlen=$len -D$order > tmp.hs
         stack exec runhaskell -- tmp.hs > TheList.agda
-
-        start_spinner "Compiling Agda Strict"
-        cpp Fold0.agda -Dstrict Fold.agda
-        sed '/^#/ d' Fold.agda -i
-        stack exec agda2mlf -- -c RedBlack.agda > /dev/null
-        cp RedBlack RedBlackStrict
-        stop_spinner $?
-
-        start_spinner "Compiling Mlf Strict"
-        stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlfStrict -o RedBlack.mlf > /dev/null
-        stop_spinner $?
-
-
-        start_spinner "Compiling Agda"
         cpp Fold0.agda Fold.agda
         sed '/^#/ d' Fold.agda -i
         stack exec agda2mlf -- -c RedBlack.agda > /dev/null
+        cp RedBlack MAlonzox
         stop_spinner $?
+
+        # start_spinner "Compiling MAlonzo Strict"
+        # cpp AgdaListGen.hs -Dtail -Dlen=$len -D$order > tmp.hs
+        # stack exec runhaskell -- tmp.hs > TheList.agda
+        # cpp Fold0.agda -Dstrict Fold.agda
+        # sed '/^#/ d' Fold.agda -i
+        # stack exec agda2mlf -- -c RedBlack.agda > /dev/null
+        # cp RedBlack MAlonzoStrict
+        # stop_spinner $?
+
+        # start_spinner "Compiling Mlf Strict"
+        # cpp AgdaListGen.hs -Dtail -Dlen=$len -D$order > tmp.hs
+        # stack exec runhaskell -- tmp.hs > TheList.agda
+        # cpp Fold0.agda -Dtail -Dstrict Fold.agda
+        # sed '/^#/ d' Fold.agda -i
+        # stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=MalfunctionStrict -o RedBlack.mlf > /dev/null
+        # stop_spinner $?
 
         start_spinner "Compiling Mlf"
-        stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=RedBlackMlf -o RedBlack.mlf > /dev/null
+        cpp AgdaListGen.hs -Dtail -Dlen=$len -D$order > tmp.hs
+        stack exec runhaskell -- tmp.hs > TheList.agda
+        cpp Fold0.agda -Dtail Fold.agda
+        sed '/^#/ d' Fold.agda -i
+        stack exec agda2mlf -- --mlf RedBlack.agda --compilemlf=Malfunction -o RedBlack.mlf > /dev/null
         stop_spinner $?
 
 
-        start_spinner "Compiling haskell programs"
-        # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbUntyped    -D$order -DLen=$len -o RbUntypedProf > /dev/null
-        # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbTyped      -D$order -DLen=$len -o RbTypedProf > /dev/null
-        # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o RbTypedExistProf > /dev/null
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -D$order -DLen=$len -o RbUntyped > /dev/null
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -D$order -DLen=$len -o RbTyped > /dev/null
-        ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o RbTypedExist > /dev/null
-        stop_spinner $?
+        # start_spinner "Compiling Haskell programs"
+        # # ghc RedBlack.hs -O2 -prof -fprof-auto -rtsopts -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o RbTypedExistProf > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -D$order -DLen=$len -o HaskUntyped > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -D$order -DLen=$len -o HaskTyped > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -D$order -DLen=$len -o HaskExistType > /dev/null
+        # stop_spinner $?
+
+        # start_spinner "Compiling Strict Haskell programs"
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbUntyped    -Dstrict -D$order -DLen=$len -o HaskUntypedStrict > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTyped      -Dstrict -D$order -DLen=$len -o HaskTypedStrict > /dev/null
+        # ghc RedBlack.hs -O2 -main-is RedBlack -DRbTypedExist -Dstrict -D$order -DLen=$len -o HaskExistTypeStrict > /dev/null
+        # stop_spinner $?
 
         for exec in $execs
         do
@@ -111,8 +126,7 @@ do
     cat $tablefile >> $allfile
     printf "\nBenchmark for $order\n"
     cat $allfile
-    cp plot1.plt $outdir/plot.plt
+    cp plot.plt $outdir
     (cd $outdir && gnuplot plot.plt)
     echo ""
 done
-rm $tablefile

@@ -5,50 +5,58 @@
 module RedBlack where
 
 import Data.List (foldl')
+import Extra
 
 #ifdef RbUntyped
-import           Untyped    (fromList, toList)
+import           Untyped
 #endif
 #ifdef RbTyped
-import           Typed      (fromList, toList)
+import           Typed
 #endif
 #ifdef RbTypedExist
-import           TypedExist (fromList, toList)
+import           TypedExist
 #endif
+
+len :: Int
+len = Len
 
 theList :: [Int]
 #ifdef LSorted
-theList = [1..Len]
+#ifdef tail
+theList = fromTo' len
+#else
+theList = fromTo len
+#endif
 #endif
 #ifdef LRSorted
-theList = [Len, Len-1..1]
+#ifdef tail
+theList = downFrom' len
+#else
+theList = downFrom len
+#endif
 #endif
 #ifdef LRandom
--- theList = take Len (randoms (mkStdGen randSeed))
-theList = downFromBbs 43 Len
+#ifdef tail
+theList = downFromBbs' 43 len
+#else
+theList = fromToBbs 43 len
+#endif
 #endif
 
-blumblumshub :: Int -> Int -> Int
-blumblumshub xn m = mod (xn ^ 2) m
+myFromList :: Ord a => [a] -> Tree a
+#ifdef strict
+myFromList = fromList'
+#else
+myFromList = fromList
+#endif
 
-downFromBbs :: Int -> Int -> [Int]
-downFromBbs seed = f seed []
-  where
-  f _ acc 0       = acc
-  f !x !acc l = f (blumblumshub x m) (x : acc) (l - 1)
-    where
-      m           = m17 * m31
-      m17         = 2971
-      m31         = 4111
-
-randSeed = 0
 
 -- We don't actually need to calculate the sum for the benchmark if we just
 -- redirect the output to `/dev/null` the IO will not be an overhead. It might
 -- actually be better *not* to calculate the sum because the `Foldable`
 -- instances (that I defined) may be more or less efficient.
 treeSort :: Ord a => [a] -> [a]
-treeSort = toList . fromList
+treeSort = toList . myFromList
 
 bench :: Int
 bench = sum' $ treeSort theList
