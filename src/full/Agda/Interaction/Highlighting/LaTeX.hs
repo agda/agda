@@ -15,7 +15,9 @@ import Data.Maybe
 import Data.Function
 import Control.Monad.RWS.Strict
 import System.Directory
+import System.Exit
 import System.FilePath
+import System.Process
 import Data.Text (Text)
 import qualified Data.Text               as T
 import qualified Data.Text.ICU           as ICU
@@ -659,19 +661,14 @@ generateLaTeX i = do
                  </> optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
-  TCM.reportSLn "compile.latex" 1 $ unlines
-    [ ""
-    , "Checking if " ++ defaultStyFile ++ " is found by the LaTeX environment."
-    ]
+  (code, _, _) <- liftIO $ readProcessWithExitCode
+                    "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ] ""
 
-  merrors <- callCompiler' "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ]
-
-  when (isJust merrors) $ do
+  when (code /= ExitSuccess) $ do
     TCM.reportSLn "compile.latex" 1 $ unlines
-      [ ""
-      , defaultStyFile ++ " was not found. Copying a default version of " ++
+      [ defaultStyFile ++ " was not found. Copying a default version of " ++
           defaultStyFile
-      , "into the directory " ++ dir ++ "."
+      , "into " ++ dir ++ "."
       ]
 
     liftIO $ do
