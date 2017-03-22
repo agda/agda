@@ -159,139 +159,121 @@
 [fn:kahr-2001]:      Kahrs, Stefan Michael; "Red-black trees with types", 2001
 
 * Benchmarks
+
 ** Procedure
-  For our benchmarks we tested the following variants:
+   We benchmarked two algorithms:
+   1. The sum of a list.
+   2. Sorting a list using a red-black tree and then summing it.
 
-  * An Agda implementation using a lazy   fold compiled to Haskell
-  * An Agda implementation using a strict fold compiled to Haskell
-  * An Agda implementation using a lazy   fold compiled to OCaml
-  * An Agda implementation using a strict fold compiled to OCaml
-  * A Haskell implementation
-  * A Haskell implementation using nested higher-order types
-  * A Haskell implementation using existential types
+  # We also varied; 1) the length of the list and 2) the sortedness of the lists
+  # (sorted, reversed sorted, randomized). For the randomized lists we used the
+  # Blum Blum Shub pseudo-random number generation algorithm to generate
+  # (pseudo-)randmoized lists. The advantage of using this approach is the the
+  # results are deterministic, and therefore reproducible, and it is fairly easy
+  # to compute.
 
-  We also varied; 1) the length of the list and 2) the sortedness of the lists
-  (sorted, reversed sorted, randomized). For the randomized lists we used the
-  Blum Blum Shub pseudo-random number generation algorithm to generate
-  (pseudo-)randmoized lists. The advantage of using this approach is the the
-  results are deterministic, and therefore reproducible, and it is fairly easy
-  to compute.
-
-  We used the C Preprocessor to handle these different variants. So the programs
-  do not do any input. All tests procede by sorting a list using
-  =toList . fromList=, so converting to and from a red/black tree and then summing the
-  resulting list. Profiling output from the Haskell-implementations show us that
-  the largest cost-center (around 95%) is the generation of the tree. We do not
-  have access to similar resources for the Agda implementations but we don't
-  expect that the picture should be any different here.
+  # We used the C Preprocessor to handle these different variants. So the programs
+  # do not do any input. All tests procede by sorting a list using
+  # =toList . fromList=, so converting to and from a red/black tree and then summing the
+  # resulting list. Profiling output from the Haskell-implementations show us that
+  # the largest cost-center (around 95%) is the generation of the tree. We do not
+  # have access to similar resources for the Agda implementations but we don't
+  # expect that the picture should be any different here.
 
   # TODO: talk about how sortedness effects the performance. In the random case
   # the MAlonzo backend performs worse.
+** Summing sorted lists
+   Implementations:
+   1. Agda/MAlonzo with and without tail recursion.
+   2. Agda/Malfunction using tail recursion. Stack overflow without tail recursion!
+   3. Haskell with and without tail recursion.
+** Summing sorted lists
+   Generation lists:
+   #+BEGIN_SRC haskell
+     -- Non-tail recursive
+     fromTo, fromTo' :: Int -> [Int]
+       fromTo n = f n
+         where
+           f 0 = []
+           f x = n - x + 1 : f (x - 1)
 
-** Results
-   # TODO: Include graphs, explain findings
-*** Summing sorted lists
-    [[./img/sum_sorted.pdf]]
-    # TODO: Jan revise
-    Result: We see that haskell uses constant memory and is a lot faster than the agda-version.
-    Malfunction version is faster than MAlonzo.
-    Jan: "Optimization stuff"
-    We also did a benchmark with reversed lists, the results look similar.
+       -- Tail recursive using a bang pattern
+       -- The Agda version uses seq
+       fromTo' = f []
+         where
+           f xs 0 = xs
+           f !xs x = f (x : xs) (x - 1)
+   #+END_SRC
+   The sum function is always tail recursive.
+** Summing sorted lists (result)
+   [[./img/sum_sorted.pdf]]
+   # We see that non-tail recursive Haskell version is
+   # greatly optimized and it uses constant memory, consequently, is a lot faster than all
+   # the other versions. Both MAlonzo versions and the tail recursive Haskell
+   # version perform very similarly. Malfunction version is faster than MAlonzo.
+   # The Malfunction version is better that the MAlonzo backend but not as fast
+   # as the best non-tail recursive Haskell version.
 
-*** Summing random lists
-  Here the Malfunction implementation is the fastest.
+   # We also did a benchmark with reversed lists, the results look similar.
 
-  We see that Haskell is still about as fast as the Malfunction implementation.
+** Tree-sorting and summing random lists
+   For the red-black tree benchmark we have the following variants:
+  * An Agda implementation compiled to Haskell using MAlonzo and to Malfunction
+    using our backend.
+  * A Haskell implementation without advanced types.
+  * A Haskell implementation using nested higher-order types.
+  * A Haskell implementation using existential types.
 
-  Furthermore we see that adding (pseudo-)randomization to the generation of the
-  list, has an impact on the performance on the Haskell version, but it still
-  ranks as one of the fastest implementations.
+    We benchmarked each implementation using sorted lists and random lists.
+** Tree-sorting and summing random lists
+    #+BEGIN_SRC haskell
+    fromList, fromList' :: Ord a => [a] -> Tree a
+    fromList = foldr insert empty
+    fromList' = foldl' (flip insert) empty
 
-*** Summing and tree-sorting random lists
+    bench = sum . toList . fromList . genList
+    #+END_SRC
+    #+BEAMER: \pause
+    The most costly part is creating the tree:
+    #+BEGIN_EXAMPLE
+                     inherited
+  COST CENTRE        %time  %alloc
+    ...
+   fromList          94.9   91.0
+    insert           91.6   80.9
+    ...
+    #+END_EXAMPLE
 
-  We can see that the strict- and lazy Malfunction-versions have a very similar
-  performance[fn::In fact, we know that they compile to the same program. See
-  section [[[[sec:discussion]]]]] characteristics, and we can further see that they
-  perform similarly to the MAlonzo version with a strict fold.
+** Tree-sorting and summing random lists
+   #+CAPTION: Treesorting and summing a random list.
+   #+ATTR_LATEX: :float
+   [[./img/treesort_rand_all.pdf]]
 
-  Quite surprisingly the Haskell versions all perform worse thasn the Agda
-  implementations. We suspect this may be an issue with how the red/black
-  algorithm was implemented.
 
-  We also see that the Malfunction backend performs better than the MAlonzo
-  backend.
 
-* Discussion
-  <<sec:discussion>>
+** Tree-sorting and summing a long sorted list
+   #+CAPTION: Treesorting and summing a long sorted list.
+   #+ATTR_LATEX: :float
+   [[./img/treesort_sorted_best.pdf]]
+   In this benchmark the Malfunction backend performs about twice as fast as the MAlonzo backend.
 
-  # TODO: clarify
-  The difference in implementation of the lazy- and strict-versions of the
-  red/black-algorithm in Agda boil down to how =fromList= is implemented:
-
-  #+BEGIN_SRC agda
-  fromList = foldl! (flip insert) (mkT leaf)
-  #+BEGIN_SRC
-
-  #+BEGIN_SRC agda
-  fromList = foldl  (flip insert) empty
-  fromList = foldr insert empty
-  #+BEGIN_SRC
-
-  So in this example writing a more strict and better performing immplementation
-  using the Haskell backend requires a trivial change. Of course identifying
-  where to use and where not to use strictness in a lazy setting may not be as
-  easy as in this case.
-
-  Compiling to a language with strict call-semantics means that "adding
-  strictness" should have close to no impact on the resulting program, and
-  indeed we implemented =seq= like so:
-
-  #-BEGIN_EXAMPLE
-  seq _ a = a
-  #-END_EXAMPLE
-
-  Strictness forced us to reformulate parts of the program to avoid a
-  stack-overflow when constructing the red-black tree. Similarly we explicitly
-  added a strict fold to gain a performance boost when using the MAlonzo
-  backend. This highlights that there are different things to be aware of
-  depending on which call-semantics you are writing a program for. We also
-  conclude that the example illustrates the benefit of using strict evaluation
-  but also that it may be easy to achieve similar effects using the MAlonzo
-  backend.
-
-  As we've already mentioned our compiler suffers from some limitations due to
-  lack of support for mapping primitives to the host-languages. This means that
-  there are features that we've not been able to compare but at least in the
-  case of the red/black-algorithm we've shown that compiling using the
-  Malfunction backend generates roughly twice as fast a program than using the
-  MAlonzo backend.
-  # TODO: revise 'twice as fast' claim
-
+** Tree-sorting and summing a long random list
+   #+CAPTION: Treesorting and summing a long random list.
+   #+ATTR_LATEX: :float
+   [[./img/treesort_rand_best.pdf]]
+   We also see that the Malfunction backend performs about ten times faster than the MAlonzo
+   backend.
 * Perspectives
 ** Perspectives
-  Why are the Haskell implementations so slow?
-
-  \vspace{0.3cm}
-
-  Further work should be put into figuring out why we get a stack-overflow when
-  using =foldr=.
-
-   \vspace{0.3cm}
-
- To be able to more confidently compare the efficiency of the executables
-  produced by our compiler benchmark of more algorithms would be useful.
-
-   \vspace{0.3cm}
-
- It would be desirable to have support for =COMPILE= and =FOREGIN= pragma.
-
-   \vspace{0.3cm}
-
- The compiler should ideally be merged into the Agda codebase.
-
-   \vspace{0.3cm}
-
- Adding optimizations to the compiler would also be beneficial.
+   * Why are the Haskell implementations so slow?
+   * Further work should be put into figuring out why we get a stack-overflow when
+     using =foldr= in Malfunction.
+   * To be able to more confidently compare the efficiency of the executables
+     produced by our compiler benchmark of more algorithms would be useful.
+ # It would be desirable to have support for =COMPILE= and =FOREGIN= pragma.
+   * There are many potential optimizations for the Malfunction backend.
+   * After some more work the compiler should ideally be merged into the Agda
+     codebase.
 
 * Conclusion
 ** Conclusion
@@ -300,7 +282,7 @@
     \vspace{0.3cm}
 
     Limited support for primitives.
-    
+
     \vspace{0.3cm}
 
     Seems to outperform MAlonzo and Haskell reference implementations.
