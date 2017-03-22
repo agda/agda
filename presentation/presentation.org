@@ -9,46 +9,28 @@
 * Introduction
   # Describe design-considerations and challenges and limitations (backlog)
 ** Introduction
-   We present our efforts to implement a backend for Agda targeting OCaml. We
-   present some of the problems we ran into along the way as well as limitations
-   of the current implementation. There already exists two backends for Agda.
-   The MAlonzo backend that targets ghc and a compiler that targets the
-   JavaScript language. The motivation for the project was to explore if it was
-   possible to gain a performance boost by targeting a strict language. To test
-   this hypothesis we did a case-study of implementations of red/black-trees in
-   Agda as well as three reference implementations in Haskell emulating
-   dependent types to varying degrees.
+*** Faster Agda
+*** Backend targeting the OCaml Compiler
+*** Case-study: Red/black trees
+*** Benchmarks
+*** Further work
 * Implementation
-  The project is designed to fit into the "Agda framework". Agda has a notion of
-  a =Backend= which is essentially what we have designed.
-
-  Our compiler translates Treeless[fn::Treeless is an intermediate representation of Agda.] to [[https://github.com/stedolan/malfunction][malfunction]]:
-
+** Implementation
+*** Hooks into the Agda framework, define a new backend
+*** Translate from Treeless to Malfunction
   #+BEGIN_QUOTE
   Malfunction is an untyped program representation intended as a compilation
   target for functional languages, consisting of a thin wrapper around OCaml’s
-  Lambda intermediate representation.
-  #+END_QUOTE [dolan-2016]
+  Lambda intermediate representation.[fn:dolan-2016]
+  #+END_QUOTE
 
-  Our backend does whole-module compilation. All definitions are pulled into
-  scope and output into the same malfunction module.
+[fn:dolan-2016] Dolan, Stephen; "Malfunction Programming" 2016.
 
-  The UI of our compiler needs a bit of polishing, but essentially you invoke it
-  like so:
+*** Whole-module compilation
 
-  #+BEGIN_EXAMPLE
-  agda2mlf --mlf $SRC --compilemlf=$EXE
-  #+END_EXAMPLE
-
-  Where =$SRC= is your source-file and =$EXE= is the resulting executable.
-  =--mlf= tells Agda to invoke the malfunction backend.
-
-  [dolan-2016]: Dolan, Stephen; "Malfunction Programming" 2016.
 
   # Describe design-considerations and challenges and limitations (backlog)
 ** Module overview
-
-   The strong connection with Agda is reflected in the layout of the modules:
 
   * =Agda.Compiler.Malfunction=
 
@@ -56,68 +38,42 @@
 
   * =Agda.Compiler.Malfunction.AST=
 
-    Definition of the malfunction syntax.
-
   * =Agda.Compiler.Malfunction.Compiler=
 
     The main implementation of the compiler.
 
   * =Agda.Compiler.Malfunction.Instances=
 
-    Not currently being used.
-
   * =Agda.Compiler.Malfunction.Main=
-
-    Utility used in our project to invoke Agda. Will become redundant when merged into Agda.
 
   * =Agda.Compiler.Malfunction.Primitive=
 
-    Maps names of primitives and axioms to their malfunction implementation.
-    Will be obsoleted once support for for the pragmas =COMPILE= and =FOREIGN=
-    are implemented.
-
   * =Agda.Compiler.Malfunction.Run=
 
-    Various utilities used for development and testing.
-
 ** Features and limitations
-   Our efforts with this project have gone specifially towards getting an
-   implementation of red/black trees to compile and as such have provided a
-   direct guide for our efforts. The current implementation is able to compile
-   the program =RedBlack.agda= (presented later). This program imports the agda
-   prelude[fn::https://github.com/UlfNorell/agda-prelude] which contains a decent amount of Agda code. It should be said
-   though that this does not mean that all parts of the Agda prelude will work
-   with our compiler. But it does give us a fair amount of
-   confidence that we are able to translate Treeless correctly. The reason most
-   of the stuff from the Agda prelude will not work is due to the limited
-   support for primitives.
+
+*** Red/black as a guide
+    Compiles the red/black algorithm which uses the Agda
+    Prelude[fn:agda-prelude]. This gives us confidence that we have decent
+    coverage of the Treeless language.
+
+[fn:agda-prelude] https://github.com/UlfNorell/agda-prelude
 
 *** Primitives
-   When we started our project we decided to keep things simple and not use a
-   parser-generator because we didn't see the need for parsing malfunction
-   syntax. This means that we've written the AST by hand and an instance of
-   =Pretty= (for translating to concrete syntax) by hand.
+    Cannot parse Malfunction, so there is not support for the =COMPILE= and
+   =FOREIGN= pragmas. The only primitives that are mapped are a small subset
+   that makes the red/black example run.
 
-   The lack of support for parsing malfunction means that we also have not
-   included support for the new Agda pragmas =COMPILE= and =FOREIGN= that
-   essentially map fundamental operations to their counterparts in the target
-   language. Our implementation instead makes use of a hack. We've manually
-   written this mapping for a few reserved names, and only the ones we happened
-   to need for the red-black example. This means, amongst other things that you
-   cannot do IO with our backend.
-
+** Features and limitations (contd.)
 *** Lazyness/strictness
-    The behaviour of programs change when using this backend. This is a
-    consequence of using strict evaluation. Consider the Agda program:
+    The behaviour of programs change when using this backend.
 
     #+BEGIN_SRC agda
     {-# TERMINATING #-}
     fac : Nat -> Nat
     fac 0 = 1
     fac n = fac (n - 1) * suc n
-    #+BEGIN_SRC
-
-    This gets translated into treeless.
+    #+END_SRC
 
     #+BEGIN_SRC treeless
     example.fac =
@@ -126,65 +82,54 @@
         case a of
           0 → 1
           _ → b
-    #+BEGIN_SRC
+    #+END_SRC
 
-    Note 2 things: We've disabled the termination-checker (and are therefore
-    asking for trouble) and also note that the binding-site of =b= is outside
-    the case-expression (allowing it to potentially be used across branches).
-    This means that evaluating the treeless program in a strict setting would result in
-    a divergent computation which would not occur in a lazy setting. Our
-    compiler does not try to fix this by e.g. pushing the let-binding down the
-    expression tree.
-
-    We disabled the termination checker, but a similar example could be given
-    for which termnation *can* be guaranteed but where the value may not be
-    needed. In this case the resulting program would converge, but be slower.
-    # TODO: add converving example
+** Features and limitations (contd.)
 *** Tail-recursion
-    We also uncovered an issue with our implementation relating to non-
-    tail-recursive functions that resulted in a stack-overflow with our backend
-    that was not exhibited by MAlonzo. This may be due to some optimization
-    provided by ghc that is not provided by malfunction, but this is not known
-    to us at this time.
-
     In testing the implementation of RedBlack we needed a helper function =downFrom=:
 
-    #-BEGIN_SRC agda
+    #+BEGIN_SRC agda
     downFrom : Nat -> List Nat
     downFrom 0       = []
     downFrom (suc n) = n :: downFrom n
-    #-END_SRC
+    #+END_SRC
 
     =downFrom n= will cause a stack-overflow for sufficiently high =n=. We
     changed this function to:
 
-    #-BEGIN_SRC agda
+    #+BEGIN_SRC agda
     downFrom : Nat -> List Nat
     downFrom = f []
       where
         f : List Nat -> Nat -> List Nat
         f xs 0 = xs
         f xs (suc x) = f ( x :: xs ) x
-    #-END_SRC
+    #+END_SRC
 
 
 * Red/Black-tree
 ** Description
-   * A red-black tree is a balanced binary search tree which nodes are either red
-     or black.
-   * By constraining the color of the nodes a red-black tree ensures
-     that the longest path from the root to a leaf is not more than twice as long
-     as the shortest path from the root to a leaf.
-   * It is a widely used data structure. For instance, it is used in the =C++=
-     Standard Template Library for sorted sets and maps.
+   A red-black tree is a balanced binary search tree which nodes are either red
+   or black.
+
+   \vspace{0.3cm}
+
+   By constraining the color of the nodes a red-black tree ensures that the
+   longest path from the root to a leaf is not more than twice as long as the
+   shortest path from the root to a leaf.
+
+   \vspace{0.3cm}
+
+   It is a widely used data structure. For instance, it is used in the =C++=
+   Standard Template Library for sorted sets and maps.
 ** Properties
     A red-black tree has the following properties:
-    1. Every node is either \textcolor{red}{red} or \textbf{black}.
-    2. The root node is \textbf{black}.
-    3. Every leaf is \textbf{black}.
-    4. If a node is \textcolor{red}{red}, then its children must be \textbf{black}.
+    1. Every node is either red or black.
+    2. The root node is black.
+    3. Every leaf is black.
+    4. If a node is red, then its children must be black.
     5. For each node, all paths from the node to descendant leaves contain the
-       same number of \textbf{black} nodes.
+       same number of black nodes.
 ** Example
     #+ATTR_LATEX: :width \textwidth :float
     #+CAPTION: A red-black tree.
@@ -192,36 +137,26 @@
     [[./img/redblack.png]]
 
 ** Implementations
-   For benchmarking we used an implementation in Agda using dependent types and
-   three haskell-versions that "emulate" dependent types to varying degrees by
-   using various language-extenssions. All implementations are based on
-   [okasaki-1993]. The implementation of the Agda version is an adaptation of
-   the one from [brady-2005]. The three haskell-versions are slightly modified
-   versions of the ones found in [kahr-2001] (downloadable from
-   [kahrs-homepage]).
+   All implementations are based on [fn:okasaki-1993]. The implementation of the
+   Agda version is an adaptation of the one from [fn:brady-2005]. The three
+   haskell-versions are slightly modified versions of the ones found in
+   [fn:kahr-2001].
 
-   The first haskell-implementation is the straight-forward implementation
-   presented by Okasaki and does not encode tree-invariants in its type. The
-   second haskell implementation uses *nested higher-order types* and the last
-   uses *existential types*.
+   The Haskell implementation use:
 
-   We won't go into greater detail with the implementation-details but refer
-   interested readers to the resources cited above.
+   1. Straight-forward implementation
+   2. Nested higher-order types
+   3. Existential types
 
-   We also present a slight variant on the Agda version. One where =fromList= is
-   implemented using a lazy- and strict- fold respectively. We expect that this
-   change won't have an impact on the version compiled using the OCaml backend,
-   but would expect a speed-up in the strict variant using the Haskell-variant.
+   We also tested a slight variation on the Agda version, one where we used
+   explicit strictness and one where we didn't.
 
-   [okasaki-1993]:   Okasaki, Chris; "Red-Black Trees in a Functional Setting", 1993
+[fn:okasaki-1993]:   Okasaki, Chris; "Red-Black Trees in a Functional Setting", 1993
 
-   [brady-2005]:     Brady, Edwin C.; "Practical Implementation of a Dependently
+[fn:brady-2005]:     Brady, Edwin C.; "Practical Implementation of a Dependently
                      Typed Functional Programming Language", 2005
 
-   [kahr-2001]:      Kahrs, Stefan Michael; "Red-black trees with types", 2001
-
-   [kahrs-homepage]: https://www.cs.kent.ac.uk/people/staff/smk/redblack/rb.html
-                     Downloaded: 2017-03-21 10:23
+[fn:kahr-2001]:      Kahrs, Stefan Michael; "Red-black trees with types", 2001
 
 * Benchmarks
 ** Procedure
@@ -276,7 +211,7 @@
 
   We can see that the strict- and lazy Malfunction-versions have a very similar
   performance[fn::In fact, we know that they compile to the same program. See
-  section [[sec:discussion]]] characteristics, and we can further see that they
+  section [[[[sec:discussion]]]]] characteristics, and we can further see that they
   perform similarly to the MAlonzo version with a strict fold.
 
   Quite surprisingly the Haskell versions all perform worse thasn the Agda
@@ -287,7 +222,7 @@
   backend.
 
 * Discussion
-  #+NAME: sec:discussion
+  <<sec:discussion>>
 
   # TODO: clarify
   The difference in implementation of the lazy- and strict-versions of the
@@ -333,34 +268,43 @@
   # TODO: revise 'twice as fast' claim
 
 * Perspectives
-  # What further work could be done?
-  Further effort should be put into figuring out why the Haskell implementations
-  are running so slowly. Comparing the results with Haskell reference
-  implementations is problematic because they are entirely different programs.
-  And it is very surprising that an implementation of a program that compiles to
-  Haskell is able to outperform a program written directly in Haskell.
+** Perspectives
+  Why are the Haskell implementations so slow?
+
+  \vspace{0.3cm}
 
   Further work should be put into figuring out why we get a stack-overflow when
   using =foldr=.
 
-  To be able to more confidently compare the efficiency of the executables
+   \vspace{0.3cm}
+
+ To be able to more confidently compare the efficiency of the executables
   produced by our compiler benchmark of more algorithms would be useful.
 
-  It would be desirable to have support for =COMPILE= and =FOREGIN= pragma.
+   \vspace{0.3cm}
 
-  The compiler should ideally be merged into the Agda codebase.
+ It would be desirable to have support for =COMPILE= and =FOREGIN= pragma.
 
-  Adding optimizations to the compiler would also be beneficial.
+   \vspace{0.3cm}
+
+ The compiler should ideally be merged into the Agda codebase.
+
+   \vspace{0.3cm}
+
+ Adding optimizations to the compiler would also be beneficial.
 
 * Conclusion
-  We have presented our work with implementing a new backend for the Agda
-  compiler targeting Malfunction a backend for the OCaml programming language.
-  We've discussed some of the limitations of this implementation. We've
-  successfully used it to compile an implementation of the red/black
-  tree-sorting algorithm. We then performed benchmarks using this Agda
-  implementation as well as three reference Haskell implementations. These
-  benchmarks showed that our backend outperforms the other configurations for
-  sorting randomized lists and ties with the MAlonzo backend for sorting already
-  sorted lists. We also pointed out the fact that our comparison with the
-  Haskell reference implementations is problematic since it is an entirely
-  different implementation.
+** Conclusion
+    Successfully implemented a compiler.
+
+    \vspace{0.3cm}
+
+    Limited support for primitives.
+    
+    \vspace{0.3cm}
+
+    Seems to outperform MAlonzo and Haskell reference implementations.
+
+    \vspace{0.3cm}
+
+    Benchmark of more algorithms should be performed.
