@@ -256,14 +256,12 @@
 ** Results
    # TODO: Include graphs, explain findings
 *** Summing sorted lists
-  # TODO: Jan revise
-  Result: We see that haskell uses constant memory and is a lot faster than the agda-version.
-
-  Malfunction version is faster than MAlonzo.
-
-  Jan: "Optimization stuff"
-
-  We also did a benchmark with reversed lists, the results look similar.
+    [[./img/sum_sorted.pdf]]
+    # TODO: Jan revise
+    Result: We see that haskell uses constant memory and is a lot faster than the agda-version.
+    Malfunction version is faster than MAlonzo.
+    Jan: "Optimization stuff"
+    We also did a benchmark with reversed lists, the results look similar.
 
 *** Summing random lists
   Here the Malfunction implementation is the fastest.

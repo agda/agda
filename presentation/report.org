@@ -1,9 +1,11 @@
-#+BEAMER_THEME: default
-#+BEAMER_COLOR_THEME: default
+#+LATEX_HEADER: \usepackage[x11names]{xcolor}
+#+LATEX_HEADER: \hypersetup{colorlinks=true,urlcolor=SteelBlue3,linkcolor=Firebrick3}
+#+LATEX_HEADER: \usepackage[margin=3cm]{geometry}
+#+LATEX_HEADER: \usepackage[document]{ragged2e}
 #+TITLE: A strict backend for Agda
 #+SUBTITLE: agda2mlf
 #+AUTHOR: Frederik Hanghøj Iversen, Jan Mas Rovira
-#+OPTIONS: H:2
+#+OPTIONS: H:3
 #+DATE: \today
 
 * Introduction
@@ -256,41 +258,66 @@
 ** Results
    # TODO: Include graphs, explain findings
 *** Summing sorted lists
-  # TODO: Jan revise
-  Result: We see that haskell uses constant memory and is a lot faster than the agda-version.
+    [[./img/sum_sorted.pdf]]
 
-  Malfunction version is faster than MAlonzo.
+    #+BEGIN_SRC haskell
+      -- Non-tail recursive generation of sorted lists.
+      fromTo, fromTo' :: Int -> [Int]
+        fromTo n = f n
+          where
+            f 0 = []
+            f x = n - x + 1 : f (x - 1)
 
-  Jan: "Optimization stuff"
+        -- Tail recursive generation of sorted lists.
+        fromTo' = f []
+          where
+            f xs 0 = xs
+            f !xs x = f (x : xs) (x - 1)
+    #+END_SRC
 
-  We also did a benchmark with reversed lists, the results look similar.
 
-*** Summing random lists
-  Here the Malfunction implementation is the fastest.
+    We see that non-tail recursive Haskell version is
+    greatly optimized and it uses constant memory, consequently, is a lot faster than all
+    the other versions. Both MAlonzo versions and the tail recursive Haskell
+    version perform very similarly. Malfunction version is faster than MAlonzo.
+    The Malfunction version is better that the MAlonzo backend but not as fast
+    as the best non-tail recursive Haskell version.
 
-  We see that Haskell is still about as fast as the Malfunction implementation.
+    We also did a benchmark with reversed lists, the results look similar.
 
-  Furthermore we see that adding (pseudo-)randomization to the generation of the
-  list, has an impact on the performance on the Haskell version, but it still
-  ranks as one of the fastest implementations.
+*** Tree-sorting and summing random lists
+    #+CAPTION: Treesorting and summing a random list.
+    #+ATTR_LATEX: :float
+    [[./img/treesort_rand_all.pdf]]
 
-*** Summing and tree-sorting random lists
+     #+BEGIN_SRC haskell
+     fromList, fromList' :: Ord a => [a] -> Tree a
+     fromList = foldr insert empty
+     fromList' = foldl' (flip insert) empty
+     #+END_SRC
 
-  We can see that the strict- and lazy Malfunction-versions have a very similar
-  performance[fn::In fact, we know that they compile to the same program. See
-  section [[sec:discussion]]] characteristics, and we can further see that they
-  perform similarly to the MAlonzo version with a strict fold.
 
-  Quite surprisingly the Haskell versions all perform worse thasn the Agda
-  implementations. We suspect this may be an issue with how the red/black
-  algorithm was implemented.
+    We can see that the strict- and lazy Malfunction-versions have a very similar
+    performance[fn::In fact, we know that they compile to the same program.
+    Discussion section.], and we can further see that they perform
+    similarly to the MAlonzo version.
 
-  We also see that the Malfunction backend performs better than the MAlonzo
-  backend.
+    Quite surprisingly the Haskell versions all perform worse than the Agda
+    implementations. We suspect this may be an issue with how the red/black
+    algorithm was implemented.
 
+
+    #+CAPTION: Treesorting and summing a long sorted list.
+    #+ATTR_LATEX: :float
+    [[./img/treesort_sorted_best.pdf]]
+    In this benchmark the Malfunction backend performs about twice as fast as the MAlonzo backend.
+
+    #+CAPTION: Treesorting and summing a long random list.
+    #+ATTR_LATEX: :float
+    [[./img/treesort_rand_best.pdf]]
+    We also see that the Malfunction backend performs about ten times faster than the MAlonzo
+    backend.
 * Discussion
-  #+NAME: sec:discussion
-
   # TODO: clarify
   The difference in implementation of the lazy- and strict-versions of the
   red/black-algorithm in Agda boil down to how =fromList= is implemented:
