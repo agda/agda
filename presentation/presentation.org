@@ -266,10 +266,10 @@
 * Perspectives
 ** Perspectives
    * Why are the Haskell implementations so slow?
-   * Further work should be put into figuring out why we get a stack-overflow when
-     using =foldr= in Malfunction.
    * To be able to more confidently compare the efficiency of the executables
      produced by our compiler benchmark of more algorithms would be useful.
+   * Further work should be put into figuring out why we get a stack-overflow when
+     using =foldr= in Malfunction.
  # It would be desirable to have support for =COMPILE= and =FOREGIN= pragma.
    * There are many potential optimizations for the Malfunction backend.
    * After some more work the compiler should ideally be merged into the Agda
