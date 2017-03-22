@@ -55,6 +55,7 @@ import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
@@ -305,7 +306,9 @@ definition' kit q d t ls = do
 
       reportSDoc "compile.js" 5 $ text "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
-        funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
+        funBody <- eliminateCaseDefaults =<<
+          eliminateLiteralPatterns
+          (convertGuards treeless)
         reportSDoc "compile.js" 30 $ text " compiled treeless fun:" <+> pretty funBody
         funBody' <- compileTerm funBody
         reportSDoc "compile.js" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
