@@ -206,6 +206,7 @@ library
                     Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin
                     Agda.Compiler.Treeless.Compare
+                    Agda.Compiler.Treeless.EliminateDefaults
                     Agda.Compiler.Treeless.EliminateLiteralPatterns
                     Agda.Compiler.Treeless.Erase
                     Agda.Compiler.Treeless.GuardsToPrims
