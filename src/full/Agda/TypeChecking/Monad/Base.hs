@@ -1445,7 +1445,8 @@ data Defn = Axiom
             , funInv            :: FunctionInverse
             , funMutual         :: [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does not include this function.
+              --   Does include this function.
+              --   Empty list if not recursive.
             , funAbstr          :: IsAbstract
             , funDelayed        :: Delayed
               -- ^ Are the clauses of this definition delayed?
@@ -1477,7 +1478,10 @@ data Defn = Axiom
             , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
             , dataCons           :: [QName]        -- ^ Constructor names.
             , dataSort           :: Sort
-            , dataMutual         :: [QName]        -- ^ Mutually recursive functions, @data@s and @record@s.  Does not include this data type.
+            , dataMutual         :: [QName]
+              -- ^ Mutually recursive functions, @data@s and @record@s.
+              --   Does include this data type.
+              --   Empty if not recursive.
             , dataAbstr          :: IsAbstract
             }
           | Record
@@ -1489,7 +1493,10 @@ data Defn = Axiom
             , recTel            :: Telescope            -- ^ The record field telescope. (Includes record parameters.)
                                                         --   Note: @TelV recTel _ == telView' recConType@.
                                                         --   Thus, @recTel@ is redundant.
-            , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.  Does not include this record.
+            , recMutual         :: [QName]
+              -- ^ Mutually recursive functions, @data@s and @record@s.
+              --   Does include this record.
+              --   Empty if not recursive.
             , recEtaEquality'    :: EtaEquality          -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records and coinductive records unless the user specifies otherwise.
             , recInduction      :: Maybe Induction
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
