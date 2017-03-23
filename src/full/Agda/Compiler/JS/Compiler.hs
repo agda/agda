@@ -476,11 +476,11 @@ litqname q =
       , (mem "prec", litPrec $ fixityLevel fx)]
 
     -- TODO this will probably not work well together with the necessary FFI bindings
-    litAssoc NonAssoc   = String "NonAssoc"
-    litAssoc LeftAssoc  = String "LeftAssoc"
-    litAssoc RightAssoc = String "RightAssoc"
+    litAssoc NonAssoc   = String "non-assoc"
+    litAssoc LeftAssoc  = String "left-assoc"
+    litAssoc RightAssoc = String "right-assoc"
 
-    litPrec Unrelated   = String "Unrelated"
+    litPrec Unrelated   = String "unrelated"
     litPrec (Related l) = Integer l
 
 --------------------------------------------------
@@ -538,4 +538,6 @@ primitives = Set.fromList
   , "primATan2"
   , "primShowQName"
   , "primQNameEquality"
+  , "primQNameLess"
+  , "primQNameFixity"
   ]

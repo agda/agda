@@ -176,3 +176,16 @@ exports.primQNameEquality = function(x) {
     return exports.uprimQNameEquality(x, y);
   };
 };
+exports.primQNameLess = function(x) {
+  return function(y) {
+    switch (x["id"].compare(y["id"])) {
+      case -1: return true;
+      case 1:  return false;
+      case 0:
+        return x["moduleId"].compare(y["moduleId"]) == -1;
+    }
+  };
+};
+exports.primQNameFixity = function(x) {
+  return x["fixity"];
+};
