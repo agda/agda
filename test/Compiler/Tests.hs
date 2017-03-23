@@ -74,8 +74,6 @@ disabledTests :: [RegexFilter]
 disabledTests =
   [ -- See issue 1528
     RFInclude "Compiler/.*/simple/Sharing"
-    -- primQNameFixity not yet implemented for JS
-  , RFInclude "Compiler/JS/simple/Issue1664"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   -- primQNameLess not implemented for JS
   , RFInclude "Compiler/JS/simple/QNameOrder"

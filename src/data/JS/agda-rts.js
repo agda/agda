@@ -176,3 +176,6 @@ exports.primQNameEquality = function(x) {
     return exports.uprimQNameEquality(x, y);
   };
 };
+exports.primQNameFixity = function(x) {
+  return x["fixity"];
+};

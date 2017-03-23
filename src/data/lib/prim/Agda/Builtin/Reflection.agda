@@ -51,6 +51,20 @@ data Fixity : Set where
 {-# COMPILE GHC Precedence    = data MAlonzo.RTE.Precedence (MAlonzo.RTE.Related | MAlonzo.RTE.Unrelated) #-}
 {-# COMPILE GHC Fixity        = data MAlonzo.RTE.Fixity (MAlonzo.RTE.Fixity) #-}
 
+{-# COMPILE JS Associativity  = function (x,v) { return v[x](); } #-}
+{-# COMPILE JS left-assoc     = "left-assoc"  #-}
+{-# COMPILE JS right-assoc    = "right-assoc" #-}
+{-# COMPILE JS non-assoc      = "non-assoc"   #-}
+
+{-# COMPILE JS Precedence     =
+  function (x,v) {
+    if (x === "unrelated") { return v[x](); } else { return v["related"](x); }} #-}
+{-# COMPILE JS related        = function(x) { return x; } #-}
+{-# COMPILE JS unrelated      = "unrelated"               #-}
+
+{-# COMPILE JS Fixity         = function (x,v) { return v["fixity"](x["assoc"], x["prec"]); } #-}
+{-# COMPILE JS fixity         = function (x) { return function (y) { return { "assoc": x, "prec": y}; }; } #-}
+
 primitive
   primQNameFixity : Name → Fixity
 
