@@ -538,5 +538,6 @@ primitives = Set.fromList
   , "primATan2"
   , "primShowQName"
   , "primQNameEquality"
+  , "primQNameLess"
   , "primQNameFixity"
   ]
