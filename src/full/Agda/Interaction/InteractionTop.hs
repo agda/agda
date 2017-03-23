@@ -862,7 +862,7 @@ interpret (Cmd_auto ii rng s) = do
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCase R.Function cs
    Right (Right s) -> give_gen ii rng s Refine
-  maybe (interpret Cmd_metas) (display_info . Info_Time) time
+  maybe (return ()) (display_info . Info_Time) time
 
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< liftLocalState (prettyContext norm False ii)
