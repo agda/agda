@@ -991,7 +991,8 @@ tryToRecoverNatural e def = do
       return $ I.conName hd
 
     explore :: A.QName -> A.QName -> Integer -> A.Expr -> Maybe Integer
-    explore z s k (A.App _ (A.Con (AmbQ [f])) t) | f == s = explore z s (1+k) $ namedArg t
+    explore z s k (A.App _ (A.Con (AmbQ [f])) t) | f == s =
+      let v = 1+k in v `seq` explore z s v $ namedArg t
     explore z s k (A.Con (AmbQ [x]))             | x == z = Just k
     explore z s k (A.Lit (LitNat _ l))                    = Just (k + l)
     explore _ _ _ _ = Nothing
