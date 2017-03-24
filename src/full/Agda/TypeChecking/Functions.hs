@@ -79,7 +79,7 @@ etaExpandClause clause = liftTCM $ do
     -- it means we skipped an element of the telescope.
     useNames :: [Arg ArgName] -> ListTel -> ListTel
     useNames []     tel       = map (setOrigin Inserted) tel
-    useNames (_:_)  []        = __IMPOSSIBLE__
+    useNames (_:_)  []        = []  -- Andreas, 2017-03-24: not IMPOSSIBLE when positivity checking comes before termination checking, see examples/tactics/ac/AC.agda
     useNames (x:xs) (dom:tel)
       | getHiding x == getHiding dom =
           -- set the ArgName of the dom
