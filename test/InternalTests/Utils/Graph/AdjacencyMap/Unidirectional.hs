@@ -244,7 +244,7 @@ isWalk g from to es =
 prop_reachableFrom :: G -> Property
 prop_reachableFrom g =
   not (Set.null (nodes g)) ==>
-  forAll (nodeIn g) $ \u ->
+  forAll (nodeIn g) $ \ u ->
     let reachableFromU = reachableFrom g u in
     -- Every list is a walk of the given length.
     all (\(v, (n, es)) -> isWalk g u v es && length es == n)
@@ -281,7 +281,7 @@ prop_walkSatisfying g every some =
 
 prop_productOfEdgesInBoundedWalk :: G -> Property
 prop_productOfEdgesInBoundedWalk g =
-  forAll (nodeIn g) $ \u ->
+  forAll (nodeIn g) $ \ u ->
   forAll (nodeIn g) $ \v ->
   forAll (elements (Map.keys boundToEverySome)) $ \bound ->
     case productOfEdgesInBoundedWalk id g u v bound of

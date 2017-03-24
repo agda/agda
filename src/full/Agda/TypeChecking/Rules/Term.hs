@@ -2026,9 +2026,11 @@ checkNamedArg arg@(Arg info e0) t0 = do
           [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
           ]
     reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
-    let checkU = checkMeta (newMetaArg info x) t0
-    let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0
-    if (not $ isHole e) then checkExpr e t0 else localScope $ do
+    -- Ulf, 2017-03-24: (#2172) Always treat explicit _ and ? as implicit
+    -- argument (i.e. solve with unification).
+    let checkU = checkMeta (newMetaArg (setHiding Hidden info) x) t0
+    let checkQ = checkQuestionMark (newInteractionMetaArg (setHiding Hidden info) x) t0
+    if not $ isHole e then checkExpr e t0 else localScope $ do
       -- Note: we need localScope here,
       -- as scopedExpr manipulates the scope in the state.
       -- However, we may not pull localScope over checkExpr!
