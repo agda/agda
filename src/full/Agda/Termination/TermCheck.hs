@@ -183,6 +183,10 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
         -- Recursivity checker has to see through abstract definitions!
         ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
+      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
+      --   null <$> getMutual x
+      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
