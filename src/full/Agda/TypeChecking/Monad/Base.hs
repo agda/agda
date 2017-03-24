@@ -2574,7 +2574,7 @@ data TypeError
         | UnificationStuck Telescope [Term] [Term]
         | SplitError SplitError
     -- Positivity errors
-        | TooManyPolarities QName Integer
+        | TooManyPolarities QName Int
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
         | SolvedButOpenHoles

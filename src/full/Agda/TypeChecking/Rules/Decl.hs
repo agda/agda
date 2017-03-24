@@ -12,7 +12,6 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import Data.List (genericLength)
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Sequence as Seq
@@ -541,8 +540,8 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     Nothing   -> return ([], [])
     Just occs -> do
       TelV tel _ <- telView t
-      let n = genericLength (telToList tel)
-      when (n < genericLength occs) $
+      let n = length (telToList tel)
+      when (n < length occs) $
         typeError $ TooManyPolarities x n
       let pols = map polFromOcc occs
       reportSLn "tc.polarity.pragma" 10 $
