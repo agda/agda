@@ -30,7 +30,7 @@ record ApplyLaws (A : Set → Set) {{O : FunctorOp A}} {{L : FunctorLaws A}} {{i
   open ApplyOp {{...}}
   field
     works : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply f x) ≡ x
-    test2 : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {_} {{_}} f x) ≡ x
-    test1 : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {A₁ = _} {{_}} {{L₁ = _}} f x) ≡ x
-    test0 : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {{L₁ = _}} f x) ≡ x
-    test  : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {{L₁ = {!L!}}} f x) ≡ x
+    -- test2 : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {_} {{_}} f x) ≡ x
+    -- test1 : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {A₁ = _} {{_}} {{L₁ = _}} f x) ≡ x
+    -- test0 : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {{L₁ = _}} f x) ≡ x
+    -- test  : ∀ (f : A (⊤ → ⊤)) → (x : A ⊤) → (iapply {{L₁ = {!L!}}} f x) ≡ x
