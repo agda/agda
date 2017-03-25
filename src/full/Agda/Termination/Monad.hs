@@ -466,7 +466,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- Get the type of the field by dropping record parameters and record argument.
                 let TelV tel core = telView' (defType pdef)
                     (pars, tel') = splitAt n $ telToList tel
-                    mut = r : recMutual rdef
+                    mut = fromMaybe __IMPOSSIBLE__ $ recMutual rdef
                 -- Check if any recursive symbols appear in the record type.
                 -- Q (2014-07-01): Should we normalize the type?
                 -- A (2017-01-13): Yes, since we also normalize during positivity check?

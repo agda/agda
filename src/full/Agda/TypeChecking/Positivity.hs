@@ -104,8 +104,12 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   reportSLn "tc.pos.graph.sccs" 15 $
     "  sccs = " ++ show [ scc | CyclicSCC scc <- sccs ]
   forM_ sccs $ \case
-    AcyclicSCC{}  -> return ()
-    CyclicSCC scc -> setMut [ q | DefNode q <- scc ]
+    -- If the mutuality information has never been set, we set it to []
+    AcyclicSCC (DefNode q) -> whenM (isNothing <$> getMutual q) $ do
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to non-recursive"
+      setMutual q []
+    AcyclicSCC (ArgNode{}) -> return ()
+    CyclicSCC scc          -> setMut [ q | DefNode q <- scc ]
   mapM_ (checkPos g gstar) qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
 
@@ -198,8 +202,10 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
 
     -- Set the mutually recursive identifiers for a SCC.
     setMut :: [QName] -> TCM ()
-    setMut []  = return ()  -- nothing to do
-    setMut qs  = forM_ qs $ \ q -> setMutual q qs
+    setMut [] = return ()  -- nothing to do
+    setMut qs = forM_ qs $ \ q -> do
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to (mutually) recursive"
+      setMutual q qs
       -- TODO: The previous line produces data of quadratic size
       -- (which has to be processed upon serialization).  Presumably qs is
       -- usually short, but in some cases (for instance for generated

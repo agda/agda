@@ -862,7 +862,7 @@ instance ExtractCalls Term where
             Just (q, def) -> (\ b -> if b then CoInductive else Inductive) <$>
               andM [ return $ recRecursive def
                    , return $ recInduction def == Just CoInductive
-                   , targetElem (q : recMutual def)
+                   , targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def
                    ]
         constructor c ind argsg
 

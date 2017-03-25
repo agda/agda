@@ -124,7 +124,7 @@ checkDataDef i name ps cs =
                   , dataCons       = []     -- Constructors are added later
                   , dataSort       = s
                   , dataAbstr      = Info.defAbstract i
-                  , dataMutual     = []
+                  , dataMutual     = Nothing
                   }
 
             escapeContext npars $ do

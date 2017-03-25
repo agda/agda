@@ -1443,10 +1443,11 @@ data Defn = Axiom
             , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
             , funInv            :: FunctionInverse
-            , funMutual         :: [QName]
+            , funMutual         :: Maybe [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
               --   Does include this function.
               --   Empty list if not recursive.
+              --   @Nothing@ if not yet computed (by positivity checker).
             , funAbstr          :: IsAbstract
             , funDelayed        :: Delayed
               -- ^ Are the clauses of this definition delayed?
@@ -1478,10 +1479,11 @@ data Defn = Axiom
             , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
             , dataCons           :: [QName]        -- ^ Constructor names.
             , dataSort           :: Sort
-            , dataMutual         :: [QName]
+            , dataMutual         :: Maybe [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
               --   Does include this data type.
               --   Empty if not recursive.
+              --   @Nothing@ if not yet computed (by positivity checker).
             , dataAbstr          :: IsAbstract
             }
           | Record
@@ -1500,10 +1502,11 @@ data Defn = Axiom
               -- ^ The record field telescope. (Includes record parameters.)
               --   Note: @TelV recTel _ == telView' recConType@.
               --   Thus, @recTel@ is redundant.
-            , recMutual         :: [QName]
+            , recMutual         :: Maybe [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
               --   Does include this record.
               --   Empty if not recursive.
+              --   @Nothing@ if not yet computed (by positivity checker).
             , recEtaEquality'    :: EtaEquality
               -- ^ Eta-expand at this record type?
               --   @False@ for unguarded recursive records and coinductive records
@@ -1548,7 +1551,7 @@ emptyFunction = Function
   , funCompiled    = Nothing
   , funTreeless    = Nothing
   , funInv         = NotInjective
-  , funMutual      = []
+  , funMutual      = Nothing
   , funAbstr       = ConcreteDef
   , funDelayed     = NotDelayed
   , funProjection  = Nothing

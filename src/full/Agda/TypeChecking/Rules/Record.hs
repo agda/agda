@@ -185,7 +185,7 @@ checkRecDef i name ind eta con ps contel fields =
                   -- in case the record turns out to be recursive.
               -- Determined by positivity checker:
               , recRecursive      = False
-              , recMutual         = []
+              , recMutual         = Nothing
               }
 
         -- Add record constructor to signature

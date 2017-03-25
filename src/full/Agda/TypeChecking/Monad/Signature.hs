@@ -410,7 +410,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
-            mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
+            mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> Nothing }
             extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
             with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
             -- Andreas, 2015-05-11, to fix issue 1413:
@@ -733,26 +733,26 @@ getCompiledArgUse :: QName -> TCM [Bool]
 getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 
 -- | Get the mutually recursive identifiers.
-getMutual :: QName -> TCM [QName]
+getMutual :: QName -> TCM (Maybe [QName])
 getMutual d = do
   (theDef <$> getConstInfo d) <&> \case
     Function {  funMutual = m } -> m
     Datatype { dataMutual = m } -> m
     Record   {  recMutual = m } -> m
-    _ -> []
+    _ -> Nothing
 
 -- | Set the mutually recursive identifiers.
 setMutual :: QName -> [QName] -> TCM ()
 setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
   case def of
-    Function{} -> def { funMutual = m }
-    Datatype{} -> def {dataMutual = m }
-    Record{}   -> def { recMutual = m }
-    _          -> __IMPOSSIBLE__
+    Function{} -> def { funMutual = Just m }
+    Datatype{} -> def {dataMutual = Just m }
+    Record{}   -> def { recMutual = Just m }
+    _          -> def -- nothing to do
 
 -- | Check whether two definitions are mutually recursive.
 mutuallyRecursive :: QName -> QName -> TCM Bool
-mutuallyRecursive d d' = (d `elem`) <$> getMutual d'
+mutuallyRecursive d d1 = (d `elem`) . fromMaybe __IMPOSSIBLE__ <$> getMutual d1
 
 -- | Get the number of parameters to the current module.
 getCurrentModuleFreeVars :: TCM Nat
