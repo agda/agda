@@ -1485,24 +1485,36 @@ data Defn = Axiom
             , dataAbstr          :: IsAbstract
             }
           | Record
-            { recPars           :: Nat                  -- ^ Number of parameters.
+            { recPars           :: Nat
+              -- ^ Number of parameters.
             , recClause         :: Maybe Clause
-            , recConHead        :: ConHead              -- ^ Constructor name and fields.
+              -- ^ Was this record type created by a module application?
+              --   If yes, the clause is its definition (linking back to the original record type).
+            , recConHead        :: ConHead
+              -- ^ Constructor name and fields.
             , recNamedCon       :: Bool
+              -- ^ Does this record have a @constructor@?
             , recFields         :: [Arg QName]
-            , recTel            :: Telescope            -- ^ The record field telescope. (Includes record parameters.)
-                                                        --   Note: @TelV recTel _ == telView' recConType@.
-                                                        --   Thus, @recTel@ is redundant.
+              -- ^ The record field names.
+            , recTel            :: Telescope
+              -- ^ The record field telescope. (Includes record parameters.)
+              --   Note: @TelV recTel _ == telView' recConType@.
+              --   Thus, @recTel@ is redundant.
             , recMutual         :: [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
               --   Does include this record.
               --   Empty if not recursive.
-            , recEtaEquality'    :: EtaEquality          -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records and coinductive records unless the user specifies otherwise.
+            , recEtaEquality'    :: EtaEquality
+              -- ^ Eta-expand at this record type?
+              --   @False@ for unguarded recursive records and coinductive records
+              --   unless the user specifies otherwise.
             , recInduction      :: Maybe Induction
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
               --   'Nothing' means that the user did not specify it, which is an error
               --   for recursive records.
-            , recRecursive      :: Bool                 -- ^ Recursive record.  Infers @recEtaEquality = False@.  Projections are not size-preserving.
+            , recRecursive      :: Bool
+              -- ^ Recursive record.  Entails @recEtaEquality = False@.
+              --   Projections are not size-preserving.
             , recAbstr          :: IsAbstract
             }
           | Constructor
