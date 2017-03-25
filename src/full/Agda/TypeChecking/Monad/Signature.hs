@@ -748,7 +748,7 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
     Function{} -> def { funMutual = Just m }
     Datatype{} -> def {dataMutual = Just m }
     Record{}   -> def { recMutual = Just m }
-    _          -> def -- nothing to do
+    _          -> if null m then def else __IMPOSSIBLE__ -- nothing to do
 
 -- | Check whether two definitions are mutually recursive.
 mutuallyRecursive :: QName -> QName -> TCM Bool
