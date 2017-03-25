@@ -59,7 +59,7 @@ etaExpandClause clause = liftTCM $ do
           body' = raise n body `apply` teleArgs tel
       reportSDoc "term.clause.expand" 30 $ inTopContext $ vcat
         [ text "etaExpandClause"
-        , text "  body    = " <+> (addContext tel0 $ prettyTCM body)
+        , text "  body    = " <+> (addContext ctel' $ prettyTCM body)
         , text "  xs      = " <+> text (show xs)
         , text "  new tel = " <+> prettyTCM ctel'
         ]
