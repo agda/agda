@@ -184,7 +184,6 @@ checkRecDef i name ind eta con ps contel fields =
                   -- We retain the original user declaration [(co)inductive]
                   -- in case the record turns out to be recursive.
               -- Determined by positivity checker:
-              , recRecursive      = False
               , recMutual         = Nothing
               }
 

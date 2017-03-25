@@ -1515,9 +1515,6 @@ data Defn = Axiom
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
               --   'Nothing' means that the user did not specify it, which is an error
               --   for recursive records.
-            , recRecursive      :: Bool
-              -- ^ Recursive record.  Entails @recEtaEquality = False@.
-              --   Projections are not size-preserving.
             , recAbstr          :: IsAbstract
             }
           | Constructor
@@ -1540,6 +1537,11 @@ data Defn = Axiom
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Show)
+
+-- | Is the record type recursive?
+recRecursive :: Defn -> Bool
+recRecursive (Record { recMutual = Just qs }) = not $ null qs
+recRecursive _ = __IMPOSSIBLE__
 
 recEtaEquality :: Defn -> Bool
 recEtaEquality = etaEqualityToBool . recEtaEquality'
@@ -3186,7 +3188,7 @@ instance KillRange Defn where
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
+      Record a b c d e f g h i j     -> killRange10 Record a b c d e f g h i j
       Constructor a b c d e f g      -> killRange7 Constructor a b c d e f g
       Primitive a b c d              -> killRange4 Primitive a b c d
 

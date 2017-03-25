@@ -856,12 +856,10 @@ instance ExtractCalls Term where
         -- in a type mutual with the current target
         -- then we count it as guarding.
         ind <- ifM ((Just c ==) <$> terGetSharp) (return CoInductive) $ do
-          r <- liftTCM $ isRecordConstructor c
-          case r of
-            Nothing       -> return Inductive
-            Just (q, def) -> (\ b -> if b then CoInductive else Inductive) <$>
-              andM [ return $ recRecursive def
-                   , return $ recInduction def == Just CoInductive
+          caseMaybeM (liftTCM $ isRecordConstructor c) (return Inductive) $ \ (q, def) -> do
+            reportSLn "term.check.term" 50 $ "constructor " ++ show c ++ " has record type " ++ show q
+            (\ b -> if b then CoInductive else Inductive) <$>
+              andM [ return $ recInduction def == Just CoInductive
                    , targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def
                    ]
         constructor c ind argsg
