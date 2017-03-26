@@ -1666,7 +1666,8 @@ data AllowedReduction
   = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
   | InlineReductions         -- ^ Functions marked INLINE may be reduced.
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
-  | FunctionReductions       -- ^ Functions which are not projections may be reduced.
+  | FunctionReductions       -- ^ Non-recursive functions and primitives may be reduced.
+  | RecursiveReductions      -- ^ Even recursive functions may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
   | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.

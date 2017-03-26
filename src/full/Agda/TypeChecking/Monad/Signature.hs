@@ -732,10 +732,13 @@ getTreeless q = fmap cTreeless <$> getCompiled q
 getCompiledArgUse :: QName -> TCM [Bool]
 getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 
--- | Get the mutually recursive identifiers.
+-- | Get the mutually recursive identifiers of a symbol from the signature.
 getMutual :: QName -> TCM (Maybe [QName])
-getMutual d = do
-  (theDef <$> getConstInfo d) <&> \case
+getMutual d = getMutual_ . theDef <$> getConstInfo d
+
+-- | Get the mutually recursive identifiers from a `Definition`.
+getMutual_ :: Defn -> Maybe [QName]
+getMutual_ = \case
     Function {  funMutual = m } -> m
     Datatype { dataMutual = m } -> m
     Record   {  recMutual = m } -> m
@@ -753,6 +756,11 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
 -- | Check whether two definitions are mutually recursive.
 mutuallyRecursive :: QName -> QName -> TCM Bool
 mutuallyRecursive d d1 = (d `elem`) . fromMaybe __IMPOSSIBLE__ <$> getMutual d1
+
+-- | A function/data/record definition is nonRecursive if it is not even mutually
+--   recursive with itself.
+definitelyNonRecursive_ :: Defn -> Bool
+definitelyNonRecursive_ = maybe False null . getMutual_
 
 -- | Get the number of parameters to the current module.
 getCurrentModuleFreeVars :: TCM Nat
