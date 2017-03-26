@@ -1,0 +1,4 @@
+Issue2510.agda:7,1-11
+Cannot eliminate type Set with pattern x (did you supply too many
+arguments?)
+when checking that the clause test x = x has type Set

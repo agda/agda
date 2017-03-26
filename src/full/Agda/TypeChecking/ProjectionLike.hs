@@ -240,7 +240,7 @@ makeProjection x = -- if True then return () else do
     -- Nor can abstract definitions be projection-like since they won't reduce
     -- outside the abstract block.
     def@Function{funProjection = Nothing, funClauses = cls, funCompiled = cc0, funInv = NotInjective,
-                 funMutual = [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
+                 funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"

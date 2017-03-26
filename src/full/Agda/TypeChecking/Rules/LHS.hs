@@ -239,11 +239,19 @@ updateInPatterns as ps qs = do
               }
 
 
-
--- | Check if a problem is solved. That is, if the patterns are all variables.
+-- | Check if a problem is solved.
+--   That is, if the patterns are all variables,
+--   and there is no 'problemRest'.
 isSolvedProblem :: Problem -> Bool
 isSolvedProblem problem = null (restPats $ problemRest problem) &&
-    all (isSolved . snd . asView . namedArg) (problemInPat problem)
+  problemAllVariables problem
+
+-- | Check if a problem consists only of variable patterns.
+--   (Includes the 'problemRest').
+problemAllVariables :: Problem -> Bool
+problemAllVariables problem =
+    all (isSolved . snd . asView . namedArg) $
+      restPats (problemRest problem) ++ problemInPat problem
   where
     -- need further splitting:
     isSolved A.ConP{}        = False
@@ -710,7 +718,8 @@ checkLHS f st@(LHSState problem dpi psplit) = do
   if isSolvedProblem problem && handledFinite then return $ st { lhsProblem = problem } else do
 
     unlessM (optPatternMatching <$> gets getPragmaOptions) $
-      typeError $ GenericError $ "Pattern matching is disabled"
+      unless (problemAllVariables problem) $
+        typeError $ GenericError $ "Pattern matching is disabled"
 
     foldListT trySplit nothingToSplit $ splitProblem f problem
   where

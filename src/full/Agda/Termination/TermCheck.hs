@@ -184,6 +184,10 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
         -- Recursivity checker has to see through abstract definitions!
         ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
+      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
+      --   null <$> getMutual x
+      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
@@ -777,10 +781,13 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
            -- forM es0 $
            --    etaContract <=< traverse reduceCon <=< instantiateFull
            -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
+           -- Andreas, 2017-03-25, issue #2495, restrict this to non-recursive functions
+           -- otherwise, the termination checking may run forever.
            reportSLn "term.reduce" 90 $ "normalizing call arguments"
-           modifyAllowedReductions (delete UnconfirmedReductions) $ forM es0 $ \ e -> do
-             reportSDoc "term.reduce" 95 $ text "normalizing " <+> prettyTCM e
-             etaContract =<< normalise e
+           modifyAllowedReductions (List.\\ [UnconfirmedReductions,RecursiveReductions]) $
+             forM es0 $ \ e -> do
+               reportSDoc "term.reduce" 95 $ text "normalizing " <+> prettyTCM e
+               etaContract =<< normalise e
 
          -- Compute the call matrix.
 
@@ -854,13 +861,11 @@ instance ExtractCalls Term where
         -- in a type mutual with the current target
         -- then we count it as guarding.
         ind <- ifM ((Just c ==) <$> terGetSharp) (return CoInductive) $ do
-          r <- liftTCM $ isRecordConstructor c
-          case r of
-            Nothing       -> return Inductive
-            Just (q, def) -> (\ b -> if b then CoInductive else Inductive) <$>
-              andM [ return $ recRecursive def
-                   , return $ recInduction def == Just CoInductive
-                   , targetElem (q : recMutual def)
+          caseMaybeM (liftTCM $ isRecordConstructor c) (return Inductive) $ \ (q, def) -> do
+            reportSLn "term.check.term" 50 $ "constructor " ++ show c ++ " has record type " ++ show q
+            (\ b -> if b then CoInductive else Inductive) <$>
+              andM [ return $ recInduction def == Just CoInductive
+                   , targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def
                    ]
         constructor c ind argsg
 

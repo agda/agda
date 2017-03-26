@@ -421,7 +421,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
-            mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
+            mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> Nothing }
             extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
             with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
             -- Andreas, 2015-05-11, to fix issue 1413:
@@ -591,7 +591,7 @@ whatInduction c = liftTCM $ do
   mo <- getBuiltinName' builtinIOne
   case def of
     Datatype{ dataInduction = i } -> return i
-    Record{ recRecursive = False} -> return Inductive
+    Record{} | not (recRecursive def) -> return Inductive
     Record{ recInduction = i    } -> return $ fromMaybe Inductive i
     Constructor{ conInd = i }     -> return i
     _ | Just c == mz || Just c == mo
@@ -755,27 +755,35 @@ addDataCons d cs = modifySignature $ updateDefinition d $ updateTheDef $ \ def -
     Datatype{} -> def {dataCons = cs' }
     _          -> __IMPOSSIBLE__
 
--- | Get the mutually recursive identifiers.
-getMutual :: QName -> TCM [QName]
-getMutual d = do
-  (theDef <$> getConstInfo d) <&> \case
+-- | Get the mutually recursive identifiers of a symbol from the signature.
+getMutual :: QName -> TCM (Maybe [QName])
+getMutual d = getMutual_ . theDef <$> getConstInfo d
+
+-- | Get the mutually recursive identifiers from a `Definition`.
+getMutual_ :: Defn -> Maybe [QName]
+getMutual_ = \case
     Function {  funMutual = m } -> m
     Datatype { dataMutual = m } -> m
     Record   {  recMutual = m } -> m
-    _ -> []
+    _ -> Nothing
 
 -- | Set the mutually recursive identifiers.
 setMutual :: QName -> [QName] -> TCM ()
 setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
   case def of
-    Function{} -> def { funMutual = m }
-    Datatype{} -> def {dataMutual = m }
-    Record{}   -> def { recMutual = m }
-    _          -> __IMPOSSIBLE__
+    Function{} -> def { funMutual = Just m }
+    Datatype{} -> def {dataMutual = Just m }
+    Record{}   -> def { recMutual = Just m }
+    _          -> if null m then def else __IMPOSSIBLE__ -- nothing to do
 
 -- | Check whether two definitions are mutually recursive.
 mutuallyRecursive :: QName -> QName -> TCM Bool
-mutuallyRecursive d d' = (d `elem`) <$> getMutual d'
+mutuallyRecursive d d1 = (d `elem`) . fromMaybe __IMPOSSIBLE__ <$> getMutual d1
+
+-- | A function/data/record definition is nonRecursive if it is not even mutually
+--   recursive with itself.
+definitelyNonRecursive_ :: Defn -> Bool
+definitelyNonRecursive_ = maybe False null . getMutual_
 
 -- | Get the number of parameters to the current module.
 getCurrentModuleFreeVars :: TCM Nat

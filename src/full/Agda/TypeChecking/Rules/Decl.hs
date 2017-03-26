@@ -12,7 +12,7 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import Data.List (genericLength)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Sequence as Seq
@@ -251,10 +251,14 @@ mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
   let nameList = Set.toList names
   mapM_ instantiateDefinitionType nameList
+  -- Andreas, 2017-03-23: check positivity before termination.
+  -- This allows us to reuse the information about SCCs
+  -- to skip termination of non-recursive functions.
+  modifyAllowedReductions (List.delete UnconfirmedReductions) $
+    checkPositivity_ mi names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
   local (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
-  checkPositivity_         mi names
   revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
@@ -541,8 +545,8 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     Nothing   -> return ([], [])
     Just occs -> do
       TelV tel _ <- telView t
-      let n = genericLength (telToList tel)
-      when (n < genericLength occs) $
+      let n = length (telToList tel)
+      when (n < length occs) $
         typeError $ TooManyPolarities x n
       let pols = map polFromOcc occs
       reportSLn "tc.polarity.pragma" 10 $

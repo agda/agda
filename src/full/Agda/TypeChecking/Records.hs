@@ -323,21 +323,21 @@ isGeneratedRecordConstructor c = do
         _                             -> return False
     _ -> return False
 
--- | Mark record type as unguarded.
---   No eta-expansion.  Projections do not preserve guardedness.
+-- | Turn off eta for unguarded recursive records.
+--   Projections do not preserve guardedness.
 unguardedRecord :: QName -> TCM ()
 unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ \case
-  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False, recRecursive = True }
+  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False }
   _ -> __IMPOSSIBLE__
 
--- | Mark record type as recursive.
+-- | Turn on eta for inductive guarded recursive records.
 --   Projections do not preserve guardedness.
 recursiveRecord :: QName -> TCM ()
 recursiveRecord q = do
   ok <- etaEnabled
   modifySignature $ updateDefinition q $ updateTheDef $ \case
     r@Record{ recInduction = ind, recEtaEquality' = eta } ->
-      r { recRecursive = True, recEtaEquality' = eta' }
+      r { recEtaEquality' = eta' }
       where
       eta' | ok, eta == Inferred False, ind /= Just CoInductive = Inferred True
            | otherwise = eta
@@ -359,12 +359,7 @@ nonRecursiveRecord q = whenM etaEnabled $ do
 --
 --   Precondition: record type identifier exists in signature.
 isRecursiveRecord :: QName -> TCM Bool
-isRecursiveRecord q = recRecursive_ . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
-
--- | Version of @recRecursive@ with proper internal error.
-recRecursive_ :: Defn -> Bool
-recRecursive_ (Record { recRecursive = b }) = b
-recRecursive_ _ = __IMPOSSIBLE__
+isRecursiveRecord q = recRecursive . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
 
 {- | @etaExpandBoundVar i = (Δ, σ, τ)@
 

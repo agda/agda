@@ -768,7 +768,7 @@ bindBuiltinNoDef b q = do
               , dataCons       = []     -- Constructors are added later
               , dataSort       = Inf
               , dataAbstr      = ConcreteDef
-              , dataMutual     = []
+              , dataMutual     = Nothing
               }
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b

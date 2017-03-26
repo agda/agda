@@ -388,9 +388,9 @@ withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
   reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
-  reportSDoc "term.size" 20 $ vcat
-    [ text "the size variables amoung these variables are usable: " <+> sep (map (prettyTCM . var) $ VarSet.toList vars)
-    ]
+  reportSDoc "term.size" 20 $ if null vars then text "no usuable size vars" else
+    text "the size variables amoung these variables are usable: " <+>
+      sep (map (prettyTCM . var) $ VarSet.toList vars)
   terSetUsableVars vars $ m
 
 -- | Set 'terUseSizeLt' when going under constructor @c@.
@@ -455,7 +455,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
         caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
           -- no for inductive or non-recursive record
           if recInduction rdef /= Just CoInductive then return False else do
-            reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive"
+            reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive; record type is " ++ prettyShow r
             if not mustBeRecursive then return True else do
               reportSLn "term.guardedness" 40 $ prettyShow q ++ " must be recursive"
               if not (recRecursive rdef) then return False else do
@@ -466,7 +466,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- Get the type of the field by dropping record parameters and record argument.
                 let TelV tel core = telView' (defType pdef)
                     (pars, tel') = splitAt n $ telToList tel
-                    mut = r : recMutual rdef
+                    mut = fromMaybe __IMPOSSIBLE__ $ recMutual rdef
                 -- Check if any recursive symbols appear in the record type.
                 -- Q (2014-07-01): Should we normalize the type?
                 -- A (2017-01-13): Yes, since we also normalize during positivity check?
@@ -479,6 +479,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , text "and"
                   , addContext tel $ prettyTCM core
                   ]
+                when (null mut) __IMPOSSIBLE__
                 names <- anyDefs mut =<< normalise (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
                   text "found" <+> if null names then text "none" else sep (map prettyTCM names)

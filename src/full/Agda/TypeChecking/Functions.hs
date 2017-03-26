@@ -59,7 +59,7 @@ etaExpandClause clause = liftTCM $ do
           body' = raise n body `apply` teleArgs tel
       reportSDoc "term.clause.expand" 30 $ inTopContext $ vcat
         [ text "etaExpandClause"
-        , text "  body    = " <+> (addContext tel0 $ prettyTCM body)
+        , text "  body    = " <+> (addContext ctel' $ prettyTCM body)
         , text "  xs      = " <+> text (show xs)
         , text "  new tel = " <+> prettyTCM ctel'
         ]
@@ -80,6 +80,7 @@ etaExpandClause clause = liftTCM $ do
     useNames :: [Arg ArgName] -> ListTel -> ListTel
     useNames []     tel       = map (setOrigin Inserted) tel
     -- Andrea: we can have more Lam's than Pi's, because they might be for Path
+    -- Andreas, 2017-03-24: the following case is not IMPOSSIBLE when positivity checking comes before termination checking, see examples/tactics/ac/AC.agda
     useNames (_:_)  []        = []
     useNames (x:xs) (dom:tel)
       | getHiding x == getHiding dom =

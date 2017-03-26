@@ -471,10 +471,11 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
     _  -> do
-      if FunctionReductions `elem` allowed ||
+      if (RecursiveReductions `elem` allowed) ||
          (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
          (isInlineFun def && InlineReductions `elem` allowed) ||
-         (copatterns && CopatternReductions `elem` allowed)
+         (definitelyNonRecursive_ def && copatterns && CopatternReductions `elem` allowed) ||
+         (definitelyNonRecursive_ def && FunctionReductions `elem` allowed)
         then
           reduceNormalE v0 f (map notReduced es) dontUnfold
                        (defClauses info) (defCompiled info) rewr

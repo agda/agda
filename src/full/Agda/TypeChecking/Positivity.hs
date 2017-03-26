@@ -71,7 +71,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
   g <- buildOccurrenceGraph qset
-  let (gstar, sccs') =
+  let (gstar, sccs) =
         Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
@@ -93,18 +93,24 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
-  let sccs = map flattenSCC sccs'
   reportSDoc "tc.pos.graph.sccs" 10 $ do
-    let (triv, others) = partitionEithers $ for sccs' $ \ scc -> case scc of
+    let (triv, others) = partitionEithers $ for sccs $ \case
           AcyclicSCC v -> Left v
           CyclicSCC vs -> Right vs
     sep [ text $ show (length triv) ++ " trivial sccs"
         , text $ show (length others) ++ " non-trivial sccs with lengths " ++
             show (map length others)
         ]
-  reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
-  forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
-  mapM_ (checkPos g gstar) $ qs
+  reportSLn "tc.pos.graph.sccs" 15 $
+    "  sccs = " ++ show [ scc | CyclicSCC scc <- sccs ]
+  forM_ sccs $ \case
+    -- If the mutuality information has never been set, we set it to []
+    AcyclicSCC (DefNode q) -> whenM (isNothing <$> getMutual q) $ do
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to non-recursive"
+      setMutual q []
+    AcyclicSCC (ArgNode{}) -> return ()
+    CyclicSCC scc          -> setMut [ q | DefNode q <- scc ]
+  mapM_ (checkPos g gstar) qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
 
   where
@@ -196,12 +202,12 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
 
     -- Set the mutually recursive identifiers for a SCC.
     setMut :: [QName] -> TCM ()
-    setMut []  = return ()  -- nothing to do
-    setMut [q] = return ()  -- no mutual recursion
-    setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)
-      -- TODO: The previous line is at least quadratic in the length
-      -- of qs (assuming that the expression "delete q qs" is always
-      -- forced, for instance due to serialisation). Presumably qs is
+    setMut [] = return ()  -- nothing to do
+    setMut qs = forM_ qs $ \ q -> do
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to (mutually) recursive"
+      setMutual q qs
+      -- TODO: The previous line produces data of quadratic size
+      -- (which has to be processed upon serialization).  Presumably qs is
       -- usually short, but in some cases (for instance for generated
       -- code) it may be long. Wouldn't it be better to assign a
       -- unique identifier to each SCC, and avoid storing lists?
