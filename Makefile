@@ -145,7 +145,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test
+test : check-whitespace succeed fail interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test
 
 .PHONY : quicktest
 quicktest : succeed fail
