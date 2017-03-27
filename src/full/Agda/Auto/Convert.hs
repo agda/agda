@@ -743,12 +743,11 @@ negtype ee = f (0 :: Int)
 findClauseDeep :: Common.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
 findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
-  (f, clauseNo) <- case ipCl of
-    MB.IPClause f clauseNo _ -> return (f, clauseNo)
-    MB.IPNoClause -> MB.typeError $ MB.GenericError $
-      "Cannot apply the auto tactic here, we are not in a function clause"
-  (_, c, _) <- getClauseForIP f clauseNo
-  return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
+  case ipCl of
+    MB.IPNoClause -> return Nothing
+    MB.IPClause f clauseNo _ -> do
+      (_, c, _) <- getClauseForIP f clauseNo
+      return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
     toplevel e =
      case I.ignoreSharing e of
