@@ -128,7 +128,10 @@ parseVariables f tel ii rng ss = do
           (v, _) <- getVarInfo x
           case ignoreSharing v of
             Var i [] -> done $ i - nlocals
-            _        -> failNotVar
+            _        -> typeError . GenericDocError =<< sep
+              [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
+              , prettyTCM v
+              ]
 
         -- If s is not a name, compare it to the printed variable representation.
         -- This fallback is to enable splitting on hidden variables.
