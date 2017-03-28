@@ -32,8 +32,9 @@
   Lambda intermediate representation.[fn:dolan-2016]
   #+END_QUOTE
 
-  Our backend does whole-module compilation. All definitions are pulled into
-  scope and output into the same malfunction module.
+  Our backend does whole-program compilation -- meaning that it compiles the
+  whole program (including imports) as one single unit. All definitions are
+  pulled into scope and output into the same malfunction module.
 
   The UI of our compiler needs a bit of polishing, but essentially you invoke it
   like so:
@@ -104,8 +105,8 @@
    included support for the new Agda pragmas =COMPILE= and =FOREIGN= that
    essentially map fundamental operations to their counterparts in the target
    language. Our implementation instead makes use of a hack. We've manually
-   written this mapping for a few reserved names, and only the ones we happened
-   to need for the red-black example. This means, amongst other things that you
+   written mappings for a few reserved names, and only the ones we happened to
+   need for the red-black example. This means, amongst other things, that you
    cannot do IO with our backend.
 
 *** Lazyness/strictness
@@ -139,7 +140,7 @@
     expression tree.
 
     We disabled the termination checker, but a similar example could be given
-    for which termnation *can* be guaranteed but where the value may not be
+    for which termnation /can/ be guaranteed but where the value may not be
     needed. In this case the resulting program would converge, but be slower.
     # TODO: add converving example
 *** Tail-recursion
@@ -212,7 +213,7 @@
    We also present a slight variant on the Agda version. One where =fromList= is
    implemented using a lazy- and strict- fold respectively. We expect that this
    change won't have an impact on the version compiled using the OCaml backend,
-   but would expect a speed-up in the strict variant using the Haskell-variant.
+   but would expect a speed-up in the strict variant using the Haskell-backend.
 
 [fn:okasaki-1993]   Okasaki, Chris; "Red-Black Trees in a Functional Setting", 1993
 
@@ -226,7 +227,7 @@
 
 * Benchmarks
 ** Procedure
-   We did two benchmarks to . The first benchmarks is the sum of a list. The
+   We performed two benchmarks. The first benchmarks is the sum of a list. The
    second is sorting a list using a red-black tree and then summing it.
 
    For the red-black tree benchmark we have the following variants:
@@ -239,7 +240,7 @@
   We also varied; 1) the length of the list and 2) the sortedness of the lists
   (sorted, reversed sorted, randomized). For the randomized lists we used the
   Blum Blum Shub pseudo-random number generation algorithm to generate
-  (pseudo-)randmoized lists. The advantage of using this approach is the the
+  (pseudo-)randomized lists. The advantage of using this approach is the the
   results are deterministic, and therefore reproducible, and it is fairly easy
   to compute.
 
@@ -270,14 +271,12 @@
             f xs 0 = xs
             f !xs x = f (x : xs) (x - 1)
     #+END_SRC
-    For the generation of random list we use
-
-    We see that non-tail recursive Haskell version is
-    greatly optimized and it uses constant memory, consequently, is a lot faster than all
-    the other versions. Both MAlonzo versions and the tail recursive Haskell
-    version perform very similarly. Malfunction version is faster than MAlonzo.
-    The Malfunction version is better that the MAlonzo backend but not as fast
-    as the best non-tail recursive Haskell version.
+    We see that non-tail recursive Haskell version is greatly optimized and it
+    uses constant memory, consequently, is a lot faster than all the other
+    versions. Both MAlonzo versions and the tail recursive Haskell version have
+    very similar performance characteristics. The Malfunction version is faster
+    than the MAlonzo version. The Malfunction version is better that the MAlonzo
+    backend but not as fast as the best non-tail recursive Haskell version.
 
     We also did a benchmark with reversed lists, the results look similar.
 
@@ -302,7 +301,7 @@
 
     We can see that the strict- and lazy Malfunction-versions have a very similar
     performance[fn::In fact, we know that they compile to the same program.
-    Discussion section.], and we can further see that they perform
+    This is discussed further down.], and we can further see that they perform
     similarly to the MAlonzo version.
 
     Quite surprisingly the Haskell versions all perform worse than the Agda
