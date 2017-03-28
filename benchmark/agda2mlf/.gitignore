@@ -28,3 +28,5 @@ RedBlackMlfStrict
 RedBlackT
 Fold.agda
 runs/
+MAlonzo
+*.bench
