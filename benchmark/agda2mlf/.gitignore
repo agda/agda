@@ -30,3 +30,4 @@ Fold.agda
 runs/
 MAlonzo
 *.bench
+tmp.hs
