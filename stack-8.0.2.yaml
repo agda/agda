@@ -3,3 +3,10 @@ resolver: lts-8.5
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+- location:
+    git: "https://github.com/lwm/tasty-discover.git"
+    commit: "HEAD"
+  extra-dep: true
+
+extra-deps:
+  - tasty-th-0.1.4

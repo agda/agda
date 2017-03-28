@@ -35,6 +35,7 @@ import Agda.TypeChecking.Pretty
 import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
 import Agda.Compiler.JS.Compiler (jsBackend)
+import qualified Agda.Compiler.Malfunction as Malfunction (backend)
 
 import Agda.Compiler.Backend
 
@@ -52,7 +53,7 @@ import Agda.Utils.Lens
 #include "undefined.h"
 
 builtinBackends :: [Backend]
-builtinBackends = [ ghcBackend, jsBackend ]
+builtinBackends = [ ghcBackend, jsBackend, Malfunction.backend ]
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
