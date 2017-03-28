@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# suffix S ==> -Dstrict (foldl!)
-# suffix T ==> -Dtail
+# this script is ugly and could use a lot of cleanup
+
 # lengths=`seq 250000 750000 30000000`
 lengths=`seq 1000000 2500000 50000000`
 execs="MAlonzox Malfunction"

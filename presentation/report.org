@@ -169,7 +169,6 @@
         f xs (suc x) = f ( x :: xs ) x
     #-END_SRC
 
-
 * Red/Black-tree
 ** Description
    * A red-black tree is a balanced binary search tree which nodes are either red
@@ -227,13 +226,13 @@
 
 * Benchmarks
 ** Procedure
-  For our benchmarks we tested the following variants:
+   We did two benchmarks to . The first benchmarks is the sum of a list. The
+   second is sorting a list using a red-black tree and then summing it.
 
-  * An Agda implementation using a lazy   fold compiled to Haskell
-  * An Agda implementation using a strict fold compiled to Haskell
-  * An Agda implementation using a lazy   fold compiled to OCaml
-  * An Agda implementation using a strict fold compiled to OCaml
-  * A Haskell implementation
+   For the red-black tree benchmark we have the following variants:
+  * An Agda implementation compiled to Haskell using MAlonzo and to Malfunction
+    using our backend.
+  * A Haskell implementation.
   * A Haskell implementation using nested higher-order types
   * A Haskell implementation using existential types
 
@@ -252,29 +251,26 @@
   have access to similar resources for the Agda implementations but we don't
   expect that the picture should be any different here.
 
-  # TODO: talk about how sortedness effects the performance. In the random case
-  # the MAlonzo backend performs worse.
-
 ** Results
-   # TODO: Include graphs, explain findings
 *** Summing sorted lists
     [[./img/sum_sorted.pdf]]
 
+    Generation of sorted lists:
     #+BEGIN_SRC haskell
-      -- Non-tail recursive generation of sorted lists.
+      -- Non-tail recursive
       fromTo, fromTo' :: Int -> [Int]
         fromTo n = f n
           where
             f 0 = []
             f x = n - x + 1 : f (x - 1)
 
-        -- Tail recursive generation of sorted lists.
+        -- Tail recursive
         fromTo' = f []
           where
             f xs 0 = xs
             f !xs x = f (x : xs) (x - 1)
     #+END_SRC
-
+    For the generation of random list we use
 
     We see that non-tail recursive Haskell version is
     greatly optimized and it uses constant memory, consequently, is a lot faster than all
@@ -295,7 +291,14 @@
      fromList = foldr insert empty
      fromList' = foldl' (flip insert) empty
      #+END_SRC
-
+     #+BEGIN_EXAMPLE
+                      inherited
+   COST CENTRE        %time  %alloc
+     ...
+    fromList          94.9   91.0
+     insert           91.6   80.9
+     ...
+     #+END_EXAMPLE
 
     We can see that the strict- and lazy Malfunction-versions have a very similar
     performance[fn::In fact, we know that they compile to the same program.
