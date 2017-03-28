@@ -1,10 +1,10 @@
-resolver: lts-8.2
+resolver: lts-8.5
 
 packages:
 - '.'
 - location:
     git: git@github.com:agda/agda.git
-    commit: e89edb8f15b6fb5e6b9707b349526b7f11b874f8
+    commit: 8f19716ed22bade700ed5e182906175d16130207
   extra-dep: true
 - location:
     git: "https://github.com/lwm/tasty-discover.git"
