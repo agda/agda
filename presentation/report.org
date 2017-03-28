@@ -1,7 +1,8 @@
 #+LATEX_HEADER: \usepackage[x11names]{xcolor}
-#+LATEX_HEADER: \hypersetup{colorlinks=true,urlcolor=SteelBlue3,linkcolor=Firebrick3}
+#+LATEX_HEADER: \hypersetup{colorlinks=true,urlcolor=black,linkcolor=black}
 #+LATEX_HEADER: \usepackage[margin=3cm]{geometry}
 #+LATEX_HEADER: \usepackage[document]{ragged2e}
+#+LATEX_HEADER: \setlength{\parskip}{\baselineskip}
 #+TITLE: A strict backend for Agda
 #+SUBTITLE: agda2mlf
 #+AUTHOR: Frederik Hanghøj Iversen, Jan Mas Rovira
@@ -29,8 +30,8 @@
   #+BEGIN_QUOTE
   Malfunction is an untyped program representation intended as a compilation
   target for functional languages, consisting of a thin wrapper around OCaml’s
-  Lambda intermediate representation.
-  #+END_QUOTE [dolan-2016]
+  Lambda intermediate representation.[fn:dolan-2016]
+  #+END_QUOTE
 
   Our backend does whole-module compilation. All definitions are pulled into
   scope and output into the same malfunction module.
@@ -45,7 +46,7 @@
   Where =$SRC= is your source-file and =$EXE= is the resulting executable.
   =--mlf= tells Agda to invoke the malfunction backend.
 
-  [dolan-2016]: Dolan, Stephen; "Malfunction Programming" 2016.
+[fn:dolan-2016] Dolan, Stephen; "Malfunction Programming" 2016.
 
   # Describe design-considerations and challenges and limitations (backlog)
 ** Module overview
@@ -112,23 +113,23 @@
     The behaviour of programs change when using this backend. This is a
     consequence of using strict evaluation. Consider the Agda program:
 
-    #+BEGIN_SRC agda
+    #+BEGIN_EXAMPLE
     {-# TERMINATING #-}
     fac : Nat -> Nat
     fac 0 = 1
     fac n = fac (n - 1) * suc n
-    #+BEGIN_SRC
+    #+END_EXAMPLE
 
     This gets translated into treeless.
 
-    #+BEGIN_SRC treeless
+    #+BEGIN_EXAMPLE
     example.fac =
       \ a →
         let b = t.fac (Agda.Builtin.Nat._-_ a 1) * (1 + a) in
         case a of
           0 → 1
           _ → b
-    #+BEGIN_SRC
+    #+END_EXAMPLE
 
     Note 2 things: We've disabled the termination-checker (and are therefore
     asking for trouble) and also note that the binding-site of =b= is outside
@@ -151,23 +152,23 @@
 
     In testing the implementation of RedBlack we needed a helper function =downFrom=:
 
-    #-BEGIN_SRC agda
+    #+BEGIN_EXAMPLE
     downFrom : Nat -> List Nat
     downFrom 0       = []
     downFrom (suc n) = n :: downFrom n
-    #-END_SRC
+    #+END_EXAMPLE
 
     =downFrom n= will cause a stack-overflow for sufficiently high =n=. We
     changed this function to:
 
-    #-BEGIN_SRC agda
+    #+BEGIN_EXAMPLE
     downFrom : Nat -> List Nat
     downFrom = f []
       where
         f : List Nat -> Nat -> List Nat
         f xs 0 = xs
         f xs (suc x) = f ( x :: xs ) x
-    #-END_SRC
+    #+END_EXAMPLE
 
 
 * Red/Black-tree
@@ -197,10 +198,10 @@
    For benchmarking we used an implementation in Agda using dependent types and
    three haskell-versions that "emulate" dependent types to varying degrees by
    using various language-extenssions. All implementations are based on
-   [okasaki-1993]. The implementation of the Agda version is an adaptation of
-   the one from [brady-2005]. The three haskell-versions are slightly modified
-   versions of the ones found in [kahr-2001] (downloadable from
-   [kahrs-homepage]).
+   [okasaki-1993][fn:okasaki-1993]. The implementation of the Agda version is an
+   adaptation of the one from [brady-2005][fn:brady-2005]. The three haskell-versions are
+   slightly modified versions of the ones found in [kahr-2001][fn:kahr-2001] (downloadable
+   from [kahrs-homepage][fn:kahrs-homepage]).
 
    The first haskell-implementation is the straight-forward implementation
    presented by Okasaki and does not encode tree-invariants in its type. The
@@ -215,15 +216,15 @@
    change won't have an impact on the version compiled using the OCaml backend,
    but would expect a speed-up in the strict variant using the Haskell-variant.
 
-   [okasaki-1993]:   Okasaki, Chris; "Red-Black Trees in a Functional Setting", 1993
+[fn:okasaki-1993]   Okasaki, Chris; "Red-Black Trees in a Functional Setting", 1993
 
-   [brady-2005]:     Brady, Edwin C.; "Practical Implementation of a Dependently
-                     Typed Functional Programming Language", 2005
+[fn:brady-2005]     Brady, Edwin C.; "Practical Implementation of a Dependently
+                    Typed Functional Programming Language", 2005
 
-   [kahr-2001]:      Kahrs, Stefan Michael; "Red-black trees with types", 2001
+[fn:kahr-2001]      Kahrs, Stefan Michael; "Red-black trees with types", 2001
 
-   [kahrs-homepage]: https://www.cs.kent.ac.uk/people/staff/smk/redblack/rb.html
-                     Downloaded: 2017-03-21 10:23
+[fn:kahrs-homepage] https://www.cs.kent.ac.uk/people/staff/smk/redblack/rb.html
+                    Downloaded: 2017-03-21 10:23
 
 * Benchmarks
 ** Procedure
@@ -322,14 +323,14 @@
   The difference in implementation of the lazy- and strict-versions of the
   red/black-algorithm in Agda boil down to how =fromList= is implemented:
 
-  #+BEGIN_SRC agda
+  #+BEGIN_EXAMPLE
   fromList = foldl! (flip insert) (mkT leaf)
-  #+BEGIN_SRC
+  #+END_EXAMPLE
 
-  #+BEGIN_SRC agda
+  #+BEGIN_EXAMPLE
   fromList = foldl  (flip insert) empty
   fromList = foldr insert empty
-  #+BEGIN_SRC
+  #+END_EXAMPLE
 
   So in this example writing a more strict and better performing immplementation
   using the Haskell backend requires a trivial change. Of course identifying
@@ -340,9 +341,9 @@
   strictness" should have close to no impact on the resulting program, and
   indeed we implemented =seq= like so:
 
-  #-BEGIN_EXAMPLE
+  #+BEGIN_EXAMPLE
   seq _ a = a
-  #-END_EXAMPLE
+  #+END_EXAMPLE
 
   Strictness forced us to reformulate parts of the program to avoid a
   stack-overflow when constructing the red-black tree. Similarly we explicitly

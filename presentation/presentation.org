@@ -68,21 +68,21 @@
 *** Lazyness/strictness
     The behaviour of programs change when using this backend.
 
-    #+BEGIN_SRC agda
+    #+BEGIN_EXAMPLE
     {-# TERMINATING #-}
     fac : Nat -> Nat
     fac 0 = 1
     fac n = fac (n - 1) * suc n
-    #+END_SRC
+    #+END_EXAMPLE
 
-    #+BEGIN_SRC treeless
+    #+BEGIN_EXAMPLE
     example.fac =
       \ a →
         let b = t.fac (Agda.Builtin.Nat._-_ a 1) * (1 + a) in
         case a of
           0 → 1
           _ → b
-    #+END_SRC
+    #+END_EXAMPLE
 
 ** Features and limitations (contd.)
 *** Tail-recursion
