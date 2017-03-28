@@ -2,7 +2,6 @@
 #+LATEX_HEADER: \hypersetup{colorlinks=true,urlcolor=black,linkcolor=black}
 #+LATEX_HEADER: \usepackage[margin=3cm]{geometry}
 #+LATEX_HEADER: \usepackage[document]{ragged2e}
-#+LATEX_HEADER: \setlength{\parskip}{\baselineskip}
 #+TITLE: A strict backend for Agda
 #+SUBTITLE: agda2mlf
 #+AUTHOR: Frederik Hanghøj Iversen, Jan Mas Rovira
