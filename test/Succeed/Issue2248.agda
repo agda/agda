@@ -33,4 +33,5 @@ abstract
 main = putStrLn unit "Hello, world!"
 
 -- WAS: compiler produced ill-formed Haskell-code
--- NOW: Error on COMPILE GHC pragma
+-- WAS: Error on COMPILE GHC pragma
+-- NOW: should succeed
