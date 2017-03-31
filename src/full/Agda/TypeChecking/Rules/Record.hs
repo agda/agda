@@ -354,8 +354,47 @@ defineCompR , defineCompR' ::
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM (Maybe QName)
 defineCompR' name params fsT fns rect = do
-  (compName, gamma, _, clause_types, bodies) <-
+  io <- primIOne
+  Just ioname <- getBuiltinName' builtinIOne
+  one <- primItIsOne
+  tInterval <- elInf primInterval
+  (compName, gamma, rtype, clause_types, bodies) <-
     defineCompForFields (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
+  c' <- do
+           let
+              -- CompRArgs = phi : I, u : ..; a0 : ..
+              -- Γ = Δ^I , CompRArgs
+              -- pats = ... | phi = i1
+              -- body = u i1 itIsOne
+              ix = 2
+              h = ConHead ioname Inductive []
+              p = ConP h (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
+                                           , conPFallThrough = True })
+                         []
+
+              pats :: [NamedArg DeBruijnPattern]
+              pats = singletonS ix p `applySubst` teleNamedArgs gamma
+
+              t :: Type
+              t = singletonS ix io `applySubst` rtype
+
+              gamma' :: Telescope
+              gamma' = unflattenTel (ns0 ++ ns1) $ s `applySubst` (g0 ++ g1)
+               where
+                s = singletonS ix io
+                (g0,_:g1) = splitAt (size gamma - 1 - ix) $ flattenTel gamma
+                (ns0,_:ns1) = splitAt (size gamma - 1 - ix) $ teleNames gamma
+
+              c = Clause { clauseTel       = gamma'
+                         , clauseType      = Just $ argN t
+                         , namedClausePats = pats
+                         , clauseFullRange = noRange
+                         , clauseLHSRange  = noRange
+                         , clauseCatchall  = False
+                         , clauseBody      = Just $ Var 1 [] `apply` [argN io, argN one]
+                         }
+           reportSDoc "comp.rec.face" 17 $ text $ show c
+           return c
   cs <- flip mapM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
           let
               pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
@@ -372,7 +411,7 @@ defineCompR' name params fsT fns rect = do
           reportSDoc "comp.rec" 15 $ prettyTCM $ abstract gamma (unDom clause_ty)
 --          reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
           return c
-  addClauses compName cs
+  addClauses compName $ c' : cs
   reportSDoc "comp.rec" 15 $ text $ "compiling clauses for " ++ show compName
   setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
   reportSDoc "comp.rec" 15 $ text $ "compiled"

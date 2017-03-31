@@ -392,6 +392,8 @@ defineProjections dataname con params names fsT t = do
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
 
+-- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (u : ...) , (a0 : ...)
+--            where u and a0 have types matching the arguments of primComp.
 defineCompForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
   -> QName       -- ^ some name, e.g. record name
