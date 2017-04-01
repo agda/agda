@@ -17,12 +17,13 @@
 , emacs, equivalence, filepath, geniplate-mirror, happy, hashable
 , hashtables, haskeline, haskell-src-exts, mtl, parallel, pretty
 , process, process-extras, QuickCheck, stdenv, strict, tasty
-, regex-tdfa, regex-tdfa-text, filemanip
+, regex-tdfa, regex-tdfa-text, filemanip, fail
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
 , murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , text-icu
+, ghc # we only need the explicit ghc for versions checks
 , user-manual ? true, python34Packages, texlive, tex ? texlive.combine {
     inherit (texlive) scheme-full;
   }
@@ -44,7 +45,7 @@ mkDerivation {
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib tasty-quickcheck
     monadplus EdisonCore EdisonAPI murmur-hash ieee754 gitrev text-icu
-  ];
+  ] ++ (if stdenv.lib.versionOlder "8.0" ghc.version then [] else [ fail ]);
   testDepends = [
     base containers directory filepath process-extras tasty
     regex-tdfa regex-tdfa-text
