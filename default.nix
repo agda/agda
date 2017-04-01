@@ -57,7 +57,10 @@ mkDerivation {
   executableToolDepends = [ emacs ];
 
   postBuild = if user-manual then ''
-    make doc-html
+    pushd doc/user-manual
+    make PDFLATEX=xelatex latexpdf
+    make html
+    popd
   '' else "";
 
   doCheck = false;
@@ -75,8 +78,13 @@ mkDerivation {
     done
     $out/bin/agda-mode compile
     # copy user manual
-    mkdir -p $out/share/doc/Agda
-    mv doc/user-manual/_build/html $out/share/doc/Agda/
+    mkdir -p $out/share/doc/Agda/user-manual/
+    cp -r doc/user-manual/_build/html $out/share/doc/Agda/user-manual/
+    cp doc/user-manual/_build/latex/Agda.pdf $out/share/doc/Agda/user-manual/Agda-User-Manual.pdf
+
+    mkdir -p $out/nix-support/
+    echo "doc user-manual-html $out/share/doc/Agda/user-manual/html/" >> $out/nix-support/hydra-build-products
+    echo "doc user-manual-pdf $out/share/doc/Agda/user-manual/Agda-User-Manual.pdf" >> $out/nix-support/hydra-build-products
   '';
 
   homepage = "http://wiki.portal.chalmers.se/agda/";
