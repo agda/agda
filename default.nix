@@ -4,16 +4,9 @@
 #
 # -----------------------------------
 # with (import <nixpkgs> {}).pkgs;
-# let modifiedHaskellPackages = haskellPackages.override {
-#      overrides = self: super: {
-#        Agda = self.callPackage ./. {
-#            sphinx = python34Packages.sphinx;
-#            sphinx_rtd_theme = python34Packages.sphinx_rtd_theme;
-#            texLive = texlive.combined.scheme-full;
-#        };
-#      };
-#     };
-# in modifiedHaskellPackages.Agda.env
+# let
+#   agda = pkgs.haskellPackages.callPackage ./. {};
+# in agda.env
 # -----------------------------------
 #
 # To enter the development environment, simply call `nix-shell shell.nix`.
@@ -24,19 +17,20 @@
 , emacs, equivalence, filepath, geniplate-mirror, happy, hashable
 , hashtables, haskeline, haskell-src-exts, mtl, parallel, pretty
 , process, process-extras, QuickCheck, stdenv, strict, tasty
-, regex-tdfa, regex-tdfa-text, filemanip
+, regex-tdfa, regex-tdfa-text, filemanip, fail
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
 , murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , text-icu
-, user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
+, ghc # we only need the explicit ghc for versions checks
+, user-manual ? true, python34Packages, texlive, tex ? texlive.combine {
+    inherit (texlive) scheme-full;
+  }
 , nodejs-6_x
 # additional test dependencies
 , wdiff, colordiff
 }:
-
-assert user-manual -> sphinx != null && sphinx_rtd_theme != null && texLive != null;
 
 mkDerivation {
   pname = "Agda";
@@ -51,7 +45,7 @@ mkDerivation {
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib tasty-quickcheck
     monadplus EdisonCore EdisonAPI murmur-hash ieee754 gitrev text-icu
-  ];
+  ] ++ (if stdenv.lib.versionOlder "8.0" ghc.version then [] else [ fail ]);
   testDepends = [
     base containers directory filepath process-extras tasty
     regex-tdfa regex-tdfa-text
@@ -59,23 +53,40 @@ mkDerivation {
   ];
   configureFlags = [];
   buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff]
-    ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
+    ++ stdenv.lib.optionals user-manual [ python34Packages.sphinx python34Packages.sphinx_rtd_theme tex ];
 
   executableToolDepends = [ emacs ];
 
+  postBuild = if user-manual then ''
+    pushd doc/user-manual
+    make PDFLATEX=xelatex latexpdf
+    make html
+    popd
+  '' else "";
+
+  doCheck = false;
+
   postInstall = ''
-     # Separate loops to avoid internal error
-     files=($out/share/*-ghc-*/Agda-*/lib/prim/Agda/{Primitive.agda,Builtin/*.agda})
-     for f in "''${files[@]}"
-     do
-       $out/bin/agda $f
-     done
-     for f in "''${files[@]}"
-     do
-       $out/bin/agda -c --no-main $f
-     done
-     $out/bin/agda-mode compile
-   '';
+    # Separate loops to avoid internal error
+    files=($out/share/*-ghc-*/Agda-*/lib/prim/Agda/{Primitive.agda,Builtin/*.agda})
+    for f in "''${files[@]}"
+    do
+      $out/bin/agda $f
+    done
+    for f in "''${files[@]}"
+    do
+      $out/bin/agda -c --no-main $f
+    done
+    $out/bin/agda-mode compile
+    # copy user manual
+    mkdir -p $out/share/doc/Agda/user-manual/
+    cp -r doc/user-manual/_build/html $out/share/doc/Agda/user-manual/
+    cp doc/user-manual/_build/latex/Agda.pdf $out/share/doc/Agda/user-manual/Agda-User-Manual.pdf
+
+    mkdir -p $out/nix-support/
+    echo "doc user-manual-html $out/share/doc/Agda/user-manual/html/" >> $out/nix-support/hydra-build-products
+    echo "doc user-manual-pdf $out/share/doc/Agda/user-manual/Agda-User-Manual.pdf" >> $out/nix-support/hydra-build-products
+  '';
 
   homepage = "http://wiki.portal.chalmers.se/agda/";
   description = "A dependently typed functional programming language and proof assistant";
