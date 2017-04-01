@@ -4,16 +4,9 @@
 #
 # -----------------------------------
 # with (import <nixpkgs> {}).pkgs;
-# let modifiedHaskellPackages = haskellPackages.override {
-#      overrides = self: super: {
-#        Agda = self.callPackage ./. {
-#            sphinx = python34Packages.sphinx;
-#            sphinx_rtd_theme = python34Packages.sphinx_rtd_theme;
-#            texLive = texlive.combined.scheme-full;
-#        };
-#      };
-#     };
-# in modifiedHaskellPackages.Agda.env
+# let
+#   agda = pkgs.haskellPackages.callPackage ./. {};
+# in agda.env
 # -----------------------------------
 #
 # To enter the development environment, simply call `nix-shell shell.nix`.
@@ -30,13 +23,13 @@
 , murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , text-icu
-, user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
+, user-manual ? true, python34Packages, texlive, tex ? texlive.combine {
+    inherit (texlive) scheme-full;
+  }
 , nodejs-6_x
 # additional test dependencies
 , wdiff, colordiff
 }:
-
-assert user-manual -> sphinx != null && sphinx_rtd_theme != null && texLive != null;
 
 mkDerivation {
   pname = "Agda";
@@ -59,23 +52,32 @@ mkDerivation {
   ];
   configureFlags = [];
   buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff]
-    ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
+    ++ stdenv.lib.optionals user-manual [ python34Packages.sphinx python34Packages.sphinx_rtd_theme tex ];
 
   executableToolDepends = [ emacs ];
 
+  postBuild = if user-manual then ''
+    make doc-html
+  '' else "";
+
+  doCheck = false;
+
   postInstall = ''
-     # Separate loops to avoid internal error
-     files=($out/share/*-ghc-*/Agda-*/lib/prim/Agda/{Primitive.agda,Builtin/*.agda})
-     for f in "''${files[@]}"
-     do
-       $out/bin/agda $f
-     done
-     for f in "''${files[@]}"
-     do
-       $out/bin/agda -c --no-main $f
-     done
-     $out/bin/agda-mode compile
-   '';
+    # Separate loops to avoid internal error
+    files=($out/share/*-ghc-*/Agda-*/lib/prim/Agda/{Primitive.agda,Builtin/*.agda})
+    for f in "''${files[@]}"
+    do
+      $out/bin/agda $f
+    done
+    for f in "''${files[@]}"
+    do
+      $out/bin/agda -c --no-main $f
+    done
+    $out/bin/agda-mode compile
+    # copy user manual
+    mkdir -p $out/share/doc/Agda
+    mv doc/user-manual/_build/html $out/share/doc/Agda/
+  '';
 
   homepage = "http://wiki.portal.chalmers.se/agda/";
   description = "A dependently typed functional programming language and proof assistant";
