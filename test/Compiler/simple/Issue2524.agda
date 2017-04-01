@@ -19,6 +19,15 @@ postulate
 {-# COMPILE GHC NativeIO = type IO #-}
 {-# COMPILE GHC nativeReturn = (\_ -> return :: a -> IO a) #-}
 {-# COMPILE GHC _native>>=_ = (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
+{-# COMPILE JS nativeReturn =
+    function(u0) { return function(u1) { return function(x) { return function(cb) { cb(x); }; }; }; } #-}
+{-# COMPILE JS _native>>=_ =
+  function(u0) { return function(u1) { return function(u2) { return function(u3) {
+    return function(x) { return function(y) { return function(cb) {
+      x(function (xx) { y(xx)(cb); });
+  }; }; };
+  }; }; }; }
+#-}
 
 postulate
   nativePutStrLn  : String → NativeIO ⊤
@@ -26,6 +35,8 @@ postulate
 
 {-# COMPILE GHC nativePutStrLn = (\ s -> putStrLn (Data.Text.unpack s)) #-}
 {-# COMPILE GHC primShowNat = Data.Text.pack . show #-}
+{-# COMPILE JS nativePutStrLn = function (x) { return function(cb) { process.stdout.write(x + '\n'); cb(0); }; } #-}
+{-# COMPILE JS primShowNat = agdaRTS.primShowInteger #-}
 
 abstract
   record Pointer : Set where
@@ -42,6 +53,8 @@ abstract
 {-# COMPILE GHC Pointer = type Integer #-}
 {-# COMPILE GHC newPointer = 5 #-}
 {-# COMPILE GHC showPointer = Data.Text.pack . show #-}
+{-# COMPILE JS newPointer = 5 #-}
+{-# COMPILE JS showPointer = function(x) { return x; } #-}
 
 main : NativeIO ⊤
 main = nativePutStrLn (showPointer newPointer)
