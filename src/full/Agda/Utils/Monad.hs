@@ -5,9 +5,7 @@ module Agda.Utils.Monad
     , when, unless, MonadPlus(..)
     , (<$>), (<*>)
     , (<$)
-#if MIN_VERSION_mtl(2,2,0)
     , Control.Monad.State.modify'
-#endif
     )
     where
 
@@ -181,13 +179,6 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
-
-#if !MIN_VERSION_mtl(2,2,0)
-modify' :: MonadState s m => (s -> s) -> m ()
-modify' f = do
-  x <- get
-  put $! f x
-#endif
 
 -- Read -------------------------------------------------------------------
 

@@ -2671,11 +2671,6 @@ data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 -- instance Show TypeError where
 --   show _ = "<TypeError>" -- TODO: more info?
 
-#if !MIN_VERSION_transformers(0,4,1)
-instance Error TypeError where
-  strMsg = GenericError
-#endif
-
 -- | Type-checking errors.
 
 data TCErr
@@ -2730,11 +2725,7 @@ instance MonadIO m => HasOptions (TCMT m) where
     cl <- stPersistentOptions . stPersistentState <$> get
     return $ cl { optPragmaOptions = p }
 
-instance ( HasOptions m
-#if !MIN_VERSION_transformers(0,4,1)
-         , Error e
-#endif
-         ) => HasOptions (ExceptT e m) where
+instance HasOptions m => HasOptions (ExceptT e m) where
   pragmaOptions      = lift pragmaOptions
   commandLineOptions = lift commandLineOptions
 
@@ -2923,13 +2914,7 @@ instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
 instance MonadTCM tcm => MonadTCM (ListT tcm) where
   liftTCM = lift . liftTCM
 
-instance
-#if !MIN_VERSION_transformers(0,4,1)
-  (Error err, MonadTCM tcm)
-#else
-  MonadTCM tcm
-#endif
-  => MonadTCM (ExceptT err tcm) where
+instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
   liftTCM = lift . liftTCM
 
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
