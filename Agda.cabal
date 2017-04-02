@@ -4,7 +4,7 @@ cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-author:          Ulf Norell, Andreas Abel, Nils Anders Danielsson, Makoto Takeyama, Catarina Coquand, with contributions by Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, James Chapman, Jesper Cockx, Dominique Devriese, Peter Divanski, Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson, Philipp Hausmann, Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez, Andrea Vezzosi and many more.
+author:          Ulf Norell, Andreas Abel, Nils Anders Danielsson, Makoto Takeyama, Catarina Coquand, with contributions by Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, James Chapman, Jesper Cockx, Dominique Devriese, Peter Divanski, Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson, Philipp Hausmann, Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez, Andrea Vezzosi, Frederik Hanghøj Iversen, Jan Mas Rovira and many more.
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
@@ -119,6 +119,7 @@ library
                 , EdisonCore >= 1.3.1.1 && < 1.3.2
                 , edit-distance >= 0.2.1.2 && < 0.3
                 , equivalence >= 0.3.2 && < 0.4
+                , extra == 1.5.*
                 , filepath >= 1.3.0.1 && < 1.5
                 , geniplate-mirror >= 0.6.0.6 && < 0.8
                 , gitrev >= 1.2 && < 2.0
@@ -149,6 +150,7 @@ library
                 , stm >= 2.4.4 && < 2.5
                 , strict >= 0.3.2 && < 0.4
                 , template-haskell >= 2.8.0.0 && < 2.12
+                , temporary == 1.2.*
                 , text >= 0.11.3.1 && < 1.3
                 , text-icu == 0.7.*
                 , time >= 1.4.0.1 && < 1.7
@@ -195,6 +197,13 @@ library
                     Agda.Compiler.JS.Syntax
                     Agda.Compiler.JS.Substitution
                     Agda.Compiler.JS.Pretty
+                    Agda.Compiler.Malfunction.AST
+                    Agda.Compiler.Malfunction.Run
+                    Agda.Compiler.Malfunction.Compiler
+                    Agda.Compiler.Malfunction.Main
+                    Agda.Compiler.Malfunction
+                    Agda.Compiler.Malfunction.Primitive
+                    Agda.Compiler.Malfunction.Instances
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
                     Agda.Compiler.MAlonzo.HaskellTypes
@@ -787,3 +796,36 @@ test-suite internal-tests
                  -Wnoncanonical-monoid-instances
                  -Wsemigroup
                  -Wunused-foralls
+
+test-suite agda2mlf-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test/agda2mlf
+  other-modules:       CompilerTest
+                     , Utils
+  main-is:             Tasty.hs
+  build-depends:       Agda
+                     , base
+                     , bytestring == 0.10.*
+                     , containers == 0.5.*
+                     , extra == 1.5.*
+                     , filepath == 1.4.*
+                     , tasty == 0.11.*
+                     , tasty-golden == 2.3.*
+                     , tasty-hunit == 0.9.*
+                     , directory == 1.3.*
+  -- ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+executable agda2mlf-bench
+  hs-source-dirs:      benchmark/agda2mlf
+  other-modules:      RedBlack
+                    , Typed
+                    , TypedExist
+                    , Untyped
+                    , AgdaListGen
+  main-is:            Main.hs
+  build-depends:
+                     base
+                     , directory == 1.3.*
+                     , process == 1.4.*
+  default-language:    Haskell2010
