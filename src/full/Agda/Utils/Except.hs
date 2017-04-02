@@ -11,10 +11,10 @@
 module Agda.Utils.Except
   ( Error(noMsg, strMsg)
   , ExceptT
+  , mapExceptT
   , mkExceptT
   , MonadError(catchError, throwError)
   , runExceptT
-  , mapExceptT
   ) where
 
 #include "undefined.h"
