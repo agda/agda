@@ -33,7 +33,6 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
@@ -49,6 +48,11 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 
 import Agda.Utils.Except
+  ( mkExceptT
+  , MonadError(catchError, throwError)
+  , ExceptT
+  , runExceptT
+  )
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -78,15 +82,15 @@ data Dirty = Dirty | Clean
 -- definitions. Also state snapshot from last commit and whether the state is
 -- dirty (definitions have been added).
 type UnquoteState = (Dirty, TCState)
-type UnquoteM = ReaderT Context (StateT UnquoteState (WriterT [QName] (ExceptionT UnquoteError TCM)))
+type UnquoteM = ReaderT Context (StateT UnquoteState (WriterT [QName] (ExceptT UnquoteError TCM)))
 
 type UnquoteRes a = Either UnquoteError ((a, UnquoteState), [QName])
 
 unpackUnquoteM :: UnquoteM a -> Context -> UnquoteState -> TCM (UnquoteRes a)
-unpackUnquoteM m cxt s = runExceptionT $ runWriterT $ runStateT (runReaderT m cxt) s
+unpackUnquoteM m cxt s = runExceptT $ runWriterT $ runStateT (runReaderT m cxt) s
 
 packUnquoteM :: (Context -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
-packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptionT $ f cxt s
+packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ mkExceptT $ f cxt s
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
@@ -135,7 +139,7 @@ reduceQuotedTerm t = do
   b <- liftU $ ifBlocked t (\ m _ -> pure $ Left  m)
                            (\ t   -> pure $ Right t)
   case b of
-    Left m  -> do s <- gets snd; throwException $ BlockedOnMeta s m
+    Left m  -> do s <- gets snd; throwError $ BlockedOnMeta s m
     Right t -> return t
 
 class Unquote a where
@@ -144,7 +148,7 @@ class Unquote a where
 unquoteN :: Unquote a => Arg Term -> UnquoteM a
 unquoteN a | notHidden a && isRelevant a =
     unquote $ unArg a
-unquoteN a = throwException $ BadVisibility "visible" a
+unquoteN a = throwError $ BadVisibility "visible" a
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
@@ -157,7 +161,7 @@ ensureDef x = do
     Constructor{} -> do
       def <- liftU $ prettyTCM =<< primAgdaTermDef
       con <- liftU $ prettyTCM =<< primAgdaTermCon
-      throwException $ ConInsteadOfDef x (show def) (show con)
+      throwError $ ConInsteadOfDef x (show def) (show con)
     _ -> return x
 
 ensureCon :: QName -> UnquoteM QName
@@ -168,7 +172,7 @@ ensureCon x = do
     _ -> do
       def <- liftU $ prettyTCM =<< primAgdaTermDef
       con <- liftU $ prettyTCM =<< primAgdaTermCon
-      throwException $ DefInsteadOfCon x (show def) (show con)
+      throwError $ DefInsteadOfCon x (show def) (show con)
 
 pickName :: R.Type -> String
 pickName a =
@@ -188,7 +192,7 @@ instance Unquote ArgInfo where
           [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure False)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "arg info" t
+      _ -> throwError $ NonCanonical "arg info" t
 
 instance Unquote a => Unquote (Arg a) where
   unquote t = do
@@ -199,7 +203,7 @@ instance Unquote a => Unquote (Arg a) where
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "arg" t
+      _ -> throwError $ NonCanonical "arg" t
 
 -- Andreas, 2013-10-20: currently, post-fix projections are not part of the
 -- quoted syntax.
@@ -214,35 +218,35 @@ instance Unquote Bool where
         choice [ (c `isCon` primTrue,  pure True)
                , (c `isCon` primFalse, pure False) ]
                __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "boolean" t
+      _ -> throwError $ NonCanonical "boolean" t
 
 instance Unquote Integer where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitNat _ n) -> return n
-      _ -> throwException $ NonCanonical "integer" t
+      _ -> throwError $ NonCanonical "integer" t
 
 instance Unquote Double where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitFloat _ x) -> return x
-      _ -> throwException $ NonCanonical "float" t
+      _ -> throwError $ NonCanonical "float" t
 
 instance Unquote Char where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitChar _ x) -> return x
-      _ -> throwException $ NonCanonical "char" t
+      _ -> throwError $ NonCanonical "char" t
 
 instance Unquote Str where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitString _ x) -> return (Str x)
-      _ -> throwException $ NonCanonical "string" t
+      _ -> throwError $ NonCanonical "string" t
 
 unquoteString :: Term -> UnquoteM String
 unquoteString x = unStr <$> unquote x
@@ -266,7 +270,7 @@ instance Unquote ErrorPart where
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "error part" t
+      _ -> throwError $ NonCanonical "error part" t
 
 instance Unquote a => Unquote [a] where
   unquote t = do
@@ -281,7 +285,7 @@ instance Unquote a => Unquote [a] where
           [(c `isCon` primNil, return [])]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "list" t
+      _ -> throwError $ NonCanonical "list" t
 
 instance Unquote Hiding where
   unquote t = do
@@ -294,7 +298,7 @@ instance Unquote Hiding where
           ,(c `isCon` primVisible, return NotHidden)]
           __IMPOSSIBLE__
       Con c _ vs -> __IMPOSSIBLE__
-      _        -> throwException $ NonCanonical "visibility" t
+      _        -> throwError $ NonCanonical "visibility" t
 
 instance Unquote Relevance where
   unquote t = do
@@ -306,14 +310,14 @@ instance Unquote Relevance where
           ,(c `isCon` primIrrelevant, return Irrelevant)]
           __IMPOSSIBLE__
       Con c _ vs -> __IMPOSSIBLE__
-      _        -> throwException $ NonCanonical "relevance" t
+      _        -> throwError $ NonCanonical "relevance" t
 
 instance Unquote QName where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitQName _ x) -> return x
-      _                  -> throwException $ NonCanonical "name" t
+      _                  -> throwError $ NonCanonical "name" t
 
 instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
@@ -324,7 +328,7 @@ instance Unquote a => Unquote (R.Abs a) where
           [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "abstraction" t
+      _ -> throwError $ NonCanonical "abstraction" t
 
     where hint x | not (null x) = x
                  | otherwise    = "_"
@@ -344,7 +348,7 @@ instance Unquote MetaId where
               sep [ text "Can't unquote stale metavariable"
                   , pretty m <> text "." <> pretty x ]
         return x
-      _ -> throwException $ NonCanonical "meta variable" t
+      _ -> throwError $ NonCanonical "meta variable" t
 
 instance Unquote a => Unquote (Dom a) where
   unquote t = domFromArg <$> unquote t
@@ -363,7 +367,7 @@ instance Unquote R.Sort where
           ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "sort" t
+      _ -> throwError $ NonCanonical "sort" t
 
 instance Unquote Literal where
   unquote t = do
@@ -382,7 +386,7 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitMeta,   litMeta   noRange =<< unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "literal" t
+      _ -> throwError $ NonCanonical "literal" t
 
 instance Unquote R.Term where
   unquote t = do
@@ -420,7 +424,7 @@ instance Unquote R.Term where
 
       Con{} -> __IMPOSSIBLE__
       Lit{} -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "term" t
+      _ -> throwError $ NonCanonical "term" t
 
 instance Unquote R.Pattern where
   unquote t = do
@@ -442,7 +446,7 @@ instance Unquote R.Pattern where
           [ (c `isCon` primAgdaPatCon, R.ConP <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "pattern" t
+      _ -> throwError $ NonCanonical "pattern" t
 
 instance Unquote R.Clause where
   unquote t = do
@@ -457,7 +461,7 @@ instance Unquote R.Clause where
           [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
-      _ -> throwException $ NonCanonical "clause" t
+      _ -> throwError $ NonCanonical "clause" t
 
 -- Unquoting TCM computations ---------------------------------------------
 
@@ -474,7 +478,7 @@ evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
   liftU $ reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
-  let failEval = throwException $ NonCanonical "type checking computation" v
+  let failEval = throwError $ NonCanonical "type checking computation" v
 
   case ignoreSharing v of
     I.Def f [] ->
@@ -568,7 +572,7 @@ evalTCM v = do
     tcBlockOnMeta :: MetaId -> UnquoteM Term
     tcBlockOnMeta x = do
       s <- gets snd
-      throwException (BlockedOnMeta s x)
+      throwError (BlockedOnMeta s x)
 
     tcCommit :: UnquoteM Term
     tcCommit = do
