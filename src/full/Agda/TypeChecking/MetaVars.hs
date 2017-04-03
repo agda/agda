@@ -40,9 +40,6 @@ import Agda.TypeChecking.MetaVars.Occurs
 
 import Agda.Utils.Except
   ( ExceptT
-#if !MIN_VERSION_transformers(0,4,1)
-  , Error(noMsg)
-#endif
   , MonadError(throwError)
   , runExceptT
   )
@@ -1087,11 +1084,6 @@ data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
   | ProjectedVar Int [(ProjOrigin, QName)]  -- ^ Try to eta-expand var to remove projs.
-
-#if !MIN_VERSION_transformers(0,4,1)
-instance Error InvertExcept where
-  noMsg = CantInvert
-#endif
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.

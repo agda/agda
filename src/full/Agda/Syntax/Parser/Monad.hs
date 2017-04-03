@@ -41,10 +41,6 @@ import Control.Applicative
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
-#if !(MIN_VERSION_mtl(2,2,1))
-import Agda.Utils.Except ( Error(noMsg) )
-#endif
-
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -213,12 +209,6 @@ instance HasRange ParseError where
     where p = startPos (Just errPath)
   getRange ReadFileError{errPath} = posToRange p p
     where p = startPos (Just errPath)
-
-#if !(MIN_VERSION_mtl(2,2,1))
--- Stupid ErrorT!
-instance Error ParseError where
-  noMsg = __IMPOSSIBLE__
-#endif
 
 instance Show ParseWarning where
   show = prettyShow

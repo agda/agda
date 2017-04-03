@@ -40,7 +40,6 @@ tested-with:        GHC == 7.6.3
 extra-source-files: CHANGELOG.md
                     README.md
                     src/full/undefined.h
-                    stack-7.8.4.yaml
                     stack-8.0.1.yaml
                     stack-8.0.2.yaml
 
@@ -138,7 +137,7 @@ library
                 -- mtl-2.1 contains a severe bug.
                 --
                 -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
-                , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+                , mtl >= 2.2.1 && < 2.3
                 , murmur-hash >= 0.1 && < 0.2
                 , parallel >= 3.2.0.4 && < 3.3
                 -- pretty 1.1.1.2 and 1.1.1.3 do not follow the
@@ -152,9 +151,14 @@ library
                 , text >= 0.11.3.1 && < 1.3
                 , text-icu == 0.7.*
                 , time >= 1.4.0.1 && < 1.7
-                -- transformers 0.4.0.0 was deprecated.
-                , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
-                , transformers-compat >= 0.3.3.3 && < 0.6
+                -- In hTags the mtl library must be compiled with the
+                -- version of transformers shipped GHC. The lower
+                -- bound is the version of transformers shipped with
+                -- GHC 7.10.3 (it is not necessary set the lower bound
+                -- to a version shipped with GHC < 7.10.3 because in
+                -- this case Agda and hTags use a different version of
+                -- mtl).
+                , transformers >= 0.4.2.0 && < 0.6
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , xhtml >= 3000.2.1 && < 3000.3
 
@@ -694,13 +698,12 @@ test-suite internal-tests
                 -- mtl-2.1 contains a severe bug.
                 --
                 -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
-                , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+                , mtl >= 2.2.1 && < 2.3
                 -- QuickCheck 2.8.2 is required by the current
                 -- Stackage LTS (7.13).
                 , QuickCheck >= 2.8.2 && < 2.10
                 , text >= 0.11.3.1 && < 1.3
-                -- transformers 0.4.0.0 was deprecated.
-                , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
+                , transformers >= 0.4.2.0 && < 0.6
 
   if impl(ghc < 8.0)
     -- provide/emulate `Data.Semigroups` API for pre-GHC8

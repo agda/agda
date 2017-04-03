@@ -1964,11 +1964,7 @@ checkHeadApplication e t hd args = do
            pure $ k as t1
       maybe id (\ ck m -> blockTerm t $ ck >> m) check $ coerce (f vs) t1 t
 
-traceCallE ::
-#if !MIN_VERSION_transformers(0,4,1)
-  Error e =>
-#endif
-  Call -> ExceptT e TCM r -> ExceptT e TCM r
+traceCallE :: Call -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
   z <- lift $ traceCall call $ runExceptT m
   case z of

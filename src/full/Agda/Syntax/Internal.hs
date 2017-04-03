@@ -43,11 +43,6 @@ import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
 
--- See Issue 1593.
-#if !MIN_VERSION_transformers(0,4,1)
-import Agda.Utils.Except ( Error(noMsg) )
-#endif
-
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
@@ -330,12 +325,6 @@ instance Semigroup Blocked_ where
 instance Monoid Blocked_ where
   mempty = notBlocked ()
   mappend = (<>)
-
--- See issues 1573 and 1674.
-#if !MIN_VERSION_transformers(0,4,1)
-instance Error Blocked_ where
-  noMsg = mempty
-#endif
 
 -- | When trying to reduce @f es@, on match failed on one
 --   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
