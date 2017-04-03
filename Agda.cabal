@@ -345,7 +345,6 @@ library
                     Agda.TypeChecking.Monad.Constraints
                     Agda.TypeChecking.Monad.Context
                     Agda.TypeChecking.Monad.Env
-                    Agda.TypeChecking.Monad.Exception
                     Agda.TypeChecking.Monad.Imports
                     Agda.TypeChecking.Monad.Local
                     Agda.TypeChecking.Monad.MetaVars
