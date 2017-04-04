@@ -2454,9 +2454,6 @@ data SplitError
   | GenericSplitError String
   deriving (Show)
 
-instance Error SplitError where
-  strMsg = GenericSplitError
-
 data UnquoteError
   = BadVisibility String (Arg I.Term)
   | ConInsteadOfDef QName String String
@@ -2465,9 +2462,6 @@ data UnquoteError
   | BlockedOnMeta TCState MetaId
   | UnquotePanic String
   deriving (Show)
-
-instance Error UnquoteError where
-  strMsg msg = UnquotePanic msg
 
 data TypeError
         = InternalError String
@@ -2692,6 +2686,9 @@ data TCErr
 
 instance Error TCErr where
   strMsg = Exception noRange . text . strMsg
+
+msgTCErr :: String -> TCErr
+msgTCErr = Exception noRange . text
 
 instance Show TCErr where
   show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
