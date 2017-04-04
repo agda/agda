@@ -11,6 +11,7 @@ module Agda.TypeChecking.Errors
   , tcWarningsToError
   , applyFlagsToTCWarnings
   , dropTopLevelModule
+  , stringTCErr
   ) where
 
 import Prelude hiding (null)
@@ -282,6 +283,9 @@ tcErrString err = show (getRange err) ++ " " ++ case err of
   Exception r s     -> show r ++ " " ++ show s
   IOException _ r e -> show r ++ " " ++ show e
   PatternErr{}      -> "PatternErr"
+
+stringTCErr :: String -> TCErr
+stringTCErr = Exception noRange . P.text
 
 errorString :: TypeError -> String
 errorString err = case err of

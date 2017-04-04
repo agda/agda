@@ -2696,9 +2696,6 @@ data TCErr
 instance Error TCErr where
   strMsg = Exception noRange . text . strMsg
 
-msgTCErr :: String -> TCErr
-msgTCErr = Exception noRange . text
-
 instance Show TCErr where
   show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
   show (Exception r d)     = show r ++ ": " ++ render d
