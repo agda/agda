@@ -58,6 +58,7 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
+import Agda.Utils.Maybe         ( readMaybe )
 import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.String        ( indent )
