@@ -33,6 +33,7 @@ import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.Utils.HashMap as HMap
+import Agda.TypeChecking.Errors ( stringTCErr )
 
 import Agda.Interaction.MakeCase (getClauseForIP)
 
@@ -323,7 +324,7 @@ tomyPat p = case Common.unArg p of
   cc <- lift $ liftIO $ readIORef c
   let Just npar = fst $ cdorigin cc
   return $ PatConApp c (replicate npar PatExp ++ pats')
- I.LitP _ -> throwError $ MB.msgTCErr "Auto: Literals in patterns are not supported"
+ I.LitP _ -> throwError $ stringTCErr "Auto: Literals in patterns are not supported"
 
 weaken :: Int -> MExp O -> MExp O
 weaken _ e@(Meta m) = e
@@ -380,7 +381,7 @@ tomyExp v0 =
     t@I.Lit{} -> do
       t <- lift $ constructorForm t
       case t of
-        I.Lit{} -> throwError $ MB.msgTCErr "Auto: Literals in terms are not supported"
+        I.Lit{} -> throwError $ stringTCErr "Auto: Literals in terms are not supported"
         _       -> tomyExp t
     I.Level l -> tomyExp =<< lift (reallyUnLevelView l)
     I.Def name es -> do

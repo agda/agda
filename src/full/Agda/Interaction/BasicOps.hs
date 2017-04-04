@@ -41,6 +41,7 @@ import Agda.Syntax.Parser
 import Agda.TheTypeChecker
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Errors ( stringTCErr )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
@@ -212,7 +213,7 @@ refine ii mr e = do
     tryRefine nrOfMetas r scope e = try nrOfMetas e
       where
         try :: Int -> Expr -> TCM Expr
-        try 0 e = throwError $ msgTCErr "Cannot refine"
+        try 0 e = throwError $ stringTCErr "Cannot refine"
         try n e = give ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
 
         -- Apply A.Expr to a new meta
