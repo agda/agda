@@ -982,10 +982,6 @@ class NoProjectedVar a where
 
 data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
 
--- ASR (17 June 2015). Unused Error instance.
--- instance Error ProjVarExc where
---   noMsg = __IMPOSSIBLE__
-
 instance NoProjectedVar Term where
   noProjectedVar t =
     case ignoreSharing t of

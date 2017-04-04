@@ -63,7 +63,7 @@ import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Termination.TermCheck (termMutual)
 
-import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -220,7 +220,7 @@ refine ii mr e = do
     tryRefine nrOfMetas r scope e = try nrOfMetas e
       where
         try :: Int -> Expr -> TCM Expr
-        try 0 e = throwError $ strMsg "Cannot refine"
+        try 0 e = throwError $ msgTCErr "Cannot refine"
         try n e = give ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
 
         -- Apply A.Expr to a new meta

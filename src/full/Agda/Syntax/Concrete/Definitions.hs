@@ -67,7 +67,7 @@ import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Except ( Error(strMsg), MonadError(throwError) )
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (caseList, headMaybe, isSublistOf)
@@ -260,9 +260,6 @@ instance HasRange NiceDeclaration where
   getRange (NiceFunClause r _ _ _ _ _)       = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
-
-instance Error DeclarationException where
-  strMsg = DeclarationPanic
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.

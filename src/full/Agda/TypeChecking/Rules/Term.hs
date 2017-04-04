@@ -77,8 +77,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef, checkFunDef', useTerPragma)
 
 import Agda.Utils.Except
-  ( Error(noMsg, strMsg)
-  , ExceptT
+  ( ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   )

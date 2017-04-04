@@ -42,8 +42,7 @@ import Agda.Syntax.Concrete.Definitions
 import Agda.Syntax.Parser.Tokens
 
 import Agda.Utils.Except
-  ( Error(strMsg)
-  , ExceptT
+  ( ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   )

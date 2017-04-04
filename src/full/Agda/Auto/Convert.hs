@@ -43,11 +43,7 @@ import Agda.Auto.Syntax
 import Agda.Auto.CaseSplit hiding (lift)
 
 import Agda.Utils.Either
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , ExceptT
-  , MonadError(throwError)
-  )
+import Agda.Utils.Except ( ExceptT , MonadError(throwError) )
 import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
@@ -328,7 +324,7 @@ tomyPat p = case Common.unArg p of
   cc <- lift $ liftIO $ readIORef c
   let Just npar = fst $ cdorigin cc
   return $ PatConApp c (replicate npar PatExp ++ pats')
- I.LitP _ -> throwError $ strMsg "Auto: Literals in patterns are not supported"
+ I.LitP _ -> throwError $ MB.msgTCErr "Auto: Literals in patterns are not supported"
 
 weaken :: Int -> MExp O -> MExp O
 weaken _ e@(Meta m) = e
@@ -385,7 +381,7 @@ tomyExp v0 =
     t@I.Lit{} -> do
       t <- lift $ constructorForm t
       case t of
-        I.Lit{} -> throwError $ strMsg "Auto: Literals in terms are not supported"
+        I.Lit{} -> throwError $ MB.msgTCErr "Auto: Literals in terms are not supported"
         _       -> tomyExp t
     I.Level l -> tomyExp =<< lift (reallyUnLevelView l)
     I.Def name es -> do

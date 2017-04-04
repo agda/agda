@@ -46,7 +46,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
-import Agda.Utils.Except ( Error, ExceptT )
+import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -667,7 +667,7 @@ instance (HasConstInfo m) => HasConstInfo (MaybeT m) where
   getConstInfo = lift . getConstInfo
   getRewriteRulesFor = lift . getRewriteRulesFor
 
-instance (HasConstInfo m, Error err) => HasConstInfo (ExceptT err m) where
+instance HasConstInfo m => HasConstInfo (ExceptT err m) where
   getConstInfo = lift . getConstInfo
   getRewriteRulesFor = lift . getRewriteRulesFor
 

@@ -159,10 +159,7 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
 import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
 -- import Agda.TypeChecking.SyntacticEquality
 
-import Agda.Utils.Except
-  ( Error(noMsg, strMsg)
-  , MonadError(catchError, throwError)
-  )
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
