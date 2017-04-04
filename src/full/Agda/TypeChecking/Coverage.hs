@@ -42,7 +42,6 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Exception
 
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
@@ -61,6 +60,11 @@ import Agda.TypeChecking.MetaVars
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
+import Agda.Utils.Except
+  ( ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -127,7 +131,7 @@ clauseToSplitClause cl = SClause
   , scTarget = clauseType cl
   }
 
-type CoverM = ExceptionT SplitError TCM
+type CoverM = ExceptT SplitError TCM
 
 -- | Top-level function for checking pattern coverage.
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
@@ -373,12 +377,12 @@ splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
 -- | Check that a type is a non-irrelevant datatype or a record with
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'
 -- the data type must be inductive.
-isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
+isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
               tcm (QName, [Arg Term], [Arg Term], [QName])
 isDatatype ind at = do
   let t       = unDom at
-      throw f = throwException . f =<< do liftTCM $ buildClosure t
+      throw f = throwError . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
   mInterval <- liftTCM $ getBuiltinName' builtinInterval
   case ignoreSharing $ unEl t' of
@@ -569,7 +573,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
 
     DontKnow{} -> do
       debugCantSplit
-      throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
+      throwError $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
@@ -729,7 +733,7 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
+split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = liftTCM $ runExceptT $ do
 
   debugInit tel x ps mpsub
 
@@ -773,7 +777,7 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
     (_ : _ : _) | unusableRelevance (getRelevance t) ->
-      throwException . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
+      throwError . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
   -- all the data type constructors
@@ -787,7 +791,7 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
             [ hsep $ text "pcons =" : map prettyTCM pcons
             , hsep $ text "cons  =" : map prettyTCM cons
             ]
-          throwException (GenericSplitError "precomputed set of constructors does not cover all cases")
+          throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
     _  -> return $ Right $ Covering (lookupPatternVar sc x) ns
 

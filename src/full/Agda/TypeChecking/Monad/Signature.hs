@@ -33,7 +33,6 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Monad.Exception ( ExceptionT )
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Local
@@ -47,7 +46,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
-import Agda.Utils.Except ( Error )
+import Agda.Utils.Except ( Error, ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -668,7 +667,7 @@ instance (HasConstInfo m) => HasConstInfo (MaybeT m) where
   getConstInfo = lift . getConstInfo
   getRewriteRulesFor = lift . getRewriteRulesFor
 
-instance (HasConstInfo m, Error err) => HasConstInfo (ExceptionT err m) where
+instance (HasConstInfo m, Error err) => HasConstInfo (ExceptT err m) where
   getConstInfo = lift . getConstInfo
   getRewriteRulesFor = lift . getRewriteRulesFor
 
