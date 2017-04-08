@@ -47,6 +47,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 import Agda.Utils.FileName
+import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
 
@@ -132,7 +133,7 @@ parseLiterateWithComments p layers = do
                    | m <- terms ]
 
 readFilePM :: AbsolutePath -> PM String
-readFilePM path = wrapIOM (ReadFileError path) (readFile (filePath path))
+readFilePM path = wrapIOM (ReadFileError path) (readTextFile (filePath path))
 
 parseLiterateFile :: Processor -> Parser a -> AbsolutePath -> PM a
 parseLiterateFile po p path = readFilePM path >>= parseLiterate p p . po (startPos (Just path))
