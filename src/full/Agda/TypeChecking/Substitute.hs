@@ -602,7 +602,7 @@ instance Abstract CompiledClauses where
   abstract tel Fail = Fail
   abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
   abstract tel (Case n bs) =
-    Case (n <&> \ i -> i + fromIntegral (size tel)) (abstract tel bs)
+    Case (n <&> \ i -> i + size tel) (abstract tel bs)
 
 instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a

@@ -946,7 +946,7 @@ maskSizeLt !dom = liftTCM $ do
      The guardedness is the number of projection patterns in @pats@
      minus the number of projections in @es@.
  -}
-compareArgs :: (Integral n) => [Elim] -> TerM (n, n, [[Order]])
+compareArgs :: [Elim] -> TerM (Int, Int, [[Order]])
 compareArgs es = do
   liftTCM $ reportSDoc "term.compareArgs" 90 $ vcat
     [ text $ "comparing " ++ show (length es) ++ " args"

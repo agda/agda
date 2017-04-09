@@ -125,7 +125,7 @@ assignTerm' x tel v = do
     -- dontAssignMetas $ do
     --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
 
-    verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
+    verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas
     modifyMetaStore $ ins x $ InstV tel $ killRange v
     etaExpandListeners x
     wakeupConstraints x

@@ -29,35 +29,33 @@ import qualified Data.List as List
 import Agda.Utils.Null
 
 -- | The size of a collection (i.e., its length).
---
---   Should fit into an @Int@.  TODO: change to @Int@.
 
 class Sized a where
-  size :: Integral n => a -> n
+  size :: a -> Int
 
 instance Sized [a] where
   size = List.genericLength
 
 instance Sized (IntMap a) where
-  size = fromIntegral . IntMap.size
+  size = IntMap.size
 
 instance Sized IntSet where
-  size = fromIntegral . IntSet.size
+  size = IntSet.size
 
 instance Sized (Map k a) where
-  size = fromIntegral . Map.size
+  size = Map.size
 
 instance Sized (Set a) where
-  size = fromIntegral . Set.size
+  size = Set.size
 
 instance Sized (HashMap k a) where
-  size = fromIntegral . HashMap.size
+  size = HashMap.size
 
 instance Sized (HashSet a) where
-  size = fromIntegral . HashSet.size
+  size = HashSet.size
 
 instance Sized (Seq a) where
-  size = fromIntegral . Seq.length
+  size = Seq.length
 
 
 -- | Thing decorated with its size.
@@ -74,7 +72,7 @@ sizeThing a = SizedThing (size a) a
 
 -- | Return the cached size.
 instance Sized (SizedThing a) where
-  size = fromIntegral . theSize
+  size = theSize
 
 instance Null a => Null (SizedThing a) where
   empty = SizedThing 0 empty
