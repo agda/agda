@@ -9,7 +9,7 @@ import Control.Arrow (first)
 import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.Reader (asks)
-import Control.Monad.State (put, get, gets, modify)
+import Control.Monad.State (put, get, gets, modify, modify')
 import Control.Monad.Trans (liftIO)
 
 import Data.Maybe
@@ -40,7 +40,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
-import Agda.Utils.Monad (bracket_, modify')
+import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
