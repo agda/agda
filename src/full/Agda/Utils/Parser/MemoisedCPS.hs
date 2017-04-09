@@ -32,7 +32,7 @@ module Agda.Utils.Parser.MemoisedCPS
 
 import Control.Applicative
 import Control.Monad (ap, liftM2)
-import Control.Monad.State.Strict (State, evalState, runState, get, put)
+import Control.Monad.State.Strict (State, evalState, runState, get, put, modify')
 import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
@@ -45,7 +45,6 @@ import Data.List
 import Text.PrettyPrint.HughesPJ hiding (empty)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
-import Agda.Utils.Monad (modify')
 import Agda.Utils.Pretty ( mparens )
 
 #include "undefined.h"

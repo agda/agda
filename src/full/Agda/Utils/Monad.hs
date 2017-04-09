@@ -5,7 +5,6 @@ module Agda.Utils.Monad
     , when, unless, MonadPlus(..)
     , (<$>), (<*>)
     , (<$)
-    , Control.Monad.State.modify'
     )
     where
 
