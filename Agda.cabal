@@ -531,6 +531,9 @@ library
                  -Wsemigroup
                  -Wunused-foralls
 
+  if impl(ghc >= 8.2)
+    ghc-options: -Wsimplifiable-class-constraints
+
   ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
@@ -794,3 +797,6 @@ test-suite internal-tests
                  -Wnoncanonical-monoid-instances
                  -Wsemigroup
                  -Wunused-foralls
+
+  if impl(ghc >= 8.2)
+    ghc-options: -Wsimplifiable-class-constraints

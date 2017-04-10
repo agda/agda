@@ -1,6 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {-| An info object contains additional information about a piece of abstract
     syntax that isn't part of the actual syntax. For instance, it might contain
@@ -83,7 +82,7 @@ data ModuleInfo = ModuleInfo
   }
   deriving (Typeable, Eq)
 
-deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
+deriving instance Show ModuleInfo
 
 instance HasRange ModuleInfo where
   getRange = minfoRange

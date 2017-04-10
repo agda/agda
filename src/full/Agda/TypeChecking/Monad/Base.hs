@@ -2,7 +2,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -569,22 +568,22 @@ instance Pretty ProblemId where
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
 
-freshName :: (MonadState TCState m, HasFresh NameId) => Range -> String -> m Name
+freshName :: MonadState TCState m => Range -> String -> m Name
 freshName r s = do
   i <- fresh
   return $ mkName r i s
 
-freshNoName :: (MonadState TCState m, HasFresh NameId) => Range -> m Name
+freshNoName :: MonadState TCState m => Range -> m Name
 freshNoName r =
     do  i <- fresh
         return $ Name i (C.NoName noRange i) r noFixity'
 
-freshNoName_ :: (MonadState TCState m, HasFresh NameId) => m Name
+freshNoName_ :: MonadState TCState m => m Name
 freshNoName_ = freshNoName noRange
 
 -- | Create a fresh name from @a@.
 class FreshName a where
-  freshName_ :: (MonadState TCState m, HasFresh NameId) => a -> m Name
+  freshName_ :: MonadState TCState m => a -> m Name
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName
