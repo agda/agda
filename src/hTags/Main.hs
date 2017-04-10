@@ -23,7 +23,13 @@ import System.Console.GetOpt
 
 import GHC
 import Parser as P
+
+#if MIN_VERSION_ghc(8,2,0)
+import Lexer hiding (options)
+#else
 import Lexer
+#endif
+
 import DriverPipeline
 import FastString
 import DriverPhases
@@ -123,7 +129,15 @@ cabalConfToOpts desc = langOpts ++ extOpts
 main :: IO ()
 main = do
   opts <- getOptions
-  pkgDesc <- T.mapM (readPackageDescription minBound) $ optCabalPath opts
+
+  let agdaReadPackageDescription =
+#if MIN_VERSION_Cabal(2,0,0)
+        readGenericPackageDescription
+#else
+        readPackageDescription
+#endif
+
+  pkgDesc <- T.mapM (agdaReadPackageDescription minBound) $ optCabalPath opts
   let go | optHelp opts = do
             printUsage stdout
             exitSuccess

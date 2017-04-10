@@ -286,6 +286,11 @@ instance TagName name => HasTags (Pat name) where
 #if MIN_VERSION_ghc(7,8,0)
     SplicePat{}                -> []
 #endif
+-- ASR (2017-04-10). I'm want to know when this constructor will be
+-- required, so I'm generating an error. See #2540.
+#if MIN_VERSION_ghc(8,2,0)
+    SumPat{}                   -> error "hTags error on SumPat"
+#endif
 
 instance (HasTags arg, HasTags recc) => HasTags (HsConDetails arg recc) where
   tags d = case d of
@@ -308,7 +313,9 @@ instance TagName name => HasTags (Sig name) where
 #else
     TypeSig x _         -> concatMap tagsLN x
 #endif
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,2,0)
+    PatSynSig x _       -> concatMap tagsLN x
+#elif MIN_VERSION_ghc(8,0,0)
     PatSynSig x _       -> tagsLN x
 #elif MIN_VERSION_ghc(7,8,0)
     PatSynSig x _ _ _ _ -> tagsLN x
@@ -325,6 +332,12 @@ instance TagName name => HasTags (Sig name) where
     IdSig{}             -> []
 #if MIN_VERSION_ghc(7,8,0)
     MinimalSig{}        -> []
+#endif
+-- ASR (2017-04-10). I'm want to know when this constructor will be
+-- required, so I'm generating an error. See #2540.
+#if MIN_VERSION_ghc(8,2,0)
+    SCCFunSig{}         -> error "hTags error on SCCFunSig"
+    CompleteMatchSig{}  -> error "hTags error on CompleteMatchSig"
 #endif
 
 instance TagName name => HasTags (ForeignDecl name) where
