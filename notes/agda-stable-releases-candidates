@@ -18,7 +18,7 @@ the following procedure can be followed:
 * Change VERSION to RC_VERSION in:
 
     .ghci
-    Agda.cabal (thrice)
+    Agda.cabal
     default.nix
     /doc/user-manual/conf.py
     mk/versions.mk
@@ -90,7 +90,7 @@ the following procedure can be followed:
 * Restore the version number VERSION in:
 
     .ghci
-    Agda.cabal (thrice)
+    Agda.cabal
     default.nix
     /doc/user-manual/conf.py
     mk/versions.mk

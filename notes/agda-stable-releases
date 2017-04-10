@@ -20,7 +20,7 @@ be followed:
 * Change VERSION to MAJORVERSION in:
 
     .ghci
-    Agda.cabal (thrice)
+    Agda.cabal
     default.nix
     /doc/user-manual/conf.py (twice)
     mk/versions.mk
@@ -116,7 +116,7 @@ be followed:
 
   in the following files:
 
-    Agda.cabal (twice)
+    Agda.cabal
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
     mk/versions.mk
@@ -155,7 +155,7 @@ be followed:
   merge conflicts):
 
     .ghci
-    Agda.cabal (thrice)
+    Agda.cabal
     default.nix
     /doc/user-manual/conf.py (twice)
     mk/versions.mk
