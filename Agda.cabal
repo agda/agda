@@ -558,7 +558,13 @@ library
 executable agda
   hs-source-dirs: src/main
   main-is:        Main.hs
-  build-depends:  Agda == 2.5.3
+  build-depends:  Agda
+                  -- A version range on Agda generates a warning with
+                  -- some versions of Cabal and GHC
+                  -- (e.g. cabal-install version 1.24.0.2 compiled
+                  -- using version 1.24.2.0 of the Cabal library and
+                  -- GHC 8.2.1 RC1).
+
                   -- Nothing is used from the following package,
                   -- except for the prelude.
                 , base >= 4.6.0.1 && < 6
@@ -688,7 +694,7 @@ test-suite internal-tests
                 , InternalTests.Utils.Trie
                 , InternalTests.Utils.Warshall
 
-  build-depends:  Agda == 2.5.3
+  build-depends:  Agda
                 , array >= 0.4.0.1 && < 0.6
                 , base >= 4.6.0.1 && < 4.11
                 , containers >= 0.5.0.0 && < 0.6
