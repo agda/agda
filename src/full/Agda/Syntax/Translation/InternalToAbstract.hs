@@ -203,7 +203,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         -- for the @i@th pattern of @ps@.
         -- Andreas, 2014-06-11:
         -- Are we sure that @d@ did not use @var i@ otherwise?
-        lhs' <- displayLHS (map namedArg ps) wps d
+        lhs' <- displayLHS ps wps d
         reportSDoc "reify.display" 70 $ do
           doc <- prettyA lhs'
           return $ vcat
@@ -221,6 +221,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- can serve as a valid left-hand side. That means checking that it is a
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
+    okDisplayForm :: DisplayTerm -> Bool
     okDisplayForm (DWithApp d ds es) =
       okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
       -- Andreas, 2016-05-03, issue #1950.
@@ -231,32 +232,39 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okDisplayForm DCon{}               = False
     okDisplayForm DTerm{}              = False
 
+    okDisplayTerm :: DisplayTerm -> Bool
     okDisplayTerm (DTerm v) = okTerm v
     okDisplayTerm DDot{}    = True
     okDisplayTerm DCon{}    = True
     okDisplayTerm DDef{}    = False
     okDisplayTerm _         = False
 
+    okDElim :: Elim' DisplayTerm -> Bool
     okDElim (I.IApply x y r) = okDisplayTerm r
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
 
+    okToDropE :: Elim' Term -> Bool
     okToDropE (I.Apply v) = okToDrop v
     okToDropE I.Proj{}    = False
     okToDropE (I.IApply x y r) = False
 
+    okToDrop :: Arg I.Term -> Bool
     okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
       I.Var _ []   -> True
       I.DontCare{} -> True  -- no matching on irrelevant things.  __IMPOSSIBLE__ anyway?
       I.Level{}    -> True  -- no matching on levels. __IMPOSSIBLE__ anyway?
       _ -> False
 
+    okArg :: Arg I.Term -> Bool
     okArg = okTerm . unArg
 
+    okElim :: Elim' I.Term -> Bool
     okElim (I.IApply x y r) = okTerm r
     okElim (I.Apply a) = okArg a
     okElim (I.Proj{})  = True
 
+    okTerm :: I.Term -> Bool
     okTerm (I.Var _ []) = True
     okTerm (I.Con c ci vs) = all okArg vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
@@ -271,32 +279,33 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
     flattenWith _ = __IMPOSSIBLE__
 
-    displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
+    displayLHS :: [NamedArg A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
     displayLHS ps wps d = do
         let (f, vs, es) = flattenWith d
         ds <- mapM (namedArg <.> elimToPat) es
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
-        argToPat arg = fmap unnamed <$> traverse termToPat arg
+        argToPat :: Arg DisplayTerm -> TCM (NamedArg A.Pattern)
+        argToPat arg = traverse termToPat arg
+
+        elimToPat :: I.Elim' DisplayTerm -> TCM (NamedArg A.Pattern)
         elimToPat (I.IApply _ _ r) = argToPat (Arg defaultArgInfo r)
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
 
-        termToPat :: DisplayTerm -> TCM A.Pattern
+        termToPat :: DisplayTerm -> TCM (Named_ A.Pattern)
 
-        termToPat (DTerm (I.Var n [])) = return $ case ps !!! n of
-                                           Nothing -> __IMPOSSIBLE__
-                                           Just p  -> p
+        termToPat (DTerm (I.Var n [])) = return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
-        termToPat (DCon c ci vs)          = tryRecPFromConP =<< do
+        termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c ci vs)) = tryRecPFromConP =<< do
+        termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
 
-        termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
-        termToPat (DDef _ [])          = return $ A.WildP patNoRange
+        termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
+        termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
         -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
         -- so here we give __IMPOSSIBLE__. This is only used for printing purposes, the origin
@@ -304,11 +313,12 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         -- Andreas, 2017-02-14: This crashes with -v 100.
         -- termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
         -- termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
-        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange Inserted <$> reify v
+        termToPat (DDot v)             = unnamed . A.DotP patNoRange Inserted <$> termToExpr v
+        termToPat v                    = unnamed . A.DotP patNoRange Inserted <$> reify v
 
-        len = genericLength ps
+        len = length ps
 
+        argsToExpr :: I.Args -> TCM [Arg A.Expr]
         argsToExpr = mapM (traverse termToExpr)
 
         -- TODO: restructure this to avoid having to repeat the code for reify
@@ -329,7 +339,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
               -- even the pattern variables @n < len@ can be
               -- applied to some args @vs@.
               e <- if n < len
-                   then return $ A.patternToExpr $ ps !! n
+                   then return $ A.patternToExpr $ namedArg $ ps !! n
                    else reify (I.var (n - len))
               apps e =<< argsToExpr vs
             _ -> return underscore
