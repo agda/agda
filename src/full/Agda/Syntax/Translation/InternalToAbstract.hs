@@ -219,6 +219,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- can serve as a valid left-hand side. That means checking that it is a
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
+    okDisplayForm :: DisplayTerm -> Bool
     okDisplayForm (DWithApp d ds es) =
       okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
       -- Andreas, 2016-05-03, issue #1950.
@@ -229,29 +230,36 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okDisplayForm DCon{}               = False
     okDisplayForm DTerm{}              = False
 
+    okDisplayTerm :: DisplayTerm -> Bool
     okDisplayTerm (DTerm v) = okTerm v
     okDisplayTerm DDot{}    = True
     okDisplayTerm DCon{}    = True
     okDisplayTerm DDef{}    = False
     okDisplayTerm _         = False
 
+    okDElim :: Elim' DisplayTerm -> Bool
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
 
+    okToDropE :: Elim' Term -> Bool
     okToDropE (I.Apply v) = okToDrop v
     okToDropE I.Proj{}    = False
 
+    okToDrop :: Arg I.Term -> Bool
     okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
       I.Var _ []   -> True
       I.DontCare{} -> True  -- no matching on irrelevant things.  __IMPOSSIBLE__ anyway?
       I.Level{}    -> True  -- no matching on levels. __IMPOSSIBLE__ anyway?
       _ -> False
 
+    okArg :: Arg I.Term -> Bool
     okArg = okTerm . unArg
 
+    okElim :: Elim' I.Term -> Bool
     okElim (I.Apply a) = okArg a
     okElim (I.Proj{})  = True
 
+    okTerm :: I.Term -> Bool
     okTerm (I.Var _ []) = True
     okTerm (I.Con c ci vs) = all okArg vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
@@ -273,15 +281,16 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
+        argToPat :: Arg DisplayTerm -> TCM (NamedArg A.Pattern)
         argToPat arg = fmap unnamed <$> traverse termToPat arg
+
+        elimToPat :: I.Elim' DisplayTerm -> TCM (NamedArg A.Pattern)
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
-        termToPat (DTerm (I.Var n [])) = return $ case ps !!! n of
-                                           Nothing -> __IMPOSSIBLE__
-                                           Just p  -> p
+        termToPat (DTerm (I.Var n [])) = return $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
         termToPat (DCon c ci vs)          = tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM argToPat vs
@@ -301,8 +310,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
         termToPat v                    = A.DotP patNoRange Inserted <$> reify v
 
-        len = genericLength ps
+        len = length ps
 
+        argsToExpr :: I.Args -> TCM [Arg A.Expr]
         argsToExpr = mapM (traverse termToExpr)
 
         -- TODO: restructure this to avoid having to repeat the code for reify
