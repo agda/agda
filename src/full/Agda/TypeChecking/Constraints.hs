@@ -92,7 +92,6 @@ addConstraint c = do
     -- Try to simplify a level constraint
     simpl :: Constraint -> TCM Constraint
     simpl c = if not $ isLvl c then return c else do
-      n <- genericLength <$> getContext
       cs <- map theConstraint <$> getAllConstraints
       lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
       when (not $ null lvls) $ do
