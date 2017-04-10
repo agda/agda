@@ -9,7 +9,7 @@ followed:
 
     $FILES=
       .ghci
-      Agda.cabal (twice)
+      Agda.cabal
       default.nix
       doc/user-manual/conf.py
       mk/versions.mk
