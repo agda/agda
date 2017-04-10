@@ -2,8 +2,10 @@
 
 module Agda.Compiler.JS.Syntax where
 
+import Data.Map ( Map )
+import qualified Data.Map as Map
+
 import Data.Typeable ( Typeable )
-import Data.Map ( Map, fold )
 import Data.Set ( Set, empty, singleton, union )
 
 import Agda.Syntax.Common ( Nat )
@@ -65,10 +67,10 @@ instance Uses a => Uses [a] where
   uses = foldr (union . uses) empty
 
 instance Uses a => Uses (Map k a) where
-  uses = fold (union . uses) empty
+  uses = Map.foldr (union . uses) empty
 
 instance Uses Exp where
-  uses (Object o)     = fold (union . uses) empty o
+  uses (Object o)     = Map.foldr (union . uses) empty o
   uses (Apply e es)   = foldr (union . uses) (uses e) es
   uses (Lookup e l)   = uses' e [l] where
       uses' Self         ls = singleton ls
@@ -91,7 +93,7 @@ instance Globals a => Globals [a] where
   globals = foldr (union . globals) empty
 
 instance Globals a => Globals (Map k a) where
-  globals = fold (union . globals) empty
+  globals = Map.foldr (union . globals) empty
 
 instance Globals Exp where
   globals (Global i) = singleton i
