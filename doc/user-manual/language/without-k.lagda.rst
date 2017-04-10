@@ -1,6 +1,8 @@
 ..
   ::
   module language.without-k where
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Coinduction
 
 .. _without-k:
 
@@ -11,56 +13,83 @@ Without K
 .. versionadded:: 2.2.10
 
 The option ``--without-K`` makes pattern matching more restricted. If
-the option is activated, then Agda only accepts certain case-splits.
+the option is activated, then Agda only accepts certain case splits.
 
-.. versionchanged:: 2.3.2
+.. versionchanged:: 2.4.0
 
-If the type of the variable to be split is ``D pars ixs``, where ``D``
-is a data (or record) type, ``pars`` stands for the parameters, and
-``ixs`` the indices, then the following requirements must be
-satisfied:
+When the option ``--without-K`` is enabled, then the unification algorithm
+for checking case splits cannot make use of the deletion rule to solve
+equations of the form ``x = x``.
 
-  * The indices ``ixs`` must be applications of constructors (or
-    literals) to distinct variables. Constructors are usually not
-    applied to parameters, but for the purposes of this check
-    constructor parameters are treated as other arguments.
+For example, the obvious implementation of the J rule is accepted::
 
-  * These distinct variables must not be free in pars.
+  J : {A : Set} (P : (x y : A) → x ≡ y → Set) →
+      ((x : A) → P x x refl) →
+      (x y : A) (x≡y : x ≡ y) → P x y x≡y
+  J P p x .x refl = p x
 
-The intended purpose of ``--without-K`` is to enable experiments with
-a propositional equality without the K rule. Let us define
-propositional equality as follows::
+Pattern matching with the constructor ``refl`` on the argument ``x≡y``
+causes ``x`` to be unified with ``y``. The same applies to Christine
+Paulin-Mohring's version of the J rule::
 
-  data _≡_ {A : Set} : A → A → Set where
-    refl : ∀ x → x ≡ x
-
-Then the obvious implementation of the J rule is accepted::
-
-  J : {A : Set} (P : {x y : A} → x ≡ y → Set) →
-      (∀ x → P (refl x)) →
-      ∀ {x y} (x≡y : x ≡ y) → P x≡y
-  J P p (refl x) = p x
-
-The same applies to Christine Paulin-Mohring's version of the J rule::
-
-  J′ : {A : Set} {x : A} (P : {y : A} → x ≡ y → Set) →
-       P (refl x) →
-       ∀ {y} (x≡y : x ≡ y) → P x≡y
-  J′ P p (refl x) = p
+  J′ : {A : Set} {x : A} (P : (y : A) → x ≡ y → Set) →
+       P x refl →
+       (y : A) (x≡y : x ≡ y) → P y x≡y
+  J′ P p ._ refl = p
 
 On the other hand, the obvious implementation of the K rule is not
 accepted::
 
-  K : {A : Set} (P : {x : A} → x ≡ x → Set) →
-      (∀ x → P (refl x)) →
-      ∀ {x} (x≡x : x ≡ x) → P x≡x
-  K P p (refl x) = p x
+  K : {A : Set} (P : (x : A) → x ≡ x → Set) →
+      ((x : A) → P x refl) →
+      (x : A) (x≡x : x ≡ x) → P x x≡x
+  K P p x refl = p x
 
-However, we have *not* proved that activation of ``--without-K``
-ensures that the K rule cannot be proved in some other way.
+Pattern matching with the constructor ``refl`` on the argument ``x≡x``
+causes ``x`` to be unified with ``x``, which fails because the deletion
+rule cannot be used when ``--without-K`` is enabled.
+
+For more details, see the paper `Eliminating dependent pattern matching
+without K` [`Cockx, Devriese, and Piessens (2016) <https://lirias.kuleuven.be/handle/123456789/548901/>`_].
 
 .. versionadded:: 2.4.2
 
 The option ``--with-K`` can be used to override a global
 ``--without-K`` in a file, by adding a pragma
 ``{-# OPTIONS --with-K #-}``. This option is on by default.
+
+.. versionadded:: 2.4.2
+
+Termination checking `--without-K` restricts
+structural descent to arguments ending in data types or `Size`.
+Likewise, guardedness is only tracked when result type is data or
+record type::
+
+  data ⊥ : Set where
+
+  mutual
+    data WOne : Set where wrap : FOne → WOne
+    FOne = ⊥ → WOne
+
+  postulate iso : WOne ≡ FOne
+
+  noo : (X : Set) → (WOne ≡ X) → X → ⊥
+  noo .WOne refl (wrap f) = noo FOne iso f
+
+``noo`` is rejected since at type ``X`` the structural descent
+``f < wrap f`` is discounted ``--without-K``::
+
+  data Pandora : Set where
+    C : ∞ ⊥ → Pandora
+
+  postulate foo : ⊥ ≡ Pandora
+
+  loop : (A : Set) → A ≡ Pandora → A
+  loop .Pandora refl = C (♯ (loop ⊥ foo))
+
+``loop`` is rejected since guardedness is not tracked at type `A`
+`--without-K`.
+
+See issues `#1023 <https://github.com/agda/agda/issues/1023/>`_,
+`#1264 <https://github.com/agda/agda/issues/1264/>`_,
+`#1292 <https://github.com/agda/agda/issues/1292/>`_.
