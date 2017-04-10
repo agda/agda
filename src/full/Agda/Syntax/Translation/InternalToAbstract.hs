@@ -201,7 +201,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         -- for the @i@th pattern of @ps@.
         -- Andreas, 2014-06-11:
         -- Are we sure that @d@ did not use @var i@ otherwise?
-        lhs' <- displayLHS (map namedArg ps) wps d
+        lhs' <- displayLHS ps wps d
         reportSDoc "reify.display" 70 $ do
           doc <- prettyA lhs'
           return $ vcat
@@ -274,7 +274,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
     flattenWith _ = __IMPOSSIBLE__
 
-    displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
+    displayLHS :: [NamedArg A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
     displayLHS ps wps d = do
         let (f, vs, es) = flattenWith d
         ds <- mapM (namedArg <.> elimToPat) es
@@ -282,24 +282,24 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         return $ SpineLHS i f vs (ds ++ wps)
       where
         argToPat :: Arg DisplayTerm -> TCM (NamedArg A.Pattern)
-        argToPat arg = fmap unnamed <$> traverse termToPat arg
+        argToPat arg = traverse termToPat arg
 
         elimToPat :: I.Elim' DisplayTerm -> TCM (NamedArg A.Pattern)
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
 
-        termToPat :: DisplayTerm -> TCM A.Pattern
+        termToPat :: DisplayTerm -> TCM (Named_ A.Pattern)
 
-        termToPat (DTerm (I.Var n [])) = return $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
+        termToPat (DTerm (I.Var n [])) = return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
-        termToPat (DCon c ci vs)          = tryRecPFromConP =<< do
+        termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c ci vs)) = tryRecPFromConP =<< do
+        termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
 
-        termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
-        termToPat (DDef _ [])          = return $ A.WildP patNoRange
+        termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
+        termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
         -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
         -- so here we give __IMPOSSIBLE__. This is only used for printing purposes, the origin
@@ -307,8 +307,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         -- Andreas, 2017-02-14: This crashes with -v 100.
         -- termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
         -- termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
-        termToPat (DDot v)             = A.DotP patNoRange Inserted <$> termToExpr v
-        termToPat v                    = A.DotP patNoRange Inserted <$> reify v
+        termToPat (DDot v)             = unnamed . A.DotP patNoRange Inserted <$> termToExpr v
+        termToPat v                    = unnamed . A.DotP patNoRange Inserted <$> reify v
 
         len = length ps
 
@@ -333,7 +333,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
               -- even the pattern variables @n < len@ can be
               -- applied to some args @vs@.
               e <- if n < len
-                   then return $ A.patternToExpr $ ps !! n
+                   then return $ A.patternToExpr $ namedArg $ ps !! n
                    else reify (I.var (n - len))
               apps e =<< argsToExpr vs
             _ -> return underscore
