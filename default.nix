@@ -29,7 +29,7 @@
   }
 , nodejs-6_x
 # additional test dependencies
-, wdiff, colordiff
+, wdiff, colordiff, bash, which, git, less, ghcWithPackages, inetutils
 }:
 
 let
@@ -55,7 +55,7 @@ in rec {
       tasty-silver temporary text
     ];
     configureFlags = [];
-    buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff]
+    buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff ]
       ++ stdenv.lib.optionals user-manual [ python34Packages.sphinx python34Packages.sphinx_rtd_theme tex ];
 
     executableToolDepends = [ emacs ];
@@ -95,7 +95,7 @@ in rec {
     description = "A dependently typed functional programming language and proof assistant";
     license = "unknown";
   };
-  Agda-haddock = (Agda.override (orig: {
+  haddock = (Agda.override (orig: {
     pname = "Agda-haddock";
     doHaddock = true;
   })).overrideDerivation (orig: {
@@ -108,4 +108,38 @@ in rec {
       echo "doc agda-haddock $out/share/doc/Agda/haddock/" >> $out/nix-support/hydra-build-products
     '';
   });
+
+  tests = {
+    api = stdenv.mkDerivation {
+      name = "tests-api";
+      src = ./.;
+      buildInputs = [ bash which (ghcWithPackages (h: [ Agda ])) ];
+      dontBuild = true;
+      doCheck = true;
+      checkPhase = ''
+        make AGDA_BIN=${Agda}/bin/agda AGDA_TESTS_BIN=$PWD/test/dist/build/agda-tests/agda-tests AGDA_TESTS_OPTIONS=""\
+          api-test
+      '';
+      installPhase = ''
+        mkdir -p $out
+      '';
+    };
+    # TODO BROKEN: The agda tests are using --ignore-interfaces, but with this flag Agda tries to recompile
+    # Primitive.agda and we don't have write permissions for that file.
+    benchmark = stdenv.mkDerivation {
+      name = "tests-benchmark";
+      src = ./.;
+      buildInputs = [ bash which ghc inetutils ];
+      dontBuild = true;
+      doCheck = true;
+      checkPhase = ''
+        make AGDA_BIN=${Agda}/bin/agda AGDA_TESTS_BIN=$PWD/test/dist/build/agda-tests/agda-tests AGDA_TESTS_OPTIONS=""\
+          benchmark-without-logs
+      '';
+      installPhase = ''
+        mkdir -p $out
+      '';
+    };
+
+  };
 }
