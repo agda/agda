@@ -918,6 +918,13 @@ interpret (Cmd_make_case ii rng s) = do
         , TCP.text "pcs' = " TCP.<+> TCP.vcat (map TCP.text pcs')
         ]
       ]
+    lift $ reportSDoc "interaction.case" 90 $ TCP.vcat
+      [ TCP.text "InteractionTop.Cmd_make_case"
+      , TCP.nest 2 $ TCP.vcat
+        [ TCP.text "cs   = " TCP.<+> TCP.text (show cs)
+        , TCP.text "cs'  = " TCP.<+> TCP.text (show cs')
+        ]
+      ]
     putResponse $ Resp_MakeCase (makeCaseVariant casectxt) pcs'
   where
     render = renderStyle (style { mode = OneLineMode })

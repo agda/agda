@@ -297,7 +297,17 @@ bindToConcreteHiding h =
 
 instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete     = mapM toConcrete
-    bindToConcrete = thread bindToConcrete
+    -- Andreas, 2017-04-11, Issue #2543
+    -- The naive `thread'ing does not work as we have to undo
+    -- changes to the Precedence.
+    -- bindToConcrete = thread bindToConcrete
+    bindToConcrete []     ret = ret []
+    bindToConcrete (a:as) ret = do
+      p <- currentPrecedence  -- save precedence
+      bindToConcrete a $ \ c ->
+        withPrecedence p $ -- reset precedence
+          bindToConcrete as $ \ cs ->
+            ret (c : cs)
 
 instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (Either a1 a2) (Either c1 c2) where
     toConcrete = traverseEither toConcrete toConcrete
