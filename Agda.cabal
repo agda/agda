@@ -532,7 +532,10 @@ library
                  -Wunused-foralls
 
   if impl(ghc >= 8.2)
-    ghc-options: -Wsimplifiable-class-constraints
+    ghc-options: -Wcpp-undef
+                 -Wmissing-home-modules
+                 -Wsimplifiable-class-constraints
+                 -Wunbanged-strict-patterns
 
   ghc-prof-options: -fprof-auto
 
@@ -642,6 +645,13 @@ test-suite agda-tests
     ghc-options: -fwarn-missing-local-sigs
   else
     ghc-options: -Wmissing-local-signatures
+
+  -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
+  -- error.
+  if impl(ghc >= 8.2)
+    ghc-options: -Wcpp-undef
+                 -Wunbanged-strict-patterns
+
   default-language: Haskell2010
 
 test-suite internal-tests
@@ -798,5 +808,9 @@ test-suite internal-tests
                  -Wsemigroup
                  -Wunused-foralls
 
+  -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
+  -- error.
   if impl(ghc >= 8.2)
-    ghc-options: -Wsimplifiable-class-constraints
+    ghc-options: -Wcpp-undef
+                 -Wsimplifiable-class-constraints
+                 -Wunbanged-strict-patterns
