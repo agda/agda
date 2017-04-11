@@ -2,6 +2,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+-- ASR (2017-04-10). TODO: Is this option required by the final
+-- version of GHC 8.2.1 (it was required by the RC 1)?
+#if __GLASGOW_HASKELL__ >= 802
+{-# OPTIONS -Wno-simplifiable-class-constraints #-}
+#endif
+
 {-| Primitive functions, such as addition on builtin integers.
 -}
 module Agda.TypeChecking.Primitive where
