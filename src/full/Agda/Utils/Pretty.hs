@@ -114,3 +114,8 @@ instance Data Doc where
   gunfold _ _ _ = __IMPOSSIBLE__
   toConstr      = __IMPOSSIBLE__
   dataTypeOf    = __IMPOSSIBLE__
+
+infixl 6 <?>
+-- | @a <?> b = hang a 2 b@
+(<?>) :: Doc -> Doc -> Doc
+a <?> b = hang a 2 b
