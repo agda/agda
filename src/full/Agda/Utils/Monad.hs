@@ -101,13 +101,16 @@ forM' = flip mapM'
 
 -- Continuation monad -----------------------------------------------------
 
-type Cont r a = (a -> r) -> r
-
--- | 'Control.Monad.mapM' for the continuation monad. Terribly useful.
-thread :: (a -> Cont r b) -> [a] -> Cont r [b]
-thread f [] ret = ret []
-thread f (x:xs) ret =
-    f x $ \y -> thread f xs $ \ys -> ret (y:ys)
+-- Andreas, 2017-04-11, issue #2543
+-- The terribly useful thread function is now UNUSED.  [Sadistic laughter :)]
+--
+-- type Cont r a = (a -> r) -> r
+--
+-- -- | 'Control.Monad.mapM' for the continuation monad. Terribly useful.
+-- thread :: (a -> Cont r b) -> [a] -> Cont r [b]
+-- thread f [] ret = ret []
+-- thread f (x:xs) ret =
+--     f x $ \y -> thread f xs $ \ys -> ret (y:ys)
 
 -- Lists and monads -------------------------------------------------------
 
