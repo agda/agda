@@ -307,10 +307,6 @@ errorString err = case err of
   ClashingModuleImport{}                   -> "ClashingModuleImport"
   CompilationError{}                       -> "CompilationError"
   ConstructorPatternInWrongDatatype{}      -> "ConstructorPatternInWrongDatatype"
-  CoverageCantSplitOn{}                    -> "CoverageCantSplitOn"
-  CoverageCantSplitIrrelevantType{}        -> "CoverageCantSplitIrrelevantType"
-  CoverageCantSplitType{}                  -> "CoverageCantSplitType"
-  CoverageNoExactSplit{}                   -> "CoverageNoExactSplit"
   CyclicModuleDependency{}                 -> "CyclicModuleDependency"
   DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
@@ -383,6 +379,7 @@ errorString err = case err of
   NotAProjectionPattern{}                  -> "NotAProjectionPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
+  CoverageNoExactSplit{}                   -> "CoverageNoExactSplit"
   TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
   TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
@@ -402,7 +399,6 @@ errorString err = case err of
   UnifyCycle{}                             -> "UnifyCycle"
   UnifyIndicesNotVars{}                    -> "UnifyIndicesNotVars"
   UnificationRecursiveEq{}                 -> "UnificationRecursiveEq"
-  UnificationStuck{}                       -> "UnificationStuck"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
@@ -1130,23 +1126,6 @@ instance PrettyTCM TypeError where
       pwords "No match for" ++ map prettyTCM args
 -}
 
-    CoverageCantSplitOn c tel cIxs gIxs
-      | length cIxs /= length gIxs -> __IMPOSSIBLE__
-      | otherwise                  -> addContext tel $ vcat (
-          [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
-                   [prettyTCM c <> text ","] ++
-                   pwords "because I get stuck when trying to solve the following" ++
-                   pwords "unification problems (inferred index ≟ expected index):"
-          ] ++
-          zipWith (\c g -> nest 2 $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs)
-
-    CoverageCantSplitIrrelevantType a -> fsep $
-      pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM a]
-
-
-    CoverageCantSplitType a -> fsep $
-      pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]
-
     CoverageNoExactSplit f cs -> fsep $
       pwords "Exact splitting is enabled, but not all clauses can be preserved as definitional equalities in the translation to a case tree"
 
@@ -1179,11 +1158,6 @@ instance PrettyTCM TypeError where
       pwords " with solution " ++ [prettyTCM u] ++
       pwords " because the variable occurs in the solution," ++
       pwords " or in the type of one of the variables in the solution"
-
-    UnificationStuck tel us vs -> fsep $
-      pwords "I got stuck on unifying" ++ [prettyList (map prettyTCM us)] ++
-      pwords "with" ++ [prettyList (map prettyTCM vs)] ++
-      pwords "in the telescope" ++ [prettyTCM tel]
 
     TooManyPolarities x n -> fsep $
       pwords "Too many polarities given in the POLARITY pragma for" ++
@@ -1306,11 +1280,10 @@ instance PrettyUnequal Type where
 instance PrettyTCM SplitError where
   prettyTCM err = case err of
     NotADatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
+      pwords "Cannot split on argument of non-datatype" ++ [prettyTCM t]
 
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
-      pwords "since it is declared irrelevant"
+      pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
 
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
@@ -1321,8 +1294,15 @@ instance PrettyTCM SplitError where
       pwords "because it has no constructor"
  -}
 
-    CantSplit c tel cIxs gIxs ->
-      prettyTCM $ CoverageCantSplitOn c tel cIxs gIxs
+    UnificationStuck c tel cIxs gIxs
+      | length cIxs /= length gIxs -> __IMPOSSIBLE__
+      | otherwise                  -> addContext tel $ vcat (
+          [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
+                   [prettyTCM c <> text ","] ++
+                   pwords "because I get stuck when trying to solve the following" ++
+                   pwords "unification problems (inferred index ≟ expected index):"
+          ] ++
+          zipWith (\c g -> nest 2 $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs)
 
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s
 

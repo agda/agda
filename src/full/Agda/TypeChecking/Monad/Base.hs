@@ -2444,7 +2444,7 @@ data SplitError
   | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
-  | CantSplit
+  | UnificationStuck
     { cantSplitConName  :: QName        -- ^ Constructor.
     , cantSplitTel      :: Telescope    -- ^ Context for indices.
     , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
@@ -2570,20 +2570,14 @@ data TypeError
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
     -- Coverage errors
-    -- TODO: Remove some of the constructors in this section, now that
-    -- the SplitError constructor has been added?
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageCantSplitOn QName Telescope Args Args
-        | CoverageCantSplitIrrelevantType Type
-        | CoverageCantSplitType Type
-        | CoverageNoExactSplit QName Clause
         | WithoutKError Type Term Term
         | UnifyConflict ConHead ConHead
         | UnifyCycle Int Term
         | UnifyIndicesNotVars Type Term Term Args
         | UnificationRecursiveEq Type Int Term
-        | UnificationStuck Telescope [Term] [Term]
         | SplitError SplitError
+        | CoverageNoExactSplit QName Clause
     -- Positivity errors
         | TooManyPolarities QName Int
     -- Import errors

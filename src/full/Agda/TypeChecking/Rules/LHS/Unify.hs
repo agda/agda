@@ -1220,7 +1220,4 @@ unify s strategy = if isUnifyStateSolved s
             _          -> return y
 
     failure :: UnifyM (UnificationResult' a)
-    failure = do
-      err <- addContext (varTel s) $ typeError_ $
-               UnificationStuck (eqTel s) (map unArg $ eqLHS s) (map unArg $ eqRHS s)
-      return $ DontKnow err
+    failure = return $ DontKnow __IMPOSSIBLE__ -- probably

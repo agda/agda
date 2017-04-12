@@ -250,15 +250,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       xs <- splitStrategy bs tel
       r <- altM1 (split Inductive sc) xs
       case r of
-        Left err  -> case err of
-          CantSplit c tel us vs   -> typeError $ CoverageCantSplitOn c tel us vs
-          NotADatatype a          -> enterClosure a $ typeError . CoverageCantSplitType
-          IrrelevantDatatype a    -> enterClosure a $ typeError . CoverageCantSplitIrrelevantType
-          CoinductiveDatatype a   -> enterClosure a $ typeError . CoverageCantSplitType
-{- UNUSED
-          NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
- -}
-          GenericSplitError s     -> fail $ "failed to split: " ++ s
+        Left err -> typeError $ SplitError err
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
         Right (Covering n []) ->
@@ -570,7 +562,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
 
     DontKnow{} -> do
       debugCantSplit
-      throwError $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
+      throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
