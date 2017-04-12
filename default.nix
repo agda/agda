@@ -68,6 +68,7 @@ in rec {
     '' else "";
 
     doCheck = false;
+    doHaddock = false;
 
     postInstall = ''
       # Separate loops to avoid internal error
