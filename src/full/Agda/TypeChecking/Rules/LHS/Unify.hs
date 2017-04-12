@@ -104,8 +104,7 @@
 module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult
   , UnificationResult'(..)
-  , unifyIndices
-  , unifyIndices_ ) where
+  , unifyIndices ) where
 
 import Prelude hiding (null)
 
@@ -188,31 +187,15 @@ data UnificationResult' a
 
 -- | Unify indices.
 --
---   In @unifyIndices_ flex a us vs@,
---
---   @a@ is the type eliminated by @us@ and @vs@
---     (usally the type of a constructor),
---     need not be reduced,
+--   In @unifyIndices gamma flex us vs@,
 --
 --   @us@ and @vs@ are the argument lists to unify,
+--
+--   @gamma@ is the telescope of free variables in @us@ and @vs@.
 --
 --   @flex@ is the set of flexible (instantiable) variabes in @us@ and @vs@.
 --
 --   The result is the most general unifier of @us@ and @vs@.
-unifyIndices_ :: MonadTCM tcm
-              => Telescope
-              -> FlexibleVars
-              -> Type
-              -> Args
-              -> Args
-              -> tcm (Telescope, PatternSubstitution, [NamedArg DeBruijnPattern])
-unifyIndices_ tel flex a us vs = liftTCM $ do
-  r <- unifyIndices tel flex a us vs
-  case r of
-    Unifies sub   -> return sub
-    DontKnow err  -> throwError err
-    NoUnify  err  -> throwError err
-
 unifyIndices :: MonadTCM tcm
              => Telescope
              -> FlexibleVars
