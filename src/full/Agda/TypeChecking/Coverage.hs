@@ -560,9 +560,9 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
 
-    DontKnow{} -> do
+    DontKnow errs -> do
       debugCantSplit
-      throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs
+      throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 

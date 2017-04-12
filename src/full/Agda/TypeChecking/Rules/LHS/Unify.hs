@@ -180,9 +180,9 @@ type UnificationResult = UnificationResult'
   )
 
 data UnificationResult' a
-  = Unifies  a      -- ^ Unification succeeded.
-  | NoUnify  TCErr  -- ^ Terms are not unifiable.
-  | DontKnow TCErr  -- ^ Some other error happened, unification got stuck.
+  = Unifies  a                    -- ^ Unification succeeded.
+  | NoUnify  NegativeUnification  -- ^ Terms are not unifiable.
+  | DontKnow [UnificationFailure] -- ^ Some other error happened, unification got stuck.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 -- | Unify indices.
@@ -945,14 +945,12 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
       `catchError` \err -> return $ Just err
     withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
     case isReflexive of
-      Just err     -> return $ DontKnow err
-      _ | withoutK -> DontKnow <$> withoutKErr
+      Just err     -> return $ DontKnow [UnifyUnequalTerms err]
+      _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
       _            -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma
         Unifies <$> liftTCM (reduceEqTel s')
-  where
-    withoutKErr = liftTCM (addContext (varTel s) $ typeError_ $ WithoutKError a u u)
 
 unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solutionTerm = u } = do
   let m = varCount s
@@ -968,12 +966,14 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
     return Nothing
     `catchError` \err -> return $ Just err
   case equalTypes of
-    Just err -> return $ DontKnow err
-    Nothing  -> caseMaybeM (trySolveVar (m-1-i) u s) (DontKnow <$> err) $ \(s',sub) -> do
-      tellUnifySubst sub
-      let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
-      tellUnifyProof sigma
-      Unifies <$> liftTCM (reduce s'')
+    Just err -> return $ DontKnow [UnifyUnequalTerms err]
+    Nothing  -> caseMaybeM (trySolveVar (m-1-i) u s)
+      (return $ DontKnow [UnifyRecursiveEq (varTel s) a i u])
+      (\(s',sub) -> do
+        tellUnifySubst sub
+        let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
+        tellUnifyProof sigma
+        Unifies <$> liftTCM (reduce s''))
   where
     trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
@@ -981,7 +981,6 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
         u <- liftTCM $ normalise u
         s <- liftTCM $ normaliseVarTel s
         return $ solveVar i u s
-    err = addContext (varTel s) $ typeError_ $ UnificationRecursiveEq a i u
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
@@ -1028,7 +1027,11 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
     -- TODO: we could still make progress here if not --without-K,
     -- but I'm not sure if it's necessary.
-    DontKnow _ -> liftTCM $ DontKnow <$> err
+    DontKnow _ -> let n           = eqCount s
+                      Equal a u v = getEquality k s
+                  in return $ DontKnow [UnifyIndicesNotVars
+                       (varTel s `abstract` eqTel s) a
+                       (raise n u) (raise n v) (raise (n-k) ixs)]
 
     Unifies (eqTel1', rho0, _) -> do
       -- Split ps0 into parts for eqTel1 and ctel
@@ -1058,24 +1061,15 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
 
-  where
-    err :: TCM TCErr
-    err = let n           = eqCount s
-              Equal a u v = getEquality k s
-          in addContext (varTel s `abstract` eqTel s) $ typeError_
-               (UnifyIndicesNotVars a (raise n u) (raise n v) (raise (n-k) ixs))
-
 unifyStep s Conflict
   { conflictConLeft    = c
   , conflictConRight   = c'
-  } = NoUnify <$> addContext (varTel s)
-        (typeError_ $ UnifyConflict c c')
+  } = return $ NoUnify $ UnifyConflict (varTel s) c c'
 
 unifyStep s Cycle
   { cycleVar        = i
   , cycleOccursIn   = u
-  } = NoUnify <$> addContext (varTel s)
-        (typeError_ $ UnifyCycle i u)
+  } = return $ NoUnify $ UnifyCycle (varTel s) i u
 
 unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarParameters = pars } = do
   delta   <- liftTCM $ (`apply` pars) <$> getRecordFieldTypes d
@@ -1131,8 +1125,7 @@ unifyStep s LitConflict
   { litType          = a
   , litConflictLeft  = l
   , litConflictRight = l'
-  } = NoUnify <$> addContext (varTel s)
-        (typeError_ $ UnequalTerms CmpEq (Lit l) (Lit l') a)
+  } = return $ NoUnify $ UnifyLitConflict (varTel s) l l'
 
 unifyStep s (StripSizeSuc k u v) = do
   sizeTy <- liftTCM sizeType

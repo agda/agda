@@ -380,6 +380,7 @@ errorString err = case err of
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
   CoverageNoExactSplit{}                   -> "CoverageNoExactSplit"
+  ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
   TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
@@ -395,10 +396,6 @@ errorString err = case err of
   UnequalSorts{}                           -> "UnequalSorts"
   UnequalTerms{}                           -> "UnequalTerms"
   UnequalTypes{}                           -> "UnequalTypes"
-  UnifyConflict{}                          -> "UnifyConflict"
-  UnifyCycle{}                             -> "UnifyCycle"
-  UnifyIndicesNotVars{}                    -> "UnifyIndicesNotVars"
-  UnificationRecursiveEq{}                 -> "UnificationRecursiveEq"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
@@ -409,7 +406,6 @@ errorString err = case err of
   UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
-  WithoutKError{}                          -> "WithoutKError"
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
@@ -1131,33 +1127,10 @@ instance PrettyTCM TypeError where
 
     SplitError e -> prettyTCM e
 
-    WithoutKError a u v -> fsep $
-      pwords "Cannot eliminate reflexive equation" ++ [prettyTCM u] ++
-      pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++
-      pwords "because K has been disabled."
-
-    UnifyConflict c c' -> fsep $
-      pwords "This case is impossible because of a conflict between the constructors " ++
-      [prettyTCM c] ++ pwords " and " ++ [prettyTCM c' <> text "."] ++
+    ImpossibleConstructor c neg -> fsep $
+      pwords "The case for the constructor " ++ [prettyTCM c] ++
+      pwords " is impossible." ++
       pwords "Possible solution: remove the clause, or use an absurd pattern ()."
-
-    UnifyCycle i u -> fsep $
-      pwords "This case is impossible because the variable " ++ [prettyTCM (var i)] ++
-      pwords "occurs strongly rigid in" ++ [prettyTCM u <> text "."] ++
-      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
-
-    UnifyIndicesNotVars a u v ixs -> fsep $
-      pwords "Cannot apply injectivity to the equation" ++ [prettyTCM u] ++
-      pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++
-      pwords "because I cannot generalize over the indices" ++
-      [prettyList $ map prettyTCM ixs]
-
-    UnificationRecursiveEq a i u -> fsep $
-      pwords "Cannot solve variable " ++ [prettyTCM (var i)] ++
-      pwords " of type " ++ [prettyTCM a] ++
-      pwords " with solution " ++ [prettyTCM u] ++
-      pwords " because the variable occurs in the solution," ++
-      pwords " or in the type of one of the variables in the solution"
 
     TooManyPolarities x n -> fsep $
       pwords "Too many polarities given in the POLARITY pragma for" ++
@@ -1294,7 +1267,7 @@ instance PrettyTCM SplitError where
       pwords "because it has no constructor"
  -}
 
-    UnificationStuck c tel cIxs gIxs
+    UnificationStuck c tel cIxs gIxs _
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
       | otherwise                  -> addContext tel $ vcat (
           [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
@@ -1305,6 +1278,46 @@ instance PrettyTCM SplitError where
           zipWith (\c g -> nest 2 $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs)
 
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s
+
+instance PrettyTCM NegativeUnification where
+  prettyTCM err = case err of
+    UnifyConflict tel c c' -> addContext tel $ fsep $
+      pwords "This case is impossible because of a conflict between the constructors " ++
+      [prettyTCM c] ++ pwords " and " ++ [prettyTCM c' <> text "."] ++
+      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
+
+    UnifyLitConflict tel l l' -> addContext tel $ fsep $
+      pwords "This case is impossible because of a conflict between the literals " ++
+      [prettyTCM l] ++ pwords " and " ++ [prettyTCM l' <> text "."] ++
+      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
+
+    UnifyCycle tel i u -> addContext tel $ fsep $
+      pwords "This case is impossible because the variable " ++ [prettyTCM (var i)] ++
+      pwords "occurs strongly rigid in" ++ [prettyTCM u <> text "."] ++
+      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
+
+instance PrettyTCM UnificationFailure where
+  prettyTCM err = case err of
+    UnifyUnequalTerms err -> prettyTCM err
+
+    UnifyIndicesNotVars tel a u v ixs -> addContext tel $ fsep $
+      pwords "Cannot apply injectivity to the equation" ++ [prettyTCM u] ++
+      pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++
+      pwords "because I cannot generalize over the indices" ++
+      [prettyList $ map prettyTCM ixs]
+
+    UnifyRecursiveEq tel a i u -> addContext tel $ fsep $
+      pwords "Cannot solve variable " ++ [prettyTCM (var i)] ++
+      pwords " of type " ++ [prettyTCM a] ++
+      pwords " with solution " ++ [prettyTCM u] ++
+      pwords " because the variable occurs in the solution," ++
+      pwords " or in the type of one of the variables in the solution"
+
+    UnifyReflexiveEq tel a u -> addContext tel $ fsep $
+      pwords "Cannot eliminate reflexive equation" ++ [prettyTCM u] ++
+      pwords "=" ++ [prettyTCM u] ++ pwords "of type" ++ [prettyTCM a] ++
+      pwords "because K has been disabled."
+
 
 instance PrettyTCM Call where
   prettyTCM c = case c of
