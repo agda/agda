@@ -18,7 +18,7 @@
 , hashtables, haskeline, haskell-src-exts, mtl, parallel, pretty
 , process, process-extras, QuickCheck, stdenv, strict, tasty
 , regex-tdfa, regex-tdfa-text, filemanip, fail
-, tasty-silver, template-haskell, temporary, text, time
+, tasty-silver, tasty-hunit, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
 , murmur-hash, ieee754, gitrev
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
@@ -52,7 +52,7 @@ in rec {
     testDepends = [
       base containers directory filepath process-extras tasty
       regex-tdfa regex-tdfa-text
-      tasty-silver temporary text
+      tasty-silver tasty-hunit temporary text
     ];
     configureFlags = [];
     buildTools = [ alex cpphs happy nodejs-6_x wdiff colordiff ]

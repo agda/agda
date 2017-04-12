@@ -179,7 +179,7 @@ interactive :
 	@echo "======================================================================"
 	@echo "===================== Suite of interactive tests ====================="
 	@echo "======================================================================"
-	@$(MAKE) -C test/interactive
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive
 
 .PHONY : examples
 examples :
