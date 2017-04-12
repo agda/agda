@@ -954,16 +954,22 @@ runUnifyM = runWriterT
 unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
-    liftTCM $ addContext (varTel s) $ noConstraints $ dontAssignMetas $ equalTerm a u v
-    ifM (liftTCM $ optWithoutK <$> pragmaOptions)
-    {-then-} (DontKnow <$> liftTCM withoutKErr)
-    {-else-} (do
-      let (s', sigma) = solveEq k u s
-      tellUnifyProof sigma
-      Unifies <$> liftTCM (reduceEqTel s'))
-  `catchError` \err -> return $ DontKnow err
+    -- Check definitional equality of u and v
+    isReflexive <- liftTCM $ addContext (varTel s) $ do
+      dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
+        equalTerm a u v
+      return Nothing
+      `catchError` \err -> return $ Just err
+    withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
+    case isReflexive of
+      Just err     -> return $ DontKnow err
+      _ | withoutK -> DontKnow <$> withoutKErr
+      _            -> do
+        let (s', sigma) = solveEq k u s
+        tellUnifyProof sigma
+        Unifies <$> liftTCM (reduceEqTel s')
   where
-    withoutKErr = addContext (varTel s) $ typeError_ $ WithoutKError a u u
+    withoutKErr = liftTCM (addContext (varTel s) $ typeError_ $ WithoutKError a u u)
 
 unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solutionTerm = u } = do
   let m = varCount s
@@ -971,17 +977,20 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
   let a' = getVarType (m-1-i) s
-  liftTCM $ addContext (varTel s) $ do
+  equalTypes <- liftTCM $ addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ text "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ text "Variable type: " <+> prettyTCM a'
-    noConstraints $ dontAssignMetas $ equalType a a'
-
-  caseMaybeM (trySolveVar (m-1-i) u s) (DontKnow <$> err) $ \(s',sub) -> do
-    tellUnifySubst sub
-    let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
-    tellUnifyProof sigma
-    Unifies <$> liftTCM (reduce s'')
-  `catchError` \err -> return $ DontKnow err
+    dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
+      equalType a a'
+    return Nothing
+    `catchError` \err -> return $ Just err
+  case equalTypes of
+    Just err -> return $ DontKnow err
+    Nothing  -> caseMaybeM (trySolveVar (m-1-i) u s) (DontKnow <$> err) $ \(s',sub) -> do
+      tellUnifySubst sub
+      let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
+      tellUnifyProof sigma
+      Unifies <$> liftTCM (reduce s'')
   where
     trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
