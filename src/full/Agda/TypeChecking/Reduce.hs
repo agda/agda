@@ -383,7 +383,7 @@ slowReduceTerm v = do
         case v of
           _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
           _                 -> return v
-      reduceNat v@(Con c ci [a]) | notHidden a && isRelevant a = do
+      reduceNat v@(Con c ci [a]) | visible a && isRelevant a = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
           _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)

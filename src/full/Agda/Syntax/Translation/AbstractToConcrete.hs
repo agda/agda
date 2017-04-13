@@ -1045,7 +1045,7 @@ recoverOpApp :: (ToConcrete a c, HasRange c)
 recoverOpApp bracket opApp view e = case view e of
   Nothing -> mDefault
   Just (hd, args)
-    | all notHidden args  -> do
+    | all visible args    -> do
       let  args' = map namedArg args
       case hd of
         HdVar  n

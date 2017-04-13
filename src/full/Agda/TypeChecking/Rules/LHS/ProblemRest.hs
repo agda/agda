@@ -20,7 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
@@ -33,17 +33,18 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) !dom | notHidden (domInfo dom) && not (isNoName x) =
-      (\(_,a) -> (nameToArgName x,a)) <$> dom
-    ren A.AbsurdP{} !dom | notHidden (domInfo dom) = (\ (_,a) -> ("()",a)) <$> dom
+    ren (A.VarP x) !dom | visible (domInfo dom) && not (isNoName x) =
+      dom <&> \ (_, a) -> (nameToArgName x, a)
+    ren A.AbsurdP{} !dom | visible (domInfo dom) =
+      dom <&> \ (_, a) -> ("()", a)
     -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
     -- but it does not do the job, instead, it puts a lot of "_"s
     -- instead of more sensible names into error messages.
-    -- ren A.WildP{}  (Dom info (_, a)) | notHidden info = Dom info ("_", a)
+    -- ren A.WildP{}  (Dom info (_, a)) | visible info = Dom info ("_", a)
     ren A.PatternSynP{} !_ = __IMPOSSIBLE__  -- ensure there are no syns left
     -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
-    ren _ !dom | notHidden (domInfo dom) && isNoName (fst (unDom dom)) =
-      (\ (_,a) -> (stringToArgName "x",a)) <$> dom
+    ren _ !dom | visible (domInfo dom) && isNoName (fst (unDom dom)) =
+      dom <&> \ (_, a) -> (stringToArgName "x", a)
     ren _ !a = a
 
 useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]
@@ -92,7 +93,8 @@ problemFromPats ps0 a = do
   -- Ulf, 2016-04-25: Actually we do need to ExpandLast because where blocks
   -- need the implicits.
   ps <- insertImplicitPatternsT ExpandLast ps a
-  -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
+  reportSDoc "tc.lhs.imp" 20 $
+    text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
   -- Redo the telView, in order to *not* normalize the clause type further than necessary.
   -- (See issue 734.)
@@ -128,6 +130,8 @@ problemFromPats ps0 a = do
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
 updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
+      reportSDoc "tc.lhs.imp" 20 $
+        text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpToPath (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel

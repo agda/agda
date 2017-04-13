@@ -73,18 +73,16 @@ insertMissingFields
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
   -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
 insertMissingFields r placeholder fs axs = do
-  let -- Just field names.
-      xs   = map unArg axs
   -- Compute the list of given fields, decorated with the ArgInfo from the record def.
   let arg x e =
         case [ a | a <- axs, unArg a == x ] of
-          [a] -> unnamed e <$ a
+          [a] -> nameIfHidden a e <$ a
           _   -> defaultNamedArg e -- we only end up here if the field names are bad
       givenFields = [ (x, Just $ arg x e) | FieldAssignment x e <- fs ]
   -- Compute a list of p[aceholders for the missing visible fields.
   let missingExplicits =
-       [ (x, Just $ setOrigin Inserted $ unnamed . placeholder <$> a)
-       | a <- filter notHidden axs
+       [ (x, Just $ setOrigin Inserted $ nameIfHidden a . placeholder <$> a)
+       | a <- filter visible axs
        , let x = unArg a
        , x `notElem` map (view nameFieldA) fs
        ]
@@ -94,8 +92,15 @@ insertMissingFields r placeholder fs axs = do
   catMaybes <$> do
     -- Default value @Nothing@ will only be used for missing hidden fields.
     -- These can be ignored as they will be inserted by @checkArguments_@.
-    orderFields r Nothing xs $ givenFields ++ missingExplicits
-
+    orderFields r Nothing (map unArg axs) $ givenFields ++ missingExplicits
+  where
+    -- Andreas, 2017-04-13, issue #2494
+    -- We need to put the field names as argument names for hidden arguments.
+    -- Otherwise, insertImplicit does not do the right thing.
+    nameIfHidden :: Arg C.Name -> c -> Named_ c
+    nameIfHidden ax
+      | visible ax = unnamed
+      | otherwise  = named (Ranged (getRange ax) $ prettyShow $ unArg ax)
 
 -- | The name of the module corresponding to a record.
 recordModule :: QName -> ModuleName

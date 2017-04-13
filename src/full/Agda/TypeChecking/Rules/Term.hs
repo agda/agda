@@ -700,7 +700,7 @@ checkRecordExpression mfs e t = do
       def <- getRecordDef r
       let -- Field names with ArgInfo.
           axs  = recordFieldNames def
-          exs  = filter notHidden axs
+          exs  = filter visible axs
           -- Just field names.
           xs   = map unArg axs
           -- Record constructor.
@@ -801,7 +801,7 @@ checkRecordUpdate ei recexpr fs e t = do
     _         -> typeError $ ShouldBeRecordType t
   where
     replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
-    replaceFields n ei a@(Arg _ p) Nothing | notHidden a =
+    replaceFields n ei a@(Arg _ p) Nothing | visible a =
         Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
     replaceFields _ _  (Arg _ _) Nothing  = Nothing
     replaceFields _ _  _         (Just e) = Just $ e
@@ -2000,7 +2000,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
   -- Skip the arguments from vs that do not correspond to e
   if not (getHiding info == getHiding info'
-          && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
+          && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument
@@ -2099,7 +2099,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
         -- 1. We ran out of function types.
         let shouldBePi
               -- a) It is an explicit argument, but we ran out of function types.
-              | notHidden info = lift $ typeError $ ShouldBePi t0'
+              | visible info = lift $ typeError $ ShouldBePi t0'
               -- b) It is an implicit argument, and we did not insert any implicits.
               --    Thus, the type was not a function type to start with.
               | null xs        = lift $ typeError $ ShouldBePi t0'
@@ -2121,7 +2121,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
         case ignoreSharing $ unEl t0' of
           Pi (Dom{domInfo = info', unDom = a}) b
             | getHiding info == getHiding info'
-              && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
+              && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
                 u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
@@ -2150,7 +2150,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                   ]
                 wrongPi
           _
-            | notHidden info
+            | visible info
             , PathType s _ _ bA x y <- viewPath $ ignoreSharingType t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< elInf primInterval

@@ -161,7 +161,11 @@ updateInPatterns as ps qs = do
           Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           (ftel, us) <- etaExpandRecord r vs u
+
           qs <- insertImplicitPatterns ExpandLast qs ftel
+          reportSDoc "tc.lhs.imp" 20 $
+            text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs)
+
           let instTel EmptyTel _                   = []
               instTel (ExtendTel arg tel) (u : us) = arg : instTel (absApp tel u) us
               instTel ExtendTel{} []               = __IMPOSSIBLE__
@@ -946,6 +950,8 @@ checkLHS f st@(LHSState problem dpi psplit) = do
 
         -- Insert implicit patterns
         qs' <- insertImplicitPatterns ExpandLast qs gamma'
+        reportSDoc "tc.lhs.imp" 20 $
+          text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs')
 
         unless ((size qs' :: Int) == size gamma') $
           typeError $ WrongNumberOfConstructorArguments (conName c) (size gamma') (size qs')
