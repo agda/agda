@@ -157,7 +157,7 @@ coverageCheck f t cs = do
 
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
-  (splitTree, used, pss) <- cover f cs sc
+  CoverResult splitTree used pss <- cover f cs sc
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
@@ -181,10 +181,14 @@ coverageCheck f t cs = do
 --   case splitter
 isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
 isCovered f cs sc = do
-  (_, _, missing) <- cover f cs sc
+  CoverResult { coverMissingClauses = missing } <- cover f cs sc
   return $ null missing
 
-type CoverResult = (SplitTree, Set Nat, [(Telescope, [NamedArg DeBruijnPattern])])
+data CoverResult = CoverResult
+  { coverSplitTree       :: SplitTree
+  , coverUsedClauses     :: Set Nat
+  , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
+  }
 
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
@@ -215,7 +219,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
         -- If we have several literal matches with the same literals
         -- only take the first matching clause of these.
         let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
-        return (SplittingDone (size tel), Set.fromList is, [])
+        return $ CoverResult (SplittingDone (size tel)) (Set.fromList is) []
       else do
         reportSDoc "tc.cover.cover" 10 $ vcat
           [ text $ "pattern covered by clause " ++ show i ++ " but case splitting was not exact. remaining mpats: "
@@ -234,13 +238,13 @@ cover f cs sc@(SClause tel ps _ _ target) = do
           -- late to add it now. If it was inferrable we would have gotten a
           -- type error before getting to this point.
           inferMissingClause f sc
-          return (SplittingDone (size tel), Set.empty, [])
-        _ -> return (SplittingDone (size tel), Set.empty, [(tel, ps)])
+          return $ CoverResult (SplittingDone (size tel)) Set.empty []
+        _ -> return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps)]
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
     Block res bs -> tryIf (getAny res) splitRes $ do
-      let (done :: TCM CoverResult) = return (SplittingDone (size tel), Set.empty, [(tel, ps)])
+      let done = return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps)]
       if null bs then done else do
       -- Otherwise, if there are variables to split, we try them
       -- in the order determined by a split strategy.
@@ -254,9 +258,12 @@ cover f cs sc@(SClause tel ps _ _ target) = do
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
         Right (Covering n []) ->
-          return (SplittingDone (size tel), Set.empty, [])
+          return $ CoverResult (SplittingDone (size tel)) Set.empty []
         Right (Covering n scs) -> do
-          (trees, useds, psss) <- unzip3 <$> mapM (cover f cs) (map snd scs)
+          results <- mapM (cover f cs) (map snd scs)
+          let trees = map coverSplitTree results
+              useds = map coverUsedClauses results
+              psss  = map coverMissingClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
           -- tree (see Issue 1872).
@@ -270,7 +277,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
             ]
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n trees'
-          return ((tree, Set.unions useds, concat psss) :: CoverResult)
+          return $ CoverResult tree (Set.unions useds) (concat psss)
 
   where
     tryIf :: Monad m => Bool -> m (Maybe a) -> m a -> m a
@@ -285,14 +292,17 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       mcov <- splitResult f sc
       Trav.forM mcov $ \ (Covering n scs) -> do
         -- If result splitting was successful, continue coverage checking.
-        (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+        (projs, results) <- unzip <$> do
           mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
           -- OR:
           -- forM scs $ \ (proj, sc') -> (proj,) <$> do
           --   cover f cs =<< do
           --     snd <$> fixTarget sc'
-        let tree = SplitAt n $ zip projs trees
-        return (tree, Set.unions useds, concat psss)
+        let trees = map coverSplitTree results
+            useds = map coverUsedClauses results
+            psss  = map coverMissingClauses results
+            tree  = SplitAt n $ zip projs trees
+        return $ CoverResult tree (Set.unions useds) (concat psss)
 
     gatherEtaSplits :: Int -> SplitClause
                     -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
