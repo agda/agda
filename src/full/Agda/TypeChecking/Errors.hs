@@ -146,6 +146,12 @@ instance PrettyTCM Warning where
         display (tel, ps) = prettyTCM $ NamedClause f True $
           I.Clause noRange noRange tel ps Nothing Nothing False
 
+    CoverageNoExactSplit f cs -> vcat $
+      [ fsep $ pwords "The following" ++ pwords (singPlural cs "clause" "clauses") ++
+               pwords "could not be preserved as definitional equalities in the translation to a case tree:"
+      ] ++
+      map (nest 2 . prettyTCM . NamedClause f True) cs
+
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
@@ -242,6 +248,7 @@ applyFlagsToTCWarnings ifs ws = do
           UselessPublic                -> True
           ParseWarning{}               -> True
           UnreachableClauses{}         -> True
+          CoverageNoExactSplit{}       -> True
           UselessInline{}              -> True
           GenericWarning{}             -> True
           GenericNonFatalError{}       -> True
@@ -379,7 +386,6 @@ errorString err = case err of
   NotAProjectionPattern{}                  -> "NotAProjectionPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
-  CoverageNoExactSplit{}                   -> "CoverageNoExactSplit"
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
@@ -1121,9 +1127,6 @@ instance PrettyTCM TypeError where
       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
       pwords "No match for" ++ map prettyTCM args
 -}
-
-    CoverageNoExactSplit f cs -> fsep $
-      pwords "Exact splitting is enabled, but not all clauses can be preserved as definitional equalities in the translation to a case tree"
 
     SplitError e -> prettyTCM e
 

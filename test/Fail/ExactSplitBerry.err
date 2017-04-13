@@ -1,4 +1,6 @@
-ExactSplitBerry.agda:9,1-22
-Exact splitting is enabled, but not all clauses can be preserved as
-definitional equalities in the translation to a case tree
+ExactSplitBerry.agda:9,1-10,26
+The following clauses could not be preserved as definitional
+equalities in the translation to a case tree:
+  maj x true false = x
+  maj false y true = y
 when checking the definition of maj

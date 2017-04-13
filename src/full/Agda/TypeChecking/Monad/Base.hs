@@ -2286,6 +2286,7 @@ data Warning =
   | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
+  | CoverageNoExactSplit     QName [Clause]
   | NotStrictlyPositive      QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -2372,6 +2373,7 @@ classifyWarning w = case w of
   DeprecationWarning{}       -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
+  CoverageNoExactSplit{}     -> ErrorWarnings
   NotStrictlyPositive{}      -> ErrorWarnings
   UnsolvedMetaVariables{}    -> ErrorWarnings
   UnsolvedInteractionMetas{} -> ErrorWarnings
@@ -2586,7 +2588,6 @@ data TypeError
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
         | ImpossibleConstructor QName NegativeUnification
-        | CoverageNoExactSplit QName Clause
     -- Positivity errors
         | TooManyPolarities QName Int
     -- Import errors
