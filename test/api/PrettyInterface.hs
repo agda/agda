@@ -37,7 +37,7 @@ main = do
 mainTCM :: TCM ()
 mainTCM = do
   setCommandLineOptions defaultOptions
-  f <- liftIO $ absolute "Issue1168.agda"
+  f <- liftIO $ absolute "PrettyInterface.agda"
   (i, _mw) <- typeCheckMain f TypeCheck
   compilerMain i
 
