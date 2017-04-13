@@ -89,7 +89,8 @@ problemFromPats ps0 a = do
   -- Ulf, 2016-04-25: Actually we do need to ExpandLast because where blocks
   -- need the implicits.
   ps <- insertImplicitPatternsT ExpandLast ps a
-  -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
+  reportSDoc "tc.lhs.imp" 20 $
+    text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
   -- Redo the telView, in order to *not* normalize the clause type further than necessary.
   -- (See issue 734.)
@@ -125,6 +126,8 @@ problemFromPats ps0 a = do
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
 updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
+      reportSDoc "tc.lhs.imp" 20 $
+        text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpTo (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
