@@ -369,7 +369,7 @@ reifyTerm expandAnonDefs0 v = do
       case isR || ci == ConORec of
         True -> do
           showImp <- showImplicitArguments
-          let keep (a, v) = showImp || notHidden a
+          let keep (a, v) = showImp || visible a
           r  <- getConstructorData x
           xs <- getRecordFieldNames r
           vs <- map unArg <$> reify vs
@@ -424,7 +424,7 @@ reifyTerm expandAnonDefs0 v = do
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | notHidden a -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          | visible a   -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.

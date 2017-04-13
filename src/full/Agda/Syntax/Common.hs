@@ -139,10 +139,6 @@ instance LensHiding (WithHiding a) where
 mergeHiding :: LensHiding a => WithHiding a -> a
 mergeHiding (WithHiding h a) = mapHiding (mappend h) a
 
--- | Visible ('NotHidden') arguments are @notHidden@. (DEPRECATED, use 'visible'.)
-notHidden :: LensHiding a => a -> Bool
-notHidden a = getHiding a == NotHidden
-
 -- | 'NotHidden' arguments are @visible@.
 visible :: LensHiding a => a -> Bool
 visible a = getHiding a == NotHidden

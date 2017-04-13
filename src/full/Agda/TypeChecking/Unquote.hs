@@ -146,7 +146,7 @@ class Unquote a where
   unquote :: I.Term -> UnquoteM a
 
 unquoteN :: Unquote a => Arg Term -> UnquoteM a
-unquoteN a | notHidden a && isRelevant a =
+unquoteN a | visible a && isRelevant a =
     unquote $ unArg a
 unquoteN a = throwError $ BadVisibility "visible" a
 

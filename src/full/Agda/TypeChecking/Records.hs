@@ -84,7 +84,7 @@ insertMissingFields r placeholder fs axs = do
   -- Compute a list of p[aceholders for the missing visible fields.
   let missingExplicits =
        [ (x, Just $ setOrigin Inserted $ unnamed . placeholder <$> a)
-       | a <- filter notHidden axs
+       | a <- filter visible axs
        , let x = unArg a
        , x `notElem` map (view nameFieldA) fs
        ]

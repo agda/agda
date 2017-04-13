@@ -103,7 +103,7 @@ impInsert hs = ImpInsert hs
 -- | The list should be non-empty.
 insertImplicit :: NamedArg e -> [Arg ArgName] -> ImplicitInsertion
 insertImplicit _ [] = __IMPOSSIBLE__
-insertImplicit a ts | notHidden a = impInsert $ nofHidden ts
+insertImplicit a ts | visible a = impInsert $ nofHidden ts
   where
     nofHidden :: [Arg a] -> [Hiding]
     nofHidden = takeWhile (NotHidden /=) . map getHiding
@@ -117,7 +117,7 @@ insertImplicit a ts =
     upto h (h':_) | h == h' = Just []
     upto h (h':hs) = (h':) <$> upto h hs
     find :: [Hiding] -> ArgName -> Hiding -> [Arg ArgName] -> ImplicitInsertion
-    find _ x _ (a@(Arg{}) : _) | notHidden a = NoSuchName x
+    find _ x _ (a@(Arg{}) : _) | visible a = NoSuchName x
     find hs x hidingx (a@(Arg _ y) : ts)
       | x == y && hidingx == getHiding a = impInsert $ reverse hs
       | x == y && hidingx /= getHiding a = BadImplicits
