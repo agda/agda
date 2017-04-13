@@ -1,3 +1,7 @@
 Issue1435-helper.agda:28,29-33
-A != B of type Set
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  {_} ≟ {_}
+  c₁ A ≟ c₁ B
 when checking that the pattern refl has type c₁ A ≅ c₁ B

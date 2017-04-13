@@ -1,5 +1,10 @@
 Issue765.agda:63,11-15
-Cannot eliminate reflexive equation ⊥-elim = ⊥-elim of type
-Position (constC (C ⋆ X) ⊎C C) (inj₁ m) → μ (constC (C ⋆ X) ⊎C C)
-because K has been disabled.
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  to m ≟ to n
+Possible reason why unification failed:
+  Cannot eliminate reflexive equation ⊥-elim = ⊥-elim of type
+  Position (constC (C ⋆ X) ⊎C C) (inj₁ m) → μ (constC (C ⋆ X) ⊎C C)
+  because K has been disabled.
 when checking that the pattern refl has type to m ≡ to n

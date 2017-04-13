@@ -1,4 +1,9 @@
 WithoutK-PatternSynonyms1.agda:13,12-13
-Cannot eliminate reflexive equation x = x of type A because K has
-been disabled.
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  x ≟ x
+Possible reason why unification failed:
+  Cannot eliminate reflexive equation x = x of type A because K has
+  been disabled.
 when checking that the pattern refl has type x ≡ x

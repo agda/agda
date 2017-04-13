@@ -1,5 +1,6 @@
 Issue707-data.agda:12,15-16
-This case is impossible because of a conflict between the
-constructors true and false. Possible solution: remove the clause,
-or use an absurd pattern ().
+The case for the constructor d is impossible
+because unification ended with a conflicting equation
+  true ≟ false
+Possible solution: remove the clause, or use an absurd pattern ().
 when checking that the pattern d has type D false

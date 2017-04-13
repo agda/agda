@@ -1,5 +1,12 @@
 WithoutK5.agda:12,24-28
-Cannot apply injectivity to the equation refl = refl of type
-_≡_ {A} a a because I cannot generalize over the indices [a]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  refl ≟ refl
+Possible reasons why unification failed:
+  Cannot apply injectivity to the equation refl = refl of type
+  _≡_ {A} a a because I cannot generalize over the indices [a].
+  Cannot eliminate reflexive equation refl = refl of type _≡_ {A} a a
+  because K has been disabled.
 when checking that the pattern refl has type
 _≡_ {_≡_ {A} a a} refl refl

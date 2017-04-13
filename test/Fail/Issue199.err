@@ -1,4 +1,7 @@
 Issue199.agda:11,6-9
-Failed to solve the following constraints:
-  [11] D x = _T_13 x : Set
+I'm not sure if there should be a case for the constructor p,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  {_} ≟ {_}
+  d ≟ _15
 when checking that the pattern p _ has type P _15

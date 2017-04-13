@@ -1,3 +1,6 @@
 Issue755.agda:19,6-10
-0 != 1 of type ℕ
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  foo b 0 ≟ foo b 1
 when checking that the pattern refl has type foo b 0 ≡ foo b 1

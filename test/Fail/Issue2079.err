@@ -1,5 +1,6 @@
 Issue2079.agda:34,6-11
-This case is impossible because of a conflict between the
-constructors ∅ and _,_. Possible solution: remove the clause, or
-use an absurd pattern ().
+The case for the constructor nec is impossible
+because unification ended with a conflicting equation
+  ∅ ≟ Γ , A₁
+Possible solution: remove the clause, or use an absurd pattern ().
 when checking that the pattern nec t has type (Γ , A) ⊢ B

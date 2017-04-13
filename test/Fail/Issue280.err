@@ -1,5 +1,10 @@
 Issue280.agda:8,19-26
-Cannot solve variable C of type Set with solution M c because the
-variable occurs in the solution, or in the type of one of the
-variables in the solution
+I'm not sure if there should be a case for the constructor model,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  M c ≟ C
+Possible reason why unification failed:
+  Cannot solve variable C of type Set with solution M c because the
+  variable occurs in the solution, or in the type of one of the
+  variables in the solution.
 when checking that the pattern model c has type PreModel C M C

@@ -541,6 +541,7 @@ warningHighlighting w = case tcWarning w of
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
   UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
+  CoverageNoExactSplit{}     -> coverageErrorHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedMetaVariables{}    -> mempty
   UnsolvedInteractionMetas{} -> mempty

@@ -24,8 +24,7 @@ equations of the form ``x = x``.
 For example, the obvious implementation of the J rule is accepted::
 
   J : {A : Set} (P : (x y : A) → x ≡ y → Set) →
-      ((x : A) → P x x refl) →
-      (x y : A) (x≡y : x ≡ y) → P x y x≡y
+      ((x : A) → P x x refl) → (x y : A) (x≡y : x ≡ y) → P x y x≡y
   J P p x .x refl = p x
 
 Pattern matching with the constructor ``refl`` on the argument ``x≡y``
@@ -33,17 +32,15 @@ causes ``x`` to be unified with ``y``. The same applies to Christine
 Paulin-Mohring's version of the J rule::
 
   J′ : {A : Set} {x : A} (P : (y : A) → x ≡ y → Set) →
-       P x refl →
-       (y : A) (x≡y : x ≡ y) → P y x≡y
+       P x refl → (y : A) (x≡y : x ≡ y) → P y x≡y
   J′ P p ._ refl = p
 
 On the other hand, the obvious implementation of the K rule is not
 accepted::
 
-  K : {A : Set} (P : (x : A) → x ≡ x → Set) →
-      ((x : A) → P x refl) →
-      (x : A) (x≡x : x ≡ x) → P x x≡x
-  K P p x refl = p x
+  K : {A : Set} {x : A} (P : x ≡ x → Set) →
+      P refl → (x≡x : x ≡ x) → P x≡x
+  K P p refl = p
 
 Pattern matching with the constructor ``refl`` on the argument ``x≡x``
 causes ``x`` to be unified with ``x``, which fails because the deletion

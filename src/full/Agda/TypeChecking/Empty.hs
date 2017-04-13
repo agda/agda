@@ -34,8 +34,8 @@ isEmptyType r t = do
     dontAssignMetas $ do
       r <- splitLast Inductive tel ps
       case r of
-        Left (CantSplit c tel us vs) -> postpone t
-        Left _                       -> typeError $ ShouldBeEmpty t []
+        Left UnificationStuck{} -> postpone t
+        Left _                  -> typeError $ ShouldBeEmpty t []
         Right cov -> do
           let cs = splitClauses cov
           unless (null cs) $

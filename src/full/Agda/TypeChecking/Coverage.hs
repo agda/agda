@@ -158,7 +158,7 @@ coverageCheck f t cs = do
 
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
-  (splitTree, used, pss) <- cover f cs sc
+  CoverResult splitTree used pss noex <- cover f cs sc
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
@@ -176,16 +176,28 @@ coverageCheck f t cs = do
       let unreached = map (cs !!) is
       setCurrentRange (map clauseFullRange unreached) $
         warning $ UnreachableClauses f $ map namedClausePats unreached
+  -- report a warning if there are clauses that are not preserved as
+  -- definitional equalities and --exact-split is enabled
+  exactSplitEnabled <- optExactSplit <$> pragmaOptions
+  unless (not exactSplitEnabled || null noex) $ do
+      let noexclauses = map (cs !!) (Set.toList noex)
+      setCurrentRange (map clauseFullRange noexclauses) $
+        warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
 
 -- | Top-level function for eliminating redundant clauses in the interactive
 --   case splitter
 isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
 isCovered f cs sc = do
-  (_, _, missing) <- cover f cs sc
+  CoverResult { coverMissingClauses = missing } <- cover f cs sc
   return $ null missing
 
-type CoverResult = (SplitTree, Set Nat, [(Telescope, [NamedArg DeBruijnPattern])])
+data CoverResult = CoverResult
+  { coverSplitTree       :: SplitTree
+  , coverUsedClauses     :: Set Nat
+  , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
+  , coverNoExactClauses  :: Set Nat
+  }
 
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
@@ -201,29 +213,19 @@ cover f cs sc@(SClause tel ps _ _ target) = do
   cs' <- normaliseProjP cs
   case match cs' ps of
     Yes (i,(mps,ls0)) -> do
-      exactSplitOk <- do
-        exactSplitEnabled <- optExactSplit <$> pragmaOptions
-        if (not exactSplitEnabled) || (clauseCatchall $ cs !! i) then
-          return True
-        else
-          allM mps isTrivialPattern
-      if exactSplitOk then do
-        reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-        -- Check if any earlier clauses could match with appropriate literals
-        let lsis = mapMaybe (\(j,c) -> (,j) <$> matchLits c ps) $ zip [0..i-1] cs
-        reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show lsis
-        -- Andreas, 2016-10-08, issue #2243 (#708)
-        -- If we have several literal matches with the same literals
-        -- only take the first matching clause of these.
-        let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
-        return (SplittingDone (size tel), Set.fromList is, [])
-      else do
-        reportSDoc "tc.cover.cover" 10 $ vcat
-          [ text $ "pattern covered by clause " ++ show i ++ " but case splitting was not exact. remaining mpats: "
-          , nest 2 $ vcat $ map (text . show) mps
-          ]
-        setCurrentRange (cs !! i) $
-          typeError $ CoverageNoExactSplit f (cs !! i)
+      exact <- allM mps isTrivialPattern
+      let noExactClause = if exact || clauseCatchall (cs !! i)
+                          then Set.empty
+                          else Set.singleton i
+      reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
+      -- Check if any earlier clauses could match with appropriate literals
+      let lsis = mapMaybe (\(j,c) -> (,j) <$> matchLits c ps) $ zip [0..i-1] cs
+      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show lsis
+      -- Andreas, 2016-10-08, issue #2243 (#708)
+      -- If we have several literal matches with the same literals
+      -- only take the first matching clause of these.
+      let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
+      return $ CoverResult (SplittingDone (size tel)) (Set.fromList is) [] noExactClause
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -235,13 +237,13 @@ cover f cs sc@(SClause tel ps _ _ target) = do
           -- late to add it now. If it was inferrable we would have gotten a
           -- type error before getting to this point.
           inferMissingClause f sc
-          return (SplittingDone (size tel), Set.empty, [])
-        _ -> return (SplittingDone (size tel), Set.empty, [(tel, ps)])
+          return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
+        _ -> return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps)] Set.empty
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
     Block res bs -> tryIf (getAny res) splitRes $ do
-      let (done :: TCM CoverResult) = return (SplittingDone (size tel), Set.empty, [(tel, ps)])
+      let done = return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps)] Set.empty
       if null bs then done else do
       -- Otherwise, if there are variables to split, we try them
       -- in the order determined by a split strategy.
@@ -251,21 +253,17 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       xs <- splitStrategy bs tel
       r <- altM1 (split Inductive sc) xs
       case r of
-        Left err  -> case err of
-          CantSplit c tel us vs   -> typeError $ CoverageCantSplitOn c tel us vs
-          NotADatatype a          -> enterClosure a $ typeError . CoverageCantSplitType
-          IrrelevantDatatype a    -> enterClosure a $ typeError . CoverageCantSplitIrrelevantType
-          CoinductiveDatatype a   -> enterClosure a $ typeError . CoverageCantSplitType
-{- UNUSED
-          NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
- -}
-          GenericSplitError s     -> fail $ "failed to split: " ++ s
+        Left err -> typeError $ SplitError err
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
         Right (Covering n []) ->
-          return (SplittingDone (size tel), Set.empty, [])
+          return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
         Right (Covering n scs) -> do
-          (trees, useds, psss) <- unzip3 <$> mapM (cover f cs) (map snd scs)
+          results <- mapM (cover f cs) (map snd scs)
+          let trees = map coverSplitTree results
+              useds = map coverUsedClauses results
+              psss  = map coverMissingClauses results
+              noex  = map coverNoExactClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
           -- tree (see Issue 1872).
@@ -279,7 +277,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
             ]
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n trees'
-          return ((tree, Set.unions useds, concat psss) :: CoverResult)
+          return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
 
   where
     tryIf :: Monad m => Bool -> m (Maybe a) -> m a -> m a
@@ -294,14 +292,18 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       mcov <- splitResult f sc
       Trav.forM mcov $ \ (Covering n scs) -> do
         -- If result splitting was successful, continue coverage checking.
-        (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+        (projs, results) <- unzip <$> do
           mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
           -- OR:
           -- forM scs $ \ (proj, sc') -> (proj,) <$> do
           --   cover f cs =<< do
           --     snd <$> fixTarget sc'
-        let tree = SplitAt n $ zip projs trees
-        return (tree, Set.unions useds, concat psss)
+        let trees = map coverSplitTree results
+            useds = map coverUsedClauses results
+            psss  = map coverMissingClauses results
+            noex  = map coverNoExactClauses results
+            tree  = SplitAt n $ zip projs trees
+        return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
                     -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
@@ -571,9 +573,9 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
 
-    DontKnow{} -> do
+    DontKnow errs -> do
       debugCantSplit
-      throwError $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
+      throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 

@@ -1,4 +1,11 @@
 Issue1025.agda:15,10-14
-Cannot apply injectivity to the equation foo = foo of type Foo refl
-because I cannot generalize over the indices [refl]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  foo ≟ foo
+Possible reasons why unification failed:
+  Cannot apply injectivity to the equation foo = foo of type Foo refl
+  because I cannot generalize over the indices [refl].
+  Cannot eliminate reflexive equation foo = foo of type Foo refl
+  because K has been disabled.
 when checking that the pattern refl has type foo ≡ foo

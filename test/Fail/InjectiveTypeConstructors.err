@@ -1,3 +1,6 @@
 InjectiveTypeConstructors.agda:10,6-10
-A != B of type Set
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  D A ≟ D B
 when checking that the pattern refl has type D A == D B

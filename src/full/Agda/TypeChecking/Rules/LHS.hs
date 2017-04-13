@@ -727,13 +727,13 @@ checkLHS f st@(LHSState problem dpi psplit) = do
 
     foldListT trySplit nothingToSplit $ splitProblem f problem
   where
-
+    nothingToSplit :: TCM LHSState
     nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
       nothingToSplitError problem
 
     -- Split problem rest (projection pattern, does not fail as there is no call to unifier)
-
+    trySplit :: SplitProblem -> TCM LHSState -> TCM LHSState
     trySplit (SplitRest projPat o projType) _ = do
 
       -- Compute the new problem
@@ -857,44 +857,18 @@ checkLHS f st@(LHSState problem dpi psplit) = do
       checkLHS f st'
 
     -- Split on constructor pattern (unifier might fail)
-
-    trySplit (Split p0 focus@(Arg info Focus{}) p1) tryNextSplit = do
-      res <- trySplitConstructor p0 focus p1
-      case res of
-        -- Success.  Continue checking LHS.
-        Unifies st'    -> checkLHS f st'
-        -- Mismatch.  Report and abort.
-        NoUnify  tcerr -> throwError tcerr
-        -- Unclear situation.  Try next split.
-        -- If no split works, give error from first split.
-        -- This is conservative, but might not be the best behavior.
-        -- It might be better to collect all the errors and print all of them.
-        DontKnow tcerr -> tryNextSplit `catchError` \ _ -> throwError tcerr
-
-    whenUnifies
-      :: UnificationResult' a
-      -> (a -> TCM (UnificationResult' b))
-      -> TCM (UnificationResult' b)
-    whenUnifies res cont = do
-      case res of
-        Unifies a      -> cont a
-        NoUnify  tcerr -> return $ NoUnify  tcerr
-        DontKnow tcerr -> return $ DontKnow tcerr
-
-    trySplitConstructor p0 (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
-    trySplitConstructor p0 (Arg info PartialFocus{}) p1 = __IMPOSSIBLE__
-    trySplitConstructor p0 (Arg info
-             (Focus { focusCon      = c
-                    , focusPatOrigin= porigin
-                    , focusConArgs  = qs
-                    , focusRange    = r
-                    , focusOutPat   = ip
-                    , focusDatatype = d
-                    , focusParams   = vs
-                    , focusIndices  = ws
-                    , focusType     = a
-                    }
-             )) p1 = do
+    trySplit (Split p0 (Arg info
+               (Focus { focusCon      = c
+                      , focusPatOrigin= porigin
+                      , focusConArgs  = qs
+                      , focusRange    = r
+                      , focusOutPat   = ip
+                      , focusDatatype = d
+                      , focusParams   = vs
+                      , focusIndices  = ws
+                      , focusType     = a
+                      }
+               )) p1) tryNextSplit = do
       traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (A.AmbQ [c]) qs)
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
@@ -967,6 +941,9 @@ checkLHS f st@(LHSState problem dpi psplit) = do
         -- Compute the constructor indices by dropping the parameters
         let us' = drop (size vs) us
 
+        -- Raise given indices over constructor telescope
+        let ws' = raise (size gamma) ws
+
         reportSDoc "tc.lhs.top" 15 $ addContext delta1 $
           sep [ text "preparing to unify"
               , nest 2 $ vcat
@@ -1012,8 +989,22 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                  flex
                  (raise (size gamma) da)
                  us'
-                 (raise (size gamma) ws)
-        whenUnifies res $ \ (delta1',rho0,es) -> do
+                 ws'
+        case res of
+
+         -- Mismatch.  Report and abort.
+         NoUnify neg -> typeError $ ImpossibleConstructor (conName c) neg
+
+         -- Unclear situation.  Try next split.
+         -- If no split works, give error from first split.
+         -- This is conservative, but might not be the best behavior.
+         -- It might be better to collect all the errors and print all of them.
+         DontKnow errs -> tryNextSplit
+           `catchError` \ _ -> typeError $ SplitError $
+             UnificationStuck (conName c) (delta1 `abstract` gamma) us' ws' errs
+
+         -- Success.
+         Unifies (delta1',rho0,es) -> do
 
           reportSDoc "tc.lhs.top" 15 $ text "unification successful"
           reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
@@ -1122,7 +1113,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
               , text "ip'     =" <+> text (show ip')
               ]
             ]
-          return $ Unifies st'
+          checkLHS f st'
 
 
 -- | Ensures that we are not performing pattern matching on codata.

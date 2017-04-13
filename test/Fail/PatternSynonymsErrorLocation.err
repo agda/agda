@@ -1,4 +1,4 @@
-PatternSynonymsErrorLocation.agda:69,1-36
+PatternSynonymsErrorLocation.agda:69,21-27
 zero is not a constructor of the datatype _≡_
 when checking that the pattern zero has type
 .PatternSynonymsErrorLocation.T A Gamma C zero

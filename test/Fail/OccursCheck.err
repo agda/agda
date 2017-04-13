@@ -1,5 +1,6 @@
 OccursCheck.agda:13,3-7
-This case is impossible because the variable n occurs strongly
-rigid in suc n. Possible solution: remove the clause, or use an
-absurd pattern ().
+The case for the constructor refl is impossible
+because unification ended with a cyclic equation
+  n ≟ suc n
+Possible solution: remove the clause, or use an absurd pattern ().
 when checking that the pattern refl has type n == suc n

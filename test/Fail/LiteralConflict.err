@@ -1,3 +1,6 @@
 LiteralConflict.agda:5,6-10
-"foo" != "bar" of type String
+The case for the constructor refl is impossible
+because unification ended with a conflicting equation
+  "foo" ≟ "bar"
+Possible solution: remove the clause, or use an absurd pattern ().
 when checking that the pattern refl has type "foo" ≡ "bar"

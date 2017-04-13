@@ -44,6 +44,7 @@ import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Internal.Generic (TermLike(..))
+import Agda.Syntax.Literal
 import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
@@ -2293,6 +2294,7 @@ data Warning =
   | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
+  | CoverageNoExactSplit     QName [Clause]
   | NotStrictlyPositive      QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -2379,6 +2381,7 @@ classifyWarning w = case w of
   DeprecationWarning{}       -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
+  CoverageNoExactSplit{}     -> ErrorWarnings
   NotStrictlyPositive{}      -> ErrorWarnings
   UnsolvedMetaVariables{}    -> ErrorWarnings
   UnsolvedInteractionMetas{} -> ErrorWarnings
@@ -2452,13 +2455,25 @@ data SplitError
   | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
-  | CantSplit
+  | UnificationStuck
     { cantSplitConName  :: QName        -- ^ Constructor.
     , cantSplitTel      :: Telescope    -- ^ Context for indices.
     , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
     , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
+    , cantSplitFailures :: [UnificationFailure] -- ^ Reason(s) why unification got stuck.
     }
   | GenericSplitError String
+  deriving (Show)
+
+data NegativeUnification
+  = UnifyConflict Telescope Term Term
+  | UnifyCycle Telescope Int Term
+  deriving (Show)
+
+data UnificationFailure
+  = UnifyIndicesNotVars Telescope Type Term Term Args -- ^ Failed to apply injectivity to constructor of indexed datatype
+  | UnifyRecursiveEq Telescope Type Int Term          -- ^ Can't solve equation because variable occurs in (type of) lhs
+  | UnifyReflexiveEq Telescope Type Term              -- ^ Can't solve reflexive equation because --without-K is enabled
   deriving (Show)
 
 data UnquoteError
@@ -2579,20 +2594,9 @@ data TypeError
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
     -- Coverage errors
-    -- TODO: Remove some of the constructors in this section, now that
-    -- the SplitError constructor has been added?
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageCantSplitOn QName Telescope Args Args
-        | CoverageCantSplitIrrelevantType Type
-        | CoverageCantSplitType Type
-        | CoverageNoExactSplit QName Clause
-        | WithoutKError Type Term Term
-        | UnifyConflict ConHead ConHead
-        | UnifyCycle Int Term
-        | UnifyIndicesNotVars Type Term Term Args
-        | UnificationRecursiveEq Type Int Term
-        | UnificationStuck Telescope [Term] [Term]
         | SplitError SplitError
+        | ImpossibleConstructor QName NegativeUnification
     -- Positivity errors
         | TooManyPolarities QName Int
     -- Import errors
