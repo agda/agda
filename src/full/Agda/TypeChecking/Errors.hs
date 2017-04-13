@@ -1129,7 +1129,7 @@ instance PrettyTCM TypeError where
 
     ImpossibleConstructor c neg -> fsep $
       pwords "The case for the constructor " ++ [prettyTCM c] ++
-      pwords " is impossible." ++
+      pwords " is impossible" ++ [prettyTCM neg] ++
       pwords "Possible solution: remove the clause, or use an absurd pattern ()."
 
     TooManyPolarities x n -> fsep $
@@ -1267,51 +1267,48 @@ instance PrettyTCM SplitError where
       pwords "because it has no constructor"
  -}
 
-    UnificationStuck c tel cIxs gIxs _
+    UnificationStuck c tel cIxs gIxs errs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
-      | otherwise                  -> addContext tel $ vcat (
+      | otherwise                  -> vcat $
           [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
                    [prettyTCM c <> text ","] ++
                    pwords "because I get stuck when trying to solve the following" ++
                    pwords "unification problems (inferred index ≟ expected index):"
           ] ++
-          zipWith (\c g -> nest 2 $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs)
+          zipWith (\c g -> nest 2 $ addContext tel $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs ++
+          if null errs then [] else
+            [ fsep $ pwords "Possible" ++ pwords (singPlural errs "reason" "reasons") ++
+                     pwords "why unification failed:" ] ++
+            map (nest 2 . prettyTCM) errs
 
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s
 
 instance PrettyTCM NegativeUnification where
   prettyTCM err = case err of
-    UnifyConflict tel c c' -> addContext tel $ fsep $
-      pwords "This case is impossible because of a conflict between the constructors " ++
-      [prettyTCM c] ++ pwords " and " ++ [prettyTCM c' <> text "."] ++
-      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
+    UnifyConflict tel u v -> addContext tel $ vcat $
+      [ fsep $ pwords "because unification ended with a conflicting equation "
+      , nest 2 $ prettyTCM u <+> text "≟" <+> prettyTCM v
+      ]
 
-    UnifyLitConflict tel l l' -> addContext tel $ fsep $
-      pwords "This case is impossible because of a conflict between the literals " ++
-      [prettyTCM l] ++ pwords " and " ++ [prettyTCM l' <> text "."] ++
-      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
-
-    UnifyCycle tel i u -> addContext tel $ fsep $
-      pwords "This case is impossible because the variable " ++ [prettyTCM (var i)] ++
-      pwords "occurs strongly rigid in" ++ [prettyTCM u <> text "."] ++
-      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
+    UnifyCycle tel i u -> addContext tel $ vcat $
+      [ fsep $ pwords "because unification ended with a cyclic equation "
+      , nest 2 $ prettyTCM (var i) <+> text "≟" <+> prettyTCM u
+      ]
 
 instance PrettyTCM UnificationFailure where
   prettyTCM err = case err of
-    UnifyUnequalTerms err -> prettyTCM err
-
     UnifyIndicesNotVars tel a u v ixs -> addContext tel $ fsep $
       pwords "Cannot apply injectivity to the equation" ++ [prettyTCM u] ++
       pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++
       pwords "because I cannot generalize over the indices" ++
-      [prettyList $ map prettyTCM ixs]
+      [prettyList (map prettyTCM ixs) <> text "."]
 
     UnifyRecursiveEq tel a i u -> addContext tel $ fsep $
       pwords "Cannot solve variable " ++ [prettyTCM (var i)] ++
       pwords " of type " ++ [prettyTCM a] ++
       pwords " with solution " ++ [prettyTCM u] ++
       pwords " because the variable occurs in the solution," ++
-      pwords " or in the type of one of the variables in the solution"
+      pwords " or in the type of one of the variables in the solution."
 
     UnifyReflexiveEq tel a u -> addContext tel $ fsep $
       pwords "Cannot eliminate reflexive equation" ++ [prettyTCM u] ++

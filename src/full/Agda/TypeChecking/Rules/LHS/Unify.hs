@@ -449,8 +449,8 @@ data UnifyStep
     { conflictAt         :: Int
     , conflictDatatype   :: QName
     , conflictParameters :: Args
-    , conflictConLeft    :: ConHead
-    , conflictConRight   :: ConHead
+    , conflictLeft       :: Term
+    , conflictRight      :: Term
     }
   | Cycle
     { cycleAt            :: Int
@@ -512,12 +512,12 @@ instance PrettyTCM UnifyStep where
       , text "indices:    " <+> text (show ixs)
       , text "constructor:" <+> text (show c)
       ])
-    Conflict k d pars c1 c2 -> text "Conflict" $$ nest 2 (vcat $
+    Conflict k d pars u v -> text "Conflict" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       , text "datatype:   " <+> text (show d)
       , text "parameters: " <+> text (show pars)
-      , text "con1:       " <+> text (show c1)
-      , text "con2:       " <+> text (show c2)
+      , text "lhs:        " <+> text (show u)
+      , text "rhs:        " <+> text (show v)
       ])
     Cycle k d pars i u -> text "Cycle" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
@@ -669,7 +669,7 @@ basicUnifyStrategy k s = do
   liftTCM $ reportSDoc "tc.lhs.unify" 30 $ text "isEtaVar results: " <+> text (show [mi,mj])
   case (mi, mj) of
     (Just i, Just j)
-     | i == j -> return $ Deletion k ha (var i) (var i)
+     | i == j -> mzero -- Taken care of by checkEqualityStrategy
     (Just i, Just j)
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
@@ -714,7 +714,7 @@ dataStrategy k s = do
           vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c ci
           return $ Injectivity k a d hpars ixs c
         (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
-        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars c c'
+        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars u v
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
         (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
         _ -> mzero
@@ -945,7 +945,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
       `catchError` \err -> return $ Just err
     withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
     case isReflexive of
-      Just err     -> return $ DontKnow [UnifyUnequalTerms err]
+      Just err     -> return $ DontKnow []
       _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
       _            -> do
         let (s', sigma) = solveEq k u s
@@ -966,7 +966,7 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
     return Nothing
     `catchError` \err -> return $ Just err
   case equalTypes of
-    Just err -> return $ DontKnow [UnifyUnequalTerms err]
+    Just err -> return $ DontKnow []
     Nothing  -> caseMaybeM (trySolveVar (m-1-i) u s)
       (return $ DontKnow [UnifyRecursiveEq (varTel s) a i u])
       (\(s',sub) -> do
@@ -1062,9 +1062,9 @@ unifyStep s (Injectivity k a d pars ixs c) = do
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
 
 unifyStep s Conflict
-  { conflictConLeft    = c
-  , conflictConRight   = c'
-  } = return $ NoUnify $ UnifyConflict (varTel s) c c'
+  { conflictLeft  = u
+  , conflictRight = v
+  } = return $ NoUnify $ UnifyConflict (varTel s) u v
 
 unifyStep s Cycle
   { cycleVar        = i
@@ -1125,7 +1125,7 @@ unifyStep s LitConflict
   { litType          = a
   , litConflictLeft  = l
   , litConflictRight = l'
-  } = return $ NoUnify $ UnifyLitConflict (varTel s) l l'
+  } = return $ NoUnify $ UnifyConflict (varTel s) (Lit l) (Lit l')
 
 unifyStep s (StripSizeSuc k u v) = do
   sizeTy <- liftTCM sizeType
@@ -1188,12 +1188,12 @@ unify s strategy = if isUnifyStateSolved s
           reportSDoc "tc.lhs.unify" 20 $ text "new unifyState:" <+> prettyTCM s'
           writeUnifyLog $ UnificationStep s step
           return x
-        NoUnify{}    -> return x
-        DontKnow err -> do
+        NoUnify{}     -> return x
+        DontKnow err1 -> do
           y <- fallback
           case y of
-            DontKnow{} -> return x
-            _          -> return y
+            DontKnow err2 -> return $ DontKnow $ err1 ++ err2
+            _             -> return y
 
     failure :: UnifyM (UnificationResult' a)
-    failure = return $ DontKnow __IMPOSSIBLE__ -- probably
+    failure = return $ DontKnow []

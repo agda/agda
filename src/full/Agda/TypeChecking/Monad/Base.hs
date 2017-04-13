@@ -2456,14 +2456,12 @@ data SplitError
   deriving (Show)
 
 data NegativeUnification
-  = UnifyConflict Telescope ConHead ConHead
-  | UnifyLitConflict Telescope Literal Literal
+  = UnifyConflict Telescope Term Term
   | UnifyCycle Telescope Int Term
   deriving (Show)
 
 data UnificationFailure
-  = UnifyUnequalTerms TCErr                           -- ^ Unequal terms, no unification rule applies
-  | UnifyIndicesNotVars Telescope Type Term Term Args -- ^ Failed to apply injectivity to constructor of indexed datatype
+  = UnifyIndicesNotVars Telescope Type Term Term Args -- ^ Failed to apply injectivity to constructor of indexed datatype
   | UnifyRecursiveEq Telescope Type Int Term          -- ^ Can't solve equation because variable occurs in (type of) lhs
   | UnifyReflexiveEq Telescope Type Term              -- ^ Can't solve reflexive equation because --without-K is enabled
   deriving (Show)

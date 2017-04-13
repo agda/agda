@@ -3,5 +3,10 @@ I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
   E.refl ≟ E.refl
+Possible reasons why unification failed:
+  Cannot apply injectivity to the equation E.refl = E.refl of type
+  _≡_ {A} x x because I cannot generalize over the indices [x].
+  Cannot eliminate reflexive equation E.refl = E.refl of type E._≡_ x
+  because K has been disabled.
 when checking that the pattern refl has type
 _≡_ {E._≡_ x} E.refl E.refl
