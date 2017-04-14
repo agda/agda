@@ -193,7 +193,12 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   where goldenFile = dropAgdaExtension inp <.> ".out"
         testName   = asTestName dir inp
 
-        doRun cOpts = withTempDirectory dir testName (\compDir -> do
+        -- Andreas, 2017-04-14, issue #2317
+        -- Create temporary files in system temp directory.
+        -- This has the advantage that upon Ctrl-C no junk is left behind
+        -- in the Agda directory.
+        -- doRun cOpts = withTempDirectory dir testName (\compDir -> do
+        doRun cOpts = withSystemTempDirectory testName (\compDir -> do
           -- get extra arguments
           extraArgs' <- extraArgs
           -- compile file

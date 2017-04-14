@@ -77,7 +77,12 @@ mkSucceedTest extraOpts dir inp =
           res@(ret, stdOut, _) <-
             if "--compile" `isInfixOf` flags
               then
-                withTempDirectory dir ("MAZ_compile_" ++ testName) (\compDir ->
+                -- Andreas, 2017-04-14, issue #2317
+                -- Create temporary files in system temp directory.
+                -- This has the advantage that upon Ctrl-C no junk is left behind
+                -- in the Agda directory.
+                -- withTempDirectory dir ("MAZ_compile_" ++ testName) (\compDir ->
+                withSystemTempDirectory ("MAZ_compile_" ++ testName) (\compDir ->
                   run ["--compile-dir=" ++ compDir]
                   )
               else

@@ -91,7 +91,12 @@ mkLaTeXOrHTMLTest k agdaBin inp =
     where
     golden = takeFileName goldenFile
 
-  doRun = withTempDirectory "." testName $ \outDir -> do
+  -- Andreas, 2017-04-14, issue #2317
+  -- Create temporary files in system temp directory.
+  -- This has the advantage that upon Ctrl-C no junk is left behind
+  -- in the Agda directory.
+  -- doRun = withTempDirectory "." testName $ \outDir -> do
+  doRun = withSystemTempDirectory testName $ \outDir -> do
     let agdaArgs = flags outDir ++
                    [ "-i" ++ testDir
                    , inp
