@@ -105,6 +105,7 @@ data OtherAspect
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to
     -- include a 'note' explaining why the pattern is incomplete.
+  | CatchallClause
   | TypeChecks
     -- ^ Code which is being type-checked.
     deriving (Eq, Show, Enum, Bounded, Typeable)

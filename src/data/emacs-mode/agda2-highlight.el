@@ -361,6 +361,11 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for coverage problems."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-catchall-clause-face
+  '((t (:background "light gray")))
+  "The face used for catchall clauses."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-typechecks-face
   '((t (:background "light blue"
         :foreground "black")))
@@ -395,6 +400,7 @@ If `agda2-highlight-face-groups' is nil."
     (coverageproblem        . agda2-highlight-coverage-problem-face)
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
+    (catchallclause         . agda2-highlight-catchall-clause-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
 
@@ -424,6 +430,7 @@ The aspects currently recognised are the following:
 `positivityproblem'      Positivity problems.
 `reachabilityproblem'    Reachability problems.
 `coverageproblem'        Reachability problems.
+`catchallclause'         Catchall clauses.
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.

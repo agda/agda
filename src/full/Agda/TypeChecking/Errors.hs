@@ -231,6 +231,7 @@ applyFlagsToTCWarnings ifs ws = do
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
   loopingNotOK  <- optTerminationCheck <$> pragmaOptions
+  catchallNotOK <- optExactSplit <$> pragmaOptions
 
   -- filter out the warnings the flags told us to ignore
   let cleanUp w =
@@ -248,7 +249,7 @@ applyFlagsToTCWarnings ifs ws = do
           UselessPublic                -> True
           ParseWarning{}               -> True
           UnreachableClauses{}         -> True
-          CoverageNoExactSplit{}       -> True
+          CoverageNoExactSplit{}       -> catchallNotOK
           UselessInline{}              -> True
           GenericWarning{}             -> True
           GenericNonFatalError{}       -> True
