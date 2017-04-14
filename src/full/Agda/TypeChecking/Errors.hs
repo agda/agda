@@ -147,7 +147,7 @@ instance PrettyTCM Warning where
           I.Clause noRange noRange tel ps Nothing Nothing False
 
     CoverageNoExactSplit f cs -> vcat $
-      [ fsep $ pwords "The following" ++ pwords (singPlural cs "clause" "clauses") ++
+      [ fsep $ pwords "Exact splitting is enabled, but the following" ++ pwords (singPlural cs "clause" "clauses") ++
                pwords "could not be preserved as definitional equalities in the translation to a case tree:"
       ] ++
       map (nest 2 . prettyTCM . NamedClause f True) cs
