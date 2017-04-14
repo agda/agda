@@ -1,5 +1,6 @@
 ExactSplitParity.agda:18,1-48
-The following clause could not be preserved as definitional
-equalities in the translation to a case tree:
+Exact splitting is enabled, but the following clause could not be
+preserved as definitional equalities in the translation to a case
+tree:
   parity (suc m) (suc n) = parity m n
 when checking the definition of parity

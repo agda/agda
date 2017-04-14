@@ -178,8 +178,7 @@ coverageCheck f t cs = do
         warning $ UnreachableClauses f $ map namedClausePats unreached
   -- report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
-  exactSplitEnabled <- optExactSplit <$> pragmaOptions
-  unless (not exactSplitEnabled || null noex) $ do
+  unless (null noex) $ do
       let noexclauses = map (cs !!) (Set.toList noex)
       setCurrentRange (map clauseFullRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses

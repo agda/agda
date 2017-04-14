@@ -541,7 +541,7 @@ warningHighlighting w = case tcWarning w of
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
   UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
-  CoverageNoExactSplit{}     -> coverageErrorHighlighting $ P.getRange w
+  CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedMetaVariables{}    -> mempty
   UnsolvedInteractionMetas{} -> mempty
@@ -591,6 +591,12 @@ unreachableErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
 coverageErrorHighlighting :: P.Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = mempty { otherAspects = [CoverageProblem] }
+
+
+catchallHighlighting :: P.Range -> File
+catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = mempty { otherAspects = [CatchallClause] }
+
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

@@ -74,6 +74,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.PositivityProblem   = icode0 7
   icod_ HP.ReachabilityProblem = icode0 8
   icod_ HP.CoverageProblem     = icode0 9
+  icod_ HP.CatchallClause      = icode0 10
 
   value = vcase valu where
     valu [0] = valu0 HP.Error
@@ -86,6 +87,7 @@ instance EmbPrj HP.OtherAspect where
     valu [7] = valu0 HP.PositivityProblem
     valu [8] = valu0 HP.ReachabilityProblem
     valu [9] = valu0 HP.CoverageProblem
+    valu [10] = valu0 HP.CatchallClause
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
