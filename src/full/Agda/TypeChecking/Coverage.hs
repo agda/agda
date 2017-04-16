@@ -180,7 +180,7 @@ coverageCheck f t cs = do
   -- definitional equalities and --exact-split is enabled
   unless (null noex) $ do
       let noexclauses = map (cs !!) (Set.toList noex)
-      setCurrentRange (map clauseFullRange noexclauses) $
+      setCurrentRange (map clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
 

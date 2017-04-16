@@ -1,4 +1,4 @@
-ExactSplitBerry.agda:9,1-10,26
+ExactSplitBerry.agda:9,1-10,21
 Exact splitting is enabled, but the following clauses could not be
 preserved as definitional equalities in the translation to a case
 tree:
