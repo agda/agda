@@ -1,4 +1,4 @@
-ExactSplitParity.agda:18,1-48
+ExactSplitParity.agda:18,1-29
 Exact splitting is enabled, but the following clause could not be
 preserved as definitional equalities in the translation to a case
 tree:
