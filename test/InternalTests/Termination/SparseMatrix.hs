@@ -267,6 +267,16 @@ prop_interAssocWith_correct xs ys =
     l  = List.sortBy (compare `on` fst) xs
     l' = List.sortBy (compare `on` fst) ys
 
+interAssocWith2 :: Ord i => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
+interAssocWith2 f = zipAssocWith (const []) (const []) (const Nothing) (const Nothing) (\ a -> Just . f a)
+
+prop_interAssocWith_correct2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_interAssocWith_correct2 xs ys =
+  interAssocWith (*) xs ys == interAssocWith2 (*) xs ys
+  where
+    l  = List.sortBy (compare `on` fst) xs
+    l' = List.sortBy (compare `on` fst) ys
+
 -- | Matrix multiplication is well-defined and associative.
 
 prop_mul :: Size Int -> Property

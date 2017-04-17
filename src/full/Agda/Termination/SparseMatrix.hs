@@ -42,6 +42,7 @@ module Agda.Termination.SparseMatrix
   , Diagonal(..)
   , toSparseRows
   , supSize
+  , zipAssocWith
     -- * Modifying matrices
   , addRow
   , addColumn
@@ -349,16 +350,6 @@ interAssocWith f l@((i,a):l') m@((j,b):m')
     | i < j = interAssocWith f l' m
     | i > j = interAssocWith f l m'
     | otherwise = (i, f a b) : interAssocWith f l' m'
-
-interAssocWith2 :: Ord i => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
-interAssocWith2 f = zipAssocWith (const []) (const []) (const Nothing) (const Nothing) (\ a -> Just . f a)
-
-prop_interAssocWith_correct2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_interAssocWith_correct2 xs ys =
-  interAssocWith (*) xs ys == interAssocWith2 (*) xs ys
-  where
-    l  = List.sortBy (compare `on` fst) xs
-    l' = List.sortBy (compare `on` fst) ys
 
 -- | @'mul' semiring m1 m2@ multiplies matrices @m1@ and @m2@.
 --   Uses the operations of the semiring @semiring@ to perform the
