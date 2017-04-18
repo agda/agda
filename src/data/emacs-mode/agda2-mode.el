@@ -1607,8 +1607,13 @@ modified."
       (delete-overlay ol))
      ((or (< beg (+ (overlay-start ol) 2))
           (> end (- (overlay-end ol) 2)))
-      (unless inhibit-read-only
-        (signal 'text-read-only nil))))))
+      (when (listp buffer-undo-list)
+        (push (list 'apply 0 (overlay-start ol) (overlay-end ol)
+                    'move-overlay ol (overlay-start ol) (overlay-end ol))
+              buffer-undo-list))
+      (goto-char (overlay-start ol))
+      (delete-char (- (overlay-end ol) (overlay-start ol)))
+      (delete-overlay ol)))))
 
 (defun agda2-update (old-g new-txt)
   "Update the goal OLD-G.
