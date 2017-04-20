@@ -865,6 +865,11 @@ atTopLevel m = inConcreteMode $ do
           gamma :: ListTel' A.Name
           gamma = fromMaybe __IMPOSSIBLE__ $
                     zipWith' (\ x dom -> (x,) <$> dom) names types
+      reportSDoc "interaction.top" 20 $ TP.vcat
+        [ TP.text "BasicOps.atTopLevel"
+        , TP.text "  names = " TP.<+> TP.sep (map prettyA   names)
+        , TP.text "  types = " TP.<+> TP.sep (map prettyTCM types)
+        ]
       M.withCurrentModule current $
         withScope_ scope $
           addContext gamma $
