@@ -66,8 +66,7 @@ import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
 import Agda.Utils.Except
-  ( Error(strMsg)
-  , ExceptT
+  ( ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   )
@@ -2695,9 +2694,6 @@ data TCErr
       --   Raised for pattern violations during unification ('assignV')
       --   but also in other situations where we want to backtrack.
   deriving (Typeable)
-
-instance Error TCErr where
-  strMsg = Exception noRange . text . strMsg
 
 instance Show TCErr where
   show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)

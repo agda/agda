@@ -100,3 +100,10 @@ allJustM = runMaybeT . mapM MaybeT
 -- allJustM []         = return $ Just []
 -- allJustM (mm : mms) = caseMaybeM mm (return Nothing) $ \ a ->
 --   fmap (a:) <$> allJust mms
+
+-- * Read.
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = case reads s of
+                [(x,"")] -> Just x
+                _        -> Nothing

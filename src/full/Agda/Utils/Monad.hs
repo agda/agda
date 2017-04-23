@@ -17,11 +17,7 @@ import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
 
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , MonadError(catchError, throwError)
-  )
-
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.List
 
 #include "undefined.h"
@@ -184,12 +180,12 @@ localState = bracket_ get put
 
 -- Read -------------------------------------------------------------------
 
-readM :: (Error e, MonadError e m, Read a) => String -> m a
+-- For throwing an error other than 'String' use
+-- 'Agda.Utils.Maybe.readMaybe'.
+readM :: (MonadError String m, Read a) => String -> m a
 readM s = case reads s of
-            [(x,"")]    -> return x
-            _           ->
-              throwError $ strMsg $ "readM: parse error string " ++ s
-
+            [(x,"")] -> return x
+            _        -> throwError $ "readM: parse error string " ++ s
 
 -- RETIRED STUFF ----------------------------------------------------------
 
