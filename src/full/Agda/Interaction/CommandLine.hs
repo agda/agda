@@ -32,7 +32,7 @@ import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Monad
+import Agda.Utils.Maybe ( readMaybe )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -142,14 +142,14 @@ showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 showMetas :: [String] -> TCM ()
 showMetas [m] =
-    do  i <- InteractionId <$> readM m
+    do  let i = InteractionId $ fromMaybe __IMPOSSIBLE__ $ readMaybe m
         withInteractionId i $ do
           s <- typeOfMeta AsIs i
           r <- getInteractionRange i
           d <- showA s
           liftIO $ putStrLn $ d ++ " " ++ show r
 showMetas [m,"normal"] =
-    do  i <- InteractionId <$> readM m
+    do  let i = InteractionId $ fromMaybe __IMPOSSIBLE__ $ readMaybe m
         withInteractionId i $ do
           s <- showA =<< typeOfMeta Normalised i
           r <- getInteractionRange i
@@ -194,7 +194,9 @@ metaParseExpr ii s =
 
 actOnMeta :: [String] -> (InteractionId -> A.Expr -> TCM a) -> TCM a
 actOnMeta (is:es) f =
-     do  i <- readM is
+     do  i <- case readMaybe is of
+                Just is' -> return is'
+                Nothing  -> __IMPOSSIBLE__
          let ii = InteractionId i
          e <- metaParseExpr ii (unwords es)
          withInteractionId ii $ f ii e
@@ -263,7 +265,7 @@ typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 
 showContext :: [String] -> TCM ()
 showContext (meta:args) = do
-    i <- InteractionId <$> readM meta
+    let i = InteractionId $ fromMaybe __IMPOSSIBLE__ $ readMaybe meta
     mi <- lookupMeta =<< lookupInteractionId i
     withMetaInfo (getMetaInfo mi) $ do
       ctx <- List.map unDom . telToList <$> getContextTelescope

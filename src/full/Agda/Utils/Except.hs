@@ -4,8 +4,7 @@
 ------------------------------------------------------------------------------
 
 module Agda.Utils.Except
-  ( Error(noMsg, strMsg)
-  , ExceptT
+  ( ExceptT
   , mapExceptT
   , mkExceptT
   , MonadError(catchError, throwError)
@@ -21,17 +20,3 @@ import Control.Monad.Except
 -- @ExceptT@.
 mkExceptT :: m (Either e a) -> ExceptT e m a
 mkExceptT = ExceptT
-
--- | Error class for backward compatibility (from
--- Control.Monad.Trans.Error in transformers 0.3.0.0).
-
-class Error a where
-  noMsg  :: a
-  strMsg :: String -> a
-
-  noMsg    = strMsg ""
-  strMsg _ = noMsg
-
--- | A string can be thrown as an error.
-instance Error String where
-  strMsg = id
