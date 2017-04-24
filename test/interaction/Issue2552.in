@@ -1,0 +1,7 @@
+top_command (cmd_load currentFile [])
+
+-- Should be "Set".
+top_command (cmd_infer_toplevel Normalised "A")
+
+-- Should be "lzero".
+top_command (cmd_compute_toplevel DefaultCompute "foo")

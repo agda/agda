@@ -114,12 +114,15 @@ type LocalVars = AssocList C.Name LocalVar
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report
 --   a scope error.
-data LocalVar
-  = LocalVar    { localVar :: A.Name }
+data LocalVar = LocalVar
+  { localVar        :: A.Name
     -- ^ Unique ID of local variable.
-  | ShadowedVar { localVar :: A.Name, localShadowedBy :: [AbstractName] }
-    -- ^ This local variable is shadowed by one or more imports.
-    --   (List not empty).
+  , localLetBound   :: Bool
+    -- ^ Flag whether the variable is introduced by a @let@.
+  , localShadowedBy :: [AbstractName]
+     -- ^ If this list is not empty, the local variable is
+     --   shadowed by one or more imports.
+  }
   deriving (Typeable)
 
 instance Eq LocalVar where
@@ -130,19 +133,18 @@ instance Ord LocalVar where
 
 -- | We show shadowed variables as prefixed by a ".", as not in scope.
 instance Show LocalVar where
-  show (LocalVar    x)    = show x
-  show (ShadowedVar x xs) = "." ++ show x
+  show (LocalVar x _ []) = show x
+  show (LocalVar x _ xs) = "." ++ show x
 
 -- | Shadow a local name by a non-empty list of imports.
 shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
 shadowLocal [] _ = __IMPOSSIBLE__
-shadowLocal ys (LocalVar    x   ) = ShadowedVar x ys
-shadowLocal ys (ShadowedVar x zs) = ShadowedVar x (ys ++ zs)
+shadowLocal ys (LocalVar x b zs) = LocalVar x b (ys ++ zs)
 
 -- | Project name of unshadowed local variable.
 notShadowedLocal :: LocalVar -> Maybe A.Name
-notShadowedLocal (LocalVar x) = Just x
-notShadowedLocal ShadowedVar{} = Nothing
+notShadowedLocal (LocalVar x _ []) = Just x
+notShadowedLocal _ = Nothing
 
 -- | Get all locals that are not shadowed __by imports__.
 notShadowedLocals :: LocalVars -> AssocList C.Name A.Name

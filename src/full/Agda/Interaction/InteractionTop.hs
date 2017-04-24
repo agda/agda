@@ -1333,8 +1333,8 @@ whyInScope s = display_info . Info_WhyInScope =<< do
             asVar = do
               TCP.text "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
             shadowing :: LocalVar -> TCM Doc
-            shadowing LocalVar{}    = TCP.text "shadowing"
-            shadowing ShadowedVar{} = TCP.text "in conflict with"
+            shadowing (LocalVar _ _ [])    = TCP.text "shadowing"
+            shadowing _ = TCP.text "in conflict with"
         names   xs = TCP.vcat $ map pName xs
         modules ms = TCP.vcat $ map pMod ms
 

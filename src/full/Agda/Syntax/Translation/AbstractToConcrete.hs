@@ -178,7 +178,7 @@ bindName x ret = do
     False          ->
         local (\e -> e { takenNames   = Set.insert y $ takenNames e
                        , currentScope = (`updateScopeLocals` currentScope e) $
-                           AssocList.insert y (LocalVar x)
+                           AssocList.insert y (LocalVar x __IMPOSSIBLE__ [])
                        }
               ) $ ret y
 

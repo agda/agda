@@ -124,7 +124,7 @@ parseVariables f tel ii rng ss = do
 
         -- If s is a variable name in scope, get its de Bruijn index
         -- via the type checker.
-        VarName x -> do
+        VarName x _ -> do
           (v, _) <- getVarInfo x
           case ignoreSharing v of
             Var i [] -> done $ i - nlocals
