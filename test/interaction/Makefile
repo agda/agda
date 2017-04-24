@@ -23,7 +23,8 @@ endif
 
 clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
 
-AgdaFiles=$(shell ls *agda)
+# Andreas, 2017-04-24 ls -t: sort by newest first
+AgdaFiles=$(shell ls -t *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
 Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 
