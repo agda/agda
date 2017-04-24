@@ -201,13 +201,26 @@ freshAbstractQName fx x = do
 -- * Resolving names
 
 data ResolvedName
-  = VarName A.Name
-  | DefinedName Access AbstractName
-  | FieldName [AbstractName]
-      -- ^ record fields names need to be distinguished to parse copatterns
-  | ConstructorName [AbstractName]
-  | PatternSynResName AbstractName
-  | UnknownName
+  =   -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
+    VarName
+    { resolvedVar      :: A.Name
+    , resolvedLetBound :: Bool    -- ^ Variable bound by @let@?
+    }
+
+  |   -- | Function, data/record type, postulate.
+    DefinedName Access AbstractName
+
+  |   -- | Record field name.  Needs to be distinguished to parse copatterns.
+    FieldName [AbstractName]
+
+  |   -- | Data or record constructor name.
+    ConstructorName [AbstractName]
+
+  |   -- | Name of pattern synonym.
+    PatternSynResName AbstractName
+
+  |   -- | Unbound name.
+    UnknownName
   deriving (Show, Eq)
 
 -- | Look up the abstract name referred to by a given concrete name.
@@ -225,16 +238,16 @@ resolveName' ::
 resolveName' kinds names x = do
   scope <- getScope
   let vars     = AssocList.mapKeysMonotonic C.QName $ scopeLocals scope
-      retVar y = return $ VarName $ y { nameConcrete = unqualify x }
+      retVar y = return . VarName y{ nameConcrete = unqualify x }
       aName    = A.qnameName . anameName
   case lookup x vars of
     -- Case: we have a local variable x.
-    Just (LocalVar y)  -> retVar y
+    Just (LocalVar y b []) -> retVar y b
     -- Case: ... but is (perhaps) shadowed by some imports.
-    Just (ShadowedVar y ys) -> case names of
+    Just (LocalVar y b ys) -> case names of
       Nothing -> shadowed ys
-      Just ns -> case filter (\y -> aName y `Set.member` ns) ys of
-        [] -> retVar y
+      Just ns -> case filter (\ y -> aName y `Set.member` ns) ys of
+        [] -> retVar y b
         ys -> shadowed ys
       where
       shadowed ys =
@@ -285,7 +298,7 @@ getNotation
 getNotation x ns = do
   r <- resolveName' allKindsOfNames (Just ns) x
   case r of
-    VarName y           -> return $ namesToNotation x y
+    VarName y _         -> return $ namesToNotation x y
     DefinedName _ d     -> return $ notation d
     FieldName ds        -> return $ oneNotation ds
     ConstructorName ds  -> return $ oneNotation ds
@@ -300,9 +313,13 @@ getNotation x ns = do
 
 -- * Binding names
 
--- | Bind a variable. The abstract name is supplied as the second argument.
-bindVariable :: C.Name -> A.Name -> ScopeM ()
-bindVariable x y = modifyScope_ $ updateScopeLocals $ AssocList.insert x $ LocalVar y
+-- | Bind a variable.
+bindVariable
+  :: Bool    -- ^ Let-bound variable?
+  -> C.Name  -- ^ Concrete name.
+  -> A.Name  -- ^ Abstract name.
+  -> ScopeM ()
+bindVariable b x y = modifyScope_ $ updateScopeLocals $ AssocList.insert x $ LocalVar y b []
 
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
@@ -314,7 +331,7 @@ bindName acc kind x y = do
     UnknownName   | isNoName x -> success
     DefinedName{} | isNoName x -> success <* modifyCurrentScope (removeNameFromScope PrivateNS x)
     DefinedName _ d     -> clash $ anameName d
-    VarName z           -> clash $ A.qualify (mnameFromList []) z
+    VarName z _         -> clash $ A.qualify (mnameFromList []) z
     FieldName       ds  -> ambiguous FldName ds
     ConstructorName ds  -> ambiguous ConName ds
     PatternSynResName n -> clash $ anameName n

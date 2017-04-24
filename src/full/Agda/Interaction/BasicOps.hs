@@ -851,8 +851,19 @@ atTopLevel m = inConcreteMode $ do
       tel <- lookupSection current
       -- Get the names of the local variables from @scope@
       -- and put them into the context.
+      --
+      -- Andreas, 2017-04-24, issue #2552:
+      --
+      -- Delete the let-bound ones, since they are not represented
+      -- in the module telescope.
+      --
+      -- This is a temporary fix until a better solution is available,
+      -- e.g., when the module telescope represents let-bound variables.
+      --
+      -- Unfortunately, referring to let-bound variables
+      -- from the top level module telescope will for now result in a not-in-scope error.
       let names :: [A.Name]
-          names = map (localVar . snd) $ reverse $ scopeLocals scope
+          names = map localVar $ filter ((False ==) . localLetBound) $ map snd $ reverse $ scopeLocals scope
       -- Andreas, 2016-12-31, issue #2371
       -- The following is an unnecessary complication, as shadowed locals
       -- are not in scope anyway (they are ambiguous).

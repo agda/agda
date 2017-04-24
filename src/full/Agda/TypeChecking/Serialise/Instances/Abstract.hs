@@ -108,12 +108,10 @@ instance EmbPrj KindOfName where
     valu _   = malformed
 
 instance EmbPrj LocalVar where
-  icod_ (LocalVar a)      = icode1' a
-  icod_ (ShadowedVar a b) = icode2' a b
+  icod_ (LocalVar a b c)  = icode3' a b c
 
   value = vcase valu where
-    valu [a]    = valu1 LocalVar a
-    valu [a, b] = valu2 ShadowedVar a b
+    valu [a, b, c] = valu3 LocalVar a b c
     valu _      = malformed
 
 instance EmbPrj ConPatInfo where

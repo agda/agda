@@ -527,7 +527,11 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 
 -- Names ------------------------------------------------------------------
 
-newtype NewName a = NewName a
+data NewName a = NewName
+  { newLetBound :: Bool -- bound by a @let@?
+  , newName     :: a
+  }
+
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
@@ -537,15 +541,15 @@ data PatName      = PatName C.QName (Maybe (Set A.Name))
   -- of the names in the set.
 
 instance ToAbstract (NewName C.Name) A.Name where
-  toAbstract (NewName x) = do
+  toAbstract (NewName b x) = do
     y <- freshAbstractName_ x
-    bindVariable x y
+    bindVariable b x y
     return y
 
 instance ToAbstract (NewName C.BoundName) A.Name where
-  toAbstract (NewName BName{ boundName = x, bnameFixity = fx }) = do
+  toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
     y <- freshAbstractName fx x
-    bindVariable x y
+    bindVariable b x y
     return y
 
 instance ToAbstract OldQName A.Expr where
@@ -553,7 +557,7 @@ instance ToAbstract OldQName A.Expr where
     qx <- resolveName' allKindsOfNames ns x
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
-      VarName x'          -> return $ A.Var x'
+      VarName x' _        -> return $ A.Var x'
       DefinedName _ d     -> return $ nameExpr d
       FieldName     ds    -> return $ A.Proj ProjPrefix $ AmbQ (map anameName ds)
       ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
@@ -572,7 +576,7 @@ instance ToAbstract PatName APatName where
           -- be meant since we are in a pattern
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
-      (VarName y,       C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
+      (VarName y _,     C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
       (FieldName d,     C.QName x)                          -> return $ Left x
       (DefinedName _ d, C.QName x) | DefName == anameKind d -> return $ Left x
       (UnknownName,     C.QName x)                          -> return $ Left x
@@ -582,7 +586,7 @@ instance ToAbstract PatName APatName where
     case z of
       Left x  -> do
         reportSLn "scope.pat" 10 $ "it was a var: " ++ show x
-        p <- VarPatName <$> toAbstract (NewName x)
+        p <- VarPatName <$> toAbstract (NewName False x)
         printLocals 10 "bound it:"
         return p
       Right (Left ds) -> do
@@ -610,7 +614,7 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       FieldName (d:_)         -> return $ anameName d
       FieldName []            -> __IMPOSSIBLE__
       PatternSynResName d     -> return $ anameName d
-      VarName x               -> typeError $ GenericError $ "Not a defined name: " ++ show x
+      VarName x _             -> typeError $ GenericError $ "Not a defined name: " ++ show x
       UnknownName             -> notInScope (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
@@ -888,7 +892,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Quoting
       C.QuoteGoal _ x e -> do
-        x' <- toAbstract (NewName x)
+        x' <- toAbstract (NewName False x)
         e' <- toAbstract e
         return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
       C.QuoteContext r -> return $ A.QuoteContext (ExprRange r)
@@ -921,7 +925,7 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree info x) = A.DomainFree info <$> toAbstract (NewName x)
+  toAbstract (C.DomainFree info x) = A.DomainFree info <$> toAbstract (NewName False x)
   toAbstract (C.DomainFull tb)     = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBindings
@@ -936,7 +940,7 @@ instance ToAbstract C.TypedBindings A.TypedBindings where
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract $ map (fmap NewName) xs
+    xs' <- toAbstract $ map (fmap (NewName False)) xs
     return $ A.TBind r xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
@@ -1208,7 +1212,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 genericError $ "Macros cannot be defined in a let expression."
               (x', e) <- letToAbstract cl
               t <- toAbstract t
-              x <- toAbstract (NewName $ mkBoundName x fx)
+              x <- toAbstract (NewName True $ mkBoundName x fx)
               -- If InstanceDef set info to Instance
               let info' | instanc == InstanceDef = setHiding Instance info
                         | otherwise              = info
@@ -1582,8 +1586,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       bindName PublicAccess PatternSynName n y
       modifyPatternSyns (Map.insert y defn)
       return [A.PatternSynDef y as p]   -- only for highlighting
-      where unVarName (VarName a) = return a
-            unVarName _           = typeError $ UnusedVariableInPatternSynonym
+      where unVarName (VarName a _) = return a
+            unVarName _ = typeError $ UnusedVariableInPatternSynonym
 
     where
       -- checking postulate or type sig. without checking safe flag
@@ -1796,7 +1800,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     (isPatSyn, hd) <- do
       qx <- resolveName' allKindsOfNames Nothing top
       case qx of
-        VarName x'          -> return . (False,) $ A.qnameFromList [x']
+        VarName x' _        -> return . (False,) $ A.qnameFromList [x']
         DefinedName _ d     -> return . (False,) $ anameName d
         FieldName     [d]    -> return . (False,) $ anameName d
         FieldName ds         -> genericError $ "Ambiguous projection " ++ show top ++ ": " ++ show (map anameName ds)
@@ -2105,7 +2109,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
     toAbstract p0@(C.AsP r x p) = do
-        x <- toAbstract (NewName x)
+        x <- toAbstract (NewName False x)
         p <- toAbstract p
         return $ A.AsP info x p
         where
