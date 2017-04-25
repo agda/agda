@@ -88,7 +88,7 @@ The general form of a record declaration is as follows:
 
    record <recordname> <parameters> : Set <level> where
      <directives>
-     constructor <operator>
+     constructor <constructorname>
      field
        <fieldname1> : <type1>
        <fieldname2> : <type2>
@@ -97,10 +97,8 @@ The general form of a record declaration is as follows:
 
 All the components are optional, and can be given in any order. In
 particular, fields can be given in more than one block, interspersed
-with other declarations.
-
-Each field is a component of the record. Types of later fields can
-depend on earlier fields.
+with other declarations. Each field is a component of the
+record. Types of later fields can depend on earlier fields.
 
 The directives available are ``eta-equality``, ``no-eta-equality``
 (see :ref:`eta-expansion`), ``inductive`` and ``co-inductive`` (see
@@ -116,12 +114,12 @@ Record values are constructed by giving a value for each record field:
    record { <fieldname1> = <term1> ; <fieldname2> = <term2> ; ... }
 
 where the types of the terms matches the types of the fields. If a
-constructor ``<operator>`` has been declared for the record, this can
-also be written
+constructor ``<constructorname>`` has been declared for the record,
+this can also be written
 
 .. code-block:: agda
 
-   <operator> <term1> <term2> ...
+   <constructorname> <term1> <term2> ...
 
 For named definitions, this can also be expressed using copatterns:
 
