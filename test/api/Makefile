@@ -10,7 +10,7 @@ all : Issue1168.api PrettyInterface.api
 	$(AGDA) $<
 
 %.api : %.agdai %.hs
-	$(eval tmpdir = $(shell mktemp -d))
+	$(eval tmpdir = $(shell mktemp -d /tmp/api-test.XXXX))
 	ghc -Wall -Werror -package Agda-$(VERSION) -o $(tmpdir)/$* $*.hs
 	$(tmpdir)/$*
 	rm -r $(tmpdir)
