@@ -1,30 +1,31 @@
-module InstanceArguments.10-localInstances where
+module localInstances where
 
-import Data.Empty as E
-open import Data.String using (String; toList; _≟_)
-open import Data.Bool using (Bool; true; false; if_then_else_)
-open import Data.Nat using (ℕ) renaming (_≟_ to _ℕ≟_)
-import Data.List as List
-open import Relation.Nullary.Decidable using (⌊_⌋)
-open import Function using (_on_; _∘_)
+open import Agda.Builtin.Nat renaming (Nat to ℕ)
+open import Agda.Builtin.Bool
+open import Common.String
+open import Common.List
 
 record Eq (A : Set) : Set where
   field eq : A → A → Bool
 
-length : String → ℕ
-length = List.length ∘ toList
+strlen : String → ℕ
+strlen s = length (stringToList s)
+
+if_then_else_ : {A : Set} → Bool → A → A → A
+if true  then x else y = x
+if false then x else y = y
 
 open Eq {{...}}
 
 instance
   eqℕ : Eq ℕ
-  eqℕ = record { eq = λ x x' → ⌊ x ℕ≟ x' ⌋ }
+  eqℕ = record { eq = λ x x' → x == x' }
 
 eqString₁ : String → String → Bool
-eqString₁ s₁ s₂ = ⌊ s₁ ≟ s₂ ⌋
+eqString₁ s₁ s₂ = strEq s₁ s₂
 
 eqString₂ : String → String → Bool
-eqString₂ = eq on length
+eqString₂ s₁ s₂ = eq (strlen s₁) (strlen s₂)
 
 testWhere : Bool → Bool
 testWhere lengthEq = if eq "abcd" "dcba" then false else true
