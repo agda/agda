@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   _36 := refl [blocked on problem 49]
-  [49, 52, 56, 58] wrap zero = true : _35
-  [49, 52] _34 := Wrap Nat [blocked on problem 53]
+  [49, 52, 56, 58] wrap zero = true : _35 true
+  [49, 52] _34 := λ _ → Wrap Nat [blocked on problem 53]
   [49, 52] _32 := Bool [blocked on problem 53]
   [49, 52, 53, 55] Wrap Nat = Foo _28 : Set
   [49, 52, 53] _30 := Bool [blocked on problem 54]

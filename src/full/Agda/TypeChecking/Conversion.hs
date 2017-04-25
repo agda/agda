@@ -716,8 +716,9 @@ compareRelevance CmpLeq = (<=)
 antiUnify :: ProblemId -> Type -> Term -> Term -> TCM Term
 antiUnify pid a u v = do
   ((u, v), eq) <- runReduceM (SynEq.checkSyntacticEquality u v)
+  if eq then return u else do
+  (u, v) <- reduce (u, v)
   case (ignoreSharing u, ignoreSharing v) of
-    _ | eq -> return u
     (Pi ua ub, Pi va vb) -> do
       wa0 <- antiUnifyType pid (unDom ua) (unDom va)
       let wa = wa0 <$ ua
