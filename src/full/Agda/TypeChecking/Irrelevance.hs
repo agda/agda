@@ -50,7 +50,7 @@ workOnTypes cont = do
 workOnTypes' :: Bool -> TCM a -> TCM a
 workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance f) cont
   where
-    f | experimental = irrToNonStrict
+    f | experimental = irrToNonStrict . nonStrictToRel
       | otherwise    = nonStrictToRel
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
