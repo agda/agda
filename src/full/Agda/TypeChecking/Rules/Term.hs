@@ -290,7 +290,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modRel PiNotLam xp = if xp then irrToNonStrict else nonStrictToRel
+        modRel PiNotLam xp = if xp then irrToNonStrict . nonStrictToRel else nonStrictToRel
         modRel _        _  = id
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
