@@ -356,30 +356,32 @@ instance Apply Clause where
             VarP (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
+            ConP c _ ps' -> mkSub tm n (ps' ++ ps) (projections c v ++ vs)
             LitP{}  -> __IMPOSSIBLE__
-            ConP q _ [] -> mkSub tm n ps vs
-            ConP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
         mkSub _ _ _ _ = __IMPOSSIBLE__
 
-        -- The parameter patterns 'ps' are all variables or dot patterns. If they
-        -- are variables they can appear anywhere in the clause telescope. This
-        -- function constructs the new telescope with 'vs' substituted for 'ps'.
+        -- The parameter patterns 'ps' are all variables or dot patterns, or eta
+        -- expanded record patterns (issue #2550). If they are variables they
+        -- can appear anywhere in the clause telescope. This function
+        -- constructs the new telescope with 'vs' substituted for 'ps'.
         -- Example:
         --    tel = (x : A) (y : B) (z : C) (w : D)
         --    ps  = y@3 w@0
         --    vs  = u v
         --    newTel tel ps vs = (x : A) (z : C[u/y])
+        newTel :: Nat -> Telescope -> [NamedArg DeBruijnPattern] -> [Term] -> Telescope
         newTel n tel [] [] = tel
         newTel n tel (p : ps) (v : vs) =
           case namedArg p of
             VarP (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
+            ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
             LitP{}              -> __IMPOSSIBLE__
-            ConP q _ [] -> newTel n tel ps vs
-            ConP{}              -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
         newTel _ tel _ _ = __IMPOSSIBLE__
+
+        projections c v = [ applyE v [Proj ProjSystem f] | f <- conFields c ]
 
         -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
         subTel i v EmptyTel = __IMPOSSIBLE__

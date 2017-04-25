@@ -59,7 +59,6 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
-import {-# SOURCE #-} Agda.TypeChecking.RecordPatterns
 
 import Agda.Interaction.Options ( optPostfixProjections )
 
@@ -623,7 +622,7 @@ reifyTerm expandAnonDefs0 v = do
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
       -- (this is taken care of by @apply@).
-      cls <- mapM (reify . NamedClause x False . (`applyE` pars) <=< translateRecordPatterns) cls
+      cls <- mapM (reify . NamedClause x False . (`applyE` pars)) cls
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
       elims (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
