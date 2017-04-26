@@ -193,7 +193,7 @@ instance Pretty ParseError where
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
       [ pretty errPath <> colon <+>
         text "Unsupported extension."
-      , text "Supported extensions are:" <+> prettyList errValidExts
+      , text "Supported extensions are:" <+> prettyList_ errValidExts
       ]
   pretty ReadFileError{errPath,errIOError} = vcat
       [ text "Cannot read file" <+> pretty errPath

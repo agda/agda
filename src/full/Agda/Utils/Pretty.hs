@@ -23,19 +23,16 @@ import Text.PrettyPrint hiding (TextDetails(Str), empty)
 class Pretty a where
   pretty      :: a -> Doc
   prettyPrec  :: Int -> a -> Doc
+  prettyList  :: [a] -> Doc
 
   pretty      = prettyPrec 0
   prettyPrec  = const pretty
+  prettyList  = brackets . prettyList_
 
 -- | Use instead of 'show' when printing to world.
 
 prettyShow :: Pretty a => a -> String
 prettyShow = render . pretty
-
--- | Space separated list of pretty things.
-
-prettyList :: Pretty a => [a] -> Doc
-prettyList = sep . map (prettyPrec 10000)
 
 -- * Pretty instances
 
@@ -46,16 +43,17 @@ instance Pretty Integer where pretty = text . show
 
 instance Pretty Char where
   pretty c = text [c]
+  prettyList = text
 
 instance Pretty Doc where
   pretty = id
 
-instance Pretty String where
-  pretty = text
-
 instance Pretty a => Pretty (Maybe a) where
   prettyPrec p Nothing  = text "Nothing"
   prettyPrec p (Just x) = mparens (p > 0) $ text "Just" <+> prettyPrec 10 x
+
+instance Pretty a => Pretty [a] where
+  pretty = prettyList
 
 -- * 'Doc' utilities
 
@@ -64,6 +62,10 @@ pwords = map text . words
 
 fwords :: String -> Doc
 fwords = fsep . pwords
+
+-- | Comma separated list, without the brackets.
+prettyList_ :: Pretty a => [a] -> Doc
+prettyList_ = fsep . punctuate comma . map pretty
 
 -- ASR (2016-12-13): In pretty >= 1.1.2.0 the below function 'mparens'
 -- is called 'maybeParens'. I didn't use that name due to the issue
