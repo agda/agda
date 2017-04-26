@@ -335,21 +335,22 @@ sizePolarity d pol0 = do
       _ -> exit
 
 -- | @checkSizeIndex d np i a@ checks that constructor target type @a@
---   has form @d ps (↑ i) idxs@ where @|ps| = np@.
+--   has form @d ps (↑ⁿ i) idxs@ where @|ps| = np@.
 --
 --   Precondition: @a@ is reduced and of form @d ps idxs0@.
 checkSizeIndex :: QName -> Nat -> Nat -> Type -> TCM Bool
 checkSizeIndex d np i a = do
-  reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $
-    text "checking that constructor target type " <+> prettyTCM a <+>
-    text "is data type " <+> prettyTCM d <+>
-    text "has size index successor of " <+> prettyTCM (var i)
+  reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat
+    [ text "checking that constructor target type " <+> prettyTCM a
+    , text "  is data type " <+> prettyTCM d
+    , text "  and has size index (successor(s) of) " <+> prettyTCM (var i)
+    ]
   case ignoreSharing $ unEl a of
     Def d0 es -> do
       whenNothingM (sameDef d d0) __IMPOSSIBLE__
       s <- deepSizeView $ unArg ix
       case s of
-        DSizeVar j 1 | i == j
+        DSizeVar j _ | i == j
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
       where

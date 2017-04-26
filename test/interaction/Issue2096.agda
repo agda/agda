@@ -49,7 +49,7 @@ ccont : ∀ {m A B Γ} → Γ ⊢⟨ ↑ ↑ ↑ ↑ m ⟩ (A ⊃ A ⊃ B) ⊃ A
 ccont = lam (lam (app (app (var (pop top)) (var top)) (var top)))
 
 cont : ∀ {m A B Γ} {m′ : Size< m} → (Γ , A) , A ⊢⟨ ↑ ↑ m′ ⟩ B → Γ , A ⊢⟨ ↑ ↑ ↑ ↑ ↑ m ⟩ B
-cont t = det (app ccont (lam (lam t)))
+cont {m = m} {m′ = m′} t = det (app {m = ↑ ↑ ↑ ↑ m} ccont (lam (lam t)))
 
 cont′ : ∀ {q A B Γ} {r : Size< q} → (Γ , A) , A ⊢⟨ {!q!} ⟩ B → Γ , A ⊢⟨ {!!} ⟩ B
 cont′ t = det (app ccont (lam (lam t)))
