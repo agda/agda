@@ -286,15 +286,13 @@ instance Pretty LHSCore where
     pretty d : map (parens . pretty) ps ++
     parens (pretty lhscore) : map (parens . pretty) ps'
 
-instance Pretty [Declaration] where
-  pretty = vcat . map pretty
-
 instance Show ModuleApplication where show = show . pretty
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> text "=" <+> pretty e
   pretty (RecordModuleIFS _ rec) = text "=" <+> pretty rec <+> text "{{...}}"
 
 instance Pretty Declaration where
+    prettyList = vcat . map pretty
     pretty d =
         case d of
             TypeSig i x e ->
@@ -505,8 +503,7 @@ instance Pretty GenPart where
     pretty NormalHole{} = underscore
     pretty WildHole{}   = underscore
 
-instance Pretty Notation where
-    pretty = hcat . map pretty
+    prettyList = hcat . map pretty
 
 instance Pretty Fixity' where
     pretty (Fixity' fix nota _)
@@ -524,10 +521,8 @@ instance Pretty e => Pretty (Named_ e) where
     prettyPrec p (Named Nothing e) = prettyPrec p e
     prettyPrec p (Named (Just s) e) = mparens (p > 0) $ sep [ text (rawNameToString $ rangedThing s) <+> text "=", pretty e ]
 
-instance Pretty [Pattern] where
-    pretty = fsep . map pretty
-
 instance Pretty Pattern where
+    prettyList = fsep . map pretty
     pretty p =
         case p of
             IdentP x        -> pretty x

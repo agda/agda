@@ -522,8 +522,8 @@ translateRecordPatterns clause = do
       , text "Intermediate results:"
       , nest 2 $ vcat
         [ text "ps        =" <+> text (show ps)
-        , text "s         =" <+> prettyList (map prettyTCM s)
-        , text "cs        =" <+> prettyList (map prettyTCM cs)
+        , text "s         =" <+> prettyTCM s
+        , text "cs        =" <+> prettyTCM cs
         , text "flattenedOldTel =" <+> (text . show) flattenedOldTel
         , text "newTel'   =" <+> (text . show) newTel'
         , text "newPerm   =" <+> prettyTCM newPerm

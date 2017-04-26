@@ -116,7 +116,7 @@ parens d   = P.parens <$> d
 
 -- | Comma-separated list in brackets.
 prettyList :: [TCM Doc] -> TCM Doc
-prettyList ds = brackets $ fsep $ punctuate comma ds
+prettyList ds = P.pretty <$> sequence ds
 
 -- | 'prettyList' without the brackets.
 prettyList_ :: [TCM Doc] -> TCM Doc
@@ -149,11 +149,7 @@ instance PrettyTCM Range       where prettyTCM = pretty
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 
-#if __GLASGOW_HASKELL__ >= 710
-instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
-#else
 instance PrettyTCM a => PrettyTCM [a] where
-#endif
   prettyTCM = prettyList . map prettyTCM
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
