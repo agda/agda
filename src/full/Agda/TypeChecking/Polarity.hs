@@ -85,16 +85,36 @@ nextPolarity (p : ps) = (p, ps)
 purgeNonvariant :: [Polarity] -> [Polarity]
 purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
+
+-- | A quick transliterations of occurrences to polarities.
+polarityFromPositivity :: QName -> TCM ()
+polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
+
+  -- Get basic polarity from positivity analysis.
+  let npars = droppedPars def
+  let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
+  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
+
+  -- set the polarity in the signature (not the final polarity, though)
+  setPolarity x $ drop npars pol0
+
 ------------------------------------------------------------------------
 -- * Computing the polarity of a symbol.
 ------------------------------------------------------------------------
 
 -- | Main function of this module.
-computePolarity :: QName -> TCM ()
-computePolarity x = inConcreteOrAbstractMode x $ \ def -> do
-  reportSLn "tc.polarity.set" 25 $ "Computing polarity of " ++ show x
+computePolarity :: [QName] -> TCM ()
+computePolarity xs = do
 
-  -- get basic polarity from positivity analysis
+ -- Andreas, 2017-04-26, issue #2554
+ -- First, for mutual definitions, obtain a crude polarity from positivity.
+ when (length xs >= 2) $ mapM_ polarityFromPositivity xs
+
+ -- Then, refine it.
+ forM_ xs $ \ x -> inConcreteOrAbstractMode x $ \ def -> do
+  reportSLn "tc.polarity.set" 25 $ "Refining polarity of " ++ show x
+
+  -- Again: get basic polarity from positivity analysis.
   let npars = droppedPars def
   let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
   reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
@@ -335,21 +355,22 @@ sizePolarity d pol0 = do
       _ -> exit
 
 -- | @checkSizeIndex d np i a@ checks that constructor target type @a@
---   has form @d ps (↑ i) idxs@ where @|ps| = np@.
+--   has form @d ps (↑ⁿ i) idxs@ where @|ps| = np@.
 --
 --   Precondition: @a@ is reduced and of form @d ps idxs0@.
 checkSizeIndex :: QName -> Nat -> Nat -> Type -> TCM Bool
 checkSizeIndex d np i a = do
-  reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $
-    text "checking that constructor target type " <+> prettyTCM a <+>
-    text "is data type " <+> prettyTCM d <+>
-    text "has size index successor of " <+> prettyTCM (var i)
+  reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat
+    [ text "checking that constructor target type " <+> prettyTCM a
+    , text "  is data type " <+> prettyTCM d
+    , text "  and has size index (successor(s) of) " <+> prettyTCM (var i)
+    ]
   case ignoreSharing $ unEl a of
     Def d0 es -> do
       whenNothingM (sameDef d d0) __IMPOSSIBLE__
       s <- deepSizeView $ unArg ix
       case s of
-        DSizeVar j 1 | i == j
+        DSizeVar j _ | i == j
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
       where

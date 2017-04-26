@@ -1,4 +1,4 @@
--- Andreas, 2015-06-11, issue reported by Peter Thiemann
+-- Andreas, 2015-06-11, issue #1560 reported by Peter Thiemann
 -- Ulf, 2015-09-23:
 --   This test was still taking 12s, which is annoyingly much.
 --   I commented out a few of the constructors to bring it down
@@ -7,7 +7,8 @@
 
 open import Common.Coinduction
 
-mutual
+module _ where
+-- mutual -- Andreas, 2017-04-26: removing fake mutual speeds up from 1.8s to 1.3s
 
   -- an stype
 

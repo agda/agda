@@ -291,8 +291,6 @@ checkRecDef i name ind eta con ps contel fields =
           setDefaultModuleParameters m
           checkRecordProjections m name hasNamedCon con tel' (raise 1 ftel) fields
 
-        -- Andreas 2012-02-13: postpone polarity computation until after positivity check
-        -- computePolarity name
 
       -- we define composition here so that the projections are already in the signature.
       escapeContext npars $ do
@@ -587,7 +585,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 , funCopatternLHS   = isCopatternLHS [clause]
                 })
               { defArgOccurrences = [StrictPos] }
-          computePolarity projname
+          computePolarity [projname]
           when (Info.defInstance info == InstanceDef) $
             addTypedInstance projname finalt
 

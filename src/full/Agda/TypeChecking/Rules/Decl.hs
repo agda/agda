@@ -429,7 +429,7 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   -- Andreas, 2012-02-13: Polarity computation uses info from
   -- positivity check, so it needs happen after positivity
   -- check.
-  mapM_ computePolarity $ Set.toList names
+  computePolarity $ Set.toList names
 
 -- | Check that all coinductive records are actually recursive.
 --   (Otherwise, one can implement invalid recursion schemes just like

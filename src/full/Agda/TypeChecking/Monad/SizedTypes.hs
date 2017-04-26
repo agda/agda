@@ -42,6 +42,12 @@ data BoundedSize
 class IsSizeType a where
   isSizeType :: a -> TCM (Maybe BoundedSize)
 
+instance IsSizeType a => IsSizeType (Dom a) where
+  isSizeType = isSizeType . unDom
+
+instance IsSizeType a => IsSizeType (b,a) where
+  isSizeType = isSizeType . snd
+
 instance IsSizeType a => IsSizeType (Type' a) where
   isSizeType = isSizeType . unEl
 
