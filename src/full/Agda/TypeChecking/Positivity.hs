@@ -45,6 +45,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Function (applyUnless)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -107,6 +108,9 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     -- If the mutuality information has never been set, we set it to []
     AcyclicSCC (DefNode q) -> whenM (isNothing <$> getMutual q) $ do
       reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to non-recursive"
+      -- Andreas, 2017-04-26, issue #2555
+      -- We should not have @DefNode@s pointing outside our formal mutual block.
+      unless (Set.member q qset) __IMPOSSIBLE__
       setMutual q []
     AcyclicSCC (ArgNode{}) -> return ()
     CyclicSCC scc          -> setMut [ q | DefNode q <- scc ]
@@ -744,16 +748,20 @@ computeEdges muts q ob =
                          [ mkEdge to pol ob | ob <- obs ]
     OccursAs' w ob  -> do (to, pol) <- mkEdge' to pol w
                           mkEdge to pol ob
-    OccursHere' i o -> return $
-                         if null pol
-                         then id
-                         else (Graph.Edge
-                                 { Graph.source = case i of
-                                                    AnArg i -> ArgNode q i
-                                                    ADef q  -> DefNode q
-                                 , Graph.target = to
-                                 , Graph.label  = Edge pol o
-                                 } :)
+    OccursHere' (AnArg i) o ->
+      return $ applyUnless (null pol) (Graph.Edge
+        { Graph.source = ArgNode q i
+        , Graph.target = to
+        , Graph.label  = Edge pol o
+        } :)
+    OccursHere' (ADef q') o ->
+      -- Andreas, 2017-04-26, issue #2555
+      -- Skip nodes pointing outside the mutual block.
+      return $ applyUnless (null pol || Set.notMember q' muts) (Graph.Edge
+        { Graph.source = DefNode q'
+        , Graph.target = to
+        , Graph.label  = Edge pol o
+        } :)
 
   mkEdge' to !pol w = case w of
     VarArg         -> mixed
