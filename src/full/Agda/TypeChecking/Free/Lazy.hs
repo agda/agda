@@ -125,8 +125,6 @@ data IgnoreSorts
 data FreeEnv c = FreeEnv
   { feIgnoreSorts   :: !IgnoreSorts
     -- ^ Ignore free variables in sorts.
-  , feBinders       :: !Int
-    -- ^ Under how many binders have we stepped?
   , feFlexRig       :: !FlexRig
     -- ^ Are we flexible or rigid?
   , feRelevance     :: !Relevance
@@ -140,14 +138,16 @@ type SingleVar c = Variable -> c
 
 -- | The initial context.
 
-initFreeEnv :: SingleVar c -> FreeEnv c
+initFreeEnv :: Monoid c => SingleVar c -> FreeEnv c
 initFreeEnv sing = FreeEnv
   { feIgnoreSorts = IgnoreNot
-  , feBinders     = 0
   , feFlexRig     = Unguarded
   , feRelevance   = Relevant
-  , feSingleton   = sing
+  , feSingleton   = sing'
   }
+  where
+    sing' (i, _) | i < 0 = mempty
+    sing' v              = sing v
 
 type FreeM c = Reader (FreeEnv c) c
 
@@ -165,19 +165,17 @@ instance (Semigroup c, Monoid c) => Monoid (FreeM c) where
 -- | Base case: a variable.
 variable :: (Semigroup c, Monoid c) => Int -> FreeM c
 variable n = do
-  m <- (n -) <$> asks feBinders
-  if m < 0 then mempty else do
-    o <- asks feFlexRig
-    r <- asks feRelevance
-    s <- asks feSingleton
-    pure $ s (m, VarOcc o r)
+  o <- asks feFlexRig
+  r <- asks feRelevance
+  s <- asks feSingleton
+  pure $ s (n, VarOcc o r)
 
 -- | Going under a binder.
 bind :: FreeM a -> FreeM a
 bind = bind' 1
 
 bind' :: Nat -> FreeM a -> FreeM a
-bind' n = local $ \ e -> e { feBinders = n + feBinders e }
+bind' n = local $ \ e -> e { feSingleton = \ (i, o) -> feSingleton e (i - n, o) }
 
 -- | Changing the 'FlexRig' context.
 go :: FlexRig -> FreeM a -> FreeM a
