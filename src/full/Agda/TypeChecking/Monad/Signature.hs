@@ -328,13 +328,10 @@ applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo 
 applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = do
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
-    , text "new  =" <+> text (show new)
-    , text "ptel =" <+> text (show ptel)
-    , text "old  =" <+> text (show old)
-    , text "ts   =" <+> text (show ts)
-    ]
-  reportSLn "tc.mod.apply" 80 $ render $ vcat
-    [ text "arguments:  " <+> text (show ts)
+    , text "new  =" <+> pretty new
+    , text "ptel =" <+> pretty ptel
+    , text "old  =" <+> pretty old
+    , text "ts   =" <+> pretty ts
     ]
   mapM_ (copyDef ts) rd
   mapM_ (copySec ts) rm
