@@ -85,16 +85,36 @@ nextPolarity (p : ps) = (p, ps)
 purgeNonvariant :: [Polarity] -> [Polarity]
 purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
+
+-- | A quick transliterations of occurrences to polarities.
+polarityFromPositivity :: QName -> TCM ()
+polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
+
+  -- Get basic polarity from positivity analysis.
+  let npars = droppedPars def
+  let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
+  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
+
+  -- set the polarity in the signature (not the final polarity, though)
+  setPolarity x $ drop npars pol0
+
 ------------------------------------------------------------------------
 -- * Computing the polarity of a symbol.
 ------------------------------------------------------------------------
 
 -- | Main function of this module.
-computePolarity :: QName -> TCM ()
-computePolarity x = inConcreteOrAbstractMode x $ \ def -> do
-  reportSLn "tc.polarity.set" 25 $ "Computing polarity of " ++ show x
+computePolarity :: [QName] -> TCM ()
+computePolarity xs = do
 
-  -- get basic polarity from positivity analysis
+ -- Andreas, 2017-04-26, issue #2554
+ -- First, for mutual definitions, obtain a crude polarity from positivity.
+ when (length xs >= 2) $ mapM_ polarityFromPositivity xs
+
+ -- Then, refine it.
+ forM_ xs $ \ x -> inConcreteOrAbstractMode x $ \ def -> do
+  reportSLn "tc.polarity.set" 25 $ "Refining polarity of " ++ show x
+
+  -- Again: get basic polarity from positivity analysis.
   let npars = droppedPars def
   let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
   reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0

@@ -579,11 +579,17 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       Concat . zipWith (OccursAs . InClause) [0..] <$>
         mapM (getOccurrences []) cs
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
-    Datatype{dataPars = np, dataCons = cs}       -> do
+    Datatype{dataPars = np0, dataCons = cs}       -> do
       -- Andreas, 2013-02-27: first, each data index occurs as matched on.
       TelV tel t <- telView $ defType def
-      let xs  = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursAs Matched . OccursHere . AnArg) xs
+      -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
+      -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
+      sizeIndex <- caseMaybe (headMaybe $ drop np0 $ telToList tel) (return 0) $ \ dom -> do
+        caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
+      let np = np0 + sizeIndex
+      let xs = [np .. size tel - 1] -- argument positions corresponding to indices
+          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+                        ++ map (OccursAs Matched . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c

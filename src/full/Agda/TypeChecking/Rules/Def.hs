@@ -315,9 +315,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
              , funCopatternLHS   = isCopatternLHS cs
              }
 
-        -- Andreas 2012-02-13: postpone polarity computation until after positivity check
-        -- computePolarity name
-
         reportSDoc "tc.def.fun" 10 $ do
           sep [ text "added " <+> prettyTCM name <+> text ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name

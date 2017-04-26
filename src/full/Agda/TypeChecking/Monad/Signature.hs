@@ -335,7 +335,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     ]
   mapM_ (copyDef ts) rd
   mapM_ (copySec ts) rm
-  mapM_ computePolarity (map snd rd)
+  computePolarity (map snd rd)
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as

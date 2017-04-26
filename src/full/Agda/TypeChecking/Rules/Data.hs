@@ -164,8 +164,6 @@ checkDataDef i name ps cs =
           defaultDefn defaultArgInfo name t $
             dataDef{ dataCons = cons }
 
-        -- Andreas 2012-02-13: postpone polarity computation until after positivity check
-        -- computePolarity name
 
 -- | Ensure that the type is a sort.
 --   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.
