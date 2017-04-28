@@ -1,0 +1,48 @@
+\documentclass{article}
+
+\usepackage{hcar}
+
+\begin{document}
+
+% Agda-NA.tex
+\begin{hcarentry}[section,updated]{Agda}
+\label{agda}
+\report{Ulf Norell}%11/13
+\status{actively developed}
+\participants{Ulf Norell, Nils Anders Danielsson, Andreas Abel,
+Jesper Cockx, Makoto Takeyama,
+Stevan Andjelkovic, Jean-Philippe Bernardy, James Chapman,
+Dominique Devriese, Peter Divianszki,
+Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson,
+Alan Jeffrey, Fredrik Lindblad, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez
+and many others}
+\makeheader
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). A central feature of Agda is inductive families,
+i.e., GADTs which can be indexed by \emph{values} and not just types.
+The language also supports coinductive types, parameterized modules,
+and mixfix operators, and comes with an \emph{interactive}
+interface---the type checker can assist you in the development of your
+code.
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of value as a
+platform for research and experiments in dependently typed programming.
+
+Some highlights from the past six months:
+\begin{itemize}
+\item Agda~2.5.2 was released in December 2016.
+\item The Agda documentation at
+\url{http://agda.readthedocs.org/en/stable/} is being continuously improved.
+\item Experimental support for homotopy type theory has been added to the
+developement branch by Andrea Vezzosi.
+\end{itemize}
+Release of Agda~2.5.3 is planned for summer 2017.
+
+\FurtherReading
+  The Agda Wiki: \url{http://wiki.portal.chalmers.se/agda/}
+\end{hcarentry}
+
+\end{document}
