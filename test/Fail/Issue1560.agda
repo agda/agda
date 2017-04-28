@@ -7,8 +7,11 @@
 
 open import Common.Coinduction
 
-module _ where
--- mutual -- Andreas, 2017-04-26: removing fake mutual speeds up from 1.8s to 1.3s
+-- Andreas, 2017-04-26: removing fake mutual speeds up from 1.8s to 1.3s
+-- However, the purpose of this test is to be slow on old versions of Agda
+-- which shows if the fake mutual is present.
+-- module _ where
+mutual
 
   -- an stype
 
