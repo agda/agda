@@ -11,3 +11,21 @@ Solution
 fromList [(I,l),(J,l),(K,l+1)]
 >>>2
 >>>= 0
+# Issue2558.txt
+dist/build/size-solver/size-solver < test/succeed/Issue2558.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Hypotheses
+k ≤ i
+l ≤ i+1
+Constraints
+k < K
+i < K
+L < M
+K < M
+l ≤ L
+Solution
+fromList [(K,i+1),(L,l),(M,i+2)]
+>>>2
+>>>= 0

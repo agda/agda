@@ -674,16 +674,21 @@ lub' hg (node1, n) (node2, m) = do
   traceM ("lub': sucs = " ++ show sucs)
   case sucNodes of
     -- there is a unique smallest common successor n0 of node1 and node2
-    [n0] ->
+    [n0] -> do
       -- then there are exactly two edges node1 --l1--> n0 and node2 --l2--> n0
-      -- with non-positive weigths l1, l2
-      case Map.lookup n0 sucs of
-        Just [ Edge node1' n1 l1
-             , Edge node2' n2 l2
-             ] | node1 == node1', node2 == node2'
-               , n0 == n1, n0 == n2
-               , toWeight l1 <= 0
-               , toWeight l2 <= 0 -> do
+      -- Andreas, 2017-04-28, issue #2558: The following invariant does not hold always
+      -- -- with non-positive weights l1, l2
+      let es = fromMaybe __IMPOSSIBLE__ $ Map.lookup n0 sucs
+      case es of
+        [ Edge node1x n1 l1 ,
+          Edge node2x n2 l2 ] -> do
+          unless (n0 == n1)         __IMPOSSIBLE__
+          unless (n0 == n2)         __IMPOSSIBLE__
+          unless (node1 == node1x)  __IMPOSSIBLE__
+          unless (node2 == node2x)  __IMPOSSIBLE__
+          -- Andreas, 2017-04-28, issue #2558: The following invariant does not hold always
+          -- unless (toWeight l1 <= 0) __IMPOSSIBLE__
+          -- unless (toWeight l2 <= 0) __IMPOSSIBLE__
           let o :: Weight
               o = max (n `plus` toWeight l1) (m `plus` toWeight l2)
           return $ nodeToSizeExpr n0 `plus` o
@@ -703,16 +708,21 @@ glb' hg (node1, n) (node2, m) = do
   traceM ("glb': preds = " ++ show preds)
   case predNodes of
     -- there is a unique greatest common predecessor n0 of node1 and node2
-    [n0] ->
+    [n0] -> do
       -- then there are exactly two edges n0 --l1--> node1 and n0 --l2--> node2
-      -- with non-positive weigths l1, l2
-      case Map.lookup n0 preds of
-        Just [ Edge n1 node1' l1
-             , Edge n2 node2' l2
-             ] | node1 == node1', node2 == node2'
-               , n0 == n1, n0 == n2
-               , toWeight l1 <= 0
-               , toWeight l2 <= 0 -> do
+      -- Andreas, 2017-04-28, issue #2558: The following invariant may not hold always
+      -- -- with non-positive weigths l1, l2
+      let es = fromMaybe __IMPOSSIBLE__ $ Map.lookup n0 preds
+      case es of
+        [ Edge n1 node1x l1 ,
+          Edge n2 node2x l2] -> do
+          unless (n0 == n1)         __IMPOSSIBLE__
+          unless (n0 == n2)         __IMPOSSIBLE__
+          unless (node1 == node1x)  __IMPOSSIBLE__
+          unless (node2 == node2x)  __IMPOSSIBLE__
+          -- Andreas, 2017-04-28, issue #2558: The following invariant may not hold always
+          -- unless (toWeight l1 <= 0) __IMPOSSIBLE__
+          -- unless (toWeight l2 <= 0) __IMPOSSIBLE__
           let o :: Weight
               o = max (n `plus` toWeight l1) (m `plus` toWeight l2)
           return $ nodeToSizeExpr n0 `plus` o
