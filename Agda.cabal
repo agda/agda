@@ -632,6 +632,7 @@ test-suite agda-tests
                 , tasty-silver >= 3.1.8 && < 3.2
                 , temporary >= 1.2.0.3 && < 1.3
                 , text >= 0.11.3.1 && < 1.3
+                , unix-compat >= 0.4.3.1 && < 0.5
   if impl(ghc < 7.8)
     -- provide System.Environment.setEnv for pre-GHC7.6
     build-depends:  setenv >= 0.1.1.3 && < 0.2
