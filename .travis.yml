@@ -40,6 +40,18 @@ cache:
 
 matrix:
   include:
+    - env: TEST=MAIN GHC_VER=8.2.1 BUILD=CABAL CABAL_VER=2.0
+      addons:
+        apt:
+          packages:
+            - alex-3.1.7
+            - cabal-install-2.0
+            - ghc-8.2.1
+            - happy-1.19.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
@@ -124,8 +136,8 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  # allow_failures:
-  # - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+  allow_failures:
+  - env: TEST=MAIN GHC_VER=8.2.1 BUILD=CABAL CABAL_VER=2.0
 
 ##############################################################################
 before_install:
