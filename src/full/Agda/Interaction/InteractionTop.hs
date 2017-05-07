@@ -269,7 +269,10 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
     catchErr m h = do
       s       <- get
-      (x, s') <- lift $ do disableDestructiveUpdate (runStateT m s)
+      (x, s') <- lift $ do {-disableDestructiveUpdate -} (runStateT m s)
+        --- disable destructive update to allow emacs mode agda to have
+        --- lazy evaluation strategy rather than normal order
+        --- see ticket https://github.com/agda/agda/issues/426
          `catchError_` \ e ->
            runStateT (h e) s
       put s'
