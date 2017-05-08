@@ -72,8 +72,7 @@ tokens :-
 <pragma_> $white_notab ;
 
 -- Pragmas
-<0,code>    "{-#"                      { begin pragma }
-<pragma_>   "{-#"                      { symbol SymOpenPragma }
+<0,code,pragma_> "{-#"                 { beginWith pragma $ symbol SymOpenPragma }
 <pragma_>   "#-}"                      { endWith $ symbol SymClosePragma }
 <pragma_>   "BUILTIN"                  { keyword KwBUILTIN }
 <pragma_>   "CATCHALL"                 { keyword KwCATCHALL }

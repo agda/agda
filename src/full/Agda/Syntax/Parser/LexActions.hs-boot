@@ -14,10 +14,11 @@ withInterval  :: ((Interval, String) -> tok) -> LexAction tok
 withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
 withLayout :: LexAction r -> LexAction r
 
-begin   :: LexState -> LexAction Token
-endWith :: LexAction a -> LexAction a
-begin_  :: LexState -> LexAction Token
-end_    :: LexAction Token
+begin     :: LexState -> LexAction Token
+beginWith :: LexState -> LexAction a -> LexAction a
+endWith   :: LexAction a -> LexAction a
+begin_    :: LexState -> LexAction Token
+end_      :: LexAction Token
 
 keyword    :: Keyword -> LexAction Token
 symbol     :: Symbol -> LexAction Token

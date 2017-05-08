@@ -570,6 +570,12 @@ Strings :: { [(Interval, String)] }
 Strings : {- empty -}    { [] }
         | string Strings { $1 : $2 }
 
+ForeignCode :: { [(Interval, String)] }
+ForeignCode
+  : {- empty -} { [] }
+  | string ForeignCode { $1 : $2 }
+  | '{-#' ForeignCode '#-}' ForeignCode { [($1, "{-#")] ++ $2 ++ [($3, "#-}")] ++ $4 }
+
 PragmaName :: { Name }
 PragmaName : string {% mkName $1 }
 
@@ -1459,11 +1465,11 @@ CompiledDataUHCPragma
 
 HaskellPragma :: { Pragma }
 HaskellPragma
-  : '{-#' 'HASKELL' Strings '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
+  : '{-#' 'HASKELL' ForeignCode '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string Strings '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (snd $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (snd $3) (recoverLayout $4) }
 
 CompilePragma :: { Pragma }
 CompilePragma
