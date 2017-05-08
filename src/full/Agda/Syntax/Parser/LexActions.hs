@@ -9,7 +9,7 @@ module Agda.Syntax.Parser.LexActions
     , token
     , withInterval, withInterval', withInterval_
     , withLayout
-    , begin, end, endWith
+    , begin, end, beginWith, endWith
     , begin_, end_
     , lexError
       -- ** Specialized actions
@@ -161,13 +161,18 @@ begin_ code _ inp' _ =
     do  pushLexState code
         skipTo inp'
 
-
 -- | Exit the current state throwing away the current lexeme.
 end_ :: LexAction Token
 end_ _ inp' _ =
     do  popLexState
         skipTo inp'
 
+
+-- | Enter a new state and perform the given action.
+beginWith :: LexState -> LexAction a -> LexAction a
+beginWith code a inp inp' n =
+    do  pushLexState code
+        a inp inp' n
 
 -- | Exit the current state and perform the given action.
 endWith :: LexAction a -> LexAction a
