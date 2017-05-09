@@ -7,6 +7,7 @@ import Control.Monad
 import System.Directory
 import Text.ParserCombinators.ReadP
 import Data.Char
+import Data.List
 import Text.PrettyPrint hiding (char)
 import Text.Printf
 import Data.Monoid
@@ -210,7 +211,7 @@ main = do
   args <- getArgs
   case args of
     []  -> summary
-    [l] -> stats ((== l) . logDir) (const True) [Attr "stats" id]
+    [l] -> stats ((l `isInfixOf`) . logDir) (const True) [Attr "stats" id]
     _   -> do
       prog <- getProgName
       putStrLn $ "Usage: " ++ prog ++ " [LOG]"
