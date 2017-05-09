@@ -20,6 +20,7 @@ import Data.Traversable (Traversable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -163,3 +164,21 @@ instance KillRange CompiledClauses where
   killRange (Case i br) = killRange2 Case i br
   killRange (Done xs v) = killRange2 Done xs v
   killRange Fail        = Fail
+
+-- * TermLike instances
+
+instance TermLike a => TermLike (WithArity a) where
+  traverseTerm  = fmap . traverseTerm
+  traverseTermM = traverse . traverseTermM
+  foldTerm      = foldMap . foldTerm
+
+instance TermLike a => TermLike (Case a) where
+  traverseTerm  = fmap . traverseTerm
+  traverseTermM = traverse . traverseTermM
+  foldTerm      = foldMap . foldTerm
+
+instance TermLike a => TermLike (CompiledClauses' a) where
+  traverseTerm  = fmap . traverseTerm
+  traverseTermM = traverse . traverseTermM
+  foldTerm      = foldMap . foldTerm
+
