@@ -16,7 +16,7 @@ import Data.Map (Map)
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable, foldMap)
-import Data.Traversable (Traversable)
+import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
