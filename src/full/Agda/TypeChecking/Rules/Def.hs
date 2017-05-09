@@ -411,25 +411,21 @@ checkSystemCoverage f [n] t cs = do
 
   case a of
     Def q [Apply phi] -> do
-      [pt,pi,bz,bo] <- mapM getBuiltinName' [builtinPTop, builtinIota, builtinB0, builtinB1]
+      [pt,bz,bo] <- mapM getBuiltinName' [builtinPTop, builtinB0, builtinB1]
       imin <- primPMin
       imax <- primPMax
       ptop <- primPTop
       pbot <- primPBot
-      p0 <- primP0
-      p1 <- primP1
       propU <- propUnview'
-      pU    <- pUnview'
+      b0 <- primB0
+      b1 <- primB1
       let
         btobool (ConP q _ []) | Just (conName q) == bz = Just False
         btobool (ConP q _ []) | Just (conName q) == bo = Just True
         btobool _ = Nothing
 
         isDir (ConP q _ []) | Just (conName q) == pt = Just RTop
-        isDir (ConP q _ [a]) | Just (conName q) == pi
-                             , Just b <- btobool (namedArg a) = Just $ if b then ROne else RZero
-        isDir (ConP q _ [a]) | Just (conName q) == pi, VarP{} <- namedArg a = Just RBridge
-        isDir _ = Nothing
+        isDir t = RB <$> btobool t
 
         collectDirs [] [] = []
         collectDirs (i : is) (p : ps) | Just d <- isDir p = (i,d) : collectDirs is ps
@@ -437,10 +433,10 @@ checkSystemCoverage f [n] t cs = do
         collectDirs _ _ = __IMPOSSIBLE__
 
         buildProp i RTop = var i
-        buildProp i RZero = propU (PEq (argN $ var i) (argN p0))
-        buildProp i ROne = propU (PEq (argN $ var i) (argN p1))
-        buildProp i RBridge = propU (PBridge (argN $ var i))
-        buildProp i (RB b)  = propU $ PEq (argN $ pU $ Iota $ argN $ var i) (argN $ if b then p1 else p0)
+        -- buildProp i RZero = propU (PEq (argN $ var i) (argN p0))
+        -- buildProp i ROne = propU (PEq (argN $ var i) (argN p1))
+        -- buildProp i RBridge = propU (PBridge (argN $ var i))
+        buildProp i (RB b)  = propU $ PEq (argN $ var i) (argN $ if b then b1 else b0)
         dir = uncurry buildProp
 
         -- andI and orI have cases for singletons to improve error messages.
@@ -495,8 +491,8 @@ checkBodyEndPoints
   -> Term     -- ^ Δ ⊢ body : T@es
   -> TCM ()
 checkBodyEndPoints delta t self es body = do
-  miota <- getBuiltin' builtinIota
-  case miota of
+  mb0 <- getBuiltin' builtinB0
+  case mb0 of
     Nothing -> return ()
     Just{}  -> do
       -- apply ps to T and accumulate constraints
@@ -507,13 +503,13 @@ checkBodyEndPoints delta t self es body = do
  where
    checkBoundary cs t body = do
      pUnview <- propUnview'
-     p0 <- defaultArg <$> primP0
-     p1 <- defaultArg <$> primP1
+     b0 <- defaultArg <$> primB0
+     b1 <- defaultArg <$> primB1
      forM_ cs $ \ (i,(x,y)) -> do
        let
            boundary phi b = equalTermOnFace phi t body b
-       boundary (pUnview $ PEq (defaultArg i) p0) x
-       boundary (pUnview $ PEq (defaultArg i) p1) y
+       boundary (pUnview $ PEq (defaultArg i) b0) x
+       boundary (pUnview $ PEq (defaultArg i) b1) y
      return ()
    -- cs :: [(Int,(Term,Term))], (i,(x,y)) ∈ cs, Δ ⊢ i : I, Δ ⊢ x : t[i=i0], y : t[i=i1]
    -- Δ ⊢ es elims for t
@@ -538,7 +534,7 @@ checkBodyEndPoints delta t self es body = do
          t' <- El s <$> reduce (unArg bA `apply` [defaultArg r])
          let self' = self `applyE` [IApply x y r]
          cs' <- updateBoundary cs $ \ b -> return $ b `applyE` [IApply x y r]
-         v <- if isB then primIota <@> pure (var i) else pure (var i)
+         v <- if isB then pure (var i) else pure (var i)
          accumBoundary ((v,(x,y)):cs') es t' self'
        _ -> __IMPOSSIBLE__
    accumBoundary cs (IApply{}  : es) t self = __IMPOSSIBLE__ -- we will get Apply for Path too.

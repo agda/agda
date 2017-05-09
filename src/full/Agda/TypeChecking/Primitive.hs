@@ -512,22 +512,9 @@ primPMin' = primPropBin PTop PBot
 primPMax' :: TCM PrimitiveImpl
 primPMax' = primPropBin PBot PTop
 
-primPBridge' :: TCM PrimitiveImpl
-primPBridge' = do
-  t <- el primP --> el primProp
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ts -> do
-    case ts of
-      [x] -> do
-        sx <- reduceB' x
-        px <- pView (unArg $ ignoreBlocking sx)
-        case px of
-          Iota b -> redReturn =<< propUnview PTop
-          _       -> return $ NoReduction [reduced sx]
-      _  -> __IMPOSSIBLE__
-
 primPEq' :: TCM PrimitiveImpl
 primPEq' = do
-  t <- el primP --> el primP --> el primProp
+  t <- el primB --> el primB --> el primProp
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
       [x,y] -> do
@@ -535,16 +522,12 @@ primPEq' = do
        if x' == y' then redReturn =<< propUnview PTop
                    else do
         [sx,sy] <- mapM reduceB' [x,y]
-        px <- pView (unArg $ ignoreBlocking sx)
-        py <- pView (unArg $ ignoreBlocking sy)
-        case (px,py) of
-          (Iota x,Iota y) -> do
-            [bx,by] <- mapM (bView . unArg) =<< mapM reduce' [x,y]
-            case (bx,by) of
+        bx <- bView (unArg $ ignoreBlocking sx)
+        by <- bView (unArg $ ignoreBlocking sy)
+        case (bx,by) of
               (BZero,BOne) -> redReturn =<< propUnview PBot
               (BOne,BZero) -> redReturn =<< propUnview PBot
               _            -> return $ NoReduction $ map reduced [sx,sy]
-          _  -> return $ NoReduction $ map reduced [sx,sy]
       _ -> __IMPOSSIBLE__
 
 primPathAbs' :: TCM PrimitiveImpl
@@ -1335,8 +1318,6 @@ decomposeProp t = do
 
   let
       -- RBridge is consistent with ROne or RZero
-      unify RBridge x = Just x
-      unify x RBridge = Just x
       unify x y | x == y = Just x
                 | otherwise = Nothing
 
@@ -1347,36 +1328,29 @@ decomposeProp t = do
             , isConsistent bsm
             ]
 
-data Repr = RTop | ROne | RZero | RBridge | RB Bool
+data Repr = RTop | RB Bool
            deriving (Eq,Ord,Show)
 
 decomposeProp' :: Term -> TCM [(Map Int (Set Repr),[Term])]
 decomposeProp' t = do
      view   <- propView'
      unview <- propUnview'
-     pview  <- pView'
      btobool <- bToBool'
      red <- runReduceF (reduce' . unArg)
-     let boolToRepr True = ROne
-         boolToRepr False = RZero
      let f :: PropView -> [[Either (Int,Repr) Term]]
          f PBot = mzero
          f PTop  = return []
          f (PMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
          f (PMax x y) = msum $ map (f . view . unArg) [x,y]
-         f (PBridge (Arg _ (Var i []))) = return [Left (i,RBridge)]
-         f e@(PBridge _) = return [Right (unview $ e)]
-         f e@(PEq x y) = g e (pview . unArg $ x) (pview . unArg $ y)
+         f e@(PEq x y) = g e (red $ x) (red $ y)
          f (OProp (Var i [])) = return [Left (i,RTop)]
          f (OProp t)          = return [Right t]
          assignB k e i u | Just b <- btobool u
            = return [Left (i,k b)]
          assignB k e _ _ = return [Right (unview $ e)]
-         g :: PropView -> PView -> PView -> [[Either (Int,Repr) Term]]
-         g e (OP (Var i [])) (Iota u) = assignB boolToRepr e i (red u)
-         g e (Iota u) (OP (Var i [])) = assignB boolToRepr e i (red u)
-         g e (Iota u) (Iota t) | Var i [] <- red u = assignB RB e i (red t)
-         g e (Iota t) (Iota u) | Var i [] <- red u = assignB RB e i (red t)
+         g :: PropView -> Term -> Term -> [[Either (Int,Repr) Term]]
+         g e (u) (t) | Var i [] <- u = assignB RB e i (t)
+         g e (t) (u) | Var i [] <- u = assignB RB e i (t)
          -- t and u are neutral and have different normal form, we could do something if they are
          -- both Var _ [], or if they are both Iota (Var _ [])
          g e _ _ = return [Right (unview $ e)]
@@ -1387,23 +1361,6 @@ decomposeProp' t = do
             , let (bs,ts) = partitionEithers xs
             , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
-
-primUnIota' :: TCM PrimitiveImpl
-primUnIota' = do
-  t <- runNamesT []
-       (hPi' "i" (el $ cl $ primP)       $ \ i ->
-        pPi' "o" (cl primPBridge <@> i) $ \ _ ->
-        el $ cl $ primB)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
-    case ts of
-      [i] -> do
-        si <- reduceB' i
-        vi <- pView $ unArg $ ignoreBlocking $ si
-        case vi of
-          Iota t -> redReturn (Lam (setRelevance Irrelevant defaultArgInfo) $ NoAbs "_" $ unArg t)
-          _      -> return $ NoReduction [reduced si]
-      _   -> __IMPOSSIBLE__
-
 
 primPi' :: Bool -> Relevance -> TCM PrimitiveImpl
 primPi' v m = do
@@ -1923,10 +1880,8 @@ primitiveFunctions = Map.fromList
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
   , builtinPEq            |-> primPEq'
-  , builtinPBridge        |-> primPBridge'
   , builtinPMin           |-> primPMin'
   , builtinPMax           |-> primPMax'
-  , builtinUnIota         |-> primUnIota'
   , builtinCoShapePi      |-> primCoShapePi'
   , builtinSharpPi        |-> primSharpPi'
   , builtinNSSharpPi      |-> primNSSharpPi'

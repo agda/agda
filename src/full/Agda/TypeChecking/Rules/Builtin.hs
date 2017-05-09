@@ -89,8 +89,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinB                  |-> BuiltinData tset [builtinB0,builtinB1])
   , (builtinB0                 |-> BuiltinDataCons (el primB))
   , (builtinB1                 |-> BuiltinDataCons (el primB))
-  , (builtinP                  |-> BuiltinData tset [builtinIota])
-  , (builtinIota               |-> BuiltinDataCons (el primB --> el primP))
   , (builtinProp               |-> BuiltinData tset [builtinPTop])
   , (builtinPTop               |-> BuiltinDataCons (el primProp))
   , (builtinPBot               |-> builtinPostulate (el primProp))
@@ -100,9 +98,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1)))
   , (builtinPathP              |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                nPi "A" ((el primP) --> (return $ sort $ varSort 0)) $
-                                                (El (varSort 1) <$> varM 0 <@> primP0) -->
-                                                (El (varSort 1) <$> varM 0 <@> primP1) -->
+                                                nPi "A" ((el primB) --> (return $ sort $ varSort 0)) $
+                                                (El (varSort 1) <$> varM 0 <@> primB0) -->
+                                                (El (varSort 1) <$> varM 0 <@> primB1) -->
                                                 return (sort $ varSort 1)))
   -- , (builtinBridge               |-> builtinPostulate (hPi "a" (el primLevel) $
   --                                               hPi "A" (return $ sort $ varSort 0) $

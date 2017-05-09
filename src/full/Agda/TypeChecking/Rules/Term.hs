@@ -307,7 +307,7 @@ checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkPath b@(Arg info (A.TBind _ xs typ)) body ty = do
     PathType s isB path level typ lhs rhs <- pathView ty
     (wlk,zero,one) <- if isB then (,,) <$> el primB <*> primB0 <*> primB1
-                             else (,,) <$> el primP <*> primP0 <*> primP1
+                             else (,,) <$> el primB <*> primB0 <*> primB1 -- shouldn't happen
     v <- addContext' (xs, defaultDom wlk) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     let lhs' = subst 0 zero v
         rhs' = subst 0 one  v
@@ -2193,7 +2193,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
             | notHidden info
             , PathType s isB _ _ bA x y <- viewPath $ ignoreSharingType t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
-                u <- lift $ checkExpr (namedThing e) =<< (if isB then el primB else el primP)
+                u <- lift $ checkExpr (namedThing e) =<< (if isB then el primB else el primB) -- the else shouldn't happen
                 addCheckedArgs us (IApply (unArg x) (unArg y) u) $
                   checkArguments exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) t1
           _ -> shouldBePi

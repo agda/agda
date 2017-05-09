@@ -123,10 +123,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primCoGlue,prim_coglue,prim_mcoglue,
     primBridgeP,
     primB, primB0, primB1,
-    primP, primP0, primP1,
     primProp, primPTop, primPBot,
-    primIota, primUnIota,
-    primPEq, primPMin, primPMax, primPBridge,
+    primPEq, primPMin, primPMax,
     primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
@@ -232,18 +230,12 @@ primBridgeP      = getBuiltin builtinBridgeP
 primB            = getBuiltin builtinB
 primB0           = getBuiltin builtinB0
 primB1           = getBuiltin builtinB1
-primP            = getBuiltin builtinP
-primP0           = primB0 >>= \ b0 -> (`apply` [defaultArg b0]) <$> primIota
-primP1           = primB1 >>= \ b1 -> (`apply` [defaultArg b1]) <$> primIota
 primProp         = getBuiltin builtinProp
 primPTop         = getBuiltin builtinPTop
 primPBot         = getBuiltin builtinPBot
-primIota         = getBuiltin builtinIota
-primUnIota       = getPrimitiveTerm builtinUnIota
 primPEq          = getPrimitiveTerm builtinPEq
 primPMin         = getPrimitiveTerm builtinPMin
 primPMax         = getPrimitiveTerm builtinPMax
-primPBridge      = getPrimitiveTerm builtinPBridge
 primNatPlus      = getBuiltin builtinNatPlus
 primNatMinus     = getBuiltin builtinNatMinus
 primNatTimes     = getBuiltin builtinNatTimes
@@ -373,10 +365,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
 
   builtinBridgeP,
   builtinB, builtinB0, builtinB1,
-  builtinP, builtinP0, builtinP1,
   builtinProp, builtinPTop, builtinPBot,
-  builtinIota, builtinUnIota,
-  builtinPEq, builtinPMin, builtinPMax, builtinPBridge,
+  builtinPEq, builtinPMin, builtinPMax,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
@@ -460,18 +450,12 @@ builtinBridgeP                       = "BRIDGEP"
 builtinB                             = "BRIDGENAME"
 builtinB0                            = "BZERO"
 builtinB1                            = "BONE"
-builtinP                             = "PATHNAME"
-builtinP0                            = "PZERO"
-builtinP1                            = "PONE"
 builtinProp                          = "PROP"
 builtinPTop                          = "PTOP"
 builtinPBot                          = "PBOT"
-builtinIota                          = "IOTA"
-builtinUnIota                        = "primUnIota"
 builtinPEq                           = "primPEq"
 builtinPMin                          = "primPMin"
 builtinPMax                          = "primPMax"
-builtinPBridge                       = "primPBridge"
 builtinConId                         = "CONID"
 builtinIdElim                        = "primIdElim"
 builtinPath                          = "PATH"
@@ -746,7 +730,6 @@ propView' = do
   imax <- getPrimitiveName' "primPMax"
   imin <- getPrimitiveName' "primPMin"
   eq <- getPrimitiveName' "primPEq"
-  bridge <- getPrimitiveName' "primPBridge"
   return $ \ t ->
     case ignoreSharing t of
       Con q _ [] | Just (conName q) == pt -> PTop
@@ -757,7 +740,6 @@ propView' = do
           [Apply x,Apply y] | Just q == imin -> PMin x y
           [Apply x,Apply y] | Just q == imax -> PMax x y
           [Apply x,Apply y] | Just q == eq -> PEq x y
-          [Apply x] | Just q == bridge -> PBridge x
           _                 -> OProp t
       _ -> OProp t
 
@@ -778,42 +760,13 @@ propUnview' = do
   imin <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPMin"
   imax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPMax"
   eq <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPEq"
-  bridge <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPBridge"
   return $ \ v -> case v of
              PTop -> pt
              PBot -> pb
              PMin x y -> apply imin [x,y]
              PMax x y -> apply imax [x,y]
              PEq  x y -> apply eq [x,y]
-             PBridge x -> apply bridge [x]
              OProp t -> t
-
-
-pView' :: HasBuiltins m => m (Term -> PView)
-pView' = do
-  iota <- getBuiltinName' builtinIota
-  return $ \ t ->
-    case ignoreSharing t of
-      Con c _ [x] | Just (conName c) == iota
-         -> Iota x
-      _  -> OP t
-
-pView :: HasBuiltins m => Term -> m PView
-pView t = do
-  f <- pView'
-  return (f t)
-
-pUnview :: HasBuiltins m => PView -> m Term
-pUnview t = do
-  f <- pUnview'
-  return (f t)
-
-pUnview' :: HasBuiltins m => m (PView -> Term)
-pUnview' = do
-  iota <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIota
-  return $ \ v -> case v of
-             Iota x -> apply iota [x]
-             OP t -> t
 
 bView' :: HasBuiltins m => m (Term -> BView)
 bView' = do
@@ -898,11 +851,13 @@ pathView' = do
  mbridgep <- getBuiltinName' builtinBridgeP
  return $ \ t0@(El s t) ->
   case ignoreSharing t of
+    -- since we removed |P, we have that both Path/PathP and BridgeP
+    -- depend on |B, not caring yet about having the paths use #.
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | Just path' == mpath, Just path <- mpathp -> PathType s False path level (lam_i <$> typ) lhs rhs
+      | Just path' == mpath, Just path <- mpathp -> PathType s True path level (lam_i <$> typ) lhs rhs
       where lam_i = Lam defaultArgInfo . NoAbs "_"
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | Just path' == mpathp, Just path <- mpathp -> PathType s False path level typ lhs rhs
+      | Just path' == mpathp, Just path <- mpathp -> PathType s True path level typ lhs rhs
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
       | Just path' == mbridgep, Just bridgep <- mbridgep -> PathType s True bridgep level typ lhs rhs
     _ -> OType t0

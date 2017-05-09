@@ -651,15 +651,8 @@ data PropView
       | PBot
       | PMin (Arg Term) (Arg Term)
       | PMax (Arg Term) (Arg Term)
-      | PBridge (Arg Term)
       | PEq (Arg Term) (Arg Term)
       | OProp Term
-      deriving Show
-
-
-data PView
-      = Iota (Arg Term)
-      | OP Term
       deriving Show
 
 data BView

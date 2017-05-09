@@ -324,7 +324,7 @@ compareTerm' cmp a m n =
     equalPath :: PathView -> Type -> Term -> Term -> TCM ()
     equalPath (PathType s isB _ l a x y) _ m n = do
         name <- freshName_ $ "i"
-        interval <- el $ if isB then primB else primP
+        interval <- el $ if isB then primB else primB
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
@@ -725,7 +725,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
           va <- pathView a
           case va of
             PathType s isB path l bA x y -> do
-              b <- el $ if isB then primB else primP
+              b <- el $ if isB then primB else primB
               compareWithPol pol (flip compareTerm b)
                                   r1 r2
               -- TODO: compare (x1,x2) and (y1,y2) ?
@@ -1476,22 +1476,9 @@ forallFaceMaps t kb k = do
           RTop -> do
             t <- primPTop
             recurse t c xs
-          RZero -> do
-            t <- primP0
-            recurse t c xs
-          ROne -> do
-            t <- primP1
-            recurse t c xs
           RB b -> do
             t <- if b then primB1 else primB0
             recurse t c xs
-          RBridge -> do
-            iota <- primIota
-            ty <- el primB
-            let nm = fst $ unDom $ ctxEntry $ e
-            (c',sigma) <- repCtxN c (map (subtract 1 -*- id) xs)
-            e' <- mkContextEntry (defaultDom (nm,ty))
-            return (e':c', consS (iota `apply` [argN $ var 0]) (raiseS 1 `composeS` sigma))
       | i > 0  = do
                     (c',sigma) <- repCtxN c (map (subtract 1 -*- id) xxs)
                     e' <- mkContextEntry (applySubst sigma (ctxEntry e))
@@ -1563,23 +1550,22 @@ compareTermOnFace' k cmp phi ty u v = do
  where
   postponed ms i psi = do
     propU <- propUnview'
-    pU    <- pUnview'
     ty' <- runNamesT [] $ do
              imin <- cl $ primPMin
              ty <- open ty
              psi <- open psi
              let buildProp i RTop = i
-                 buildProp i RZero = do
-                   z <- cl primP0
-                   (\ v -> propU (PEq (argN v) (argN z))) <$> i
-                 buildProp i ROne = do
-                   z <- cl primP1
-                   (\ v -> propU (PEq (argN v) (argN z))) <$> i
-                 buildProp i RBridge = do
-                   (\ v -> propU (PBridge (argN v))) <$> i
+                 -- buildProp i RZero = do
+                 --   z <- cl primP0
+                 --   (\ v -> propU (PEq (argN v) (argN z))) <$> i
+                 -- buildProp i ROne = do
+                 --   z <- cl primP1
+                 --   (\ v -> propU (PEq (argN v) (argN z))) <$> i
+                 -- buildProp i RBridge = do
+                 --   (\ v -> propU (PBridge (argN v))) <$> i
                  buildProp i (RB b) = do
-                   z <- if b then cl primP1 else cl primP0
-                   (\ v -> propU (PEq (argN $ pU $ Iota $ argN v) (argN z))) <$> i
+                   z <- if b then cl primB1 else cl primB0
+                   (\ v -> propU (PEq (argN $ v) (argN z))) <$> i
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (buildProp i b) <@> r)
                           psi (Map.toList ms) -- TODO Andrea: make a view?
              pPi' "o" phi $ const ty
