@@ -47,7 +47,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
-import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
+import Agda.TypeChecking.CompiledClause (CompiledClauses'(..))
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 

@@ -50,20 +50,22 @@ data Case c = Branches
 
 -- | Case tree with bodies.
 
-data CompiledClauses
-  = Case (Arg Int) (Case CompiledClauses)
+data CompiledClauses' a
+  = Case (Arg Int) (Case (CompiledClauses' a))
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | Done [Arg ArgName] Term
+  | Done [Arg ArgName] a
     -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
   | Fail
     -- ^ Absurd case.
-  deriving (Typeable)
+  deriving (Typeable, Functor, Traversable, Foldable)
+
+type CompiledClauses = CompiledClauses' Term
 
 litCase :: Literal -> c -> Case c
 litCase l x = Branches False Map.empty (Map.singleton l x) Nothing
