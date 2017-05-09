@@ -27,6 +27,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty hiding (pretty)
@@ -170,7 +171,8 @@ translateCompiledClauses cc = snd <$> loop cc
               -- get the record fields
               fs          = either __IMPOSSIBLE__ id dataOrRecCon
               -- if x we can translate
-              mcc = if x then [replaceByProjections i (map unArg fs) cc] else []
+          mcc <- if x then etaContract [replaceByProjections i (map unArg fs) cc]
+                      else return []
 
           when (n /= ar) __IMPOSSIBLE__
           return (mcc, xs', WithArity ar cc)
