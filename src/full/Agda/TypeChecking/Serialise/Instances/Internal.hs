@@ -26,16 +26,12 @@ import Agda.Utils.Impossible
 instance EmbPrj Signature where
   icod_ (Sig a b c) = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 Sig a b c
-    valu _         = malformed
+  value = value3 Sig
 
 instance EmbPrj Section where
   icod_ (Section a) = icode1' a
 
-  value = vcase valu where
-    valu [a] = valu1 Section a
-    valu _   = malformed
+  value = value1 Section
 
 instance EmbPrj a => EmbPrj (Tele a) where
   icod_ EmptyTel        = icode0'
@@ -49,16 +45,12 @@ instance EmbPrj a => EmbPrj (Tele a) where
 instance EmbPrj Permutation where
   icod_ (Perm a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 Perm a b
-    valu _      = malformed
+  value = value2 Perm
 
 instance EmbPrj a => EmbPrj (Drop a) where
   icod_ (Drop a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 Drop a b
-    valu _      = malformed
+  value = value2 Drop
 
 instance EmbPrj a => EmbPrj (Elim' a) where
   icod_ (Apply a)  = icode1' a
@@ -74,16 +66,12 @@ instance EmbPrj a => EmbPrj (Elim' a) where
 instance EmbPrj I.ConHead where
   icod_ (ConHead a b c) = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 ConHead a b c
-    valu _         = malformed
+  value = value3 ConHead
 
 instance (EmbPrj a) => EmbPrj (I.Type' a) where
   icod_ (El a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 El a b
-    valu _      = malformed
+  value = value2 El
 
 instance (EmbPrj a) => EmbPrj (I.Abs a) where
   icod_ (NoAbs a b) = icode2 0 a b
@@ -125,9 +113,7 @@ instance EmbPrj I.Term where
 instance EmbPrj Level where
   icod_ (Max a) = icode1' a
 
-  value = vcase valu where
-    valu [a] = valu1 Max a
-    valu _   = malformed
+  value = value1 Max
 
 instance EmbPrj PlusLevel where
   icod_ (ClosedLevel a) = icode1' a
@@ -169,16 +155,12 @@ instance EmbPrj I.Sort where
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 Display a b c
-    valu _         = malformed
+  value = value3 Display
 
 instance EmbPrj a => EmbPrj (Open a) where
   icod_ (OpenThing a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 OpenThing a b
-    valu _      = malformed
+  value = value2 OpenThing
 
 instance EmbPrj a => EmbPrj (Local a) where
   icod_ (Local a b) = icode2' a b
@@ -241,37 +223,27 @@ instance EmbPrj NLPat where
 instance EmbPrj NLPType where
   icod_ (NLPType a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 NLPType a b
-    valu _      = malformed
+  value = value2 NLPType
 
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icode6' a b c d e f
 
-  value = vcase valu where
-    valu [a, b, c, d, e, f] = valu6 RewriteRule a b c d e f
-    valu _                  = malformed
+  value = value6 RewriteRule
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icode5' a b c d e
 
-  value = vcase valu where
-    valu [a, b, c, d, e] = valu5 Projection a b c d e
-    valu _ = malformed
+  value = value5 Projection
 
 instance EmbPrj ProjLams where
   icod_ (ProjLams a) = icode1' a
 
-  value = vcase valu where
-    valu [a] = valu1 ProjLams a
-    valu _   = malformed
+  value = value1 ProjLams
 
 instance EmbPrj ExtLamInfo where
   icod_ (ExtLamInfo a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 ExtLamInfo a b
-    valu _      = malformed
+  value = value2 ExtLamInfo
 
 instance EmbPrj Polarity where
   icod_ Covariant     = return 0
@@ -342,16 +314,12 @@ instance EmbPrj FunctionFlag where
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 WithArity a b
-    valu _      = malformed
+  value = value2 WithArity
 
 instance EmbPrj a => EmbPrj (Case a) where
   icod_ (Branches a b c d e) = icode5' a b c d e
 
-  value = vcase valu where
-    valu [a, b, c, d, e] = valu5 Branches a b c d e
-    valu _            = malformed
+  value = value5 Branches
 
 instance EmbPrj CompiledClauses where
   icod_ Fail       = icode0'
@@ -387,23 +355,17 @@ instance EmbPrj TermHead where
 instance EmbPrj I.Clause where
   icod_ (Clause a b c d e f g) = icode7' a b c d e f g
 
-  value = vcase valu where
-    valu [a, b, c, d, e, f, g] = valu7 Clause a b c d e f g
-    valu _                     = malformed
+  value = value7 Clause
 
 instance EmbPrj I.ConPatternInfo where
   icod_ (ConPatternInfo a b c) = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 ConPatternInfo a b c
-    valu _      = malformed
+  value = value3 ConPatternInfo
 
 instance EmbPrj I.DBPatVar where
   icod_ (DBPatVar a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 DBPatVar a b
-    valu _      = malformed
+  value = value2 DBPatVar
 
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a    ) = icode1' a

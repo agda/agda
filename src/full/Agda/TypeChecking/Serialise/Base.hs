@@ -658,3 +658,60 @@ valu12 z a b c d e f g h i j k l = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
 valu15 z a b c d e f g h i j k l m n o = valu14 z a b c d e f g h i j k l m n `ap` value o
+
+
+value1 :: (EmbPrj a, EmbPrj b) =>
+          (a -> b) ->
+          Int32 -> R b
+
+value2 :: (EmbPrj a, EmbPrj b, EmbPrj c) =>
+          (a -> b -> c) ->
+          Int32 -> R c
+
+value3 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
+          (a -> b -> c -> d) ->
+          Int32 -> R d
+
+value4 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
+          (a -> b -> c -> d -> e) ->
+          Int32 -> R e
+
+value5 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
+          (a -> b -> c -> d -> e -> f) ->
+          Int32 -> R f
+
+value6 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g) =>
+          (a -> b -> c -> d -> e -> f -> g) ->
+          Int32 -> R g
+
+value7 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h) =>
+          (a -> b -> c -> d -> e -> f -> g -> h) ->
+          Int32 -> R h
+
+value1 k = vcase valu where
+  valu [a] = valu1 k a
+  valu _   = malformed
+
+value2 k = vcase valu where
+  valu [a, b] = valu2 k a b
+  valu _      = malformed
+
+value3 k = vcase valu where
+  valu [a, b, c] = valu3 k a b c
+  valu _         = malformed
+
+value4 k = vcase valu where
+  valu [a, b, c, d] = valu4 k a b c d
+  valu _            = malformed
+
+value5 k = vcase valu where
+  valu [a, b, c, d, e] = valu5 k a b c d e
+  valu _               = malformed
+
+value6 k = vcase valu where
+  valu [a, b, c, d, e, f] = valu6 k a b c d e f
+  valu _                  = malformed
+
+value7 k = vcase valu where
+  valu [a, b, c, d, e, f, g] = valu7 k a b c d e f g
+  valu _                     = malformed

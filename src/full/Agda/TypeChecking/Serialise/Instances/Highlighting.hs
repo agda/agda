@@ -11,9 +11,7 @@ import Agda.TypeChecking.Serialise.Instances.Common ()
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 HR.Range a b
-    valu _      = malformed
+  value = value2 HR.Range
 
 instance EmbPrj HP.NameKind where
   icod_ HP.Bound           = icode0'
@@ -93,13 +91,9 @@ instance EmbPrj HP.OtherAspect where
 instance EmbPrj HP.Aspects where
   icod_ (HP.Aspects a b c d) = icode4' a b c d
 
-  value = vcase valu where
-    valu [a, b, c, d] = valu4 HP.Aspects a b c d
-    valu _            = malformed
+  value = value4 HP.Aspects
 
 instance EmbPrj HP.CompressedFile where
   icod_ (HP.CompressedFile f) = icode1' f
 
-  value = vcase valu where
-    valu [f] = valu1 HP.CompressedFile f
-    valu _   = malformed
+  value = value1 HP.CompressedFile
