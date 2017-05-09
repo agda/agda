@@ -11,14 +11,10 @@ import Agda.TypeChecking.Monad
 instance EmbPrj CompilerPragma where
   icod_ (CompilerPragma a b) = icode2' (SerialisedRange a) b
 
-  value = vcase valu where
-    valu [a, b] = valu2 (CompilerPragma . underlyingRange) a b
-    valu _      = malformed
+  value = value2 (CompilerPragma . underlyingRange)
 
 instance EmbPrj ForeignCode where
   icod_ (ForeignCode r a) = icode2' (SerialisedRange r) a
 
-  value = vcase valu where
-    valu [a, b] = valu2 (ForeignCode . underlyingRange) a b
-    valu _      = malformed
+  value = value2 (ForeignCode . underlyingRange)
 

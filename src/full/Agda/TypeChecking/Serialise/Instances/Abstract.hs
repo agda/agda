@@ -28,9 +28,7 @@ import Agda.Utils.Impossible
 instance EmbPrj Scope where
   icod_ (Scope a b c d e) = icode5' a b c d e
 
-  value = vcase valu where
-    valu [a, b, c, d, e] = valu5 Scope a b c d e
-    valu _               = malformed
+  value = value5 Scope
 
 instance EmbPrj NameSpaceId where
   icod_ PublicNS        = icode0'
@@ -61,9 +59,7 @@ instance EmbPrj Access where
 instance EmbPrj NameSpace where
   icod_ (NameSpace a b c) = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 NameSpace a b c
-    valu _         = malformed
+  value = value3 NameSpace
 
 instance EmbPrj WhyInScope where
   icod_ Defined       = icode0'
@@ -79,16 +75,12 @@ instance EmbPrj WhyInScope where
 instance EmbPrj AbstractName where
   icod_ (AbsName a b c) = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 AbsName a b c
-    valu _         = malformed
+  value = value3 AbsName
 
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icode2' a b
 
-  value = vcase valu where
-    valu [a, b] = valu2 AbsModule a b
-    valu _      = malformed
+  value = value2 AbsModule
 
 instance EmbPrj KindOfName where
   icod_ DefName        = icode0'
@@ -110,9 +102,7 @@ instance EmbPrj KindOfName where
 instance EmbPrj LocalVar where
   icod_ (LocalVar a b c)  = icode3' a b c
 
-  value = vcase valu where
-    valu [a, b, c] = valu3 LocalVar a b c
-    valu _      = malformed
+  value = value3 LocalVar
 
 instance EmbPrj ConPatInfo where
   icod_ (ConPatInfo a _) = icod_ a
@@ -176,6 +166,4 @@ instance EmbPrj Precedence where
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d _ _ _) = icode4' a b c d
 
-  value = vcase valu where      -- reverse maps will be recomputed
-    valu [a, b, c, d] = valu4 (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty) a b c d
-    valu _            = malformed
+  value = value4 (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty)
