@@ -362,7 +362,7 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-catchall-clause-face
-  '((t (:background "light gray")))
+  '((t (:background "gray90")))
   "The face used for catchall clauses."
   :group 'agda2-highlight-faces)
 
