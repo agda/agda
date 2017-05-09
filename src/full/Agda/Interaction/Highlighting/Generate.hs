@@ -553,6 +553,7 @@ warningHighlighting w = case tcWarning w of
   UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
+  UselessImport{}            -> coverageErrorHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedMetaVariables{}    -> mempty
   UnsolvedInteractionMetas{} -> mempty
@@ -561,7 +562,6 @@ warningHighlighting w = case tcWarning w of
   EmptyRewritePragma{}       -> mempty
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
-  UselessImport{}            -> mempty
   ParseWarning{}             -> mempty
   GenericWarning{}           -> mempty
   GenericNonFatalError{}     -> mempty

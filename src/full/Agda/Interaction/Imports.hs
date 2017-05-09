@@ -961,18 +961,27 @@ buildInterface file topLevel syntaxInfo pragmas = do
 --   modules are unused
 checkUselessImports :: Interface -> TCM ()
 checkUselessImports i = do
-  let ums  = getUsedModules i `execState` Set.empty
-  let ims  = Set.fromList $ fst <$> iImportedModules i
-  let diff = ims Set.\\ ums
-  unless (null diff) $ mapM_ (warning . UselessImport) diff
+  let ims = Set.fromList $ fst <$> iImportedModules i
+  scope <- getScope
+  let ums = getUsedModules scope i
+  mapM_ (warning . UselessImport) $
+    flip Set.filter ims $ \ nm ->
+      let cnm = nameConcrete <$> mnameToList nm
+      in not (cnm `Set.member` ums)
 
   where
 
-    getUsedModules :: Interface -> State (Set ModuleName) ()
-    getUsedModules i = do
+    getAQNames :: Interface -> Set A.QName
+    getAQNames i = flip execState Set.empty $ do
       let defs = _sigDefinitions $ iSignature i
-      forM_ defs $ \ d -> modify (Set.union $ Set.map qnameModule $ namesIn d)
+      forM_ defs $ \ d -> modify (Set.union (namesIn d))
 
+    getUsedModules :: ScopeInfo -> Interface -> Set [C.Name]
+    getUsedModules s i = flip execState Set.empty $ do
+      let sinv = scopeInverseName $ iInsideScope i
+      forM_ (getAQNames i) $ \ aqn ->
+        forM_ (fromMaybe __IMPOSSIBLE__ $ Map.lookup aqn sinv) $ \ cqn ->
+          modify (Set.insert $ init $ C.qnameParts cqn)
 
 -- | Returns (iSourceHash, iFullHash)
 getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))
