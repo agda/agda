@@ -253,7 +253,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret =
   case ignoreSharing $ unEl t of
-    Pi a b     -> addContext' (absName b, a) $ insidePi (unAbs b) ret
+    Pi a b     -> addContext' (absName b, a) $ insidePi (absBody b) ret
     Def{}      -> ret t
     Var{}      -> ret t
     Sort{}     -> __IMPOSSIBLE__
