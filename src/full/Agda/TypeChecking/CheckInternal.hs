@@ -12,7 +12,7 @@ module Agda.TypeChecking.CheckInternal
   ( checkType
   , checkInternal
   , checkInternal'
-  , Action(..), defaultAction
+  , Action(..), defaultAction, eraseUnusedAction
   , infer
   , inferSort
   ) where
@@ -119,6 +119,21 @@ defaultAction = Action
   , relevanceAction = \ _ -> id
   }
 
+eraseUnusedAction :: Action
+eraseUnusedAction = defaultAction { postAction = eraseUnused }
+  where
+    eraseUnused :: Type -> Term -> TCM Term
+    eraseUnused t v = case ignoreSharing v of
+      Def f es -> do
+        pols <- getPolarity f
+        return $ Def f $ eraseIfNonvariant pols es
+      _        -> return v
+
+    eraseIfNonvariant :: [Polarity] -> Elims -> Elims
+    eraseIfNonvariant []                  es             = es
+    eraseIfNonvariant pols                []             = []
+    eraseIfNonvariant (Nonvariant : pols) (e : es) = (fmap DontCare e) : eraseIfNonvariant pols es
+    eraseIfNonvariant (_          : pols) (e : es) = e : eraseIfNonvariant pols es
 
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
