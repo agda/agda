@@ -23,7 +23,7 @@ import Data.Function (on)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
-import qualified Data.Foldable as Fold (toList)
+import qualified Data.Foldable as Fold (toList, foldMap)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
@@ -64,7 +64,7 @@ import Agda.Interaction.FindFile
 import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo, compress)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
 
@@ -730,6 +730,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
         reportSLn "import.iface.create" 7 $ "Starting type checking."
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 $ "Finished type checking."
+        checkUselessImports
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
@@ -924,7 +925,7 @@ buildInterface file topLevel syntaxInfo pragmas = do
     -- and should be dead-code eliminated (#1928).
     display <- HMap.filter (not . null) . HMap.map (filter isGlobal) <$> use stImportsDisplayForms
     -- TODO: Kill some ranges?
-    sig <- getSignature
+    (display, sig) <- eliminateDeadCode display =<< getSignature
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
@@ -950,37 +951,41 @@ buildInterface file topLevel syntaxInfo pragmas = do
       }
     -- We need to check useless imports *before* dead code elimination
     -- otherwise we will miss the identifiers used in private definitions
-    checkUselessImports i
-    (display', sig') <- eliminateDeadCode (iDisplayForms i) (iSignature i)
-    let i' = i { iDisplayForms = display', iSignature = sig' }
-    reportSLn "import.iface" 7 "  interface complete"
-    return i'
+    return i
 
 -- | Collect the modules of origin of all the identifiers used
 --   in definitions and produce a warning if any of the imported
 --   modules are unused
-checkUselessImports :: Interface -> TCM ()
-checkUselessImports i = do
-  let ims = Set.fromList $ fst <$> iImportedModules i
-  scope <- getScope
-  let ums = getUsedModules scope i
-  mapM_ (warning . UselessImport) $
-    flip Set.filter ims $ \ nm ->
-      let cnm = nameConcrete <$> mnameToList nm
-      in not (cnm `Set.member` ums)
+checkUselessImports :: TCM ()
+checkUselessImports = do
+  sig <- use stSignature
+  ims <- use stImportedModules
+  scp <- use stScope
+  let ums = getUsedModules sig scp
+  let useless = flip Set.filter ims $ \ nm ->
+                  let cnm = nameConcrete <$> mnameToList nm
+                  in not (cnm `Set.member` ums)
+  -- raise the warnings
+  mapM_ (\ mn -> setCurrentRange mn $ warning (UselessImport mn)) useless
+
+  -- highlight the useless imports
+  Bench.billTo [Bench.Highlighting] $
+    ifTopLevelAndHighlightingLevelIs NonInteractive $
+      printHighlightingInfo $ compress $
+        Fold.foldMap (deadCodeErrorHighlighting . getRange) useless
 
   where
 
-    getAQNames :: Interface -> Set A.QName
-    getAQNames i = flip execState Set.empty $ do
-      let defs = _sigDefinitions $ iSignature i
-      forM_ defs $ \ d -> modify (Set.union (namesIn d))
+    getAQNames :: Signature -> Set A.QName
+    getAQNames sig = flip execState Set.empty $ do
+      forM_ (_sigDefinitions sig) $ \ d ->
+        modify (Set.union (namesIn d))
 
-    getUsedModules :: ScopeInfo -> Interface -> Set [C.Name]
-    getUsedModules s i = flip execState Set.empty $ do
-      let sinv = scopeInverseName $ iInsideScope i
-      forM_ (getAQNames i) $ \ aqn ->
-        forM_ (fromMaybe __IMPOSSIBLE__ $ Map.lookup aqn sinv) $ \ cqn ->
+    getUsedModules :: Signature -> ScopeInfo -> Set [C.Name]
+    getUsedModules sig scp = flip execState Set.empty $ do
+      let sinv = scopeInverseName scp
+      forM_ (getAQNames sig) $ \ aqn ->
+        forM_ (fromMaybe [] $ Map.lookup aqn sinv) $ \ cqn ->
           modify (Set.insert $ init $ C.qnameParts cqn)
 
 -- | Returns (iSourceHash, iFullHash)

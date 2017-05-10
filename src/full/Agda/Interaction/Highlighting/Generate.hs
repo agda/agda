@@ -8,6 +8,7 @@ module Agda.Interaction.Highlighting.Generate
   , generateTokenInfo, generateTokenInfoFromString
   , printSyntaxInfo
   , printErrorInfo, errorHighlighting
+  , deadCodeErrorHighlighting
   , printUnsolvedInfo
   , printHighlightingInfo
   , highlightAsTypeChecked
@@ -550,10 +551,10 @@ warningHighlighting :: TCWarning -> File
 warningHighlighting w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
+  UnreachableClauses{}       -> deadCodeErrorHighlighting $ P.getRange w
+  UselessImport{}            -> deadCodeErrorHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
-  UselessImport{}            -> coverageErrorHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedMetaVariables{}    -> mempty
   UnsolvedInteractionMetas{} -> mempty
@@ -589,16 +590,15 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- | Generate syntax highlighting for not-strictly-positive inductive
 -- definitions.
 
--- TODO: highlight also the problematic occurrences
 positivityErrorHighlighting :: I.QName -> OccursWhere -> File
 positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
   where
     rs = case o of Unknown -> []; Known r _ -> [r]
     m  = mempty { otherAspects = [PositivityProblem] }
 
-unreachableErrorHighlighting :: P.Range -> File
-unreachableErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = mempty { otherAspects = [ReachabilityProblem] }
+deadCodeErrorHighlighting :: P.Range -> File
+deadCodeErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = mempty { otherAspects = [DeadCodeProblem] }
 
 coverageErrorHighlighting :: P.Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m

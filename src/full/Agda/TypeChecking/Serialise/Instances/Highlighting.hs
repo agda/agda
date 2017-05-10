@@ -70,7 +70,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.TypeChecks          = icodeN 5 ()
   icod_ HP.UnsolvedConstraint  = icodeN 6 ()
   icod_ HP.PositivityProblem   = icodeN 7 ()
-  icod_ HP.ReachabilityProblem = icodeN 8 ()
+  icod_ HP.DeadCodeProblem     = icodeN 8 ()
   icod_ HP.CoverageProblem     = icodeN 9 ()
   icod_ HP.CatchallClause      = icodeN 10 ()
 

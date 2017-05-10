@@ -101,7 +101,7 @@ data OtherAspect
     -- could for instance be an emptyness constraint.
   | TerminationProblem
   | PositivityProblem
-  | ReachabilityProblem
+  | DeadCodeProblem
   | CoverageProblem
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to
