@@ -1,10 +1,12 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Typecheck where
 
 import Data.IORef
 import Control.Monad (liftM)
 
+import Agda.Syntax.Common (Hiding (..))
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
@@ -190,7 +192,7 @@ tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont 
  where
   t = TrBr ityptrs
 
-addend :: FMode -> MExp o -> MM (Exp o) blk -> MM (Exp o) blk
+addend :: Hiding -> MExp o -> MM (Exp o) blk -> MM (Exp o) blk
 addend hid a (NotM (App uid okh elr as)) = NotM $ App uid okh elr (f as)
  where
    f (NotM ALNil)             = NotM $ ALCons hid a (NotM $ ALNil)

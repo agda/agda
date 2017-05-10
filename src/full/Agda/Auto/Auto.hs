@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Auto (auto) where
 
@@ -10,18 +11,13 @@ import qualified Data.Map as Map
 import Data.IORef
 import qualified System.Timeout
 import Data.Maybe
-import Data.Functor
 import qualified Data.Traversable as Trav
 
 import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad hiding (withCurrentModule)
--- import Agda.TypeChecking.Monad.Base
--- import Agda.TypeChecking.Monad.MetaVars
--- import Agda.TypeChecking.Monad.Context
--- import Agda.TypeChecking.Monad.Signature
-import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Syntax.Common (Hiding(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Text.PrettyPrint as PP
@@ -40,6 +36,7 @@ import qualified Agda.TypeChecking.Monad.Base as TCM
 import Agda.TypeChecking.EtaContract (etaContract)
 import qualified Agda.Utils.HashMap as HMap
 
+import Agda.Auto.Options
 import Agda.Auto.Convert
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
@@ -105,7 +102,12 @@ auto
 auto ii rng argstr = do
 
   -- Parse hints and other configuration.
-  let (hints, timeout, pick, mode, hintmode) = parseargs argstr
+  let autoOptions = parseArgs argstr
+  let hints    = autoOptions ^. aoHints
+  let timeout  = autoOptions ^. aoTimeOut
+  let pick     = autoOptions ^. aoPick
+  let mode     = autoOptions ^. aoMode
+  let hintmode = autoOptions ^. aoHintMode
   ahints <- case mode of
     MRefine{} -> return []
     _         -> mapM (parseExprIn ii rng) hints
@@ -165,7 +167,8 @@ auto ii rng argstr = do
         ticks <- liftIO $ newIORef 0
 
         let exsearch initprop recinfo defdfv =
-             liftIO $ System.Timeout.timeout (timeout * 1000000) $ loop 0
+             liftIO $ System.Timeout.timeout (getTimeOut timeout * 1000000)
+                    $ loop 0
              where
                loop d = do
                  let rechint x = case recinfo of
@@ -207,7 +210,7 @@ auto ii rng argstr = do
                            Nothing -> return 0
                 ee <- liftIO $ newIORef $ ConstDef {cdname = "T", cdorigin = __IMPOSSIBLE__, cdtype = NotM $ Sort (Set 0), cdcont = Postulate, cddeffreevars = 0}
                 let (restargs, modargs) = splitAt (length mylocalVars - defdfv) mylocalVars
-                    mytype' = foldl (\x y -> NotM $ Pi Nothing Agda.Auto.Syntax.NotHidden (freeIn 0 y) y (Abs NoId x)) mytype restargs
+                    mytype' = foldl (\x y -> NotM $ Pi Nothing NotHidden (freeIn 0 y) y (Abs NoId x)) mytype restargs
                     htyp = negtype ee mytype'
                     sctx = (Id "h", closify htyp) : map (\x -> (NoId, closify x)) modargs
                     ntt = closify (NotM $ App Nothing (NotM OKVal) (Const ee) (NotM ALNil))
@@ -353,7 +356,7 @@ auto ii rng argstr = do
           let [rectyp'] = mymrectyp
           defdfv <- getdfv mi def
           myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate, cddeffreevars = defdfv}
-          sols <- liftIO $ System.Timeout.timeout (timeout * 1000000) (
+          sols <- liftIO $ System.Timeout.timeout (getTimeOut timeout * 1000000) (
              let r d = do
                   sols <- liftIO $ caseSplitSearch ticks __IMPOSSIBLE__ myhints meqr __IMPOSSIBLE__ d myrecdef ctx mytype pats
                   case sols of
@@ -467,48 +470,16 @@ autohints AHMModule mi (Just def) = do
 
 autohints _ _ _ = return []
 
+
+genericNotEnough :: String -> Int -> String
+genericNotEnough str n = intercalate " " $ case n of
+  0 -> [ "No"    , str, "found"]
+  1 -> [ "Only 1", str, "found" ]
+  _ -> [ "Only", show n, str ++ "s", "found" ]
+
 insuffsols :: Int -> String
-insuffsols 0 = "No solution found"
-insuffsols n = "Only " ++ show n ++ " solution(s) found"
+insuffsols  = genericNotEnough "solution"
 
 insuffcands :: Int -> String
-insuffcands 0 = "No candidate found"
-insuffcands n = "Only " ++ show n ++ " candidate(s) found"
+insuffcands = genericNotEnough "candidate"
 
-data Mode = MNormal Bool Bool -- true if list mode, true if disprove
-
-          | MCaseSplit
-
-          | MRefine Bool -- true if list mode
-
-
-data AutoHintMode = AHMNone
-                  | AHMModule
-
-parseargs :: String -> ([String], Int, Int, Mode, AutoHintMode)
-parseargs s =
- let r ("-t" : timeout : ws) (_, pick, mode, hintmode) =
-      r ws (read timeout, pick, mode, hintmode)
-     r ("-s" : pick : ws) (timeout, _, mode, hintmode) =
-      r ws (timeout, read pick, mode, hintmode)
-
-
-     r ("-l" : ws) (timeout, pick, MNormal _ disprove, hintmode) =
-      r ws (timeout, pick, MNormal True disprove, hintmode)
-     r ("-l" : ws) (timeout, pick, MRefine _, hintmode) =
-      r ws (timeout, pick, MRefine True, hintmode)
-     r ("-d" : ws) (timeout, pick, MNormal listmode _, hintmode) =
-      r ws (timeout, pick, MNormal listmode True, hintmode)
-     r ("-m" : ws) (timeout, pick, mode, _) =
-      r ws (timeout, pick, mode, AHMModule)
-
-     r ("-c" : ws) (timeout, pick, _, hintmode) =
-      r ws (timeout, pick, MCaseSplit, hintmode)
-
-     r ("-r" : ws) (timeout, pick, _, hintmode) =
-      r ws (timeout, (-1), MRefine False, hintmode)
-     r (h : ws) x =
-      let (hints, timeout, pick, mode, hintmode) = r ws x
-      in (h : hints, timeout, pick, mode, hintmode)
-     r [] (x,y,z,w) = ([],x,y,z,w)
- in r (words s) (5, 0, MNormal False False, AHMNone)

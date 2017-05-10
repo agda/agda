@@ -1,15 +1,16 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Convert where
 
-import Control.Applicative hiding (getConst, Const(..))
+-- import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe
 import Data.Traversable (traverse)
 import Control.Monad.State
 
+import Agda.Syntax.Common (Hiding(..), getHiding)
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Internal.Pattern as IP
@@ -26,14 +27,13 @@ import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ct
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo, lookupInteractionPoint)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
-import Agda.TypeChecking.Substitute (piApply, applySubst, renamingR)
+import Agda.TypeChecking.Substitute (applySubst, renamingR)
 import Agda.TypeChecking.Telescope (piApplyM)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
-import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
+import Agda.TypeChecking.Reduce (normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free (freeIn)
-import qualified Agda.Utils.HashMap as HMap
 import Agda.TypeChecking.Errors ( stringTCErr )
 
 import Agda.Interaction.MakeCase (getClauseForIP)
@@ -49,11 +49,6 @@ import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 #include "undefined.h"
-
-
-norm :: Normalise t => t -> MB.TCM t
-norm x = normalise x
---norm x = return x
 
 type O = (Maybe Int, AN.QName) -- Nothing - Def, Just npar - Con with npar parameters which don't appear in Agda
 
@@ -96,7 +91,7 @@ tomy imi icns typs = do
      def <- lift $ getConstInfo cn
      let typ = MB.defType def
          defn = MB.theDef def
-     typ <- lift $ norm typ
+     typ <- lift $ normalise typ
      typ' <- tomyType typ
      let clausesToDef clauses = do
            clauses' <- tomyClauses clauses
@@ -168,8 +163,8 @@ tomy imi icns typs = do
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
         targettype <- tt `piApplyM` permute (takeP (length vs) $ mvPermutation mv) vs
-        targettype <- norm targettype
-        localVars <- mapM norm localVars
+        targettype <- normalise targettype
+        localVars <- mapM normalise localVars
         return (targettype, localVars)
        modify (\s -> s {sCurMeta = Just mi})
        typ' <- tomyType targettype
@@ -266,7 +261,7 @@ getEqs :: MB.TCM [(Bool, I.Term, I.Term)]
 getEqs = do
  eqs <- getAllConstraints
  let r = mapM (\eqc -> do
-          neqc <- norm eqc
+          neqc <- normalise eqc
           case MB.clValue $ MB.theConstraint neqc of
            MB.ValueCmp ineq _ i e -> do
             ei <- etaContract i
@@ -307,7 +302,7 @@ tomyClause cl = do
      body = I.clauseBody cl
      pats = I.clausePats cl
  pats' <- mapM tomyPat $ IP.unnumberPatVars pats
- body' <- traverse tomyExp =<< lift (norm body)
+ body' <- traverse tomyExp =<< lift (normalise body)
  return $ case body' of
            Just body' -> Just (pats', body')
            Nothing    -> Nothing
@@ -378,7 +373,7 @@ tomyExp v0 =
       return $ NotM $ App Nothing (NotM OKVal) (Var v) as'
     I.Lam info b -> do
       b' <- tomyExp (I.absBody b)
-      return $ NotM $ Lam (cnvh info) (Abs (Id $ I.absName b) b')
+      return $ NotM $ Lam (getHiding info) (Abs (Id $ I.absName b) b')
     t@I.Lit{} -> do
       t <- lift $ constructorForm t
       case t of
@@ -403,7 +398,7 @@ tomyExp v0 =
           name = I.absName b
       x' <- tomyType x
       y' <- tomyType y
-      return $ NotM $ Pi Nothing (cnvh info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
+      return $ NotM $ Pi Nothing (getHiding info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
     I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
     I.Sort _ -> return $ NotM $ Sort UnknownSort
     t@I.MetaV{} -> do
@@ -428,7 +423,7 @@ tomyExps [] = return $ NotM ALNil
 tomyExps (Common.Arg info a : as) = do
  a' <- tomyExp a
  as' <- tomyExps as
- return $ NotM $ ALCons (cnvh info) a' as'
+ return $ NotM $ ALCons (getHiding info) a' as'
 
 tomyIneq :: MB.Comparison -> Bool
 tomyIneq MB.CmpEq = False
@@ -466,13 +461,7 @@ fmLevel m (I.Plus _ l) = case l of
 
 -- ---------------------------------------------
 
-cnvh :: Common.LensHiding a => a -> FMode
-cnvh info = case Common.getHiding info of
-    Common.NotHidden -> NotHidden
-    Common.Instance  -> Instance
-    Common.Hidden    -> Hidden
-
-icnvh :: FMode -> Common.ArgInfo
+icnvh :: Hiding -> Common.ArgInfo
 icnvh h = Common.setHiding h' $
           Common.setOrigin o $
           Common.defaultArgInfo
@@ -595,7 +584,7 @@ modifyAbstractClause cl = cl
 -- ---------------------------------
 
 
-constructPats :: Map AN.QName (TMode, ConstRef O) -> I.MetaId -> I.Clause -> MB.TCM ([(FMode, MId)], [CSPat O])
+constructPats :: Map AN.QName (TMode, ConstRef O) -> I.MetaId -> I.Clause -> MB.TCM ([(Hiding, MId)], [CSPat O])
 constructPats cmap mainm clause = do
  let cnvps ns [] = return (ns, [])
      cnvps ns (p : ps) = do
@@ -603,7 +592,7 @@ constructPats cmap mainm clause = do
       (ns'', p') <- cnvp ns' p
       return (ns'', p' : ps')
      cnvp ns p =
-      let hid = cnvh $ Common.argInfo p
+      let hid = getHiding $ Common.argInfo p
       in case Common.namedArg p of
        I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP con _ ps -> do

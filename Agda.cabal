@@ -185,6 +185,7 @@ library
               , happy >= 1.19.4 && < 2
 
   exposed-modules:  Agda.Auto.Auto
+                    Agda.Auto.Options
                     Agda.Auto.CaseSplit
                     Agda.Auto.Convert
                     Agda.Auto.NarrowingSearch

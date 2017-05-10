@@ -1,8 +1,11 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Syntax where
 
 import Data.IORef
+
+import Agda.Syntax.Common (Hiding)
 
 import Agda.Auto.NarrowingSearch
 
@@ -16,7 +19,15 @@ data HintMode = HMNormal
               | HMRecCall
 
 
-data EqReasoningConsts o = EqReasoningConsts {eqrcId, eqrcBegin, eqrcStep, eqrcEnd, eqrcSym, eqrcCong :: ConstRef o} -- "_≡_", "begin_", "_≡⟨_⟩_", "_∎", "sym", "cong"
+data EqReasoningConsts o = EqReasoningConsts
+  { eqrcId    -- "_≡_"
+  , eqrcBegin -- "begin_"
+  , eqrcStep  -- "_≡⟨_⟩_"
+  , eqrcEnd   -- "_∎"
+  , eqrcSym   -- "sym"
+  , eqrcCong  -- "cong"
+  :: ConstRef o
+  }
 
 data EqReasoningState = EqRSNone | EqRSChain | EqRSPrf1 | EqRSPrf2 | EqRSPrf3
  deriving (Eq, Show)
@@ -61,13 +72,6 @@ type MyPB o = PB (RefInfo o)
 type MyMB a o = MB a (RefInfo o)
 
 type Nat = Int
-
--- | 'Hiding' in Agda.
-data FMode = Hidden
-           | Instance
-           | NotHidden
- deriving Eq
-
 
 data MId = Id String
          | NoId
@@ -142,13 +146,13 @@ data Exp o
     , appElims :: MArgList o
       -- ^ Arguments.
     }
-  | Lam FMode (Abs (MExp o))
+  | Lam Hiding (Abs (MExp o))
     -- ^ Lambda with hiding information.
-  | Pi (Maybe (UId o)) FMode Bool (MExp o) (Abs (MExp o))
+  | Pi (Maybe (UId o)) Hiding Bool (MExp o) (Abs (MExp o))
     -- ^ @True@ if possibly dependent (var not known to not occur).
     --   @False@ if non-dependent.
   | Sort Sort
-  | AbsurdLambda FMode
+  | AbsurdLambda Hiding
     -- ^ Absurd lambda with hiding information.
 
 dontCare :: Exp o
@@ -160,10 +164,10 @@ type MExp o = MM (Exp o) (RefInfo o)
 data ArgList o
   = ALNil
     -- ^ No more eliminations.
-  | ALCons FMode (MExp o) (MArgList o)
+  | ALCons Hiding (MExp o) (MArgList o)
     -- ^ Application and tail.
 
-  | ALProj (MArgList o) (MM (ConstRef o) (RefInfo o)) FMode (MArgList o)
+  | ALProj (MArgList o) (MM (ConstRef o) (RefInfo o)) Hiding (MArgList o)
     -- ^ proj pre args, projfcn idx, tail
 
   | ALConPar (MArgList o)
@@ -176,15 +180,15 @@ data ArgList o
 type MArgList o = MM (ArgList o) (RefInfo o)
 
 data HNExp o = HNApp [Maybe (UId o)] (Elr o) (ICArgList o)
-             | HNLam [Maybe (UId o)] FMode (Abs (ICExp o))
-             | HNPi [Maybe (UId o)] FMode Bool (ICExp o) (Abs (ICExp o))
+             | HNLam [Maybe (UId o)] Hiding (Abs (ICExp o))
+             | HNPi [Maybe (UId o)] Hiding Bool (ICExp o) (Abs (ICExp o))
              | HNSort Sort
 
 -- | Head-normal form of 'ICArgList'.  First entry is exposed.
 --
 --   Q: Why are there no projection eliminations?
 data HNArgList o = HNALNil
-                 | HNALCons FMode (ICExp o) (ICArgList o)
+                 | HNALCons Hiding (ICExp o) (ICArgList o)
                  | HNALConPar (ICArgList o)
 
 -- | Lazy concatenation of argument lists under explicit substitutions.
