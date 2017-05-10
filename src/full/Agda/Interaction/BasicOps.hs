@@ -784,7 +784,8 @@ introTactic pmLambda ii = do
         TelV tel' t <- telViewUpTo' (-1) notVisible t
         -- if we cannot introduce a constructor, we try a lambda
         let fallback = do
-              TelV tel _ <- telView t
+              cubical <- optCubical <$> pragmaOptions
+              TelV tel _ <- (if cubical then telViewPath else telView) t
               reportSDoc "interaction.intro" 20 $ TP.sep
                 [ TP.text "introTactic/fallback"
                 , TP.text "tel' = " TP.<+> prettyTCM tel'
