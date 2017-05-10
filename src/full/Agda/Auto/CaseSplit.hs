@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
+
 
 module Agda.Auto.CaseSplit where
 
@@ -6,6 +8,7 @@ import Data.IORef
 import Data.List (findIndex, union)
 import qualified Data.IntMap as IntMap
 
+import Agda.Syntax.Common (Hiding(..))
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 
@@ -25,7 +28,7 @@ costCaseSplitHigh     = 5000
 costCaseSplitLow      = 2000
 costAddVarDepth       = 1000
 
-data HI a = HI FMode a
+data HI a = HI Hiding a
 
 drophid :: [HI a] -> [a]
 drophid = map (\(HI _ x) -> x)

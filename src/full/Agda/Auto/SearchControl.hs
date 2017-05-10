@@ -1,15 +1,16 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE UndecidableInstances  #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.SearchControl where
 
 import Control.Monad
 import Data.IORef
 import Control.Monad.State
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromMaybe)
 
+import Agda.Syntax.Common (Hiding(..))
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 
@@ -17,65 +18,64 @@ import Agda.Auto.Syntax
 import Agda.Utils.Impossible
 
 instance Refinable (ArgList o) (RefInfo o) where
- refinements _ infos _ =
-  return $ [
-            (0, return ALNil),
+ refinements _ infos _ = return $ fmap (0,) $
+   [ return ALNil, cons NotHidden, cons Hidden ]
+   ++ if getIsDep infos then []
+      else [ proj NotHidden, proj Hidden ]
 
-            (0, cons NotHidden),
-            (0, cons Hidden)
+   where
 
-
-           ]
-
-           ++
-           (let isdep = rr infos
-                rr (RICheckElim isdep : _) = isdep
-                rr (_ : xs) = rr xs
-                rr _ = __IMPOSSIBLE__
-                proj hid = newPlaceholder >>= \p1 -> newPlaceholder >>= \p2 -> newPlaceholder >>= \p3 -> return $ ALProj p1 p2 hid p3
-            in if isdep then
-                 []
-                else
-
-                 [(0, proj NotHidden), (0, proj Hidden)]
+    getIsDep :: [RefInfo o] -> Bool
+    getIsDep (x : xs) = case x of
+      RICheckElim isDep -> isDep
+      _                 -> getIsDep xs
+    getIsDep _ = __IMPOSSIBLE__
+    
+    proj :: Hiding -> RefCreateEnv (RefInfo o) (ArgList o)
+    proj hid = ALProj <$> newPlaceholder <*> newPlaceholder
+                      <*> return hid     <*> newPlaceholder
+    
+    cons :: Hiding -> RefCreateEnv (RefInfo o) (ArgList o)
+    cons hid = ALCons hid <$> newPlaceholder <*> newPlaceholder
 
 
-           )
+data ExpRefInfo o = ExpRefInfo
+  { eriMain           :: Maybe (RefInfo o)
+  , eriUnifs          :: [RefInfo o]
+  , eriInfTypeUnknown :: Bool
+  , eriIsEliminand    :: Bool
+  , eriUsedVars       :: Maybe ([UId o], [Elr o])
+  , eriIotaStep       :: Maybe Bool
+  , eriPickSubsVar    :: Bool
+  , eriEqRState       :: Maybe EqReasoningState
+  }
 
-  where cons hid = newPlaceholder >>= \p1 -> newPlaceholder >>= \p2 -> return $ ALCons hid p1 p2
-
-
-data ExpRefInfo o = ExpRefInfo {eriMain :: Maybe (RefInfo o), eriUnifs :: [RefInfo o], eriInfTypeUnknown, eriIsEliminand :: Bool, eriUsedVars :: Maybe ([UId o], [Elr o]),
-                                eriIotaStep :: Maybe Bool, eriPickSubsVar :: Bool
-
-                                , eriEqRState :: Maybe EqReasoningState
-
-                               }
+initExpRefInfo :: ExpRefInfo o
+initExpRefInfo = ExpRefInfo
+  { eriMain           = Nothing
+  , eriUnifs          = []
+  , eriInfTypeUnknown = False
+  , eriIsEliminand    = False
+  , eriUsedVars       = Nothing
+  , eriIotaStep       = Nothing
+  , eriPickSubsVar    = False
+  , eriEqRState       = Nothing
+  }
 
 getinfo :: [RefInfo o] -> ExpRefInfo o
-getinfo = f (ExpRefInfo {eriMain = Nothing
-                        , eriUnifs = []
-                        , eriInfTypeUnknown = False
-                        , eriIsEliminand = False
-                        , eriUsedVars = Nothing
-                        , eriIotaStep = Nothing
-                        , eriPickSubsVar = False
-                        , eriEqRState = Nothing
-                        }
-            )
- where
-  f i [] = i
-  f i (x@RIMainInfo{} : xs) = f (i {eriMain = Just x}) xs
-  f i (x@RIUnifInfo{} : xs) = f (i {eriUnifs = x : eriUnifs i}) xs
-  f i (RIInferredTypeUnknown : xs) = f (i {eriInfTypeUnknown = True}) xs
-  f i (RINotConstructor : xs) = f (i {eriIsEliminand = True}) xs
-  f i (RIUsedVars nuids nused : xs) = f (i {eriUsedVars = Just (nuids, nused)}) xs
-  f i (RIIotaStep semif : xs) = f (i {eriIotaStep = Just (semif || maybe False id (eriIotaStep i))}) xs
-  f i (RIPickSubsvar : xs) = f (i {eriPickSubsVar = True}) xs
+getinfo = foldl step initExpRefInfo where
 
-  f i (RIEqRState s : xs) = f (i {eriEqRState = Just s}) xs
-
-  f i _ = __IMPOSSIBLE__
+  step :: ExpRefInfo o -> RefInfo o -> ExpRefInfo o
+  step eri x@RIMainInfo{}           = eri { eriMain  = Just x }
+  step eri x@RIUnifInfo{}           = eri { eriUnifs = x : eriUnifs eri }
+  step eri RIInferredTypeUnknown    = eri { eriInfTypeUnknown = True }
+  step eri RINotConstructor         = eri { eriIsEliminand = True }
+  step eri (RIUsedVars nuids nused) = eri { eriUsedVars = Just (nuids, nused) }
+  step eri (RIIotaStep semif)       = eri { eriIotaStep = Just iota' } where
+    iota' = semif || fromMaybe False (eriIotaStep eri)
+  step eri RIPickSubsvar            = eri { eriPickSubsVar = True }
+  step eri (RIEqRState s)           = eri { eriEqRState = Just s }
+  step eri _ = __IMPOSSIBLE__
 
 
 univar :: [CAction o] -> Nat -> Maybe Nat
@@ -96,6 +96,14 @@ subsvars = f 0
   f n (Sub _ : xs) = n : f (n + 1) xs
   f n (Skip : xs) = f (n + 1) xs
 
+newAbs :: MId -> RefCreateEnv blk (Abs (MM a blk))
+newAbs mid = Abs mid <$> newPlaceholder
+
+newLam :: Hiding -> MId -> RefCreateEnv (RefInfo o) (Exp o)
+newLam hid mid = Lam hid <$> newAbs mid
+
+newPi :: UId o -> Bool -> Hiding -> RefCreateEnv (RefInfo o) (Exp o)
+newPi uid dep hid = Pi (Just uid) hid dep <$> newPlaceholder <*> newAbs NoId
 
 instance Refinable (Exp o) (RefInfo o) where
  refinements envinfo infos meta =
@@ -105,46 +113,38 @@ instance Refinable (Exp o) (RefInfo o) where
 
    meqr = rieEqReasoningConsts envinfo
 
-   ExpRefInfo {eriMain = Just (RIMainInfo n tt iotastepdone), eriUnifs = unis, eriInfTypeUnknown = inftypeunknown, eriIsEliminand = iseliminand, eriUsedVars = Just (uids, usedvars),
-                         eriIotaStep = iotastep, eriPickSubsVar = picksubsvar
+   ExpRefInfo { eriMain  = Just (RIMainInfo n tt iotastepdone)
+              , eriUnifs = unis
+              , eriInfTypeUnknown = inftypeunknown
+              , eriIsEliminand = iseliminand
+              , eriUsedVars = Just (uids, usedvars)
+              , eriIotaStep = iotastep
+              , eriPickSubsVar = picksubsvar
+              , eriEqRState = meqrstate
+              } = getinfo infos
 
-                         , eriEqRState = meqrstate
+   eqrstate = fromMaybe EqRSNone meqrstate
 
-                        } = getinfo infos
-
-   eqrstate = maybe EqRSNone id meqrstate
-
-   app muid elr = do p <- newPlaceholder
-                     p <- case elr of
-                      Var{} -> return p
-                      Const c -> do
-                       cd <- lift $ readIORef c
-                       let dfvapp 0 _ = p
-                           dfvapp i n = NotM $ ALCons NotHidden (NotM $ App Nothing (NotM $ OKVal) (Var n) (NotM ALNil)) (dfvapp (i - 1) (n - 1))
-                            -- NotHidden is ok because agda reification throws these arguments away and agsy skips typechecking them
-                       return $ dfvapp (cddeffreevars cd) (n - 1)
-
-                     okh <- newOKHandle
-                     let uid = case muid of
-                                Just _ -> muid
-                                Nothing -> Just meta
-                     return $ App uid okh elr p
-   lam hid id = do
-    p <- newPlaceholder
-    return $ Lam hid (Abs id p)
-   pi muid dep hid =
-    do p1 <- newPlaceholder
-       p2 <- newPlaceholder
-       let uid = case muid of
-                  Just _ -> muid
-                  Nothing -> Just meta
-       return $ Pi uid hid dep p1 (Abs NoId p2)
+   app muid elr = do
+     p <- newPlaceholder
+     p <- case elr of
+            Var{}   -> return p
+            Const c -> do
+              cd <- RefCreateEnv $ lift $ readIORef c
+              let dfvapp 0 _ = p
+                  dfvapp i n = NotM $ ALCons NotHidden
+                                      (NotM $ App Nothing (NotM $ OKVal) (Var n) (NotM ALNil))
+                                      (dfvapp (i - 1) (n - 1))
+                  -- NotHidden is ok because agda reification throws these arguments away and agsy skips typechecking them
+              return $ dfvapp (cddeffreevars cd) (n - 1)
+     okh <- newOKHandle
+     return $ App (Just $ fromMaybe meta muid) okh elr p
    set l = return $ Sort (Set l)
   in case unis of
    [] ->
     let
 
-     eqr = maybe __IMPOSSIBLE__ id meqr
+     eqr = fromMaybe __IMPOSSIBLE__ meqr
      foldargs [] = NotM ALNil
      foldargs ((h, a) : xs) = NotM $ ALCons h a (foldargs xs)
      eq_begin_step_step = (costEqStep,
@@ -205,9 +205,10 @@ instance Refinable (Exp o) (RefInfo o) where
      _ | eqrstate == EqRSChain ->
       return $ [eq_end, eq_step]
 
-     HNPi _ hid possdep _ (Abs id _) -> return $ (pc (if iotastepdone then costLamUnfold else costLam), lam hid id) : (costAbsurdLam, return $ AbsurdLambda hid) : generics
+     HNPi _ hid possdep _ (Abs id _) -> return $ (pc (if iotastepdone then costLamUnfold else costLam), newLam hid id) : (costAbsurdLam, return $ AbsurdLambda hid) : generics
 
-     HNSort (Set l) -> return $ map (\l -> (pc costSort, set l)) [0..l - 1] ++ [(pc costPi, pi Nothing True NotHidden), (pc costPi, pi Nothing True Hidden)] ++ generics
+     HNSort (Set l) -> return $ map (\l -> (pc costSort, set l)) [0..l - 1]
+                          ++ [(pc costPi, newPi meta True NotHidden), (pc costPi, newPi meta True Hidden)] ++ generics
 
 
      HNApp _ (Const c) _ -> do
@@ -233,7 +234,7 @@ instance Refinable (Exp o) (RefInfo o) where
                      app Nothing (Var v)
                     )) (subsvars cl)
      mlam = case tt of
-      HNPi _ hid _ _ (Abs id _) -> [(costUnification, lam hid id)]
+      HNPi _ hid _ _ (Abs id _) -> [(costUnification, newLam hid id)]
       _ -> []
      generics = mlam ++ subsvarapps
 
@@ -258,22 +259,18 @@ instance Refinable (Exp o) (RefInfo o) where
       HNLam{} -> generics
       HNPi seenuids hid possdep _ _ ->
        let (uid, isunique) = pickuid seenuids
-       in (if isunique then costUnification else costUnificationOccurs, pi uid possdep hid) : generics
+       in (if isunique then costUnification else costUnificationOccurs
+          , newPi (fromMaybe meta uid) possdep hid) : generics
       HNSort (Set l) -> map (\l -> (costUnification, set l)) [0..l] ++ generics
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__
 
 extraref :: UId o -> [Maybe (UId o)] -> ConstRef o ->
-            (Int, StateT (IORef [SubConstraints (RefInfo o)], Int) IO (Exp o))
+            (Int, RefCreateEnv (RefInfo o) (Exp o))
 extraref meta seenuids c = (costAppExtraRef, app (head seenuids) (Const c))
  where
-   app muid elr = do p <- newPlaceholder
-                     okh <- newOKHandle
-                     let uid = case muid of
-                                Just _ -> muid
-                                Nothing -> Just meta
-                     return $ App uid okh elr p
-
+   app muid elr = App (Just $ fromMaybe meta muid)
+              <$> newOKHandle <*> return elr <*> newPlaceholder
 
 instance Refinable (ICExp o) (RefInfo o) where
  refinements _ infos _ =

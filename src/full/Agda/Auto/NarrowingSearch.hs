@@ -157,8 +157,19 @@ runUndo x = do
 
 -- -----------------------
 
+newtype RefCreateEnv blk a = RefCreateEnv
+  { runRefCreateEnv :: StateT ((IORef [SubConstraints blk]), Int) IO a }
 
-type RefCreateEnv blk = StateT ( ( (IORef [SubConstraints blk])), Int) IO
+instance Functor (RefCreateEnv blk) where
+  fmap f = RefCreateEnv . fmap f . runRefCreateEnv
+
+instance Applicative (RefCreateEnv blk) where
+  pure    = RefCreateEnv . pure
+  f <*> t = RefCreateEnv $ runRefCreateEnv f <*> runRefCreateEnv t
+
+instance Monad (RefCreateEnv blk) where
+  return = pure
+  t >>= f = RefCreateEnv $ runRefCreateEnv t >>= runRefCreateEnv . f
 
 data Pair a b = Pair a b
 
@@ -167,14 +178,14 @@ class Refinable a blk where
 
 
 newPlaceholder :: RefCreateEnv blk (MM a blk)
-newPlaceholder = do
- (e@( ( mcompoint)), c) <- get
+newPlaceholder = RefCreateEnv $ do
+ (mcompoint, c) <- get
  m <- lift $ newMeta mcompoint
- put (e, (c + 1))
+ put (mcompoint, (c + 1))
  return $ Meta m
 
 newOKHandle :: RefCreateEnv blk (OKHandle blk)
-newOKHandle = do
+newOKHandle = RefCreateEnv $ do
  (e@( ( _)), c) <- get
  cp <- lift $ newIORef []
  m <- lift $ newMeta cp
@@ -182,7 +193,7 @@ newOKHandle = do
  return $ Meta m
 
 dryInstantiate :: RefCreateEnv blk a -> IO a
-dryInstantiate bind = evalStateT bind ( ( __IMPOSSIBLE__), 0)
+dryInstantiate bind = evalStateT (runRefCreateEnv bind) (__IMPOSSIBLE__, 0)
 
 type BlkInfo blk = (Bool, Prio, Maybe blk) -- Bool - is principal
 
@@ -380,7 +391,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
         lift $ NoUndo.writeIORef ticks $! t + 1
 
 
-        (bind, (_, nnewmeta)) <- lift $ runStateT bind ( ( (mcompoint m)), 0)
+        (bind, (_, nnewmeta)) <- lift $ runStateT (runRefCreateEnv bind) (mcompoint m, 0)
         uwriteIORef (mbind m) (Just bind)
         mcomptr <- ureadIORef $ mcompoint m
         mapM_ (\comptr ->
