@@ -1463,7 +1463,6 @@ instance Verbalize Relevance where
       Irrelevant -> "irrelevant"
       NonStrict  -> "shape-irrelevant"
       Forced{}   -> "forced"
-      UnusedArg  -> "unused"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

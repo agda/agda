@@ -322,7 +322,6 @@ instance Free a => Free (Arg a) where
   freeVars' a = f <$> freeVars' (unArg a)
     where f = case getRelevance a of
                Irrelevant -> irrelevantly
-               UnusedArg  -> unused
                _          -> id
 
 

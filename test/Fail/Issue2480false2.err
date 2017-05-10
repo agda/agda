@@ -1,0 +1,3 @@
+Issue2480false2.agda:19,18-22
+x != y of type Bool
+when checking that the expression refl has type f x ≡ f y

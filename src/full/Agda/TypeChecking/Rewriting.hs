@@ -286,7 +286,6 @@ addRewriteRule q = do
         n = size tel
         allIxs = zipWith ($>) (flattenTel tel) (downFrom n)
         usedIxs = filter (not . unused . getRelevance) allIxs
-        unused UnusedArg{} = True
         unused _           = False
 
 -- | Append rewrite rules to a definition.

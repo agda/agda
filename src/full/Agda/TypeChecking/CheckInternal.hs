@@ -12,7 +12,7 @@ module Agda.TypeChecking.CheckInternal
   ( checkType
   , checkInternal
   , checkInternal'
-  , Action(..), defaultAction, fixUnusedArgAction
+  , Action(..), defaultAction, eraseUnusedAction
   , infer
   , inferSort
   ) where
@@ -121,24 +121,21 @@ defaultAction = Action
   , relevanceAction = \ _ -> id
   }
 
--- | This action propagates 'UnusedArg' from 'Type' to 'Term' but leaves
---   the term otherwise intact.
-fixUnusedArgAction :: Action
-fixUnusedArgAction = defaultAction { relevanceAction = propagateUnusedArg }
+eraseUnusedAction :: Action
+eraseUnusedAction = defaultAction { postAction = eraseUnused }
+  where
+    eraseUnused :: Type -> Term -> TCM Term
+    eraseUnused t v = case ignoreSharing v of
+      Def f es -> do
+        pols <- getPolarity f
+        return $ Def f $ eraseIfNonvariant pols es
+      _        -> return v
 
--- | Propagate a 'UnusedArg' 'Relevance' from type to term,
---   overriding 'Relevant'
-propagateUnusedArg :: Relevance -> Relevance -> Relevance
-propagateUnusedArg UnusedArg = \case
-  UnusedArg -> UnusedArg
-  Relevant  -> UnusedArg
-  -- If it is forced in the constructor, it is because it appears
-  -- in the type in a pattern position, thus, cannot be unused in the type.
-  Forced{}   -> __IMPOSSIBLE__
-  -- The remaining cases have been excluded by 'checkRelevance'.
-  NonStrict  -> __IMPOSSIBLE__
-  Irrelevant -> __IMPOSSIBLE__
-propagateUnusedArg _ = id
+    eraseIfNonvariant :: [Polarity] -> Elims -> Elims
+    eraseIfNonvariant []                  es             = es
+    eraseIfNonvariant pols                []             = []
+    eraseIfNonvariant (Nonvariant : pols) (e : es) = (fmap DontCare e) : eraseIfNonvariant pols es
+    eraseIfNonvariant (_          : pols) (e : es) = e : eraseIfNonvariant pols es
 
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
@@ -236,9 +233,7 @@ checkHiding    h h' = unless (h == h') $ typeError $ HidingMismatch h h'
 --
 --   The @term@ 'Relevance' can be updated by the @action@.
 --   Note that the relevances might not match precisedly,
---   because of the non-semantic 'Forced' and the presently somewhat
---   unreliable 'UnusedArg' relevances.
---
+--   because of the non-semantic 'Forced' relevance.
 checkRelevance :: Action -> Relevance -> Relevance -> TCM Relevance
 checkRelevance action r0 r0' = do
   unless (r == r') $ typeError $ RelevanceMismatch r r'
@@ -247,7 +242,6 @@ checkRelevance action r0 r0' = do
     r  = canon r0
     r' = canon r0'
     canon Forced{}  = Relevant
-    canon UnusedArg = Relevant
     canon r         = r
 
 -- | Infer type of a neutral term.

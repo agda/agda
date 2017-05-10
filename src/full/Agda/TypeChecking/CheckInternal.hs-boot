@@ -4,7 +4,9 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base (TCM)
 
 data Action
-fixUnusedArgAction :: Action
+
+defaultAction :: Action
+eraseUnusedAction :: Action
 
 checkType :: Type -> TCM ()
 checkInternal :: Term -> Type -> TCM ()

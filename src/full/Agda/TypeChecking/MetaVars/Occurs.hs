@@ -649,7 +649,6 @@ instance FoldRigid a => FoldRigid (Arg a) where
   foldRigid f a =
     case getRelevance a of
       Irrelevant -> mempty
-      UnusedArg  -> mempty
       _          -> foldRigid f $ unArg a
 
 instance FoldRigid a => FoldRigid (Dom a) where

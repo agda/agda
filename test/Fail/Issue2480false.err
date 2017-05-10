@@ -1,3 +1,5 @@
-Issue2480false.agda:29,1-13
-Cannot pattern match tt against unused argument of type Bool
-when checking that the clause swap tt = ff has type Bool→cBool
+Issue2480false.agda:23,16-60
+tt != ff of type Bool
+when checking that the expression
+refl {x = ap {A = Bool→cBool} (λ f → f tt) p} has type
+ap (λ f → f tt) p ≡ ap (λ f → f ff) p

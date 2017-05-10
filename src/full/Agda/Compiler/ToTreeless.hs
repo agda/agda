@@ -390,6 +390,5 @@ substArg x | erasable x = return C.TErased
       case getRelevance x of
         Irrelevant -> True
         NonStrict  -> True
-        UnusedArg  -> True
         Forced{}   -> False -- TODO: would like this to be True
         Relevant   -> False

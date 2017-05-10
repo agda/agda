@@ -173,7 +173,6 @@ erasableR Relevant   = False
 erasableR Forced{}   = False    -- TODO: should be True but need to transform clauses
 erasableR NonStrict  = True
 erasableR Irrelevant = True
-erasableR UnusedArg  = True
 
 erasable :: TypeInfo -> Bool
 erasable Erasable    = True
@@ -252,4 +251,3 @@ getTypeInfo t0 = do
             I.Function{ funClauses = cs } ->
               sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El Prop) . clauseBody) cs
             _ -> return NotErasable
-

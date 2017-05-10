@@ -1,0 +1,4 @@
+Issue2455.agda:45,15-19
+.x != .y of type Unit
+when checking that the expression refl has type
+M.aux' .e .x ≡ M.aux' .e .y

@@ -395,14 +395,12 @@ instance EmbPrj Relevance where
   icod_ (Forced Small) = return 2
   icod_ (Forced Big)   = return 3
   icod_ NonStrict      = return 4
-  icod_ UnusedArg      = return 5
 
   value 0 = return Relevant
   value 1 = return Irrelevant
   value 2 = return (Forced Small)
   value 3 = return (Forced Big)
   value 4 = return NonStrict
-  value 5 = return UnusedArg
   value _ = malformed
 
 instance EmbPrj Origin where
