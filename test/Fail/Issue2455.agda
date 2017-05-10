@@ -6,6 +6,8 @@
 -- When inserting module parameters for a definition,
 -- we need to respect polarities!
 
+-- Jesper, 2017-05-10 temporarily moved to Fail
+
 -- {-# OPTIONS -v tc.decl:10 -v tc.polarity:70 -v tc.sig.inst:30 #-}
 
 module Issue2455 where

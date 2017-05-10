@@ -93,7 +93,6 @@ instance Pretty a => Pretty (WithHiding a) where
 
 instance Pretty Relevance where
   pretty Forced{}   = empty
-  pretty UnusedArg  = empty
   pretty Relevant   = empty
   pretty Irrelevant = text "."
   pretty NonStrict  = text ".."

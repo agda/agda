@@ -23,7 +23,6 @@ module Agda.TypeChecking.Free
     , runFree , rigidVars, relevantVars, allVars
     , allFreeVars
     , allRelevantVars, allRelevantVarsIgnoring
-    , allRelevantOrUnusedVars, allRelevantOrUnusedVarsIgnoring
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
@@ -218,7 +217,6 @@ instance Singleton Variable FreeVars where
     mod :: FreeVars -> FreeVars
     mod = case (o, r) of
       (_, Irrelevant) -> mapIRV (Set.insert i)
-      (_, UnusedArg ) -> mapUUV (Set.insert i)
       (Free.StronglyRigid, _) -> mapSRV (Set.insert i)
       (Free.Unguarded    , _) -> mapUGV (Set.insert i)
       (Free.WeaklyRigid  , _) -> mapWRV (Set.insert i)
@@ -270,10 +268,10 @@ freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
 relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-relevantInIgnoringSortAnn = freeIn'' (not . irrelevantOrUnused . varRelevance) IgnoreInAnnotations
+relevantInIgnoringSortAnn = freeIn'' (not . irrelevant . varRelevance) IgnoreInAnnotations
 
 relevantIn :: Free a => Nat -> a -> Bool
-relevantIn = freeIn'' (not . irrelevantOrUnused . varRelevance) IgnoreAll
+relevantIn = freeIn'' (not . irrelevant . varRelevance) IgnoreAll
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
@@ -291,17 +289,8 @@ allFreeVars = runFree (Set.singleton . fst) IgnoreNot
 -- | Collect all relevant free variables, excluding the "unused" ones, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
 allRelevantVarsIgnoring = runFree sg
-  where sg (i, VarOcc _ r) = if irrelevantOrUnused r then Set.empty else Set.singleton i
+  where sg (i, VarOcc _ r) = if irrelevant r then Set.empty else Set.singleton i
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
 allRelevantVars :: Free a => a -> VarSet
 allRelevantVars = allRelevantVarsIgnoring IgnoreNot
-
--- | Collect all relevant free variables, possibly ignoring sorts.
-allRelevantOrUnusedVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
-allRelevantOrUnusedVarsIgnoring = runFree sg
-  where sg (i, VarOcc _ r) = if isIrrelevant r then Set.empty else Set.singleton i
-
--- | Collect all relevant free variables.
-allRelevantOrUnusedVars :: Free a => a -> VarSet
-allRelevantOrUnusedVars = allRelevantOrUnusedVarsIgnoring IgnoreNot

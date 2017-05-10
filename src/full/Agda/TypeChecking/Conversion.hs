@@ -739,7 +739,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             pid <- newProblem_ $ applyRelevanceToContext r $
                 case r of
                   Forced{}   -> return ()
-                  r | irrelevantOrUnused r ->
+                  r | irrelevant r ->
                                 compareIrrelevant b (unArg arg1) (unArg arg2)
                   _          -> compareWithPol pol (flip compareTerm b)
                                   (unArg arg1) (unArg arg2)
@@ -770,7 +770,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             let checkArg = applyRelevanceToContext r $
                                case r of
                   Forced     -> return ()
-                  r | irrelevantOrUnused r ->
+                  r | irrelevant r ->
                                 compareIrrelevant b (unArg arg1) (unArg arg2)
                   _          -> compareWithPol pol (flip compareTerm b)
                                   (unArg arg1) (unArg arg2)
@@ -845,7 +845,7 @@ compareIrrelevant t v w = do
         [ nest 2 $ text $ "rel  = " ++ show rel
         , nest 2 $ text "inst =" <+> pretty inst
         ]
-      if not (irrelevantOrUnused rel) || inst
+      if not (irrelevant rel) || inst
         then fallback
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.

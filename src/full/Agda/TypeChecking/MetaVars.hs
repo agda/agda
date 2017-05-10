@@ -632,16 +632,12 @@ assign dir x args v = do
 
       (relVL, irrVL) <- do
         -- Andreas, 2016-11-03 #2211 attempt to do s.th. for unused
-        if False -- irrelevantOrUnused $ getMetaRelevance mvar
+        if False -- irrelevant $ getMetaRelevance mvar
           then do
             reportSDoc "tc.meta.assign" 25 $ text "meta is irrelevant or unused"
             return (Set.toList $ allFreeVars args, empty)
           else do
-            -- Andreas, 2016-11-03, issue #2211
-            -- treating UnusedArg as Irrelevant bears trouble
-            -- since the UnusedArg info is not consistently present
-            -- Thus, make sure we include the "unused" variables.
-            let relVL = Set.toList $ allRelevantOrUnusedVars args
+            let relVL = Set.toList $ allRelevantVars args
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may
             -- appear on the rhs.  (test/fail/Issue483b)
@@ -654,7 +650,7 @@ assign dir x args v = do
                 fromIrrVar _ = return []
             irrVL <- concat <$> mapM fromIrrVar
                        [ v | Arg info v <- args, isIrrelevant info ]
-                          -- irrelevantOrUnused (getRelevance info) ]
+                          -- irrelevant (getRelevance info) ]
             return (relVL, irrVL)
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
@@ -1119,10 +1115,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg info (Con c ci vs) -> do
           let fallback
                | isIrrelevant info = return vars
-                 -- Andreas, 2016-11-03, issue #2211
-                 -- treating UnusedArg as Irrelevant bears trouble
-                 -- since the UnusedArg info is not consistently present
-                 -- irrelevantOrUnused (getRelevance info) = return vars
                | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
           case isRC of
@@ -1143,10 +1135,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
         Arg info _ | isIrrelevant info -> return vars
-          -- Andreas, 2016-11-03, issue #2211
-          -- treating UnusedArg as Irrelevant bears trouble
-          -- since the UnusedArg info is not consistently present
-          -- irrelevantOrUnused (getRelevance info) -> return vars
         -- Andreas, 2013-10-29
         -- An irrelevant part can also be marked by a DontCare
         -- (coming from an irrelevant projection), see Issue 927:
@@ -1171,7 +1159,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
     -- adding an irrelevant entry only if not present
     cons :: (Arg Nat, Term) -> Res -> Res
-    cons a@(Arg (ArgInfo _ Irrelevant _ _) i, t) vars    -- TODO? UnusedArg?!
+    cons a@(Arg (ArgInfo _ Irrelevant _ _) i, t) vars
       | any ((i==) . unArg . fst) vars  = vars
       | otherwise                       = a : vars
     -- adding a relevant entry:

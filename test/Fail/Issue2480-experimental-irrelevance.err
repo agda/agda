@@ -1,3 +1,5 @@
-Issue2480-experimental-irrelevance.agda:31,1-32,13
-Cannot split on argument of irrelevant datatype Bool
-when checking the definition of swap
+Issue2480-experimental-irrelevance.agda:25,16-60
+tt != ff of type Bool
+when checking that the expression
+refl {x = ap {A = Bool→cBool} (λ f → f tt) p} has type
+ap (λ f → f tt) p ≡ ap (λ f → f ff) p

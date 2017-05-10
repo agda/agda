@@ -196,10 +196,6 @@ data Relevance
                 --   because its value is already determined by the type.
                 --   If a constructor argument is big, it has to be regarded
                 --   absent, otherwise we get into paradoxes.
-  | UnusedArg   -- ^ The polarity checker has determined that this argument
-                --   is unused in the definition.  It can be skipped during
-                --   equality checking but should be mined for solutions
-                --   of meta-variables with relevance 'UnusedArg'
     deriving (Typeable, Show, Eq)
 
 allRelevances :: [Relevance]
@@ -209,7 +205,6 @@ allRelevances =
   , Irrelevant
   , Forced Small
   , Forced Big
-  , UnusedArg
   ]
 
 instance KillRange Relevance where
@@ -223,7 +218,6 @@ instance NFData Relevance where
   rnf NonStrict  = ()
   rnf Irrelevant = ()
   rnf (Forced a) = rnf a
-  rnf UnusedArg  = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and one of @setRelevance@ or @mapRelevance@.
@@ -250,7 +244,6 @@ isIrrelevant a = getRelevance a == Irrelevant
 
 -- | Information ordering.
 -- @Relevant  \`moreRelevant\`
---  UnusedArg \`moreRelevant\`
 --  Forced    \`moreRelevant\`
 --  NonStrict \`moreRelevant\`
 --  Irrelevant@
@@ -264,19 +257,15 @@ moreRelevant r r' =
     (Relevant, _)   -> True
     (_, Relevant)   -> False
     -- second bottom
-    (UnusedArg, _)  -> True
-    (_, UnusedArg)  -> False
-    -- third bottom
     (Forced{}, _)   -> True
     (_, Forced{})   -> False
     -- remaining case
     (NonStrict,NonStrict) -> True
 
-irrelevantOrUnused :: Relevance -> Bool
-irrelevantOrUnused r =
+irrelevant :: Relevance -> Bool
+irrelevant r =
   case r of
     Irrelevant -> True
-    UnusedArg  -> True
     NonStrict  -> False
     Relevant   -> False
     Forced{}   -> False
@@ -286,7 +275,6 @@ unusableRelevance :: LensRelevance a => a -> Bool
 unusableRelevance a = case getRelevance a of
   Irrelevant -> True
   NonStrict  -> True
-  UnusedArg  -> True  -- Andreas, 2017-03-01, issue #2480
   Forced{}   -> False -- @Forced@ has no semantic relevance
   Relevant   -> False
 
@@ -302,8 +290,6 @@ composeRelevance r r' =
     (Forced b, Forced b') -> Forced (max b b')  -- prefer Big over Small
     (Forced b, _)     -> Forced b
     (_, Forced b)     -> Forced b
-    (UnusedArg, _)  -> UnusedArg
-    (_, UnusedArg)  -> UnusedArg
     (Relevant, Relevant) -> Relevant
 
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
@@ -317,17 +303,14 @@ inverseComposeRelevance r x =
     (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
     _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
     (Forced{}, Forced{}) -> Relevant   -- same, but (==) does not ignore Big
-    (UnusedArg, x)       -> x
-    (Forced{}, UnusedArg)  -> Relevant
     (Forced{}, x)          -> x
     (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
 
--- | For comparing @Relevance@ ignoring @Forced@ and @UnusedArg@.
+-- | For comparing @Relevance@ ignoring @Forced@.
 ignoreForced :: Relevance -> Relevance
 ignoreForced Forced{}   = Relevant
-ignoreForced UnusedArg  = Relevant
 ignoreForced Relevant   = Relevant
 ignoreForced NonStrict  = NonStrict
 ignoreForced Irrelevant = Irrelevant
@@ -465,7 +448,6 @@ instance Show a => Show (Arg a) where
           NonStrict    -> "?" ++ s
           Forced Big   -> "!b" ++ s
           Forced Small -> "!" ++ s
-          UnusedArg    -> "k" ++ s -- constant
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showO o s = case o of
           UserWritten -> "u" ++ s
