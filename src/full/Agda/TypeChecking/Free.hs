@@ -18,7 +18,7 @@
 
 module Agda.TypeChecking.Free
     ( FreeVars(..)
-    , Free, Free', FreeV, FreeVS
+    , Free
     , IgnoreSorts(..)
     , runFree , rigidVars, relevantVars, allVars
     , allFreeVars
@@ -51,7 +51,7 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
-  ( Free'(..) , FreeEnv(..), initFreeEnv
+  ( Free(..) , FreeEnv(..), initFreeEnv
   , VarOcc(..), IgnoreSorts(..), Variable, SingleVar
   , MetaSet
   )
@@ -124,7 +124,7 @@ data Occurrence
   deriving (Eq,Show)
 
 -- | Compute an occurrence of a single variable in a piece of internal syntax.
-occurrence :: FreeV a => Nat -> a -> Occurrence
+occurrence :: Free a => Nat -> a -> Occurrence
 occurrence x v = occurrenceFV x $ freeVars v
 
 -- | Extract occurrence of a single variable from computed free variables.
@@ -229,33 +229,24 @@ instance Singleton Variable FreeVars where
 bench :: a -> a
 bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
 
-type Free a = Free' a Any
-type FreeV a = Free' a FreeVars
-type FreeVS a = Free' a VarSet
-
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
-{-# SPECIALIZE freeVars :: FreeV a => a -> FreeVars #-}
-freeVars :: (Semigroup c, Monoid c, Singleton Variable c, Free' a c) => a -> c
+{-# SPECIALIZE freeVars :: Free a => a -> FreeVars #-}
+freeVars :: (Semigroup c, Monoid c, Singleton Variable c, Free a) => a -> c
 freeVars = freeVarsIgnore IgnoreNot
 
-{-# SPECIALIZE freeVarsIgnore :: FreeV a => IgnoreSorts -> a -> FreeVars #-}
-freeVarsIgnore :: (Semigroup c, Monoid c, Singleton Variable c, Free' a c) =>
+{-# SPECIALIZE freeVarsIgnore :: Free a => IgnoreSorts -> a -> FreeVars #-}
+freeVarsIgnore :: (Semigroup c, Monoid c, Singleton Variable c, Free a) =>
                   IgnoreSorts -> a -> c
 freeVarsIgnore = runFree singleton
 
 -- Specialization to typical monoids
-{-# SPECIALIZE runFree :: Free' a Any      => SingleVar Any      -> IgnoreSorts -> a -> Any #-}
-{-# SPECIALIZE runFree :: Free' a All      => SingleVar All      -> IgnoreSorts -> a -> All #-}
-{-# SPECIALIZE runFree :: Free' a VarSet   => SingleVar VarSet   -> IgnoreSorts -> a -> VarSet #-}
-{-# SPECIALIZE runFree :: Free' a FreeVars => SingleVar FreeVars -> IgnoreSorts -> a -> FreeVars #-}
+{-# SPECIALIZE runFree :: Free a => SingleVar Any      -> IgnoreSorts -> a -> Any #-}
+{-# SPECIALIZE runFree :: Free a => SingleVar FreeVars -> IgnoreSorts -> a -> FreeVars #-}
 -- Specialization to Term
 {-# SPECIALIZE runFree :: SingleVar Any      -> IgnoreSorts -> Term -> Any #-}
-{-# SPECIALIZE runFree :: SingleVar All      -> IgnoreSorts -> Term -> All #-}
-{-# SPECIALIZE runFree :: SingleVar VarSet   -> IgnoreSorts -> Term -> VarSet #-}
 {-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
-runFree :: (Semigroup c, Monoid c, Free' a c) =>
-           SingleVar c -> IgnoreSorts -> a -> c
+runFree :: (Semigroup c, Monoid c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
 runFree singleton i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
 
@@ -290,27 +281,27 @@ isBinderUsed NoAbs{}   = False
 isBinderUsed (Abs _ x) = 0 `freeIn` x
 
 -- | Is the term entirely closed (no free variables)?
-closed :: Free' a All => a -> Bool
+closed :: Free a => a -> Bool
 closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
-allFreeVars :: Free' a VarSet => a -> VarSet
+allFreeVars :: Free a => a -> VarSet
 allFreeVars = runFree (Set.singleton . fst) IgnoreNot
 
 -- | Collect all relevant free variables, excluding the "unused" ones, possibly ignoring sorts.
-allRelevantVarsIgnoring :: Free' a VarSet => IgnoreSorts -> a -> VarSet
+allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
 allRelevantVarsIgnoring = runFree sg
   where sg (i, VarOcc _ r) = if irrelevantOrUnused r then Set.empty else Set.singleton i
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
-allRelevantVars :: Free' a VarSet => a -> VarSet
+allRelevantVars :: Free a => a -> VarSet
 allRelevantVars = allRelevantVarsIgnoring IgnoreNot
 
 -- | Collect all relevant free variables, possibly ignoring sorts.
-allRelevantOrUnusedVarsIgnoring :: Free' a VarSet => IgnoreSorts -> a -> VarSet
+allRelevantOrUnusedVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
 allRelevantOrUnusedVarsIgnoring = runFree sg
   where sg (i, VarOcc _ r) = if isIrrelevant r then Set.empty else Set.singleton i
 
 -- | Collect all relevant free variables.
-allRelevantOrUnusedVars :: Free' a VarSet => a -> VarSet
+allRelevantOrUnusedVars :: Free a => a -> VarSet
 allRelevantOrUnusedVars = allRelevantOrUnusedVarsIgnoring IgnoreNot

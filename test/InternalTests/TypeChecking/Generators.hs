@@ -547,7 +547,7 @@ instance (KillVar a, KillVar b) => KillVar (a, b) where
 
 -- Tests ------------------------------------------------------------------
 
-isWellScoped :: FreeVS a => TermConfiguration -> a -> Bool
+isWellScoped :: Free a => TermConfiguration -> a -> Bool
 isWellScoped conf t = allFreeVars t `Set.isSubsetOf` Set.fromList (tcFreeVariables conf)
 
 -- | Check that the generated terms don't have any out of scope variables.

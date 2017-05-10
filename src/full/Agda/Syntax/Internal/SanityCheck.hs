@@ -18,7 +18,7 @@ import Agda.Utils.Impossible
 
 #include "undefined.h"
 
-sanityCheckVars :: (Pretty a, FreeVS a) => Telescope -> a -> TCM ()
+sanityCheckVars :: (Pretty a, Free a) => Telescope -> a -> TCM ()
 sanityCheckVars tel v =
   case filter bad (Set.toList $ allFreeVars v) of
     [] -> return ()
@@ -33,7 +33,7 @@ sanityCheckVars tel v =
     bad x = x < 0 || x >= n
 
 -- | Check that @Γ ⊢ ρ : Δ@.
-sanityCheckSubst :: (Pretty a, FreeVS a) => Telescope -> Substitution' a -> Telescope -> TCM ()
+sanityCheckSubst :: (Pretty a, Free a) => Telescope -> Substitution' a -> Telescope -> TCM ()
 sanityCheckSubst gamma rho delta = go gamma rho delta
   where
     go gamma rho delta =

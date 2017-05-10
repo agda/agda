@@ -410,7 +410,7 @@ instance Match NLPat Term where
 -- Returns `Right Nothing` if there are such variables, `Right (Just v')`
 -- if there are none (where v' is the possibly normalized version of the given
 -- term) or `Left b` if the problem is blocked on a meta.
-reallyFree :: (Reduce a, Normalise a, Free' a FreeVars)
+reallyFree :: (Reduce a, Normalise a, Free a)
            => (Int -> Bool) -> a -> ReduceM (Either Blocked_ (Maybe a))
 reallyFree f v = do
     let xs = getVars v
