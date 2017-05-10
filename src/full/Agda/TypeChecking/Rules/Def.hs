@@ -458,7 +458,7 @@ checkSystemCoverage f [n] t cs = do
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
       prop <- el primProp
       reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
---      equalTerm prop (unArg phi) psi -- TODO fix equality of Prop and add this back.
+      equalTerm prop (unArg phi) psi -- TODO fix equality of Prop and add this back.
 
       forM_ (init $ init $ tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
