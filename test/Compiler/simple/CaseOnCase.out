@@ -30,16 +30,15 @@ out >       _ | c >= 1 → "not less"
 out >       _ → "less"
 out > CaseOnCase.fancyCase =
 out >   λ a b →
-out >     let c = a - 1 in
 out >     case a of
 out >       0 → 0
 out >       1 → 1
 out >       2 → 2
-out >       _ → let d = a - 3 in
+out >       _ → let c = a - 3 in
 out >           case b of
 out >             CaseOnCase.Cmp.equal → 4
-out >             CaseOnCase.Cmp.greater → d
-out >             CaseOnCase.Cmp.less → c
+out >             CaseOnCase.Cmp.greater → c
+out >             CaseOnCase.Cmp.less → a - 1
 out > CaseOnCase.main =
 out >   Common.IO.then
 out >     () () _ _ (Common.IO.putStrLn (CaseOnCase.cmp 31 -6))

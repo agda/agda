@@ -55,6 +55,9 @@ underLam = underLams 1
 underLet :: TTerm -> S a -> S a
 underLet u = onRewrite (raiseS 1) . onSubst (\rho -> wkS 1 $ u :# rho)
 
+bindVar :: Int -> TTerm -> S a -> S a
+bindVar x u = onSubst (inplaceS x u `composeS`)
+
 rewrite :: TTerm -> S TTerm
 rewrite t = do
   rules <- asks envRewrite
@@ -251,10 +254,11 @@ simplify FunctionKit{..} = simpl
     simplAlt x (TALit l b)   = TALit l   <$> maybeAddRewrite x (TLit l) (simpl b)
     simplAlt x (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
 
+    -- If x is already bound we add a rewrite, otherwise we bind x to rhs.
     maybeAddRewrite x rhs cont = do
       v <- lookupVar x
       case v of
-        TVar y | x == y -> cont
+        TVar y | x == y -> bindVar x rhs $ cont
         _ -> addRewrite v rhs cont
 
     isTrue (TCon c) = Just c == true
