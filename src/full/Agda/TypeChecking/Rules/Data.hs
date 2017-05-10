@@ -385,10 +385,13 @@ defineProjections dataname con params names fsT t = do
                 { funClauses = cs
                 , funTerminates = Just True
                 , funCompiled = Just cc
+                , funMutual = Just []
                 }
       addConstant projName $
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
+      inTopContext $ do
+        reportSDoc "tc.data.proj.fun" 20 $ sep [ text "proj" <+> prettyTCM i, nest 2 $ text . show $ fun ]
 
 -- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (u : ...) , (a0 : ...)
 --            where u and a0 have types matching the arguments of primComp.
