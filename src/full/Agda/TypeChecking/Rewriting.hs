@@ -54,7 +54,6 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Monoid
-import Data.Semigroup
 
 import Agda.Interaction.Options
 
@@ -460,7 +459,7 @@ instance GetMatchables RewriteRule where
   getMatchables = getMatchables . rewPats
 
 -- Only computes free variables that are not bound (i.e. those in a PTerm)
-instance (Semigroup c, Monoid c) => Free' NLPat c where
+instance Free NLPat where
   freeVars' p = case p of
     PVar _ _ _ -> mempty
     PWild -> mempty
@@ -470,7 +469,7 @@ instance (Semigroup c, Monoid c) => Free' NLPat c where
     PBoundVar _ es -> freeVars' es
     PTerm t -> freeVars' t
 
-instance (Semigroup c, Monoid c) => Free' NLPType c where
+instance Free NLPType where
   freeVars' (NLPType l a) =
     ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
       {- then -} (freeVars' (l, a))

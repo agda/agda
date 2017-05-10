@@ -20,13 +20,13 @@ import Agda.Utils.Impossible
 
 -- | Precondition: must not be called if the module parameter of the current
 --   module have been refined or (touched at all).
-makeLocal :: Free' a All => a -> TCM (Local a)
+makeLocal :: Free a => a -> TCM (Local a)
 makeLocal x | closed x = return $ Global x
             | otherwise = inFreshModuleIfFreeParams $ do
   m <- currentModule
   return (Local m x)
 
-makeGlobal :: Free' a All => a -> TCM (Local a)
+makeGlobal :: Free a => a -> TCM (Local a)
 makeGlobal x | closed x  = return $ Global x
              | otherwise = __IMPOSSIBLE__
 

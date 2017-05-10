@@ -54,7 +54,7 @@ import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
+import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
 import {-# SOURCE #-} Agda.Compiler.Backend
 
@@ -789,7 +789,7 @@ instance HasRange Constraint where
   getRange (FindInScope x cands) = getRange x
 -}
 
-instance (Semigroup c, Monoid c) => Free' Constraint c where
+instance Free Constraint where
   freeVars' c =
     case c of
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
@@ -1179,10 +1179,10 @@ data DisplayTerm
     -- ^ @v@.
   deriving (Typeable, Show)
 
-instance (Semigroup c, Monoid c) => Free' DisplayForm c where
+instance Free DisplayForm where
   freeVars' (Display n ps t) = bind (freeVars' ps) `mappend` bind' n (freeVars' t)
 
-instance (Semigroup c, Monoid c) => Free' DisplayTerm c where
+instance Free DisplayTerm where
   freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
   freeVars' (DCon _ _ vs)      = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
@@ -2271,7 +2271,7 @@ data Candidate  = Candidate { candidateTerm :: Term
                             }
   deriving (Show)
 
-instance (Semigroup c, Monoid c) => Free' Candidate c where
+instance Free Candidate where
   freeVars' (Candidate t u _ _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------

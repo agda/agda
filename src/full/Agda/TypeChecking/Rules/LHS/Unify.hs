@@ -584,7 +584,7 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
     ]
 
 -- | Returns true if the variables 0..k-1 don't occur in x
-isHom :: (Free' a All, Subst Term a) => Int -> a -> Maybe a
+isHom :: (Free a, Subst Term a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (\ (i,_) -> All (i >= n)) IgnoreNot x
   return $ raise (-n) x

@@ -35,7 +35,7 @@ matchLeq (a :=< b) (c :=< d)
   | length xs == length ys = (a, b) == applySubst rho (c, d)
   | otherwise              = False
   where
-    free :: Free' a [Int] => a -> [Int]
+    free :: Free a => a -> [Int]
     free = nub . runFree ((:[]) . fst) IgnoreNot
     xs  = free (a, b)
     ys  = free (c, d)
