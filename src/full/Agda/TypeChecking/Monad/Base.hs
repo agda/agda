@@ -789,7 +789,7 @@ instance HasRange Constraint where
   getRange (FindInScope x cands) = getRange x
 -}
 
-instance Free' Constraint c where
+instance (Semigroup c, Monoid c) => Free' Constraint c where
   freeVars' c =
     case c of
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
@@ -1179,10 +1179,10 @@ data DisplayTerm
     -- ^ @v@.
   deriving (Typeable, Show)
 
-instance Free' DisplayForm c where
+instance (Semigroup c, Monoid c) => Free' DisplayForm c where
   freeVars' (Display n ps t) = bind (freeVars' ps) `mappend` bind' n (freeVars' t)
 
-instance Free' DisplayTerm c where
+instance (Semigroup c, Monoid c) => Free' DisplayTerm c where
   freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
   freeVars' (DCon _ _ vs)      = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
@@ -2271,7 +2271,7 @@ data Candidate  = Candidate { candidateTerm :: Term
                             }
   deriving (Show)
 
-instance Free' Candidate c where
+instance (Semigroup c, Monoid c) => Free' Candidate c where
   freeVars' (Candidate t u _ _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------

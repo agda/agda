@@ -199,13 +199,13 @@ underConstructor (ConHead c i fs) =
     (Inductive, (_:_)) -> id
 
 -- | Gather free variables in a collection.
-class Free' a c where
+class (Semigroup c, Monoid c) => Free' a c where
   -- Misplaced SPECIALIZE pragma:
   -- {-# SPECIALIZE freeVars' :: a -> FreeM Any #-}
   -- So you cannot specialize all instances in one go. :(
-  freeVars' :: (Semigroup c, Monoid c) => a -> FreeM c
+  freeVars' :: a -> FreeM c
 
-instance Free' Term c where
+instance (Semigroup c, Monoid c) => Free' Term c where
   -- SPECIALIZE instance does not work as well, see
   -- https://ghc.haskell.org/trac/ghc/ticket/10434#ticket
   -- {-# SPECIALIZE instance Free' Term All #-}
@@ -245,7 +245,7 @@ instance Free' a c => Free' (Type' a) c where
       {- then -} (freeVars' (s, t))
       {- else -} (freeVars' t)
 
-instance Free' Sort c where
+instance (Semigroup c, Monoid c) => Free' Sort c where
   -- {-# SPECIALIZE instance Free' Sort All #-}
   -- {-# SPECIALIZE freeVars' :: Sort -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: Sort -> FreeM All #-}
@@ -260,7 +260,7 @@ instance Free' Sort c where
       SizeUniv   -> mempty
       DLub s1 s2 -> go WeaklyRigid $ freeVars' (s1, s2)
 
-instance Free' Level c where
+instance (Semigroup c, Monoid c) => Free' Level c where
   -- {-# SPECIALIZE instance Free' Level All #-}
   -- {-# SPECIALIZE freeVars' :: Level -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: Level -> FreeM All #-}
@@ -268,7 +268,7 @@ instance Free' Level c where
   -- {-# SPECIALIZE freeVars' :: Level -> FreeM VarMap #-}
   freeVars' (Max as) = freeVars' as
 
-instance Free' PlusLevel c where
+instance (Semigroup c, Monoid c) => Free' PlusLevel c where
   -- {-# SPECIALIZE instance Free' PlusLevel All #-}
   -- {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM All #-}
@@ -277,7 +277,7 @@ instance Free' PlusLevel c where
   freeVars' ClosedLevel{} = mempty
   freeVars' (Plus _ l)    = freeVars' l
 
-instance Free' LevelAtom c where
+instance (Semigroup c, Monoid c) => Free' LevelAtom c where
   -- {-# SPECIALIZE instance Free' LevelAtom All #-}
   -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM All #-}
@@ -356,7 +356,7 @@ instance Free' a c => Free' (Tele a) c where
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
-instance Free' Clause c where
+instance (Semigroup c, Monoid c) => Free' Clause c where
   -- {-# SPECIALIZE instance Free' Clause All #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM All #-}
@@ -364,6 +364,6 @@ instance Free' Clause c where
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
   freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
-instance Free' EqualityView c where
+instance (Semigroup c, Monoid c) => Free' EqualityView c where
   freeVars' (OtherType t) = freeVars' t
   freeVars' (EqualityType s _eq l t a b) = freeVars' s `mappend` freeVars' (l ++ [t, a, b])
