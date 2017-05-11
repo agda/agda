@@ -23,8 +23,10 @@ contradiction a f = ⊥-elim (f a)
 _≢_ : ∀ {a} {A : Set a} (x y : A) → Set a
 x ≢ y = ¬ (x ≡ y)
 
-postulate
-  obvious : (b b' : Bool) (p : b ≢ b') → (b ∧ b') ≡ false
+obvious : (b b' : Bool) (p : b ≢ b') → (b ∧ b') ≡ false
+obvious false b'    notEq = refl
+obvious true  false notEq = refl
+obvious true  true  notEq = contradiction refl notEq
 
 {-# BUILTIN REWRITE _≡_ #-}
 {-# REWRITE obvious #-}
