@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
-
 
 module Agda.Auto.CaseSplit where
 
@@ -141,7 +139,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
            case findperm (map snd (drophid ctx)) of
             Just perm ->
              let HI scrhid(_, scrt) = ctx !! scrut
-                 ctx1 = take scrut ctx ++ (HI scrhid (stringToMyId abspatvarname, scrt)) : drop (scrut + 1) ctx
+                 ctx1 = take scrut ctx ++ (HI scrhid (Id abspatvarname, scrt)) : drop (scrut + 1) ctx
                  (ctx', _, pats') = applyperm perm ctx1 tt ({-map (replacep scrut 1 CSAbsurd __IMPOSSIBLE__) -}pats)
              in [(ctx', pats', Nothing)]
             Nothing -> __IMPOSSIBLE__ -- no permutation found
@@ -155,15 +153,15 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
           let ff t = case rm t of
                         Pi _ h _ it (Abs id ot) ->
                          let (xs, inft) = ff ot
-                         in ((Pair h (scrut + length xs), id, lift (scrut + length xs + 1) it) : xs, inft)
+                         in (((h, scrut + length xs), id, lift (scrut + length xs + 1) it) : xs, inft)
                         _ -> ([], lift scrut t)
               (newvars, inftype) = ff (cdtype cond)
-              constrapp = mm $ App Nothing (mm OKVal) (Const con) (foldl (\xs (Pair h v, _, _) -> mm $ ALCons h (mm $ App Nothing (mm OKVal) (Var v) (mm ALNil)) xs) (mm ALNil) (reverse newvars))
-              pconstrapp = CSPatConApp con (map (\(Pair hid v, _, _) -> HI hid (CSPatVar v)) newvars)
+              constrapp = mm $ App Nothing (mm OKVal) (Const con) (foldl (\xs ((h, v), _, _) -> mm $ ALCons h (mm $ App Nothing (mm OKVal) (Var v) (mm ALNil)) xs) (mm ALNil) (reverse newvars))
+              pconstrapp = CSPatConApp con (map (\((hid, v), _, _) -> HI hid (CSPatVar v)) newvars)
               thesub = replace scrut (length newvars) constrapp
               Id newvarprefix = fst $ (drophid ctx) !! scrut
               ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take scrut ctx) ++
-                     reverse (map (\((Pair hid _, id, t), i) ->
+                     reverse (map (\(((hid, _), id, t), i) ->
                        HI hid (Id (case id of {NoId -> newvarprefix{- ++ show i-}; Id id -> id}), t)
                       ) (zip newvars [0..])) ++
                      map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (scrut + 1) ctx)

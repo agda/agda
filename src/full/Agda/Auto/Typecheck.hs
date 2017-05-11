@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Typecheck where
 
@@ -17,7 +16,6 @@ import Agda.Utils.Impossible
 -- ---------------------------------
 
 -- | Typechecker drives the solution of metas.
-
 tcExp :: Bool -> Ctx o -> CExp o -> MExp o -> EE (MyPB o)
 tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
   mbpcase prioTypeUnknown Nothing (hnn_checkstep ityp) $ \(hntyp, iotastepdone) ->
@@ -794,7 +792,6 @@ calcEqRState cs = f EqRSNone
 
     (_ : ss, ALConPar args) -> fs ss args
     ([], ALConPar args) -> fs [] args
-
 
 -- ---------------------------------
 

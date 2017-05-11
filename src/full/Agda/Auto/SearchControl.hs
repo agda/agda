@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.SearchControl where
 
@@ -79,22 +78,25 @@ getinfo = foldl step initExpRefInfo where
 
 
 univar :: [CAction o] -> Nat -> Maybe Nat
-univar cl v = f cl v 0
- where
- f [] v v' = Just (v' + v)
- f (Weak n : _) v v' | v < n = Nothing
- f (Weak n : xs) v v' = f xs (v - n) v'
- f (Sub _ : xs) v v' = f xs v (v' + 1)
- f (Skip : _) 0 v' = Just v'
- f (Skip : xs) v v' = f xs (v - 1) (v' + 1)
+univar cl v = f cl v 0 where
 
+  f :: [CAction o] -> Nat -> Nat -> Maybe Nat
+  f []            v v' = Just (v' + v)
+  f (Weak n : _)  v v' | v < n = Nothing
+  f (Weak n : xs) v v' = f xs (v - n) v'
+  f (Sub _  : xs) v v' = f xs v (v' + 1)
+  f (Skip   : _)  0 v' = Just v'
+  f (Skip   : xs) v v' = f xs (v - 1) (v' + 1)
+
+-- | List of the variables instantiated by the substitution
 subsvars :: [CAction o] -> [Nat]
-subsvars = f 0
- where
-  f n [] = []
-  f n (Weak _ : xs) = f n xs
-  f n (Sub _ : xs) = n : f (n + 1) xs
-  f n (Skip : xs) = f (n + 1) xs
+subsvars = f 0 where
+
+  f :: Nat -> [CAction o] -> [Nat]
+  f n []            = []
+  f n (Weak _ : xs) = f n xs -- why?
+  f n (Sub _  : xs) = n : f (n + 1) xs
+  f n (Skip   : xs) = f (n + 1) xs
 
 newAbs :: MId -> RefCreateEnv blk (Abs (MM a blk))
 newAbs mid = Abs mid <$> newPlaceholder

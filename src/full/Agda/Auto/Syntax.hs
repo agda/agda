@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Syntax where
 
@@ -75,9 +74,6 @@ type Nat = Int
 
 data MId = Id String
          | NoId
-
-stringToMyId :: String -> MId
-stringToMyId = Id
 
 -- | Abstraction with maybe a name.
 --
