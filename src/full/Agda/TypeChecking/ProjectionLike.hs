@@ -339,7 +339,7 @@ makeProjection x = -- if True then return () else do
 
     -- Make sure non of the parameters occurs in the body of the function.
     checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
-      where badVar (x,_) = Any $ m-n <= x && x < m
+      where badVar x = Any $ m - n <= x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
     -- if @t@ is a function-type with domain @t 0 .. (n-1)@

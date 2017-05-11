@@ -36,7 +36,7 @@ matchLeq (a :=< b) (c :=< d)
   | otherwise              = False
   where
     free :: Free a => a -> [Int]
-    free = nub . runFree ((:[]) . fst) IgnoreNot
+    free = nub . runFree (:[]) IgnoreNot  -- Note: use a list to preserve order of variables
     xs  = free (a, b)
     ys  = free (c, d)
     rho = mkSub $ List.sort $ zip ys xs

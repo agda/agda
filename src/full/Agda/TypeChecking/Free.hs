@@ -215,14 +215,7 @@ delete :: Nat -> FreeVars -> FreeVars
 delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Map.delete n fv) (Set.delete n iv) (Set.delete n uv)
 
 instance Singleton Variable FreeVars where
-  singleton (i, VarOcc o r) = mod empty where
-    mod :: FreeVars -> FreeVars
-    mod = case (o, r) of
-      (_, Irrelevant) -> mapIRV (Set.insert i)
-      (Free.StronglyRigid, _) -> mapSRV (Set.insert i)
-      (Free.Unguarded    , _) -> mapUGV (Set.insert i)
-      (Free.WeaklyRigid  , _) -> mapWRV (Set.insert i)
-      (Free.Flexible ms  , _) -> mapFXV (Map.insert i ms)
+  singleton i = mapUGV (Set.insert i) mempty
 
 instance IsVarSet FreeVars where
   withVarOcc (VarOcc o r) = goOcc o . goRel r
@@ -268,19 +261,14 @@ freeVarsIgnore = runFree singleton
 {-# SPECIALIZE runFree :: SingleVar Any      -> IgnoreSorts -> Term -> Any #-}
 {-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
 
--- | Compute free variables. Precondition:
---   The singleton function must obey
---   ```
---     withVarOcc o1 (singleton (x, o2)) == singleton (x, composeVarOcc o1 o2)
---   ```
+-- | Compute free variables.
 runFree :: (IsVarSet c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
 runFree singleton i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
 
 -- | Check if a variable is free, possibly ignoring sorts.
 freeIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
-freeIn' ig x t =
-  getAny $ runFree (Any . (x ==) . fst) ig t
+freeIn' ig x t = getAny $ runFree (Any . (x ==)) ig t
 
 {-# SPECIALIZE freeIn :: Nat -> Term -> Bool #-}
 freeIn :: Free a => Nat -> a -> Bool
@@ -292,16 +280,16 @@ freeInIgnoringSorts = freeIn' IgnoreAll
 freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
-newtype RelevantIn = Relevant {getRelevantIn :: Any}
-  deriving (Monoid)
+newtype RelevantIn a = RelevantIn {getRelevantIn :: a}
+  deriving (Semigroup, Monoid)
 
-instance IsVarSet RelevantIn where
+instance IsVarSet a => IsVarSet (RelevantIn a) where
   withVarOcc o x
     | irrelevant (varRelevance o) = mempty
-    | otherwise                   = x
+    | otherwise                   = RelevantIn $ withVarOcc o $ getRelevantIn x
 
 relevantIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
-relevantIn' ig x t = getAny . getRelevantIn $ runFree (\ (y, o) -> Any $ x == y && not (irrelevant $ varRelevance o)) ig t
+relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
 
 relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 relevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
@@ -320,12 +308,11 @@ closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
 allFreeVars :: Free a => a -> VarSet
-allFreeVars = runFree (Set.singleton . fst) IgnoreNot
+allFreeVars = runFree Set.singleton IgnoreNot
 
 -- | Collect all relevant free variables, excluding the "unused" ones, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
-allRelevantVarsIgnoring = runFree sg
-  where sg (i, VarOcc _ r) = if irrelevant r then Set.empty else Set.singleton i
+allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . Set.singleton) ig
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
 allRelevantVars :: Free a => a -> VarSet

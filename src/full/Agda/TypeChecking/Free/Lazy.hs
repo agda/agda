@@ -157,7 +157,7 @@ data FreeEnv c = FreeEnv
     -- ^ Method to return a single variable.
   }
 
-type Variable    = (Int, VarOcc)
+type Variable    = Int
 type SingleVar c = Variable -> c
 
 -- | The initial context.
@@ -170,8 +170,8 @@ initFreeEnv sing = FreeEnv
   , feSingleton   = sing'
   }
   where
-    sing' (i, _) | i < 0 = mempty
-    sing' v              = sing v
+    sing' i | i < 0 = mempty
+    sing' i         = sing i
 
 type FreeM c = Reader (FreeEnv c) c
 
@@ -192,14 +192,14 @@ variable n = do
   o <- asks feFlexRig
   r <- asks feRelevance
   s <- asks feSingleton
-  pure $ s (n, VarOcc o r)
+  pure $ withVarOcc (VarOcc o r) (s n)
 
 -- | Going under a binder.
 bind :: FreeM a -> FreeM a
 bind = bind' 1
 
 bind' :: Nat -> FreeM a -> FreeM a
-bind' n = local $ \ e -> e { feSingleton = \ (i, o) -> feSingleton e (i - n, o) }
+bind' n = local $ \ e -> e { feSingleton = \ i -> feSingleton e (i - n) }
 
 -- | Changing the 'FlexRig' context.
 go :: FlexRig -> FreeM a -> FreeM a
