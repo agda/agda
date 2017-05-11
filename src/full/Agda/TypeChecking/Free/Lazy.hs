@@ -108,7 +108,31 @@ topVarOcc = VarOcc StronglyRigid Relevant
 botVarOcc :: VarOcc
 botVarOcc = VarOcc (Flexible mempty) Irrelevant
 
+-- | First argument is the outer occurrence and second is the inner.
+composeVarOcc :: VarOcc -> VarOcc -> VarOcc
+composeVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (composeFlexRig o o') (max r r')
+
+-- | Any representation of a set of variables need to be able to be modified by
+--   a variable occurrence. This is to ensure that free variable analysis is
+--   compositional. For instance, it should be possible to compute `fv (v [u/x])`
+--   from `fv v` and `fv u`.
+class (Semigroup a, Monoid a) => IsVarSet a where
+  -- | Laws
+  --    * Respects monoid operations:
+  --      ```
+  --        withVarOcc o mempty   == mempty
+  --        withVarOcc o (x <> y) == withVarOcc o x <> withVarOcc o y
+  --      ```
+  --    * Respects VarOcc composition
+  --      ```
+  --        withVarOcc (composeVarOcc o1 o2) = withVarOcc o1 . withVarOcc o2
+  --      ```
+  withVarOcc :: VarOcc -> a -> a
+
 type VarMap = IntMap VarOcc
+
+instance IsVarSet VarMap where
+  withVarOcc o = fmap (composeVarOcc o)
 
 -- * Collecting free variables.
 
@@ -163,7 +187,7 @@ instance (Semigroup c, Monoid c) => Monoid (FreeM c) where
 --   singleton = pure . singleton
 
 -- | Base case: a variable.
-variable :: (Semigroup c, Monoid c) => Int -> FreeM c
+variable :: IsVarSet c => Int -> FreeM c
 variable n = do
   o <- asks feFlexRig
   r <- asks feRelevance
@@ -203,7 +227,7 @@ class Free a where
   -- Misplaced SPECIALIZE pragma:
   -- {-# SPECIALIZE freeVars' :: a -> FreeM Any #-}
   -- So you cannot specialize all instances in one go. :(
-  freeVars' :: (Semigroup c, Monoid c) => a -> FreeM c
+  freeVars' :: IsVarSet c => a -> FreeM c
 
 instance Free Term where
   -- SPECIALIZE instance does not work as well, see
