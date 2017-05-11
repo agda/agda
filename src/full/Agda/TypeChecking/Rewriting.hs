@@ -67,6 +67,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
+import qualified Agda.TypeChecking.Positivity.Occurrence as Pos
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive ( getBuiltinName )
 import Agda.TypeChecking.Reduce
@@ -230,7 +231,7 @@ addRewriteRule q = do
           text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
-        let freeVars  = usedArgs gamma1 `IntSet.union` allFreeVars (ps,rhs)
+        let freeVars  = usedArgs (defArgOccurrences def) `IntSet.union` allFreeVars (ps,rhs)
             boundVars = nlPatVars ps
         reportSDoc "rewriting" 40 $
           text "variables bound by the pattern: " <+> text (show boundVars)
@@ -280,13 +281,13 @@ addRewriteRule q = do
         typeError . GenericDocError =<< do
           text "Rewrite rule " <+> prettyTCM q <+> text " has already been added"
 
-    usedArgs :: Telescope -> IntSet
-    usedArgs tel = IntSet.fromList $ map unDom $ usedIxs
+    usedArgs :: [Pos.Occurrence] -> IntSet
+    usedArgs occs = IntSet.fromList $ map snd $ usedIxs
       where
-        n = size tel
-        allIxs = zipWith ($>) (flattenTel tel) (downFrom n)
-        usedIxs = filter (not . unused . getRelevance) allIxs
-        unused _           = False
+        allIxs = zip occs $ downFrom $ size occs
+        usedIxs = filter (used . fst) allIxs
+        used Pos.Unused = False
+        used _          = True
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
