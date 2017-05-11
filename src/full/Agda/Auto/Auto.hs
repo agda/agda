@@ -8,6 +8,10 @@ module Agda.Auto.Auto
 
 import Prelude hiding (null)
 
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ( (<$), pure )
+#endif
+
 import Control.Monad.State
 import Data.List hiding (null)
 import qualified Data.Map as Map
