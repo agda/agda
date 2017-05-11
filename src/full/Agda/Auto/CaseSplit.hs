@@ -163,7 +163,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
                          in (((h, scrut + length xs), id, lift (scrut + length xs + 1) it) : xs, inft)
                         _ -> ([], lift scrut t)
               (newvars, inftype) = ff (cdtype cond)
-              constrapp = mm $ App Nothing (mm OKVal) (Const con) (foldl (\xs ((h, v), _, _) -> mm $ ALCons h (mm $ App Nothing (mm OKVal) (Var v) (mm ALNil)) xs) (mm ALNil) (reverse newvars))
+              constrapp = NotM $ App Nothing (NotM OKVal) (Const con) (foldl (\xs ((h, v), _, _) -> NotM $ ALCons h (NotM $ App Nothing (NotM OKVal) (Var v) (NotM ALNil)) xs) (NotM ALNil) (reverse newvars))
               pconstrapp = CSPatConApp con (map (\((hid, v), _, _) -> HI hid (CSPatVar v)) newvars)
               thesub = replace scrut (length newvars) constrapp
               Id newvarprefix = fst $ (drophid ctx) !! scrut
@@ -220,15 +220,15 @@ replace sv nnew re = r 0
             betareduce (lift n re) (rs n args)
            else
             if v - n > sv then
-             mm $ App uid ok (Var (v + nnew - 1)) (rs n args)
+             NotM $ App uid ok (Var (v + nnew - 1)) (rs n args)
             else
-             mm $ App uid ok elr (rs n args)
+             NotM $ App uid ok elr (rs n args)
           else
-           mm $ App uid ok elr (rs n args)
+           NotM $ App uid ok elr (rs n args)
          App uid ok elr@(Const _) args ->
-          mm $ App uid ok elr (rs n args)
-         Lam hid (Abs mid e) -> mm $ Lam hid (Abs mid (r (n + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> mm $ Pi uid hid possdep (r n it) (Abs mid (r (n + 1) ot))
+          NotM $ App uid ok elr (rs n args)
+         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (n + 1) e))
+         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r n it) (Abs mid (r (n + 1) ot))
          Sort{} -> e
 
          AbsurdLambda{} -> e
@@ -236,20 +236,20 @@ replace sv nnew re = r 0
 
   rs n es =
    case rm es of
-    ALNil -> mm $ ALNil
-    ALCons hid a as -> mm $ ALCons hid (r n a) (rs n as)
+    ALNil -> NotM $ ALNil
+    ALCons hid a as -> NotM $ ALCons hid (r n a) (rs n as)
 
     ALProj{} -> __IMPOSSIBLE__
 
 
-    ALConPar as -> mm $ ALConPar (rs n as)
+    ALConPar as -> NotM $ ALConPar (rs n as)
 
 
 betareduce :: MExp o -> MArgList o -> MExp o
 betareduce e args = case rm args of
  ALNil -> e
  ALCons _ a rargs -> case rm e of
-  App uid ok elr eargs -> mm $ App uid ok elr (concatargs eargs args)
+  App uid ok elr eargs -> NotM $ App uid ok elr (concatargs eargs args)
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
   _ -> __IMPOSSIBLE__ -- not type correct if this happens
 
@@ -261,16 +261,11 @@ concatargs :: MM (ArgList o) (RefInfo o) -> MArgList o -> MArgList o
 concatargs xs ys = case rm xs of
   ALNil -> ys
 
-  ALCons hid x xs -> mm $ ALCons hid x (concatargs xs ys)
+  ALCons hid x xs -> NotM $ ALCons hid x (concatargs xs ys)
 
   ALProj{} -> __IMPOSSIBLE__
 
-  ALConPar as -> mm $ ALConPar (concatargs xs ys)
-
-eqelr :: Elr o -> Elr o -> Bool
-eqelr (Var v1) (Var v2) = v1 == v2
-eqelr (Const c1) (Const c2) = c1 == c2
-eqelr _ _ = False
+  ALConPar as -> NotM $ ALConPar (concatargs xs ys)
 
 replacep :: Nat -> Nat -> CSPatI o -> MExp o -> CSPat o -> CSPat o
 replacep sv nnew rp re = r
@@ -293,14 +288,11 @@ rm :: MM a b -> a
 rm (NotM x) = x
 rm (Meta{}) = __IMPOSSIBLE__
 
-mm :: a -> MM a b
-mm = NotM
-
 unifyexp :: MExp o -> MExp o -> Maybe [(Nat, MExp o)]
 unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
  where
   r e1 e2 cont unif = case (rm e1, rm e2) of
-   (App _ _ elr1 args1, App _ _ elr2 args2) | eqelr elr1 elr2 -> rs args1 args2 cont unif
+   (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> rs args1 args2 cont unif
    (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> r b1 b2 cont unif
    (Pi _ hid1 _ it1 (Abs _ ot1), Pi _ hid2 _ it2 (Abs _ ot2)) | hid1 == hid2 -> r it1 it2 (r ot1 ot2 cont) unif
    (Sort _, Sort _) -> cont unif -- a bit sloppy
@@ -334,10 +326,10 @@ lift n = r 0
   r j e =
    case rm e of
          App uid ok elr args -> case elr of
-          Var v | v >= j -> mm $ App uid ok (Var (v + n)) (rs j args)
-          _ -> mm $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> mm $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> mm $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
+          Var v | v >= j -> NotM $ App uid ok (Var (v + n)) (rs j args)
+          _ -> NotM $ App uid ok elr (rs j args)
+         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (j + 1) e))
+         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
          Sort{} -> e
 
          AbsurdLambda{} -> e
@@ -345,13 +337,13 @@ lift n = r 0
 
   rs j es =
    case rm es of
-    ALNil -> mm $ ALNil
-    ALCons hid a as -> mm $ ALCons hid (r j a) (rs j as)
+    ALNil -> NotM ALNil
+    ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
 
     ALProj{} -> __IMPOSSIBLE__
 
 
-    ALConPar as -> mm $ ALConPar (rs j as)
+    ALConPar as -> NotM $ ALConPar (rs j as)
 
 
 removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
@@ -466,10 +458,10 @@ rename ren = r 0
   r j e =
    case rm e of
          App uid ok elr args -> case elr of
-          Var v | v >= j -> mm $ App uid ok (Var (ren (v - j) + j)) (rs j args)
-          _ -> mm $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> mm $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> mm $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
+          Var v | v >= j -> NotM $ App uid ok (Var (ren (v - j) + j)) (rs j args)
+          _ -> NotM $ App uid ok elr (rs j args)
+         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (j + 1) e))
+         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
          Sort{} -> e
 
          AbsurdLambda{} -> e
@@ -477,13 +469,13 @@ rename ren = r 0
 
   rs j es =
    case rm es of
-    ALNil -> mm $ ALNil
-    ALCons hid a as -> mm $ ALCons hid (r j a) (rs j as)
+    ALNil -> NotM $ ALNil
+    ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
 
     ALProj{} -> __IMPOSSIBLE__
 
 
-    ALConPar as -> mm $ ALConPar (rs j as)
+    ALConPar as -> NotM $ ALConPar (rs j as)
 
 
 renamep :: (Nat -> Nat) -> CSPat o -> CSPat o

@@ -124,6 +124,7 @@ type ConstRef o = IORef (ConstDef o)
 data Elr o
   = Var Nat
   | Const (ConstRef o)
+  deriving (Eq)
 
 data Sort
   = Set Nat
