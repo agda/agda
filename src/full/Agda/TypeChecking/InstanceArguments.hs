@@ -164,23 +164,18 @@ findInScope m Nothing = do
   mv <- lookupMeta m
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
-    t <- instantiate =<< getMetaType m
+    t <- instantiate =<< getMetaTypeInContext m
     reportSLn "tc.instance" 70 $ "findInScope 1: t: " ++ prettyShow t
 
---     -- We create a new meta (which can have additional leading lambdas, if the
---     -- type @t@ now happens to be a function type) and the associated constraint
---     newM <- initializeIFSMeta (miNameSuggestion $ mvInfo mv) t
-
---     -- ... and we assign it to the previous one
---     ctxElims <- map Apply <$> getContextArgs
---     solveConstraint $ ValueCmp CmpEq t (MetaV m ctxElims) newM
-
--- {-
-    cands <- initialIFSCandidates t
+    -- Issue #2577: If the target is a function type the arguments are
+    -- potential candidates, so we add them to the context to make
+    -- initialIFSCandidates pick them up.
+    TelV tel t <- telView t
+    cands <- addContext' tel $ initialIFSCandidates t
     case cands of
       Nothing -> addConstraint $ FindInScope m Nothing Nothing
       Just {} -> findInScope m cands
--- -}
+
 findInScope m (Just cands) =
   whenJustM (findInScope' m cands) $ (\ (cands, b) -> addConstraint $ FindInScope m b $ Just cands)
 
