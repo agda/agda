@@ -433,7 +433,7 @@ reallyFree f v = do
         else return $ Right Nothing
     else return $ Right Nothing
   where
-    getVars v = runFree (\var@(i,_) -> if f i then singleton var else empty) IgnoreNot v
+    getVars v = runFree (\ i -> if f i then singleton i else empty) IgnoreNot v
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =

@@ -340,7 +340,7 @@ castConstraintToCurrentContext cl = do
   -- Check that all the free variables of the constraint are contained in
   -- coveredVars.
   -- We ignore the free variables occurring in sorts.
-  guard $ getAll $ runFree (\ (i, _) -> All $ i `VarSet.member` coveredVars) IgnoreAll c
+  guard $ getAll $ runFree (All . (`VarSet.member` coveredVars)) IgnoreAll c
   -- Turn cand into a substitution.
   -- Since we ignored the free variables in sorts, we better patch up
   -- the substitution with some dummy term (Sort Prop) rather than __IMPOSSIBLE__.

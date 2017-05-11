@@ -1,4 +1,4 @@
-
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Computing the free variables of a term.
 --
 -- The distinction between rigid and strongly rigid occurrences comes from:
@@ -19,6 +19,7 @@
 module Agda.TypeChecking.Free
     ( FreeVars(..)
     , Free
+    , IsVarSet(..)
     , IgnoreSorts(..)
     , runFree , rigidVars, relevantVars, allVars
     , allFreeVars
@@ -43,6 +44,7 @@ import qualified Data.IntSet as Set
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as Map
 import Data.Set (Set)
+import Data.Proxy
 
 import qualified Agda.Benchmarking as Bench
 
@@ -52,7 +54,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Free.Lazy
   ( Free(..) , FreeEnv(..), initFreeEnv
   , VarOcc(..), IgnoreSorts(..), Variable, SingleVar
-  , MetaSet
+  , MetaSet, IsVarSet(..)
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
@@ -213,14 +215,28 @@ delete :: Nat -> FreeVars -> FreeVars
 delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Map.delete n fv) (Set.delete n iv) (Set.delete n uv)
 
 instance Singleton Variable FreeVars where
-  singleton (i, VarOcc o r) = mod empty where
-    mod :: FreeVars -> FreeVars
-    mod = case (o, r) of
-      (_, Irrelevant) -> mapIRV (Set.insert i)
-      (Free.StronglyRigid, _) -> mapSRV (Set.insert i)
-      (Free.Unguarded    , _) -> mapUGV (Set.insert i)
-      (Free.WeaklyRigid  , _) -> mapWRV (Set.insert i)
-      (Free.Flexible ms  , _) -> mapFXV (Map.insert i ms)
+  singleton i = mapUGV (Set.insert i) mempty
+
+instance IsVarSet FreeVars where
+  withVarOcc (VarOcc o r) = goOcc o . goRel r
+    where
+      goOcc o = case o of
+        Free.Flexible ms   -> flexible ms
+        Free.WeaklyRigid   -> weakly
+        Free.Unguarded     -> id
+        Free.StronglyRigid -> strongly
+      goRel r = case r of
+        Relevant   -> id
+        NonStrict  -> id    -- we don't track non-strict and
+        Forced{}   -> id    -- forced in FreeVars
+        Irrelevant -> irrelevantly
+
+-- In most cases we don't care about the VarOcc.
+
+instance IsVarSet VarSet where withVarOcc _ = id
+instance IsVarSet [Int]  where withVarOcc _ = id
+instance IsVarSet Any    where withVarOcc _ = id
+instance IsVarSet All    where withVarOcc _ = id
 
 -- * Collecting free variables.
 
@@ -230,11 +246,11 @@ bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
 {-# SPECIALIZE freeVars :: Free a => a -> FreeVars #-}
-freeVars :: (Semigroup c, Monoid c, Singleton Variable c, Free a) => a -> c
+freeVars :: (IsVarSet c, Singleton Variable c, Free a) => a -> c
 freeVars = freeVarsIgnore IgnoreNot
 
 {-# SPECIALIZE freeVarsIgnore :: Free a => IgnoreSorts -> a -> FreeVars #-}
-freeVarsIgnore :: (Semigroup c, Monoid c, Singleton Variable c, Free a) =>
+freeVarsIgnore :: (IsVarSet c, Singleton Variable c, Free a) =>
                   IgnoreSorts -> a -> c
 freeVarsIgnore = runFree singleton
 
@@ -244,18 +260,15 @@ freeVarsIgnore = runFree singleton
 -- Specialization to Term
 {-# SPECIALIZE runFree :: SingleVar Any      -> IgnoreSorts -> Term -> Any #-}
 {-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
-runFree :: (Semigroup c, Monoid c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
+
+-- | Compute free variables.
+runFree :: (IsVarSet c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
 runFree singleton i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
 
-freeIn'' :: Free a => (VarOcc -> Bool) -> IgnoreSorts -> Nat -> a -> Bool
-freeIn'' test ig x t =
-  getAny $ runFree (\ (y, o) -> Any $ x == y && test o) ig t
-
--- | @freeIn' = freeIn'' (const True)@
+-- | Check if a variable is free, possibly ignoring sorts.
 freeIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
-freeIn' ig x t =
-  getAny $ runFree (Any . (x ==) . fst) ig t
+freeIn' ig x t = getAny $ runFree (Any . (x ==)) ig t
 
 {-# SPECIALIZE freeIn :: Nat -> Term -> Bool #-}
 freeIn :: Free a => Nat -> a -> Bool
@@ -267,11 +280,22 @@ freeInIgnoringSorts = freeIn' IgnoreAll
 freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
+newtype RelevantIn a = RelevantIn {getRelevantIn :: a}
+  deriving (Semigroup, Monoid)
+
+instance IsVarSet a => IsVarSet (RelevantIn a) where
+  withVarOcc o x
+    | irrelevant (varRelevance o) = mempty
+    | otherwise                   = RelevantIn $ withVarOcc o $ getRelevantIn x
+
+relevantIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
+relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
+
 relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-relevantInIgnoringSortAnn = freeIn'' (not . irrelevant . varRelevance) IgnoreInAnnotations
+relevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
 
 relevantIn :: Free a => Nat -> a -> Bool
-relevantIn = freeIn'' (not . irrelevant . varRelevance) IgnoreAll
+relevantIn = relevantIn' IgnoreAll
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
@@ -284,12 +308,11 @@ closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
 allFreeVars :: Free a => a -> VarSet
-allFreeVars = runFree (Set.singleton . fst) IgnoreNot
+allFreeVars = runFree Set.singleton IgnoreNot
 
 -- | Collect all relevant free variables, excluding the "unused" ones, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
-allRelevantVarsIgnoring = runFree sg
-  where sg (i, VarOcc _ r) = if irrelevant r then Set.empty else Set.singleton i
+allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . Set.singleton) ig
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
 allRelevantVars :: Free a => a -> VarSet
