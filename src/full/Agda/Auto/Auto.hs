@@ -1,7 +1,10 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
-module Agda.Auto.Auto (auto) where
+module Agda.Auto.Auto
+      (auto
+      , AutoResult(..)
+      , AutoProgress(..)
+      ) where
 
 import Prelude hiding (null)
 
@@ -60,45 +63,51 @@ insertAbsurdPattern [] = []
 insertAbsurdPattern s@(_:_) | take (length abspatvarname) s == abspatvarname = "()" ++ drop (length abspatvarname) s
 insertAbsurdPattern (c:s) = c : insertAbsurdPattern s
 
-getName :: A.Expr -> Maybe (Bool, I.QName)
-getName (A.ScopedExpr _ e) = getName e
-getName (A.Def qname) = Just (False, qname)
-getName (A.Proj _ qname) = Just (False, head $ I.unAmbQ qname)
-getName (A.Con qname) = Just (True, head $ I.unAmbQ qname)
-getName _ = Nothing
+getHeadAsHint :: A.Expr -> Maybe Hint
+getHeadAsHint (A.ScopedExpr _ e) = getHeadAsHint e
+getHeadAsHint (A.Def qname)      = Just $ Hint False qname
+getHeadAsHint (A.Proj _ qname)   = Just $ Hint False $ head $ I.unAmbQ qname
+getHeadAsHint (A.Con qname)      = Just $ Hint True  $ head $ I.unAmbQ qname
+getHeadAsHint _ = Nothing
 
-dispmsg :: String ->
-           TCM (Either [(InteractionId, String)]
-                       (Either [String] String)
-               , Maybe String)
-dispmsg msg = return (Left [], Just msg)
+-- | Result type: Progress & potential Message for the user
+--
+--   The  of the Auto tactic can be one of the following three:
+--
+--   1. @Solutions [(ii,s)]@
+--      A list of solutions @s@ for interaction ids @ii@.
+--      In particular, @Solutions []@ means Agsy found no solution.
+--
+--   2. @FunClauses cs@
+--      A list of clauses for the interaction id @ii@ in which Auto
+--      was invoked with case-splitting turned on.
+--
+--   3. @Refinement s@
+--      A refinement for the interaction id @ii@ in which Auto was invoked.
+
+data AutoProgress =
+    Solutions  [(InteractionId, String)]
+  | FunClauses [String]
+  | Refinement String
+
+data AutoResult = AutoResult
+  { autoProgress :: AutoProgress
+  , autoMessage  :: Maybe String
+  }
+
+stopWithMsg :: String -> TCM AutoResult
+stopWithMsg msg = return $ AutoResult (Solutions []) (Just msg)
 
 -- | Entry point for Auto tactic (Agsy).
 --
---     @auto ii rng s = return (res, mmsg)@
---
---   If @mmsg = Just msg@, the message @msg@ produced by Agsy should
---   be displayed to the user.
---
---   The result @res@ of the Auto tactic can be one of the following three:
---
---   1. @Left [(ii,s)]@
---      A list of solutions @s@ for interaction ids @ii@.
---      In particular, @Left []@ means Agsy found no solution.
---
---   2. @Right (Left cs)@
---      A list of clauses (the user allowed case-split).
---
---   3. @Right (Right s)@
---      A refinement for the interaction id @ii@ in which Auto was invoked.
+--   If the @autoMessage@ part of the result is set to @Just msg@, the
+--   message @msg@ produced by Agsy should be displayed to the user.
 
 auto
   :: InteractionId
   -> Range
   -> String
-  -> TCM ( Either [(InteractionId, String)]
-                  (Either [String] String)
-         , Maybe String)
+  -> TCM AutoResult
 auto ii rng argstr = do
 
   -- Parse hints and other configuration.
@@ -111,15 +120,11 @@ auto ii rng argstr = do
   ahints <- case mode of
     MRefine{} -> return []
     _         -> mapM (parseExprIn ii rng) hints
-  let failHints = dispmsg "Hints must be a list of constant names"
-  caseMaybe (mapM getName ahints) failHints $ \ ehints -> do
+  let failHints = stopWithMsg "Hints must be a list of constant names"
 
-    -- Get names for equality reasoning.
-    -- @eqstuff == []@ if any of these names is not defined.
-    eqstuffExprs <- mapM (parseExprIn ii rng) ["_≡_", "begin_", "_≡⟨_⟩_", "_∎", "sym", "cong"]
-      `catchError`
-        (\_ -> return [])
-    let eqstuff = fromMaybe [] $ mapM getName eqstuffExprs
+  eqstuff <- getEqCombinators ii rng
+
+  caseMaybe (mapM getHeadAsHint ahints) failHints $ \ ehints -> do
 
     -- Get the meta variable for the interaction point we are trying to fill.
     -- Add the @autohints@ for that meta to the hints collection.
@@ -218,7 +223,7 @@ auto ii rng argstr = do
                 rsols <- liftM reverse $ liftIO $ readIORef sols
                 if null rsols then do
                   nsol' <- liftIO $ readIORef nsol
-                  dispmsg $ insuffsols (pick + numsols - nsol')
+                  stopWithMsg $ insuffsols (pick + numsols - nsol')
                  else do
                   aexprss <- mapM getsols rsols
                   cexprss <- forM aexprss $ mapM $ \(mi, e) -> do
@@ -229,11 +234,11 @@ auto ii rng argstr = do
                       disp [(_, cexpr)] = ss cexpr
                       disp cexprs = concat $ map (\ (mi, cexpr) -> ss cexpr ++ " ") cexprs
                   ticks <- liftIO $ readIORef ticks
-                  dispmsg $ unlines $
+                  stopWithMsg $ unlines $
                     ("Listing disproof(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1)) :
                     for (zip cexprss [pick..]) (\ (x, y) -> show y ++ "  " ++ disp x)
-            _ -> dispmsg "Metavariable dependencies not allowed in disprove mode"
-           _ -> dispmsg "Metavariable dependencies not allowed in disprove mode"
+            _ -> stopWithMsg "Metavariable dependencies not allowed in disprove mode"
+           _ -> stopWithMsg "Metavariable dependencies not allowed in disprove mode"
          else do
           (recinfo, defdfv) <-
            case thisdefinfo of
@@ -272,7 +277,7 @@ auto ii rng argstr = do
             rsols <- liftM reverse $ liftIO $ readIORef sols
             if null rsols then do
               nsol' <- liftIO $ readIORef nsol
-              dispmsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
+              stopWithMsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
              else do
               aexprss <- mapM getsols rsols
               -- cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
@@ -287,20 +292,20 @@ auto ii rng argstr = do
                     maybe (show mi) show (lookup mi riis)
                       ++ " := " ++ show cexpr ++ " "
               ticks <- liftIO $ readIORef ticks
-              dispmsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
+              stopWithMsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
                         "\n" ++ unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
            else {- not listmode -}
             case res of
              Nothing -> do
               nsol' <- liftIO $ readIORef nsol
-              dispmsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
+              stopWithMsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
              Just depthreached -> do
               ticks <- liftIO $ readIORef ticks
               rsols <- liftIO $ readIORef sols
               case rsols of
                 [] -> do
                   nsol' <- liftIO $ readIORef nsol
-                  dispmsg $ insuffsols (pick + numsols - nsol')
+                  stopWithMsg $ insuffsols (pick + numsols - nsol')
                 terms -> loop terms where
                   -- Andreas, 2015-05-17  Issue 1504
                   -- If giving a solution failed (e.g. ill-typed)
@@ -308,7 +313,8 @@ auto ii rng argstr = do
                   -- However, currently @terms@ is always a singleton list.
                   -- Thus, the following @loop@ is not doing something very
                   -- meaningful.
-                  loop [] = return (Left [], Just "")
+                  loop :: [[I.Term]] -> TCM AutoResult
+                  loop [] = return $ AutoResult (Solutions []) (Just "")
                   loop (term : terms') = do
                     -- On exception, try next solution
                     flip catchError (const $ loop terms') $ do
@@ -340,10 +346,8 @@ auto ii rng argstr = do
                                           if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
                                          ) exprs
                       let msgs = catMaybes $ msg : map snd giveress
-                          msg' = case msgs of
-                                  [] -> Nothing
-                                  _ -> Just $ unlines msgs
-                      return (Left $ catMaybes $ map fst giveress, msg')
+                          msg' = unlines msgs <$ guard (not $ null msgs)
+                      return $ AutoResult (Solutions $ catMaybes $ map fst giveress) msg'
 
      MCaseSplit -> do
       case thisdefinfo of
@@ -367,7 +371,7 @@ auto ii rng argstr = do
            Just (cls : _) -> withInteractionId ii $ do
             cls' <- liftIO $ runExceptT (mapM frommyClause cls)
             case cls' of
-             Left{} -> dispmsg "No solution found"
+             Left{} -> stopWithMsg "No solution found"
              Right cls' -> do
               cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall) -> do
                 withCurrentModule (AN.qnameModule def) $ do
@@ -380,12 +384,12 @@ auto ii rng argstr = do
               ticks <- liftIO $ readIORef ticks
 
 
-              return (Right $ Left (map (insertAbsurdPattern . PP.renderStyle (PP.style { PP.mode = PP.OneLineMode })) pcs), Nothing)
+              return $ AutoResult (FunClauses $ map (insertAbsurdPattern . PP.renderStyle (PP.style { PP.mode = PP.OneLineMode })) pcs) Nothing
 
-           Just [] -> dispmsg "No solution found" -- case not possible at the moment because case split doesnt care about search exhaustiveness
-           Nothing -> dispmsg $ "No solution found at time out (" ++ show timeout ++ "s)"
-         _ -> dispmsg "Metavariable dependencies not allowed in case split mode"
-       _ -> dispmsg "Metavariable is not at top level of clause RHS"
+           Just [] -> stopWithMsg "No solution found" -- case not possible at the moment because case split doesnt care about search exhaustiveness
+           Nothing -> stopWithMsg $ "No solution found at time out (" ++ show timeout ++ "s)"
+         _ -> stopWithMsg "Metavariable dependencies not allowed in case split mode"
+       _ -> stopWithMsg "Metavariable is not at top level of clause RHS"
 
      MRefine listmode -> do
       mv <- lookupMeta mi
@@ -438,28 +442,27 @@ auto ii rng argstr = do
       if listmode || pick == (-1) then
         let pick' = max 0 pick
         in if pick' >= length sorthits then
-             dispmsg $ insuffcands $ length sorthits
+             stopWithMsg $ insuffcands $ length sorthits
             else
              let showhits = take 10 $ drop pick' sorthits
-             in dispmsg $ "Listing candidate(s) " ++ show pick' ++ "-" ++ show (pick' + length showhits - 1) ++ " (found " ++ show (length sorthits) ++ " in total)\n" ++
+             in stopWithMsg $ "Listing candidate(s) " ++ show pick' ++ "-" ++ show (pick' + length showhits - 1) ++ " (found " ++ show (length sorthits) ++ " in total)\n" ++
                            unlines (map (\(i, (cn, _)) -> show i ++ "  " ++ cn) (zip [pick'..pick' + length showhits - 1] showhits))
        else
         if pick >= length sorthits then
-         dispmsg $ insuffcands $ length sorthits
+         stopWithMsg $ insuffcands $ length sorthits
         else
-         return (Right $ Right (fst $ sorthits !! pick), Nothing)
+         return $ AutoResult (Refinement $ fst $ sorthits !! pick) Nothing
   where
     agsyinfo ticks = ""
 
 -- Get the functions and axioms defined in the same module as @def@.
-autohints :: AutoHintMode -> I.MetaId -> Maybe AN.QName ->
-             TCM [(Bool, AN.QName)]
+autohints :: AutoHintMode -> I.MetaId -> Maybe AN.QName -> TCM [Hint]
 autohints AHMModule mi (Just def) = do
   scope <- clScope . getMetaInfo <$> lookupMeta mi
   let names     = Scope.nsNames $ Scope.everythingInScope scope
       qnames    = map (Scope.anameName . head) $ Map.elems names
       modnames  = filter (\n -> AN.qnameModule n == AN.qnameModule def && n /= def) qnames
-  map (False,) <$> do
+  map (Hint False) <$> do
     (`filterM` modnames) $ \ n -> do
       c <- getConstInfo n
       case theDef c of
@@ -470,6 +473,18 @@ autohints AHMModule mi (Just def) = do
 
 autohints _ _ _ = return []
 
+
+
+-- | Names for the equality reasoning combinators
+--   Empty if any of these names is not defined.
+
+getEqCombinators :: InteractionId -> Range -> TCM [Hint]
+getEqCombinators ii rng = do
+  let eqCombinators = ["_≡_", "begin_", "_≡⟨_⟩_", "_∎", "sym", "cong"]
+  raw <- mapM (parseExprIn ii rng) eqCombinators `catchError` const (pure [])
+  return $ fromMaybe [] $ mapM getHeadAsHint raw
+
+-- | Templates for error messages
 
 genericNotEnough :: String -> Int -> String
 genericNotEnough str n = intercalate " " $ case n of

@@ -5,6 +5,7 @@ module Agda.Auto.NarrowingSearch where
 import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
 import Control.Monad.State
+import Control.Applicative
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -170,8 +171,6 @@ instance Applicative (RefCreateEnv blk) where
 instance Monad (RefCreateEnv blk) where
   return = pure
   t >>= f = RefCreateEnv $ runRefCreateEnv t >>= runRefCreateEnv . f
-
-data Pair a b = Pair a b
 
 class Refinable a blk where
  refinements :: blk -> [blk] -> Metavar a blk -> IO [(Int, RefCreateEnv blk a)]
