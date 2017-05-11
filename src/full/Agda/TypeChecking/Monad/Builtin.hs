@@ -684,7 +684,7 @@ primPathName = do
             (_, _)          -> __IMPOSSIBLE__
 
 -- | Get the name of the equality type.
-primPathName' :: TCM (Maybe QName)
+primPathName' :: HasBuiltins m => m (Maybe QName)
 primPathName' = do
   mty <- getBuiltin' builtinPath
   let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
@@ -701,12 +701,12 @@ primPathName' = do
 --
 --   Precondition: type is reduced.
 
-pathView :: Type -> TCM PathView
+pathView :: HasBuiltins m => Type -> m PathView
 pathView t0 = do
   view <- pathView'
   return $ view t0
 
-pathView' :: TCM (Type -> PathView)
+pathView' :: HasBuiltins m => m (Type -> PathView)
 pathView' = do
  mpath <- primPathName'
  mpathp <- getBuiltinName' builtinPathP
@@ -720,7 +720,7 @@ pathView' = do
     _ -> OType t0
 
 -- | Non dependent Path
-idViewAsPath :: Type -> TCM PathView
+idViewAsPath :: HasBuiltins m => Type -> m PathView
 idViewAsPath t0@(El s t) = do
   mid <- fmap getPrimName <$> getBuiltin' builtinId
   mpath <- fmap getPrimName <$> getBuiltin' builtinPath

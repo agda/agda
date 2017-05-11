@@ -786,6 +786,7 @@ primComp = do
   tempty <- primIsOneEmpty
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     unview <- intervalUnview'
+    pathV  <- pathView'
     let
         ineg t = (unview . INeg . argN) <$> t
         imax u t = do u <- u; t <- t; return $ unview (IMax (argN u) (argN t))
@@ -824,8 +825,9 @@ primComp = do
                  Def q [Apply la, Apply lb, Apply bA, Apply phi', Apply bT, Apply f, Apply pf] | Just q == mGlue -> do
                    compGlue phi u a0 la lb bA phi' bT f pf
 
-                 Def q [ Apply _ , Apply bA , Apply x , Apply y ] | Just q == mPath -> do
-                   compPath iz ineg imax sphi u a0 l bA x y
+                 -- Path/PathP
+                 d | PathType _ _ _ bA x y <- pathV (El Prop d) -> do
+                   compPathP iz ineg imax sphi u a0 l bA x y
 
                  Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do
                    maybe fallback return =<< compId sphi u a0 l bA x y
@@ -965,8 +967,7 @@ primComp = do
                     )
       _ -> return $ Nothing
 
-
-  compPath iz ineg imax sphi u a0 l bA x y = do
+  compPathP iz ineg imax sphi u a0 l bA x y = do
     tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
     tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
     redReturn . runNames [] $ do
@@ -974,7 +975,7 @@ primComp = do
        phi      <- open . unArg . ignoreBlocking $ sphi
        [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [bA, x, y]
        lam "j" $ \ j ->
-         pure tComp <#> l <@> bA <@> (phi `imax` (ineg j `imax` j))
+         pure tComp <#> l <@> (lam "i'" $ \ i -> bA <@> i <@> j) <@> (phi `imax` (ineg j `imax` j))
                     <@> (lam "i'" $ \ i ->
                           let or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i) in
                                      or phi (ineg j `imax` j)
