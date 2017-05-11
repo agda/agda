@@ -163,7 +163,9 @@ library
                 , xhtml >= 3000.2.1 && < 3000.3
 
   if impl(ghc < 7.8)
-    build-depends: base-orphans >= 0.3.1 && < 0.5
+    build-depends:  base-orphans >= 0.3.1 && < 0.5
+                  , tagged >= 0.8.5 && < 0.9
+
 
   if impl(ghc < 7.10)
     build-depends: void >= 0.5.4 && < 0.9
