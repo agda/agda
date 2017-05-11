@@ -181,15 +181,11 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 
 -- | @newIFSMeta s t cands@ creates a new "implicit from scope" metavariable
 --   of type the output type of @t@ with name suggestion @s@.
---   If @t@ is a function type, then insert enough
---   lambdas in front of it.
 newIFSMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
 newIFSMeta s t = do
-  TelV tel t' <- telView t
-  addContext' tel $ do
-    vs  <- getContextArgs
-    ctx <- getContextTelescope
-    mapSnd (teleLam tel) <$> newIFSMetaCtx s (telePi_ ctx t') vs
+  vs  <- getContextArgs
+  ctx <- getContextTelescope
+  newIFSMetaCtx s (telePi_ ctx t) vs
 
 newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
 newIFSMetaCtx s t vs = do

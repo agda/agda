@@ -57,6 +57,7 @@ initialIFSCandidates t = do
     getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
+      reportSDoc "tc.instance.cands" 40 $ hang (text "Getting candidates from context") 2 (inTopContext $ prettyTCM ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
           vars = [ Candidate x t ExplicitStayExplicit (argInfoOverlappable info)
@@ -163,23 +164,18 @@ findInScope m Nothing = do
   mv <- lookupMeta m
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
-    t <- getMetaType m
-    reportSLn "tc.instance" 70 $ "findInScope 1: t: " ++ show t
+    t <- instantiate =<< getMetaTypeInContext m
+    reportSLn "tc.instance" 70 $ "findInScope 1: t: " ++ prettyShow t
 
---     -- We create a new meta (which can have additional leading lambdas, if the
---     -- type @t@ now happens to be a function type) and the associated constraint
---     newM <- initializeIFSMeta (miNameSuggestion $ mvInfo mv) t
-
---     -- ... and we assign it to the previous one
---     ctxElims <- map Apply <$> getContextArgs
---     solveConstraint $ ValueCmp CmpEq t (MetaV m ctxElims) newM
-
--- {-
-    cands <- initialIFSCandidates t
+    -- Issue #2577: If the target is a function type the arguments are
+    -- potential candidates, so we add them to the context to make
+    -- initialIFSCandidates pick them up.
+    TelV tel t <- telView t
+    cands <- addContext' tel $ initialIFSCandidates t
     case cands of
       Nothing -> addConstraint $ FindInScope m Nothing Nothing
       Just {} -> findInScope m cands
--- -}
+
 findInScope m (Just cands) =
   whenJustM (findInScope' m cands) $ (\ (cands, b) -> addConstraint $ FindInScope m b $ Just cands)
 
@@ -202,13 +198,13 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- cands ]
       reportSDoc "tc.instance" 70 $ text "raw" $$ do
        nest 2 $ vcat
-        [ sep [ (if overlap then text "overlap" else empty) <+> (text . show) v <+> text ":"
-              , nest 2 $ (text . show) t ] | Candidate v t _ overlap <- cands ]
+        [ sep [ (if overlap then text "overlap" else empty) <+> pretty v <+> text ":"
+              , nest 2 $ pretty t ] | Candidate v t _ overlap <- cands ]
       t <- normalise =<< getMetaTypeInContext m
-      reportSLn "tc.instance" 70 $ "findInScope 2: t: " ++ show t
+      reportSLn "tc.instance" 70 $ "findInScope 2: t: " ++ prettyShow t
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
-      reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
+      reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ prettyShow t
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
       -- constrained, then don’t do anything because it may loop.
@@ -252,7 +248,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret =
   case ignoreSharing $ unEl t of
-    Pi a b     -> addContext' (absName b, a) $ insidePi (unAbs b) ret
+    Pi a b     -> addContext' (absName b, a) $ insidePi (absBody b) ret
     Def{}      -> ret t
     Var{}      -> ret t
     Sort{}     -> __IMPOSSIBLE__
@@ -505,9 +501,9 @@ checkCandidates m t cands = disableDestructiveUpdate $
               <+> text "<=" <+> prettyTCM t
             reportSDoc "tc.instance" 70 $ vcat
               [ text "instance search: checking (raw)"
-              , nest 4 $ (text . show) t''
+              , nest 4 $ pretty t''
               , nest 2 $ text "<="
-              , nest 4 $ (text . show) t
+              , nest 4 $ pretty t
               ]
             v <- (`applyDroppingParameters` args) =<< reduce term
             reportSDoc "tc.instance" 15 $ vcat
@@ -515,7 +511,7 @@ checkCandidates m t cands = disableDestructiveUpdate $
               , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
               ]
             reportSDoc "tc.instance" 70 $ nest 2 $
-              text "candidate v = " <+> (text . show) v
+              text "candidate v = " <+> pretty v
             -- if constraints remain, we abort, but keep the candidate
             -- Jesper, 05-12-2014: When we abort, we should add a constraint to
             -- instantiate the meta at a later time (see issue 1377).

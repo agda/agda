@@ -29,11 +29,11 @@ instance Refinable (ArgList o) (RefInfo o) where
       RICheckElim isDep -> isDep
       _                 -> getIsDep xs
     getIsDep _ = __IMPOSSIBLE__
-    
+
     proj :: Hiding -> RefCreateEnv (RefInfo o) (ArgList o)
     proj hid = ALProj <$> newPlaceholder <*> newPlaceholder
                       <*> return hid     <*> newPlaceholder
-    
+
     cons :: Hiding -> RefCreateEnv (RefInfo o) (ArgList o)
     cons hid = ALCons hid <$> newPlaceholder <*> newPlaceholder
 
