@@ -1,11 +1,13 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Auto.NarrowingSearch where
 
 import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
 import Control.Monad.State
-import Control.Applicative
+import Control.Applicative hiding (Const(..), getConst)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -26,7 +28,7 @@ data Prop blk
     -- ^ Success.
   | Error String
     -- ^ Definite failure.
-  | forall a . AddExtraRef String (Metavar a blk) (Int, RefCreateEnv blk a)
+  | forall a . AddExtraRef String (Metavar a blk) (Move' blk a)
     -- ^ Experimental.
   | And (Maybe [Term blk]) (MetaEnv (PB blk)) (MetaEnv (PB blk))
     -- ^ Parallel conjunction of constraints.
@@ -59,7 +61,7 @@ data Metavar a blk = Metavar
     -- ^ List of observers, i.e., constraints blocked by this meta.
   , mcompoint :: IORef [SubConstraints blk]
     -- ^ Used for experiments with independence of subproofs.
-  , mextrarefs :: IORef [(Int, RefCreateEnv blk a)]
+  , mextrarefs :: IORef [Move' blk a]
     -- ^ Experimental.
   }
 
@@ -172,8 +174,17 @@ instance Monad (RefCreateEnv blk) where
   return = pure
   t >>= f = RefCreateEnv $ runRefCreateEnv t >>= runRefCreateEnv . f
 
+
+newtype Cost = Cost { getCost :: Int }
+  deriving (Num, Eq, Ord)
+
+data Move' blk a = Move
+  { moveCost :: Cost
+  , moveNext :: RefCreateEnv blk a
+  }
+
 class Refinable a blk where
- refinements :: blk -> [blk] -> Metavar a blk -> IO [(Int, RefCreateEnv blk a)]
+ refinements :: blk -> [blk] -> Metavar a blk -> IO [Move' blk a]
 
 
 newPlaceholder :: RefCreateEnv blk (MM a blk)
@@ -185,9 +196,9 @@ newPlaceholder = RefCreateEnv $ do
 
 newOKHandle :: RefCreateEnv blk (OKHandle blk)
 newOKHandle = RefCreateEnv $ do
- (e@( ( _)), c) <- get
+ (e, c) <- get
  cp <- lift $ newIORef []
- m <- lift $ newMeta cp
+ m  <- lift $ newMeta cp
  put (e, (c + 1))
  return $ Meta m
 
@@ -198,6 +209,7 @@ type BlkInfo blk = (Bool, Prio, Maybe blk) -- Bool - is principal
 
 data MM a blk = NotM a
               | Meta (Metavar a blk)
+
 
 type MetaEnv = IO
 
@@ -299,7 +311,7 @@ type HandleSol = IO ()
 
 type SRes = Either Bool Int
 
-topSearch :: forall blk . IORef Int -> IORef Int -> HandleSol -> blk -> MetaEnv (PB blk) -> Int -> Int -> IO Bool
+topSearch :: forall blk . IORef Int -> IORef Int -> HandleSol -> blk -> MetaEnv (PB blk) -> Cost -> Cost -> IO Bool
 topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
  depthreached <- newIORef False
 
@@ -307,7 +319,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
  mainroot <- newCTree Nothing
 
  let
-  searchSubProb :: [(CTree blk, Maybe (IORef Bool))] -> Int -> IO SRes
+  searchSubProb :: [(CTree blk, Maybe (IORef Bool))] -> Cost -> IO SRes
   searchSubProb [] depth = do
    when (depth < depthinterval) $ do
 
@@ -320,7 +332,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
    return $ Left True
   searchSubProb ((root, firstdone) : restprobs) depth =
    let
-    search :: Int -> IO SRes
+    search :: Cost -> IO SRes
     search depth = do
      pm <- readIORef $ ctpriometa root
      case pm of
@@ -349,12 +361,13 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
               0 -> split
               _ -> carryon
 
-    fork :: Refinable a blk => Metavar a blk -> Int -> IO SRes
+    fork :: forall a. Refinable a blk => Metavar a blk -> Cost -> IO SRes
     fork m depth = do
       blkinfos <- extractblkinfos m
       refs <- refinements envinfo blkinfos m
       f refs
      where
+      f :: [Move' blk a] -> IO SRes
       f [] = do
        erefs <- readIORef $ mextrarefs m
        case erefs of
@@ -362,7 +375,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
         _ -> do
          NoUndo.writeIORef (mextrarefs m) []
          f erefs
-      f ((cost, bind) : binds) = hsres (refine m bind (depth - cost) ) (f binds)
+      f (Move cost bind : binds) = hsres (refine m bind (depth - cost)) (f binds)
     hsres :: IO SRes -> IO SRes -> IO SRes
     hsres x1 x2 = do
      res <- x1
@@ -378,7 +391,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
           Right _ -> if found then __IMPOSSIBLE__ else return res2
           Left found2 -> return $ Left (found || found2)
 
-    refine :: Metavar a blk -> RefCreateEnv blk a -> Int -> IO SRes
+    refine :: Metavar a blk -> RefCreateEnv blk a -> Cost -> IO SRes
 
     refine _ _ depthleft | depthleft < 0 = do
      NoUndo.writeIORef depthreached True
@@ -632,7 +645,7 @@ choose c prio p1 p2 =
   RightDisjunct -> p2
 
 instance Refinable Choice blk where
- refinements _ x _ = return [(0, return LeftDisjunct), (0, return RightDisjunct)]
+ refinements _ x _ = return $ Move 0 . return <$> [LeftDisjunct, RightDisjunct]
 
 
 instance Refinable OKVal blk where

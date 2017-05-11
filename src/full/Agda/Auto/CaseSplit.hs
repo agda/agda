@@ -20,7 +20,7 @@ abspatvarname :: String
 abspatvarname = "\0absurdPattern"
 
 costCaseSplitVeryHigh, costCaseSplitHigh, costCaseSplitLow, costAddVarDepth
-  :: Nat
+  :: Cost
 costCaseSplitVeryHigh = 10000
 costCaseSplitHigh     = 5000
 costCaseSplitLow      = 2000
@@ -43,9 +43,14 @@ data CSPatI o = CSPatConApp (ConstRef o) [CSPat o]
               | CSOmittedArg
 type Sol o = [(CSCtx o, [CSPat o], Maybe (MExp o))]
 
-caseSplitSearch :: forall o . IORef Int -> Int -> [ConstRef o] -> Maybe (EqReasoningConsts o) -> Int -> Int -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
+caseSplitSearch ::
+  forall o . IORef Int -> Int -> [ConstRef o] ->
+  Maybe (EqReasoningConsts o) -> Int -> Cost -> ConstRef o ->
+  CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
 caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt pats = do
- let branchsearch depth ctx tt termcheckenv = do
+ let branchsearch :: Cost -> CSCtx o -> MExp o ->
+                     ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))
+     branchsearch depth ctx tt termcheckenv = do
 
 
       nsol <- newIORef 1
@@ -85,13 +90,15 @@ caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt p
      ff n (HI hid (id, t) : ctx) = HI hid (id, lift n t) : ff (n + 1) ctx
  caseSplitSearch' branchsearch depthinterval depth recdef ctx' tt pats
 
-caseSplitSearch' :: forall o . (Int -> CSCtx o -> MExp o -> ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))) -> Int -> Int -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
+caseSplitSearch' :: forall o .
+  (Cost -> CSCtx o -> MExp o -> ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))) ->
+  Int -> Cost -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
 caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
   recdefd <- readIORef recdef
   sols <- rc depth (cddeffreevars recdefd) ctx tt pats
   return sols
  where
-  rc :: Int -> Int -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
+  rc :: Cost -> Int -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
   rc depth _ _ _ _ | depth < 0 = return []
   rc depth nscrutavoid ctx tt pats = do
 
@@ -180,7 +187,10 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
              let (ctx2, tt2, pats2) = removevar ctx1 tt' pats' unif
                  --cost = if elem scrut mblkvar then costCaseSplit - (costCaseSplit - costCaseSplitFollow) `div` (length mblkvar) else costCaseSplit
                  cost = if null mblkvar then
-                         if scrut < length ctx - nscrutavoid && nothid then costCaseSplitLow + costAddVarDepth * depthofvar scrut pats else costCaseSplitVeryHigh
+                         if scrut < length ctx - nscrutavoid && nothid
+                         then costCaseSplitLow + costAddVarDepth
+                              * Cost (depthofvar scrut pats)
+                         else costCaseSplitVeryHigh
                         else
                          if elem scrut mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
 
