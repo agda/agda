@@ -82,7 +82,7 @@ module Unit where
   _/_ : (u v : unit)
         {≠0 : False (((coeff u) div (coeff v)) {coeff≠0 v} ℕ.≟ 0)} →
         unit
-  _/_ (k , hk # d) (l , hl # e) {≠0} = (k div l) , ≠0 # (d Dimension./ e)
+  _/_ (k , hk # d) (l , hl # e) {≠0} = (k div l) {hl} , ≠0 # (d Dimension./ e)
 
 open Unit using (unit ; _,_#_ ; coeff ; coeff≠0)
 
