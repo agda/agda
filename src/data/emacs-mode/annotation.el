@@ -98,6 +98,17 @@ given position."
   "Move point to POSITION."
   (goto-char (+ position annotations-offset)))
 
+(defun annotation-append-text-property (start end prop values)
+  "Merges VALUES to text property PROP between START and END."
+  (let ((pos start)
+        mid)
+    (while (< pos end)
+      (setq mid (next-single-property-change pos prop nil end))
+      (let* ((old-values (get-text-property pos prop))
+             (all-values (union old-values values)))
+        (put-text-property pos mid prop all-values)
+        (setq pos mid)))))
+
 (defun annotation-annotate (start end anns &optional info goto)
   "Annotate text between START and END in the current buffer.
 
@@ -141,7 +152,7 @@ with)."
                                  anns)))
             (props nil))
         (when faces
-          (put-text-property start end 'font-lock-face faces)
+          (annotation-append-text-property start end 'font-lock-face faces)
           (add-to-list 'props 'font-lock-face))
         (when (consp goto)
           (add-text-properties start end
