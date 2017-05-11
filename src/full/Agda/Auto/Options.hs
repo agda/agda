@@ -16,7 +16,9 @@ data AutoHintMode = AHMNone
 type Hints = [String]
 
 newtype TimeOut = TimeOut { getTimeOut :: Int }
- deriving (Show)
+
+instance Show TimeOut where
+  show = show . getTimeOut
 
 -- | Options for Auto, default value and lenses
 

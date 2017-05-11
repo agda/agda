@@ -1,9 +1,8 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.Auto.Convert where
 
--- import Control.Applicative hiding (getConst, Const(..))
+import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -50,7 +49,15 @@ import Agda.Utils.Lens
 import Agda.Utils.Impossible
 #include "undefined.h"
 
-type O = (Maybe Int, AN.QName) -- Nothing - Def, Just npar - Con with npar parameters which don't appear in Agda
+
+data Hint = Hint
+  { hintIsConstructor :: Bool
+  , hintQName         :: I.QName
+  }
+
+type O = (Maybe Int, AN.QName)
+  -- Nothing - Def
+  -- Just npar - Con with npar parameters which don't appear in Agda
 
 data TMode = TMAll -- can be extended to distinguish between different modes (all, only def)
  deriving Eq
@@ -77,7 +84,12 @@ data S = S {sConsts :: MapS AN.QName (TMode, ConstRef O),
 
 type TOM = StateT S MB.TCM
 
-tomy :: I.MetaId -> [(Bool, AN.QName)] -> [I.Type] -> MB.TCM ([ConstRef O], [MExp O], Map I.MetaId (Metavar (Exp O) (RefInfo O), MExp O, [MExp O], [I.MetaId]), [(Bool, MExp O, MExp O)], Map AN.QName (TMode, ConstRef O))
+tomy :: I.MetaId -> [Hint] -> [I.Type] ->
+        MB.TCM ([ConstRef O]
+               , [MExp O]
+               , Map I.MetaId (Metavar (Exp O) (RefInfo O), MExp O, [MExp O], [I.MetaId])
+               , [(Bool, MExp O, MExp O)]
+               , Map AN.QName (TMode, ConstRef O))
 tomy imi icns typs = do
  eqs <- getEqs
  let
@@ -185,7 +197,7 @@ tomy imi icns typs = do
          return projfcns
  ((icns', typs'), s) <- runStateT
   (do _ <- getMeta imi
-      icns' <- mapM (\(iscon, name) -> getConst iscon name TMAll) icns
+      icns' <- mapM (\ (Hint iscon name) -> getConst iscon name TMAll) icns
       typs' <- mapM tomyType typs
       projfcns <- r []
       projfcns' <- mapM (\name -> getConst False name TMAll) projfcns

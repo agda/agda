@@ -74,7 +74,7 @@ import qualified Agda.Interaction.Highlighting.Range as H
 import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.Backend
 
-import qualified Agda.Auto.Auto as Auto
+import Agda.Auto.Auto as Auto
 
 import Agda.Utils.Except
   ( ExceptT
@@ -836,9 +836,9 @@ interpret (Cmd_auto ii rng s) = do
   -- Save the state to have access to even those interaction ids
   -- that Auto solves (since Auto gives the solution right away).
   st <- lift $ get
-  (time , (res, msg)) <- maybeTimed $ lift $ Auto.auto ii rng s
-  case res of
-   Left xs -> do
+  (time , res) <- maybeTimed $ lift $ Auto.auto ii rng s
+  case autoProgress res of
+   Solutions xs -> do
     lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show xs
     forM_ xs $ \(ii, s) -> do
       -- Andreas, 2014-07-05 Issue 1226:
@@ -853,15 +853,15 @@ interpret (Cmd_auto ii rng s) = do
       putResponse $ Resp_GiveAction ii $ Give_String s
     -- Andreas, 2014-07-07: Remove the interaction points in one go.
     modifyTheInteractionPoints (\\ (map fst xs))
-    case msg of
-     Nothing -> interpret Cmd_metas
+    case autoMessage res of
+     Nothing  -> interpret Cmd_metas
      Just msg -> display_info $ Info_Auto msg
-   Right (Left cs) -> do
-    case msg of
-     Nothing -> return ()
+   FunClauses cs -> do
+    case autoMessage res of
+     Nothing  -> return ()
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCase R.Function cs
-   Right (Right s) -> give_gen ii rng s Refine
+   Refinement s -> give_gen ii rng s Refine
   maybe (return ()) (display_info . Info_Time) time
 
 interpret (Cmd_context norm ii _ _) =
