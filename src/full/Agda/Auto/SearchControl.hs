@@ -4,6 +4,7 @@
 
 module Agda.Auto.SearchControl where
 
+import Control.Applicative
 import Control.Monad
 import Data.IORef
 import Control.Monad.State
