@@ -4,7 +4,7 @@
 
 module Agda.Auto.SearchControl where
 
-import Control.Applicative
+import Control.Applicative hiding (getConst, Const(..))
 import Control.Monad
 import Data.IORef
 import Control.Monad.State
