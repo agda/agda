@@ -17,6 +17,7 @@ import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
 
+import Agda.Utils.Either
 import Agda.Utils.Except
   ( Error(strMsg)
   , MonadError(catchError, throwError)
@@ -74,10 +75,18 @@ anyM :: (Functor f, Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
 anyM xs f = orM $ fmap f xs
 
 -- | Lazy monadic disjunction with @Either@  truth values.
+--   Returns the last error message if all fail.
 altM1 :: Monad m => (a -> m (Either err b)) -> [a] -> m (Either err b)
 altM1 f []       = __IMPOSSIBLE__
 altM1 f [a]      = f a
 altM1 f (a : as) = either (const $ altM1 f as) (return . Right) =<< f a
+
+-- | Lazy monadic disjunction with accumulation of errors in a monoid.
+--   Errors are discarded if we succeed.
+orEitherM :: (Monoid e, Monad m, Functor m) => [m (Either e b)] -> m (Either e b)
+orEitherM []       = return $ Left mempty
+orEitherM (m : ms) = caseEitherM m (\e -> mapLeft (e `mappend`) <$> orEitherM ms)
+                                   (return . Right)
 
 -- Loops gathering results in a Monoid ------------------------------------
 
