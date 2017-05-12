@@ -964,6 +964,7 @@ instance Normalise a => Normalise (Pattern' a) where
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DotP v       -> DotP <$> normalise' v
+    AbsurdP x    -> AbsurdP <$> normalise' x
     ProjP{}      -> return p
 
 instance Normalise DisplayForm where
@@ -1079,6 +1080,7 @@ instance InstantiateFull DBPatVar where
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (VarP x)       = VarP <$> instantiateFull' x
     instantiateFull' (DotP t)       = DotP <$> instantiateFull' t
+    instantiateFull' (AbsurdP p)    = AbsurdP <$> instantiateFull' p
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p

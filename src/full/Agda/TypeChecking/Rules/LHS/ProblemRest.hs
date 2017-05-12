@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
+import Control.Arrow (first, second)
+
 import Data.Functor ((<$))
 
 import Agda.Syntax.Common
@@ -32,7 +34,6 @@ useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat du
     dummy = A.WildP __IMPOSSIBLE__
     ren (A.VarP x) (Dom info (_, a)) | visible info && not (isNoName x) =
       Dom info (nameToArgName x, a)
-    ren A.AbsurdP{} (Dom info (_, a)) | visible info = Dom info ("()", a)
     -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
     -- but it does not do the job, instead, it puts a lot of "_"s
     -- instead of more sensible names into error messages.
@@ -159,4 +160,5 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
     return $ LHSState
       { lhsProblem = p'
       , lhsDPI     = applyPatSubst tau (lhsDPI st)
+      , lhsShouldBeEmptyTypes = map (second $ applyPatSubst tau) (lhsShouldBeEmptyTypes st)
       }

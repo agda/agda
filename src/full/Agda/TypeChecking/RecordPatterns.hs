@@ -65,6 +65,7 @@ recordPatternToProjections p =
     VarP{}       -> return [ \ x -> x ]
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
+    AbsurdP{}    -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
       whenNothing (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
@@ -698,6 +699,7 @@ translatePattern p@(ConP c ci ps)
       return (ConP c ci ps, s, cs)
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
+translatePattern p@AbsurdP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
 translatePattern p@ProjP{}= return (p, [], [])
 
@@ -742,6 +744,7 @@ recordTree (ConP c ci ps) | Just ConOSystem <- conPRecord ci = do
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
+recordTree p@AbsurdP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p
 recordTree p@ProjP{}= return $ Left $ translatePattern p
 

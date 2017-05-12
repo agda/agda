@@ -57,6 +57,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.Pretty as P
 
@@ -322,6 +323,16 @@ splitProblem mf (Problem ps qs tel pr) = do
                 , splitFocus   = Arg ai $ Focus c ConORec args (getRange p) qs d pars ixs a
                 , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                 }) `mplus` keepGoing
+
+        -- Case: absurd pattern.
+        p@(A.AbsurdP info) -> do
+          lift $ reportSDoc "tc.lhs.split.absurd" 30 $ text "split AbsurdP: type is " <+> prettyTCM a
+          let i = size tel
+          (return Split
+            { splitLPats = empty
+            , splitFocus = Arg ai $ AbsurdFocus info i $ raise (i+1) a
+            , splitRPats = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+            }) `mplus` keepGoing
 
         -- Case: constructor pattern.
         p@(A.ConP ci (A.AmbQ cs) args) -> do

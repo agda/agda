@@ -323,6 +323,7 @@ tomyPat p = case Common.unArg p of
  I.ProjP{} -> lift $ copatternsNotImplemented
  I.VarP n -> return $ PatVar (show n)
  I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
+ I.AbsurdP{} -> return $ PatVar I.absurdPatternName
  I.ConP con _ pats -> do
   let n = I.conName con
   c <- getConst True n TMAll
@@ -616,6 +617,7 @@ constructPats cmap mainm clause = do
        I.DotP t -> do
         (t2, _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
+       I.AbsurdP{} -> return ((hid, Id I.absurdPatternName) : ns, HI hid (CSPatVar $ length ns))
        I.ProjP{} -> copatternsNotImplemented
        _ -> __IMPOSSIBLE__
  (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)
