@@ -11,6 +11,7 @@ import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
 import Data.Traversable
 
 import Agda.Syntax.Common
+import Agda.Syntax.Info
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
@@ -210,6 +211,11 @@ data Focus
     }
   | LitFocus Literal [NamedArg DeBruijnPattern] Type
   | PartialFocus (Either (NamedArg A.Pattern) [(A.Expr,A.Expr)]) [NamedArg DeBruijnPattern] Type
+  | AbsurdFocus
+    { absurdFocusRange :: PatInfo
+    , absurdFocusVar   :: Int
+    , absurdFocusType  :: Type
+    }
 
 -- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem
@@ -262,6 +268,7 @@ data LHSState = LHSState
   { lhsProblem :: Problem
   , lhsDPI     :: [DotPatternInst]
   , lhsPartialSplit :: ![Maybe Int] -- ^ have we splitted with a PartialFocus?
+  , lhsShouldBeEmptyTypes :: [(Range,Type)]
   }
 
 instance Subst Term ProblemRest where

@@ -112,6 +112,7 @@ instance IsFlexiblePattern (I.Pattern' a) where
         | Just _            <- conPRecord i -> maybeFlexiblePattern ps
         | otherwise -> mzero
       I.VarP{}  -> mzero
+      I.AbsurdP{} -> mzero
       I.LitP{}  -> mzero
       I.ProjP{} -> mzero
 
@@ -213,6 +214,7 @@ updateInPatterns as ps qs = do
                   _            -> []
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
+      AbsurdP{}  -> __IMPOSSIBLE__
       LitP _     -> __IMPOSSIBLE__
       ProjP{}    -> __IMPOSSIBLE__
 
@@ -262,11 +264,11 @@ problemAllVariables problem =
     isSolved A.LitP{}        = False
     isSolved A.ProjP{}       = False
     isSolved A.RecP{}        = False  -- record pattern
+    isSolved A.AbsurdP{}     = False
     -- solved:
     isSolved A.VarP{}        = True
     isSolved A.WildP{}       = True
     isSolved A.DotP{}        = True
-    isSolved A.AbsurdP{}     = True
     -- impossible:
     isSolved A.DefP{}        = __IMPOSSIBLE__
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
@@ -517,11 +519,7 @@ bindLHSVars (p : ps) tel0@(ExtendTel a tel) ret = do
                  -- introduces unwanted underscores in error messages
                  -- (Andreas, 2015-05-28)
     A.DotP _ _ _  -> bindDummy (absName tel)
-    A.AbsurdP pi  -> do
-      -- Andreas, 2012-03-15: allow postponement of emptyness check
-      isEmptyType (getRange pi) $ unDom a
-      -- OLD CODE: isReallyEmptyType $ unArg a
-      bindDummy (absName tel)
+    A.AbsurdP pi  -> __IMPOSSIBLE__
     -- Andreas, 2017-01-18, issue #2413
     -- A.AsP is not __IMPOSSIBLE__
     A.AsP _ _ p0    -> bindLHSVars (setNamedArg p p0 : ps) tel0 ret
@@ -632,8 +630,8 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem pxs qs delta rest) dpi psplit
-      <- checkLHS f $ LHSState problem0 [] []
+    LHSState problem@(Problem pxs qs delta rest) dpi psplit sbe
+      <- checkLHS f $ LHSState problem0 [] [] []
 
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
@@ -701,6 +699,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
 
           -- Check dot patterns
           mapM_ checkDotPattern dpi
+          mapM_ (uncurry isEmptyType) sbe
           checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
 
         -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
@@ -711,7 +710,7 @@ checkLHS
   :: Maybe QName       -- ^ The name of the definition we are checking.
   -> LHSState          -- ^ The current state.
   -> TCM LHSState      -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem dpi psplit) = do
+checkLHS f st@(LHSState problem dpi psplit sbe) = do
 
   problem <- insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
@@ -744,14 +743,14 @@ checkLHS f st@(LHSState problem dpi psplit) = do
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' dpi psplit)
+      st' <- updateProblemRest (LHSState problem' dpi psplit sbe)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
     trySplit (Split p0 (Arg ai (PartialFocus (Left p) ip a)) p1) ret | Nothing `elem` psplit = ret
     trySplit (Split p0 (Arg ai (PartialFocus (Left p) ip a)) p1) ret = do
-      st' <- updateProblemRest (LHSState problem dpi $ psplit ++ [Nothing])
+      st' <- updateProblemRest (LHSState problem dpi (psplit ++ [Nothing]) sbe)
       checkLHS f st'
 
     trySplit (Split p0 (Arg ai (PartialFocus (Right ts) ip a)) p1) ret = do
@@ -817,6 +816,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
                             (problemInPat p0)
                             (applySubst rho0 $ teleArgs delta1)
       let dpi' = applyPatSubst rho dpi ++ newDpi
+          sbe' = map (second $ applyPatSubst rho) sbe
           ps' = p0' ++ problemInPat (absBody p1)
 
       reportSDoc "tc.lhs.split.problem" 10 $ sep
@@ -829,7 +829,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
           delta'   = abstract gamma delta2
           problem' = Problem ps' ip' delta' rest'
       reportSDoc "tc.lhs.split.partial" 20 $ text (show problem')
-      st' <- updateProblemRest (LHSState problem' dpi' $ psplit ++ [Just o_n])
+      st' <- updateProblemRest (LHSState problem' dpi' (psplit ++ [Just o_n]) sbe')
       checkLHS f st'
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
@@ -846,6 +846,7 @@ checkLHS f st@(LHSState problem dpi psplit) = do
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
           dpi'     = applyPatSubst rho dpi
+          sbe'     = map (second $ applyPatSubst rho) sbe
           ip'      = applySubst rho ip
           rest'    = applyPatSubst rho (problemRest problem)
 
@@ -853,8 +854,28 @@ checkLHS f st@(LHSState problem dpi psplit) = do
       let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
           delta'   = abstract delta1 delta2
           problem' = Problem ps' ip' delta' rest'
-      st' <- updateProblemRest (LHSState problem' dpi' psplit)
+      st' <- updateProblemRest (LHSState problem' dpi' psplit sbe')
       checkLHS f st'
+
+    -- Split on absurd pattern (adding type to list of types that should be empty)
+    trySplit (Split p0 (Arg info (AbsurdFocus pi i a)) p1) _ = do
+      let tel = problemTel problem
+      reportSDoc "tc.lhs.split.absurd" 10 $ sep
+        [ text "splitting on absurd pattern"
+        , nest 2 $ text "tel  =" <+> prettyTCM tel
+        , nest 2 $ text "var  =" <+> addContext tel (prettyTCM $ var i)
+        , nest 2 $ text "type =" <+> addContext tel (prettyTCM a)
+        ]
+      let rho = liftS i $ consS (AbsurdP $ VarP $ DBPatVar "()" i) $ raiseS 1
+      checkLHS f $ st
+            { lhsProblem = problem
+              { problemInPat  = (problemInPat p0) ++
+                                [Arg info $ unnamed $ A.WildP pi] ++
+                                problemInPat (absBody p1)
+              , problemOutPat = applySubst rho $ problemOutPat problem
+              }
+            , lhsShouldBeEmptyTypes = (getRange pi , a) : lhsShouldBeEmptyTypes st
+            }
 
     -- Split on constructor pattern (unifier might fail)
     trySplit (Split p0 (Arg info
@@ -1083,10 +1104,12 @@ checkLHS f st@(LHSState problem dpi psplit) = do
 
           -- The final dpis are the new ones plus the old ones substituted by ρ
           let dpi' = applyPatSubst rho dpi ++ raise (size delta2') newDpi
+              sbe' = map (second $ applyPatSubst rho) sbe
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "dpi'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
+              , text "sbe'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM sbe')
               ]
 
           -- Apply the substitution
@@ -1102,8 +1125,8 @@ checkLHS f st@(LHSState problem dpi psplit) = do
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi' psplit)
-            <- updateProblemRest $ LHSState problem' dpi' psplit
+          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi' psplit sbe')
+            <- updateProblemRest $ LHSState problem' dpi' psplit sbe'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"
@@ -1123,6 +1146,7 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
   where
   check (VarP {})   = return ()
   check (DotP {})   = return ()
+  check (AbsurdP{}) = return ()
   check (ProjP{})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP con _ ps) = do

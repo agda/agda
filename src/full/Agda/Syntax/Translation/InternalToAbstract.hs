@@ -876,7 +876,7 @@ instance Binder A.LHSCore where
 
 instance Binder A.Pattern where
   varsBoundIn p = case p of
-    A.VarP x             -> if show x == "()" then empty else singleton x
+    A.VarP x             -> if show x == "()" then empty else singleton x -- TODO: get rid of this hack?
     A.ConP _ _ ps        -> varsBoundIn ps
     A.ProjP{}            -> empty
     A.DefP _ _ ps        -> varsBoundIn ps
@@ -940,8 +940,6 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      case p of
-      I.VarP x | isAbsurdPatternName (dbPatVarName x)
-               -> return $ A.AbsurdP patNoRange    -- HACK
       I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
       I.DotP v -> do
         t <- liftTCM $ reify v
@@ -950,6 +948,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         return $ A.DotP patNoRange Inserted t
         -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
         -- Crashes on -v 100.
+      I.AbsurdP p -> return $ A.AbsurdP patNoRange
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do

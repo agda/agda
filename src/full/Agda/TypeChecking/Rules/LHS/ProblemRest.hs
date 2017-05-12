@@ -7,6 +7,9 @@ module Agda.TypeChecking.Rules.LHS.ProblemRest where
 import Data.Functor ( (<$), (<$>) )
 #endif
 
+import Control.Arrow (first, second)
+
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Abstract.Pattern
@@ -164,4 +167,5 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
       { lhsProblem = p'
       , lhsDPI     = applyPatSubst tau (lhsDPI st)
       , lhsPartialSplit = lhsPartialSplit st
+      , lhsShouldBeEmptyTypes = map (second $ applyPatSubst tau) (lhsShouldBeEmptyTypes st)
       }

@@ -453,6 +453,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         VarP x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
+        AbsurdP p -> __IMPOSSIBLE__
+
         DotP v  -> case namedArg p of
           A.DotP r o _  -> ok p
           A.WildP _     -> ok p
@@ -737,5 +739,6 @@ patsToElims = map $ toElim . fmap namedThing
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP x      -> DTerm  $ var $ dbPatVarIndex x
       DotP t      -> DDot   $ t
+      AbsurdP p   -> toTerm p
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l

@@ -1085,6 +1085,7 @@ subPatterns = foldPattern $ \case
   VarP _      -> mempty
   LitP _      -> mempty
   DotP _      -> mempty
+  AbsurdP _   -> mempty
   ProjP _ _   -> mempty
 
 
@@ -1277,6 +1278,7 @@ compareVar i (Masked m p) = do
     ProjP{}   -> no
     LitP{}    -> no
     DotP{}   -> no
+    AbsurdP{} -> no
     VarP x    -> compareVarVar i (Masked m x)
 
     ConP s _ [p] | Just (conName s) == suc ->
