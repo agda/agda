@@ -739,7 +739,7 @@ primSubOut' = do
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
   t <- runNamesT [] $
-       hPi' "a" (elInf $ cl primLevel) $ \ a ->
+       hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
        hPi' "x" (el' a bA) $ \ x ->
        hPi' "y" (el' a bA) $ \ y ->
@@ -758,7 +758,7 @@ primIdFace' = do
 primIdPath' :: TCM PrimitiveImpl
 primIdPath' = do
   t <- runNamesT [] $
-       hPi' "a" (elInf $ cl primLevel) $ \ a ->
+       hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
        hPi' "x" (el' a bA) $ \ x ->
        hPi' "y" (el' a bA) $ \ y ->
