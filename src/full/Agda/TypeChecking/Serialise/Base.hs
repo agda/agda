@@ -440,6 +440,10 @@ icode25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
            Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y ->
            S Int32
 
+icode26 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
+           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z ->
+           S Int32
+
 
 icode0 tag = icodeN [tag]
 icode1 tag a = icodeN . (tag :) =<< sequence [icode a]
@@ -459,6 +463,8 @@ icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a
 icode15 tag a b c d e f g h i j k l m n o = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o]
 
 icode25 tag a b c d e f g h i j k l m n o p q r s t u v w x y = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y]
+
+icode26 tag a b c d e f g h i j k l m n o p q r s t u v w x y a1 = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y, icode a1]
 
 
 -- Andreas, Makoto, AIM XX (2014-10-15):
@@ -550,6 +556,10 @@ icode25' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj 
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y ->
             S Int32
 
+icode26' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
+            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z ->
+            S Int32
+
 icode0' = icodeN []
 icode1' a = icodeN =<< sequence [icode a]
 icode2' a b = icodeN =<< sequence [icode a, icode b]
@@ -567,6 +577,8 @@ icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icod
 icode14' a b c d e f g h i j k l m n = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
 
 icode25' a b c d e f g h i j k l m n o p q r s t u v w x y = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y]
+
+icode26' a b c d e f g h i j k l m n o p q r s t u v w x y z = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y, icode z]
 
 
 valu0 :: a -> R a
@@ -743,6 +755,16 @@ valu25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
           Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
            -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->R z
 
+valu26 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u
+          , EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
+          (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
+           n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z -> a1) ->Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> R a1
+
 
 valu0 z = return z
 valu1 z a = valu0 z `ap` value a
@@ -770,6 +792,7 @@ valu22 z a b c d e f g h i j k l m n o p q r s t u v = valu21 z a b c d e f g h 
 valu23 z a b c d e f g h i j k l m n o p q r s t u v w = valu22 z a b c d e f g h i j k l m n o p q r s t u v `ap` value w
 valu24 z a b c d e f g h i j k l m n o p q r s t u v w x = valu23 z a b c d e f g h i j k l m n o p q r s t u v w `ap` value x
 valu25 z a b c d e f g h i j k l m n o p q r s t u v w x y = valu24 z a b c d e f g h i j k l m n o p q r s t u v w x `ap` value y
+valu26 z a b c d e f g h i j k l m n o p q r s t u v w x y a1 = valu25 z a b c d e f g h i j k l m n o p q r s t u v w x y `ap` value a1
 
 value1 :: (EmbPrj a, EmbPrj b) =>
           (a -> b) ->
@@ -808,6 +831,10 @@ value25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z) ->
           Int32 -> R z
 
+value26 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z, EmbPrj a1) =>
+          (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z -> a1) ->
+          Int32 -> R a1
+
 
 value1 k = vcase valu where
   valu [a] = valu1 k a
@@ -844,6 +871,10 @@ value8 k = vcase valu where
 
 value25 con = vcase valu where
   valu [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y] = valu25 con a b c d e f g h i j k l m n o p q r s t u v w x y
+  valu _                     = malformed
+
+value26 con = vcase valu where
+  valu [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z] = valu26 con a b c d e f g h i j k l m n o p q r s t u v w x y z
   valu _                     = malformed
 
 

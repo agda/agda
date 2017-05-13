@@ -114,9 +114,9 @@ instance EmbPrj InteractionId where
 
 instance EmbPrj PragmaOptions where
   -- TODO: only keep the options needed for displaying the warnings
-  icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y) = icode25' a b c d e f g h i j k l m n o p q r s t u v w x y
+  icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z) = icode26' a b c d e f g h i j k l m n o p q r s t u v w x y z
 
-  value = value25 PragmaOptions
+  value = value26 PragmaOptions
 
 instance EmbPrj PrimFun where
   -- don't need implementation for the warnings
