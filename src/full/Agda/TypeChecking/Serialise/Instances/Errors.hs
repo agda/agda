@@ -1,23 +1,20 @@
 {-# LANGUAGE RecordWildCards          #-}
 {-# LANGUAGE CPP                      #-}
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
+--{-# OPTIONS_GHC -fwarn-unused-imports #-}
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common
-import Agda.TypeChecking.Serialise.Instances.Internal
-import Agda.TypeChecking.Serialise.Instances.Abstract
+import Agda.TypeChecking.Serialise.Instances.Internal ()
+import Agda.TypeChecking.Serialise.Instances.Abstract ()
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Termination.CutOff
-import Agda.TypeChecking.Positivity.Occurrence
-import Agda.Syntax.Parser.Monad (ParseWarning( OverlappingTokensWarning ))
 import Agda.Utils.Pretty
-import Agda.Utils.FileName
 
 import Agda.Utils.Lens
 
