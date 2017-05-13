@@ -112,6 +112,17 @@ subsvars = f 0 where
   f n (Sub _  : xs) = n : f (n + 1) xs
   f n (Skip   : xs) = f (n + 1) xs
 
+-- | Moves
+--   A move is composed of a @Cost@ together with an action
+--   computing the refined problem.
+
+type Move o = Move' (RefInfo o) (Exp o)
+
+-- | New constructors
+--   Taking a step towards a solution consists in picking a
+--   constructor and filling in the missing parts with
+--   placeholders to be discharged later on.
+
 newAbs :: MId -> RefCreateEnv blk (Abs (MM a blk))
 newAbs mid = Abs mid <$> newPlaceholder
 
@@ -124,14 +135,30 @@ newPi uid dep hid = Pi (Just uid) hid dep <$> newPlaceholder <*> newAbs NoId
 foldArgs :: [(Hiding, MExp o)] -> MArgList o
 foldArgs = foldr (\ (h, a) sp -> NotM $ ALCons h a sp) (NotM ALNil)
 
+-- | New spine of arguments potentially using placeholders
+
+newArgs' :: [Hiding] -> [MExp o] -> RefCreateEnv (RefInfo o) (MArgList o)
+newArgs' h tms = foldArgs . zip h . (++ tms) <$> replicateM size newPlaceholder
+  where size = length h - length tms
+
 newArgs :: [Hiding] -> RefCreateEnv (RefInfo o) (MArgList o)
-newArgs h = foldArgs . zip h <$> replicateM (length h) newPlaceholder
+newArgs h = newArgs' h []
+
+-- | New @App@lication node using a new spine of arguments
+--   respecting the @Hiding@ annotation
+
+newApp' :: UId o -> ConstRef o -> [Hiding] -> [MExp o] ->
+           RefCreateEnv (RefInfo o) (Exp o)
+newApp' meta cst hds tms =
+  App (Just meta) <$> newOKHandle <*> return (Const cst) <*> newArgs' hds tms
 
 newApp :: UId o -> ConstRef o -> [Hiding] -> RefCreateEnv (RefInfo o) (Exp o)
-newApp meta cst hds =
-  App (Just meta) <$> newOKHandle <*> return (Const cst) <*> newArgs hds
+newApp meta cst hds = newApp' meta cst hds []
 
-type Move o = Move' (RefInfo o) (Exp o)
+-- | Equality reasoning steps
+--   The begin token is accompanied by two steps because
+--   it does not make sense to have a derivation any shorter
+--   than that.
 
 eqStep :: UId o -> EqReasoningConsts o -> Move o
 eqStep meta eqrc = Move costEqStep $ newApp meta (eqrcStep eqrc)
@@ -148,6 +175,16 @@ eqCong meta eqrc = Move costEqCong $ newApp meta (eqrcCong eqrc)
 eqSym :: UId o -> EqReasoningConsts o -> Move o
 eqSym meta eqrc = Move costEqSym $ newApp meta (eqrcSym eqrc)
   [Hidden, Hidden, Hidden, Hidden, NotHidden]
+
+eqBeginStep2 :: UId o -> EqReasoningConsts o -> Move o
+eqBeginStep2 meta eqrc = Move costEqStep $ do
+  e1 <- newApp meta (eqrcStep eqrc)
+          [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden]
+  e2 <- newApp' meta (eqrcStep eqrc)
+          [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden]
+          [NotM e1]
+  newApp' meta (eqrcBegin eqrc) [Hidden, Hidden, Hidden, Hidden, NotHidden]
+    [NotM e2]
 
 
 -- | Pick the first unused UId amongst the ones you have seen (GA: ??)
@@ -189,25 +226,11 @@ instance Refinable (Exp o) (RefInfo o) where
     let
 
      eqr = fromMaybe __IMPOSSIBLE__ meqr
-     eq_end  = eqEnd  meta eqr
-     eq_step = eqStep meta eqr
-     eq_cong = eqCong meta eqr
-     eq_sym  = eqSym  meta eqr
-
-     eq_begin_step_step = (costEqStep,
-                       do psb <- replicateM 4 newPlaceholder
-                          okhb <- newOKHandle
-                          pss1 <- replicateM 6 newPlaceholder
-                          okhs1 <- newOKHandle
-                          pss2 <- replicateM 7 newPlaceholder
-                          okhs2 <- newOKHandle
-                          return $ App (Just meta) okhb (Const $ eqrcBegin eqr) (foldArgs (zip [Hidden, Hidden, Hidden, Hidden, NotHidden] (psb ++ [
-                            NotM $ App (Just meta) okhs1 (Const $ eqrcStep eqr) (foldArgs (zip [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden] (pss1 ++ [
-                             NotM $ App (Just meta) okhs2 (Const $ eqrcStep eqr) (foldArgs (zip [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden] pss2))
-                            ])))
-                           ])))
-                      )
-
+     eq_end         = eqEnd  meta eqr
+     eq_step        = eqStep meta eqr
+     eq_cong        = eqCong meta eqr
+     eq_sym         = eqSym  meta eqr
+     eq_begin_step2 = eqBeginStep2 meta eqr
 
      adjustCost i = if inftypeunknown then costInferredTypeUnkown else i
      varcost v | v < n - deffreevars = adjustCost $
