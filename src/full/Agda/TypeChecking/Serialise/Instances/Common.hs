@@ -491,7 +491,7 @@ instance EmbPrj Empty where
   icod_ a = do
     -- Substitutions store an __IMPOSSIBLE__ in an Empty type
     -- we make sure to save the information stored in it
-    Left e <- lift $ catchImpossible (mapM evaluate (Right a)) (return . Left)
+    Left e <- lift $ catchImpossible (evaluate (Right a)) (return . Left)
     icode1' e
 
   value = vcase valu where

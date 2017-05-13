@@ -873,7 +873,17 @@ instance NFData a => NFData (MaybePlaceholder a) where
 ---------------------------------------------------------------------------
 
 newtype InteractionId = InteractionId { interactionId :: Nat }
-    deriving (Eq,Ord,Num,Integral,Real,Enum, Typeable, Data)
+    deriving ( Eq
+             , Ord
+             , Num
+             , Integral
+             , Real
+             , Enum
+             , Data
+#if __GLASGOW_HASKELL__ <= 708
+             , Typeable
+#endif
+             )
 
 instance Show InteractionId where
     show (InteractionId x) = "?" ++ show x
