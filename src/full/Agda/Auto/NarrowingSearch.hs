@@ -12,7 +12,8 @@ import Control.Applicative hiding (Const(..), getConst)
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type Prio = Int
+newtype Prio = Prio { getPrio :: Int }
+ deriving (Eq, Ord, Num)
 
 class Trav a blk | a -> blk where
   trav :: Monad m => (forall b . Trav b blk => MM b blk -> m ()) -> a -> m ()

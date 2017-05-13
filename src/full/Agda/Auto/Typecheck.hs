@@ -696,7 +696,7 @@ checkeliminand = f [] []
 
 -- ---------------------------------
 
-maybeor :: Bool -> Int -> IO (PB (RefInfo o)) -> IO (PB (RefInfo o)) ->
+maybeor :: Bool -> Prio -> IO (PB (RefInfo o)) -> IO (PB (RefInfo o)) ->
            IO (PB (RefInfo o))
 maybeor _ _ mainalt _ = mainalt
 
