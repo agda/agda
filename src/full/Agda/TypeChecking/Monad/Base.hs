@@ -681,12 +681,13 @@ data Interface = Interface
   , iPragmaOptions   :: [OptionsPragma]
                         -- ^ Pragma options set in the file.
   , iPatternSyns     :: A.PatternSynDefns
+  , iWarnings        :: [TCWarning]
   }
   deriving (Typeable, Show)
 
 instance Pretty Interface where
   pretty (Interface sourceH importedM moduleN scope insideS signature display builtin
-                    foreignCode highlighting pragmaO patternS) =
+                    foreignCode highlighting pragmaO patternS warnings) =
     hang (text "Interface") 2 $ vcat
       [ text "source hash:"         <+> (pretty . show) sourceH
       , text "imported modules:"    <+> (pretty . show) importedM
@@ -700,6 +701,7 @@ instance Pretty Interface where
       , text "highlighting:"        <+> (pretty . show) highlighting
       , text "pragma options:"      <+> (pretty . show) pragmaO
       , text "pattern syns:"        <+> (pretty . show) patternS
+      , text "warnings:"            <+> (pretty . show) warnings
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
@@ -2331,7 +2333,9 @@ data Warning =
 -- later
 data TCWarning
   = TCWarning
-    { tcWarningState   :: TCState
+    { tcWarningOrigin :: SrcFile
+        -- ^ File where the warning was raised
+    , tcWarningState   :: TCState
         -- ^ The state in which the warning was raised.
     , tcWarningClosure :: Closure Warning
         -- ^ The warning and the environment in which it was raised.
@@ -2343,6 +2347,37 @@ instance HasRange TCWarning where
 
 tcWarning :: TCWarning -> Warning
 tcWarning = clValue . tcWarningClosure
+
+-- used for merging lists of warnings
+instance Eq TCWarning where
+  x == y = equalWarningShape (tcWarning x) (tcWarning y)
+            && getRange x == getRange y
+
+equalWarningShape :: Warning -> Warning -> Bool
+equalWarningShape TerminationIssue{} TerminationIssue{}                 = True
+equalWarningShape UnreachableClauses{} UnreachableClauses{}             = True
+equalWarningShape CoverageIssue{} CoverageIssue{}                       = True
+equalWarningShape CoverageNoExactSplit{} CoverageNoExactSplit{}         = True
+equalWarningShape NotStrictlyPositive{} NotStrictlyPositive{}           = True
+equalWarningShape UnsolvedMetaVariables{} UnsolvedMetaVariables{}       = True
+equalWarningShape UnsolvedInteractionMetas{} UnsolvedInteractionMetas{} = True
+equalWarningShape UnsolvedConstraints{} UnsolvedConstraints{}           = True
+equalWarningShape OldBuiltin{} OldBuiltin{}                             = True
+equalWarningShape EmptyRewritePragma EmptyRewritePragma                 = True
+equalWarningShape UselessPublic UselessPublic                           = True
+equalWarningShape UselessInline{} UselessInline{}                       = True
+equalWarningShape GenericWarning{} GenericWarning{}                     = True
+equalWarningShape GenericNonFatalError{} GenericNonFatalError{}         = True
+equalWarningShape SafeFlagPostulate{} SafeFlagPostulate{}               = True
+equalWarningShape SafeFlagPragma{} SafeFlagPragma{}                     = True
+equalWarningShape SafeFlagNonTerminating SafeFlagNonTerminating         = True
+equalWarningShape SafeFlagTerminating SafeFlagTerminating               = True
+equalWarningShape SafeFlagPrimTrustMe SafeFlagPrimTrustMe               = True
+equalWarningShape SafeFlagNoPositivityCheck SafeFlagNoPositivityCheck   = True
+equalWarningShape SafeFlagPolarity SafeFlagPolarity                     = True
+equalWarningShape ParseWarning{} ParseWarning{}                         = True
+equalWarningShape DeprecationWarning{} DeprecationWarning{}             = True
+equalWarningShape _ _                                                   = False
 
 getPartialDefs :: ReadTCState tcm => tcm [QName]
 getPartialDefs = do
@@ -3045,7 +3080,8 @@ genericNonFatalError = warning . GenericNonFatalError
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
 warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
-warning_ w = liftTCM $ TCWarning <$> get <*> buildClosure w
+warning_ w =
+  liftTCM $ TCWarning <$> (rangeFile <$> view eRange) <*> get <*> buildClosure w
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
 warning :: MonadTCM tcm => Warning -> tcm ()

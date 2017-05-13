@@ -5,7 +5,7 @@
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
 module Agda.Utils.Trie
-  ( Trie
+  ( Trie(..)
   , empty, singleton, everyPrefix, insert, insertWith, union, unionWith
   , adjust, delete
   , toList, toAscList, toListOrderedBy

@@ -403,6 +403,7 @@ library
                     Agda.TypeChecking.Serialise.Instances.Compilers
                     Agda.TypeChecking.Serialise.Instances.Highlighting
                     Agda.TypeChecking.Serialise.Instances.Internal
+                    Agda.TypeChecking.Serialise.Instances.Errors
                     Agda.TypeChecking.SizedTypes
                     Agda.TypeChecking.SizedTypes.Solve
                     Agda.TypeChecking.SizedTypes.Syntax

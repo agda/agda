@@ -170,7 +170,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
-    warnInfo <- Fold.foldMap warningHighlighting <$> use stTCWarnings
+    cm <- P.rangeFile <$> view eRange
+    reportSLn "highlighting.warning" 60 $ "current path = " ++ show cm
+
+    warnInfo <- Fold.foldMap warningHighlighting
+                 . filter ((cm ==) . tcWarningOrigin) <$> use stTCWarnings
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
