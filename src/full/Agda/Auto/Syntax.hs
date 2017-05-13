@@ -383,10 +383,9 @@ weakarglist 0 = id
 weakarglist n = f
  where f CALNil = CALNil
        f (CALConcat (Clos cl as) as2) = CALConcat (Clos (Weak n : cl) as) (f as2)
+
 weakelr :: Nat -> Elr o -> Elr o
-weakelr 0 elr = elr
-weakelr n (Var v) = Var (v + n)
-weakelr _ elr@(Const _) = elr
+weakelr n = rename (n+)
 
 -- | Substituting for a variable.
 doclos :: [CAction o] -> Nat -> Either Nat (ICExp o)
@@ -429,3 +428,36 @@ instance FreeVars (ArgList o) where
     ALConPar es   -> freeVarsOffset n es
     ALProj{}      -> __IMPOSSIBLE__
 
+
+-- | Renaming Typeclass and instances
+class Renaming t where
+  rename :: (Nat -> Nat) -> t -> t
+  rename = renameOffset 0
+
+  renameOffset :: Nat -> (Nat -> Nat) -> t -> t
+
+instance Renaming t => Renaming (MM t a) where
+  renameOffset j ren e = NotM $ renameOffset j ren (rm e)
+
+instance Renaming (Elr o) where
+  renameOffset j ren e = case e of
+    Var v | v >= j -> Var (ren (v - j) + j)
+    _              -> e
+
+instance Renaming (Exp o) where
+  renameOffset j ren e = case e of
+    App uid ok elr args -> App uid ok (renameOffset j ren elr)
+                                      (renameOffset j ren args)
+    Lam hid (Abs mid e) -> Lam hid (Abs mid (renameOffset (j + 1) ren e))
+    Pi uid hid possdep it (Abs mid ot) ->
+      Pi uid hid possdep (renameOffset j ren it)
+         (Abs mid (renameOffset (j + 1) ren ot))
+    Sort{}         -> e
+    AbsurdLambda{} -> e
+
+instance Renaming (ArgList o) where
+  renameOffset j ren e = case e of
+    ALNil           -> ALNil
+    ALCons hid a as -> ALCons hid (renameOffset j ren a) (renameOffset j ren as)
+    ALConPar as     -> ALConPar (renameOffset j ren as)
+    ALProj{}        -> __IMPOSSIBLE__

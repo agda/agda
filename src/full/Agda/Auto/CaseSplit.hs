@@ -425,48 +425,22 @@ applyperm perm ctx tt pats =
      ctx2 = map (\i -> ctx1 !! i) perm
      ctx3 = seqctx ctx2
      tt' = rename (ren perm) tt
-     pats' = map (renamep (ren perm)) pats
+     pats' = map (rename (ren perm)) pats
  in (ctx3, tt', pats')
 
 ren :: [Nat] -> Nat -> Int
 ren n i = let Just j = findIndex (== i) n in j
 
-rename :: (Nat -> Nat) -> MExp o -> MExp o
-rename ren = r 0
- where
-  r j e =
-   case rm e of
-         App uid ok elr args -> case elr of
-          Var v | v >= j -> NotM $ App uid ok (Var (ren (v - j) + j)) (rs j args)
-          _ -> NotM $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
-         Sort{} -> e
+instance Renaming t => Renaming (HI t) where
+  renameOffset j ren (HI hid t) = HI hid $ renameOffset j ren t
 
-         AbsurdLambda{} -> e
-
-
-  rs j es =
-   case rm es of
-    ALNil -> NotM $ ALNil
-    ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
-
-    ALProj{} -> __IMPOSSIBLE__
-
-
-    ALConPar as -> NotM $ ALConPar (rs j as)
-
-
-renamep :: (Nat -> Nat) -> CSPat o -> CSPat o
-renamep ren = r
- where
-  r (HI hid (CSPatConApp c pats)) = HI hid (CSPatConApp c (map r pats))
-  r (HI hid (CSPatVar i)) = HI hid (CSPatVar $ ren i)
-  r (HI hid (CSPatExp e)) = HI hid (CSPatExp $ rename ren e)
-
-  r p@(HI _ CSOmittedArg) = p
-
-  r _ = __IMPOSSIBLE__
+instance Renaming (CSPatI o) where
+  renameOffset j ren e = case e of
+    CSPatConApp c pats -> CSPatConApp c $ map (renameOffset j ren) pats
+    CSPatVar i         -> CSPatVar $ j + ren i
+    CSPatExp e         -> CSPatExp $ renameOffset j ren e
+    CSOmittedArg       -> e
+    _                  -> __IMPOSSIBLE__
 
 seqctx :: CSCtx o -> CSCtx o
 seqctx = r (-1)
