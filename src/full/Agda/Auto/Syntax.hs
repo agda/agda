@@ -278,14 +278,16 @@ instance MetaliseOKH t => MetaliseOKH (MM t a) where
     Meta m -> return $ Meta m
     NotM e -> NotM <$> metaliseOKH e
 
+instance MetaliseOKH t => MetaliseOKH (Abs t) where
+  metaliseOKH (Abs id b) = Abs id <$> metaliseOKH b
+
 instance MetaliseOKH (Exp o) where
   metaliseOKH e = case e of
     App uid okh elr args ->
       (\ m -> App uid m elr) <$> (Meta <$> initMeta) <*> metaliseOKH args
-    Lam hid (Abs id b) -> Lam hid . Abs id <$> metaliseOKH b
-    Pi uid hid posdep it (Abs id ot) ->
-      (\ it ot -> Pi uid hid posdep it (Abs id ot))
-      <$> metaliseOKH it <*> metaliseOKH ot
+    Lam hid b -> Lam hid <$> metaliseOKH b
+    Pi uid hid dep it ot ->
+      Pi uid hid dep <$> metaliseOKH it <*> metaliseOKH ot
     Sort{} -> return e
     AbsurdLambda{} -> return e
 
@@ -418,15 +420,21 @@ class FreeVars t where
 instance FreeVars t => FreeVars (MM t a) where
   freeVarsOffset n e = freeVarsOffset n (rm e)
 
+instance FreeVars t => FreeVars (Abs t) where
+  freeVarsOffset n (Abs id e) = freeVarsOffset (n + 1) e
+
+instance FreeVars (Elr o) where
+  freeVarsOffset n e = case e of
+    Var v   -> Set.singleton (v - n)
+    Const{} -> Set.empty
+
 instance FreeVars (Exp o) where
   freeVarsOffset n e = case e of
-   App _ _ (Var v) args   -> Set.insert (v - n) (freeVarsOffset n args)
-   App _ _ (Const _) args -> freeVarsOffset n args
-   Lam _ (Abs _ b)        -> freeVarsOffset (n + 1) b
-   Pi _ _ _ it (Abs _ ot) -> Set.union (freeVarsOffset n it)
-                                       (freeVarsOffset (n + 1) ot)
-   Sort{}                 -> Set.empty
-   AbsurdLambda{}         -> Set.empty
+   App _ _ elr args -> Set.union (freeVarsOffset n elr) (freeVarsOffset n args)
+   Lam _ b          -> freeVarsOffset n b
+   Pi _ _ _ it ot   -> Set.union (freeVarsOffset n it) (freeVarsOffset n ot)
+   Sort{}           -> Set.empty
+   AbsurdLambda{}   -> Set.empty
 
 instance FreeVars (ArgList o) where
   freeVarsOffset n es = case es of
@@ -446,6 +454,9 @@ class Renaming t where
 instance Renaming t => Renaming (MM t a) where
   renameOffset j ren e = NotM $ renameOffset j ren (rm e)
 
+instance Renaming t => Renaming (Abs t) where
+  renameOffset j ren (Abs id e) = Abs id $ renameOffset (j + 1) ren e
+
 instance Renaming (Elr o) where
   renameOffset j ren e = case e of
     Var v | v >= j -> Var (ren (v - j) + j)
@@ -455,10 +466,9 @@ instance Renaming (Exp o) where
   renameOffset j ren e = case e of
     App uid ok elr args -> App uid ok (renameOffset j ren elr)
                                       (renameOffset j ren args)
-    Lam hid (Abs mid e) -> Lam hid (Abs mid (renameOffset (j + 1) ren e))
-    Pi uid hid possdep it (Abs mid ot) ->
-      Pi uid hid possdep (renameOffset j ren it)
-         (Abs mid (renameOffset (j + 1) ren ot))
+    Lam hid e -> Lam hid (renameOffset j ren e)
+    Pi uid hid possdep it ot ->
+      Pi uid hid possdep (renameOffset j ren it) (renameOffset j ren ot)
     Sort{}         -> e
     AbsurdLambda{} -> e
 
