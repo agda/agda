@@ -51,7 +51,8 @@ data RefInfo o
        --   (used to put cost when traversing a definition
        --    by construction instantiation).
     }
-  | RIUnifInfo [CAction o] (HNExp o) -- meta environment, opp hne
+  | RIUnifInfo [CAction o] (HNExp o)
+    -- meta environment, opp hne
   | RICopyInfo (ICExp o)
   | RIIotaStep Bool -- True - semiflex
   | RIInferredTypeUnknown
@@ -98,7 +99,8 @@ data ConstDef o = ConstDef
 -- | Constant definitions.
 
 data DeclCont o
-  = Def Nat [Clause o] (Maybe Nat) (Maybe Nat) -- maybe an index to elimand argument, maybe index to elim arg if semiflex
+  = Def Nat [Clause o] (Maybe Nat) -- maybe an index to elimand argument
+                       (Maybe Nat) -- maybe index to elim arg if semiflex
   | Datatype [ConstRef o] -- constructors
              [ConstRef o] -- projection functions (in case it is a record)
 
