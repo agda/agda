@@ -757,7 +757,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
         , nest 2 $ text "var  =" <+> addContext tel (prettyTCM $ var i)
         , nest 2 $ text "type =" <+> addContext tel (prettyTCM a)
         ]
-      let rho = liftS i $ consS (AbsurdP $ VarP $ DBPatVar "()" i) $ raiseS 1
+      let rho = liftS i $ consS (AbsurdP $ VarP $ DBPatVar "()" 0) $ raiseS 1
       checkLHS f $ st
             { lhsProblem = problem
               { problemInPat  = (problemInPat p0) ++
