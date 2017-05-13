@@ -12,6 +12,7 @@ Language Reference
    coinduction
    copatterns
    core-language
+   cubical
    data-types
    foreign-function-interface
    function-definitions
