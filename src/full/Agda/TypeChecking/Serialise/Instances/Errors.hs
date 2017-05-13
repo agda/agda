@@ -29,8 +29,6 @@ instance EmbPrj TCWarning where
 
   value = value3 TCWarning
 
--- TODO: also bump version
-
 -- We don't need to serialise warnings that turn into errors
 instance EmbPrj Warning where
   icod_ (TerminationIssue a)         = __IMPOSSIBLE__
