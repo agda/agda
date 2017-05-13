@@ -413,19 +413,13 @@ noiotastep hne =
   Right _ -> mpret OK
 
 noiotastep_term :: ConstRef o -> MArgList o -> EE (MyPB o)
-noiotastep_term c args = f (HNApp [] (Const c) (CALConcat (Clos [] args) CALNil))
- where
-  f hne@(HNApp _ (Const c) _) = do
-   cd <- readIORef c
-   let isshorthand =
-        case cdcont cd of
-         Def _ [(pats, _)] _ _ -> True -- all (\pat -> case pat of {PatConApp{} -> False; _ -> True}) pats
-         _ -> False
-   if isshorthand then
-     mpret OK
-    else
-     noiotastep hne
-  f _ = __IMPOSSIBLE__
+noiotastep_term c args = do
+  cd <- readIORef c
+  case cdcont cd of
+    Def _ [(pats, _)] _ _ -> mpret OK
+      -- all (\pat -> case pat of {PatConApp{} -> False; _ -> True}) pats
+    _ -> noiotastep $ WithSeenUIds []
+                    $ HNApp (Const c) $ CALConcat (Clos [] args) CALNil
 
 data CMode o = CMRigid (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
              | forall b . Refinable b (RefInfo o) => CMFlex (MM b (RefInfo o)) (CMFlex o)
