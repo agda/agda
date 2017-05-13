@@ -108,7 +108,7 @@ Language
     magic : Empty → ⊥
     magic ()
   ```
-	
+
 * Injective pragmas.
 
   Injective pragmas can be used to mark a definition as injective for the
