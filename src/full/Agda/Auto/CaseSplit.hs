@@ -3,6 +3,7 @@
 module Agda.Auto.CaseSplit where
 
 import Data.IORef
+import Data.Tuple (swap)
 import Data.List (findIndex, union)
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
@@ -53,35 +54,24 @@ caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt p
                      ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))
      branchsearch depth ctx tt termcheckenv = do
 
-
       nsol <- newIORef 1
       m <- initMeta
       sol <- newIORef Nothing
       let trm = Meta m
           hsol = do trm' <- expandExp trm
-
-
                     writeIORef sol (Just trm')
-
-
-          hpartsol = __IMPOSSIBLE__
-
-          initcon = mpret $ Sidecondition (localTerminationSidecond termcheckenv recdef trm)
-                                          (
-
-                                           (case meqr of
-                                            Nothing -> id
-                                            Just eqr -> mpret . Sidecondition (calcEqRState eqr trm)
-                                           )
-
-                                           (tcSearch False (map (\(id, t) -> (id, closify t)) (drophid ctx)) (closify tt) trm)
-                                          )
+          initcon = mpret
+                  $ Sidecondition
+                    (localTerminationSidecond termcheckenv recdef trm)
+                  $ (case meqr of
+                        Nothing  -> id
+                        Just eqr -> mpret . Sidecondition (calcEqRState eqr trm)
+                     ) $ tcSearch False (map (fmap closify) (drophid ctx))
+                         (closify tt) trm
       recdefd <- readIORef recdef
-      let env = RIEnv {rieHints = (recdef, HMRecCall) : map (\x -> (x, HMNormal)) chints,
-                       rieDefFreeVars = cddeffreevars recdefd
-
-                       , rieEqReasoningConsts = meqr
-
+      let env = RIEnv { rieHints = (recdef, HMRecCall) : map (, HMNormal) chints
+                      , rieDefFreeVars = cddeffreevars recdefd
+                      , rieEqReasoningConsts = meqr
                       }
       depreached <- topSearch ticks nsol hsol env initcon depth (depth + 1)
       rsol <- readIORef sol
@@ -407,12 +397,17 @@ findperm :: [MExp o] -> Maybe [Nat]
 findperm ts =
  let
   frees = map freevars ts
-  m = IntMap.fromList (map (\i -> (i, length (filter (elem i) frees))) [0..length ts - 1])
+  m = IntMap.fromList $
+      map (\i -> (i, length (filter (elem i) frees)))
+          [0..length ts - 1]
   r _ perm 0 = Just $ reverse perm
   r m perm n =
-   case lookup 0 (map (\(x,y) -> (y,x)) (IntMap.toList m)) of
+   case lookup 0 (map swap (IntMap.toList m)) of
     Nothing -> Nothing
-    Just i -> r (foldl (\m i -> IntMap.adjust (\x -> x - 1) i m) (IntMap.insert i (-1) m) (frees !! i)) (i : perm) (n - 1)
+    Just i -> r (foldl (flip $ IntMap.adjust (subtract 1))
+                       (IntMap.insert i (-1) m)
+                       (frees !! i))
+                 (i : perm) (n - 1)
  in r m [] (length ts)
 
 
