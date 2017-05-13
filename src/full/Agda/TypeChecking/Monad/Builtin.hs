@@ -672,30 +672,6 @@ intervalUnview' = do
 -- * Path equality
 ------------------------------------------------------------------------
 
--- | Get the name of the equality type.
-primPathName :: TCM QName
-primPathName = do
-  ty <- primPath
-  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
-      lamV (Shared p) = lamV (derefPtr p)
-      lamV v          = ([], v)
-  return $ case lamV ty of
-            (_, Def path _) -> path
-            (_, _)          -> __IMPOSSIBLE__
-
--- | Get the name of the equality type.
-primPathName' :: HasBuiltins m => m (Maybe QName)
-primPathName' = do
-  mty <- getBuiltin' builtinPath
-  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
-      lamV (Shared p) = lamV (derefPtr p)
-      lamV v          = ([], v)
-  case mty of
-   Nothing -> return Nothing
-   Just ty -> return $ case lamV ty of
-                (_, Def path _) -> Just path
-                (_, _)          -> __IMPOSSIBLE__
-
 -- | Check whether the type is actually an path (lhs ≡ rhs)
 --   and extract lhs, rhs, and their type.
 --
@@ -708,7 +684,7 @@ pathView t0 = do
 
 pathView' :: HasBuiltins m => m (Type -> PathView)
 pathView' = do
- mpath <- primPathName'
+ mpath  <- getBuiltinName' builtinPath
  mpathp <- getBuiltinName' builtinPathP
  return $ \ t0@(El s t) ->
   case ignoreSharing t of
