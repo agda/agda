@@ -4,31 +4,61 @@
 Documentation
 *************
 
-.. note::
-   This is a stub.
-
 Documentation is written in `reStructuredText format`_.
 
-Code examples
-=============
+The Agda documentation is shipped together with the main Agda
+repository in the ``doc/user-manual`` subdirectory. The content of
+this directory is automatically published to https://agda.readthedocs.io.
+
+Rendering documentation locally
+===============================
+
+* To build the user manual locally, you need to install
+  the following dependencies:
+
+    - Python ≥3.3
+
+    - ``Sphinx`` and ``sphinx-rtd-theme``
+
+        pip install --user -r doc/user-manual/requirements.txt
+
+      Note that the ``--user`` option puts the Sphinx binaries in
+      ``$HOME/.local/bin``.
+
+    - LaTeX
+
+  To see the list of available targets, execute ``make help``
+  in ``doc/user-manual``. E.g., call ``make html`` to build the
+  documentation in html format.
+
+Type-checking code examples
+===========================
 
 You can include code examples in your documentation.
 
-If your give the documentation file the extension ``.lagda.rst``, code
-examples in the  can be checked as part of the continuous integration. This
-way, they will be guaranteed to always work with the latest version of
-Agda.
+If your give the documentation file the extension ``.lagda.rst``, Agda will
+recognise it as an Agda file and type-check it.
 
 .. tip::
 
-   If you edit documentation files in Emacs, you can use Agda's interactive
-   mode to write your code examples. Use ``M-x agda2-mode`` to switch to Agda
+   If you edit ``.lagda.rst`` documentation files in Emacs, you can use Agda's interactive
+   mode to write your code examples. Run ``M-x agda2-mode`` to switch to Agda
    mode, and ``M-x rst-mode`` to switch back to rST mode.
 
 
-------
-Syntax
-------
+
+You can check that all the examples in the manual are type-correct by
+running ``make user-manual-test`` from the root directory. This check
+will be run as part of the continuous integration build.
+
+.. warning::
+
+   Remember to run ``fix-agda-whitespace`` to remove trailing whitespace
+   before submitting the documentation to the repository.
+
+
+Syntax for code examples
+========================
 
 The syntax for embedding code examples depends on:
 
@@ -80,9 +110,9 @@ of this form: both *visible* and *valid*.
 
 
 
-.. tip:: Remember to always leave a blank like after the ``::``.
+.. warning:: Remember to always leave a blank like after the ``::``.
          Otherwise, the code will be checked by Agda, but it will appear
-         variable-width paragraph text in the documentation.
+         as regular paragraph text in the documentation.
 
 Visible, unchecked code examples
 --------------------------------
