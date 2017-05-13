@@ -1051,13 +1051,13 @@ niceDeclarations ds = do
     expandEllipsis (d@(FunClause Ellipsis{} _ _ _) : ds) =
       d : expandEllipsis ds
     expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _ _) : ds) =
-      d : expand (setInserted p) (map setInserted ps) ds
+      d : expand (wipe p) (map wipe ps) ds
       where
         expand _ _ [] = []
         expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
         expand p ps (FunClause (Ellipsis r ps' eqs es) rhs wh ca : ds) =
           FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh ca
-            : expand p (applyUnless (null es) (++ ps') ps) ds
+            : expand p (applyUnless (null es) (++ (map wipe ps')) ps) ds
                        -- If we have with-expressions (es /= []) then the following
                        -- ellipses also get the additional with patterns ps'
         -- We can have ellipses after a fun clause.
@@ -1067,9 +1067,15 @@ niceDeclarations ds = do
         -- Same here: Ff we have new with-expressions, the next ellipses will
         -- refer to us.
         expand _ _ (d@(FunClause (LHS p' ps' _ (_ : _)) _ _ _) : ds) =
-          d : expand p' ps' ds
+          d : expand (wipe p') (map wipe ps') ds
+          -- Andreas, Jesper, 2017-05-13, issue #2578
+          -- Need to update the range also on the next with-patterns.
         expand _ _ (_ : ds) = __IMPOSSIBLE__
     expandEllipsis (_ : ds) = __IMPOSSIBLE__
+
+    -- Before copying a pattern, remove traces to its origin.
+    wipe :: Pattern -> Pattern
+    wipe = killRange . setInserted
 
     setInserted :: Pattern -> Pattern
     setInserted p = case p of
