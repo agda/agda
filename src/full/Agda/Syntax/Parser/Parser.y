@@ -1308,7 +1308,10 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
                      (Just (AsName m' asR)) doOpen dir
                  ]
               else return [ impStm asR, appStm m' initArgs ]
-          | DontOpen <- doOpen -> parseErrorAt (fromJust $ rStart' $ getRange $2) "An import statement with module instantiation does not actually import the module.  This statement achieves nothing.  Either add the `open' keyword or bind the instantiated module with an `as' clause."
+          -- Andreas, 2017-05-13, issue #2579
+          -- Nisse reports that importing with instantation but without open
+          -- could be usefule for bringing instances into scope.
+          -- -- | DontOpen <- doOpen -> parseErrorAt (fromJust $ rStart' $ getRange $2) "An import statement with module instantiation does not actually import the module.  This statement achieves nothing.  Either add the `open' keyword or bind the instantiated module with an `as' clause."
           | otherwise -> return
               [ impStm noRange
               , appStm (noName $ beginningOf $ getRange m) es
