@@ -1,5 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Agda.Utils.Pointer
   ( Ptr, newPtr, derefPtr, setPtr
@@ -15,11 +17,22 @@ import Data.Hashable
 import Data.IORef
 import Data.Traversable
 import System.IO.Unsafe
-import Data.Typeable ( Typeable )
+
+import Data.Data (Data (..))
+import Data.Typeable (Typeable)
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
-  deriving (Typeable)
+  deriving (Typeable, Data)
+
+-- cheating because you shouldn't be digging this far anyway
+instance Typeable a => Data (IORef a) where
+  gunfold _ _ _ = __IMPOSSIBLE__
+  toConstr      = __IMPOSSIBLE__
+  dataTypeOf    = __IMPOSSIBLE__
 
 {-# NOINLINE freshVar #-}
 freshVar :: MVar Integer

@@ -16,6 +16,8 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable
+
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
@@ -41,14 +43,14 @@ data Fixity' = Fixity'
       -- ^ Range of the name in the fixity declaration
       --   (used for correct highlighting, see issue #2140).
     }
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 instance Eq Fixity' where
   Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
 
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
-  deriving (Functor, Foldable, Traversable, Typeable, Show)
+  deriving (Functor, Foldable, Traversable, Typeable, Data, Show)
 
 -- | All the notation information related to a name.
 data NewNotation = NewNotation
@@ -215,12 +217,12 @@ data PrecedenceLevel
     -- ^ No fixity declared.
   | Related !Integer
     -- ^ Fixity level declared as the @Integer@.
-  deriving (Eq, Ord, Show, Typeable)
+  deriving (Eq, Ord, Show, Typeable, Data)
 
 -- | Associativity.
 
 data Associativity = NonAssoc | LeftAssoc | RightAssoc
-   deriving (Eq, Ord, Show, Typeable)
+   deriving (Eq, Ord, Show, Typeable, Data)
 
 -- | Fixity of operators.
 
@@ -230,7 +232,7 @@ data Fixity = Fixity
   , fixityLevel :: !PrecedenceLevel
   , fixityAssoc :: !Associativity
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 instance Eq Fixity where
   f1 == f2 = compare f1 f2 == EQ
@@ -253,7 +255,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
                 | LeftOperandCtx Fixity | RightOperandCtx Fixity
                 | FunctionCtx | ArgumentCtx | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
-    deriving (Show, Typeable, Eq)
+    deriving (Show, Typeable, Data, Eq)
 
 -- | The precedence corresponding to a possibly hidden argument.
 hiddenArgumentCtx :: Hiding -> Precedence

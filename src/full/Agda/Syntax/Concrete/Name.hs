@@ -14,6 +14,8 @@ import Control.Applicative
 import Data.ByteString.Char8 (ByteString)
 import Data.Function
 import Data.List
+
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import GHC.Generics (Generic)
@@ -41,7 +43,7 @@ import Agda.Utils.Impossible
 data Name
   = Name Range [NamePart]  -- ^ A (mixfix) identifier.
   | NoName Range NameId    -- ^ @_@.
-  deriving (Typeable)
+  deriving (Typeable, Data)
 
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
@@ -54,7 +56,7 @@ instance Underscore Name where
 data NamePart
   = Hole       -- ^ @_@ part.
   | Id RawName  -- ^ Identifier part.
-  deriving (Typeable, Generic)
+  deriving (Typeable, Data, Generic)
 
 -- | Define equality on @Name@ to ignore range so same names in different
 --   locations are equal.
@@ -97,7 +99,7 @@ instance Ord NamePart where
 data QName
   = Qual  Name QName -- ^ @A.rest@.
   | QName Name       -- ^ @x@.
-  deriving (Typeable, Eq, Ord)
+  deriving (Typeable, Data, Eq, Ord)
 
 instance Underscore QName where
   underscore = QName underscore
@@ -112,7 +114,7 @@ data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
   , moduleNameParts :: [String]
   }
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Data)
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts

@@ -394,7 +394,7 @@ prioNo, prioTypeUnknown, prioTypecheckArgList, prioInferredTypeUnknown,
   prioCompBeta, prioCompBetaStructured, prioCompareArgList, prioCompIota,
   prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda,
   prioProjIndex
-  :: Int
+  :: Prio
 prioNo = (-1)
 prioTypeUnknown = 0
 prioTypecheckArgList = 3000
@@ -411,7 +411,7 @@ prioAbsurdLambda = 1000
 
 prioProjIndex = 3000
 
-prioTypecheck :: Bool -> Int
+prioTypecheck :: Bool -> Prio
 prioTypecheck False = 1000
 prioTypecheck True = 0
 

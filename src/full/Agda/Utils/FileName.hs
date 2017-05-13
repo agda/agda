@@ -25,7 +25,8 @@ import System.Win32 (findFirstFile, findClose, getFindDataFileName)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Function
-import Data.Hashable
+import Data.Hashable (Hashable)
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import Agda.Utils.Monad
@@ -40,7 +41,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
-  deriving (Eq, Ord, Typeable, Hashable)
+  deriving (Eq, Ord, Typeable, Data, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
