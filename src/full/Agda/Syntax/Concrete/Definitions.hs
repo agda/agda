@@ -68,6 +68,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Except ( MonadError(throwError) )
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (caseList, headMaybe, isSublistOf)
@@ -1054,14 +1055,19 @@ niceDeclarations ds = do
       where
         expand _ _ [] = []
         expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
-        expand p ps (FunClause (Ellipsis r ps' eqs []) rhs wh ca : ds) =
-          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs []) rhs wh ca : expand p ps ds
         expand p ps (FunClause (Ellipsis r ps' eqs es) rhs wh ca : ds) =
-          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh ca : expand p (ps ++ ps') ds
+          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh ca
+            : expand p (applyUnless (null es) (++ ps') ps) ds
+                       -- If we have with-expressions (es /= []) then the following
+                       -- ellipses also get the additional with patterns ps'
+        -- We can have ellipses after a fun clause.
+        -- They refer to the last clause that introduced new with-expressions.
         expand p ps (d@(FunClause (LHS _ _ _ []) _ _ _) : ds) =
           d : expand p ps ds
-        expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _ _) : ds) =
-          d : expand p ps ds
+        -- Same here: Ff we have new with-expressions, the next ellipses will
+        -- refer to us.
+        expand _ _ (d@(FunClause (LHS p' ps' _ (_ : _)) _ _ _) : ds) =
+          d : expand p' ps' ds
         expand _ _ (_ : ds) = __IMPOSSIBLE__
     expandEllipsis (_ : ds) = __IMPOSSIBLE__
 
