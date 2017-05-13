@@ -210,6 +210,9 @@ type BlkInfo blk = (Bool, Prio, Maybe blk) -- Bool - is principal
 data MM a blk = NotM a
               | Meta (Metavar a blk)
 
+rm :: MM a b -> a
+rm (NotM x) = x
+rm (Meta{}) = __IMPOSSIBLE__
 
 type MetaEnv = IO
 

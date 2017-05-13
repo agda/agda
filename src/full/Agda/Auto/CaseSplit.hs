@@ -4,6 +4,7 @@ module Agda.Auto.CaseSplit where
 
 import Data.IORef
 import Data.List (findIndex, union)
+import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Common (Hiding(..))
@@ -284,10 +285,6 @@ replacep sv nnew rp re = r
 
   r _ = __IMPOSSIBLE__ -- other constructors dont appear in indata Pats
 
-rm :: MM a b -> a
-rm (NotM x) = x
-rm (Meta{}) = __IMPOSSIBLE__
-
 unifyexp :: MExp o -> MExp o -> Maybe [(Nat, MExp o)]
 unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
  where
@@ -417,27 +414,9 @@ findperm ts =
     Just i -> r (foldl (\m i -> IntMap.adjust (\x -> x - 1) i m) (IntMap.insert i (-1) m) (frees !! i)) (i : perm) (n - 1)
  in r m [] (length ts)
 
+
 freevars :: MExp o -> [Nat]
-freevars = f 0
- where
-  f n e = case rm e of
-   App _ _ (Var v) args -> union [v - n] (fs n args)
-   App _ _ (Const _) args -> fs n args
-   Lam _ (Abs _ b) -> f (n + 1) b
-   Pi _ _ _ it (Abs _ ot) -> union (f n it) (f (n + 1) ot)
-   Sort{} -> []
-
-   AbsurdLambda{} -> []
-
-
-  fs n es = case rm es of
-   ALNil -> []
-   ALCons _ e es -> union (f n e) (fs n es)
-
-   ALProj{} -> __IMPOSSIBLE__
-
-
-   ALConPar es -> fs n es
+freevars = Set.toList . freeVars
 
 applyperm :: [Nat] -> CSCtx o -> MExp o -> [CSPat o] ->
              (CSCtx o, MExp o, [CSPat o])

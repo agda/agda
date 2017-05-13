@@ -3,9 +3,9 @@
 module Agda.Auto.Syntax where
 
 import Data.IORef
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common (Hiding)
-
 import Agda.Auto.NarrowingSearch
 
 #include "undefined.h"
@@ -16,7 +16,6 @@ type UId o = Metavar (Exp o) (RefInfo o)
 
 data HintMode = HMNormal
               | HMRecCall
-
 
 data EqReasoningConsts o = EqReasoningConsts
   { eqrcId    -- "_≡_"
@@ -234,6 +233,7 @@ detecteliminand cls =
 
 detectsemiflex :: ConstRef o -> [Clause o] -> IO Bool
 detectsemiflex _ _ = return False -- disabled
+
 categorizedecl :: ConstRef o -> IO ()
 categorizedecl c = do
  cd <- readIORef c
@@ -399,3 +399,33 @@ doclos = f 0
   f ns (Skip   : _ ) 0 = Left ns
   f ns (Skip   : xs) i = f (ns + 1) xs (i - 1)
   f ns (Sub _  : xs) i = f ns xs (i - 1)
+
+
+-- | FreeVars class and instances
+
+class FreeVars t where
+  freeVars :: t -> Set.Set Nat
+  freeVars = freeVarsOffset 0
+
+  freeVarsOffset :: Nat -> t -> Set.Set Nat
+
+instance FreeVars t => FreeVars (MM t a) where
+  freeVarsOffset n e = freeVarsOffset n (rm e)
+
+instance FreeVars (Exp o) where
+  freeVarsOffset n e = case e of
+   App _ _ (Var v) args   -> Set.insert (v - n) (freeVarsOffset n args)
+   App _ _ (Const _) args -> freeVarsOffset n args
+   Lam _ (Abs _ b)        -> freeVarsOffset (n + 1) b
+   Pi _ _ _ it (Abs _ ot) -> Set.union (freeVarsOffset n it)
+                                       (freeVarsOffset (n + 1) ot)
+   Sort{}                 -> Set.empty
+   AbsurdLambda{}         -> Set.empty
+
+instance FreeVars (ArgList o) where
+  freeVarsOffset n es = case es of
+    ALNil         -> Set.empty
+    ALCons _ e es -> Set.union (freeVarsOffset n e) (freeVarsOffset n es)
+    ALConPar es   -> freeVarsOffset n es
+    ALProj{}      -> __IMPOSSIBLE__
+
