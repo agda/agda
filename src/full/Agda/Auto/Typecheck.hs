@@ -548,16 +548,16 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
       (HNLam hid1 (Abs id1 b1), HNLam hid2 (Abs id2 b2)) -> comp False b1 b2
       (HNLam _ (Abs _ b1), HNApp elr2 args2) ->
        f True b1 CALNil (seenUIds hne1) $ \res1 ->
-       fhn True mexpmeta2 (WithSeenUIds (seenUIds hne2) $ HNApp (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))) $ \res2 -> g res1 res2
+       fhn True mexpmeta2 (WithSeenUIds (seenUIds hne2) $ HNApp (weak 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weak 1 args2))) $ \res2 -> g res1 res2
       (HNApp elr1 args1, HNLam _ (Abs _ b2)) ->
-       fhn True mexpmeta1 (WithSeenUIds (seenUIds hne1) $ HNApp (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))) $ \res1 -> f True b2 CALNil (seenUIds hne2) $ \res2 -> g res1 res2
+       fhn True mexpmeta1 (WithSeenUIds (seenUIds hne1) $ HNApp (weak 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weak 1 args1))) $ \res1 -> f True b2 CALNil (seenUIds hne2) $ \res2 -> g res1 res2
 {-
       (HNLam _ (Abs _ b1), HNApp uid2 elr2 args2) ->
        f True b1 CALNil $ \res1 -> g res1
-        (CMRigid mexpmeta2 (HNApp uid2 (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))))
+        (CMRigid mexpmeta2 (HNApp uid2 (weak 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weak 1 args2))))
       (HNApp uid1 elr1 args1, HNLam _ (Abs _ b2)) ->
        f True b2 CALNil $ \res2 -> g
-        (CMRigid mexpmeta1 (HNApp uid1 (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))))
+        (CMRigid mexpmeta1 (HNApp uid1 (weak 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weak 1 args1))))
         res2
 -}
       (HNPi hid1 _ it1 (Abs id1 ot1), HNPi hid2 _ it2 (Abs id2 ot2)) -> mpret $

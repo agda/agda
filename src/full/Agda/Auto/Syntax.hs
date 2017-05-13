@@ -361,21 +361,26 @@ subi :: MExp o -> ICExp o -> ICExp o
 subi e (Clos (Skip : as) x) = Clos (Sub (Clos [] e) : as) x
 subi _ _ = __IMPOSSIBLE__
 
-weak :: Nat -> CExp o -> CExp o
-weak n (TrBr trs e) = TrBr trs (weaki n e)
+class Weakening t where
+  weak :: Nat -> t -> t
+  weak 0 = id
+  weak n = weak' n
 
-weaki :: Nat -> Clos a o -> Clos a o
-weaki 0 x = x
-weaki n (Clos as x) = Clos (Weak n : as) x
+  weak' :: Nat -> t -> t
 
-weakarglist :: Nat -> ICArgList o -> ICArgList o
-weakarglist 0 = id
-weakarglist n = f
- where f CALNil = CALNil
-       f (CALConcat (Clos cl as) as2) = CALConcat (Clos (Weak n : cl) as) (f as2)
+instance Weakening a => Weakening (TrBr a o) where
+  weak' n (TrBr trs e) = TrBr trs (weak' n e)
 
-weakelr :: Nat -> Elr o -> Elr o
-weakelr n = rename (n+)
+instance Weakening (Clos a o) where
+  weak' n (Clos as x) = Clos (Weak n : as) x
+
+instance Weakening (ICArgList o) where
+  weak' n e = case e of
+    CALNil         -> CALNil
+    CALConcat a as -> CALConcat (weak' n a) (weak' n as)
+
+instance Weakening (Elr o) where
+  weak' n = rename (n+)
 
 -- | Substituting for a variable.
 doclos :: [CAction o] -> Nat -> Either Nat (ICExp o)
@@ -384,7 +389,7 @@ doclos = f 0
   -- ns is the number of weakenings
   f ns []            i = Left (ns + i)
   f ns (Weak n : xs) i = f (ns + n) xs i
-  f ns (Sub s  : _ ) 0 = Right (weaki ns s)
+  f ns (Sub s  : _ ) 0 = Right (weak ns s)
   f ns (Skip   : _ ) 0 = Left ns
   f ns (Skip   : xs) i = f (ns + 1) xs (i - 1)
   f ns (Sub _  : xs) i = f ns xs (i - 1)
