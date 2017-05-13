@@ -96,6 +96,19 @@ Language
     test _ _          | true = true!  -- underscore instead of (isTrue _)
   ```
 
+* Records with a field of an empty type are now recognized as empty by Agda.
+  In particular, they can be matched against with an absurd pattern ().
+  For example:
+  ```agda
+    data ⊥ : Set where
+
+    record Empty : Set where
+      field absurdity : ⊥
+
+    magic : Empty → ⊥
+    magic ()
+  ```
+
 * Injective pragmas.
 
   Injective pragmas can be used to mark a definition as injective for the

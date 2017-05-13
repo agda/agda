@@ -75,6 +75,7 @@ isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
   VarP{}      -> return True
   DotP{}      -> return True
+  AbsurdP{}   -> return True
   ConP c i ps -> andM $ (isEtaCon $ conName c)
                       : (map (isTrivialPattern . namedArg) ps)
   LitP{}      -> return False
@@ -160,6 +161,7 @@ yesMatchLit l q@VarP{} = Yes ([q], [l])
 yesMatchLit l (DotP t) = maybe No (yesMatchLit l) $ buildPattern t
 yesMatchLit _ ConP{}   = No
 yesMatchLit _ ProjP{}  = No
+yesMatchLit _ AbsurdP{} = __IMPOSSIBLE__
 yesMatchLit _ LitP{}   = __IMPOSSIBLE__
 
 -- | Check if a clause could match given generously chosen literals
@@ -285,6 +287,7 @@ matchPat
 
 matchPat _    VarP{}   q = Yes ([q],[])
 matchPat _    DotP{}   q = mempty
+matchPat _    AbsurdP{} q = mempty
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
 -- Not checking for trivial patterns should be safe here, as dot patterns are
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
@@ -298,5 +301,6 @@ matchPat mlit p@(ConP c _ ps) q = case q of
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
   DotP t  -> maybe No (matchPat mlit p) $ buildPattern t
+  AbsurdP{} -> __IMPOSSIBLE__  -- excluded by typing
   LitP _  -> __IMPOSSIBLE__  -- split clause has no literal patterns
   ProjP{} -> __IMPOSSIBLE__  -- excluded by typing

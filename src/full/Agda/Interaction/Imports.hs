@@ -512,10 +512,8 @@ typeCheck x file isMain = do
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
       -- imported module.
-      -- Andreas, 2014-03-23: freshTCM spawns a new TCM computation
-      -- with initial state and environment
-      -- but on the same Benchmark accounts.
-      r <- freshTCM $
+      r <- noCacheForImportedModule $
+           freshTCM $
              withImportPath ms $
              local (\e -> e { envModuleNestingLevel = nesting
                               -- Andreas, 2014-08-18:

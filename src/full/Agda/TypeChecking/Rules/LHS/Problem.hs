@@ -11,6 +11,7 @@ import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
 import Data.Traversable
 
 import Agda.Syntax.Common
+import Agda.Syntax.Info
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
@@ -209,6 +210,11 @@ data Focus
     , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
     }
   | LitFocus Literal [NamedArg DeBruijnPattern] Type
+  | AbsurdFocus
+    { absurdFocusRange :: PatInfo
+    , absurdFocusVar   :: Int
+    , absurdFocusType  :: Type
+    }
 
 -- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem
@@ -260,6 +266,7 @@ data AsBinding      = AsB Name Term Type
 data LHSState = LHSState
   { lhsProblem :: Problem
   , lhsDPI     :: [DotPatternInst]
+  , lhsShouldBeEmptyTypes :: [(Range,Type)]
   }
 
 instance Subst Term ProblemRest where

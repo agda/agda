@@ -8,9 +8,10 @@ module Agda.TypeChecking.Monad.Caching
   , cleanCachedLog
   , cacheCurrentLog
 
-    -- * Activating
+    -- * Activating/deactivating
   , activateLoadedFileCache
   , cachingStarts
+  , noCacheForImportedModule
 
     -- * Restoring the 'PostScopeState'
   , restorePostScopeState
@@ -25,6 +26,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens
+import Agda.Utils.Monad
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -69,6 +71,16 @@ getCache = do
 
 putCache :: Maybe LoadedFileCache -> TCM ()
 putCache cs = modifyCache $ const cs
+
+-- | The cache should not be used for an imported module, and it
+-- should be restored after the module has been type-checked. This
+-- combinator takes care of that.
+
+noCacheForImportedModule :: TCM a -> TCM a
+noCacheForImportedModule m =
+  bracket_ getCache putCache $ do
+    modifyCache (const Nothing)
+    m
 
 -- | Reads the next entry in the cached type check log, if present.
 readFromCachedLog :: TCM (Maybe (TypeCheckAction, PostScopeState))

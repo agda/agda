@@ -336,6 +336,7 @@ makeProjection x = -- if True then return () else do
         noMatch ProjP{}= False
         noMatch VarP{} = True
         noMatch DotP{} = True
+        noMatch AbsurdP{} = True
 
     -- Make sure non of the parameters occurs in the body of the function.
     checkBody m n b = not . getAny $ runFree badVar IgnoreNot b
