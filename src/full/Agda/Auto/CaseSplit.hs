@@ -210,6 +210,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
+
 replace :: Nat -> Nat -> MExp o -> MExp o -> MExp o
 replace sv nnew re = r 0
  where
@@ -584,8 +585,8 @@ getblks tt = do
  NotB (hntt, blks) <- hnn_blks (Clos [] tt)
  case f blks of
   Just v -> return [v]
-  Nothing -> case hntt of
-   HNApp _ (Const c) args -> do
+  Nothing -> case rawValue hntt of
+   HNApp (Const c) args -> do
     cd <- readIORef c
     case cdcont cd of
      Datatype{} -> g [] args
@@ -593,8 +594,8 @@ getblks tt = do
    _ -> return []
  where
   f blks = case blks of
-             (_:_) -> case last blks of
-              HNApp _ (Var v) _ -> Just v
+             (_:_) -> case rawValue (last blks) of
+              HNApp (Var v) _ -> Just v
               _ -> Nothing
              _ -> Nothing
   g vs args = do

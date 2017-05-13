@@ -125,6 +125,14 @@ data Elr o
   | Const (ConstRef o)
   deriving (Eq)
 
+getVar :: Elr o -> Maybe Nat
+getVar (Var n) = Just n
+getVar Const{} = Nothing
+
+getConst :: Elr o -> Maybe (ConstRef o)
+getConst (Const c) = Just c
+getConst Var{}     = Nothing
+
 data Sort
   = Set Nat
   | UnknownSort
@@ -172,13 +180,20 @@ data ArgList o
     --   Inserted to cover glitch of polymorphic constructor
     --   applications coming from Agda
 
-
 type MArgList o = MM (ArgList o) (RefInfo o)
 
-data HNExp o = HNApp [Maybe (UId o)] (Elr o) (ICArgList o)
-             | HNLam [Maybe (UId o)] Hiding (Abs (ICExp o))
-             | HNPi [Maybe (UId o)] Hiding Bool (ICExp o) (Abs (ICExp o))
-             | HNSort Sort
+data WithSeenUIds a o = WithSeenUIds
+  { seenUIds :: [Maybe (UId o)]
+  , rawValue :: a
+  }
+
+type HNExp o = WithSeenUIds (HNExp' o) o
+
+data HNExp' o =
+    HNApp  (Elr o) (ICArgList o)
+  | HNLam  Hiding (Abs (ICExp o))
+  | HNPi   Hiding Bool (ICExp o) (Abs (ICExp o))
+  | HNSort Sort
 
 -- | Head-normal form of 'ICArgList'.  First entry is exposed.
 --

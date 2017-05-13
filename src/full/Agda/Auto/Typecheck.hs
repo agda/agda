@@ -20,7 +20,7 @@ tcExp :: Bool -> Ctx o -> CExp o -> MExp o -> EE (MyPB o)
 tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
   mbpcase prioTypeUnknown Nothing (hnn_checkstep ityp) $ \(hntyp, iotastepdone) ->
   mmpcase (True, prioTypecheck isdep, Just (RIMainInfo (length ctx) hntyp iotastepdone)) trm $ \trm -> case trm of
-   App _ okh elr args -> case hntyp of
+   App _ okh elr args -> case rawValue hntyp of
     HNPi{} | isdep -> mpret $ Error "tcExp, dep terms should be eta-long"
     _ -> do
      (ityp, sc) <- case elr of
@@ -42,17 +42,17 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
        return $ case cdcont cdef of {Constructor{} -> True; _ -> False}
 
      sc $ tcargs ndfv isdep ctx ityp args (NotM $ App Nothing (NotM OKVal) elr (NotM ALNil)) isconstructor $ \ityp _ -> mpret $ ConnectHandle okh (comp' True typ ityp)
-   Lam hid (Abs id1 b) -> case hntyp of
-    HNPi _ hid2 _ it (Abs id2 ot) | hid == hid2 ->
+   Lam hid (Abs id1 b) -> case rawValue hntyp of
+    HNPi hid2 _ it (Abs id2 ot) | hid == hid2 ->
      tcExp isdep ((pickid id1 id2, t it) : ctx) (t ot) b
     _ -> mpret $ Error "tcExp, type of lam should be fun or pi (and same hid)"
-   Pi _ _ _ it (Abs id ot) -> case hntyp of
+   Pi _ _ _ it (Abs id ot) -> case rawValue hntyp of
     HNSort s ->
      mpret $ And (Just [Term ctx, Term it])
       (tcExp True ctx (closify (NotM $ Sort s)) it)
       (tcExp isdep ((id, closify it) : ctx) (closify (NotM $ Sort s)) ot)
     _ -> mpret $ Error "tcExp, type of pi should be set"
-   Sort (Set i) -> case hntyp of
+   Sort (Set i) -> case rawValue hntyp of
     HNSort s2 -> case s2 of
      Set j -> mpret $ if i < j then OK else Error "tcExp, type of set should be larger set"
 
@@ -65,8 +65,8 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
 
    Sort Type -> __IMPOSSIBLE__
 
-   AbsurdLambda hid -> case hntyp of
-    HNPi _ hid2 _ it _ | hid == hid2 ->
+   AbsurdLambda hid -> case rawValue hntyp of
+    HNPi hid2 _ it _ | hid == hid2 ->
      mbpcase prioAbsurdLambda Nothing (getDatatype it) $ \res -> case res of
       Just (indeces, cons) ->
        foldl (\p con -> mpret $ And Nothing p (
@@ -82,8 +82,8 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
 
 getDatatype :: ICExp o -> EE (MyMB (Maybe (ICArgList o, [ConstRef o])) o)
 getDatatype t =
- mbcase (hnn t) $ \hnt -> case hnt of
-  HNApp _ (Const c) args -> do
+ mbcase (hnn t) $ \hnt -> case rawValue hnt of
+  HNApp (Const c) args -> do
    cd <- readIORef c
    case cdcont cd of
     Datatype cons _ -> mbret $ Just (args, cons) -- ?? check that lenth args corresponds to type of datatype
@@ -94,8 +94,8 @@ constructorImpossible :: ICArgList o -> ConstRef o -> EE (MyPB o)
 constructorImpossible args c = do
  cd <- readIORef c
  mbpcase prioAbsurdLambda Nothing (traversePi (-1) (Clos [] $ cdtype cd)) $ \hnot ->
-  case hnot of
-   HNApp _ _ args2 -> unequals args args2 (\_ -> mpret $ Error "not unequal") []
+  case rawValue hnot of
+   HNApp _ args2 -> unequals args args2 (\_ -> mpret $ Error "not unequal") []
    _ -> mpret $ Error "constructorImpossible 1"
 
 unequals :: ICArgList o -> ICArgList o -> ([(Nat, HNExp o)] -> EE (MyPB o)) -> [(Nat, HNExp o)] -> EE (MyPB o)
@@ -113,8 +113,8 @@ unequal :: ICExp o -> ICExp o -> ([(Nat, HNExp o)] -> EE (MyPB o)) -> [(Nat, HNE
 unequal e1 e2 cont unifier2 =
  mbpcase prioAbsurdLambda Nothing (hnn e1) $ \hne1 ->
  mbpcase prioAbsurdLambda Nothing (hnn e2) $ \hne2 ->
-  case hne2 of
-   HNApp _ (Var v2) es2 | v2 < 0 ->
+  case rawValue hne2 of
+   HNApp (Var v2) es2 | v2 < 0 ->
     mbpcase prioAbsurdLambda Nothing (hnarglist es2) $ \hnes2 -> case hnes2 of
      HNALNil ->
       case lookup v2 unifier2 of
@@ -126,8 +126,8 @@ unequal e1 e2 cont unifier2 =
 
    _ -> cc hne1 hne2
  where
-  cc hne1 hne2 = case (hne1, hne2) of
-   (HNApp _ (Const c1) es1, HNApp _ (Const c2) es2) -> do
+  cc hne1 hne2 = case (rawValue hne1, rawValue hne2) of
+   (HNApp (Const c1) es1, HNApp (Const c2) es2) -> do
     cd1 <- readIORef c1
     cd2 <- readIORef c2
     case (cdcont cd1, cdcont cd2) of
@@ -142,8 +142,8 @@ unequal e1 e2 cont unifier2 =
 traversePi :: Int -> ICExp o -> EE (MyMB (HNExp o) o)
 traversePi v t =
  mbcase (hnn t) $ \hnt ->
- case hnt of
-  HNPi _ _ _ _ (Abs _ ot) -> traversePi (v - 1) (subi (NotM $ App Nothing (NotM OKVal) (Var v) (NotM ALNil)) ot)
+ case rawValue hnt of
+  HNPi _ _ _ (Abs _ ot) -> traversePi (v - 1) $ subi (NotM $ App Nothing (NotM OKVal) (Var v) (NotM ALNil)) ot
   _ -> mbret hnt
 
 tcargs :: Nat -> Bool -> Ctx o -> CExp o -> MArgList o -> MExp o -> Bool ->
@@ -151,8 +151,9 @@ tcargs :: Nat -> Bool -> Ctx o -> CExp o -> MArgList o -> MExp o -> Bool ->
 tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont = mmpcase (True, prioTypecheckArgList, (Just $ RICheckElim $ isdep || isconstructor)) args $ \args' -> case args' of
  ALNil -> cont ityp elimtrm
  ALCons hid a as ->
-  mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case hnityp of
-   HNPi _ hid2 possdep it (Abs _ ot) | ndfv > 0 || copyarg a || hid == hid2 -> mpret $
+  mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case rawValue hnityp of
+   HNPi hid2 possdep it (Abs _ ot)
+     | ndfv > 0 || copyarg a || hid == hid2 -> mpret $
     And (Just ((if possdep then [Term a] else []) ++ [Term ctx, Term ityptrs]))
         (if ndfv > 0 then mpret OK else (tcExp (isdep || possdep) ctx (t it) a))
         (tcargs (ndfv - 1) isdep ctx (sub a (t ot)) as (addend hid a elimtrm) isconstructor cont)
@@ -162,8 +163,8 @@ tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont 
  ALProj{} | ndfv > 0 -> __IMPOSSIBLE__
 
  ALProj preas projidx hid as ->
-  mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case hnityp of
-   HNApp _ (Const dd) _ -> do
+  mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case rawValue hnityp of
+   HNApp (Const dd) _ -> do
     dddef <- readIORef dd
     case cdcont dddef of
      Datatype _ projs ->
@@ -174,8 +175,8 @@ tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont 
         \ityp2@(TrBr ityp2trs iityp2) elimtrm2 ->
          case iityp2 of
           Clos _ (NotM (Pi _ _ _ (NotM (App _ _ (Const dd2) _)) _)) | dd2 == dd ->
-           mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp2) $ \hnityp2 -> case hnityp2 of
-            HNPi _ hid2 possdep it (Abs _ ot) | hid == hid2 -> mpret $
+           mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp2) $ \hnityp2 -> case rawValue hnityp2 of
+            HNPi hid2 possdep it (Abs _ ot) | hid == hid2 -> mpret $
              And Nothing
                  (comp' True (TrBr ityp2trs it) ityp)
                  (tcargs 0 isdep ctx (sub elimtrm (t ot)) as (addend hid elimtrm elimtrm2) isconstructor cont)
@@ -251,18 +252,28 @@ hnc haltmeta = loop
      let ncargs = CALConcat (Clos cl args) cargs
      in case elr of
       Var v -> case doclos cl v of
-       Left v' -> mbret $ HNDone expmeta (HNApp (uid : seenuids) (Var v') ncargs)
+       Left v' -> mbret $ HNDone expmeta
+                        $ WithSeenUIds (uid : seenuids)
+                        $ HNApp (Var v') ncargs
        Right f -> loop f ncargs (uid : seenuids)
-      Const _ -> mbret $ HNDone expmeta (HNApp (uid : seenuids) elr ncargs)
+      Const _ -> mbret $ HNDone expmeta
+                       $ WithSeenUIds (uid : seenuids)
+                       $ HNApp elr ncargs
     Lam hid (Abs id b) ->
      mbcase (hnarglist cargs) $ \hncargs -> case hncargs of
-      HNALNil -> mbret $ HNDone expmeta (HNLam seenuids hid (Abs id (Clos (Skip : cl) b)))
+      HNALNil -> mbret $ HNDone expmeta
+                       $ WithSeenUIds seenuids
+                       $ HNLam hid (Abs id (Clos (Skip : cl) b))
       HNALCons _ arg cargs' -> loop (Clos (Sub arg : cl) b) cargs' seenuids
 
       HNALConPar{} -> __IMPOSSIBLE__
 
-    Pi uid hid possdep it (Abs id ot) -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNPi (uid : seenuids) hid possdep (Clos cl it) (Abs id (Clos (Skip : cl) ot)))
-    Sort s -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNSort s)
+    Pi uid hid possdep it (Abs id ot) ->
+       checkNoArgs cargs $ mbret $ HNDone expmeta
+         $ WithSeenUIds (uid : seenuids)
+         $ HNPi hid possdep (Clos cl it) (Abs id (Clos (Skip : cl) ot))
+    Sort s -> checkNoArgs cargs $ mbret
+            $ HNDone expmeta $ WithSeenUIds [] $ HNSort s
 
     AbsurdLambda{} -> mbfailed "hnc: encountered absurdlambda"
 
@@ -320,8 +331,8 @@ data PEval o = PENo (ICExp o)
              | PEConApp (ICExp o) (ConstRef o) [PEval o]
 
 iotastep :: Bool -> HNExp o -> EE (MyMB (Either (ICExp o, ICArgList o) (HNNBlks o)) o)
-iotastep smartcheck e = case e of
- HNApp _ (Const c) args -> do
+iotastep smartcheck e = case rawValue e of
+ HNApp (Const c) args -> do
   cd <- readIORef c
   case cdcont cd of
    Def narg cls _ _ ->
@@ -371,8 +382,8 @@ iotastep smartcheck e = case e of
      qq
     where
      qq =
-      mbcase (hnn_blks a) $ \(hna, blks) -> case hna of
-       HNApp _ (Const c') as ->
+      mbcase (hnn_blks a) $ \(hna, blks) -> case rawValue hna of
+       HNApp (Const c') as ->
         if c == c' then
          mbcase (getAllArgs as) $ \as' ->
           if length as' == length pas then
@@ -521,20 +532,25 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
       CMFBlocked{} -> __IMPOSSIBLE__
     comphn :: Bool -> Maybe (Metavar (Exp o) (RefInfo o)) -> HNExp o -> Maybe (Metavar (Exp o) (RefInfo o)) -> HNExp o -> EE (MyPB o)
     comphn ineq mexpmeta1 hne1 mexpmeta2 hne2 =
-     case (hne1, hne2) of
-      (HNApp _ elr1 args1, HNApp _ elr2 args2) ->
+     case (rawValue hne1, rawValue hne2) of
+      (HNApp elr1 args1, HNApp elr2 args2) ->
        let ce = case (elr1, elr2) of
-                 (Var v1, Var v2) -> if v1 == v2 then Nothing else Just "comphn, elr, vars not equal"
-                 (Const c1, Const c2) -> if c1 == c2 then Nothing else Just "comphn, elr, consts not equal"
+                 (Var v1, Var v2) ->
+                     if v1 == v2 then Nothing
+                     else Just "comphn, elr, vars not equal"
+                 (Const c1, Const c2) ->
+                    if c1 == c2 then Nothing
+                    else Just "comphn, elr, consts not equal"
                  (_, _) -> Just "comphn, elrs not equal"
        in case ce of
             Nothing -> compargs args1 args2
             Just msg -> mpret $ Error msg
-      (HNLam _ hid1 (Abs id1 b1), HNLam _ hid2 (Abs id2 b2)) -> comp False b1 b2
-      (HNLam seenuids _ (Abs _ b1), HNApp uid2 elr2 args2) ->
-       f True b1 CALNil seenuids $ \res1 -> fhn True mexpmeta2 (HNApp uid2 (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))) $ \res2 -> g res1 res2
-      (HNApp uid1 elr1 args1, HNLam seenuids _ (Abs _ b2)) ->
-       fhn True mexpmeta1 (HNApp uid1 (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))) $ \res1 -> f True b2 CALNil seenuids $ \res2 -> g res1 res2
+      (HNLam hid1 (Abs id1 b1), HNLam hid2 (Abs id2 b2)) -> comp False b1 b2
+      (HNLam _ (Abs _ b1), HNApp elr2 args2) ->
+       f True b1 CALNil (seenUIds hne1) $ \res1 ->
+       fhn True mexpmeta2 (WithSeenUIds (seenUIds hne2) $ HNApp (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))) $ \res2 -> g res1 res2
+      (HNApp elr1 args1, HNLam _ (Abs _ b2)) ->
+       fhn True mexpmeta1 (WithSeenUIds (seenUIds hne1) $ HNApp (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))) $ \res1 -> f True b2 CALNil (seenUIds hne2) $ \res2 -> g res1 res2
 {-
       (HNLam _ (Abs _ b1), HNApp uid2 elr2 args2) ->
        f True b1 CALNil $ \res1 -> g res1
@@ -544,7 +560,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
         (CMRigid mexpmeta1 (HNApp uid1 (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))))
         res2
 -}
-      (HNPi _ hid1 _ it1 (Abs id1 ot1), HNPi _ hid2 _ it2 (Abs id2 ot2)) -> mpret $
+      (HNPi hid1 _ it1 (Abs id1 ot1), HNPi hid2 _ it2 (Abs id2 ot2)) -> mpret $
        And (Just [Term trs1, Term trs2]) (comp False it1 it2) (comp ineq ot1 ot2)
       (HNSort s1, HNSort s2) -> mpret $
        case (s1, s2) of
@@ -555,12 +571,14 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
         (Type, Set _) | ineq -> OK
         (Type, UnknownSort) | ineq -> OK
         _ -> __IMPOSSIBLE__
-      (HNApp uid1 (Const c1) _, _) -> case mexpmeta2 of
+      (HNApp (Const c1) _, _) -> case mexpmeta2 of
        Nothing -> mpret $ Error "comphn, not equal (2)"
-       Just m2 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref" m2 (extraref m2 uid1 c1)
-      (_, HNApp uid2 (Const c2) _) -> case mexpmeta1 of
+       Just m2 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref"
+                          m2 (extraref m2 (seenUIds hne1) c1)
+      (_, HNApp (Const c2) _) -> case mexpmeta1 of
        Nothing -> mpret $ Error "comphn, not equal (3)"
-       Just m1 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref" m1 (extraref m1 uid2 c2)
+       Just m1 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref"
+                          m1 (extraref m1 (seenUIds hne2) c2)
       (_, _) -> mpret $ Error "comphn, not equal"
 
     compargs :: ICArgList o -> ICArgList o -> EE (MyPB o)
@@ -731,8 +749,8 @@ iotapossmeta ce@(Clos cl _) cargs = do
      HNDone{} -> do
       res <- hnn ce
       case res of
-       NotB hne -> case hne of
-        HNApp _ (Const c) _ -> do
+       NotB hne -> case rawValue hne of
+        HNApp (Const c) _ -> do
          cd <- readIORef c
          case cdcont cd of
           Constructor{} -> return False
