@@ -436,6 +436,11 @@ icode15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o ->
            S Int32
 
+icode25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y) =>
+           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y ->
+           S Int32
+
+
 icode0 tag = icodeN [tag]
 icode1 tag a = icodeN . (tag :) =<< sequence [icode a]
 icode2 tag a b = icodeN . (tag :) =<< sequence [icode a, icode b]
@@ -452,6 +457,8 @@ icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, ic
 icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
 icode15 tag a b c d e f g h i j k l m n o = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o]
+
+icode25 tag a b c d e f g h i j k l m n o p q r s t u v w x y = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y]
 
 
 -- Andreas, Makoto, AIM XX (2014-10-15):
@@ -539,6 +546,10 @@ icode14' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
             S Int32
 
+icode25' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y) =>
+            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y ->
+            S Int32
+
 icode0' = icodeN []
 icode1' a = icodeN =<< sequence [icode a]
 icode2' a b = icodeN =<< sequence [icode a, icode b]
@@ -554,6 +565,9 @@ icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c,
 icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 icode14' a b c d e f g h i j k l m n = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
+
+icode25' a b c d e f g h i j k l m n o p q r s t u v w x y = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y]
+
 
 valu0 :: a -> R a
 
@@ -634,13 +648,101 @@ valu14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
           R o
 
-
 valu15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
           , EmbPrj m, EmbPrj n, EmbPrj o ) =>
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p) ->
           Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
           R p
+
+valu16 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p) =>(a -> b -> c -> d -> e -> f -> g -> h -> i ->
+          j -> k -> l -> m -> n -> o -> p -> q) ->Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->R q
+
+valu17 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q) =>(a -> b -> c -> d -> e -> f -> g ->
+          h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r) ->Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           ->R r
+
+valu18 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r) =>(a -> b -> c -> d -> e ->
+          f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s) ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 ->R s
+
+valu19 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s) =>(a -> b -> c ->
+          d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q ->
+          r -> s -> t) ->Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->R t
+
+valu20 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t) =>(a ->
+          b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o ->
+          p -> q -> r -> s -> t -> u) ->Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 ->R u
+
+valu21 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u
+          ) =>(a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
+          n -> o -> p -> q -> r -> s -> t -> u -> v) ->Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 ->R v
+
+valu22 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u
+          , EmbPrj v) =>(a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k ->
+          l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w) ->Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->R w
+
+valu23 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u
+          , EmbPrj v, EmbPrj w) =>(a -> b -> c -> d -> e -> f -> g -> h -> i ->
+          j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w ->
+          x) ->Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 ->R x
+
+valu24 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u
+          , EmbPrj v, EmbPrj w, EmbPrj x) =>(a -> b -> c -> d -> e -> f -> g ->
+          h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u ->
+          v -> w -> x -> y) ->Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 ->R y
+
+valu25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g
+          , EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n
+          , EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u
+          , EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y) =>(a -> b -> c -> d -> e ->
+          f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s ->
+          t -> u -> v -> w -> x -> y -> z) ->Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32
+           -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->R z
+
 
 valu0 z = return z
 valu1 z a = valu0 z `ap` value a
@@ -658,7 +760,16 @@ valu12 z a b c d e f g h i j k l = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
 valu15 z a b c d e f g h i j k l m n o = valu14 z a b c d e f g h i j k l m n `ap` value o
-
+valu16 z a b c d e f g h i j k l m n o p = valu15 z a b c d e f g h i j k l m n o `ap` value p
+valu17 z a b c d e f g h i j k l m n o p q = valu16 z a b c d e f g h i j k l m n o p `ap` value q
+valu18 z a b c d e f g h i j k l m n o p q r = valu17 z a b c d e f g h i j k l m n o p q `ap` value r
+valu19 z a b c d e f g h i j k l m n o p q r s = valu18 z a b c d e f g h i j k l m n o p q r `ap` value s
+valu20 z a b c d e f g h i j k l m n o p q r s t = valu19 z a b c d e f g h i j k l m n o p q r s `ap` value t
+valu21 z a b c d e f g h i j k l m n o p q r s t u = valu20 z a b c d e f g h i j k l m n o p q r s t `ap` value u
+valu22 z a b c d e f g h i j k l m n o p q r s t u v = valu21 z a b c d e f g h i j k l m n o p q r s t u `ap` value v
+valu23 z a b c d e f g h i j k l m n o p q r s t u v w = valu22 z a b c d e f g h i j k l m n o p q r s t u v `ap` value w
+valu24 z a b c d e f g h i j k l m n o p q r s t u v w x = valu23 z a b c d e f g h i j k l m n o p q r s t u v w `ap` value x
+valu25 z a b c d e f g h i j k l m n o p q r s t u v w x y = valu24 z a b c d e f g h i j k l m n o p q r s t u v w x `ap` value y
 
 value1 :: (EmbPrj a, EmbPrj b) =>
           (a -> b) ->
@@ -688,6 +799,16 @@ value7 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g,
           (a -> b -> c -> d -> e -> f -> g -> h) ->
           Int32 -> R h
 
+value8 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i) =>
+          (a -> b -> c -> d -> e -> f -> g -> h -> i) ->
+          Int32 -> R i
+
+
+value25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
+          (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z) ->
+          Int32 -> R z
+
+
 value1 k = vcase valu where
   valu [a] = valu1 k a
   valu _   = malformed
@@ -715,3 +836,56 @@ value6 k = vcase valu where
 value7 k = vcase valu where
   valu [a, b, c, d, e, f, g] = valu7 k a b c d e f g
   valu _                     = malformed
+
+value8 k = vcase valu where
+  valu [a, b, c, d, e, f, g, h] = valu8 k a b c d e f g h
+  valu _                     = malformed
+
+
+value25 con = vcase valu where
+  valu [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y] = valu25 con a b c d e f g h i j k l m n o p q r s t u v w x y
+  valu _                     = malformed
+
+
+{-
+-- To generate above definitions mechanically:
+module Script where
+
+import Control.Monad
+import Data.Functor
+import Data.List
+
+
+range = fmap (: []) letters ++ fmap (: "1") letters
+ where letters = ['a'..'z']
+
+valu :: Int -> String
+valu i = "valu" ++ show i ++ " z " ++ intercalate " " (take i range)
+
+display :: Int -> Int -> [String] -> String
+display indent width = intercalate ("\n" ++ replicate indent ' ') . go [] [] 0 where
+
+  go :: [String] -> [String] -> Int -> [String] -> [String]
+  go acc curr n []       = reverse (concat (reverse curr) : acc)
+  go acc curr n (x : xs) =
+    let m = length x in
+    if n + m <= width
+    then go acc (x : curr) (n + m) xs
+    else go (concat (reverse curr) : acc) [x] (indent + m) xs
+
+types :: String
+types = intercalate "\n\n" $ flip map [1..25] $ \ i ->
+          let vars = take i range
+              name = "valu" ++ show i in
+          display (length name + 4) 80
+          $ name : " :: (" : intersperse ", " (fmap ("EmbPrj " ++) vars) ++ [ ") =>" ]
+          ++ "(" : intersperse " -> " (vars ++ [range !! i]) ++ [ ") ->"]
+          ++ intersperse " -> " ("Int32" <$ vars) ++ [ " ->" ]
+          ++ [ "R ", range !! i ]
+
+values :: String
+values = unlines $ flip map [1..25] $ \ i ->
+           valu i ++ " = " ++ valu (i - 1) ++ " `ap` value " ++ range !! (i - 1)
+
+main = putStrLn types
+-}
