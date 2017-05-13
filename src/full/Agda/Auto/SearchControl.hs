@@ -79,16 +79,28 @@ getinfo = foldl step initExpRefInfo where
   step eri _ = __IMPOSSIBLE__
 
 
-univar :: [CAction o] -> Nat -> Maybe Nat
-univar cl v = f cl v 0 where
+-- | @univar sub v@ figures out what the name of @v@ "outside" of
+--   the substitution @sub@ ought to be, if anything.
 
-  f :: [CAction o] -> Nat -> Nat -> Maybe Nat
-  f []            v v' = Just (v' + v)
-  f (Weak n : _)  v v' | v < n = Nothing
-  f (Weak n : xs) v v' = f xs (v - n) v'
-  f (Sub _  : xs) v v' = f xs v (v' + 1)
-  f (Skip   : _)  0 v' = Just v'
-  f (Skip   : xs) v v' = f xs (v - 1) (v' + 1)
+univar :: [CAction o] -> Nat -> Maybe Nat
+univar cl v = getOutsideName cl v 0 where
+
+  getOutsideName :: [CAction o] -> Nat -> Nat -> Maybe Nat
+  -- @v@ is offset by @v'@ binders
+  getOutsideName []            v v' = Just (v' + v)
+  -- @v@ was introduced by the weakening: disappears
+  getOutsideName (Weak n : _)  v v' | v < n = Nothing
+  -- @v@ was introduced before the weakening: strengthened
+  getOutsideName (Weak n : xs) v v' = getOutsideName xs (v - n) v'
+  -- Name of @v@ before the substitution was pushed in
+  -- had to be offset by 1
+  getOutsideName (Sub _  : xs) v v' = getOutsideName xs v (v' + 1)
+  -- If this is the place where @v@ was bound, it used to
+  -- be called 0 + offset of all the vars substituted for
+  getOutsideName (Skip   : _)  0 v' = Just v'
+  -- Going over a binder: de Bruijn name of @v@ decreased
+  -- but offset increased
+  getOutsideName (Skip   : xs) v v' = getOutsideName xs (v - 1) (v' + 1)
 
 -- | List of the variables instantiated by the substitution
 subsvars :: [CAction o] -> [Nat]
