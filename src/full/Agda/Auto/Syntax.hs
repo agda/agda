@@ -249,49 +249,35 @@ categorizedecl c = do
 
 -- -------------------------------------------
 
+class MetaliseOKH t where
+  metaliseOKH :: t -> IO t
+
+instance MetaliseOKH t => MetaliseOKH (MM t a) where
+  metaliseOKH e = case e of
+    Meta m -> return $ Meta m
+    NotM e -> NotM <$> metaliseOKH e
+
+instance MetaliseOKH (Exp o) where
+  metaliseOKH e = case e of
+    App uid okh elr args ->
+      (\ m -> App uid m elr) <$> (Meta <$> initMeta) <*> metaliseOKH args
+    Lam hid (Abs id b) -> Lam hid . Abs id <$> metaliseOKH b
+    Pi uid hid posdep it (Abs id ot) ->
+      (\ it ot -> Pi uid hid posdep it (Abs id ot))
+      <$> metaliseOKH it <*> metaliseOKH ot
+    Sort{} -> return e
+    AbsurdLambda{} -> return e
+
+instance MetaliseOKH (ArgList o) where
+  metaliseOKH e = case e of
+    ALNil -> return ALNil
+    ALCons hid a as -> ALCons hid <$> metaliseOKH a <*> metaliseOKH as
+    ALProj eas idx hid as ->
+      (\ eas -> ALProj eas idx hid) <$> metaliseOKH eas <*> metaliseOKH as
+    ALConPar as -> ALConPar <$> metaliseOKH as
+
 metaliseokh :: MExp o -> IO (MExp o)
-metaliseokh = fm
- where
-  fm (Meta m) = return $ Meta m
-  fm (NotM e) = do
-   e <- f e
-   return $ NotM e
-  f (App uid _ elr args) = do
-   m <- initMeta
-   args <- fms args
-   return $ App uid (Meta m) elr args
-  f (Lam hid (Abs id b)) = do
-   b <- fm b
-   return $ Lam hid (Abs id b)
-  f (Pi uid hid posdep it (Abs id ot)) = do
-   it <- fm it
-   ot <- fm ot
-   return $ Pi uid hid posdep it (Abs id ot)
-  f e@(Sort{}) = return e
-
-  f e@(AbsurdLambda{}) = return e
-
-
-  fms (Meta m) = return $ Meta m
-  fms (NotM es) = do
-   es <- fs es
-   return $ NotM es
-  fs ALNil = return ALNil
-  fs (ALCons hid a as) = do
-   a <- fm a
-   as <- fms as
-   return $ ALCons hid a as
-
-  fs (ALProj eas idx hid as) = do
-   eas <- fms eas
-   as <- fms as
-   return $ ALProj eas idx hid as
-
-
-  fs (ALConPar as) = do
-   as <- fms as
-   return $ ALConPar as
-
+metaliseokh = metaliseOKH
 
 -- -------------------------------------------
 
