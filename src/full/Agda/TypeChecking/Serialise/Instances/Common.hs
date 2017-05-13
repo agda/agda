@@ -10,8 +10,10 @@
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
+import Prelude hiding (mapM)
+
 import Control.Applicative
-import Control.Monad.Reader
+import Control.Monad.Reader hiding (mapM)
 import Control.Monad.State.Strict (gets, modify)
 import Control.Exception
 
@@ -31,6 +33,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 #if __GLASGOW_HASKELL__ <= 708
 import Data.Typeable (Typeable)
+import Data.Traversable (mapM)
 #endif
 import Data.Void
 
