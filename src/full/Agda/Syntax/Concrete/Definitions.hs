@@ -55,6 +55,8 @@ import Data.List as List hiding (null)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
+
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
@@ -143,7 +145,7 @@ data NiceDeclaration
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
   | NiceUnquoteDecl Range [Fixity'] Access IsAbstract IsInstance TerminationCheck [Name] Expr
   | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
 
@@ -161,7 +163,7 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
-    deriving (Typeable, Show)
+    deriving (Typeable, Data, Show)
 
 -- | The exception type.
 data DeclarationException
@@ -199,7 +201,7 @@ data DeclarationException
         | BadMacroDef NiceDeclaration
         | InvalidNoPositivityCheckPragma Range
 
-    deriving (Typeable)
+    deriving (Typeable, Data)
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -208,7 +210,7 @@ data KindOfBlock
   | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
-  deriving (Typeable, Eq, Ord, Show)
+  deriving (Typeable, Data, Eq, Ord, Show)
 
 
 instance HasRange DeclarationException where
@@ -375,6 +377,7 @@ data DataRecOrFun
     -- ^ Name of a record type with parameters.
   | FunName  TerminationCheck
     -- ^ Name of a function.
+  deriving (Typeable, Data)
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where

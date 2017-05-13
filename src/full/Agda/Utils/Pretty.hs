@@ -8,8 +8,12 @@ module Agda.Utils.Pretty
     ) where
 
 import Data.Int ( Int32 )
+import Data.Data (Data(..))
 
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- * Pretty class
 
@@ -91,4 +95,11 @@ align max rows =
 -- | Handles strings with newlines properly (preserving indentation)
 multiLineText :: String -> Doc
 multiLineText = vcat . map text . lines
+
+
+-- cheating because you shouldn't be digging this far anyway
+instance Data Doc where
+  gunfold _ _ _ = __IMPOSSIBLE__
+  toConstr      = __IMPOSSIBLE__
+  dataTypeOf    = __IMPOSSIBLE__
 

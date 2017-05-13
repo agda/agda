@@ -33,6 +33,7 @@ import Data.Orphans             ()
 #endif
 
 import Data.Traversable
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
@@ -74,7 +75,7 @@ data ConHead = ConHead
                               --   Empty list for data constructors.
                               --   'Arg' is not needed here since it
                               --   is stored in the constructor args.
-  } deriving (Typeable)
+  } deriving (Typeable, Data)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -125,7 +126,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
           | Shared !(Ptr Term)
             -- ^ Explicit sharing
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 type ConInfo = ConOrigin
 
@@ -134,7 +135,7 @@ type ConInfo = ConOrigin
 data Elim' a
   = Apply (Arg a)         -- ^ Application.
   | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
@@ -170,7 +171,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Functor, Foldable, Traversable)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -179,7 +180,7 @@ instance Decoration Abs where
 -- | Types are terms with a sort annotation.
 --
 data Type' a = El { _getSort :: Sort, unEl :: a }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Type = Type' Term
 
@@ -206,7 +207,7 @@ instance LensSort a => LensSort (Abs a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
 
@@ -222,19 +223,19 @@ data Sort
     --   If the free variable occurs in the second sort,
     --   the whole thing should reduce to Inf,
     --   otherwise it's the normal lub.
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
 --   each of which is a number or an atom plus a number.
 --
 --   The empty maximum is the canonical representation for level 0.
 newtype Level = Max [PlusLevel]
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Data)
 
 data PlusLevel
   = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
   | Plus Integer LevelAtom  -- ^ @n + ℓ@.
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Data)
 
 -- | An atomic term of type @Level@.
 data LevelAtom
@@ -246,7 +247,7 @@ data LevelAtom
     -- ^ A neutral term of type @Level@.
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Data)
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -271,7 +272,7 @@ data NotBlocked
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Data)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -391,7 +392,7 @@ data Clause = Clause
     , clauseCatchall  :: Bool
       -- ^ Clause has been labelled as CATCHALL.
     }
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -430,7 +431,7 @@ data Pattern' x
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -442,7 +443,7 @@ varP = VarP
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: Int
-  } deriving (Typeable, Show)
+  } deriving (Typeable, Data, Show)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -472,7 +473,7 @@ data ConPatternInfo = ConPatternInfo
     --   plugin (like Agsy).
     --   Needed e.g. for with-clause stripping.
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Data, Show)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo Nothing Nothing
@@ -573,7 +574,7 @@ data Substitution' a
     --     Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
     --   @
 
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable, Typeable, Data)
 
 type Substitution = Substitution' Term
 type PatternSubstitution = Substitution' DeBruijnPattern

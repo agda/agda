@@ -13,10 +13,11 @@ import Control.DeepSeq
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
-import Data.Hashable
+import Data.Hashable (Hashable(..))
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -42,7 +43,7 @@ data Name = Name { nameId          :: !NameId
                  , nameBindingSite :: Range
                  , nameFixity      :: Fixity'
                  }
-    deriving (Typeable)
+    deriving (Typeable, Data)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -53,7 +54,7 @@ data Name = Name { nameId          :: !NameId
 data QName = QName { qnameModule :: ModuleName
                    , qnameName   :: Name
                    }
-    deriving (Typeable)
+    deriving (Typeable, Data)
 
 -- | Something preceeded by a qualified name.
 data QNamed a = QNamed
@@ -67,14 +68,14 @@ data QNamed a = QNamed
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable, Data)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable, Data)
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where

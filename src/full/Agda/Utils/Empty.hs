@@ -1,13 +1,19 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where
+
+import Data.Data (Data)
+import Data.Typeable (Typeable)
 
 import Agda.Utils.Impossible
 
 #include "undefined.h"
 
-data Empty
+data Empty deriving (Typeable)
+deriving instance Data Empty
+
 
 instance Eq Empty where
   _ == _ = True

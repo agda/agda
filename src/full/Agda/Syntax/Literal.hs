@@ -4,7 +4,9 @@ module Agda.Syntax.Literal where
 
 import Control.DeepSeq
 import Data.Char
+
 import Data.Typeable (Typeable)
+import Data.Data (Data)
 
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 
@@ -20,7 +22,7 @@ data Literal = LitNat    Range !Integer
              | LitChar   Range !Char
              | LitQName  Range QName
              | LitMeta   Range AbsolutePath MetaId
-  deriving (Typeable)
+  deriving (Typeable, Data)
 
 instance Show Literal where
   showsPrec p l = showParen (p > 9) $ case l of

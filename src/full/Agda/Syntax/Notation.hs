@@ -20,6 +20,8 @@ import Control.Monad
 
 import Data.List
 import Data.Maybe
+
+import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
@@ -57,7 +59,7 @@ data GenPart
   | WildHole !Int
     -- ^ An underscore in binding position.
   | IdPart RawName
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Data, Show, Eq, Ord)
 
 instance KillRange GenPart where
   killRange p = case p of
