@@ -5,6 +5,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Except
 
+import Data.Semigroup
 import Data.Monoid
 
 import Agda.Syntax.Common
@@ -28,12 +29,15 @@ data ErrorNonEmpty
   | FailBecause TCErr -- ^ Failure with informative error
   | DontKnow          -- ^ Emptyness check blocked
 
+instance Semigroup ErrorNonEmpty where
+  DontKnow        <> _        = DontKnow
+  _               <> DontKnow = DontKnow
+  FailBecause err <> _        = FailBecause err
+  Fail            <> err      = err
+
 instance Monoid ErrorNonEmpty where
-  mempty = Fail
-  DontKnow        `mappend` _        = DontKnow
-  _               `mappend` DontKnow = DontKnow
-  FailBecause err `mappend` _        = FailBecause err
-  Fail            `mappend` err      = err
+  mempty  = Fail
+  mappend = (Data.Semigroup.<>)
 
 -- | Check whether a type is empty.
 --   This check may be postponed as emptiness constraint.
