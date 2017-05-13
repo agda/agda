@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
+
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
 #endif
@@ -574,7 +575,15 @@ data Substitution' a
     --     Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
     --   @
 
-  deriving (Show, Functor, Foldable, Traversable, Typeable, Data)
+  deriving ( Show
+           , Functor
+           , Foldable
+           , Traversable
+           , Data
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 type Substitution = Substitution' Term
 type PatternSubstitution = Substitution' DeBruijnPattern

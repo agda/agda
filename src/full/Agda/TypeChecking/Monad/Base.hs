@@ -103,6 +103,9 @@ data TCState = TCSt
   , stPersistentState :: !PersistentTCState
     -- ^ State which is forever, like a diamond.
   }
+#if __GLASGOW_HASKELL__ <= 708
+  deriving Typeable
+#endif
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
@@ -986,12 +989,24 @@ instance Show MetaInstantiation where
 --
 --   Higher value means higher priority to be instantiated.
 newtype MetaPriority = MetaPriority Int
-    deriving (Eq, Ord, Show)
+    deriving ( Eq
+             , Ord
+             , Show
+#if __GLASGOW_HASKELL__ <= 708
+             , Typeable
+#endif
+             )
 
 data RunMetaOccursCheck
   = RunMetaOccursCheck
   | DontRunMetaOccursCheck
-  deriving (Eq, Ord, Show)
+  deriving (Eq
+           , Ord
+           , Show
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 -- | @MetaInfo@ is cloned from one meta to the next during pruning.
 data MetaInfo = MetaInfo
@@ -1002,6 +1017,9 @@ data MetaInfo = MetaInfo
     -- ^ Used for printing.
     --   @Just x@ if meta-variable comes from omitted argument with name @x@.
   }
+#if __GLASGOW_HASKELL__ <= 708
+  deriving Typeable
+#endif
 
 -- | Name suggestion for meta variable.  Empty string means no suggestion.
 type MetaNameSuggestion = String
@@ -1070,6 +1088,9 @@ data InteractionPoint = InteractionPoint
       -- ^ The clause of the interaction point (if any).
       --   Used for case splitting.
   }
+#if __GLASGOW_HASKELL__ <= 708
+  deriving Typeable
+#endif
 
 instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
@@ -2321,7 +2342,12 @@ data Warning =
   | DeprecationWarning String String String
     -- ^ `DeprecationWarning old new version`:
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
-  deriving (Show, Typeable, Data)
+  deriving ( Show
+           , Data
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 -- we also keep the state so that we can print the warning correctly
 -- later
@@ -2334,7 +2360,11 @@ data TCWarning
     , tcWarningClosure :: Closure Warning
         -- ^ The warning and the environment in which it was raised.
     }
-  deriving Show
+  deriving ( Show
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 instance HasRange TCWarning where
   getRange = envRange . clEnv . tcWarningClosure

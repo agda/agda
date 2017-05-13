@@ -7,10 +7,11 @@
 #if __GLASGOW_HASKELL__ >= 800
 {-# OPTIONS_GHC -Wno-semigroup    #-}
 #endif
+
 #if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverlappingInstances #-}
 #endif
-
 
 module Agda.TypeChecking.Pretty where
 
@@ -24,6 +25,10 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
+
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Typeable ( Typeable )
+#endif
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -62,6 +67,10 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 type Doc = P.Doc
+
+#if __GLASGOW_HASKELL__ <= 708
+deriving instance Typeable Doc
+#endif
 
 comma, colon, equals :: TCM Doc
 comma  = return P.comma

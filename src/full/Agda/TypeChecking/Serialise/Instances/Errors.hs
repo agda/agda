@@ -4,6 +4,10 @@
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
+#if __GLASGOW_HASKELL__ <= 708
+import Agda.TypeChecking.Pretty ()
+#endif
+
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common
 import Agda.TypeChecking.Serialise.Instances.Internal ()

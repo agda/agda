@@ -1,5 +1,9 @@
 {-# LANGUAGE CPP #-}
 
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE DeriveDataTypeable #-}
+#endif
+
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , IgnoreFlags(..)
@@ -40,6 +44,11 @@ import Data.Orphans             ()
 import Data.Either
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
+
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Typeable            ( Typeable )
+#endif
+
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
@@ -152,7 +161,12 @@ data PragmaOptions = PragmaOptions
   , optInstanceSearchDepth       :: Int
   , optSafe                      :: Bool
   }
-  deriving (Show,Eq)
+  deriving ( Show
+           , Eq
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 -- | The options from an @OPTIONS@ pragma.
 --
