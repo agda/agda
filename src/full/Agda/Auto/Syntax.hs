@@ -304,57 +304,38 @@ metaliseokh = metaliseOKH
 
 -- -------------------------------------------
 
-expandExp :: MExp o -> IO (MExp o)
-expandExp = fm
- where
-  fm (Meta m) = do
-   mb <- readIORef $ mbind m
-   case mb of
-    Nothing -> return $ Meta m
-    Just e -> fm (NotM e)
-  fm (NotM e) = do
-   e <- f e
-   return $ NotM e
-  f (App uid okh elr args) = do
-   args <- fms args
-   return $ App uid okh elr args
-  f (Lam hid (Abs id b)) = do
-   b <- fm b
-   return $ Lam hid (Abs id b)
-  f (Pi uid hid posdep it (Abs id ot)) = do
-   it <- fm it
-   ot <- fm ot
-   return $ Pi uid hid posdep it (Abs id ot)
-  f e@(Sort{}) = return e
+class ExpandMetas t where
+  expandMetas :: t -> IO t
 
-  f e@(AbsurdLambda{}) = return e
+instance ExpandMetas t => ExpandMetas (MM t a) where
+  expandMetas t = case t of
+    NotM e -> NotM <$> expandMetas e
+    Meta m -> do
+      mb <- readIORef (mbind m)
+      case mb of
+        Nothing -> return $ Meta m
+        Just e  -> NotM <$> expandMetas e
 
+instance ExpandMetas t => ExpandMetas (Abs t) where
+  expandMetas (Abs id b) = Abs id <$> expandMetas b
 
-  fms (Meta m) = do
-   mb <- readIORef $ mbind m
-   case mb of
-    Nothing -> return $ Meta m
-    Just es -> fms (NotM es)
-  fms (NotM es) = do
-   es <- fs es
-   return $ NotM es
-  fs ALNil = return ALNil
-  fs (ALCons hid a as) = do
-   a <- fm a
-   as <- fms as
-   return $ ALCons hid a as
+instance ExpandMetas (Exp o) where
+  expandMetas t = case t of
+    App uid okh elr args -> App uid okh elr <$> expandMetas args
+    Lam hid b -> Lam hid <$> expandMetas b
+    Pi uid hid dep it ot ->
+      Pi uid hid dep <$> expandMetas it <*> expandMetas ot
+    Sort{} -> return t
+    AbsurdLambda{} -> return t
 
-  fs (ALProj eas idx hid as) = do
-   idx <- expandbind idx
-   eas <- fms eas
-   as <- fms as
-   return $ ALProj eas idx hid as
-
-
-  fs (ALConPar as) = do
-   as <- fms as
-   return $ ALConPar as
-
+instance ExpandMetas (ArgList o) where
+  expandMetas e = case e of
+    ALNil -> return ALNil
+    ALCons hid a as -> ALCons hid <$> expandMetas a <*> expandMetas as
+    ALProj eas idx hid as ->
+      (\ a b -> ALProj a b hid) <$> expandMetas eas
+      <*> expandbind idx <*> expandMetas as
+    ALConPar as -> ALConPar <$> expandMetas as
 
 -- ---------------------------------
 

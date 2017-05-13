@@ -58,7 +58,7 @@ caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt p
       m <- initMeta
       sol <- newIORef Nothing
       let trm = Meta m
-          hsol = do trm' <- expandExp trm
+          hsol = do trm' <- expandMetas trm
                     writeIORef sol (Just trm')
           initcon = mpret
                   $ Sidecondition
