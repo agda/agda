@@ -84,10 +84,7 @@ conhqn :: QName -> TCM HS.QName
 conhqn q = do
     cq  <- canonicalName q
     def <- getConstInfo cq
-    cname <- xhqn "C" cq  -- Do this even if it has custom compiledHaskell code
-                          -- to make sure we get the import.
-    caseMaybeM (getHaskellConstructor cq) (return cname) $ \ hsCon ->
-      return $ hsName hsCon
+    xhqn "C" cq
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName

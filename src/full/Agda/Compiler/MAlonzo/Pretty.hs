@@ -65,6 +65,7 @@ instance Pretty HS.Decl where
       sep [ hsep (punctuate comma (map pretty fs)) <+> text "::"
           , nest 2 $ pretty t ]
     HS.FunBind ms -> vcat $ map pretty ms
+    HS.PatSyn p1 p2 -> sep [ text "pattern" <+> pretty p1 <+> text "=" <+> pretty p2 ]
     HS.FakeDecl s -> text s
 
 instance Pretty HS.ConDecl where
