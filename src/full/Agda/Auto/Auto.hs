@@ -12,6 +12,7 @@ import Prelude hiding (null)
 import Control.Applicative ( (<$), pure )
 #endif
 
+import Data.Functor
 import Control.Monad.State
 import Data.List hiding (null)
 import qualified Data.Map as Map

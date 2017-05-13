@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Auto.SearchControl where
@@ -18,7 +19,7 @@ import Agda.Auto.Syntax
 import Agda.Utils.Impossible
 
 instance Refinable (ArgList o) (RefInfo o) where
- refinements _ infos _ = return $ fmap (0,) $
+ refinements _ infos _ = return $ fmap (Move 0) $
    [ return ALNil, cons NotHidden, cons Hidden ]
    ++ if getIsDep infos then []
       else [ proj NotHidden, proj Hidden ]
@@ -78,16 +79,28 @@ getinfo = foldl step initExpRefInfo where
   step eri _ = __IMPOSSIBLE__
 
 
-univar :: [CAction o] -> Nat -> Maybe Nat
-univar cl v = f cl v 0 where
+-- | @univar sub v@ figures out what the name of @v@ "outside" of
+--   the substitution @sub@ ought to be, if anything.
 
-  f :: [CAction o] -> Nat -> Nat -> Maybe Nat
-  f []            v v' = Just (v' + v)
-  f (Weak n : _)  v v' | v < n = Nothing
-  f (Weak n : xs) v v' = f xs (v - n) v'
-  f (Sub _  : xs) v v' = f xs v (v' + 1)
-  f (Skip   : _)  0 v' = Just v'
-  f (Skip   : xs) v v' = f xs (v - 1) (v' + 1)
+univar :: [CAction o] -> Nat -> Maybe Nat
+univar cl v = getOutsideName cl v 0 where
+
+  getOutsideName :: [CAction o] -> Nat -> Nat -> Maybe Nat
+  -- @v@ is offset by @v'@ binders
+  getOutsideName []            v v' = Just (v' + v)
+  -- @v@ was introduced by the weakening: disappears
+  getOutsideName (Weak n : _)  v v' | v < n = Nothing
+  -- @v@ was introduced before the weakening: strengthened
+  getOutsideName (Weak n : xs) v v' = getOutsideName xs (v - n) v'
+  -- Name of @v@ before the substitution was pushed in
+  -- had to be offset by 1
+  getOutsideName (Sub _  : xs) v v' = getOutsideName xs v (v' + 1)
+  -- If this is the place where @v@ was bound, it used to
+  -- be called 0 + offset of all the vars substituted for
+  getOutsideName (Skip   : _)  0 v' = Just v'
+  -- Going over a binder: de Bruijn name of @v@ decreased
+  -- but offset increased
+  getOutsideName (Skip   : xs) v v' = getOutsideName xs (v - 1) (v' + 1)
 
 -- | List of the variables instantiated by the substitution
 subsvars :: [CAction o] -> [Nat]
@@ -99,6 +112,17 @@ subsvars = f 0 where
   f n (Sub _  : xs) = n : f (n + 1) xs
   f n (Skip   : xs) = f (n + 1) xs
 
+-- | Moves
+--   A move is composed of a @Cost@ together with an action
+--   computing the refined problem.
+
+type Move o = Move' (RefInfo o) (Exp o)
+
+-- | New constructors
+--   Taking a step towards a solution consists in picking a
+--   constructor and filling in the missing parts with
+--   placeholders to be discharged later on.
+
 newAbs :: MId -> RefCreateEnv blk (Abs (MM a blk))
 newAbs mid = Abs mid <$> newPlaceholder
 
@@ -107,6 +131,74 @@ newLam hid mid = Lam hid <$> newAbs mid
 
 newPi :: UId o -> Bool -> Hiding -> RefCreateEnv (RefInfo o) (Exp o)
 newPi uid dep hid = Pi (Just uid) hid dep <$> newPlaceholder <*> newAbs NoId
+
+foldArgs :: [(Hiding, MExp o)] -> MArgList o
+foldArgs = foldr (\ (h, a) sp -> NotM $ ALCons h a sp) (NotM ALNil)
+
+-- | New spine of arguments potentially using placeholders
+
+newArgs' :: [Hiding] -> [MExp o] -> RefCreateEnv (RefInfo o) (MArgList o)
+newArgs' h tms = foldArgs . zip h . (++ tms) <$> replicateM size newPlaceholder
+  where size = length h - length tms
+
+newArgs :: [Hiding] -> RefCreateEnv (RefInfo o) (MArgList o)
+newArgs h = newArgs' h []
+
+-- | New @App@lication node using a new spine of arguments
+--   respecting the @Hiding@ annotation
+
+newApp' :: UId o -> ConstRef o -> [Hiding] -> [MExp o] ->
+           RefCreateEnv (RefInfo o) (Exp o)
+newApp' meta cst hds tms =
+  App (Just meta) <$> newOKHandle <*> return (Const cst) <*> newArgs' hds tms
+
+newApp :: UId o -> ConstRef o -> [Hiding] -> RefCreateEnv (RefInfo o) (Exp o)
+newApp meta cst hds = newApp' meta cst hds []
+
+-- | Equality reasoning steps
+--   The begin token is accompanied by two steps because
+--   it does not make sense to have a derivation any shorter
+--   than that.
+
+eqStep :: UId o -> EqReasoningConsts o -> Move o
+eqStep meta eqrc = Move costEqStep $ newApp meta (eqrcStep eqrc)
+  [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden]
+
+eqEnd :: UId o -> EqReasoningConsts o -> Move o
+eqEnd meta eqrc = Move costEqEnd $ newApp meta (eqrcEnd eqrc)
+  [Hidden, Hidden, NotHidden]
+
+eqCong :: UId o -> EqReasoningConsts o -> Move o
+eqCong meta eqrc = Move costEqCong $ newApp meta (eqrcCong eqrc)
+  [Hidden, Hidden, Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden]
+
+eqSym :: UId o -> EqReasoningConsts o -> Move o
+eqSym meta eqrc = Move costEqSym $ newApp meta (eqrcSym eqrc)
+  [Hidden, Hidden, Hidden, Hidden, NotHidden]
+
+eqBeginStep2 :: UId o -> EqReasoningConsts o -> Move o
+eqBeginStep2 meta eqrc = Move costEqStep $ do
+  e1 <- newApp meta (eqrcStep eqrc)
+          [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden]
+  e2 <- newApp' meta (eqrcStep eqrc)
+          [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden]
+          [NotM e1]
+  newApp' meta (eqrcBegin eqrc) [Hidden, Hidden, Hidden, Hidden, NotHidden]
+    [NotM e2]
+
+
+-- | Pick the first unused UId amongst the ones you have seen (GA: ??)
+--   Defaults to the head of the seen ones.
+
+pickUid :: forall o. [UId o] -> [Maybe (UId o)] -> (Maybe (UId o), Bool)
+pickUid used seen = maybe (head seen, False) (, True) $ firstUnused seen where
+  {- ?? which uid to pick -}
+
+  firstUnused :: [Maybe (UId o)] -> Maybe (Maybe (UId o))
+  firstUnused []                 = Nothing
+  firstUnused (Nothing     : _)  = Just Nothing
+  firstUnused (mu@(Just u) : us) =
+    if u `elem` used then firstUnused us else Just mu
 
 instance Refinable (Exp o) (RefInfo o) where
  refinements envinfo infos meta =
@@ -128,103 +220,67 @@ instance Refinable (Exp o) (RefInfo o) where
 
    eqrstate = fromMaybe EqRSNone meqrstate
 
-   app muid elr = do
-     p <- newPlaceholder
-     p <- case elr of
-            Var{}   -> return p
-            Const c -> do
-              cd <- RefCreateEnv $ lift $ readIORef c
-              let dfvapp 0 _ = p
-                  dfvapp i n = NotM $ ALCons NotHidden
-                                      (NotM $ App Nothing (NotM $ OKVal) (Var n) (NotM ALNil))
-                                      (dfvapp (i - 1) (n - 1))
-                  -- NotHidden is ok because agda reification throws these arguments away and agsy skips typechecking them
-              return $ dfvapp (cddeffreevars cd) (n - 1)
-     okh <- newOKHandle
-     return $ App (Just $ fromMaybe meta muid) okh elr p
    set l = return $ Sort (Set l)
   in case unis of
    [] ->
     let
 
      eqr = fromMaybe __IMPOSSIBLE__ meqr
-     foldargs [] = NotM ALNil
-     foldargs ((h, a) : xs) = NotM $ ALCons h a (foldargs xs)
-     eq_begin_step_step = (costEqStep,
-                       do psb <- replicateM 4 newPlaceholder
-                          okhb <- newOKHandle
-                          pss1 <- replicateM 6 newPlaceholder
-                          okhs1 <- newOKHandle
-                          pss2 <- replicateM 7 newPlaceholder
-                          okhs2 <- newOKHandle
-                          return $ App (Just meta) okhb (Const $ eqrcBegin eqr) (foldargs (zip [Hidden, Hidden, Hidden, Hidden, NotHidden] (psb ++ [
-                            NotM $ App (Just meta) okhs1 (Const $ eqrcStep eqr) (foldargs (zip [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden] (pss1 ++ [
-                             NotM $ App (Just meta) okhs2 (Const $ eqrcStep eqr) (foldargs (zip [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden] pss2))
-                            ])))
-                           ])))
-                      )
-     eq_step = (costEqStep,
-                 do ps <- replicateM 7 newPlaceholder
-                    okh <- newOKHandle
-                    return $ App (Just meta) okh (Const $ eqrcStep eqr) (foldargs (zip [Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden, NotHidden] ps))
-                )
-     eq_end = (costEqEnd,
-               do ps <- replicateM 3 newPlaceholder
-                  okh <- newOKHandle
-                  return $ App (Just meta) okh (Const $ eqrcEnd eqr) (foldargs (zip [Hidden, Hidden, NotHidden] ps))
-              )
-     eq_sym = (costEqSym,
-               do ps <- replicateM 5 newPlaceholder
-                  okh <- newOKHandle
-                  return $ App (Just meta) okh (Const $ eqrcSym eqr) (foldargs (zip [Hidden, Hidden, Hidden, Hidden, NotHidden] ps))
-              )
-     eq_cong = (costEqCong,
-                do ps <- replicateM 8 newPlaceholder
-                   okh <- newOKHandle
-                   return $ App (Just meta) okh (Const $ eqrcCong eqr) (foldargs (zip [Hidden, Hidden, Hidden, Hidden, NotHidden, Hidden, Hidden, NotHidden] ps))
-               )
+     eq_end         = eqEnd  meta eqr
+     eq_step        = eqStep meta eqr
+     eq_cong        = eqCong meta eqr
+     eq_sym         = eqSym  meta eqr
+     eq_begin_step2 = eqBeginStep2 meta eqr
 
-     pcav i = if inftypeunknown then costInferredTypeUnkown else i
-     pc i = pcav i
-     varcost v | v < n - deffreevars = pcav (case Just usedvars of {Just usedvars -> if elem v (mapMaybe (\x -> case x of {Var v -> Just v; Const{} -> Nothing}) usedvars) then costAppVarUsed else costAppVar; Nothing -> if picksubsvar then costAppVar else costAppVarUsed})
-     varcost v | otherwise = pcav costAppHint
-     varapps = map (\v ->
-                (varcost v,
-                 app Nothing (Var v)
-                )) [0..n - 1]
-     hintapps = map (\(c, hm) ->
-                 (cost c hm,
-                  app Nothing (Const c)
-                 )) hints
-                 where cost c hm = pc (case iotastep of
-                                        Just _ -> costIotaStep
-                                        Nothing -> if elem c (mapMaybe (\x -> case x of {Var{} -> Nothing; Const c -> Just c}) usedvars) then
-                                          case hm of {HMNormal -> costAppHintUsed; HMRecCall -> costAppRecCallUsed}
-                                         else
-                                          case hm of {HMNormal -> costAppHint; HMRecCall -> costAppRecCall})
+     adjustCost i = if inftypeunknown then costInferredTypeUnkown else i
+     varcost v | v < n - deffreevars = adjustCost $
+       if elem v (mapMaybe getVar usedvars)
+       then costAppVarUsed else costAppVar
+     varcost v | otherwise = adjustCost costAppHint
+     varapps  = map (\ v -> Move (varcost v) $ app n meta Nothing (Var v)) [0..n - 1]
+     hintapps = map (\(c, hm) -> Move (cost c hm) (app n meta Nothing (Const c))) hints
+       where
+         cost :: ConstRef o -> HintMode -> Cost
+         cost c hm = adjustCost $ case (iotastep , hm) of
+           (Just _  , _       ) -> costIotaStep
+           (Nothing , HMNormal) ->
+             if elem c (mapMaybe getConst usedvars)
+             then costAppHintUsed else costAppHint
+           (Nothing , HMRecCall) ->
+             if elem c (mapMaybe getConst usedvars)
+             then costAppRecCallUsed else costAppRecCall
      generics = varapps ++ hintapps
-    in case tt of
+    in case rawValue tt of
 
      _ | eqrstate == EqRSChain ->
-      return $ [eq_end, eq_step]
+      return [eq_end, eq_step]
 
-     HNPi _ hid possdep _ (Abs id _) -> return $ (pc (if iotastepdone then costLamUnfold else costLam), newLam hid id) : (costAbsurdLam, return $ AbsurdLambda hid) : generics
+     HNPi hid _ _ (Abs id _) -> return $
+         (Move (adjustCost (if iotastepdone then costLamUnfold else costLam)) $ newLam hid id)
+       : (Move costAbsurdLam $ return $ AbsurdLambda hid)
+       : generics
 
-     HNSort (Set l) -> return $ map (\l -> (pc costSort, set l)) [0..l - 1]
-                          ++ [(pc costPi, newPi meta True NotHidden), (pc costPi, newPi meta True Hidden)] ++ generics
+     HNSort (Set l) -> return $
+          map (Move (adjustCost costSort) . set) [0..l - 1]
+       ++ map (Move (adjustCost costPi) . newPi meta True) [NotHidden, Hidden]
+       ++ generics
 
 
-     HNApp _ (Const c) _ -> do
+     HNApp (Const c) _ -> do
       cd <- readIORef c
       return $ case cdcont cd of
-       Datatype cons _
 
-        | eqrstate == EqRSNone
+       Datatype cons _ | eqrstate == EqRSNone ->
+         map (\c -> Move (adjustCost $ case iotastep of
+                                         Just True -> costUnification
+                                         _ -> if length cons <= 1
+                                              then costAppConstructorSingle
+                                              else costAppConstructor)
+                         $ app n meta Nothing (Const c)) cons
+         ++ generics
+         ++ (guard (maybe False ((c ==) . eqrcId) meqr)
+            *> [eq_sym, eq_cong, eq_begin_step2])
 
-         -> map (\c -> (pc (case iotastep of {Just True -> costUnification; _ -> if length cons <= 1 then costAppConstructorSingle else costAppConstructor}), app Nothing (Const c))) cons ++
-            generics
-
-            ++ if maybe False (\eqr -> c == eqrcId eqr) meqr then [eq_sym, eq_cong, eq_begin_step_step] else []
        _ | eqrstate == EqRSPrf1 -> generics ++ [eq_sym, eq_cong]
        _ | eqrstate == EqRSPrf2 -> generics ++ [eq_cong]
 
@@ -232,45 +288,55 @@ instance Refinable (Exp o) (RefInfo o) where
      _ -> return generics
    (RIUnifInfo cl hne : _) ->
     let
-     subsvarapps = map (\v ->
-                    (costUnification,
-                     app Nothing (Var v)
-                    )) (subsvars cl)
-     mlam = case tt of
-      HNPi _ hid _ _ (Abs id _) -> [(costUnification, newLam hid id)]
+     subsvarapps = map (Move costUnification . app n meta Nothing . Var) (subsvars cl)
+     mlam = case rawValue tt of
+      HNPi hid _ _ (Abs id _) -> [Move costUnification (newLam hid id)]
       _ -> []
      generics = mlam ++ subsvarapps
 
-     pickuid seenuids =
-      case f seenuids of
-       Just uid -> (uid, True)
-       Nothing -> (head seenuids, False) -- ?? which uid to pick
-      where f [] = Nothing
-            f (Nothing:_) = Just Nothing
-            f (Just u:us) = if elem u uids then f us else Just (Just u)
     in
-     return $ case hne of
-      HNApp seenuids (Var v) _ ->
-       let (uid, isunique) = pickuid seenuids
+     return $ case rawValue hne of
+      HNApp (Var v) _ ->
+       let (uid, isunique) = pickUid uids $ seenUIds hne
            uni = case univar cl v of
-                  Just v | v < n -> [(if isunique then costUnification else costUnificationOccurs, app uid (Var v))]
+                  Just v | v < n -> [Move (costUnificationIf isunique) $ app n meta uid (Var v)]
                   _ -> []
        in uni ++ generics
-      HNApp seenuids (Const c) _ ->
-       let (uid, isunique) = pickuid seenuids
-       in (if isunique then costUnification else costUnificationOccurs, app uid (Const c)) : generics
+      HNApp (Const c) _ ->
+       let (uid, isunique) = pickUid uids $ seenUIds hne
+       in (Move (costUnificationIf isunique) $ app n meta uid (Const c)) : generics
       HNLam{} -> generics
-      HNPi seenuids hid possdep _ _ ->
-       let (uid, isunique) = pickuid seenuids
-       in (if isunique then costUnification else costUnificationOccurs
-          , newPi (fromMaybe meta uid) possdep hid) : generics
-      HNSort (Set l) -> map (\l -> (costUnification, set l)) [0..l] ++ generics
+      HNPi hid possdep _ _ ->
+       let (uid, isunique) = pickUid uids $ seenUIds hne
+       in (Move (costUnificationIf isunique)
+          $ newPi (fromMaybe meta uid) possdep hid) : generics
+      HNSort (Set l) -> map (Move costUnification . set) [0..l] ++ generics
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__
 
-extraref :: UId o -> [Maybe (UId o)] -> ConstRef o ->
-            (Int, RefCreateEnv (RefInfo o) (Exp o))
-extraref meta seenuids c = (costAppExtraRef, app (head seenuids) (Const c))
+  where
+
+    app :: Nat -> UId o -> Maybe (UId o) -> Elr o ->
+           RefCreateEnv (RefInfo o) (Exp o)
+    app n meta muid elr = do
+      p <- newPlaceholder
+      p <- case elr of
+        Var{}   -> return p
+        Const c -> do
+          cd <- RefCreateEnv $ lift $ readIORef c
+          let dfvapp 0 _ = p
+              dfvapp i n = NotM $ ALCons NotHidden
+                          (NotM $ App Nothing (NotM $ OKVal) (Var n) (NotM ALNil))
+                          (dfvapp (i - 1) (n - 1))
+         -- NotHidden is ok because agda reification throws these arguments
+         -- away and agsy skips typechecking them
+          return $ dfvapp (cddeffreevars cd) (n - 1)
+      okh <- newOKHandle
+      return $ App (Just $ fromMaybe meta muid) okh elr p
+
+
+extraref :: UId o -> [Maybe (UId o)] -> ConstRef o -> Move o
+extraref meta seenuids c = Move costAppExtraRef $ app (head seenuids) (Const c)
  where
    app muid elr = App (Just $ fromMaybe meta muid)
               <$> newOKHandle <*> return elr <*> newPlaceholder
@@ -278,11 +344,11 @@ extraref meta seenuids c = (costAppExtraRef, app (head seenuids) (Const c))
 instance Refinable (ICExp o) (RefInfo o) where
  refinements _ infos _ =
   let (RICopyInfo e : _) = infos
-  in return [(0, return e)]
+  in return [Move 0 (return e)]
 
 
 instance Refinable (ConstRef o) (RefInfo o) where
- refinements _ [RICheckProjIndex projs] _ = return $ map (\x -> (0, return x)) projs
+ refinements _ [RICheckProjIndex projs] _ = return $ map (Move 0 . return) projs
  refinements _ _ _ = __IMPOSSIBLE__
 
 
@@ -293,7 +359,10 @@ costIncrease, costUnificationOccurs, costUnification, costAppVar,
   costAppRecCallUsed, costAppConstructor, costAppConstructorSingle,
   costAppExtraRef, costLam, costLamUnfold, costPi, costSort, costIotaStep,
   costInferredTypeUnkown, costAbsurdLam
-  :: Int
+  :: Cost
+
+costUnificationIf :: Bool -> Cost
+costUnificationIf b = if b then costUnification else costUnificationOccurs
 
 costIncrease = 1000
 costUnificationOccurs = 100 -- 1000001 -- 1 -- 100
@@ -315,7 +384,7 @@ costIotaStep = 3000 -- 1000005 -- 2 -- 100
 costInferredTypeUnkown = 1000006 -- 100
 costAbsurdLam = 0
 
-costEqStep, costEqEnd, costEqSym, costEqCong :: Int
+costEqStep, costEqEnd, costEqSym, costEqCong :: Cost
 costEqStep = 2000
 costEqEnd = 0
 costEqSym = 0

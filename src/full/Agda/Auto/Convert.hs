@@ -38,7 +38,7 @@ import Agda.TypeChecking.Errors ( stringTCErr )
 import Agda.Interaction.MakeCase (getClauseForIP)
 
 import Agda.Auto.NarrowingSearch
-import Agda.Auto.Syntax
+import Agda.Auto.Syntax hiding (getConst)
 
 import Agda.Auto.CaseSplit hiding (lift)
 

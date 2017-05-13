@@ -3,7 +3,9 @@
 module Agda.Auto.CaseSplit where
 
 import Data.IORef
+import Data.Tuple (swap)
 import Data.List (findIndex, union)
+import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Common (Hiding(..))
@@ -20,7 +22,7 @@ abspatvarname :: String
 abspatvarname = "\0absurdPattern"
 
 costCaseSplitVeryHigh, costCaseSplitHigh, costCaseSplitLow, costAddVarDepth
-  :: Nat
+  :: Cost
 costCaseSplitVeryHigh = 10000
 costCaseSplitHigh     = 5000
 costCaseSplitLow      = 2000
@@ -43,39 +45,33 @@ data CSPatI o = CSPatConApp (ConstRef o) [CSPat o]
               | CSOmittedArg
 type Sol o = [(CSCtx o, [CSPat o], Maybe (MExp o))]
 
-caseSplitSearch :: forall o . IORef Int -> Int -> [ConstRef o] -> Maybe (EqReasoningConsts o) -> Int -> Int -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
+caseSplitSearch ::
+  forall o . IORef Int -> Int -> [ConstRef o] ->
+  Maybe (EqReasoningConsts o) -> Int -> Cost -> ConstRef o ->
+  CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
 caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt pats = do
- let branchsearch depth ctx tt termcheckenv = do
-
+ let branchsearch :: Cost -> CSCtx o -> MExp o ->
+                     ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))
+     branchsearch depth ctx tt termcheckenv = do
 
       nsol <- newIORef 1
       m <- initMeta
       sol <- newIORef Nothing
       let trm = Meta m
           hsol = do trm' <- expandExp trm
-
-
                     writeIORef sol (Just trm')
-
-
-          hpartsol = __IMPOSSIBLE__
-
-          initcon = mpret $ Sidecondition (localTerminationSidecond termcheckenv recdef trm)
-                                          (
-
-                                           (case meqr of
-                                            Nothing -> id
-                                            Just eqr -> mpret . Sidecondition (calcEqRState eqr trm)
-                                           )
-
-                                           (tcSearch False (map (\(id, t) -> (id, closify t)) (drophid ctx)) (closify tt) trm)
-                                          )
+          initcon = mpret
+                  $ Sidecondition
+                    (localTerminationSidecond termcheckenv recdef trm)
+                  $ (case meqr of
+                        Nothing  -> id
+                        Just eqr -> mpret . Sidecondition (calcEqRState eqr trm)
+                     ) $ tcSearch False (map (fmap closify) (drophid ctx))
+                         (closify tt) trm
       recdefd <- readIORef recdef
-      let env = RIEnv {rieHints = (recdef, HMRecCall) : map (\x -> (x, HMNormal)) chints,
-                       rieDefFreeVars = cddeffreevars recdefd
-
-                       , rieEqReasoningConsts = meqr
-
+      let env = RIEnv { rieHints = (recdef, HMRecCall) : map (, HMNormal) chints
+                      , rieDefFreeVars = cddeffreevars recdefd
+                      , rieEqReasoningConsts = meqr
                       }
       depreached <- topSearch ticks nsol hsol env initcon depth (depth + 1)
       rsol <- readIORef sol
@@ -85,13 +81,15 @@ caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt p
      ff n (HI hid (id, t) : ctx) = HI hid (id, lift n t) : ff (n + 1) ctx
  caseSplitSearch' branchsearch depthinterval depth recdef ctx' tt pats
 
-caseSplitSearch' :: forall o . (Int -> CSCtx o -> MExp o -> ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))) -> Int -> Int -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
+caseSplitSearch' :: forall o .
+  (Cost -> CSCtx o -> MExp o -> ([Nat], Nat, [Nat]) -> IO (Maybe (MExp o))) ->
+  Int -> Cost -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
 caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
   recdefd <- readIORef recdef
   sols <- rc depth (cddeffreevars recdefd) ctx tt pats
   return sols
  where
-  rc :: Int -> Int -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
+  rc :: Cost -> Int -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
   rc depth _ _ _ _ | depth < 0 = return []
   rc depth nscrutavoid ctx tt pats = do
 
@@ -156,7 +154,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
                          in (((h, scrut + length xs), id, lift (scrut + length xs + 1) it) : xs, inft)
                         _ -> ([], lift scrut t)
               (newvars, inftype) = ff (cdtype cond)
-              constrapp = mm $ App Nothing (mm OKVal) (Const con) (foldl (\xs ((h, v), _, _) -> mm $ ALCons h (mm $ App Nothing (mm OKVal) (Var v) (mm ALNil)) xs) (mm ALNil) (reverse newvars))
+              constrapp = NotM $ App Nothing (NotM OKVal) (Const con) (foldl (\xs ((h, v), _, _) -> NotM $ ALCons h (NotM $ App Nothing (NotM OKVal) (Var v) (NotM ALNil)) xs) (NotM ALNil) (reverse newvars))
               pconstrapp = CSPatConApp con (map (\((hid, v), _, _) -> HI hid (CSPatVar v)) newvars)
               thesub = replace scrut (length newvars) constrapp
               Id newvarprefix = fst $ (drophid ctx) !! scrut
@@ -180,7 +178,10 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
              let (ctx2, tt2, pats2) = removevar ctx1 tt' pats' unif
                  --cost = if elem scrut mblkvar then costCaseSplit - (costCaseSplit - costCaseSplitFollow) `div` (length mblkvar) else costCaseSplit
                  cost = if null mblkvar then
-                         if scrut < length ctx - nscrutavoid && nothid then costCaseSplitLow + costAddVarDepth * depthofvar scrut pats else costCaseSplitVeryHigh
+                         if scrut < length ctx - nscrutavoid && nothid
+                         then costCaseSplitLow + costAddVarDepth
+                              * Cost (depthofvar scrut pats)
+                         else costCaseSplitVeryHigh
                         else
                          if elem scrut mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
 
@@ -199,6 +200,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
+
 replace :: Nat -> Nat -> MExp o -> MExp o -> MExp o
 replace sv nnew re = r 0
  where
@@ -210,15 +212,15 @@ replace sv nnew re = r 0
             betareduce (lift n re) (rs n args)
            else
             if v - n > sv then
-             mm $ App uid ok (Var (v + nnew - 1)) (rs n args)
+             NotM $ App uid ok (Var (v + nnew - 1)) (rs n args)
             else
-             mm $ App uid ok elr (rs n args)
+             NotM $ App uid ok elr (rs n args)
           else
-           mm $ App uid ok elr (rs n args)
+           NotM $ App uid ok elr (rs n args)
          App uid ok elr@(Const _) args ->
-          mm $ App uid ok elr (rs n args)
-         Lam hid (Abs mid e) -> mm $ Lam hid (Abs mid (r (n + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> mm $ Pi uid hid possdep (r n it) (Abs mid (r (n + 1) ot))
+          NotM $ App uid ok elr (rs n args)
+         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (n + 1) e))
+         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r n it) (Abs mid (r (n + 1) ot))
          Sort{} -> e
 
          AbsurdLambda{} -> e
@@ -226,20 +228,20 @@ replace sv nnew re = r 0
 
   rs n es =
    case rm es of
-    ALNil -> mm $ ALNil
-    ALCons hid a as -> mm $ ALCons hid (r n a) (rs n as)
+    ALNil -> NotM $ ALNil
+    ALCons hid a as -> NotM $ ALCons hid (r n a) (rs n as)
 
     ALProj{} -> __IMPOSSIBLE__
 
 
-    ALConPar as -> mm $ ALConPar (rs n as)
+    ALConPar as -> NotM $ ALConPar (rs n as)
 
 
 betareduce :: MExp o -> MArgList o -> MExp o
 betareduce e args = case rm args of
  ALNil -> e
  ALCons _ a rargs -> case rm e of
-  App uid ok elr eargs -> mm $ App uid ok elr (concatargs eargs args)
+  App uid ok elr eargs -> NotM $ App uid ok elr (concatargs eargs args)
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
   _ -> __IMPOSSIBLE__ -- not type correct if this happens
 
@@ -251,16 +253,11 @@ concatargs :: MM (ArgList o) (RefInfo o) -> MArgList o -> MArgList o
 concatargs xs ys = case rm xs of
   ALNil -> ys
 
-  ALCons hid x xs -> mm $ ALCons hid x (concatargs xs ys)
+  ALCons hid x xs -> NotM $ ALCons hid x (concatargs xs ys)
 
   ALProj{} -> __IMPOSSIBLE__
 
-  ALConPar as -> mm $ ALConPar (concatargs xs ys)
-
-eqelr :: Elr o -> Elr o -> Bool
-eqelr (Var v1) (Var v2) = v1 == v2
-eqelr (Const c1) (Const c2) = c1 == c2
-eqelr _ _ = False
+  ALConPar as -> NotM $ ALConPar (concatargs xs ys)
 
 replacep :: Nat -> Nat -> CSPatI o -> MExp o -> CSPat o -> CSPat o
 replacep sv nnew rp re = r
@@ -279,18 +276,11 @@ replacep sv nnew rp re = r
 
   r _ = __IMPOSSIBLE__ -- other constructors dont appear in indata Pats
 
-rm :: MM a b -> a
-rm (NotM x) = x
-rm (Meta{}) = __IMPOSSIBLE__
-
-mm :: a -> MM a b
-mm = NotM
-
 unifyexp :: MExp o -> MExp o -> Maybe [(Nat, MExp o)]
 unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
  where
   r e1 e2 cont unif = case (rm e1, rm e2) of
-   (App _ _ elr1 args1, App _ _ elr2 args2) | eqelr elr1 elr2 -> rs args1 args2 cont unif
+   (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> rs args1 args2 cont unif
    (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> r b1 b2 cont unif
    (Pi _ hid1 _ it1 (Abs _ ot1), Pi _ hid2 _ it2 (Abs _ ot2)) | hid1 == hid2 -> r it1 it2 (r ot1 ot2 cont) unif
    (Sort _, Sort _) -> cont unif -- a bit sloppy
@@ -324,10 +314,10 @@ lift n = r 0
   r j e =
    case rm e of
          App uid ok elr args -> case elr of
-          Var v | v >= j -> mm $ App uid ok (Var (v + n)) (rs j args)
-          _ -> mm $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> mm $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> mm $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
+          Var v | v >= j -> NotM $ App uid ok (Var (v + n)) (rs j args)
+          _ -> NotM $ App uid ok elr (rs j args)
+         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (j + 1) e))
+         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
          Sort{} -> e
 
          AbsurdLambda{} -> e
@@ -335,13 +325,13 @@ lift n = r 0
 
   rs j es =
    case rm es of
-    ALNil -> mm $ ALNil
-    ALCons hid a as -> mm $ ALCons hid (r j a) (rs j as)
+    ALNil -> NotM ALNil
+    ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
 
     ALProj{} -> __IMPOSSIBLE__
 
 
-    ALConPar as -> mm $ ALConPar (rs j as)
+    ALConPar as -> NotM $ ALConPar (rs j as)
 
 
 removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
@@ -407,35 +397,22 @@ findperm :: [MExp o] -> Maybe [Nat]
 findperm ts =
  let
   frees = map freevars ts
-  m = IntMap.fromList (map (\i -> (i, length (filter (elem i) frees))) [0..length ts - 1])
+  m = IntMap.fromList $
+      map (\i -> (i, length (filter (elem i) frees)))
+          [0..length ts - 1]
   r _ perm 0 = Just $ reverse perm
   r m perm n =
-   case lookup 0 (map (\(x,y) -> (y,x)) (IntMap.toList m)) of
+   case lookup 0 (map swap (IntMap.toList m)) of
     Nothing -> Nothing
-    Just i -> r (foldl (\m i -> IntMap.adjust (\x -> x - 1) i m) (IntMap.insert i (-1) m) (frees !! i)) (i : perm) (n - 1)
+    Just i -> r (foldl (flip $ IntMap.adjust (subtract 1))
+                       (IntMap.insert i (-1) m)
+                       (frees !! i))
+                 (i : perm) (n - 1)
  in r m [] (length ts)
 
+
 freevars :: MExp o -> [Nat]
-freevars = f 0
- where
-  f n e = case rm e of
-   App _ _ (Var v) args -> union [v - n] (fs n args)
-   App _ _ (Const _) args -> fs n args
-   Lam _ (Abs _ b) -> f (n + 1) b
-   Pi _ _ _ it (Abs _ ot) -> union (f n it) (f (n + 1) ot)
-   Sort{} -> []
-
-   AbsurdLambda{} -> []
-
-
-  fs n es = case rm es of
-   ALNil -> []
-   ALCons _ e es -> union (f n e) (fs n es)
-
-   ALProj{} -> __IMPOSSIBLE__
-
-
-   ALConPar es -> fs n es
+freevars = Set.toList . freeVars
 
 applyperm :: [Nat] -> CSCtx o -> MExp o -> [CSPat o] ->
              (CSCtx o, MExp o, [CSPat o])
@@ -444,48 +421,22 @@ applyperm perm ctx tt pats =
      ctx2 = map (\i -> ctx1 !! i) perm
      ctx3 = seqctx ctx2
      tt' = rename (ren perm) tt
-     pats' = map (renamep (ren perm)) pats
+     pats' = map (rename (ren perm)) pats
  in (ctx3, tt', pats')
 
 ren :: [Nat] -> Nat -> Int
 ren n i = let Just j = findIndex (== i) n in j
 
-rename :: (Nat -> Nat) -> MExp o -> MExp o
-rename ren = r 0
- where
-  r j e =
-   case rm e of
-         App uid ok elr args -> case elr of
-          Var v | v >= j -> mm $ App uid ok (Var (ren (v - j) + j)) (rs j args)
-          _ -> mm $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> mm $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> mm $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
-         Sort{} -> e
+instance Renaming t => Renaming (HI t) where
+  renameOffset j ren (HI hid t) = HI hid $ renameOffset j ren t
 
-         AbsurdLambda{} -> e
-
-
-  rs j es =
-   case rm es of
-    ALNil -> mm $ ALNil
-    ALCons hid a as -> mm $ ALCons hid (r j a) (rs j as)
-
-    ALProj{} -> __IMPOSSIBLE__
-
-
-    ALConPar as -> mm $ ALConPar (rs j as)
-
-
-renamep :: (Nat -> Nat) -> CSPat o -> CSPat o
-renamep ren = r
- where
-  r (HI hid (CSPatConApp c pats)) = HI hid (CSPatConApp c (map r pats))
-  r (HI hid (CSPatVar i)) = HI hid (CSPatVar $ ren i)
-  r (HI hid (CSPatExp e)) = HI hid (CSPatExp $ rename ren e)
-
-  r p@(HI _ CSOmittedArg) = p
-
-  r _ = __IMPOSSIBLE__
+instance Renaming (CSPatI o) where
+  renameOffset j ren e = case e of
+    CSPatConApp c pats -> CSPatConApp c $ map (renameOffset j ren) pats
+    CSPatVar i         -> CSPatVar $ j + ren i
+    CSPatExp e         -> CSPatExp $ renameOffset j ren e
+    CSOmittedArg       -> e
+    _                  -> __IMPOSSIBLE__
 
 seqctx :: CSCtx o -> CSCtx o
 seqctx = r (-1)
@@ -629,8 +580,8 @@ getblks tt = do
  NotB (hntt, blks) <- hnn_blks (Clos [] tt)
  case f blks of
   Just v -> return [v]
-  Nothing -> case hntt of
-   HNApp _ (Const c) args -> do
+  Nothing -> case rawValue hntt of
+   HNApp (Const c) args -> do
     cd <- readIORef c
     case cdcont cd of
      Datatype{} -> g [] args
@@ -638,8 +589,8 @@ getblks tt = do
    _ -> return []
  where
   f blks = case blks of
-             (_:_) -> case last blks of
-              HNApp _ (Var v) _ -> Just v
+             (_:_) -> case rawValue (last blks) of
+              HNApp (Var v) _ -> Just v
               _ -> Nothing
              _ -> Nothing
   g vs args = do
