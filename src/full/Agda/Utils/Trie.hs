@@ -2,6 +2,10 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE DeriveDataTypeable #-}
+#endif
+
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
 module Agda.Utils.Trie
@@ -26,6 +30,10 @@ import qualified Data.Map.Strict as Map
 import Data.Monoid
 import qualified Data.List as List
 
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Typeable ( Typeable )
+#endif
+
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 
@@ -33,7 +41,14 @@ import Agda.Utils.Null
 --
 --   With the strict 'Maybe' type, 'Trie' is also strict in 'v'.
 data Trie k v = Trie !(Strict.Maybe v) !(Map k (Trie k v))
-  deriving (Show, Eq, Functor, Foldable)
+  deriving ( Show
+           , Eq
+           , Functor
+           , Foldable
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 -- | Empty trie.
 instance Null (Trie k v) where
