@@ -8,6 +8,9 @@
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where
 
+import Control.Exception (evaluate)
+
+import Data.Functor ((<$))
 import Data.Data (Data)
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -36,3 +39,17 @@ instance Show Empty where
 absurd :: Empty -> a
 absurd e = seq e __IMPOSSIBLE__
 
+
+-- | @toImpossible e@ extracts the @Impossible@ value raised via
+--   @__IMPOSSIBLE__@ to create the element @e@ of type @Empty@.
+--   It proceeds by evaluating @e@ to weak head normal form and
+--   catching the exception.
+--   We are forced to wrap things in a @Maybe@ because of
+--   @catchImpossible@'s type.
+
+toImpossible :: Empty -> IO Impossible
+toImpossible e = do
+  s <- catchImpossible (Nothing <$ evaluate e) (return . Just)
+  case s of
+    Just i  -> return i
+    Nothing -> absurd e -- this should never happen
