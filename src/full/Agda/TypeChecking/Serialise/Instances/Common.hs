@@ -62,6 +62,7 @@ import Agda.Utils.Trie
 import Agda.Utils.Except
 
 import Agda.Utils.Empty (Empty)
+import qualified Agda.Utils.Empty as Empty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -493,11 +494,7 @@ instance EmbPrj Impossible where
     valu _         = malformed
 
 instance EmbPrj Empty where
-  icod_ a = do
-    -- Substitutions store an __IMPOSSIBLE__ in an Empty type
-    -- we make sure to save the information stored in it
-    Left e <- lift $ catchImpossible (mapM evaluate (Right a)) (return . Left)
-    icode1' e
+  icod_ a = icode1' =<< lift (Empty.toImpossible a)
 
   value = vcase valu where
     valu [a] = valu1 throwImpossible a
