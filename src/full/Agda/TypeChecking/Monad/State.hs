@@ -278,6 +278,10 @@ updateCompiledClauses :: (Maybe CompiledClauses -> Maybe CompiledClauses) -> (De
 updateCompiledClauses f def@Function{ funCompiled = cc} = def { funCompiled = f cc }
 updateCompiledClauses f _                              = __IMPOSSIBLE__
 
+updateFunCopatternLHS :: (Bool -> Bool) -> Defn -> Defn
+updateFunCopatternLHS f def@Function{ funCopatternLHS = b } = def { funCopatternLHS = f b }
+updateFunCopatternLHS f _ = __IMPOSSIBLE__
+
 ---------------------------------------------------------------------------
 -- * Top level module
 ---------------------------------------------------------------------------
