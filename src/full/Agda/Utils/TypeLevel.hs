@@ -85,7 +85,7 @@ type family IsBase (t :: *) :: Bool where
 type family Domains (t :: *) :: [*] where
   Domains t = If (IsBase t) '[] (Domains' t)
 type family Domains' (t :: *) :: [*] where
-  Domains' (a -> t) = a : Domains t
+  Domains' (a -> t) = a ': Domains t
 
 type family CoDomain (t :: *) :: * where
   CoDomain t = If (IsBase t) t (CoDomain' t)
