@@ -95,10 +95,13 @@ modifyFunClauses q f =
   modifySignature $ updateDefinition q $ updateTheDef $ updateFunClauses f
 
 -- | Lifts clauses to the top-level and adds them to definition.
+--   Also adjusts the 'funCopatternLHS' field if necessary.
 addClauses :: QName -> [Clause] -> TCM ()
 addClauses q cls = do
   tel <- getContextTelescope
-  modifyFunClauses q (++ abstract tel cls)
+  modifySignature $ updateDefinition q $ updateTheDef
+    $ updateFunClauses      (++ abstract tel cls)
+    . updateFunCopatternLHS (|| isCopatternLHS cls)
 
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
