@@ -494,8 +494,6 @@ instance EmbPrj Impossible where
     valu _         = malformed
 
 instance EmbPrj Empty where
-  icod_ a = icode1' =<< lift (Empty.toImpossible a)
+  icod_ a = icod_ =<< lift (Empty.toImpossible a)
 
-  value = vcase valu where
-    valu [a] = valu1 throwImpossible a
-    valu _ = malformed
+  value = fmap throwImpossible . value
