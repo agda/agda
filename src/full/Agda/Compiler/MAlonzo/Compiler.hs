@@ -305,7 +305,8 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
         | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
-        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
+        cds <- mapM compiledcondecl cs
+        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ cds ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         computeErasedConstructorArgs q
         (ars, cds) <- unzip <$> mapM condecl cs
@@ -316,7 +317,8 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
         let cs = [conName con]
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q np cs ty hsCons
-        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++ ccscov
+        cds <- mapM compiledcondecl cs
+        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++ cds ++ ccscov
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         computeErasedConstructorArgs q
         let c = conName con
@@ -667,6 +669,13 @@ cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)
             [ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
 
+compiledcondecl :: QName -> TCM HS.Decl
+compiledcondecl q = do
+  (ar, np) <- conArityAndPars q
+  hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
+  let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
+  return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
+
 tvaldecl :: QName
          -> Induction
             -- ^ Is the type inductive or coinductive?
@@ -763,6 +772,7 @@ writeModule (HS.Module m ps imp ds) = do
         , "ScopedTypeVariables"
         , "NoMonomorphismRestriction"
         , "Rank2Types"
+        , "PatternSynonyms"
         ]
 
 
