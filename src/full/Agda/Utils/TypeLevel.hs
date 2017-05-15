@@ -13,7 +13,7 @@
 module Agda.Utils.TypeLevel where
 
 import Data.Proxy
-import Data.Kind (Constraint)
+import GHC.Exts (Constraint)
 
 ------------------------------------------------------------------
 -- CONSTRAINTS
