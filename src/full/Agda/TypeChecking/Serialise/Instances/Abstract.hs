@@ -37,10 +37,10 @@ instance EmbPrj NameSpaceId where
   icod_ OnlyQualifiedNS = icode0 3
 
   value = vcase valu where
-    valu []  = valu0 PublicNS
-    valu [1] = valu0 PrivateNS
-    valu [2] = valu0 ImportedNS
-    valu [3] = valu0 OnlyQualifiedNS
+    valu []  = valuN PublicNS
+    valu [1] = valuN PrivateNS
+    valu [2] = valuN ImportedNS
+    valu [3] = valuN OnlyQualifiedNS
     valu _   = malformed
 
 instance EmbPrj Access where
@@ -50,10 +50,10 @@ instance EmbPrj Access where
   icod_ OnlyQualified = icode0 2
 
   value = vcase valu where
-    valu [0] = valu0 $ PrivateAccess UserWritten
-    valu [1] = valu0 $ PrivateAccess Inserted
-    valu []  = valu0 PublicAccess
-    valu [2] = valu0 OnlyQualified
+    valu [0] = valuN $ PrivateAccess UserWritten
+    valu [1] = valuN $ PrivateAccess Inserted
+    valu []  = valuN PublicAccess
+    valu [2] = valuN OnlyQualified
     valu _   = malformed
 
 instance EmbPrj NameSpace where
@@ -67,9 +67,9 @@ instance EmbPrj WhyInScope where
   icod_ (Applied a b) = icode2 1 a b
 
   value = vcase valu where
-    valu []        = valu0 Defined
-    valu [0, a, b] = valu2 Opened a b
-    valu [1, a, b] = valu2 Applied a b
+    valu []        = valuN Defined
+    valu [0, a, b] = valuN Opened a b
+    valu [1, a, b] = valuN Applied a b
     valu _         = malformed
 
 instance EmbPrj AbstractName where
@@ -91,12 +91,12 @@ instance EmbPrj KindOfName where
   icod_ MacroName      = icode0 5
 
   value = vcase valu where
-    valu []  = valu0 DefName
-    valu [1] = valu0 ConName
-    valu [2] = valu0 FldName
-    valu [3] = valu0 PatternSynName
-    valu [4] = valu0 QuotableName
-    valu [5] = valu0 MacroName
+    valu []  = valuN DefName
+    valu [1] = valuN ConName
+    valu [2] = valuN FldName
+    valu [3] = valuN PatternSynName
+    valu [4] = valuN QuotableName
+    valu [5] = valuN MacroName
     valu _   = malformed
 
 instance EmbPrj LocalVar where
@@ -123,17 +123,17 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.RecP _ a)          = icode1 10 a
 
   value = vcase valu where
-    valu [0, a]       = valu1 A.VarP a
-    valu [1, a, b, c] = valu3 A.ConP a b c
-    valu [2, a, b]    = valu2 (A.DefP i) a b
-    valu [3]          = valu0 (A.WildP i)
-    valu [4, a, b]    = valu2 (A.AsP i) a b
-    valu [5, a, b]    = valu2 (A.DotP i) a b
-    valu [6]          = valu0 (A.AbsurdP i)
-    valu [7, a]       = valu1 (A.LitP) a
-    valu [8, a, b]    = valu2 (A.ProjP i) a b
-    valu [9, a, b]    = valu2 (A.PatternSynP i) a b
-    valu [10, a]      = valu1 (A.RecP i) a
+    valu [0, a]       = valuN A.VarP a
+    valu [1, a, b, c] = valuN A.ConP a b c
+    valu [2, a, b]    = valuN (A.DefP i) a b
+    valu [3]          = valuN (A.WildP i)
+    valu [4, a, b]    = valuN (A.AsP i) a b
+    valu [5, a, b]    = valuN (A.DotP i) a b
+    valu [6]          = valuN (A.AbsurdP i)
+    valu [7, a]       = valuN (A.LitP) a
+    valu [8, a, b]    = valuN (A.ProjP i) a b
+    valu [9, a, b]    = valuN (A.PatternSynP i) a b
+    valu [10, a]      = valuN (A.RecP i) a
     valu _            = malformed
 
     i = patNoRange
@@ -151,16 +151,16 @@ instance EmbPrj Precedence where
   icod_ DotPatternCtx          = icode0 9
 
   value = vcase valu where
-    valu []     = valu0 TopCtx
-    valu [1]    = valu0 FunctionSpaceDomainCtx
-    valu [2, a] = valu1 LeftOperandCtx a
-    valu [3, a] = valu1 RightOperandCtx a
-    valu [4]    = valu0 FunctionCtx
-    valu [5]    = valu0 ArgumentCtx
-    valu [6]    = valu0 InsideOperandCtx
-    valu [7]    = valu0 WithFunCtx
-    valu [8]    = valu0 WithArgCtx
-    valu [9]    = valu0 DotPatternCtx
+    valu []     = valuN TopCtx
+    valu [1]    = valuN FunctionSpaceDomainCtx
+    valu [2, a] = valuN LeftOperandCtx a
+    valu [3, a] = valuN RightOperandCtx a
+    valu [4]    = valuN FunctionCtx
+    valu [5]    = valuN ArgumentCtx
+    valu [6]    = valuN InsideOperandCtx
+    valu [7]    = valuN WithFunCtx
+    valu [8]    = valuN WithArgCtx
+    valu [9]    = valuN DotPatternCtx
     valu _      = malformed
 
 instance EmbPrj ScopeInfo where

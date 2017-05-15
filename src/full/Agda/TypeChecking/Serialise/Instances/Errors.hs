@@ -59,13 +59,13 @@ instance EmbPrj Warning where
   icod_ (DeprecationWarning a b c)   = icode3 6 a b c
 
   value = vcase valu where
-      valu [0, a, b]     = valu2 UnreachableClauses a b
-      valu [1, a, b]     = valu2 OldBuiltin a b
-      valu [2]           = valu0 EmptyRewritePragma
-      valu [3]          = valu0 UselessPublic
-      valu [4, a]       = valu1 UselessInline a
-      valu [5, a]       = valu1 GenericWarning a
-      valu [6, a, b, c] = valu3 DeprecationWarning a b c
+      valu [0, a, b]     = valuN UnreachableClauses a b
+      valu [1, a, b]     = valuN OldBuiltin a b
+      valu [2]           = valuN EmptyRewritePragma
+      valu [3]          = valuN UselessPublic
+      valu [4, a]       = valuN UselessInline a
+      valu [5, a]       = valuN GenericWarning a
+      valu [6, a, b, c] = valuN DeprecationWarning a b c
       valu _             = malformed
 
 instance EmbPrj Doc where
@@ -135,8 +135,8 @@ instance EmbPrj CutOff where
   icod_ DontCutOff = icode0 1
 
   value = vcase valu where
-    valu [0, a] = valu1 CutOff a
-    valu [1]    = valu0 DontCutOff
+    valu [0, a] = valuN CutOff a
+    valu [1]    = valuN DontCutOff
     valu _         = malformed
 
 instance EmbPrj MetaVariable where
@@ -150,8 +150,8 @@ instance EmbPrj a => EmbPrj (Judgement a) where
   icod_ (IsSort a b)  = icode2 1 a b
 
   value = vcase valu where
-    valu [0, a, b] = valu2 HasType a b
-    valu [1, a, b] = valu2 IsSort a b
+    valu [0, a, b] = valuN HasType a b
+    valu [1, a, b] = valuN IsSort a b
     valu _         = malformed
 
 instance EmbPrj MetaPriority where
@@ -169,8 +169,8 @@ instance EmbPrj RunMetaOccursCheck where
   icod_ DontRunMetaOccursCheck = icode0 1
 
   value = vcase valu where
-    valu [0] = valu0 RunMetaOccursCheck
-    valu [1] = valu0 DontRunMetaOccursCheck
+    valu [0] = valuN RunMetaOccursCheck
+    valu [1] = valuN DontRunMetaOccursCheck
     valu _   = malformed
 
 instance EmbPrj InteractionPoint where
