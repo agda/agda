@@ -14,6 +14,7 @@ import Data.Char
 import Data.Maybe
 import Data.Function
 import Control.Monad.RWS.Strict
+import Control.Arrow (second)
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -37,6 +38,9 @@ import Agda.Syntax.Abstract (toTopLevelModuleName)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
   (TopLevelModuleName, moduleNameParts, projectRoot)
+import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
+import qualified Agda.Syntax.Parser.Literate as L
+import Agda.Syntax.Position (startPos)
 import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM, Interface(..))
@@ -44,9 +48,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Interaction.Options (optGHCiInteraction, optLaTeXDir)
 import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.FileName (filePath)
-
-import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
+import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -60,7 +62,7 @@ import Agda.Utils.Impossible
 -- goes and the state is for keeping track of the tokens and some other
 -- useful info, and the I/O part is used for printing debugging info.
 
-type LaTeX = ExceptT String (RWST () [Output] State IO)
+type LaTeX = RWST () [Output] State IO
 
 -- | Output items.
 
@@ -101,8 +103,7 @@ data AlignmentColumn = AlignmentColumn
   } deriving Show
 
 data State = State
-  { tokens      :: Tokens
-  , codeBlock   :: !Int   -- ^ The number of the current code block.
+  { codeBlock   :: !Int   -- ^ The number of the current code block.
   , column      :: !Int   -- ^ The current column number.
   , columns     :: [AlignmentColumn]
                           -- ^ All alignment columns found on the
@@ -112,8 +113,6 @@ data State = State
                           -- ^ All alignment columns found in
                           --   previous lines (in any code block),
                           --   with larger columns coming first.
-  , inCode      :: !Bool  -- ^ Keeps track of whether we are in a
-                          --   code block or not.
   , nextId      :: !IndentationColumnId
                           -- ^ The next indentation column identifier.
   , usedColumns :: HashSet IndentationColumnId
@@ -129,6 +128,9 @@ data Token = Token
   }
   deriving Show
 
+withTokenText :: (Text -> Text) -> Token -> Token
+withTokenText f tok@Token{text = t} = tok{text = f t}
+
 data Debug = MoveColumn | NonCode | Code | Spaces | Output
   deriving (Eq, Show)
 
@@ -139,17 +141,15 @@ debugs = []
 
 -- | Run function for the @LaTeX@ monad.
 runLaTeX ::
-  LaTeX a -> () -> State -> IO (Either String a, State, [Output])
-runLaTeX = runRWST . runExceptT
+  LaTeX a -> () -> State -> IO (a, State, [Output])
+runLaTeX = runRWST
 
 emptyState :: State
 emptyState = State
   { codeBlock   = 0
-  , tokens      = []
   , column      = 0
   , columns     = []
   , columnsPrev = []
-  , inCode      = False
   , nextId      = 0
   , usedColumns = Set.empty
   }
@@ -199,82 +199,16 @@ isSpaceNotNewline c = isSpace c && c /= '\n'
 replaceSpaces :: Text -> Text
 replaceSpaces = T.map (\c -> if isSpaceNotNewline c then ' ' else c)
 
+
 -- | Yields the next token, taking special care to begin/end code
 -- blocks. Junk occuring before and after the code blocks is separated
 -- into separate tokens, this makes it easier to keep track of whether
 -- we are in a code block or not.
-nextToken' :: LaTeX Token
-nextToken' = do
-  toks <- gets tokens
-  case toks of
-    []     -> throwError "Done"
-
-    -- Clean begin/end code block or a LaTeX comment.
-    t : ts | text t == beginCode || text t == endCode ||
-             T.singleton '%' == T.take 1 (T.stripStart (text t)) -> do
-
-      modify $ \s -> s { tokens = ts }
-      return t
-
-    t : ts -> do
-      modify $ \s -> s { tokens = ts }
-
-      inCode <- gets inCode
-      let code = if inCode then endCode else beginCode
-
-      case code `isInfixOf'` text t of
-        Nothing -> do
-
-          -- Spaces take care of their own column tracking.
-          unless (isSpaces (text t)) $ do
-            log MoveColumn $ text t
-            moveColumn $ graphemeClusters $ text t
-
-          return t
-
-        Just (pre, suf) -> do
-
-          let (textToReturn, textsToPutBack) =
-
-               -- This bit fixes issue 954.
-
-               -- Drop spaces up until and including the first trailing
-               -- newline after begin code blocks.
-               if code == beginCode && isSpaces suf
-               then case T.singleton '\n' `isInfixOf'` suf of
-                     Nothing        -> (pre, [ beginCode ])
-                     Just (_, suf') -> (pre, [ beginCode, suf' ])
-
-               -- Do the converse thing for end code blocks.
-               else if code == endCode && isSpaces pre
-                    then case T.singleton '\n' `isInfixOfRev` pre of
-                           Nothing        -> (code, [ suf ])
-                           Just (pre', _) ->
-                               -- Remove trailing whitespace from the
-                               -- final line; the function spaces
-                               -- expects trailing whitespace to be
-                               -- followed by a newline character.
-                             ( T.dropWhileEnd isSpaceNotNewline pre'
-                             , [ code, suf ]
-                             )
-
-              -- This case happens for example when you have two code
-              -- blocks after each other, i.e. the begin code of the
-              -- second ends up in the suffix of the first's end code.
-                    else (pre, [ code, suf ])
-
-              tokToReturn   = t { text = textToReturn }
-              toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
-
-          unless (isSpaces textToReturn) $ do
-            log MoveColumn textToReturn
-            moveColumn $ graphemeClusters textToReturn
-
-          modify $ \s -> s { tokens = toksToPutBack ++ tokens s }
-          return tokToReturn
-
-nextToken :: LaTeX Text
-nextToken = text `fmap` nextToken'
+moveColumnForToken :: Token -> LaTeX ()
+moveColumnForToken t = do
+  unless (isSpaces (text t)) $ do
+    log MoveColumn $ text t
+    moveColumn $ graphemeClusters $ text t
 
 -- | Merges 'columns' into 'columnsPrev', resets 'column' and
 -- 'columns'
@@ -352,18 +286,18 @@ registerColumnZero = do
 enterCode :: LaTeX ()
 enterCode = do
   resetColumn
-  modify $ \s -> s { codeBlock = codeBlock s + 1, inCode = True }
+  modify $ \s -> s { codeBlock = codeBlock s + 1 }
 
 -- | Changes to the state that are performed at the end of a code
 -- block.
 
 leaveCode :: LaTeX ()
-leaveCode = modify $ \s -> s { inCode = False }
+leaveCode = return ()
 
 logHelper :: Debug -> Text -> [String] -> LaTeX ()
 logHelper debug text extra =
   when (debug `elem` debugs) $ do
-    lift $ lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
+    lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
       T.pack "'" <+> text <+> T.pack "' " <+>
       if null extra
          then T.empty
@@ -445,94 +379,95 @@ cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
 -- * Automaton.
 
 -- | The start state, @nonCode@, prints non-code (the LaTeX part of
--- literate Agda) until it sees a @beginBlock@.
-nonCode :: LaTeX ()
-nonCode = do
-  tok <- nextToken
-  log NonCode tok
+--   literate Agda) until it sees a @beginBlock@.
+processLayers :: [(LayerRole, Tokens)] -> LaTeX ()
+processLayers = mapM_ $ \(layerRole,toks) -> do
+  case layerRole of
+    L.Markup  -> processMarkup  toks
+    L.Comment -> processComment toks
+    L.Code    -> processCode    toks
 
-  if tok == beginCode
+processMarkup, processComment, processCode :: Tokens -> LaTeX ()
+-- | Deals with markup
+processMarkup  = mapM_ moveColumnForToken
 
-     then do
-       output $ Text $ beginCode <+> nl
-       enterCode
-       code
-
-     else do
-       output $ Text tok
-       nonCode
+-- | Deals with literate text, which is output verbatim
+processComment = mapM_ $ \t -> do
+  unless (T.singleton '%' == T.take 1 (T.stripStart (text t))) $ do
+    moveColumnForToken t
+  output (Text (text t))
 
 -- | Deals with code blocks. Every token, except spaces, is pretty
 -- printed as a LaTeX command.
-code :: LaTeX ()
-code = do
-
-  -- Get the column information before grabbing the token, since
-  -- grabbing (possibly) moves the column.
-  col  <- gets column
-
-  tok' <- nextToken'
-  let tok = text tok'
-  log Code tok
-
-  when (tok == T.empty) code
-
-  when (col == 0 && not (isSpaces tok)) $ do
-    -- Non-whitespace tokens at the start of a line trigger an
-    -- alignment column.
-    registerColumnZero
-    output . Text . ptOpen =<< columnZero
-
-  when (tok == endCode) $ do
-    output $ Text $ ptClose <+> nl <+> endCode
-    leaveCode
-    nonCode
-
-  when (isSpaces tok) $ do
-    spaces $ T.group $ replaceSpaces tok
-    code
-
-  case aspect (info tok') of
-    Nothing -> output $ Text $ escape tok
-    Just a  -> output $ Text $
-                 cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
-
-  code
+processCode toks' = do
+  output $ Text $ beginCode <+> nl
+  enterCode
+  mapM_ go toks'
+  ptOpenWhenColumnZero =<< gets column
+  output $ Text $ ptClose <+> nl <+> endCode
+  leaveCode
 
   where
-  cmd :: Aspect -> String
-  cmd a = let s = show a in case a of
-    Comment           -> s
-    Option            -> s
-    Keyword           -> s
-    String            -> s
-    Number            -> s
-    Symbol            -> s
-    PrimitiveType     -> s
-    Name Nothing isOp -> cmd (Name (Just Postulate) isOp)
-      -- At the time of writing the case above can be encountered in
-      -- --only-scope-checking mode, for instance for the token "Size"
-      -- in the following code:
-      --
-      --   {-# BUILTIN SIZE Size #-}
-      --
-      -- The choice of "Postulate" works for this example, but might
-      -- be less appropriate for others.
-    Name (Just kind) _ -> case kind of
-      Bound                     -> s
-      Constructor Inductive     -> "InductiveConstructor"
-      Constructor CoInductive   -> "CoinductiveConstructor"
-      Datatype                  -> s
-      Field                     -> s
-      Function                  -> s
-      Module                    -> s
-      Postulate                 -> s
-      Primitive                 -> s
-      Record                    -> s
-      Argument                  -> s
-      Macro                     -> s
-      where
-      s = show kind
+    go tok' = do
+      -- Get the column information before grabbing the token, since
+      -- grabbing (possibly) moves the column.
+      col  <- gets column
+
+      moveColumnForToken tok'
+      let tok = text tok'
+      log Code tok
+
+      if (tok == T.empty) then return ()
+      else do
+        if (isSpaces tok) then do
+            spaces $ T.group $ replaceSpaces tok
+        else do
+          ptOpenWhenColumnZero col
+          case aspect (info tok') of
+            Nothing -> output $ Text $ escape tok
+            Just a  -> output $ Text $
+                         cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+
+    -- Non-whitespace tokens at the start of a line trigger an
+    -- alignment column.
+    ptOpenWhenColumnZero col =
+        when (col == 0) $ do
+          registerColumnZero
+          output . Text . ptOpen =<< columnZero
+
+    cmd :: Aspect -> String
+    cmd a = let s = show a in case a of
+      Comment           -> s
+      Option            -> s
+      Keyword           -> s
+      String            -> s
+      Number            -> s
+      Symbol            -> s
+      PrimitiveType     -> s
+      Name Nothing isOp -> cmd (Name (Just Postulate) isOp)
+        -- At the time of writing the case above can be encountered in
+        -- --only-scope-checking mode, for instance for the token "Size"
+        -- in the following code:
+        --
+        --   {-# BUILTIN SIZE Size #-}
+        --
+        -- The choice of "Postulate" works for this example, but might
+        -- be less appropriate for others.
+      Name (Just kind) _ -> case kind of
+        Bound                     -> s
+        Constructor Inductive     -> "InductiveConstructor"
+        Constructor CoInductive   -> "CoinductiveConstructor"
+        Datatype                  -> s
+        Field                     -> s
+        Function                  -> s
+        Module                    -> s
+        Postulate                 -> s
+        Primitive                 -> s
+        Record                    -> s
+        Argument                  -> s
+        Macro                     -> s
+        where
+        s = show kind
 
 -- Escapes special characters.
 escape :: Text -> Text
@@ -680,7 +615,7 @@ generateLaTeX i = do
 
   liftIO $ do
     source <- UTF8.readTextFile inAbsPath
-    latex <- E.encodeUtf8 `fmap` toLaTeX source hi
+    latex <- E.encodeUtf8 `fmap` toLaTeX (mkAbsolute inAbsPath) source hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
@@ -688,45 +623,101 @@ generateLaTeX i = do
     modToFile :: TopLevelModuleName -> FilePath
     modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
 
+groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
+groupByFst =
+    map (\xs -> case xs of                     -- Float the grouping to the top level
+          []           -> __IMPOSSIBLE__
+          (tag, _): _ -> (tag, map snd xs))
+
+  . List.groupBy ((==) `on` fst)  -- Group together characters in the same
+                                  -- role.
+
 -- | Transforms the source code into LaTeX.
-toLaTeX :: String -> HighlightingInfo -> IO L.Text
-toLaTeX source hi
+toLaTeX :: AbsolutePath -> String -> HighlightingInfo -> IO L.Text
+toLaTeX path source hi
 
   = processTokens
 
-  . concatMap stringLiteral
+  . map (\(role, tokens) -> (role,) $
+      -- This bit fixes issue 954
+      (if L.isCode role then
+        -- Remove trailing whitespace from the
+        -- final line; the function spaces
+        -- expects trailing whitespace to be
+        -- followed by a newline character.
+        whenMoreThanOne
+          (withLast $
+            withTokenText $ \suf ->
+              fromMaybe suf $
+                fmap (T.dropWhileEnd isSpaceNotNewline) $
+                  T.stripSuffix (T.singleton '\n') suf)
+        .
+        (withLast $ withTokenText $ T.dropWhileEnd isSpaceNotNewline)
+        .
+        (withFirst $
+          withTokenText $ \pre ->
+              fromMaybe pre $
+                  T.stripPrefix (T.singleton '\n') $
+                    T.dropWhile isSpaceNotNewline pre)
+      else
+        -- do nothing
+        id) tokens)
 
-  -- Head the list (the grouped chars contain the same meta info) and
-  -- collect the characters into a string.
-  . map (\xs -> case xs of
-                    []          -> __IMPOSSIBLE__
-                    (mi, _) : _ ->
-                        Token { text = T.pack $ map (\(_, c) -> c) xs
-                              , info = fromMaybe mempty mi
-                              })
+  . map (second (
+      -- Split tokens at newlines
+      concatMap stringLiteral
 
-  . List.groupBy ((==) `on` fst)  -- Characters which share the same
-                                  -- meta info are the same token, so
-                                  -- group them together.
+      -- Head the list (the grouped chars contain the same meta info) and
+      -- collect the characters into a string.
+    . map (\(mi, cs) ->
+                          Token { text = T.pack cs
+                                , info = fromMaybe mempty mi
+                                })
+      -- Characters which share the same meta info are the same token, so
+      -- group them together.
+    . groupByFst
+    ))
+
+  -- Characters in different layers belong to different tokens
+  . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
-  . map (\(pos, char) -> (IntMap.lookup pos infoMap, char))
+  . map (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))
 
   -- Add position in file to each character.
   . zip [1..]
+
+  -- Map each character to its role
+  . atomizeLayers . literateTeX (startPos (Just path))
+
   $ source
   where
   infoMap = toMap (decompress hi)
 
-processTokens :: Tokens -> IO L.Text
+  -- | This function preserves laziness of the list
+  withLast :: (a -> a) -> [a] -> [a]
+  withLast f [] = []
+  withLast f [a] = [f a]
+  withLast f (a:as) = a:withLast f as
+
+  -- | This function preserves laziness of the list
+  withFirst :: (a -> a) -> [a] -> [a]
+  withFirst _ [] = []
+  withFirst f (a:as) = f a:as
+
+  whenMoreThanOne :: ([a] -> [a]) -> [a] -> [a]
+  whenMoreThanOne f xs@(_:_:_) = f xs
+  whenMoreThanOne _ xs         = xs
+
+
+
+processTokens :: [(LayerRole, Tokens)] -> IO L.Text
 processTokens ts = do
-  (x, s, os) <- runLaTeX nonCode () (emptyState { tokens = ts })
-  case x of
-    Left "Done" -> return $ L.fromChunks $ map (render s) os
-    _           -> __IMPOSSIBLE__
+  ((), s, os) <- runLaTeX (processLayers ts) () emptyState
+  return $ L.fromChunks $ map (render s) os
   where
-  render _ (Text s)        = s
-  render s (MaybeColumn c)
-    | Just i <- columnKind c,
-      not (Set.member i (usedColumns s)) = agdaSpace
-    | otherwise                          = nl <+> ptOpen c
+    render _ (Text s)        = s
+    render s (MaybeColumn c)
+      | Just i <- columnKind c,
+        not (Set.member i (usedColumns s)) = agdaSpace
+      | otherwise                          = nl <+> ptOpen c
