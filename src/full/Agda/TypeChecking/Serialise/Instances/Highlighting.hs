@@ -27,17 +27,17 @@ instance EmbPrj HP.NameKind where
   icod_ HP.Macro           = icode0 10
 
   value = vcase valu where
-    valu []      = valu0 HP.Bound
-    valu [1 , a] = valu1 HP.Constructor a
-    valu [2]     = valu0 HP.Datatype
-    valu [3]     = valu0 HP.Field
-    valu [4]     = valu0 HP.Function
-    valu [5]     = valu0 HP.Module
-    valu [6]     = valu0 HP.Postulate
-    valu [7]     = valu0 HP.Primitive
-    valu [8]     = valu0 HP.Record
-    valu [9]     = valu0 HP.Argument
-    valu [10]    = valu0 HP.Macro
+    valu []      = valuN HP.Bound
+    valu [1 , a] = valuN HP.Constructor a
+    valu [2]     = valuN HP.Datatype
+    valu [3]     = valuN HP.Field
+    valu [4]     = valuN HP.Function
+    valu [5]     = valuN HP.Module
+    valu [6]     = valuN HP.Postulate
+    valu [7]     = valuN HP.Primitive
+    valu [8]     = valuN HP.Record
+    valu [9]     = valuN HP.Argument
+    valu [10]    = valuN HP.Macro
     valu _       = malformed
 
 instance EmbPrj HP.Aspect where
@@ -51,14 +51,14 @@ instance EmbPrj HP.Aspect where
   icod_ (HP.Name mk b)   = icode2 7 mk b
 
   value = vcase valu where
-    valu [0]        = valu0 HP.Comment
-    valu [1]        = valu0 HP.Option
-    valu [2]        = valu0 HP.Keyword
-    valu [3]        = valu0 HP.String
-    valu [4]        = valu0 HP.Number
-    valu []         = valu0 HP.Symbol
-    valu [6]        = valu0 HP.PrimitiveType
-    valu [7, mk, b] = valu2 HP.Name mk b
+    valu [0]        = valuN HP.Comment
+    valu [1]        = valuN HP.Option
+    valu [2]        = valuN HP.Keyword
+    valu [3]        = valuN HP.String
+    valu [4]        = valuN HP.Number
+    valu []         = valuN HP.Symbol
+    valu [6]        = valuN HP.PrimitiveType
+    valu [7, mk, b] = valuN HP.Name mk b
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
@@ -75,17 +75,17 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.CatchallClause      = icode0 10
 
   value = vcase valu where
-    valu [0] = valu0 HP.Error
-    valu []  = valu0 HP.DottedPattern
-    valu [2] = valu0 HP.UnsolvedMeta
-    valu [3] = valu0 HP.TerminationProblem
-    valu [4] = valu0 HP.IncompletePattern
-    valu [5] = valu0 HP.TypeChecks
-    valu [6] = valu0 HP.UnsolvedConstraint
-    valu [7] = valu0 HP.PositivityProblem
-    valu [8] = valu0 HP.ReachabilityProblem
-    valu [9] = valu0 HP.CoverageProblem
-    valu [10] = valu0 HP.CatchallClause
+    valu [0] = valuN HP.Error
+    valu []  = valuN HP.DottedPattern
+    valu [2] = valuN HP.UnsolvedMeta
+    valu [3] = valuN HP.TerminationProblem
+    valu [4] = valuN HP.IncompletePattern
+    valu [5] = valuN HP.TypeChecks
+    valu [6] = valuN HP.UnsolvedConstraint
+    valu [7] = valuN HP.PositivityProblem
+    valu [8] = valuN HP.ReachabilityProblem
+    valu [9] = valuN HP.CoverageProblem
+    valu [10] = valuN HP.CatchallClause
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where

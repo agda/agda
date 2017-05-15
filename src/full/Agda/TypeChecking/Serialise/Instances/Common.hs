@@ -118,7 +118,7 @@ instance EmbPrj () where
   icod_ () = icode0'
 
   value = vcase valu where
-    valu [] = valu0 ()
+    valu [] = valuN ()
     valu _  = malformed
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
@@ -136,8 +136,8 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (Either a b) where
   icod_ (Right x) = icode1 1 x
 
   value = vcase valu where
-    valu [0, x] = valu1 Left  x
-    valu [1, x] = valu1 Right x
+    valu [0, x] = valuN Left  x
+    valu [1, x] = valuN Right x
     valu _   = malformed
 
 instance EmbPrj a => EmbPrj (Maybe a) where
@@ -145,8 +145,8 @@ instance EmbPrj a => EmbPrj (Maybe a) where
   icod_ (Just x) = icode1' x
 
   value = vcase valu where
-    valu []  = valu0 Nothing
-    valu [x] = valu1 Just x
+    valu []  = valuN Nothing
+    valu [x] = valuN Just x
     valu _   = malformed
 
 instance EmbPrj a => EmbPrj (Strict.Maybe a) where
@@ -158,8 +158,8 @@ instance EmbPrj Bool where
   icod_ False = icode0 0
 
   value = vcase valu where
-    valu []  = valu0 True
-    valu [0] = valu0 False
+    valu []  = valuN True
+    valu [0] = valuN False
     valu _   = malformed
 
 instance EmbPrj AbsolutePath where
@@ -245,7 +245,7 @@ instance EmbPrj SerialisedRange where
     icode2' (P.rangeFile r) (P.rangeIntervals r)
 
   value = vcase valu where
-    valu [a, b] = SerialisedRange <$> valu2 P.intervalsToRange a b
+    valu [a, b] = SerialisedRange <$> valuN P.intervalsToRange a b
     valu _      = malformed
 
 instance EmbPrj C.Name where
@@ -253,8 +253,8 @@ instance EmbPrj C.Name where
   icod_ (C.Name r xs)  = icode2' r xs
 
   value = vcase valu where
-    valu [0, a, b] = valu2 C.NoName a b
-    valu [r, xs]   = valu2 C.Name   r xs
+    valu [0, a, b] = valuN C.NoName a b
+    valu [r, xs]   = valuN C.Name   r xs
     valu _         = malformed
 
 instance EmbPrj NamePart where
@@ -262,8 +262,8 @@ instance EmbPrj NamePart where
   icod_ (Id a) = icode1' a
 
   value = vcase valu where
-    valu []  = valu0 Hole
-    valu [a] = valu1 Id a
+    valu []  = valuN Hole
+    valu [a] = valuN Id a
     valu _   = malformed
 
 instance EmbPrj C.QName where
@@ -271,8 +271,8 @@ instance EmbPrj C.QName where
   icod_ (C.QName a  ) = icode1' a
 
   value = vcase valu where
-    valu [a, b] = valu2 Qual    a b
-    valu [a]    = valu1 C.QName a
+    valu [a, b] = valuN Qual    a b
+    valu [a]    = valuN C.QName a
     valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Associativity where
@@ -281,9 +281,9 @@ instance EmbPrj Agda.Syntax.Fixity.Associativity where
   icod_ NonAssoc   = icode0 2
 
   value = vcase valu where
-    valu []  = valu0 LeftAssoc
-    valu [1] = valu0 RightAssoc
-    valu [2] = valu0 NonAssoc
+    valu []  = valuN LeftAssoc
+    valu [1] = valuN RightAssoc
+    valu [2] = valuN NonAssoc
     valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
@@ -291,8 +291,8 @@ instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
   icod_ (Related a) = icode1' a
 
   value = vcase valu where
-    valu []  = valu0 Unrelated
-    valu [a] = valu1 Related a
+    valu []  = valuN Unrelated
+    valu [a] = valuN Related a
     valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
@@ -312,10 +312,10 @@ instance EmbPrj GenPart where
   icod_ (IdPart a)     = icode1' a
 
   value = vcase valu where
-    valu [0, a] = valu1 BindHole a
-    valu [1, a] = valu1 NormalHole a
-    valu [2, a] = valu1 WildHole a
-    valu [a]    = valu1 IdPart a
+    valu [0, a] = valuN BindHole a
+    valu [1, a] = valuN NormalHole a
+    valu [2, a] = valuN WildHole a
+    valu [a]    = valuN IdPart a
     valu _      = malformed
 
 instance EmbPrj MetaId where
@@ -390,8 +390,8 @@ instance EmbPrj Induction where
   icod_ CoInductive = icode0 1
 
   value = vcase valu where
-    valu []  = valu0 Inductive
-    valu [1] = valu0 CoInductive
+    valu []  = valuN Inductive
+    valu [1] = valuN CoInductive
     valu _   = malformed
 
 instance EmbPrj Hiding where
@@ -457,12 +457,12 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icod_ (LitMeta   a b c) = icode3 6 a b c
 
   value = vcase valu where
-    valu [a, b]       = valu2 LitNat    a b
-    valu [1, a, b]    = valu2 LitFloat  a b
-    valu [2, a, b]    = valu2 LitString a b
-    valu [3, a, b]    = valu2 LitChar   a b
-    valu [5, a, b]    = valu2 LitQName  a b
-    valu [6, a, b, c] = valu3 LitMeta   a b c
+    valu [a, b]       = valuN LitNat    a b
+    valu [1, a, b]    = valuN LitFloat  a b
+    valu [2, a, b]    = valuN LitString a b
+    valu [3, a, b]    = valuN LitChar   a b
+    valu [5, a, b]    = valuN LitQName  a b
+    valu [6, a, b, c] = valuN LitMeta   a b c
     valu _            = malformed
 
 instance EmbPrj IsAbstract where
@@ -470,8 +470,8 @@ instance EmbPrj IsAbstract where
   icod_ ConcreteDef = icode0'
 
   value = vcase valu where
-    valu [0] = valu0 AbstractDef
-    valu []  = valu0 ConcreteDef
+    valu [0] = valuN AbstractDef
+    valu []  = valuN ConcreteDef
     valu _   = malformed
 
 instance EmbPrj Delayed where
@@ -479,18 +479,17 @@ instance EmbPrj Delayed where
   icod_ NotDelayed = icode0'
 
   value = vcase valu where
-    valu [0] = valu0 Delayed
-    valu []  = valu0 NotDelayed
+    valu [0] = valuN Delayed
+    valu []  = valuN NotDelayed
     valu _   = malformed
-
 
 instance EmbPrj Impossible where
   icod_ (Impossible a b)  = icode2 0 a b
   icod_ (Unreachable a b) = icode2 1 a b
 
   value = vcase valu where
-    valu [0, a, b] = valu2 Impossible  a b
-    valu [1, a, b] = valu2 Unreachable a b
+    valu [0, a, b] = valuN Impossible  a b
+    valu [1, a, b] = valuN Unreachable a b
     valu _         = malformed
 
 instance EmbPrj Empty where

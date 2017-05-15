@@ -16,5 +16,5 @@ instance EmbPrj Interface where
   icod_ (Interface a b c d e f g h i j k l m) = icode13' a b c d e f g h i j k l m
 
   value = vcase valu where
-    valu [a, b, c, d, e, f, g, h, i, j, k, l, m] = valu13 Interface a b c d e f g h i j k l m
+    valu [a, b, c, d, e, f, g, h, i, j, k, l, m] = valuN Interface a b c d e f g h i j k l m
     valu _                                       = malformed
