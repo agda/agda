@@ -11,3 +11,4 @@
 (agda2-status-action "Checked")
 (agda2-info-action "*Compilation result*" "The module was successfully compiled. ———— Warnings —————————————————————————————————————————————— CompilationWarnings.agda:9,1-36 It is pointless for INLINE'd function id to have a separate Haskell definition " nil)
 ((last . 1) . (agda2-goals-action '()))
+(agda2-info-action "*Type-checking*" " ———— Warnings encountered —————————————————————————————————— CompilationWarnings.agda:9,1-36 It is pointless for INLINE'd function id to have a separate Haskell definition " t)

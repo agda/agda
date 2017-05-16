@@ -72,6 +72,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.IO.Binary
@@ -331,6 +332,7 @@ getInterface' x isMain = do
         -- let maySkip = isMain == NotMainInterface
         -- Andreas, 2015-07-13: Serialize iInsideScope again.
         let maySkip = True
+
         if uptodate && maySkip
           then getStoredInterface x file isMain
           else typeCheck          x file isMain
@@ -473,9 +475,10 @@ typeCheck x file isMain = do
        (chaseMsg checkMsg x $ Just $ filePath file)
        (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
                    let (we, wa) = classifyWarnings ws
-                   unless (null wa) $ reportSDoc "warning" 1
-                                    $ P.vcat $ P.prettyTCM <$> wa
-                   unless (not $ null we) $ chaseMsg "Finished" x Nothing)
+                   let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) wa
+                   unless (null wa') $
+                     reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
+                   when (null we) $ chaseMsg "Finished" x Nothing)
 
   -- Do the type checking.
 

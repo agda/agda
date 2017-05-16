@@ -30,6 +30,18 @@ quote s = "\"" ++ concatMap escape s ++ "\""
 
   escapeChars = "\"\\"
 
+-- | Adds hyphens around the given string
+--
+-- >>> putStrLn $ delimiter "Title"
+-- ———— Title —————————————————————————————————————————————————
+
+delimiter :: String -> String
+delimiter s = concat [ replicate 4 '\x2014'
+                     , " ", s, " "
+                     , replicate (54 - length s) '\x2014'
+                     ]
+
+
 -- | Shows a non-negative integer using the characters ₀-₉ instead of
 -- 0-9.
 
