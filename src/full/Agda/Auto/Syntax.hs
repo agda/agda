@@ -361,11 +361,11 @@ subi :: MExp o -> ICExp o -> ICExp o
 subi e (Clos (Skip : as) x) = Clos (Sub (Clos [] e) : as) x
 subi _ _ = __IMPOSSIBLE__
 
-class Weakening t where
-  weak :: Nat -> t -> t
-  weak 0 = id
-  weak n = weak' n
+weak :: Weakening t => Nat -> t -> t
+weak 0 = id
+weak n = weak' n
 
+class Weakening t where
   weak' :: Nat -> t -> t
 
 instance Weakening a => Weakening (TrBr a o) where
@@ -397,11 +397,14 @@ doclos = f 0
 
 -- | FreeVars class and instances
 
-class FreeVars t where
-  freeVars :: t -> Set.Set Nat
-  freeVars = freeVarsOffset 0
+freeVars :: FreeVars t => t -> Set.Set Nat
+freeVars = freeVarsOffset 0
 
+class FreeVars t where
   freeVarsOffset :: Nat -> t -> Set.Set Nat
+
+instance (FreeVars a, FreeVars b) => FreeVars (a, b) where
+  freeVarsOffset n (a, b) = Set.union (freeVarsOffset n a) (freeVarsOffset n b)
 
 instance FreeVars t => FreeVars (MM t a) where
   freeVarsOffset n e = freeVarsOffset n (rm e)
@@ -416,26 +419,29 @@ instance FreeVars (Elr o) where
 
 instance FreeVars (Exp o) where
   freeVarsOffset n e = case e of
-   App _ _ elr args -> Set.union (freeVarsOffset n elr) (freeVarsOffset n args)
+   App _ _ elr args -> freeVarsOffset n (elr, args)
    Lam _ b          -> freeVarsOffset n b
-   Pi _ _ _ it ot   -> Set.union (freeVarsOffset n it) (freeVarsOffset n ot)
+   Pi _ _ _ it ot   -> freeVarsOffset n (it, ot)
    Sort{}           -> Set.empty
    AbsurdLambda{}   -> Set.empty
 
 instance FreeVars (ArgList o) where
   freeVarsOffset n es = case es of
     ALNil         -> Set.empty
-    ALCons _ e es -> Set.union (freeVarsOffset n e) (freeVarsOffset n es)
+    ALCons _ e es -> freeVarsOffset n (e, es)
     ALConPar es   -> freeVarsOffset n es
     ALProj{}      -> __IMPOSSIBLE__
 
 
 -- | Renaming Typeclass and instances
-class Renaming t where
-  rename :: (Nat -> Nat) -> t -> t
-  rename = renameOffset 0
+rename :: Renaming t => (Nat -> Nat) -> t -> t
+rename = renameOffset 0
 
+class Renaming t where
   renameOffset :: Nat -> (Nat -> Nat) -> t -> t
+
+instance (Renaming a, Renaming b) => Renaming (a, b) where
+  renameOffset j ren (a, b) = (renameOffset j ren a, renameOffset j ren b)
 
 instance Renaming t => Renaming (MM t a) where
   renameOffset j ren e = NotM $ renameOffset j ren (rm e)
@@ -450,17 +456,15 @@ instance Renaming (Elr o) where
 
 instance Renaming (Exp o) where
   renameOffset j ren e = case e of
-    App uid ok elr args -> App uid ok (renameOffset j ren elr)
-                                      (renameOffset j ren args)
+    App uid ok elr args -> uncurry (App uid ok) $ renameOffset j ren (elr, args)
     Lam hid e -> Lam hid (renameOffset j ren e)
-    Pi uid hid possdep it ot ->
-      Pi uid hid possdep (renameOffset j ren it) (renameOffset j ren ot)
+    Pi a b c it ot -> uncurry (Pi a b c) $ renameOffset j ren (it, ot)
     Sort{}         -> e
     AbsurdLambda{} -> e
 
 instance Renaming (ArgList o) where
   renameOffset j ren e = case e of
     ALNil           -> ALNil
-    ALCons hid a as -> ALCons hid (renameOffset j ren a) (renameOffset j ren as)
+    ALCons hid a as -> uncurry (ALCons hid) $ renameOffset j ren (a, as)
     ALConPar as     -> ALConPar (renameOffset j ren as)
     ALProj{}        -> __IMPOSSIBLE__
