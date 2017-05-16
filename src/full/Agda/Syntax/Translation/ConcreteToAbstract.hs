@@ -1124,7 +1124,8 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         (outsideDecls, [ C.Module r m0 tel insideDecls ]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
-                then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootNameModule file]
+                then return $ C.QName $ C.Name (getRange m0) [Id $ stringToRawName $ rootNameModule file]
+                -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:
                 -- -- We assign an anonymous file module the name expected from
                 -- -- its import.  For flat file structures, this is the same.

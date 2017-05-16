@@ -1724,11 +1724,15 @@ figureOutTopLevelModule ds =
     -- Case 4: a top-level module declaration is missing.
     -- Andreas, 2017-01-01, issue #2229:
     -- Put everything (except OPTIONS pragmas) into an anonymous module.
-    _ -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
+    _ -> ds0 ++ [Module r (QName $ noName r) [] ds1]
       where
       (ds0, ds1) = (`span` ds) $ \case
         Pragma OptionsPragma{} -> True
         _ -> False
+      -- Andreas, 2017-05-17, issue #2574.
+      -- Since the module noName will act as jump target, it needs a range.
+      -- We use the beginning of the file as beginning of the top level module.
+      r = beginningOfFile $ getRange ds1
 
 -- | Create a name from a string.
 
