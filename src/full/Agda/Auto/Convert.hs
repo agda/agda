@@ -754,7 +754,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 _ as1, I.Con n2 _ as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (Cm.Dom{domInfo = info1, unDom = it1}) ot1, I.Pi (Cm.Dom info2 it2) ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (Cm.Dom{domInfo = info1, unDom = it1})  ot1, I.Pi (Cm.Dom{domInfo = info2, unDom = it2})  ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
