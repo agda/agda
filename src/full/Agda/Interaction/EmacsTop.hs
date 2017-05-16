@@ -109,10 +109,6 @@ formatWarningsAndErrors g w e = (body, title)
               , " Errors"   <$ guard isE
               , " Done"     <$ guard (not (isG || isW || isE))
               ]
-    delimiter s = concat [ replicate 4 '\x2014'
-                         , " ", s, " "
-                         , replicate (54 - length s) '\x2014'
-                         ]
 
     body = intercalate "\n" $ catMaybes
              [ g                    <$ guard isG

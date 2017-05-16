@@ -4,3 +4,8 @@ ret > ExitSuccess
 out > No main function defined in ExportAndUse. Use --no-main to suppress
 out > this warning.
 out >
+out > ———— Warnings encountered ——————————————————————————————————
+out >
+out > No main function defined in ExportAndUse. Use --no-main to suppress
+out > this warning.
+out >

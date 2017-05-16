@@ -1,3 +1,9 @@
 Issue2243.agda:9,1-12
 Unreachable clause
 when checking the definition of f
+
+———— Warnings encountered ——————————————————————————————————
+
+Issue2243.agda:9,1-12
+Unreachable clause
+when checking the definition of f
