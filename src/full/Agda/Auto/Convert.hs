@@ -4,6 +4,7 @@ module Agda.Auto.Convert where
 
 import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
+import Data.Maybe (catMaybes)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
@@ -13,7 +14,7 @@ import Agda.Syntax.Common (Hiding(..), getHiding)
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Internal.Pattern as IP
-import qualified Agda.Syntax.Common as Common
+import qualified Agda.Syntax.Common as Cm
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
@@ -103,9 +104,9 @@ tomy imi icns typs = do
      let typ = MB.defType def
          defn = MB.theDef def
      typ <- lift $ normalise typ
-     typ' <- tomyType typ
+     typ' <- convert typ
      let clausesToDef clauses = do
-           clauses' <- tomyClauses clauses
+           clauses' <- convert clauses
            let narg = case clauses of
                         [] -> 0
                         I.Clause {I.namedClausePats = xs} : _ -> length xs
@@ -120,7 +121,7 @@ tomy imi icns typs = do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it typ)) = Common.Arg (Common.domInfo it) (I.var n) :
+       let pars n (I.El _ (I.Pi it typ)) = Cm.Arg (Cm.domInfo it) (I.var n) :
                                            pars (n - 1) (I.unAbs typ)
            pars n (I.El s (I.Shared p))  = pars n (I.El s (I.derefPtr p))
            pars _ (I.El _ _) = []
@@ -128,12 +129,12 @@ tomy imi icns typs = do
                                       I.Def cn $ map I.Apply $ pars (npar - 1) typ
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
            contyp npar (I.ExtendTel it I.NoAbs{})     = __IMPOSSIBLE__
-       contyp' <- tomyType $ contyp 0 tel
+       contyp' <- convert $ contyp 0 tel
        cc <- lift $ liftIO $ readIORef c
        let Datatype [con] [] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
 
-       projfcns <- mapM (\name -> getConst False name TMAll) (map Common.unArg fields)
+       projfcns <- mapM (\name -> getConst False name TMAll) (map Cm.unArg fields)
 
        return (Datatype [con] projfcns, []{-map snd fields-})
       MB.Constructor {MB.conData = dt} -> do
@@ -166,11 +167,11 @@ tomy imi icns typs = do
         Nothing -> return ()
         Just sol -> do
          m <- getMeta mi
-         sol' <- tomyExp sol
+         sol' <- convert sol
          modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
-           localVars = map (snd . Common.unDom . ctxEntry) . envContext . clEnv $ minfo
+           localVars = map (snd . Cm.unDom . ctxEntry) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
         targettype <- tt `piApplyM` permute (takeP (length vs) $ mvPermutation mv) vs
@@ -178,8 +179,8 @@ tomy imi icns typs = do
         localVars <- mapM normalise localVars
         return (targettype, localVars)
        modify (\s -> s {sCurMeta = Just mi})
-       typ' <- tomyType targettype
-       ctx' <- mapM tomyType localVars
+       typ' <- convert targettype
+       ctx' <- mapM convert localVars
        modify (\s -> s {sCurMeta = Nothing})
        modify (\s -> s {sMetas = (Map.adjust (\(m, _, deps) -> (m, Just (typ', ctx'), deps)) mi (fst $ sMetas s), snd $ sMetas s)})
        r projfcns
@@ -188,8 +189,8 @@ tomy imi icns typs = do
        case nxt of
         Just eqi -> do
          let (ineq, e, i) = eqs !! eqi
-         e' <- tomyExp e
-         i' <- tomyExp i
+         e' <- convert e
+         i' <- convert i
          modify (\s -> s {sEqs = (Map.adjust (\_ -> Just (ineq, e', i')) eqi (fst $ sEqs s), snd $ sEqs s)})
          r projfcns
         Nothing ->
@@ -197,7 +198,7 @@ tomy imi icns typs = do
  ((icns', typs'), s) <- runStateT
   (do _ <- getMeta imi
       icns' <- mapM (\ (Hint iscon name) -> getConst iscon name TMAll) icns
-      typs' <- mapM tomyType typs
+      typs' <- mapM convert typs
       projfcns <- r []
       projfcns' <- mapM (\name -> getConst False name TMAll) projfcns
       [] <- r []
@@ -252,7 +253,7 @@ getConst iscon name mode = do
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return c
 
-getdfv :: I.MetaId -> A.QName -> MB.TCM Common.Nat
+getdfv :: I.MetaId -> A.QName -> MB.TCM Cm.Nat
 getdfv mainm name = do
  mv <- lookupMeta mainm
  withMetaInfo (getMetaInfo mv) $ getDefFreeVars name
@@ -292,150 +293,114 @@ copatternsNotImplemented :: MB.TCM a
 copatternsNotImplemented = MB.typeError $ MB.NotImplemented $
   "The Agda synthesizer (Agsy) does not support copatterns yet"
 
-tomyClauses :: [I.Clause] -> TOM [([Pat O], MExp O)]
-tomyClauses [] = return []
-tomyClauses (cl:cls) = do
- cl' <- tomyClause cl
- cls' <- tomyClauses cls
- return $ case cl' of
-  Just cl' -> cl' : cls'
-  Nothing -> cls'
+literalsNotImplemented :: MB.TCM a
+literalsNotImplemented = MB.typeError $ MB.NotImplemented $
+  "The Agda synthesizer (Agsy) does not support literals yet"
 
-tomyClause :: I.Clause -> TOM (Maybe ([Pat O], MExp O))
-tomyClause cl = do
- let -- Jesper, 2016-07-28: I can't figure out if this should be the old or new
+class Conversion a b where
+  convert :: a -> TOM b
+
+instance Conversion [I.Clause] [([Pat O], MExp O)] where
+  convert = fmap catMaybes . mapM convert
+
+instance Conversion I.Clause (Maybe ([Pat O], MExp O)) where
+  convert cl = do
+    let -- Jesper, 2016-07-28:
+     -- I can't figure out if this should be the old or new
      -- clause body (i.e. relative to the positions of pattern variables or
      -- relative to the clauseTel). Both options pass the test suite, so I
      -- have the impression it doesn't actually matter.
      -- ALTERNATIVE CODE:
      -- perm = fromMaybe __IMPOSSIBLE__ $ IP.clausePerm cl
      -- body = applySubst (renamingR perm) $ I.clauseBody cl
-     body = I.clauseBody cl
-     pats = I.clausePats cl
- pats' <- mapM tomyPat $ IP.unnumberPatVars pats
- body' <- traverse tomyExp =<< lift (normalise body)
- return $ case body' of
-           Just body' -> Just (pats', body')
-           Nothing    -> Nothing
+        body = I.clauseBody cl
+        pats = I.clausePats cl
+    pats' <- mapM convert (IP.unnumberPatVars pats :: [Cm.Arg I.Pattern])
+    body' <- traverse convert =<< lift (normalise body)
+    return $ (pats',) <$> body'
 
-tomyPat :: Common.Arg I.Pattern -> TOM (Pat O)
-tomyPat p = case Common.unArg p of
- I.ProjP{} -> lift $ copatternsNotImplemented
- I.VarP n -> return $ PatVar (show n)
- I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
- I.AbsurdP{} -> return $ PatVar I.absurdPatternName
- I.ConP con _ pats -> do
-  let n = I.conName con
-  c <- getConst True n TMAll
-  pats' <- mapM (tomyPat . fmap Common.namedThing) pats
-  def <- lift $ getConstInfo n
-  cc <- lift $ liftIO $ readIORef c
-  let Just npar = fst $ cdorigin cc
-  return $ PatConApp c (replicate npar PatExp ++ pats')
- I.LitP _ -> throwError $ stringTCErr "Auto: Literals in patterns are not supported"
-
-weaken :: Int -> MExp O -> MExp O
-weaken _ e@(Meta m) = e
-weaken i (NotM e) =
- case e of
-  App uid okh elr as ->
-   let elr' = case elr of
-               Var v -> if v >= i then Var (v + 1) else elr
-               Const{} -> elr
-       as' = weakens i as
-   in NotM $ App uid okh elr' as'
-  Lam hid (Abs mid t) ->
-   let t' = weaken (i + 1) t
-   in NotM $ Lam hid (Abs mid t')
-  Pi uid hid possdep x (Abs mid y) ->
-   let x' = weaken i x
-       y' = weaken (i + 1) y
-   in NotM $ Pi uid hid possdep x' (Abs mid y')
-  Sort{} -> NotM e
-
-  AbsurdLambda{} -> NotM e
-
-
-weakens :: Int -> MArgList O -> MArgList O
-weakens _ as@(Meta m) = as
-weakens i (NotM as) =
- case as of
-  ALNil -> NotM as
-  ALCons hid x xs ->
-   let x' = weaken i x
-       xs' = weakens i xs
-   in NotM $ ALCons hid x' xs'
-
-  ALProj{} -> __IMPOSSIBLE__
-
-  ALConPar xs ->
-   let xs' = weakens i xs
-   in NotM $ ALConPar xs'
-
-
-tomyType :: I.Type -> TOM (MExp O)
-tomyType (I.El _ t) = tomyExp t -- sort info is thrown away
-
-tomyExp :: I.Term -> TOM (MExp O)
-tomyExp v0 =
-  case I.unSpine v0 of
-    I.Var v es -> do
-      let Just as = I.allApplyElims es
-      as' <- tomyExps as
-      return $ NotM $ App Nothing (NotM OKVal) (Var v) as'
-    I.Lam info b -> do
-      b' <- tomyExp (I.absBody b)
-      return $ NotM $ Lam (getHiding info) (Abs (Id $ I.absName b) b')
-    t@I.Lit{} -> do
-      t <- lift $ constructorForm t
-      case t of
-        I.Lit{} -> throwError $ stringTCErr "Auto: Literals in terms are not supported"
-        _       -> tomyExp t
-    I.Level l -> tomyExp =<< lift (reallyUnLevelView l)
-    I.Def name es -> do
-      let Just as = I.allApplyElims es
-      c   <- getConst False name TMAll
-      as' <- tomyExps as
-      return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
-    I.Con con ci as -> do
-      let name = I.conName con
-      c   <- getConst True name TMAll
-      as' <- tomyExps as
-      def <- lift $ getConstInfo name
-      cc  <- lift $ liftIO $ readIORef c
+instance Conversion (Cm.Arg I.Pattern) (Pat O) where
+  convert p = case Cm.unArg p of
+    I.VarP n    -> return $ PatVar (show n)
+    I.DotP _    -> return $ PatVar "_"
+      -- because Agda includes these when referring to variables in the body
+    I.AbsurdP{} -> return $ PatVar I.absurdPatternName
+    I.ConP con _ pats -> do
+      let n = I.conName con
+      c     <- getConst True n TMAll
+      pats' <- mapM (convert . fmap Cm.namedThing) pats
+      def   <- lift $ getConstInfo n
+      cc    <- lift $ liftIO $ readIORef c
       let Just npar = fst $ cdorigin cc
-      return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-    I.Pi (Common.Dom info x) b -> do
-      let y    = I.absBody b
-          name = I.absName b
-      x' <- tomyType x
-      y' <- tomyType y
-      return $ NotM $ Pi Nothing (getHiding info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
-    I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
-    I.Sort _ -> return $ NotM $ Sort UnknownSort
-    t@I.MetaV{} -> do
-      t <- lift $ instantiate t
-      case t of
-        I.MetaV mid _ -> do
-          mcurmeta <- gets sCurMeta
-          case mcurmeta of
-            Nothing -> return ()
-            Just curmeta ->
-              modify $ \ s -> s { sMetas = ( Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta (fst $ sMetas s)
+      return $ PatConApp c (replicate npar PatExp ++ pats')
+
+    -- UNSUPPORTED CASES
+    I.ProjP{}   -> lift copatternsNotImplemented
+    I.LitP _    -> lift literalsNotImplemented
+
+instance Conversion I.Type (MExp O) where
+  convert (I.El _ t) = convert t -- sort info is thrown away
+
+instance Conversion I.Term (MExp O) where
+  convert v0 =
+    case I.unSpine v0 of
+      I.Var v es -> do
+        let Just as = I.allApplyElims es
+        as' <- convert as
+        return $ NotM $ App Nothing (NotM OKVal) (Var v) as'
+      I.Lam info b -> do
+        b' <- convert (I.absBody b)
+        return $ NotM $ Lam (getHiding info) (Abs (Id $ I.absName b) b')
+      t@I.Lit{} -> do
+        t <- lift $ constructorForm t
+        case t of
+          I.Lit{} -> lift literalsNotImplemented
+          _       -> convert t
+      I.Level l -> convert =<< lift (reallyUnLevelView l)
+      I.Def name es -> do
+        let Just as = I.allApplyElims es
+        c   <- getConst False name TMAll
+        as' <- convert as
+        return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
+      I.Con con ci as -> do
+        let name = I.conName con
+        c   <- getConst True name TMAll
+        as' <- convert as
+        def <- lift $ getConstInfo name
+        cc  <- lift $ liftIO $ readIORef c
+        let Just npar = fst $ cdorigin cc
+        return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
+      I.Pi (Cm.Dom info x) b -> do
+        let y    = I.absBody b
+            name = I.absName b
+        x' <- convert x
+        y' <- convert y
+        return $ NotM $ Pi Nothing (getHiding info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
+      I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
+      I.Sort _ -> return $ NotM $ Sort UnknownSort
+      t@I.MetaV{} -> do
+        t <- lift $ instantiate t
+        case t of
+          I.MetaV mid _ -> do
+            mcurmeta <- gets sCurMeta
+            case mcurmeta of
+              Nothing -> return ()
+              Just curmeta ->
+                modify $ \ s -> s { sMetas = ( Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta (fst $ sMetas s)
                                            , snd $ sMetas s
                                            ) }
-          m <- getMeta mid
-          return $ Meta m
-        _ -> tomyExp t
-    I.DontCare _ -> return $ NotM $ dontCare
-    I.Shared p -> tomyExp $ I.derefPtr p
+            m <- getMeta mid
+            return $ Meta m
+          _ -> convert t
+      I.DontCare _ -> return $ NotM $ dontCare
+      I.Shared p -> convert $ I.derefPtr p
 
-tomyExps :: I.Args -> TOM (MM (ArgList O) (RefInfo O))
-tomyExps [] = return $ NotM ALNil
-tomyExps (Common.Arg info a : as) = do
- a' <- tomyExp a
- as' <- tomyExps as
- return $ NotM $ ALCons (getHiding info) a' as'
+instance Conversion a b => Conversion (Cm.Arg a) (Hiding, b) where
+  convert (Cm.Arg info a) = (getHiding info,) <$> convert a
+
+instance Conversion I.Args (MM (ArgList O) (RefInfo O)) where
+  convert as = NotM . foldr (\ (hid,t) -> ALCons hid t . NotM) ALNil
+               <$> mapM convert as
 
 tomyIneq :: MB.Comparison -> Bool
 tomyIneq MB.CmpEq = False
@@ -453,7 +418,7 @@ fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Con _ ci as) = fmExps m as
-fmExp m (I.Pi x y)  = fmType m (Common.unDom x) || fmType m (I.unAbs y)
+fmExp m (I.Pi x y)  = fmType m (Cm.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
@@ -461,7 +426,7 @@ fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
 
 fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m [] = False
-fmExps m (a : as) = fmExp m (Common.unArg a) || fmExps m as
+fmExps m (a : as) = fmExp m (Cm.unArg a) || fmExps m as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
 fmLevel m I.ClosedLevel{} = False
@@ -473,18 +438,18 @@ fmLevel m (I.Plus _ l) = case l of
 
 -- ---------------------------------------------
 
-icnvh :: Hiding -> Common.ArgInfo
-icnvh h = Common.setHiding h' $
-          Common.setOrigin o $
-          Common.defaultArgInfo
+icnvh :: Hiding -> Cm.ArgInfo
+icnvh h = Cm.setHiding h' $
+          Cm.setOrigin o $
+          Cm.defaultArgInfo
     where
     -- Andreas, 2017-01-18, issue #819.
     -- Visible arguments are made UserWritten,
     -- otherwise they might not be printed in patterns.
     (h', o) = case h of
-        NotHidden -> (Common.NotHidden, Common.UserWritten)
-        Instance  -> (Common.Instance , Common.Inserted   )
-        Hidden    -> (Common.Hidden   , Common.Inserted   )
+        NotHidden -> (Cm.NotHidden, Cm.UserWritten)
+        Instance  -> (Cm.Instance , Cm.Inserted   )
+        Hidden    -> (Cm.Hidden   , Cm.Inserted   )
 
 -- ---------------------------------------------
 
@@ -516,7 +481,7 @@ frommyExp (NotM e) =
         frommyExps n as v
 -}
        (ndrop, h) = case iscon of
-                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive []) Common.ConOSystem) -- TODO: restore fields
+                      Just n -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive []) Cm.ConOSystem) -- TODO: restore fields
                       Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
@@ -525,8 +490,8 @@ frommyExp (NotM e) =
   Pi _ hid _ x (Abs mid y) -> do
    x' <- frommyType x
    y' <- frommyType y
-   return $ I.Pi (Common.Dom (icnvh hid) x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
-   -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (Common.Arg (icnvh hid) x') y'
+   return $ I.Pi (Cm.Dom (icnvh hid) x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
+   -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (Cm.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
   Sort Type -> __IMPOSSIBLE__
@@ -548,7 +513,7 @@ frommyExps ndrop (NotM as) trm =
   ALCons _ _ xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALCons hid x xs -> do
    x' <- frommyExp x
-   frommyExps ndrop xs (addend (Common.Arg (icnvh hid) x') trm)
+   frommyExps ndrop xs (addend (Cm.Arg (icnvh hid) x') trm)
 
   -- Andreas, 2013-10-19 TODO: restore postfix projections
   ALProj eas idx hid xs -> do
@@ -559,7 +524,7 @@ frommyExps ndrop (NotM as) trm =
    cdef <- lift $ readIORef c
    let name = snd $ cdorigin cdef
    trm2 <- frommyExps 0 eas (I.Def name [])
-   frommyExps 0 xs (addend (Common.Arg (icnvh hid) trm) trm2)
+   frommyExps 0 xs (addend (Cm.Arg (icnvh hid) trm) trm2)
 
   ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALConPar _ -> __IMPOSSIBLE__
@@ -578,10 +543,10 @@ abslamvarname = "\0absurdlambda"
 modifyAbstractExpr :: A.Expr -> A.Expr
 modifyAbstractExpr = f
  where
-  f (A.App i e1 (Common.Arg info (Common.Named n e2))) =
-        A.App i (f e1) (Common.Arg info (Common.Named n (f e2)))
+  f (A.App i e1 (Cm.Arg info (Cm.Named n e2))) =
+        A.App i (f e1) (Cm.Arg info (Cm.Named n (f e2)))
   f (A.Lam i (A.DomainFree info n) _) | show (A.nameConcrete n) == abslamvarname =
-        A.AbsurdLam i $ Common.argInfoHiding info
+        A.AbsurdLam i $ Cm.argInfoHiding info
   f (A.Lam i b e) = A.Lam i b (f e)
   f (A.Rec i xs) = A.Rec i (map (mapLeft (over exprFieldA f)) xs)
   f (A.RecUpdate i e xs) = A.RecUpdate i (f e) (map (over exprFieldA f) xs)
@@ -604,8 +569,8 @@ constructPats cmap mainm clause = do
       (ns'', p') <- cnvp ns' p
       return (ns'', p' : ps')
      cnvp ns p =
-      let hid = getHiding $ Common.argInfo p
-      in case Common.namedArg p of
+      let hid = getHiding $ Cm.argInfo p
+      in case Cm.namedArg p of
        I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP con _ ps -> do
         let c = I.conName con
@@ -615,7 +580,7 @@ constructPats cmap mainm clause = do
         let Just npar = fst $ cdorigin cc
         return (ns', HI hid (CSPatConApp c2 (replicate npar (HI Hidden CSOmittedArg) ++ ps')))
        I.DotP t -> do
-        (t2, _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
+        (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
        I.AbsurdP{} -> return ((hid, Id I.absurdPatternName) : ns, HI hid (CSPatVar $ length ns))
        I.ProjP{} -> copatternsNotImplemented
@@ -631,7 +596,7 @@ frommyClause (ids, pats, mrhs) = do
       let Id id = mid
       tel <- ctel ctx
       t' <- frommyType t
-      return $ I.ExtendTel (Common.Dom (icnvh hid) t') (I.Abs id tel)
+      return $ I.ExtendTel (Cm.Dom (icnvh hid) t') (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
      getperms n [] _ _ = __IMPOSSIBLE__
@@ -672,14 +637,14 @@ frommyClause (ids, pats, mrhs) = do
         cdef <- lift $ readIORef c
         let (Just ndrop, name) = cdorigin cdef
         ps' <- cnvps ndrop ps
-        let con = I.ConHead name Common.Inductive [] -- TODO: restore record fields!
+        let con = I.ConHead name Cm.Inductive [] -- TODO: restore record fields!
         return (I.ConP con I.noConPatternInfo ps')
        CSPatExp e -> do
         e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
-      return $ Common.Arg (icnvh hid) $ Common.unnamed p'   -- TODO: recover names
+      return $ Cm.Arg (icnvh hid) $ Cm.unnamed p'   -- TODO: recover names
  ps <- cnvps 0 pats
  body <- case mrhs of
           Nothing -> return $ Nothing
@@ -739,7 +704,7 @@ negtype ee = f (0 :: Int)
 
 -- ---------------------------------------
 
-findClauseDeep :: Common.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
+findClauseDeep :: Cm.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
 findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
   case ipCl of
@@ -786,15 +751,15 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 _ as1, I.Con n2 _ as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (Common.Dom info1 it1) ot1, I.Pi (Common.Dom info2 it2) ot2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (Cm.Dom info1 it1) ot1, I.Pi (Cm.Dom info2 it2) ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
-     (Common.Arg info1 e1 : es1, Common.Arg info2 e2 : es2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
+     (Cm.Arg info1 e1 : es1, Cm.Arg info2 e2 : es2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
      _ -> Nothing
     fes nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
      (I.Proj _ f : es1, I.Proj _ f' : es2) | f == f' -> fes nl n c es1 es2
-     (I.Apply (Common.Arg info1 e1) : es1, I.Apply (Common.Arg info2 e2) : es2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> f nl n (\n -> fes nl n c es1 es2) e1 e2
+     (I.Apply (Cm.Arg info1 e1) : es1, I.Apply (Cm.Arg info2 e2) : es2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> f nl n (\n -> fes nl n c es1 es2) e1 e2
      _ -> Nothing
