@@ -773,19 +773,21 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
          -- Andreas, 2017-02-14, issue #2458:
          -- If we have inlined with-functions, we could be illtyped,
          -- hence, do not reduce anything.
-         es <- ifM terGetHaveInlinedWith (return es0) {-else-} $ do
-          -- WAS: 2014-03-25 Andreas, the costs seem small, benchmark turned off.
-          liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ do
-           -- forM es0 $
-           --    etaContract <=< traverse reduceCon <=< instantiateFull
-           -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
-           -- Andreas, 2017-03-25, issue #2495, restrict this to non-recursive functions
-           -- otherwise, the termination checking may run forever.
-           reportSLn "term.reduce" 90 $ "normalizing call arguments"
-           modifyAllowedReductions (List.\\ [UnconfirmedReductions,RecursiveReductions]) $
-             forM es0 $ \ e -> do
-               reportSDoc "term.reduce" 95 $ text "normalizing " <+> prettyTCM e
-               etaContract =<< normalise e
+         es <- ifM terGetHaveInlinedWith (return es0) {-else-} $
+           liftTCM $ forM es0 $
+             etaContract <=< traverse reduceCon <=< instantiateFull
+           -- 2017-05-16, issue #2403: Argument normalization is too expensive,
+           -- even if we only expand non-recursive functions.
+           -- Argument normalization TURNED OFF.
+           -- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ do
+           --  -- Andreas, 2017-01-13, issue #2403, normalize arguments for the structural ordering.
+           --  -- Andreas, 2017-03-25, issue #2495, restrict this to non-recursive functions
+           --  -- otherwise, the termination checking may run forever.
+           --  reportSLn "term.reduce" 90 $ "normalizing call arguments"
+           --  modifyAllowedReductions (List.\\ [UnconfirmedReductions,RecursiveReductions]) $
+           --    forM es0 $ \ e -> do
+           --      reportSDoc "term.reduce" 95 $ text "normalizing " <+> prettyTCM e
+           --      etaContract =<< normalise e
 
          -- Compute the call matrix.
 
