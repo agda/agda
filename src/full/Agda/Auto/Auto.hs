@@ -168,7 +168,9 @@ auto ii rng argstr = do
              nsol' <- readIORef nsol
              let cond = nsol' <= numsols
              when cond $ do
-               trms <- runExceptT $ mapM (\ (m, _, _, _) -> frommy (Meta m)) $ Map.elems tccons
+               trms <- runExceptT
+                       $ mapM (\ (m , _, _, _) -> convert (Meta m) :: MOT I.Term)
+                       $ Map.elems tccons
                case trms of
                  Left{}     -> writeIORef nsol $! nsol' + 1
                  Right trms -> modifyIORef sols (trms :)

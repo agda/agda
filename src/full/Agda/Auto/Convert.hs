@@ -33,7 +33,7 @@ import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
-import Agda.TypeChecking.Free (freeIn)
+import Agda.TypeChecking.Free as Free (freeIn)
 import Agda.TypeChecking.Errors ( stringTCErr )
 
 import Agda.Interaction.MakeCase (getClauseForIP)
@@ -84,6 +84,7 @@ data S = S {sConsts :: MapS AN.QName (TMode, ConstRef O),
            }
 
 type TOM = StateT S MB.TCM
+type MOT = ExceptT String IO
 
 tomy :: I.MetaId -> [Hint] -> [I.Type] ->
         MB.TCM ([ConstRef O]
@@ -298,13 +299,13 @@ literalsNotImplemented :: MB.TCM a
 literalsNotImplemented = MB.typeError $ MB.NotImplemented $
   "The Agda synthesizer (Agsy) does not support literals yet"
 
-class Conversion a b where
-  convert :: a -> TOM b
+class Conversion m a b where
+  convert :: a -> m b
 
-instance Conversion [I.Clause] [([Pat O], MExp O)] where
+instance Conversion TOM [I.Clause] [([Pat O], MExp O)] where
   convert = fmap catMaybes . mapM convert
 
-instance Conversion I.Clause (Maybe ([Pat O], MExp O)) where
+instance Conversion TOM I.Clause (Maybe ([Pat O], MExp O)) where
   convert cl = do
     let -- Jesper, 2016-07-28:
      -- I can't figure out if this should be the old or new
@@ -320,7 +321,7 @@ instance Conversion I.Clause (Maybe ([Pat O], MExp O)) where
     body' <- traverse convert =<< lift (normalise body)
     return $ (pats',) <$> body'
 
-instance Conversion (Cm.Arg I.Pattern) (Pat O) where
+instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
   convert p = case Cm.unArg p of
     I.VarP n    -> return $ PatVar (show n)
     I.DotP _    -> return $ PatVar "_"
@@ -339,10 +340,10 @@ instance Conversion (Cm.Arg I.Pattern) (Pat O) where
     I.ProjP{}   -> lift copatternsNotImplemented
     I.LitP _    -> lift literalsNotImplemented
 
-instance Conversion I.Type (MExp O) where
+instance Conversion TOM I.Type (MExp O) where
   convert (I.El _ t) = convert t -- sort info is thrown away
 
-instance Conversion I.Term (MExp O) where
+instance Conversion TOM I.Term (MExp O) where
   convert v0 =
     case I.unSpine v0 of
       I.Var v es -> do
@@ -376,7 +377,7 @@ instance Conversion I.Term (MExp O) where
             name = I.absName b
         x' <- convert x
         y' <- convert y
-        return $ NotM $ Pi Nothing (getHiding info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
+        return $ NotM $ Pi Nothing (getHiding info) (Free.freeIn 0 y) x' (Abs (Id name) y')
       I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
       I.Sort _ -> return $ NotM $ Sort UnknownSort
       t@I.MetaV{} -> do
@@ -393,13 +394,13 @@ instance Conversion I.Term (MExp O) where
             m <- getMeta mid
             return $ Meta m
           _ -> convert t
-      I.DontCare _ -> return $ NotM $ dontCare
+      I.DontCare _ -> return $ NotM dontCare
       I.Shared p -> convert $ I.derefPtr p
 
-instance Conversion a b => Conversion (Cm.Arg a) (Hiding, b) where
+instance Conversion TOM a b => Conversion TOM (Cm.Arg a) (Hiding, b) where
   convert (Cm.Arg info a) = (getHiding info,) <$> convert a
 
-instance Conversion I.Args (MM (ArgList O) (RefInfo O)) where
+instance Conversion TOM I.Args (MM (ArgList O) (RefInfo O)) where
   convert as = NotM . foldr (\ (hid,t) -> ALCons hid t . NotM) ALNil
                <$> mapM convert as
 
@@ -454,54 +455,53 @@ icnvh h = Cm.setHiding h' $
 
 -- ---------------------------------------------
 
-frommy :: MExp O -> ExceptT String IO I.Term
-frommy = frommyExp
+instance Conversion MOT a b => Conversion MOT (MM a (RefInfo O)) b where
+  convert meta = case meta of
+    NotM a -> convert a
+    Meta m -> do
+      ma <- lift $ readIORef $ mbind m
+      case ma of
+        Nothing -> throwError "meta not bound"
+        Just a  -> convert a
 
-frommyType :: MExp O -> ExceptT String IO I.Type
-frommyType e = do
- e' <- frommyExp e
- return $ I.El (I.mkType 0) e'  -- 0 is arbitrary, sort not read by Agda when reifying
+instance Conversion MOT a b => Conversion MOT (Abs a) (I.Abs b) where
+  convert (Abs mid t) = I.Abs id <$> convert t where
+    id = case mid of
+           NoId  -> "x"
+           Id id -> id
 
-frommyExp :: MExp O -> ExceptT String IO I.Term
-frommyExp (Meta m) = do
- bind <- lift $ readIORef $ mbind m
- case bind of
-  Nothing -> throwError "meta not bound"
-  Just e -> frommyExp (NotM e)
-frommyExp (NotM e) =
- case e of
-  App _ _ (Var v) as ->
-   frommyExps 0 as (I.Var v [])
-  App _ _ (Const c) as -> do
-   cdef <- lift $ readIORef c
-   let (iscon, name) = cdorigin cdef
+instance Conversion MOT (Exp O) I.Type where
+  convert e = I.El (I.mkType 0) <$> convert e
+              -- 0 is arbitrary, sort not read by Agda when reifying
+
+instance Conversion MOT (Exp O) I.Term where
+  convert e = case e of
+    App _ _ (Var v) as -> frommyExps 0 as (I.Var v [])
+    App _ _ (Const c) as -> do
+      cdef <- lift $ readIORef c
+      let (iscon, name) = cdorigin cdef
 {-
    case iscon of
       Just n -> do
         v <- getConTerm name -- We are not in TCM
         frommyExps n as v
 -}
-       (ndrop, h) = case iscon of
-                      Just n -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive []) Cm.ConOSystem) -- TODO: restore fields
-                      Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
-   frommyExps ndrop as (h name [])
-  Lam hid (Abs mid t) -> do
-   t' <- frommyExp t
-   return $ I.Lam (icnvh hid) (I.Abs (case mid of {NoId -> "x"; Id id -> id}) t')
-  Pi _ hid _ x (Abs mid y) -> do
-   x' <- frommyType x
-   y' <- frommyType y
-   let dom = (Cm.defaultDom x') {domInfo = icnvh hid}
-   return $ I.Pi dom (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
+          (ndrop, h) = case iscon of
+                         Just n -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive []) Cm.ConOSystem) -- TODO: restore fields
+                         Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
+      frommyExps ndrop as (h name [])
+    Lam hid t -> I.Lam (icnvh hid) <$> convert t
+    Pi _ hid _ x y -> do
+      x' <- convert x
+      let dom = (Cm.defaultDom x') {domInfo = icnvh hid}
+      I.Pi dom <$> convert y
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (Cm.Arg (icnvh hid) x') y'
-  Sort (Set l) ->
-   return $ I.Sort (I.mkType (fromIntegral l))
-  Sort Type -> __IMPOSSIBLE__
-  Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
+    Sort (Set l) -> return $ I.Sort (I.mkType (fromIntegral l))
+    Sort Type -> __IMPOSSIBLE__
+    Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping it's thrown away
 
-  AbsurdLambda hid ->
-   return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))
-
+    AbsurdLambda hid -> return $ I.Lam (icnvh hid)
+                               $ I.Abs abslamvarname (I.Var 0 [])
 
 frommyExps :: Nat -> MArgList O -> I.Term -> ExceptT String IO I.Term
 frommyExps ndrop (Meta m) trm = do
@@ -514,7 +514,7 @@ frommyExps ndrop (NotM as) trm =
   ALNil -> return trm
   ALCons _ _ xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALCons hid x xs -> do
-   x' <- frommyExp x
+   x' <- convert x
    frommyExps ndrop xs (addend (Cm.Arg (icnvh hid) x') trm)
 
   -- Andreas, 2013-10-19 TODO: restore postfix projections
@@ -547,7 +547,8 @@ modifyAbstractExpr = f
  where
   f (A.App i e1 (Cm.Arg info (Cm.Named n e2))) =
         A.App i (f e1) (Cm.Arg info (Cm.Named n (f e2)))
-  f (A.Lam i (A.DomainFree info n) _) | show (A.nameConcrete n) == abslamvarname =
+  f (A.Lam i (A.DomainFree info n) _)
+     | show (A.nameConcrete n) == abslamvarname =
         A.AbsurdLam i $ Cm.argInfoHiding info
   f (A.Lam i b e) = A.Lam i b (f e)
   f (A.Rec i xs) = A.Rec i (map (mapLeft (over exprFieldA f)) xs)
@@ -597,7 +598,7 @@ frommyClause (ids, pats, mrhs) = do
      ctel (HI hid (mid, t) : ctx) = do
       let Id id = mid
       tel <- ctel ctx
-      t' <- frommyType t
+      t' <- convert t
       let dom = (Cm.defaultDom t') {domInfo = icnvh hid}
       return $ I.ExtendTel dom (I.Abs id tel)
  tel <- ctel $ reverse ids
@@ -643,7 +644,7 @@ frommyClause (ids, pats, mrhs) = do
         let con = I.ConHead name Cm.Inductive [] -- TODO: restore record fields!
         return (I.ConP con I.noConPatternInfo ps')
        CSPatExp e -> do
-        e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
+        e' <- convert e {- renm e -} -- renaming before adding to clause below
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
@@ -651,7 +652,7 @@ frommyClause (ids, pats, mrhs) = do
  ps <- cnvps 0 pats
  body <- case mrhs of
           Nothing -> return $ Nothing
-          Just e -> Just <$> frommyExp e
+          Just e -> Just <$> convert e
  let cperm =  Perm nv perm
  return $ I.Clause
    { I.clauseLHSRange  = SP.noRange
