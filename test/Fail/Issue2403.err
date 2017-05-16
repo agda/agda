@@ -1,0 +1,6 @@
+Issue2403.agda:9,1-11,30
+Termination checking failed for the following functions:
+  test
+Problematic calls:
+  test (pred (suc n)) (f p)
+    (at Issue2403.agda:11,18-22)
