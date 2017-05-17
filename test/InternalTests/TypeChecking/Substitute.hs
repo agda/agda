@@ -175,7 +175,7 @@ genSub delta = frequency $
   [ (1, (, EmptyS) <$> arbitrary) | delta == Nil ] ++
   [ (1, genCons g t) | g :> t <- [delta] ] ++
   [ (1, genWk delta) ] ++
-  [ (1, genLift delta) | not $ null $ contextVars delta ]
+  [ (1, genLift delta) | cxLen delta > 0 ]
   where
     genCons delta t = do
       (gamma, rho) <- genSub delta
@@ -186,7 +186,7 @@ genSub delta = frequency $
           pure (gamma, v :# rho)
 
     genWk delta = do
-      n            <- choose (1, 3)
+      n            <- choose (0, 3)
       psi          <- cxFromList <$> vectorOf n genBaseTy
       (gamma, rho) <- genSub delta
       pure (gamma <> psi, Wk n rho)
@@ -233,7 +233,7 @@ prop_genSub delta =
 -- | `wkS n rho == Wk n rho`
 prop_wkS :: Cx -> Property
 prop_wkS delta =
-  forAllShrink (choose (1, 3)) shrink $ \ n ->
+  forAllShrink (choose (0, 3)) shrink $ \ n ->
   forAll (genSub_ delta) $ \ rho ->
   eqSub (wkS n rho) (Wk n rho) delta
 
