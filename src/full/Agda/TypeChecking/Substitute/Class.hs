@@ -104,6 +104,11 @@ consS t (Wk m rho)
 consS u rho = seq u (u :# rho)
 
 -- | To replace index @n@ by term @u@, do @applySubst (singletonS n u)@.
+--   @
+--               Γ, Δ ⊢ u : A
+--    ---------------------------------
+--    Γ, Δ ⊢ singletonS |Δ| u : Γ, A, Δ
+--   @
 singletonS :: DeBruijn a => Int -> a -> Substitution' a
 singletonS n u = map deBruijnVar [0..n-1] ++# consS u (raiseS n)
   -- ALT: foldl (\ s i -> deBruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
@@ -112,7 +117,8 @@ singletonS n u = map deBruijnVar [0..n-1] ++# consS u (raiseS n)
 --   @
 --             Γ, A, Δ ⊢ u : A
 --    ---------------------------------
---   @Γ, A, Δ ⊢ inplace |Δ| u : Γ, A, Δ
+--    Γ, A, Δ ⊢ inplace |Δ| u : Γ, A, Δ
+--   @
 inplaceS :: Subst a a => Int -> a -> Substitution' a
 inplaceS k u = singletonS k u `composeS` liftS (k + 1) (raiseS 1)
 
@@ -123,6 +129,11 @@ liftS k IdS          = IdS
 liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
+-- | @
+--         Γ ⊢ ρ : Δ, Ψ
+--      -------------------
+--      Γ ⊢ dropS |Ψ| ρ : Δ
+--   @
 dropS :: Int -> Substitution' a -> Substitution' a
 dropS 0 rho                = rho
 dropS n IdS                = raiseS n
@@ -163,6 +174,11 @@ infixr 4 ++#
 (++#) :: DeBruijn a => [a] -> Substitution' a -> Substitution' a
 us ++# rho = foldr consS rho us
 
+-- | @
+--      Γ ⊢ ρ : Δ  Γ ⊢ reverse vs : Θ
+--      ----------------------------- (treating Nothing as having any type)
+--        Γ ⊢ prependS vs ρ : Δ, Θ
+--   @
 prependS :: DeBruijn a => Empty -> [Maybe a] -> Substitution' a -> Substitution' a
 prependS err us rho = foldr f rho us
   where
