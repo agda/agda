@@ -88,17 +88,17 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=MAIN GHC_VER=7.6.3 BUILD=CABAL CABAL_VER=1.18
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.18
-            - ghc-7.6.3
-            - happy-1.19.5
-            - texlive-binaries
-          sources:
-            - hvr-ghc
+    # - env: TEST=MAIN GHC_VER=7.6.3 BUILD=CABAL CABAL_VER=1.18
+    #   addons:
+    #     apt:
+    #       packages:
+    #         - alex-3.1.7
+    #         - cabal-install-1.18
+    #         - ghc-7.6.3
+    #         - happy-1.19.5
+    #         - texlive-binaries
+    #       sources:
+    #         - hvr-ghc
 
     - env: TEST=STACKAGE_CPP_AND_DEBUG GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
       addons:
