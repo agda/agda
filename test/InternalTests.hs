@@ -35,6 +35,7 @@ import InternalTests.TypeChecking.Positivity                  as Positivity   ( 
 import InternalTests.TypeChecking.Positivity.Occurrence       as Occurrence   ( tests )
 import InternalTests.TypeChecking.Rules.LHS.Problem           as LHSProblem   ( tests )
 import InternalTests.TypeChecking.SizedTypes                  as SizedTypes   ( tests )
+import InternalTests.TypeChecking.Substitute                  as Substitute   ( tests )
 import InternalTests.Utils.Bag                                as UtilBag      ( tests )
 import InternalTests.Utils.BiMap                              as UtilBiMap    ( tests )
 import InternalTests.Utils.Cluster                            as UtilClust    ( tests )
@@ -66,6 +67,7 @@ runAllTests = runTests "QuickCheck test suite:"
   , IntePrec.tests
   , InteRang.tests
   , InteOpti.tests
+  , Substitute.tests
   , SyntPars.tests
   , SyntPosi.tests
   , TermCall.tests
