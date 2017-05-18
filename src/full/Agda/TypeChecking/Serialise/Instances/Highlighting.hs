@@ -9,22 +9,22 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common ()
 
 instance EmbPrj HR.Range where
-  icod_ (HR.Range a b) = icode2' a b
+  icod_ (HR.Range a b) = icodeN' HR.Range a b
 
   value = value2 HR.Range
 
 instance EmbPrj HP.NameKind where
-  icod_ HP.Bound           = icode0'
-  icod_ (HP.Constructor a) = icode1 1 a
-  icod_ HP.Datatype        = icode0 2
-  icod_ HP.Field           = icode0 3
-  icod_ HP.Function        = icode0 4
-  icod_ HP.Module          = icode0 5
-  icod_ HP.Postulate       = icode0 6
-  icod_ HP.Primitive       = icode0 7
-  icod_ HP.Record          = icode0 8
-  icod_ HP.Argument        = icode0 9
-  icod_ HP.Macro           = icode0 10
+  icod_ HP.Bound           = icodeN' HP.Bound
+  icod_ (HP.Constructor a) = icodeN 1 HP.Constructor a
+  icod_ HP.Datatype        = icodeN 2 ()
+  icod_ HP.Field           = icodeN 3 ()
+  icod_ HP.Function        = icodeN 4 ()
+  icod_ HP.Module          = icodeN 5 ()
+  icod_ HP.Postulate       = icodeN 6 ()
+  icod_ HP.Primitive       = icodeN 7 ()
+  icod_ HP.Record          = icodeN 8 ()
+  icod_ HP.Argument        = icodeN 9 ()
+  icod_ HP.Macro           = icodeN 10 ()
 
   value = vcase valu where
     valu []      = valuN HP.Bound
@@ -41,14 +41,14 @@ instance EmbPrj HP.NameKind where
     valu _       = malformed
 
 instance EmbPrj HP.Aspect where
-  icod_ HP.Comment       = icode0 0
-  icod_ HP.Option        = icode0 1
-  icod_ HP.Keyword       = icode0 2
-  icod_ HP.String        = icode0 3
-  icod_ HP.Number        = icode0 4
-  icod_ HP.Symbol        = icode0'
-  icod_ HP.PrimitiveType = icode0 6
-  icod_ (HP.Name mk b)   = icode2 7 mk b
+  icod_ HP.Comment       = icodeN 0 ()
+  icod_ HP.Option        = icodeN 1 ()
+  icod_ HP.Keyword       = icodeN 2 ()
+  icod_ HP.String        = icodeN 3 ()
+  icod_ HP.Number        = icodeN 4 ()
+  icod_ HP.Symbol        = icodeN' HP.Symbol
+  icod_ HP.PrimitiveType = icodeN 6 ()
+  icod_ (HP.Name mk b)   = icodeN 7 HP.Name mk b
 
   value = vcase valu where
     valu [0]        = valuN HP.Comment
@@ -62,17 +62,17 @@ instance EmbPrj HP.Aspect where
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
-  icod_ HP.Error               = icode0 0
-  icod_ HP.DottedPattern       = icode0'
-  icod_ HP.UnsolvedMeta        = icode0 2
-  icod_ HP.TerminationProblem  = icode0 3
-  icod_ HP.IncompletePattern   = icode0 4
-  icod_ HP.TypeChecks          = icode0 5
-  icod_ HP.UnsolvedConstraint  = icode0 6
-  icod_ HP.PositivityProblem   = icode0 7
-  icod_ HP.ReachabilityProblem = icode0 8
-  icod_ HP.CoverageProblem     = icode0 9
-  icod_ HP.CatchallClause      = icode0 10
+  icod_ HP.Error               = icodeN 0 ()
+  icod_ HP.DottedPattern       = icodeN' HP.DottedPattern
+  icod_ HP.UnsolvedMeta        = icodeN 2 ()
+  icod_ HP.TerminationProblem  = icodeN 3 ()
+  icod_ HP.IncompletePattern   = icodeN 4 ()
+  icod_ HP.TypeChecks          = icodeN 5 ()
+  icod_ HP.UnsolvedConstraint  = icodeN 6 ()
+  icod_ HP.PositivityProblem   = icodeN 7 ()
+  icod_ HP.ReachabilityProblem = icodeN 8 ()
+  icod_ HP.CoverageProblem     = icodeN 9 ()
+  icod_ HP.CatchallClause      = icodeN 10 ()
 
   value = vcase valu where
     valu [0] = valuN HP.Error
@@ -89,11 +89,11 @@ instance EmbPrj HP.OtherAspect where
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
-  icod_ (HP.Aspects a b c d) = icode4' a b c d
+  icod_ (HP.Aspects a b c d) = icodeN' HP.Aspects a b c d
 
   value = value4 HP.Aspects
 
 instance EmbPrj HP.CompressedFile where
-  icod_ (HP.CompressedFile f) = icode1' f
+  icod_ (HP.CompressedFile f) = icodeN' HP.CompressedFile f
 
   value = value1 HP.CompressedFile

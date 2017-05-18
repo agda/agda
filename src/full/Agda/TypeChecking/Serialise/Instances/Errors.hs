@@ -14,6 +14,7 @@ import Agda.TypeChecking.Serialise.Instances.Internal ()
 import Agda.TypeChecking.Serialise.Instances.Abstract ()
 
 import Agda.Syntax.Common
+import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Termination.CutOff
@@ -28,25 +29,25 @@ import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
 instance EmbPrj TCWarning where
-  icod_ (TCWarning a b c) = icode3' a b c
+  icod_ (TCWarning a b c) = icodeN' TCWarning a b c
 
   value = value3 TCWarning
 
 -- We don't need to serialise warnings that turn into errors
 instance EmbPrj Warning where
   icod_ (TerminationIssue a)         = __IMPOSSIBLE__
-  icod_ (UnreachableClauses a b)     = icode2 0  a b
+  icod_ (UnreachableClauses a b)     = icodeN 0 UnreachableClauses a b
   icod_ (CoverageIssue a b)          = __IMPOSSIBLE__
   icod_ (CoverageNoExactSplit a b)   = __IMPOSSIBLE__
   icod_ (NotStrictlyPositive a b)    = __IMPOSSIBLE__
   icod_ (UnsolvedMetaVariables a)    = __IMPOSSIBLE__
   icod_ (UnsolvedInteractionMetas a) = __IMPOSSIBLE__
   icod_ (UnsolvedConstraints a)      = __IMPOSSIBLE__
-  icod_ (OldBuiltin a b)             = icode1 1  a
-  icod_ EmptyRewritePragma           = icode0 2
-  icod_ UselessPublic                = icode0 3
-  icod_ (UselessInline a)            = icode1 4 a
-  icod_ (GenericWarning a)           = icode1 5 a
+  icod_ (OldBuiltin a b)             = icodeN 1 OldBuiltin a b
+  icod_ EmptyRewritePragma           = icodeN 2 EmptyRewritePragma
+  icod_ UselessPublic                = icodeN 3 UselessPublic
+  icod_ (UselessInline a)            = icodeN 4 UselessInline a
+  icod_ (GenericWarning a)           = icodeN 5 GenericWarning a
   icod_ (GenericNonFatalError a)     = __IMPOSSIBLE__
   icod_ (SafeFlagPostulate a)        = __IMPOSSIBLE__
   icod_ (SafeFlagPragma a)           = __IMPOSSIBLE__
@@ -56,7 +57,7 @@ instance EmbPrj Warning where
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
-  icod_ (DeprecationWarning a b c)   = icode3 6 a b c
+  icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
 
   value = vcase valu where
       valu [0, a, b]     = valuN UnreachableClauses a b
@@ -69,12 +70,12 @@ instance EmbPrj Warning where
       valu _             = malformed
 
 instance EmbPrj Doc where
-  icod_ d = icode1' (render d)
+  icod_ d = icodeN' (undefined :: String -> Doc) (render d)
 
   value = value1 text
 
 instance EmbPrj a => EmbPrj (Closure a) where
-  icod_ (Closure a b c d e) = icode5' a b c d e
+  icod_ (Closure a b c d e) = icodeN' Closure a b c d e
 
   value = value5 Closure
 
@@ -84,7 +85,8 @@ instance EmbPrj a => EmbPrj (Closure a) where
 -- NOTE: If needed for other things, this might need to be changed!
 
 instance EmbPrj TCEnv where
-  icod_ TCEnv{..} = icode2' envCurrentModule (SerialisedRange envRange)
+  icod_ TCEnv{..} = icodeN' (undefined :: ModuleName -> SerialisedRange -> TCEnv)
+                            envCurrentModule (SerialisedRange envRange)
 
   value = value2 $ \ a c -> initEnv
                  { envCurrentModule = a
@@ -93,7 +95,11 @@ instance EmbPrj TCEnv where
                  }
 
 instance EmbPrj TCState where
-  icod_ st = icode8' (st ^. stImports)
+  icod_ st = icodeN' (undefined :: Signature -> ModuleToSource -> PragmaOptions
+                                -> BuiltinThings PrimFun -> MetaStore
+                                -> InteractionPoints -> Signature
+                                -> BuiltinThings PrimFun -> TCState)
+                     (st ^. stImports)
                      (st ^. stModuleToSource)
                      (st ^. stPragmaOptions)
                      (st ^. stImportedBuiltins)
@@ -114,25 +120,26 @@ instance EmbPrj TCState where
                      initState)
 
 instance EmbPrj InteractionId where
-  icod_ (InteractionId a) = icode1' a
+  icod_ (InteractionId a) = icodeN' InteractionId a
 
   value = value1 InteractionId
 
 instance EmbPrj PragmaOptions where
   -- TODO: only keep the options needed for displaying the warnings
-  icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y) = icode25' a b c d e f g h i j k l m n o p q r s t u v w x y
+  icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y
 
   value = value25 PragmaOptions
 
 instance EmbPrj PrimFun where
   -- don't need implementation for the warnings
-  icod_ (PrimFun a b _)= icode2' a b
+  icod_ (PrimFun a b r)= icodeN' (\ a b -> PrimFun a b r) a b
 
   value = value2 (\ a b -> PrimFun a b __IMPOSSIBLE__)
 
 instance EmbPrj CutOff where
-  icod_ (CutOff a) = icode1 0 a
-  icod_ DontCutOff = icode0 1
+  icod_ (CutOff a) = icodeN 0 CutOff a
+  icod_ DontCutOff = icodeN 1 DontCutOff
 
   value = vcase valu where
     valu [0, a] = valuN CutOff a
@@ -140,14 +147,14 @@ instance EmbPrj CutOff where
     valu _         = malformed
 
 instance EmbPrj MetaVariable where
-  icod_ (MetaVar a b c d _ _ _) = icode4' a b c d
+  icod_ (MetaVar a b c d r s t) = icodeN' (\ a b c d -> MetaVar a b c d r s t) a b c d
 
   value = value4 $ \ a b c d ->
           MetaVar a b c d __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
 
 instance EmbPrj a => EmbPrj (Judgement a) where
-  icod_ (HasType a b) = icode2 0 a b
-  icod_ (IsSort a b)  = icode2 1 a b
+  icod_ (HasType a b) = icodeN 0 HasType a b
+  icod_ (IsSort a b)  = icodeN 1 IsSort a b
 
   value = vcase valu where
     valu [0, a, b] = valuN HasType a b
@@ -155,18 +162,18 @@ instance EmbPrj a => EmbPrj (Judgement a) where
     valu _         = malformed
 
 instance EmbPrj MetaPriority where
-  icod_ (MetaPriority a) = icode1' a
+  icod_ (MetaPriority a) = icodeN' MetaPriority a
 
   value = value1 MetaPriority
 
 instance EmbPrj MetaInfo where
-  icod_ (MetaInfo a b c) = icode3' a b c
+  icod_ (MetaInfo a b c) = icodeN' MetaInfo a b c
 
   value = value3 MetaInfo
 
 instance EmbPrj RunMetaOccursCheck where
-  icod_ RunMetaOccursCheck = icode0 0
-  icod_ DontRunMetaOccursCheck = icode0 1
+  icod_ RunMetaOccursCheck     = icodeN 0 RunMetaOccursCheck
+  icod_ DontRunMetaOccursCheck = icodeN 1 DontRunMetaOccursCheck
 
   value = vcase valu where
     valu [0] = valuN RunMetaOccursCheck
@@ -174,12 +181,12 @@ instance EmbPrj RunMetaOccursCheck where
     valu _   = malformed
 
 instance EmbPrj InteractionPoint where
-  icod_ (InteractionPoint a b c _) = icode3' a b c
+  icod_ (InteractionPoint a b c r) = icodeN' (\ a b c -> InteractionPoint a b c r) a b c
 
   value = value3 (\ a b c -> InteractionPoint a b c __IMPOSSIBLE__)
 
 instance EmbPrj ModuleParameters where
-  icod_ (ModuleParams a) = icode1' a
+  icod_ (ModuleParams a) = icodeN' ModuleParams a
 
   value = value1 ModuleParams
 
