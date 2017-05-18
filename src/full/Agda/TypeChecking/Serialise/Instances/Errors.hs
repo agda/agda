@@ -2,6 +2,10 @@
 {-# LANGUAGE CPP                      #-}
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
 
+#if __GLASGOW_HASKELL__ <= 708
+{-# OPTIONS_GHC -fcontext-stack=30 #-}
+#endif
+
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
 #if __GLASGOW_HASKELL__ <= 708

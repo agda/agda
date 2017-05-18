@@ -61,7 +61,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20170515 * 10 + 0
+currentInterfaceVersion = 20170518 * 10 + 0
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.

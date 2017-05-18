@@ -140,18 +140,18 @@ instance EmbPrj LevelAtom where
     valu _      = malformed
 
 instance EmbPrj I.Sort where
-  icod_ (Type  a  ) = icodeN' Type a
-  icod_ Prop        = icodeN 1 Prop
-  icod_ SizeUniv    = icodeN 3 SizeUniv
-  icod_ Inf         = icodeN 4 Inf
-  icod_ (DLub a b)  = icodeN 2 DLub a b -- Andreas, 2017-01-18: not __IMPOSSIBLE__ see #2408
+  icod_ (Type  a  ) = icodeN 0 Type a
+  icod_ Prop        = icodeN' Prop
+  icod_ SizeUniv    = icodeN 1 SizeUniv
+  icod_ Inf         = icodeN 2 Inf
+  icod_ (DLub a b)  = icodeN 3 DLub a b -- Andreas, 2017-01-18: not __IMPOSSIBLE__ see #2408
 
   value = vcase valu where
-    valu [a]    = valuN Type  a
-    valu [1, _] = valuN Prop
-    valu [3, _] = valuN SizeUniv
-    valu [4, _] = valuN Inf
-    valu [2, a, b] = valuN DLub a b
+    valu []        = valuN Prop
+    valu [0, a]    = valuN Type  a
+    valu [1]       = valuN SizeUniv
+    valu [2]       = valuN Inf
+    valu [3, a, b] = valuN DLub a b
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
