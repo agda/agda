@@ -28,7 +28,7 @@ import Agda.Utils.Impossible
 instance EmbPrj Scope where
   icod_ (Scope a b c d e) = icodeN' Scope a b c d e
 
-  value = value5 Scope
+  value = valueN Scope
 
 instance EmbPrj NameSpaceId where
   icod_ PublicNS        = icodeN' PublicNS
@@ -59,7 +59,7 @@ instance EmbPrj Access where
 instance EmbPrj NameSpace where
   icod_ (NameSpace a b c) = icodeN' NameSpace a b c
 
-  value = value3 NameSpace
+  value = valueN NameSpace
 
 instance EmbPrj WhyInScope where
   icod_ Defined       = icodeN' Defined
@@ -75,12 +75,12 @@ instance EmbPrj WhyInScope where
 instance EmbPrj AbstractName where
   icod_ (AbsName a b c) = icodeN' AbsName a b c
 
-  value = value3 AbsName
+  value = valueN AbsName
 
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icodeN' AbsModule a b
 
-  value = value2 AbsModule
+  value = valueN AbsModule
 
 instance EmbPrj KindOfName where
   icod_ DefName        = icodeN' DefName
@@ -102,7 +102,7 @@ instance EmbPrj KindOfName where
 instance EmbPrj LocalVar where
   icod_ (LocalVar a b c)  = icodeN' LocalVar a b c
 
-  value = value3 LocalVar
+  value = valueN LocalVar
 
 instance EmbPrj ConPatInfo where
   icod_ (ConPatInfo a _) = icod_ a
@@ -167,4 +167,4 @@ instance EmbPrj Precedence where
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d e f g) = icodeN' (\ a b c d -> ScopeInfo a b c d e f g) a b c d
 
-  value = value4 (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty)
+  value = valueN (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty)

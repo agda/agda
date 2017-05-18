@@ -35,7 +35,7 @@ import Agda.Utils.Impossible
 instance EmbPrj TCWarning where
   icod_ (TCWarning a b c) = icodeN' TCWarning a b c
 
-  value = value3 TCWarning
+  value = valueN TCWarning
 
 -- We don't need to serialise warnings that turn into errors
 instance EmbPrj Warning where
@@ -76,12 +76,12 @@ instance EmbPrj Warning where
 instance EmbPrj Doc where
   icod_ d = icodeN' (undefined :: String -> Doc) (render d)
 
-  value = value1 text
+  value = valueN text
 
 instance EmbPrj a => EmbPrj (Closure a) where
   icod_ (Closure a b c d e) = icodeN' Closure a b c d e
 
-  value = value5 Closure
+  value = valueN Closure
 
 
 -- We are only serialising the parts of the environment and the state
@@ -92,7 +92,7 @@ instance EmbPrj TCEnv where
   icod_ TCEnv{..} = icodeN' (undefined :: ModuleName -> SerialisedRange -> TCEnv)
                             envCurrentModule (SerialisedRange envRange)
 
-  value = value2 $ \ a c -> initEnv
+  value = valueN $ \ a c -> initEnv
                  { envCurrentModule = a
                  , envRange = underlyingRange c
                  , envCall = Nothing
@@ -112,7 +112,7 @@ instance EmbPrj TCState where
                      (st ^. stSignature)
                      (st ^. stLocalBuiltins)
 
-  value = value8 (\ a b c d e f g h ->
+  value = valueN (\ a b c d e f g h ->
                      set stImports           a $
                      set stModuleToSource    b $
                      set stPragmaOptions     c $
@@ -126,20 +126,20 @@ instance EmbPrj TCState where
 instance EmbPrj InteractionId where
   icod_ (InteractionId a) = icodeN' InteractionId a
 
-  value = value1 InteractionId
+  value = valueN InteractionId
 
 instance EmbPrj PragmaOptions where
   -- TODO: only keep the options needed for displaying the warnings
   icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z) =
     icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z
 
-  value = value26 PragmaOptions
+  value = valueN PragmaOptions
 
 instance EmbPrj PrimFun where
   -- don't need implementation for the warnings
   icod_ (PrimFun a b r)= icodeN' (\ a b -> PrimFun a b r) a b
 
-  value = value2 (\ a b -> PrimFun a b __IMPOSSIBLE__)
+  value = valueN (\ a b -> PrimFun a b __IMPOSSIBLE__)
 
 instance EmbPrj CutOff where
   icod_ (CutOff a) = icodeN 0 CutOff a
@@ -148,12 +148,12 @@ instance EmbPrj CutOff where
   value = vcase valu where
     valu [0, a] = valuN CutOff a
     valu [1]    = valuN DontCutOff
-    valu _         = malformed
+    valu _      = malformed
 
 instance EmbPrj MetaVariable where
   icod_ (MetaVar a b c d r s t) = icodeN' (\ a b c d -> MetaVar a b c d r s t) a b c d
 
-  value = value4 $ \ a b c d ->
+  value = valueN $ \ a b c d ->
           MetaVar a b c d __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
 
 instance EmbPrj a => EmbPrj (Judgement a) where
@@ -168,12 +168,12 @@ instance EmbPrj a => EmbPrj (Judgement a) where
 instance EmbPrj MetaPriority where
   icod_ (MetaPriority a) = icodeN' MetaPriority a
 
-  value = value1 MetaPriority
+  value = valueN MetaPriority
 
 instance EmbPrj MetaInfo where
   icod_ (MetaInfo a b c) = icodeN' MetaInfo a b c
 
-  value = value3 MetaInfo
+  value = valueN MetaInfo
 
 instance EmbPrj RunMetaOccursCheck where
   icod_ RunMetaOccursCheck     = icodeN 0 RunMetaOccursCheck
@@ -187,10 +187,10 @@ instance EmbPrj RunMetaOccursCheck where
 instance EmbPrj InteractionPoint where
   icod_ (InteractionPoint a b c r) = icodeN' (\ a b c -> InteractionPoint a b c r) a b c
 
-  value = value3 (\ a b c -> InteractionPoint a b c __IMPOSSIBLE__)
+  value = valueN (\ a b c -> InteractionPoint a b c __IMPOSSIBLE__)
 
 instance EmbPrj ModuleParameters where
   icod_ (ModuleParams a) = icodeN' ModuleParams a
 
-  value = value1 ModuleParams
+  value = valueN ModuleParams
 
