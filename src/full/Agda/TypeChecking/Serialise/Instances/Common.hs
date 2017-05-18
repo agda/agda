@@ -84,7 +84,7 @@ instance EmbPrj Integer where
   value i = (! i) `fmap` gets integerE
 
 instance EmbPrj Word64 where
-  icod_ i = icode2' (int32 q) (int32 r)
+  icod_ i = icodeN' (undefined :: Int32 -> Int32 -> Int32) (int32 q) (int32 r)
     where (q, r) = quotRem i (2^32)
           int32 :: Word64 -> Int32
           int32 = fromIntegral
@@ -115,25 +115,25 @@ instance EmbPrj Void where
   value = vcase valu where valu _ = malformed
 
 instance EmbPrj () where
-  icod_ () = icode0'
+  icod_ () = icodeN' ()
 
   value = vcase valu where
     valu [] = valuN ()
     valu _  = malformed
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
-  icod_ (a, b) = icode2' a b
+  icod_ (a, b) = icodeN' (,) a b
 
   value = value2 (,)
 
 instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
-  icod_ (a, b, c) = icode3' a b c
+  icod_ (a, b, c) = icodeN' (,,) a b c
 
   value = value3 (,,)
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (Either a b) where
-  icod_ (Left  x) = icode1 0 x
-  icod_ (Right x) = icode1 1 x
+  icod_ (Left  x) = icodeN 0 Left x
+  icod_ (Right x) = icodeN 1 Right x
 
   value = vcase valu where
     valu [0, x] = valuN Left  x
@@ -141,8 +141,8 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (Either a b) where
     valu _   = malformed
 
 instance EmbPrj a => EmbPrj (Maybe a) where
-  icod_ Nothing  = icode0'
-  icod_ (Just x) = icode1' x
+  icod_ Nothing  = icodeN' Nothing
+  icod_ (Just x) = icodeN' Just x
 
   value = vcase valu where
     valu []  = valuN Nothing
@@ -154,8 +154,8 @@ instance EmbPrj a => EmbPrj (Strict.Maybe a) where
   value m = Strict.toStrict `fmap` value m
 
 instance EmbPrj Bool where
-  icod_ True  = icode0'
-  icod_ False = icode0 0
+  icod_ True  = icodeN' True
+  icod_ False = icodeN 0 False
 
   value = vcase valu where
     valu []  = valuN True
@@ -179,12 +179,12 @@ instance EmbPrj AbsolutePath where
       Right f  -> return f
 
 instance EmbPrj a => EmbPrj (Position' a) where
-  icod_ (P.Pn file pos line col) = icode4' file pos line col
+  icod_ (P.Pn file pos line col) = icodeN' P.Pn file pos line col
 
   value = value4 P.Pn
 
 instance EmbPrj TopLevelModuleName where
-  icod_ (TopLevelModuleName a b) = icode2' a b
+  icod_ (TopLevelModuleName a b) = icodeN' TopLevelModuleName a b
 
   value = value2 TopLevelModuleName
 
@@ -193,7 +193,7 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 #else
 instance EmbPrj a => EmbPrj [a] where
 #endif
-  icod_ xs = icodeN =<< mapM icode xs
+  icod_ xs = icodeNode =<< mapM icode xs
   value    = vcase (mapM value)
 --   icode []       = icode0'
 --   icode (x : xs) = icode2' x xs
@@ -214,7 +214,7 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   value s = Set.fromList `fmap` value s
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
-  icod_ (Trie a b)= icode2' a b
+  icod_ (Trie a b)= icodeN' Trie a b
 
   value = value2 Trie
 
@@ -223,14 +223,14 @@ instance EmbPrj a => EmbPrj (Seq a) where
   value s = Seq.fromList `fmap` value s
 
 instance EmbPrj a => EmbPrj (P.Interval' a) where
-  icod_ (P.Interval p q) = icode2' p q
+  icod_ (P.Interval p q) = icodeN' P.Interval p q
 
   value = value2 P.Interval
 
 -- | Ranges are always deserialised as 'noRange'.
 
 instance EmbPrj Range where
-  icod_ _ = icode0'
+  icod_ _ = icodeN' ()
   value _ = return noRange
 
 -- | Ranges that should be serialised properly.
@@ -242,15 +242,16 @@ newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
 
 instance EmbPrj SerialisedRange where
   icod_ (SerialisedRange r) =
-    icode2' (P.rangeFile r) (P.rangeIntervals r)
+    icodeN' (undefined :: SrcFile -> [IntervalWithoutFile] -> SerialisedRange)
+            (P.rangeFile r) (P.rangeIntervals r)
 
   value = vcase valu where
     valu [a, b] = SerialisedRange <$> valuN P.intervalsToRange a b
     valu _      = malformed
 
 instance EmbPrj C.Name where
-  icod_ (C.NoName a b) = icode2 0 a b
-  icod_ (C.Name r xs)  = icode2' r xs
+  icod_ (C.NoName a b) = icodeN 0 C.NoName a b
+  icod_ (C.Name r xs)  = icodeN' C.Name r xs
 
   value = vcase valu where
     valu [0, a, b] = valuN C.NoName a b
@@ -258,8 +259,8 @@ instance EmbPrj C.Name where
     valu _         = malformed
 
 instance EmbPrj NamePart where
-  icod_ Hole   = icode0'
-  icod_ (Id a) = icode1' a
+  icod_ Hole   = icodeN' Hole
+  icod_ (Id a) = icodeN' Id a
 
   value = vcase valu where
     valu []  = valuN Hole
@@ -267,8 +268,8 @@ instance EmbPrj NamePart where
     valu _   = malformed
 
 instance EmbPrj C.QName where
-  icod_ (Qual    a b) = icode2' a b
-  icod_ (C.QName a  ) = icode1' a
+  icod_ (Qual    a b) = icodeN' Qual a b
+  icod_ (C.QName a  ) = icodeN' C.QName a
 
   value = vcase valu where
     valu [a, b] = valuN Qual    a b
@@ -276,9 +277,9 @@ instance EmbPrj C.QName where
     valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Associativity where
-  icod_ LeftAssoc  = icode0'
-  icod_ RightAssoc = icode0 1
-  icod_ NonAssoc   = icode0 2
+  icod_ LeftAssoc  = icodeN' LeftAssoc
+  icod_ RightAssoc = icodeN 1 RightAssoc
+  icod_ NonAssoc   = icodeN 2 NonAssoc
 
   value = vcase valu where
     valu []  = valuN LeftAssoc
@@ -287,8 +288,8 @@ instance EmbPrj Agda.Syntax.Fixity.Associativity where
     valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
-  icod_ Unrelated   = icode0'
-  icod_ (Related a) = icode1' a
+  icod_ Unrelated   = icodeN' Unrelated
+  icod_ (Related a) = icodeN' Related a
 
   value = vcase valu where
     valu []  = valuN Unrelated
@@ -296,20 +297,20 @@ instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
     valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
-  icod_ (Fixity a b c) = icode3' a b c
+  icod_ (Fixity a b c) = icodeN' Fixity a b c
 
   value = value3 Fixity
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity' where
-  icod_ (Fixity' a b _) = icode2' a b  -- discard theNameRange
+  icod_ (Fixity' a b r) = icodeN' (\ a b -> Fixity' a b r) a b  -- discard theNameRange
 
   value = value2 (\ f n -> Fixity' f n noRange)
 
 instance EmbPrj GenPart where
-  icod_ (BindHole a)   = icode1 0 a
-  icod_ (NormalHole a) = icode1 1 a
-  icod_ (WildHole a)   = icode1 2 a
-  icod_ (IdPart a)     = icode1' a
+  icod_ (BindHole a)   = icodeN 0 BindHole a
+  icod_ (NormalHole a) = icodeN 1 NormalHole a
+  icod_ (WildHole a)   = icodeN 2 WildHole a
+  icod_ (IdPart a)     = icodeN' IdPart a
 
   value = vcase valu where
     valu [0, a] = valuN BindHole a
@@ -323,7 +324,7 @@ instance EmbPrj MetaId where
   value i = MetaId <$> value i
 
 instance EmbPrj A.QName where
-  icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icode2' a b
+  icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b
 
   value = value2 A.QName
 
@@ -337,32 +338,32 @@ instance EmbPrj A.ModuleName where
 
 instance EmbPrj A.Name where
   icod_ (A.Name a b c d) = icodeMemo nameD nameC a $
-    icode4' a b (SerialisedRange c) d
+    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d
 
   value = value4 (\a b c -> A.Name a b (underlyingRange c))
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
-  icod_ (C.FieldAssignment a b) = icode2' a b
+  icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b
 
   value = value2 C.FieldAssignment
 
 instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
-  icod_ (Named a b) = icode2' a b
+  icod_ (Named a b) = icodeN' Named a b
 
   value = value2 Named
 
 instance EmbPrj a => EmbPrj (Ranged a) where
-  icod_ (Ranged r x) = icode2' r x
+  icod_ (Ranged r x) = icodeN' Ranged r x
 
   value = value2 Ranged
 
 instance EmbPrj ArgInfo where
-  icod_ (ArgInfo h r o v) = icode4' h r o v
+  icod_ (ArgInfo h r o v) = icodeN' ArgInfo h r o v
 
   value = value4 ArgInfo
 
 instance EmbPrj NameId where
-  icod_ (NameId a b) = icode2' a b
+  icod_ (NameId a b) = icodeN' NameId a b
 
   value = value2 NameId
 
@@ -371,23 +372,23 @@ instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
   value m = HMap.fromList `fmap` value m
 
 instance EmbPrj a => EmbPrj (WithHiding a) where
-  icod_ (WithHiding a b) = icode2' a b
+  icod_ (WithHiding a b) = icodeN' WithHiding a b
 
   value = value2 WithHiding
 
 instance EmbPrj a => EmbPrj (Arg a) where
-  icod_ (Arg i e) = icode2' i e
+  icod_ (Arg i e) = icodeN' Arg i e
 
   value = value2 Arg
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom i b e) = icode3' i b e
+  icod_ (Dom i b e) = icodeN' Dom i b e
 
   value = value3 Dom
 
 instance EmbPrj Induction where
-  icod_ Inductive   = icode0'
-  icod_ CoInductive = icode0 1
+  icod_ Inductive   = icodeN' Inductive
+  icod_ CoInductive = icodeN 1 CoInductive
 
   value = vcase valu where
     valu []  = valuN Inductive
@@ -449,12 +450,12 @@ instance EmbPrj ProjOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitNat    a b)   = icode2' a b
-  icod_ (LitFloat  a b)   = icode2 1 a b
-  icod_ (LitString a b)   = icode2 2 a b
-  icod_ (LitChar   a b)   = icode2 3 a b
-  icod_ (LitQName  a b)   = icode2 5 a b
-  icod_ (LitMeta   a b c) = icode3 6 a b c
+  icod_ (LitNat    a b)   = icodeN' LitNat a b
+  icod_ (LitFloat  a b)   = icodeN 1 LitFloat a b
+  icod_ (LitString a b)   = icodeN 2 LitString a b
+  icod_ (LitChar   a b)   = icodeN 3 LitChar a b
+  icod_ (LitQName  a b)   = icodeN 5 LitQName a b
+  icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
 
   value = vcase valu where
     valu [a, b]       = valuN LitNat    a b
@@ -466,8 +467,8 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
     valu _            = malformed
 
 instance EmbPrj IsAbstract where
-  icod_ AbstractDef = icode0 0
-  icod_ ConcreteDef = icode0'
+  icod_ AbstractDef = icodeN 0 AbstractDef
+  icod_ ConcreteDef = icodeN' ConcreteDef
 
   value = vcase valu where
     valu [0] = valuN AbstractDef
@@ -475,8 +476,8 @@ instance EmbPrj IsAbstract where
     valu _   = malformed
 
 instance EmbPrj Delayed where
-  icod_ Delayed    = icode0 0
-  icod_ NotDelayed = icode0'
+  icod_ Delayed    = icodeN 0 Delayed
+  icod_ NotDelayed = icodeN' NotDelayed
 
   value = vcase valu where
     valu [0] = valuN Delayed
@@ -484,8 +485,8 @@ instance EmbPrj Delayed where
     valu _   = malformed
 
 instance EmbPrj Impossible where
-  icod_ (Impossible a b)  = icode2 0 a b
-  icod_ (Unreachable a b) = icode2 1 a b
+  icod_ (Impossible a b)  = icodeN 0 Impossible a b
+  icod_ (Unreachable a b) = icodeN 1 Unreachable a b
 
   value = vcase valu where
     valu [0, a, b] = valuN Impossible  a b

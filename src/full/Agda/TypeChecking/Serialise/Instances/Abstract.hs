@@ -26,15 +26,15 @@ import Agda.Utils.Except
 import Agda.Utils.Impossible
 
 instance EmbPrj Scope where
-  icod_ (Scope a b c d e) = icode5' a b c d e
+  icod_ (Scope a b c d e) = icodeN' Scope a b c d e
 
   value = value5 Scope
 
 instance EmbPrj NameSpaceId where
-  icod_ PublicNS        = icode0'
-  icod_ PrivateNS       = icode0 1
-  icod_ ImportedNS      = icode0 2
-  icod_ OnlyQualifiedNS = icode0 3
+  icod_ PublicNS        = icodeN' PublicNS
+  icod_ PrivateNS       = icodeN 1 PrivateNS
+  icod_ ImportedNS      = icodeN 2 ImportedNS
+  icod_ OnlyQualifiedNS = icodeN 3 OnlyQualifiedNS
 
   value = vcase valu where
     valu []  = valuN PublicNS
@@ -44,10 +44,10 @@ instance EmbPrj NameSpaceId where
     valu _   = malformed
 
 instance EmbPrj Access where
-  icod_ (PrivateAccess UserWritten) = icode0 0
-  icod_ PrivateAccess{} = icode0 1
-  icod_ PublicAccess  = icode0'
-  icod_ OnlyQualified = icode0 2
+  icod_ (PrivateAccess UserWritten) = icodeN 0 ()
+  icod_ PrivateAccess{}             = icodeN 1 ()
+  icod_ PublicAccess                = icodeN' PublicAccess
+  icod_ OnlyQualified               = icodeN 2 ()
 
   value = vcase valu where
     valu [0] = valuN $ PrivateAccess UserWritten
@@ -57,14 +57,14 @@ instance EmbPrj Access where
     valu _   = malformed
 
 instance EmbPrj NameSpace where
-  icod_ (NameSpace a b c) = icode3' a b c
+  icod_ (NameSpace a b c) = icodeN' NameSpace a b c
 
   value = value3 NameSpace
 
 instance EmbPrj WhyInScope where
-  icod_ Defined       = icode0'
-  icod_ (Opened a b)  = icode2 0 a b
-  icod_ (Applied a b) = icode2 1 a b
+  icod_ Defined       = icodeN' Defined
+  icod_ (Opened a b)  = icodeN 0 Opened a b
+  icod_ (Applied a b) = icodeN 1 Applied a b
 
   value = vcase valu where
     valu []        = valuN Defined
@@ -73,22 +73,22 @@ instance EmbPrj WhyInScope where
     valu _         = malformed
 
 instance EmbPrj AbstractName where
-  icod_ (AbsName a b c) = icode3' a b c
+  icod_ (AbsName a b c) = icodeN' AbsName a b c
 
   value = value3 AbsName
 
 instance EmbPrj AbstractModule where
-  icod_ (AbsModule a b) = icode2' a b
+  icod_ (AbsModule a b) = icodeN' AbsModule a b
 
   value = value2 AbsModule
 
 instance EmbPrj KindOfName where
-  icod_ DefName        = icode0'
-  icod_ ConName        = icode0 1
-  icod_ FldName        = icode0 2
-  icod_ PatternSynName = icode0 3
-  icod_ QuotableName   = icode0 4
-  icod_ MacroName      = icode0 5
+  icod_ DefName        = icodeN' DefName
+  icod_ ConName        = icodeN 1 ConName
+  icod_ FldName        = icodeN 2 FldName
+  icod_ PatternSynName = icodeN 3 PatternSynName
+  icod_ QuotableName   = icodeN 4 QuotableName
+  icod_ MacroName      = icodeN 5 MacroName
 
   value = vcase valu where
     valu []  = valuN DefName
@@ -100,7 +100,7 @@ instance EmbPrj KindOfName where
     valu _   = malformed
 
 instance EmbPrj LocalVar where
-  icod_ (LocalVar a b c)  = icode3' a b c
+  icod_ (LocalVar a b c)  = icodeN' LocalVar a b c
 
   value = value3 LocalVar
 
@@ -110,17 +110,17 @@ instance EmbPrj ConPatInfo where
 
 -- Only for pattern synonyms (where a is Void)
 instance EmbPrj a => EmbPrj (A.Pattern' a) where
-  icod_ (A.VarP a)            = icode1 0 a
-  icod_ (A.ConP a b c)        = icode3 1 a b c
-  icod_ (A.DefP _ a b)        = icode2 2 a b
-  icod_ (A.WildP _)           = icode0 3
-  icod_ (A.AsP _ a b)         = icode2 4 a b
-  icod_ (A.DotP _ a b)        = icode2 5 a b
-  icod_ (A.AbsurdP _)         = icode0 6
-  icod_ (A.LitP a)            = icode1 7 a
-  icod_ (A.ProjP _ a b)       = icode2 8 a b
-  icod_ (A.PatternSynP _ a b) = icode2 9 a b
-  icod_ (A.RecP _ a)          = icode1 10 a
+  icod_ (A.VarP a)            = icodeN 0 A.VarP a
+  icod_ (A.ConP a b c)        = icodeN 1 A.ConP a b c
+  icod_ (A.DefP p a b)        = icodeN 2 (A.DefP p) a b
+  icod_ t@(A.WildP p)         = icodeN 3 t
+  icod_ (A.AsP p a b)         = icodeN 4 (A.AsP p) a b
+  icod_ (A.DotP p a b)        = icodeN 5 (A.DotP p) a b
+  icod_ t@(A.AbsurdP _)       = icodeN 6 t
+  icod_ (A.LitP a)            = icodeN 7 A.LitP a
+  icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
+  icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
+  icod_ (A.RecP p a)          = icodeN 10 (A.RecP p) a
   icod_ (A.EqualP _ a)        = __IMPOSSIBLE__
 
   value = vcase valu where
@@ -140,16 +140,16 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     i = patNoRange
 
 instance EmbPrj Precedence where
-  icod_ TopCtx                 = icode0'
-  icod_ FunctionSpaceDomainCtx = icode0 1
-  icod_ (LeftOperandCtx a)     = icode1 2 a
-  icod_ (RightOperandCtx a)    = icode1 3 a
-  icod_ FunctionCtx            = icode0 4
-  icod_ ArgumentCtx            = icode0 5
-  icod_ InsideOperandCtx       = icode0 6
-  icod_ WithFunCtx             = icode0 7
-  icod_ WithArgCtx             = icode0 8
-  icod_ DotPatternCtx          = icode0 9
+  icod_ TopCtx                 = icodeN' TopCtx
+  icod_ FunctionSpaceDomainCtx = icodeN 1 FunctionSpaceDomainCtx
+  icod_ (LeftOperandCtx a)     = icodeN 2 LeftOperandCtx a
+  icod_ (RightOperandCtx a)    = icodeN 3 RightOperandCtx a
+  icod_ FunctionCtx            = icodeN 4 FunctionCtx
+  icod_ ArgumentCtx            = icodeN 5 ArgumentCtx
+  icod_ InsideOperandCtx       = icodeN 6 InsideOperandCtx
+  icod_ WithFunCtx             = icodeN 7 WithFunCtx
+  icod_ WithArgCtx             = icodeN 8 WithArgCtx
+  icod_ DotPatternCtx          = icodeN 9 DotPatternCtx
 
   value = vcase valu where
     valu []     = valuN TopCtx
@@ -165,6 +165,6 @@ instance EmbPrj Precedence where
     valu _      = malformed
 
 instance EmbPrj ScopeInfo where
-  icod_ (ScopeInfo a b c d _ _ _) = icode4' a b c d
+  icod_ (ScopeInfo a b c d e f g) = icodeN' (\ a b c d -> ScopeInfo a b c d e f g) a b c d
 
   value = value4 (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty)

@@ -9,12 +9,12 @@ import Agda.TypeChecking.Serialise.Instances.Common
 import Agda.TypeChecking.Monad
 
 instance EmbPrj CompilerPragma where
-  icod_ (CompilerPragma a b) = icode2' (SerialisedRange a) b
+  icod_ (CompilerPragma a b) = icodeN' (CompilerPragma . underlyingRange) (SerialisedRange a) b
 
   value = value2 (CompilerPragma . underlyingRange)
 
 instance EmbPrj ForeignCode where
-  icod_ (ForeignCode r a) = icode2' (SerialisedRange r) a
+  icod_ (ForeignCode r a) = icodeN' (ForeignCode . underlyingRange) (SerialisedRange r) a
 
   value = value2 (ForeignCode . underlyingRange)
 

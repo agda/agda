@@ -293,8 +293,8 @@ icodeString key = do
         H.insert d key fresh
         return fresh
 
-icodeN :: Node -> S Int32
-icodeN key = do
+icodeNode :: Node -> S Int32
+icodeNode key = do
   d <- asks nodeD
   c <- asks nodeC
   liftIO $ do
@@ -355,257 +355,55 @@ vcase valu = \ix -> do
           liftIO $ H.insert memo (ix, aTyp) (U v)
           return v
 
--- Andreas, Makoto, AIM XX (2014-10-15):
--- No performance gain for INLINE here (neutral / slighly negative).
---
--- {-# INLINE icode0 #-}
--- {-# INLINE icode1 #-}
--- {-# INLINE icode2 #-}
--- {-# INLINE icode3 #-}
--- {-# INLINE icode4 #-}
--- {-# INLINE icode5 #-}
--- {-# INLINE icode6 #-}
--- {-# INLINE icode7 #-}
--- {-# INLINE icode8 #-}
--- {-# INLINE icode9 #-}
--- {-# INLINE icode10 #-}
--- {-# INLINE icode11 #-}
--- {-# INLINE icode12 #-}
--- {-# INLINE icode13 #-}
--- {-# INLINE icode14 #-}
+-- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
+--   and returns the corresponding list of @Int32@.
 
-icode0 :: Int32 -> S Int32
+class ICODE t b where
+  icodeArgs :: IsBase t ~ b => All EmbPrj (Domains t) =>
+               Proxy t -> Products (Domains t) -> S [Int32]
 
-icode1 :: EmbPrj a => Int32 -> a -> S Int32
+instance IsBase t ~ 'True => ICODE t 'True where
+  icodeArgs _ _  = return []
 
-icode2 :: (EmbPrj a, EmbPrj b) =>
-          Int32 -> a -> b ->
-          S Int32
+instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
+  icodeArgs _ (a , as) = icode a >>= \ hd -> (hd :) <$> icodeArgs (Proxy :: Proxy t) as
 
-icode3 :: (EmbPrj a, EmbPrj b, EmbPrj c) =>
-          Int32 -> a -> b -> c ->
-          S Int32
+-- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
+--   constructor @t@ together with a tag @tag@ picked to disambiguate between
+--   different constructors.
+--   It corresponds to @icodeNode . (tag :) =<< mapM icode [a1, ..., an]@
 
-icode4 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
-          Int32 -> a -> b -> c -> d ->
-          S Int32
+{-# INLINE icodeN #-}
+icodeN :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
+          All EmbPrj (Domains t) =>
+          Int32 -> t -> Arrows (Domains t) (S Int32)
+icodeN tag _ =
+  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
+  icodeNode . (tag :) =<< icodeArgs (Proxy :: Proxy t) args
 
-icode5 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
-          Int32 -> a -> b -> c -> d -> e ->
-          S Int32
-
-icode6 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
-          Int32 -> a -> b -> c -> d -> e -> f ->
-          S Int32
-
-icode7 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-          , EmbPrj g ) =>
-          Int32 -> a -> b -> c -> d -> e -> f -> g ->
-          S Int32
-
-icode8 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-          , EmbPrj g, EmbPrj h ) =>
-          Int32 -> a -> b -> c -> d -> e -> f -> g -> h ->
-          S Int32
-
-icode9 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-          , EmbPrj g, EmbPrj h, EmbPrj i ) =>
-          Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i ->
-          S Int32
-
-icode10 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j ->
-           S Int32
-
-icode11 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k ->
-           S Int32
-
-icode12 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l ->
-           S Int32
-
-icode13 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
-           , EmbPrj m ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
-           S Int32
-
-icode14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
-           , EmbPrj m, EmbPrj n ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
-           S Int32
-
-icode15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
-           , EmbPrj m, EmbPrj n, EmbPrj o ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o ->
-           S Int32
-
-icode25 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y ->
-           S Int32
-
-icode26 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z ->
-           S Int32
-
-
-icode0 tag = icodeN [tag]
-icode1 tag a = icodeN . (tag :) =<< sequence [icode a]
-icode2 tag a b = icodeN . (tag :) =<< sequence [icode a, icode b]
-icode3 tag a b c = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
-icode4 tag a b c d = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
-icode5 tag a b c d e = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6 tag a b c d e f = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
-icode7 tag a b c d e f g = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
-icode8 tag a b c d e f g h = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
-icode9 tag a b c d e f g h i = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
-icode10 tag a b c d e f g h i j = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
-icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
-icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
-icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
-icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
-icode15 tag a b c d e f g h i j k l m n o = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o]
-
-icode25 tag a b c d e f g h i j k l m n o p q r s t u v w x y = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y]
-
-icode26 tag a b c d e f g h i j k l m n o p q r s t u v w x y a1 = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y, icode a1]
-
-
--- Andreas, Makoto, AIM XX (2014-10-15):
--- No performance gain for INLINE here (neutral / slighly negative).
---
--- {-# INLINE icode0' #-}
--- {-# INLINE icode1' #-}
--- {-# INLINE icode2' #-}
--- {-# INLINE icode3' #-}
--- {-# INLINE icode4' #-}
--- {-# INLINE icode5' #-}
--- {-# INLINE icode6' #-}
--- {-# INLINE icode7' #-}
--- {-# INLINE icode8' #-}
--- {-# INLINE icode9' #-}
--- {-# INLINE icode10' #-}
--- {-# INLINE icode11' #-}
--- {-# INLINE icode12' #-}
--- {-# INLINE icode13' #-}
--- {-# INLINE icode14' #-}
-
-icode0' :: S Int32
-
-icode1' :: EmbPrj a => a -> S Int32
-
-icode2' :: (EmbPrj a, EmbPrj b) =>
-           a -> b ->
-           S Int32
-
-icode3' :: (EmbPrj a, EmbPrj b, EmbPrj c) =>
-           a -> b -> c ->
-           S Int32
-
-icode4' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
-           a -> b -> c -> d ->
-           S Int32
-
-icode5' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
-           a -> b -> c -> d -> e ->
-           S Int32
-
-icode6' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
-           a -> b -> c -> d -> e -> f ->
-           S Int32
-
-icode7' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g ) =>
-           a -> b -> c -> d -> e -> f -> g ->
-           S Int32
-
-icode8' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h ) =>
-           a -> b -> c -> d -> e -> f -> g -> h ->
-           S Int32
-
-icode9' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-           , EmbPrj g, EmbPrj h, EmbPrj i ) =>
-           a -> b -> c -> d -> e -> f -> g -> h -> i ->
-           S Int32
-
-icode10' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j ->
-            S Int32
-
-icode11' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k ->
-            S Int32
-
-icode12' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l ->
-            S Int32
-
-icode13' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
-            , EmbPrj m ) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
-            S Int32
-
-icode14' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
-            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
-            , EmbPrj m, EmbPrj n ) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
-            S Int32
-
-icode25' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y ->
-            S Int32
-
-icode26' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
-            a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z ->
-            S Int32
-
-icode0' = icodeN []
-icode1' a = icodeN =<< sequence [icode a]
-icode2' a b = icodeN =<< sequence [icode a, icode b]
-icode3' a b c = icodeN =<< sequence [icode a, icode b, icode c]
-icode4' a b c d = icodeN =<< sequence [icode a, icode b, icode c, icode d]
-icode5' a b c d e = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6' a b c d e f = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
-icode7' a b c d e f g = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
-icode8' a b c d e f g h = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
-icode9' a b c d e f g h i = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
-icode10' a b c d e f g h i j = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
-icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
-icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
-icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
-icode14' a b c d e f g h i j k l m n = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
-
-icode25' a b c d e f g h i j k l m n o p q r s t u v w x y = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y]
-
-icode26' a b c d e f g h i j k l m n o p q r s t u v w x y z = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o, icode p, icode q, icode r, icode s, icode t, icode u, icode v, icode w, icode x, icode y, icode z]
-
-
+-- | @icodeN'@ is the same as @icodeN@ except that there is no tag
+{-# INLINE icodeN' #-}
+icodeN' :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
+           All EmbPrj (Domains t) =>
+           t -> Arrows (Domains t) (S Int32)
+icodeN' _ =
+  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
+  icodeNode =<< icodeArgs (Proxy :: Proxy t) args
 
 -- Instead of having up to 25 versions of @valu N@, we define
 -- the class VALU which generates them by typeclass resolution.
 -- All of these should get inlined at compile time.
 
 class VALU t b where
-  valu :: b ~ IsBase t =>
-          All EmbPrj (Domains t) =>
-          t -> Products (Constant Int32 (Domains t)) -> R (CoDomain t)
+  valuN' :: b ~ IsBase t =>
+            All EmbPrj (Domains t) =>
+            t -> Products (Constant Int32 (Domains t)) -> R (CoDomain t)
 
 instance VALU t 'True where
-  valu c () = return c
+  valuN' c () = return c
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
-  valu c (a, as) = value a >>= \ v -> valu (c v) as
+  valuN' c (a, as) = value a >>= \ v -> valuN' (c v) as
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (IsBase t) =>
@@ -614,7 +412,7 @@ valuN :: forall t. VALU t (IsBase t) =>
          t -> Arrows (Constant Int32 (Domains t)) (R (CoDomain t))
 valuN f = currys (Proxy :: Proxy (Constant Int32 (Domains t)))
                  (Proxy :: Proxy (R (CoDomain t)))
-                 (valu f)
+                 (valuN' f)
 
 
 value1 :: (IsBase b ~ 'True, EmbPrj a, EmbPrj b) =>
