@@ -124,12 +124,12 @@ instance EmbPrj () where
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icod_ (a, b) = icodeN' (,) a b
 
-  value = value2 (,)
+  value = valueN (,)
 
 instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
   icod_ (a, b, c) = icodeN' (,,) a b c
 
-  value = value3 (,,)
+  value = valueN (,,)
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (Either a b) where
   icod_ (Left  x) = icodeN 0 Left x
@@ -181,12 +181,12 @@ instance EmbPrj AbsolutePath where
 instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icodeN' P.Pn file pos line col
 
-  value = value4 P.Pn
+  value = valueN P.Pn
 
 instance EmbPrj TopLevelModuleName where
   icod_ (TopLevelModuleName a b) = icodeN' TopLevelModuleName a b
 
-  value = value2 TopLevelModuleName
+  value = valueN TopLevelModuleName
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
@@ -216,7 +216,7 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b
 
-  value = value2 Trie
+  value = valueN Trie
 
 instance EmbPrj a => EmbPrj (Seq a) where
   icod_ s = icode (Fold.toList s)
@@ -225,7 +225,7 @@ instance EmbPrj a => EmbPrj (Seq a) where
 instance EmbPrj a => EmbPrj (P.Interval' a) where
   icod_ (P.Interval p q) = icodeN' P.Interval p q
 
-  value = value2 P.Interval
+  value = valueN P.Interval
 
 -- | Ranges are always deserialised as 'noRange'.
 
@@ -299,12 +299,12 @@ instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
   icod_ (Fixity a b c) = icodeN' Fixity a b c
 
-  value = value3 Fixity
+  value = valueN Fixity
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity' where
   icod_ (Fixity' a b r) = icodeN' (\ a b -> Fixity' a b r) a b  -- discard theNameRange
 
-  value = value2 (\ f n -> Fixity' f n noRange)
+  value = valueN (\ f n -> Fixity' f n noRange)
 
 instance EmbPrj GenPart where
   icod_ (BindHole a)   = icodeN 0 BindHole a
@@ -326,7 +326,7 @@ instance EmbPrj MetaId where
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b
 
-  value = value2 A.QName
+  value = valueN A.QName
 
 instance EmbPrj A.AmbiguousQName where
   icod_ (A.AmbQ a) = icode a
@@ -340,32 +340,32 @@ instance EmbPrj A.Name where
   icod_ (A.Name a b c d) = icodeMemo nameD nameC a $
     icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d
 
-  value = value4 (\a b c -> A.Name a b (underlyingRange c))
+  value = valueN (\a b c -> A.Name a b (underlyingRange c))
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
   icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b
 
-  value = value2 C.FieldAssignment
+  value = valueN C.FieldAssignment
 
 instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
   icod_ (Named a b) = icodeN' Named a b
 
-  value = value2 Named
+  value = valueN Named
 
 instance EmbPrj a => EmbPrj (Ranged a) where
   icod_ (Ranged r x) = icodeN' Ranged r x
 
-  value = value2 Ranged
+  value = valueN Ranged
 
 instance EmbPrj ArgInfo where
   icod_ (ArgInfo h r o v) = icodeN' ArgInfo h r o v
 
-  value = value4 ArgInfo
+  value = valueN ArgInfo
 
 instance EmbPrj NameId where
   icod_ (NameId a b) = icodeN' NameId a b
 
-  value = value2 NameId
+  value = valueN NameId
 
 instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
   icod_ m = icode (HMap.toList m)
@@ -374,17 +374,17 @@ instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
 instance EmbPrj a => EmbPrj (WithHiding a) where
   icod_ (WithHiding a b) = icodeN' WithHiding a b
 
-  value = value2 WithHiding
+  value = valueN WithHiding
 
 instance EmbPrj a => EmbPrj (Arg a) where
   icod_ (Arg i e) = icodeN' Arg i e
 
-  value = value2 Arg
+  value = valueN Arg
 
 instance EmbPrj a => EmbPrj (Dom a) where
   icod_ (Dom i e) = icodeN' Dom i e
 
-  value = value2 Dom
+  value = valueN Dom
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive

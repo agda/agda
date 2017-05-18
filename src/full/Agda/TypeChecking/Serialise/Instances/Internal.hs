@@ -26,12 +26,12 @@ import Agda.Utils.Impossible
 instance EmbPrj Signature where
   icod_ (Sig a b c) = icodeN' Sig a b c
 
-  value = value3 Sig
+  value = valueN Sig
 
 instance EmbPrj Section where
   icod_ (Section a) = icodeN' Section a
 
-  value = value1 Section
+  value = valueN Section
 
 instance EmbPrj a => EmbPrj (Tele a) where
   icod_ EmptyTel        = icodeN' EmptyTel
@@ -45,12 +45,12 @@ instance EmbPrj a => EmbPrj (Tele a) where
 instance EmbPrj Permutation where
   icod_ (Perm a b) = icodeN' Perm a b
 
-  value = value2 Perm
+  value = valueN Perm
 
 instance EmbPrj a => EmbPrj (Drop a) where
   icod_ (Drop a b) = icodeN' Drop a b
 
-  value = value2 Drop
+  value = valueN Drop
 
 instance EmbPrj a => EmbPrj (Elim' a) where
   icod_ (Apply a)  = icodeN' Apply a
@@ -64,12 +64,12 @@ instance EmbPrj a => EmbPrj (Elim' a) where
 instance EmbPrj I.ConHead where
   icod_ (ConHead a b c) = icodeN' ConHead a b c
 
-  value = value3 ConHead
+  value = valueN ConHead
 
 instance (EmbPrj a) => EmbPrj (I.Type' a) where
   icod_ (El a b) = icodeN' El a b
 
-  value = value2 El
+  value = valueN El
 
 instance EmbPrj a => EmbPrj (I.Abs a) where
   icod_ (NoAbs a b) = icodeN 0 NoAbs a b
@@ -112,7 +112,7 @@ instance EmbPrj I.Term where
 instance EmbPrj Level where
   icod_ (Max a) = icodeN' Max a
 
-  value = value1 Max
+  value = valueN Max
 
 instance EmbPrj PlusLevel where
   icod_ (ClosedLevel a) = icodeN' ClosedLevel a
@@ -155,12 +155,12 @@ instance EmbPrj I.Sort where
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icodeN' Display a b c
 
-  value = value3 Display
+  value = valueN Display
 
 instance EmbPrj a => EmbPrj (Open a) where
   icod_ (OpenThing a b) = icodeN' OpenThing a b
 
-  value = value2 OpenThing
+  value = valueN OpenThing
 
 instance EmbPrj a => EmbPrj (Local a) where
   icod_ (Local a b) = icodeN' Local a b
@@ -195,11 +195,10 @@ instance EmbPrj MutualId where
   value n         = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m
+  icod_ (Defn a b c d e f g h i j k l m) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m
 
-  value = vcase valu where
-    valu [a, b, c, d, e, f, g, h, i, j, k, l, m] = valuN Defn a b c d e f g h i j k l m
-    valu _                                       = malformed
+  value = valueN Defn
 
 instance EmbPrj NLPat where
   icod_ (PVar a b c)    = icodeN 0 PVar a b c
@@ -223,27 +222,27 @@ instance EmbPrj NLPat where
 instance EmbPrj NLPType where
   icod_ (NLPType a b) = icodeN' NLPType a b
 
-  value = value2 NLPType
+  value = valueN NLPType
 
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icodeN' RewriteRule a b c d e f
 
-  value = value6 RewriteRule
+  value = valueN RewriteRule
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e
 
-  value = value5 Projection
+  value = valueN Projection
 
 instance EmbPrj ProjLams where
   icod_ (ProjLams a) = icodeN' ProjLams a
 
-  value = value1 ProjLams
+  value = valueN ProjLams
 
 instance EmbPrj ExtLamInfo where
   icod_ (ExtLamInfo a b) = icodeN' ExtLamInfo a b
 
-  value = value2 ExtLamInfo
+  value = valueN ExtLamInfo
 
 instance EmbPrj Polarity where
   icod_ Covariant     = return 0
@@ -315,12 +314,12 @@ instance EmbPrj FunctionFlag where
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icodeN' WithArity a b
 
-  value = value2 WithArity
+  value = valueN WithArity
 
 instance EmbPrj a => EmbPrj (Case a) where
   icod_ (Branches a b c d) = icodeN' Branches a b c d
 
-  value = value4 Branches
+  value = valueN Branches
 
 instance EmbPrj CompiledClauses where
   icod_ Fail       = icodeN' Fail
@@ -356,17 +355,17 @@ instance EmbPrj TermHead where
 instance EmbPrj I.Clause where
   icod_ (Clause a b c d e f g) = icodeN' Clause a b c d e f g
 
-  value = value7 Clause
+  value = valueN Clause
 
 instance EmbPrj I.ConPatternInfo where
   icod_ (ConPatternInfo a b) = icodeN' ConPatternInfo a b
 
-  value = value2 ConPatternInfo
+  value = valueN ConPatternInfo
 
 instance EmbPrj I.DBPatVar where
   icod_ (DBPatVar a b) = icodeN' DBPatVar a b
 
-  value = value2 DBPatVar
+  value = valueN DBPatVar
 
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a    ) = icodeN' VarP a

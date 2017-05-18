@@ -11,7 +11,7 @@ import Agda.TypeChecking.Serialise.Instances.Common ()
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icodeN' HR.Range a b
 
-  value = value2 HR.Range
+  value = valueN HR.Range
 
 instance EmbPrj HP.NameKind where
   icod_ HP.Bound           = icodeN' HP.Bound
@@ -91,9 +91,9 @@ instance EmbPrj HP.OtherAspect where
 instance EmbPrj HP.Aspects where
   icod_ (HP.Aspects a b c d) = icodeN' HP.Aspects a b c d
 
-  value = value4 HP.Aspects
+  value = valueN HP.Aspects
 
 instance EmbPrj HP.CompressedFile where
   icod_ (HP.CompressedFile f) = icodeN' HP.CompressedFile f
 
-  value = value1 HP.CompressedFile
+  value = valueN HP.CompressedFile

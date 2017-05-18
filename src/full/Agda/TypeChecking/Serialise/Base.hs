@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -396,15 +397,31 @@ icodeN' _ =
 -- All of these should get inlined at compile time.
 
 class VALU t b where
+
   valuN' :: b ~ IsBase t =>
             All EmbPrj (Domains t) =>
             t -> Products (Constant Int32 (Domains t)) -> R (CoDomain t)
 
+  valueArgs :: b ~ IsBase t =>
+               All EmbPrj (CoDomain t ': Domains t) =>
+               Proxy t -> Node -> Maybe (Products (Constant Int32 (Domains t)))
+
 instance VALU t 'True where
+
   valuN' c () = return c
 
+  valueArgs _ xs = case xs of
+    [] -> Just ()
+    _  -> Nothing
+
+
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
+
   valuN' c (a, as) = value a >>= \ v -> valuN' (c v) as
+
+  valueArgs _ xs = case xs of
+    (x : xs') -> (x,) <$> valueArgs (Proxy :: Proxy t) xs'
+    _         -> Nothing
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (IsBase t) =>
@@ -415,77 +432,11 @@ valuN f = currys (Proxy :: Proxy (Constant Int32 (Domains t)))
                  (Proxy :: Proxy (R (CoDomain t)))
                  (valuN' f)
 
-
-value1 :: (IsBase b ~ 'True, EmbPrj a, EmbPrj b) =>
-          (a -> b) ->
-          Int32 -> R b
-
-value2 :: (IsBase c ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c) =>
-          (a -> b -> c) ->
-          Int32 -> R c
-
-value3 :: (IsBase d ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
-          (a -> b -> c -> d) ->
-          Int32 -> R d
-
-value4 :: (IsBase e ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
-          (a -> b -> c -> d -> e) ->
-          Int32 -> R e
-
-value5 :: (IsBase f ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
-          (a -> b -> c -> d -> e -> f) ->
-          Int32 -> R f
-
-value6 :: (IsBase g ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g) =>
-          (a -> b -> c -> d -> e -> f -> g) ->
-          Int32 -> R g
-
-value7 :: (IsBase h ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h) =>
-          (a -> b -> c -> d -> e -> f -> g -> h) ->
-          Int32 -> R h
-
-value8 :: (IsBase i ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i) =>
-          (a -> b -> c -> d -> e -> f -> g -> h -> i) ->
-          Int32 -> R i
-
-value25 :: (IsBase z ~ 'True, EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f, EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l, EmbPrj m, EmbPrj n, EmbPrj o, EmbPrj p, EmbPrj q, EmbPrj r, EmbPrj s, EmbPrj t, EmbPrj u, EmbPrj v, EmbPrj w, EmbPrj x, EmbPrj y, EmbPrj z) =>
-          (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t -> u -> v -> w -> x -> y -> z) ->
-          Int32 -> R z
-
-
-value1 k = vcase valu where
-  valu [a] = valuN k a
-  valu _   = malformed
-
-value2 k = vcase valu where
-  valu [a, b] = valuN k a b
-  valu _      = malformed
-
-value3 k = vcase valu where
-  valu [a, b, c] = valuN k a b c
-  valu _         = malformed
-
-value4 k = vcase valu where
-  valu [a, b, c, d] = valuN k a b c d
-  valu _            = malformed
-
-value5 k = vcase valu where
-  valu [a, b, c, d, e] = valuN k a b c d e
-  valu _               = malformed
-
-value6 k = vcase valu where
-  valu [a, b, c, d, e, f] = valuN k a b c d e f
-  valu _                  = malformed
-
-value7 k = vcase valu where
-  valu [a, b, c, d, e, f, g] = valuN k a b c d e f g
-  valu _                     = malformed
-
-value8 k = vcase valu where
-  valu [a, b, c, d, e, f, g, h] = valuN k a b c d e f g h
-  valu _                     = malformed
-
-
-value25 con = vcase valu where
-  valu [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y] = valuN con a b c d e f g h i j k l m n o p q r s t u v w x y
-  valu _                     = malformed
+{-# INLINE valueN #-}
+valueN :: forall t. VALU t (IsBase t) =>
+          All EmbPrj (CoDomain t ': Domains t) =>
+          t -> Int32 -> R (CoDomain t)
+valueN t = vcase valu where
+  valu int32s = case valueArgs (Proxy :: Proxy t) int32s of
+                  Nothing -> malformed
+                  Just vs -> valuN' t vs
