@@ -3,7 +3,7 @@ Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 
-———— Warnings encountered ——————————————————————————————————
+———— All done; warnings encountered ————————————————————————
 
 RewritingEmptyPragma.agda:3,1-16
 Empty REWRITE pragma

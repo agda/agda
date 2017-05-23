@@ -7,7 +7,7 @@ Builtin SUC does no longer exist. It is now bound by BUILTIN
 NATURAL
 when checking the pragma BUILTIN SUC suc
 
-———— Warnings encountered ——————————————————————————————————
+———— All done; warnings encountered ————————————————————————
 
 BuiltinSucWarning.agda:8,1-26
 Builtin ZERO does no longer exist. It is now bound by BUILTIN
