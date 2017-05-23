@@ -13,7 +13,7 @@ Issue2377.agda:24,13-48
 Keyword 'public' is ignored here
 when scope checking let open module C = B public in Set
 
-———— Warnings encountered ——————————————————————————————————
+———— All done; warnings encountered ————————————————————————
 
 Issue2377.agda:7,13-29
 Keyword 'public' is ignored here

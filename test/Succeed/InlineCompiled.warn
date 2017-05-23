@@ -1,9 +1,3 @@
 InlineCompiled.agda:10,1-36
 It is pointless for INLINE'd function id to have a separate Haskell
 definition
-
-———— Warnings encountered ——————————————————————————————————
-
-InlineCompiled.agda:10,1-36
-It is pointless for INLINE'd function id to have a separate Haskell
-definition

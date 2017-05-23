@@ -111,12 +111,6 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             -- Benchmarking might be turned off later by setCommandlineOptions
 
           Bench.billTo [] checkFile `finally_` do
-            -- Print accumulated warnings
-            ws <- (snd . classifyWarnings) <$> Imp.getAllWarnings' AllWarnings RespectFlags
-            unless (null ws) $ do
-              let banner = text $ "\n" ++ delimiter "Warnings encountered"
-              reportSDoc "warning" 1 $
-                vcat $ punctuate (text "\n") $ banner : (prettyTCM <$> ws)
 
             -- Print benchmarks.
             Bench.print
@@ -163,6 +157,13 @@ runAgdaWithOptions backends generateHTML interaction progName opts
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
             LaTeX.generateLaTeX i
+
+          -- Print accumulated warnings
+          ws <- (snd . classifyWarnings) <$> Imp.getAllWarnings' AllWarnings RespectFlags
+          unless (null ws) $ do
+            let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
+            reportSDoc "warning" 1 $
+              vcat $ punctuate (text "\n") $ banner : (prettyTCM <$> ws)
 
           return result
 

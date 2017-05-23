@@ -2,3 +2,10 @@ Issue1988.agda:9,1-26
 Builtin REFL does no longer exist. It is now bound by BUILTIN
 EQUALITY
 when checking the pragma BUILTIN REFL refl
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1988.agda:9,1-26
+Builtin REFL does no longer exist. It is now bound by BUILTIN
+EQUALITY
+when checking the pragma BUILTIN REFL refl

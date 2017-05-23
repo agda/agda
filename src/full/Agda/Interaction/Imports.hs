@@ -444,7 +444,12 @@ getStoredInterface x file isMain = do
           -- liftIO close -- Close the interface file. See above.
           fallback
         else do
-          unless cached $ chaseMsg "Loading " x $ Just ifile
+          unless cached $ do
+            chaseMsg "Loading " x $ Just ifile
+            -- print imported warnings
+            let ws = filter ((Strict.Just file ==) . tcWarningOrigin) (iWarnings i)
+            unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+
           -- We set the pragma options of the skipped file here,
           -- because if the top-level file is skipped we want the
           -- pragmas to apply to interactive commands in the UI.

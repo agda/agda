@@ -44,3 +44,59 @@ The COMPILED_EXPORT pragma has been deprecated. Use
 {-# COMPILE GHC returnTrue as returnTrue #-} instead. This will be
 an error in Agda 2.6.
 when checking the pragma COMPILED_EXPORT returnTrue returnTrue
+
+———— All done; warnings encountered ————————————————————————
+
+OldCompilerPragmas.agda:18,1-26
+The IMPORT pragma has been deprecated. Use
+{-# FOREIGN GHC import qualified Data.Maybe #-} instead. This will
+be an error in Agda 2.6.
+when scope checking the declaration
+  {-# IMPORT Data.Maybe #-}
+
+OldCompilerPragmas.agda:20,1-64
+The HASKELL pragma has been deprecated. Use
+{-# FOREIGN GHC printMaybe = putStrLn . Data.Maybe.fromMaybe "" #-}
+instead. This will be an error in Agda 2.6.
+when scope checking the declaration
+  {-# HASKELL
+      printMaybe = putStrLn . Data.Maybe.fromMaybe ""
+  #-}
+
+OldCompilerPragmas.agda:7,1-43
+The COMPILED_DATA pragma has been deprecated. Use
+{-# COMPILE GHC Bool = data Bool (False | True) #-} instead. This
+will be an error in Agda 2.6.
+when checking the pragma COMPILED_DATA Bool Bool False True
+
+OldCompilerPragmas.agda:13,1-28
+The COMPILED_TYPE pragma has been deprecated. Use
+{-# COMPILE GHC IO = type IO #-} instead. This will be an error in
+Agda 2.6.
+when checking the pragma COMPILED_TYPE IO IO
+
+OldCompilerPragmas.agda:14,1-38
+The COMPILED pragma has been deprecated. Use
+{-# COMPILE GHC return = / _ -> return #-} instead. This will be an
+error in Agda 2.6.
+when checking the pragma COMPILED return / _ -> return
+
+OldCompilerPragmas.agda:15,1-68
+The COMPILED_UHC pragma has been deprecated. Use
+{-# COMPILE UHC return = / _ x -> UHC.Agda.Builtins.primReturn x #-}
+instead. This will be an error in Agda 2.6.
+when checking the pragma
+COMPILED_UHC return / _ x -> UHC.Agda.Builtins.primReturn x
+
+OldCompilerPragmas.agda:16,1-99
+The COMPILED_JS pragma has been deprecated. Use
+{-# COMPILE JS return = function(u) { return function(x) { return function(cb) { cb(x); }; }; } #-}
+instead. This will be an error in Agda 2.6.
+when checking the pragma
+COMPILED_JS return function(u) { return function(x) { return function(cb) { cb(x); }; }; }
+
+OldCompilerPragmas.agda:25,1-47
+The COMPILED_EXPORT pragma has been deprecated. Use
+{-# COMPILE GHC returnTrue as returnTrue #-} instead. This will be
+an error in Agda 2.6.
+when checking the pragma COMPILED_EXPORT returnTrue returnTrue
