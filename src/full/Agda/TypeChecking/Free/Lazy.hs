@@ -175,6 +175,10 @@ initFreeEnv sing = FreeEnv
 
 type FreeM c = Reader (FreeEnv c) c
 
+-- | Run function for FreeM.
+runFreeM :: IsVarSet c => SingleVar c -> IgnoreSorts -> FreeM c -> c
+runFreeM single i m = runReader m $ (initFreeEnv single) { feIgnoreSorts = i }
+
 instance Semigroup c => Semigroup (FreeM c) where
   (<>) = liftA2 (<>)
 
