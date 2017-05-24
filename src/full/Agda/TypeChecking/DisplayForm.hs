@@ -177,9 +177,15 @@ class SubstWithOrigin a where
 instance SubstWithOrigin a => SubstWithOrigin [a] where
   substWithOrigin rho ots = map (substWithOrigin rho ots)
 
-instance SubstWithOrigin (Arg a) => SubstWithOrigin (Elim' a) where
+instance (SubstWithOrigin a, SubstWithOrigin (Arg a)) => SubstWithOrigin (Elim' a) where
   substWithOrigin rho ots (Apply arg) = Apply $ substWithOrigin rho ots arg
   substWithOrigin rho ots e@Proj{}    = e
+  substWithOrigin rho ots (IApply u v w) = IApply
+    (substWithOrigin rho ots u)
+    (substWithOrigin rho ots v)
+    (substWithOrigin rho ots w)
+
+
 
 instance SubstWithOrigin (Arg Term) where
   substWithOrigin rho ots (Arg ai v) =
