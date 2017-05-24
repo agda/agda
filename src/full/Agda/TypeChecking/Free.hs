@@ -54,7 +54,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Free.Lazy
   ( Free(..) , FreeEnv(..), initFreeEnv
   , VarOcc(..), IgnoreSorts(..), Variable, SingleVar
-  , MetaSet, IsVarSet(..)
+  , MetaSet, IsVarSet(..), runFreeM
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
@@ -263,8 +263,8 @@ freeVarsIgnore = runFree singleton
 
 -- | Compute free variables.
 runFree :: (IsVarSet c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
-runFree singleton i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
-  freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
+runFree single i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
+  runFreeM single i (freeVars' t)
 
 -- | Check if a variable is free, possibly ignoring sorts.
 freeIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool

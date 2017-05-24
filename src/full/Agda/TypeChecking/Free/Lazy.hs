@@ -153,7 +153,7 @@ data FreeEnv c = FreeEnv
     -- ^ Are we flexible or rigid?
   , feRelevance     :: !Relevance
     -- ^ What is the current relevance?
-  , feSingleton     :: SingleVar c
+  , feSingleton     :: Maybe Variable -> c
     -- ^ Method to return a single variable.
   }
 
@@ -167,13 +167,14 @@ initFreeEnv sing = FreeEnv
   { feIgnoreSorts = IgnoreNot
   , feFlexRig     = Unguarded
   , feRelevance   = Relevant
-  , feSingleton   = sing'
+  , feSingleton   = maybe mempty sing
   }
-  where
-    sing' i | i < 0 = mempty
-    sing' i         = sing i
 
 type FreeM c = Reader (FreeEnv c) c
+
+-- | Run function for FreeM.
+runFreeM :: IsVarSet c => SingleVar c -> IgnoreSorts -> FreeM c -> c
+runFreeM single i m = runReader m $ (initFreeEnv single) { feIgnoreSorts = i }
 
 instance Semigroup c => Semigroup (FreeM c) where
   (<>) = liftA2 (<>)
@@ -192,14 +193,18 @@ variable n = do
   o <- asks feFlexRig
   r <- asks feRelevance
   s <- asks feSingleton
-  pure $ withVarOcc (VarOcc o r) (s n)
+  pure $ withVarOcc (VarOcc o r) (s $ Just n)
+
+-- | Subtract, but return Nothing if result is negative.
+subVar :: Int -> Maybe Variable -> Maybe Variable
+subVar n x = x >>= \ i -> (i - n) <$ guard (n <= i)
 
 -- | Going under a binder.
 bind :: FreeM a -> FreeM a
 bind = bind' 1
 
 bind' :: Nat -> FreeM a -> FreeM a
-bind' n = local $ \ e -> e { feSingleton = \ i -> feSingleton e (i - n) }
+bind' n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
 
 -- | Changing the 'FlexRig' context.
 go :: FlexRig -> FreeM a -> FreeM a
