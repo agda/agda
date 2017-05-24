@@ -539,15 +539,18 @@ instance Pretty Pattern where
             QuoteP _        -> text "quote"
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
 
-prettyOpApp ::
+prettyOpApp :: forall a .
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
 prettyOpApp q es = merge [] $ prOp ms xs es
   where
+    -- ms: the module part of the name.
     ms = init (qnameParts q)
+    -- xs: the concrete name (alternation of @Id@ and @Hole@)
     xs = case unqualify q of
            Name _ xs -> xs
            NoName{}  -> __IMPOSSIBLE__
 
+    prOp :: [Name] -> [NamePart] -> [NamedArg (MaybePlaceholder a)] -> [(Doc, Maybe PositionInName)]
     prOp ms (Hole : xs) (e : es) = (pretty e, case namedArg e of
                                                 Placeholder p -> Just p
                                                 _             -> Nothing) :
@@ -556,7 +559,9 @@ prettyOpApp q es = merge [] $ prOp ms xs es
     prOp ms (Id x : xs) es       = ( pretty (foldr Qual (QName (Name noRange $ [Id x])) ms)
                                    , Nothing
                                    ) : prOp [] xs es
-    prOp _  []       []          = []
+      -- Qualify the name part with the module.
+      -- We then clear @ms@ such that the following name parts will not be qualified.
+
     prOp _  []       es          = map (\e -> (pretty e, Nothing)) es
 
     -- Section underscores should be printed without surrounding
