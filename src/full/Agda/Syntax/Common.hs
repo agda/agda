@@ -92,7 +92,10 @@ instance NFData Hiding where
   rnf NotHidden = ()
 
 -- | Decorating something with 'Hiding' information.
-data WithHiding a = WithHiding !Hiding a
+data WithHiding a = WithHiding
+  { whHiding :: !Hiding
+  , whThing  :: a
+  }
   deriving (Typeable, Data, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration WithHiding where
@@ -346,6 +349,31 @@ instance NFData Origin where
   rnf Inserted = ()
   rnf Reflected = ()
 
+-- | Decorating something with 'Origin' information.
+data WithOrigin a = WithOrigin
+  { woOrigin :: !Origin
+  , woThing  :: a
+  }
+  deriving (Typeable, Data, Eq, Ord, Show, Functor, Foldable, Traversable)
+
+instance Decoration WithOrigin where
+  traverseF f (WithOrigin h a) = WithOrigin h <$> f a
+
+instance HasRange a => HasRange (WithOrigin a) where
+  getRange = getRange . dget
+
+instance SetRange a => SetRange (WithOrigin a) where
+  setRange = fmap . setRange
+
+instance KillRange a => KillRange (WithOrigin a) where
+  killRange = fmap killRange
+
+instance NFData a => NFData (WithOrigin a) where
+  rnf (WithOrigin _ a) = rnf a
+
+-- | A lens to access the 'Origin' attribute in data structures.
+--   Minimal implementation: @getOrigin@ and one of @setOrigin@ or @mapOrigin@.
+
 class LensOrigin a where
 
   getOrigin :: a -> Origin
@@ -360,6 +388,11 @@ instance LensOrigin Origin where
   getOrigin = id
   setOrigin = const
   mapOrigin = id
+
+instance LensOrigin (WithOrigin a) where
+  getOrigin   (WithOrigin h _) = h
+  setOrigin h (WithOrigin _ a) = WithOrigin h a
+  mapOrigin f (WithOrigin h a) = WithOrigin (f h) a
 
 ---------------------------------------------------------------------------
 -- * Argument decoration

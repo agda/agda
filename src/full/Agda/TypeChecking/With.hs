@@ -67,9 +67,9 @@ import Agda.Utils.Impossible
 --
 --   Output:
 --
---   [@Δ₁@]        part of context not needed for with arguments and their types.
+--   [@Δ₁@]        part of context needed for with arguments and their types.
 --
---   [@Δ₂@]        part of context needed for with arguments and their types.
+--   [@Δ₂@]        part of context not needed for with arguments and their types.
 --
 --   [@π@]         permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
 --

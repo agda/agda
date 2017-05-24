@@ -1067,7 +1067,7 @@ niceDeclarations ds = do
         -- They refer to the last clause that introduced new with-expressions.
         expand p ps (d@(FunClause (LHS _ _ _ []) _ _ _) : ds) =
           d : expand p ps ds
-        -- Same here: Ff we have new with-expressions, the next ellipses will
+        -- Same here: If we have new with-expressions, the next ellipses will
         -- refer to us.
         expand _ _ (d@(FunClause (LHS p' ps' _ (_ : _)) _ _ _) : ds) =
           d : expand (wipe p') (map wipe ps') ds

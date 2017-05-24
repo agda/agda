@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE UndecidableInstances #-}  -- for Arg a => Elim' a
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.
 
@@ -103,8 +104,8 @@ matchDisplayForm d@(Display _ ps v) es
   | length ps > length es = mzero
   | otherwise             = do
       let (es0, es1) = splitAt (length ps) es
-      us <- match ps $ raise 1 es0
-      return (d, applySubst (parallelS $ reverse us) v `applyE` es1)
+      us <- reverse <$> do match ps $ raise 1 es0
+      return (d, substWithOrigin (parallelS $ map woThing us) us v `applyE` es1)
 
 -- | Class @Match@ for matching a term @p@ in the role of a pattern
 --   against a term @v@.
@@ -122,13 +123,13 @@ matchDisplayForm d@(Display _ ps v) es
 --   (It has been substituted by __IMPOSSIBLE__ which corresponds to
 --   a raise by -1).
 class Match a where
-  match :: a -> a -> MaybeT TCM [Term]
+  match :: a -> a -> MaybeT TCM [WithOrigin Term]
 
 instance Match a => Match [a] where
   match xs ys = concat <$> zipWithM match xs ys
 
 instance Match a => Match (Arg a) where
-  match p v = match (unArg p) (unArg v)
+  match p v = map (setOrigin (getOrigin v)) <$> match (unArg p) (unArg v)
 
 instance Match a => Match (Elim' a) where
   match p v =
@@ -139,7 +140,7 @@ instance Match a => Match (Elim' a) where
 
 instance Match Term where
   match p v = lift (instantiate v) >>= \ v -> case (ignoreSharing p, ignoreSharing v) of
-    (Var 0 [], v)                  -> return [strengthen __IMPOSSIBLE__ v]
+    (Var 0 [], v) -> return [ WithOrigin Inserted $ strengthen __IMPOSSIBLE__ v ]
     (Var i ps, Var j vs) | i == j  -> match ps vs
     (Def c ps, Def d vs) | c == d  -> match ps vs
     (Con c _ ps, Con d _ vs) | c == d -> match ps vs
@@ -161,3 +162,74 @@ instance Match Level where
     p <- reallyUnLevelView p
     v <- reallyUnLevelView v
     match p v
+
+-- | Substitute terms with origin into display terms,
+--   replacing variables along with their origins.
+--
+--   The purpose is to replace the pattern variables in a with-display form,
+--   and only on the top level of the lhs.  Thus, we are happy to fall back
+--   to ordinary substitution where it does not matter.
+--   This fixes issue #2590.
+
+class SubstWithOrigin a where
+  substWithOrigin :: Substitution -> [WithOrigin Term] -> a -> a
+
+instance SubstWithOrigin a => SubstWithOrigin [a] where
+  substWithOrigin rho ots = map (substWithOrigin rho ots)
+
+instance SubstWithOrigin (Arg a) => SubstWithOrigin (Elim' a) where
+  substWithOrigin rho ots (Apply arg) = Apply $ substWithOrigin rho ots arg
+  substWithOrigin rho ots e@Proj{}    = e
+
+instance SubstWithOrigin (Arg Term) where
+  substWithOrigin rho ots (Arg ai v) =
+    case ignoreSharing v of
+      -- pattern variable: replace origin if better
+      Var x [] -> case ots !!! x of
+        Just (WithOrigin o u) -> Arg (mapOrigin (replaceOrigin o) ai) u
+        Nothing -> __IMPOSSIBLE__
+      -- constructor: recurse
+      Con c ci args -> Arg ai $ Con c ci $ substWithOrigin rho ots args
+      -- def: recurse
+      Def q es -> Arg ai $ Def q $ substWithOrigin rho ots es
+      -- otherwise: fall back to ordinary substitution
+      _ -> Arg ai $ applySubst rho v
+    where
+      replaceOrigin _ UserWritten = UserWritten
+      replaceOrigin o _           = o
+
+instance SubstWithOrigin Term where
+  substWithOrigin rho ots v =
+    case ignoreSharing v of
+      -- constructor: recurse
+      Con c ci args -> Con c ci $ substWithOrigin rho ots args
+      -- def: recurse
+      Def q es -> Def q $ substWithOrigin rho ots es
+      -- otherwise: fall back to oridinary substitution
+      _ -> applySubst rho v
+
+-- Do not go into dot pattern, otherwise interaction test #231 fails
+instance SubstWithOrigin DisplayTerm where
+  substWithOrigin rho ots dt =
+    case dt of
+      DTerm v        -> DTerm     $ substWithOrigin rho ots v
+      DDot  v        -> DDot      $ applySubst rho v
+      DDef q es      -> DDef q    $ substWithOrigin rho ots es
+      DCon c ci args -> DCon c ci $ substWithOrigin rho ots args
+      DWithApp t ts es -> DWithApp
+        (substWithOrigin rho ots t)
+        (substWithOrigin rho ots ts)
+        (substWithOrigin rho ots es)
+
+-- Do not go into dot pattern, otherwise interaction test #231 fails
+instance SubstWithOrigin (Arg DisplayTerm) where
+  substWithOrigin rho ots (Arg ai dt) =
+    case dt of
+      DTerm v        -> fmap DTerm $ substWithOrigin rho ots $ Arg ai v
+      DDot  v        -> Arg ai $ DDot      $ applySubst rho v
+      DDef q es      -> Arg ai $ DDef q    $ substWithOrigin rho ots es
+      DCon c ci args -> Arg ai $ DCon c ci $ substWithOrigin rho ots args
+      DWithApp t ts es -> Arg ai $ DWithApp
+        (substWithOrigin rho ots t)
+        (substWithOrigin rho ots ts)
+        (substWithOrigin rho ots es)
