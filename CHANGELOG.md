@@ -174,6 +174,19 @@ Emacs mode
     test _ ()
   ```
 
+* Interactively expanding ellipsis.
+  [Issue [#2589](https://github.com/agda/agda/issues/2589)]
+  An ellipsis in a with-clause can be expanded by splitting on "variable" "." (dot).
+  ```agda
+    test0 : Nat → Nat
+    test0 x with zero
+    ... | q = {! . !}  -- C-c C-c
+  ```
+  Splitting on dot here yields:
+  ```agda
+    test0 x | q = ?
+  ```
+
 * Fewer commands have the side effect that the buffer is saved.
 
 Compiler backends
