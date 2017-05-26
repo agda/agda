@@ -801,9 +801,9 @@ fullParen' e = case exprView e of
     AppV e1 (Arg info e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg info e2')
         where
             e2' = case argInfoHiding info of
-                Hidden    -> e2
-                Instance  -> e2
-                NotHidden -> fullParen' <$> e2
+                Hidden     -> e2
+                Instance{} -> e2
+                NotHidden  -> fullParen' <$> e2
     OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (map . fmap . fmap . fmap . fmap) fullParen' es
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where

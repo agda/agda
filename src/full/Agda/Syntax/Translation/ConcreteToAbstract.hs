@@ -661,14 +661,14 @@ instance ToAbstract OldModuleName A.ModuleName where
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
 mkNamedArg :: C.Expr -> NamedArg C.Expr
-mkNamedArg (C.HiddenArg   _ e) = Arg (setHiding Hidden defaultArgInfo) e
-mkNamedArg (C.InstanceArg _ e) = Arg (setHiding Instance defaultArgInfo) e
+mkNamedArg (C.HiddenArg   _ e) = Arg (hide         defaultArgInfo) e
+mkNamedArg (C.InstanceArg _ e) = Arg (makeInstance defaultArgInfo) e
 mkNamedArg e                   = Arg defaultArgInfo $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
 mkArg' :: ArgInfo -> C.Expr -> Arg C.Expr
-mkArg' info (C.HiddenArg   _ e) = Arg (setHiding Hidden info) $ namedThing e
-mkArg' info (C.InstanceArg _ e) = Arg (setHiding Instance info) $ namedThing e
+mkArg' info (C.HiddenArg   _ e) = Arg (hide         info) $ namedThing e
+mkArg' info (C.InstanceArg _ e) = Arg (makeInstance info) $ namedThing e
 mkArg' info e                   = Arg (setHiding NotHidden info) e
 
 -- | By default, arguments are @Relevant@.
@@ -1216,7 +1216,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               t <- toAbstract t
               x <- toAbstract (NewName True $ mkBoundName x fx)
               -- If InstanceDef set info to Instance
-              let info' | instanc == InstanceDef = setHiding Instance info
+              let info' | instanc == InstanceDef = makeInstance info
                         | otherwise              = info
               -- There are sometimes two instances of the
               -- let-bound variable, one declaration and one
@@ -1362,8 +1362,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections
         bindName p FldName x y
-      when (getHiding t /= Instance && argInfoOverlappable (argInfo t)) $
-        genericError "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
       return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
 
   -- Primitive function

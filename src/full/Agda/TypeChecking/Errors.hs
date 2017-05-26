@@ -1198,9 +1198,9 @@ instance PrettyTCM TypeError where
 
     prettyArg :: Arg (I.Pattern' a) -> TCM Doc
     prettyArg (Arg info x) = case getHiding info of
-      Hidden    -> braces $ prettyPat 0 x
-      Instance  -> dbraces $ prettyPat 0 x
-      NotHidden -> prettyPat 1 x
+      Hidden     -> braces $ prettyPat 0 x
+      Instance{} -> dbraces $ prettyPat 0 x
+      NotHidden  -> prettyPat 1 x
 
     prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
     prettyPat _ (I.VarP _) = text "_"
@@ -1453,9 +1453,9 @@ class Verbalize a where
 instance Verbalize Hiding where
   verbalize h =
     case h of
-      Hidden    -> "hidden"
-      NotHidden -> "visible"
-      Instance  -> "instance"
+      Hidden     -> "hidden"
+      NotHidden  -> "visible"
+      Instance{} -> "instance"
 
 instance Verbalize Relevance where
   verbalize r =

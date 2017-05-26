@@ -1,5 +1,4 @@
-UselessOverlap.agda:6,13-21
-The 'overlap' keyword only applies to instance fields (fields
-marked with {{ }})
-when scope checking the declaration
-  field overlap A : Set
+UselessOverlap.agda:6,5-5
+UselessOverlap.agda:6,5: The 'overlap' keyword only applies to instance fields (fields marked with {{ }})
+<EOF><ERROR>
+...

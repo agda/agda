@@ -229,7 +229,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
       case fmap getHiding target of
-        Just h | h == Instance -> do
+        Just h | isInstance h -> do
           -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
           -- make sense to do it also for hidden, but since the value of a
           -- hidden clause is expected to be forced by later clauses, it's too
@@ -348,9 +348,9 @@ inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
   cl <- addContext tel $ withModuleParameters mpsub $ do
     (x, rhs) <- case getHiding t of
-                  Instance  -> newIFSMeta "" (unArg t)
-                  Hidden    -> __IMPOSSIBLE__
-                  NotHidden -> __IMPOSSIBLE__
+                  Instance{} -> newIFSMeta "" (unArg t)
+                  Hidden     -> __IMPOSSIBLE__
+                  NotHidden  -> __IMPOSSIBLE__
     return $ Clause { clauseLHSRange  = noRange
                     , clauseFullRange = noRange
                     , clauseTel       = tel

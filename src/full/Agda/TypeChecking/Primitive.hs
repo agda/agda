@@ -182,9 +182,9 @@ instance ToTerm ArgInfo where
     irr  <- primIrrelevant
     return $ \ i -> info `applys`
       [ case getHiding i of
-          NotHidden -> vis
-          Hidden    -> hid
-          Instance  -> ins
+          NotHidden  -> vis
+          Hidden     -> hid
+          Instance{} -> ins
       , case getRelevance i of
           Relevant   -> rel
           Irrelevant -> irr

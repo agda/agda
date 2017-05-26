@@ -58,7 +58,7 @@ expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a
 --   (record constructor applied to as many implicit patterns as there are fields).
 expandImplicitPattern' :: Type -> NamedArg A.Pattern -> TCM (Maybe (NamedArg A.Pattern))
 expandImplicitPattern' a p
-  | A.WildP{} <- namedArg p, getHiding p /= Instance = do
+  | A.WildP{} <- namedArg p, not (isInstance p) = do
      -- Eta expand implicit patterns of record type (issue 473),
      -- but not instance arguments since then they won't be found
      -- by the instance search

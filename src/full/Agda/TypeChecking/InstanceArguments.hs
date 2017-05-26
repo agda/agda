@@ -60,9 +60,9 @@ initialIFSCandidates t = do
       reportSDoc "tc.instance.cands" 40 $ hang (text "Getting candidates from context") 2 (inTopContext $ prettyTCM ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
-          vars = [ Candidate x t ExplicitStayExplicit (argInfoOverlappable info)
+          vars = [ Candidate x t ExplicitStayExplicit (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
-                 , getHiding info == Instance
+                 , isInstance info
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
 
@@ -84,7 +84,7 @@ initialIFSCandidates t = do
       env <- mapM (getOpen . snd) $ Map.toList env
       let lets = [ Candidate v t ExplicitStayExplicit False
                  | (v, Dom{domInfo = info, unDom = t}) <- env
-                 , getHiding info == Instance
+                 , isInstance info
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
       return $ vars ++ fields ++ lets
@@ -109,8 +109,8 @@ initialIFSCandidates t = do
         (tel, args) <- forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          ([ Candidate (unArg arg) t ExplicitStayExplicit (argInfoOverlappable $ argInfo arg)
-           | getHiding arg == Instance ] ++) <$>
+          ([ Candidate (unArg arg) t ExplicitStayExplicit (isOverlappable arg)
+           | isInstance arg ] ++) <$>
           instanceFields' False (unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]

@@ -74,9 +74,9 @@ lambda = text "\x03bb"
 prettyHiding :: LensHiding a => a -> (Doc -> Doc) -> Doc -> Doc
 prettyHiding a parens =
   case getHiding a of
-    Hidden    -> braces'
-    Instance  -> dbraces
-    NotHidden -> parens
+    Hidden     -> braces'
+    Instance{} -> dbraces
+    NotHidden  -> parens
 
 prettyRelevance :: LensRelevance a => a -> Doc -> Doc
 prettyRelevance a d =
@@ -136,9 +136,9 @@ instance Pretty Expr where
                 sep [ lambda <+> fsep (map pretty bs) <+> arrow
                     , nest 2 $ pretty e
                     ]
-            AbsurdLam _ NotHidden -> lambda <+> text "()"
-            AbsurdLam _ Instance -> lambda <+> text "{{}}"
-            AbsurdLam _ Hidden -> lambda <+> text "{}"
+            AbsurdLam _ NotHidden  -> lambda <+> text "()"
+            AbsurdLam _ Instance{} -> lambda <+> text "{{}}"
+            AbsurdLam _ Hidden     -> lambda <+> text "{}"
             ExtendedLam _ pes ->
               lambda <+> bracesAndSemicolons (map (\(x,y,z,_) -> prettyClause x y z) pes)
                    where prettyClause lhs rhs wh = sep [ pretty lhs
@@ -308,8 +308,8 @@ instance Pretty Declaration where
                   mkInst InstanceDef    d = sep [ text "instance", nest 2 d ]
                   mkInst NotInstanceDef d = d
 
-                  mkOverlap i d | argInfoOverlappable i = text "overlap" <+> d
-                                | otherwise             = d
+                  mkOverlap i d | isOverlappable i = text "overlap" <+> d
+                                | otherwise        = d
             FunClause lhs rhs wh _ ->
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs

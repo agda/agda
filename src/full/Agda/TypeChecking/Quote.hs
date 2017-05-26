@@ -117,9 +117,9 @@ quotingKit = do
       t !@! u = pure t @@ pure u
 
       quoteHiding :: Hiding -> ReduceM Term
-      quoteHiding Hidden    = pure hidden
-      quoteHiding Instance  = pure instanceH
-      quoteHiding NotHidden = pure visible
+      quoteHiding Hidden     = pure hidden
+      quoteHiding Instance{} = pure instanceH
+      quoteHiding NotHidden  = pure visible
 
       quoteRelevance :: Relevance -> ReduceM Term
       quoteRelevance Relevant   = pure relevant
@@ -128,7 +128,7 @@ quotingKit = do
       quoteRelevance Forced{}   = pure relevant
 
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h r _ _) = arginfo !@ quoteHiding h @@ quoteRelevance r
+      quoteArgInfo (ArgInfo h r _) = arginfo !@ quoteHiding h @@ quoteRelevance r
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l

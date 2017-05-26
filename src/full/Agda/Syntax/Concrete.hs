@@ -465,8 +465,8 @@ appView e =
   where
     vApp (AppView e es) arg = AppView e (es ++ [arg])
 
-    arg (HiddenArg   _ e) = setHiding Hidden   $ defaultArg e
-    arg (InstanceArg _ e) = setHiding Instance $ defaultArg e
+    arg (HiddenArg   _ e) = hide         $ defaultArg e
+    arg (InstanceArg _ e) = makeInstance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
 
 {--------------------------------------------------------------------------

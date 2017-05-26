@@ -186,7 +186,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
                          if elem scrut mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
 
                  nothid = let HI hid _ = ctx !! scrut
-                          in case hid of {Hidden -> False; Instance -> False; NotHidden -> True}
+                          in hid == NotHidden
 
 
              sols <- rc (depth - cost) (length ctx - 1 - scrut) ctx2 tt2 pats2

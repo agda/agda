@@ -33,7 +33,7 @@ instance Arbitrary MetaId where
   arbitrary = MetaId <$> arbitrary
 
 instance Arbitrary Hiding where
-  arbitrary = elements [ Hidden, Instance, NotHidden ]
+  arbitrary = elements [ Hidden, NotHidden, Instance NoOverlap, Instance YesOverlap ]
 
 instance (Arbitrary a, Arbitrary b) => Arbitrary (ImportedName' a b) where
   arbitrary = do

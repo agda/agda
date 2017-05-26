@@ -1121,7 +1121,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                        { argInfoHiding       = min (getHiding info) (getHiding info')
                        , argInfoRelevance    = max (getRelevance info) (getRelevance info')
                        , argInfoOrigin       = min (getOrigin info) (getOrigin info')
-                       , argInfoOverlappable = False
                        }
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
@@ -1155,7 +1154,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
     -- adding an irrelevant entry only if not present
     cons :: (Arg Nat, Term) -> Res -> Res
-    cons a@(Arg (ArgInfo _ Irrelevant _ _) i, t) vars
+    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) vars
       | any ((i==) . unArg . fst) vars  = vars
       | otherwise                       = a : vars
     -- adding a relevant entry:

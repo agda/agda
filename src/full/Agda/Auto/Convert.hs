@@ -441,17 +441,17 @@ fmLevel m (I.Plus _ l) = case l of
 -- ---------------------------------------------
 
 icnvh :: Hiding -> Cm.ArgInfo
-icnvh h = Cm.setHiding h' $
+icnvh h = Cm.setHiding h $
           Cm.setOrigin o $
           Cm.defaultArgInfo
     where
     -- Andreas, 2017-01-18, issue #819.
     -- Visible arguments are made UserWritten,
     -- otherwise they might not be printed in patterns.
-    (h', o) = case h of
-        NotHidden -> (Cm.NotHidden, Cm.UserWritten)
-        Instance  -> (Cm.Instance , Cm.Inserted   )
-        Hidden    -> (Cm.Hidden   , Cm.Inserted   )
+    o = case h of
+          NotHidden  -> Cm.UserWritten
+          Instance{} -> Cm.Inserted
+          Hidden     -> Cm.Inserted
 
 -- ---------------------------------------------
 

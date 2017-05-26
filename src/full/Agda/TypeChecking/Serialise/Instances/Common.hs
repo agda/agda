@@ -358,7 +358,7 @@ instance EmbPrj a => EmbPrj (Ranged a) where
   value = valueN Ranged
 
 instance EmbPrj ArgInfo where
-  icod_ (ArgInfo h r o v) = icodeN' ArgInfo h r o v
+  icod_ (ArgInfo h r o) = icodeN' ArgInfo h r o
 
   value = valueN ArgInfo
 
@@ -396,13 +396,15 @@ instance EmbPrj Induction where
     valu _   = malformed
 
 instance EmbPrj Hiding where
-  icod_ Hidden    = return 0
-  icod_ NotHidden = return 1
-  icod_ Instance  = return 2
+  icod_ Hidden                = return 0
+  icod_ NotHidden             = return 1
+  icod_ (Instance NoOverlap)  = return 2
+  icod_ (Instance YesOverlap) = return 3
 
   value 0 = return Hidden
   value 1 = return NotHidden
-  value 2 = return Instance
+  value 2 = return (Instance NoOverlap)
+  value 3 = return (Instance YesOverlap)
   value _ = malformed
 
 instance EmbPrj Relevance where

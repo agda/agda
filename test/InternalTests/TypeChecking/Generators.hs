@@ -413,9 +413,9 @@ instance ShrinkC Char Char where
   noShrink = id
 
 instance ShrinkC Hiding Hiding where
-  shrinkC _ Hidden    = [NotHidden]
-  shrinkC _ Instance  = [Instance]
-  shrinkC _ NotHidden = []
+  shrinkC _ Hidden     = [NotHidden]
+  shrinkC _ Instance{} = [NotHidden]
+  shrinkC _ NotHidden  = []
   noShrink = id
 
 instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
