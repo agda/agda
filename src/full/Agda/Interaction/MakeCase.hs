@@ -165,7 +165,7 @@ getClauseForIP f clauseNo = do
 
 -- | Entry point for case splitting tactic.
 
-makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext , [A.Clause])
+makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext, [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
 
   -- Get function clause which contains the interaction point.
@@ -195,9 +195,16 @@ makeCase hole rng s = withInteractionId hole $ do
 
   let vars = words s
 
+  -- If the user just entered ".", do nothing.
+  -- This will expand an ellipsis, if present.
+
+  if concat vars == "." then do
+    cl <- makeAbstractClause f rhs $ clauseToSplitClause clause
+    return (f, casectxt, [cl])
+
   -- If we have no split variables, split on result.
 
-  if null vars then do
+  else if null vars then do
     (piTel, sc) <- fixTarget $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
