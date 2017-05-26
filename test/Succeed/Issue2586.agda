@@ -13,3 +13,17 @@ data ⊥ : Set where
 
 ⊥-elim₃ : {A : Set} → A → ⊥ → A
 ⊥-elim₃ = λ where _ ()
+
+data D : Set where
+  c₁ : ⊥ → D
+  c₂ : D
+
+Parses : D → Set₁
+Parses = λ where
+  c₂      → Set
+  (c₁ ())
+
+Does-not-parse : D → Set₁
+Does-not-parse = λ where
+  (c₁ ())
+  c₂      → Set

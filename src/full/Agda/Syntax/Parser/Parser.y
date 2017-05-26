@@ -888,7 +888,7 @@ LamClauses
 -- where this is not taken care of in AbsurdLambda
 LamWhereClauses :: { [(LHS,RHS,WhereClause,Bool)] }
 LamWhereClauses
-   : LamClauses semi LamClause { $3 : $1 }
+   : LamWhereClauses semi LamClause { $3 : $1 }
    | LamClause { [$1] }
 
 ForallBindings :: { [LamBinding] }
