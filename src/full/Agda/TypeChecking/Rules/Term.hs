@@ -1946,8 +1946,8 @@ checkArguments exh r [] t0 t1 =
       expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden &&
                                             exh == ExpandLast
       expand _                     Hidden = exh == ExpandLast
-      expand (Pi (Dom info _) _) Instance = getHiding info /= Instance
-      expand _                   Instance = True
+      expand (Pi (Dom info _) _) Instance{} = not $ isInstance info
+      expand _                   Instance{} = True
       expand _                  NotHidden = False
 
 -- Case: argument given.

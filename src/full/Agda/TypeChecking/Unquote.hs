@@ -189,7 +189,7 @@ instance Unquote ArgInfo where
     case ignoreSharing t of
       Con c _ [h,r] -> do
         choice
-          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure False)]
+          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "arg info" t
@@ -294,7 +294,7 @@ instance Unquote Hiding where
       Con c _ [] -> do
         choice
           [(c `isCon` primHidden,  return Hidden)
-          ,(c `isCon` primInstance, return Instance)
+          ,(c `isCon` primInstance, return (Instance NoOverlap))
           ,(c `isCon` primVisible, return NotHidden)]
           __IMPOSSIBLE__
       Con c _ vs -> __IMPOSSIBLE__
@@ -677,7 +677,7 @@ evalTCM v = do
         alreadyDefined <- isJust <$> tryMaybe (getConstInfo x)
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ show x
         addConstant x $ defaultDefn i x a emptyFunction
-        when (h == Instance) $ addTypedInstance x a
+        when (isInstance h) $ addTypedInstance x a
         primUnitUnit
 
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term

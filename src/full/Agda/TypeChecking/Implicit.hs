@@ -49,7 +49,7 @@ implicitNamedArgs n expand t0 = do
           info' <- if getHiding info == Hidden then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               text "inserting instance meta for type" <+> prettyTCM a
-            return $ setHiding Instance info
+            return $ makeInstance info
           (_, v) <- newMetaArg info' x a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
@@ -67,9 +67,9 @@ newMetaArg info x a = do
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance  = newIFSMeta
-    newMeta Hidden    = newNamedValueMeta RunMetaOccursCheck
-    newMeta NotHidden = newNamedValueMeta RunMetaOccursCheck
+    newMeta Instance{} = newIFSMeta
+    newMeta Hidden     = newNamedValueMeta RunMetaOccursCheck
+    newMeta NotHidden  = newNamedValueMeta RunMetaOccursCheck
 
 -- | Create a questionmark according to the 'Hiding' info.
 
@@ -83,9 +83,9 @@ newInteractionMetaArg info x a = do
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance  = newIFSMeta
-    newMeta Hidden    = newNamedValueMeta' DontRunMetaOccursCheck
-    newMeta NotHidden = newNamedValueMeta' DontRunMetaOccursCheck
+    newMeta Instance{} = newIFSMeta
+    newMeta Hidden     = newNamedValueMeta' DontRunMetaOccursCheck
+    newMeta NotHidden  = newNamedValueMeta' DontRunMetaOccursCheck
 
 ---------------------------------------------------------------------------
 

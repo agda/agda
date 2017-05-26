@@ -1233,9 +1233,9 @@ instance Pretty Term where
 pDom :: LensHiding a => a -> Doc -> Doc
 pDom i =
   case getHiding i of
-    NotHidden -> parens
-    Hidden    -> braces
-    Instance  -> braces . braces
+    NotHidden  -> parens
+    Hidden     -> braces
+    Instance{} -> braces . braces
 
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =

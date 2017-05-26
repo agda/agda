@@ -193,6 +193,6 @@ instance SynEq a => SynEq (Dom a) where
   synEq (Dom ai a) (Dom ai' a') = Dom <$$> synEq ai ai' <**> synEq a a'
 
 instance SynEq ArgInfo where
-  synEq ai@(ArgInfo h r o v) ai'@(ArgInfo h' r' o' v')
-    | h == h', r == r', v == v' = pure2 ai
-    | otherwise                 = inequal (ai, ai')
+  synEq ai@(ArgInfo h r o) ai'@(ArgInfo h' r' o')
+    | h == h', r == r' = pure2 ai
+    | otherwise        = inequal (ai, ai')

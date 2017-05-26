@@ -113,13 +113,13 @@ instance ChooseFlex a => ChooseFlex (Maybe a) where
   chooseFlex (Just x) (Just y) = chooseFlex x y
 
 instance ChooseFlex Hiding where
-  chooseFlex Hidden   Hidden   = ChooseEither
-  chooseFlex Hidden   _        = ChooseLeft
-  chooseFlex _        Hidden   = ChooseRight
-  chooseFlex Instance Instance = ChooseEither
-  chooseFlex Instance _        = ChooseLeft
-  chooseFlex _        Instance = ChooseRight
-  chooseFlex _        _        = ChooseEither
+  chooseFlex Hidden     Hidden     = ChooseEither
+  chooseFlex Hidden     _          = ChooseLeft
+  chooseFlex _          Hidden     = ChooseRight
+  chooseFlex Instance{} Instance{} = ChooseEither
+  chooseFlex Instance{} _          = ChooseLeft
+  chooseFlex _          Instance{} = ChooseRight
+  chooseFlex _          _          = ChooseEither
 
 instance ChooseFlex Origin where
   chooseFlex Inserted  Inserted  = ChooseEither

@@ -259,9 +259,9 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 
 -- | The precedence corresponding to a possibly hidden argument.
 hiddenArgumentCtx :: Hiding -> Precedence
-hiddenArgumentCtx NotHidden = ArgumentCtx
-hiddenArgumentCtx Hidden    = TopCtx
-hiddenArgumentCtx Instance  = TopCtx
+hiddenArgumentCtx NotHidden  = ArgumentCtx
+hiddenArgumentCtx Hidden     = TopCtx
+hiddenArgumentCtx Instance{} = TopCtx
 
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.

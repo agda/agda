@@ -764,21 +764,21 @@ checkModuleArity m tel args = check tel args
           y    = absName btel
           tel  = absBody btel in
       case (argInfoHiding info, argInfoHiding info', name) of
-        (Instance, NotHidden, _) -> check tel args0
-        (Instance, Hidden, _)    -> check tel args0
-        (Instance, Instance, Nothing) -> check tel args
-        (Instance, Instance, Just x)
-          | x == y                -> check tel args
-          | otherwise             -> check tel args0
-        (Hidden, NotHidden, _)    -> check tel args0
-        (Hidden, Instance, _)     -> check tel args0
-        (Hidden, Hidden, Nothing) -> check tel args
+        (Instance{}, NotHidden, _)        -> check tel args0
+        (Instance{}, Hidden, _)           -> check tel args0
+        (Instance{}, Instance{}, Nothing) -> check tel args
+        (Instance{}, Instance{}, Just x)
+          | x == y                        -> check tel args
+          | otherwise                     -> check tel args0
+        (Hidden, NotHidden, _)            -> check tel args0
+        (Hidden, Instance{}, _)           -> check tel args0
+        (Hidden, Hidden, Nothing)         -> check tel args
         (Hidden, Hidden, Just x)
-          | x == y                -> check tel args
-          | otherwise             -> check tel args0
-        (NotHidden, NotHidden, _) -> check tel args
-        (NotHidden, Hidden, _)    -> bad
-        (NotHidden, Instance, _)    -> bad
+          | x == y                        -> check tel args
+          | otherwise                     -> check tel args0
+        (NotHidden, NotHidden, _)         -> check tel args
+        (NotHidden, Hidden, _)            -> bad
+        (NotHidden, Instance{}, _)        -> bad
 
 -- | Check an application of a section (top-level function, includes @'traceCall'@).
 checkSectionApplication
@@ -872,7 +872,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
       -- Found last parameter: switch it to @Instance@.
       instFinal (ExtendTel (Dom info t) (Abs n EmptyTel)) =
                  ExtendTel (Dom ifo' t) (Abs n EmptyTel)
-        where ifo' = setHiding Instance info
+        where ifo' = makeInstance info
       -- Otherwise, keep searching for last parameter:
       instFinal (ExtendTel arg (Abs n tel)) =
                  ExtendTel arg (Abs n (instFinal tel))

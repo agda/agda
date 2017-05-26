@@ -281,17 +281,17 @@ bindToConcreteTop = bindToConcreteCtx TopCtx
 toConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> AbsToCon c
 toConcreteHiding h =
   case getHiding h of
-    NotHidden -> toConcrete
-    Hidden    -> toConcreteTop
-    Instance  -> toConcreteTop
+    NotHidden  -> toConcrete
+    Hidden     -> toConcreteTop
+    Instance{} -> toConcreteTop
 
 -- | Translate something in a context indicated by 'Hiding' info.
 bindToConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> (c -> AbsToCon b) -> AbsToCon b
 bindToConcreteHiding h =
   case getHiding h of
-    NotHidden -> bindToConcrete
-    Hidden    -> bindToConcreteTop
-    Instance  -> bindToConcreteTop
+    NotHidden  -> bindToConcrete
+    Hidden     -> bindToConcreteTop
+    Instance{} -> bindToConcreteTop
 
 -- General instances ------------------------------------------------------
 
@@ -442,9 +442,9 @@ instance ToConcrete A.Expr C.Expr where
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
           let namedPat np = case getHiding np of
-                 NotHidden -> namedArg np
-                 Hidden    -> C.HiddenP noRange (unArg np)
-                 Instance  -> C.InstanceP noRange (unArg np)
+                 NotHidden  -> namedArg np
+                 Hidden     -> C.HiddenP noRange (unArg np)
+                 Instance{} -> C.InstanceP noRange (unArg np)
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp (C.RawAppP r (_:es)) = return $ C.RawAppP r es
@@ -487,9 +487,9 @@ instance ToConcrete A.Expr C.Expr where
                            _          -> e
             addDot a e = C.Dot (getRange a) e
             mkArg (Arg info e) = case getHiding info of
-                                          Hidden    -> HiddenArg   (getRange e) (unnamed e)
-                                          Instance  -> InstanceArg (getRange e) (unnamed e)
-                                          NotHidden -> e
+                                          Hidden     -> HiddenArg   (getRange e) (unnamed e)
+                                          Instance{} -> InstanceArg (getRange e) (unnamed e)
+                                          NotHidden  -> e
 
     toConcrete (A.Set i 0)  = return $ C.Set (getRange i)
     toConcrete (A.Set i n)  = return $ C.SetN (getRange i) n
@@ -591,7 +591,7 @@ instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =
         bindToConcrete x $ \x ->
         do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
-           ret $ addInstanceB (getHiding info == Instance) $
+           ret $ addInstanceB (isInstance info) $
                [ C.TypeSig info x t
                , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                              e C.NoWhere False
