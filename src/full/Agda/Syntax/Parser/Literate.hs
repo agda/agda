@@ -2,18 +2,21 @@
 {-# LANGUAGE ViewPatterns #-}
 -- | Preprocessors for literate code formats
 module Agda.Syntax.Parser.Literate (
-  literateProcessors,
-  literateExts,
-  literateExtsShortList,
-  literateSrcFile,
-  literateTeX,
-  literateRsT,
-  literateMd,
-  illiterate,
-  isCode,
-  Processor,
-  Layer(..),
-  LayerType(..)
+   literateProcessors
+  ,literateExts
+  ,literateExtsShortList
+  ,literateSrcFile
+  ,literateTeX
+  ,literateRsT
+  ,literateMd
+  ,illiterate
+  ,atomizeLayers
+  ,Processor
+  ,Layers
+  ,Layer(..)
+  ,LayerRole(..)
+  ,isCode
+  ,isCodeLayer
   )
   where
 
@@ -30,30 +33,36 @@ import Control.Applicative ((<$>),(<*>))
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-data LayerType = Markup | Comment | Code
+-- | Role of a character in the file
+data LayerRole = Markup | Comment | Code
                 deriving (Show, Eq)
 
+-- | A sequence of characters in a file playing the same role
 data Layer = Layer {
-  layerType    :: LayerType
+  layerRole    :: LayerRole
  ,interval     :: Interval
  ,layerContent :: String
 } deriving (Show)
+
+-- | A list of contiguous layers
+type Layers = [Layer]
 
 instance HasRange Layer where
   getRange = getRange . interval
 
 -- | Annotates a tokenized string with position information.
-mkLayers :: Position -> [(LayerType, String)] -> [Layer]
+mkLayers :: Position -> [(LayerRole, String)] -> Layers
 mkLayers pos [] = emptyLiterate pos
+-- Ignore empty layers
 mkLayers pos ((_,""):xs) = mkLayers pos xs
 mkLayers pos ((ty,s):xs) = let next = movePosByString pos s in
                            (Layer ty (Interval pos next) s):(mkLayers next xs)
 
--- | Checks if a layer corresponds to Agda code
-isCode :: Layer -> Bool
-isCode Layer{layerType=Code}    = True
-isCode Layer{layerType=Markup } = False
-isCode Layer{layerType=Comment} = False
+unMkLayers :: Layers -> [(LayerRole, String)]
+unMkLayers = map ((,) <$> layerRole <*> layerContent)
+
+atomizeLayers :: Layers -> [(LayerRole, Char)]
+atomizeLayers = (>>= fmap <$> ((,) . fst) <*> snd) . unMkLayers
 
 -- | Type of a literate preprocessor:
 --   Invariants:
@@ -82,14 +91,24 @@ literateProcessors = map ((,) <$> (".lagda" ++) . fst <*> snd)
                  ,(".md", literateMd)
                  ]
 
+-- | Returns `True` if a role corresponds to Agda code
+isCode :: LayerRole -> Bool
+isCode Code    = True
+isCode Markup  = False
+isCode Comment = False
+
+-- | Returns `True` a layer contains Agda code
+isCodeLayer :: Layer -> Bool
+isCodeLayer = isCode . layerRole
+
 -- | Blanks the non-code parts of a given file, preserving positions of
 --   characters corresponding to code. This way, there is a direct
 --   correspondence between source positions and positions in the
 --   processed result.
 illiterate :: [Layer] -> String
 illiterate xs = concat [
-  (if isCode m then id else bleach) layerContent
-  | m@Layer{layerContent} <- xs]
+  (if isCode layerRole then id else bleach) layerContent
+  | Layer{layerRole,layerContent} <- xs]
 
 -- | Replaces non-space characters in a string with spaces.
 bleach :: String -> String
@@ -140,34 +159,34 @@ rex s = makeRegexOpts blankCompOpt{newSyntax = True} blankExecOpt$ "\\`" ++ s ++
 literateTeX :: Position -> String -> [Layer]
 literateTeX pos s = mkLayers pos$ tex s
   where
-  tex :: String -> [(LayerType, String)]
+  tex :: String -> [(LayerRole, String)]
   tex [] = []
   tex s  = let (line, rest) = getLine s in
     case r_begin `matchM` line of
-      Just (getAllTextSubmatches -> [_, pre, _, markup]) ->
-        (Comment, pre):(Markup, markup):code rest
+      Just (getAllTextSubmatches -> [_, pre, _, markup, blanks]) ->
+        (Comment, pre):(Markup, markup):(Code, blanks):code rest
       Just _                 -> __IMPOSSIBLE__
       Nothing                -> (Comment, line):tex rest
 
-  r_begin = rex "(([^\\%]|\\\\.)*)(\\\\begin\\{code\\}[[:space:]]*)"
+  r_begin = rex "(([^\\%]|\\\\.)*)(\\\\begin\\{code\\})([[:space:]]*)"
 
 
-  code :: String -> [(LayerType, String)]
+  code :: String -> [(LayerRole, String)]
   code [] = []
   code s = let (line, rest) = getLine s in
     case r_end `matchM` line of
-      Just (getAllTextSubmatches -> [_, markup, post]) ->
-        (Markup, markup):(Comment, post):tex rest
+      Just (getAllTextSubmatches -> [_, code, markup, post]) ->
+        (Code,code):(Markup, markup):(Comment, post):tex rest
       Just _ -> __IMPOSSIBLE__
       Nothing             -> (Code, line):code rest
 
-  r_end   = rex "([[:space:]]*\\\\end\\{code\\}[[:space:]]*)(.*)"
+  r_end   = rex "([[:blank:]]*)(\\\\end\\{code\\})(.*)"
 
 -- | Preprocessor for Markdown
 literateMd :: Position -> String -> [Layer]
 literateMd pos s = mkLayers pos$ md s
   where
-  md :: String -> [(LayerType, String)]
+  md :: String -> [(LayerRole, String)]
   md [] = []
   md s  = let (line, rest) = getLine s in
     case md_begin `matchM` line of
@@ -183,7 +202,7 @@ literateMd pos s = mkLayers pos$ md s
   md_begin = rex "(.*)([[:space:]]*```(agda)?[[:space:]]*)"
   md_begin_other = rex "[[:space:]]*```[a-zA-Z0-9-]*[[:space:]]*"
 
-  code :: String -> [(LayerType, String)]
+  code :: String -> [(LayerRole, String)]
   code [] = []
   code s = let (line, rest) = getLine s in
     case md_end `matchM` line of
@@ -193,7 +212,7 @@ literateMd pos s = mkLayers pos$ md s
       Nothing             -> (Code, line):code rest
 
   -- A non-Agda code block.
-  code_other :: String -> [(LayerType, String)]
+  code_other :: String -> [(LayerRole, String)]
   code_other [] = []
   code_other s = let (line, rest) = getLine s in
     (Comment, line):
@@ -207,7 +226,7 @@ literateMd pos s = mkLayers pos$ md s
 literateRsT :: Position -> String -> [Layer]
 literateRsT pos s = mkLayers pos$ rst s
   where
-  rst :: String -> [(LayerType, String)]
+  rst :: String -> [(LayerRole, String)]
   rst [] = []
   rst s  = maybe_code s
 
@@ -230,7 +249,7 @@ literateRsT pos s = mkLayers pos$ rst s
 
 
   -- | Finds the next indented block in the input
-  code :: String -> [(LayerType, String)]
+  code :: String -> [(LayerRole, String)]
   code [] = []
   code s = let (line, rest) = getLine s in
     if all isSpace line then
@@ -243,7 +262,7 @@ literateRsT pos s = mkLayers pos$ rst s
               (indented xs rest)
 
   -- | Process an indented block
-  indented :: String -> String -> [(LayerType, String)]
+  indented :: String -> String -> [(LayerRole, String)]
   indented _   [] = []
   indented ind s  = let (line, rest) = getLine s in
       if all isSpace line then

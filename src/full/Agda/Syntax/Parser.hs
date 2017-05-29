@@ -120,7 +120,7 @@ parseLiterateWithoutComments p layers = parseStringFromFile (literateSrcFile lay
 parseLiterateWithComments :: LiterateParser [Token]
 parseLiterateWithComments p layers = do
   code <- map Left <$> parseLiterateWithoutComments p layers
-  let literate = Right <$> filter (not . isCode) layers
+  let literate = Right <$> filter (not . isCodeLayer) layers
   let (terms, overlaps) = interleaveRanges code literate
   forM_ (map fst overlaps) $ \c ->
     warning$ OverlappingTokensWarning { warnRange = getRange c }
