@@ -713,10 +713,12 @@ dataStrategy k s = do
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (ignoreSharing u, ignoreSharing v) of
         (MetaV m es, Con c ci _   ) -> do
-          us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c ci
+          let lixs = applySubst (parallelS $ map unArg $ take k $ eqLHS s) ixs
+          us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars lixs c ci
           return $ Injectivity k a d hpars ixs c
         (Con c ci _   , MetaV m es) -> do
-          vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c ci
+          let rixs = applySubst (parallelS $ map unArg $ take k $ eqRHS s) ixs
+          vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars rixs c ci
           return $ Injectivity k a d hpars ixs c
         (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
         (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars u v
@@ -736,20 +738,20 @@ dataStrategy k s = do
 
     -- Instantiate the meta with a constructor applied to fresh metas
     -- Returns the fresh metas if successful
-    instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> ConInfo -> TCM (Maybe Args)
-    instMetaCon m es d pars c ci = do
+    instMetaCon :: MetaId -> Elims -> QName -> Args -> Args -> ConHead -> ConInfo -> TCM (Maybe Args)
+    instMetaCon m es d pars ixs c ci = do
       caseMaybe (allApplyElims es) (return Nothing) $ \ us -> do
         ifNotM (asks envAssignMetas) (return Nothing) $ {-else-} tryMaybe $ do
           reportSDoc "tc.lhs.unify" 60 $
             text "Trying to instantiate the meta" <+> prettyTCM (MetaV m es) <+>
             text "with the constructor" <+> prettyTCM c <+> text "applied to fresh metas"
-          margs <- do
-            -- The new metas should have the same dependencies as the original meta
-            mv <- lookupMeta m
+          -- The new metas should have the same dependencies as the original meta
+          mv <- lookupMeta m
 
-            ctype <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
-            reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
-            withMetaInfo' mv $ do
+          ctype <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
+          reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
+
+          margs <- withMetaInfo' mv $ do
               let perm = mvPermutation mv
               reportSDoc "tc.lhs.unify" 100 $ vcat
                 [ text "Permutation of meta: " <+> prettyTCM perm
@@ -772,6 +774,21 @@ dataStrategy k s = do
               -- important: create the meta in the same environment as the original meta
               newArgsMetaCtx ctype tel perm us
           reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
+
+          let conIxs = case unEl (ctype `piApply` margs) of
+                         Def d' es | d == d' -> fromMaybe __IMPOSSIBLE__ $
+                           allApplyElims $ drop (length pars) es
+                         _ -> __IMPOSSIBLE__
+
+          dType <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
+
+          reportSDoc "tc.lhs.unify" 90 $ vcat $
+            [ text "Making sure that indices of the meta match those of the constructor:"
+            , text "Meta indices:       " <+> prettyTCM ixs
+            , text "Constructor indices:" <+> prettyTCM conIxs
+            ]
+          noConstraints $ compareArgs (repeat Invariant) dType (Def d $ map Apply pars) ixs conIxs
+
           noConstraints $ assignV DirEq m us (Con c ci margs)
           return margs
 
