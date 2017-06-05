@@ -11,6 +11,7 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity
+    , WarningMode(..)
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
@@ -91,6 +92,12 @@ type Verbosity = Trie String Int
 data IgnoreFlags = IgnoreFlags | RespectFlags
   deriving Eq
 
+-- Potentially turn harmless warnings into nothing, or errors
+-- (does not apply to non-fatal errors)
+data WarningMode = LeaveAlone | TurnIntoErrors | IgnoreAllWarnings
+  deriving (Show, Eq)
+
+
 data CommandLineOptions = Options
   { optProgramName      :: String
   , optInputFile        :: Maybe FilePath
@@ -161,6 +168,7 @@ data PragmaOptions = PragmaOptions
       --   postfix (True) or prefix (False).
   , optInstanceSearchDepth       :: Int
   , optSafe                      :: Bool
+  , optWarningMode               :: WarningMode
   }
   deriving ( Show
            , Eq
@@ -247,6 +255,7 @@ defaultPragmaOptions = PragmaOptions
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
   , optSafe                      = False
+  , optWarningMode               = LeaveAlone
   }
 
 -- | The default termination depth.
@@ -518,6 +527,19 @@ verboseFlag s o =
         return (init ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
+warningModeFlag :: String -> Flag PragmaOptions
+warningModeFlag s o =
+    case lookup s assoc of
+      Just m -> return $ o { optWarningMode = m }
+      Nothing -> usage
+  where
+    assoc = [ ("warn",   LeaveAlone)
+            , ("ignore", IgnoreAllWarnings)
+            , ("error",  TurnIntoErrors)
+            ]
+    usage = throwError $ "unknown warning mode (available: " ++
+                           intercalate ", "(map fst assoc) ++ ")"
+
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
     do k <- readM s `catchError` \_ -> usage
@@ -655,6 +677,8 @@ pragmaOptions =
                     "set instance search depth to N (default: 500)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
+    , Option ['W']  ["warning"] (ReqArg warningModeFlag "MODE")
+                    "set warning mode to MODE"
     ]
 
 -- | Used for printing usage info.

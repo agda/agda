@@ -1,0 +1,4 @@
+Issue2596a.agda:4,1-16
+Empty REWRITE pragma
+when scope checking the declaration
+  {-# REWRITE #-}

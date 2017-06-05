@@ -135,6 +135,18 @@ instance EmbPrj PragmaOptions where
 
   value = valueN PragmaOptions
 
+instance EmbPrj WarningMode where
+  icod_ LeaveAlone        = icodeN 0 LeaveAlone
+  icod_ TurnIntoErrors    = icodeN 1 TurnIntoErrors
+  icod_ IgnoreAllWarnings = icodeN 2 IgnoreAllWarnings
+
+  value = vcase valu where
+    valu [0] = valuN LeaveAlone
+    valu [1] = valuN TurnIntoErrors
+    valu [2] = valuN IgnoreAllWarnings
+    valu _   = malformed
+
+
 instance EmbPrj PrimFun where
   -- don't need implementation for the warnings
   icod_ (PrimFun a b r)= icodeN' (\ a b -> PrimFun a b r) a b

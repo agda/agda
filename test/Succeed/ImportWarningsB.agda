@@ -1,3 +1,4 @@
+{-# OPTIONS -W ignore #-}
 module ImportWarningsB where
 
 -- all of the following files have warnings, which should be displayed
@@ -10,3 +11,5 @@ import OldCompilerPragmas
 import RewritingEmptyPragma
 import Unreachable
 
+-- this warning will be ignored
+{-# REWRITE #-}
