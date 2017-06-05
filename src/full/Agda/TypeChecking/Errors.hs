@@ -202,7 +202,7 @@ instance PrettyTCM Warning where
       "instead. This will be an error in Agda" ++ [text version <> text "."]
 
 prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (unlines . intersperse " ") . prettyTCWarnings'
+prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
 
 prettyTCWarnings' :: [TCWarning] -> TCM [String]
 prettyTCWarnings' = mapM (fmap show . prettyTCM)
