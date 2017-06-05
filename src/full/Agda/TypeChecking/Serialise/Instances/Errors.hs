@@ -130,10 +130,22 @@ instance EmbPrj InteractionId where
 
 instance EmbPrj PragmaOptions where
   -- TODO: only keep the options needed for displaying the warnings
-  icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y
+  icod_ (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z
 
   value = valueN PragmaOptions
+
+instance EmbPrj WarningMode where
+  icod_ LeaveAlone        = icodeN 0 LeaveAlone
+  icod_ TurnIntoErrors    = icodeN 1 TurnIntoErrors
+  icod_ IgnoreAllWarnings = icodeN 2 IgnoreAllWarnings
+
+  value = vcase valu where
+    valu [0] = valuN LeaveAlone
+    valu [1] = valuN TurnIntoErrors
+    valu [2] = valuN IgnoreAllWarnings
+    valu _   = malformed
+
 
 instance EmbPrj PrimFun where
   -- don't need implementation for the warnings

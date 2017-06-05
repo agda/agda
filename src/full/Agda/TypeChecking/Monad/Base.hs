@@ -3087,7 +3087,15 @@ warning_ w =
 warning :: MonadTCM tcm => Warning -> tcm ()
 warning w = do
   tcwarn <- warning_ w
-  stTCWarnings %= (tcwarn :)
+  wmode <- optWarningMode <$> pragmaOptions
+  case wmode of
+    IgnoreAllWarnings -> case classifyWarning w of
+                           -- not allowed to ignore non-fatal errors
+                           ErrorWarnings -> raiseWarning tcwarn
+                           AllWarnings -> return ()
+    TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
+    LeaveAlone -> raiseWarning tcwarn
+  where raiseWarning tcw = stTCWarnings %= (tcw :)
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
