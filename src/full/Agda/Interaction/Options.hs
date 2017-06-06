@@ -95,7 +95,11 @@ data IgnoreFlags = IgnoreFlags | RespectFlags
 -- Potentially turn harmless warnings into nothing, or errors
 -- (does not apply to non-fatal errors)
 data WarningMode = LeaveAlone | TurnIntoErrors | IgnoreAllWarnings
-  deriving (Show, Eq)
+  deriving (Show, Eq
+#if __GLASGOW_HASKELL__ <= 708
+           , Typeable
+#endif
+           )
 
 
 data CommandLineOptions = Options
