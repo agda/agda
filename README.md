@@ -50,6 +50,14 @@ it should suffice to run
 
 as root to get the correct files installed.
 
+Optionally one can also install the [ICU](http://site.icu-project.org)
+library, which is used to implement the `--count-clusters` flag. Under
+Debian or Ubuntu it may suffice to install `libicu-dev`. Once the ICU
+library is installed one can hopefully enable the `--count-clusters`
+flag by giving the `-fenable-cluster-counting` flag to `cabal
+install`. Note that `make install` by default enables
+`-fenable-cluster-counting`.
+
 ### Note on GHC's CPP language extension
 
 Recent versions of Clang's preprocessor don't work well with Haskell.

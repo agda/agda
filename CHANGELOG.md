@@ -320,11 +320,12 @@ LaTeX backend
   `\AgdaFormat` is the token, and the second argument the thing to
   be typeset.
 
-* The alignment feature used to regard the string `+̲`, containing `+`
-  and a combining character, as having length two. However, it seems
-  more reasonable to treat it as having length one, as it occupies a
-  single column, if displayed "properly" using a monospace font. This
-  has now been fixed: the backend counts ["extended grapheme
+* The alignment feature regards the string `+̲`, containing `+` and a
+  combining character, as having length two. However, it seems more
+  reasonable to treat it as having length one, as it occupies a single
+  column, if displayed "properly" using a monospace font. The new flag
+  `--count-clusters` is an attempt at fixing this. When this flag is
+  enabled the backend counts ["extended grapheme
   clusters"](http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
   rather than code points.
 
@@ -351,6 +352,12 @@ LaTeX backend
     record +̲ : Set₁ where  field A : Set
                             field B : Set
   ```
+
+  The `--count-clusters` flag is not enabled in all builds of Agda,
+  because the implementation depends on the
+  [ICU](http://site.icu-project.org) library, the installation of
+  which could cause extra trouble for some users. The presence of this
+  flag is controlled by the Cabal flag `enable-cluster-counting`.
 
 * A faster variant of the LaTeX backend: QuickLaTeX.
 

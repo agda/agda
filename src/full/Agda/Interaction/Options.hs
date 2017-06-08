@@ -127,6 +127,9 @@ data CommandLineOptions = Options
   , optGenerateHTML     :: Bool
   , optDependencyGraph  :: Maybe FilePath
   , optLaTeXDir         :: FilePath
+  , optCountClusters    :: Bool
+    -- ^ Count extended grapheme clusters rather than code points when
+    -- generating LaTeX.
   , optHTMLDir          :: FilePath
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
@@ -220,6 +223,7 @@ defaultOptions = Options
   , optGenerateHTML     = False
   , optDependencyGraph  = Nothing
   , optLaTeXDir         = defaultLaTeXDir
+  , optCountClusters    = False
   , optHTMLDir          = defaultHTMLDir
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
@@ -395,6 +399,15 @@ latexFlag o = return $ o { optGenerateLaTeX = True }
 
 onlyScopeCheckingFlag :: Flag CommandLineOptions
 onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
+
+countClustersFlag :: Flag CommandLineOptions
+countClustersFlag o =
+#ifdef COUNT_CLUSTERS
+  return $ o { optCountClusters = True }
+#else
+  throwError
+    "Cluster counting has not been enabled in this build of Agda."
+#endif
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -572,6 +585,15 @@ standardOptions =
     , Option []     ["latex-dir"] (ReqArg latexDirFlag "DIR")
                     ("directory in which LaTeX files are placed (default: " ++
                      defaultLaTeXDir ++ ")")
+    , Option []     ["count-clusters"] (NoArg countClustersFlag)
+                    ("count extended grapheme clusters when " ++
+                     "generating LaTeX (note that this flag " ++
+#ifdef COUNT_CLUSTERS
+                     "is not enabled in all builds of Agda)"
+#else
+                     "has not been enabled in this build of Agda)"
+#endif
+                    )
     , Option []     ["html"] (NoArg htmlFlag)
                     "generate HTML files with highlighted source code"
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")

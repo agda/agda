@@ -278,12 +278,13 @@ install:
 ##############################################################################
 
 # Testing compilation with Stackage, cpp instead of cpphs
-# [Issue #1647] and the `debug` flag [Issue #2070]
+# [Issue #1647], the `debug` flag [Issue #2070], and the
+# `enable-cluster-counting` flag.
 
 # N.B. that this test is not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
-       stack build $ARGS --no-terminal --test --no-run-tests --flag Agda:-cpphs --flag Agda:debug;
+       stack build $ARGS --no-terminal --test --no-run-tests --flag Agda:-cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
 ##############################################################################
