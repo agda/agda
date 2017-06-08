@@ -14,6 +14,7 @@ import Data.Char
 import Data.Maybe
 import Data.Function
 import Control.Monad.RWS.Strict
+import Control.Applicative
 import Control.Arrow (second)
 import System.Directory
 import System.Exit
