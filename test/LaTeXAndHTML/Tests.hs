@@ -10,6 +10,7 @@ import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Data.Char
 import Data.List
 import Data.Maybe
+import System.Directory
 import System.Exit
 import System.FilePath
 import System.Process
@@ -79,6 +80,7 @@ mkLaTeXOrHTMLTest k agdaBin inp =
     latexFlags = ["--latex", "--latex-dir=" ++ dir]
 
   testName    = asTestName testDir inp ++ "_" ++ show k
+  flagFile    = dropAgdaExtension inp <.> "flags"
   goldenFile  = dropAgdaExtension inp <.> extension
   -- For removing a LaTeX compiler when testing @Foo.lagda@, you can
   -- create a file @Foo.compile@ with the list of the LaTeX compilers
@@ -97,11 +99,16 @@ mkLaTeXOrHTMLTest k agdaBin inp =
   -- in the Agda directory.
   -- doRun = withTempDirectory "." testName $ \outDir -> do
   doRun = withSystemTempDirectory testName $ \outDir -> do
+    -- One can give extra options in .flags files (one per line).
+    flagFileExists <- doesFileExist flagFile
+    extraFlags <- if flagFileExists
+                  then lines <$> readFile flagFile
+                  else return []
     let agdaArgs = flags outDir ++
                    [ "-i" ++ testDir
                    , inp
                    , "--ignore-interfaces"
-                   ]
+                   ] ++ extraFlags
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
     if ret /= ExitSuccess then
       return $ AgdaFailed res
