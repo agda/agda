@@ -25,7 +25,7 @@ Documentation
 Prerequisites
 -------------
 
-You need recent versions of the following programs/libraries:
+You need recent versions of the following programs:
 
 * GHC:           http://www.haskell.org/ghc/
 * cabal-install: http://www.haskell.org/cabal/
@@ -79,7 +79,7 @@ Recommended if such a package exists. See the [Agda Wiki][agdawiki].
 
 ### Using a released source package from Hackage
 
-Install the prerequisites mentioned below, then run the following commands:
+Install the prerequisites mentioned above, then run the following commands:
 
     cabal update
     cabal install Agda
