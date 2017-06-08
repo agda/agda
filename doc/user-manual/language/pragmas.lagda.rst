@@ -33,3 +33,5 @@ Index of pragmas
 * :ref:`POLARITY <polarity_pragma>`
 
 * :ref:`TERMINATING <terminating_pragma>`
+
+See also :ref:`command-line-pragmas`.
