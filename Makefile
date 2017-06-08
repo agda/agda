@@ -57,9 +57,14 @@ QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
 
 CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR) --enable-tests
 
+# The following options are used in several invocations of cabal
+# install/configure below. They are always the last options given to
+# the command.
+CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          --program-suffix=-$(VERSION) \
-                         $(CABAL_OPTS)
+                         $(CABAL_INSTALL_OPTS)
 
 .PHONY : quick-install-bin
 quick-install-bin :
@@ -72,7 +77,7 @@ install-bin :
 .PHONY : install-prof-bin
 install-prof-bin :
 	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
-          --program-suffix=-$(VERSION)_p $(CABAL_OPTS)
+          --program-suffix=-$(VERSION)_p $(CABAL_INSTALL_OPTS)
 
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
@@ -84,7 +89,7 @@ install-prof-bin :
 install-debug :
 	$(CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-$(VERSION)-debug --builddir=$(BUILD_DIR)-debug \
-        $(CABAL_OPTS)
+        $(CABAL_INSTALL_OPTS)
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
@@ -352,7 +357,7 @@ install-agda-bisect :
 .PHONY: hpc-build
 hpc-build:
 	$(CABAL_CMD) clean $(CABAL_OPTS)
-	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_OPTS)
+	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_INSTALL_OPTS)
 	$(CABAL_CMD) build $(CABAL_OPTS)
 
 agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
