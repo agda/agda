@@ -25,7 +25,7 @@ Documentation
 Prerequisites
 -------------
 
-You need recent versions of the following programs/libraries:
+You need recent versions of the following programs:
 
 * GHC:           http://www.haskell.org/ghc/
 * cabal-install: http://www.haskell.org/cabal/
@@ -49,6 +49,14 @@ it should suffice to run
     apt-get install zlib1g-dev libncurses5-dev
 
 as root to get the correct files installed.
+
+Optionally one can also install the [ICU](http://site.icu-project.org)
+library, which is used to implement the `--count-clusters` flag. Under
+Debian or Ubuntu it may suffice to install `libicu-dev`. Once the ICU
+library is installed one can hopefully enable the `--count-clusters`
+flag by giving the `-fenable-cluster-counting` flag to `cabal
+install`. Note that `make install` by default enables
+`-fenable-cluster-counting`.
 
 ### Note on GHC's CPP language extension
 
@@ -79,7 +87,7 @@ Recommended if such a package exists. See the [Agda Wiki][agdawiki].
 
 ### Using a released source package from Hackage
 
-Install the prerequisites mentioned below, then run the following commands:
+Install the prerequisites mentioned above, then run the following commands:
 
     cabal update
     cabal install Agda

@@ -14,6 +14,7 @@ import Data.Char
 import Data.Maybe
 import Data.Function
 import Control.Monad.RWS.Strict
+import Control.Applicative
 import Control.Arrow (second)
 import System.Directory
 import System.Exit
@@ -21,7 +22,9 @@ import System.FilePath
 import System.Process
 import Data.Text (Text)
 import qualified Data.Text               as T
+#ifdef COUNT_CLUSTERS
 import qualified Data.Text.ICU           as ICU
+#endif
 import qualified Data.Text.IO            as T
 import qualified Data.Text.Lazy          as L
 import qualified Data.Text.Lazy.Encoding as E
@@ -45,7 +48,8 @@ import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Interaction.Options (optGHCiInteraction, optLaTeXDir)
+import Agda.Interaction.Options
+  (optGHCiInteraction, optLaTeXDir, optCountClusters)
 import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
@@ -103,21 +107,24 @@ data AlignmentColumn = AlignmentColumn
   } deriving Show
 
 data State = State
-  { codeBlock   :: !Int   -- ^ The number of the current code block.
-  , column      :: !Int   -- ^ The current column number.
-  , columns     :: [AlignmentColumn]
-                          -- ^ All alignment columns found on the
-                          --   current line (so far), in reverse
-                          --   order.
-  , columnsPrev :: [AlignmentColumn]
-                          -- ^ All alignment columns found in
-                          --   previous lines (in any code block),
-                          --   with larger columns coming first.
-  , nextId      :: !IndentationColumnId
-                          -- ^ The next indentation column identifier.
-  , usedColumns :: HashSet IndentationColumnId
-                          -- ^ Indentation columns that have actually
-                          --   been used.
+  { codeBlock     :: !Int   -- ^ The number of the current code block.
+  , column        :: !Int   -- ^ The current column number.
+  , columns       :: [AlignmentColumn]
+                            -- ^ All alignment columns found on the
+                            --   current line (so far), in reverse
+                            --   order.
+  , columnsPrev   :: [AlignmentColumn]
+                            -- ^ All alignment columns found in
+                            --   previous lines (in any code block),
+                            --   with larger columns coming first.
+  , nextId        :: !IndentationColumnId
+                            -- ^ The next indentation column
+                            -- identifier.
+  , usedColumns   :: HashSet IndentationColumnId
+                            -- ^ Indentation columns that have
+                            -- actually
+                            --   been used.
+  , countClusters :: !Bool  -- ^ Count extended grapheme clusters?
   }
 
 type Tokens = [Token]
@@ -144,26 +151,37 @@ runLaTeX ::
   LaTeX a -> () -> State -> IO (a, State, [Output])
 runLaTeX = runRWST
 
-emptyState :: State
-emptyState = State
-  { codeBlock   = 0
-  , column      = 0
-  , columns     = []
-  , columnsPrev = []
-  , nextId      = 0
-  , usedColumns = Set.empty
+emptyState
+  :: Bool  -- ^ Count extended grapheme clusters?
+  -> State
+emptyState cc = State
+  { codeBlock     = 0
+  , column        = 0
+  , columns       = []
+  , columnsPrev   = []
+  , nextId        = 0
+  , usedColumns   = Set.empty
+  , countClusters = cc
   }
 
 ------------------------------------------------------------------------
 -- * Some helpers.
 
--- | Counts the number of extended grapheme clusters in the string,
--- rather than the number of code points.
---
--- Uses the root locale.
+-- | Gives the size of the string. If cluster counting is enabled,
+-- then the number of extended grapheme clusters is computed (the root
+-- locale is used), and otherwise the number of code points.
 
-graphemeClusters :: Text -> Int
-graphemeClusters = length . ICU.breaks (ICU.breakCharacter ICU.Root)
+size :: Text -> LaTeX Int
+size t = do
+  cc <- countClusters <$> get
+  if cc then
+#ifdef COUNT_CLUSTERS
+    return $ length $ ICU.breaks (ICU.breakCharacter ICU.Root) t
+#else
+    __IMPOSSIBLE__
+#endif
+   else
+    return $ T.length t
 
 (<+>) :: Text -> Text -> Text
 (<+>) = T.append
@@ -208,7 +226,7 @@ moveColumnForToken :: Token -> LaTeX ()
 moveColumnForToken t = do
   unless (isSpaces (text t)) $ do
     log MoveColumn $ text t
-    moveColumn $ graphemeClusters $ text t
+    moveColumn =<< size (text t)
 
 -- | Merges 'columns' into 'columnsPrev', resets 'column' and
 -- 'columns'
@@ -504,7 +522,7 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
   when (col == 0) $
     output . Text . ptOpen =<< columnZero
-  output $ Text $ ptClose <+> T.replicate (graphemeClusters s) ptNL
+  output $ Text $ ptClose <+> T.replicate (T.length s) ptNL
   resetColumn
   spaces ss
 
@@ -515,7 +533,7 @@ spaces (_ : ss@(_ : _)) = spaces ss
 spaces [ s ] = do
   col <- gets column
 
-  let len  = graphemeClusters s
+  let len  = T.length s
       kind = if col /= 0 && len == 1
              then Indentation
              else Alignment
@@ -615,7 +633,9 @@ generateLaTeX i = do
 
   liftIO $ do
     source <- UTF8.readTextFile inAbsPath
-    latex <- E.encodeUtf8 `fmap` toLaTeX (mkAbsolute inAbsPath) source hi
+    latex <- E.encodeUtf8 `fmap`
+               toLaTeX (optCountClusters options)
+                       (mkAbsolute inAbsPath) source hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
@@ -633,10 +653,16 @@ groupByFst =
                                   -- role.
 
 -- | Transforms the source code into LaTeX.
-toLaTeX :: AbsolutePath -> String -> HighlightingInfo -> IO L.Text
-toLaTeX path source hi
+toLaTeX
+  :: Bool
+     -- ^ Count extended grapheme clusters?
+  -> AbsolutePath
+  -> String
+  -> HighlightingInfo
+  -> IO L.Text
+toLaTeX cc path source hi
 
-  = processTokens
+  = processTokens cc
 
   . map (\(role, tokens) -> (role,) $
       -- This bit fixes issue 954
@@ -711,9 +737,13 @@ toLaTeX path source hi
 
 
 
-processTokens :: [(LayerRole, Tokens)] -> IO L.Text
-processTokens ts = do
-  ((), s, os) <- runLaTeX (processLayers ts) () emptyState
+processTokens
+  :: Bool
+     -- ^ Count extended grapheme clusters?
+  -> [(LayerRole, Tokens)]
+  -> IO L.Text
+processTokens cc ts = do
+  ((), s, os) <- runLaTeX (processLayers ts) () (emptyState cc)
   return $ L.fromChunks $ map (render s) os
   where
     render _ (Text s)        = s
