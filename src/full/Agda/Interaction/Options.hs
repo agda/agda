@@ -101,6 +101,16 @@ data WarningMode = LeaveAlone | TurnIntoErrors | IgnoreAllWarnings
 #endif
            )
 
+warningModes :: [ (String, WarningMode) ]
+warningModes =
+  [ (defaultWarningMode, LeaveAlone)
+  , ("ignore"          , IgnoreAllWarnings)
+  , ("error"           , TurnIntoErrors)
+  ]
+
+-- Don't forget to update
+--   doc/user-manual/tools/command-line-options.rst
+-- if you make changes to the command-line options!
 
 data CommandLineOptions = Options
   { optProgramName      :: String
@@ -261,7 +271,7 @@ defaultPragmaOptions = PragmaOptions
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
   , optSafe                      = False
-  , optWarningMode               = LeaveAlone
+  , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
   }
 
 -- | The default termination depth.
@@ -278,6 +288,12 @@ defaultLaTeXDir = "latex"
 
 defaultHTMLDir :: String
 defaultHTMLDir = "html"
+
+-- | The default warning mode.
+
+defaultWarningMode :: String
+defaultWarningMode = "warn"
+
 
 type OptM = ExceptT String IO
 
@@ -541,16 +557,12 @@ verboseFlag s o =
 
 warningModeFlag :: String -> Flag PragmaOptions
 warningModeFlag s o =
-    case lookup s assoc of
+    case lookup s warningModes of
       Just m -> return $ o { optWarningMode = m }
       Nothing -> usage
   where
-    assoc = [ ("warn",   LeaveAlone)
-            , ("ignore", IgnoreAllWarnings)
-            , ("error",  TurnIntoErrors)
-            ]
     usage = throwError $ "unknown warning mode (available: " ++
-                           intercalate ", "(map fst assoc) ++ ")"
+                           intercalate ", " (map fst warningModes) ++ ")"
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
@@ -596,13 +608,13 @@ standardOptions =
                     )
     , Option []     ["html"] (NoArg htmlFlag)
                     "generate HTML files with highlighted source code"
-    , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
-                    "generate a Dot file with a module dependency graph"
     , Option []     ["html-dir"] (ReqArg htmlDirFlag "DIR")
                     ("directory in which HTML files are placed (default: " ++
                      defaultHTMLDir ++ ")")
     , Option []     ["css"] (ReqArg cssFlag "URL")
                     "the CSS file used by the HTML files (can be relative)"
+    , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
+                    "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
@@ -697,7 +709,9 @@ pragmaOptions =
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "MODE")
-                    "set warning mode to MODE"
+                    ("set warning mode to MODE (available: "
+                       ++ intercalate ", " (map fst warningModes)
+                       ++ ". Default: " ++  defaultWarningMode ++ ")")
     ]
 
 -- | Used for printing usage info.

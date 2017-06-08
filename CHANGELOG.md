@@ -386,6 +386,12 @@ Pragmas and options
   of the corresponding file. Incompatibilities between the `--safe` option
   and other options or language constructs are non-fatal errors.
 
+* New command-line option and pragma `--warning=MODE` (or `-W MODE`) for
+  setting the warning mode. Current options are
+  - `warn` for displaying warnings (default)
+  - `error` for turning warnings into errors
+  - `ignore` for not displaying warnings
+
 Release notes for Agda version 2.5.2
 ====================================
 

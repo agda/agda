@@ -169,6 +169,7 @@ and dot patterns). The name reduces to the value of the named pattern. For examp
 
 As-patterns are properly supported since Agda 2.5.2.
 
+.. _case-trees:
 
 Case trees
 ==========
