@@ -160,6 +160,9 @@ Experimental features
 :samp:`--rewriting`                                                    Enable declaration and use of REWRITE
                                                                        rules
                                                                        (see :ref:`rewriting`)
+
+:samp:`--cubical`                                                      Enable cubical features
+                                                                       (see :ref:`cubical`)
 ==================================================  =================  ===========================================
 
 Errors and warnings
