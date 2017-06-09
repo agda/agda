@@ -549,12 +549,17 @@ Options
 The following command-line options change the behaviour of the LaTeX
 backend:
 
-:samp:`--latex-dir {directory}`
+:samp:`--latex-dir={directory}`
   Changes the output directory where :file:`agda.sty` and the output :file:`.tex` are placed to :samp:`{directory}`. Default: ``latex``.
 
 ``--only-scope-checking``
   Generates highlighting without typechecking the file. See
   :ref:`quickLaTeX`.
+
+``--count-clusters``
+  Count extended grapheme clusters when generating LaTeX code.
+  See :ref:`grapheme-clusters`.
+
 
 The following options can be given when loading ``agda.sty`` by using
 :samp:`\usepackage[{options}]{agda}`:
@@ -571,6 +576,52 @@ The following options can be given when loading ``agda.sty`` by using
 
 ``links``
   Enables :ref:`hyperlink support <latex-links>`.
+
+.. _grapheme-clusters:
+
+Counting Extended Grapheme Clusters
+-----------------------------------
+
+The alignment feature regards the string ``+̲``, containing ``+`` and a
+combining character, as having length two. However, it seems more
+reasonable to treat it as having length one, as it occupies a single
+column, if displayed "properly" using a monospace font. The new flag
+``--count-clusters`` is an attempt at fixing this. When this flag is
+enabled the backend counts `"extended grapheme clusters"
+<http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
+rather than code points.
+
+Note that this fix is not perfect: a single extended grapheme cluster
+might be displayed in different ways by different programs, and might,
+in some cases, occupy more than one column. Here are some examples of
+extended grapheme clusters, all of which are treated as a single
+character by the alignment algorithm:
+
+.. code-block:: lagda
+
+   │ │
+   │+̲│
+   │Ö̂│
+   │நி│
+   │ᄀힰᇹ│
+   │ᄀᄀᄀᄀᄀᄀힰᇹᇹᇹᇹᇹᇹ│
+   │ │
+
+Note also that the layout machinery does not count extended grapheme
+clusters, but code points. The following code is syntactically
+correct, but if ``--count-clusters`` is used, then the LaTeX backend
+does not align the two field keywords:
+
+::
+
+  record +̲ : Set₁ where  field A : Set
+                          field B : Set
+
+The ``--count-clusters`` flag is not enabled in all builds of Agda,
+because the implementation depends on the ICU_ library, the
+installation of which could cause extra trouble for some users. The
+presence of this flag is controlled by the Cabal flag
+``enable-cluster-counting``.
 
 .. _quickLaTeX:
 
@@ -653,3 +704,4 @@ but should also work in other distributions. For :program:`xelatex` or
 .. _hyperref: https://www.ctan.org/pkg/hyperref
 .. _XITS: http://www.ctan.org/tex-archive/fonts/xits/
 .. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
+.. _ICU: http://site.icu-project.org/

@@ -51,6 +51,10 @@ Generating highlighted source code
 :samp:`--latex-dir={DIR}`                            Set directory in which LaTeX files are
                                                      placed to :samp:`{DIR}` (default: latex)
 
+:samp:`--count-clusters`                             Count extended grapheme clusters when
+                                                     generating LaTeX
+                                                     code (see :ref:`grapheme-clusters`)
+
 :samp:`--html`                                       Generate HTML files with highlighted source
                                                      code (see :ref:`generating-html`)
 
