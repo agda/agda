@@ -1,0 +1,2 @@
+top_command    (cmd_load "Issue2592/B.agda" [])
+top_command    (cmd_load "Issue2592/C.agda" [])

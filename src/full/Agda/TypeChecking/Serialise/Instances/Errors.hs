@@ -99,12 +99,19 @@ instance EmbPrj TCEnv where
                  }
 
 instance EmbPrj TCState where
-  icod_ st = icodeN' (undefined :: Signature -> ModuleToSource -> PragmaOptions
+  icod_ st = icodeN' (undefined :: Signature -> PragmaOptions
                                 -> BuiltinThings PrimFun -> MetaStore
                                 -> InteractionPoints -> Signature
                                 -> BuiltinThings PrimFun -> TCState)
                      (st ^. stImports)
-                     (st ^. stModuleToSource)
+
+-- FNF 2017-06-13: Experiments when implementing serialising warnings
+-- suggested that we needed to serialise the ModuleToSource stored in
+-- the state for printing warnings stored in interface files, but this
+-- does not seem needed, and caused Issue 2592; hence the following
+-- line is now commented out.
+
+--                     (st ^. stModuleToSource)
                      (st ^. stPragmaOptions)
                      (st ^. stImportedBuiltins)
                      (st ^. stMetaStore)
@@ -112,9 +119,9 @@ instance EmbPrj TCState where
                      (st ^. stSignature)
                      (st ^. stLocalBuiltins)
 
-  value = valueN (\ a b c d e f g h ->
+  value = valueN (\ a c d e f g h ->
                      set stImports           a $
-                     set stModuleToSource    b $
+--                     set stModuleToSource    b $
                      set stPragmaOptions     c $
                      set stImportedBuiltins  d $
                      set stMetaStore         e $
