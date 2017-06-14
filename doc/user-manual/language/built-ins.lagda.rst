@@ -334,6 +334,21 @@ As with booleans, the only effect of binding the ``LIST`` built-in is to let
 you use primitive functions working with lists, such as ``primStringToList``
 and ``primStringFromList``.
 
+..
+  ::
+  -- common functions on lists used in other files for examples
+  _++_ : ∀ {a} {A : Set a} → List A → List A → List A
+  [] ++ ys       = ys
+  (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+  map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
+  map f []       = []
+  map f (x ∷ xs) = f x ∷ map f xs
+
+  [_] : ∀ {a} {A : Set a} → A → List A
+  [ x ] = x ∷ []
+
+
 .. _built-in-char:
 
 Characters
