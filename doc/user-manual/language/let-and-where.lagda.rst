@@ -4,6 +4,8 @@
 
   open import language.built-ins
 
+
+
 .. _let-and-where:
 
 ********************************
@@ -35,14 +37,19 @@ let-expressions have the general form
 
 .. code-block:: agda
 
-  let f : A₁ → … → Aₙ → A
-      f x₁ … xₙ = e
+  let f₁ : A₁₁ → … → A₁ₙ → A₁
+      f₁ x₁ … xₙ = e₁
+      …
+      fₘ : Aₘ₁ → … → Aₘₖ → Aₘ
+      fₘ x₁ … xₖ = eₘ
   in  e’
 
-After type-checking,
-the meaning of this is simply the substitution ``e’[f := λ x₁ … xₙ → e]``.
-Since Agda substitutes away let-bindings, they do not show up in terms
-Agda prints, nor in the goal display in interactive mode.
+where previous definitions are in scope in later definitions.  The
+type signatures can be left out if Agda can infer them.
+After type-checking, the meaning of this is simply the substitution
+``e’[f₁ := λ x₁ … xₙ → e; …; fₘ := λ x₁ … xₖ → eₘ]``.  Since Agda
+substitutes away let-bindings, they do not show up in terms Agda
+prints, nor in the goal display in interactive mode.
 
 where-blocks
 ============
@@ -153,7 +160,7 @@ A ``private`` declaration for the parent of an ordinary
 They are not even in scope.
 
 Proving properties
-------------------
+==================
 
 Sometimes one needs to refer to local definitions in proofs about the
 parent function.  In this case, the ``module ⋯ where`` variant is preferable.
@@ -190,22 +197,16 @@ allow us to prove some properties about them.
   reverse' xs = rev-append xs []
 
 More Examples (for Beginners)
------------------------------
+=============================
 
-Using a let-expression
-
-.. code-block:: agda
-
+Using a let-expression::
 
   tw-map : {A : Set} → List A → List (List A)
   tw-map {A} xs = let twice : List A → List A
                       twice xs = xs ++ xs
                   in  map (\ x → twice [ x ]) xs
 
-Same definition but with less type information
-
-.. code-block:: agda
-
+Same definition but with less type information::
 
   tw-map' : {A : Set} → List A → List (List A)
   tw-map' {A} xs = let twice : _
@@ -214,31 +215,25 @@ Same definition but with less type information
 
 Same definition but with a where-expression
 
-.. code-block:: agda
-
+::
 
   tw-map'' : {A : Set} → List A → List (List A)
   tw-map'' {A} xs =  map (\ x → twice [ x ]) xs
      where twice : List A → List A
            twice xs = xs ++ xs
 
-Even less type information using let
+Even less type information using let::
 
-.. code-block:: agda
+  g : Nat → List Nat
+  g zero    = [ zero ]
+  g (suc n) = let sing = [ suc n ]
+              in  sing ++ g n
 
-  f : Nat → List Nat
-  f zero    = [ zero ]
-  f (suc n) = let sing = [ suc n ]
-              in  sing ++ f n
+Same definition using where::
 
-Same definition using where
-
-.. code-block:: agda
-
-
-  f' : Nat → List Nat
-  f' zero = [ zero ]
-  f' (suc n) = sing ++ f' n
+  g' : Nat → List Nat
+  g' zero = [ zero ]
+  g' (suc n) = sing ++ g' n
      where  sing = [ suc n ]
 
 More than one definition in a let::
@@ -254,8 +249,8 @@ More than one definition in a let::
 
 More than one definition in a where::
 
-  g : Nat → Nat
-  g n = fib n + fact n
+  fibfact : Nat → Nat
+  fibfact n = fib n + fact n
    where fib : Nat → Nat
          fib zero = suc zero
          fib (suc zero) = suc zero
@@ -269,7 +264,7 @@ Combining let and where::
 
   k : Nat → Nat
   k n = let aux : Nat → Nat
-            aux m = pred (g m) + h m
+            aux m = pred (h m) + fibfact m
         in aux (pred n)
     where pred : Nat → Nat
           pred zero = zero
