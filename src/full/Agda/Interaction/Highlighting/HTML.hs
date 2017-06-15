@@ -29,6 +29,8 @@ import System.FilePath
 import System.Directory
 
 import Text.XHtml.Strict
+  -- The imported operator (!) attaches a list of html attribute to something.
+  -- It even applies (pointwise) to functions.
 
 import Paths_Agda
 
@@ -64,8 +66,10 @@ defaultCSSFile = "Agda.css"
 generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
+  pageGen :: FilePath -> C.TopLevelModuleName -> CompressedFile -> TCM ()
   pageGen dir mod hinfo = generatePage renderer dir mod
     where
+    renderer :: FilePath -> FilePath -> String -> String
     renderer css _ contents = page css mod $ code $ tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
