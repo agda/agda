@@ -115,18 +115,15 @@ generatePage
   -> C.TopLevelModuleName  -- ^ Module to be highlighted.
   -> TCM ()
 generatePage renderpage dir mod = do
-  mf <- Map.lookup mod <$> use TCM.stModuleToSource
-  case mf of
-    Nothing -> __IMPOSSIBLE__
-    Just f  -> do
-      contents <- liftIO $ UTF8.readTextFile $ filePath f
-      css      <- maybe defaultCSSFile id . optCSSFile <$>
-                    TCM.commandLineOptions
-      let html = renderpage css (filePath f) contents
-      TCM.reportSLn "html" 1 $ "Generating HTML for " ++
-                               render (pretty mod) ++
-                               " (" ++ target ++ ")."
-      liftIO $ UTF8.writeFile target html
+  f <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> use TCM.stModuleToSource
+  contents <- liftIO $ UTF8.readTextFile $ filePath f
+  css      <- fromMaybe defaultCSSFile . optCSSFile <$>
+                TCM.commandLineOptions
+  let html = renderpage css (filePath f) contents
+  TCM.reportSLn "html" 1 $ "Generating HTML for " ++
+                           render (pretty mod) ++
+                           " (" ++ target ++ ")."
+  liftIO $ UTF8.writeFile target html
   where target = dir </> modToFile mod
 
 -- | Constructs the web page, including headers.
@@ -162,7 +159,7 @@ tokenStream
 tokenStream contents info =
   map (\cs -> case cs of
           (mi, (pos, _)) : _ ->
-            (pos, map (snd . snd) cs, maybe mempty id mi)
+            (pos, map (snd . snd) cs, fromMaybe mempty mi)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
   map (\(pos, c) -> (IntMap.lookup pos infoMap, (pos, c))) $
@@ -193,7 +190,7 @@ code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
 
     aspectClasses (Name mKind op) = kindClass ++ opClass
       where
-      kindClass = maybe [] ((: []) . showKind) mKind
+      kindClass = maybeToList $ fmap showKind mKind
 
       showKind (Constructor Inductive)   = "InductiveConstructor"
       showKind (Constructor CoInductive) = "CoinductiveConstructor"
