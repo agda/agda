@@ -181,8 +181,8 @@ code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
   annotate pos mi = anchor ! attributes
     where
     attributes =
-      [name (show pos)] ++
-      maybe [] link (definitionSite mi) ++
+      [name $ if here then anchorName (show pos) else show pos] ++
+      maybe [] link mDefinitionSite ++
       (case classes of
         [] -> []
         cs -> [theclass $ unwords cs])
@@ -208,4 +208,8 @@ code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
     -- Notes are not included.
     noteClasses s = []
 
-    link (m, pos) = [href $ modToFile m ++ "#" ++ show pos]
+    mDefinitionSite = definitionSite mi
+    here       = maybe False defSiteHere mDefinitionSite
+    anchorName = (`fromMaybe` maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite)
+    link (DefinitionSite m pos _here aName) =
+      [ href $ modToFile m ++ "#" ++ fromMaybe (show pos) aName ]

@@ -150,6 +150,23 @@ instance CoArbitrary Aspects where
     coarbitrary note .
     coarbitrary defSite
 
+instance Arbitrary DefinitionSite where
+  arbitrary = liftM4 DefinitionSite arbitrary arbitrary arbitrary $ maybeGen string
+    where string = listOfElements "abcdefABCDEF/\\.'åäö"
+
+  shrink (DefinitionSite a b c d) =
+    [ DefinitionSite a b c d | a <- shrink a ] ++
+    [ DefinitionSite a b c d | b <- shrink b ] ++
+    [ DefinitionSite a b c d | c <- shrink c ] ++
+    [ DefinitionSite a b c d | d <- shrink d ]
+
+instance CoArbitrary DefinitionSite where
+  coarbitrary (DefinitionSite a b c d) =
+    coarbitrary a .
+    coarbitrary b .
+    coarbitrary c .
+    coarbitrary d
+
 instance Arbitrary File where
   arbitrary = fmap (File . IntMap.fromList) $ listOf arbitrary
   shrink    = map (File . IntMap.fromList) . shrink . IntMap.toList . toMap

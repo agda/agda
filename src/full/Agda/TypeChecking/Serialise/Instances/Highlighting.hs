@@ -93,6 +93,11 @@ instance EmbPrj HP.Aspects where
 
   value = valueN HP.Aspects
 
+instance EmbPrj HP.DefinitionSite where
+  icod_ (HP.DefinitionSite a b c d) = icodeN' HP.DefinitionSite a b c d
+
+  value = valueN HP.DefinitionSite
+
 instance EmbPrj HP.CompressedFile where
   icod_ (HP.CompressedFile f) = icodeN' HP.CompressedFile f
 
