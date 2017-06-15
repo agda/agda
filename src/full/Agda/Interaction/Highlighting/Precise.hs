@@ -8,6 +8,7 @@ module Agda.Interaction.Highlighting.Precise
   , NameKind(..)
   , OtherAspect(..)
   , Aspects(..)
+  , DefinitionSite(..)
   , File(..)
   , HighlightingInfo
     -- ** Creation
@@ -121,11 +122,26 @@ data Aspects = Aspects
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
-  , definitionSite :: Maybe (SC.TopLevelModuleName, Int)
+  , definitionSite :: Maybe DefinitionSite
     -- ^ The definition site of the annotated thing, if applicable and
     --   known. File positions are counted from 1.
   }
   deriving (Show, Typeable)
+
+data DefinitionSite = DefinitionSite
+  { defSiteModule :: SC.TopLevelModuleName
+      -- ^ The defining module.
+  , defSitePos    :: Int
+      -- ^ The file position in that module.
+  , defSiteHere   :: Bool
+      -- ^ Has this @DefinitionSite@ been created at the defining site of the name?
+  , defSiteAnchor :: Maybe String
+      -- ^ A pretty name for the HTML linking.
+  }
+  deriving (Show, Typeable)
+
+instance Eq DefinitionSite where
+  DefinitionSite m p _ _ == DefinitionSite m' p' _ _ = m == m' && p == p'
 
 instance Eq Aspects where
   Aspects a o _ d == Aspects a' o' _ d' = (a, nub o, d) == (a', nub o', d')

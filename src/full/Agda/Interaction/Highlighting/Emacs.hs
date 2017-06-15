@@ -58,20 +58,18 @@ showAspects
   :: ModuleToSource
      -- ^ Must contain a mapping for the definition site's module, if any.
   -> (Range, Aspects) -> Lisp String
-showAspects modFile (r, m) =
-    L $ ((map (A . show) [from r, to r])
-           ++
-         [L $ map A $ toAtoms m]
-           ++
-         (A $ maybe "nil" quote $ note m)
-         :
-          defSite)
+showAspects modFile (r, m) = L $
+    (map (A . show) [from r, to r])
+      ++
+    [L $ map A $ toAtoms m]
+      ++
+    [A $ maybe "nil" quote $ note m]
+      ++
+    (maybeToList $ fmap defSite $ definitionSite m)
   where
-  defSite = case definitionSite m of
-    Nothing     -> []
-    Just (m, p) -> case Map.lookup m modFile of
-      Nothing -> __IMPOSSIBLE__
-      Just f  -> [Cons (A $ quote $ filePath f) (A $ show p)]
+  defSite (DefinitionSite m p _ _) =
+    Cons (A $ quote $ filePath f) (A $ show p)
+    where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
 
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.

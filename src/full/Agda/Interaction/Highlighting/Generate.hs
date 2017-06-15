@@ -47,6 +47,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Common as Common
+import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Info as SI
@@ -64,6 +65,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
+import Agda.Utils.Pretty
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 
@@ -694,17 +696,47 @@ nameToFile modMap file xs x fr m mR =
   -- We don't care if we get any funny ranges.
   if all (== Strict.Just file) fileNames then
     several (map rToR rs)
-            ((m $ C.isOperator x) { definitionSite = mFilePos })
+            (aspects { definitionSite = mFilePos })
    else
     mempty
   where
+  aspects    = m $ C.isOperator x
   fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
   rs         = applyWhen (not $ null fr) (fr :) $ map P.getRange (x : xs)
+  mFilePos  :: Maybe DefinitionSite
   mFilePos   = do
     r <- mR
     P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
     mod <- Map.lookup f modMap
-    return (mod, fromIntegral p)
+    let n = length $ C.moduleNameParts mod
+        local = maybe True isLocalAspect $ aspect aspects
+    return $ DefinitionSite
+      { defSiteModule = mod
+      , defSitePos    = fromIntegral p
+      , defSiteHere   = r == P.getRange x
+        -- For bound variables etc. we do not create a pretty anchor name.
+      , defSiteAnchor = if local || C.isNoName x then Nothing else Just $
+          prettyShow $ foldr C.Qual (C.QName x) $ drop n xs
+      }
+  -- Is the name a bound variable or similar? If in doubt yes.
+  isLocalAspect :: Aspect -> Bool
+  isLocalAspect = \case
+    Name mkind _ -> maybe True isLocal mkind
+    _ -> True
+  isLocal :: NameKind -> Bool
+  isLocal = \case
+    Bound         -> True
+    Argument      -> True
+    Constructor{} -> False
+    Datatype      -> False
+    Field         -> False
+    Function      -> False
+    Module        -> False
+    Postulate     -> False
+    Primitive     -> False
+    Record        -> False
+    Macro         -> False
+
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 

@@ -29,6 +29,8 @@ import System.FilePath
 import System.Directory
 
 import Text.XHtml.Strict
+  -- The imported operator (!) attaches a list of html attribute to something.
+  -- It even applies (pointwise) to functions.
 
 import Paths_Agda
 
@@ -64,8 +66,10 @@ defaultCSSFile = "Agda.css"
 generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
+  pageGen :: FilePath -> C.TopLevelModuleName -> CompressedFile -> TCM ()
   pageGen dir mod hinfo = generatePage renderer dir mod
     where
+    renderer :: FilePath -> FilePath -> String -> String
     renderer css _ contents = page css mod $ code $ tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
@@ -115,18 +119,15 @@ generatePage
   -> C.TopLevelModuleName  -- ^ Module to be highlighted.
   -> TCM ()
 generatePage renderpage dir mod = do
-  mf <- Map.lookup mod <$> use TCM.stModuleToSource
-  case mf of
-    Nothing -> __IMPOSSIBLE__
-    Just f  -> do
-      contents <- liftIO $ UTF8.readTextFile $ filePath f
-      css      <- maybe defaultCSSFile id . optCSSFile <$>
-                    TCM.commandLineOptions
-      let html = renderpage css (filePath f) contents
-      TCM.reportSLn "html" 1 $ "Generating HTML for " ++
-                               render (pretty mod) ++
-                               " (" ++ target ++ ")."
-      liftIO $ UTF8.writeFile target html
+  f <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> use TCM.stModuleToSource
+  contents <- liftIO $ UTF8.readTextFile $ filePath f
+  css      <- fromMaybe defaultCSSFile . optCSSFile <$>
+                TCM.commandLineOptions
+  let html = renderpage css (filePath f) contents
+  TCM.reportSLn "html" 1 $ "Generating HTML for " ++
+                           render (pretty mod) ++
+                           " (" ++ target ++ ")."
+  liftIO $ UTF8.writeFile target html
   where target = dir </> modToFile mod
 
 -- | Constructs the web page, including headers.
@@ -162,7 +163,7 @@ tokenStream
 tokenStream contents info =
   map (\cs -> case cs of
           (mi, (pos, _)) : _ ->
-            (pos, map (snd . snd) cs, maybe mempty id mi)
+            (pos, map (snd . snd) cs, fromMaybe mempty mi)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
   map (\(pos, c) -> (IntMap.lookup pos infoMap, (pos, c))) $
@@ -180,8 +181,8 @@ code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
   annotate pos mi = anchor ! attributes
     where
     attributes =
-      [name (show pos)] ++
-      maybe [] link (definitionSite mi) ++
+      [name $ if here then anchorName (show pos) else show pos] ++
+      maybe [] link mDefinitionSite ++
       (case classes of
         [] -> []
         cs -> [theclass $ unwords cs])
@@ -193,7 +194,7 @@ code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
 
     aspectClasses (Name mKind op) = kindClass ++ opClass
       where
-      kindClass = maybe [] ((: []) . showKind) mKind
+      kindClass = maybeToList $ fmap showKind mKind
 
       showKind (Constructor Inductive)   = "InductiveConstructor"
       showKind (Constructor CoInductive) = "CoinductiveConstructor"
@@ -207,4 +208,8 @@ code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
     -- Notes are not included.
     noteClasses s = []
 
-    link (m, pos) = [href $ modToFile m ++ "#" ++ show pos]
+    mDefinitionSite = definitionSite mi
+    here       = maybe False defSiteHere mDefinitionSite
+    anchorName = (`fromMaybe` maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite)
+    link (DefinitionSite m pos _here aName) =
+      [ href $ modToFile m ++ "#" ++ fromMaybe (show pos) aName ]
