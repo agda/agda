@@ -194,7 +194,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primStringFromList" |-> return "Data.Text.pack"
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
-  , "primShowString"     |-> return "id"
+  , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
