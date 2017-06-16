@@ -252,12 +252,14 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                           (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                           Nothing
 
+    -- For top level modules, we set the binding site to the beginning of the file
+    -- so that clicking on an imported module will jump to the beginning of the file
+    -- which defines this module.
     mod isTopLevelModule n =
       nameToFile modMap file []
                  (A.nameConcrete n) P.noRange
                  (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
-                 (Just $ (if isTopLevelModule then P.beginningOfFile else id)
-                           (A.nameBindingSite n))
+                 (Just $ applyWhen isTopLevelModule P.beginningOfFile $ A.nameBindingSite n)
 
     getVarAndField :: A.Expr -> File
     getVarAndField (A.Var x)            = bound x
