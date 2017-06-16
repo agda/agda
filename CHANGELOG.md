@@ -245,6 +245,42 @@ Compiler backends
   backends using Agda as a library. This allows prospective backend writers to
   experiment with new backends without having to change the Agda code base.
 
+HTML backend
+------------
+
+* Anchors for identifiers (excluding bound variables) are now the
+  identifiers themselves rathern than just the file position
+  [Issue [#2604](https://github.com/agda/agda/issues/2604)].
+
+  Example:
+
+  ```agda
+  module Issue2604 where   -- Issue2604.html#Issue2604
+
+  test1 : Set₁             -- Issue2604.html#test1
+  test1 = bla
+    where
+    bla = Set              -- Position anchor
+
+  test2 : Set₁             -- Issue2604.html#test2
+  test2 = bla
+    where
+    bla = Set              -- Position anchor
+
+  test3 : Set₁             -- Issue2604.html#test3
+  test3 = bla
+    module M where         -- Issue2604.html#M
+    bla = Set              -- Issue2604.html#M.bla
+
+  module NamedModule where -- Issue2604.html#NamedModule
+    test4 : Set₁           -- Issue2604.html#NamedModule.test4
+    test4 = M.bla
+
+  module _ where           -- Position anchor
+    test5 : Set₁           -- Position anchor
+    test5 = M.bla
+  ```
+
 LaTeX backend
 -------------
 
