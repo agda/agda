@@ -1170,6 +1170,15 @@ Language
 
   Returns `true` if the name refers to a macro, otherwise `false`.
 
+* The `record-type` constructor now has an extra argument containing
+  information about the record type's fields:
+  ```agda
+    data Definition : Set where
+      …
+      record-type : (c : Name) (fs : List (Arg Name)) → Definition
+      …
+  ```
+
 Type checking
 -------------
 

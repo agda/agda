@@ -49,8 +49,8 @@ numberOfParameters d =
 getConstructors : QName → TC (List QName)
 getConstructors d =
   bindTC (getDefinition d) λ
-  { (dataDef _ cs) → returnTC cs
-  ; (recordDef c) → returnTC (c ∷ [])
+  { (dataDef _ cs)  → returnTC cs
+  ; (recordDef c _) → returnTC (c ∷ [])
   ; _ → typeError (strErr "Cannot get constructors of non-data or record type" ∷ nameErr d ∷ [])
   }
 
