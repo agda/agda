@@ -44,6 +44,7 @@ import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.FileName (filePath)
+import Agda.Utils.Function
 import Agda.Utils.Lens
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
@@ -175,8 +176,14 @@ tokenStream contents info =
 
 code :: [(Int, String, Aspects)]
      -> Html
-code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
+code = mconcat . map mkHtml
   where
+  mkHtml :: (Int, String, Aspects) -> Html
+  mkHtml (pos, s, mi) =
+    -- Andreas, 2017-06-16, issue #2605:
+    -- Do not create anchors for whitespace.
+    applyUnless (mi == mempty) (annotate pos mi) $ stringToHtml s
+
   annotate :: Int -> Aspects -> Html -> Html
   annotate pos mi = anchor ! attributes
     where
