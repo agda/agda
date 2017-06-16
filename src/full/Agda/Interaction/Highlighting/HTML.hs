@@ -189,7 +189,7 @@ code = mconcat . map mkHtml
     where
     attributes =
       [name $ if here then anchorName (show pos) else show pos] ++
-      maybe [] link mDefinitionSite ++
+      maybeToList (fmap link mDefinitionSite) ++
       (case classes of
         [] -> []
         cs -> [theclass $ unwords cs])
@@ -218,5 +218,9 @@ code = mconcat . map mkHtml
     mDefinitionSite = definitionSite mi
     here       = maybe False defSiteHere mDefinitionSite
     anchorName = (`fromMaybe` maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite)
-    link (DefinitionSite m pos _here aName) =
-      [ href $ modToFile m ++ "#" ++ fromMaybe (show pos) aName ]
+    link (DefinitionSite m pos _here aName) = href $
+      -- If the definition site points to the top of a file,
+      -- we drop the anchor part and just link to the file.
+      applyUnless (pos <= 1)
+        (++ "#" ++ fromMaybe (show pos) aName)
+        (modToFile m)

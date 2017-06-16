@@ -249,23 +249,36 @@ HTML backend
 ------------
 
 * Anchors for identifiers (excluding bound variables) are now the
-  identifiers themselves rathern than just the file position
+  identifiers themselves rather than just the file position
   [Issue [#2604](https://github.com/agda/agda/issues/2604)].
+
+  The new, symbolic anchors look like
+  ```html
+  <a name="test1">
+  <a name="M.bla">
+  ```
+  while the old anchors just give the character position in the file:
+  ```html
+  <a name="42">
+  ```
+
+  Top-level module names do not get a symbolic anchor, since the position of
+  a top-level module is defined to be the beginning of the file.
 
   Example:
 
   ```agda
-  module Issue2604 where   -- Issue2604.html#Issue2604
+  module Issue2604 where   -- Character position anchor
 
   test1 : Set₁             -- Issue2604.html#test1
   test1 = bla
     where
-    bla = Set              -- Position anchor
+    bla = Set              -- Character position anchor
 
   test2 : Set₁             -- Issue2604.html#test2
   test2 = bla
     where
-    bla = Set              -- Position anchor
+    bla = Set              -- Character position anchor
 
   test3 : Set₁             -- Issue2604.html#test3
   test3 = bla
@@ -276,8 +289,8 @@ HTML backend
     test4 : Set₁           -- Issue2604.html#NamedModule.test4
     test4 = M.bla
 
-  module _ where           -- Position anchor
-    test5 : Set₁           -- Position anchor
+  module _ where           -- Character position anchor
+    test5 : Set₁           -- Character position anchor
     test5 = M.bla
   ```
 
