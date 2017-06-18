@@ -34,3 +34,9 @@ module m2 (X : Set) where
     β : f a ~ b
 
   {-# REWRITE β #-}
+
+  postulate
+    refl : {A : Set}{a : A} → a ~ a
+
+  p : f a ~ b
+  p = refl
