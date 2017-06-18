@@ -62,13 +62,11 @@ import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Constraints
 import qualified Agda.TypeChecking.Positivity.Occurrence as Pos
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive ( getBuiltinName )
@@ -78,7 +76,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rewriting.NonLinMatch
 import qualified Agda.TypeChecking.Reduce.Monad as Red
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
@@ -220,7 +217,7 @@ addRewriteRule q = do
       rew <- addContext gamma1 $ do
         -- Normalize lhs args: we do not want to match redexes.
         es <- etaContract =<< normalise es
-        checkNoLhsReduction f (unDom b) (hd es)
+        checkNoLhsReduction f (hd es)
 
         -- Normalize rhs: might be more efficient.
         rhs <- etaContract =<< normalise rhs
@@ -261,15 +258,10 @@ addRewriteRule q = do
 
     _ -> failureWrongTarget
   where
-    checkNoLhsReduction :: QName -> Type -> Term -> TCM ()
-    checkNoLhsReduction f a v = do
+    checkNoLhsReduction :: QName -> Term -> TCM ()
+    checkNoLhsReduction f v = do
       v' <- normalise v
-      ok <- do
-              dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
-                modifyAllowedReductions (const [InlineReductions]) $ equalTerm a v v'
-              return True
-            `catchError` \_ -> return False
-      unless ok $ do
+      unless (v == v') $ do
         reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
         reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
         -- Andreas, 2016-06-01, issue 1997
