@@ -62,6 +62,7 @@ import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
@@ -205,6 +206,11 @@ addRewriteRule q = do
       unless (null $ allMetas (telToList gamma1)) $ do
         reportSDoc "rewriting" 30 $ text "metas in gamma1: " <+> text (show $ allMetas $ telToList gamma1)
         failureMetas
+
+      -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
+      -- This is necessary to replace copies created by imports by their
+      -- original definition.
+      lhs <- modifyAllowedReductions (const [InlineReductions]) $ normalise lhs
 
       -- Find head symbol f of the lhs and its arguments.
       (f , hd , es) <- case ignoreSharing lhs of
