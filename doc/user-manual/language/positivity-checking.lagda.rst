@@ -16,14 +16,12 @@ Positivity Checking
 The ``NO_POSITIVITY_CHECK`` pragma
 __________________________________
 
-.. versionadded:: 2.5.1
-
 ..
   ::
   module no-positivity-check-pragma where
 
 The pragma switches off the positivity checker for data/record
-definitions and mutual blocks.
+definitions and mutual blocks. This pragma was added in Agda 2.5.1
 
 The pragma must precede a data/record definition or a mutual
 block. The pragma cannot be used in ``--safe`` mode.

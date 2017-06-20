@@ -23,23 +23,20 @@ Pragmas and Options
 
 * The ``NON_TERMINATING`` pragma
 
-  .. versionadded:: 2.4.2
-
   This is a safer version of :ref:`TERMINATING <terminating_pragma>`
   which doesn't treat the affected functions as terminating. This
   means that ``NON_TERMINATING`` functions do not reduce during type
-  checking. They do reduce at run-time and when invoking `C-c C-n` at
-  top-level (but not in a hole).
+  checking. They do reduce at run-time and when invoking ``C-c C-n``
+  at top-level (but not in a hole). The pragma was added in Agda
+  2.4.2.
 
 .. _terminating_pragma:
 
 * The ``TERMINATING`` pragma
 
-  .. versionchanged:: 2.4.2.1
-     replaced the ``NO_TERMINATION_CHECK`` pragma.
-
   Switches off termination checker for individual function definitions
-  and mutual blocks and marks them as terminating.
+  and mutual blocks and marks them as terminating. Since Agda 2.4.2.1
+  replaced the ``NO_TERMINATION_CHECK`` pragma.
 
   The pragma must precede a function definition or a mutual block. The
   pragma cannot be used in ``--safe`` mode.
