@@ -775,7 +775,9 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
          -- Andreas, 2017-02-14, issue #2458:
          -- If we have inlined with-functions, we could be illtyped,
          -- hence, do not reduce anything.
-         es <- ifM terGetHaveInlinedWith (return es0) {-else-} $
+         -- Andreas, 2017-06-20 issue #2613:
+         -- We still need to reduce constructors, even when with-inlining happened.
+         es <- -- ifM terGetHaveInlinedWith (return es0) {-else-} $
            liftTCM $ forM es0 $
              etaContract <=< traverse reduceCon <=< instantiateFull
            -- 2017-05-16, issue #2403: Argument normalization is too expensive,
