@@ -188,12 +188,51 @@ will be represented internally as a case tree that looks like this:
 .. code-block:: agda
 
   max m n = case m of
-    zero   -> n
-    suc m' -> case n of
-      zero   -> suc m'
-      suc n' -> suc (max m' n')
+    zero   → n
+    suc m' → case n of
+      zero   → suc m'
+      suc n' → suc (max m' n')
 
-Note that because Agda uses this representation of the function ``max``
-the equation ``max m zero = m`` will not hold by definition, but must be
-proven instead. Since 2.5.1 you can have Agda warn you when a situation like this
-occurs by adding ``{-# OPTIONS --exact-split #-}`` at the top of your file.
+Note that because Agda uses this representation of the function
+``max``, the clause ``max m zero = m`` does not hold definitionally
+(i.e. as a reduction rule). If you would try to prove that this
+equation holds, you would not be able to write ``refl``:
+
+.. code-block:: agda
+
+  data _≡_ {A : Set} (x : A) : A → Set where
+    refl : x ≡ x
+
+  -- Does not work!
+  lemmma : (m : Nat) → max m zero ≡ zero
+  lemma = refl
+
+Clauses which do not hold definitionally are usually (but not always)
+the result of writing clauses by hand instead of using Agda's case
+split tactic. These clauses are :ref:`highlighted <highlight>` by
+Emacs.
+
+The ``--exact-split`` :ref:`command-line and pragma option
+<command-line-pragmas>` causes Agda to raise an error whenever a
+clause in a definition by pattern matching cannot be made to hold
+definitionally. Specific clauses can be excluded from this check by
+means of the ``{-# CATCHALL #-}`` pragma.
+
+For instance, the above definition of ``max`` will be rejected when
+using the ``--exact-split`` flag because its second clause does not to
+hold definitionally.
+
+When using the ``--exact-split`` flag, catch-all clauses have to be
+marked as such, for instance: ::
+
+  eq : Nat → Nat → Bool
+  eq zero    zero    = true
+  eq (suc m) (suc n) = eq m n
+  {-# CATCHALL #-}
+  eq _       _       = false
+
+The ``--no-exact-split`` :ref:`command-line and pragma option
+<command-line-pragmas>` can be used to override a global
+``--exact-split`` in a file, by adding a pragma
+``{-# OPTIONS --no-exact-split #-}``. This option is enable by
+default.

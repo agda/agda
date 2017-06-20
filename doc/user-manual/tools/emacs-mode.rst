@@ -201,3 +201,11 @@ Hex code  Character  Short key-binding  TeX command
 ========  =========  =================  ===========
 2c7c      ``ⱼ``       ``\_j``
 ========  =========  =================  ===========
+
+.. _highlight:
+
+Highlight
+=========
+
+Clauses which do not hold definitionally (see :ref:`case-trees`) are
+highlighted in white smoke.
