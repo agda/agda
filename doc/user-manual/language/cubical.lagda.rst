@@ -34,7 +34,7 @@ To define paths, use λ abstractions. For example, this is the definition of the
 ::
 
     refl : ∀ {a} {A : Set a} {x : A} → Path x x
-    refl {x = x} = \ i -> x
+    refl {x = x} = λ i → x
 
 Although they use the same syntax, a path is not a function.
 For example, the following is not valid:
@@ -79,13 +79,14 @@ with minimum (``∧``), minimum (``∨``) and negation (``~``).
 All the properties of de Morgan algebras hold definitionally. The ends
 of the interval ``i0`` and ``i1`` are the bottom and top elements, respectively::
 
-    p₁ : i0 ∨ i ≡ i
-    p₂ : i ∨ i1 ≡ i1
-    p₃ : i ∨ j ≡ j ∨ i
-    p₄ : i ∧ j ≡ j ∧ i
-    p₅ : ~ (~ i) ≡ i
-    p₆ : i0 ≡ ~ i1
+    p₁ : i0 ∨ i    ≡ i
+    p₂ : i  ∨ i1   ≡ i1
+    p₃ : i  ∨ j    ≡ j ∨ i
+    p₄ : i  ∧ j    ≡ j ∧ i
+    p₅ : ~ (~ i)   ≡ i
+    p₆ : i0        ≡ ~ i1
     p₇ : ~ (i ∨ j) ≡ ~ i ∧ ~ j
+    p₈ : ~ (i ∧ j) ≡ ~ i ∨ ~ j
 
 ..
     ::
@@ -96,6 +97,7 @@ of the interval ``i0`` and ``i1`` are the bottom and top elements, respectively:
     p₅ = reflI
     p₆ = reflI
     p₇ = reflI
+    p₈ = reflI
 
 ----------
 References
