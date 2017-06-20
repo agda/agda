@@ -597,12 +597,12 @@ primIdElim' = do
        nPi' "C" (nPi' "y" (el' a bA) $ \ y ->
                  (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
        (nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-        nPi' "y" (elInf $ cl primSub <#> a <#> bA <@> phi <@> (lam "o" $ const x)) $ \ y ->
+        nPi' "y" (elInf $ cl primSub <#> a <@> bA <@> phi <@> (lam "o" $ const x)) $ \ y ->
         let pathxy = (cl primPath <#> a <@> bA <@> x <@> oucy)
             oucy = (cl primSubOut <#> a <#> bA <#> phi <#> (lam "o" $ const x) <@> y)
             reflx = (lam "o" $ \ _ -> lam "i" $ \ _ -> x) -- TODO Andrea, should block on o
         in
-        nPi' "w" (elInf $ cl primSub <#> a <#> pathxy <@> phi <@> reflx) $ \ w ->
+        nPi' "w" (elInf $ cl primSub <#> a <@> pathxy <@> phi <@> reflx) $ \ w ->
         let oucw = (cl primSubOut <#> a <#> pathxy <#> phi <#> reflx <@> w) in
         el' c $ bC <@> oucy <@> (cl primConId <#> a <#> bA <#> x <#> oucy <@> phi <@> oucw))
        -->
@@ -720,7 +720,7 @@ primSubOut' = do
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           hPi' "u" (elInf $ cl primPartial <#> a <@> bA <@> phi) $ \ u ->
-          elInf (cl primSub <#> a <#> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
+          elInf (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do

@@ -593,9 +593,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El Inf $ apply tSub $ [a,bA] ++ map (setHiding NotHidden) [phi,u])
-                        (El Inf $ apply tSub $ [a,bA'] ++ map (setHiding NotHidden) [phi',u'])
-              compareAtom cmp (El Inf $ apply tSub $ [a,bA] ++ map (setHiding NotHidden) [phi,u])
+              equalType (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
+                        (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
