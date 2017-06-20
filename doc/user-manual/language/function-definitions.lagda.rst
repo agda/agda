@@ -204,7 +204,7 @@ equation holds, you would not be able to write ``refl``:
     refl : x ≡ x
 
   -- Does not work!
-  lemmma : (m : Nat) → max m zero ≡ zero
+  lemma : (m : Nat) → max m zero ≡ zero
   lemma = refl
 
 Clauses which do not hold definitionally are usually (but not always)
@@ -234,5 +234,5 @@ marked as such, for instance: ::
 The ``--no-exact-split`` :ref:`command-line and pragma option
 <command-line-pragmas>` can be used to override a global
 ``--exact-split`` in a file, by adding a pragma
-``{-# OPTIONS --no-exact-split #-}``. This option is enable by
+``{-# OPTIONS --no-exact-split #-}``. This option is enabled by
 default.
