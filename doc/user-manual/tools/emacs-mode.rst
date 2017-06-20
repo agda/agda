@@ -132,7 +132,7 @@ For instance, for ``∷`` I get the following:
       preferred charset: unicode (Unicode (ISO10646))
   code point in charset: 0x2237
                  script: symbol
-                 syntax: w 	which means: word
+                 syntax: w      which means: word
                category: .:Base, c:Chinese
                to input: type "\::" with Agda input method
             buffer code: #xE2 #x88 #xB7
