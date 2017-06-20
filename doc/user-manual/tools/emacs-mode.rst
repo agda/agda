@@ -85,26 +85,76 @@ Other commands
 Unicode input
 =============
 
-The Agda emacs mode comes with an input method for for easily writing
+How can I write Unicode characters using Emacs?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Agda Emacs mode comes with an input method for easily writing
 Unicode characters. Most Unicode character can be input by typing
-their corresponding TeX or LaTeX commands, eg. typing ``\lambda`` will
-input ``λ``. To see all characters you can input using the Agda input
-method see ``M-x describe-input-method Agda``.
+their corresponding TeX/LaTeX commands, eg. typing ``\lambda`` will
+input ``λ``. Some characters have key bindings which have not been
+taken from TeX/LaTeX (typing ``\bN`` results in ``ℕ`` being inserted,
+for instance), but all bindings start with ``\``.
+
+To see all characters you can input using the Agda input method type
+``M-x describe-input-method RET Agda`` or type ``M-x
+agda-input-show-translations RET RET`` (with some exceptions in
+certain versions of Emacs).
 
 If you know the Unicode name of a character you can input it using
-``M-x ucs-insert`` or ``C-x 8 RET``. Example: ``C-x 8 RET not SPACE a
-SPACE sub TAB RET`` to insert "NOT A SUBSET OF" ``⊄``.
+``M-x ucs-insert RET`` (which supports tab-completion) or ``C-x 8
+RET``. Example: Type ``C-x 8 RET not SPACE a SPACE sub TAB RET`` to
+insert the character "NOT A SUBSET OF" (``⊄``).
 
-To find out how to input a specific character, eg from the standard
-library, position the cursor over the character and use ``M-x
-describe-char`` or ``C-u C-x =``.
+(The Agda input method has one drawback: if you make a mistake while
+typing the name of a character, then you need to start all over
+again. If you find this terribly annoying, then you can use `Abbrev
+mode
+<http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Abbreviation>`_
+instead. However, note that Abbrev mode cannot be used in the
+minibuffer, which is used to give input to many Agda and Emacs
+commands.)
 
-The Agda input method can be customised via ``M-x customize-group
+The Agda input method can be customised via ``M-x customize-group RET
 agda-input``.
 
+OK, but how can I find out what to type to get the ... character?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Common characters
-~~~~~~~~~~~~~~~~~
+To find out how to input a specific character, eg from the standard
+library, position the cursor over the character and type ``M-x
+describe-char`` or ``C-u C-x =``.
+
+For instance, for ``∷`` I get the following:
+
+.. code-block:: none
+
+              character: ∷ (displayed as ∷) (codepoint 8759, #o21067, #x2237)
+      preferred charset: unicode (Unicode (ISO10646))
+  code point in charset: 0x2237
+                 script: symbol
+                 syntax: w 	which means: word
+               category: .:Base, c:Chinese
+               to input: type "\::" with Agda input method
+            buffer code: #xE2 #x88 #xB7
+              file code: #xE2 #x88 #xB7 (encoded by coding system utf-8-unix)
+                display: by this font (glyph code)
+      x:-misc-fixed-medium-r-normal--20-200-75-75-c-100-iso10646-1 (#x2237)
+
+  Character code properties: customize what to show
+    name: PROPORTION
+    general-category: Sm (Symbol, Math)
+    decomposition: (8759) ('∷')
+
+  There are text properties here:
+    fontified            t
+
+Here it says that I can type ``\::`` to get a ``∷``. If there is no
+"to input" line, then you can add a key binding to the Agda input
+method by using ``M-x customize-variable RET
+agda-input-user-translations``.
+
+Show me some commonly used characters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Many common characters have a shorter input sequence than the
 corresponding TeX command:
@@ -164,6 +214,7 @@ Hex code  Character         Short key-binding  TeX command
 Hex code  Character  Short key-binding  TeX command
 ========  =========  =================  ===========
 2115      ``ℕ``      ``\bN``            ``\Bbb{N}``
+2191      ``↑``      ``\u``             ``\uparrow``
 2192      ``→``      ``\r-``            ``\to``
 21a6      ``↦``      ``\r-|``           ``\mapsto``
 2200      ``∀``      ``\all``           ``\forall``
@@ -177,6 +228,7 @@ Hex code  Character  Short key-binding  TeX command
 2261      ``≡``      ``\==``            ``\equiv``
 2264      ``≤``      ``\<=``            ``\le``
 2284      ``⊄``      ``\subn``
+228e      ``⊎``      ``\u+``            ``\uplus``
 2294      ``⊔``      ``\lub``
 22a2      ``⊢``      ``\|-``            ``\vdash``
 22a4      ``⊤``                         ``\top``
