@@ -20,6 +20,8 @@ Index of pragmas
 
 * :ref:`BUILTIN <built-ins>`
 
+* :ref:`CATCHALL <case-trees>`
+
 * :ref:`COMPILE <foreign-function-interface>`
 
 * :ref:`FOREIGN <foreign-function-interface>`

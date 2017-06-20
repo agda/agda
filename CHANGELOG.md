@@ -189,6 +189,10 @@ Emacs mode
 
 * Fewer commands have the side effect that the buffer is saved.
 
+* Highlighting for clauses which do not hold definitionally
+
+  These clauses are now highlighted in white smoke.
+
 Compiler backends
 -----------------
 
