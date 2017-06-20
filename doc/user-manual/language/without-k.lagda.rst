@@ -10,16 +10,13 @@
 Without K
 *********
 
-.. versionadded:: 2.2.10
-
 The option ``--without-K`` makes pattern matching more restricted. If
-the option is activated, then Agda only accepts certain case splits.
+the option is activated, then Agda only accepts certain case
+splits. This option was added in Agda 2.2.10.
 
-.. versionchanged:: 2.4.0
-
-When the option ``--without-K`` is enabled, then the unification algorithm
-for checking case splits cannot make use of the deletion rule to solve
-equations of the form ``x = x``.
+Since Agda 2.4.0 when the option ``--without-K`` is enabled, then the
+unification algorithm for checking case splits cannot make use of the
+deletion rule to solve equations of the form ``x = x``.
 
 For example, the obvious implementation of the J rule is accepted::
 
@@ -49,16 +46,13 @@ rule cannot be used when ``--without-K`` is enabled.
 For more details, see the paper `Eliminating dependent pattern matching
 without K` [`Cockx, Devriese, and Piessens (2016) <https://lirias.kuleuven.be/handle/123456789/548901/>`_].
 
-.. versionadded:: 2.4.2
-
 The option ``--with-K`` can be used to override a global
 ``--without-K`` in a file, by adding a pragma
-``{-# OPTIONS --with-K #-}``. This option is on by default.
+``{-# OPTIONS --with-K #-}``. This option was added in Agda 2.4.2 and
+it is on by default.
 
-.. versionadded:: 2.4.2
-
-Termination checking `--without-K` restricts
-structural descent to arguments ending in data types or `Size`.
+Since Agda 2.4.2 termination checking ``--without-K`` restricts
+structural descent to arguments ending in data types or ``Size``.
 Likewise, guardedness is only tracked when result type is data or
 record type::
 
@@ -74,7 +68,7 @@ record type::
   noo .WOne refl (wrap f) = noo FOne iso f
 
 ``noo`` is rejected since at type ``X`` the structural descent
-``f < wrap f`` is discounted ``--without-K``::
+``f < wrap f`` is discounted ``--without-K``::
 
   data Pandora : Set where
     C : ∞ ⊥ → Pandora
@@ -84,8 +78,8 @@ record type::
   loop : (A : Set) → A ≡ Pandora → A
   loop .Pandora refl = C (♯ (loop ⊥ foo))
 
-``loop`` is rejected since guardedness is not tracked at type `A`
-`--without-K`.
+``loop`` is rejected since guardedness is not tracked at type ``A``
+``--without-K``.
 
 See issues `#1023 <https://github.com/agda/agda/issues/1023/>`_,
 `#1264 <https://github.com/agda/agda/issues/1264/>`_,

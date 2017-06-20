@@ -20,17 +20,16 @@ Foreign Function Interface
 Compiler Pragmas
 ================
 
-.. versionadded:: 2.5.3
-
 There are two backend-generic pragmas used for the FFI::
 
   {-# COMPILE <Backend> <Name> <Text> #-}
   {-# FOREIGN <Backend> <Text> #-}
 
-The ``COMPILE`` pragma associates some information ``<Text>`` with a name
-``<Name>`` defined in the same module, and the ``FOREIGN`` pragma associates
-``<Text>`` with the current top-level module. This information is interpreted
-by the specific backend during compilation (see below).
+The ``COMPILE`` pragma associates some information ``<Text>`` with a
+name ``<Name>`` defined in the same module, and the ``FOREIGN`` pragma
+associates ``<Text>`` with the current top-level module. This
+information is interpreted by the specific backend during compilation
+(see below). These pragmas were added in Agda 2.5.3.
 
 Haskell FFI
 ===========
@@ -182,10 +181,9 @@ postulates.
 
 Using Agda functions from Haskell
 ---------------------------------
-.. versionadded:: 2.3.4
 
-Agda functions can be exposed to Haskell code using the ``as`` form of the
-``COMPILE`` pragma::
+Since Agda 2.3.4 Agda functions can be exposed to Haskell code using
+the ``as`` form of the ``COMPILE`` pragma::
 
   module IdAgda where
 
