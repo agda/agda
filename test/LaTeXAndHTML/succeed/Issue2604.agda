@@ -25,3 +25,18 @@ module NamedModule where
 module _ where
   test5 : Set₁  -- Position anchor
   test5 = M.bla
+
+-- Testing whether # in anchors confuses the browsers.
+-- Not Firefox 54.0, at least (Andreas, 2017-06-20).
+
+# : Set₁
+# = Set
+
+#a : Set₁
+#a = #
+
+b# : Set₁
+b# = #a
+
+## : Set₁
+## = b#
