@@ -9,6 +9,9 @@ dist: trusty
 # Explicitly request sudo-enabled virtual environments [Issue #1992].
 sudo: required
 
+# Suggested by Travis for testing the updates to Trusty 14.04 images.
+group: edge
+
 cache:
   directories:
   - $HOME/.cabal
