@@ -100,7 +100,7 @@ matrix:
     #       sources:
     #         - hvr-ghc
 
-    - env: TEST=STACKAGE_CPP_AND_DEBUG GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
+    - env: TEST=STACKAGE_NO_DEFAULT_FLAGS GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -144,7 +144,7 @@ before_install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
-    elif [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
+    elif [[ $TEST = "STACKAGE_NO_DEFAULT_FLAGS" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     fi
 
@@ -209,7 +209,7 @@ install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        cabal install --enable-tests --only-dependencies --force-reinstalls;
-    elif [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
+    elif [[ $TEST = "STACKAGE_NO_DEFAULT_FLAGS" ]]; then
          stack build $ARGS --no-terminal --test --only-dependencies;
     fi
 
@@ -276,14 +276,17 @@ install:
 # dependencies are not installed again.
 
 ##############################################################################
+# We test on Stackage the non-default Agda flags.
 
-# Testing compilation with Stackage, cpp instead of cpphs
-# [Issue #1647], the `debug` flag [Issue #2070], and the
-# `enable-cluster-counting` flag.
+# Default flags: `cpphs` instead of `cpp`, `debug` off and
+# `enable-cluster-counting` off.
+
+# Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
+# and the `debug` flag [Issue #2070]
 
 # N.B. that this test is not include in the Makefile tests.
 
-  - if [[ $TEST = "STACKAGE_CPP_AND_DEBUG" ]]; then
+  - if [[ $TEST = "STACKAGE_NO_DEFAULT_FLAGS" ]]; then
        stack build $ARGS --no-terminal --test --no-run-tests --flag Agda:-cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
