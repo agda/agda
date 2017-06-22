@@ -66,3 +66,17 @@ postulate
 
 test₁₄ : Check 1
 test₁₄ = quoteGoal t in t is lit (nat 1) of course
+
+record R : Set₁ where
+  field
+    A : Set
+
+macro
+
+  RA : Term → TC _
+  RA goal = bindTC (getDefinition (quote R)) λ where
+    (recordDef _ (vArg A ∷ [])) → unify goal (def A [])
+    _                           → typeError (strErr "Impossible" ∷ [])
+
+test₁₅ : RA ≡ R.A
+test₁₅ = refl

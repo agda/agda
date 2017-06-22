@@ -259,8 +259,10 @@ quotingKit = do
             agdaDefinitionFunDef !@ quoteList quoteClause cs
           Datatype{dataPars = np, dataCons = cs} ->
             agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs
-          Record{recConHead = c} ->
-            agdaDefinitionRecordDef !@! quoteName (conName c)
+          Record{recConHead = c, recFields = fs} ->
+            agdaDefinitionRecordDef
+              !@! quoteName (conName c)
+              @@ quoteList (quoteArg (pure . quoteName)) fs
           Axiom{}       -> pure agdaDefinitionPostulate
           AbstractDefn{}-> pure agdaDefinitionPostulate
           Primitive{primClauses = cs} | not $ null cs ->
