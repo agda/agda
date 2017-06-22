@@ -40,7 +40,6 @@ tested-with:        GHC == 7.6.3
 extra-source-files: CHANGELOG.md
                     README.md
                     src/full/undefined.h
-                    stack-8.0.1.yaml
                     stack-8.0.2.yaml
 
 data-dir:           src/data
