@@ -17,7 +17,7 @@ open import Algebra
 open import Algebra.Structures
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; _≢_; refl; sym; cong; cong₂)
+  using (_≡_; _≢_; refl; sym; subst; cong; cong₂)
 open PropEq.≡-Reasoning
 import Algebra.FunctionProperties as P; open P (_≡_ {A = ℕ})
 open import Data.Product
@@ -28,6 +28,10 @@ open import Data.Sum
 
 suc-injective : ∀ {m n} → suc m ≡ suc n → m ≡ n
 suc-injective refl = refl
+
+i+1+j≢i : ∀ i {j} → i + suc j ≢ i
+i+1+j≢i zero    ()
+i+1+j≢i (suc i) = (i+1+j≢i i) ∘ suc-injective
 
 ------------------------------------------------------------------------
 -- Properties of _≤_
@@ -130,6 +134,9 @@ open ≤-Reasoning
 -- Properties of _<_
 
 -- Relation theoretic properties of _<_
+_<?_ : Decidable _<_
+x <? y = suc x ≤? y
+
 <-irrefl : Irreflexive _≡_ _<_
 <-irrefl refl (s≤s n<n) = <-irrefl refl n<n
 
@@ -138,6 +145,12 @@ open ≤-Reasoning
 
 <-trans : Transitive _<_
 <-trans (s≤s i≤j) (s≤s j<k) = s≤s (≤-trans i≤j (≤⇒pred≤ _ _ j<k))
+
+<-transʳ : Trans _≤_ _<_ _<_
+<-transʳ m≤n (s≤s n≤o) = s≤s (≤-trans m≤n n≤o)
+
+<-transˡ : Trans _<_ _≤_ _<_
+<-transˡ (s≤s m≤n) (s≤s n≤o) = s≤s (≤-trans m≤n n≤o)
 
 <-cmp : Trichotomous _≡_ _<_
 <-cmp zero    zero    = tri≈ (λ())     refl  (λ())
@@ -334,12 +347,9 @@ i+j≡0⇒i≡0 (suc i) ()
 
 i+j≡0⇒j≡0 : ∀ i {j} → i + j ≡ 0 → j ≡ 0
 i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
-  j + i
-    ≡⟨ +-comm j i ⟩
-  i + j
-    ≡⟨ i+j≡0 ⟩
-  0
-    ∎
+  j + i   ≡⟨ +-comm j i ⟩
+  i + j   ≡⟨ i+j≡0 ⟩
+  0       ∎
 
 i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
 i*j≡0⇒i≡0∨j≡0 zero    {j}     eq = inj₁ refl
@@ -560,16 +570,77 @@ distributiveLattice = record
   ; isDistributiveLattice = isDistributiveLattice
   }
 
--- Other properties of _⊔_ and _⊓_
+-- Ordering properties of _⊔_ and _⊓_
 m⊓n≤m : ∀ m n → m ⊓ n ≤ m
 m⊓n≤m zero    _       = z≤n
 m⊓n≤m (suc m) zero    = z≤n
 m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
+m⊓n≤n : ∀ m n → m ⊓ n ≤ n
+m⊓n≤n m n = subst (_≤ n) (⊓-comm n m) (m⊓n≤m n m)
+
 m≤m⊔n : ∀ m n → m ≤ m ⊔ n
 m≤m⊔n zero    _       = z≤n
 m≤m⊔n (suc m) zero    = ≤-refl
 m≤m⊔n (suc m) (suc n) = s≤s $ m≤m⊔n m n
+
+n≤m⊔n : ∀ m n → n ≤ m ⊔ n
+n≤m⊔n m n = subst (n ≤_) (⊔-comm n m) (m≤m⊔n n m)
+
+⊔-mono-≤ : _⊔_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
+⊔-mono-≤ {x} {y} {u} {v} x≤y u≤v with ⊔-sel x u
+... | inj₁ x⊔u≡x rewrite x⊔u≡x = ≤-trans x≤y (m≤m⊔n y v)
+... | inj₂ x⊔u≡u rewrite x⊔u≡u = ≤-trans u≤v (n≤m⊔n y v)
+
+⊔-mono-< : _⊔_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+⊔-mono-< = ⊔-mono-≤
+
+⊓-mono-≤ : _⊓_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
+⊓-mono-≤ {x} {y} {u} {v} x≤y u≤v with ⊓-sel y v
+... | inj₁ y⊓v≡y rewrite y⊓v≡y = ≤-trans (m⊓n≤m x u) x≤y
+... | inj₂ y⊓v≡v rewrite y⊓v≡v = ≤-trans (m⊓n≤n x u) u≤v
+
+⊓-mono-< : _⊓_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+⊓-mono-< = ⊓-mono-≤
+
+-- Properties of _⊔_ and _⊓_ and _+_
+m⊔n≤m+n : ∀ m n → m ⊔ n ≤ m + n
+m⊔n≤m+n m n with ⊔-sel m n
+... | inj₁ m⊔n≡m rewrite m⊔n≡m = m≤m+n m n
+... | inj₂ m⊔n≡n rewrite m⊔n≡n = n≤m+n m n
+
+m⊓n≤m+n : ∀ m n → m ⊓ n ≤ m + n
+m⊓n≤m+n m n with ⊓-sel m n
+... | inj₁ m⊓n≡m rewrite m⊓n≡m = m≤m+n m n
+... | inj₂ m⊓n≡n rewrite m⊓n≡n = n≤m+n m n
+
++-distribˡ-⊔ : _+_ DistributesOverˡ _⊔_
++-distribˡ-⊔ zero    y z = refl
++-distribˡ-⊔ (suc x) y z = cong suc (+-distribˡ-⊔ x y z)
+
++-distribʳ-⊔ : _+_ DistributesOverʳ _⊔_
++-distribʳ-⊔ x y z = begin
+    (y ⊔ z) + x       ≡⟨ +-comm (y ⊔ z) x ⟩
+    x + (y ⊔ z)       ≡⟨ +-distribˡ-⊔ x y z ⟩
+    (x + y) ⊔ (x + z) ≡⟨ cong₂ _⊔_ (+-comm x y) (+-comm x z) ⟩
+    (y + x) ⊔ (z + x) ∎
+
++-distrib-⊔ : _+_ DistributesOver _⊔_
++-distrib-⊔ = +-distribˡ-⊔ , +-distribʳ-⊔
+
++-distribˡ-⊓ : _+_ DistributesOverˡ _⊓_
++-distribˡ-⊓ zero    y z = refl
++-distribˡ-⊓ (suc x) y z = cong suc (+-distribˡ-⊓ x y z)
+
++-distribʳ-⊓ : _+_ DistributesOverʳ _⊓_
++-distribʳ-⊓ x y z = begin
+    (y ⊓ z) + x       ≡⟨ +-comm (y ⊓ z) x ⟩
+    x + (y ⊓ z)       ≡⟨ +-distribˡ-⊓ x y z ⟩
+    (x + y) ⊓ (x + z) ≡⟨ cong₂ _⊓_ (+-comm x y) (+-comm x z) ⟩
+    (y + x) ⊓ (z + x) ∎
+
++-distrib-⊓ : _+_ DistributesOver _⊓_
++-distrib-⊓ = +-distribˡ-⊓ , +-distribʳ-⊓
 
 ------------------------------------------------------------------------
 -- Properties of _∸_
@@ -680,16 +751,10 @@ im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
   (n + j * m) ∸ (j * m)  ≡⟨ m+n∸n≡m n (j * m) ⟩
   n                      ∎
 
-i+1+j≢i : ∀ i {j} → i + suc j ≢ i
-i+1+j≢i i eq = ¬i+1+j≤i i (≤-reflexive eq)
-
 ∸-mono : _∸_ Preserves₂ _≤_ ⟶ _≥_ ⟶ _≤_
-∸-mono           z≤n         (s≤s n₁≥n₂)    = z≤n
-∸-mono           (s≤s m₁≤m₂) (s≤s n₁≥n₂)    = ∸-mono m₁≤m₂ n₁≥n₂
-∸-mono {m₁} {m₂} m₁≤m₂       (z≤n {n = n₁}) = start
-  m₁ ∸ n₁  ≤⟨ n∸m≤n n₁ m₁ ⟩
-  m₁       ≤⟨ m₁≤m₂ ⟩
-  m₂       □
+∸-mono z≤n         (s≤s n₁≥n₂)    = z≤n
+∸-mono (s≤s m₁≤m₂) (s≤s n₁≥n₂)    = ∸-mono m₁≤m₂ n₁≥n₂
+∸-mono m₁≤m₂       (z≤n {n = n₁}) = ≤-trans (n∸m≤n n₁ _) m₁≤m₂
 
 ------------------------------------------------------------------------
 -- Properties of ⌊_/2⌋

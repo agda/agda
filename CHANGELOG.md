@@ -36,33 +36,28 @@ Important changes since 0.13:
 
 * Added `isDecEquivalence` proof for `_≡_` to `Data.Fin.Properties`
 
-* Added additional ordering properties to `Data.Fin.Properties` including:
+* Added additional proofs to `Data.Fin.Properties`:
   ```agda
-  ≤-reflexive
-  ≤-refl
-  ≤-trans
-  ≤-antisymmetric
-  ≤-total
-  ≤-isPreorder
-  ≤-isPartialOrder
-  ≤-isTotalOrder
+  ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric
+  ≤-total, ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder
 
-  _<?_
-  <-trans
-  <-isStrictTotalOrder
+  _<?_, <-trans, <-isStrictTotalOrder
   ```
 
-* Added additional ordering properties to `Data.Nat.Properties` including:
+* Added additional proofs to `Data.Nat.Properties`:
   ```agda
-  ≤-reflexive
-  ≤-refl
-  ≤-trans
-  ≤-antisymmetric
-  ≤-total
-  ≤-isPreorder
-  ≤-isPartialOrder
-  ≤-isTotalOrder
-  ≤-isDecTotalOrder
+  suc-injective
+
+  ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric, ≤-total
+  ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder, ≤-isDecTotalOrder
+
+  _<?_,  <-transʳ, <-transˡ, <-irrefl, <-asym
+
+  ⊓-idem, ⊔-idem
+  m⊓n≤n, m≤m⊔n, m⊔n≤m+n, m⊓n≤m+n
+  ⊔-mono-≤, ⊔-mono-<, ⊓-mono-≤, ⊓-mono-<
+  +-distribˡ-⊔, +-distribʳ-⊔, +-distrib-⊔,
+  +-distribˡ-⊓, +-distribʳ-⊓, +-distrib-⊓
   ```
 
 * Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
@@ -70,18 +65,13 @@ Important changes since 0.13:
 * Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
   `Data.Nat.Properties`
 
-* Added `⊓-idem` and `⊔-idem` to `Data.Nat.Properties`
-
 * Useful lemmas and properties that were previously in private scope,
   either explicitly or within records, have been made public in several
   Properties.agda files. These include:
-
   ```agda
   Data.List.Any.Properties
   Data.Nat.Properties
   ```
-
-* Added `suc-injective`, `<-irrefl` and `<-asym` to `Data.Nat.Properties`
 
 * Added `+-left-identity` and `*-left-zero` to `Data.Nat.Properties.Simple`
 
