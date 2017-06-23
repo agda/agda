@@ -12,8 +12,6 @@ open import Data.Bool.Base using (Bool; false; true; if_then_else_)
 open import Data.Empty
 open import Function
 open import Data.Product as Prod
-open import Data.Fin using (Fin)
-open import Data.Fin.Dec
 open import Data.Sum as Sum
 open import Category.Monad
 open import Level
@@ -61,13 +59,6 @@ private
 ∃¬⟶¬∀ : ∀ {a p} {A : Set a} {P : A → Set p} →
         ∃ (λ x → ¬ P x) → ¬ (∀ x → P x)
 ∃¬⟶¬∀ = flip ∀⟶¬∃¬
-
--- When P is a decidable predicate over a finite set the following
--- lemma can be proved.
-
-¬∀⟶∃¬ : ∀ n {p} (P : Fin n → Set p) → Decidable P →
-        ¬ (∀ i → P i) → ∃ λ i → ¬ P i
-¬∀⟶∃¬ n P dec ¬P = Prod.map id proj₁ $ ¬∀⟶∃¬-smallest n P dec ¬P
 
 ------------------------------------------------------------------------
 -- Double-negation

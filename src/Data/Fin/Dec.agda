@@ -155,6 +155,14 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
   extend′ g zero    = P0
   extend′ g (suc j) = g j
 
+
+-- When P is a decidable predicate over a finite set the following
+-- lemma can be proved.
+
+¬∀⟶∃¬ : ∀ n {p} (P : Fin n → Set p) → U.Decidable P →
+        ¬ (∀ i → P i) → ∃ λ i → ¬ P i
+¬∀⟶∃¬ n P dec ¬P = Prod.map id proj₁ $ ¬∀⟶∃¬-smallest n P dec ¬P
+
 -- Decision procedure for _⊆_ (obtained via the natural lattice
 -- order).
 

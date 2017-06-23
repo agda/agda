@@ -65,6 +65,8 @@ Important changes since 0.13:
 * Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
   `Data.Nat.Properties`
 
+* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`
+
 * Useful lemmas and properties that were previously in private scope,
   either explicitly or within records, have been made public in several
   Properties.agda files. These include:
