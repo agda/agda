@@ -24,6 +24,9 @@ open import Data.Sum
 +-right-identity zero = refl
 +-right-identity (suc n) = cong suc $ +-right-identity n
 
++-left-identity : ∀ n → 0 + n ≡ n
++-left-identity _ = refl
+
 +-suc : ∀ m n → m + suc n ≡ suc (m + n)
 +-suc zero    n = refl
 +-suc (suc m) n = cong suc (+-suc m n)
@@ -65,6 +68,9 @@ open import Data.Sum
 *-right-zero : ∀ n → n * 0 ≡ 0
 *-right-zero zero = refl
 *-right-zero (suc n) = *-right-zero n
+
+*-left-zero : ∀ n → 0 * n ≡ 0
+*-left-zero _ = refl
 
 *-comm : ∀ m n → m * n ≡ n * m
 *-comm zero    n = sym $ *-right-zero n

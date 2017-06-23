@@ -78,7 +78,12 @@ Important changes since 0.13:
 
   ```agda
   Data.List.Any.Properties
+  Data.Nat.Properties
   ```
+
+* Added `suc-injective`, `<-irrefl` and `<-asym` to `Data.Nat.Properties`
+
+* Added `+-left-identity` and `*-left-zero` to `Data.Nat.Properties.Simple`
 
 * Changed `Data.Vec.All.All₂` to a native version which allows better
   pattern matching. The new version (and the associated proofs in
