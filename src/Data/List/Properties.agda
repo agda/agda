@@ -18,6 +18,7 @@ open import Data.List.All using (All; []; _∷_)
 open import Data.Maybe.Base using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
+open import Data.Nat.Properties.Simple using (+-comm)
 open import Data.Product as Prod hiding (map)
 open import Function
 import Algebra.FunctionProperties
@@ -392,6 +393,16 @@ reverse-involutive (x ∷ xs) = begin
   reverse (reverse xs ∷ʳ x)    ≡⟨ reverse-++-commute (reverse xs) ([ x ]) ⟩
   x ∷ reverse (reverse (xs))   ≡⟨ P.cong (λ y → x ∷ y) $ reverse-involutive xs ⟩
   x ∷ xs                       ∎
+  where open P.≡-Reasoning
+
+reverse-length : ∀ {a} {A : Set a} (xs : List A) → length (reverse xs) ≡ length xs
+reverse-length []       = refl
+reverse-length (x ∷ xs) = begin
+  length (reverse (x ∷ xs))   ≡⟨ P.cong length $ unfold-reverse x xs ⟩
+  length (reverse xs ∷ʳ x)    ≡⟨ length-++ (reverse xs) ⟩
+  length (reverse xs) + 1     ≡⟨ P.cong (_+ 1) (reverse-length xs) ⟩
+  length xs + 1               ≡⟨ +-comm _ 1 ⟩
+  suc (length xs)              ∎
   where open P.≡-Reasoning
 
 -- The list monad.

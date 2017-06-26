@@ -50,12 +50,12 @@ Important changes since 0.13:
 * Added additional proofs to `Data.Fin.Properties`:
   ```agda
   isDecEquivalence
-  
+
   ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric
   ≤-total, ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder
 
   _<?_, <-trans, <-isStrictTotalOrder
-  
+
   punchOut-injective, punchIn-injective, punchIn-punchOut, punchInᵢ≢i
   ```
 
@@ -88,6 +88,8 @@ Important changes since 0.13:
 
 * Added `+-left-identity` and `*-left-zero` to `Data.Nat.Properties.Simple`
 
+* Added `reverse-length` to `Data.List.Properties`
+
 * Changed `Data.Vec.All.All₂` to a native version which allows better
   pattern matching. The new version (and the associated proofs in
   `Data.Vec.All.Properties`) are more generic with respect to types and
@@ -108,7 +110,7 @@ Non-backwards compatible changes
 
 * Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`
 
-* Moved internal modules `Membership` and `Membership-≡` out of 
+* Moved internal modules `Membership` and `Membership-≡` out of
   `Data.List.Any` into `Data.List.Any.Membership` and
   `Data.List.Any.Membership.Propositional` respectively.
 
