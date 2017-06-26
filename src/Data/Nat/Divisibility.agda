@@ -8,7 +8,8 @@ module Data.Nat.Divisibility where
 
 open import Data.Nat as Nat
 open import Data.Nat.DivMod
-import Data.Nat.Properties as NatProp
+open import Data.Nat.Properties as NatProp using (≤-antisym; m≤m+n)
+open import Data.Nat.Properties.Simple using (*-comm; *-assoc)
 open import Data.Fin as Fin using (Fin; zero; suc)
 import Data.Fin.Properties as FP
 open NatProp.SemiringSolver
@@ -20,7 +21,7 @@ open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.PartialOrderReasoning as PartialOrderReasoning
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; _≢_; refl; sym; cong; subst)
+  using (_≡_; _≢_; refl; sym; trans; cong; subst)
 open import Function
 
 -- m ∣ n is inhabited iff m divides n. Some sources, like Hardy and
@@ -29,10 +30,13 @@ open import Function
 -- allowed to be zero. For instance, _∣_ becomes a partial order, and
 -- the gcd of 0 and 0 becomes defined.
 
-infix 4 _∣_
+infix 4 _∣_ _∤_
 
 data _∣_ : ℕ → ℕ → Set where
   divides : {m n : ℕ} (q : ℕ) (eq : n ≡ q * m) → m ∣ n
+
+_∤_ : Rel ℕ _
+m ∤ n = ¬ (m ∣ n)
 
 -- Extracts the quotient.
 
@@ -44,54 +48,54 @@ quotient (divides q _) = q
 ∣⇒≤ : ∀ {m n} → m ∣ suc n → m ≤ suc n
 ∣⇒≤         (divides zero    ())
 ∣⇒≤ {m} {n} (divides (suc q) eq) = begin
-  m          ≤⟨ NatProp.m≤m+n m (q * m) ⟩
+  m          ≤⟨ m≤m+n m (q * m) ⟩
   suc q * m  ≡⟨ sym eq ⟩
   suc n      ∎
   where open NatProp.≤-Reasoning
 
 -- _∣_ is a partial order.
 
+∣-reflexive : _≡_ ⇒ _∣_
+∣-reflexive {n} refl = divides 1 (sym $ proj₁ CS.*-identity n)
+
+∣-refl : Reflexive _∣_
+∣-refl = ∣-reflexive refl
+
+∣-trans : Transitive _∣_
+∣-trans (divides q₁ refl) (divides q₂ refl) =
+  divides (q₂ * q₁) (sym (*-assoc q₂ q₁ _))
+
+∣-antisym : Antisymmetric _≡_ _∣_
+∣-antisym (divides {n = zero} _ _) (divides q p≡q*0) =
+  trans p≡q*0 (*-comm q 0)
+∣-antisym (divides q q*0≡p) (divides {n = zero} q₂ eq₂) =
+  trans (*-comm 0 q) (sym q*0≡p)
+∣-antisym (divides {n = suc _} q₁ eq₁) (divides {n = suc _} q₂ eq₂) =
+    ≤-antisym (∣⇒≤ (divides q₁ eq₁)) (∣⇒≤ (divides q₂ eq₂))
+
+∣-isPreorder : IsPreorder _≡_ _∣_
+∣-isPreorder = record
+  { isEquivalence = PropEq.isEquivalence
+  ; reflexive     = ∣-reflexive
+  ; trans         = ∣-trans
+  }
+
+∣-isPartialOrder : IsPartialOrder _≡_ _∣_
+∣-isPartialOrder = record
+  { isPreorder = ∣-isPreorder
+  ; antisym    = ∣-antisym
+  }
+
 poset : Poset _ _ _
 poset = record
   { Carrier        = ℕ
   ; _≈_            = _≡_
   ; _≤_            = _∣_
-  ; isPartialOrder = record
-    { isPreorder = record
-      { isEquivalence = PropEq.isEquivalence
-      ; reflexive     = reflexive
-      ; trans         = trans
-      }
-    ; antisym = antisym
-    }
+  ; isPartialOrder = ∣-isPartialOrder
   }
-  where
-  module DTO = DecTotalOrder NatProp.≤-decTotalOrder
-  open PropEq.≡-Reasoning
-
-  reflexive : _≡_ ⇒ _∣_
-  reflexive {n} refl = divides 1 (sym $ proj₁ CS.*-identity n)
-
-  antisym : Antisymmetric _≡_ _∣_
-  antisym (divides {n = zero} q₁ eq₁) (divides {n = n₂} q₂ eq₂) = begin
-    n₂      ≡⟨ eq₂ ⟩
-    q₂ * 0  ≡⟨ CS.*-comm q₂ 0 ⟩
-    0       ∎
-  antisym (divides {n = n₁} q₁ eq₁) (divides {n = zero} q₂ eq₂) = begin
-    0       ≡⟨ CS.*-comm 0 q₁ ⟩
-    q₁ * 0  ≡⟨ sym eq₁ ⟩
-    n₁      ∎
-  antisym (divides {n = suc n₁} q₁ eq₁) (divides {n = suc n₂} q₂ eq₂) =
-    DTO.antisym (∣⇒≤ (divides q₁ eq₁)) (∣⇒≤ (divides q₂ eq₂))
-
-  trans : Transitive _∣_
-  trans (divides q₁ refl) (divides q₂ refl) =
-    divides (q₂ * q₁) (sym (CS.*-assoc q₂ q₁ _))
 
 module ∣-Reasoning = PartialOrderReasoning poset
   renaming (_≤⟨_⟩_ to _∣⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
-
-private module P = Poset poset
 
 -- 1 divides everything.
 
@@ -110,12 +114,12 @@ n ∣0 = divides 0 refl
 -- 0 only divides 0.
 
 0∣⇒≡0 : ∀ {n} → 0 ∣ n → n ≡ 0
-0∣⇒≡0 {n} 0∣n = P.antisym (n ∣0) 0∣n
+0∣⇒≡0 {n} 0∣n = ∣-antisym (n ∣0) 0∣n
 
 -- Only 1 divides 1.
 
 ∣1⇒≡1 : ∀ {n} → n ∣ 1 → n ≡ 1
-∣1⇒≡1 {n} n∣1 = P.antisym n∣1 (1∣ n)
+∣1⇒≡1 {n} n∣1 = ∣-antisym n∣1 (1∣ n)
 
 -- If i divides m and n, then i divides their sum.
 
@@ -138,15 +142,13 @@ n ∣0 = divides 0 refl
 -- If i divides j, then ki divides kj.
 
 *-cong : ∀ {i j} k → i ∣ j → k * i ∣ k * j
-*-cong {i} {j} k (divides q eq) = divides q lemma
-  where
-  open PropEq.≡-Reasoning
-  lemma = begin
-    k * j        ≡⟨ cong (_*_ k) eq ⟩
-    k * (q * i)  ≡⟨ solve 3 (λ k q i → k :* (q :* i)
+*-cong {i} {j} k (divides q eq) = divides q (begin
+  k * j        ≡⟨ cong (_*_ k) eq ⟩
+  k * (q * i)  ≡⟨ solve 3 (λ k q i → k :* (q :* i)
                                    :=  q :* (k :* i))
                             refl k q i ⟩
-    q * (k * i)  ∎
+  q * (k * i)  ∎)
+  where open PropEq.≡-Reasoning
 
 -- If ki divides kj, and k is positive, then i divides j.
 
@@ -156,7 +158,7 @@ n ∣0 = divides 0 refl
   open PropEq.≡-Reasoning
   k′    = suc k
   lemma = NatProp.cancel-*-right j (q * i) (begin
-    j * k′        ≡⟨ CS.*-comm j k′ ⟩
+    j * k′        ≡⟨ *-comm j k′ ⟩
     k′ * j        ≡⟨ eq ⟩
     q * (k′ * i)  ≡⟨ solve 3 (λ q k i → q :* (k :* i)
                                     :=  q :* i :* k)
@@ -168,7 +170,7 @@ n ∣0 = divides 0 refl
 
 nonZeroDivisor-lemma
   : ∀ m q (r : Fin (1 + m)) → Fin.toℕ r ≢ 0 →
-    ¬ (1 + m) ∣ (Fin.toℕ r + q * (1 + m))
+    1 + m ∤ Fin.toℕ r + q * (1 + m)
 nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
   Fin.toℕ r
     ≡⟨ sym $ proj₁ CS.*-identity (Fin.toℕ r) ⟩
@@ -192,7 +194,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
       ∎
   where open NatProp.≤-Reasoning
 nonZeroDivisor-lemma m (suc q) r r≢zero d =
-  nonZeroDivisor-lemma m q r r≢zero (∣-∸ d' P.refl)
+  nonZeroDivisor-lemma m q r r≢zero (∣-∸ d' ∣-refl)
   where
   lem = solve 3 (λ m r q → r :+ (m :+ q)  :=  m :+ (r :+ q))
                 refl (suc m) (Fin.toℕ r) (q * suc m)

@@ -77,12 +77,15 @@ Important changes since 0.13:
 
 * Added decidability lemma `gcd?` to `Data.Nat.GCD`
 
+* Added not-divisible-by relation `_∤_` to `Data.Nat.Divisibility`
+
 * Useful lemmas and properties that were previously in private scope,
   either explicitly or within records, have been made public in several
   Properties.agda files. These include:
   ```agda
   Data.List.Any.Properties
   Data.Nat.Properties
+  Data.Nat.Divisibility
   Data.Vec.All.Properties
   ```
 
