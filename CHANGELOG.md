@@ -75,6 +75,7 @@ Important changes since 0.13:
   ```agda
   Data.List.Any.Properties
   Data.Nat.Properties
+  Data.Vec.All.Properties
   ```
 
 * Added `+-left-identity` and `*-left-zero` to `Data.Nat.Properties.Simple`
@@ -83,6 +84,9 @@ Important changes since 0.13:
   pattern matching. The new version (and the associated proofs in
   `Data.Vec.All.Properties`) are more generic with respect to types and
   levels.
+
+* Added extra properties relating `_++_` and `concat` to `All` and `All₂`
+  in `Data.Vec.All.Properties`
 
 * Added syntax for existential quantifiers as `∃[ x ] B` and `∄[ x ] B`.
 
