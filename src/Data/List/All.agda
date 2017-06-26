@@ -6,7 +6,7 @@
 
 module Data.List.All where
 
-open import Data.List.Base as List hiding (map; all)
+open import Data.List.Base as List hiding (map; tabulate; all)
 open import Data.List.Any as Any using (here; there)
 open import Data.List.Any.Membership.Propositional using (_∈_)
 open import Function

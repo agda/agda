@@ -7,11 +7,12 @@
 module Data.List.Base where
 
 open import Data.Nat.Base using (ℕ; zero; suc; _+_; _*_)
+open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Bool.Base using (Bool; false; true; not; _∧_; _∨_; if_then_else_)
 open import Data.Maybe.Base using (Maybe; nothing; just)
 open import Data.Product as Prod using (_×_; _,_)
-open import Function
+open import Function using (id; _∘_)
 
 ------------------------------------------------------------------------
 -- Types
@@ -138,16 +139,36 @@ unfold B f {n = suc n} s with f s
 ... | nothing       = []
 ... | just (x , s') = x ∷ unfold B f s'
 
+-- applyUpTo 3 = f0 ∷ f1 ∷ f2 ∷ [].
+
+applyUpTo : ∀ {a} {A : Set a} → (ℕ → A) → ℕ → List A
+applyUpTo f zero    = []
+applyUpTo f (suc n) = f zero ∷ applyUpTo (f ∘ suc) n
+
+-- upTo 3 = 0 ∷ 1 ∷ 2 ∷ [].
+
+upTo : ℕ → List ℕ
+upTo = applyUpTo id
+
+-- applyDownFrom 3 = f2 ∷ f1 ∷ f0 ∷ [].
+
+applyDownFrom : ∀ {a} {A : Set a} → (ℕ → A) → ℕ → List A
+applyDownFrom f zero = []
+applyDownFrom f (suc n) = f n ∷ applyDownFrom f n
+
 -- downFrom 3 = 2 ∷ 1 ∷ 0 ∷ [].
 
 downFrom : ℕ → List ℕ
-downFrom n = unfold Singleton f (wrap n)
-  where
-  data Singleton : ℕ → Set where
-    wrap : (n : ℕ) → Singleton n
+downFrom = applyDownFrom id
 
-  f : ∀ {n} → Singleton (suc n) → Maybe (ℕ × Singleton n)
-  f {n} (wrap .(suc n)) = just (n , wrap n)
+-- tabulate f = f 0 ∷ f 1 ∷ ... ∷ f n ∷ []
+
+tabulate : ∀ {a n} {A : Set a} (f : Fin n → A) → List A
+tabulate {_} {zero}  f = []
+tabulate {_} {suc n} f = f fzero ∷ tabulate (f ∘ fsuc)
+
+allFin : ∀ n → List (Fin n)
+allFin n = tabulate id
 
 -- ** Conversions
 

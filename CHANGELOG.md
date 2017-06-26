@@ -9,6 +9,17 @@ Important changes since 0.13:
 
 * Added `Category.Functor.Morphism` and module `Category.Functor.Identity`.
 
+* Added additional sequence-generating functions to `Data.List`
+  ```
+  applyUpTo
+  upTo
+  applyDownFrom
+  tabulate
+  allFin
+  ```
+
+* Changed `downFrom` in `Data.List` to a more idiomatic easier-to-reason-about version.
+
 * Native (pattern-matching) definitions for `Data.Vec.map` and `Data.Vec.zipWith`.
   Previously they were defined using the `applicative` operations of `Vec`.
   The rationale for this change is better printing of goals involving `map`
