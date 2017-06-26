@@ -58,12 +58,12 @@ comp _⊙_ (pxy ∷ pxys) (qzx ∷ qzxs) = pxy ⊙ qzx ∷ comp _⊙_ pxys qzxs
 
 ------------------------------------------------------------------------
 -- Variants of gmap for All₂.
-  
+
 module _ {a b c p q} {A : Set a} {B : Set b} {C : Set c} where
 
   -- A variant of gmap₂ shifting two functions from the binary
   -- relation to the vector.
-  
+
   gmap₂ : ∀ {d} {D : Set d} {P : A → B → Set p} {Q : C → D → Set q}
             {f₁ : A → C} {f₂ : B → D} →
           (∀ {x y} → P x y → Q (f₁ x) (f₂ y)) → ∀ {k xs ys} →
@@ -82,7 +82,7 @@ module _ {a b c p q} {A : Set a} {B : Set b} {C : Set c} where
 
   -- A variant of gmap₂ shifting only the second function from the
   -- binary relation to the vector.
-  
+
   gmap₂₂ : ∀ {P : A → B → Set p} {Q : A → C → Set q} {f : B → C} →
            (∀ {x y} → P x y → Q x (f y)) → ∀ {k xs ys} →
            All₂ P {k} xs ys → All₂ Q {k} xs (Vec.map f ys)
@@ -109,7 +109,7 @@ module _ {a n p} {A : Set a} {P : A → Set p} where
           All P (xs ++ ys) → All P ys
   All-++ʳ⁻ []       pys        = pys
   All-++ʳ⁻ (x ∷ xs) (px ∷ pxs) = All-++ʳ⁻ xs pxs
-  
+
   All-++⁻ : ∀ {m} (xs : Vec A m) {ys : Vec A n} →
         All P (xs ++ ys) → All P xs × All P ys
   All-++⁻ []       p          = [] , p
@@ -120,13 +120,13 @@ module _ {a n p} {A : Set a} {P : A → Set p} where
                 uncurry′ All-++⁺ (All-++⁻ xs p) ≡ p
   All-++⁺∘++⁻ []       p          = P.refl
   All-++⁺∘++⁻ (x ∷ xs) (px ∷ pxs) = P.cong (px ∷_) (All-++⁺∘++⁻ xs pxs)
-  
+
   All-++⁻∘++⁺ : ∀ {m} {xs : Vec A m} {ys : Vec A n} →
                 (p : All P xs × All P ys) →
                 All-++⁻ xs (uncurry All-++⁺ p) ≡ p
   All-++⁻∘++⁺ ([]       , pys) = P.refl
   All-++⁻∘++⁺ (px ∷ pxs , pys) rewrite All-++⁻∘++⁺ (pxs , pys) = P.refl
-  
+
   ++↔ : ∀ {m} {xs : Vec A m} {ys : Vec A n} →
         (All P xs × All P ys) ↔ All P (xs ++ ys)
   ++↔ {xs = xs} = record
@@ -196,4 +196,4 @@ module _ {a b m p} {A : Set a} {B : Set b} {_~_ : REL A B p} where
   All₂-concat⁻ []         []         [] = []
   All₂-concat⁻ (xs ∷ xss) (ys ∷ yss) ps =
     All₂-++ˡ⁻ xs ys ps ∷ All₂-concat⁻ xss yss (All₂-++ʳ⁻ xs ys ps)
-  
+
