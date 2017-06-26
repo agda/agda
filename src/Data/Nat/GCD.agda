@@ -11,7 +11,8 @@ open import Data.Nat.Divisibility as Div
 open import Relation.Binary
 private module P = Poset Div.poset
 open import Data.Product
-open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_; subst)
+open import Relation.Nullary using (Dec; yes; no)
 open import Induction
 open import Induction.Nat
 open import Induction.Lexicographic
@@ -183,3 +184,11 @@ module Bézout where
 gcd : (m n : ℕ) → ∃ λ d → GCD m n d
 gcd m n with Bézout.lemma m n
 gcd m n | Bézout.result d g _ = (d , g)
+
+-- gcd as a proposition is decidable
+
+gcd? : (m n d : ℕ) → Dec (GCD m n d)
+gcd? m n d with gcd m n
+... | d′ , p with d′ ≟ d
+... | no ¬g = no (λ p′ → ¬g (GCD.unique p p′))
+... | yes g = yes (subst (GCD m n) g p)
