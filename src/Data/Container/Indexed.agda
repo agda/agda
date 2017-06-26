@@ -61,8 +61,8 @@ private
   Eq⇒≅ {xs = c , k} {.c , k′} ext (refl , refl , k≈k′) =
     H.cong (_,_ c) (ext (λ _ → refl) (λ r → k≈k′ r r refl))
 
-setoid : ∀ {i o c r} {I : Set i} {O : Set o} →
-         Container I O c r → Setoid I (c ⊔ r) _ → Setoid O _ _
+setoid : ∀ {i o c r s} {I : Set i} {O : Set o} →
+         Container I O c r → Setoid I s _ → Setoid O _ _
 setoid C X = record
   { Carrier       = ⟦ C ⟧ X.Carrier
   ; _≈_           = _≈_
@@ -99,15 +99,15 @@ map _ f = Prod.map ⟨id⟩ (λ g → f ⟨∘⟩ g)
 
 module Map where
 
-  identity : ∀ {i o c r} {I : Set i} {O : Set o} (C : Container I O c r)
-             (X : Setoid I _ _) → let module X = Setoid X in
+  identity : ∀ {i o c r s} {I : Set i} {O : Set o} (C : Container I O c r)
+             (X : Setoid I s _) → let module X = Setoid X in
              ∀ {o} {xs : ⟦ C ⟧ X.Carrier o} → Eq C X.Carrier X.Carrier
              X._≈_ xs (map C {X.Carrier} ⟨id⟩ xs)
   identity C X = Setoid.refl (setoid C X)
 
-  composition : ∀ {i o c r ℓ₁ ℓ₂} {I : Set i} {O : Set o}
+  composition : ∀ {i o c r s ℓ₁ ℓ₂} {I : Set i} {O : Set o}
                 (C : Container I O c r) {X : Pred I ℓ₁} {Y : Pred I ℓ₂}
-                (Z : Setoid I _ _) → let module Z = Setoid Z in
+                (Z : Setoid I s _) → let module Z = Setoid Z in
                 {f : Y ⊆ Z.Carrier} {g : X ⊆ Y} {o : O} {xs : ⟦ C ⟧ X o} →
                 Eq C Z.Carrier Z.Carrier Z._≈_
                   (map C {Y} f (map C {X} g xs))
