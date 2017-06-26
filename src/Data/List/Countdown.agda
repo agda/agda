@@ -31,7 +31,7 @@ open PropEq.≡-Reasoning
 private
   open module D = DecSetoid D
     hiding (refl) renaming (Carrier to Elem)
-  open Any.Membership D.setoid
+  open import Data.List.Any.Membership D.setoid
 
 ------------------------------------------------------------------------
 -- Helper functions

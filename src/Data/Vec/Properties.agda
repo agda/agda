@@ -13,8 +13,8 @@ open import Category.Functor.Identity using (IdentityFunctor)
 open import Category.Monad
 open import Category.Monad.Identity
 open import Data.Vec
-open import Data.List.Any
-  using (here; there) renaming (module Membership-≡ to List)
+open import Data.List.Any using (here; there)
+import Data.List.Any.Membership.Propositional as List
 open import Data.Nat
 open import Data.Empty using (⊥-elim)
 import Data.Nat.Properties as Nat

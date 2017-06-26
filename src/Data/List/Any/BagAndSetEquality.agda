@@ -15,6 +15,7 @@ open import Data.List as List
 import Data.List.Properties as LP
 open import Data.List.Any as Any using (Any); open Any.Any
 open import Data.List.Any.Properties
+open import Data.List.Any.Membership.Propositional
 open import Data.Product
 open import Data.Sum
 open import Function
@@ -30,7 +31,7 @@ open import Relation.Binary.PropositionalEquality as P
 open import Relation.Binary.Sum
 open import Relation.Nullary
 
-open Any.Membership-≡
+open import Data.List.Any.Membership.Propositional.Properties
 private
   module Eq  {k a} {A : Set a} = Setoid ([ k ]-Equality A)
   module Ord {k a} {A : Set a} = Preorder ([ k ]-Order A)

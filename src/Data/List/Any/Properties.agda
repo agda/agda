@@ -17,6 +17,7 @@ open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
+open import Data.List.Any.Membership.Propositional
 open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
@@ -35,7 +36,6 @@ open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _�
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
-open Any.Membership-≡
 open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)

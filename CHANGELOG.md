@@ -64,14 +64,7 @@ Important changes since 0.13:
   +-distribˡ-⊓, +-distribʳ-⊓, +-distrib-⊓
   ```
 
-* Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
-
-* Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
-  `Data.Nat.Properties`
-
 * Added decidability lemma `gcd?` to `Data.Nat.GCD`
-
-* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`
 
 * Useful lemmas and properties that were previously in private scope,
   either explicitly or within records, have been made public in several
@@ -93,6 +86,23 @@ Important changes since 0.13:
   in `Data.Vec.All.Properties`
 
 * Added syntax for existential quantifiers as `∃[ x ] B` and `∄[ x ] B`.
+
+Non-backwards compatible changes
+--------------------------------
+
+* Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
+
+* Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
+  `Data.Nat.Properties`
+
+* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`
+
+* Moved internal modules `Membership` and `Membership-≡` out of 
+  `Data.List.Any` into `Data.List.Any.Membership` and
+  `Data.List.Any.Membership.Propositional` respectively.
+
+* Moved contents of `Data.List.Any.Membership` to
+  `Data.List.Any.Membership.Propositional.Properties`
 
 Version 0.13
 ============

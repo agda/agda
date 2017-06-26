@@ -10,7 +10,7 @@ open import Data.Bool.Base using (Bool; T)
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List.Base as List
-import Data.List.Any as Any; open Any.Membership-≡
+open import Data.List.Any.Membership.Propositional
 open import Data.List.All as All using (All; []; _∷_)
 open import Data.List.Any using (Any; here; there)
 open import Data.Product as Prod
