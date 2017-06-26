@@ -8,6 +8,7 @@
 module Data.Fin.Properties where
 
 open import Algebra
+open import Data.Empty using (⊥-elim)
 open import Data.Fin
 open import Data.Nat as N using (ℕ; zero; suc; s≤s; z≤n; _∸_) renaming
   (_≤_ to _ℕ≤_
@@ -23,7 +24,7 @@ open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; cong; subst)
+  using (_≡_; _≢_; refl; cong; subst)
 open import Category.Functor
 open import Category.Applicative
 
@@ -353,3 +354,41 @@ private
                F (∀ i → P i) → ∀ i → F (P i)
   sequence⁻¹ RF F∀iPi i = (λ f → f i) <$> F∀iPi
     where open RawFunctor RF
+
+------------------------------------------------------------------------
+
+punchOut-injective : ∀ {m} {i j k : Fin (suc m)}
+                     (i≢j : i ≢ j) (i≢k : i ≢ k) →
+                     punchOut i≢j ≡ punchOut i≢k → j ≡ k
+punchOut-injective {_}     {zero}   {zero}  {_}     i≢j _   _     = ⊥-elim (i≢j refl)
+punchOut-injective {_}     {zero}   {_}     {zero}  _   i≢k _     = ⊥-elim (i≢k refl)
+punchOut-injective {_}     {zero}   {suc j} {suc k} _   _   pⱼ≡pₖ = cong suc pⱼ≡pₖ
+punchOut-injective {zero}  {suc ()}
+punchOut-injective {suc n} {suc i}  {zero}  {zero}  _   _    _    = refl
+punchOut-injective {suc n} {suc i}  {zero}  {suc k} _   _   ()
+punchOut-injective {suc n} {suc i}  {suc j} {zero}  _   _   ()
+punchOut-injective {suc n} {suc i}  {suc j} {suc k} i≢j i≢k pⱼ≡pₖ =
+  cong suc (punchOut-injective (i≢j ∘ cong suc) (i≢k ∘ cong suc) (suc-injective pⱼ≡pₖ))
+
+punchIn-injective : ∀ {m} i (j k : Fin m) →
+                    punchIn i j ≡ punchIn i k → j ≡ k
+punchIn-injective zero    _       _       refl      = refl
+punchIn-injective (suc i) zero    zero    _         = refl
+punchIn-injective (suc i) zero    (suc k) ()
+punchIn-injective (suc i) (suc j) zero    ()
+punchIn-injective (suc i) (suc j) (suc k) ↑j+1≡↑k+1 =
+  cong suc (punchIn-injective i j k (suc-injective ↑j+1≡↑k+1))
+
+punchIn-punchOut : ∀ {m} {i j : Fin (suc m)} (i≢j : i ≢ j) →
+                   punchIn i (punchOut i≢j) ≡ j
+punchIn-punchOut {_}     {zero}   {zero}  0≢0 = ⊥-elim (0≢0 refl)
+punchIn-punchOut {_}     {zero}   {suc j} _   = refl
+punchIn-punchOut {zero}  {suc ()}
+punchIn-punchOut {suc m} {suc i}  {zero}  i≢j = refl
+punchIn-punchOut {suc m} {suc i}  {suc j} i≢j =
+  cong suc (punchIn-punchOut (i≢j ∘ cong suc))
+
+punchInᵢ≢i : ∀ {m} i (j : Fin m) → punchIn i j ≢ i
+punchInᵢ≢i zero    _    ()
+punchInᵢ≢i (suc i) zero ()
+punchInᵢ≢i (suc i) (suc j) = punchInᵢ≢i i j ∘ suc-injective

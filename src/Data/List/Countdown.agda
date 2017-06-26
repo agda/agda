@@ -11,7 +11,9 @@ open import Relation.Binary
 module Data.List.Countdown (D : DecSetoid Level.zero Level.zero) where
 
 open import Data.Empty
-open import Data.Fin using (Fin; zero; suc)
+open import Data.Fin using (Fin; zero; suc; punchOut)
+open import Data.Fin.Properties
+  using (suc-injective; punchOut-injective)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Injection
@@ -35,10 +37,6 @@ private
 -- Helper functions
 
 private
-
-  drop-suc : ∀ {n} {i j : Fin n} →
-             _≡_ {A = Fin (suc n)} (suc i) (suc j) → i ≡ j
-  drop-suc refl = refl
 
   drop-inj₂ : ∀ {A B : Set} {x y} →
               inj₂ {A = A} {B = B} x ≡ inj₂ y → x ≡ y
@@ -99,34 +97,7 @@ private
     helper (there {x = x} x₁∈xs) (there x₂∈xs) () | yes x₁≈x | no  x₂≉x
     helper (there {x = x} x₁∈xs) (there x₂∈xs) () | no  x₁≉x | yes x₂≈x
     helper (there {x = x} x₁∈xs) (there x₂∈xs) eq | no  x₁≉x | no  x₂≉x =
-      helper x₁∈xs x₂∈xs (drop-suc eq)
-
-  -- If there are at least two elements in Fin (suc n), then Fin n is
-  -- inhabited. This is a variant of the thick function from Conor
-  -- McBride's "First-order unification by structural recursion".
-
-  thick : ∀ {n} (i j : Fin (suc n)) → i ≢ j → Fin n
-  thick         zero     zero     i≢j = ⊥-elim (i≢j refl)
-  thick         zero     (suc j)  _   = j
-  thick {zero}  (suc ()) _        _
-  thick {suc n} (suc i)  zero     _   = zero
-  thick {suc n} (suc i)  (suc j)  i≢j =
-    suc (thick i j (i≢j ∘ cong suc))
-
-  -- thick i is injective in one of its arguments.
-
-  thick-injective : ∀ {n} (i j k : Fin (suc n))
-                    {i≢j : i ≢ j} {i≢k : i ≢ k} →
-                    thick i j i≢j ≡ thick i k i≢k → j ≡ k
-  thick-injective zero zero    _    {i≢j = i≢j} _   = ⊥-elim (i≢j refl)
-  thick-injective zero _       zero {i≢k = i≢k} _   = ⊥-elim (i≢k refl)
-  thick-injective zero (suc j) (suc k)          j≡k = cong suc j≡k
-  thick-injective {zero}  (suc ()) _       _       _
-  thick-injective {suc n} (suc i)  zero    zero    _ = refl
-  thick-injective {suc n} (suc i)  zero    (suc k) ()
-  thick-injective {suc n} (suc i)  (suc j) zero    ()
-  thick-injective {suc n} (suc i)  (suc j) (suc k) {i≢j} {i≢k} eq =
-    cong suc $ thick-injective i j k {i≢j ∘ cong suc} {i≢k ∘ cong suc} (drop-suc eq)
+      helper x₁∈xs x₂∈xs (suc-injective eq)
 
 ------------------------------------------------------------------------
 -- The countdown data structure
@@ -215,7 +186,7 @@ insert {counted} {n} counted⊕1+n x x∉counted =
   kind′  y | _       | inj₁ x∈counted | _              | _   = ⊥-elim (x∉counted x∈counted)
   kind′  y | _       | _              | inj₁ y∈counted | _   = inj₁ (there y∈counted)
   kind′  y | no  y≉x | inj₂ i         | inj₂ j         | hlp =
-    inj₂ (thick i j (y≉x ∘ sym ∘ hlp _ refl refl))
+    inj₂ (punchOut (y≉x ∘ sym ∘ hlp _ refl refl))
 
   inj : ∀ {y z i} → kind′ y ≡ inj₂ i → kind′ z ≡ inj₂ i → y ≈ z
   inj {y} {z} eq₁ eq₂ with y ≟ x | z ≟ x | kind x | kind y | kind z
@@ -227,8 +198,8 @@ insert {counted} {n} counted⊕1+n x x∉counted =
   inj _   ()  | no  _ | no  _ | inj₂ _         | _      | inj₁ _ | _ | _ | _
   inj eq₁ eq₂ | no  _ | no  _ | inj₂ i         | inj₂ _ | inj₂ _ | _ | _ | hlp =
     hlp _ refl refl $
-      thick-injective i _ _ $
-        PropEq.trans (drop-inj₂ eq₁) (PropEq.sym (drop-inj₂ eq₂))
+      punchOut-injective {i = i} _ _ $
+        (PropEq.trans (drop-inj₂ eq₁) (PropEq.sym (drop-inj₂ eq₂)))
 
 -- Counts an element if it has not already been counted.
 

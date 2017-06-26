@@ -34,14 +34,18 @@ Important changes since 0.13:
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
 
-* Added `isDecEquivalence` proof for `_≡_` to `Data.Fin.Properties`
+* Added functions `punchIn` and `punchOut` to `Data.Fin`
 
 * Added additional proofs to `Data.Fin.Properties`:
   ```agda
+  isDecEquivalence
+  
   ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric
   ≤-total, ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder
 
   _<?_, <-trans, <-isStrictTotalOrder
+  
+  punchOut-injective, punchIn-injective, punchIn-punchOut, punchInᵢ≢i
   ```
 
 * Added additional proofs to `Data.Nat.Properties`:

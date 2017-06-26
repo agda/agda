@@ -10,6 +10,7 @@
 
 module Data.Fin where
 
+open import Data.Empty using (⊥-elim)
 open import Data.Nat as Nat
   using (ℕ; zero; suc; z≤n; s≤s)
   renaming ( _+_ to _N+_; _∸_ to _N∸_
@@ -19,7 +20,8 @@ import Level
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as P using (_≡_)
+open import Relation.Binary.PropositionalEquality
+  using (_≡_; _≢_; refl; cong)
 
 ------------------------------------------------------------------------
 -- Types
@@ -61,9 +63,9 @@ fromℕ≤ (Nat.s≤s (Nat.s≤s m≤n)) = suc (fromℕ≤ (Nat.s≤s m≤n))
 -- fromℕ≤″ m _ = "m".
 
 fromℕ≤″ : ∀ m {n} → m Nat.<″ n → Fin n
-fromℕ≤″ zero    (Nat.less-than-or-equal P.refl) = zero
-fromℕ≤″ (suc m) (Nat.less-than-or-equal P.refl) =
-  suc (fromℕ≤″ m (Nat.less-than-or-equal P.refl))
+fromℕ≤″ zero    (Nat.less-than-or-equal refl) = zero
+fromℕ≤″ (suc m) (Nat.less-than-or-equal refl) =
+  suc (fromℕ≤″ m (Nat.less-than-or-equal refl))
 
 -- # m = "m".
 
@@ -183,6 +185,25 @@ suc n ℕ-ℕ suc i  = n ℕ-ℕ i
 pred : ∀ {n} → Fin n → Fin n
 pred zero    = zero
 pred (suc i) = inject₁ i
+
+-- The function f(i,j) = if j>i then j-1 else j
+-- This is a variant of the thick function from Conor
+-- McBride's "First-order unification by structural recursion".
+
+punchOut : ∀ {m} {i j : Fin (suc m)} → i ≢ j → Fin m
+punchOut {_}     {zero}   {zero}  i≢j = ⊥-elim (i≢j refl)
+punchOut {_}     {zero}   {suc j} _   = j
+punchOut {zero}  {suc ()}
+punchOut {suc m} {suc i}  {zero}  _   = zero
+punchOut {suc m} {suc i}  {suc j} i≢j = suc (punchOut (i≢j ∘ cong suc))
+
+-- The function f(i,j) = if j≥i then j+1 else j
+
+punchIn : ∀ {m} → Fin (suc m) → Fin m → Fin (suc m)
+punchIn zero    j       = suc j
+punchIn (suc i) zero    = zero
+punchIn (suc i) (suc j) = suc (punchIn i j)
+
 
 ------------------------------------------------------------------------
 -- Order relations
