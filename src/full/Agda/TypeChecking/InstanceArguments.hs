@@ -173,7 +173,9 @@ findInScope m Nothing = do
     TelV tel t <- telView t
     cands <- addContext' tel $ initialIFSCandidates t
     case cands of
-      Nothing -> addConstraint $ FindInScope m Nothing Nothing
+      Nothing -> do
+        reportSLn "tc.instance" 20 "Can't figure out target of instance goal. Postponing constraint."
+        addConstraint $ FindInScope m Nothing Nothing
       Just {} -> findInScope m cands
 
 findInScope m (Just cands) =
@@ -182,11 +184,13 @@ findInScope m (Just cands) =
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
 findInScope' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
-findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
+findInScope' m cands = ifM (isFrozen m) (do
+    reportSLn "tc.instance" 20 "Refusing to solve frozen instance meta."
+    return (Just (cands, Nothing))) $ do
   -- Andreas, 2013-12-28 issue 1003:
   -- If instance meta is already solved, simply discard the constraint.
   -- Ulf, 2016-12-06 issue 2325: But only if *fully* instantiated.
-  ifM (isFullyInstantiatedMeta m) (return Nothing) $ do
+  ifM (isFullyInstantiatedMeta m) (Nothing <$ reportSLn "tc.instance" 20 "Instance meta already solved.") $ do
     -- Andreas, 2015-02-07: New metas should be created with range of the
     -- current instance meta, thus, we set the range.
     mv <- lookupMeta m
