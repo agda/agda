@@ -88,7 +88,8 @@ Important changes since 0.13:
 
 * Added `+-left-identity` and `*-left-zero` to `Data.Nat.Properties.Simple`
 
-* Added `reverse-length` to `Data.List.Properties`
+* Added `length-reverse`, `foldr-++`, `foldl-++` and `map-cong₂`
+  to `Data.List.Properties`
 
 * Changed `Data.Vec.All.All₂` to a native version which allows better
   pattern matching. The new version (and the associated proofs in
