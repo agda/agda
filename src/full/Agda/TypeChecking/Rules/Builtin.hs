@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin
   , bindBuiltinNoDef
+  , builtinKindOfName
   , bindPostulatedName
   , isUntypedBuiltin
   , bindUntypedBuiltin
@@ -19,6 +20,7 @@ import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -772,3 +774,16 @@ bindBuiltinNoDef b q = do
               }
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
+
+
+builtinKindOfName :: String -> TCM (Maybe KindOfName)
+builtinKindOfName b =
+               case find ((b ==) . builtinName) coreBuiltins of
+                    Nothing -> return Nothing
+                    Just d -> return . Just $
+                      case builtinDesc d of
+                        BuiltinDataCons{}  -> ConName
+                        BuiltinData{}      -> DefName
+                        BuiltinPrim{}      -> DefName
+                        BuiltinPostulate{} -> DefName
+                        BuiltinUnknown{}   -> DefName

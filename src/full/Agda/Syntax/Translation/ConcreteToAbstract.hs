@@ -63,7 +63,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
-import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin)
+import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
@@ -1765,7 +1765,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
             "BUILTIN " ++ b ++ " declares an identifier " ++
             "(no longer expects an already defined identifier)"
           y <- freshAbstractQName noFixity' x
-          bindName PublicAccess DefName x y
+          kind <- fromMaybe __IMPOSSIBLE__ <$> builtinKindOfName b
+          bindName PublicAccess kind x y
           return [ A.BuiltinNoDefPragma b y ]
         _ -> genericError $
           "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
