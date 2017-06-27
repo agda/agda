@@ -68,6 +68,9 @@ Backwards compatible changes
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
 
+* Added new module `Data.Empty.Irrelevant` containing an irrelevant version of
+  `⊥-elim`.
+  
 * Added syntax for existential quantifiers in `Data.Product`:
   ```agda
   ∃-syntax (λ x → B) = ∃[ x ] B
