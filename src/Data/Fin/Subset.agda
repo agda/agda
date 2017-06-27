@@ -11,14 +11,12 @@ import Algebra.Properties.BooleanAlgebra as BoolAlgProp
 import Algebra.Properties.BooleanAlgebra.Expression as BAExpr
 import Data.Bool.Properties as BoolProp
 open import Data.Fin
-open import Data.List.Base as List using (List)
+open import Data.List.Base using (List; foldr; foldl)
 open import Data.Nat
 open import Data.Product
 open import Data.Vec using (Vec; _∷_; _[_]=_)
 import Relation.Binary.Vec.Pointwise as Pointwise
 open import Relation.Nullary
-
-infix 4 _∈_ _∉_ _⊆_ _⊈_
 
 ------------------------------------------------------------------------
 -- Definitions
@@ -35,6 +33,8 @@ Subset = Vec Side
 
 ------------------------------------------------------------------------
 -- Membership and subset predicates
+
+infix 4 _∈_ _∉_ _⊆_ _⊈_
 
 _∈_ : ∀ {n} → Fin n → Subset n → Set
 x ∈ p = p [ x ]= inside
@@ -84,12 +84,12 @@ private
 -- N-ary union.
 
 ⋃ : ∀ {n} → List (Subset n) → Subset n
-⋃ = List.foldr _∪_ ⊥
+⋃ = foldr _∪_ ⊥
 
 -- N-ary intersection.
 
 ⋂ : ∀ {n} → List (Subset n) → Subset n
-⋂ = List.foldr _∩_ ⊤
+⋂ = foldr _∩_ ⊤
 
 ------------------------------------------------------------------------
 -- Properties

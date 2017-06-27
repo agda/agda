@@ -122,6 +122,28 @@ Backwards compatible changes
   punchInᵢ≢i            : punchIn i j ≢ i
   ```
 
+* Added additional proofs to `Data.Fin.Subset.Properties`:
+  ```agda
+  x∈⁅x⁆     : ∀ {n} (x : Fin n) → x ∈ ⁅ x ⁆
+  x∈⁅y⁆⇒x≡y : ∀ {n x} (y : Fin n) → x ∈ ⁅ y ⁆ → x ≡ y
+
+  ∪-assoc   : Associative _≡_ _∪_
+  ∩-assoc   : Associative _≡_ _∩_
+  ∪-comm    : Commutative _≡_ _∪_
+  ∩-comm    : Commutative _≡_ _∩_
+
+  p⊆p∪q     : p ⊆ p ∪ q
+  q⊆p∪q     : q ⊆ p ∪ q
+  x∈p∪q⁻    : x ∈ p ∪ q → x ∈ p ⊎ x ∈ q
+  x∈p∪q⁺    : x ∈ p ⊎ x ∈ q → x ∈ p ∪ q
+
+  p∩q⊆p     : p ∩ q ⊆ p
+  p∩q⊆q     : p ∩ q ⊆ q
+  x∈p∩q⁺    : x ∈ p × x ∈ q → x ∈ p ∩ q
+  x∈p∩q⁻    : x ∈ p ∩ q → x ∈ p × x ∈ q
+  ∩⇔×       : x ∈ p ∩ q ⇔ (x ∈ p × x ∈ q)
+  ```
+
 * Added additional proofs to `Data.Nat.Properties`:
   ```agda
   suc-injective        : ∀ {m n} → suc m ≡ suc n → m ≡ n

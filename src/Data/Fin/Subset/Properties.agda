@@ -9,10 +9,10 @@ module Data.Fin.Subset.Properties where
 open import Algebra
 import Algebra.Properties.BooleanAlgebra as BoolProp
 open import Data.Empty using (⊥-elim)
-open import Data.Fin using (Fin); open Data.Fin.Fin
+open import Data.Fin using (Fin; suc; zero)
 open import Data.Fin.Subset
 open import Data.Nat.Base using (ℕ)
-open import Data.Product
+open import Data.Product as Product
 open import Data.Sum as Sum
 open import Data.Vec hiding (_∈_)
 open import Function
@@ -20,7 +20,9 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using (_⇔_; equivalence; module Equivalence)
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as P using (_≡_)
+open import Relation.Binary.PropositionalEquality
+  using (_≡_; refl; cong; subst)
+open import Relation.Nullary.Negation using (contradiction)
 
 ------------------------------------------------------------------------
 -- Constructor mangling
@@ -41,16 +43,13 @@ drop-∷-Empty ¬∃∈ (x , x∈p) = ¬∃∈ (suc x , there x∈p)
 ∉⊥ (there p) = ∉⊥ p
 
 ⊥⊆ : ∀ {n} {p : Subset n} → ⊥ ⊆ p
-⊥⊆ x∈⊥ with ∉⊥ x∈⊥
-... | ()
+⊥⊆ x∈⊥ = contradiction x∈⊥ ∉⊥
 
-Empty-unique : ∀ {n} {p : Subset n} →
-               Empty p → p ≡ ⊥
-Empty-unique {p = []}           ¬∃∈ = P.refl
-Empty-unique {p = s ∷ p}        ¬∃∈ with Empty-unique (drop-∷-Empty ¬∃∈)
-Empty-unique {p = outside ∷ .⊥} ¬∃∈ | P.refl = P.refl
-Empty-unique {p = inside  ∷ .⊥} ¬∃∈ | P.refl =
-  ⊥-elim (¬∃∈ (zero , here))
+Empty-unique : ∀ {n} {p : Subset n} → Empty p → p ≡ ⊥
+Empty-unique {_} {[]}          ¬∃∈ = refl
+Empty-unique {_} {inside  ∷ p} ¬∃∈ = contradiction (zero , here) ¬∃∈
+Empty-unique {_} {outside ∷ p} ¬∃∈ =
+  cong (outside ∷_) (Empty-unique (drop-∷-Empty ¬∃∈))
 
 ------------------------------------------------------------------------
 -- Properties involving ⊤
@@ -63,48 +62,83 @@ Empty-unique {p = inside  ∷ .⊥} ¬∃∈ | P.refl =
 ⊆⊤ = const ∈⊤
 
 ------------------------------------------------------------------------
--- A property involving ⁅_⁆
+-- Properties involving ⁅_⁆
+
+x∈⁅x⁆ : ∀ {n} (x : Fin n) → x ∈ ⁅ x ⁆
+x∈⁅x⁆ zero    = here
+x∈⁅x⁆ (suc x) = there (x∈⁅x⁆ x)
+
+x∈⁅y⁆⇒x≡y : ∀ {n x} (y : Fin n) → x ∈ ⁅ y ⁆ → x ≡ y
+x∈⁅y⁆⇒x≡y zero    here      = refl
+x∈⁅y⁆⇒x≡y zero    (there p) = contradiction p ∉⊥
+x∈⁅y⁆⇒x≡y (suc y) (there p) = cong suc (x∈⁅y⁆⇒x≡y y p)
 
 x∈⁅y⁆⇔x≡y : ∀ {n} {x y : Fin n} → x ∈ ⁅ y ⁆ ⇔ x ≡ y
-x∈⁅y⁆⇔x≡y {x = x} {y} =
-  equivalence (to y) (λ x≡y → P.subst (λ y → x ∈ ⁅ y ⁆) x≡y (x∈⁅x⁆ x))
-  where
-
-  to : ∀ {n x} (y : Fin n) → x ∈ ⁅ y ⁆ → x ≡ y
-  to (suc y) (there p) = P.cong suc (to y p)
-  to zero    here      = P.refl
-  to zero    (there p) with ∉⊥ p
-  ... | ()
-
-  x∈⁅x⁆ : ∀ {n} (x : Fin n) → x ∈ ⁅ x ⁆
-  x∈⁅x⁆ zero    = here
-  x∈⁅x⁆ (suc x) = there (x∈⁅x⁆ x)
+x∈⁅y⁆⇔x≡y {_} {x} {y} = equivalence
+  (x∈⁅y⁆⇒x≡y y)
+  (λ x≡y → subst (λ y → x ∈ ⁅ y ⁆) x≡y (x∈⁅x⁆ x))
 
 ------------------------------------------------------------------------
--- A property involving _∪_
+-- Properties involving _∪_ and _∩_
 
-∪⇔⊎ : ∀ {n} {p₁ p₂ : Subset n} {x} → x ∈ p₁ ∪ p₂ ⇔ (x ∈ p₁ ⊎ x ∈ p₂)
-∪⇔⊎ = equivalence (to _ _) from
-  where
-  to : ∀ {n} (p₁ p₂ : Subset n) {x} → x ∈ p₁ ∪ p₂ → x ∈ p₁ ⊎ x ∈ p₂
-  to []             []             ()
-  to (inside  ∷ p₁) (s₂      ∷ p₂) here            = inj₁ here
-  to (outside ∷ p₁) (inside  ∷ p₂) here            = inj₂ here
-  to (s₁      ∷ p₁) (s₂      ∷ p₂) (there x∈p₁∪p₂) =
-    Sum.map there there (to p₁ p₂ x∈p₁∪p₂)
+module _ {n : ℕ} where
+  open BooleanAlgebra (booleanAlgebra n) public using  ()
+    renaming
+    ( ∨-assoc to ∪-assoc
+    ; ∨-comm  to ∪-comm
+    ; ∧-assoc to ∩-assoc
+    ; ∧-comm  to ∩-comm
+    )
 
-  ⊆∪ˡ : ∀ {n p₁} (p₂ : Subset n) → p₁ ⊆ p₁ ∪ p₂
-  ⊆∪ˡ []       ()
-  ⊆∪ˡ (s ∷ p₂) here         = here
-  ⊆∪ˡ (s ∷ p₂) (there x∈p₁) = there (⊆∪ˡ p₂ x∈p₁)
+-- _∪_
 
-  ⊆∪ʳ : ∀ {n} (p₁ p₂ : Subset n) → p₂ ⊆ p₁ ∪ p₂
-  ⊆∪ʳ p₁ p₂ rewrite BooleanAlgebra.∨-comm (booleanAlgebra _) p₁ p₂
-    = ⊆∪ˡ p₁
+p⊆p∪q : ∀ {n p} (q : Subset n) → p ⊆ p ∪ q
+p⊆p∪q []      ()
+p⊆p∪q (s ∷ q) here        = here
+p⊆p∪q (s ∷ q) (there x∈p) = there (p⊆p∪q q x∈p)
 
-  from : ∀ {n} {p₁ p₂ : Subset n} {x} → x ∈ p₁ ⊎ x ∈ p₂ → x ∈ p₁ ∪ p₂
-  from (inj₁ x∈p₁) = ⊆∪ˡ _   x∈p₁
-  from (inj₂ x∈p₂) = ⊆∪ʳ _ _ x∈p₂
+q⊆p∪q : ∀ {n} (p q : Subset n) → q ⊆ p ∪ q
+q⊆p∪q p q rewrite ∪-comm p q = p⊆p∪q p
+
+x∈p∪q⁻ :  ∀ {n} (p q : Subset n) {x} → x ∈ p ∪ q → x ∈ p ⊎ x ∈ q
+x∈p∪q⁻ []            []            ()
+x∈p∪q⁻ (inside  ∷ p) (t       ∷ q) here          = inj₁ here
+x∈p∪q⁻ (outside ∷ p) (inside  ∷ q) here          = inj₂ here
+x∈p∪q⁻ (s       ∷ p) (t       ∷ q) (there x∈p∪q) =
+  Sum.map there there (x∈p∪q⁻ p q x∈p∪q)
+
+x∈p∪q⁺ : ∀ {n} {p q : Subset n} {x} → x ∈ p ⊎ x ∈ q → x ∈ p ∪ q
+x∈p∪q⁺ (inj₁ x∈p) = p⊆p∪q _   x∈p
+x∈p∪q⁺ (inj₂ x∈q) = q⊆p∪q _ _ x∈q
+
+∪⇔⊎ : ∀ {n} {p q : Subset n} {x} → x ∈ p ∪ q ⇔ (x ∈ p ⊎ x ∈ q)
+∪⇔⊎ = equivalence (x∈p∪q⁻ _ _) x∈p∪q⁺
+
+-- _∩_
+
+p∩q⊆p : ∀ {n} (p q : Subset n) → p ∩ q ⊆ p
+p∩q⊆p [] [] x∈p∩q = x∈p∩q
+p∩q⊆p (inside  ∷ p) (inside  ∷ q) here = here
+p∩q⊆p (inside  ∷ p) (inside  ∷ q) (there ∈p∩q) = there (p∩q⊆p p q ∈p∩q)
+p∩q⊆p (outside ∷ p) (inside  ∷ q) (there ∈p∩q) = there (p∩q⊆p p q ∈p∩q)
+p∩q⊆p (inside  ∷ p) (outside ∷ q) (there ∈p∩q) = there (p∩q⊆p p q ∈p∩q)
+p∩q⊆p (outside ∷ p) (outside ∷ q) (there ∈p∩q) = there (p∩q⊆p p q ∈p∩q)
+
+p∩q⊆q : ∀ {n} (p q : Subset n) → p ∩ q ⊆ q
+p∩q⊆q p q rewrite ∩-comm p q = p∩q⊆p q p
+
+x∈p∩q⁺ : ∀ {n} {p q : Subset n} {x} → x ∈ p × x ∈ q → x ∈ p ∩ q
+x∈p∩q⁺ (here , here) = here
+x∈p∩q⁺ (there x∈p , there x∈q) = there (x∈p∩q⁺ (x∈p , x∈q))
+
+x∈p∩q⁻ : ∀ {n} (p q : Subset n) {x} → x ∈ p ∩ q → x ∈ p × x ∈ q
+x∈p∩q⁻ [] [] ()
+x∈p∩q⁻ (inside ∷ p) (inside ∷ q) here = here , here
+x∈p∩q⁻ (s      ∷ p) (t      ∷ q) (there x∈p∩q) =
+  Product.map there there (x∈p∩q⁻ p q x∈p∩q)
+
+∩⇔× : ∀ {n} {p q : Subset n} {x} → x ∈ p ∩ q ⇔ (x ∈ p × x ∈ q)
+∩⇔× = equivalence (x∈p∩q⁻ _ _) x∈p∩q⁺
 
 ------------------------------------------------------------------------
 -- _⊆_ is a partial order
@@ -115,7 +149,7 @@ module NaturalPoset where
   private
     open module BA {n} = BoolProp (booleanAlgebra n) public
       using (poset)
-    open module Po {n} = Poset (poset {n = n}) public
+    open module Po {n} = Poset (poset {n = n}) public hiding (refl)
 
   -- _⊆_ is equivalent to the natural lattice order.
 
@@ -123,16 +157,16 @@ module NaturalPoset where
   orders-equivalent = equivalence (to _ _) (from _ _)
     where
     to : ∀ {n} (p₁ p₂ : Subset n) → p₁ ⊆ p₂ → p₁ ≤ p₂
-    to []             []             p₁⊆p₂ = P.refl
+    to []             []             p₁⊆p₂ = refl
     to (inside  ∷ p₁) (_       ∷ p₂) p₁⊆p₂ with p₁⊆p₂ here
-    to (inside  ∷ p₁) (.inside ∷ p₂) p₁⊆p₂ | here = P.cong (_∷_ inside)  (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
-    to (outside ∷ p₁) (_       ∷ p₂) p₁⊆p₂        = P.cong (_∷_ outside) (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
+    to (inside  ∷ p₁) (.inside ∷ p₂) p₁⊆p₂ | here = cong (_∷_ inside)  (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
+    to (outside ∷ p₁) (_       ∷ p₂) p₁⊆p₂        = cong (_∷_ outside) (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
 
     from : ∀ {n} (p₁ p₂ : Subset n) → p₁ ≤ p₂ → p₁ ⊆ p₂
     from []             []       p₁≤p₂ x               = x
-    from (.inside ∷ _)  (_ ∷ _)  p₁≤p₂ here            rewrite P.cong head p₁≤p₂ = here
+    from (.inside ∷ _)  (_ ∷ _)  p₁≤p₂ here            rewrite cong head p₁≤p₂ = here
     from (_       ∷ p₁) (_ ∷ p₂) p₁≤p₂ (there xs[i]=x) =
-      there (from p₁ p₂ (P.cong tail p₁≤p₂) xs[i]=x)
+      there (from p₁ p₂ (cong tail p₁≤p₂) xs[i]=x)
 
 -- _⊆_ is a partial order.
 
@@ -143,7 +177,7 @@ poset n = record
   ; _≤_            = _⊆_
   ; isPartialOrder = record
     { isPreorder = record
-      { isEquivalence = P.isEquivalence
+      { isEquivalence = isEquivalence
       ; reflexive     = λ i≡j → from ⟨$⟩ reflexive i≡j
       ; trans         = λ x⊆y y⊆z → from ⟨$⟩ trans (to ⟨$⟩ x⊆y) (to ⟨$⟩ y⊆z)
       }
