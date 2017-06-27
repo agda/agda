@@ -475,7 +475,12 @@ instance LocalTerminationEnv a => LocalTerminationEnv [a] where
   sizeAndBoundVars = foldMap sizeAndBoundVars
 
 instance LocalTerminationEnv (MExp o) where
-  sizeAndBoundVars e = case rm __IMPOSSIBLE__ e of
+--  sizeAndBoundVars e = case rm __IMPOSSIBLE__ e of
+-- ^ GA: 2017 06 27: Not actually impossible (cf. #2620)
+  sizeAndBoundVars Meta{} = (0, [])
+-- ^ Does this default behaviour even make sense? The
+--   catchall in the following match:
+  sizeAndBoundVars (NotM e) = case e of
     App _ _ (Var v) _      -> (0, [v])
     App _ _ (Const _) args -> (1, []) <> sizeAndBoundVars args
     _                      -> (0, [])
