@@ -8,7 +8,7 @@ Important changes since 0.13:
 Non-backwards compatible changes
 --------------------------------
 
-* Native (pattern-matching) definitions for `Data.Vec.map` and `Data.Vec.zipWith`.
+* Added native (pattern-matching) definitions for `Data.Vec.map` and `Data.Vec.zipWith`.
   Previously they were defined using the `applicative` operations of `Vec`.
   The rationale for this change is better printing of goals involving `map`
   or `zipWith`.  Also, it has been argued that `zipWith` is fundamental than `_⊛_`.
@@ -47,6 +47,11 @@ Non-backwards compatible changes
 * Changed the implementation of `downFrom` in `Data.List` to a
   more idiomatic, easier-to-reason-about version.
 
+* Changed `Data.Vec.All.All₂` to a native version which allows better
+  pattern matching. The new version (and the associated proofs in
+  `Data.Vec.All.Properties`) are more generic with respect to types and
+  levels.
+  
 Backwards compatible changes
 ----------------------------
 
@@ -54,89 +59,193 @@ Backwards compatible changes
 
 * Added `Category.Functor.Morphism` and module `Category.Functor.Identity`.
 
-* Added additional sequence-generating functions to `Data.List`
-  ```
-  applyUpTo
-  upTo
-  applyDownFrom
-  tabulate
-  allFin
-  ```
-
-* `Data.Container` and `Data.Container.Indexed` now allow for different
-  levels in the container and in the data it contains.
-
-* Added `LeftCancellative`, `RightCancellative` and `Cancellative`
-  to `Algebra.FunctionProperties`.
-
-* Added functions `punchIn` and `punchOut` to `Data.Fin`
-
-* Added additional proofs to `Data.Fin.Properties`:
-  ```agda
-  isDecEquivalence
-
-  ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric
-  ≤-total, ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder
-
-  _<?_, <-trans, <-isStrictTotalOrder
-
-  punchOut-injective, punchIn-injective, punchIn-punchOut, punchInᵢ≢i
-  ```
-
 * The file `Data.Nat.Properties.Simple` is now deprecated. All proofs
   have been moved to `Data.Nat.Properties` where they should be used directly.
   The `Simple` file still exists and re-exports the proofs from
   `Data.Nat.Properties` for backwards compatability reasons but will be
   removed in some future release.
+  
+* `Data.Container` and `Data.Container.Indexed` now allow for different
+  levels in the container and in the data it contains.
+
+* Added syntax for existential quantifiers in `Data.Product`:
+  ```agda
+  ∃-syntax (λ x → B) = ∃[ x ] B
+  ∄-syntax (λ x → B) = ∄[ x ] B
+  ``` 
+
+* Added additional properties to `Algebra.FunctionProperties`:
+  ```agda
+  LeftCancellative  _•_ = ∀ x {y z} → (x • y) ≈ (x • z) → y ≈ z
+  RightCancellative _•_ = ∀ {x} y z → (y • x) ≈ (z • x) → y ≈ z
+  Cancellative      _•_ = LeftCancellative _•_ × RightCancellative _•_
+  ```
+
+* Added additional functions to `Data.List`
+  ```agda
+  applyUpTo f n     ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
+  upTo n            ≈ 0      ∷ 1      ∷ ... ∷ n-1    ∷ []
+  applyDownFrom f n ≈ f[n-1] ∷ f[n-2] ∷ ... ∷ f[0]   ∷ []
+  tabulate f        ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
+  allFin n          ≈ 0f     ∷ 1f     ∷ ... ∷ n-1f   ∷ []
+  ```
+
+* Added additional functions to `Data.Fin`:
+  ```agda
+  punchIn  i j ≈ if j≥i then j+1 else j
+  punchOut i j ≈ if j>i then j-1 else j
+  ```
+
+* Added additional proofs to `Data.Fin.Properties`:
+  ```agda
+  isDecEquivalence     : ∀ {n} → IsDecEquivalence (_≡_ {A = Fin n})
+
+  ≤-reflexive          : ∀ {n} → _≡_ ⇒ (_≤_ {n})
+  ≤-refl               : ∀ {n} → Reflexive (_≤_ {n})
+  ≤-trans              : ∀ {n} → Transitive (_≤_ {n})
+  ≤-antisymmetric      : ∀ {n} → Antisymmetric _≡_ (_≤_ {n})
+  ≤-total              : ∀ {n} → Total (_≤_ {n})
+  ≤-isPreorder         : ∀ {n} → IsPreorder _≡_ (_≤_ {n})
+  ≤-isPartialOrder     : ∀ {n} → IsPartialOrder _≡_ (_≤_ {n})
+  ≤-isTotalOrder       : ∀ {n} → IsTotalOrder _≡_ (_≤_ {n})
+
+  _<?_                 : ∀ {n} → Decidable (_<_ {n})
+  <-trans              : ∀ {n} → Transitive (_<_ {n})
+  <-isStrictTotalOrder : ∀ {n} → IsStrictTotalOrder _≡_ (_<_ {n})
+
+  punchOut-injective   : punchOut i≢j ≡ punchOut i≢k → j ≡ k
+  punchIn-injective    : punchIn i j ≡ punchIn i k → j ≡ k
+  punchIn-punchOut     : punchIn i (punchOut i≢j) ≡ j
+  punchInᵢ≢i            : punchIn i j ≢ i
+  ```
 
 * Added additional proofs to `Data.Nat.Properties`:
   ```agda
-  suc-injective, ≡-isDecEquivalence, ≡-decSetoid
+  suc-injective        : ∀ {m n} → suc m ≡ suc n → m ≡ n
+  ≡-isDecEquivalence   : IsDecEquivalence (_≡_ {A = ℕ})
+  ≡-decSetoid          : DecSetoid _ _
 
-  ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric, ≤-total
-  ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder, ≤-isDecTotalOrder
+  ≤-reflexive          : _≡_ ⇒ _≤_
+  ≤-refl               : Reflexive _≤_
+  ≤-trans              : Antisymmetric _≡_ _≤_
+  ≤-antisymmetric      : Transitive _≤_
+  ≤-total              : Total _≤_
+  ≤-isPreorder         : IsPreorder _≡_ _≤_
+  ≤-isPartialOrder     : IsPartialOrder _≡_ _≤_
+  ≤-isTotalOrder       : IsTotalOrder _≡_ _≤_
+  ≤-isDecTotalOrder    : IsDecTotalOrder _≡_ _≤_
 
-  _<?_,  <-transʳ, <-transˡ, <-irrefl, <-asym
-
-  +-left-identity, +-identity, cancel-+-right, +-cancellative
-
-  *-left-zero, *-zero, *-left-identity, *-right-identity, *-identity
-
-  distribˡ-*-+, distrib-*-+
-
-  ⊓-idem, ⊔-idem
-  m⊓n≤n, m≤m⊔n, m⊔n≤m+n, m⊓n≤m+n
-  ⊔-mono-≤, ⊔-mono-<, ⊓-mono-≤, ⊓-mono-<
-  +-distribˡ-⊔, +-distribʳ-⊔, +-distrib-⊔,
-  +-distribˡ-⊓, +-distribʳ-⊓, +-distrib-⊓
+  _<?_                 : Decidable _<_
+  <-irrefl             : Irreflexive _≡_ _<_
+  <-asym               : Asymmetric _<_
+  <-transʳ             : Trans _≤_ _<_ _<_
+  <-transˡ             : Trans _<_ _≤_ _<_
+  <-isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_
+  
+  +-left-identity      : LeftIdentity 0 _+_
+  +-identity           : Identity 0 _+_
+  cancel-+-right       : RightCancellative _+_
+  +-cancellative       : Cancellative _+_
+  +-isSemigroup        : IsSemigroup _≡_ _+_
+  
+  *-left-zero          : LeftZero 0 _*_
+  *-zero               : Zero 0 _*_
+  *-left-identity      : LeftIdentity 1 _*_
+  *-right-identity     : RightIdentity 1 _*_
+  *-identity           : Identity 1 _*_
+  distribˡ-*-+         : _*_ DistributesOverˡ _+_
+  distrib-*-+          : _*_ DistributesOver _+_
+  *-isSemigroup        : IsSemigroup _≡_ _*_
+  
+  ⊓-idem               : Idempotent _⊓_
+  ⊔-idem               : Idempotent _⊔_
+  m⊓n≤n                : ∀ m n → m ⊓ n ≤ n
+  m≤m⊔n                : ∀ m n → m ≤ m ⊔ n
+  m⊔n≤m+n              : ∀ m n → m ⊔ n ≤ m + n
+  m⊓n≤m+n              : ∀ m n → m ⊓ n ≤ m + n
+  ⊔-mono-≤             : _⊔_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
+  ⊔-mono-<             : _⊔_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+  ⊓-mono-≤             : _⊓_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
+  ⊓-mono-<             : _⊓_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+  +-distribˡ-⊔         : _+_ DistributesOverˡ _⊔_
+  +-distribʳ-⊔         : _+_ DistributesOverʳ _⊔_
+  +-distrib-⊔          : _+_ DistributesOver _⊔_
+  +-distribˡ-⊓         : _+_ DistributesOverˡ _⊓_
+  +-distribʳ-⊓         : _+_ DistributesOverʳ _⊓_
+  +-distrib-⊓          : _+_ DistributesOver _⊓_
+  ⊔-isSemigroup        : IsSemigroup _≡_ _⊔_
+  ⊓-isSemigroup        : IsSemigroup _≡_ _⊓_
+  ⊓-⊔-isLattice        : IsLattice _≡_ _⊓_ _⊔_
   ```
 
-* Added decidability lemma `gcd?` to `Data.Nat.GCD`
-
-* Added not-divisible-by relation `_∤_` to `Data.Nat.Divisibility`
-
-* Useful lemmas and properties that were previously in private scope,
-  either explicitly or within records, have been made public in several
-  Properties.agda files. These include:
+* Added decidability relation to `Data.Nat.GCD`
   ```agda
-  Data.List.Any.Properties
-  Data.Nat.Properties
-  Data.Nat.Divisibility
-  Data.Vec.All.Properties
+  gcd? : (m n d : ℕ) → Dec (GCD m n d)
   ```
 
-* Added `length-reverse`, `foldr-++`, `foldl-++`, `map-cong₂`, `foldr-∷ʳ`,
-  `foldl-∷ʳ`, `reverse-foldr` and `reverse-foldr` to `Data.List.Properties`
+* Added "not-divisible-by" relation to `Data.Nat.Divisibility`
+  ```agda
+  m ∤ n = ¬ (m ∣ n)
+  ```
 
-* Changed `Data.Vec.All.All₂` to a native version which allows better
-  pattern matching. The new version (and the associated proofs in
-  `Data.Vec.All.Properties`) are more generic with respect to types and
-  levels.
+* Added additional proofs to `Data.Nat.Divisibility`
+  ```agda
+  ∣-reflexive      : _≡_ ⇒ _∣_
+  ∣-refl           : Reflexive _∣_
+  ∣-trans          : Transitive _∣_
+  ∣-antisym        : Antisymmetric _≡_ _∣_
+  ∣-isPreorder     : IsPreorder _≡_ _∣_
+  ∣-isPartialOrder : IsPartialOrder _≡_ _∣_
+  ```
 
-* Added extra properties relating `_++_` and `concat` to `All` and `All₂`
-  in `Data.Vec.All.Properties`
+* Added additional proofs to `Data.List.Properties`
+  ```agda
+  map-cong₂      : All (λ x → f x ≡ g x) xs → map f xs ≡ map g xs
+  foldr-++       : foldr f x (ys ++ zs) ≡ foldr f (foldr f x zs) ys
+  foldl-++       : foldl f x (ys ++ zs) ≡ foldl f (foldl f x ys) zs
+  foldr-∷ʳ       : foldr f x (ys ∷ʳ y) ≡ foldr f (f y x) ys
+  foldl-∷ʳ       : foldl f x (ys ∷ʳ y) ≡ f (foldl f x ys) y
+  reverse-foldr  : foldr f x (reverse ys) ≡ foldl (flip f) x ys
+  reverse-foldr  : foldl f x (reverse ys) ≡ foldr (flip f) x ys
+  length-reverse : length (reverse xs) ≡ length xs
+  ```
 
-* Added syntax for existential quantifiers as `∃[ x ] B` and `∄[ x ] B`.
+* Added additional proofs to `Data.List.Any.Properties`
+  ```agda
+  lose∘find : uncurry′ lose (proj₂ (find p)) ≡ p
+  find∘lose : find (lose x∈xs pp) ≡ (x , x∈xs , pp)
+ 
+  ∃∈-Any    : (∃ λ x → x ∈ xs × P x) → Any P xs
+ 
+  ⊎→        : Any P xs ⊎ Any Q xs → Any (λ x → P x ⊎ Q x) xs
+  ⊎←        : Any (λ x → P x ⊎ Q x) xs → Any P xs ⊎ Any Q xs
+  ×→        : Any P xs × Any Q ys → Any (λ x → Any (λ y → P x × Q y) ys) xs
+  ×←        : Any (λ x → Any (λ y → P x × Q y) ys) xs → Any P xs × Any Q ys
+ 
+  map⁺      : Any (P ∘ f) xs → Any P (map f xs)
+  map⁻      : Any P (map f xs) → Any (P ∘ f) xs
+  map⁺∘map⁻ : map⁺ (map⁻ p) ≡ p
+  map⁻∘map⁺ : map⁻ (map⁺ p) ≡ p
+  ```
+  
+* Added additional proofs to `Data.Vec.All.Properties`
+  ```agda
+  All-++⁺      : All P xs → All P ys → All P (xs ++ ys)
+  All-++ˡ⁻     : All P (xs ++ ys) → All P xs
+  All-++ʳ⁻     : All P (xs ++ ys) → All P ys
+  All-++⁻      : All P (xs ++ ys) → All P xs × All P ys
+  
+  All₂-++⁺     : All₂ _~_ ws xs → All₂ _~_ ys zs → All₂ _~_ (ws ++ ys) (xs ++ zs)
+  All₂-++ˡ⁻    : All₂ _~_ (ws ++ ys) (xs ++ zs) → All₂ _~_ ws xs
+  All₂-++ʳ⁻    : All₂ _~_ (ws ++ ys) (xs ++ zs) → All₂ _~_ ys zs
+  All₂-++⁻     : All₂ _~_ (ws ++ ys) (xs ++ zs) → All₂ _~_ ws xs × All₂ _~_ ys zs
+ 
+  All-concat⁺  : All (All P) xss → All P (concat xss)
+  All-concat⁻  : All P (concat xss) → All (All P) xss
+ 
+  All₂-concat⁺ : All₂ (All₂ _~_) xss yss → All₂ _~_ (concat xss) (concat yss)
+  All₂-concat⁻ : All₂ _~_ (concat xss) (concat yss) → All₂ (All₂ _~_) xss yss
+  ```
 
 Version 0.13
 ============
