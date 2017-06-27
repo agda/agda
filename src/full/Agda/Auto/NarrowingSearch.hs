@@ -11,6 +11,7 @@ import Control.Applicative hiding (Const(..), getConst)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Empty
 
 newtype Prio = Prio { getPrio :: Int }
  deriving (Eq, Ord, Num)
@@ -211,9 +212,9 @@ type BlkInfo blk = (Bool, Prio, Maybe blk) -- Bool - is principal
 data MM a blk = NotM a
               | Meta (Metavar a blk)
 
-rm :: MM a b -> a
-rm (NotM x) = x
-rm (Meta{}) = __IMPOSSIBLE__
+rm :: Empty -> MM a b -> a
+rm e (NotM x) = x
+rm e Meta{}   = absurd e
 
 type MetaEnv = IO
 

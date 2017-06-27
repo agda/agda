@@ -126,7 +126,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
    splitvar :: [Nat] -> Nat -> IO [Sol o]
    splitvar mblkvar scrut = do
     let scruttype = infertypevar ctx scrut
-    case rm scruttype of
+    case rm __IMPOSSIBLE__ scruttype of
      App _ _ (Const c) _ -> do
       cd <- readIORef c
       case cdcont cd of
@@ -148,7 +148,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
          dobranches [] = return [[]]
          dobranches (con : cons) = do
           cond <- readIORef con
-          let ff t = case rm t of
+          let ff t = case rm __IMPOSSIBLE__ t of
                         Pi _ h _ it (Abs id ot) ->
                          let (xs, inft) = ff ot
                          in (((h, scrut + length xs), id, lift (scrut + length xs + 1) it) : xs, inft)
@@ -205,7 +205,7 @@ replace :: Nat -> Nat -> MExp o -> MExp o -> MExp o
 replace sv nnew re = r 0
  where
   r n e =
-   case rm e of
+   case rm __IMPOSSIBLE__ e of
          App uid ok elr@(Var v) args ->
           if v >= n then
            if v - n == sv then
@@ -227,7 +227,7 @@ replace sv nnew re = r 0
 
 
   rs n es =
-   case rm es of
+   case rm __IMPOSSIBLE__ es of
     ALNil -> NotM $ ALNil
     ALCons hid a as -> NotM $ ALCons hid (r n a) (rs n as)
 
@@ -238,9 +238,9 @@ replace sv nnew re = r 0
 
 
 betareduce :: MExp o -> MArgList o -> MExp o
-betareduce e args = case rm args of
+betareduce e args = case rm __IMPOSSIBLE__ args of
  ALNil -> e
- ALCons _ a rargs -> case rm e of
+ ALCons _ a rargs -> case rm __IMPOSSIBLE__ e of
   App uid ok elr eargs -> NotM $ App uid ok elr (concatargs eargs args)
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
   _ -> __IMPOSSIBLE__ -- not type correct if this happens
@@ -250,7 +250,7 @@ betareduce e args = case rm args of
  ALConPar as -> __IMPOSSIBLE__
 
 concatargs :: MM (ArgList o) (RefInfo o) -> MArgList o -> MArgList o
-concatargs xs ys = case rm xs of
+concatargs xs ys = case rm __IMPOSSIBLE__ xs of
   ALNil -> ys
 
   ALCons hid x xs -> NotM $ ALCons hid x (concatargs xs ys)
@@ -279,7 +279,7 @@ replacep sv nnew rp re = r
 unifyexp :: MExp o -> MExp o -> Maybe [(Nat, MExp o)]
 unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
  where
-  r e1 e2 cont unif = case (rm e1, rm e2) of
+  r e1 e2 cont unif = case (rm __IMPOSSIBLE__ e1, rm __IMPOSSIBLE__ e2) of
    (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> rs args1 args2 cont unif
    (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> r b1 b2 cont unif
    (Pi _ hid1 _ it1 (Abs _ ot1), Pi _ hid2 _ it2 (Abs _ ot2)) | hid1 == hid2 -> r it1 it2 (r ot1 ot2 cont) unif
@@ -299,7 +299,7 @@ unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
      Nothing -> cont ((v, e1) : unif)
      Just e2' -> r e1 e2' cont unif
    _ -> Nothing
-  rs args1 args2 cont unif = case (rm args1, rm args2) of
+  rs args1 args2 cont unif = case (rm __IMPOSSIBLE__ args1, rm __IMPOSSIBLE__ args2) of
    (ALNil, ALNil) -> cont unif
    (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> r a1 a2 (rs as1 as2 cont) unif
    (ALConPar as1, ALCons _ _ as2) -> rs as1 as2 cont unif
@@ -312,7 +312,7 @@ lift 0 = id
 lift n = r 0
  where
   r j e =
-   case rm e of
+   case rm __IMPOSSIBLE__ e of
          App uid ok elr args -> case elr of
           Var v | v >= j -> NotM $ App uid ok (Var (v + n)) (rs j args)
           _ -> NotM $ App uid ok elr (rs j args)
@@ -324,7 +324,7 @@ lift n = r 0
 
 
   rs j es =
-   case rm es of
+   case rm __IMPOSSIBLE__ es of
     ALNil -> NotM ALNil
     ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
 
@@ -350,13 +350,13 @@ removevar ctx tt pats ((v, e) : unif) =
 
 notequal :: Nat -> Nat -> MExp o -> MExp o -> IO Bool
 notequal firstnew nnew e1 e2 =
-  case (rm e1, rm e2) of
+  case (rm __IMPOSSIBLE__ e1, rm __IMPOSSIBLE__ e2) of
    (App _ _ _ es1, App _ _ _ es2) -> rs es1 es2 (\_ -> return False) []
    _ -> __IMPOSSIBLE__
  where
   rs :: MArgList o -> MArgList o -> ([(Nat, MExp o)] -> IO Bool) -> [(Nat, MExp o)] -> IO Bool
   rs es1 es2 cont unifier2 =
-   case (rm es1, rm es2) of
+   case (rm __IMPOSSIBLE__ es1, rm __IMPOSSIBLE__ es2) of
     (ALCons _ e1 es1, ALCons _ e2 es2) -> r e1 e2 (rs es1 es2 cont) unifier2
 
     (ALConPar es1, ALConPar es2) -> rs es1 es2 cont unifier2
@@ -364,9 +364,9 @@ notequal firstnew nnew e1 e2 =
     _ -> cont unifier2
 
   r :: MExp o -> MExp o -> ([(Nat, MExp o)] -> IO Bool) -> [(Nat, MExp o)] -> IO Bool
-  r e1 e2 cont unifier2 = case rm e2 of
+  r e1 e2 cont unifier2 = case rm __IMPOSSIBLE__ e2 of
    App _ _ (Var v2) es2 | firstnew <= v2 && v2 < firstnew + nnew ->
-    case rm es2 of
+    case rm __IMPOSSIBLE__ es2 of
      ALNil ->
       case lookup v2 unifier2 of
        Nothing -> cont ((v2, e1) : unifier2)
@@ -380,7 +380,7 @@ notequal firstnew nnew e1 e2 =
 
    _ -> cc e1 e2
    where
-   cc e1 e2 = case (rm e1, rm e2) of
+   cc e1 e2 = case (rm __IMPOSSIBLE__ e1, rm __IMPOSSIBLE__ e2) of
     (App _ _ (Const c1) es1, App _ _ (Const c2) es2) -> do
      cd1 <- readIORef c1
      cd2 <- readIORef c2
@@ -476,13 +476,13 @@ localTerminationEnv pats =
       let (size, vars) = h p
           (size', vars') = hs ps
       in (size + size', vars ++ vars')
-     he e = case rm e of
+     he e = case rm __IMPOSSIBLE__ e of
       App _ _ (Var v) _ -> (0, [v])
       App _ _ (Const _) args ->
        let (size, vars) = hes args
        in (size + 1, vars)
       _ -> (0, [])
-     hes as = case rm as of
+     hes as = case rm __IMPOSSIBLE__ as of
       ALNil -> (0, [])
       ALCons _ a as ->
        let (size, vars) = he a
