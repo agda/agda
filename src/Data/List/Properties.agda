@@ -47,8 +47,7 @@ module List-solver {a} {A : Set a} =
                xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
 ∷ʳ-injective []          []          refl = (refl , refl)
 ∷ʳ-injective (x ∷ xs)    (y  ∷ ys)   eq   with ∷-injective eq
-∷ʳ-injective (x ∷ xs)    (.x ∷ ys)   eq   | (refl , eq′) =
-  Prod.map (P.cong (x ∷_)) id $ ∷ʳ-injective xs ys eq′
+... | refl , eq′ = Prod.map (P.cong (x ∷_)) id (∷ʳ-injective xs ys eq′)
 ∷ʳ-injective []          (_ ∷ [])    ()
 ∷ʳ-injective []          (_ ∷ _ ∷ _) ()
 ∷ʳ-injective (_ ∷ [])    []          ()
@@ -188,6 +187,11 @@ mapIsFold {f = f} =
   ∎
   where open EqR (P._→-setoid_ _ _)
 
+foldr-∷ʳ : ∀ {a b} {A : Set a} {B : Set b} (f : A → B → B) x y ys →
+           foldr f x (ys ∷ʳ y) ≡ foldr f (f y x) ys
+foldr-∷ʳ f x y []       = refl
+foldr-∷ʳ f x y (z ∷ ys) = P.cong (f z) (foldr-∷ʳ f x y ys)
+
 ------------------------------------------------------------------------
 -- foldl
 
@@ -195,6 +199,11 @@ foldl-++ : ∀ {a b} {A : Set a} {B : Set b} (f : A → B → A) x ys zs →
            foldl f x (ys ++ zs) ≡ foldl f (foldl f x ys) zs
 foldl-++ f x []       zs = refl
 foldl-++ f x (y ∷ ys) zs = foldl-++ f (f x y) ys zs
+
+foldl-∷ʳ : ∀ {a b} {A : Set a} {B : Set b} (f : A → B → A) x y ys →
+           foldl f x (ys ∷ʳ y) ≡ f (foldl f x ys) y
+foldl-∷ʳ f x y []       = refl
+foldl-∷ʳ f x y (z ∷ ys) = foldl-∷ʳ f (f x z) y ys
 
 ------------------------------------------------------------------------
 -- concat
@@ -231,8 +240,7 @@ take++drop : ∀ {a} {A : Set a}
              n (xs : List A) → take n xs ++ drop n xs ≡ xs
 take++drop zero    xs       = refl
 take++drop (suc n) []       = refl
-take++drop (suc n) (x ∷ xs) =
-  P.cong (λ xs → x ∷ xs) (take++drop n xs)
+take++drop (suc n) (x ∷ xs) = P.cong (x ∷_) (take++drop n xs)
 
 splitAt-defn : ∀ {a} {A : Set a} n →
                splitAt {A = A} n ≗ < take n , drop n >
@@ -335,11 +343,10 @@ scanl-defn f e (x ∷ xs) = P.cong (e ∷_) (begin
 
 unfold-reverse : ∀ {a} {A : Set a} (x : A) (xs : List A) →
                  reverse (x ∷ xs) ≡ reverse xs ∷ʳ x
-unfold-reverse x xs = helper [ x ] xs
+unfold-reverse {A = A} x xs = helper [ x ] xs
   where
   open P.≡-Reasoning
-  helper : ∀ {a} {A : Set a} (xs ys : List A) →
-           foldl (flip _∷_) xs ys ≡ reverse ys ++ xs
+  helper : (xs ys : List A) → foldl (flip _∷_) xs ys ≡ reverse ys ++ xs
   helper xs []       = refl
   helper xs (y ∷ ys) = begin
     foldl (flip _∷_) (y ∷ xs) ys  ≡⟨ helper (y ∷ xs) ys ⟩
@@ -347,9 +354,8 @@ unfold-reverse x xs = helper [ x ] xs
     (reverse ys ∷ʳ y) ++ xs       ≡⟨ P.sym $ P.cong (_++ xs) (unfold-reverse y ys) ⟩
     reverse (y ∷ ys) ++ xs        ∎
 
-reverse-++-commute :
-  ∀ {a} {A : Set a} (xs ys : List A) →
-  reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
+reverse-++-commute : ∀ {a} {A : Set a} (xs ys : List A) →
+                     reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
 reverse-++-commute []       ys = P.sym (proj₂ LM.identity _)
 reverse-++-commute (x ∷ xs) ys = begin
   reverse (x ∷ xs ++ ys)               ≡⟨ unfold-reverse x (xs ++ ys) ⟩
@@ -378,6 +384,28 @@ reverse-involutive (x ∷ xs) = begin
   reverse (reverse xs ∷ʳ x)    ≡⟨ reverse-++-commute (reverse xs) ([ x ]) ⟩
   x ∷ reverse (reverse (xs))   ≡⟨ P.cong (x ∷_) $ reverse-involutive xs ⟩
   x ∷ xs                       ∎
+  where open P.≡-Reasoning
+
+reverse-foldr : ∀ {a b} {A : Set a} {B : Set b}
+                      (f : A → B → B) x ys →
+                      foldr f x (reverse ys) ≡ foldl (flip f) x ys
+reverse-foldr f x []       = refl
+reverse-foldr f x (y ∷ ys) = begin
+  foldr f x (reverse (y ∷ ys)) ≡⟨ P.cong (foldr f x) (unfold-reverse y ys) ⟩
+  foldr f x ((reverse ys) ∷ʳ y) ≡⟨ foldr-∷ʳ f x y (reverse ys) ⟩
+  foldr f (f y x) (reverse ys)  ≡⟨ reverse-foldr f (f y x) ys ⟩
+  foldl (flip f) (f y x) ys     ∎
+  where open P.≡-Reasoning
+
+reverse-foldl : ∀ {a b} {A : Set a} {B : Set b}
+                      (f : A → B → A) x ys →
+                      foldl f x (reverse ys) ≡ foldr (flip f) x ys
+reverse-foldl f x []       = refl
+reverse-foldl f x (y ∷ ys) = begin
+  foldl f x (reverse (y ∷ ys)) ≡⟨ P.cong (foldl f x) (unfold-reverse y ys) ⟩
+  foldl f x ((reverse ys) ∷ʳ y) ≡⟨ foldl-∷ʳ f x y (reverse ys) ⟩
+  f (foldl f x (reverse ys)) y ≡⟨ P.cong (flip f y) (reverse-foldl f x ys) ⟩
+  f (foldr (flip f) x ys) y    ∎
   where open P.≡-Reasoning
 
 length-reverse : ∀ {a} {A : Set a} (xs : List A) →
