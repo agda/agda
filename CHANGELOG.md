@@ -77,14 +77,14 @@ Backwards compatible changes
   ∄-syntax (λ x → B) = ∄[ x ] B
   ```
 
-* Added additional properties to `Algebra.FunctionProperties`:
+* Added properties to `Algebra.FunctionProperties`:
   ```agda
   LeftCancellative  _•_ = ∀ x {y z} → (x • y) ≈ (x • z) → y ≈ z
   RightCancellative _•_ = ∀ {x} y z → (y • x) ≈ (z • x) → y ≈ z
   Cancellative      _•_ = LeftCancellative _•_ × RightCancellative _•_
   ```
 
-* Added additional proofs to `Algebra.Properties.BooleanAlgebra`:
+* Added proofs to `Algebra.Properties.BooleanAlgebra`:
   ```agda
   ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
   ∧-complementˡ : LeftInverse ⊥ ¬_ _∧_
@@ -135,7 +135,14 @@ Backwards compatible changes
   ⊕-∧-isRing : IsRing _≈_ _⊕_ _∧_ id ⊥ ⊤
   ```
 
-* Added additional functions to `Data.List`
+* Added proofs to `Algebra.Properties.DistributiveLattice`:
+  ```agda
+  ∨-∧-distribˡ : _∨_ DistributesOverˡ _∧_
+  ∧-∨-distribˡ : _∧_ DistributesOverˡ _∨_
+  ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
+  ```
+
+* Added functions to `Data.List`
   ```agda
   applyUpTo f n     ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
   upTo n            ≈ 0      ∷ 1      ∷ ... ∷ n-1    ∷ []
@@ -144,13 +151,13 @@ Backwards compatible changes
   allFin n          ≈ 0f     ∷ 1f     ∷ ... ∷ n-1f   ∷ []
   ```
 
-* Added additional functions to `Data.Fin`:
+* Added functions to `Data.Fin`:
   ```agda
   punchIn  i j ≈ if j≥i then j+1 else j
   punchOut i j ≈ if j>i then j-1 else j
   ```
 
-* Added additional proofs to `Data.Fin.Properties`:
+* Added proofs to `Data.Fin.Properties`:
   ```agda
   isDecEquivalence     : ∀ {n} → IsDecEquivalence (_≡_ {A = Fin n})
 
@@ -173,7 +180,7 @@ Backwards compatible changes
   punchInᵢ≢i            : punchIn i j ≢ i
   ```
 
-* Added additional proofs to `Data.Fin.Subset.Properties`:
+* Added proofs to `Data.Fin.Subset.Properties`:
   ```agda
   x∈⁅x⁆     : ∀ {n} (x : Fin n) → x ∈ ⁅ x ⁆
   x∈⁅y⁆⇒x≡y : ∀ {n x} (y : Fin n) → x ∈ ⁅ y ⁆ → x ≡ y
@@ -264,7 +271,7 @@ Backwards compatible changes
   m ∤ n = ¬ (m ∣ n)
   ```
 
-* Added additional proofs to `Data.Nat.Divisibility`
+* Added proofs to `Data.Nat.Divisibility`
   ```agda
   ∣-reflexive      : _≡_ ⇒ _∣_
   ∣-refl           : Reflexive _∣_
@@ -274,7 +281,7 @@ Backwards compatible changes
   ∣-isPartialOrder : IsPartialOrder _≡_ _∣_
   ```
 
-* Added additional proofs to `Data.List.Properties`
+* Added proofs to `Data.List.Properties`
   ```agda
   map-cong₂      : All (λ x → f x ≡ g x) xs → map f xs ≡ map g xs
   foldr-++       : foldr f x (ys ++ zs) ≡ foldr f (foldr f x zs) ys
@@ -286,7 +293,7 @@ Backwards compatible changes
   length-reverse : length (reverse xs) ≡ length xs
   ```
 
-* Added additional proofs to `Data.List.Any.Properties`
+* Added proofs to `Data.List.Any.Properties`
   ```agda
   lose∘find : uncurry′ lose (proj₂ (find p)) ≡ p
   find∘lose : find (lose x∈xs pp) ≡ (x , x∈xs , pp)
@@ -304,7 +311,7 @@ Backwards compatible changes
   map⁻∘map⁺ : map⁻ (map⁺ p) ≡ p
   ```
 
-* Added additional proofs to `Data.Vec.All.Properties`
+* Added proofs to `Data.Vec.All.Properties`
   ```agda
   All-++⁺      : All P xs → All P ys → All P (xs ++ ys)
   All-++ˡ⁻     : All P (xs ++ ys) → All P xs
