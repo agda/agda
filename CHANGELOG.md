@@ -51,7 +51,7 @@ Non-backwards compatible changes
   pattern matching. The new version (and the associated proofs in
   `Data.Vec.All.Properties`) are more generic with respect to types and
   levels.
-  
+
 Backwards compatible changes
 ----------------------------
 
@@ -64,18 +64,18 @@ Backwards compatible changes
   The `Simple` file still exists and re-exports the proofs from
   `Data.Nat.Properties` for backwards compatability reasons but will be
   removed in some future release.
-  
+
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
 
 * Added new module `Data.Empty.Irrelevant` containing an irrelevant version of
   `⊥-elim`.
-  
+
 * Added syntax for existential quantifiers in `Data.Product`:
   ```agda
   ∃-syntax (λ x → B) = ∃[ x ] B
   ∄-syntax (λ x → B) = ∄[ x ] B
-  ``` 
+  ```
 
 * Added additional properties to `Algebra.FunctionProperties`:
   ```agda
@@ -144,13 +144,13 @@ Backwards compatible changes
   <-transʳ             : Trans _≤_ _<_ _<_
   <-transˡ             : Trans _<_ _≤_ _<_
   <-isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_
-  
+
   +-left-identity      : LeftIdentity 0 _+_
   +-identity           : Identity 0 _+_
   cancel-+-right       : RightCancellative _+_
   +-cancellative       : Cancellative _+_
   +-isSemigroup        : IsSemigroup _≡_ _+_
-  
+
   *-left-zero          : LeftZero 0 _*_
   *-zero               : Zero 0 _*_
   *-left-identity      : LeftIdentity 1 _*_
@@ -159,7 +159,7 @@ Backwards compatible changes
   distribˡ-*-+         : _*_ DistributesOverˡ _+_
   distrib-*-+          : _*_ DistributesOver _+_
   *-isSemigroup        : IsSemigroup _≡_ _*_
-  
+
   ⊓-idem               : Idempotent _⊓_
   ⊔-idem               : Idempotent _⊔_
   m⊓n≤n                : ∀ m n → m ⊓ n ≤ n
@@ -217,35 +217,35 @@ Backwards compatible changes
   ```agda
   lose∘find : uncurry′ lose (proj₂ (find p)) ≡ p
   find∘lose : find (lose x∈xs pp) ≡ (x , x∈xs , pp)
- 
+
   ∃∈-Any    : (∃ λ x → x ∈ xs × P x) → Any P xs
- 
+
   ⊎→        : Any P xs ⊎ Any Q xs → Any (λ x → P x ⊎ Q x) xs
   ⊎←        : Any (λ x → P x ⊎ Q x) xs → Any P xs ⊎ Any Q xs
   ×→        : Any P xs × Any Q ys → Any (λ x → Any (λ y → P x × Q y) ys) xs
   ×←        : Any (λ x → Any (λ y → P x × Q y) ys) xs → Any P xs × Any Q ys
- 
+
   map⁺      : Any (P ∘ f) xs → Any P (map f xs)
   map⁻      : Any P (map f xs) → Any (P ∘ f) xs
   map⁺∘map⁻ : map⁺ (map⁻ p) ≡ p
   map⁻∘map⁺ : map⁻ (map⁺ p) ≡ p
   ```
-  
+
 * Added additional proofs to `Data.Vec.All.Properties`
   ```agda
   All-++⁺      : All P xs → All P ys → All P (xs ++ ys)
   All-++ˡ⁻     : All P (xs ++ ys) → All P xs
   All-++ʳ⁻     : All P (xs ++ ys) → All P ys
   All-++⁻      : All P (xs ++ ys) → All P xs × All P ys
-  
+
   All₂-++⁺     : All₂ _~_ ws xs → All₂ _~_ ys zs → All₂ _~_ (ws ++ ys) (xs ++ zs)
   All₂-++ˡ⁻    : All₂ _~_ (ws ++ ys) (xs ++ zs) → All₂ _~_ ws xs
   All₂-++ʳ⁻    : All₂ _~_ (ws ++ ys) (xs ++ zs) → All₂ _~_ ys zs
   All₂-++⁻     : All₂ _~_ (ws ++ ys) (xs ++ zs) → All₂ _~_ ws xs × All₂ _~_ ys zs
- 
+
   All-concat⁺  : All (All P) xss → All P (concat xss)
   All-concat⁻  : All P (concat xss) → All (All P) xss
- 
+
   All₂-concat⁺ : All₂ (All₂ _~_) xss yss → All₂ _~_ (concat xss) (concat yss)
   All₂-concat⁻ : All₂ _~_ (concat xss) (concat yss) → All₂ (All₂ _~_) xss yss
   ```
