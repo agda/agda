@@ -263,6 +263,10 @@ postulate
   -- their results: inferType, checkType, quoteTC, getType, and getContext
   withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
 
+  -- Prints the third argument if the corresponding verbosity level is turned
+  -- on (with the -v flag to Agda).
+  debugPrint : String → Nat → List ErrorPart → TC ⊤
+
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
 {-# BUILTIN AGDATCMBIND          bindTC        #-}
@@ -287,3 +291,4 @@ postulate
 {-# BUILTIN AGDATCMCOMMIT        commitTC      #-}
 {-# BUILTIN AGDATCMISMACRO       isMacro       #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION withNormalisation #-}
+{-# BUILTIN AGDATCMDEBUGPRINT    debugPrint    #-}

@@ -505,7 +505,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u) ]
+             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
+             ]
              failEval
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
@@ -554,8 +556,18 @@ evalTCM v = do
       b <- unquote (unElim b)
       fun a b
 
+    uqFun3 :: (Unquote a, Unquote b, Unquote c) => (a -> b -> c -> UnquoteM d) -> Elim -> Elim -> Elim -> UnquoteM d
+    uqFun3 fun a b c = do
+      a <- unquote (unElim a)
+      b <- unquote (unElim b)
+      c <- unquote (unElim c)
+      fun a b c
+
     tcFun2 :: (Unquote a, Unquote b) => (a -> b -> TCM c) -> Elim -> Elim -> UnquoteM c
     tcFun2 fun = uqFun2 (\ x y -> liftU (fun x y))
+
+    tcFun3 :: (Unquote a, Unquote b, Unquote c) => (a -> b -> c -> TCM d) -> Elim -> Elim -> Elim -> UnquoteM d
+    tcFun3 fun = uqFun3 (\ x y z -> liftU (fun x y z))
 
     tcFreshName :: Str -> TCM Term
     tcFreshName s = do
@@ -585,6 +597,11 @@ evalTCM v = do
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
+
+    tcDebugPrint :: Str -> Integer -> [ErrorPart] -> TCM Term
+    tcDebugPrint (Str s) n msg = do
+      reportSDoc s (fromIntegral n) $ fsep (map prettyTCM msg)
+      primUnitUnit
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
