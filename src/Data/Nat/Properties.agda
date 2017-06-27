@@ -17,7 +17,7 @@ open import Algebra
 open import Algebra.Structures
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; _≢_; refl; sym; subst; cong; cong₂)
+  using (_≡_; _≢_; refl; sym; trans; subst; cong; cong₂)
 open PropEq.≡-Reasoning
 import Algebra.FunctionProperties as P; open P (_≡_ {A = ℕ})
 open import Data.Product
@@ -28,10 +28,6 @@ open import Data.Sum
 
 suc-injective : ∀ {m n} → suc m ≡ suc n → m ≡ n
 suc-injective refl = refl
-
-i+1+j≢i : ∀ i {j} → i + suc j ≢ i
-i+1+j≢i zero    ()
-i+1+j≢i (suc i) = (i+1+j≢i i) ∘ suc-injective
 
 ------------------------------------------------------------------------
 -- Properties of _≤_
@@ -226,10 +222,31 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
   proof (s≤s m≤n) = cong suc (proof m≤n)
 
 ------------------------------------------------------------------------
--- Properties of _+_ and _*_
+-- Properties of _+_
 
--- Algebraic properties of _+_ and _*_
-open import Data.Nat.Properties.Simple
+-- Algebraic properties of _+_
++-suc : ∀ m n → m + suc n ≡ suc (m + n)
++-suc zero    n = refl
++-suc (suc m) n = cong suc (+-suc m n)
+
++-assoc : Associative _+_
++-assoc zero    _ _ = refl
++-assoc (suc m) n o = cong suc (+-assoc m n o)
+
++-right-identity : RightIdentity 0 _+_
++-right-identity zero    = refl
++-right-identity (suc n) = cong suc (+-right-identity n)
+
++-left-identity : LeftIdentity 0 _+_
++-left-identity _ = refl
+
++-comm : Commutative _+_
++-comm zero    n = sym (+-right-identity n)
++-comm (suc m) n = begin
+  suc m + n   ≡⟨⟩
+  suc (m + n) ≡⟨ cong suc (+-comm m n) ⟩
+  suc (n + m) ≡⟨ sym (+-suc n m) ⟩
+  n + suc m   ∎
 
 +-isSemigroup : IsSemigroup _≡_ _+_
 +-isSemigroup = record
@@ -244,6 +261,108 @@ open import Data.Nat.Properties.Simple
   ; identityˡ    = +-left-identity
   ; comm        = +-comm
   }
+
+-- Other properties of _+_
+
+cancel-+-left : ∀ i {j k} → i + j ≡ i + k → j ≡ k
+cancel-+-left zero    eq = eq
+cancel-+-left (suc i) eq = cancel-+-left i (cong pred eq)
+
+cancel-+-left-≤ : ∀ i {j k} → i + j ≤ i + k → j ≤ k
+cancel-+-left-≤ zero    le       = le
+cancel-+-left-≤ (suc i) (s≤s le) = cancel-+-left-≤ i le
+
+≤-steps : ∀ {m n} k → m ≤ n → m ≤ k + n
+≤-steps zero    m≤n = m≤n
+≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
+
+m≤m+n : ∀ m n → m ≤ m + n
+m≤m+n zero    n = z≤n
+m≤m+n (suc m) n = s≤s (m≤m+n m n)
+
+m≤′m+n : ∀ m n → m ≤′ m + n
+m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
+
+n≤′m+n : ∀ m n → n ≤′ m + n
+n≤′m+n zero    n = ≤′-refl
+n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
+
+n≤m+n : ∀ m n → n ≤ m + n
+n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
+
+_+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
+_+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
+  n₁      ≤⟨ n₁≤n₂ ⟩
+  n₂      ≤⟨ n≤m+n m₂ n₂ ⟩
+  m₂ + n₂ □
+s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
+
+¬i+1+j≤i : ∀ i {j} → i + suc j ≰ i
+¬i+1+j≤i zero    ()
+¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
+
+m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
+m≢1+m+n zero    ()
+m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
+
+i+1+j≢i : ∀ i {j} → i + suc j ≢ i
+i+1+j≢i zero    ()
+i+1+j≢i (suc i) = (i+1+j≢i i) ∘ suc-injective
+
+i+j≡0⇒i≡0 : ∀ i {j} → i + j ≡ 0 → i ≡ 0
+i+j≡0⇒i≡0 zero    eq = refl
+i+j≡0⇒i≡0 (suc i) ()
+
+i+j≡0⇒j≡0 : ∀ i {j} → i + j ≡ 0 → j ≡ 0
+i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j (trans (+-comm j i) (i+j≡0))
+
+------------------------------------------------------------------------
+-- Properties of _*_
+
++-*-suc : ∀ m n → m * suc n ≡ m + m * n
++-*-suc zero    n = refl
++-*-suc (suc m) n = begin
+  suc m * suc n         ≡⟨⟩
+  suc n + m * suc n     ≡⟨ cong (suc n +_) (+-*-suc m n) ⟩
+  suc n + (m + m * n)   ≡⟨⟩
+  suc (n + (m + m * n)) ≡⟨ cong suc (sym (+-assoc n m (m * n))) ⟩
+  suc (n + m + m * n)   ≡⟨ cong (λ x → suc (x + m * n)) (+-comm n m) ⟩
+  suc (m + n + m * n)   ≡⟨ cong suc (+-assoc m n (m * n)) ⟩
+  suc (m + (n + m * n)) ≡⟨⟩
+  suc m + suc m * n     ∎
+
+*-right-zero : RightZero 0 _*_
+*-right-zero zero    = refl
+*-right-zero (suc n) = *-right-zero n
+
+*-left-zero : LeftZero 0 _*_
+*-left-zero _ = refl
+
+*-comm : Commutative _*_
+*-comm zero    n = sym (*-right-zero n)
+*-comm (suc m) n = begin
+  suc m * n  ≡⟨⟩
+  n + m * n  ≡⟨ cong (n +_) (*-comm m n) ⟩
+  n + n * m  ≡⟨ sym (+-*-suc n m) ⟩
+  n * suc m  ∎
+
+distribʳ-*-+ : _*_ DistributesOverʳ _+_
+distribʳ-*-+ m zero    o = refl
+distribʳ-*-+ m (suc n) o = begin
+  (suc n + o) * m     ≡⟨⟩
+  m + (n + o) * m     ≡⟨ cong (m +_) (distribʳ-*-+ m n o) ⟩
+  m + (n * m + o * m) ≡⟨ sym (+-assoc m (n * m) (o * m)) ⟩
+  m + n * m + o * m   ≡⟨⟩
+  suc n * m + o * m   ∎
+
+*-assoc : Associative _*_
+*-assoc zero    n o = refl
+*-assoc (suc m) n o = begin
+  (suc m * n) * o     ≡⟨⟩
+  (n + m * n) * o     ≡⟨ distribʳ-*-+ o n (m * n) ⟩
+  n * o + (m * n) * o ≡⟨ cong (n * o +_) (*-assoc m n o) ⟩
+  n * o + m * (n * o) ≡⟨⟩
+  suc m * (n * o)     ∎
 
 *-isSemigroup : IsSemigroup _≡_ _*_
 *-isSemigroup = record
@@ -281,15 +400,7 @@ import Algebra.RingSolver.AlmostCommutativeRing as ACR
 module SemiringSolver =
   Solver (ACR.fromCommutativeSemiring commutativeSemiring) _≟_
 
--- Other properties of _+_ and _*_
-
-cancel-+-left : ∀ i {j k} → i + j ≡ i + k → j ≡ k
-cancel-+-left zero    eq = eq
-cancel-+-left (suc i) eq = cancel-+-left i (cong pred eq)
-
-cancel-+-left-≤ : ∀ i {j k} → i + j ≤ i + k → j ≤ k
-cancel-+-left-≤ zero    le       = le
-cancel-+-left-≤ (suc i) (s≤s le) = cancel-+-left-≤ i le
+-- Other properties of _*_
 
 cancel-*-right : ∀ i j {k} → i * suc k ≡ j * suc k → i ≡ j
 cancel-*-right zero    zero        eq = refl
@@ -304,52 +415,9 @@ cancel-*-right-≤ (suc i) zero    _ ()
 cancel-*-right-≤ (suc i) (suc j) k le =
   s≤s (cancel-*-right-≤ i j k (cancel-+-left-≤ (suc k) le))
 
-≤-steps : ∀ {m n} k → m ≤ n → m ≤ k + n
-≤-steps zero    m≤n = m≤n
-≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
-
-m≤m+n : ∀ m n → m ≤ m + n
-m≤m+n zero    n = z≤n
-m≤m+n (suc m) n = s≤s (m≤m+n m n)
-
-m≤′m+n : ∀ m n → m ≤′ m + n
-m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
-
-n≤′m+n : ∀ m n → n ≤′ m + n
-n≤′m+n zero    n = ≤′-refl
-n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
-
-n≤m+n : ∀ m n → n ≤ m + n
-n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
-
-_+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
-_+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
-  n₁      ≤⟨ n₁≤n₂ ⟩
-  n₂      ≤⟨ n≤m+n m₂ n₂ ⟩
-  m₂ + n₂ □
-s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
-
 _*-mono_ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 z≤n       *-mono n₁≤n₂ = z≤n
 s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n₁≤n₂)
-
-¬i+1+j≤i : ∀ i {j} → ¬ i + suc j ≤ i
-¬i+1+j≤i zero    ()
-¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
-
-m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
-m≢1+m+n zero    ()
-m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
-
-i+j≡0⇒i≡0 : ∀ i {j} → i + j ≡ 0 → i ≡ 0
-i+j≡0⇒i≡0 zero    eq = refl
-i+j≡0⇒i≡0 (suc i) ()
-
-i+j≡0⇒j≡0 : ∀ i {j} → i + j ≡ 0 → j ≡ 0
-i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
-  j + i   ≡⟨ +-comm j i ⟩
-  i + j   ≡⟨ i+j≡0 ⟩
-  0       ∎
 
 i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
 i*j≡0⇒i≡0∨j≡0 zero    {j}     eq = inj₁ refl
@@ -368,10 +436,7 @@ i*j≡1⇒i≡1 (suc (suc i)) zero          eq with begin
 ... | ()
 
 i*j≡1⇒j≡1 : ∀ i j → i * j ≡ 1 → j ≡ 1
-i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (begin
-  j * i  ≡⟨ *-comm j i ⟩
-  i * j  ≡⟨ eq ⟩
-  1      ∎)
+i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 
 ------------------------------------------------------------------------
 -- Properties of _⊔_ and _⊓_

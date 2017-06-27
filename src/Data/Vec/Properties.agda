@@ -16,11 +16,10 @@ open import Data.Vec
 open import Data.List.Any using (here; there)
 import Data.List.Any.Membership.Propositional as List
 open import Data.Nat
+open import Data.Nat.Properties using (+-assoc)
 open import Data.Empty using (⊥-elim)
-import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Properties using (_+′_)
-open import Data.Empty using (⊥-elim)
 open import Data.Product as Prod using (_×_; _,_; proj₁; proj₂; <_,_>)
 open import Function
 open import Function.Inverse using (_↔_)
@@ -321,7 +320,6 @@ sum-++-commute (x ∷ xs) {ys} = begin
     ∎
   where
   open P.≡-Reasoning
-  open CommutativeSemiring Nat.commutativeSemiring hiding (_+_; sym)
 
 -- foldr is a congruence.
 

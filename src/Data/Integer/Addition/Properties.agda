@@ -7,23 +7,19 @@
 module Data.Integer.Addition.Properties where
 
 open import Algebra
-import Algebra.FunctionProperties
 open import Algebra.Structures
 open import Data.Integer hiding (suc)
 open import Data.Nat.Base using (suc; zero) renaming (_+_ to _ℕ+_)
 import Data.Nat.Properties as ℕ
 open import Relation.Binary.PropositionalEquality
-
-open Algebra.FunctionProperties (_≡_ {A = ℤ})
-open CommutativeSemiring ℕ.commutativeSemiring
-  using (+-comm; +-assoc; +-identity)
+open import Algebra.FunctionProperties (_≡_ {A = ℤ})
 
 ------------------------------------------------------------------------
 -- Addition and zero form a commutative monoid
 
 comm : Commutative _+_
-comm -[1+ a ] -[1+ b ] rewrite +-comm a b = refl
-comm (+   a ) (+   b ) rewrite +-comm a b = refl
+comm -[1+ a ] -[1+ b ] rewrite ℕ.+-comm a b = refl
+comm (+   a ) (+   b ) rewrite ℕ.+-comm a b = refl
 comm -[1+ _ ] (+   _ ) = refl
 comm (+   _ ) -[1+ _ ] = refl
 
@@ -44,7 +40,7 @@ distribʳ-⊖-+-neg : ∀ a b c → -[1+ a ] + (b ⊖ c) ≡ b ⊖ (suc a ℕ+ c
 distribʳ-⊖-+-neg a b c
   rewrite comm -[1+ a ] (b ⊖ c)
         | distribˡ-⊖-+-neg a b c
-        | +-comm a c
+        | ℕ.+-comm a c
         = refl
 
 distribˡ-⊖-+-pos : ∀ a b c → b ⊖ c + + a ≡ b ℕ+ a ⊖ c
@@ -57,7 +53,7 @@ distribʳ-⊖-+-pos : ∀ a b c → + a + (b ⊖ c) ≡ a ℕ+ b ⊖ c
 distribʳ-⊖-+-pos a b c
   rewrite comm (+ a) (b ⊖ c)
         | distribˡ-⊖-+-pos a b c
-        | +-comm a b
+        | ℕ.+-comm a b
         = refl
 
 assoc : Associative _+_
@@ -70,25 +66,25 @@ assoc (+ suc a) -[1+ b ]  -[1+ c ]  = distribˡ-⊖-+-neg c a b
 assoc (+ suc a) -[1+ b ] (+ suc c)
   rewrite distribˡ-⊖-+-pos (suc c) a b
         | distribʳ-⊖-+-pos (suc a) c b
-        | sym (+-assoc a 1 c)
-        | +-comm a 1
+        | sym (ℕ.+-assoc a 1 c)
+        | ℕ.+-comm a 1
         = refl
 assoc (+ suc a) (+ suc b) -[1+ c ]
   rewrite distribʳ-⊖-+-pos (suc a) b c
-        | sym (+-assoc a 1 b)
-        | +-comm a 1
+        | sym (ℕ.+-assoc a 1 b)
+        | ℕ.+-comm a 1
         = refl
 assoc -[1+ a ] -[1+ b ] -[1+ c ]
-  rewrite sym (+-assoc a 1 (b ℕ+ c))
-        | +-comm a 1
-        | +-assoc a b c
+  rewrite sym (ℕ.+-assoc a 1 (b ℕ+ c))
+        | ℕ.+-comm a 1
+        | ℕ.+-assoc a b c
         = refl
 assoc -[1+ a ] (+ suc b) -[1+ c ]
   rewrite distribʳ-⊖-+-neg a b c
         | distribˡ-⊖-+-neg c b a
         = refl
 assoc (+ suc a) (+ suc b) (+ suc c)
-  rewrite +-assoc (suc a) (suc b) (suc c)
+  rewrite ℕ.+-assoc (suc a) (suc b) (suc c)
         = refl
 
 isSemigroup : IsSemigroup _≡_ _+_

@@ -8,7 +8,6 @@ module Data.Integer.Multiplication.Properties where
 
 open import Algebra
   using (module CommutativeSemiring; CommutativeMonoid)
-import Algebra.FunctionProperties
 open import Algebra.Structures using (IsSemigroup; IsCommutativeMonoid)
 open import Data.Integer
    using (ℤ; -[1+_]; +_; ∣_∣; sign; _◃_) renaming (_*_ to ℤ*)
@@ -21,9 +20,9 @@ open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality
    using (_≡_; refl; cong; cong₂; isEquivalence)
 
-open Algebra.FunctionProperties (_≡_ {A = ℤ})
+open import Algebra.FunctionProperties (_≡_ {A = ℤ})
 open CommutativeSemiring ℕ.commutativeSemiring
-  using (+-identity; *-comm) renaming (zero to *-zero)
+  using (+-identity) renaming (zero to *-zero)
 
 ------------------------------------------------------------------------
 -- Multiplication and one form a commutative monoid
@@ -45,10 +44,10 @@ identityˡ -[1+  n ] rewrite proj₂ +-identity n = refl
 identityˡ (+ suc n) rewrite proj₂ +-identity n = refl
 
 comm : Commutative ℤ*
-comm -[1+ a ] -[1+ b ] rewrite *-comm (suc a) (suc b) = refl
-comm -[1+ a ] (+   b ) rewrite *-comm (suc a) b       = refl
-comm (+   a ) -[1+ b ] rewrite *-comm a       (suc b) = refl
-comm (+   a ) (+   b ) rewrite *-comm a       b       = refl
+comm -[1+ a ] -[1+ b ] rewrite ℕ.*-comm (suc a) (suc b) = refl
+comm -[1+ a ] (+   b ) rewrite ℕ.*-comm (suc a) b       = refl
+comm (+   a ) -[1+ b ] rewrite ℕ.*-comm a       (suc b) = refl
+comm (+   a ) (+   b ) rewrite ℕ.*-comm a       b       = refl
 
 assoc : Associative ℤ*
 assoc (+ zero) _ _ = refl

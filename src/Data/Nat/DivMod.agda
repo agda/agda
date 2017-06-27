@@ -9,8 +9,7 @@ module Data.Nat.DivMod where
 open import Data.Fin as Fin using (Fin; toℕ)
 import Data.Fin.Properties as FinP
 open import Data.Nat as Nat
-open import Data.Nat.Properties as NatP
-open import Data.Nat.Properties.Simple
+open import Data.Nat.Properties
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 import Relation.Binary.PropositionalEquality.TrustMe as TrustMe
@@ -18,9 +17,9 @@ import Relation.Binary.PropositionalEquality.TrustMe as TrustMe
 
 open import Agda.Builtin.Nat using ( div-helper; mod-helper )
 
-open NatP.SemiringSolver
+open SemiringSolver
 open P.≡-Reasoning
-open NatP.≤-Reasoning
+open ≤-Reasoning
   renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩′_)
 
 infixl 7 _div_ _mod_ _divMod_

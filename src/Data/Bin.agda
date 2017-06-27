@@ -139,7 +139,6 @@ private
          m₂  + n * 2   ∎)
     where
     open Nat; open NP
-    open CommutativeSemiring commutativeSemiring using (+-assoc)
     m₁ = Fin.toℕ b₁; m₂ = Fin.toℕ b₂; n = toℕ (bs 1#)
 
   1<[23] : ∀ {b} → [] 1# < (b ∷ []) 1#

@@ -8,8 +8,8 @@ module Data.Nat.Divisibility where
 
 open import Data.Nat as Nat
 open import Data.Nat.DivMod
-open import Data.Nat.Properties as NatProp using (≤-antisym; m≤m+n)
-open import Data.Nat.Properties.Simple using (*-comm; *-assoc)
+open import Data.Nat.Properties as NatProp
+  using (≤-antisym; m≤m+n; *-comm; *-assoc)
 open import Data.Fin as Fin using (Fin; zero; suc)
 import Data.Fin.Properties as FP
 open NatProp.SemiringSolver

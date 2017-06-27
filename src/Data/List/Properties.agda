@@ -18,7 +18,6 @@ open import Data.List.All using (All; []; _∷_)
 open import Data.Maybe.Base using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
-open import Data.Nat.Properties.Simple using (+-comm; +-assoc)
 open import Data.Product as Prod hiding (map)
 open import Function
 open import Algebra.FunctionProperties
