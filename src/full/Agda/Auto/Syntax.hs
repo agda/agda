@@ -407,7 +407,7 @@ instance (FreeVars a, FreeVars b) => FreeVars (a, b) where
   freeVarsOffset n (a, b) = Set.union (freeVarsOffset n a) (freeVarsOffset n b)
 
 instance FreeVars t => FreeVars (MM t a) where
-  freeVarsOffset n e = freeVarsOffset n (rm e)
+  freeVarsOffset n e = freeVarsOffset n (rm __IMPOSSIBLE__ e)
 
 instance FreeVars t => FreeVars (Abs t) where
   freeVarsOffset n (Abs id e) = freeVarsOffset (n + 1) e
@@ -444,7 +444,7 @@ instance (Renaming a, Renaming b) => Renaming (a, b) where
   renameOffset j ren (a, b) = (renameOffset j ren a, renameOffset j ren b)
 
 instance Renaming t => Renaming (MM t a) where
-  renameOffset j ren e = NotM $ renameOffset j ren (rm e)
+  renameOffset j ren e = NotM $ renameOffset j ren (rm __IMPOSSIBLE__ e)
 
 instance Renaming t => Renaming (Abs t) where
   renameOffset j ren (Abs id e) = Abs id $ renameOffset (j + 1) ren e
