@@ -92,6 +92,15 @@ Absorptive ∙ ∘ = (∙ Absorbs ∘) × (∘ Absorbs ∙)
 Involutive : Op₁ A → Set _
 Involutive f = ∀ x → f (f x) ≈ x
 
+LeftCancellative : Op₂ A → Set _
+LeftCancellative _•_ = ∀ x {y z} → (x • y) ≈ (x • z) → y ≈ z
+
+RightCancellative : Op₂ A → Set _
+RightCancellative _•_ = ∀ {x} y z → (y • x) ≈ (z • x) → y ≈ z
+
+Cancellative : Op₂ A → Set _
+Cancellative _•_ = LeftCancellative _•_ × RightCancellative _•_
+
 Congruent₁ : Op₁ A → Set _
 Congruent₁ f = f Preserves _≈_ ⟶ _≈_
 

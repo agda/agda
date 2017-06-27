@@ -66,6 +66,9 @@ Backwards compatible changes
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
 
+* Added `LeftCancellative`, `RightCancellative` and `Cancellative`
+  to `Algebra.FunctionProperties`.
+
 * Added functions `punchIn` and `punchOut` to `Data.Fin`
 
 * Added additional proofs to `Data.Fin.Properties`:
@@ -88,14 +91,18 @@ Backwards compatible changes
 
 * Added additional proofs to `Data.Nat.Properties`:
   ```agda
-  suc-injective
+  suc-injective, ≡-isDecEquivalence, ≡-decSetoid
 
   ≤-reflexive, ≤-refl, ≤-trans, ≤-antisymmetric, ≤-total
   ≤-isPreorder, ≤-isPartialOrder, ≤-isTotalOrder, ≤-isDecTotalOrder
 
   _<?_,  <-transʳ, <-transˡ, <-irrefl, <-asym
 
-  +-left-identity, *-left-zero
+  +-left-identity, +-identity, cancel-+-right, +-cancellative
+
+  *-left-zero, *-zero, *-left-identity, *-right-identity, *-identity
+
+  distribˡ-*-+, distrib-*-+
 
   ⊓-idem, ⊔-idem
   m⊓n≤n, m≤m⊔n, m⊔n≤m+n, m⊓n≤m+n
