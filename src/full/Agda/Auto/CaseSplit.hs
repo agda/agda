@@ -5,6 +5,8 @@ module Agda.Auto.CaseSplit where
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (findIndex, union)
+import Data.Monoid ((<>), Sum(..))
+import Data.Foldable (foldMap)
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 
@@ -454,48 +456,55 @@ depthofvar v pats =
  in depth
 
 -- --------------------
+-- | Speculation: Type class computing the size (?) of a pattern
+--   and collecting the vars it introduces
+class LocalTerminationEnv a where
+  sizeAndBoundVars :: a -> (Sum Nat, [Nat])
 
+instance LocalTerminationEnv a => LocalTerminationEnv (HI a) where
+  sizeAndBoundVars (HI _ p) = sizeAndBoundVars p
+
+instance LocalTerminationEnv (CSPatI o) where
+  sizeAndBoundVars p = case p of
+    CSPatConApp _ ps -> (1, []) <> sizeAndBoundVars ps
+    CSPatVar n       -> (0, [n])
+    CSPatExp e       -> sizeAndBoundVars e
+    _                -> (0, [])
+
+instance LocalTerminationEnv a => LocalTerminationEnv [a] where
+  sizeAndBoundVars = foldMap sizeAndBoundVars
+
+instance LocalTerminationEnv (MExp o) where
+  sizeAndBoundVars e = case rm __IMPOSSIBLE__ e of
+    App _ _ (Var v) _      -> (0, [v])
+    App _ _ (Const _) args -> (1, []) <> sizeAndBoundVars args
+    _                      -> (0, [])
+
+instance (LocalTerminationEnv a, LocalTerminationEnv b) => LocalTerminationEnv (a, b) where
+  sizeAndBoundVars (a, b) = sizeAndBoundVars a <> sizeAndBoundVars b
+
+instance LocalTerminationEnv (MArgList o) where
+  sizeAndBoundVars as = case rm __IMPOSSIBLE__ as of
+    ALNil         -> (0, [])
+    ALCons _ a as -> sizeAndBoundVars (a, as)
+    ALProj{}      -> __IMPOSSIBLE__
+    ALConPar as   -> sizeAndBoundVars as
+
+
+-- | Take a list of patterns and returns (is, size, vars) where (speculation):
+---  * the is are the pattern indices the vars are contained in
+--   * size is total number of constructors removed (?) to access vars
 localTerminationEnv :: [CSPat o] -> ([Nat], Nat, [Nat])
-localTerminationEnv pats =
- let g _ [] = ([], 0, [])
-     g i (hp@(HI _ p) : ps) = case p of
-      CSPatConApp{} ->
-       let (size, vars) = h hp
-           (is, size', vars') = g (i + 1) ps
-       in (i : is, size + size', vars ++ vars')
-      _ -> g (i + 1) ps
-     h (HI _ p) = case p of
-      CSPatConApp c ps ->
-       let (size, vars) = hs ps
-       in (size + 1, vars)
-      CSPatVar n -> (0, [n])
-      CSPatExp e -> he e
-      _ -> (0, [])
-     hs [] = (0, [])
-     hs (p : ps) =
-      let (size, vars) = h p
-          (size', vars') = hs ps
-      in (size + size', vars ++ vars')
-     he e = case rm __IMPOSSIBLE__ e of
-      App _ _ (Var v) _ -> (0, [v])
-      App _ _ (Const _) args ->
-       let (size, vars) = hes args
-       in (size + 1, vars)
-      _ -> (0, [])
-     hes as = case rm __IMPOSSIBLE__ as of
-      ALNil -> (0, [])
-      ALCons _ a as ->
-       let (size, vars) = he a
-           (size', vars') = hes as
-       in (size + size', vars ++ vars')
+localTerminationEnv pats = (is, getSum s, vs) where
 
-      ALProj{} -> __IMPOSSIBLE__
+  (is , s , vs) = g 0 pats
 
-
-      ALConPar as -> hes as
-
- in g 0 pats
-
+  g :: Nat -> [CSPat o] -> ([Nat], Sum Nat, [Nat])
+  g _ [] = ([], 0, [])
+  g i (hp@(HI _ p) : ps) = case p of
+    CSPatConApp{} -> let (size, vars) = sizeAndBoundVars hp
+                     in ([i], size, vars) <> g (i + 1) ps
+    _ -> g (i + 1) ps
 
 localTerminationSidecond :: ([Nat], Nat, [Nat]) -> ConstRef o -> MExp o -> EE (MyPB o)
 localTerminationSidecond (is, size, vars) reccallc b =
