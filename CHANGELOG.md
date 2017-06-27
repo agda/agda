@@ -84,6 +84,57 @@ Backwards compatible changes
   Cancellative      _•_ = LeftCancellative _•_ × RightCancellative _•_
   ```
 
+* Added additional proofs to `Algebra.Properties.BooleanAlgebra`:
+  ```agda
+  ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
+  ∧-complementˡ : LeftInverse ⊥ ¬_ _∧_
+
+  ∧-identityʳ   : RightIdentity ⊤ _∧_
+  ∧-identityˡ   : LeftIdentity ⊤ _∧_
+  ∧-identity    : Identity ⊤ _∧_
+
+  ∨-identityʳ   : RightIdentity ⊥ _∨_
+  ∨-identityˡ   : LeftIdentity ⊥ _∨_
+  ∨-identity    : Identity ⊥ _∨_
+
+  ∧-zeroʳ       : RightZero ⊥ _∧_
+  ∧-zeroˡ       : LeftZero ⊥ _∧_
+  ∧-zero        : Zero ⊥ _∧_
+
+  ∨-zeroʳ       : ∀ x → x ∨ ⊤ ≈ ⊤
+  ∨-zeroˡ       : LeftZero ⊤ _∨_
+  ∨-zero        : Zero ⊤ _∨_
+
+  ⊕-identityˡ   : LeftIdentity ⊥ _⊕_
+  ⊕-identityʳ   : RightIdentity ⊥ _⊕_
+  ⊕-identity    : Identity ⊥ _⊕_
+
+  ⊕-inverseˡ    : LeftInverse ⊥ id _⊕_
+  ⊕-inverseʳ    : RightInverse ⊥ id _⊕_
+  ⊕-inverse     : Inverse ⊥ id _⊕_
+
+  ⊕-cong : Congruent₂ _⊕_
+  ⊕-comm : Commutative _⊕_
+  ⊕-assoc : Associative _⊕_
+
+  ∧-distribˡ-⊕ : _∧_ DistributesOverˡ _⊕_
+  ∧-distribʳ-⊕ : _∧_ DistributesOverʳ _⊕_
+  ∧-distrib-⊕ : _∧_ DistributesOver _⊕_
+
+  ∨-isSemigroup           : IsSemigroup _≈_ _∨_
+  ∧-isSemigroup           : IsSemigroup _≈_ _∧_
+  ∨-⊥-isMonoid : IsMonoid _≈_ _∨_ ⊥
+  ∧-⊤-isMonoid : IsMonoid _≈_ _∧_ ⊤
+  ∨-⊥-isCommutativeMonoid : IsCommutativeMonoid _≈_ _∨_ ⊥
+  ∧-⊤-isCommutativeMonoid : IsCommutativeMonoid _≈_ _∧_ ⊤
+
+  ⊕-isSemigroup : IsSemigroup _≈_ _⊕_
+  ⊕-⊥-isMonoid : IsMonoid _≈_ _⊕_ ⊥
+  ⊕-⊥-isGroup : IsGroup _≈_ _⊕_ ⊥ id
+  ⊕-⊥-isAbelianGroup : IsAbelianGroup _≈_ _⊕_ ⊥ id
+  ⊕-∧-isRing : IsRing _≈_ _⊕_ _∧_ id ⊥ ⊤
+  ```
+
 * Added additional functions to `Data.List`
   ```agda
   applyUpTo f n     ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
