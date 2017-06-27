@@ -129,6 +129,17 @@ Language
   Aside from datatypes, this pragma can also be used to mark other definition
   as being injective (for example postulates).
 
+* New TC primitive: `debugPrint`.
+
+  ```agda
+    debugPrint : String → Nat → List ErrorPart → TC ⊤
+  ```
+
+  This maps to the internal function `reportSDoc`. Debug output is enabled with
+  the `-v` flag at the command line, or in an `OPTIONS` pragma. For instance,
+  giving `-v a.b.c:10` enables printing from `debugPrint "a.b.c.d" 10 msg`. In the
+  Emacs mode, debug output ends up in the `*Agda debug*` buffer.
+
 Emacs mode
 ----------
 
