@@ -98,11 +98,6 @@ checkRecDef i name ind eta con ps contel fields =
       -- compute the field telescope (does not include record parameters)
       let TelV ftel _ = telView' contype
 
-          -- A record is irrelevant if all of its fields are.
-          -- In this case, the associated module parameter will be irrelevant.
-          -- See issue 392.
-          recordRelevance = minimum $ Irrelevant : (map getRelevance $ telToList ftel)
-
       -- Compute correct type of constructor
 
       -- t = tel -> t0 where t0 must be a sort s
@@ -153,6 +148,15 @@ checkRecDef i name ind eta con ps contel fields =
           haveEta      = maybe (Inferred False) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
+
+          -- A record is irrelevant if all of its fields are.
+          -- In this case, the associated module parameter will be irrelevant.
+          -- See issue 392.
+          -- Unless it's been declared coinductive or no-eta-equality (#2607).
+          recordRelevance
+            | eta          == Just False  = Relevant
+            | conInduction == CoInductive = Relevant
+            | otherwise                   = minimum $ Irrelevant : (map getRelevance $ telToList ftel)
 
       -- Andreas, 2017-01-26, issue #2436
       -- Disallow coinductive records with eta-equality
