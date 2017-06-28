@@ -8,49 +8,52 @@ Important changes since 0.13:
 Non-backwards compatible changes
 --------------------------------
 
-* Added native (pattern-matching) definitions for `Data.Vec.map` and `Data.Vec.zipWith`.
-  Previously they were defined using the `applicative` operations of `Vec`.
-  The rationale for this change is better printing of goals involving `map`
-  or `zipWith`.  Also, it has been argued that `zipWith` is fundamental than `_⊛_`.
+* Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
+  `Data.Nat.Properties`.
 
-  In the wake of this change, the following definitions have been added:
-  1. `Data.Vec.functor`, encapsulating `Data.Vec.map`.
-  2. The following properties in `Data.Vec.Properties`, relating old and new definition:
-     ```
-     ⊛-is-zipWith
-     map-is-⊛
-     zipWith-is-⊛
-     ```
-  3. The following new lemmata in `Data.Vec.Properties`:
-     ```
-     lookup-map
-     lookup-functor-morphism
-     map-replicate
-     zipWith-replicate
-     zipWith-map
-     ```
+  The rationale is that its location didn't conform to
+  the library's conventions and it was causing dependency cyles when trying to
+  add new ordering properties to `Data.Nat.Properties`.
 
 * Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
 
-* Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
-  `Data.Nat.Properties`
+* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`.
 
-* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`
-
-* Moved internal modules `Membership` and `Membership-≡` out of
-  `Data.List.Any` into `Data.List.Any.Membership` and
-  `Data.List.Any.Membership.Propositional` respectively.
+  Previously it was causing dependency cyles to form between `Data.Fin.Dec`,
+  `Relation.Nullary.Negation` and `Data.Fin.Dec`.
 
 * Moved existing contents of `Data.List.Any.Membership` to
-  `Data.List.Any.Membership.Propositional.Properties`
+  `Data.List.Any.Membership.Propositional.Properties` and moved internal modules
+  `Membership` and `Membership-≡` out of `Data.List.Any` into
+  `Data.List.Any.Membership` and `Data.List.Any.Membership.Propositional`
+  respectively.
 
-* Changed the implementation of `downFrom` in `Data.List` to a
-  more idiomatic, easier-to-reason-about version.
+  This both improves the ease of importing and opening the
+  membership modules and allows the creation of a new file
+  `Data.List.Any.Membership.Properties` for setoid membership properties.
 
-* Changed `Data.Vec.All.All₂` to a native version which allows better
-  pattern matching. The new version (and the associated proofs in
-  `Data.Vec.All.Properties`) are more generic with respect to types and
-  levels.
+* Changed the implementation of `map` and `zipWith` in `Data.Vec` to use native
+  (pattern-matching) definitions.
+
+  Previously they were defined using the `applicative` operations of `Vec`. The
+  rationale for this change is better printing of goals involving `map` or
+  `zipWith`.  Also, it has been argued that `zipWith` is fundamental than `_⊛_`.
+  The new definitions can be converted back to the old using the new proofs
+  `⊛-is-zipWith`, `map-is-⊛` and `zipWith-is-⊛` in `Data.Vec.Properties`.
+
+* Changed the implementation of `All₂` in `Data.Vec.All` to a native datatype
+  which allows better pattern matching.
+
+  The new version (and the associated
+  proofs in `Data.Vec.All.Properties`) are also more generic with respect to
+  types and levels.
+
+* Changed the implementation of `downFrom` in `Data.List` to a native
+  (pattern-matching) definition.
+
+  Previously it was defined using a private interal module that was
+  difficult to reason about.
+
 
 Backwards compatible changes
 ----------------------------
@@ -59,11 +62,11 @@ Backwards compatible changes
 
 * Added `Category.Functor.Morphism` and module `Category.Functor.Identity`.
 
-* The file `Data.Nat.Properties.Simple` is now deprecated. All proofs
+* The module `Data.Nat.Properties.Simple` is now deprecated. All proofs
   have been moved to `Data.Nat.Properties` where they should be used directly.
-  The `Simple` file still exists and re-exports the proofs from
-  `Data.Nat.Properties` for backwards compatability reasons but will be
-  removed in some future release.
+  The `Simple` file still exists for backwards compatability reasons and
+  re-exports the proofs from `Data.Nat.Properties` but will be removed in some
+  future release.
 
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
@@ -140,15 +143,6 @@ Backwards compatible changes
   ∨-∧-distribˡ : _∨_ DistributesOverˡ _∧_
   ∧-∨-distribˡ : _∧_ DistributesOverˡ _∨_
   ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
-  ```
-
-* Added functions to `Data.List`
-  ```agda
-  applyUpTo f n     ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
-  upTo n            ≈ 0      ∷ 1      ∷ ... ∷ n-1    ∷ []
-  applyDownFrom f n ≈ f[n-1] ∷ f[n-2] ∷ ... ∷ f[0]   ∷ []
-  tabulate f        ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
-  allFin n          ≈ 0f     ∷ 1f     ∷ ... ∷ n-1f   ∷ []
   ```
 
 * Added functions to `Data.Fin`:
@@ -293,6 +287,15 @@ Backwards compatible changes
   length-reverse : length (reverse xs) ≡ length xs
   ```
 
+* Added functions to `Data.List`
+  ```agda
+  applyUpTo f n     ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
+  upTo n            ≈ 0      ∷ 1      ∷ ... ∷ n-1    ∷ []
+  applyDownFrom f n ≈ f[n-1] ∷ f[n-2] ∷ ... ∷ f[0]   ∷ []
+  tabulate f        ≈ f[0]   ∷ f[1]   ∷ ... ∷ f[n-1] ∷ []
+  allFin n          ≈ 0f     ∷ 1f     ∷ ... ∷ n-1f   ∷ []
+  ```
+
 * Added proofs to `Data.List.Any.Properties`
   ```agda
   lose∘find : uncurry′ lose (proj₂ (find p)) ≡ p
@@ -309,6 +312,27 @@ Backwards compatible changes
   map⁻      : Any P (map f xs) → Any (P ∘ f) xs
   map⁺∘map⁻ : map⁺ (map⁻ p) ≡ p
   map⁻∘map⁺ : map⁻ (map⁺ p) ≡ p
+  ```
+
+* Added a functor encapsulating `map` in `Data.Vec`:
+  ```agda
+  functor = record { _<$>_ = map}
+  ```
+
+* Added proofs to `Data.Vec.Properties`
+  ```agda
+  lookup-map              : lookup i (map f xs) ≡ f (lookup i xs)
+  lookup-functor-morphism : Morphism functor IdentityFunctor
+  map-replicate           : map f (replicate x) ≡ replicate (f x)
+
+  ⊛-is-zipWith            : fs ⊛ xs ≡ zipWith _$_ fs xs
+  map-is-⊛                : map f xs ≡ replicate f ⊛ xs
+  zipWith-is-⊛            : zipWith f xs ys ≡ replicate f ⊛ xs ⊛ ys
+
+  zipWith-replicate₁      : zipWith _⊕_ (replicate x) ys ≡ map (x ⊕_) ys
+  zipWith-replicate₂      : zipWith _⊕_ xs (replicate y) ≡ map (_⊕ y) xs
+  zipWith-map₁            : zipWith _⊕_ (map f xs) ys ≡ zipWith (λ x y → f x ⊕ y) xs ys
+  zipWith-map₂            : zipWith _⊕_ xs (map f ys) ≡ zipWith (λ x y → x ⊕ f y) xs ys
   ```
 
 * Added proofs to `Data.Vec.All.Properties`
