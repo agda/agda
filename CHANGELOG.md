@@ -54,6 +54,15 @@ Non-backwards compatible changes
   Previously it was defined using a private interal module that was
   difficult to reason about.
 
+Deprecated features
+-------------------
+
+Deprecated features still exist and therefore existing code should still work
+but they may be removed in some future release of the library.
+
+* The infix versions of `_+-mono_` and `_*-mono_` in `Data.Nat.Properties`
+  have been deprecated in favour of `+-mono-≤` and `*-mono-≤` which better
+  follow the library's naming conventions.
 
 Backwards compatible changes
 ----------------------------
