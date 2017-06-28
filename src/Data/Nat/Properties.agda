@@ -15,6 +15,7 @@ open import Function
 open import Algebra
 open import Algebra.Structures
 open import Relation.Nullary
+open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality
 open import Algebra.FunctionProperties (_≡_ {A = ℕ})
 open import Data.Product
@@ -185,11 +186,39 @@ strictTotalOrder = record
 <⇒≤pred : ∀ {m n} → m < n → m ≤ pred n
 <⇒≤pred (s≤s le) = le
 
+<⇒≤ : _<_ ⇒ _≤_
+<⇒≤ (s≤s m≤n) = ≤-trans m≤n (≤-step ≤-refl)
+
+<⇒≢ : _<_ ⇒ _≢_
+<⇒≢ m<n refl = 1+n≰n m<n
+
+<⇒≱ : _<_ ⇒ _≱_
+<⇒≱ (s≤s m+1≤n) (s≤s n≤m) = <⇒≱ m+1≤n n≤m
+
+<⇒≯ : _<_ ⇒ _≯_
+<⇒≯ (s≤s m<n) (s≤s n<m) = <⇒≯ m<n n<m
+
+≰⇒≮ : _≰_ ⇒ _≮_
+≰⇒≮ m≰n 1+m≤n = m≰n (<⇒≤ 1+m≤n)
+
 ≰⇒> : _≰_ ⇒ _>_
-≰⇒> {zero}          z≰n with z≰n z≤n
-... | ()
+≰⇒> {zero}          z≰n = contradiction z≤n z≰n
 ≰⇒> {suc m} {zero}  _   = s≤s z≤n
 ≰⇒> {suc m} {suc n} m≰n = s≤s (≰⇒> (m≰n ∘ s≤s))
+
+≰⇒≥ : _≰_ ⇒ _≥_
+≰⇒≥ = <⇒≤ ∘ ≰⇒>
+
+≮⇒≥ : _≮_ ⇒ _≥_
+≮⇒≥ {_}     {zero}  _       = z≤n
+≮⇒≥ {zero}  {suc j} 1≮j+1   = contradiction (s≤s z≤n) 1≮j+1
+≮⇒≥ {suc i} {suc j} i+1≮j+1 = s≤s (≮⇒≥ (i+1≮j+1 ∘ s≤s))
+
+≤+≢⇒< : ∀ {m n} → m ≤ n → m ≢ n → m < n
+≤+≢⇒< {_} {zero}  z≤n       m≢n     = contradiction refl m≢n
+≤+≢⇒< {_} {suc n} z≤n       m≢n     = s≤s z≤n
+≤+≢⇒< {_} {suc n} (s≤s m≤n) 1+m≢1+n =
+  s≤s (≤+≢⇒< m≤n (1+m≢1+n ∘ cong suc))
 
 ------------------------------------------------------------------------
 -- Properties of _≤′_
@@ -309,9 +338,24 @@ n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
 n≤m+n : ∀ m n → n ≤ m + n
 n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
 
++-mono-≤ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
++-mono-≤ {_} {m} z≤n       o≤p = ≤-trans o≤p (n≤m+n m _)
++-mono-≤ {_} {_} (s≤s m≤n) o≤p = s≤s (+-mono-≤ m≤n o≤p)
+
+-- DEPRECATED - please use +-mono-≤ instead
 _+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
-_+-mono_ {_} {m} z≤n       o≤p = ≤-trans o≤p (n≤m+n m _)
-_+-mono_ {_} {_} (s≤s m≤n) o≤p = s≤s (m≤n +-mono o≤p)
+_+-mono_ = +-mono-≤
+
++-monoˡ-< : _+_ Preserves₂ _<_ ⟶ _≤_ ⟶ _<_
++-monoˡ-< {_} {suc y} (s≤s z≤n)       u≤v = s≤s (≤-steps y u≤v)
++-monoˡ-< {_} {_}     (s≤s (s≤s x<y)) u≤v = s≤s (+-monoˡ-< (s≤s x<y) u≤v)
+
++-monoʳ-< : _+_ Preserves₂ _≤_ ⟶ _<_ ⟶ _<_
++-monoʳ-< {_} {y} z≤n       u<v = ≤-trans u<v (n≤m+n y _)
++-monoʳ-< {_} {_} (s≤s x≤y) u<v = s≤s (+-monoʳ-< x≤y u<v)
+
++-mono-< : _+_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
++-mono-< x≤y = +-monoʳ-< (<⇒≤ x≤y)
 
 ¬i+1+j≤i : ∀ i {j} → i + suc j ≰ i
 ¬i+1+j≤i zero    ()
@@ -454,9 +498,28 @@ cancel-*-right-≤ (suc i) zero    _ ()
 cancel-*-right-≤ (suc i) (suc j) k le =
   s≤s (cancel-*-right-≤ i j k (cancel-+-left-≤ (suc k) le))
 
+*-mono-≤ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
+*-mono-≤ z≤n       _   = z≤n
+*-mono-≤ (s≤s m≤n) u≤v = +-mono-≤ u≤v (*-mono-≤ m≤n u≤v)
+
+-- DEPRECATED - please use *-mono-≤ instead
 _*-mono_ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
-z≤n       *-mono n₁≤n₂ = z≤n
-s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n₁≤n₂)
+_*-mono_ = *-mono-≤
+
+*-mono-< : _*_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+*-mono-< (s≤s z≤n)       (s≤s u≤v) = s≤s z≤n
+*-mono-< (s≤s (s≤s m≤n)) (s≤s u≤v) =
+  +-mono-< (s≤s u≤v) (*-mono-< (s≤s m≤n) (s≤s u≤v))
+
+*-monoˡ-< : ∀ n → (_* suc n) Preserves _<_ ⟶ _<_
+*-monoˡ-< n (s≤s z≤n)       = s≤s z≤n
+*-monoˡ-< n (s≤s (s≤s m≤o)) =
+  +-monoʳ-< (≤-refl {suc n}) (*-monoˡ-< n (s≤s m≤o))
+
+*-monoʳ-< : ∀ n → (suc n *_) Preserves _<_ ⟶ _<_
+*-monoʳ-< zero    (s≤s m≤o) = +-mono-≤ (s≤s m≤o) z≤n
+*-monoʳ-< (suc n) (s≤s m≤o) =
+  +-mono-≤ (s≤s m≤o) (<⇒≤ (*-monoʳ-< n (s≤s m≤o)))
 
 i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
 i*j≡0⇒i≡0∨j≡0 zero    {j}     eq = inj₁ refl
@@ -468,11 +531,8 @@ i*j≡1⇒i≡1 (suc zero)    j             _  = refl
 i*j≡1⇒i≡1 zero          j             ()
 i*j≡1⇒i≡1 (suc (suc i)) (suc (suc j)) ()
 i*j≡1⇒i≡1 (suc (suc i)) (suc zero)    ()
-i*j≡1⇒i≡1 (suc (suc i)) zero          eq with begin
-  0      ≡⟨ *-comm 0 i ⟩
-  i * 0  ≡⟨ eq ⟩
-  1      ∎
-... | ()
+i*j≡1⇒i≡1 (suc (suc i)) zero          eq =
+  contradiction (trans (*-comm 0 i) eq) λ()
 
 i*j≡1⇒j≡1 : ∀ i j → i * j ≡ 1 → j ≡ 1
 i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)

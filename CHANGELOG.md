@@ -116,26 +116,26 @@ Backwards compatible changes
   ⊕-inverseʳ    : RightInverse ⊥ id _⊕_
   ⊕-inverse     : Inverse ⊥ id _⊕_
 
-  ⊕-cong : Congruent₂ _⊕_
-  ⊕-comm : Commutative _⊕_
-  ⊕-assoc : Associative _⊕_
+  ⊕-cong        : Congruent₂ _⊕_
+  ⊕-comm        : Commutative _⊕_
+  ⊕-assoc       : Associative _⊕_
 
-  ∧-distribˡ-⊕ : _∧_ DistributesOverˡ _⊕_
-  ∧-distribʳ-⊕ : _∧_ DistributesOverʳ _⊕_
-  ∧-distrib-⊕ : _∧_ DistributesOver _⊕_
+  ∧-distribˡ-⊕  : _∧_ DistributesOverˡ _⊕_
+  ∧-distribʳ-⊕  : _∧_ DistributesOverʳ _⊕_
+  ∧-distrib-⊕   : _∧_ DistributesOver _⊕_
 
   ∨-isSemigroup           : IsSemigroup _≈_ _∨_
   ∧-isSemigroup           : IsSemigroup _≈_ _∧_
-  ∨-⊥-isMonoid : IsMonoid _≈_ _∨_ ⊥
-  ∧-⊤-isMonoid : IsMonoid _≈_ _∧_ ⊤
+  ∨-⊥-isMonoid            : IsMonoid _≈_ _∨_ ⊥
+  ∧-⊤-isMonoid            : IsMonoid _≈_ _∧_ ⊤
   ∨-⊥-isCommutativeMonoid : IsCommutativeMonoid _≈_ _∨_ ⊥
   ∧-⊤-isCommutativeMonoid : IsCommutativeMonoid _≈_ _∧_ ⊤
 
-  ⊕-isSemigroup : IsSemigroup _≈_ _⊕_
-  ⊕-⊥-isMonoid : IsMonoid _≈_ _⊕_ ⊥
-  ⊕-⊥-isGroup : IsGroup _≈_ _⊕_ ⊥ id
-  ⊕-⊥-isAbelianGroup : IsAbelianGroup _≈_ _⊕_ ⊥ id
-  ⊕-∧-isRing : IsRing _≈_ _⊕_ _∧_ id ⊥ ⊤
+  ⊕-isSemigroup           : IsSemigroup _≈_ _⊕_
+  ⊕-⊥-isMonoid            : IsMonoid _≈_ _⊕_ ⊥
+  ⊕-⊥-isGroup             : IsGroup _≈_ _⊕_ ⊥ id
+  ⊕-⊥-isAbelianGroup      : IsAbelianGroup _≈_ _⊕_ ⊥ id
+  ⊕-∧-isRing              : IsRing _≈_ _⊕_ _∧_ id ⊥ ⊤
   ```
 
 * Added proofs to `Algebra.Properties.DistributiveLattice`:
@@ -171,7 +171,7 @@ Backwards compatible changes
   punchOut-injective   : punchOut i≢j ≡ punchOut i≢k → j ≡ k
   punchIn-injective    : punchIn i j ≡ punchIn i k → j ≡ k
   punchIn-punchOut     : punchIn i (punchOut i≢j) ≡ j
-  punchInᵢ≢i            : punchIn i j ≢ i
+  punchInᵢ≢i           : punchIn i j ≢ i
   ```
 
 * Added proofs to `Data.Fin.Subset.Properties`:
@@ -198,7 +198,7 @@ Backwards compatible changes
 
 * Added additional proofs to `Data.Nat.Properties`:
   ```agda
-  suc-injective        : ∀ {m n} → suc m ≡ suc n → m ≡ n
+  suc-injective        : suc m ≡ suc n → m ≡ n
   ≡-isDecEquivalence   : IsDecEquivalence (_≡_ {A = ℕ})
   ≡-decSetoid          : DecSetoid _ _
 
@@ -218,12 +218,23 @@ Backwards compatible changes
   <-transʳ             : Trans _≤_ _<_ _<_
   <-transˡ             : Trans _<_ _≤_ _<_
   <-isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_
+  <⇒≤                  : _<_ ⇒ _≤_
+  <⇒≢                  : _<_ ⇒ _≢_
+  <⇒≱                  : _<_ ⇒ _≱_
+  <⇒≯                  : _<_ ⇒ _≯_
+  ≰⇒≮                  : _≰_ ⇒ _≮_
+  ≰⇒≥                  : _≰_ ⇒ _≥_
+  ≮⇒≥                  : _≮_ ⇒ _≥_
+  ≤+≢⇒<                : m ≤ n → m ≢ n → m < n
 
   +-left-identity      : LeftIdentity 0 _+_
   +-identity           : Identity 0 _+_
   cancel-+-right       : RightCancellative _+_
   +-cancellative       : Cancellative _+_
   +-isSemigroup        : IsSemigroup _≡_ _+_
+  +-monoˡ-<            : _+_ Preserves₂ _<_ ⟶ _≤_ ⟶ _<_
+  +-monoʳ-<            : _+_ Preserves₂ _≤_ ⟶ _<_ ⟶ _<_
+  +-mono-<             : _+_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
 
   *-left-zero          : LeftZero 0 _*_
   *-zero               : Zero 0 _*_
@@ -233,13 +244,16 @@ Backwards compatible changes
   distribˡ-*-+         : _*_ DistributesOverˡ _+_
   distrib-*-+          : _*_ DistributesOver _+_
   *-isSemigroup        : IsSemigroup _≡_ _*_
+  *-mono-<             : _*_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+  *-monoˡ-<            : (_* suc n) Preserves _<_ ⟶ _<_
+  *-monoʳ-<            : (suc n *_) Preserves _<_ ⟶ _<_
 
   ⊓-idem               : Idempotent _⊓_
   ⊔-idem               : Idempotent _⊔_
-  m⊓n≤n                : ∀ m n → m ⊓ n ≤ n
-  m≤m⊔n                : ∀ m n → m ≤ m ⊔ n
-  m⊔n≤m+n              : ∀ m n → m ⊔ n ≤ m + n
-  m⊓n≤m+n              : ∀ m n → m ⊓ n ≤ m + n
+  m⊓n≤n                : m ⊓ n ≤ n
+  m≤m⊔n                : m ≤ m ⊔ n
+  m⊔n≤m+n              : m ⊔ n ≤ m + n
+  m⊓n≤m+n              : m ⊓ n ≤ m + n
   ⊔-mono-≤             : _⊔_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
   ⊔-mono-<             : _⊔_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
   ⊓-mono-≤             : _⊓_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_

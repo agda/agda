@@ -252,7 +252,7 @@ toℕ-raise (suc n) i = cong suc (toℕ-raise n i)
 infixl 6 _+′_
 
 _+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
-i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) N.≤-refl)
+i +′ j = inject≤ (i + j) (N.+-mono-≤ (prop-toℕ-≤ i) N.≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 
