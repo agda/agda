@@ -9,7 +9,7 @@ module Data.List.Reverse where
 open import Data.List.Base
 open import Data.Nat
 import Data.Nat.Properties as Nat
-open import Induction.Nat
+open import Induction.Nat using (<′-Rec; <′-rec)
 open import Relation.Binary.PropositionalEquality
 
 -- If you want to traverse a list from the end, then you can use the
@@ -22,7 +22,7 @@ data Reverse {A : Set} : List A → Set where
   _∶_∶ʳ_ : ∀ xs (rs : Reverse xs) (x : A) → Reverse (xs ∷ʳ x)
 
 reverseView : ∀ {A} (xs : List A) → Reverse xs
-reverseView {A} xs = <-rec Pred rev (length xs) xs refl
+reverseView {A} xs = <′-rec Pred rev (length xs) xs refl
   where
   Pred : ℕ → Set
   Pred n = (xs : List A) → length xs ≡ n → Reverse xs
@@ -31,7 +31,7 @@ reverseView {A} xs = <-rec Pred rev (length xs) xs refl
   lem []       = ≤′-refl
   lem (x ∷ xs) = Nat.s≤′s (lem xs)
 
-  rev : (n : ℕ) → <-Rec Pred n → Pred n
+  rev : (n : ℕ) → <′-Rec Pred n → Pred n
   rev n                   rec xs         eq   with initLast xs
   rev n                   rec .[]        eq   | []       = []
   rev .(length (xs ∷ʳ x)) rec .(xs ∷ʳ x) refl | xs ∷ʳ' x

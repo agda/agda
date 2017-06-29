@@ -22,7 +22,7 @@ open import Data.Unit.Base using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
 open import Data.List.Base as List using (List; []; _∷_)
 open import Function
-open import Induction.Nat
+open import Induction.Nat using (<′-rec; <′-Rec)
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
@@ -286,11 +286,11 @@ data Tree (N E : Set) : Set where
   node : (label : N) (successors : List (E × Tree N E)) → Tree N E
 
 toTree : ∀ {N E n} → Graph N E n → Fin n → Tree N E
-toTree {N} {E} g i = <-rec Pred expand _ (g [ i ])
+toTree {N} {E} g i = <′-rec Pred expand _ (g [ i ])
   where
   Pred = λ n → Graph N E (suc n) → Tree N E
 
-  expand : (n : ℕ) → <-Rec Pred n → Pred n
+  expand : (n : ℕ) → <′-Rec Pred n → Pred n
   expand n rec (c & g) =
     node (label c)
          (List.map

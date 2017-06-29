@@ -17,7 +17,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
 open import Function.Related.TypeIsomorphisms
-open import Induction.Nat
+open import Induction.Nat using (<′-well-founded)
 import Induction.WellFounded as WF
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Binary.Sum
@@ -199,7 +199,7 @@ Any-merge {P = P} = λ xss → record
 
   to : ∀ xss p → Pred (xss , p)
   to = λ xss p →
-    WF.All.wfRec (WF.Inverse-image.well-founded size <-well-founded) _
+    WF.All.wfRec (WF.Inverse-image.well-founded size <′-well-founded) _
                  Pred step (xss , p)
     where
     size : Input → ℕ

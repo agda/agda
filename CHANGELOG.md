@@ -11,16 +11,18 @@ Non-backwards compatible changes
 * Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
   `Data.Nat.Properties`.
 
-  The rationale is that its location didn't conform to
-  the library's conventions and it was causing dependency cyles when trying to
-  add new ordering properties to `Data.Nat.Properties`.
+  Reasons:
+          1. Its old location didn't conform to the library's conventions.
+          2. Its old location was causing dependency cyles when trying to
+             add new ordering properties to `Data.Nat.Properties`.
 
 * Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
 
 * Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`.
 
-  Previously it was causing dependency cyles to form between `Data.Fin.Dec`,
-  `Relation.Nullary.Negation` and `Data.Fin.Dec`.
+  Reasons:
+          1. Its old location was causing dependency cyles to form between
+             `Data.Fin.Dec`, `Relation.Nullary.Negation` and `Data.Fin`.
 
 * Moved existing contents of `Data.List.Any.Membership` to
   `Data.List.Any.Membership.Propositional.Properties` and moved internal modules
@@ -28,31 +30,45 @@ Non-backwards compatible changes
   `Data.List.Any.Membership` and `Data.List.Any.Membership.Propositional`
   respectively.
 
-  This both improves the ease of importing and opening the
-  membership modules and allows the creation of a new file
-  `Data.List.Any.Membership.Properties` for setoid membership properties.
+  Reasons:
+          1. Improves the ease of importing and opening the membership modules
+          2. Allows the creation of a new file `Data.List.Any.Membership.Properties`
+             for setoid membership properties.
+
+* The well-founded relation proofs for the `_<′_` relation have been renamed
+  from `<-Rec` and `<-well-founded` to `<′-Rec` and `<′-well-founded`
+  respectively. The original names `<-Rec` and `<-well-founded` now refer to new
+  corresponding proofs for `_<_`.
+
+  Reasons:
+          1. The old names were confusing for newcomers to the library as they
+             would assume `<-wellfounded` referred to the standard `_<_` relation.
+          2. Without renaming the existing proofs, there was no way of adding
+             wellfoundedness proofs for the `_<_` relation without increasing the
+             confusion.
 
 * Changed the implementation of `map` and `zipWith` in `Data.Vec` to use native
-  (pattern-matching) definitions.
+  (pattern-matching) definitions. Previously they were defined using the
+  `applicative` operations of `Vec`. The new definitions can be converted back
+  to the old using the new proofs `⊛-is-zipWith`, `map-is-⊛` and `zipWith-is-⊛`
+  in `Data.Vec.Properties`.
 
-  Previously they were defined using the `applicative` operations of `Vec`. The
-  rationale for this change is better printing of goals involving `map` or
-  `zipWith`.  Also, it has been argued that `zipWith` is fundamental than `_⊛_`.
-  The new definitions can be converted back to the old using the new proofs
-  `⊛-is-zipWith`, `map-is-⊛` and `zipWith-is-⊛` in `Data.Vec.Properties`.
+  Reasons:
+          1. Better printing of goals involving `map` or `zipWith`.
+          2. It has been argued that `zipWith` is fundamental than `_⊛_`.
 
-* Changed the implementation of `All₂` in `Data.Vec.All` to a native datatype
-  which allows better pattern matching.
+* Changed the implementation of `All₂` in `Data.Vec.All` to a native datatype.
 
-  The new version (and the associated
-  proofs in `Data.Vec.All.Properties`) are also more generic with respect to
-  types and levels.
+  Reasons:
+          1. Improves pattern matching on terms
+          2. The new datatype is more generic with respect to types and levels.
 
 * Changed the implementation of `downFrom` in `Data.List` to a native
-  (pattern-matching) definition.
+  (pattern-matching) definition. Previously it was defined using a private
+  internal module.
 
-  Previously it was defined using a private interal module that was
-  difficult to reason about.
+  Reasons:
+          1.  Improves pattern matching.
 
 Deprecated features
 -------------------

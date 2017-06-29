@@ -8,6 +8,7 @@ module Induction.Nat where
 
 open import Function
 open import Data.Nat
+open import Data.Nat.Properties using (≤⇒≤′)
 open import Data.Fin using (_≺_)
 open import Data.Fin.Properties
 open import Data.Product
@@ -50,18 +51,33 @@ cRec = build cRec-builder
 ------------------------------------------------------------------------
 -- Complete induction based on _<′_
 
-<-Rec : ∀ {ℓ} → RecStruct ℕ ℓ ℓ
-<-Rec = WfRec _<′_
+<′-Rec : ∀ {ℓ} → RecStruct ℕ ℓ ℓ
+<′-Rec = WfRec _<′_
 
 mutual
 
-  <-well-founded : Well-founded _<′_
-  <-well-founded n = acc (<-well-founded′ n)
+  <′-well-founded : Well-founded _<′_
+  <′-well-founded n = acc (<′-well-founded′ n)
 
-  <-well-founded′ : ∀ n → <-Rec (Acc _<′_) n
-  <-well-founded′ zero     _ ()
-  <-well-founded′ (suc n) .n ≤′-refl       = <-well-founded n
-  <-well-founded′ (suc n)  m (≤′-step m<n) = <-well-founded′ n m m<n
+  <′-well-founded′ : ∀ n → <′-Rec (Acc _<′_) n
+  <′-well-founded′ zero     _ ()
+  <′-well-founded′ (suc n) .n ≤′-refl       = <′-well-founded n
+  <′-well-founded′ (suc n)  m (≤′-step m<n) = <′-well-founded′ n m m<n
+
+module _ {ℓ} where
+  open WF.All <′-well-founded ℓ public
+    renaming ( wfRec-builder to <′-rec-builder
+             ; wfRec to <′-rec
+             )
+
+------------------------------------------------------------------------
+-- Complete induction based on _<_
+
+<-Rec : ∀ {ℓ} → RecStruct ℕ ℓ ℓ
+<-Rec = WfRec _<_
+
+<-well-founded : Well-founded _<_
+<-well-founded = Subrelation.well-founded ≤⇒≤′ <′-well-founded
 
 module _ {ℓ} where
   open WF.All <-well-founded ℓ public
@@ -76,7 +92,7 @@ module _ {ℓ} where
 ≺-Rec = WfRec _≺_
 
 ≺-well-founded : Well-founded _≺_
-≺-well-founded = Subrelation.well-founded ≺⇒<′ <-well-founded
+≺-well-founded = Subrelation.well-founded ≺⇒<′ <′-well-founded
 
 module _ {ℓ} where
   open WF.All ≺-well-founded ℓ public
@@ -127,7 +143,7 @@ private
       }
 
     half₂ : ℕ → ℕ
-    half₂ = <-rec _ half₂-step
+    half₂ = <′-rec _ half₂-step
 
   -- The application half₁ (2 + n) is definitionally equal to
   -- 1 + half₁ n. Perhaps it is instructive to see why.
@@ -165,32 +181,32 @@ private
 
     half₂ (2 + n)                                                         ≡⟨⟩
 
-    <-rec (λ _ → ℕ) half₂-step (2 + n)                                    ≡⟨⟩
+    <′-rec (λ _ → ℕ) half₂-step (2 + n)                                   ≡⟨⟩
 
-    half₂-step (2 + n) (<-rec-builder (λ _ → ℕ) half₂-step (2 + n))       ≡⟨⟩
+    half₂-step (2 + n) (<′-rec-builder (λ _ → ℕ) half₂-step (2 + n))      ≡⟨⟩
 
-    1 + <-rec-builder (λ _ → ℕ) half₂-step (2 + n) n (≤′-step ≤′-refl)    ≡⟨⟩
-
-    1 + Some.wfRec-builder (λ _ → ℕ) half₂-step (2 + n)
-          (<-well-founded (2 + n)) n (≤′-step ≤′-refl)                    ≡⟨⟩
+    1 + <′-rec-builder (λ _ → ℕ) half₂-step (2 + n) n (≤′-step ≤′-refl)   ≡⟨⟩
 
     1 + Some.wfRec-builder (λ _ → ℕ) half₂-step (2 + n)
-          (acc (<-well-founded′ (2 + n))) n (≤′-step ≤′-refl)             ≡⟨⟩
+          (<′-well-founded (2 + n)) n (≤′-step ≤′-refl)                   ≡⟨⟩
+
+    1 + Some.wfRec-builder (λ _ → ℕ) half₂-step (2 + n)
+          (acc (<′-well-founded′ (2 + n))) n (≤′-step ≤′-refl)            ≡⟨⟩
 
     1 + half₂-step n
           (Some.wfRec-builder (λ _ → ℕ) half₂-step n
-             (<-well-founded′ (2 + n) n (≤′-step ≤′-refl)))               ≡⟨⟩
+             (<′-well-founded′ (2 + n) n (≤′-step ≤′-refl)))              ≡⟨⟩
 
     1 + half₂-step n
           (Some.wfRec-builder (λ _ → ℕ) half₂-step n
-             (<-well-founded′ (1 + n) n ≤′-refl))                         ≡⟨⟩
+             (<′-well-founded′ (1 + n) n ≤′-refl))                        ≡⟨⟩
 
     1 + half₂-step n
-          (Some.wfRec-builder (λ _ → ℕ) half₂-step n (<-well-founded n))  ≡⟨⟩
+          (Some.wfRec-builder (λ _ → ℕ) half₂-step n (<′-well-founded n)) ≡⟨⟩
 
-    1 + half₂-step n (<-rec-builder (λ _ → ℕ) half₂-step n)               ≡⟨⟩
+    1 + half₂-step n (<′-rec-builder (λ _ → ℕ) half₂-step n)              ≡⟨⟩
 
-    1 + <-rec (λ _ → ℕ) half₂-step n                                      ≡⟨⟩
+    1 + <′-rec (λ _ → ℕ) half₂-step n                                     ≡⟨⟩
 
     1 + half₂ n                                                           ∎
 
@@ -219,7 +235,7 @@ private
   -- <-rec.
 
   half₁-+₂ : ∀ n → half₁ (twice n) ≡ n
-  half₁-+₂ = <-rec _ λ
+  half₁-+₂ = <′-rec _ λ
     { zero          _   → refl
     ; (suc zero)    _   → refl
     ; (suc (suc n)) rec →
@@ -227,7 +243,7 @@ private
     }
 
   half₂-+₂ : ∀ n → half₂ (twice n) ≡ n
-  half₂-+₂ = <-rec _ λ
+  half₂-+₂ = <′-rec _ λ
     { zero          _   → refl
     ; (suc zero)    _   → refl
     ; (suc (suc n)) rec →
