@@ -257,7 +257,7 @@ makeCase hole rng s = withInteractionId hole $ do
   split :: QName -> [Nat] -> SplitClause -> TCM [(SplitClause, Bool)]
   split f [] clause = return [(clause,False)]
   split f (var : vars) clause = do
-    z <- splitClauseWithAbsurd clause var
+    z <- dontAssignMetas $ splitClauseWithAbsurd clause var
     case z of
       Left err          -> typeError $ SplitError err
       Right (Left cl)   -> return [(cl,True)]
