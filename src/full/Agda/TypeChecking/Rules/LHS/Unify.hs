@@ -1117,6 +1117,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
       RecordFlex ks -> fromMaybe ImplicitFlex $ ks !!! j
       ImplicitFlex  -> ImplicitFlex
       DotFlex       -> DotFlex
+      OtherFlex     -> OtherFlex
 
     liftFlexible :: Int -> Int -> Maybe Int
     liftFlexible n j = if j == i then Nothing else Just (if j > i then j + (n-1) else j)

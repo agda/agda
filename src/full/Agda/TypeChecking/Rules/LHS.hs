@@ -99,8 +99,9 @@ instance IsFlexiblePattern A.Pattern where
       A.WildP{} -> return ImplicitFlex
       A.AsP _ _ p -> maybeFlexiblePattern p
       A.ConP _ (A.AmbQ [c]) qs
-        -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
+        -> ifM (isNothing <$> isRecordConstructor c) (return OtherFlex) {-else-}
              (maybeFlexiblePattern qs)
+      A.LitP{}  -> return OtherFlex
       _ -> mzero
 
 instance IsFlexiblePattern (I.Pattern' a) where
@@ -158,29 +159,31 @@ updateInPatterns as ps qs = do
         A.DotP _ _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
-        A.ConP _ (A.AmbQ [c]) qs -> do
-          Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
-          let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          (ftel, us) <- etaExpandRecord r vs u
+        p@(A.ConP _ (A.AmbQ [c]) qs) -> ifM (isNothing <$> isRecordConstructor c)
+          (return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a]))
+          (do
+            Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
+            let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+            (ftel, us) <- etaExpandRecord r vs u
 
-          qs <- insertImplicitPatterns ExpandLast qs ftel
-          reportSDoc "tc.lhs.imp" 20 $
-            text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs)
+            qs <- insertImplicitPatterns ExpandLast qs ftel
+            reportSDoc "tc.lhs.imp" 20 $
+              text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs)
 
-          let instTel EmptyTel _                   = []
-              instTel (ExtendTel arg tel) (u : us) = arg : instTel (absApp tel u) us
-              instTel ExtendTel{} []               = __IMPOSSIBLE__
-              bs0 = instTel ftel (map unArg us)
-              -- Andreas, 2012-09-19 propagate relevance info to dot patterns
-              bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
-          updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel)
+            let instTel EmptyTel _                   = []
+                instTel (ExtendTel arg tel) (u : us) = arg : instTel (absApp tel u) us
+                instTel ExtendTel{} []               = __IMPOSSIBLE__
+                bs0 = instTel ftel (map unArg us)
+                -- Andreas, 2012-09-19 propagate relevance info to dot patterns
+                bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
+            updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel))
+        p@A.ConP{} -> return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a])
+        p@A.LitP{} -> return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a])
         A.AsP         _ _ _ -> __IMPOSSIBLE__
-        A.ConP        _ _ _ -> __IMPOSSIBLE__
         A.RecP        _ _   -> __IMPOSSIBLE__
         A.ProjP       _ _ _ -> __IMPOSSIBLE__
         A.DefP        _ _ _ -> __IMPOSSIBLE__
         A.AbsurdP     _     -> __IMPOSSIBLE__
-        A.LitP        _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
         A.EqualP{}          -> __IMPOSSIBLE__
       ConP c cpi [] -> do

@@ -41,6 +41,7 @@ data FlexibleVarKind
       --   Saves the 'FlexibleVarKind' of its subpatterns.
   | ImplicitFlex -- ^ From a hidden formal argument or underscore ('WildP').
   | DotFlex      -- ^ From a dot pattern ('DotP').
+  | OtherFlex    -- ^ From a non-record constructor or literal ('ConP' or 'LitP').
   deriving (Eq, Show)
 
 -- | Flexible variables are equipped with information where they come from,
@@ -102,6 +103,9 @@ instance ChooseFlex FlexibleVarKind where
   chooseFlex (RecordFlex xs) y               = chooseFlex xs (repeat y)
   chooseFlex x               (RecordFlex ys) = chooseFlex (repeat x) ys
   chooseFlex ImplicitFlex    ImplicitFlex    = ChooseEither
+  chooseFlex ImplicitFlex    _               = ChooseLeft
+  chooseFlex _               ImplicitFlex    = ChooseRight
+  chooseFlex OtherFlex       OtherFlex       = ChooseEither
 
 instance ChooseFlex a => ChooseFlex [a] where
   chooseFlex xs ys = mconcat $ zipWith chooseFlex xs ys

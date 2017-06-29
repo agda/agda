@@ -140,6 +140,22 @@ Language
   giving `-v a.b.c:10` enables printing from `debugPrint "a.b.c.d" 10 msg`. In the
   Emacs mode, debug output ends up in the `*Agda debug*` buffer.
 
+* Dot patterns.
+
+  The dot in front of an inaccessible pattern can now be skipped if the
+  pattern is constructor-headed. For example:
+  ```agda
+    open import Agda.Builtin.Bool
+
+    data D : Bool → Set where
+      c : D true
+
+    f : (x : Bool) → D x → Bool
+    f true c = true
+
+  ```
+  Before this change, you had to write `f .true c = true`.
+
 Emacs mode
 ----------
 
