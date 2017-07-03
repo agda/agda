@@ -101,7 +101,7 @@ library
 
     -- If your change the lower bound of cpphs also change it in the
     -- `.travis.yml` file [Issue #2315].
-    build-tools: cpphs >= 1.20.2
+    build-tools: cpphs >= 1.20.8
     ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(debug)
