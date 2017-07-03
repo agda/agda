@@ -249,6 +249,7 @@ Backwards compatible changes
   +◃n≡+n                : Sign.+ ◃ n ≡ + n
   -◃n≡-n                : Sign.- ◃ n ≡ - + n
   signₙ◃∣n∣≡n           : sign n ◃ ∣ n ∣ ≡ n
+  ∣s◃m∣*∣t◃n∣≡m*n          : ∀ s t m n → ∣ s ◃ m ∣ ℕ* ∣ t ◃ n ∣ ≡ m ℕ* n
 
   ⊖-≰                   : n ≰ m → m ⊖ n ≡ - + (n ∸ m)
   ∣⊖∣-≰                 : n ≰ m → ∣ m ⊖ n ∣ ≡ n ∸ m
@@ -269,6 +270,7 @@ Backwards compatible changes
   *-zero                : Zero (+ 0) _*_
   *-1-isMonoid          : IsMonoid _≡_ _*_ (+ 1)
   -1*n≡-n               : -[1+ 0 ] * n ≡ - n
+  ◃-distrib-*           :  ∀ s t m n → (s 𝕊* t) ◃ (m ℕ* n) ≡ (s ◃ m) * (t ◃ n)
 
   +-*-isRing            : IsRing _≡_ _+_ _*_ -_ (+ 0) (+ 1)
   +-*-isCommutativeRing : IsCommutativeRing _≡_ _+_ _*_ -_ (+ 0) (+ 1)

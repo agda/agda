@@ -107,6 +107,9 @@ abs-cong {s₁} {s₂} {n₁} {n₂} eq = begin
   ∣ s₂ ◃ n₂ ∣  ≡⟨ abs-◃ s₂ n₂ ⟩
   n₂           ∎
 
+∣s◃m∣*∣t◃n∣≡m*n : ∀ s t m n → ∣ s ◃ m ∣ ℕ* ∣ t ◃ n ∣ ≡ m ℕ* n
+∣s◃m∣*∣t◃n∣≡m*n s t m n = cong₂ _ℕ*_ (abs-◃ s m) (abs-◃ t n)
+
 ------------------------------------------------------------------------
 -- Properties of _⊖_
 
@@ -621,3 +624,15 @@ cancel-*-+-right-≤ (+ suc m)  (+ suc n)  o (+≤+ m≤n) =
 -1*n≡-n (+ zero)  = refl
 -1*n≡-n (+ suc n) = cong -[1+_] (ℕ.+-right-identity n)
 -1*n≡-n -[1+ n ]  = cong (λ v → + suc v) (ℕ.+-right-identity n)
+
+◃-distrib-* :  ∀ s t m n → (s 𝕊* t) ◃ (m ℕ* n) ≡ (s ◃ m) * (t ◃ n)
+◃-distrib-* s t zero zero    = refl
+◃-distrib-* s t zero (suc n) = refl
+◃-distrib-* s t (suc m) zero =
+  trans
+    (cong₂ _◃_ (𝕊.*-comm s t) (ℕ.*-comm m 0))
+    (*-comm (t ◃ zero) (s ◃ suc m))
+◃-distrib-* s t (suc m) (suc n) =
+  sym (cong₂ _◃_
+    (cong₂ _𝕊*_ (sign-◃ s m) (sign-◃ t n))
+    (∣s◃m∣*∣t◃n∣≡m*n s t (suc m) (suc n)))
