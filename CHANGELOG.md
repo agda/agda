@@ -103,6 +103,8 @@ Backwards compatible changes
 
 * Added support for GHC 8.0.2.
 
+* Removed the empty `Irrelevance` module
+
 * Added `Category.Functor.Morphism` and module `Category.Functor.Identity`.
 
 * `Data.Container` and `Data.Container.Indexed` now allow for different
