@@ -114,6 +114,11 @@ trans∧tri⟶resp≈ {_≈_ = _≈_} {_<_} sym trans <-trans tri =
   ... | tri≈ _ y≈z _ = ⊥-elim (tri⟶irr tri (trans x≈y y≈z) x<z)
   ... | tri> _ _ z<y = ⊥-elim (tri⟶irr tri x≈y (<-trans x<z z<y))
 
+P-resp⟶¬P-resp :
+  ∀ {a p ℓ} {A : Set a} {_≈_ : Rel A ℓ} {P : A → Set p} →
+  Symmetric _≈_ → P Respects _≈_ → (¬_ ∘ P) Respects _≈_
+P-resp⟶¬P-resp sym resp x≈y ¬Px Py = ¬Px (resp (sym x≈y) Py)
+
 tri⟶dec≈ :
   ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
   Trichotomous _≈_ _<_ → Decidable _≈_

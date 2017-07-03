@@ -460,6 +460,11 @@ Backwards compatible changes
   All₂-concat⁻ : All₂ _~_ (concat xss) (concat yss) → All₂ (All₂ _~_) xss yss
   ```
 
+* Added proofs to `Relation.Binary.Consequences`
+  ```agda
+  P-resp⟶¬P-resp : Symmetric _≈_ → P Respects _≈_ → (¬_ ∘ P) Respects _≈_
+  ```
+
 Version 0.13
 ============
 
