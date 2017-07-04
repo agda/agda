@@ -18,7 +18,7 @@ open import Relation.Binary.Core using (_≡_; refl)
 infix  8 -_
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _-_ _⊖_ _⊔_
-infix  4 _≤_
+infix  4 _≤_ _≥_ _<_ _>_ _≰_ _≱_ _≮_ _≯_
 
 ------------------------------------------------------------------------
 -- The types
@@ -148,6 +148,27 @@ data _≤_ : ℤ → ℤ → Set where
   -≤+ : ∀ {m n} → -[1+ m ] ≤ + n
   -≤- : ∀ {m n} → (n≤m : n ℕ.≤ m) → -[1+ m ] ≤ -[1+ n ]
   +≤+ : ∀ {m n} → (m≤n : m ℕ.≤ n) → + m ≤ + n
+
+_≥_ : Rel ℤ _
+x ≥ y = y ≤ x
+
+_<_ : Rel ℤ _
+x < y = suc x ≤ y
+
+_>_ : Rel ℤ _
+x > y = y < x
+
+_≰_ : Rel ℤ _
+x ≰ y = ¬ (x ≤ y)
+
+_≱_ : Rel ℤ _
+x ≱ y = ¬ (x ≥ y)
+
+_≮_ : Rel ℤ _
+x ≮ y = ¬ (x < y)
+
+_≯_ : Rel ℤ _
+x ≯ y = ¬ (x > y)
 
 drop‿+≤+ : ∀ {m n} → + m ≤ + n → ℕ._≤_ m n
 drop‿+≤+ (+≤+ m≤n) = m≤n

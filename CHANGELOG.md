@@ -235,6 +235,17 @@ Backwards compatible changes
   ∩⇔×       : x ∈ p ∩ q ⇔ (x ∈ p × x ∈ q)
   ```
 
+* Added relations to `Data.Integer`
+  ```agda
+  _≥_ : Rel ℤ _
+  _<_ : Rel ℤ _
+  _>_ : Rel ℤ _
+  _≰_ : Rel ℤ _
+  _≱_ : Rel ℤ _
+  _≮_ : Rel ℤ _
+  _≯_ : Rel ℤ _
+  ```
+
 * Added proofs to `Data.Integer.Properties`
   ```agda
   +-injective           : + m ≡ + n → m ≡ n
@@ -260,6 +271,7 @@ Backwards compatible changes
   +-inverse             : Inverse (+ 0) -_ _+_
   +-0-isMonoid          : IsMonoid _≡_ _+_ (+ 0)
   +-0-isGroup           : IsGroup _≡_ _+_ (+ 0) (-_)
+  +-0-abelianGroup      : AbelianGroup _ _
   neg-distrib-+         : - (m + n) ≡ (- m) + (- n)
   ◃-distrib-+           : s ◃ (m + n) ≡ (s ◃ m) + (s ◃ n)
 
