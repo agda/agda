@@ -143,7 +143,7 @@ Language
 * Dot patterns.
 
   The dot in front of an inaccessible pattern can now be skipped if the
-  pattern is constructor-headed. For example:
+  pattern consists of constructors or literals. For example:
   ```agda
     open import Agda.Builtin.Bool
 
