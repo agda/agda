@@ -299,8 +299,14 @@ compareMaxViews cmp us vs = case (cmp, us, vs) of
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
 compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
-compareBelowMax u vs =
+compareBelowMax u vs = do
+  reportSDoc "tc.conv.size" 45 $ vcat
+    [ text "compareBelowMax"
+    ]
   alt (dontAssignMetas $ alts $ map (compareSizeViews CmpLeq u) vs) $ do
+    reportSDoc "tc.conv.size" 45 $ vcat
+      [ text "compareBelowMax: giving up"
+      ]
     u <- unDeepSizeView u
     v <- unMaxView vs
     size <- sizeType
@@ -312,6 +318,12 @@ compareBelowMax u vs =
 
 compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
 compareSizeViews cmp s1' s2' = do
+  reportSDoc "tc.conv.size" 45 $ hsep
+    [ text "compareSizeViews"
+    , text (show s1')
+    , text (show cmp)
+    , text (show s2')
+    ]
   size <- sizeType
   let (s1, s2) = removeSucs (s1', s2')
       withUnView cont = do
