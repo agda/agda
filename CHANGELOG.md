@@ -344,6 +344,33 @@ Backwards compatible changes
   length-reverse : length (reverse xs) ≡ length xs
   ```
 
+* Added proofs to `Data.List.All.Properties`
+  ```agda
+  All-universal : Universal P → ∀ xs → All P xs
+
+  ¬Any⇒All¬     : ¬ Any P xs → All (¬_ ∘ P) xs
+  All¬⇒¬Any     : All (¬_ ∘ P) xs → ¬ Any P xs
+  ¬All⇒Any¬     : Decidable P → ¬ All P xs → Any (¬_ ∘ P) xs
+
+  ++⁺           : All P xs → All P ys → All P (xs ++ ys)
+  ++⁻ˡ          : All P (xs ++ ys) → All P xs
+  ++⁻ʳ          : All P (xs ++ ys) → All P ys
+  ++⁻           : All P (xs ++ ys) → All P xs × All P ys
+
+  concat⁺       : All (All P) xss → All P (concat xss)
+  concat⁻       : All P (concat xss) → All (All P) xss
+
+  drop⁺         : All P xs → All P (drop n xs)
+  take⁺         : All P xs → All P (take n xs)
+
+  tabulate⁺     : (∀ i → P (f i)) → All P (tabulate f)
+  tabulate⁻     : All P (tabulate f) → (∀ i → P (f i))
+
+  applyUpTo⁺₁   : (∀ {i} → i < n → P (f i)) → All P (applyUpTo f n)
+  applyUpTo⁺₂   : (∀ i → P (f i)) → All P (applyUpTo f n)
+  applyUpTo⁻    : All P (applyUpTo f n) → ∀ {i} → i < n → P (f i)
+  ```
+
 * Added proofs to `Data.List.Any.Properties`
   ```agda
   lose∘find   : uncurry′ lose (proj₂ (find p)) ≡ p
