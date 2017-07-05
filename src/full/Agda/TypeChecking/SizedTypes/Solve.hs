@@ -552,7 +552,7 @@ solveCluster flag ccs = do
               reportSDoc "tc.size.solve" 30 $
                 prettyTCM (MetaV m []) <+> text "is frozen, cannot set it to ∞"
               return False
-        ifM (isFrozen m) no $ {-else-} do
+        ifM (isFrozen m `or2M` do not <$> asks envAssignMetas) no $ {-else-} do
           reportSDoc "tc.size.solve" 20 $
             text "solution " <+> prettyTCM (MetaV m []) <+>
             text " := "      <+> prettyTCM inf

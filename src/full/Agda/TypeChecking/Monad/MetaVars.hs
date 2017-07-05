@@ -47,7 +47,9 @@ import Agda.Utils.Impossible
 
 -- | Switch off assignment of metas.
 dontAssignMetas :: TCM a -> TCM a
-dontAssignMetas = local $ \ env -> env { envAssignMetas = False }
+dontAssignMetas cont = do
+  reportSLn "tc.meta" 45 $ "don't assign metas"
+  local (\ env -> env { envAssignMetas = False }) cont
 
 -- | Get the meta store.
 getMetaStore :: TCM MetaStore
