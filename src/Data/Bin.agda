@@ -8,23 +8,17 @@ module Data.Bin where
 
 open import Data.Nat as Nat
   using (ℕ; zero; z≤n; s≤s) renaming (suc to 1+_)
-import Data.Nat.Properties as NP
-open NP.≤-Reasoning
 open import Data.Digit
 open import Data.Fin as Fin using (Fin; zero) renaming (suc to 1+_)
 open import Data.Fin.Properties as FP using (_+′_)
 open import Data.List.Base as List hiding (downFrom)
 open import Function
-open import Data.Product
-open import Algebra
+open import Data.Product using (uncurry; _,_; _×_)
 open import Relation.Binary
-open import Relation.Binary.Consequences
-open import Relation.Binary.PropositionalEquality as PropEq
+open import Relation.Binary.PropositionalEquality
   using (_≡_; _≢_; refl; sym)
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
-private
-  module BitOrd = StrictTotalOrder (FP.strictTotalOrder 2)
 
 ------------------------------------------------------------------------
 -- The type
@@ -93,109 +87,14 @@ fromℕ : ℕ → Bin
 fromℕ n = fromBits $ ntoBits n
 
 ------------------------------------------------------------------------
--- (Bin, _≡_, _<_) is a strict total order
+-- Order relation.
+
+-- Wrapped so that the parameters can be inferred.
 
 infix 4 _<_
 
--- Order relation. Wrapped so that the parameters can be inferred.
-
 data _<_ (b₁ b₂ : Bin) : Set where
   less : (lt : (Nat._<_ on toℕ) b₁ b₂) → b₁ < b₂
-
-private
-  <-trans : Transitive _<_
-  <-trans (less lt₁) (less lt₂) = less (NP.<-trans lt₁ lt₂)
-
-  asym : ∀ {b₁ b₂} → b₁ < b₂ → ¬ b₂ < b₁
-  asym {b₁} {b₂} (less lt) (less gt) = tri⟶asym cmp lt gt
-    where cmp = StrictTotalOrder.compare NP.strictTotalOrder
-
-  irr : ∀ {b₁ b₂} → b₁ < b₂ → b₁ ≢ b₂
-  irr lt eq = asym⟶irr (PropEq.resp₂ _<_) sym asym eq lt
-
-  irr′ : ∀ {b} → ¬ b < b
-  irr′ lt = irr lt refl
-
-  ∷∙ : ∀ {b₁ b₂ bs₁ bs₂} →
-       bs₁ 1# < bs₂ 1# → (b₁ ∷ bs₁) 1# < (b₂ ∷ bs₂) 1#
-  ∷∙ {b₁} {b₂} {bs₁} {bs₂} (less lt) = less (begin
-      1 + (m₁ + n₁ * 2)  ≤⟨ +-mono-≤ (≤-refl {x = 1})
-                              (+-mono-≤ (≤-pred (FP.bounded b₁)) ≤-refl) ⟩
-      1 + (1  + n₁ * 2)  ≡⟨ refl ⟩
-            suc n₁ * 2   ≤⟨ *-mono-≤ lt ≤-refl ⟩
-                n₂ * 2   ≤⟨ n≤m+n m₂ (n₂ * 2) ⟩
-           m₂ + n₂ * 2   ∎
-    )
-    where
-    open Nat; open NP
-    m₁ = Fin.toℕ b₁;   m₂ = Fin.toℕ b₂
-    n₁ = toℕ (bs₁ 1#); n₂ = toℕ (bs₂ 1#)
-
-  ∙∷ : ∀ {b₁ b₂ bs} →
-       Fin._<_ b₁ b₂ → (b₁ ∷ bs) 1# < (b₂ ∷ bs) 1#
-  ∙∷ {b₁} {b₂} {bs} lt = less (begin
-    1 + (m₁  + n * 2)  ≡⟨ sym (+-assoc 1 m₁ (n * 2)) ⟩
-    (1 + m₁) + n * 2   ≤⟨ +-mono-≤ lt ≤-refl ⟩
-         m₂  + n * 2   ∎)
-    where
-    open Nat; open NP
-    m₁ = Fin.toℕ b₁; m₂ = Fin.toℕ b₂; n = toℕ (bs 1#)
-
-  1<[23] : ∀ {b} → [] 1# < (b ∷ []) 1#
-  1<[23] {b} = less (NP.n≤m+n (Fin.toℕ b) 2)
-
-  1<2+ : ∀ {bs b} → [] 1# < (b ∷ bs) 1#
-  1<2+ {[]}     = 1<[23]
-  1<2+ {b ∷ bs} = <-trans 1<[23] (∷∙ {b₁ = b} (1<2+ {bs}))
-
-  0<1 : 0# < [] 1#
-  0<1 = less (s≤s z≤n)
-
-  0<+ : ∀ {bs} → 0# < bs 1#
-  0<+ {[]}     = 0<1
-  0<+ {b ∷ bs} = <-trans 0<1 1<2+
-
-  compare⁺ : Trichotomous (_≡_ on _1#) (_<_ on _1#)
-  compare⁺ []         []         = tri≈ irr′ refl irr′
-  compare⁺ []         (b ∷ bs)   = tri<       1<2+  (irr 1<2+) (asym 1<2+)
-  compare⁺ (b ∷ bs)   []         = tri> (asym 1<2+) (irr 1<2+ ∘ sym) 1<2+
-  compare⁺ (b₁ ∷ bs₁) (b₂ ∷ bs₂) with compare⁺ bs₁ bs₂
-  ... | tri<  lt ¬eq ¬gt = tri<       (∷∙ lt)  (irr (∷∙ lt)) (asym (∷∙ lt))
-  ... | tri> ¬lt ¬eq  gt = tri> (asym (∷∙ gt)) (irr (∷∙ gt) ∘ sym) (∷∙ gt)
-  compare⁺ (b₁ ∷ bs) (b₂ ∷ .bs) | tri≈ ¬lt refl ¬gt with BitOrd.compare b₁ b₂
-  compare⁺ (b  ∷ bs) (.b ∷ .bs) | tri≈ ¬lt refl ¬gt | tri≈ ¬lt′ refl ¬gt′ =
-    tri≈ irr′ refl irr′
-  ... | tri<  lt′ ¬eq ¬gt′ = tri<       (∙∷ lt′)  (irr (∙∷ lt′)) (asym (∙∷ lt′))
-  ... | tri> ¬lt′ ¬eq  gt′ = tri> (asym (∙∷ gt′)) (irr (∙∷ gt′) ∘ sym) (∙∷ gt′)
-
-  compare : Trichotomous _≡_ _<_
-  compare 0#       0#       = tri≈ irr′ refl irr′
-  compare 0#       (bs₂ 1#) = tri<       0<+  (irr 0<+) (asym 0<+)
-  compare (bs₁ 1#) 0#       = tri> (asym 0<+) (irr 0<+ ∘ sym) 0<+
-  compare (bs₁ 1#) (bs₂ 1#) = compare⁺ bs₁ bs₂
-
-strictTotalOrder : StrictTotalOrder _ _ _
-strictTotalOrder = record
-  { Carrier            = Bin
-  ; _≈_                = _≡_
-  ; _<_                = _<_
-  ; isStrictTotalOrder = record
-    { isEquivalence = PropEq.isEquivalence
-    ; trans         = <-trans
-    ; compare       = compare
-    }
-  }
-
-------------------------------------------------------------------------
--- (Bin, _≡_) is a decidable setoid
-
-decSetoid : DecSetoid _ _
-decSetoid = StrictTotalOrder.decSetoid strictTotalOrder
-
-infix 4 _≟_
-
-_≟_ : Decidable {A = Bin} _≡_
-_≟_ = DecSetoid._≟_ decSetoid
 
 ------------------------------------------------------------------------
 -- Arithmetic
