@@ -617,6 +617,10 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
               Irrelevant -> dontCare <$> body
               _          -> body
 
+        -- absurd clauses don't define computational behaviour, so it's fine to
+        -- treat them as catchalls.
+        let catchall' = catchall || isNothing body
+
         return $ (,psplit)
           Clause { clauseLHSRange  = getRange i
                  , clauseFullRange = getRange c
@@ -624,7 +628,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
                  , namedClausePats = ps
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
-                 , clauseCatchall  = catchall
+                 , clauseCatchall  = catchall'
                  }
 
 -- | Type check the @with@ and @rewrite@ lhss and/or the rhs.
