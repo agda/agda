@@ -1,4 +1,6 @@
 -- Andreas, Jesper, 2017-05-13, issue #2578 reported by nad
+-- Jesper, 2017-07-06, absurd clauses are no longer highlighted as catchall,
+-- so the test case had to be changed to reproduce the intended behaviour.
 
 data _⊎_ (A B : Set) : Set where
   inj₁ : A → A ⊎ B
@@ -29,5 +31,5 @@ A with false
 A | true = Set
 A | false with x | x
 ... | nothing | nothing = Set
-... | just () | _
-... | _ | just ()
+... | just x | _ = {!!}
+... | _ | just y = {!!}
