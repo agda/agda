@@ -5,6 +5,14 @@ Let's suppose the new version of GHC is X.Y.Z.
 
 * Install the tools in the `build-tools` field(s) of Agda.cabal.
 
+* Update Cabal index:
+
+  `cabal update`
+
+* Install Agda dependencies:
+
+  `cabal install --enable-test --only-dependencies`
+
 * Install Agda using GHC X.Y.Z:
 
   `make install-bin`
