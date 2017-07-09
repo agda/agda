@@ -44,8 +44,8 @@
 :set -XConstraintKinds
 :set -XDataKinds
 :set -XDefaultSignatures
-:set -XDeriveFunctor
 :set -XDeriveFoldable
+:set -XDeriveFunctor
 :set -XDeriveTraversable
 :set -XExistentialQuantification
 :set -XFlexibleContexts
@@ -57,5 +57,5 @@
 :set -XRankNTypes
 :set -XRecordWildCards
 :set -XStandaloneDeriving
-:set -XTupleSections
 :set -XTypeSynonymInstances
+:set -XTupleSections
