@@ -53,9 +53,11 @@
 :set -XFunctionalDependencies
 :set -XLambdaCase
 :set -XMultiParamTypeClasses
+:set -XMultiWayIf
 :set -XNamedFieldPuns
 :set -XRankNTypes
 :set -XRecordWildCards
+:set -XScopedTypeVariables
 :set -XStandaloneDeriving
 :set -XTypeSynonymInstances
 :set -XTupleSections

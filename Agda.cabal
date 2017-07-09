@@ -749,6 +749,9 @@ test-suite internal-tests
   default-extensions:  ConstraintKinds
                      , DataKinds
                      , DefaultSignatures
+                     , DeriveFoldable
+                     , DeriveFunctor
+                     , DeriveTraversable
                      , ExistentialQuantification
                      , FlexibleContexts
                      , FlexibleInstances
