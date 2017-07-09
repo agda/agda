@@ -556,8 +556,8 @@ library
   default-extensions: ConstraintKinds
                     , DataKinds
                     , DefaultSignatures
-                    , DeriveFunctor
                     , DeriveFoldable
+                    , DeriveFunctor
                     , DeriveTraversable
                     , ExistentialQuantification
                     , FlexibleContexts
@@ -571,8 +571,8 @@ library
                     , RecordWildCards
                     , ScopedTypeVariables
                     , StandaloneDeriving
-                    , TupleSections
                     , TypeSynonymInstances
+                    , TupleSections
 
 executable agda
   hs-source-dirs: src/main
@@ -760,8 +760,8 @@ test-suite internal-tests
                      , RecordWildCards
                      , ScopedTypeVariables
                      , StandaloneDeriving
-                     , TupleSections
                      , TypeSynonymInstances
+                     , TupleSections
 
   -- Initially, we disable all the warnings.
   ghc-options: -w
