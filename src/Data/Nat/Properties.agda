@@ -118,13 +118,13 @@ pred-mono : pred Preserves _≤_ ⟶ _≤_
 pred-mono z≤n      = z≤n
 pred-mono (s≤s le) = le
 
-≤pred⇒≤ : ∀ m n → m ≤ pred n → m ≤ n
-≤pred⇒≤ m zero    le = le
-≤pred⇒≤ m (suc n) le = ≤-step le
+≤pred⇒≤ : ∀ {m n} → m ≤ pred n → m ≤ n
+≤pred⇒≤ {m} {zero}  le = le
+≤pred⇒≤ {m} {suc n} le = ≤-step le
 
-≤⇒pred≤ : ∀ m n → m ≤ n → pred m ≤ n
-≤⇒pred≤ zero    n le = le
-≤⇒pred≤ (suc m) n le = ≤-trans (n≤1+n m) le
+≤⇒pred≤ : ∀ {m n} → m ≤ n → pred m ≤ n
+≤⇒pred≤ {zero}  le = le
+≤⇒pred≤ {suc m} le = ≤-trans (n≤1+n m) le
 
 -- A module for reasoning about the _≤_ relation
 module ≤-Reasoning where
@@ -151,7 +151,7 @@ x <? y = suc x ≤? y
 <-asym (s≤s n<m) (s≤s m<n) = <-asym n<m m<n
 
 <-trans : Transitive _<_
-<-trans (s≤s i≤j) (s≤s j<k) = s≤s (≤-trans i≤j (≤⇒pred≤ _ _ j<k))
+<-trans (s≤s i≤j) (s≤s j<k) = s≤s (≤-trans i≤j (≤⇒pred≤ j<k))
 
 <-transʳ : Trans _≤_ _<_ _<_
 <-transʳ m≤n (s≤s n≤o) = s≤s (≤-trans m≤n n≤o)

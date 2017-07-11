@@ -23,17 +23,25 @@ Non-backwards compatible changes
   Reasons:
 
   1. Its old location was causing dependency cyles when trying to add new ordering
-         properties to `Data.Nat.Properties`.
+     properties to `Data.Nat.Properties`.
   2. Better conforms to library conventions.
 
 * Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
+
+* Made the arguments of `≤pred⇒≤` and `≤⇒pred≤` implicit rather than explicit
+  (was `∀ m n → m ≤ pred n → m ≤ n` and is now `∀ m n → m ≤ pred n → m ≤ n`)
+
+  Reasons:
+
+  1. Now consistent with `<⇒≤pred` which already used implicit arguments
+  2. Both parameters can be inferred by Agda.
 
 * Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`.
 
   Reasons:
 
   1. Its old location was causing dependency cyles to form between `Data.Fin.Dec`,
-         `Relation.Nullary.Negation` and `Data.Fin`.
+     `Relation.Nullary.Negation` and `Data.Fin`.
 
 * Moved existing contents of `Data.List.Any.Membership` to
   `Data.List.Any.Membership.Propositional.Properties` and moved internal modules
