@@ -124,9 +124,10 @@ data DefaultToInfty
 solveSizeConstraints :: DefaultToInfty -> TCM ()
 solveSizeConstraints flag =  do
 
-  -- 1. Get the constraints normalised.
+  -- 1. Take out the size constraints normalised.
 
-  cs0 <- mapM (mapClosure normalise) =<< S.getSizeConstraints
+  cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints
+    -- NOTE: this deletes the size constraints from the constraint set!
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
       [ text $ "Solving constraints (" ++ show flag ++ ")"
@@ -214,6 +215,8 @@ solveSizeConstraints flag =  do
   --       forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
   -- 5. Make sure we did not lose any constraints.
+
+  -- This is necessary since we have removed the size constraints.
   forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
 
