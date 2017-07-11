@@ -8,91 +8,75 @@ Important changes since 0.13:
 Non-backwards compatible changes
 --------------------------------
 
-* Added new module `Data.Bin.Properties` and moved `strictTotalOrder` and
-  `decSetoid` from `Data.Bin` to `<-strictTotalOrder` and `≡-decSetoid`
-  in `Data.Bin.Properties`.
+#### Overhaul of list membership
 
-  Reasons:
+* The current setup for list membership is difficult to work with as both setoid membership
+  and propositional membership exist as internal modules of `Data.Any`. Furthermore the
+  top-level module `Data.List.Any.Membership` actually contains properties of propositional
+  membership rather than the membership relation itself as its name would suggest.
+  Consequently this leaves no place to reason about the properties of setoid membership.
 
-  1. `Data.Bin` was becoming too large.
-  2. Better conforms to library conventions for other numeric datatypes.
+  Therefore the two internal modules `Membership` and `Membership-≡` have been moved out
+  of `Data.List.Any` into top-level `Data.List.Any.Membership` and
+  `Data.List.Any.Membership.Propositional` respectively. The previous module
+  `Data.List.Any.Membership` has been renamed
+  `Data.List.Any.Membership.Propositional.Properties`.
 
-* Moved `decTotalOrder` in `Data.Nat` to `≤-decTotalOrder` in
-  `Data.Nat.Properties`.
+#### New `Properties` file for `Data.Bin`
 
-  Reasons:
+* `Data.Bin` was becoming too large and so a new module `Data.Bin.Properties` has been
+  added to bring in line with standard library conventions for other datatypes.
 
-  1. Its old location was causing dependency cyles when trying to add new ordering
-     properties to `Data.Nat.Properties`.
-  2. Better conforms to library conventions.
+  The proofs `strictTotalOrder` and `decSetoid` have therefore been moved from `Data.Bin`
+  to `<-strictTotalOrder` and `≡-decSetoid` respectively in `Data.Bin.Properties`.
 
-* Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
+#### New well-founded induction proofs for `Data.Nat`
 
-* The arguments of `≤pred⇒≤` and `≤⇒pred≤` are now implicit rather than explicit
-  (was `∀ m n → m ≤ pred n → m ≤ n` and is now `∀ {m n} → m ≤ pred n → m ≤ n`)
+* Currently `Induction.Nat` only proves that the non-standard `_<′_`relation over `ℕ` is
+  well-founded. Unfortunately these existing proofs are named `<-Rec` and `<-well-founded`
+  which clash with the sensible names for new proofs over the standard `_<_` relation.
 
-  Reasons:
-
-  1. Now consistent with `<⇒≤pred` which already used implicit arguments
-  2. Both parameters can be inferred by Agda.
-
-* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`.
-
-  Reasons:
-
-  1. Its old location was causing dependency cyles to form between `Data.Fin.Dec`,
-     `Relation.Nullary.Negation` and `Data.Fin`.
-
-* Moved existing contents of `Data.List.Any.Membership` to
-  `Data.List.Any.Membership.Propositional.Properties` and moved internal modules
-  `Membership` and `Membership-≡` out of `Data.List.Any` into
-  `Data.List.Any.Membership` and `Data.List.Any.Membership.Propositional`
-  respectively.
-
-  Reasons:
-
-  1. Improves the ease of importing and opening the membership modules.
-  2. Allows the creation of a new file `Data.List.Any.Membership.Properties`
-     for setoid membership properties.
-
-* The well-founded relation proofs for the `_<′_` relation have been renamed
-  from `<-Rec` and `<-well-founded` to `<′-Rec` and `<′-well-founded`
+  Therefore `<-Rec` and `<-well-founded` have been renamed to `<′-Rec` and `<′-well-founded`
   respectively. The original names `<-Rec` and `<-well-founded` now refer to new
   corresponding proofs for `_<_`.
 
-  Reasons:
+#### Moving `decTotalOrder` out of `Data.Nat`
 
-  1. The old names were confusing for newcomers to the library as they
-     would assume `<-wellfounded` referred to the standard `_<_` relation.
-  2. Without renaming the existing proofs, there was no way of adding
-     wellfoundedness proofs for the `_<_` relation without increasing the
-     confusion.
+* Previously the library did not directly expose proofs of basic properties such as reflexivity,
+  transitivity etc. for `_≤_` in `Data.Nat`. Instead it was necessary to open the `decTotalOrder`
+  module in `Data.Nat` which often added unnecessary lines of code.
+
+  These proofs have now been made public in `Data.Nat.Properties`. Consequently the proof
+  `decTotalOrder` in `Data.Nat` has been moved to `≤-decTotalOrder` in `Data.Nat.Properties`
+  in order to avoid dependency cycles.
+
+  Consequently the module `≤-Reasoning` has been moved to `Data.Nat.Properties` as well.
+
+#### Other
 
 * Changed the implementation of `map` and `zipWith` in `Data.Vec` to use native
   (pattern-matching) definitions. Previously they were defined using the
   `applicative` operations of `Vec`. The new definitions can be converted back
   to the old using the new proofs `⊛-is-zipWith`, `map-is-⊛` and `zipWith-is-⊛`
-  in `Data.Vec.Properties`.
+  in `Data.Vec.Properties`. It has been argued that `zipWith` is fundamental than `_⊛_`
+  and this change allows better printing of goals involving `map` or `zipWith`.
 
-  Reasons:
+* Changed the implementation of `All₂` in `Data.Vec.All` to a native datatype. This
+  improved improves pattern matching on terms and allows the new datatype to be more
+  generic with respect to types and levels.
 
-  1. Better printing of goals involving `map` or `zipWith`.
-  2. It has been argued that `zipWith` is fundamental than `_⊛_`.
+* The arguments of `≤pred⇒≤` and `≤⇒pred≤` are now implicit rather than explicit
+  (was `∀ m n → m ≤ pred n → m ≤ n` and is now `∀ {m n} → m ≤ pred n → m ≤ n`).
+  This makes it consistent with `<⇒≤pred` which already used implicit arguments, and
+  shouldn't introduce any significant problems as both parameters can be inferred by Agda.
 
-* Changed the implementation of `All₂` in `Data.Vec.All` to a native datatype.
-
-  Reasons:
-
-  1. Improves pattern matching on terms.
-  2. The new datatype is more generic with respect to types and levels.
+* Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`. Its old
+  location was causing dependency cyles to form between `Data.Fin.Dec`,
+  `Relation.Nullary.Negation` and `Data.Fin`.
 
 * Changed the implementation of `downFrom` in `Data.List` to a native
   (pattern-matching) definition. Previously it was defined using a private
-  internal module.
-
-  Reasons:
-
-  1.  Improves pattern matching on terms.
+  internal module which made pattern matching difficult.
 
 Deprecated features
 -------------------
