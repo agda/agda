@@ -18,6 +18,7 @@ open import Relation.Nullary
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality
 open import Algebra.FunctionProperties (_≡_ {A = ℕ})
+open import Algebra.FunctionProperties.Consequences (setoid ℕ)
 open import Data.Product
 open import Data.Sum
 open ≡-Reasoning
@@ -271,12 +272,12 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 +-assoc zero    _ _ = refl
 +-assoc (suc m) n o = cong suc (+-assoc m n o)
 
++-left-identity : LeftIdentity 0 _+_
++-left-identity _ = refl
+
 +-right-identity : RightIdentity 0 _+_
 +-right-identity zero    = refl
 +-right-identity (suc n) = cong suc (+-right-identity n)
-
-+-left-identity : LeftIdentity 0 _+_
-+-left-identity _ = refl
 
 +-identity : Identity 0 _+_
 +-identity = +-left-identity , +-right-identity
@@ -429,11 +430,7 @@ distribʳ-*-+ m (suc n) o = begin
   suc n * m + o * m   ∎
 
 distribˡ-*-+ : _*_ DistributesOverˡ _+_
-distribˡ-*-+ x y z = begin
-  x * (y + z)       ≡⟨ *-comm x (y + z) ⟩
-  (y + z) * x       ≡⟨ distribʳ-*-+ x y z ⟩
-  (y * x) + (z * x) ≡⟨ cong₂ _+_ (*-comm y x) (*-comm z x) ⟩
-  (x * y) + (x * z) ∎
+distribˡ-*-+ = comm+distrʳ⇒distrˡ (cong₂ _+_) *-comm distribʳ-*-+
 
 distrib-*-+ : _*_ DistributesOver _+_
 distrib-*-+ = distribˡ-*-+ , distribʳ-*-+
@@ -559,11 +556,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊔-comm : Commutative _⊔_
 ⊔-comm zero    n       = sym $ ⊔-right-identity n
 ⊔-comm (suc m) zero    = refl
-⊔-comm (suc m) (suc n) = begin
-  suc m ⊔ suc n ≡⟨ refl ⟩
-  suc (m ⊔ n)   ≡⟨ cong suc (⊔-comm m n) ⟩
-  suc (n ⊔ m)   ≡⟨ refl ⟩
-  suc n ⊔ suc m ∎
+⊔-comm (suc m) (suc n) = cong suc (⊔-comm m n)
 
 -- ∀ x y → (x ⊔ y ≡ x) ⊎ (x ⊔ y ≡ y)
 ⊔-sel : Selective _⊔_
@@ -575,9 +568,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 
 -- ∀ x → x ⊔ x ≡ x
 ⊔-idem : Idempotent _⊔_
-⊔-idem x with ⊔-sel x x
-... | inj₁ x⊔x≈x = x⊔x≈x
-... | inj₂ x⊔x≈x = x⊔x≈x
+⊔-idem = sel⇒idem ⊔-sel
 
 ⊓-assoc : Associative _⊓_
 ⊓-assoc zero    _       _       = refl
@@ -598,11 +589,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊓-comm : Commutative _⊓_
 ⊓-comm zero    n       = sym $ ⊓-right-zero n
 ⊓-comm (suc m) zero    = refl
-⊓-comm (suc m) (suc n) = begin
-  suc m ⊓ suc n  ≡⟨ refl ⟩
-  suc (m ⊓ n)    ≡⟨ cong suc (⊓-comm m n) ⟩
-  suc (n ⊓ m)    ≡⟨ refl ⟩
-  suc n ⊓ suc m  ∎
+⊓-comm (suc m) (suc n) = cong suc (⊓-comm m n)
 
 -- ∀ x y → (x ⊓ y ≡ x) ⊎ (x ⊓ y ≡ y)
 ⊓-sel : Selective _⊓_
@@ -614,9 +601,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 
 -- ∀ x → x ⊓ x ≡ x
 ⊓-idem : Idempotent _⊓_
-⊓-idem x with ⊓-sel x x
-... | inj₁ x⊓x≈x = x⊓x≈x
-... | inj₂ x⊓x≈x = x⊓x≈x
+⊓-idem = sel⇒idem ⊓-sel
 
 ⊓-distribʳ-⊔ : _⊓_ DistributesOverʳ _⊔_
 ⊓-distribʳ-⊔ (suc m) (suc n) (suc o) = cong suc $ ⊓-distribʳ-⊔ m n o
@@ -629,11 +614,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
   n ⊓ 0 ⊔ o ⊓ 0  ∎
 
 ⊓-distribˡ-⊔ : _⊓_ DistributesOverˡ _⊔_
-⊓-distribˡ-⊔ m n o = begin
-  m ⊓ (n ⊔ o)    ≡⟨ ⊓-comm m _ ⟩
-  (n ⊔ o) ⊓ m    ≡⟨ ⊓-distribʳ-⊔ m n o ⟩
-  n ⊓ m ⊔ o ⊓ m  ≡⟨ ⊓-comm n m ⟨ cong₂ _⊔_ ⟩ ⊓-comm o m ⟩
-  m ⊓ n ⊔ m ⊓ o  ∎
+⊓-distribˡ-⊔ = comm+distrʳ⇒distrˡ (cong₂ _⊔_) ⊓-comm ⊓-distribʳ-⊔
 
 ⊓-distrib-⊔ : _⊓_ DistributesOver _⊔_
 ⊓-distrib-⊔ = ⊓-distribˡ-⊔ , ⊓-distribʳ-⊔
@@ -773,11 +754,7 @@ m⊓n≤m+n m n with ⊓-sel m n
 +-distribˡ-⊔ (suc x) y z = cong suc (+-distribˡ-⊔ x y z)
 
 +-distribʳ-⊔ : _+_ DistributesOverʳ _⊔_
-+-distribʳ-⊔ x y z = begin
-  (y ⊔ z) + x       ≡⟨ +-comm (y ⊔ z) x ⟩
-  x + (y ⊔ z)       ≡⟨ +-distribˡ-⊔ x y z ⟩
-  (x + y) ⊔ (x + z) ≡⟨ cong₂ _⊔_ (+-comm x y) (+-comm x z) ⟩
-  (y + x) ⊔ (z + x) ∎
++-distribʳ-⊔ = comm+distrˡ⇒distrʳ (cong₂ _⊔_) +-comm +-distribˡ-⊔
 
 +-distrib-⊔ : _+_ DistributesOver _⊔_
 +-distrib-⊔ = +-distribˡ-⊔ , +-distribʳ-⊔
@@ -787,11 +764,7 @@ m⊓n≤m+n m n with ⊓-sel m n
 +-distribˡ-⊓ (suc x) y z = cong suc (+-distribˡ-⊓ x y z)
 
 +-distribʳ-⊓ : _+_ DistributesOverʳ _⊓_
-+-distribʳ-⊓ x y z = begin
-  (y ⊓ z) + x       ≡⟨ +-comm (y ⊓ z) x ⟩
-  x + (y ⊓ z)       ≡⟨ +-distribˡ-⊓ x y z ⟩
-  (x + y) ⊓ (x + z) ≡⟨ cong₂ _⊓_ (+-comm x y) (+-comm x z) ⟩
-  (y + x) ⊓ (z + x) ∎
++-distribʳ-⊓ = comm+distrˡ⇒distrʳ (cong₂ _⊓_) +-comm +-distribˡ-⊓
 
 +-distrib-⊓ : _+_ DistributesOver _⊓_
 +-distrib-⊓ = +-distribˡ-⊓ , +-distribʳ-⊓

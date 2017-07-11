@@ -18,6 +18,8 @@ private
     hiding (replace-equality)
 open import Algebra.Structures
 open import Algebra.FunctionProperties _≈_
+open import Algebra.FunctionProperties.Consequences
+  record {isEquivalence = isEquivalence}
 open import Relation.Binary.EqReasoning setoid
 open import Relation.Binary
 open import Function
@@ -29,19 +31,13 @@ open import Data.Product
 -- Some simple generalisations
 
 ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
-∨-complementˡ x = begin
-  ¬ x ∨ x    ≈⟨ ∨-comm _ _ ⟩
-  x   ∨ ¬ x  ≈⟨ ∨-complementʳ _ ⟩
-  ⊤          ∎
+∨-complementˡ = comm+invʳ⇒invˡ ∨-comm ∨-complementʳ
 
 ∨-complement : Inverse ⊤ ¬_ _∨_
 ∨-complement = ∨-complementˡ , ∨-complementʳ
 
 ∧-complementˡ : LeftInverse ⊥ ¬_ _∧_
-∧-complementˡ x = begin
-  ¬ x ∧ x    ≈⟨ ∧-comm _ _ ⟩
-  x   ∧ ¬ x  ≈⟨ ∧-complementʳ _ ⟩
-  ⊥          ∎
+∧-complementˡ = comm+invʳ⇒invˡ ∧-comm ∧-complementʳ
 
 ∧-complement : Inverse ⊥ ¬_ _∧_
 ∧-complement = ∧-complementˡ , ∧-complementʳ
@@ -76,7 +72,7 @@ open import Data.Product
   x              ∎
 
 ∧-identityˡ : LeftIdentity ⊤ _∧_
-∧-identityˡ _ = ∧-comm _ _ ⟨ trans ⟩ ∧-identityʳ _
+∧-identityˡ = comm+idʳ⇒idˡ ∧-comm ∧-identityʳ
 
 ∧-identity : Identity ⊤ _∧_
 ∧-identity = ∧-identityˡ , ∧-identityʳ
@@ -88,7 +84,7 @@ open import Data.Product
   x              ∎
 
 ∨-identityˡ : LeftIdentity ⊥ _∨_
-∨-identityˡ _ = ∨-comm _ _ ⟨ trans ⟩ ∨-identityʳ _
+∨-identityˡ = comm+idʳ⇒idˡ ∨-comm ∨-identityʳ
 
 ∨-identity : Identity ⊥ _∨_
 ∨-identity = ∨-identityˡ , ∨-identityʳ
@@ -102,7 +98,7 @@ open import Data.Product
   ⊥              ∎
 
 ∧-zeroˡ : LeftZero ⊥ _∧_
-∧-zeroˡ _ = ∧-comm _ _ ⟨ trans ⟩ ∧-zeroʳ _
+∧-zeroˡ = comm+zeʳ⇒zeˡ ∧-comm ∧-zeroʳ
 
 ∧-zero : Zero ⊥ _∧_
 ∧-zero = ∧-zeroˡ , ∧-zeroʳ
@@ -428,11 +424,7 @@ module XorRing
         (x ∧ (y ∨ z)) ∧ ¬ x    ∎
 
   ∧-distribʳ-⊕ : _∧_ DistributesOverʳ _⊕_
-  ∧-distribʳ-⊕ x y z = begin
-    (y ⊕ z) ∧ x        ≈⟨ ∧-comm _ _ ⟩
-    x ∧ (y ⊕ z)        ≈⟨ ∧-distribˡ-⊕ _ _ _ ⟩
-    (x ∧ y) ⊕ (x ∧ z)  ≈⟨ ∧-comm _ _ ⟨ ⊕-cong ⟩ ∧-comm _ _ ⟩
-    (y ∧ x) ⊕ (z ∧ x)  ∎
+  ∧-distribʳ-⊕ = comm+distrˡ⇒distrʳ ⊕-cong ∧-comm ∧-distribˡ-⊕
 
   ∧-distrib-⊕ : _∧_ DistributesOver _⊕_
   ∧-distrib-⊕ = ∧-distribˡ-⊕ , ∧-distribʳ-⊕

@@ -8,6 +8,7 @@ module Data.Integer.Properties where
 
 open import Algebra
 import Algebra.FunctionProperties
+import Algebra.FunctionProperties.Consequences
 import Algebra.Morphism as Morphism
 import Algebra.Properties.AbelianGroup
 open import Algebra.Structures
@@ -28,6 +29,7 @@ open import Relation.Nullary using (yes; no)
 open import Relation.Nullary.Negation using (contradiction)
 
 open Algebra.FunctionProperties (_≡_ {A = ℤ})
+open Algebra.FunctionProperties.Consequences (setoid ℤ)
 open Morphism.Definitions ℤ ℕ _≡_
 open ℕₚ.SemiringSolver
 open ≡-Reasoning
@@ -173,7 +175,7 @@ sign-⊖-≰ = sign-⊖-< ∘ ℕₚ.≰⇒>
 +-identityˡ (+   _ ) = refl
 
 +-identityʳ : RightIdentity (+ 0) _+_
-+-identityʳ x rewrite +-comm x (+ 0) = +-identityˡ x
++-identityʳ = comm+idˡ⇒idʳ +-comm +-identityˡ
 
 +-identity : Identity (+ 0) _+_
 +-identity = +-identityˡ , +-identityʳ
@@ -241,10 +243,7 @@ inverseˡ (+ zero)  = refl
 inverseˡ (+ suc n) = n⊖n≡0 n
 
 inverseʳ : RightInverse (+ 0) -_ _+_
-inverseʳ i = begin
-  i + - i  ≡⟨ +-comm i (- i) ⟩
-  - i + i  ≡⟨ inverseˡ i ⟩
-  + 0      ∎
+inverseʳ = comm+invˡ⇒invʳ +-comm inverseˡ
 
 +-inverse : Inverse (+ 0) -_ _+_
 +-inverse = inverseˡ , inverseʳ
@@ -345,11 +344,7 @@ neg-distrib-+ -[1+ m ]  (+   n)  =
 *-identityˡ (+ suc n) rewrite ℕₚ.+-right-identity n = refl
 
 *-identityʳ : RightIdentity (+ 1) _*_
-*-identityʳ x rewrite
-    𝕊ₚ.*-identityʳ (sign x)
-  | ℕₚ.*-right-identity ∣ x ∣
-  | signₙ◃∣n∣≡n x
-  = refl
+*-identityʳ = comm+idˡ⇒idʳ *-comm *-identityˡ
 
 *-identity : Identity (+ 1) _*_
 *-identity = *-identityˡ , *-identityʳ
@@ -358,7 +353,7 @@ neg-distrib-+ -[1+ m ]  (+   n)  =
 *-zeroˡ n = refl
 
 *-zeroʳ : RightZero (+ 0) _*_
-*-zeroʳ n rewrite *-comm n (+ 0) = refl
+*-zeroʳ = comm+zeˡ⇒zeʳ *-comm *-zeroˡ
 
 *-zero : Zero (+ 0) _*_
 *-zero = *-zeroˡ , *-zeroʳ

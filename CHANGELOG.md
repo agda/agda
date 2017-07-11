@@ -142,6 +142,20 @@ Backwards compatible changes
   Cancellative      _•_ = LeftCancellative _•_ × RightCancellative _•_
   ```
 
+* Added new module `Algebra.FunctionProperties.Consequences` for basic causal relationships between
+  properties, containing:
+  ```agda
+  comm+idˡ⇒idʳ       : Commutative _•_ → LeftIdentity e _•_ → RightIdentity e _•_
+  comm+idʳ⇒idˡ       : Commutative _•_ → RightIdentity e _•_ → LeftIdentity e _•_
+  comm+zeˡ⇒zeʳ       : Commutative _•_ → LeftZero e _•_ → RightZero e _•_
+  comm+zeʳ⇒zeˡ       : Commutative _•_ → RightZero e _•_ → LeftZero e _•_
+  comm+invˡ⇒invʳ     : Commutative _•_ → LeftInverse e _⁻¹ _•_ → RightInverse e _⁻¹ _•_
+  comm+invʳ⇒invˡ     : Commutative _•_ → RightInverse e _⁻¹ _•_ → LeftInverse e _⁻¹ _•_
+  comm+distrˡ⇒distrʳ : Commutative _•_ → _•_ DistributesOverˡ _◦_ → _•_ DistributesOverʳ _◦_
+  comm+distrʳ⇒distrˡ : Commutative _•_ → _•_ DistributesOverʳ _◦_ → _•_ DistributesOverˡ _◦_
+  sel⇒idem           : Selective _•_ → Idempotent _•_
+  ```
+
 * Added proofs to `Algebra.Properties.BooleanAlgebra`:
   ```agda
   ∨-complementˡ : LeftInverse ⊤ ¬_ _∨_
