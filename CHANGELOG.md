@@ -28,8 +28,8 @@ Non-backwards compatible changes
 
 * Moved module `≤-Reasoning` from `Data.Nat` to `Data.Nat.Properties`
 
-* Made the arguments of `≤pred⇒≤` and `≤⇒pred≤` implicit rather than explicit
-  (was `∀ m n → m ≤ pred n → m ≤ n` and is now `∀ m n → m ≤ pred n → m ≤ n`)
+* The arguments of `≤pred⇒≤` and `≤⇒pred≤` are now implicit rather than explicit
+  (was `∀ m n → m ≤ pred n → m ≤ n` and is now `∀ {m n} → m ≤ pred n → m ≤ n`)
 
   Reasons:
 
@@ -181,7 +181,7 @@ Backwards compatible changes
   ∧-zeroˡ       : LeftZero ⊥ _∧_
   ∧-zero        : Zero ⊥ _∧_
 
-  ∨-zeroʳ       : ∀ x → x ∨ ⊤ ≈ ⊤
+  ∨-zeroʳ       : RightZero ⊤ _∨_
   ∨-zeroˡ       : LeftZero ⊤ _∨_
   ∨-zero        : Zero ⊤ _∨_
 
@@ -272,8 +272,8 @@ Backwards compatible changes
 
 * Added proofs to `Data.Fin.Subset.Properties`:
   ```agda
-  x∈⁅x⁆     : ∀ {n} (x : Fin n) → x ∈ ⁅ x ⁆
-  x∈⁅y⁆⇒x≡y : ∀ {n x} (y : Fin n) → x ∈ ⁅ y ⁆ → x ≡ y
+  x∈⁅x⁆     : x ∈ ⁅ x ⁆
+  x∈⁅y⁆⇒x≡y : x ∈ ⁅ y ⁆ → x ≡ y
 
   ∪-assoc   : Associative _≡_ _∪_
   ∩-assoc   : Associative _≡_ _∩_
@@ -311,13 +311,13 @@ Backwards compatible changes
   doubleNeg             : - - n ≡ n
   neg-injective         : - m ≡ - n → m ≡ n
 
-  ∣n∣≡0⇒n≡0             : ∀ {n} → ∣ n ∣ ≡ 0 → n ≡ + 0
-  ∣-n∣≡∣n∣              : ∀ n → ∣ - n ∣ ≡ ∣ n ∣
+  ∣n∣≡0⇒n≡0             : ∣ n ∣ ≡ 0 → n ≡ + 0
+  ∣-n∣≡∣n∣              : ∣ - n ∣ ≡ ∣ n ∣
 
   +◃n≡+n                : Sign.+ ◃ n ≡ + n
   -◃n≡-n                : Sign.- ◃ n ≡ - + n
   signₙ◃∣n∣≡n           : sign n ◃ ∣ n ∣ ≡ n
-  ∣s◃m∣*∣t◃n∣≡m*n          : ∀ s t m n → ∣ s ◃ m ∣ ℕ* ∣ t ◃ n ∣ ≡ m ℕ* n
+  ∣s◃m∣*∣t◃n∣≡m*n       : ∣ s ◃ m ∣ ℕ* ∣ t ◃ n ∣ ≡ m ℕ* n
 
   ⊖-≰                   : n ≰ m → m ⊖ n ≡ - + (n ∸ m)
   ∣⊖∣-≰                 : n ≰ m → ∣ m ⊖ n ∣ ≡ n ∸ m
@@ -339,7 +339,7 @@ Backwards compatible changes
   *-zero                : Zero (+ 0) _*_
   *-1-isMonoid          : IsMonoid _≡_ _*_ (+ 1)
   -1*n≡-n               : -[1+ 0 ] * n ≡ - n
-  ◃-distrib-*           :  ∀ s t m n → (s 𝕊* t) ◃ (m ℕ* n) ≡ (s ◃ m) * (t ◃ n)
+  ◃-distrib-*           : (s 𝕊* t) ◃ (m ℕ* n) ≡ (s ◃ m) * (t ◃ n)
 
   +-*-isRing            : IsRing _≡_ _+_ _*_ -_ (+ 0) (+ 1)
   +-*-isCommutativeRing : IsCommutativeRing _≡_ _+_ _*_ -_ (+ 0) (+ 1)
@@ -368,7 +368,7 @@ Backwards compatible changes
 
 * Added proofs to `Data.List.All.Properties`
   ```agda
-  All-universal : Universal P → ∀ xs → All P xs
+  All-universal : Universal P → All P xs
 
   ¬Any⇒All¬     : ¬ Any P xs → All (¬_ ∘ P) xs
   All¬⇒¬Any     : All (¬_ ∘ P) xs → ¬ Any P xs
