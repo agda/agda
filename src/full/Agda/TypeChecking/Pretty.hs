@@ -302,7 +302,18 @@ instance PrettyTCM Constraint where
                     , nest 2 $ prettyTCM p ]
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
-              InstV{} -> __IMPOSSIBLE__
+              InstV{} -> empty
+              -- Andreas, 2017-01-11, issue #2637:
+              -- The size solver instantiates some metas with infinity
+              -- without cleaning up the UnBlock constraints.
+              -- Thus, this case is not IMPOSSIBLE.
+              --
+              -- InstV args t -> do
+              --   reportSLn "impossible" 10 $ unlines
+              --     [ "UnBlock meta " ++ show m ++ " surprisingly has InstV instantiation:"
+              --     , show m ++ show args ++ " := " ++ show t
+              --     ]
+              --   __IMPOSSIBLE__
         FindInScope m mb mcands -> do
             t <- getMetaType m
             sep [ hang (text "Resolve instance argument" <+> blk) 2 $

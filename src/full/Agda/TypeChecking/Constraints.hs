@@ -224,6 +224,10 @@ solveConstraint_ (UnBlock m)                =
       --
       -- already solved metavariables: should only happen for size
       -- metas (not sure why it does, Andreas?)
+      -- Andreas, 2017-07-11:
+      -- I think this is because the size solver instantiates
+      -- some metas with infinity but does not clean up the UnBlock constraints.
+      -- See also issue #2637.
       InstV{} -> return ()
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
