@@ -384,14 +384,27 @@ isSizeConstraint :: Closure Constraint -> TCM Bool
 isSizeConstraint Closure{ clValue = ValueCmp _ s _ _ } = isJust <$> isSizeType s
 isSizeConstraint _ = return False
 
+-- | Take out all size constraints (DANGER!).
+takeSizeConstraints :: TCM [Closure Constraint]
+takeSizeConstraints = do
+  test <- isSizeTypeTest
+  let sizeConstraint :: Closure Constraint -> Bool
+      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
+              | isJust (test $ unEl s) = True
+      sizeConstraint _ = False
+  cs <- filter sizeConstraint . map theConstraint <$> getAllConstraints
+  dropConstraints $ sizeConstraint . theConstraint
+  return cs
+
 -- | Find the size constraints.
 getSizeConstraints :: TCM [Closure Constraint]
 getSizeConstraints = do
   test <- isSizeTypeTest
-  let sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
-              | isJust (test $ unEl s) = Just cl
-      sizeConstraint _ = Nothing
-  mapMaybe (sizeConstraint . theConstraint) <$> getAllConstraints
+  let sizeConstraint :: Closure Constraint -> Bool
+      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
+              | isJust (test $ unEl s) = True
+      sizeConstraint _ = False
+  filter sizeConstraint . map theConstraint <$> getAllConstraints
 
 -- | Return a list of size metas and their context.
 getSizeMetas :: Bool -> TCM [(MetaId, Type, Telescope)]
