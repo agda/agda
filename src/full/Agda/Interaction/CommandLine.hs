@@ -290,7 +290,8 @@ splashScreen = unlines
     , "        __/ /"
     , "        \\__/"
     , ""
-    , "The interactive mode is no longer supported. Don't complain if it doesn't work."
+    -- , "The interactive mode is no longer supported. Don't complain if it doesn't work."
+    , "The interactive mode is no longer under active development. Use at your own risk."
     ]
 
 -- | The help message
