@@ -37,11 +37,24 @@ open import Relation.Unary
   using (Pred; _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
+open import Relation.Binary.List.Pointwise
+  using ([]; _∷_) renaming (Rel to ListRel)
 
 open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
   open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
+
+------------------------------------------------------------------------
+-- If a predicate P respects the underlying equality then Any P
+-- respects the list equality.
+
+lift-resp : ∀ {a p ℓ} {A : Set a} {P : A → Set p} {_≈_ : Rel A ℓ} →
+            P Respects _≈_ → Any P Respects (ListRel _≈_)
+lift-resp resp []            ()
+lift-resp resp (x≈y ∷ xs≈ys) (here px)   = here (resp x≈y px)
+lift-resp resp (x≈y ∷ xs≈ys) (there pxs) =
+  there (lift-resp resp xs≈ys pxs)
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose

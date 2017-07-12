@@ -22,10 +22,16 @@ Non-backwards compatible changes
   `Data.List.Any.Membership` has been renamed
   `Data.List.Any.Membership.Propositional.Properties`.
 
+  Accordingly some lemmas have been moved to more logical locations:
+  - `lift-resp` has been moved from `Data.List.Any.Membership` to `Data.List.Any.Properties`
+  - `∈-resp-≈`, `⊆-preorder` and `⊆-Reasoning` have been moved from `Data.List.Any.Membership`
+  to `Data.List.Any.Membership.Properties`. `∈-resp-list-≈` has also been moved and renamed
+  `∈-resp-≋`.
+
 #### New `Properties` file for `Data.Bin`
 
-* `Data.Bin` was becoming too large and so a new module `Data.Bin.Properties` has been
-  added to bring in line with standard library conventions for other datatypes.
+* A new module `Data.Bin.Properties` has been added to bring `Data.Bin` in line with standard
+  library conventions for other datatypes.
 
   The proofs `strictTotalOrder` and `decSetoid` have therefore been moved from `Data.Bin`
   to `<-strictTotalOrder` and `≡-decSetoid` respectively in `Data.Bin.Properties`.
