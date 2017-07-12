@@ -309,6 +309,15 @@ open Algebra.Properties.AbelianGroup +-0-abelianGroup
 
 -- Other properties of _+_
 
+n≢1+n : ∀ {n} → n ≢ sucℤ n
+n≢1+n {+ _}           ()
+n≢1+n { -[1+ 0 ]}     ()
+n≢1+n { -[1+ suc n ]} ()
+
+1-[1+n]≡-n : ∀ n → sucℤ -[1+ n ] ≡ - (+ n)
+1-[1+n]≡-n zero    = refl
+1-[1+n]≡-n (suc n) = refl
+
 neg-distrib-+ : ∀ m n → - (m + n) ≡ (- m) + (- n)
 neg-distrib-+ (+ zero)  (+ zero)  = refl
 neg-distrib-+ (+ zero)  (+ suc n) = refl
@@ -721,3 +730,100 @@ cancel-*-+-right-≤ (+ suc m)  (+ suc n)  o (+≤+ m≤n) =
 
 import Relation.Binary.PartialOrderReasoning as POR
 module ≤-Reasoning = POR ≤-poset renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+
+≤-step : ∀ {n m} → n ≤ m → n ≤ sucℤ m
+≤-step -≤+             = -≤+
+≤-step (+≤+ m≤n)       = +≤+ (ℕₚ.≤-step m≤n)
+≤-step (-≤- z≤n)       = -≤+
+≤-step (-≤- (s≤s n≤m)) = -≤- (ℕₚ.≤-step n≤m)
+
+n≤1+n : ∀ n → n ≤ (+ 1) + n
+n≤1+n n = ≤-step ≤-refl
+
+------------------------------------------------------------------------
+-- Properties _<_
+
+-<+ : ∀ {m n} → -[1+ m ] < + n
+-<+ {0}     = +≤+ z≤n
+-<+ {suc _} = -≤+
+
+<-irrefl : Irreflexive _≡_ _<_
+<-irrefl { + n}          refl (+≤+ 1+n≤n) = ℕₚ.<-irrefl refl 1+n≤n
+<-irrefl { -[1+ zero  ]} refl ()
+<-irrefl { -[1+ suc n ]} refl (-≤- 1+n≤n) = ℕₚ.<-irrefl refl 1+n≤n
+
+<-asym : Asymmetric _<_
+<-asym {+ n}           {+ m}           (+≤+ n<m) (+≤+ m<n) =
+  ℕₚ.<-asym n<m m<n
+<-asym {+ n}           { -[1+ m ]}     ()        _
+<-asym { -[1+ n ]}     {+_ n₁}         _         ()
+<-asym { -[1+ 0 ]}     { -[1+_] _}     ()        _
+<-asym { -[1+ _ ]}     { -[1+_] 0}     _         ()
+<-asym { -[1+ suc n ]} { -[1+ suc m ]} (-≤- n<m) (-≤- m<n) =
+  ℕₚ.<-asym n<m m<n
+
+<-trans : Transitive _<_
+<-trans { + m}          {_}             (+≤+ m<n) (+≤+ n<o) =
+  +≤+ (ℕₚ.<-trans m<n n<o)
+<-trans { -[1+ 0     ]} {_}             (+≤+ m<n) (+≤+ n<o) = +≤+ z≤n
+<-trans { -[1+ suc m ]} {+ n}           m<n       (+≤+ m≤n) = -≤+
+<-trans { -[1+ suc m ]} { -[1+ 0 ]}     m<n       (+≤+ m≤n) = -≤+
+<-trans { -[1+ suc m ]} { -[1+ suc n ]} (-≤- n≤m) -≤+       = -≤+
+<-trans { -[1+ suc m ]} { -[1+ suc n ]} (-≤- n<m) (-≤- o≤n) =
+  -≤- (ℕₚ.≤-trans o≤n (ℕₚ.<⇒≤ n<m))
+
+<-cmp : Trichotomous _≡_ _<_
+<-cmp (+ m) (+ n) with ℕₚ.<-cmp m n
+... | tri< m<n m≢n m≯n =
+  tri< (+≤+ m<n)         (m≢n ∘ +-injective) (m≯n ∘ drop‿+≤+)
+... | tri≈ m≮n m≡n m≯n =
+  tri≈ (m≮n ∘ drop‿+≤+) (cong (+_) m≡n)     (m≯n ∘ drop‿+≤+)
+... | tri> m≮n m≢n m>n =
+  tri> (m≮n ∘ drop‿+≤+) (m≢n ∘ +-injective) (+≤+ m>n)
+<-cmp (+_ m)       -[1+ 0 ]     = tri> (λ())     (λ()) (+≤+ z≤n)
+<-cmp (+_ m)       -[1+ suc n ] = tri> (λ())     (λ()) -≤+
+<-cmp -[1+ 0 ]     (+ n)        = tri< (+≤+ z≤n) (λ()) (λ())
+<-cmp -[1+ suc m ] (+ n)        = tri< -≤+       (λ()) (λ())
+<-cmp -[1+ 0 ]     -[1+ 0 ]     = tri≈ (λ())     refl  (λ())
+<-cmp -[1+ 0 ]     -[1+ suc n ] = tri> (λ())     (λ()) (-≤- z≤n)
+<-cmp -[1+ suc m ] -[1+ 0 ]     = tri< (-≤- z≤n) (λ()) (λ())
+<-cmp -[1+ suc m ] -[1+ suc n ] with ℕₚ.<-cmp (suc m) (suc n)
+... | tri< m<n m≢n m≯n =
+  tri> (m≯n ∘ s≤s ∘ drop‿-≤-) (m≢n ∘ -[1+-injective) (-≤- (≤-pred m<n))
+... | tri≈ m≮n m≡n m≯n =
+  tri≈ (m≯n ∘ s≤s ∘ drop‿-≤-) (cong -[1+_] m≡n) (m≮n ∘ s≤s ∘ drop‿-≤-)
+... | tri> m≮n m≢n m>n =
+  tri< (-≤- (≤-pred m>n)) (m≢n ∘ -[1+-injective) (m≮n ∘ s≤s ∘ drop‿-≤-)
+
+<-isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_
+<-isStrictTotalOrder = record
+  { isEquivalence = isEquivalence
+  ; trans         = λ {i} → <-trans {i}
+  ; compare       = <-cmp
+  }
+
+<-strictTotalOrder : StrictTotalOrder _ _ _
+<-strictTotalOrder = record
+  { Carrier            = ℤ
+  ; _≈_                = _≡_
+  ; _<_                = _<_
+  ; isStrictTotalOrder = <-isStrictTotalOrder
+  }
+
+n≮n : ∀ {n} → n ≮ n
+n≮n {+ n}           (+≤+ n<n) =  contradiction n<n ℕₚ.1+n≰n
+n≮n { -[1+ 0 ]}     ()
+n≮n { -[1+ suc n ]} (-≤- n<n) =  contradiction n<n ℕₚ.1+n≰n
+
+<⇒≤ : ∀ {m n} → m < n → m ≤ n
+<⇒≤ m<n =  ≤-trans (n≤1+n _) m<n
+
+≰→> : ∀ {x y} → x ≰ y → x > y
+≰→> {+ m}           {+ n}           m≰n =  +≤+ (ℕₚ.≰⇒> (m≰n ∘ +≤+))
+≰→> {+ m}           { -[1+ n ]}     _   =  -<+ {n} {m}
+≰→> { -[1+ m ]}     {+ _}           m≰n =  contradiction -≤+ m≰n
+≰→> { -[1+ 0 ]}     { -[1+ 0 ]}     m≰n =  contradiction ≤-refl m≰n
+≰→> { -[1+ suc _ ]} { -[1+ 0 ]}     m≰n =  contradiction (-≤- z≤n) m≰n
+≰→> { -[1+ m ]}     { -[1+ suc n ]} m≰n with m ℕ≤? n
+... | yes m≤n  = -≤- m≤n
+... | no  m≰n' = contradiction (-≤- (ℕₚ.≰⇒> m≰n')) m≰n

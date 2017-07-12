@@ -315,6 +315,9 @@ Backwards compatible changes
   +-0-isMonoid          : IsMonoid _≡_ _+_ (+ 0)
   +-0-isGroup           : IsGroup _≡_ _+_ (+ 0) (-_)
   +-0-abelianGroup      : AbelianGroup _ _
+
+  n≢1+n                 : n ≢ suc n
+  1-[1+n]≡-n            : suc -[1+ n ] ≡ - (+ n)
   neg-distrib-+         : - (m + n) ≡ (- m) + (- n)
   ◃-distrib-+           : s ◃ (m + n) ≡ (s ◃ m) + (s ◃ n)
 
@@ -340,6 +343,20 @@ Backwards compatible changes
   ≤-isPartialOrder      : IsPartialOrder _≡_ _≤_
   ≤-isTotalOrder        : IsTotalOrder _≡_ _≤_
   ≤-isDecTotalOrder     : IsDecTotalOrder _≡_ _≤_
+
+  ≤-step                : n ≤ m → n ≤ suc m
+  n≤1+n                 : n ≤ + 1 + n
+
+  <-irrefl              : Irreflexive _≡_ _<_
+  <-asym                : Asymmetric _<_
+  <-trans               : Transitive _<_
+  <-cmp                 : Trichotomous _≡_ _<_
+  <-isStrictTotalOrder  : IsStrictTotalOrder _≡_ _<_
+
+  n≮n                   : n ≮ n
+  -<+                   : -[1+ m ] < + n
+  <⇒≤                   : m < n → m ≤ n
+  ≰→>                   : x ≰ y → x > y
   ```
 
 * Added functions to `Data.List`
