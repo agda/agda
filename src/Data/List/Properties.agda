@@ -86,6 +86,11 @@ map-id : ∀ {a} {A : Set a} → map id ≗ id {A = List A}
 map-id []       = refl
 map-id (x ∷ xs) = P.cong (x ∷_) (map-id xs)
 
+map-id₂ : ∀ {a} {A : Set a} {f : A → A} {xs} →
+          All (λ x → f x ≡ x) xs → map f xs ≡ xs
+map-id₂ []         = refl
+map-id₂ (fx≡x ∷ pxs) = P.cong₂ _∷_ fx≡x (map-id₂ pxs)
+
 map-compose : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
                 {g : B → C} {f : A → B} → map (g ∘ f) ≗ map g ∘ map f
 map-compose [] = refl

@@ -353,6 +353,7 @@ Backwards compatible changes
 
 * Added proofs to `Data.List.Properties`
   ```agda
+  map-id₂        : All (λ x → f x ≡ x) xs → map f xs ≡ xs
   map-cong₂      : All (λ x → f x ≡ g x) xs → map f xs ≡ map g xs
   foldr-++       : foldr f x (ys ++ zs) ≡ foldr f (foldr f x zs) ys
   foldl-++       : foldl f x (ys ++ zs) ≡ foldl f (foldl f x ys) zs
