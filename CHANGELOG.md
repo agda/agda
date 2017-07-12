@@ -28,13 +28,21 @@ Non-backwards compatible changes
   to `Data.List.Any.Membership.Properties`. `∈-resp-list-≈` has also been moved and renamed
   `∈-resp-≋`.
 
-#### New `Properties` file for `Data.Bin`
+#### Moving `decTotalOrder` and `decSetoid` from `Data.X` to `Data.X.Properties`
 
-* A new module `Data.Bin.Properties` has been added to bring `Data.Bin` in line with standard
-  library conventions for other datatypes.
+* Currently the library does not directly expose proofs of basic properties such as reflexivity,
+  transitivity etc. for `_≤_` in numeric datatypes such as `Nat`, `Integer` etc. In order to use these
+  properties it was necessary to first import the `decTotalOrder` proof from `Data.X` and then
+  separately open it, often having to rename the proofs as well. This is often adds unneccessary lines of
+  code to the import statements for what are very commonly used properties.
 
-  The proofs `strictTotalOrder` and `decSetoid` have therefore been moved from `Data.Bin`
-  to `<-strictTotalOrder` and `≡-decSetoid` respectively in `Data.Bin.Properties`.
+  These basic proofs have now been added in `Data.X.Properties` along with proofs that they form
+  pre-orders, partial orders and total orders. This should make them considerably easier to work with
+  and simplify files' import preambles. However consequently the records `decTotalOrder` and
+  `decSetoid` have been moved from `Data.X` to `≤-decTotalOrder` and `≡-decSetoid` in
+  `Data.X.Properties`.
+
+  The numeric datatypes for which this has been done are `Nat`, `Bin` and `Integer`.
 
 #### New well-founded induction proofs for `Data.Nat`
 
@@ -45,18 +53,6 @@ Non-backwards compatible changes
   Therefore `<-Rec` and `<-well-founded` have been renamed to `<′-Rec` and `<′-well-founded`
   respectively. The original names `<-Rec` and `<-well-founded` now refer to new
   corresponding proofs for `_<_`.
-
-#### Moving `decTotalOrder` out of `Data.Nat`
-
-* Previously the library did not directly expose proofs of basic properties such as reflexivity,
-  transitivity etc. for `_≤_` in `Data.Nat`. Instead it was necessary to open the `decTotalOrder`
-  module in `Data.Nat` which often added unnecessary lines of code.
-
-  These proofs have now been made public in `Data.Nat.Properties`. Consequently the proof
-  `decTotalOrder` in `Data.Nat` has been moved to `≤-decTotalOrder` in `Data.Nat.Properties`
-  in order to avoid dependency cycles.
-
-  Consequently the module `≤-Reasoning` has been moved to `Data.Nat.Properties` as well.
 
 #### Other
 
@@ -71,6 +67,10 @@ Non-backwards compatible changes
   improved improves pattern matching on terms and allows the new datatype to be more
   generic with respect to types and levels.
 
+* Changed the implementation of `downFrom` in `Data.List` to a native
+  (pattern-matching) definition. Previously it was defined using a private
+  internal module which made pattern matching difficult.
+
 * The arguments of `≤pred⇒≤` and `≤⇒pred≤` are now implicit rather than explicit
   (was `∀ m n → m ≤ pred n → m ≤ n` and is now `∀ {m n} → m ≤ pred n → m ≤ n`).
   This makes it consistent with `<⇒≤pred` which already used implicit arguments, and
@@ -79,10 +79,6 @@ Non-backwards compatible changes
 * Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`. Its old
   location was causing dependency cyles to form between `Data.Fin.Dec`,
   `Relation.Nullary.Negation` and `Data.Fin`.
-
-* Changed the implementation of `downFrom` in `Data.List` to a native
-  (pattern-matching) definition. Previously it was defined using a private
-  internal module which made pattern matching difficult.
 
 Deprecated features
 -------------------
@@ -212,7 +208,7 @@ Backwards compatible changes
   ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
   ```
 
-* Added proofs to `Data.Bin.Properties`:
+* A new module `Data.Bin.Properties` has been added, containing proofs:
   ```agda
   1#-injective         : as 1# ≡ bs 1# → as ≡ bs
   _≟_                  : Decidable {A = Bin} _≡_
@@ -333,6 +329,17 @@ Backwards compatible changes
 
   +-*-isRing            : IsRing _≡_ _+_ _*_ -_ (+ 0) (+ 1)
   +-*-isCommutativeRing : IsCommutativeRing _≡_ _+_ _*_ -_ (+ 0) (+ 1)
+
+  ≤-reflexive           : _≡_ ⇒ _≤_
+  ≤-refl                : Reflexive _≤_
+  ≤-trans               : Transitive _≤_
+  ≤-antisym             : Antisymmetric _≡_ _≤_
+  ≤-total               : Total _≤_
+
+  ≤-isPreorder          : IsPreorder _≡_ _≤_
+  ≤-isPartialOrder      : IsPartialOrder _≡_ _≤_
+  ≤-isTotalOrder        : IsTotalOrder _≡_ _≤_
+  ≤-isDecTotalOrder     : IsDecTotalOrder _≡_ _≤_
   ```
 
 * Added functions to `Data.List`

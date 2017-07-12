@@ -12,14 +12,15 @@ import Algebra.FunctionProperties.Consequences
 import Algebra.Morphism as Morphism
 import Algebra.Properties.AbelianGroup
 open import Algebra.Structures
-open import Data.Integer hiding (_≤?_) renaming (suc to sucℤ)
+open import Data.Integer renaming (suc to sucℤ)
 open import Data.Nat
-  using (ℕ; suc; zero; _∸_; _≤?_; s≤s; z≤n; ≤-pred)
+  using (ℕ; suc; zero; _∸_; s≤s; z≤n; ≤-pred)
   hiding (module ℕ)
   renaming (_+_ to _ℕ+_; _*_ to _ℕ*_;
-    _<_ to _ℕ<_; _≥_ to _ℕ≥_; _≰_ to _ℕ≰_)
+    _<_ to _ℕ<_; _≥_ to _ℕ≥_; _≰_ to _ℕ≰_; _≤?_ to _ℕ≤?_)
 import Data.Nat.Properties as ℕₚ
 open import Data.Product using (proj₁; proj₂; _,_)
+open import Data.Sum using (inj₁; inj₂)
 open import Data.Sign as Sign using () renaming (_*_ to _𝕊*_)
 import Data.Sign.Properties as 𝕊ₚ
 open import Function using (_∘_; _$_)
@@ -42,6 +43,9 @@ open ≡-Reasoning
 
 -[1+-injective : ∀ {m n} → -[1+ m ] ≡ -[1+ n ] → m ≡ n
 -[1+-injective refl = refl
+
+≡-decSetoid : DecSetoid _ _
+≡-decSetoid = decSetoid _≟_
 
 ------------------------------------------------------------------------
 -- Properties of -_
@@ -428,7 +432,7 @@ private
   distrib-lemma a b c
     rewrite +-⊖-left-cancel a (b ℕ* suc a) (c ℕ* suc a)
           | ⊖-swap (b ℕ* suc a) (c ℕ* suc a)
-    with b ≤? c
+    with b ℕ≤? c
   ... | yes b≤c
     rewrite ⊖-≥ b≤c
           | ⊖-≥ (ℕₚ.*-mono-≤ b≤c (ℕₚ.≤-refl {x = suc a}))
@@ -492,7 +496,7 @@ distribʳ -[1+ a ] (+ suc b) -[1+ c ] = distrib-lemma a c b
 
 distribʳ (+ suc a) -[1+ b ] (+ suc c)
   rewrite +-⊖-left-cancel a (c ℕ* suc a) (b ℕ* suc a)
-  with b ≤? c
+  with b ℕ≤? c
 ... | yes b≤c
   rewrite ⊖-≥ b≤c
         | +-comm (- (+ (a ℕ+ b ℕ* suc a))) (+ (a ℕ+ c ℕ* suc a))
@@ -510,7 +514,7 @@ distribʳ (+ suc a) -[1+ b ] (+ suc c)
 
 distribʳ (+ suc c) (+ suc a) -[1+ b ]
   rewrite +-⊖-left-cancel c (a ℕ* suc c) (b ℕ* suc c)
-  with b ≤? a
+  with b ℕ≤? a
 ... | yes b≤a
   rewrite ⊖-≥ b≤a
         | ⊖-≥ (ℕₚ.*-mono-≤ b≤a (ℕₚ.≤-refl {x = suc c}))
@@ -614,7 +618,7 @@ cancel-*-+-right-≤ (+ suc _)  (+ 0)      _ (+≤+ ())
 cancel-*-+-right-≤ (+ suc m)  (+ suc n)  o (+≤+ m≤n) =
   +≤+ (ℕₚ.cancel-*-right-≤ (suc m) (suc n) o m≤n)
 
-*-+-right-mono : ∀ n → (λ x → x * + suc n) Preserves _≤_ ⟶ _≤_
+*-+-right-mono : ∀ n → (_* + suc n) Preserves _≤_ ⟶ _≤_
 *-+-right-mono _ (-≤+             {n = 0})         = -≤+
 *-+-right-mono _ (-≤+             {n = suc _})     = -≤+
 *-+-right-mono x (-≤-                         n≤m) =
@@ -641,3 +645,79 @@ cancel-*-+-right-≤ (+ suc m)  (+ suc n)  o (+≤+ m≤n) =
   sym (cong₂ _◃_
     (cong₂ _𝕊*_ (sign-◃ s m) (sign-◃ t n))
     (∣s◃m∣*∣t◃n∣≡m*n s t (suc m) (suc n)))
+
+------------------------------------------------------------------------
+-- Properties _≤_
+
+≤-reflexive : _≡_ ⇒ _≤_
+≤-reflexive { -[1+ n ]} refl = -≤- ℕₚ.≤-refl
+≤-reflexive {+ n}       refl = +≤+ ℕₚ.≤-refl
+
+≤-refl : Reflexive _≤_
+≤-refl = ≤-reflexive refl
+
+≤-trans : Transitive _≤_
+≤-trans -≤+       (+≤+ n≤m) = -≤+
+≤-trans (-≤- n≤m) -≤+       = -≤+
+≤-trans (-≤- n≤m) (-≤- k≤n) = -≤- (ℕₚ.≤-trans k≤n n≤m)
+≤-trans (+≤+ m≤n) (+≤+ n≤k) = +≤+ (ℕₚ.≤-trans m≤n n≤k)
+
+≤-antisym : Antisymmetric _≡_ _≤_
+≤-antisym -≤+       ()
+≤-antisym (-≤- n≤m) (-≤- m≤n) = cong -[1+_] $ ℕₚ.≤-antisym m≤n n≤m
+≤-antisym (+≤+ m≤n) (+≤+ n≤m) = cong (+_)   $ ℕₚ.≤-antisym m≤n n≤m
+
+≤-total : Total _≤_
+≤-total (-[1+ m ]) (-[1+ n ]) with ℕₚ.≤-total m n
+... | inj₁ m≤n = inj₂ (-≤- m≤n)
+... | inj₂ n≤m = inj₁ (-≤- n≤m)
+≤-total (-[1+ m ]) (+    n  ) = inj₁ -≤+
+≤-total (+    m  ) (-[1+ n ]) = inj₂ -≤+
+≤-total (+    m  ) (+    n  ) with ℕₚ.≤-total m n
+... | inj₁ m≤n = inj₁ (+≤+ m≤n)
+... | inj₂ n≤m = inj₂ (+≤+ n≤m)
+
+≤-isPreorder : IsPreorder _≡_ _≤_
+≤-isPreorder = record
+  { isEquivalence = isEquivalence
+  ; reflexive     = ≤-reflexive
+  ; trans         = ≤-trans
+  }
+
+≤-isPartialOrder : IsPartialOrder _≡_ _≤_
+≤-isPartialOrder = record
+  { isPreorder = ≤-isPreorder
+  ; antisym  = ≤-antisym
+  }
+
+≤-poset : Poset _ _ _
+≤-poset = record
+  { Carrier = ℤ
+  ; _≈_ = _≡_
+  ; _≤_ = _≤_
+  ; isPartialOrder = ≤-isPartialOrder
+  }
+
+≤-isTotalOrder : IsTotalOrder _≡_ _≤_
+≤-isTotalOrder = record
+  { isPartialOrder = ≤-isPartialOrder
+  ; total          = ≤-total
+  }
+
+≤-isDecTotalOrder : IsDecTotalOrder _≡_ _≤_
+≤-isDecTotalOrder = record
+  { isTotalOrder = ≤-isTotalOrder
+  ; _≟_          = _≟_
+  ; _≤?_         = _≤?_
+  }
+
+≤-decTotalOrder : DecTotalOrder _ _ _
+≤-decTotalOrder = record
+  { Carrier         = ℤ
+  ; _≈_             = _≡_
+  ; _≤_             = _≤_
+  ; isDecTotalOrder = ≤-isDecTotalOrder
+  }
+
+import Relation.Binary.PartialOrderReasoning as POR
+module ≤-Reasoning = POR ≤-poset renaming (_≈⟨_⟩_ to _≡⟨_⟩_)

@@ -174,10 +174,10 @@ decTotalOrder = record
       }
   }
   where
-  module ℤO = DecTotalOrder ℤ.decTotalOrder
+  module ℤO = DecTotalOrder ℤ.≤-decTotalOrder
 
   refl′ : _≡_ ⇒ _≤_
-  refl′ refl = *≤* ℤO.refl
+  refl′ refl = *≤* ℤ.≤-refl
 
   trans : Transitive _≤_
   trans {i = p} {j = q} {k = r} (*≤* le₁) (*≤* le₂)
@@ -208,7 +208,7 @@ decTotalOrder = record
             = ℤO.trans
 
   antisym : Antisymmetric _≡_ _≤_
-  antisym (*≤* le₁) (*≤* le₂) = ≃⇒≡ (ℤO.antisym le₁ le₂)
+  antisym (*≤* le₁) (*≤* le₂) = ≃⇒≡ (ℤ.≤-antisym le₁ le₂)
 
   total : Total _≤_
   total p q =

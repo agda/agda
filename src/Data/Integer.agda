@@ -16,9 +16,9 @@ open import Data.Sum
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; refl; sym; cong; cong₂)
-open PropEq.≡-Reasoning
+open import Relation.Binary.PropositionalEquality
+  using (_≡_; refl; sym; subst; cong; cong₂; module ≡-Reasoning)
+open ≡-Reasoning
 
 ------------------------------------------------------------------------
 -- Integers, basic types and operations
@@ -48,8 +48,7 @@ show i = showSign (sign i) ++ ℕ.show ∣ i ∣
   j               ∎
 
 signAbs : ∀ i → SignAbs i
-signAbs i = PropEq.subst SignAbs (◃-left-inverse i) $
-              sign i ◂ ∣ i ∣
+signAbs i = subst SignAbs (◃-left-inverse i) (sign i ◂ ∣ i ∣)
 
 ------------------------------------------------------------------------
 -- Equality is decidable
@@ -62,11 +61,8 @@ i ≟ j | yes sign-≡ | yes abs-≡ = yes (◃-cong sign-≡ abs-≡)
 i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ cong sign)
 i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
 
-decSetoid : DecSetoid _ _
-decSetoid = PropEq.decSetoid _≟_
-
 ------------------------------------------------------------------------
--- Ordering
+-- Ordering is decidable
 
 infix  4 _≤?_
 
@@ -75,54 +71,3 @@ _≤?_ : Decidable _≤_
 -[1+ m ] ≤? +    n   = yes -≤+
 +    m   ≤? -[1+ n ] = no λ ()
 +    m   ≤? +    n   = Dec.map′ +≤+ drop‿+≤+ (ℕ._≤?_ m n)
-
-decTotalOrder : DecTotalOrder _ _ _
-decTotalOrder = record
-  { Carrier         = ℤ
-  ; _≈_             = _≡_
-  ; _≤_             = _≤_
-  ; isDecTotalOrder = record
-      { isTotalOrder = record
-          { isPartialOrder = record
-              { isPreorder = record
-                  { isEquivalence = PropEq.isEquivalence
-                  ; reflexive     = refl′
-                  ; trans         = trans
-                  }
-                ; antisym  = antisym
-              }
-          ; total          = total
-          }
-      ; _≟_          = _≟_
-      ; _≤?_         = _≤?_
-      }
-  }
-  where
-
-  refl′ : _≡_ ⇒ _≤_
-  refl′ { -[1+ n ]} refl = -≤- ℕP.≤-refl
-  refl′ {+ n}       refl = +≤+ ℕP.≤-refl
-
-  trans : Transitive _≤_
-  trans -≤+       (+≤+ n≤m) = -≤+
-  trans (-≤- n≤m) -≤+       = -≤+
-  trans (-≤- n≤m) (-≤- k≤n) = -≤- (ℕP.≤-trans k≤n n≤m)
-  trans (+≤+ m≤n) (+≤+ n≤k) = +≤+ (ℕP.≤-trans m≤n n≤k)
-
-  antisym : Antisymmetric _≡_ _≤_
-  antisym -≤+       ()
-  antisym (-≤- n≤m) (-≤- m≤n) = cong -[1+_] $ ℕP.≤-antisym m≤n n≤m
-  antisym (+≤+ m≤n) (+≤+ n≤m) = cong (+_)   $ ℕP.≤-antisym m≤n n≤m
-
-  total : Total _≤_
-  total (-[1+ m ]) (-[1+ n ]) = [ inj₂ ∘′ -≤- , inj₁ ∘′ -≤- ]′ $ ℕP.≤-total m n
-  total (-[1+ m ]) (+    n  ) = inj₁ -≤+
-  total (+    m  ) (-[1+ n ]) = inj₂ -≤+
-  total (+    m  ) (+    n  ) = [ inj₁ ∘′ +≤+ , inj₂ ∘′ +≤+ ]′ $ ℕP.≤-total m n
-
-poset : Poset _ _ _
-poset = DecTotalOrder.poset decTotalOrder
-
-import Relation.Binary.PartialOrderReasoning as POR
-module ≤-Reasoning = POR poset
-  renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
