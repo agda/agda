@@ -54,8 +54,11 @@ _÷_ : (numerator : ℤ) (denominator : ℕ)
       {≢0 : False (ℕ._≟_ denominator 0)} →
       ℚ
 (n ÷ zero) {≢0 = ()}
-(n ÷ suc d) {c} =
-  record { numerator = n; denominator-1 = d; isCoprime = c }
+(n ÷ suc d) {c} = record
+  { numerator     = n
+  ; denominator-1 = d
+  ; isCoprime     = c
+  }
 
 private
 
@@ -151,67 +154,3 @@ p ≤? q with ℚ.numerator p ℤ.* ℚ.denominator q ℤ.≤?
             ℚ.numerator q ℤ.* ℚ.denominator p
 p ≤? q | yes pq≤qp = yes (*≤* pq≤qp)
 p ≤? q | no ¬pq≤qp = no (λ { (*≤* pq≤qp) → ¬pq≤qp pq≤qp })
-
-decTotalOrder : DecTotalOrder _ _ _
-decTotalOrder = record
-  { Carrier         = ℚ
-  ; _≈_             = _≡_
-  ; _≤_             = _≤_
-  ; isDecTotalOrder = record
-      { isTotalOrder = record
-          { isPartialOrder = record
-              { isPreorder = record
-                  { isEquivalence = P.isEquivalence
-                  ; reflexive     = refl′
-                  ; trans         = trans
-                  }
-                ; antisym = antisym
-              }
-          ; total = total
-          }
-      ; _≟_  = _≟_
-      ; _≤?_ = _≤?_
-      }
-  }
-  where
-  module ℤO = DecTotalOrder ℤ.≤-decTotalOrder
-
-  refl′ : _≡_ ⇒ _≤_
-  refl′ refl = *≤* ℤ.≤-refl
-
-  trans : Transitive _≤_
-  trans {i = p} {j = q} {k = r} (*≤* le₁) (*≤* le₂)
-    = *≤* (ℤ.cancel-*-+-right-≤ _ _ _
-            (lemma
-              (ℚ.numerator p) (ℚ.denominator p)
-              (ℚ.numerator q) (ℚ.denominator q)
-              (ℚ.numerator r) (ℚ.denominator r)
-              (ℤ.*-+-right-mono (ℚ.denominator-1 r) le₁)
-              (ℤ.*-+-right-mono (ℚ.denominator-1 p) le₂)))
-    where
-    open Algebra.CommutativeRing ℤ.commutativeRing
-
-    lemma : ∀ n₁ d₁ n₂ d₂ n₃ d₃ →
-            n₁ ℤ.* d₂ ℤ.* d₃ ℤ.≤ n₂ ℤ.* d₁ ℤ.* d₃ →
-            n₂ ℤ.* d₃ ℤ.* d₁ ℤ.≤ n₃ ℤ.* d₂ ℤ.* d₁ →
-            n₁ ℤ.* d₃ ℤ.* d₂ ℤ.≤ n₃ ℤ.* d₁ ℤ.* d₂
-    lemma n₁ d₁ n₂ d₂ n₃ d₃
-      rewrite *-assoc n₁ d₂ d₃
-            | *-comm d₂ d₃
-            | sym (*-assoc n₁ d₃ d₂)
-            | *-assoc n₃ d₂ d₁
-            | *-comm d₂ d₁
-            | sym (*-assoc n₃ d₁ d₂)
-            | *-assoc n₂ d₁ d₃
-            | *-comm d₁ d₃
-            | sym (*-assoc n₂ d₃ d₁)
-            = ℤO.trans
-
-  antisym : Antisymmetric _≡_ _≤_
-  antisym (*≤* le₁) (*≤* le₂) = ≃⇒≡ (ℤ.≤-antisym le₁ le₂)
-
-  total : Total _≤_
-  total p q =
-    [ inj₁ ∘′ *≤* , inj₂ ∘′ *≤* ]′
-      (ℤO.total (ℚ.numerator p ℤ.* ℚ.denominator q)
-                (ℚ.numerator q ℤ.* ℚ.denominator p))

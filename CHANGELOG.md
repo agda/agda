@@ -42,7 +42,7 @@ Non-backwards compatible changes
   `decSetoid` have been moved from `Data.X` to `≤-decTotalOrder` and `≡-decSetoid` in
   `Data.X.Properties`.
 
-  The numeric datatypes for which this has been done are `Nat`, `Bin` and `Integer`.
+  The numeric datatypes for which this has been done are `Nat`, `Integer`, `Rational` and `Bin`.
 
 #### New well-founded induction proofs for `Data.Nat`
 
@@ -518,6 +518,34 @@ Backwards compatible changes
   ∣-isPartialOrder : IsPartialOrder _≡_ _∣_
   ```
 
+* A new module `Data.Rational.Properties` has been added, containing proofs:
+  ```agda
+  ≤-reflexive : _≡_ ⇒ _≤_
+  ≤-refl      : Reflexive _≤_
+  ≤-trans     : Transitive _≤_
+  ≤-antisym   : Antisymmetric _≡_ _≤_
+  ≤-total     : Total _≤_
+
+  ≤-isPreorder : IsPreorder _≡_ _≤_
+  ≤-isPartialOrder : IsPartialOrder _≡_ _≤_
+  ≤-isTotalOrder : IsTotalOrder _≡_ _≤_
+  ≤-isDecTotalOrder : IsDecTotalOrder _≡_ _≤_
+  ```
+
+* Added proofs to `Data.Sign.Properties`:
+  ```agda
+  opposite-cong  : opposite s ≡ opposite t → s ≡ t
+
+  *-identityˡ    : LeftIdentity + _*_
+  *-identityʳ    : RightIdentity + _*_
+  *-identity     : Identity + _*_
+  *-comm         : Commutative _*_
+  *-assoc        : Associative _*_
+  cancel-*-left  : LeftCancellative _*_
+  *-cancellative : Cancellative _*_
+  s*s≡+          : s * s ≡ +
+  ```
+
 * Added a functor encapsulating `map` in `Data.Vec`:
   ```agda
   functor = record { _<$>_ = map}
@@ -537,20 +565,6 @@ Backwards compatible changes
   zipWith-replicate₂      : zipWith _⊕_ xs (replicate y) ≡ map (_⊕ y) xs
   zipWith-map₁            : zipWith _⊕_ (map f xs) ys ≡ zipWith (λ x y → f x ⊕ y) xs ys
   zipWith-map₂            : zipWith _⊕_ xs (map f ys) ≡ zipWith (λ x y → x ⊕ f y) xs ys
-  ```
-
-* Added proofs to `Data.Sign.Properties`:
-  ```agda
-  opposite-cong  : opposite s ≡ opposite t → s ≡ t
-
-  *-identityˡ    : LeftIdentity + _*_
-  *-identityʳ    : RightIdentity + _*_
-  *-identity     : Identity + _*_
-  *-comm         : Commutative _*_
-  *-assoc        : Associative _*_
-  cancel-*-left  : LeftCancellative _*_
-  *-cancellative : Cancellative _*_
-  s*s≡+          : s * s ≡ +
   ```
 
 * Added proofs to `Data.Vec.All.Properties`
