@@ -157,6 +157,13 @@ traceSLn k n s = applyWhenVerboseS k n $ \ cont -> do
     _ <- runTCM env st $ reportSLn k n s
     return cont
 
+instance MonadDebug ReduceM where
+  displayDebugMessage n s = do
+    ReduceEnv env st <- askR
+    unsafePerformIO $ do
+      _ <- runTCM env st $ displayDebugMessage n s
+      return $ return ()
+
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
   getConstInfo q = ReduceM $ \(ReduceEnv env st) ->
