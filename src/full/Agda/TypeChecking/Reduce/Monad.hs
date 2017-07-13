@@ -31,7 +31,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
-    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta )
+    isInstantiatedMeta, verboseS, typeOfConst, lookupMeta )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
@@ -140,8 +140,9 @@ traceSDocM k n doc = traceSDoc k n doc $ return ()
 traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
 traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
   ReduceEnv env st <- askR
-  -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
-  trace (show $ fst $ unsafePerformIO $ runTCM env st doc) cont
+  unsafePerformIO $ do
+    _ <- runTCM env st $ reportSDoc k n doc
+    return cont
 
 -- traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
 -- traceSDoc k n doc = verboseS k n $ ReduceM $ do
@@ -149,9 +150,12 @@ traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
 --   -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
 --   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) $ return ()
 
-{-# SPECIALIZE traceSLn :: VerboseKey -> Int -> String -> ReduceM a -> ReduceM a #-}
-traceSLn :: HasOptions m => VerboseKey -> Int -> String -> m a -> m a
-traceSLn k n s = applyWhenVerboseS k n (trace s)
+traceSLn :: VerboseKey -> Int -> String -> ReduceM a -> ReduceM a
+traceSLn k n s = applyWhenVerboseS k n $ \ cont -> do
+  ReduceEnv env st <- askR
+  unsafePerformIO $ do
+    _ <- runTCM env st $ reportSLn k n s
+    return cont
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
