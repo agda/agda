@@ -1022,7 +1022,7 @@ niceDeclarations ds = do
       TypeSig rel x t -> do
         fx <- getFixity x
         return [ Axiom (getRange d) fx PublicAccess ConcreteDef NotInstanceDef rel Nothing x t ]
-      Field i x argt -> do
+      Field i x argt | b == FieldBlock -> do
         fx <- getFixity x
         return [ NiceField (getRange d) fx PublicAccess ConcreteDef i x argt ]
       InstanceB r decls -> do

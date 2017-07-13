@@ -1,6 +1,3 @@
-Issue1639.agda:3,1-5,12
-Illegal declaration in data type definition 
-  field A : Set
-when scope checking the declaration
-  data D where
-    field A : Set
+Issue1639.agda:5,5-12
+A data definition can only contain type signatures, possibly under
+keyword instance
