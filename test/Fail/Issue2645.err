@@ -1,0 +1,3 @@
+Issue2645.agda:8,7-14
+A postulate block can only contain type signatures, possibly under
+keyword instance
