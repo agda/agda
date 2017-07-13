@@ -376,15 +376,6 @@ hasExactVerbosity k n =
 whenExactVerbosity :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
 whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
 
--- | Displays a debug message in a suitable way.
-{-# SPECIALIZE displayDebugMessage :: Int -> String -> TCM () #-}
-displayDebugMessage :: MonadTCM tcm
-  => Int     -- ^ The message's debug level.
-  -> String  -- ^ Message.
-  -> tcm ()
-displayDebugMessage n s = liftTCM $
-  appInteractionOutputCallback (Resp_RunningInfo n s)
-
 -- | Run a computation if a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.
@@ -396,12 +387,14 @@ verboseS k n action = whenM (hasVerbosity k n) action
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
-reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
-reportS k n s = liftTCM $ verboseS k n $ displayDebugMessage n s
+reportS :: (HasOptions m, MonadDebug m)
+        => VerboseKey -> Int -> String -> m ()
+reportS k n s = verboseS k n $ displayDebugMessage n s
 
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> Int -> String -> TCM () #-}
-reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
+reportSLn :: (HasOptions m, MonadDebug m)
+          => VerboseKey -> Int -> String -> m ()
 reportSLn k n s = verboseS k n $
   displayDebugMessage n (s ++ "\n")
 
@@ -419,7 +412,8 @@ reportSDoc k n d = liftTCM $ verboseS k n $ do
 
 -- | Print brackets around debug messages issued by a computation.
 {-# SPECIALIZE verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a #-}
-verboseBracket :: MonadTCM tcm => VerboseKey -> Int -> String -> TCM a -> tcm a
-verboseBracket k n s m = liftTCM $ ifNotM (hasVerbosity k n) m $ {- else -} do
+verboseBracket :: (HasOptions m, MonadDebug m, MonadError err m)
+               => VerboseKey -> Int -> String -> m a -> m a
+verboseBracket k n s m = ifNotM (hasVerbosity k n) m $ {- else -} do
   displayDebugMessage n $ "{ " ++ s ++ "\n"
   m `finally` displayDebugMessage n "}\n"
