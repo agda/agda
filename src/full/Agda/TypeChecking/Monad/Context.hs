@@ -125,9 +125,9 @@ weakenModuleParameters n = updateModuleParameters (raiseS n)
 --   This is ok for instance if we are outside module @m@
 --   (in which case we have to supply all module parameters to any
 --   symbol defined within @m@ we want to refer).
-getModuleParameterSub :: MonadTCM tcm => ModuleName -> tcm Substitution
+getModuleParameterSub :: (Functor m, ReadTCState m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
-  r <- use stModuleParameters
+  r <- (^. stModuleParameters) <$> getTCState
   case Map.lookup m r of
     Nothing -> return IdS
     Just mp -> return $ mpSubstitution mp
