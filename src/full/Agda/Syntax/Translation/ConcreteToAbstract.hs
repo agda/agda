@@ -1464,6 +1464,16 @@ instance ToAbstract NiceDeclaration A.Declaration where
           afields <- toAbstract fields
           printScope "rec" 15 "checked fields"
           return afields
+        -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
+        -- Check for duplicate fields. (See "Check for duplicate constructors")
+        do let fs = catMaybes $ for fields $ \case
+                 C.NiceField _ _ _ _ _ f _ -> Just f
+                 _ -> Nothing
+           let dups = nub $ fs \\ nub fs
+               bad  = filter (`elem` dups) fs
+           unless (distinct fs) $
+             setCurrentRange bad $
+               typeError $ DuplicateFields dups
         bindModule p x m
         cm' <- mapM (\(ThingWithFixity c f, _) -> bindConstructorName m c f a p YesRec) cm
         let inst = caseMaybe cm NotInstanceDef snd
