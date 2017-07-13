@@ -188,7 +188,7 @@ class (Functor m, Monad m) => MonadTer m where
 -- | Termination monad.
 
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
-  deriving (Functor, Applicative, Monad, MonadBench Phase, HasOptions)
+  deriving (Functor, Applicative, Monad, MonadBench Phase, HasOptions, MonadDebug)
 
 instance MonadTer TerM where
   terAsk     = TerM $ ask
