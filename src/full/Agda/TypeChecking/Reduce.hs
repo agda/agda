@@ -541,7 +541,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
+  traceSDocM "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v)
   case ignoreSharing v of
     Def f es -> do
 
@@ -689,9 +689,9 @@ instance Simplify Term where
       Def f vs   -> do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        traceSDoc "tc.simplify'" 20 (
+        traceSDocM "tc.simplify'" 20 (
           text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> prettyTCM (ignoreBlocking v)) $ do
+            <+> prettyTCM (ignoreBlocking v))
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
