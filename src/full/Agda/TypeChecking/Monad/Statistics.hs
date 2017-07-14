@@ -11,6 +11,7 @@ import qualified Text.PrettyPrint.Boxes as Boxes
 import Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens

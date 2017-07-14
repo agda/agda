@@ -51,6 +51,7 @@ import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..))
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList

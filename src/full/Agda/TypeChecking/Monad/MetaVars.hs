@@ -25,7 +25,7 @@ import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Options (reportSLn)
+import Agda.TypeChecking.Monad.Debug (reportSLn)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope

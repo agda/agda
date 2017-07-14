@@ -49,6 +49,7 @@ import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State

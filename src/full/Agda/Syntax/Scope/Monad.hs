@@ -31,6 +31,7 @@ import Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 

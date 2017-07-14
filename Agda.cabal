@@ -355,6 +355,7 @@ library
                     Agda.TypeChecking.Monad.Closure
                     Agda.TypeChecking.Monad.Constraints
                     Agda.TypeChecking.Monad.Context
+                    Agda.TypeChecking.Monad.Debug
                     Agda.TypeChecking.Monad.Env
                     Agda.TypeChecking.Monad.Imports
                     Agda.TypeChecking.Monad.Local

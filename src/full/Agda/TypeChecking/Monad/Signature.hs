@@ -28,6 +28,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
