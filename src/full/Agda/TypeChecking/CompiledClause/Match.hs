@@ -12,7 +12,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Monad hiding (reportSDoc, reportSLn)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as RedM
@@ -174,6 +174,7 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     pds <- getPartialDefs
     if f `elem` pds
     then return (NoReduction $ NotBlocked MissingClauses [])
-    else traceSLn "impossible" 10
-           ("Incomplete pattern matching when applying " ++ show f)
-           __IMPOSSIBLE__
+    else do
+      reportSLn "impossible" 10
+        ("Incomplete pattern matching when applying " ++ show f)
+      __IMPOSSIBLE__
