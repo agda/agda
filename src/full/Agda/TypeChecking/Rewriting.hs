@@ -330,7 +330,7 @@ rewriteWith :: Maybe Type
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
 rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
-  Red.traceSDocM "rewriting" 75 (sep
+  reportSDoc "rewriting" 75 (sep
     [ text "attempting to rewrite term " <+> prettyTCM (v `applyE` es)
     , text " with rule " <+> prettyTCM rew
     ])
@@ -339,7 +339,7 @@ rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
     Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
-      Red.traceSDocM "rewriting" 70 (sep
+      reportSDoc "rewriting" 70 (sep
         [ text "rewrote " <+> prettyTCM (v `applyE` es)
         , text " to " <+> prettyTCM v'
         ])
