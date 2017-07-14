@@ -81,12 +81,12 @@ showAspects modFile (r, m) = L $
 
 lispifyHighlightingInfo
   :: HighlightingInfo
+  -> HighlightingMethod
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
-  -> TCM (Lisp String)
-lispifyHighlightingInfo h modFile = do
-  method <- envHighlightingMethod <$> ask
-  liftIO $ case ranges h of
+  -> IO (Lisp String)
+lispifyHighlightingInfo h method modFile = do
+  case ranges h of
     _             | method == Direct                   -> direct
     ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
                     mi == mempty                       -> direct

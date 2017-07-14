@@ -1440,7 +1440,8 @@ garr f a b = do
   return $ El (getSort a' `sLub` getSort b') $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
-gpi :: MonadTCM tcm => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
+gpi :: (MonadTCM tcm, MonadDebug tcm)
+    => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
   b <- addContext' (name, defaultArgDom info a) b
@@ -1448,15 +1449,18 @@ gpi info name a b = do
   return $ El (getSort a `dLub` Abs y (getSort b))
               (Pi (defaultArgDom info a) (Abs y b))
 
-hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
+hPi, nPi :: (MonadTCM tcm, MonadDebug tcm)
+         => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+hPi', nPi' :: (MonadTCM tcm, MonadDebug tcm)
+           => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)
 
-pPi' :: MonadTCM tcm => String -> NamesT tcm Term -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+pPi' :: (MonadTCM tcm, MonadDebug tcm)
+     => String -> NamesT tcm Term -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
  where
    toFinitePi :: Type -> Type

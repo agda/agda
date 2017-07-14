@@ -8,6 +8,7 @@ import Data.Map (Map)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
+data HighlightingMethod
 data TCEnv
 data TCState
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }

@@ -21,6 +21,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
@@ -85,7 +86,8 @@ withModuleParameters mp ret = do
 
 -- | Apply a substitution to all module parameters.
 
-updateModuleParameters :: MonadTCM tcm => Substitution -> tcm a -> tcm a
+updateModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
+                       => Substitution -> tcm a -> tcm a
 updateModuleParameters sub ret = do
   pm <- use stModuleParameters
   let showMP pref mps = intercalate "\n" $
@@ -114,7 +116,8 @@ updateModuleParameters sub ret = do
 -- | Since the @ModuleParamDict@ is relative to the current context,
 --   this function should be called everytime the context is extended.
 --
-weakenModuleParameters :: MonadTCM tcm => Nat -> tcm a -> tcm a
+weakenModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
+                       => Nat -> tcm a -> tcm a
 weakenModuleParameters n = updateModuleParameters (raiseS n)
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
@@ -125,9 +128,9 @@ weakenModuleParameters n = updateModuleParameters (raiseS n)
 --   This is ok for instance if we are outside module @m@
 --   (in which case we have to supply all module parameters to any
 --   symbol defined within @m@ we want to refer).
-getModuleParameterSub :: MonadTCM tcm => ModuleName -> tcm Substitution
+getModuleParameterSub :: (Functor m, ReadTCState m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
-  r <- use stModuleParameters
+  r <- (^. stModuleParameters) <$> getTCState
   case Map.lookup m r of
     Nothing -> return IdS
     Just mp -> return $ mpSubstitution mp
@@ -165,7 +168,8 @@ class AddContext b where
 --   the current context, we need to weaken it when we
 --   extend the context.  This function takes care of that.
 --
-addContext' :: (MonadTCM tcm, AddContext b) => b -> tcm a -> tcm a
+addContext' :: (MonadTCM tcm, MonadDebug tcm, AddContext b)
+            => b -> tcm a -> tcm a
 addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
 
 #if __GLASGOW_HASKELL__ >= 710

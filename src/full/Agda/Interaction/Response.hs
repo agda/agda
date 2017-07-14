@@ -33,7 +33,7 @@ import Agda.Utils.Impossible
 --   so the user can have timely response even during long computations.
 
 data Response
-    = Resp_HighlightingInfo HighlightingInfo ModuleToSource
+    = Resp_HighlightingInfo HighlightingInfo HighlightingMethod ModuleToSource
     | Resp_Status Status
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
@@ -123,7 +123,7 @@ data GiveResult
 --      closure of the 'InteractionOutputCallback' function.
 --      (suitable for intra-process communication).
 
-type InteractionOutputCallback = Response -> TCM ()
+type InteractionOutputCallback = Response -> IO ()
 
 -- | The default 'InteractionOutputCallback' function prints certain
 -- things to stdout (other things generate internal errors).

@@ -330,19 +330,20 @@ rewriteWith :: Maybe Type
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
 rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
-  Red.traceSDoc "rewriting" 75 (sep
+  reportSDoc "rewriting" 75 (sep
     [ text "attempting to rewrite term " <+> prettyTCM (v `applyE` es)
     , text " with rule " <+> prettyTCM rew
-    ]) $ do
-    result <- nonLinMatch gamma ps es
-    case result of
-      Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
-      Right sub  -> do
-        let v' = applySubst sub rhs
-        Red.traceSDoc "rewriting" 70 (sep
-          [ text "rewrote " <+> prettyTCM (v `applyE` es)
-          , text " to " <+> prettyTCM v'
-          ]) $ return $ Right v'
+    ])
+  result <- nonLinMatch gamma ps es
+  case result of
+    Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
+    Right sub  -> do
+      let v' = applySubst sub rhs
+      reportSDoc "rewriting" 70 (sep
+        [ text "rewrote " <+> prettyTCM (v `applyE` es)
+        , text " to " <+> prettyTCM v'
+        ])
+      return $ Right v'
 
     {- OLD CODE:
     -- Freeze all metas, remember which one where not frozen before.

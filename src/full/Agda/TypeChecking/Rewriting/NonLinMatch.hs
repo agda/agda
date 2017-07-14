@@ -204,11 +204,6 @@ runNLM nlm = do
     Left block -> return $ Left block
     Right _    -> return $ Right out
 
-traceSDocNLM :: VerboseKey -> Int -> TCM Doc -> NLM a -> NLM a
-traceSDocNLM k n doc = applyWhenVerboseS k n $ \ cont -> do
-  ReduceEnv env st <- liftRed askR
-  trace (show $ fst $ unsafePerformIO $ runTCM env st doc) cont
-
 matchingBlocked :: Blocked_ -> NLM ()
 matchingBlocked = throwError
 
@@ -224,10 +219,10 @@ tellSub r i v = do
       | otherwise       -> whenJustM (liftRed $ equal v v') matchingBlocked
 
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
-tellEq gamma k u v =
-  traceSDocNLM "rewriting" 60 (sep
+tellEq gamma k u v = do
+  reportSDoc "rewriting" 60 (sep
                [ text "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
-               , text " and " <+> addContext k (prettyTCM v) ]) $ do
+               , text " and " <+> addContext k (prettyTCM v) ])
   nlmEqs %= (PostponedEquation k u v:)
 
 type Sub = IntMap (Relevance, Term)
@@ -272,9 +267,9 @@ instance Match a b => Match (Elim' a) (Elim' b) where
      (Apply p, Apply v) -> let r' = r `composeRelevance` getRelevance p
                            in  match r' gamma k p v
      (Proj _ x, Proj _ y) -> if x == y then return () else
-                             traceSDocNLM "rewriting" 80 (sep
+                             reportSDoc "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
-                               , text " and " <+> prettyTCM y ]) mzero
+                               , text " and " <+> prettyTCM y ]) >> mzero
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
      (IApply{}, Proj{} ) -> __IMPOSSIBLE__
@@ -311,26 +306,28 @@ instance Match NLPat Term where
         v = ignoreBlocking vb
         prettyPat  = addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
         prettyTerm = addContext k (prettyTCM v)
-    traceSDocNLM "rewriting" 100 (sep
+    reportSDoc "rewriting" 100 (sep
       [ text "matching" <+> prettyPat
-      , text "with" <+> prettyTerm]) $ do
+      , text "with" <+> prettyTerm])
     let yes = return ()
-        no msg =
-          traceSDocNLM "rewriting" 80 (sep
+        no msg = do
+          reportSDoc "rewriting" 80 (sep
             [ text "mismatch between" <+> prettyPat
             , text " and " <+> prettyTerm
-            , msg ]) $ matchingBlocked b
-        block b' =
-          traceSDocNLM "rewriting" 80 (sep
+            , msg ])
+          matchingBlocked b
+        block b' = do
+          reportSDoc "rewriting" 80 (sep
             [ text "matching blocked on meta"
-            , text (show b) ]) $ matchingBlocked (b `mappend` b')
+            , text (show b) ])
+          matchingBlocked (b `mappend` b')
     case p of
       PWild  -> yes
       PVar id i bvs -> do
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
         ctx <- zip <$> getContextNames <*> getContextId
-        traceSDocNLM "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx)) $ do
+        reportSDoc "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx))
         cid <- getContextId
         case (maybe Nothing (\i -> elemIndex i cid) id) of
           Just j -> if v == Var (j+n) (map (Apply . fmap var) bvs)
@@ -451,17 +448,17 @@ checkPostponedEquations sub eqs = forM' eqs $
 -- main function
 nonLinMatch :: (Match a b) => Telescope -> a -> b -> ReduceM (Either Blocked_ Substitution)
 nonLinMatch gamma p v = do
-  let no msg b = traceSDoc "rewriting" 80 (sep
+  let no msg b = reportSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
-                   , text "blocking: " <+> text (show b) ]) $ return (Left b)
+                   , text "blocking: " <+> text (show b) ]) >> return (Left b)
   caseEitherM (runNLM $ match Relevant gamma EmptyTel p v) (no "matching") $ \ s -> do
     let sub = makeSubstitution gamma $ s^.nlmSub
         eqs = s^.nlmEqs
-    traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ do
-      ok <- checkPostponedEquations sub eqs
-      case ok of
-        Nothing -> return $ Right sub
-        Just b  -> no "checking of postponed equations" b
+    reportSDoc "rewriting" 90 (text $ "sub = " ++ show sub)
+    ok <- checkPostponedEquations sub eqs
+    case ok of
+      Nothing -> return $ Right sub
+      Just b  -> no "checking of postponed equations" b
 
 -- | Untyped βη-equality, does not handle things like empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
@@ -476,11 +473,12 @@ equal u v = do
       block = caseMaybe (headMaybe metas)
                 (NotBlocked ReallyNotBlocked ())
                 (\m -> Blocked m ())
-  if ok then return Nothing else
-    traceSDoc "rewriting" 80 (sep
+  if ok then return Nothing else do
+    reportSDoc "rewriting" 80 (sep
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
-      ]) $ return $ Just block
+      ])
+    return $ Just block
 
 -- | Normalise the given term but also preserve blocking tags
 --   TODO: implement a more efficient version of this.

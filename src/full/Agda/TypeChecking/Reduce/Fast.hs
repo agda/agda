@@ -544,6 +544,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
           pds <- getPartialDefs
           if f `elem` pds
           then return (NoReduction $ NotBlocked MissingClauses es)
-          else traceSLn "impossible" 10
-                 ("Incomplete pattern matching when applying " ++ show f)
-                 __IMPOSSIBLE__
+          else do
+            reportSLn "impossible" 10
+              ("Incomplete pattern matching when applying " ++ show f)
+            __IMPOSSIBLE__

@@ -76,7 +76,7 @@ instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
-  deriving (Functor, Applicative, Monad, MonadTrans, MonadIO, HasOptions)
+  deriving (Functor, Applicative, Monad, MonadTrans, MonadIO, HasOptions, MonadDebug)
 
 deriving instance MonadState s m => MonadState s (NamesT m)
 

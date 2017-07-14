@@ -9,7 +9,6 @@ module Agda.TypeChecking.Reduce.Monad
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
-  , traceSLn, traceSDoc, traceSDocM
   , askR, applyWhenVerboseS
   ) where
 
@@ -31,7 +30,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
-    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta )
+    isInstantiatedMeta, verboseS, typeOfConst, lookupMeta )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
@@ -134,24 +133,19 @@ isInstantiatedMeta i = do
 applyWhenVerboseS :: HasOptions m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
 applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
 
-traceSDocM :: VerboseKey -> Int -> TCM Doc -> ReduceM ()
-traceSDocM k n doc = traceSDoc k n doc $ return ()
+instance MonadDebug ReduceM where
 
-traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
-traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
-  ReduceEnv env st <- askR
-  -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
-  trace (show $ fst $ unsafePerformIO $ runTCM env st doc) cont
+  displayDebugMessage n s = do
+    ReduceEnv env st <- askR
+    unsafePerformIO $ do
+      _ <- runTCM env st $ displayDebugMessage n s
+      return $ return ()
 
--- traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
--- traceSDoc k n doc = verboseS k n $ ReduceM $ do
---   ReduceEnv env st <- ask
---   -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
---   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) $ return ()
-
-{-# SPECIALIZE traceSLn :: VerboseKey -> Int -> String -> ReduceM a -> ReduceM a #-}
-traceSLn :: HasOptions m => VerboseKey -> Int -> String -> m a -> m a
-traceSLn k n s = applyWhenVerboseS k n (trace s)
+  formatDebugMessage k n d = do
+    ReduceEnv env st <- askR
+    unsafePerformIO $ do
+      (s , _) <- runTCM env st $ formatDebugMessage k n d
+      return $ return s
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)

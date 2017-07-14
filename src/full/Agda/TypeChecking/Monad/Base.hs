@@ -62,7 +62,7 @@ import {-# SOURCE #-} Agda.Compiler.Backend
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Response
-  (InteractionOutputCallback, defaultInteractionOutputCallback)
+  (InteractionOutputCallback, defaultInteractionOutputCallback, Response(..))
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
@@ -1257,7 +1257,7 @@ data RewriteRule = RewriteRule
                              --   where @≡@ is the rewrite relation.
   , rewContext :: Telescope  -- ^ @Γ@.
   , rewHead    :: QName      -- ^ @f@.
-  , rewPats    :: PElims     -- ^ @Γ ⊢ ps  : t@.
+  , rewPats    :: PElims     -- ^ @Γ ⊢ f ps : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   }

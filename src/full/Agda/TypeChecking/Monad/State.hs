@@ -33,6 +33,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
@@ -352,7 +353,7 @@ getInteractionOutputCallback
 
 appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r
-  = getInteractionOutputCallback >>= \ cb -> cb r
+  = getInteractionOutputCallback >>= \ cb -> liftIO $ cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
 setInteractionOutputCallback cb

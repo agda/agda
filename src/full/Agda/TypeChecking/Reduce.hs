@@ -522,16 +522,16 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       debugReduce ev = verboseS "tc.reduce" 90 $ do
         case ev of
           NoReduction v -> do
-            traceSDocM "tc.reduce" 90 $ vcat
+            reportSDoc "tc.reduce" 90 $ vcat
               [ text "*** tried to reduce " <+> prettyTCM f
               , text "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
               -- , text "*** tried to reduce " <+> prettyTCM vfull
               , text "    stuck on" <+> prettyTCM (ignoreBlocking v)
               ]
           YesReduction _simpl v -> do
-            traceSDocM "tc.reduce"  90 $ text "*** reduced definition: " <+> prettyTCM f
-            traceSDocM "tc.reduce"  95 $ text "    result" <+> prettyTCM v
-            traceSDocM "tc.reduce" 100 $ text "    raw   " <+> text (show v)
+            reportSDoc "tc.reduce"  90 $ text "*** reduced definition: " <+> prettyTCM f
+            reportSDoc "tc.reduce"  95 $ text "    result" <+> prettyTCM v
+            reportSDoc "tc.reduce" 100 $ text "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
 reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
@@ -564,16 +564,16 @@ reduceHead' v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
+  reportSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v)
   case ignoreSharing v of
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> ask
       isAbstract <- treatAbstractly f
-      traceSLn "tc.inj.reduce" 50 (
+      reportSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
-        ) $ do
+        )
       let v0  = Def f []
           red = unfoldDefinitionE False reduceHead' v0 f es
       def <- theDef <$> getConstInfo f
@@ -584,7 +584,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function") $ do
+          reportSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function")
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
@@ -715,9 +715,9 @@ instance Simplify Term where
       Def f vs   -> do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        traceSDoc "tc.simplify'" 20 (
+        reportSDoc "tc.simplify'" 20 (
           text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> prettyTCM (ignoreBlocking v)) $ do
+            <+> prettyTCM (ignoreBlocking v))
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs

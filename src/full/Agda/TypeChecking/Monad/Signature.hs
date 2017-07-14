@@ -30,6 +30,7 @@ import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
@@ -794,7 +795,9 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m) => QName -> m Nat
 getDefFreeVars = getModuleFreeVars . qnameModule
 
-freeVarsToApply :: QName -> TCM Args
+freeVarsToApply :: (Functor m, HasConstInfo m, HasOptions m,
+                    ReadTCState m, MonadReader TCEnv m, MonadDebug m)
+                => QName -> m Args
 freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
   t <- defType <$> getConstInfo q
@@ -803,7 +806,8 @@ freeVarsToApply q = do
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
-getModuleFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m) => ModuleName -> m Nat
+getModuleFreeVars :: (Functor m, Applicative m, MonadReader TCEnv m, ReadTCState m)
+                  => ModuleName -> m Nat
 getModuleFreeVars m = do
   m0   <- commonParentModule m <$> currentModule
   (+) <$> getAnonymousVariables m <*> (size <$> lookupSection m0)
@@ -822,7 +826,9 @@ getModuleFreeVars m = do
 --        module M₃ Θ where
 --          ... M₁.M₂.f [insert Γ raised by Θ]
 --   @
-moduleParamsToApply :: ModuleName -> TCM Args
+moduleParamsToApply :: (Functor m, Applicative m, HasOptions m,
+                        MonadReader TCEnv m, ReadTCState m, MonadDebug m)
+                    => ModuleName -> m Args
 moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
 
