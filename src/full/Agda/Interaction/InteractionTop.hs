@@ -303,6 +303,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         constr  <- lift $ computeUnsolvedConstraints
         err     <- lift $ errorHighlighting e
         modFile <- lift $ use stModuleToSource
+        method  <- lift $ view eHighlightingMethod
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
@@ -313,7 +314,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
-            [ Resp_HighlightingInfo info modFile ] ++
+            [ Resp_HighlightingInfo info method modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = x
                                    } ]
@@ -783,7 +784,8 @@ interpret (Cmd_load_highlighting_info source) = do
               if sourceH == iSourceHash (miInterface mi)
                then do
                 modFile <- use stModuleToSource
-                return $ Just (iHighlighting $ miInterface mi, modFile)
+                method  <- view eHighlightingMethod
+                return $ Just (iHighlighting $ miInterface mi, method, modFile)
                else
                 return Nothing
     mapM_ putResponse resp
@@ -1474,10 +1476,10 @@ maybeTimed work = do
 -- info (unless it is @Nothing@).
 
 tellToUpdateHighlighting
-  :: Maybe (HighlightingInfo, ModuleToSource) -> IO [Response]
+  :: Maybe (HighlightingInfo, HighlightingMethod, ModuleToSource) -> IO [Response]
 tellToUpdateHighlighting Nothing                = return []
-tellToUpdateHighlighting (Just (info, modFile)) =
-  return [Resp_HighlightingInfo info modFile]
+tellToUpdateHighlighting (Just (info, method, modFile)) =
+  return [Resp_HighlightingInfo info method modFile]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 

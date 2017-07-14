@@ -2800,7 +2800,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 instance (MonadIO m) => MonadDebug (TCMT m) where
   displayDebugMessage n s = liftTCM $ do
     cb <- gets $ stInteractionOutputCallback . stPersistentState
-    cb (Resp_RunningInfo n s)
+    liftIO $ cb (Resp_RunningInfo n s)
 
 instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s

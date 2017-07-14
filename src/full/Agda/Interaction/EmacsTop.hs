@@ -46,7 +46,7 @@ mimicGHCi setup = do
       hSetEncoding  stdin  utf8
 
     setInteractionOutputCallback $
-        liftIO . mapM_ print <=< lispifyResponse
+        mapM_ print <=< lispifyResponse
 
     commands <- liftIO $ initialiseCommandQueue readCommand
 
@@ -120,9 +120,9 @@ formatWarningsAndErrors g w e = (body, title)
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
-lispifyResponse :: Response -> TCM [Lisp String]
-lispifyResponse (Resp_HighlightingInfo info modFile) =
-  (:[]) <$> lispifyHighlightingInfo info modFile
+lispifyResponse :: Response -> IO [Lisp String]
+lispifyResponse (Resp_HighlightingInfo info method modFile) =
+  (:[]) <$> lispifyHighlightingInfo info method modFile
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk w e -> f body "*Compilation result*"
       where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
