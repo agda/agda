@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 postulate
   A : Set
 

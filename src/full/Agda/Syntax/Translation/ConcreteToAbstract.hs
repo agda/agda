@@ -1159,9 +1159,12 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
-niceDecls ds = case runNice $ niceDeclarations ds of
-  Left e   -> throwError $ Exception (getRange e) $ pretty e
-  Right ds -> return ds
+niceDecls ds = do
+  let (result, warns) = runNice $ niceDeclarations ds
+  unless (null warns) $ warning $ NicifierIssue warns
+  case result of
+    Left e   -> throwError $ Exception (getRange e) $ pretty e
+    Right ds -> return ds
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where

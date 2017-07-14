@@ -202,6 +202,8 @@ instance PrettyTCM Warning where
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
       "instead. This will be an error in Agda" ++ [text version <> text "."]
 
+    NicifierIssue ws -> vcat $ map pretty ws
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
 
@@ -262,6 +264,7 @@ applyFlagsToTCWarnings ifs ws = do
           SafeFlagNoPositivityCheck    -> True
           SafeFlagPolarity             -> True
           DeprecationWarning{}         -> True
+          NicifierIssue{}              -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 

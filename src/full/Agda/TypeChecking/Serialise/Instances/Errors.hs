@@ -18,6 +18,7 @@ import Agda.TypeChecking.Serialise.Instances.Internal ()
 import Agda.TypeChecking.Serialise.Instances.Abstract ()
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Definitions (DeclarationException(..))
 import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
@@ -62,16 +63,37 @@ instance EmbPrj Warning where
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
   icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
+  icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
 
   value = vcase valu where
-      valu [0, a, b]     = valuN UnreachableClauses a b
-      valu [1, a, b]     = valuN OldBuiltin a b
-      valu [2]           = valuN EmptyRewritePragma
+      valu [0, a, b]    = valuN UnreachableClauses a b
+      valu [1, a, b]    = valuN OldBuiltin a b
+      valu [2]          = valuN EmptyRewritePragma
       valu [3]          = valuN UselessPublic
       valu [4, a]       = valuN UselessInline a
       valu [5, a]       = valuN GenericWarning a
       valu [6, a, b, c] = valuN DeprecationWarning a b c
-      valu _             = malformed
+      valu [7, a]       = valuN NicifierIssue a
+      valu _ = malformed
+
+instance EmbPrj DeclarationException where
+  icod_ = \case
+    UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
+    UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
+    PolarityPragmasButNotPostulates a -> icodeN 2 PolarityPragmasButNotPostulates a
+    UselessPrivate a                  -> icodeN 3 UselessPrivate a
+    UselessAbstract a                 -> icodeN 4 UselessAbstract a
+    UselessInstance a                 -> icodeN 5 UselessInstance a
+    _ -> __IMPOSSIBLE__
+
+  value = vcase $ \case
+    [0, a] -> valueN UnknownNamesInFixityDecl a
+    [1, a] -> valueN UnknownNamesInPolarityPragmas a
+    [2, a] -> valueN PolarityPragmasButNotPostulates a
+    [3, a] -> valueN UselessPrivate a
+    [4, a] -> valueN UselessAbstract a
+    [5, a] -> valueN UselessInstance a
+    _ -> malformed
 
 instance EmbPrj Doc where
   icod_ d = icodeN' (undefined :: String -> Doc) (render d)
@@ -212,4 +234,3 @@ instance EmbPrj ModuleParameters where
   icod_ (ModuleParams a) = icodeN' ModuleParams a
 
   value = valueN ModuleParams
-

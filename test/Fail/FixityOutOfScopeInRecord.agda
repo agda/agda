@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 module FixityOutOfScopeInRecord where
 
 record R : Set where

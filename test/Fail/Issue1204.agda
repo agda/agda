@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 module _ where
 
 module A where

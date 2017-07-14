@@ -1,4 +1,4 @@
-
+{-# OPTIONS --warning=error #-}
 module Issue329 where
 
 mutual
