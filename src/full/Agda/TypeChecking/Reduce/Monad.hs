@@ -9,7 +9,7 @@ module Agda.TypeChecking.Reduce.Monad
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
-  , traceSLn, traceSDoc, traceSDocM
+  , traceSDoc, traceSDocM
   , askR, applyWhenVerboseS
   ) where
 
@@ -149,13 +149,6 @@ traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
 --   ReduceEnv env st <- ask
 --   -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
 --   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) $ return ()
-
-traceSLn :: VerboseKey -> Int -> String -> ReduceM a -> ReduceM a
-traceSLn k n s = applyWhenVerboseS k n $ \ cont -> do
-  ReduceEnv env st <- askR
-  unsafePerformIO $ do
-    _ <- runTCM env st $ reportSLn k n s
-    return cont
 
 instance MonadDebug ReduceM where
   displayDebugMessage n s = do

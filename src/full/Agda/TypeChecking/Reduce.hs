@@ -547,10 +547,10 @@ reduceHead' v = do -- ignoreAbstractMode $ do
 
       abstractMode <- envAbstractMode <$> ask
       isAbstract <- treatAbstractly f
-      traceSLn "tc.inj.reduce" 50 (
+      reportSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
-        ) $ do
+        )
       let v0  = Def f []
           red = unfoldDefinitionE False reduceHead' v0 f es
       def <- theDef <$> getConstInfo f
@@ -561,7 +561,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function") $ do
+          reportSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function")
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
