@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad
     , module Agda.TypeChecking.Monad.Closure
     , module Agda.TypeChecking.Monad.Constraints
     , module Agda.TypeChecking.Monad.Context
+    , module Agda.TypeChecking.Monad.Debug
     , module Agda.TypeChecking.Monad.Env
     , module Agda.TypeChecking.Monad.Imports
     , module Agda.TypeChecking.Monad.Local
@@ -23,6 +24,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.Local

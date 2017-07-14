@@ -23,6 +23,7 @@ import qualified Data.Map as Map
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens

@@ -11,6 +11,7 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate
 
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Function
@@ -36,14 +37,14 @@ interestingCall cl = case clValue cl of
     NoHighlighting{}        -> False
     _                       -> True
 
-traceCallM :: MonadTCM tcm => tcm Call -> tcm a -> tcm a
+traceCallM :: (MonadTCM tcm, MonadDebug tcm) => tcm Call -> tcm a -> tcm a
 traceCallM mkCall m = flip traceCall m =<< mkCall
 
 -- | Record a function call in the trace.
 
 -- RULE left-hand side too complicated to desugar
 -- {-# SPECIALIZE traceCall :: Call -> TCM a -> TCM a #-}
-traceCall :: MonadTCM tcm => Call -> tcm a -> tcm a
+traceCall :: (MonadTCM tcm, MonadDebug tcm) => Call -> tcm a -> tcm a
 traceCall mkCall m = do
   let call      = mkCall
       callRange = getRange call
@@ -111,12 +112,14 @@ traceCall mkCall m = do
 
 -- RULE left-hand side too complicated to desugar
 -- {-# SPECIALIZE traceCallCPS :: Call -> (r -> TCM a) -> ((r -> TCM a) -> TCM b) -> TCM b #-}
-traceCallCPS :: MonadTCM tcm => Call -> (r -> tcm a) -> ((r -> tcm a) -> tcm b) -> tcm b
+traceCallCPS :: (MonadTCM tcm, MonadDebug tcm)
+             => Call -> (r -> tcm a) -> ((r -> tcm a) -> tcm b) -> tcm b
 traceCallCPS mkCall ret cc = traceCall mkCall (cc ret)
 
 -- RULE left-hand side too complicated to desugar
 -- {-# SPECIALIZE traceCallCPS_ :: Call -> TCM a -> (TCM a -> TCM b) -> TCM b #-}
-traceCallCPS_ :: MonadTCM tcm => Call -> tcm a -> (tcm a -> tcm b) -> tcm b
+traceCallCPS_ :: (MonadTCM tcm, MonadDebug tcm)
+              => Call -> tcm a -> (tcm a -> tcm b) -> tcm b
 traceCallCPS_ mkCall ret cc =
     traceCallCPS mkCall (const ret) (\k -> cc $ k ())
 

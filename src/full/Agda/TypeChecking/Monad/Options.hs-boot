@@ -14,6 +14,3 @@ type VerboseKey = String
 
 hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 verboseS :: HasOptions m => VerboseKey -> Int -> m () -> m ()
-reportSLn :: (HasOptions m, MonadDebug m)
-          => VerboseKey -> Int -> String -> m ()
-reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> TCM Doc -> tcm ()

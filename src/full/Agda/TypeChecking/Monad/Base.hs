@@ -2791,37 +2791,6 @@ instance (HasOptions m, Monoid w) => HasOptions (WriterT w m) where
   commandLineOptions = lift commandLineOptions
 
 -----------------------------------------------------------------------------
--- * Printing debug messages
------------------------------------------------------------------------------
-
-class (Functor m, Applicative m, Monad m) => MonadDebug m where
-  displayDebugMessage :: Int -> String -> m ()
-
-instance (MonadIO m) => MonadDebug (TCMT m) where
-  displayDebugMessage n s = liftTCM $ do
-    cb <- gets $ stInteractionOutputCallback . stPersistentState
-    liftIO $ cb (Resp_RunningInfo n s)
-
-instance MonadDebug m => MonadDebug (ExceptT e m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
-
-instance MonadDebug m => MonadDebug (ListT m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
-
-instance MonadDebug m => MonadDebug (MaybeT m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
-
-instance MonadDebug m => MonadDebug (ReaderT r m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
-
-instance MonadDebug m => MonadDebug (StateT s m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
-
-instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
-
-
------------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------
 
@@ -2909,7 +2878,6 @@ class ( Applicative tcm, MonadIO tcm
       , MonadReader TCEnv tcm
       , MonadState TCState tcm
       , HasOptions tcm
-      , MonadDebug tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 
