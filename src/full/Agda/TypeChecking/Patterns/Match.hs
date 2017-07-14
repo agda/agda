@@ -19,7 +19,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad hiding (reportSDoc)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes
@@ -136,7 +136,7 @@ matchCopatterns :: [NamedArg DeBruijnPattern]
                 -> [Elim]
                 -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
-  traceSDocM "tc.match" 50
+  reportSDoc "tc.match" 50
     (vcat [ text "matchCopatterns"
           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
           , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
@@ -162,7 +162,7 @@ matchPatterns :: [NamedArg DeBruijnPattern]
               -> [Arg Term]
               -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
-  traceSDocM "tc.match" 50
+  reportSDoc "tc.match" 50
     (vcat [ text "matchPatterns"
           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
           , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)

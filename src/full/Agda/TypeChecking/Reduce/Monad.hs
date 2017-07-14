@@ -9,7 +9,6 @@ module Agda.TypeChecking.Reduce.Monad
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
-  , traceSDoc, traceSDocM
   , askR, applyWhenVerboseS
   ) where
 
@@ -133,22 +132,6 @@ isInstantiatedMeta i = do
 {-# SPECIALIZE applyWhenVerboseS :: VerboseKey -> Int -> (ReduceM a -> ReduceM a) -> ReduceM a-> ReduceM a #-}
 applyWhenVerboseS :: HasOptions m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
 applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
-
-traceSDocM :: VerboseKey -> Int -> TCM Doc -> ReduceM ()
-traceSDocM k n doc = traceSDoc k n doc $ return ()
-
-traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
-traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
-  ReduceEnv env st <- askR
-  unsafePerformIO $ do
-    _ <- runTCM env st $ reportSDoc k n doc
-    return cont
-
--- traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
--- traceSDoc k n doc = verboseS k n $ ReduceM $ do
---   ReduceEnv env st <- ask
---   -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
---   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) $ return ()
 
 instance MonadDebug ReduceM where
 
