@@ -1,4 +1,3 @@
-Issue1204.agda:10,8-11
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
 imported from another module, or declared in a super module): suc

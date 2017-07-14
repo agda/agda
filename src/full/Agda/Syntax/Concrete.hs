@@ -217,7 +217,7 @@ data BoundName = BName
   , boundLabel  :: Name    -- ^ for implicit function types the label matters and can't be alpha-renamed
   , bnameFixity :: Fixity'
   }
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Show)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'

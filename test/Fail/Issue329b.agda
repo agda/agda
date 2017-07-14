@@ -1,4 +1,4 @@
-
+{-# OPTIONS --warning=error #-}
 module Issue329b where
 
 abstract

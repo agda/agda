@@ -1,7 +1,7 @@
 -- Andreas, 2014-09-23
 -- Check fixity declarations also in new 'instance' block.
 
-module _ where
+{-# OPTIONS --warning=error #-}
 
 postulate
   D : Set

@@ -570,7 +570,7 @@ warningHighlighting w = case tcWarning w of
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
   DeprecationWarning{}       -> mempty
-
+  NicifierIssue{}            -> mempty
 
 -- | Generate syntax highlighting for termination errors.
 
