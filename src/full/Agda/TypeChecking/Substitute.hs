@@ -186,10 +186,10 @@ instance Apply RewriteRule where
     , rewContext = apply (rewContext r) args
     , rewHead    = rewHead r
     , rewPats    = applySubst sub (rewPats r)
-    , rewRHS     = applySubst sub (rewRHS r)
-    , rewType    = applySubst sub (rewType r)
+    , rewRHS     = applyNLPatSubst sub (rewRHS r)
+    , rewType    = applyNLPatSubst sub (rewType r)
     }
-    where sub = parallelS (map unArg args)
+    where sub = parallelS $ map (PTerm . unArg) args
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
@@ -738,25 +738,61 @@ instance Subst Term Pattern where
     LitP l       -> p
     ProjP{}      -> p
 
-instance Subst Term NLPat where
+instance DeBruijn NLPat where
+  deBruijnVar i = PVar Nothing i []
+  deBruijnView p = case p of
+    PVar _ i [] -> Just i
+    PVar{}      -> Nothing
+    PWild{}     -> Nothing
+    PDef{}      -> Nothing
+    PLam{}      -> Nothing
+    PPi{}       -> Nothing
+    PBoundVar{} -> Nothing -- or... ?
+    PTerm{}     -> Nothing -- or... ?
+
+applyNLPatSubst :: (Subst Term a) => Substitution' NLPat -> a -> a
+applyNLPatSubst = applySubst . fmap nlPatToTerm
+  where
+    nlPatToTerm :: NLPat -> Term
+    nlPatToTerm p = case p of
+      PVar _ i xs    -> Var i $ map (Apply . fmap var) xs
+      PTerm u        -> u
+      PWild          -> __IMPOSSIBLE__
+      PDef f es      -> __IMPOSSIBLE__
+      PLam i u       -> __IMPOSSIBLE__
+      PPi a b        -> __IMPOSSIBLE__
+      PBoundVar i es -> __IMPOSSIBLE__
+
+instance Subst NLPat NLPat where
   applySubst rho p = case p of
-    PVar id i bvs -> p
+    PVar id i bvs -> lookupS rho i `applyBV` bvs
     PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
     PPi a b -> PPi (applySubst rho a) (applySubst rho b)
     PBoundVar i es -> PBoundVar i $ applySubst rho es
-    PTerm u -> PTerm $ applySubst rho u
+    PTerm u -> PTerm $ applyNLPatSubst rho u
 
-instance Subst Term NLPType where
+    where
+      applyBV :: NLPat -> [Arg Int] -> NLPat
+      applyBV p ys = case p of
+        PVar id i xs   -> PVar id i (xs ++ ys)
+        PTerm u        -> PTerm $ u `apply` map (fmap var) ys
+        PWild          -> __IMPOSSIBLE__
+        PDef f es      -> __IMPOSSIBLE__
+        PLam i u       -> __IMPOSSIBLE__
+        PPi a b        -> __IMPOSSIBLE__
+        PBoundVar i es -> __IMPOSSIBLE__
+
+instance Subst NLPat NLPType where
   applySubst rho (NLPType s a) = NLPType (applySubst rho s) (applySubst rho a)
 
-instance Subst Term RewriteRule where
+instance Subst NLPat RewriteRule where
   applySubst rho (RewriteRule q gamma f ps rhs t) =
-    RewriteRule q (applySubst rho gamma)
+    RewriteRule q (applyNLPatSubst rho gamma)
                 f (applySubst (liftS n rho) ps)
-                  (applySubst (liftS n rho) rhs)
-                  (applySubst (liftS n rho) t)
+                  (applyNLPatSubst (liftS n rho) rhs)
+                  (applyNLPatSubst (liftS n rho) t)
     where n = size gamma
 
 instance Subst t a => Subst t (Blocked a) where

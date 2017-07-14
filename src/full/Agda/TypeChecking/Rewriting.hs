@@ -400,23 +400,26 @@ rewrite block v rules es = do
 ------------------------------------------------------------------------
 
 class NLPatVars a where
+  nlPatVarsUnder :: Int -> a -> IntSet
+
   nlPatVars :: a -> IntSet
+  nlPatVars = nlPatVarsUnder 0
 
 instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
-  nlPatVars = foldMap nlPatVars
+  nlPatVarsUnder k = foldMap $ nlPatVarsUnder k
 
 instance NLPatVars NLPType where
-  nlPatVars (NLPType l a) = nlPatVars l `IntSet.union` nlPatVars a
+  nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k l `IntSet.union` nlPatVarsUnder k a
 
 instance NLPatVars NLPat where
-  nlPatVars p =
+  nlPatVarsUnder k p =
     case p of
-      PVar _ i _ -> singleton i
-      PDef _ es -> nlPatVars es
+      PVar _ i _ -> singleton $ i - k
+      PDef _ es -> nlPatVarsUnder k es
       PWild     -> empty
-      PLam _ p' -> nlPatVars $ unAbs p'
-      PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
-      PBoundVar _ es -> nlPatVars es
+      PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
+      PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
+      PBoundVar _ es -> nlPatVarsUnder k es
       PTerm{}   -> empty
 
 rewArity :: RewriteRule -> Int
