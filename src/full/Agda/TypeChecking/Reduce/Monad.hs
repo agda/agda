@@ -151,11 +151,18 @@ traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
 --   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) $ return ()
 
 instance MonadDebug ReduceM where
+
   displayDebugMessage n s = do
     ReduceEnv env st <- askR
     unsafePerformIO $ do
       _ <- runTCM env st $ displayDebugMessage n s
       return $ return ()
+
+  formatDebugMessage k n d = do
+    ReduceEnv env st <- askR
+    unsafePerformIO $ do
+      (s , _) <- runTCM env st $ formatDebugMessage k n d
+      return $ return s
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)

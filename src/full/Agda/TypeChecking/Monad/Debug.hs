@@ -32,29 +32,45 @@ import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
   displayDebugMessage :: Int -> String -> m ()
+  formatDebugMessage  :: VerboseKey -> Int -> TCM Doc -> m String
 
 instance (MonadIO m) => MonadDebug (TCMT m) where
+
   displayDebugMessage n s = liftTCM $ do
     cb <- gets $ stInteractionOutputCallback . stPersistentState
     liftIO $ cb (Resp_RunningInfo n s)
 
+  formatDebugMessage k n d = liftTCM $
+    show <$> d `catchError` \ err ->
+      (\ s -> (sep $ map text
+                 [ "Printing debug message"
+                 , k  ++ ":" ++show n
+                 , "failed due to error:" ]) $$
+              (nest 2 $ text s)) <$> prettyError err
+
 instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
 instance MonadDebug m => MonadDebug (ListT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
 instance MonadDebug m => MonadDebug (MaybeT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
 instance MonadDebug m => MonadDebug (ReaderT r m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
 instance MonadDebug m => MonadDebug (StateT s m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
@@ -71,15 +87,10 @@ reportSLn k n s = verboseS k n $
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM () #-}
-reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> TCM Doc -> tcm ()
-reportSDoc k n d = liftTCM $ verboseS k n $ do
-  displayDebugMessage n . (++ "\n") . show =<< do
-    d `catchError` \ err ->
-      (\ s -> (sep $ map text
-                 [ "Printing debug message"
-                 , k  ++ ":" ++show n
-                 , "failed due to error:" ]) $$
-              (nest 2 $ text s)) <$> prettyError err
+reportSDoc :: (HasOptions m, MonadDebug m)
+           => VerboseKey -> Int -> TCM Doc -> m ()
+reportSDoc k n d = verboseS k n $ do
+  displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n d
 
 -- | Print brackets around debug messages issued by a computation.
 {-# SPECIALIZE verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a #-}

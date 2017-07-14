@@ -10,6 +10,7 @@ import Agda.Utils.Pretty
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
   displayDebugMessage :: Int -> String -> m ()
+  formatDebugMessage  :: VerboseKey -> Int -> TCM Doc -> m String
 
 instance (MonadIO m) => MonadDebug (TCMT m)
 
@@ -17,5 +18,6 @@ reportS :: (HasOptions m, MonadDebug m)
         => VerboseKey -> Int -> String -> m ()
 reportSLn :: (HasOptions m, MonadDebug m)
           => VerboseKey -> Int -> String -> m ()
-reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> TCM Doc -> tcm ()
+reportSDoc :: (HasOptions m, MonadDebug m)
+           => VerboseKey -> Int -> TCM Doc -> m ()
 
