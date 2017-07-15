@@ -30,6 +30,7 @@ module Agda.Syntax.Concrete.Definitions
     , NiceConstructor, NiceTypeSignature
     , Clause(..)
     , DeclarationException(..)
+    , DeclarationWarning(..)
     , Nice, runNice
     , niceDeclarations
     , notSoNiceDeclarations
@@ -179,14 +180,8 @@ data DeclarationException
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
         | NotAllowedInMutual NiceDeclaration
-        | UnknownNamesInFixityDecl [Name]
-        | UnknownNamesInPolarityPragmas [Name]
-        | PolarityPragmasButNotPostulates [Name]
         | Codata Range
         | DeclarationPanic String
-        | UselessPrivate Range
-        | UselessAbstract Range
-        | UselessInstance Range
         | WrongContentBlock KindOfBlock Range
         | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
         | InvalidTerminationCheckPragma Range
@@ -202,6 +197,16 @@ data DeclarationException
         | InvalidNoPositivityCheckPragma Range
 
     deriving (Typeable, Data, Show)
+
+-- | Non-fatal errors encountered in the Nicifier
+data DeclarationWarning
+  = UnknownNamesInFixityDecl [Name]
+  | UnknownNamesInPolarityPragmas [Name]
+  | PolarityPragmasButNotPostulates [Name]
+  | UselessPrivate Range
+  | UselessAbstract Range
+  | UselessInstance Range
+  deriving (Typeable, Data, Show)
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -226,14 +231,8 @@ instance HasRange DeclarationException where
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
   getRange (NotAllowedInMutual x)               = getRange x
-  getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
-  getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
-  getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
   getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
-  getRange (UselessPrivate r)                   = r
-  getRange (UselessAbstract r)                  = r
-  getRange (UselessInstance r)                  = r
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidTerminationCheckPragma r)    = r
   getRange (InvalidMeasureMutual r)             = r
@@ -242,6 +241,14 @@ instance HasRange DeclarationException where
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
   getRange (InvalidNoPositivityCheckPragma r)   = r
+
+instance HasRange DeclarationWarning where
+  getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
+  getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
+  getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
+  getRange (UselessPrivate r)                   = r
+  getRange (UselessAbstract r)                  = r
+  getRange (UselessInstance r)                  = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _ _ _)         = r
@@ -300,18 +307,6 @@ instance Pretty DeclarationException where
         pwords "it could belong to any of:"
     , vcat $ map (pretty . PrintRange) xs
     ]
-  pretty (UnknownNamesInFixityDecl xs) = fsep $
-    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
-  pretty (UnknownNamesInPolarityPragmas xs) = fsep $
-    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
-  pretty (PolarityPragmasButNotPostulates xs) = fsep $
-    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
-  pretty (UselessPrivate _)      = fsep $
-    pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
-  pretty (UselessAbstract _)      = fsep $
-    pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
-  pretty (UselessInstance _)      = fsep $
-    pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
   pretty (WrongContentBlock b _)      = fsep . pwords $
     case b of
       PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
@@ -337,6 +332,20 @@ instance Pretty DeclarationException where
   pretty (DeclarationPanic s) = text s
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
     pwords "No positivity checking pragmas can only precede a mutual block or a data/record definition."
+
+instance Pretty DeclarationWarning where
+  pretty (UnknownNamesInFixityDecl xs) = fsep $
+    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
+  pretty (UnknownNamesInPolarityPragmas xs) = fsep $
+    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
+  pretty (PolarityPragmasButNotPostulates xs) = fsep $
+    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
+  pretty (UselessPrivate _)      = fsep $
+    pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
+  pretty (UselessAbstract _)      = fsep $
+    pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
+  pretty (UselessInstance _)      = fsep $
+    pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -532,7 +541,7 @@ data NiceEnv = NiceEnv
 type LoneSigs   = Map Name DataRecOrFun
 type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
-type NiceWarnings = [DeclarationException]
+type NiceWarnings = [DeclarationWarning]
      -- ^ Stack of warnings. Head is last warning.
 
 -- | Initial nicifier state.
@@ -635,7 +644,7 @@ withCatchallPragma ca f = do
   return result
 
 -- | Add a new warning.
-niceWarning :: DeclarationException -> Nice ()
+niceWarning :: DeclarationWarning -> Nice ()
 niceWarning w = modify $ \ st -> st { niceWarn = w : niceWarn st }
 
 -- | Check whether name is not "_" and return its fixity.
@@ -1329,19 +1338,24 @@ niceDeclarations ds = do
     abstractBlock r ds = do
       let (ds', anyChange) = runChange $ mkAbstract ds
           inherited        = r == noRange
-          -- hack to avoid failing on inherited abstract blocks in where clauses
-      if anyChange || inherited then return ds' else throwError $ UselessAbstract r
+      if anyChange then return ds' else do
+        -- hack to avoid failing on inherited abstract blocks in where clauses
+        unless inherited $ niceWarning $ UselessAbstract r
+        return ds -- no change!
 
     privateBlock _ _ [] = return []
     privateBlock r o ds = do
       let (ds', anyChange) = runChange $ mkPrivate o ds
-      if anyChange then return ds' else
-        if o == UserWritten then throwError $ UselessPrivate r else return ds -- no change!
+      if anyChange then return ds' else do
+        when (o == UserWritten) $ niceWarning $ UselessPrivate r
+        return ds -- no change!
 
     instanceBlock _ [] = return []
     instanceBlock r ds = do
       let (ds', anyChange) = runChange $ mapM mkInstance ds
-      if anyChange then return ds' else throwError $ UselessInstance r
+      if anyChange then return ds' else do
+        niceWarning $ UselessInstance r
+        return ds -- no change!
 
     -- Make a declaration eligible for instance search.
     mkInstance :: Updater NiceDeclaration

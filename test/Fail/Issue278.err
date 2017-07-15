@@ -1,4 +1,4 @@
-Issue278.agda:4,1-11,19
-Using abstract here has no effect. Abstract applies only
+Issue278.agda:7,1-14,19
+Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.

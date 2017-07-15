@@ -1,5 +1,8 @@
+{-# OPTIONS --warning=error #-}
 
 module Issue278 where
+
+open import Agda.Builtin.Equality
 
 abstract
   module A where

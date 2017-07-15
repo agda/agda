@@ -1,4 +1,4 @@
-UselessAbstractAbstract.agda:4,1-6,12
-Using abstract here has no effect. Abstract applies only
+UselessAbstractAbstract.agda:6,1-8,12
+Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.

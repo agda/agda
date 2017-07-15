@@ -61,6 +61,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -202,7 +203,9 @@ instance PrettyTCM Warning where
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
       "instead. This will be an error in Agda" ++ [text version <> text "."]
 
-    NicifierIssue ws -> vcat $ map pretty ws
+    NicifierIssue ws -> vcat $ do
+      for ws $ \ w -> do
+        sayWhere (getRange w) $ pretty w
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'

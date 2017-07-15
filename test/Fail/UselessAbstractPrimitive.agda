@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 module UselessAbstractPrimitive where
 
 postulate Int : Set
