@@ -18,7 +18,7 @@ import Agda.TypeChecking.Serialise.Instances.Internal ()
 import Agda.TypeChecking.Serialise.Instances.Abstract ()
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Definitions (DeclarationException(..))
+import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
@@ -76,7 +76,7 @@ instance EmbPrj Warning where
       valu [7, a]       = valuN NicifierIssue a
       valu _ = malformed
 
-instance EmbPrj DeclarationException where
+instance EmbPrj DeclarationWarning where
   icod_ = \case
     UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
     UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
@@ -84,7 +84,6 @@ instance EmbPrj DeclarationException where
     UselessPrivate a                  -> icodeN 3 UselessPrivate a
     UselessAbstract a                 -> icodeN 4 UselessAbstract a
     UselessInstance a                 -> icodeN 5 UselessInstance a
-    _ -> __IMPOSSIBLE__
 
   value = vcase $ \case
     [0, a] -> valueN UnknownNamesInFixityDecl a

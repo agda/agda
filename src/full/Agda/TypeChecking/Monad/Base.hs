@@ -39,7 +39,7 @@ import Agda.Benchmarking (Benchmark, Phase)
 import Agda.Syntax.Concrete (TopLevelModuleName)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Definitions (NiceDeclaration, DeclarationException)
+import Agda.Syntax.Concrete.Definitions (NiceDeclaration, DeclarationWarning)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
@@ -2307,7 +2307,7 @@ instance Free Candidate where
 -- checking the document further and interacting with the user.
 
 data Warning
-  = NicifierIssue            [DeclarationException]
+  = NicifierIssue            [DeclarationWarning]
   | TerminationIssue         [TerminationError]
   | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
