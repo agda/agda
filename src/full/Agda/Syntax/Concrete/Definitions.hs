@@ -309,7 +309,7 @@ instance Pretty DeclarationException where
   pretty (UselessPrivate _)      = fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   pretty (UselessAbstract _)      = fsep $
-    pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
+    pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
   pretty (WrongContentBlock b _)      = fsep . pwords $
