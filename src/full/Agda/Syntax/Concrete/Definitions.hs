@@ -1328,19 +1328,24 @@ niceDeclarations ds = do
     abstractBlock r ds = do
       let (ds', anyChange) = runChange $ mkAbstract ds
           inherited        = r == noRange
-          -- hack to avoid failing on inherited abstract blocks in where clauses
-      if anyChange || inherited then return ds' else throwError $ UselessAbstract r
+      if anyChange then return ds' else do
+        -- hack to avoid failing on inherited abstract blocks in where clauses
+        unless inherited $ niceWarning $ UselessAbstract r
+        return ds -- no change!
 
     privateBlock _ _ [] = return []
     privateBlock r o ds = do
       let (ds', anyChange) = runChange $ mkPrivate o ds
-      if anyChange then return ds' else
-        if o == UserWritten then throwError $ UselessPrivate r else return ds -- no change!
+      if anyChange then return ds' else do
+        when (o == UserWritten) $ niceWarning $ UselessPrivate r
+        return ds -- no change!
 
     instanceBlock _ [] = return []
     instanceBlock r ds = do
       let (ds', anyChange) = runChange $ mapM mkInstance ds
-      if anyChange then return ds' else throwError $ UselessInstance r
+      if anyChange then return ds' else do
+        niceWarning $ UselessInstance r
+        return ds -- no change!
 
     -- Make a declaration eligible for instance search.
     mkInstance :: Updater NiceDeclaration

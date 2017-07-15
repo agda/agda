@@ -1,4 +1,7 @@
+{-# OPTIONS --warning=error #-}
+
 -- Useless abstract
+
 module Issue476b where
 
 abstract

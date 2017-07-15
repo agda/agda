@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 module UselessAbstractAbstract where
 
 A : Set₁

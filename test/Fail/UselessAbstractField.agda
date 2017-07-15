@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 -- Andreas, 2016-07-17
 
 record R : Set₁ where

@@ -1,3 +1,5 @@
+{-# OPTIONS --warning=error #-}
+
 module UselessPrivatePrivate where
 
 private
