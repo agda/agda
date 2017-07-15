@@ -1,3 +1,4 @@
+Issue476b.agda:7,1-8,15
 Using abstract here has no effect. Abstract applies only
 definitions like data definitions, record type definitions and
 function clauses.
