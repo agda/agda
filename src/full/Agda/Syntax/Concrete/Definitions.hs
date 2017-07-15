@@ -484,11 +484,11 @@ instance Functor Nice where
       Right a -> (Right (f a), s')
 
 instance Applicative Nice where
-  pure  = return
-  (<*>) = ap
+  pure a = Nice $ \ s -> (Right a, s)
+  (<*>)  = ap
 
 instance Monad Nice where
-  return a = Nice $ \ s -> (Right a, s)
+  return = pure
   m >>= k  = Nice $ \ s ->
     let (r, s') = unNice m s in
     case r of
