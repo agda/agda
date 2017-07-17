@@ -326,10 +326,16 @@ reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [
 reduceIApply' reduceB' d (IApply x y r : es) = do
   view <- intervalView'
   r <- reduceB' r
-  case view (ignoreBlocking r) of -- should we propagate the blocking?
+  -- We need to propagate the blocking information so that e.g.
+  -- we postpone "someNeutralPath ?0 = a" rather than fail.
+  let blockedInfo = case ignoreSharing <$> r of
+        Blocked m _              -> Blocked m ()
+        NotBlocked _ (MetaV m _) -> Blocked m ()
+        NotBlocked i _           -> NotBlocked i ()
+  case view (ignoreBlocking r) of
    IZero -> reduceB' (applyE x es)
    IOne  -> reduceB' (applyE y es)
-   _     -> reduceIApply d es
+   _     -> fmap (<* blockedInfo) (reduceIApply d es)
 reduceIApply' reduceB' d (_ : es) = reduceIApply d es
 reduceIApply' reduceB' d [] = d
 
