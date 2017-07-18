@@ -9,6 +9,9 @@ import Data.Monoid ((<>), Sum(..))
 import Data.Foldable (foldMap)
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
+import Control.Monad.State as St hiding (lift)
+import qualified Control.Monad.State as St
+import Data.Function
 
 import Agda.Syntax.Common (Hiding(..))
 import Agda.Auto.NarrowingSearch
@@ -281,36 +284,55 @@ replacep sv nnew rp re = r
 
   r _ = __IMPOSSIBLE__ -- other constructors dont appear in indata Pats
 
-unifyexp :: MExp o -> MExp o -> Maybe [(Nat, MExp o)]
-unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
- where
-  r e1 e2 cont unif = case (rm __IMPOSSIBLE__ e1, rm __IMPOSSIBLE__ e2) of
-   (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> rs args1 args2 cont unif
-   (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> r b1 b2 cont unif
-   (Pi _ hid1 _ it1 (Abs _ ot1), Pi _ hid2 _ it2 (Abs _ ot2)) | hid1 == hid2 -> r it1 it2 (r ot1 ot2 cont) unif
-   (Sort _, Sort _) -> cont unif -- a bit sloppy
-   (App _ _ (Var v) (NotM ALNil), App _ _ (Var u) (NotM ALNil))
-     | v == u -> cont unif
+
+
+-- Unification takes two values of the same type and generates a list
+-- of assignments making the two terms equal.
+
+type Assignments o = [(Nat, Exp o)]
+
+class Unify o t | t -> o where
+  unify' :: t -> t -> StateT (Assignments o) Maybe ()
+
+unify :: Unify o t => t -> t -> Maybe (Assignments o)
+unify t u = unify' t u `execStateT` []
+
+instance Unify o t => Unify o (MM t (RefInfo o)) where
+  unify' = unify' `on` rm __IMPOSSIBLE__
+
+unifyVar :: Nat -> Exp o -> StateT (Assignments o) Maybe ()
+unifyVar v e = do
+  unif <- get
+  case lookup v unif of
+    Nothing -> modify ((v, e) :)
+    Just e' -> unify' e e'
+
+instance Unify o (Exp o) where
+  unify' e1 e2 = case (e1, e2) of
+   (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> unify' args1 args2
+   (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> unify' b1 b2
+   (Pi _ hid1 _ a1 (Abs _ b1), Pi _ hid2 _ a2 (Abs _ b2)) | hid1 == hid2 -> unify' a1 a2 >> unify' b1 b2
+   (Sort _, Sort _) -> return () -- a bit sloppy
    (App _ _ (Var v) (NotM ALNil), _)
-     | elem v (freevars e2) -> Nothing -- Occurs check
+     | elem v (freevars e2) -> St.lift Nothing -- Occurs check
    (_, App _ _ (Var v) (NotM ALNil))
-     | elem v (freevars e1) -> Nothing -- Occurs check
-   (App _ _ (Var v) (NotM ALNil), _) ->
-    case lookup v unif of
-     Nothing -> cont ((v, e2) : unif)
-     Just e1' -> r e1' e2 cont unif
-   (_, App _ _ (Var v) (NotM ALNil)) ->
-    case lookup v unif of
-     Nothing -> cont ((v, e1) : unif)
-     Just e2' -> r e1 e2' cont unif
-   _ -> Nothing
-  rs args1 args2 cont unif = case (rm __IMPOSSIBLE__ args1, rm __IMPOSSIBLE__ args2) of
-   (ALNil, ALNil) -> cont unif
-   (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> r a1 a2 (rs as1 as2 cont) unif
-   (ALConPar as1, ALCons _ _ as2) -> rs as1 as2 cont unif
-   (ALCons _ _ as1, ALConPar as2) -> rs as1 as2 cont unif
-   (ALConPar as1, ALConPar as2) -> rs as1 as2 cont unif
-   _ -> Nothing
+     | elem v (freevars e1) -> St.lift Nothing -- Occurs check
+   (App _ _ (Var v) (NotM ALNil), _) -> unifyVar v e2
+   (_, App _ _ (Var v) (NotM ALNil)) -> unifyVar v e1
+   _ -> St.lift Nothing
+
+instance Unify o (ArgList o) where
+  unify' args1 args2 = case (args1, args2) of
+   (ALNil, ALNil) -> pure ()
+   (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> unify' a1 a2 >> unify' as1 as2
+   (ALConPar as1, ALCons _ _ as2) -> unify' as1 as2
+   (ALCons _ _ as1, ALConPar as2) -> unify' as1 as2
+   (ALConPar as1, ALConPar as2) -> unify' as1 as2
+   _ -> St.lift Nothing
+
+-- This definition is only here to respect the previous interface.
+unifyexp :: MExp o -> MExp o -> Maybe ([(Nat, MExp o)])
+unifyexp e1 e2 = fmap (NotM <$>) <$> unify e1 e2
 
 lift :: Nat -> MExp o -> MExp o
 lift 0 = id
@@ -416,7 +438,7 @@ findperm ts =
  in r m [] (length ts)
 
 
-freevars :: MExp o -> [Nat]
+freevars :: FreeVars t => t -> [Nat]
 freevars = Set.toList . freeVars
 
 applyperm :: [Nat] -> CSCtx o -> MExp o -> [CSPat o] ->
