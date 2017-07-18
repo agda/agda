@@ -203,9 +203,11 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-replace :: Nat -> Nat -> MExp o -> MExp o -> MExp o
+replace :: forall o. Nat -> Nat -> MExp o -> MExp o -> MExp o
 replace sv nnew re = r 0
  where
+
+  r :: Nat -> MExp o -> MExp o
   r n e =
    case rm __IMPOSSIBLE__ e of
          App uid ok elr@(Var v) args ->
@@ -227,7 +229,7 @@ replace sv nnew re = r 0
 
          AbsurdLambda{} -> e
 
-
+  rs :: Nat -> MArgList o -> MArgList o
   rs n es =
    case rm __IMPOSSIBLE__ es of
     ALNil -> NotM $ ALNil
@@ -251,7 +253,7 @@ betareduce e args = case rm __IMPOSSIBLE__ args of
 
  ALConPar as -> __IMPOSSIBLE__
 
-concatargs :: MM (ArgList o) (RefInfo o) -> MArgList o -> MArgList o
+concatargs :: MArgList o -> MArgList o -> MArgList o
 concatargs xs ys = case rm __IMPOSSIBLE__ xs of
   ALNil -> ys
 
@@ -261,9 +263,10 @@ concatargs xs ys = case rm __IMPOSSIBLE__ xs of
 
   ALConPar as -> NotM $ ALConPar (concatargs xs ys)
 
-replacep :: Nat -> Nat -> CSPatI o -> MExp o -> CSPat o -> CSPat o
+replacep :: forall o. Nat -> Nat -> CSPatI o -> MExp o -> CSPat o -> CSPat o
 replacep sv nnew rp re = r
  where
+  r :: CSPat o -> CSPat o
   r (HI hid (CSPatConApp c ps)) = HI hid (CSPatConApp c (map r ps))
   r (HI hid (CSPatVar v)) = if v == sv then
                     HI hid rp
