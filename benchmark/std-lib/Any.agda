@@ -33,7 +33,7 @@ open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _�
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
-open Any.Membership-≡
+open import Data.List.Any.Membership.Propositional
 open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
