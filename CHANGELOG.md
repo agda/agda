@@ -111,7 +111,7 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
-* Added support for GHC 8.0.2.
+* Added support for GHC 8.0.2 and 8.2.1.
 
 * Removed the empty `Irrelevance` module
 
