@@ -549,7 +549,9 @@ library
 
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
-                 -Wmissing-home-modules
+                 -- ASR TODO (2017-07-23): `make haddock` fails when
+                 -- this flag is on.
+                 -- -Wmissing-home-modules
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
