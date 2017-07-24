@@ -190,9 +190,9 @@ Emacs mode
 
 * New bindings: More variants of the colon are now available.
 
-  The Agda input method orignally only bound the standard unicode colon,
+  The Agda input method originally only bound the standard unicode colon,
   which looks deceptively like the normal colon, but typing `\:` you can
-  now get the unicode symbol "⦂", named "z notation type colon".
+  now get a whole slew of colons.
 
 * Case splitting now preserves underscores.
   [Issue [#819](https://github.com/agda/agda/issues/819)]
