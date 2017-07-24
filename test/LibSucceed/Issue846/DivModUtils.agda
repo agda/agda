@@ -19,9 +19,6 @@ open ≤-Reasoning
   renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩'_)
 open DecTotalOrder ≤-decTotalOrder using () renaming (refl to ≤-refl; antisym to ≤-antisym)
 
-import Algebra
-open Algebra.CommutativeSemiring commutativeSemiring using (+-comm; +-assoc)
-
 
 i+[j∸m]≡i+j∸m : ∀ i j m → m ≤ j → i + (j ∸ m) ≡ i + j ∸ m
 i+[j∸m]≡i+j∸m i zero zero lt = refl

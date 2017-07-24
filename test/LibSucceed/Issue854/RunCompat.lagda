@@ -27,7 +27,7 @@ open import Data.W
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PE hiding ([_])
 
-open Membership-≡
+open import Data.List.Any.Membership.Propositional
 open import Issue854.TypesSemantics using (Sh; Pos; ⌊_⌋^Sig; sh; ar)
 open import Issue854.Run using (_⋆^S_; embed)
 \end{code}

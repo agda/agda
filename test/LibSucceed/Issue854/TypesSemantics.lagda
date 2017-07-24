@@ -22,7 +22,7 @@ open import Data.Container.FreeMonad as FM
 open import Category.Monad
 open import Relation.Binary.PropositionalEquality
 
-open Membership-≡
+open import Data.List.Any.Membership.Propositional
 open import Issue854.Types
 open import Issue854.Context
 open import Issue854.EilenbergMooreAlgebra

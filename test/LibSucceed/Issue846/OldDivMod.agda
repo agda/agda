@@ -76,7 +76,7 @@ record DivMod (dividend divisor : ℕ) : Set where
 
 _divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
            DivMod dividend divisor
-_divMod_ m n {≢0} = <-rec Pred dm m n {≢0}
+_divMod_ m n {≢0} = <′-rec Pred dm m n {≢0}
   where
   Pred : ℕ → Set
   Pred dividend = (divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
@@ -85,7 +85,7 @@ _divMod_ m n {≢0} = <-rec Pred dm m n {≢0}
   1+_ : ∀ {k n} → DivMod (suc k) n → DivMod (suc n + k) n
   1+_ {k} {n} (result q r eq) = result (1 + q) r (lem₃ n k q r eq)
 
-  dm : (dividend : ℕ) → <-Rec Pred dividend → Pred dividend
+  dm : (dividend : ℕ) → <′-Rec Pred dividend → Pred dividend
   dm m       rec zero    {≢0 = ()}
   dm zero    rec (suc n)            = result 0 zero refl
   dm (suc m) rec (suc n)            with compare m n
