@@ -114,7 +114,8 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
     case sols1 of
      (_:_) -> return sols1
      [] -> do
-      let r [] = return []
+      let r :: [Nat] -> IO [Sol o]
+          r [] = return []
           r (v:vs) = do
            sols2 <- splitvar mblkvar v
            case sols2 of
@@ -210,42 +211,46 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-replace :: forall o. Nat -> Nat -> MExp o -> MExp o -> MExp o
-replace sv nnew re = r 0
- where
+class Replace o t u where
+  replace' :: Nat -> Nat -> Nat -> MExp o -> t -> u
 
-  r :: Nat -> MExp o -> MExp o
-  r n e =
-   case rm __IMPOSSIBLE__ e of
-         App uid ok elr@(Var v) args ->
-          if v >= n then
-           if v - n == sv then
-            betareduce (lift n re) (rs n args)
-           else
-            if v - n > sv then
-             NotM $ App uid ok (Var (v + nnew - 1)) (rs n args)
-            else
-             NotM $ App uid ok elr (rs n args)
-          else
-           NotM $ App uid ok elr (rs n args)
-         App uid ok elr@(Const _) args ->
-          NotM $ App uid ok elr (rs n args)
-         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (n + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r n it) (Abs mid (r (n + 1) ot))
-         Sort{} -> e
+replace :: Replace o t u => Nat -> Nat -> MExp o -> t -> u
+replace sv nnew = replace' sv nnew 0
 
-         AbsurdLambda{} -> e
+instance Replace o t u => Replace o (Abs t) (Abs u) where
+  replace' sv nnew n re (Abs mid b) = Abs mid $ replace' sv nnew (n + 1) re b
 
-  rs :: Nat -> MArgList o -> MArgList o
-  rs n es =
-   case rm __IMPOSSIBLE__ es of
-    ALNil -> NotM $ ALNil
-    ALCons hid a as -> NotM $ ALCons hid (r n a) (rs n as)
+instance Replace o (Exp o) (MExp o) where
+  replace' sv nnew n re e = case e of
+    App uid ok elr@(Var v) args ->
+      let ih = NotM (replace' sv nnew n re args) in
+      if v >= n
+      then if v - n == sv
+           then betareduce (lift n re) ih
+           else if v - n > sv
+                then NotM $ App uid ok (Var (v + nnew - 1)) ih
+                else NotM $ App uid ok elr ih
+      else NotM $ App uid ok elr ih
+    App uid ok elr@(Const _) args -> NotM $ App uid ok elr (NotM $ replace' sv nnew n re args)
+    Lam hid b -> NotM $ Lam hid (replace' sv nnew (n + 1) re b)
+    Pi uid hid possdep it b -> NotM $ Pi uid hid possdep
+                               (replace' sv nnew n re it)
+                               (replace' sv nnew n re b)
+    Sort{} -> NotM e
+    AbsurdLambda{} -> NotM e
 
-    ALProj{} -> __IMPOSSIBLE__
+instance Replace o t u => Replace o (MM t (RefInfo o)) u where
+  replace' sv nnew n re = replace' sv nnew n re . rm __IMPOSSIBLE__
 
 
-    ALConPar as -> NotM $ ALConPar (rs n as)
+instance Replace o (ArgList o) (ArgList o) where
+  replace' sv nnew n re args = case args of
+    ALNil           -> ALNil
+    ALCons hid a as -> ALCons hid (replace' sv nnew n re a)
+                                  (NotM $ replace' sv nnew n re as)
+    ALProj{}        -> __IMPOSSIBLE__
+    ALConPar as     -> ALConPar (NotM $ replace' sv nnew n re as)
+
 
 
 betareduce :: MExp o -> MArgList o -> MExp o
@@ -255,9 +260,7 @@ betareduce e args = case rm __IMPOSSIBLE__ args of
   App uid ok elr eargs -> NotM $ App uid ok elr (concatargs eargs args)
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
   _ -> __IMPOSSIBLE__ -- not type correct if this happens
-
  ALProj{} -> __IMPOSSIBLE__
-
  ALConPar as -> __IMPOSSIBLE__
 
 concatargs :: MArgList o -> MArgList o -> MArgList o
@@ -295,7 +298,7 @@ replacep sv nnew rp re = r
 
 type Assignments o = [(Nat, Exp o)]
 
-class Unify o t | t -> o where
+class Unify o t where
   unify' :: t -> t -> StateT (Assignments o) Maybe ()
 
 unify :: Unify o t => t -> t -> Maybe (Assignments o)
@@ -311,11 +314,15 @@ unifyVar v e = do
     Nothing -> modify ((v, e) :)
     Just e' -> unify' e e'
 
+instance Unify o t => Unify o (Abs t) where
+  unify' (Abs _ b1) (Abs _ b2) = unify' b1 b2
+
 instance Unify o (Exp o) where
   unify' e1 e2 = case (e1, e2) of
    (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> unify' args1 args2
-   (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> unify' b1 b2
-   (Pi _ hid1 _ a1 (Abs _ b1), Pi _ hid2 _ a2 (Abs _ b2)) | hid1 == hid2 -> unify' a1 a2 >> unify' b1 b2
+   (Lam hid1 b1, Lam hid2 b2)               | hid1 == hid2 -> unify' b1 b2
+   (Pi _ hid1 _ a1 b1, Pi _ hid2 _ a2 b2)   | hid1 == hid2 -> unify' a1 a2
+                                                           >> unify' b1 b2
    (Sort _, Sort _) -> return () -- a bit sloppy
    (App _ _ (Var v) (NotM ALNil), _)
      | elem v (freevars e2) -> St.lift Nothing -- Occurs check
@@ -338,38 +345,42 @@ instance Unify o (ArgList o) where
 unifyexp :: MExp o -> MExp o -> Maybe ([(Nat, MExp o)])
 unifyexp e1 e2 = fmap (NotM <$>) <$> unify e1 e2
 
-lift :: Nat -> MExp o -> MExp o
+class Lift t where
+  lift' :: Nat -> Nat -> t -> t
+
+lift :: Lift t => Nat -> t -> t
 lift 0 = id
-lift n = r 0
- where
-  r j e =
-   case rm __IMPOSSIBLE__ e of
-         App uid ok elr args -> case elr of
-          Var v | v >= j -> NotM $ App uid ok (Var (v + n)) (rs j args)
-          _ -> NotM $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
-         Sort{} -> e
+lift n = lift' n 0
 
-         AbsurdLambda{} -> e
+instance Lift t => Lift (Abs t) where
+  lift' n j (Abs mid b) = Abs mid (lift' n (j + 1) b)
+
+instance Lift t => Lift (MM t r) where
+  lift' n j = NotM . lift' n j . rm __IMPOSSIBLE__
+
+instance Lift (Exp o) where
+  lift' n j e = case e of
+    App uid ok elr args -> case elr of
+      Var v | v >= j -> App uid ok (Var (v + n)) (lift' n j args)
+      _ -> App uid ok elr (lift' n j args)
+    Lam hid b -> Lam hid (lift' n j b)
+    Pi uid hid possdep it b -> Pi uid hid possdep (lift' n j it) (lift' n j b)
+    Sort{} -> e
+    AbsurdLambda{} -> e
+
+instance Lift (ArgList o) where
+  lift' n j args = case args of
+    ALNil           -> ALNil
+    ALCons hid a as -> ALCons hid (lift' n j a) (lift' n j as)
+    ALProj{}        -> __IMPOSSIBLE__
+    ALConPar as     -> ALConPar (lift' n j as)
 
 
-  rs j es =
-   case rm __IMPOSSIBLE__ es of
-    ALNil -> NotM ALNil
-    ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
-
-    ALProj{} -> __IMPOSSIBLE__
-
-
-    ALConPar as -> NotM $ ALConPar (rs j as)
-
-
-removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
+removevar :: forall o. CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
 removevar ctx tt pats [] = (ctx, tt, pats)
 removevar ctx tt pats ((v, e) : unif) =
  let
-  e2 = replace v 0 (__IMPOSSIBLE__ {- occurs check failed -}) e
+  e2 = replace v 0 (__IMPOSSIBLE__ :: MExp o {- occurs check failed -}) e
   thesub = replace v 0 e2
   ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take v ctx) ++
          map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (v + 1) ctx)

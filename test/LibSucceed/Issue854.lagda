@@ -17,7 +17,7 @@ open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.List.Pointwise hiding (refl)
 open import Category.Monad
 
-open Membership-≡
+open import Data.List.Any.Membership.Propositional
 open import Issue854.Types
 open import Issue854.Context
 open import Issue854.WellTyped
