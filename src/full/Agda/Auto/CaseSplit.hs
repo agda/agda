@@ -296,7 +296,7 @@ replacep sv nnew rp re = r
 
 type Assignments o = [(Nat, Exp o)]
 
-class Unify o t | t -> o where
+class Unify o t where
   unify' :: t -> t -> StateT (Assignments o) Maybe ()
 
 unify :: Unify o t => t -> t -> Maybe (Assignments o)
@@ -312,11 +312,15 @@ unifyVar v e = do
     Nothing -> modify ((v, e) :)
     Just e' -> unify' e e'
 
+instance Unify o t => Unify o (Abs t) where
+  unify' (Abs _ b1) (Abs _ b2) = unify' b1 b2
+
 instance Unify o (Exp o) where
   unify' e1 e2 = case (e1, e2) of
    (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> unify' args1 args2
-   (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> unify' b1 b2
-   (Pi _ hid1 _ a1 (Abs _ b1), Pi _ hid2 _ a2 (Abs _ b2)) | hid1 == hid2 -> unify' a1 a2 >> unify' b1 b2
+   (Lam hid1 b1, Lam hid2 b2)               | hid1 == hid2 -> unify' b1 b2
+   (Pi _ hid1 _ a1 b1, Pi _ hid2 _ a2 b2)   | hid1 == hid2 -> unify' a1 a2
+                                                           >> unify' b1 b2
    (Sort _, Sort _) -> return () -- a bit sloppy
    (App _ _ (Var v) (NotM ALNil), _)
      | elem v (freevars e2) -> St.lift Nothing -- Occurs check
