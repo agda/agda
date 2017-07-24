@@ -300,7 +300,7 @@ replacep sv nnew rp re = r
 
 type Assignments o = [(Nat, Exp o)]
 
-class Unify o t where
+class Unify o t | t -> o where
   unify' :: t -> t -> StateT (Assignments o) Maybe ()
 
 unify :: Unify o t => t -> t -> Maybe (Assignments o)
@@ -337,10 +337,11 @@ instance Unify o (Exp o) where
 instance Unify o (ArgList o) where
   unify' args1 args2 = case (args1, args2) of
    (ALNil, ALNil) -> pure ()
-   (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> unify' a1 a2 >> unify' as1 as2
+   (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> unify' a1 a2
+                                                           >> unify' as1 as2
    (ALConPar as1, ALCons _ _ as2) -> unify' as1 as2
    (ALCons _ _ as1, ALConPar as2) -> unify' as1 as2
-   (ALConPar as1, ALConPar as2) -> unify' as1 as2
+   (ALConPar as1, ALConPar as2)   -> unify' as1 as2
    _ -> St.lift Nothing
 
 -- This definition is only here to respect the previous interface.
