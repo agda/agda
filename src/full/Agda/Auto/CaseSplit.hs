@@ -114,7 +114,8 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
     case sols1 of
      (_:_) -> return sols1
      [] -> do
-      let r [] = return []
+      let r :: [Nat] -> IO [Sol o]
+          r [] = return []
           r (v:vs) = do
            sols2 <- splitvar mblkvar v
            case sols2 of
