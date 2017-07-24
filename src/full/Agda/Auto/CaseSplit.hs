@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Auto.CaseSplit where
 
@@ -14,6 +15,7 @@ import Data.Foldable (foldMap)
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 import Control.Monad.State as St hiding (lift)
+import Control.Monad.Reader as Rd hiding (lift)
 import qualified Control.Monad.State as St
 import Data.Function
 
@@ -211,46 +213,46 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-class Replace o t u where
-  replace' :: Nat -> Nat -> Nat -> MExp o -> t -> u
+class Replace o t u | t u -> o where
+  replace' :: Nat -> MExp o -> t -> Reader (Nat, Nat) u
 
 replace :: Replace o t u => Nat -> Nat -> MExp o -> t -> u
-replace sv nnew = replace' sv nnew 0
+replace sv nnew e t = replace' 0 e t `runReader` (sv, nnew)
 
 instance Replace o t u => Replace o (Abs t) (Abs u) where
-  replace' sv nnew n re (Abs mid b) = Abs mid $ replace' sv nnew (n + 1) re b
+  replace' n re (Abs mid b) = Abs mid <$> replace' (n + 1) re b
 
 instance Replace o (Exp o) (MExp o) where
-  replace' sv nnew n re e = case e of
-    App uid ok elr@(Var v) args ->
-      let ih = NotM (replace' sv nnew n re args) in
-      if v >= n
-      then if v - n == sv
-           then betareduce (lift n re) ih
-           else if v - n > sv
-                then NotM $ App uid ok (Var (v + nnew - 1)) ih
-                else NotM $ App uid ok elr ih
-      else NotM $ App uid ok elr ih
-    App uid ok elr@(Const _) args -> NotM $ App uid ok elr (NotM $ replace' sv nnew n re args)
-    Lam hid b -> NotM $ Lam hid (replace' sv nnew (n + 1) re b)
-    Pi uid hid possdep it b -> NotM $ Pi uid hid possdep
-                               (replace' sv nnew n re it)
-                               (replace' sv nnew n re b)
-    Sort{} -> NotM e
-    AbsurdLambda{} -> NotM e
+  replace' n re e = case e of
+    App uid ok elr@(Var v) args -> do
+      ih         <- NotM <$> replace' n re args
+      (sv, nnew) <- ask
+      return $
+        if v >= n
+        then if v - n == sv
+             then betareduce (lift n re) ih
+             else if v - n > sv
+                  then NotM $ App uid ok (Var (v + nnew - 1)) ih
+                  else NotM $ App uid ok elr ih
+        else NotM $ App uid ok elr ih
+    App uid ok elr@Const{} args ->
+      NotM . App uid ok elr . NotM <$> replace' n re args
+    Lam hid b -> NotM . Lam hid <$> replace' (n + 1) re b
+    Pi uid hid possdep it b ->
+      fmap NotM $ Pi uid hid possdep <$> replace' n re it <*> replace' n re b
+    Sort{} -> return $ NotM e
+    AbsurdLambda{} -> return $ NotM e
 
 instance Replace o t u => Replace o (MM t (RefInfo o)) u where
-  replace' sv nnew n re = replace' sv nnew n re . rm __IMPOSSIBLE__
-
+  replace' n re = replace' n re . rm __IMPOSSIBLE__
 
 instance Replace o (ArgList o) (ArgList o) where
-  replace' sv nnew n re args = case args of
-    ALNil           -> ALNil
-    ALCons hid a as -> ALCons hid (replace' sv nnew n re a)
-                                  (NotM $ replace' sv nnew n re as)
+  replace' n re args = case args of
+    ALNil           -> return ALNil
+    ALCons hid a as ->
+      ALCons hid <$> replace' n re a <*> (NotM <$> replace' n re as)
     ALProj{}        -> __IMPOSSIBLE__
-    ALConPar as     -> ALConPar (NotM $ replace' sv nnew n re as)
-
+    ALConPar as     -> ALConPar . NotM <$> replace' n re as
 
 
 betareduce :: MExp o -> MArgList o -> MExp o
@@ -376,11 +378,11 @@ instance Lift (ArgList o) where
     ALConPar as     -> ALConPar (lift' n j as)
 
 
-removevar :: forall o. CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
+removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
 removevar ctx tt pats [] = (ctx, tt, pats)
 removevar ctx tt pats ((v, e) : unif) =
  let
-  e2 = replace v 0 (__IMPOSSIBLE__ :: MExp o {- occurs check failed -}) e
+  e2 = replace v 0 __IMPOSSIBLE__ {- occurs check failed -} e
   thesub = replace v 0 e2
   ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take v ctx) ++
          map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (v + 1) ctx)
