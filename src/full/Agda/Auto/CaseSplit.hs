@@ -28,6 +28,7 @@ import Agda.Auto.Typecheck
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Monad (or2M)
 
 abspatvarname :: String
 abspatvarname = "\0absurdPattern"
@@ -301,13 +302,20 @@ replacep sv nnew rp re = r
 type Assignments o = [(Nat, Exp o)]
 
 class Unify o t | t -> o where
-  unify' :: t -> t -> StateT (Assignments o) Maybe ()
+  unify'    :: t -> t -> StateT (Assignments o) Maybe ()
+  notequal' :: t -> t -> ReaderT (Nat, Nat) (StateT (Assignments o) IO) Bool
 
 unify :: Unify o t => t -> t -> Maybe (Assignments o)
 unify t u = unify' t u `execStateT` []
 
+notequal :: Unify o t => Nat -> Nat -> t -> t -> IO Bool
+notequal fstnew nbnew t1 t2 = notequal' t1 t2 `runReaderT` (fstnew, nbnew)
+                                              `evalStateT` []
+
 instance Unify o t => Unify o (MM t (RefInfo o)) where
   unify' = unify' `on` rm __IMPOSSIBLE__
+
+  notequal' = notequal' `on` rm __IMPOSSIBLE__
 
 unifyVar :: Nat -> Exp o -> StateT (Assignments o) Maybe ()
 unifyVar v e = do
@@ -318,6 +326,8 @@ unifyVar v e = do
 
 instance Unify o t => Unify o (Abs t) where
   unify' (Abs _ b1) (Abs _ b2) = unify' b1 b2
+
+  notequal' (Abs _ b1) (Abs _ b2) = notequal' b1 b2
 
 instance Unify o (Exp o) where
   unify' e1 e2 = case (e1, e2) of
@@ -334,6 +344,35 @@ instance Unify o (Exp o) where
    (_, App _ _ (Var v) (NotM ALNil)) -> unifyVar v e1
    _ -> St.lift Nothing
 
+  notequal' e1 e2 = do
+    (fstnew, nbnew) <- ask
+    unifier         <- get
+    case (e1, e2) of
+      (App _ _ elr1 es1, App _ _ elr2 es2) | elr1 == elr2 -> notequal' es1 es2
+      (_, App _ _ (Var v2) (NotM ALNil)) -- why is this not symmetric?!
+        | fstnew <= v2 && v2 < fstnew + nbnew ->
+        case lookup v2 unifier of
+          Nothing  -> modify ((v2, e1):) >> return False
+          Just e2' -> notequal' e1 e2'
+{-
+  GA: Skipped these: Not sure why we'd claim they're impossible
+      (_, App _ _ (Var v2) (NotM ALProj{})) -> __IMPOSSIBLE__
+      (_, App _ _ (Var v2) (NotM ALConPar{})) -> __IMPOSSIBLE__
+-}
+      (App _ _ (Const c1) es1, App _ _ (Const c2) es2) -> do
+        cd1 <- liftIO $ readIORef c1
+        cd2 <- liftIO $ readIORef c2
+        case (cdcont cd1, cdcont cd2) of
+          (Constructor{}, Constructor{}) -> if c1 == c2 then notequal' es1 es2
+                                            else return True
+          _ -> return False
+{- GA: Why don't we have a case for distinct heads after all these
+       unification cases for vars with no spines & metas that can
+       be looked up?
+      (App _ _ elr1 _, App _ _ elr2 _) | elr1 <> elr2 -> return True
+-}
+      _ -> return False
+
 instance Unify o (ArgList o) where
   unify' args1 args2 = case (args1, args2) of
    (ALNil, ALNil) -> pure ()
@@ -343,6 +382,11 @@ instance Unify o (ArgList o) where
    (ALCons _ _ as1, ALConPar as2) -> unify' as1 as2
    (ALConPar as1, ALConPar as2)   -> unify' as1 as2
    _ -> St.lift Nothing
+
+  notequal' args1 args2 = case (args1, args2) of
+    (ALCons _ e es, ALCons _ f fs) -> notequal' e f `or2M` notequal' es fs
+    (ALConPar es1, ALConPar es2)   -> notequal' es1 es2
+    _                              -> return False
 
 -- This definition is only here to respect the previous interface.
 unifyexp :: MExp o -> MExp o -> Maybe ([(Nat, MExp o)])
@@ -392,51 +436,6 @@ removevar ctx tt pats ((v, e) : unif) =
   unif' = map (\(uv, ue) -> (if uv > v then uv - 1 else uv, thesub ue)) unif
  in
   removevar ctx1 tt' pats' unif'
-
-notequal :: Nat -> Nat -> MExp o -> MExp o -> IO Bool
-notequal firstnew nnew e1 e2 =
-  case (rm __IMPOSSIBLE__ e1, rm __IMPOSSIBLE__ e2) of
-   (App _ _ _ es1, App _ _ _ es2) -> rs es1 es2 (\_ -> return False) []
-   _ -> __IMPOSSIBLE__
- where
-  rs :: MArgList o -> MArgList o -> ([(Nat, MExp o)] -> IO Bool) -> [(Nat, MExp o)] -> IO Bool
-  rs es1 es2 cont unifier2 =
-   case (rm __IMPOSSIBLE__ es1, rm __IMPOSSIBLE__ es2) of
-    (ALCons _ e1 es1, ALCons _ e2 es2) -> r e1 e2 (rs es1 es2 cont) unifier2
-
-    (ALConPar es1, ALConPar es2) -> rs es1 es2 cont unifier2
-
-    _ -> cont unifier2
-
-  r :: MExp o -> MExp o -> ([(Nat, MExp o)] -> IO Bool) -> [(Nat, MExp o)] -> IO Bool
-  r e1 e2 cont unifier2 = case rm __IMPOSSIBLE__ e2 of
-   App _ _ (Var v2) es2 | firstnew <= v2 && v2 < firstnew + nnew ->
-    case rm __IMPOSSIBLE__ es2 of
-     ALNil ->
-      case lookup v2 unifier2 of
-       Nothing -> cont ((v2, e1) : unifier2)
-       Just e2' -> cc e1 e2'
-     ALCons{} -> cont unifier2
-
-     ALProj{} -> __IMPOSSIBLE__
-
-
-     ALConPar{} -> __IMPOSSIBLE__
-
-   _ -> cc e1 e2
-   where
-   cc e1 e2 = case (rm __IMPOSSIBLE__ e1, rm __IMPOSSIBLE__ e2) of
-    (App _ _ (Const c1) es1, App _ _ (Const c2) es2) -> do
-     cd1 <- readIORef c1
-     cd2 <- readIORef c2
-     case (cdcont cd1, cdcont cd2) of
-      (Constructor{}, Constructor{}) ->
-       if c1 == c2 then
-        rs es1 es2 cont unifier2
-       else
-        return True
-      _ -> cont unifier2
-    _ -> cont unifier2
 
 findperm :: [MExp o] -> Maybe [Nat]
 findperm ts =
