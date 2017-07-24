@@ -12,7 +12,7 @@ open import Function
 open import Level using (_⊔_)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
-
+open import Relation.Binary.HeterogeneousEquality as H using (_≅_)
 module Equality {s₁ s₂} (S : Setoid s₁ s₂) where
 
   private
@@ -49,6 +49,10 @@ module Equality {s₁ s₂} (S : Setoid s₁ s₂) where
   trans []-cong            []-cong            = []-cong
   trans (x≈y ∷-cong xs≈ys) (y≈z ∷-cong ys≈zs) =
     SS.trans x≈y y≈z ∷-cong trans xs≈ys ys≈zs
+
+  xs++[]≈xs : ∀ {n} (xs : Vec A n) → xs ++ [] ≈ xs
+  xs++[]≈xs []        = []-cong
+  xs++[]≈xs (x ∷ xs) = SS.refl ∷-cong (xs++[]≈xs xs)
 
   _++-cong_ : ∀ {n₁¹ n₂¹} {xs₁¹ : Vec A n₁¹} {xs₂¹ : Vec A n₂¹}
                 {n₁² n₂²} {xs₁² : Vec A n₁²} {xs₂² : Vec A n₂²} →
@@ -91,3 +95,11 @@ module PropositionalEquality {a} {A : Set a} where
 
   from-≡ : ∀ {n} {xs ys : Vec A n} → xs ≡ ys → xs ≈ ys
   from-≡ P.refl = refl _
+
+  to-≅ : ∀ {m n} {xs : Vec A m} {ys : Vec A n} →
+            xs ≈ ys → xs ≅ ys
+  to-≅ p with length-equal p
+  to-≅ p | P.refl = H.≡-to-≅ (to-≡ p)
+
+  xs++[]≅xs : ∀ {n} → (xs : Vec A n) → (xs ++ []) ≅ xs
+  xs++[]≅xs xs = to-≅ (xs++[]≈xs xs)

@@ -34,10 +34,18 @@ x ≇ y = ¬ x ≅ y
 ------------------------------------------------------------------------
 -- Conversion
 
+open Core public using (≅-to-≡)
+
 ≡-to-≅ : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≅ y
 ≡-to-≅ refl = refl
 
-open Core public using (≅-to-≡)
+≅-to-type-≡ : ∀ {a} {A B : Set a} {x : A} {y : B} →
+                x ≅ y → A ≡ B
+≅-to-type-≡ refl = refl
+
+≅-to-subst-≡ : ∀ {a} {A B : Set a} {x : A} {y : B} → (p : x ≅ y) →
+                 P.subst (λ x → x) (≅-to-type-≡ p) x ≡ y
+≅-to-subst-≡ refl = refl
 
 ------------------------------------------------------------------------
 -- Some properties

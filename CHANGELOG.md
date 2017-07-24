@@ -575,6 +575,13 @@ Backwards compatible changes
   functor = record { _<$>_ = map}
   ```
 
+* Added proofs to `Data.Vec.Equality`
+  ```agda
+  to-≅      : xs ≈ ys → xs ≅ ys
+  xs++[]≈xs  : xs ++ [] ≈ xs
+  xs++[]≅xs : xs ++ [] ≅ xs
+  ```
+
 * Added proofs to `Data.Vec.Properties`
   ```agda
   lookup-map              : lookup i (map f xs) ≡ f (lookup i xs)
@@ -613,6 +620,12 @@ Backwards compatible changes
 * Added proofs to `Relation.Binary.Consequences`
   ```agda
   P-resp⟶¬P-resp : Symmetric _≈_ → P Respects _≈_ → (¬_ ∘ P) Respects _≈_
+  ```
+
+* Added conversion lemmas to `Relation.Binary.HeterogeneousEquality`
+  ```agda
+  ≅-to-type-≡  : {x : A} {y : B} → x ≅ y → A ≡ B
+  ≅-to-subst-≡ : (p : x ≅ y) → subst (λ x → x) (≅-to-type-≡ p) x ≡ y
   ```
 
 Version 0.13
