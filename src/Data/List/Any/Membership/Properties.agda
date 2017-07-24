@@ -4,12 +4,17 @@
 -- Properties related to propositional list membership
 ------------------------------------------------------------------------
 
-open import Data.List.Any.Properties using (lift-resp)
+open import Data.List
+open import Data.List.Any as Any using (here; there)
+open import Data.List.Any.Properties
+import Data.List.Any.Membership as Membership
+open import Data.Product using (∃; _×_; _,_)
 open import Function using (flip)
 open import Relation.Binary
 open import Relation.Binary.InducedPreorders using (InducedPreorder₂)
 open import Relation.Binary.List.Pointwise as ListEq
   using () renaming (Rel to ListRel)
+
 
 module Data.List.Any.Membership.Properties where
 
@@ -45,3 +50,23 @@ module SingleSetoid {c ℓ} (S : Setoid c ℓ) where
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
 open SingleSetoid public
+
+
+module DoubleSetoid {c₁ c₂ ℓ₁ ℓ₂}
+  (S₁ : Setoid c₁ ℓ₁) (S₂ : Setoid c₂ ℓ₂) where
+
+  open Setoid S₁ renaming (Carrier to A₁; _≈_ to _≈₁_; refl to refl₁)
+  open Setoid S₂ renaming (Carrier to A₂; _≈_ to _≈₂_)
+
+  open Membership S₁ using (find) renaming (_∈_ to _∈₁_)
+  open Membership S₂ using () renaming (_∈_ to _∈₂_)
+
+  ∈-map⁺ : ∀ {f} → f Preserves _≈₁_ ⟶ _≈₂_ → ∀ {x xs} →
+            x ∈₁ xs → f x ∈₂ map f xs
+  ∈-map⁺ pres x∈xs = map⁺ (Any.map pres x∈xs)
+
+  ∈-map⁻ : ∀ {y xs f} → y ∈₂ map f xs →
+           ∃ λ x → x ∈₁ xs × y ≈₂ f x
+  ∈-map⁻ x∈map = find (map⁻ x∈map)
+
+open DoubleSetoid public

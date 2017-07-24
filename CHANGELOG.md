@@ -449,6 +449,18 @@ Backwards compatible changes
   return⁻     : Any P (return x) → P x
   ```
 
+* Added proofs to `Data.List.Any.Membership.Properties`
+  ```agda
+  ∈-map⁺ :  x ∈ xs → f x ∈ map f xs
+  ∈-map⁻ :  y ∈ map f xs → ∃ λ x → x ∈ xs × y ≈ f x
+  ```
+
+* Added proofs to `Data.List.Any.Membership.Propositional.Properties`
+  ```agda
+  ∈-map⁺ :  x ∈ xs → f x ∈ map f xs
+  ∈-map⁻ :  y ∈ map f xs → ∃ λ x → x ∈ xs × y ≈ f x
+  ```
+
 * Added proofs to `Data.Nat.Properties`:
   ```agda
   suc-injective        : suc m ≡ suc n → m ≡ n

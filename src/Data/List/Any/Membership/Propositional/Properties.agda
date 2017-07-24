@@ -25,8 +25,9 @@ open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
 open import Data.List.Any.Membership.Propositional
+import Data.List.Any.Membership.Properties as Membershipₚ
 open import Data.Nat as Nat
-open import Data.Nat.Properties as NatProp using (≤-trans)
+open import Data.Nat.Properties
 open import Data.Product as Prod
 open import Data.Sum as Sum
 open import Relation.Binary
@@ -44,16 +45,27 @@ private
 
 ------------------------------------------------------------------------
 -- Properties relating _∈_ to various list functions
+------------------------------------------------------------------------
+-- map
 
--- Isomorphisms.
+module _ {a b} {A : Set a} {B : Set b} {f : A → B} where
 
-map-∈↔ : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} {y xs} →
-         (∃ λ x → x ∈ xs × y ≡ f x) ↔ y ∈ List.map f xs
-map-∈↔ {a} {b} {f = f} {y} {xs} =
-  (∃ λ x → x ∈ xs × y ≡ f x)  ↔⟨ Any↔ {a = a} {p = b} ⟩
-  Any (λ x → y ≡ f x) xs      ↔⟨ map↔ {a = a} {b = b} {p = b} ⟩
-  y ∈ List.map f xs           ∎
-  where open Related.EquationalReasoning
+  ∈-map⁺ : ∀ {x xs} → x ∈ xs → f x ∈ List.map f xs
+  ∈-map⁺ = Membershipₚ.∈-map⁺ (P.setoid _) (P.setoid _) (P.cong f)
+
+  ∈-map⁻ : ∀ {y xs} → y ∈ List.map f xs → ∃ λ x → x ∈ xs × y ≡ f x
+  ∈-map⁻ = Membershipₚ.∈-map⁻ (P.setoid _) (P.setoid _)
+
+  map-∈↔ : ∀ {y xs} →
+           (∃ λ x → x ∈ xs × y ≡ f x) ↔ y ∈ List.map f xs
+  map-∈↔ {y} {xs} =
+    (∃ λ x → x ∈ xs × y ≡ f x) ↔⟨ Any↔ ⟩
+    Any (λ x → y ≡ f x) xs       ↔⟨ map↔ ⟩
+    y ∈ List.map f xs             ∎
+    where open Related.EquationalReasoning
+
+------------------------------------------------------------------------
+-- concat
 
 concat-∈↔ : ∀ {a} {A : Set a} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ↔ x ∈ concat xss
@@ -63,6 +75,20 @@ concat-∈↔ {a} {x = x} {xss} =
   Any (Any (_≡_ x)) xss         ↔⟨ concat↔ {a = a} {p = a} ⟩
   x ∈ concat xss                ∎
   where open Related.EquationalReasoning
+
+------------------------------------------------------------------------
+-- filter
+
+filter-∈ : ∀ {a} {A : Set a} (p : A → Bool) (xs : List A) {x} →
+           x ∈ xs → p x ≡ true → x ∈ filter p xs
+filter-∈ p []       ()          _
+filter-∈ p (x ∷ xs) (here refl) px≡true rewrite px≡true = here refl
+filter-∈ p (y ∷ xs) (there pxs) px≡true with p y
+... | true  = there (filter-∈ p xs pxs px≡true)
+... | false =        filter-∈ p xs pxs px≡true
+
+------------------------------------------------------------------------
+-- Other monad functions
 
 >>=-∈↔ : ∀ {ℓ} {A B : Set ℓ} {xs} {f : A → List B} {y} →
          (∃ λ x → x ∈ xs × y ∈ f x) ↔ y ∈ (xs >>= f)
@@ -102,16 +128,6 @@ concat-∈↔ {a} {x = x} {xss} =
       ; right-inverse-of = λ _ → P.proof-irrelevance _ _
       }
     }
-
--- Other properties.
-
-filter-∈ : ∀ {a} {A : Set a} (p : A → Bool) (xs : List A) {x} →
-           x ∈ xs → p x ≡ true → x ∈ filter p xs
-filter-∈ p []       ()          _
-filter-∈ p (x ∷ xs) (here refl) px≡true rewrite px≡true = here refl
-filter-∈ p (y ∷ xs) (there pxs) px≡true with p y
-... | true  = there (filter-∈ p xs pxs px≡true)
-... | false =        filter-∈ p xs pxs px≡true
 
 ------------------------------------------------------------------------
 -- Properties relating _∈_ to various list functions
@@ -219,8 +235,7 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
   open Inj.Injection inj
 
   module STO = StrictTotalOrder
-                 (DTOProperties.strictTotalOrder NatProp.≤-decTotalOrder)
-  module CS  = CommutativeSemiring NatProp.commutativeSemiring
+                 (DTOProperties.strictTotalOrder ≤-decTotalOrder)
 
   not-x : ∀ {i} → ¬ (to ⟨$⟩ i ≡ x) → to ⟨$⟩ i ∈ xs
   not-x {i} ≢x with ∈x∷xs i
@@ -243,15 +258,15 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
     ∈-if-not-i i≢j = not-x (i≢j ∘ injective ∘ trans ≡x ∘ sym)
 
     lemma : ∀ {k j} → k ≤ j → suc j ≢ k
-    lemma 1+j≤j refl = NatProp.1+n≰n 1+j≤j
+    lemma 1+j≤j refl = 1+n≰n 1+j≤j
 
     ∈xs : ∀ j → f j ∈ xs
     ∈xs j with STO.compare i j
     ∈xs j  | tri< (i≤j , _) _ _ = ∈-if-not-i (lemma i≤j ∘ sym)
     ∈xs j  | tri> _ i≢j _       = ∈-if-not-i i≢j
     ∈xs .i | tri≈ _ refl _      =
-      ∈-if-not-i (NatProp.m≢1+m+n i ∘
-                  subst (_≡_ i ∘ suc) (sym $ proj₂ CS.+-identity i))
+      ∈-if-not-i (m≢1+m+n i ∘
+                  subst (_≡_ i ∘ suc) (sym (+-right-identity i)))
 
     injective′ : Inj.Injective {B = P.setoid A} (→-to-⟶ f)
     injective′ {j} {k} eq with STO.compare i j | STO.compare i k
