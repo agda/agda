@@ -10,29 +10,27 @@
 module Data.List.Any.Properties where
 
 open import Algebra
-import Algebra.FunctionProperties as FP
 open import Category.Monad
 open import Data.Bool.Base using (Bool; false; true; T)
 open import Data.Bool.Properties
-open import Data.Empty
+open import Data.Empty using (⊥)
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Membership.Propositional
 open import Data.Nat using (zero; suc; _<_; z≤n; s≤s)
-open import Data.Product as Prod hiding (swap)
+open import Data.Product as Prod
+  using (_×_; _,_; ∃; ∃₂; proj₁; proj₂; uncurry′)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Function.Related as Related using (Related)
-open import Function.Related.TypeIsomorphisms
 open import Relation.Binary
-import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; inspect) renaming ([_] to P[_])
+  using (_≡_; refl; inspect)
 open import Relation.Unary
   using (Pred; _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 import Relation.Binary.Sigma.Pointwise as Σ
@@ -42,7 +40,6 @@ open import Relation.Binary.List.Pointwise
 
 open Related.EquationalReasoning
 private
-  module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
   open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
 
 ------------------------------------------------------------------------
@@ -148,22 +145,36 @@ Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
 
 -- Nested occurrences of Any can sometimes be swapped. See also ×↔.
 
-swap : ∀ {ℓ} {A B : Set ℓ} {P : A → B → Set ℓ} {xs ys} →
+swap : ∀ {a b ℓ} {A : Set a} {B : Set b} {P : A → B → Set ℓ} {xs ys} →
+        Any (λ x → Any (P x) ys) xs → Any (λ y → Any (flip P y) xs) ys
+swap (here  pys)  = Any.map here pys
+swap (there pxys) = Any.map there (swap pxys)
+
+swap-there : ∀ {a b ℓ} {A : Set a} {B : Set b} {P : A → B → Set ℓ}
+             {x xs ys} → (any : Any (λ x → Any (P x) ys) xs) →
+             swap (Any.map (there {x = x}) any) ≡ there (swap any)
+swap-there (here  pys)  = refl
+swap-there (there pxys) = P.cong (Any.map there) (swap-there pxys)
+
+swap-invol : ∀ {a b ℓ} {A : Set a} {B : Set b} {P : A → B → Set ℓ}
+             {xs ys} → (any : Any (λ x → Any (P x) ys) xs) →
+             swap (swap any) ≡ any
+swap-invol (here (here px))   = refl
+swap-invol (here (there pys)) =
+  P.cong (Any.map there) (swap-invol (here pys))
+swap-invol (there pxys)       =
+  P.trans (swap-there (swap pxys)) (P.cong there (swap-invol pxys))
+
+swap↔ : ∀ {ℓ} {A B : Set ℓ} {P : A → B → Set ℓ} {xs ys} →
        Any (λ x → Any (P x) ys) xs ↔ Any (λ y → Any (flip P y) xs) ys
-swap {ℓ} {P = P} {xs} {ys} =
-  Any (λ x → Any (P x) ys) xs                ↔⟨ sym $ Any↔ {a = ℓ} {p = ℓ} ⟩
-  (∃ λ x → x ∈ xs × Any (P x) ys)            ↔⟨ sym $ Σ.cong Inv.id (λ {x} → (x ∈ xs ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ↔⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
-  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ↔⟨ ∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _ ⟩
-  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ↔⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
-    (x ∈ xs × y ∈ ys × P x y)                     ↔⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
-    ((x ∈ xs × y ∈ ys) × P x y)                   ↔⟨ ×⊎.*-comm (x ∈ xs) (y ∈ ys) ⟨ ×⊎.*-cong ⟩ (P x y ∎) ⟩
-    ((y ∈ ys × x ∈ xs) × P x y)                   ↔⟨ ×⊎.*-assoc _ _ _ ⟩
-    (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ↔⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
-  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ↔⟨ Σ.cong Inv.id (λ {y} → (y ∈ ys ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
-  (∃ λ y → y ∈ ys × Any (flip P y) xs)       ↔⟨ Any↔ {a = ℓ} {p = ℓ} ⟩
-  Any (λ y → Any (flip P y) xs) ys           ∎
+swap↔ {P = P} = record
+  { to         = P.→-to-⟶ swap
+  ; from       = P.→-to-⟶ swap
+  ; inverse-of = record
+    { left-inverse-of  = swap-invol
+    ; right-inverse-of = swap-invol
+    }
+  }
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any to ⊥
@@ -208,7 +219,7 @@ module _ {a} {A : Set a} where
   any⁻ : ∀ (p : A → Bool) xs → T (any p xs) → Any (T ∘ p) xs
   any⁻ p []       ()
   any⁻ p (x ∷ xs) px∷xs with p x | inspect p x
-  any⁻ p (x ∷ xs) px∷xs | true  | P[ eq ] = here (Equivalence.from T-≡ ⟨$⟩ eq)
+  any⁻ p (x ∷ xs) px∷xs | true  | P.[ eq ] = here (Equivalence.from T-≡ ⟨$⟩ eq)
   any⁻ p (x ∷ xs) px∷xs | false | _       = there (any⁻ p xs px∷xs)
 
   any⇔ : ∀ {p : A → Bool} {xs} → Any (T ∘ p) xs ⇔ T (any p xs)

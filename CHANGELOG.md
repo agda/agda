@@ -25,8 +25,11 @@ Non-backwards compatible changes
   Accordingly some lemmas have been moved to more logical locations:
   - `lift-resp` has been moved from `Data.List.Any.Membership` to `Data.List.Any.Properties`
   - `∈-resp-≈`, `⊆-preorder` and `⊆-Reasoning` have been moved from `Data.List.Any.Membership`
-  to `Data.List.Any.Membership.Properties`. `∈-resp-list-≈` has also been moved and renamed
-  `∈-resp-≋`.
+  to `Data.List.Any.Membership.Properties`.
+  - `∈-resp-list-≈` has been moved from `Data.List.Any.Membership` to
+  `Data.List.Any.Membership.Properties` and renamed `∈-resp-≋`.
+  - `swap` in `Data.List.Any.Properties` has been renamed `swap↔` and made more generic with
+  respect to levels.
 
 #### Moving `decTotalOrder` and `decSetoid` from `Data.X` to `Data.X.Properties`
 
@@ -412,6 +415,9 @@ Backwards compatible changes
   ```agda
   lose∘find   : uncurry′ lose (proj₂ (find p)) ≡ p
   find∘lose   : find (lose x∈xs pp) ≡ (x , x∈xs , pp)
+
+  swap        : Any (λ x → Any (P x) ys) xs → Any (λ y → Any (flip P y) xs) ys
+  swap-invol  : swap (swap any) ≡ any
 
   ∃∈-Any      : (∃ λ x → x ∈ xs × P x) → Any P xs
 
