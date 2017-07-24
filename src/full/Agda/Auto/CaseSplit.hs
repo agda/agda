@@ -343,31 +343,35 @@ instance Unify o (ArgList o) where
 unifyexp :: MExp o -> MExp o -> Maybe ([(Nat, MExp o)])
 unifyexp e1 e2 = fmap (NotM <$>) <$> unify e1 e2
 
-lift :: Nat -> MExp o -> MExp o
+class Lift t where
+  lift' :: Nat -> Nat -> t -> t
+
+lift :: Lift t => Nat -> t -> t
 lift 0 = id
-lift n = r 0
- where
-  r j e =
-   case rm __IMPOSSIBLE__ e of
-         App uid ok elr args -> case elr of
-          Var v | v >= j -> NotM $ App uid ok (Var (v + n)) (rs j args)
-          _ -> NotM $ App uid ok elr (rs j args)
-         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (j + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r j it) (Abs mid (r (j + 1) ot))
-         Sort{} -> e
+lift n = lift' n 0
 
-         AbsurdLambda{} -> e
+instance Lift t => Lift (Abs t) where
+  lift' n j (Abs mid b) = Abs mid (lift' n (j + 1) b)
 
+instance Lift t => Lift (MM t r) where
+  lift' n j = NotM . lift' n j . rm __IMPOSSIBLE__
 
-  rs j es =
-   case rm __IMPOSSIBLE__ es of
-    ALNil -> NotM ALNil
-    ALCons hid a as -> NotM $ ALCons hid (r j a) (rs j as)
+instance Lift (Exp o) where
+  lift' n j e = case e of
+    App uid ok elr args -> case elr of
+      Var v | v >= j -> App uid ok (Var (v + n)) (lift' n j args)
+      _ -> App uid ok elr (lift' n j args)
+    Lam hid b -> Lam hid (lift' n j b)
+    Pi uid hid possdep it b -> Pi uid hid possdep (lift' n j it) (lift' n j b)
+    Sort{} -> e
+    AbsurdLambda{} -> e
 
-    ALProj{} -> __IMPOSSIBLE__
-
-
-    ALConPar as -> NotM $ ALConPar (rs j as)
+instance Lift (ArgList o) where
+  lift' n j args = case args of
+    ALNil           -> ALNil
+    ALCons hid a as -> ALCons hid (lift' n j a) (lift' n j as)
+    ALProj{}        -> __IMPOSSIBLE__
+    ALConPar as     -> ALConPar (lift' n j as)
 
 
 removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
