@@ -587,7 +587,7 @@ constructPats cmap mainm clause = do
         return (ns, HI hid (CSPatExp t2))
        I.AbsurdP{} -> return ((hid, Id I.absurdPatternName) : ns, HI hid (CSPatVar $ length ns))
        I.ProjP{} -> copatternsNotImplemented
-       _ -> __IMPOSSIBLE__
+       I.LitP{} -> literalsNotImplemented
  (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)
  return (reverse names, pats)
 
