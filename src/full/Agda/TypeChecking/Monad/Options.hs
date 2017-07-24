@@ -293,31 +293,28 @@ showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 
 -- | Switch on printing of implicit and irrelevant arguments.
 --   E.g. for reification in with-function generation.
+--
+--   Restores all 'PragmaOptions' after completion.
+--   Thus, do not attempt to make persistent 'PragmaOptions'
+--   changes in a `withShowAllArguments` bracket.
+
 withShowAllArguments :: TCM a -> TCM a
 withShowAllArguments = withShowAllArguments' True
 
 withShowAllArguments' :: Bool -> TCM a -> TCM a
-withShowAllArguments' yes ret = do
+withShowAllArguments' yes = withPragmaOptions $ \ opts ->
+  opts { optShowImplicit = yes, optShowIrrelevant = yes }
+
+-- | Change 'PragmaOptions' for a computation and restore afterwards.
+
+withPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM a -> TCM a
+withPragmaOptions f cont = do
   opts <- pragmaOptions
-  let imp = optShowImplicit opts
-      irr = optShowIrrelevant opts
-  setPragmaOptions $ opts { optShowImplicit = yes, optShowIrrelevant = yes }
-  x <- ret
-  opts <- pragmaOptions
-  setPragmaOptions $ opts { optShowImplicit = imp, optShowIrrelevant = irr }
+  setPragmaOptions $ f opts
+  x <- cont
+  setPragmaOptions opts
   return x
 
-{- RETIRED, Andreas, 2012-04-30
-setShowImplicitArguments :: Bool -> TCM a -> TCM a
-setShowImplicitArguments showImp ret = do
-  opts <- pragmaOptions
-  let imp = optShowImplicit opts
-  setPragmaOptions $ opts { optShowImplicit = showImp }
-  x <- ret
-  opts <- pragmaOptions
-  setPragmaOptions $ opts { optShowImplicit = imp }
-  return x
--}
 
 ignoreInterfaces :: TCM Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions

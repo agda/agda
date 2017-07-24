@@ -36,6 +36,7 @@ import Agda.TheTypeChecker
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -205,6 +206,11 @@ makeCase hole rng s = withInteractionId hole $ do
   -- If we have no split variables, split on result.
 
   else if null vars then do
+    -- Andreas, 2017-07-24, issue #2654:
+    -- When we introduce projection patterns in an extended lambda,
+    -- we need to print them postfix.
+    let postProjInExtLam = applyWhen (isJust casectxt) $
+          withPragmaOptions $ \ opt -> opt { optPostfixProjections = True }
     (piTel, sc) <- fixTarget $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
@@ -217,7 +223,7 @@ makeCase hole rng s = withInteractionId hole $ do
       -- if any of them is shown by the printer
       imp <- optShowImplicit <$> pragmaOptions
       return $ imp || any visible (telToList piTel)
-    scs <- if newPats then return [sc] else do
+    scs <- if newPats then return [sc] else postProjInExtLam $ do
       res <- splitResult f sc
       case res of
         Nothing  -> typeError $ GenericError $ "Cannot split on result here"
