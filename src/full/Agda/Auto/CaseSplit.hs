@@ -211,42 +211,46 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-replace :: forall o. Nat -> Nat -> MExp o -> MExp o -> MExp o
-replace sv nnew re = r 0
- where
+class Replace o t u where
+  replace' :: Nat -> Nat -> Nat -> MExp o -> t -> u
 
-  r :: Nat -> MExp o -> MExp o
-  r n e =
-   case rm __IMPOSSIBLE__ e of
-         App uid ok elr@(Var v) args ->
-          if v >= n then
-           if v - n == sv then
-            betareduce (lift n re) (rs n args)
-           else
-            if v - n > sv then
-             NotM $ App uid ok (Var (v + nnew - 1)) (rs n args)
-            else
-             NotM $ App uid ok elr (rs n args)
-          else
-           NotM $ App uid ok elr (rs n args)
-         App uid ok elr@(Const _) args ->
-          NotM $ App uid ok elr (rs n args)
-         Lam hid (Abs mid e) -> NotM $ Lam hid (Abs mid (r (n + 1) e))
-         Pi uid hid possdep it (Abs mid ot) -> NotM $ Pi uid hid possdep (r n it) (Abs mid (r (n + 1) ot))
-         Sort{} -> e
+replace :: Replace o t u => Nat -> Nat -> MExp o -> t -> u
+replace sv nnew = replace' sv nnew 0
 
-         AbsurdLambda{} -> e
+instance Replace o t u => Replace o (Abs t) (Abs u) where
+  replace' sv nnew n re (Abs mid b) = Abs mid $ replace' sv nnew (n + 1) re b
 
-  rs :: Nat -> MArgList o -> MArgList o
-  rs n es =
-   case rm __IMPOSSIBLE__ es of
-    ALNil -> NotM $ ALNil
-    ALCons hid a as -> NotM $ ALCons hid (r n a) (rs n as)
+instance Replace o (Exp o) (MExp o) where
+  replace' sv nnew n re e = case e of
+    App uid ok elr@(Var v) args ->
+      let ih = NotM (replace' sv nnew n re args) in
+      if v >= n
+      then if v - n == sv
+           then betareduce (lift n re) ih
+           else if v - n > sv
+                then NotM $ App uid ok (Var (v + nnew - 1)) ih
+                else NotM $ App uid ok elr ih
+      else NotM $ App uid ok elr ih
+    App uid ok elr@(Const _) args -> NotM $ App uid ok elr (NotM $ replace' sv nnew n re args)
+    Lam hid b -> NotM $ Lam hid (replace' sv nnew (n + 1) re b)
+    Pi uid hid possdep it b -> NotM $ Pi uid hid possdep
+                               (replace' sv nnew n re it)
+                               (replace' sv nnew n re b)
+    Sort{} -> NotM e
+    AbsurdLambda{} -> NotM e
 
-    ALProj{} -> __IMPOSSIBLE__
+instance Replace o t u => Replace o (MM t (RefInfo o)) u where
+  replace' sv nnew n re = replace' sv nnew n re . rm __IMPOSSIBLE__
 
 
-    ALConPar as -> NotM $ ALConPar (rs n as)
+instance Replace o (ArgList o) (ArgList o) where
+  replace' sv nnew n re args = case args of
+    ALNil           -> ALNil
+    ALCons hid a as -> ALCons hid (replace' sv nnew n re a)
+                                  (NotM $ replace' sv nnew n re as)
+    ALProj{}        -> __IMPOSSIBLE__
+    ALConPar as     -> ALConPar (NotM $ replace' sv nnew n re as)
+
 
 
 betareduce :: MExp o -> MArgList o -> MExp o
@@ -256,9 +260,7 @@ betareduce e args = case rm __IMPOSSIBLE__ args of
   App uid ok elr eargs -> NotM $ App uid ok elr (concatargs eargs args)
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
   _ -> __IMPOSSIBLE__ -- not type correct if this happens
-
  ALProj{} -> __IMPOSSIBLE__
-
  ALConPar as -> __IMPOSSIBLE__
 
 concatargs :: MArgList o -> MArgList o -> MArgList o
@@ -374,11 +376,11 @@ instance Lift (ArgList o) where
     ALConPar as     -> ALConPar (lift' n j as)
 
 
-removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
+removevar :: forall o. CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp o, [CSPat o])
 removevar ctx tt pats [] = (ctx, tt, pats)
 removevar ctx tt pats ((v, e) : unif) =
  let
-  e2 = replace v 0 (__IMPOSSIBLE__ {- occurs check failed -}) e
+  e2 = replace v 0 (__IMPOSSIBLE__ :: MExp o {- occurs check failed -}) e
   thesub = replace v 0 e2
   ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take v ctx) ++
          map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (v + 1) ctx)
