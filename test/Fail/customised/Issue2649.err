@@ -1,0 +1,9 @@
+Checking Issue2649 (customised/Issue2649.agda).
+ Loading  Issue2649-1 (customised/Issue2649-1.agdai).
+ Loading  Issue2649-2 (customised/Issue2649-2.agdai).
+customised/Issue2649.agda:14,10-11
+Duplicate definition of module M. Previous definition of module M
+at
+customised/Issue2649-2.agda:5,13-14
+when scope checking the declaration
+  module M = MyModule A x

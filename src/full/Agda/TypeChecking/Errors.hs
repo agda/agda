@@ -609,13 +609,13 @@ instance PrettyTCM TypeError where
           b <- isDatatypeModule m
           if b then text "datatype" else empty
 
-        r = case [ r | r <- map (defSiteOfLast . mnameToList) ms
-                     , r /= noRange ] of
-              []    -> noRange
-              r : _ -> r
-
-        defSiteOfLast [] = noRange
-        defSiteOfLast ns = nameBindingSite (last ns)
+        -- Andreas, 2017-07-25, issue #2649
+        -- Take the first nameBindingSite we can get hold of.
+        r = headWithDefault noRange
+              [ r | m <- ms
+                  , r <- map nameBindingSite $ reverse $ mnameToList m
+                  , r /= noRange
+              ]
 
     ModuleArityMismatch m EmptyTel args -> fsep $
       pwords "The module" ++ [prettyTCM m] ++
