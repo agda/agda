@@ -6,6 +6,8 @@
 
 module Agda.TypeChecking.SizedTypes.Syntax where
 
+import Prelude hiding (null)
+
 import Data.Maybe
 import Data.Foldable (Foldable)
 import Data.Map (Map)
@@ -16,14 +18,22 @@ import Data.Traversable (Traversable)
 
 import Agda.TypeChecking.SizedTypes.Utils
 
+import Agda.Utils.Functor
+import Agda.Utils.Null
+import Agda.Utils.Pretty
+
 -- * Syntax
 
 -- | Constant finite sizes @n >= 0@.
 newtype Offset = O Int
   deriving (Eq, Ord, Num, Enum)
 
+-- This Show instance is ok because of the Enum constraint.
 instance Show Offset where
   show (O n) = show n
+
+instance Pretty Offset where
+  pretty (O n) = pretty n
 
 instance MeetSemiLattice Offset where
   meet = min
@@ -35,13 +45,21 @@ instance Plus Offset Offset Offset where
 newtype Rigid  = RigidId { rigidId :: String }
   deriving (Eq, Ord)
 
-instance Show Rigid where show = rigidId
+instance Show Rigid where
+  show (RigidId s) = "RigidId " ++ show s
+
+instance Pretty Rigid where
+  pretty = text . rigidId
 
 -- | Size meta variables @X@ to solve for.
 newtype Flex   = FlexId { flexId :: String }
   deriving (Eq, Ord)
 
-instance Show Flex where show = flexId
+instance Show Flex where
+  show (FlexId s) = "FlexId " ++ show s
+
+instance Pretty Flex where
+  pretty = text . flexId
 
 -- | Size expressions appearing in constraints.
 data SizeExpr' rigid flex
@@ -49,7 +67,7 @@ data SizeExpr' rigid flex
   | Rigid { rigid  :: rigid, offset :: Offset }  -- ^ Variable plus offset @i + n@.
   | Infty                                        -- ^ Infinity @∞@.
   | Flex  { flex   :: flex, offset :: Offset }   -- ^ Meta variable @X + n@.
-    deriving (Eq, Ord, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 type SizeExpr = SizeExpr' Rigid Flex
 
@@ -57,7 +75,7 @@ type SizeExpr = SizeExpr' Rigid Flex
 data Cmp
   = Lt  -- ^ @<@.
   | Le  -- ^ @≤@.
-  deriving (Eq, Bounded, Enum)
+  deriving (Show, Eq, Bounded, Enum)
 
 instance Dioid Cmp where
   compose     = min
@@ -82,7 +100,7 @@ data Constraint' rigid flex = Constraint
   , cmp       :: Cmp
   , rightExpr :: SizeExpr' rigid flex
   }
-  deriving (Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 type Constraint = Constraint' Rigid Flex
 
@@ -113,16 +131,22 @@ getPolarity pols x = Map.findWithDefault Least x pols
 ------------------------------------------------------------------------
 
 -- | Partial substitution from flexible variables to size expression.
-type Solution rigid flex = Map flex (SizeExpr' rigid flex)
+newtype Solution rigid flex = Solution { theSolution :: Map flex (SizeExpr' rigid flex) }
+  deriving (Show, Null)
 
--- emptySolution = Map.empty
+instance (Pretty r, Pretty f) => Pretty (Solution r f) where
+  pretty (Solution sol) = prettyList $ for (Map.toList sol) $ \ (x, e) ->
+    pretty x <+> text ":=" <+> pretty e
+
+emptySolution :: Solution r f
+emptySolution = Solution Map.empty
 
 -- | Executing a substitution.
 class Substitute r f a where
   subst :: Solution r f -> a -> a
 
 instance Ord f => Substitute r f (SizeExpr' r f) where
-  subst sol e =
+  subst (Solution sol) e =
     case e of
       Flex x n -> maybe e (`plus` n) $ Map.lookup x sol
       _        -> e
@@ -135,6 +159,9 @@ instance Substitute r f a => Substitute r f [a] where
 
 instance Substitute r f a => Substitute r f (Map k a) where
   subst = fmap . subst
+
+instance Ord f => Substitute r f (Solution r f) where
+  subst s = Solution . subst s . theSolution
 
 -- | Add offset to size expression.
 instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
@@ -150,9 +177,9 @@ instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
 type CTrans r f = Constraint' r f -> Either String [Constraint' r f]
 
 -- | Returns an error message if we have a contradictory constraint.
-simplify1 :: (Show f, Show r, Eq r) => CTrans r f -> CTrans r f
+simplify1 :: (Pretty f, Pretty r, Eq r) => CTrans r f -> CTrans r f
 simplify1 test c = do
-  let err = Left $ "size constraint " ++ show c ++ " is inconsistent"
+  let err = Left $ "size constraint " ++ prettyShow c ++ " is inconsistent"
   case c of
     -- rhs is Infty
     Constraint a           Le  Infty -> return []
@@ -213,27 +240,27 @@ compareOffset n Lt m = n <  m
 
 -- * Printing
 
-instance (Show r, Show f) => Show (SizeExpr' r f) where
-  show (Const n)   = show n
-  show (Infty)     = "∞"
-  show (Rigid i 0) = show i
-  show (Rigid i n) = show i ++ "+" ++ show n
-  show (Flex  x 0) = show x
-  show (Flex  x n) = show x ++ "+" ++ show n
+instance (Pretty r, Pretty f) => Pretty (SizeExpr' r f) where
+  pretty (Const n)   = pretty n
+  pretty (Infty)     = text "∞"
+  pretty (Rigid i 0) = pretty i
+  pretty (Rigid i n) = pretty i <> text ("+" ++ show n)
+  pretty (Flex  x 0) = pretty x
+  pretty (Flex  x n) = pretty x <> text ("+" ++ show n)
 
-instance Show Polarity where
-  show Least    = "-"
-  show Greatest = "+"
+instance Pretty Polarity where
+  pretty Least    = text "-"
+  pretty Greatest = text "+"
 
-instance Show flex => Show (PolarityAssignment flex) where
-  show (PolarityAssignment pol flex) = show pol ++ show flex
+instance Pretty flex => Pretty (PolarityAssignment flex) where
+  pretty (PolarityAssignment pol flex) = pretty pol <> pretty flex
 
-instance Show Cmp where
-  show Le = "≤"
-  show Lt = "<"
+instance Pretty Cmp where
+  pretty Le = text "≤"
+  pretty Lt = text "<"
 
-instance (Show r, Show f) => Show (Constraint' r f) where
-  show (Constraint a cmp b) = show a ++ " " ++ show cmp ++ " " ++ show b
+instance (Pretty r, Pretty f) => Pretty (Constraint' r f) where
+  pretty (Constraint a cmp b) = pretty a <+> pretty cmp <+> pretty b
 
 -- * Wellformedness
 

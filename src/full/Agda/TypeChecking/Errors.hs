@@ -1180,7 +1180,8 @@ instance PrettyTCM TypeError where
       where
         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
         nameCxt [] = EmptyTel
-        nameCxt (x : xs) = ExtendTel (defaultDom (El I.Prop $ I.Var 0 [])) $ NoAbs (show x) $ nameCxt xs
+        nameCxt (x : xs) = ExtendTel (defaultDom (El I.Prop $ I.var 0)) $
+          NoAbs (P.prettyShow x) $ nameCxt xs
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"

@@ -52,6 +52,7 @@ import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
+import Agda.Utils.Pretty (Pretty)
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -170,7 +171,7 @@ instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show
 instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
-instance (Show a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
+instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = text "idS"
   prettyTCM (Wk m IdS) = text "wkS" <+> pretty m
   prettyTCM EmptyS     = text "emptyS"
@@ -197,7 +198,7 @@ instance PrettyTCM MetaId where
     pretty $ NamedMeta mn x
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
-  prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
+  prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (P.prettyShow x)
   prettyTCM (NotBlocked _ x) = prettyTCM x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
@@ -218,7 +219,7 @@ instance {-# OVERLAPPING #-} PrettyTCM ArgName where
 #else
 instance PrettyTCM ArgName where
 #endif
-  prettyTCM = text . show
+  prettyTCM = text . P.prettyShow
 
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
 instance PrettyTCM Elim where
@@ -407,8 +408,8 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
           sep [ prettyTCM (A.qnameName x) <+> text "=" , nest 2 $ prettyTCM $ namedArg p ]
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t
-  prettyTCM (LitP l)      = text (show l)
-  prettyTCM (ProjP _ q)   = text ("." ++ show q)
+  prettyTCM (LitP l)      = text (P.prettyShow l)
+  prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)
 
 -- | Proper pretty printing of patterns:
 prettyTCMPatterns :: [NamedArg DeBruijnPattern] -> TCM [Doc]

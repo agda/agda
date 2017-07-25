@@ -6,14 +6,16 @@
 -}
 module Agda.Syntax.Scope.Base where
 
+import Prelude hiding (null)
+
 import Control.Arrow (first, second, (***))
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad
 
 import Data.Either (partitionEithers)
 import Data.Function
-import Data.List as List
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -37,6 +39,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 import qualified Agda.Utils.Map as Map
 
@@ -54,7 +57,7 @@ data Scope = Scope
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Bool
       }
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Show)
 
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
@@ -64,7 +67,7 @@ data NameSpaceId
   | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
                      --   but not exported when opening the module.
                      --   Used for qualified constructors.
-  deriving (Typeable, Data, Eq, Bounded, Enum)
+  deriving (Typeable, Data, Eq, Bounded, Enum, Show)
 
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
@@ -102,7 +105,7 @@ data ScopeInfo = ScopeInfo
       , scopeInverseModule :: Map A.ModuleName [C.QName]
       , scopeInScope       :: InScopeSet
       }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 l1 p1 _ _ _ == ScopeInfo c2 m2 l2 p2 _ _ _ =
@@ -123,7 +126,7 @@ data LocalVar = LocalVar
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
   }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance Eq LocalVar where
   (==) = (==) `on` localVar
@@ -132,9 +135,9 @@ instance Ord LocalVar where
   compare = compare `on` localVar
 
 -- | We show shadowed variables as prefixed by a ".", as not in scope.
-instance Show LocalVar where
-  show (LocalVar x _ []) = show x
-  show (LocalVar x _ xs) = "." ++ show x
+instance Pretty LocalVar where
+  pretty (LocalVar x _ []) = pretty x
+  pretty (LocalVar x _ xs) = text "." <> pretty x
 
 -- | Shadow a local name by a non-empty list of imports.
 shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
@@ -176,7 +179,7 @@ data NameSpace = NameSpace
         -- ^ Maps concrete module names to a list of abstract module names.
       , nsInScope :: InScopeSet
       }
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Show)
 
 type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName
@@ -241,7 +244,7 @@ data WhyInScope
     -- ^ Imported from another module.
   | Applied C.QName WhyInScope
     -- ^ Imported by a module application.
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
 data AbstractName = AbsName
@@ -252,7 +255,7 @@ data AbstractName = AbsName
   , anameLineage :: WhyInScope
     -- ^ Explanation where this name came from.
   }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule
@@ -261,7 +264,7 @@ data AbstractModule = AbsModule
   , amodLineage :: WhyInScope
     -- ^ Explanation where this name came from.
   }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance Eq AbstractName where
   (==) = (==) `on` anameName
@@ -286,7 +289,7 @@ lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 -- * Operations on name and module maps.
 
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
-mergeNames = Map.unionWith union
+mergeNames = Map.unionWith List.union
 
 ------------------------------------------------------------------------
 -- * Operations on name spaces
@@ -718,7 +721,9 @@ scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
 scopeLookup q scope = map fst $ scopeLookup' q scope
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
-scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList topImports ++ imports
+scopeLookup' q scope =
+  List.nubBy ((==) `on` fst) $
+    findName q root ++ maybeToList topImports ++ imports
   where
 
     -- 1. Finding a name in the current scope and its parents.
@@ -828,7 +833,7 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     len (C.Qual _ x) = 1 + len x
 
     best :: [C.QName] -> [C.QName]
-    best = sortBy (compare `on` len)
+    best = List.sortBy (compare `on` len)
 
     unique :: forall a . [a] -> Bool
     unique []      = __IMPOSSIBLE__
@@ -926,58 +931,56 @@ inverseScopeLookupModule x = inverseScopeLookup (Left x)
 -- * (Debug) printing
 ------------------------------------------------------------------------
 
-instance Show AbstractName where
-  show = show . anameName
+instance Pretty AbstractName where
+  pretty = pretty . anameName
 
-instance Show AbstractModule where
-  show = show . amodName
+instance Pretty AbstractModule where
+  pretty = pretty . amodName
 
-instance Show NameSpaceId where
-  show nsid = case nsid of
+instance Pretty NameSpaceId where
+  pretty = text . \case
     PublicNS        -> "public"
     PrivateNS       -> "private"
     ImportedNS      -> "imported"
     OnlyQualifiedNS -> "only-qualified"
 
-instance Show NameSpace where
-  show (NameSpace names mods _) =
-    unlines $
-      blockOfLines "names"   (map pr $ Map.toList names) ++
-      blockOfLines "modules" (map pr $ Map.toList mods)
-    where
-      pr :: (Show a, Show b) => (a,b) -> String
-      pr (x, y) = show x ++ " --> " ++ show y
+instance Pretty NameSpace where
+  pretty = vcat . prettyNameSpace
 
-instance Show Scope where
-  show (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
-    unlines $
-      [ "scope " ++ show name ] ++ ind (
-        concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
+prettyNameSpace :: NameSpace -> [Doc]
+prettyNameSpace (NameSpace names mods _) =
+    blockOfLines (text "names")   (map pr $ Map.toList names) ++
+    blockOfLines (text "modules") (map pr $ Map.toList mods)
+  where
+    pr :: (Pretty a, Pretty b) => (a,b) -> Doc
+    pr (x, y) = pretty x <+> text "-->" <+> pretty y
+
+instance Pretty Scope where
+  pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
+    vcat $
+      [ text "scope" <+> pretty name ] ++ ind (
+        concat [ blockOfLines (pretty nsid) $ prettyNameSpace $ scopeNameSpace nsid scope
                | nsid <- [minBound..maxBound] ]
-      ++ blockOfLines "imports"  (case Map.keys imps of
-                                    [] -> []
-                                    ks -> [ show ks ]
-                                 )
+      ++ blockOfLines (text "imports")
+           (case Map.keys imps of [] -> []; ks -> [ prettyList ks ])
       )
-    where ind = map ("  " ++)
+    where ind = map $ nest 2
 
 -- | Add first string only if list is non-empty.
-blockOfLines :: String -> [String] -> [String]
+blockOfLines :: Doc -> [Doc] -> [Doc]
 blockOfLines _  [] = []
-blockOfLines hd ss = hd : map ("  " ++) ss
+blockOfLines hd ss = hd : map (nest 2) ss
 
-instance Show ScopeInfo where
-  show (ScopeInfo this mods locals ctx _ _ _) =
-    unlines $
-      [ "ScopeInfo"
-      , "  current = " ++ show this
-      ] ++
-      (if null locals then [] else [ "  locals  = " ++ show locals ]) ++
-      [ "  context = " ++ show ctx
-      , "  modules"
-      ] ++ map ("    "++) (relines . map show $ Map.elems mods)
-    where
-      relines = filter (not . null) . lines . unlines
+instance Pretty ScopeInfo where
+  pretty (ScopeInfo this mods locals ctx _ _ _) = vcat $
+    [ text "ScopeInfo"
+    , text "  current = " <> pretty this
+    ] ++
+    (if null locals then [] else [ text "  locals  = " <> pretty locals ]) ++
+    [ text "  context = " <> pretty ctx
+    , text "  modules"
+    ] ++
+    map (nest 4) (List.filter (not . null) $ map pretty $ Map.elems mods)
 
 ------------------------------------------------------------------------
 -- * Boring instances

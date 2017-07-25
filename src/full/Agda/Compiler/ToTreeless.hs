@@ -43,6 +43,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Lens
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -62,7 +63,7 @@ toTreeless q = ifM (alwaysInline q) (pure Nothing) $ Just <$> toTreeless' q
 
 toTreeless' :: QName -> TCM C.TTerm
 toTreeless' q =
-  flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ show q) $ do
+  flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ prettyShow q) $ do
     Just cc <- defCompiled <$> getConstInfo q
     unlessM (alwaysInline q) $ setTreeless q (C.TDef q)
       -- so recursive inlining doesn't loop, but not for always inlined
@@ -80,7 +81,7 @@ cacheTreeless q = do
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   let pbody b = pbody' "" b
-      pbody' suf b = sep [ text (show q ++ suf) <+> text "=", nest 2 $ prettyPure b ]
+      pbody' suf b = sep [ text (prettyShow q ++ suf) <+> text "=", nest 2 $ prettyPure b ]
   v <- ifM (alwaysInline q) (return 20) (return 0)
   reportSDoc "treeless.convert" (30 + v) $ text "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc

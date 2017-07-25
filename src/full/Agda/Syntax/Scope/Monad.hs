@@ -91,7 +91,7 @@ getNamedScope m = do
   case Map.lookup m (scopeModules scope) of
     Just s  -> return s
     Nothing -> do
-      reportSLn "" 0 $ "ERROR: In scope\n" ++ show scope ++ "\nNO SUCH SCOPE " ++ show m
+      reportSLn "" 0 $ "ERROR: In scope\n" ++ prettyShow scope ++ "\nNO SUCH SCOPE " ++ prettyShow m
       __IMPOSSIBLE__
 
 getCurrentScope :: ScopeM Scope
@@ -223,6 +223,15 @@ data ResolvedName
   |   -- | Unbound name.
     UnknownName
   deriving (Show, Eq)
+
+instance Pretty ResolvedName where
+  pretty = \case
+    VarName x _         -> text "variable"    <+> pretty x
+    DefinedName a x     -> pretty a           <+> pretty x
+    FieldName xs        -> text "field"       <+> pretty xs
+    ConstructorName xs  -> text "constructor" <+> pretty xs
+    PatternSynResName x -> text "pattern"     <+> pretty x
+    UnknownName         -> text "<unknown name>"
 
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName
@@ -398,8 +407,8 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
   where
     copy :: A.ModuleName -> Scope -> WSM Scope
     copy new s = do
-      lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
-      lift $ reportSLn "scope.copy" 50 $ show s
+      lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ prettyShow old ++ " to " ++ prettyShow new
+      lift $ reportSLn "scope.copy" 50 $ prettyShow s
       s0 <- lift $ getNamedScope new
       -- Delete private names, then copy names and modules. Recompute inScope
       -- set rather than trying to copy it.
@@ -472,7 +481,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           -- For now, we just set their range
           -- to the new module name's one, which fixes issue 1619.
           y <- setRange rnew . A.qualify m <$> refresh (qnameName x)
-          lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
+          lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
           return y
 
@@ -509,7 +518,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             -- Andreas, Jesper, 2015-07-02: Issue 1597
             -- Don't copy a module over itself, it will just be emptied of its contents.
             if (x == y) then return x else do
-            lift $ reportSLn "scope.copy" 50 $ "  Copying module " ++ show x ++ " to " ++ show y
+            lift $ reportSLn "scope.copy" 50 $ "  Copying module " ++ prettyShow x ++ " to " ++ prettyShow y
             addMod x y rec
             lift $ createModule False y
             -- We need to copy the contents of included modules recursively (only when 'rec')
@@ -583,7 +592,7 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hidin
         (Using xs, ys) -> do
           let uselessHiding = [ x | x@ImportedName{} <- ys ] ++
                               [ x | x@(ImportedModule y) <- ys, ImportedName y `notElem` names ]
-          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ intercalate ", " (map show uselessHiding)
+          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ intercalate ", " (map prettyShow uselessHiding)
                                                                 ++ " has no effect"
           return dir{ hiding = [] }
         _ -> return dir
@@ -623,7 +632,7 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hidin
     doesntExport = do
       -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
       let xs = filter doesntExist names
-      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
+      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow xs
       typeError $ ModuleDoesntExport m xs
 
     doesntExist (ImportedName   x) = isNothing $ Map.lookup x namesInScope
@@ -697,7 +706,7 @@ openModule_ cm dir = do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
         shadowed = List.intersect locals newdefs
-    reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ show shadowed
+    reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ prettyShow shadowed
   -- Andreas, 2014-09-03, issue 1266: shadow local variables by imported defs.
   modifyLocalVars $ AssocList.mapWithKey $ \ c x ->
     case Map.lookup c $ nsNames ns of

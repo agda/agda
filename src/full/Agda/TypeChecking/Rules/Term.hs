@@ -631,7 +631,11 @@ expandModuleAssigns mfs exs = do
     case catMaybes pms of
       []        -> return Nothing
       [(_, fa)] -> return (Just fa)
-      mfas      -> typeError $ GenericError $ "Ambiguity: the field " ++ show f ++ " appears in the following modules " ++ show (map fst mfas)
+      mfas      -> typeError . GenericDocError =<< do
+        vcat $
+          [ text "Ambiguity: the field" <+> prettyTCM f
+            <+> text "appears in the following modules: " ]
+          ++ map (prettyTCM . fst) mfas
   return (fs ++ catMaybes fs')
 
 -- | @checkRecordExpression fs e t@ checks record construction against type @t@.

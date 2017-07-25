@@ -116,7 +116,7 @@ notAValidLetBinding d = typeError $ NotAValidLetBinding d
 printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
-  reportSLn "scope.top" v $ s ++ " " ++ show locals
+  reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
 {--------------------------------------------------------------------------
     Helpers
@@ -298,7 +298,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
-    reportSLn "scope.mod.inst" 30 $ show (pretty copyInfo)
+    reportSDoc "scope.mod.inst" 30 $ return $ pretty copyInfo
     let amodapp = A.SectionApp tel' m1 args'
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleApplication " ++ prettyShow x
@@ -390,9 +390,9 @@ checkModuleMacro apply r p x modapp open dir = do
       [ text $ "scope checked ModuleMacro " ++ prettyShow x
       ]
     reportSLn  "scope.decl" 90 $ "info    = " ++ show info
-    reportSLn  "scope.decl" 90 $ "m       = " ++ show m
+    reportSLn  "scope.decl" 90 $ "m       = " ++ prettyShow m
     reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
-    reportSLn  "scope.decl" 90 $ show $ pretty copyInfo
+    reportSDoc "scope.decl" 90 $ return $ pretty copyInfo
     reportSDoc "scope.decl" 70 $ vcat $
       map (nest 2 . prettyA) adecls
     return adecls
@@ -427,10 +427,10 @@ checkOpen r x dir = do
   reportSDoc "scope.decl" 70 $ do
     cm <- getCurrentModule
     vcat $
-      [ text $ "scope checking NiceOpen " ++ prettyShow x
-      , text   "  getCurrentModule       = " <+> prettyA cm
+      [ text   "scope checking NiceOpen " <> return (pretty x)
+      , text   "  getCurrentModule       = " <> prettyA cm
       , text $ "  getCurrentModule (raw) = " ++ show cm
-      , text $ "  C.ImportDirective      = " ++ show dir
+      , text $ "  C.ImportDirective      = " ++ prettyShow dir
       ]
   -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
   when (publicOpen dir) $ do
@@ -438,7 +438,7 @@ checkOpen r x dir = do
       warning $ UselessPublic
 
   m <- toAbstract (OldModuleName x)
-  printScope "open" 20 $ "opening " ++ show x
+  printScope "open" 20 $ "opening " ++ prettyShow x
   adir <- openModule_ x dir
   printScope "open" 20 $ "result:"
   let minfo = ModuleInfo
@@ -556,7 +556,7 @@ instance ToAbstract (NewName C.BoundName) A.Name where
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x ns) = do
     qx <- resolveName' allKindsOfNames ns x
-    reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
+    reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
       VarName x' _        -> return $ A.Var x'
       DefinedName _ d     -> return $ nameExpr d
@@ -571,7 +571,7 @@ data APatName = VarPatName A.Name
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
-    reportSLn "scope.pat" 10 $ "checking pattern name: " ++ show x
+    reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
     rx <- resolveName' [ConName, PatternSynName] ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
@@ -586,15 +586,15 @@ instance ToAbstract PatName APatName where
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     case z of
       Left x  -> do
-        reportSLn "scope.pat" 10 $ "it was a var: " ++ show x
+        reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
         p <- VarPatName <$> toAbstract (NewName False x)
         printLocals 10 "bound it:"
         return p
       Right (Left ds) -> do
-        reportSLn "scope.pat" 10 $ "it was a con: " ++ show (map anameName ds)
+        reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (map anameName ds)
         return $ ConPatName ds
       Right (Right d) -> do
-        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ show (anameName d)
+        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (anameName d)
         return $ PatternSynPatName d
 
 class ToQName a where
@@ -615,7 +615,7 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       FieldName (d:_)         -> return $ anameName d
       FieldName []            -> __IMPOSSIBLE__
       PatternSynResName d     -> return $ anameName d
-      VarName x _             -> typeError $ GenericError $ "Not a defined name: " ++ show x
+      VarName x _             -> typeError $ GenericError $ "Not a defined name: " ++ prettyShow x
       UnknownName             -> notInScope (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
@@ -629,7 +629,7 @@ checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
   ms <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
-    reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ show ms
+    reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ prettyShow ms
     setCurrentRange x $
       typeError $ ShadowedModule x $
                 map ((`withRangeOf` x) . amodName) ms
@@ -719,7 +719,7 @@ scopeCheckExtendedLam r cs = do
   -- Find an unused name for the extended lambda definition.
   cname <- nextlamname r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
-  reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
+  reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
@@ -1063,7 +1063,7 @@ scopeCheckModule
   -> ScopeM [A.Declaration]  -- ^ The code for checking the module contents.
   -> ScopeM (ScopeInfo, [A.Declaration])
 scopeCheckModule r x qm tel checkDs = do
-  printScope "module" 20 $ "checking module " ++ show x
+  printScope "module" 20 $ "checking module " ++ prettyShow x
   -- Andreas, 2013-12-10: Telescope does not live in the new module
   -- but its parent, so check it before entering the new module.
   -- This is important for Nicolas Pouillard's open parametrized modules
@@ -1073,13 +1073,13 @@ scopeCheckModule r x qm tel checkDs = do
     withCurrentModule qm $ do
       -- pushScope m
       -- qm <- getCurrentModule
-      printScope "module" 20 $ "inside module " ++ show x
+      printScope "module" 20 $ "inside module " ++ prettyShow x
       ds    <- checkDs
       scope <- getScope
       return (scope, [ A.Section info (qm `withRangesOfQ` x) tel ds ])
 
   -- Binding is done by the caller
-  printScope "module" 20 $ "after module " ++ show x
+  printScope "module" 20 $ "after module " ++ prettyShow x
   return res
   where
     info = ModuleInfo r noRange Nothing Nothing Nothing
@@ -1389,7 +1389,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
     C.NiceDataSig r f p a _pc x ls t -> withLocalVars $ do
-        printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
+        printScope "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
         t'  <- toAbstract t
@@ -1405,7 +1405,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Function definitions
     C.FunDef r ds f a i tc x cs -> do
-        printLocals 10 $ "checking def " ++ show x
+        printLocals 10 $ "checking def " ++ prettyShow x
         (x',cs) <- toAbstract (OldName x,cs)
         let delayed = NotDelayed
         -- (delayed, cs) <- translateCopatternClauses cs -- TODO
@@ -1414,12 +1414,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Uncategorized function clauses
     C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls ca) ->
       genericError $
-        "Missing type signature for left hand side " ++ show lhs
+        "Missing type signature for left hand side " ++ prettyShow lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
     C.DataDef r f a _ x pars cons -> withLocalVars $ do
-        printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
+        printScope "scope.data.def" 20 ("checking DataDef for " ++ prettyShow x)
         ensureNoLetStms pars
         -- Check for duplicate constructors
         do cs <- mapM conName cons
@@ -1440,7 +1440,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
         -- Open the module
         -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
-        printScope "data" 20 $ "Checked data " ++ show x
+        printScope "data" 20 $ "Checked data " ++ prettyShow x
         return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
       where
         conName (C.Axiom _ _ _ _ _ _ _ c _) = return c
@@ -1583,7 +1583,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
     NicePatternSyn r fx n as p -> do
-      reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r
+      reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
@@ -1668,10 +1668,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
     case e of
       A.Def x          -> return [ A.RewritePragma x ]
       A.Proj _ (AmbQ [x]) -> return [ A.RewritePragma x ]
-      A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ show x
+      A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
-      A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
-      A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
+      A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
+      A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
   toAbstract (C.CompiledTypePragma _ x hs) = do
     e <- toAbstract $ OldQName x Nothing
@@ -1688,7 +1688,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     y <- case e of
           A.Def x -> return x
           A.Proj _ (AmbQ [x]) -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
-          A.Proj _ x -> genericError $ "COMPILED on ambiguous name " ++ show x
+          A.Proj _ x -> genericError $ "COMPILED on ambiguous name " ++ prettyShow x
           A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
           _       -> __IMPOSSIBLE__
     return [ A.CompiledPragma y hs ]
@@ -1720,11 +1720,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     case e of
       A.Def x -> return [ A.CompiledDataUHCPragma x crd crcs ]
-      _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+      _       -> fail $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
   toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
   toAbstract (C.CompilePragma _ b x s) = do
     e <- toAbstract $ OldQName x Nothing
-    let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ show x
+    let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
     y <- case e of
           A.Def x             -> return x
           A.Proj _ (AmbQ [x]) -> return x
@@ -1816,9 +1816,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
         VarName x' _        -> return . (False,) $ A.qnameFromList [x']
         DefinedName _ d     -> return . (False,) $ anameName d
         FieldName     [d]    -> return . (False,) $ anameName d
-        FieldName ds         -> genericError $ "Ambiguous projection " ++ show top ++ ": " ++ show (map anameName ds)
+        FieldName ds         -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
         ConstructorName [d] -> return . (False,) $ anameName d
-        ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show top ++ ": " ++ show (map anameName ds)
+        ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
         UnknownName         -> notInScope top
         PatternSynResName d -> return . (True,) $ anameName d
 
@@ -2015,7 +2015,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                 UnknownName -> notInScope d
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
-                  ++ show d ++ " isn't one"
+                  ++ prettyShow d ++ " isn't one"
         A.LHSProj (AmbQ ds) <$> toAbstract l <*> toAbstract ps2
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
@@ -2078,9 +2078,9 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       let quoted (A.Def x) = return x
           quoted (A.Macro x) = return x
           quoted (A.Proj _ (AmbQ [x])) = return x
-          quoted (A.Proj _ (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
+          quoted (A.Proj _ (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ prettyShow xs
           quoted (A.Con (AmbQ [x])) = return x
-          quoted (A.Con (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
+          quoted (A.Con (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ prettyShow xs
           quoted (A.ScopedExpr _ e) = quoted e
           quoted _                  = genericError $ "quote: not a defined name"
       A.LitP . LitQName (getRange x) <$> quoted e

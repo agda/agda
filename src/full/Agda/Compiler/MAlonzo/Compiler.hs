@@ -390,7 +390,7 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
                                 (HS.UnGuardedRhs $ e) emptyBinds]]
 
   axiomErr :: HS.Exp
-  axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
+  axiomErr = rtmError $ "postulate evaluated: " ++ prettyShow q
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
@@ -626,7 +626,7 @@ litqname x =
   rteCon "QName" `apps`
   [ hsTypedInt n
   , hsTypedInt m
-  , HS.Lit $ HS.String $ show x
+  , HS.Lit $ HS.String $ prettyShow x
   , rteCon "Fixity" `apps`
     [ litAssoc (fixityAssoc fx)
     , litPrec  (fixityLevel fx) ] ]

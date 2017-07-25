@@ -192,7 +192,7 @@ notInScope x = do
 printScope :: String -> Int -> String -> TCM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
-  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
+  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, pretty scope ]
 
 ---------------------------------------------------------------------------
 -- * Signature

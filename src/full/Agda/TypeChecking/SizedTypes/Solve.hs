@@ -102,11 +102,11 @@ import qualified Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Pretty (Pretty, prettyShow)
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
-
-import qualified Agda.Utils.Either as Either
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -495,10 +495,10 @@ solveCluster flag ccs = do
   -- Running the solver once might result in unsolvable left-over constraints.
   -- We need to iterate the solver to detect this.
   sol :: Solution NamedRigid Int <- either err return $
-    iterateSolver Map.empty hg csF Map.empty
+    iterateSolver Map.empty hg csF emptySolution
 
   -- Convert solution to meta instantiation.
-  forM_ (Map.assocs sol) $ \ (m, a) -> do
+  forM_ (Map.assocs $ theSolution sol) $ \ (m, a) -> do
     unless (validOffset a) __IMPOSSIBLE__
     -- Solution does not contain metas
     u <- unSizeExpr $ fmap __IMPOSSIBLE__ a
@@ -532,7 +532,7 @@ solveCluster flag ccs = do
 
   --  ms = unsolved size metas from cluster
   let ms = Set.fromList (map sizeMetaId metas) Set.\\  -- Some CPP or ghc does not like trailing backslash, thus, this comment!
-             Set.mapMonotonic MetaId (Map.keysSet sol)
+             Set.mapMonotonic MetaId (Map.keysSet $ theSolution sol)
   --  Make sure they do not contain an interaction point
   let noIP = Set.null $ Set.intersection ims ms
 
@@ -585,7 +585,7 @@ getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
       forM (zip [0..] gamma) $ \ (i, ce) -> do
         -- Get name and type of variable i.
         let xt = unDom $ ctxEntry ce
-            x  = show $ fst xt
+            x  = prettyShow $ fst xt
         t <- reduce . raise (1 + i) . unEl . snd $ xt
         case ignoreSharing t of
           Def d [Apply u] | d == sizelt -> do
@@ -659,11 +659,11 @@ canonicalizeSizeConstraint c@(Constraint a cmp b) = Just c
 data NamedRigid = NamedRigid
   { rigidName  :: String   -- ^ Name for printing in debug messages.
   , rigidIndex :: Int      -- ^ De Bruijn index.
-  }
+  } deriving (Show)
 
 instance Eq NamedRigid where (==) = (==) `on` rigidIndex
 instance Ord NamedRigid where compare = compare `on` rigidIndex
-instance Show NamedRigid where show = rigidName
+instance Pretty NamedRigid where pretty = P.text . rigidName
 instance Plus NamedRigid Int NamedRigid where
   plus (NamedRigid x i) j = NamedRigid x (i + j)
 
@@ -674,14 +674,14 @@ data SizeMeta = SizeMeta
   -- , sizeMetaPerm :: Permutation -- ^ Permutation from the current context
   --                               --   to the context of the meta.
   , sizeMetaArgs :: [Int]       -- ^ De Bruijn indices.
-  }
+  } deriving (Show)
 
 -- | An equality which ignores the meta arguments.
 instance Eq  SizeMeta where (==)    = (==)    `on` sizeMetaId
 -- | An order which ignores the meta arguments.
 instance Ord SizeMeta where compare = compare `on` sizeMetaId
 
-instance Show SizeMeta where show = show . sizeMetaId
+instance Pretty SizeMeta where pretty = P.pretty . sizeMetaId
 
 instance PrettyTCM SizeMeta where
   prettyTCM (SizeMeta x es) = prettyTCM (MetaV x $ map (Apply . defaultArg . var) es)
@@ -724,7 +724,7 @@ instance PrettyTCM (SizeConstraint) where
   prettyTCM (Constraint a cmp b) = do
     u <- unSizeExpr a
     v <- unSizeExpr b
-    prettyTCM u <+> text (show cmp) <+> prettyTCM v
+    prettyTCM u <+> pretty cmp <+> prettyTCM v
 
 -- | Size constraint with de Bruijn indices.
 data HypSizeConstraint = HypSizeConstraint
@@ -781,7 +781,7 @@ sizeExpr u = do
     SizeInf     -> return $ Just Infty
     SizeSuc u   -> fmap (`plus` (1 :: Offset)) <$> sizeExpr u
     OtherSize u -> case ignoreSharing u of
-      Var i []    -> (\ x -> Just $ Rigid (NamedRigid x i) 0) . show <$> nameOfBV i
+      Var i []    -> (\ x -> Just $ Rigid (NamedRigid x i) 0) . prettyShow <$> nameOfBV i
 --      MetaV m es  -> return $ Just $ Flex (SizeMeta m es) 0
       MetaV m es | Just xs <- mapM isVar es, List.fastDistinct xs
                   -> return $ Just $ Flex (SizeMeta m xs) 0
