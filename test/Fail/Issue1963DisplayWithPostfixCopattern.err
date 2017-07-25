@@ -6,7 +6,7 @@ withDisplayForm
   n      = 1
   perm   = x0 -> x0
   top    = []
-  qs     = @0 .Common.Product.Σ.proj₁
+  qs     = [x = x@0, .Common.Product.Σ.proj₁]
   qsToTm = [$ @0, .proj₁]
   ys     = [Nothing,Just 0]
   rho    = idS, @1

@@ -3,7 +3,7 @@ ScopeInfo
   current = Optimised-open
   context = TopCtx
   modules
-    scope 
+    scope
     scope Optimised-open
       private
         names
@@ -22,13 +22,12 @@ ScopeInfo
       public
         names
           P --> [Optimised-open._.P]
-
 after stripping
 ScopeInfo
   current = Optimised-open.M₂
   context = TopCtx
   modules
-    scope 
+    scope
     scope Optimised-open
       private
         names
@@ -57,7 +56,6 @@ ScopeInfo
       public
         names
           P′ --> [Optimised-open.M₂._.P]
-
-Optimised-open.agda:34,9-10
+Optimised-open.agda:35,9-10
 (A → Set) !=< A of type Set₁
 when checking that the expression P has type A

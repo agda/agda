@@ -1,5 +1,6 @@
 RecordFromModuleAmb.agda:31,5-47
-Ambiguity: the field t0 appears in the following modules
-[RecordFromModuleAmb.M0,RecordFromModuleAmb.MD]
+Ambiguity: the field t0 appears in the following modules: 
+M0
+MD
 when checking that the expression
 record { M0 ; t2 = M0.t0 ; MD ; MI ; i0 = i0 } has type R

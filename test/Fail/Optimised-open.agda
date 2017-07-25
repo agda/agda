@@ -1,7 +1,8 @@
 -- The point of this test is to check that we don't create needlessly
 -- large anonymous modules when we open a module application.
 
-{-# OPTIONS -vscope.mod.inst:10 -vtc.section.apply:20 #-}
+{-# OPTIONS -v scope.mod.inst:10  #-}
+{-# OPTIONS -v tc.section.apply:20 #-}  -- Andreas, 2017-07-25: This produces no debug output
 
 module Optimised-open where
 
