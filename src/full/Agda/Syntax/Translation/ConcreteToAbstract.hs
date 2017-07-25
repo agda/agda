@@ -631,6 +631,7 @@ checkForModuleClash x = do
   ms <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
     reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ prettyShow ms
+    reportSLn "scope.clash" 60 $ "clashing modules ms = " ++ show ms
     setCurrentRange x $
       typeError $ ShadowedModule x $
                 map ((`withRangeOf` x) . amodName) ms
