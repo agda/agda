@@ -53,18 +53,19 @@ import Agda.Utils.Except
   , ExceptT
   , runExceptT
   )
-import Agda.Utils.Impossible
+import Agda.Utils.FileName
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import Agda.Utils.Maybe.Strict (toLazy)
 import Agda.Utils.Monad
 import Agda.Utils.Permutation ( Permutation(Perm), compactP )
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
-import Agda.Utils.Maybe.Strict (toLazy)
-import Agda.Utils.FileName
-import Agda.Utils.Lens
 
 #include "undefined.h"
+import Agda.Utils.Impossible
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
@@ -104,7 +105,7 @@ runUnquoteM m = do
     isDefined x = do
       def <- theDef <$> getConstInfo x
       case def of
-        Function{funClauses = []} -> genericError $ "Missing definition for " ++ show x
+        Function{funClauses = []} -> genericError $ "Missing definition for " ++ prettyShow x
         _       -> return ()
 
 liftU :: TCM a -> UnquoteM a

@@ -71,6 +71,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -244,7 +245,7 @@ updateInPatterns as ps qs = do
               { A.metaRange          = getRange pi
               , A.metaScope          = emptyScopeInfo
               , A.metaNumber         = Nothing
-              , A.metaNameSuggestion = show $ A.nameConcrete $ qnameName f
+              , A.metaNameSuggestion = prettyShow $ qnameName f
               }
 
 
@@ -309,7 +310,7 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
   noShadowing (A.VarP x)       t = do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
-      [ text $ "checking whether pattern variable " ++ show x ++ " shadows a constructor"
+      [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
       , nest 2 $ text "type of variable =" <+> prettyTCM t
       ]
     reportSLn "tc.lhs.shadow" 70 $ "  t = " ++ show t
@@ -363,7 +364,7 @@ checkDotPattern (DPI _ (Just e) v (Dom{domInfo = info, unDom = a})) =
         ]
   applyRelevanceToContext (argInfoRelevance info) $ do
     u <- checkExpr e a
-    reportSDoc "tc.lhs.dot" 30 $
+    reportSDoc "tc.lhs.dot" 50 $
       sep [ text "equalTerm"
           , nest 2 $ text $ show a
           , nest 2 $ text $ show u
@@ -609,7 +610,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
   -- context arguments as wildcard patterns and extending the type with the
   -- context telescope.
   cxt <- reverse <$> getContext
-  let tel = telFromList' show cxt
+  let tel = telFromList' prettyShow cxt
       cps = [ unnamed . A.VarP . fst <$> setOrigin Inserted (argFromDom d)
             | d <- cxt ]
   problem0 <- problemFromPats (cps ++ ps) (telePi tel a)

@@ -27,15 +27,16 @@ import Agda.TypeChecking.Pretty
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
 
-import Agda.Utils.Maybe
-import Agda.Utils.Impossible
-import Agda.Utils.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Memo
+import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
+import Agda.Utils.Impossible
 
 data ESt = ESt { _funMap  :: Map QName FunInfo
                , _typeMap :: Map QName TypeInfo }
@@ -190,7 +191,7 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
         is <- mapM (getTypeInfo . snd . dget) tel
         return (zipWith (mkR . getRelevance) tel is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
-      lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ show q ++ ": " ++ show rs ++ " -> " ++ show h
+      lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ prettyShow q ++ ": " ++ show rs ++ " -> " ++ show h
       lift $ setErasedConArgs q $ map erasableR rs
       return (rs, h)
 

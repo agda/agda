@@ -98,8 +98,8 @@ pTerm t = case t of
               <$> pTerm' 0 a
               <*> pTerm' 0 b
               <*> pTerm c
-  TDef f -> pure $ text (show f)
-  TCon c -> pure $ text (show c)
+  TDef f -> pure $ pretty f
+  TCon c -> pure $ pretty c
   TLit l -> pure $ pretty l
   TPrim op | isJust (isInfix op) -> pure $ text ("_" ++ opName op ++ "_")
            | otherwise -> pure $ text (opName op)
@@ -151,4 +151,3 @@ pTerm t = case t of
   TSort -> pure $ text "Set"
   TErased -> pure $ text "_"
   TError err -> paren 9 $ pure $ text "error" <+> text (show (show err))
-

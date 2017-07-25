@@ -89,6 +89,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
+import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
@@ -117,11 +118,17 @@ newtype Graph s t e = Graph
   }
   deriving (Eq, Functor, Show)
 
+instance (Pretty s, Pretty t, Pretty e) => Pretty (Graph s t e) where
+  pretty = vcat . map pretty . edges
+
 data Edge s t e = Edge
   { source :: s  -- ^ Outgoing node.
   , target :: t  -- ^ Incoming node.
   , label  :: e  -- ^ Edge label (weight).
   } deriving (Eq, Ord, Functor, Show)
+
+instance (Pretty s, Pretty t, Pretty e) => Pretty (Edge s t e) where
+  pretty (Edge s t e) = pretty s <+> text "--(" <> pretty t <> text ")-->" <+> pretty t
 
 -- | Reverse an edge.
 

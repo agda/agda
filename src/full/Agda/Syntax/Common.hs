@@ -800,6 +800,12 @@ data Access
                              --   Used for qualified constructors.
     deriving (Typeable, Data, Show, Eq, Ord)
 
+instance Pretty Access where
+  pretty = text . \case
+    PrivateAccess _ -> "private"
+    PublicAccess    -> "public"
+    OnlyQualified   -> "only-qualified"
+
 instance NFData Access where
   rnf _ = ()
 

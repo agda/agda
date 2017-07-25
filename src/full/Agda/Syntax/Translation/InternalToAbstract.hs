@@ -196,7 +196,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
       displayForm f $ zipWith (\ p i -> I.Apply $ p $> I.var i) ps [0..]
     reportSLn "reify.display" 60 $
-      "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
+      "display form of " ++ prettyShow f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
       Just d  | okDisplayForm d -> do
         -- In the display term @d@, @var i@ should be a placeholder
@@ -470,14 +470,14 @@ reifyTerm expandAnonDefs0 v = do
         YesReduction _ v -> do
           reportSLn "reify.anon" 60 $ unlines
             [ "reduction on defined ident. in anonymous module"
-            , "x = " ++ show x
+            , "x = " ++ prettyShow x
             , "v = " ++ show v
             ]
           reify v
         NoReduction () -> do
           reportSLn "reify.anon" 60 $ unlines
             [ "no reduction on defined ident. in anonymous module"
-            , "x  = " ++ show x
+            , "x  = " ++ prettyShow x
             , "es = " ++ show es
             ]
           reifyDef' x es
@@ -485,10 +485,10 @@ reifyTerm expandAnonDefs0 v = do
 
     reifyDef' :: QName -> I.Elims -> TCM Expr
     reifyDef' x es = do
-      reportSLn "reify.def" 60 $ "reifying call to " ++ show x
+      reportSLn "reify.def" 60 $ "reifying call to " ++ prettyShow x
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
-      reportSLn "reify.def" 70 $ "freeVars for " ++ show x ++ " = " ++ show n
+      reportSLn "reify.def" 70 $ "freeVars for " ++ prettyShow x ++ " = " ++ show n
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
       let fallback = elims (A.Def x) =<< reify (drop n es)
@@ -611,8 +611,8 @@ reifyTerm expandAnonDefs0 v = do
 
     reifyExtLam :: QName -> Int -> [I.Clause] -> I.Elims -> TCM Expr
     reifyExtLam x npars cls es = do
-      reportSLn "reify.def" 10 $ "reifying extended lambda " ++ show x
-      reportSLn "reify.def" 50 $ show $ nest 2 $ vcat
+      reportSLn "reify.def" 10 $ "reifying extended lambda " ++ prettyShow x
+      reportSLn "reify.def" 50 $ render $ nest 2 $ vcat
         [ text "npars =" <+> pretty npars
         , text "es    =" <+> fsep (map (prettyPrec 10) es)
         , text "def   =" <+> vcat (map pretty cls) ]
@@ -876,7 +876,7 @@ instance Binder A.LHSCore where
 
 instance Binder A.Pattern where
   varsBoundIn p = case p of
-    A.VarP x             -> if show x == "()" then empty else singleton x -- TODO: get rid of this hack?
+    A.VarP x             -> if prettyShow x == "()" then empty else singleton x -- TODO: get rid of this hack?
     A.ConP _ _ ps        -> varsBoundIn ps
     A.ProjP{}            -> empty
     A.DefP _ _ ps        -> varsBoundIn ps
@@ -984,7 +984,7 @@ instance Reify (QNamed I.Clause) A.Clause where
 instance Reify NamedClause A.Clause where
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
     reportSLn "reify.clause" 60 $ "reifying NamedClause"
-      ++ "\n  f      = " ++ show f
+      ++ "\n  f      = " ++ prettyShow f
       ++ "\n  toDrop = " ++ show toDrop
       ++ "\n  cl     = " ++ show cl
     ps  <- reifyPatterns $ namedClausePats cl

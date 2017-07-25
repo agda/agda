@@ -636,14 +636,22 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 --     f (suc a) (suc b) | c
 --   @
 withDisplayForm
-  :: QName                -- ^ The name of parent function.
-  -> QName                -- ^ The name of the @with@-function.
-  -> Telescope            -- ^ __@Δ₁@__      The arguments of the @with@ function before the @with@ expressions.
-  -> Telescope            -- ^ __@Δ₂@__      The arguments of the @with@ function after the @with@ expressions.
-  -> Nat                  -- ^ __@n@__       The number of @with@ expressions.
-  -> [NamedArg DeBruijnPattern]   -- ^ __@qs@__      The parent patterns.
-  -> Permutation          -- ^ __@perm@__    Permutation to split into needed and unneeded vars.
-  -> Permutation          -- ^ __@lhsPerm@__ Permutation reordering the variables in parent patterns.
+  :: QName
+       -- ^ The name of parent function.
+  -> QName
+       -- ^ The name of the @with@-function.
+  -> Telescope
+       -- ^ __@Δ₁@__     The arguments of the @with@ function before the @with@ expressions.
+  -> Telescope
+       -- ^ __@Δ₂@__     The arguments of the @with@ function after the @with@ expressions.
+  -> Nat
+       -- ^ __@n@__      The number of @with@ expressions.
+  -> [NamedArg DeBruijnPattern]
+      -- ^ __@qs@__      The parent patterns.
+  -> Permutation
+      -- ^ __@perm@__    Permutation to split into needed and unneeded vars.
+  -> Permutation
+      -- ^ __@lhsPerm@__ Permutation reordering the variables in parent patterns.
   -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
@@ -681,14 +689,14 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   reportSDoc "tc.with.display" 20 $ vcat
     [ text "withDisplayForm"
     , nest 2 $ vcat
-      [ text "f      =" <+> text (show f)
-      , text "aux    =" <+> text (show aux)
+      [ text "f      =" <+> text (prettyShow f)
+      , text "aux    =" <+> text (prettyShow aux)
       , text "delta1 =" <+> prettyTCM delta1
       , text "delta2 =" <+> do addContext delta1 $ prettyTCM delta2
       , text "n      =" <+> text (show n)
       , text "perm   =" <+> text (show perm)
       , text "top    =" <+> do addFullCtx $ prettyTCM topArgs
-      , text "qs     =" <+> sep (map (prettyTCM . namedArg) qs)
+      , text "qs     =" <+> prettyList (map pretty qs)
       , text "qsToTm =" <+> prettyTCM tqs0 -- ctx would be permuted form of delta1 ++ delta2
       , text "ys     =" <+> text (show ys)
       , text "rho    =" <+> text (prettyShow rho)

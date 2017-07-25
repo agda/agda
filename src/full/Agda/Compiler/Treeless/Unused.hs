@@ -16,13 +16,15 @@ import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
 
+import Agda.Utils.Pretty (prettyShow)
+
 usedArguments :: QName -> TTerm -> TCM [Bool]
 usedArguments q t = computeUnused q b (replicate n False)
   where (n, b) = tLamView t
 
 computeUnused :: QName -> TTerm -> [Bool] -> TCM [Bool]
 computeUnused q t used = do
-  reportSLn "treeless.opt.unused" 50 $ "Unused approximation for " ++ show q ++ ": " ++
+  reportSLn "treeless.opt.unused" 50 $ "Unused approximation for " ++ prettyShow q ++ ": " ++
                                        unwords [ if u then [x] else "_" | (x, u) <- zip ['a'..] used ]
   setCompiledArgUse q used
   fv <- go t
@@ -68,4 +70,3 @@ stripUnusedArguments used t = mkTLam m $ applySubst rho b
     computeSubst (False : bs) = TErased :# computeSubst bs
     computeSubst (True  : bs) = liftS 1 $ computeSubst bs
     computeSubst []           = idS
-

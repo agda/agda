@@ -28,9 +28,10 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
-import Agda.Utils.List ((!!!), downFrom)
-import Agda.Utils.Size
 import Agda.Utils.Lens
+import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.Pretty
+import Agda.Utils.Size
 
 -- * Modifying the context
 
@@ -315,7 +316,7 @@ lookupBV :: MonadReader TCEnv m => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   ctx <- getContext
   let failure = fail $ "de Bruijn index out of scope: " ++ show n ++
-                       " in context " ++ show (map (fst . unDom) ctx)
+                       " in context " ++ prettyShow (map (fst . unDom) ctx)
   maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
 
 {-# SPECIALIZE typeOfBV' :: Nat -> TCM (Dom Type) #-}
@@ -351,4 +352,5 @@ getVarInfo x =
             _       ->
                 case Map.lookup x def of
                     Just vt -> getOpen vt
-                    _       -> fail $ "unbound variable " ++ show (nameConcrete x, nameId x)
+                    _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
+                                " (id: " ++ show (nameId x) ++ ")"

@@ -20,9 +20,10 @@ import Agda.TypeChecking.Free
 import Agda.Compiler.MAlonzo.Pragmas
 
 import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Impossible
+import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
+import Agda.Utils.Impossible
 
 type HaskellKind = String
 
@@ -39,7 +40,7 @@ hsUnit :: HaskellType
 hsUnit = "()"
 
 hsVar :: Name -> HaskellType
-hsVar x = "x" ++ concatMap encode (show x)
+hsVar x = "x" ++ concatMap encode (prettyShow x)
   where
     okChars = ['a'..'z'] ++ ['A'..'Y'] ++ "_'"
     encode 'Z' = "ZZ"
@@ -56,10 +57,10 @@ hsForall :: String -> HaskellType -> HaskellType
 hsForall x a = "(forall " ++ x ++ ". " ++ a ++ ")"
 
 notAHaskellType :: Type -> TCM a
-notAHaskellType a = do
-  err <- fsep $ pwords "The type" ++ [prettyTCM a] ++
-                pwords "cannot be translated to a Haskell type."
-  typeError $ GenericError $ show err
+notAHaskellType a = typeError . GenericDocError =<< do
+  fsep $ pwords "The type" ++ [prettyTCM a] ++
+         pwords "cannot be translated to a Haskell type."
+
 
 getHsType :: QName -> TCM HaskellType
 getHsType x = do
@@ -131,7 +132,7 @@ haskellType q = do
           Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
-  reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show q ++ ": " ++ ty
+  reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ prettyShow q ++ ": " ++ ty
   return ty
 
 checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()

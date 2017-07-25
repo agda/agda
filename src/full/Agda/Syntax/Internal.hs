@@ -1250,11 +1250,11 @@ instance Pretty Term where
       Var x els -> text ("@" ++ show x) `pApp` els
       Lam ai b   ->
         mparens (p > 0) $
-        sep [ text "λ" <+> prettyHiding ai id (text . show . absName $ b) <+> text "->"
+        sep [ text "λ" <+> prettyHiding ai id (text . absName $ b) <+> text "->"
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
-      Def q els            -> text (show q) `pApp` els
-      Con c ci vs          -> text (show $ conName c) `pApp` map Apply vs
+      Def q els            -> pretty q `pApp` els
+      Con c ci vs          -> pretty (conName c) `pApp` map Apply vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
         sep [ prettyPrec 1 (unDom a) <+> text "->"
             , nest 2 $ pretty b ]
@@ -1328,7 +1328,7 @@ instance Pretty Sort where
       SizeUniv -> text "SizeUniv"
       DLub s b -> mparens (p > 9) $
         text "dlub" <+> prettyPrec 10 s
-                    <+> parens (sep [ text ("λ " ++ show (absName b) ++ " ->")
+                    <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
                                     , nest 2 $ pretty (unAbs b) ])
 
 instance Pretty Type where
@@ -1336,7 +1336,7 @@ instance Pretty Type where
 
 instance Pretty Elim where
   prettyPrec p (Apply v)    = prettyPrec p v
-  prettyPrec _ (Proj _o x)  = text ("." ++ show x)
+  prettyPrec _ (Proj _o x)  = text ("." ++ prettyShow x)
   prettyPrec p (IApply x y r) = prettyPrec p r
 
 instance Pretty DBPatVar where
@@ -1347,7 +1347,7 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec _ (DotP t)      = text "." P.<> prettyPrec 10 t
   prettyPrec _ (AbsurdP _)   = text "()"
   prettyPrec n (ConP c i nps)= mparens (n > 0) $
-    text (show $ conName c) <+> fsep (map pretty ps)
+    pretty (conName c) <+> fsep (map pretty ps)
     where ps = map (fmap namedThing) nps
   -- -- Version with printing record type:
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
@@ -1355,8 +1355,8 @@ instance Pretty a => Pretty (Pattern' a) where
   --   where
   --     b = maybe False (== ConOSystem) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
-  prettyPrec _ (LitP l)      = text (show l)
-  prettyPrec _ (ProjP _o q)  = text ("." ++ show q)
+  prettyPrec _ (LitP l)      = pretty l
+  prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
 
 -----------------------------------------------------------------------------
 -- * NFData instances

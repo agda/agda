@@ -28,6 +28,7 @@ import Agda.Syntax.Notation
 
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -256,6 +257,9 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
                 | FunctionCtx | ArgumentCtx | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
     deriving (Show, Typeable, Data, Eq)
+
+instance Pretty Precedence where
+  pretty = text . show
 
 -- | The precedence corresponding to a possibly hidden argument.
 hiddenArgumentCtx :: Hiding -> Precedence

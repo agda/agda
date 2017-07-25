@@ -59,9 +59,10 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -82,7 +83,7 @@ splitProblem ::
 splitProblem mf (Problem ps qs tel pr) = do
   lift $ do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
-      ++ maybe "" ((" for definition " ++) . show) mf
+      ++ maybe "" ((" for definition " ++) . prettyShow) mf
     reportSDoc "tc.lhs.split" 30 $ sep
       [ nest 2 $ text "ps   =" <+> sep (map (P.parens <.> prettyA) ps)
       , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . namedArg) qs)
@@ -117,9 +118,9 @@ splitProblem mf (Problem ps qs tel pr) = do
         caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
           Record{ recFields = fs } -> do
             lift $ reportSDoc "tc.lhs.split" 20 $ sep
-              [ text $ "we are of record type r  = " ++ show r
+              [ text $ "we are of record type r  = " ++ prettyShow r
               , text   "applied to parameters vs = " <+> prettyTCM vs
-              , text $ "and have fields       fs = " ++ show fs
+              , text $ "and have fields       fs = " ++ prettyShow fs
               ]
             -- The record "self" is the definition f applied to the patterns
             let es = patternsToElims qs
@@ -147,7 +148,7 @@ splitProblem mf (Problem ps qs tel pr) = do
           [ text "Cannot eliminate type "
           , prettyTCM (unArg b)
           , text " with projection "
-          , if amb then text . show =<< dropTopLevelModule d else prettyTCM d
+          , if amb then text . prettyShow =<< dropTopLevelModule d else prettyTCM d
           ]
 
       -- | Pass 'True' unless last element of the list.
@@ -189,8 +190,8 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
             lift $ reportSDoc "tc.lhs.split" 20 $ sep
-              [ text $ "proj                  d0 = " ++ show d0
-              , text $ "original proj         d  = " ++ show d
+              [ text $ "proj                  d0 = " ++ prettyShow d0
+              , text $ "original proj         d  = " ++ prettyShow d
               ]
             -- Get the field decoration.
             -- If the projection pattern name @d@ is not a field name,
@@ -496,9 +497,9 @@ checkParameters dc d pars = liftTCM $ do
     Def d0 es -> do -- compare parameters
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reportSDoc "tc.lhs.split" 40 $
-        vcat [ nest 2 $ text "d                   =" <+> (text . show) d
-             , nest 2 $ text "d0 (should be == d) =" <+> (text . show) d0
-             , nest 2 $ text "dc                  =" <+> (text . show) dc
+        vcat [ nest 2 $ text "d                   =" <+> (text . prettyShow) d
+             , nest 2 $ text "d0 (should be == d) =" <+> (text . prettyShow) d0
+             , nest 2 $ text "dc                  =" <+> (text . prettyShow) dc
              , nest 2 $ text "vs                  =" <+> prettyTCM vs
              ]
       -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
