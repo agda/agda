@@ -21,6 +21,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty ( Pretty(pretty), text, (<+>) )
 import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -110,6 +111,13 @@ data BlockingVar  = BlockingVar
     --   @Just cons@ means that it is an non-overlapping match and
     --   @cons@ are the encountered constructors.
   } deriving (Show)
+
+instance Pretty BlockingVar where
+  pretty (BlockingVar i mcs) = case mcs of
+    Nothing -> text $ "blocking var " ++ show i ++ " (overlapping)"
+    Just cs -> text ("blocking var " ++ show i ++ " (non-overlapping); constructors:")
+      <+> pretty cs
+
 type BlockingVars = [BlockingVar]
 
 -- | Lens for 'blockingVarCons'.

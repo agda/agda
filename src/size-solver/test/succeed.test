@@ -8,7 +8,7 @@ l ≤ J
 J+1 ≤ K
 I+1 ≤ K
 Solution
-fromList [(I,l),(J,l),(K,l+1)]
+[I := l, J := l, K := l+1]
 >>>2
 >>>= 0
 # Issue2558.txt
@@ -26,6 +26,6 @@ L < M
 K < M
 l ≤ L
 Solution
-fromList [(K,i+1),(L,l),(M,i+2)]
+[K := i+1, L := l, M := i+2]
 >>>2
 >>>= 0

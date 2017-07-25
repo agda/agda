@@ -23,7 +23,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty (prettyTCM, nest, sep, text)
+import Agda.TypeChecking.Pretty (prettyTCM, nest, sep, text, vcat)
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -57,9 +57,10 @@ compileClauses mt cs = do
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
-      reportSDoc "tc.cc.tree" 20 $ sep $ do
-        (text "split tree from coverage check ") : do
-          [text (show splitTree)]
+      reportSDoc "tc.cc.tree" 20 $ vcat
+        [ text "split tree from coverage check "
+        , return $ P.pretty splitTree
+        ]
 
       -- The coverage checker might have added some clauses (#2288)!
       cs <- normaliseProjP =<< defClauses <$> getConstInfo q
@@ -75,7 +76,7 @@ compileClauses mt cs = do
       let cc = compileWithSplitTree shared splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
-        , nest 2 $ text (show cc)
+        , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
       return cc

@@ -25,9 +25,8 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Foldable (toList)
-import Data.List hiding (null)
 import qualified Data.List as List
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import qualified Data.Set as Set
 import Data.Traversable (Traversable, traverse)
 
@@ -192,21 +191,21 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
 
-  reportSLn "term.mutual" 10 $ "Termination checking " ++ show allNames
+  reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK
   if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
-      reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
+      reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
     else if (Info.mutualTermCheck i == NonTerminating) then do
-      reportSLn "term.warn.yes" 2 $ "Considering as non-terminating: " ++ show names
+      reportSLn "term.warn.yes" 2 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
   -- Trivially terminating (non-recursive)
     else ifM skip (do
-      reportSLn "term.warn.yes" 2 $ "Trivially terminating: " ++ show names
+      reportSLn "term.warn.yes" 2 $ "Trivially terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True
       return mempty)
    $ {- else -} do
@@ -218,7 +217,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
            }
          runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
-           reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
+           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow names ++
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
@@ -274,14 +273,14 @@ termMutual' = do
     Left calls -> return $ singleton $ terminationError names $ callInfos calls
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
-        show (names) ++ " does termination check"
+        prettyShow (names) ++ " does termination check"
       return mempty
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
 terminationError :: [QName] -> [CallInfo] -> TerminationError
 terminationError names calls = TerminationError names' calls
-  where names' = names `intersect` toList (allNames calls)
+  where names' = names `List.intersect` toList (allNames calls)
 
 billToTerGraph :: a -> TerM a
 billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph] a
@@ -299,7 +298,7 @@ reportCalls no calls = do
   liftTCM $ do
 
     reportS "term.lex" 20 $ unlines
-      [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
+      [ "Calls (" ++ no ++ "dot patterns): " ++ prettyShow calls
       ]
 
     -- Print the whole completion phase.
@@ -395,16 +394,16 @@ termFunction name = do
 
     names <- terGetUserNames
     case r of
-      Left calls -> return $ singleton $ terminationError ([name] `intersect` names) calls
+      Left calls -> return $ singleton $ terminationError ([name] `List.intersect` names) calls
       Right () -> do
         liftTCM $ reportSLn "term.warn.yes" 2 $
-          show name ++ " does termination check"
+          prettyShow name ++ " does termination check"
         return mempty
    where
      reportTarget r = liftTCM $
        reportSLn "term.target" 20 $ "  target type " ++
          caseMaybe r "not recognized" (\ q ->
-           "ends in " ++ show q)
+           "ends in " ++ prettyShow q)
 
 -- | To process the target type.
 typeEndsInDef :: MonadTCM tcm => Type -> tcm (Maybe QName)
@@ -836,8 +835,8 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
                       , callInfoCall   = doc
                       }]
          liftTCM $ reportSDoc "term.kept.call" 5 $ vcat
-           [ text "kept call from" <+> text (show f) <+> hsep (map prettyTCM pats)
-           , nest 2 $ text "to" <+> text (show g) <+>
+           [ text "kept call from" <+> text (prettyShow f) <+> hsep (map prettyTCM pats)
+           , nest 2 $ text "to" <+> text (prettyShow g) <+>
                        hsep (map (parens . prettyTCM) args)
            , nest 2 $ text "call matrix (with guardedness): "
            , nest 2 $ pretty cm
@@ -866,7 +865,7 @@ instance ExtractCalls Term where
         -- then we count it as guarding.
         ind <- ifM ((Just c ==) <$> terGetSharp) (return CoInductive) $ do
           caseMaybeM (liftTCM $ isRecordConstructor c) (return Inductive) $ \ (q, def) -> do
-            reportSLn "term.check.term" 50 $ "constructor " ++ show c ++ " has record type " ++ show q
+            reportSLn "term.check.term" 50 $ "constructor " ++ prettyShow c ++ " has record type " ++ prettyShow q
             (\ b -> if b then CoInductive else Inductive) <$>
               andM [ return $ recInduction def == Just CoInductive
                    , targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def
@@ -964,18 +963,18 @@ compareArgs es = do
 
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).
-  projsCaller <- genericLength <$> do
+  projsCaller <- length <$> do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap (head . unAmbQ . snd) . isProjP . getMasked) pats
-  projsCallee <- genericLength <$> do
+  projsCallee <- length <$> do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   let guardedness = decr True $ projsCaller - projsCallee
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ text "compareArgs:"
-    , nest 2 $ text $ "projsCaller = " ++ show projsCaller
-    , nest 2 $ text $ "projsCallee = " ++ show projsCallee
-    , nest 2 $ text $ "guardedness of call: " ++ show guardedness
+    , nest 2 $ text $ "projsCaller = " ++ prettyShow projsCaller
+    , nest 2 $ text $ "projsCallee = " ++ prettyShow projsCallee
+    , nest 2 $ text $ "guardedness of call: " ++ prettyShow guardedness
     ]
   return $ addGuardedness guardedness (size es) (size pats) matrix
 
@@ -1000,8 +999,8 @@ compareElim e p = do
   liftTCM $ do
     reportSDoc "term.compare" 30 $ sep
       [ text "compareElim"
-      , nest 2 $ text "e = " <+> prettyTCM e
-      , nest 2 $ text "p = " <+> prettyTCM p
+      , nest 2 $ text "e = " <> prettyTCM e
+      , nest 2 $ text "p = " <> prettyTCM p
       ]
     reportSDoc "term.compare" 50 $ sep
       [ nest 2 $ text $ "e = " ++ show e
@@ -1011,7 +1010,13 @@ compareElim e p = do
     (Proj _ d, ProjP _ d') -> do
       d  <- getOriginalProjection d
       d' <- getOriginalProjection d'
-      compareProj d d'
+      o  <- compareProj d d'
+      reportSDoc "term.compare" 30 $ sep
+        [ text $ "comparing callee projection " ++ prettyShow d
+        , text $ "against caller projection " ++ prettyShow d'
+        , text $ "yields order " ++ prettyShow o
+        ]
+      return o
     (Proj{}, _)            -> return Order.unknown
     (Apply{}, ProjP{})     -> return Order.unknown
     (Apply arg, _)         -> compareTerm (unArg arg) p
@@ -1042,7 +1047,7 @@ compareProj d d'
           case def of
             Record{ recFields = fs } -> do
               fs <- return $ map unArg fs
-              case (find (d==) fs, find (d'==) fs) of
+              case (List.find (d==) fs, List.find (d'==) fs) of
                 (Just i, Just i')
                   -- earlier field is smaller
                   | i < i'    -> return Order.lt
@@ -1065,10 +1070,10 @@ addGuardedness g nrows ncols m = (nrows, ncols, m)
 -}
 
 -- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
-addGuardedness :: Integral n => Order -> n -> n -> [[Order]] -> (n, n, [[Order]])
+addGuardedness :: Order -> Int -> Int -> [[Order]] -> (Int, Int, [[Order]])
 addGuardedness o nrows ncols m =
   (nrows + 1, ncols + 1,
-   (o : genericReplicate ncols Order.unknown) : map (Order.unknown :) m)
+   (o : replicate ncols Order.unknown) : map (Order.unknown :) m)
 
 -- | Compose something with the upper-left corner of a call matrix
 composeGuardedness :: (?cutoff :: CutOff) => Order -> [[Order]] -> [[Order]]
@@ -1103,7 +1108,7 @@ compareTerm t p = do
   liftTCM $ reportSDoc "term.compare" 25 $
     text " comparing term " <+> prettyTCM t <+>
     text " to pattern " <+> prettyTCM p <+>
-    text (" results in " ++ show o)
+    text (" results in " ++ prettyShow o)
   return o
 
 
@@ -1264,7 +1269,7 @@ compareConArgs ts ps = do
    -- Trigges issue 787.
         (_,_) -> do -- build "call matrix"
           m <- mapM (\t -> mapM (compareTerm' suc (unArg t)) ps) ts
-          let m2 = makeCM (genericLength ps) (genericLength ts) m
+          let m2 = makeCM (length ps) (length ts) m
           return $ Order.orderMat (Order.mat m2)
 -}
 {- version which takes height

@@ -71,6 +71,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Suffix (nameVariant)
 import Agda.Utils.Tuple
@@ -152,7 +153,7 @@ coverageCheck f t cs = do
     let prCl cl = addContext (clauseTel cl) $
                   prettyTCMPatternList $ namedClausePats cl
     vcat
-      [ text $ "Coverage checking " ++ show f ++ " with patterns:"
+      [ text $ "Coverage checking " ++ prettyShow f ++ " with patterns:"
       , nest 2 $ vcat $ map prCl cs
       ]
 
@@ -161,7 +162,7 @@ coverageCheck f t cs = do
   CoverResult splitTree used pss noex <- cover f cs sc
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
-    , text $ show splitTree
+    , text $ prettyShow splitTree
     ]
   -- report a warning if there are uncovered cases,
   -- generate a catch-all clause with a metavariable as its body to avoid
@@ -246,7 +247,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       if null bs then done else do
       -- Otherwise, if there are variables to split, we try them
       -- in the order determined by a split strategy.
-      reportSLn "tc.cover.strategy" 20 $ "blocking vars = " ++ show bs
+      reportSLn "tc.cover.strategy" 20 $ "blocking vars = " ++ prettyShow bs
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
       xs <- splitStrategy bs tel
@@ -812,7 +813,7 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
         [ text "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel     =" <+> prettyTCM tel
-          , text "x       =" <+> text (show x)
+          , text "x       =" <+> prettyTCM x
           , text "ps      =" <+> do addContext tel $ prettyTCMPatternList ps
           , text "mpsub   =" <+> prettyTCM mpsub
           ]
@@ -821,7 +822,7 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
     debugHoleAndType delta1 delta2 s ps t =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
         [ text "p      =" <+> text (patVarNameToString s)
-        , text "ps    =" <+> text (show ps)
+        , text "ps     =" <+> text (show ps)
         , text "delta1 =" <+> prettyTCM delta1
         , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , text "t      =" <+> inContextOfT (prettyTCM t)
@@ -837,7 +838,7 @@ splitResult :: QName -> SplitClause -> TCM (Maybe Covering)
 splitResult f sc@(SClause tel ps _ _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
     [ text "splitting result:"
-    , nest 2 $ text "f      =" <+> text (show f)
+    , nest 2 $ text "f      =" <+> prettyTCM f
     , nest 2 $ text "target =" <+> (addContext tel $ maybe empty prettyTCM target)
     ]
   -- if we want to split projections, but have no target type, we give up
@@ -847,9 +848,9 @@ splitResult f sc@(SClause tel ps _ _ target) = do
     case isR of
       Just (_r, vs, Record{ recFields = fs }) -> do
         reportSDoc "tc.cover" 20 $ sep
-          [ text $ "we are of record type _r = " ++ show _r
+          [ text $ "we are of record type _r = " ++ prettyShow _r
           , text   "applied to parameters vs = " <+> (addContext tel $ prettyTCM vs)
-          , text $ "and have fields       fs = " ++ show fs
+          , text $ "and have fields       fs = " ++ prettyShow fs
           ]
         let es = patternsToElims ps
         -- Note: module parameters are part of ps
