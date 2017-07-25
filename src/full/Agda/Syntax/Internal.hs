@@ -76,7 +76,7 @@ data ConHead = ConHead
                               --   Empty list for data constructors.
                               --   'Arg' is not needed here since it
                               --   is stored in the constructor args.
-  } deriving (Typeable, Data)
+  } deriving (Typeable, Data, Show)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -84,8 +84,8 @@ instance Eq ConHead where
 instance Ord ConHead where
   (<=) = (<=) `on` conName
 
-instance Show ConHead where
-  show (ConHead c i fs) = show c ++ "(" ++ show i ++ ")" ++ show fs
+instance Pretty ConHead where
+  pretty = pretty . conName
 
 instance HasRange ConHead where
   getRange = getRange . conName

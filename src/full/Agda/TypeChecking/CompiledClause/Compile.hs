@@ -71,7 +71,7 @@ compileClauses mt cs = do
       let cc = compileWithSplitTree shared splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
-        , nest 2 $ text (show cc)
+        , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
       return cc
