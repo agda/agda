@@ -33,7 +33,7 @@ import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Functor, Foldable, Traversable, Show)
 
 -- | Branches in a case tree.
 
@@ -49,7 +49,7 @@ data Case c = Branches
   , catchAllBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
   }
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Functor, Foldable, Traversable, Show)
 
 -- | Case tree with bodies.
 
@@ -66,7 +66,7 @@ data CompiledClauses' a
     --   still reduce.
   | Fail
     -- ^ Absurd case.
-  deriving (Typeable, Data, Functor, Traversable, Foldable)
+  deriving (Typeable, Data, Functor, Traversable, Foldable, Show)
 
 type CompiledClauses = CompiledClauses' Term
 
@@ -117,12 +117,6 @@ instance Null (Case m) where
 
 -- * Pretty instances.
 
-instance Pretty a => Show (Case a) where
-  show = show . pretty
-
-instance Show CompiledClauses where
-  show = show . pretty
-
 instance Pretty a => Pretty (WithArity a) where
   pretty = pretty . content
 
@@ -134,10 +128,10 @@ instance Pretty a => Pretty (Case a) where
       prC Nothing = []
       prC (Just x) = [text "_ ->" <+> pretty x]
 
-prettyMap :: (Show k, Pretty v) => Map k v -> [Doc]
-prettyMap m = [ sep [ text (show x ++ " ->")
+prettyMap :: (Pretty k, Pretty v) => Map k v -> [Doc]
+prettyMap m = [ sep [ pretty k <+> text "->"
                     , nest 2 $ pretty v ]
-              | (x, v) <- Map.toList m ]
+              | (k, v) <- Map.toList m ]
 
 instance Pretty CompiledClauses where
   pretty (Done hs t) = text ("done" ++ show hs) <+> pretty t
@@ -147,7 +141,7 @@ instance Pretty CompiledClauses where
         , nest 2 $ pretty bs
         ]
   pretty (Case n bs) =
-    sep [ text ("case " ++ show n ++ " of")
+    sep [ text ("case " ++ prettyShow n ++ " of")
         , nest 2 $ pretty bs
         ]
 
@@ -183,4 +177,3 @@ instance TermLike a => TermLike (CompiledClauses' a) where
   traverseTerm  = fmap . traverseTerm
   traverseTermM = traverse . traverseTermM
   foldTerm      = foldMap . foldTerm
-

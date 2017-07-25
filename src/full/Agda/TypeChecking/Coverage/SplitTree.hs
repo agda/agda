@@ -20,6 +20,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -53,12 +54,13 @@ data SplitTreeLabel a = SplitTreeLabel
   , lblSplitArg        :: Maybe (Arg Int)
   , lblBindings        :: Maybe Int
   }
-instance Show a => Show (SplitTreeLabel a) where
-  show (SplitTreeLabel Nothing Nothing (Just n))  = "done, " ++ show n ++ " bindings"
-  show (SplitTreeLabel Nothing (Just n) Nothing)  = "split at " ++ show n
-  show (SplitTreeLabel (Just q) Nothing (Just n)) = show q ++ " -> done, " ++ show n ++ " bindings"
-  show (SplitTreeLabel (Just q) (Just n) Nothing) = show q ++ " -> split at " ++ show n
-  show _ = __IMPOSSIBLE__
+instance Pretty a => Pretty (SplitTreeLabel a) where
+  pretty = \case
+    SplitTreeLabel Nothing Nothing (Just n)  -> text $ "done, " ++ show n ++ " bindings"
+    SplitTreeLabel Nothing (Just n) Nothing  -> text $ "split at " ++ show n
+    SplitTreeLabel (Just q) Nothing (Just n) -> pretty q <+> text (" -> done, " ++ show n ++ " bindings")
+    SplitTreeLabel (Just q) (Just n) Nothing -> pretty q <+> text (" -> split at " ++ show n)
+    _ -> __IMPOSSIBLE__
 
 -- | Convert a split tree into a 'Data.Tree' (for printing).
 toTree :: SplitTree' a -> Tree (SplitTreeLabel a)
@@ -72,5 +74,5 @@ toTrees = map (\ (c,t) -> setCons c $ toTree t)
     setCons :: a -> Tree (SplitTreeLabel a) -> Tree (SplitTreeLabel a)
     setCons c (Node l ts) = Node (l { lblConstructorName = Just c }) ts
 
-instance Show a => Show (SplitTree' a) where
-  show = drawTree . fmap show . toTree
+instance Pretty a => Pretty (SplitTree' a) where
+  pretty = text . drawTree . fmap prettyShow . toTree

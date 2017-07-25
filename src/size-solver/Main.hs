@@ -27,6 +27,8 @@ import Agda.TypeChecking.SizedTypes.Utils (setDebugging, traceM)
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 
+import Agda.Utils.Pretty (Pretty, prettyShow)
+
 import Parser
 
 main :: IO ()
@@ -45,16 +47,16 @@ main = do
 
   unless (null hs) $ do
     putStrLn "Hypotheses"
-    mapM_ print hs
+    mapM_ pprint hs
   unless (Set.null $ flexs hs) $
     abort "flexible variables are not allowed in hypotheses"
 
   putStrLn "Constraints"
-  mapM_ print cs
+  mapM_ pprint cs
 
   unless (Map.null pols) $ do
     putStrLn "Solutions"
-    mapM_ (\ (x,p) -> print $ PolarityAssignment p x) $ Map.toAscList pols
+    mapM_ (\ (x,p) -> pprint $ PolarityAssignment p x) $ Map.toAscList pols
 
   hg <- abortOnError $ hypGraph (rigids cs) hs
   traceM $ "Hypotheses graph hg = " ++ show (graphToList hg)
@@ -68,9 +70,9 @@ main = do
   -- -- sol <- Map.union xsSol <$> do abortOnError $ solveGraphs pols hg gs
   -- sol <- abortOnError $ solveGraph pols hg g
 
-  sol <- abortOnError $ iterateSolver pols hg cs Map.empty
+  sol <- abortOnError $ iterateSolver pols hg cs emptySolution
   putStrLn "Solution"
-  print sol
+  pprint sol
 
   abortOnError $ verifySolution hg cs sol
 
@@ -81,6 +83,9 @@ abort msg = do
 
 abortOnError :: Either String a -> IO a
 abortOnError = either abort return
+
+pprint :: Pretty a => a -> IO ()
+pprint = putStrLn . prettyShow
 
 type Constraints = [Constraint]
 type Hypotheses  = Constraints
