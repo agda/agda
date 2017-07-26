@@ -57,13 +57,14 @@ import Agda.TypeChecking.Rules.LHS.Problem         ( AsBinding(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe ( whenNothing )
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
-import Agda.Utils.Size
-import Agda.Utils.Functor
+import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -122,8 +123,8 @@ isAlias cs t =
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
 checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
-    [ text (show name) <+> colon  <+> prettyTCM t'
-    , text (show name) <+> equals <+> prettyTCM e
+    [ text (prettyShow name) <+> colon  <+> prettyTCM t'
+    , text (prettyShow name) <+> equals <+> prettyTCM e
     ]
 
 {-
@@ -330,7 +331,7 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
         Terminating    -> Just True
         _              -> Nothing
   reportSLn "tc.fundef" 30 $ unlines $
-    [ "funTerminates of " ++ show name ++ " set to " ++ show terminates
+    [ "funTerminates of " ++ prettyShow name ++ " set to " ++ show terminates
     , "  tc = " ++ show tc
     ]
   return $ def { theDef = fun { funTerminates = terminates }}

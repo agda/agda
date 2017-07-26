@@ -1137,8 +1137,11 @@ type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
 
-data Section = Section { _secTelescope :: Telescope }
+newtype Section = Section { _secTelescope :: Telescope }
   deriving (Typeable, Data, Show)
+
+instance Pretty Section where
+  pretty = pretty . _secTelescope
 
 secTelescope :: Lens' Telescope Section
 secTelescope f s =
@@ -1772,6 +1775,12 @@ data TermHead = SortHead
               | PiHead
               | ConsHead QName
   deriving (Typeable, Data, Eq, Ord, Show)
+
+instance Pretty TermHead where
+  pretty = \case
+    SortHead  -> text "SortHead"
+    PiHead    -> text "PiHead"
+    ConsHead q-> text "ConsHead" <+> pretty q
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks

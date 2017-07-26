@@ -34,6 +34,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty ( prettyShow )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -55,7 +56,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
         Datatype{}  -> yes
         Record{}    -> yes
         Axiom{}     -> do
-          reportSLn "tc.inj.axiom" 50 $ "headSymbol: " ++ show f ++ " is an Axiom."
+          reportSLn "tc.inj.axiom" 50 $ "headSymbol: " ++ prettyShow f ++ " is an Axiom."
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).
@@ -82,7 +83,7 @@ checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
   | pointLess cs = do
       reportSLn "tc.inj.check.pointless" 20 $
-        "Injectivity of " ++ show (A.qnameToConcrete f) ++ " would be pointless."
+        "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
   where
     -- Is it pointless to use injectivity for this function?
@@ -93,7 +94,7 @@ checkInjectivity f cs
         -- If we only have record patterns, it is also pointless.
         -- We need at least one proper match.
 checkInjectivity f cs = do
-  reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
+  reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ prettyShow f
   -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
   es <- catMaybes <$> do
     forM cs $ \ c -> do             -- produces a list ...
@@ -103,10 +104,10 @@ checkInjectivity f cs = do
   if all isJust hs && distinct hs
     then do
       let inv = Map.fromList (map fromJust hs `zip` ps)
-      reportSLn "tc.inj.check" 20 $ show f ++ " is injective."
+      reportSLn "tc.inj.check" 20 $ prettyShow f ++ " is injective."
       reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
         for (Map.toList inv) $ \ (h, c) ->
-          text (show h) <+> text "-->" <+>
+          text (prettyShow h) <+> text "-->" <+>
           fsep (punctuate comma $ map (prettyTCM . namedArg) $ namedClausePats c)
       return $ Inverse inv
     else return NotInjective
@@ -230,7 +231,7 @@ useInjectivity cmp a u v = do
               reportSDoc "tc.inj.invert" 30 $ vcat
                 [ text "aborting inversion;" <+> prettyTCM org
                 , text "plainly," <+> text (show org)
-                , text "has TermHead" <+> text (show h)
+                , text "has TermHead" <+> text (prettyShow h)
                 , text "which does not expose a constructor"
                 ]
               return Abort
