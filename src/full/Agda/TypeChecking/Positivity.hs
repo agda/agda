@@ -52,6 +52,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Permutation as Perm
+import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.SemiRing
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -103,11 +105,11 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
             show (map length others)
         ]
   reportSLn "tc.pos.graph.sccs" 15 $
-    "  sccs = " ++ show [ scc | CyclicSCC scc <- sccs ]
+    "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
   forM_ sccs $ \case
     -- If the mutuality information has never been set, we set it to []
     AcyclicSCC (DefNode q) -> whenM (isNothing <$> getMutual q) $ do
-      reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to non-recursive"
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to non-recursive"
       -- Andreas, 2017-04-26, issue #2555
       -- We should not have @DefNode@s pointing outside our formal mutual block.
       unless (Set.member q qset) __IMPOSSIBLE__
@@ -208,7 +210,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     setMut :: [QName] -> TCM ()
     setMut [] = return ()  -- nothing to do
     setMut qs = forM_ qs $ \ q -> do
-      reportSLn "tc.pos.mutual" 10 $ "setting " ++ show q ++ " to (mutually) recursive"
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to (mutually) recursive"
       setMutual q qs
       -- TODO: The previous line produces data of quadratic size
       -- (which has to be processed upon serialization).  Presumably qs is
@@ -232,7 +234,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
               map findOcc [0 .. max m (n - 1)]
         reportSDoc "tc.pos.args" 10 $ sep
           [ text "args of" <+> prettyTCM q <+> text "="
-          , nest 2 $ prettyList $ map (text . show) args
+          , nest 2 $ prettyList $ map prettyTCM args
           ]
         -- The list args can take a long time to compute, but contains
         -- small elements, and is stored in the interface (right?), so
@@ -620,17 +622,19 @@ data Node = DefNode !QName
           | ArgNode !QName !Nat
   deriving (Eq, Ord)
 
-instance Show Node where
-  show (DefNode q)   = show q
-  show (ArgNode q i) = show q ++ "." ++ show i
+instance Pretty Node where
+  pretty = \case
+    DefNode q   -> P.pretty q
+    ArgNode q i -> P.pretty q P.<> P.text ("." ++ show i)
 
 instance PrettyTCM Node where
-  prettyTCM (DefNode q)   = prettyTCM q
-  prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
+  prettyTCM = return . P.pretty
 
 instance PrettyTCM n => PrettyTCM (WithNode n Edge) where
-  prettyTCM (WithNode n (Edge o w)) =
-    prettyTCM o <+> prettyTCM n <+> fsep (pwords $ show w)
+  prettyTCM (WithNode n (Edge o w)) = vcat
+    [ prettyTCM o <+> prettyTCM n
+    , nest 2 $ return $ P.pretty w
+    ]
 
 -- | Edge labels for the positivity graph.
 data Edge = Edge !Occurrence OccursWhere
@@ -698,7 +702,7 @@ buildOccurrenceGraph qs =
            map (\(i, os) ->
                    (text (show i) <> text ":")
                      $+$
-                   (nest 2 $ vcat $ map (text . show) os))
+                   (nest 2 $ vcat $ map (return . P.pretty) os))
                (Map.toList (flatten occs)))
 
       -- Placing this line before the reportSDoc lines above creates a
@@ -712,8 +716,8 @@ buildOccurrenceGraph qs =
            map (\e ->
                    let Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>
-                   text "-[" <+> text (show o) <> text "," <+>
-                                 text (show w) <+> text "]->" <+>
+                   text "-[" <+> return (P.pretty o) <> text "," <+>
+                                 return (P.pretty w) <+> text "]->" <+>
                    prettyTCM (Graph.target e))
                es)
 

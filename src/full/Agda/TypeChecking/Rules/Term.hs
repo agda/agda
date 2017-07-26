@@ -1578,9 +1578,9 @@ inferHead e = do
     (A.Var x) -> do -- traceCall (InferVar x) $ do
       (u, a) <- getVarInfo x
       reportSDoc "tc.term.var" 20 $ hsep
-        [ text "variable" , text (show x)
+        [ text "variable" , prettyTCM x
         , text "(" , text (show u) , text ")"
-        , text "has type:" , text (show a)
+        , text "has type:" , prettyTCM a
         ]
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x

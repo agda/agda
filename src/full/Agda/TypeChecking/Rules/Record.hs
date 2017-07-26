@@ -40,6 +40,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -166,7 +167,7 @@ checkRecDef i name ind eta con ps contel fields =
               , text "If you must, use pragma"
               , text "{-# ETA" <+> prettyTCM name <+> text "#-}"
               ]
-      reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
+      reportSDoc "tc.rec" 30 $ text "record constructor is " <+> prettyTCM con
 
       -- Add the record definition.
 
@@ -270,7 +271,7 @@ checkRecDef i name ind eta con ps contel fields =
           [ text "record section:"
           , nest 2 $ sep
             [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
-            , fsep $ punctuate comma $ map (text . show . getName) fields
+            , fsep $ punctuate comma $ map (return . P.pretty . getName) fields
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
@@ -455,7 +456,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- because then meta variables are created again.
       -- Instead, we take the field type t from the field telescope.
       reportSDoc "tc.rec.proj" 5 $ sep
-        [ text "checking projection" <+> text (show x)
+        [ text "checking projection" <+> prettyTCM x
         , nest 2 $ vcat
           [ text "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , text "tel   =" <+> (inTopContext . prettyTCM $ tel)

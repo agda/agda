@@ -1140,8 +1140,11 @@ type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
 
-data Section = Section { _secTelescope :: Telescope }
+newtype Section = Section { _secTelescope :: Telescope }
   deriving (Typeable, Data, Show)
+
+instance Pretty Section where
+  pretty = pretty . _secTelescope
 
 secTelescope :: Lens' Telescope Section
 secTelescope f s =
@@ -1352,6 +1355,13 @@ data Polarity
   | Invariant      -- ^ no information (mixed variance)
   | Nonvariant     -- ^ constant
   deriving (Typeable, Data, Show, Eq)
+
+instance Pretty Polarity where
+  pretty = text . \case
+    Covariant     -> "+"
+    Contravariant -> "-"
+    Invariant     -> "*"
+    Nonvariant    -> "_"
 
 -- | The backends are responsible for parsing their own pragmas.
 data CompilerPragma = CompilerPragma Range String
@@ -1773,6 +1783,12 @@ data TermHead = SortHead
               | PiHead
               | ConsHead QName
   deriving (Typeable, Data, Eq, Ord, Show)
+
+instance Pretty TermHead where
+  pretty = \case
+    SortHead  -> text "SortHead"
+    PiHead    -> text "PiHead"
+    ConsHead q-> text "ConsHead" <+> pretty q
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks

@@ -227,7 +227,7 @@ getDefType f t = do
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
   reportSDoc "tc.deftype" 20 $ vcat
-    [ text "definition f = " <> prettyTCM f <+> text ("raw: " ++ show f)
+    [ text "definition f = " <> prettyTCM f <+> text ("raw: " ++ prettyShow f)
     , text "has type   a = " <> prettyTCM a
     , text "principal  t = " <> prettyTCM t
     ]
@@ -249,7 +249,7 @@ getDefType f t = do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
             reportSDoc "tc.deftype" 20 $ vcat
-              [ text $ "head d     = " ++ show d
+              [ text $ "head d     = " ++ prettyShow d
               , text "parameters =" <+> sep (map prettyTCM pars)
               ]
             reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
@@ -533,8 +533,8 @@ etaExpandRecord'_ forceEta r pars def u = do
       when (con /= con_) $ do
         reportSDoc "impossible" 10 $ vcat
           [ text "etaExpandRecord_: the following two constructors should be identical"
-          , nest 2 $ text $ "con  = " ++ show con
-          , nest 2 $ text $ "con_ = " ++ show con_
+          , nest 2 $ text $ "con  = " ++ prettyShow con
+          , nest 2 $ text $ "con_ = " ++ prettyShow con_
           ]
         __IMPOSSIBLE__
       return (tel', con, ci, args)
@@ -614,7 +614,7 @@ isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' T
 --   contains garbage.
 isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
-  reportSLn "tc.meta.eta" 30 $ "Is " ++ show r ++ " a singleton record type?"
+  reportSLn "tc.meta.eta" 30 $ "Is " ++ prettyShow r ++ " a singleton record type?"
   def <- getRecordDef r
   emap (Con (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where

@@ -184,7 +184,7 @@ checkDecl d = setCurrentRange d $ do
                                       current <- asks envMutualBlock
                                       unless (Just blockId == current) $ do
                                         reportSLn "" 0 $ unlines
-                                          [ "mutual block id discrepancy for " ++ show x
+                                          [ "mutual block id discrepancy for " ++ prettyShow x
                                           , "  current    mut. bl. = " ++ show current
                                           , "  calculated mut. bl. = " ++ show blockId
                                           ]
@@ -334,7 +334,7 @@ unquoteTop xs e = do
 --   Precondition: name has been added to signature already.
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
-  reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q
+  reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ prettyShow q
   t  <- defType . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
   t' <- instantiateFull t
   modifySignature $ updateDefinition q $ updateDefType $ const t'
@@ -353,7 +353,7 @@ instantiateDefinitionType q = do
 -- --   Precondition: name has been added to signature already.
 -- instantiateDefinition :: QName -> TCM ()
 -- instantiateDefinition q = do
---   reportSLn "tc.decl.inst" 20 $ "instantiating " ++ show q
+--   reportSLn "tc.decl.inst" 20 $ "instantiating " ++ prettyShow q
 --   sig <- getSignature
 --   let def = fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
 --   def <- instantiateFull def
@@ -468,12 +468,12 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
             modifySignature $ updateDefinition q $ updateTheDef $ const $
               d { funInv = inv }
           _ -> reportSLn "tc.inj.check" 20 $
-             show q ++ " is not verified as terminating, thus, not considered for injectivity"
+             prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
       _ -> do
         abstr <- asks envAbstractMode
         reportSLn "tc.inj.check" 20 $
           "we are in " ++ show abstr ++ " and " ++
-             show q ++ " is abstract or not a function, thus, not considered for injectivity"
+             prettyShow q ++ " is abstract or not a function, thus, not considered for injectivity"
 
 -- | Check a set of mutual names for projection likeness.
 --
@@ -487,7 +487,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
       -- Non-mutual definitions can be considered for
       -- projection likeness
       let ds = Set.toList names
-      reportSLn "tc.proj.like" 20 $ "checkDecl: checking projection-likeness of " ++ show ds
+      reportSLn "tc.proj.like" 20 $ "checkDecl: checking projection-likeness of " ++ prettyShow ds
       case ds of
         [d] -> do
           def <- getConstInfo d
@@ -496,7 +496,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
           case theDef def of
             Function{} -> makeProjection (defName def)
             _          -> reportSLn "tc.proj.like" 25 $
-              show d ++ " is abstract or not a function, thus, not considered for projection-likeness"
+              prettyShow d ++ " is abstract or not a function, thus, not considered for projection-likeness"
         _ -> reportSLn "tc.proj.like" 25 $
                "mutual definitions are not considered for projection-likeness"
 
@@ -550,8 +550,8 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
         typeError $ TooManyPolarities x n
       let pols = map polFromOcc occs
       reportSLn "tc.polarity.pragma" 10 $
-        "Setting occurrences and polarity for " ++ show x ++ ":\n  " ++
-        show occs ++ "\n  " ++ show pols
+        "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
+        prettyShow occs ++ "\n  " ++ prettyShow pols
       return (occs, pols)
 
   -- Not safe. See Issue 330
@@ -805,7 +805,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     mfv <- getCurrentModuleFreeVars
     fv  <- getContextSize
     return (fv - mfv)
-  when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
+  when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ prettyShow m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.
   checkTelescope ptel $ \ ptel -> do
     -- We are now in the context @ptel@.
@@ -894,7 +894,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
     -- , nest 2 $ text "args    =" <+> text (show args)
     ]
   when (tel == EmptyTel) $
-    typeError $ GenericError $ show (qnameToConcrete name) ++ " is not a parameterised section"
+    typeError $ GenericError $ prettyShow (qnameToConcrete name) ++ " is not a parameterised section"
 
   addContext' telInst $ do
     vs <- moduleParamsToApply $ qnameModule name
@@ -950,7 +950,7 @@ debugPrintDecl d = do
       case d of
         A.Section info mname tel ds -> do
           reportSLn "tc.decl" 45 $
-            "section " ++ show mname ++ " has "
+            "section " ++ prettyShow mname ++ " has "
               ++ show (length tel) ++ " parameters and "
               ++ show (length ds) ++ " declarations"
           reportSDoc "tc.decl" 45 $ prettyA $ A.Section info mname tel []
