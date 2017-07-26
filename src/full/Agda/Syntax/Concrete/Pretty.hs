@@ -485,17 +485,6 @@ instance Pretty Fixity where
             RightAssoc -> "infixr"
             NonAssoc   -> "infix"
 
-instance Pretty Occurrence where
-  pretty Unused    = text "_"
-  pretty Mixed     = text "*"
-  pretty JustNeg   = text "-"
-  pretty JustPos   = text "+"
-  pretty StrictPos = text "++"
-
-  -- No syntax has been assigned to GuardPos.
-
-  pretty GuardPos  = __IMPOSSIBLE__
-
 instance Pretty GenPart where
     pretty (IdPart x)   = text x
     pretty BindHole{}   = underscore

@@ -52,7 +52,7 @@ import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
-import Agda.Utils.Pretty (Pretty)
+import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -476,12 +476,7 @@ instance PrettyTCM RewriteRule where
     ]
 
 instance PrettyTCM Occurrence where
-  prettyTCM GuardPos  = text "-[g+]->"
-  prettyTCM StrictPos = text "-[++]->"
-  prettyTCM JustPos   = text "-[+]->"
-  prettyTCM JustNeg   = text "-[-]->"
-  prettyTCM Mixed     = text "-[*]->"
-  prettyTCM Unused    = text "-[ ]->"
+  prettyTCM occ  = text $ "-[" ++ prettyShow occ ++ "]->"
 
 -- | Pairing something with a node (for printing only).
 data WithNode n a = WithNode n a

@@ -1347,6 +1347,13 @@ data Polarity
   | Nonvariant     -- ^ constant
   deriving (Typeable, Data, Show, Eq)
 
+instance Pretty Polarity where
+  pretty = text . \case
+    Covariant     -> "+"
+    Contravariant -> "-"
+    Invariant     -> "*"
+    Nonvariant    -> "_"
+
 -- | The backends are responsible for parsing their own pragmas.
 data CompilerPragma = CompilerPragma Range String
   deriving (Typeable, Data, Show, Eq)

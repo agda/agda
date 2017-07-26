@@ -29,6 +29,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -93,7 +94,8 @@ polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
   -- Get basic polarity from positivity analysis.
   let npars = droppedPars def
   let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
-  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
+  reportSLn "tc.polarity.set" 15 $
+    "Polarity of " ++ prettyShow x ++ " from positivity: " ++ prettyShow pol0
 
   -- set the polarity in the signature (not the final polarity, though)
   setPolarity x $ drop npars pol0
@@ -112,24 +114,25 @@ computePolarity xs = do
 
  -- Then, refine it.
  forM_ xs $ \ x -> inConcreteOrAbstractMode x $ \ def -> do
-  reportSLn "tc.polarity.set" 25 $ "Refining polarity of " ++ show x
+  reportSLn "tc.polarity.set" 25 $ "Refining polarity of " ++ prettyShow x
 
   -- Again: get basic polarity from positivity analysis.
   let npars = droppedPars def
   let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
-  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
+  reportSLn "tc.polarity.set" 15 $
+    "Polarity of " ++ prettyShow x ++ " from positivity: " ++ prettyShow pol0
 
 {-
   -- get basic polarity from shape of def (arguments matched on or not?)
   def      <- getConstInfo x
   let usagePol = usagePolarity $ theDef def
-  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from definition form: " ++ show usagePol
+  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ prettyShow x ++ " from definition form: " ++ prettyShow usagePol
   let n = genericLength usagePol  -- n <- getArity x
   reportSLn "tc.polarity.set" 20 $ "  arity = " ++ show n
 
   -- refine polarity by positivity information
   pol0 <- zipWith (/\) usagePol <$> mapM getPol [0..n - 1]
-  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
+  reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ prettyShow x ++ " from positivity: " ++ prettyShow pol0
 -}
 
   -- compute polarity of sized types
@@ -140,10 +143,13 @@ computePolarity xs = do
   -- Instantiation takes place in Rules.Decl.instantiateDefinitionType
   -- t <- instantiateFull t -- Andreas, 2014-04-11 Issue 1099: needed for
   --                        -- variable occurrence test in  dependentPolarity.
-  reportSDoc "tc.polarity.set" 15 $ text "Refining polarity with type " <+> prettyTCM t
-  reportSDoc "tc.polarity.set" 60 $ text "Refining polarity with type (raw): " <+> (text .show) t
+  reportSDoc "tc.polarity.set" 15 $
+    text "Refining polarity with type " <+> prettyTCM t
+  reportSDoc "tc.polarity.set" 60 $
+    text "Refining polarity with type (raw): " <+> (text .show) t
+
   pol <- dependentPolarity t (enablePhantomTypes (theDef def) pol1) pol1
-  reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ show x ++ ": " ++ show pol
+  reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ prettyShow x ++ ": " ++ prettyShow pol
 
   -- set the polarity in the signature
   setPolarity x $ drop npars pol -- purgeNonvariant pol -- temporarily disable non-variance
@@ -261,7 +267,7 @@ sizePolarity d pol0 = do
                           let isPos = underAbstraction arg tel $ \ tel -> do
                                 pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
                                 reportSDoc "tc.polarity.size" 25 $
-                                  text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ show pols
+                                  text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ prettyShow pols
                                 return $ all (`elem` [Nonvariant, Covariant]) pols
 
                           -- check that the size argument appears in the

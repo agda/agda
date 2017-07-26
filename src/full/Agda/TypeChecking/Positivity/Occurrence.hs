@@ -15,22 +15,26 @@ module Agda.TypeChecking.Positivity.Occurrence
 import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
+
+import Data.Data (Data)
 import Data.Either
+import Data.Foldable (toList)
 import Data.Maybe
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import qualified Data.Sequence as DS
-
-import Data.Data (Data)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Position
+
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List
 import Agda.Utils.Null
+import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
 
 #include "undefined.h"
@@ -44,7 +48,7 @@ import Agda.Utils.Impossible
 data OccursWhere
   = Unknown
     -- ^ an unknown position (treated as negative)
-  | Known Range (DS.Seq Where)
+  | Known Range (Seq Where)
     -- ^ The elements of the sequence, from left to right, explain how
     -- to get to the occurrence.
   deriving (Show, Eq, Ord, Typeable, Data)
@@ -75,6 +79,37 @@ data Occurrence
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
   | Unused    --  ^ No occurrence.
   deriving (Typeable, Data, Show, Eq, Ord, Enum, Bounded)
+
+-- * Pretty instances
+
+instance Pretty Occurrence where
+  pretty = text . \case
+    Unused    -> "_"
+    Mixed     -> "*"
+    JustNeg   -> "-"
+    JustPos   -> "+"
+    StrictPos -> "++"
+    GuardPos  -> "g+"
+
+instance Pretty Where where
+  pretty = \case
+    LeftOfArrow  -> text "LeftOfArrow"
+    DefArg q i   -> text "DefArg"     <+> pretty q <+> pretty i
+    UnderInf     -> text "UnderInf"
+    VarArg       -> text "VarArg"
+    MetaArg      -> text "MetaArg"
+    ConArgType q -> text "ConArgType" <+> pretty q
+    IndArgType q -> text "IndArgType" <+> pretty q
+    InClause i   -> text "InClause"   <+> pretty i
+    Matched      -> text "Matched"
+    InDefOf q    -> text "InDefOf"    <+> pretty q
+
+instance Pretty OccursWhere where
+  pretty = \case
+    Unknown     -> text "Unknown"
+    Known _r ws -> text "Known _" <+> pretty (toList ws)
+
+-- * Instances for 'Occurrence'
 
 instance NFData Occurrence where rnf x = seq x ()
 
