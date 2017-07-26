@@ -27,6 +27,8 @@ Rendering documentation locally
 
     - LaTeX
 
+    - dvipng
+
   To see the list of available targets, execute ``make help``
   in ``doc/user-manual``. E.g., call ``make html`` to build the
   documentation in html format.
