@@ -1298,6 +1298,11 @@ compareVarVar i (Masked m x@(DBPatVar _ j))
   | otherwise = do
       -- record usability of variable
       u <- (i `VarSet.member`) <$> terGetUsableVars
+      -- Andreas, 2017-07-26, issue #2331.
+      -- The usability logic is refuted by bounded size quantification in terms.
+      -- Thus, it is switched off (the infrastructure remains in place for now).
+      if not u then return Order.unknown else do
+      -- Only if usable:
       res <- isBounded i
       case res of
         BoundedNo  -> return Order.unknown

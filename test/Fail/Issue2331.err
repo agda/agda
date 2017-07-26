@@ -1,0 +1,8 @@
+Issue2331.agda:9,1-14,28
+Termination checking failed for the following functions:
+  test, helper
+Problematic calls:
+  helper i j k (c l)
+    (at Issue2331.agda:11,49-55)
+  test k d
+    (at Issue2331.agda:14,20-24)
