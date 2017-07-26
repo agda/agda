@@ -4,7 +4,7 @@
 Automatic Proof Search (Auto)
 *****************************
 
-Agda supports (since version 2.2.6) command ``Auto``, that searches
+Agda supports (since version 2.2.6) the command ``Auto``, that searches
 for type inhabitants and fills a hole when one is found. The type
 inhabitant found is not necessarily unique.
 
@@ -28,13 +28,35 @@ Usage
 =====
 
 The tool is invoked by placing the cursor on a hole and choosing
-``Auto`` in the goal menu or pressing ``C-c C-a``.
+``Auto`` in the goal menu or pressing ``C-c C-a``. Agsy's behaviour
+can be changed by using various options which are passed directly
+in the hole.
 
-Search parameters are given by entering them into the hole before
-invocation. Giving no arguments is fine and results in a search with
+
+=======================  =========================================================
+Option                   Meaning
+=======================  =========================================================
+:samp:`-t {N}`           Set timeout to :samp:`{N}` seconds
+
+:samp:`-c`               Allow Agsy to use case-split
+
+:samp:`-d`               Attempt to disprove the goal
+
+:samp:`{ID}`             Use definition :samp:`{ID}` as a hint
+
+:samp:`-m`               Use the definitions in the current module as hints
+
+:samp:`-r`               Use the unqualified definitions in scope as hints
+
+:samp:`-l`               List up to ten solutions, does not commit to any
+
+:samp:`-s {N}`           Commit to the :samp:`{N}` th solution
+=======================  =========================================================
+
+Giving no arguments is fine and results in a search with
 default parameters. The search carries on until either a (not
 necessarily unique) solution is found, the search space is fully (and
-unsuccessfully) explored or it times out (five seconds by
+unsuccessfully) explored or it times out (one second by
 default). Here follows a list of the different modes and parameters.
 
 Case split
@@ -126,10 +148,7 @@ Auto refine / suggest
 There is a special mode for searching (part of) the scope of constants
 for possible refinement candidates. The flag ``-r`` chooses this
 mode. By default all constants which are in scope unqualified are
-included. By adding ``-a`` all constants in scope are included, but
-this often takes too long when importing things from the standard
-library. However, it might be possible to implement this mode more
-efficiently.
+included.
 
 The constants that matches the current goal are sorted in order of how
 many constructs their result type contains. This means that the
@@ -170,6 +189,8 @@ Limitations
   from this, literals are not supported.
 
 * Primitive functions are not supported.
+
+* Copatterns are not supported.
 
 * Termination checking for recursive calls is done locally, so a
   non-terminating set of clauses might be sent back to Agda.
