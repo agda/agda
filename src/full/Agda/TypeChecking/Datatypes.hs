@@ -50,24 +50,34 @@ getConstructorData c = do
     _                        -> __IMPOSSIBLE__
 
 -- | @getConType c t@ computes the constructor parameters from type @t@
---   and returns the instantiated type of constructor @c@.
+--   and returns them plus the instantiated type of constructor @c@.
 --   @Nothing@ if @t@ is not a data/record type or does not have
 --   a constructor @c@.
 --   Precondition: @t@ is reduced.
-getConType :: ConHead -> Type -> TCM (Maybe Type)
+getConType
+  :: ConHead  -- ^ Constructor.
+  -> Type     -- ^ Reduced type of the fully applied constructor.
+  -> TCM (Maybe ((QName, Type, Args), Type))
+       -- ^ @Nothing@ if not data or record type.
+       --
+       --   @Just ((d, dt, pars), ct)@ otherwise, where
+       --     @d@    is the data or record type name,
+       --     @dt@   is the type of the data or record name,
+       --     @pars@ are the reconstructed parameters,
+       --     @ct@   is the type of the constructor instantiated to the parameters.
 getConType c t = do
   c <- getConHead $ conName c
   case ignoreSharing $ unEl t of
     Def d es -> do
-      def <- theDef <$> getConstInfo d
-      case def of
+      def <- getConstInfo d
+      let cont n = do
+            let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take n es
+            Just . ((d, defType def, pars),) <$> do
+              (`piApplyM` pars) . defType =<< getConInfo c
+      case theDef def of
         Datatype { dataPars = n, dataCons   = cs  } | conName c `elem` cs -> cont n
         Record   { recPars  = n, recConHead = con } | c == con            -> cont n
         _ ->  return Nothing
-      where
-        cont n = do
-          let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take n es
-          Just <$> do (`piApplyM` pars) . defType =<< getConInfo c
     _ -> return Nothing
 
 data HasEta = NoEta | YesEta

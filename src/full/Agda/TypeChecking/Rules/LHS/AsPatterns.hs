@@ -93,7 +93,7 @@ asPatterns _ _ _ = __IMPOSSIBLE__
 
 conPattern :: Type -> Term -> TCM (QName, ConHead, Telescope, [Type], Args)
 conPattern a (Con c ci args) = do
-  Just ca <- getConType c =<< reduce a
+  Just (pars, ca) <- getConType c =<< reduce a
   TelV tel (El _ (Def d _)) <- telView ca
   let as = smashTel tel (map unArg args)
   return (d, c, tel, as, args)

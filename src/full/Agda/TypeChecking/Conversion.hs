@@ -546,7 +546,7 @@ compareAtom cmp t m n =
                 -- to solve left-over constraints.
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation
-          maybe impossible return =<< getConType c t
+          maybe impossible (return . snd) =<< getConType c t
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
           (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
@@ -646,7 +646,7 @@ antiUnify pid a u v = do
       a <- typeOfBV i
       antiUnifyElims pid a (var i) us vs
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
-      a <- maybe patternViolation return =<< getConType x a
+      a <- maybe patternViolation (return . snd) =<< getConType x a
       antiUnifyElims pid a (Con x ci []) (map Apply us) (map Apply vs)
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs
