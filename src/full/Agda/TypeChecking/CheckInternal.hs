@@ -25,7 +25,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Datatypes (getConType)
+import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -216,7 +216,7 @@ fullyApplyCon c vs t0 ret = do
   -- type.  In this case, we introduce the domains @tel@ into the context
   -- and apply the constructor to these fresh variables.
   addContext tel $ do
-    getConType c t >>= \case
+    getFullyAppliedConType c t >>= \case
       Nothing ->
         typeError $ DoesNotConstructAnElementOf (conName c) t
       Just ((d, dt, pars), a) ->

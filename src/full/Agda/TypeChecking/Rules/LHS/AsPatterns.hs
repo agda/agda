@@ -23,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Impossible
@@ -86,10 +87,21 @@ asPatterns (ArgT a : as) (p : ps) (Apply v : vs)
       _ -> __IMPOSSIBLE__
 asPatterns _ _ _ = __IMPOSSIBLE__
 
-conPattern :: Type -> Term -> TCM (QName, ConHead, Telescope, [Type], Args)
+-- | Given a fully applied constructor term and its type,
+--   deconstruct it and return, amongst others, the types of its arguments.
+conPattern
+  :: Type  -- ^ Type need not be reduced.
+  -> Term  -- ^ Fully applied constructor.
+  -> TCM (QName, ConHead, Telescope, [Type], Args)
+       -- ^ Data/record type name,
+       --   constructor name,
+       --   argument telescope,
+       --   types of arguments.
+       --   arguments.
 conPattern a (Con c ci args) = do
-  Just (pars, ca) <- getConType c =<< reduce a
-  TelV tel (El _ (Def d _)) <- telView ca
+  -- @getFullyAppliedConType@ works since @c@ is fully applied.
+  ((d, _, _), ca) <- fromMaybe __IMPOSSIBLE__ <.> getFullyAppliedConType c =<< reduce a
+  TelV tel _ <- telView ca
   let as = map unDom $ fromMaybe __IMPOSSIBLE__ $ typeArgsWithTel tel $ map unArg args
   return (d, c, tel, as, args)
 conPattern _ _ = __IMPOSSIBLE__

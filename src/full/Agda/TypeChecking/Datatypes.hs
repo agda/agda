@@ -51,10 +51,39 @@ getConstructorData c = do
 
 -- | @getConType c t@ computes the constructor parameters from type @t@
 --   and returns them plus the instantiated type of constructor @c@.
+--   This works also if @t@ is a function type ending in a data/record type;
+--   the term from which @c@ comes need not be fully applied
+--
 --   @Nothing@ if @t@ is not a data/record type or does not have
 --   a constructor @c@.
---   Precondition: @t@ is reduced.
 getConType
+  :: ConHead  -- ^ Constructor.
+  -> Type     -- ^ Ending in data/record type.
+  -> TCM (Maybe ((QName, Type, Args), Type))
+       -- ^ @Nothing@ if not ends in data or record type.
+       --
+       --   @Just ((d, dt, pars), ct)@ otherwise, where
+       --     @d@    is the data or record type name,
+       --     @dt@   is the type of the data or record name,
+       --     @pars@ are the reconstructed parameters,
+       --     @ct@   is the type of the constructor instantiated to the parameters.
+getConType c t = do
+  TelV tel t <- telView t
+  -- Now @t@ lives under @tel@, we need to remove the dependency on @tel@.
+  -- This will succeed if @t@ is indeed a data/record type that is the
+  -- type of a constructor coming from a term
+  -- (applied to at least the parameters).
+  getFullyAppliedConType c $ applySubst (strengthenS __IMPOSSIBLE__ (size tel)) t
+
+-- | @getFullyAppliedConType c t@ computes the constructor parameters
+--   from data type @t@ and returns them
+--   plus the instantiated type of constructor @c@.
+--
+--   @Nothing@ if @t@ is not a data/record type or does not have
+--   a constructor @c@.
+--
+--   Precondition: @t@ is reduced.
+getFullyAppliedConType
   :: ConHead  -- ^ Constructor.
   -> Type     -- ^ Reduced type of the fully applied constructor.
   -> TCM (Maybe ((QName, Type, Args), Type))
@@ -65,12 +94,16 @@ getConType
        --     @dt@   is the type of the data or record name,
        --     @pars@ are the reconstructed parameters,
        --     @ct@   is the type of the constructor instantiated to the parameters.
-getConType c t = do
+getFullyAppliedConType c t = do
   c <- getConHead $ conName c
   case ignoreSharing $ unEl t of
+    -- Note that if we come e.g. from getConType,
+    -- then the non-parameter arguments of @es@ might contain __IMPOSSIBLE__
+    -- coming from strengthening.  (Thus, printing them is not safe.)
     Def d es -> do
       def <- getConstInfo d
       let cont n = do
+            -- At this point we can be sure that the parameters are well-scoped.
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take n es
             Just . ((d, defType def, pars),) <$> do
               (`piApplyM` pars) . defType =<< getConInfo c
