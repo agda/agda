@@ -8,9 +8,10 @@ import Control.Monad.Writer hiding ((<>))
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete ()
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Concrete ()
+import Agda.Syntax.Abstract.Pattern (foldAPattern)
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -106,19 +107,9 @@ conPattern a (Con c ci args) = do
   return (d, c, tel, as, args)
 conPattern _ _ = __IMPOSSIBLE__
 
+-- | Is the pattern free of as-patterns?
 noAsPatterns :: A.Pattern -> Bool
-noAsPatterns p =
-  case p of
-    A.AsP{}         -> False
-    A.ConP _ _ ps   -> noArgAsPats ps
-    A.DefP _ _ ps   -> noArgAsPats ps
-    A.RecP _ fs     -> all (Fold.all noAsPatterns) fs
-    A.VarP{}        -> True
-    A.ProjP{}       -> True
-    A.WildP{}       -> True
-    A.DotP{}        -> True
-    A.AbsurdP{}     -> True
-    A.LitP{}        -> True
-    A.PatternSynP{} -> __IMPOSSIBLE__
-  where
-    noArgAsPats = all (noAsPatterns . namedArg)
+noAsPatterns p = getAll . (`foldAPattern` p) $ \case
+  A.PatternSynP{} -> __IMPOSSIBLE__
+  A.AsP{}         -> All False
+  _               -> All True
