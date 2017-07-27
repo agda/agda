@@ -172,7 +172,7 @@ genTm g t =
 genSub :: Cx -> Gen (Cx, Sub)
 genSub delta = frequency $
   [ (1, pure (delta, IdS)) ] ++
-  [ (1, (, EmptyS) <$> arbitrary) | delta == Nil ] ++
+  [ (1, (, EmptyS (error "emp")) <$> arbitrary) | delta == Nil ] ++
   [ (1, genCons g t) | g :> t <- [delta] ] ++
   [ (1, genWk delta) ] ++
   [ (1, genLift delta) | cxLen delta > 0 ]

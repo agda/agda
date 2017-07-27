@@ -451,7 +451,7 @@ unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Bloc
 unfoldDefinitionStep unfoldDelayed v0 f es =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
-  rewr <- getRewriteRulesFor f
+  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asks envAllowedReductions
   let def = theDef info
       v   = v0 `applyE` es
@@ -543,7 +543,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
 reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
 reduceDefCopy f es = do
   info <- TCM.getConstInfo f
-  rewr <- TCM.getRewriteRulesFor f
+  rewr <- instantiateRewriteRules =<< TCM.getRewriteRulesFor f
   if (defCopy info) then reduceDef_ info rewr f es else return $ NoReduction ()
   where
     reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> TCM (Reduced () Term)
@@ -570,16 +570,16 @@ reduceHead' v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  reportSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v)
+  traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
   case ignoreSharing v of
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> ask
       isAbstract <- treatAbstractly f
-      reportSLn "tc.inj.reduce" 50 (
+      traceSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
-        )
+        ) $ do
       let v0  = Def f []
           red = unfoldDefinitionE False reduceHead' v0 f es
       def <- theDef <$> getConstInfo f
@@ -590,7 +590,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          reportSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function")
+          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
@@ -721,9 +721,9 @@ instance Simplify Term where
       Def f vs   -> do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        reportSDoc "tc.simplify'" 20 (
+        traceSDoc "tc.simplify'" 20 (
           text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> prettyTCM (ignoreBlocking v))
+            <+> prettyTCM (ignoreBlocking v)) $ do
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
@@ -1098,7 +1098,7 @@ instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
       IdS                  -> return IdS
-      EmptyS               -> return EmptyS
+      EmptyS err           -> return $ EmptyS err
       Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
       Lift n sigma         -> Lift n         <$> instantiateFull' sigma
       Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma
@@ -1213,7 +1213,7 @@ instance InstantiateFull Definition where
       return $ Defn rel x t pol occ df i c inst copy ma sc inj d
 
 instance InstantiateFull NLPat where
-  instantiateFull' (PVar x y z) = return $ PVar x y z
+  instantiateFull' (PVar x y) = return $ PVar x y
   instantiateFull' (PWild)    = return PWild
   instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
   instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y

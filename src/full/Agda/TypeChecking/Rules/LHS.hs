@@ -684,7 +684,7 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
           withSub = fromMaybe (wkS (numPats - length cxt) idS) withSub'
           -- At this point we need to update the module parameters for all
           -- parent modules.
-          patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# EmptyS
+          patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# (EmptyS __IMPOSSIBLE__)
           paramSub = composeS patSub withSub
           lhsResult = LHSResult (length cxt) delta qs b' patSub asb' (catMaybes psplit)
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> text (show patSub)
@@ -698,8 +698,6 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
       bindAsPatterns newLets $
         applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
         bindAsPatterns asb' $ do
-
-          rebindLocalRewriteRules
 
           -- Check dot patterns
           mapM_ checkDotPattern dpi

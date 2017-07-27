@@ -1221,7 +1221,7 @@ defRelevance = argInfoRelevance . defArgInfo
 
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
-  = PVar (Maybe CtxId) !Int [Arg Int]
+  = PVar !Int [Arg Int]
     -- ^ Matches anything (modulo non-linearity) that only contains bound
     --   variables that occur in the given arguments.
   | PWild
@@ -3203,7 +3203,7 @@ instance KillRange CtxId where
   killRange (CtxId x) = killRange1 CtxId x
 
 instance KillRange NLPat where
-  killRange (PVar x y z) = killRange3 PVar x y z
+  killRange (PVar x y) = killRange2 PVar x y
   killRange (PWild)    = PWild
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y

@@ -186,6 +186,6 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     if f `elem` pds
     then return (NoReduction $ NotBlocked MissingClauses [])
     else do
-      reportSLn "impossible" 10
+      traceSLn "impossible" 10
         ("Incomplete pattern matching when applying " ++ show f)
-      __IMPOSSIBLE__
+        __IMPOSSIBLE__

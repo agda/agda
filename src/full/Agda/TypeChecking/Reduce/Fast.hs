@@ -265,7 +265,7 @@ fastReduce allowNonTerminating v = do
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- getRewriteRulesFor f
+    rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
     compactDef z s pf info rewr
   ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating rwr z s v
 
@@ -545,6 +545,6 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
           if f `elem` pds
           then return (NoReduction $ NotBlocked MissingClauses es)
           else do
-            reportSLn "impossible" 10
+            traceSLn "impossible" 10
               ("Incomplete pattern matching when applying " ++ show f)
-            __IMPOSSIBLE__
+              __IMPOSSIBLE__

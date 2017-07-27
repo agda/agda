@@ -39,7 +39,7 @@ sanityCheckSubst gamma rho delta = go gamma rho delta
     go gamma rho delta =
       case rho of
         IdS      -> unless (size gamma == size delta) $ err $ text "idS:" <+> hang (pretty gamma <+> text "/=") 2 (pretty delta)
-        EmptyS   -> unless (size delta == 0) $ err $ text "emptyS:" <+> pretty delta <+> text "is not empty"
+        EmptyS _ -> unless (size delta == 0) $ err $ text "emptyS:" <+> pretty delta <+> text "is not empty"
         v :# rho -> do
           unless (size delta > 0) $ err $ text "consS: empty target"
           sanityCheckVars gamma v

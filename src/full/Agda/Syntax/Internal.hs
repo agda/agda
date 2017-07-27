@@ -542,8 +542,8 @@ data Substitution' a
     -- ^ Identity substitution.
     --   @Γ ⊢ IdS : Γ@
 
-  | EmptyS
-    -- ^ Empty substitution, lifts from the empty context.
+  | EmptyS Empty
+    -- ^ Empty substitution, lifts from the empty context. First argument is @__IMPOSSIBLE__@.
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
 
@@ -1126,7 +1126,7 @@ instance TermSize LevelAtom where
 
 instance TermSize a => TermSize (Substitution' a) where
   tsize IdS                = 1
-  tsize EmptyS             = 1
+  tsize (EmptyS _)         = 1
   tsize (Wk _ rho)         = 1 + tsize rho
   tsize (t :# rho)         = 1 + tsize t + tsize rho
   tsize (Strengthen _ rho) = 1 + tsize rho
@@ -1179,7 +1179,7 @@ instance KillRange Sort where
 
 instance KillRange Substitution where
   killRange IdS                  = IdS
-  killRange EmptyS               = EmptyS
+  killRange (EmptyS err)         = EmptyS err
   killRange (Wk n rho)           = killRange1 (Wk n) rho
   killRange (t :# rho)           = killRange2 (:#) t rho
   killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
@@ -1238,7 +1238,7 @@ instance Pretty a => Pretty (Substitution' a) where
     where
     pr p rho = case rho of
       IdS              -> text "idS"
-      EmptyS           -> text "emptyS"
+      EmptyS err       -> text "emptyS"
       t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho P.<> text ",", prettyPrec 3 t ]
       Strengthen _ rho -> mparens (p > 9) $ text "strS" <+> pr 10 rho
       Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP               #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -308,20 +309,6 @@ addRewriteRules f rews = do
   --  , vcat (map prettyTCM rules)
   --  ]
 
--- | Sledgehammer approach to local rewrite rules. Rebind them after each
---   left-hand side (which scrambles the context).
-rebindLocalRewriteRules :: TCM ()
-rebindLocalRewriteRules = do
-  current <- currentModule
-  ruleMap <- use $ stSignature . sigRewriteRules
-  let isLocal r = m == current || m `isSubModuleOf` current
-        where m = qnameModule $ rewName r
-      ruleMap' = HMap.map (filter (not . isLocal)) ruleMap
-      locals = map rewName $ filter isLocal $ concat $ map reverse $ HMap.elems ruleMap
-  unless (null locals) $ __CRASH_WHEN__ "rewriting.local.crash" 1000
-  stSignature . sigRewriteRules .= ruleMap'
-  mapM_ addRewriteRule locals
-
 -- | @rewriteWith t f es rew@
 --   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type
@@ -330,19 +317,19 @@ rewriteWith :: Maybe Type
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
 rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
-  reportSDoc "rewriting" 75 (sep
+  traceSDoc "rewriting" 75 (sep
     [ text "attempting to rewrite term " <+> prettyTCM (v `applyE` es)
     , text " with rule " <+> prettyTCM rew
-    ])
+    ]) $ do
   result <- nonLinMatch gamma ps es
   case result of
     Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
-      reportSDoc "rewriting" 70 (sep
+      traceSDoc "rewriting" 70 (sep
         [ text "rewrote " <+> prettyTCM (v `applyE` es)
         , text " to " <+> prettyTCM v'
-        ])
+        ]) $ do
       return $ Right v'
 
     {- OLD CODE:
@@ -399,50 +386,30 @@ rewrite block v rules es = do
 ------------------------------------------------------------------------
 
 class NLPatVars a where
+  nlPatVarsUnder :: Int -> a -> IntSet
+
   nlPatVars :: a -> IntSet
+  nlPatVars = nlPatVarsUnder 0
 
 instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
-  nlPatVars = foldMap nlPatVars
+  nlPatVarsUnder k = foldMap $ nlPatVarsUnder k
 
 instance NLPatVars NLPType where
-  nlPatVars (NLPType l a) = nlPatVars l `IntSet.union` nlPatVars a
+  nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k l `IntSet.union` nlPatVarsUnder k a
 
 instance NLPatVars NLPat where
-  nlPatVars p =
+  nlPatVarsUnder k p =
     case p of
-      PVar _ i _ -> singleton i
-      PDef _ es -> nlPatVars es
+      PVar i _  -> singleton $ i - k
+      PDef _ es -> nlPatVarsUnder k es
       PWild     -> empty
-      PLam _ p' -> nlPatVars $ unAbs p'
-      PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
-      PBoundVar _ es -> nlPatVars es
+      PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
+      PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
+      PBoundVar _ es -> nlPatVarsUnder k es
       PTerm{}   -> empty
 
 rewArity :: RewriteRule -> Int
 rewArity = length . rewPats
-
--- | Erase the CtxId's of rewrite rules
-class KillCtxId a where
-  killCtxId :: a -> a
-
-instance (Functor f, KillCtxId a) => KillCtxId (f a) where
-  killCtxId = fmap killCtxId
-
-instance KillCtxId RewriteRule where
-  killCtxId rule@RewriteRule{ rewPats = ps } = rule{ rewPats = killCtxId ps }
-
-instance KillCtxId NLPType where
-  killCtxId (NLPType l a) = NLPType (killCtxId l) (killCtxId a)
-
-instance KillCtxId NLPat where
-  killCtxId p = case p of
-    PVar _ i bvs   -> PVar Nothing i bvs
-    PWild          -> p
-    PDef f es      -> PDef f $ killCtxId es
-    PLam i x       -> PLam i $ killCtxId x
-    PPi a b        -> PPi (killCtxId a) (killCtxId b)
-    PBoundVar i es -> PBoundVar i $ killCtxId es
-    PTerm _        -> p
 
 -- | Get all symbols that a rewrite rule matches against
 class GetMatchables a where
@@ -454,7 +421,7 @@ instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
 instance GetMatchables NLPat where
   getMatchables p =
     case p of
-      PVar _ _ _     -> empty
+      PVar _ _       -> empty
       PWild          -> empty
       PDef f _       -> singleton f
       PLam _ x       -> empty
@@ -468,7 +435,7 @@ instance GetMatchables RewriteRule where
 -- Only computes free variables that are not bound (i.e. those in a PTerm)
 instance Free NLPat where
   freeVars' p = case p of
-    PVar _ _ _ -> mempty
+    PVar _ _ -> mempty
     PWild -> mempty
     PDef _ es -> freeVars' es
     PLam _ u -> freeVars' u
