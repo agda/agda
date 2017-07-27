@@ -276,11 +276,45 @@ getDefType f t = do
 --   In this case, the first result is not a record type.
 --
 --   Precondition: @t@ is reduced.
-projectTyped :: Term -> Type -> ProjOrigin -> QName -> TCM (Maybe (Dom Type, Term, Type))
+--
+projectTyped
+  :: Term        -- ^ Head (record value).
+  -> Type        -- ^ Its type.
+  -> ProjOrigin
+  -> QName       -- ^ Projection.
+  -> TCM (Maybe (Dom Type, Term, Type))
 projectTyped v t o f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
   ifNotPiType tf (const $ return Nothing) {- else -} $ \ dom b -> do
   u <- applyDef o f (argFromDom dom $> v)
   return $ Just (dom, u, b `absApp` v)
+
+-- | Typing of an elimination.
+
+data ElimType
+  = ArgT (Dom Type)           -- ^ Type of the argument.
+  | ProjT
+    { projTRec   :: Dom Type  -- ^ The type of the record which is eliminated.
+    , projTField :: Type      -- ^ The type of the field.
+    }
+
+instance PrettyTCM ElimType where
+  prettyTCM (ArgT a)    = prettyTCM a
+  prettyTCM (ProjT a b) =
+    text "." <> parens (prettyTCM a <+> text "->" <+> prettyTCM b)
+
+-- | Given a head and its type, compute the types of the eliminations.
+
+typeElims :: Type -> Term -> Elims -> TCM [ElimType]
+typeElims a _ [] = return []
+typeElims a self (e : es) = do
+  case e of
+    Apply v -> ifNotPiType a __IMPOSSIBLE__ {- else -} $ \ a b -> do
+      (ArgT a :) <$> typeElims (absApp b $ unArg v) (self `applyE` [e]) es
+    Proj o f -> do
+      a <- reduce a
+      (dom, self, a) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self a o f
+      (ProjT dom a :) <$> typeElims a self es
+
 
 -- | Check if a name refers to an eta expandable record.
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}

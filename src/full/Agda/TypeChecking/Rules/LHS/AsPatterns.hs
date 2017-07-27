@@ -33,7 +33,7 @@ import Agda.Utils.Impossible
 recoverAsPatterns :: Telescope -> Type -> Term -> [NamedArg A.Pattern] -> [NamedArg DeBruijnPattern] -> TCM [AsBinding]
 recoverAsPatterns delta a self ps qs = do
   let es = patternsToElims qs
-  as <- smashType (raise (size delta) a) self es
+  as <- typeElims (raise (size delta) a) self es
   ps <- insertImplicitPatternsT DontExpandLast ps a
   reportSDoc "tc.lhs.as" 30 $ vcat
     [ text "recovering as patterns"
@@ -43,38 +43,20 @@ recoverAsPatterns delta a self ps qs = do
     ]
   execWriterT $ asPatterns as ps es
 
--- ProjT stores the type of the projected field.
-data ElimType = ProjT Type | ArgT Type
-
-instance PrettyTCM ElimType where
-  prettyTCM (ProjT a) = text "." <> prettyTCM a
-  prettyTCM (ArgT a)  = prettyTCM a
-
-smashType :: Type -> Term -> Elims -> TCM [ElimType]
-smashType a _ [] = return []
-smashType a self (e : es) =
-  case e of
-    Apply v -> do
-      Pi a b <- ignoreSharing <$> reduce (unEl a)
-      (ArgT (unDom a) :) <$> smashType (absApp b $ unArg v) (self `applyE` [e]) es
-    Proj o f -> do
-      a <- reduce a
-      Just (_, self, a) <- projectTyped self a o f
-      (ProjT a :) <$> smashType a self es
-
 asPatterns :: [ElimType] -> [NamedArg A.Pattern] -> [Elim] -> WriterT [AsBinding] TCM ()
 asPatterns _ [] _ = return ()
-asPatterns (ProjT a : as) (p : ps) (Proj{} : vs) = do
+asPatterns (ProjT _ a : as) (p : ps) (Proj{} : vs) = do
   unless (isJust $ A.maybePostfixProjP p) __IMPOSSIBLE__  -- sanity check
   ps <- lift $ insertImplicitPatternsT DontExpandLast ps a
   asPatterns as ps vs
-asPatterns (ArgT a : as) (p : ps) (Apply v : vs)
+asPatterns (ArgT dom : as) (p : ps) (Apply v : vs)
   | not $ containsAsPattern p = asPatterns as ps vs
-  | otherwise =
+  | otherwise = do
+    let a = unDom dom
     case namedArg p of
       A.AsP _ x p' -> do
         tell [AsB x (unArg v) a]
-        asPatterns (ArgT a : as) (fmap (p' <$) p : ps) (Apply v : vs)
+        asPatterns (ArgT dom : as) (fmap (p' <$) p : ps) (Apply v : vs)
       A.ConP _ _ ps' -> do
         (_, _, tel, as', args) <- lift $ conPattern a (unArg v)
         ps' <- lift $ insertImplicitPatterns ExpandLast ps' tel
@@ -93,7 +75,7 @@ asPatterns _ _ _ = __IMPOSSIBLE__
 conPattern
   :: Type  -- ^ Type need not be reduced.
   -> Term  -- ^ Fully applied constructor.
-  -> TCM (QName, ConHead, Telescope, [Type], Args)
+  -> TCM (QName, ConHead, Telescope, [Dom Type], Args)
        -- ^ Data/record type name,
        --   constructor name,
        --   argument telescope,
@@ -103,6 +85,6 @@ conPattern a (Con c ci args) = do
   -- @getFullyAppliedConType@ works since @c@ is fully applied.
   ((d, _, _), ca) <- fromMaybe __IMPOSSIBLE__ <.> getFullyAppliedConType c =<< reduce a
   TelV tel _ <- telView ca
-  let as = map unDom $ fromMaybe __IMPOSSIBLE__ $ typeArgsWithTel tel $ map unArg args
+  let as = fromMaybe __IMPOSSIBLE__ $ typeArgsWithTel tel $ map unArg args
   return (d, c, tel, as, args)
 conPattern _ _ = __IMPOSSIBLE__
