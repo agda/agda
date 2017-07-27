@@ -37,11 +37,14 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-- * Bidirectional rechecker
 
 -- -- | Entry point for e.g. checking WithFunctionType.
 -- checkType :: Type -> TCM ()
@@ -159,12 +162,12 @@ checkInternal' action v t = do
       a <- metaType x
       checkSpine action a (MetaV x []) es t
     Con c ci vs -> do
-      -- We need to fully apply the constructor to make getConType work!
-      fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
-        Con c ci vs2 <- checkArgs action a (Con c ci []) vs' t
-        -- Strip away the extra arguments
-        return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
-          $ Con c ci $ take (length vs) vs2
+      let failure = do
+            -- To report the error, we need to get the data type that @t@ may end in.
+            TelV tel a <- telView t
+            addContext tel $ typeError $ DoesNotConstructAnElementOf (conName c) a
+      (_, a) <- fromMaybeM failure $ getConType c t
+      checkArgs action a (Con c ci []) vs t
     Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
       (a, b) <- shouldBePi t
@@ -222,7 +225,13 @@ fullyApplyCon c vs t0 ret = do
       Just ((d, dt, pars), a) ->
         ret d dt pars a (raise (size tel) vs ++ teleArgs tel) tel t
 
-checkSpine :: Action -> Type -> Term -> Elims -> Type -> TCM Term
+checkSpine
+  :: Action
+  -> Type      -- ^ Type of the head @self@.
+  -> Term      -- ^ The head @self@.
+  -> Elims     -- ^ The eliminations @es@.
+  -> Type      -- ^ Expected type of the application @self es@.
+  -> TCM Term  -- ^ The application after modification by the @Action@.
 checkSpine action a self es t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ text "checking spine "
@@ -234,7 +243,13 @@ checkSpine action a self es t = do
   t' <- reduce t'
   v' <$ coerceSize subtype v t' t
 
-checkArgs :: Action -> Type -> Term -> Args -> Type -> TCM Term
+checkArgs
+  :: Action
+  -> Type      -- ^ Type of the head.
+  -> Term      -- ^ The head.
+  -> Args      -- ^ The arguments.
+  -> Type      -- ^ Expected type of the application.
+  -> TCM Term  -- ^ The application after modification by the @Action@.
 checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.

@@ -276,7 +276,7 @@ expandTelescopeVar gamma k delta c = (tel', rho)
 
     tel'        = gamma1 `abstract` (delta `abstract` gamma2')
 
-
+-- | Gather leading Πs of a type in a telescope.
 telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)
 
