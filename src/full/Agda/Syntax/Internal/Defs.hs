@@ -1,10 +1,13 @@
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Extract used definitions from terms.
+
 module Agda.Syntax.Internal.Defs where
 
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
@@ -38,8 +41,16 @@ instance Monoid b => MonadGetDefs (GetDefsM b) where
   doMeta x = getDefs . ($ x) =<< asks lookupMeta
 
 -- | Getting the used definitions.
+--
+-- Note: in contrast to 'Agda.Syntax.Internal.Generic.foldTerm'
+-- @getDefs@ also collects from sorts in terms.
+-- Thus, this is not an instance of @foldTerm@.
+
 class GetDefs a where
   getDefs :: MonadGetDefs m => a -> m ()
+
+  default getDefs :: (MonadGetDefs m, Foldable f, GetDefs b, f b ~ a) => a -> m ()
+  getDefs = Fold.mapM_ getDefs
 
 instance GetDefs Clause where
   getDefs = getDefs . clauseBody
@@ -89,22 +100,11 @@ instance GetDefs LevelAtom where
 -- collection instances
 
 instance GetDefs a => GetDefs (Maybe a) where
-  getDefs = Fold.mapM_ getDefs
-
-instance GetDefs a => GetDefs [a] where
-  getDefs = Fold.mapM_ getDefs
-
+instance GetDefs a => GetDefs [a]       where
 instance GetDefs a => GetDefs (Elim' a) where
-  getDefs = Fold.mapM_ getDefs
-
-instance GetDefs a => GetDefs (Arg a) where
-  getDefs = getDefs . unArg
-
-instance GetDefs a => GetDefs (Dom a) where
-  getDefs = getDefs . unDom
-
-instance GetDefs a => GetDefs (Abs a) where
-  getDefs = getDefs . unAbs
+instance GetDefs a => GetDefs (Arg a)   where
+instance GetDefs a => GetDefs (Dom a)   where
+instance GetDefs a => GetDefs (Abs a)   where
 
 instance (GetDefs a, GetDefs b) => GetDefs (a,b) where
   getDefs (a,b) = getDefs a >> getDefs b
