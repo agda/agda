@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP          #-}
+{-# LANGUAGE TypeFamilies #-}
+
+-- | Tree traversal for internal syntax.
 
 module Agda.Syntax.Internal.Generic where
 
@@ -9,17 +12,36 @@ import Data.Foldable
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+-- | Generic term traversal.
+--
+--   Note: ignores sorts in terms!
+--   (Does not traverse into or collect from them.)
+
 class TermLike a where
-  traverseTermM
+
+  -- | Generic traversal with post-traversal action.
+  --   Ignores sorts.
+  traverseTermM :: (Monad m
 #if __GLASGOW_HASKELL__ <= 708
-    :: (Applicative m, Monad m)
-#else
-    :: Monad m
+    , Applicative m
 #endif
-    => (Term -> m Term) -> a -> m a
+    ) => (Term -> m Term) -> a -> m a
+
+  default traverseTermM :: (Monad m, Traversable f, TermLike b, f b ~ a
+#if __GLASGOW_HASKELL__ <= 708
+    , Applicative m
+#endif
+    ) => (Term -> m Term) -> a -> m a
+  traverseTermM = traverse . traverseTermM
+
+  -- | Generic fold, ignoring sorts.
   foldTerm :: Monoid m => (Term -> m) -> a -> m
 
--- * Constants
+  default foldTerm
+    :: (Monoid m, Foldable f, TermLike b, f b ~ a) => (Term -> m) -> a -> m
+  foldTerm = foldMap . foldTerm
+
+-- Constants
 
 instance TermLike Bool where
   traverseTermM _ = pure
@@ -41,27 +63,18 @@ instance TermLike QName where
   traverseTermM _ = pure
   foldTerm _      = mempty
 
--- * Functors
+-- Functors
 
-instance TermLike a => TermLike (Elim' a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
+instance TermLike a => TermLike (Elim' a)   where
+instance TermLike a => TermLike (Arg a)     where
+instance TermLike a => TermLike (Dom a)     where
+instance TermLike a => TermLike [a]         where
+instance TermLike a => TermLike (Maybe a)   where
+instance TermLike a => TermLike (Abs a)     where
+instance TermLike a => TermLike (Ptr a)     where
+instance TermLike a => TermLike (Blocked a) where
 
-instance TermLike a => TermLike (Arg a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
-
-instance TermLike a => TermLike (Dom a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
-
-instance TermLike a => TermLike [a] where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
-
-instance TermLike a => TermLike (Maybe a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
+-- Tuples
 
 instance (TermLike a, TermLike b) => TermLike (a, b) where
   traverseTermM f (x, y) = (,) <$> traverseTermM f x <*> traverseTermM f y
@@ -75,19 +88,7 @@ instance (TermLike a, TermLike b, TermLike c, TermLike d) => TermLike (a, b, c, 
   traverseTermM f (x, y, z, u) = (,,,) <$> traverseTermM f x <*> traverseTermM f y <*> traverseTermM f z <*> traverseTermM f u
   foldTerm f (x, y, z, u) = mconcat [foldTerm f x, foldTerm f y, foldTerm f z, foldTerm f u]
 
-instance TermLike a => TermLike (Abs a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
-
-instance TermLike a => TermLike (Ptr a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
-
-instance TermLike a => TermLike (Blocked a) where
-  traverseTermM f = traverse (traverseTermM f)
-  foldTerm f = foldMap (foldTerm f)
-
--- * Real terms
+-- Real terms
 
 instance TermLike Term where
 
@@ -160,11 +161,9 @@ instance TermLike EqualityView where
     EqualityType s eq l t a b -> foldTerm f (l ++ [t, a, b])
 
 -- | Put it in a monad to make it possible to do strictly.
-copyTerm
+copyTerm :: (TermLike a, Monad m
 #if __GLASGOW_HASKELL__ <= 708
-  :: (TermLike a, Applicative m, Monad m)
-#else
-  :: (TermLike a, Monad m)
+  , Applicative m
 #endif
-  => a -> m a
+  ) => a -> m a
 copyTerm = traverseTermM return
