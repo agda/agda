@@ -41,6 +41,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern ( patternVars )
 import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -142,38 +143,6 @@ checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
 checkPatternLinearity ps = do
   unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ ys -> do
     typeError $ RepeatedVariablesInPattern ys
-
-class PatternVars a where
-  patternVars :: a -> [A.Name]
-
-instance PatternVars a => PatternVars [a] where
-  patternVars = concatMap patternVars
-
-instance PatternVars a => PatternVars (Arg a) where
-  patternVars = patternVars . unArg
-
-instance PatternVars a => PatternVars (Named n a) where
-  patternVars = patternVars . namedThing
-
-instance PatternVars a => PatternVars (C.FieldAssignment' a) where
-  patternVars = patternVars . (^. exprFieldA)
-
-instance PatternVars (A.Pattern' e) where
-  patternVars p = case p of
-      A.VarP x               -> [x]
-      A.ConP _ _ args        -> patternVars args
-      A.ProjP _ _ _          -> []
-      A.WildP _              -> []
-      A.AsP _ x p            -> x : patternVars p
-      A.DotP _ _ _           -> []
-      A.AbsurdP _            -> []
-      A.LitP _               -> []
-      A.DefP _ _ args        -> patternVars args
-        -- Projection pattern, @args@ should be empty unless we have
-        -- indexed records.
-      A.PatternSynP _ _ args -> patternVars args
-      A.RecP _ fs            -> patternVars fs
-
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)

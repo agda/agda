@@ -7,10 +7,13 @@ module Agda.Syntax.Abstract.Pattern where
 
 import Data.Foldable (Foldable, foldMap)
 import Data.Functor
+import Data.Monoid ( Endo(..) )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Abstract as A
+
+-- * Traversals
 
 type NAP = NamedArg Pattern
 
@@ -91,3 +94,25 @@ instance APatternLike a b => APatternLike a (Named n b)          where
 instance APatternLike a b => APatternLike a [b]                  where
 instance APatternLike a b => APatternLike a (Maybe b)            where
 instance APatternLike a b => APatternLike a (FieldAssignment' b) where
+
+-- * Example folds.
+
+-- | Collect pattern variables in left-to-right textual order.
+
+patternVars :: forall a p. APatternLike a p => p -> [A.Name]
+patternVars p = foldAPattern f p `appEndo` []
+  where
+  -- We use difference lists @[A.Name] -> [A.Name]@ to avoid reconcatenation.
+  f :: Pattern' a -> Endo [A.Name]
+  f = \case
+    A.VarP x         -> Endo (x :)
+    A.AsP _ x _      -> Endo (x :)
+    A.LitP        {} -> mempty
+    A.ConP        {} -> mempty
+    A.RecP        {} -> mempty
+    A.DefP        {} -> mempty
+    A.ProjP       {} -> mempty
+    A.WildP       {} -> mempty
+    A.DotP        {} -> mempty
+    A.AbsurdP     {} -> mempty
+    A.PatternSynP {} -> mempty
