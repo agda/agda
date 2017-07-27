@@ -1,19 +1,27 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonoLocalBinds          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
+-- | Auxiliary functions to handle patterns in the abstract syntax.
+--
+--   Generic and specific traversals.
+
 module Agda.Syntax.Abstract.Pattern where
 
 import Data.Foldable (Foldable, foldMap)
 import Data.Functor
-import Data.Monoid ( Endo(..) )
+import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Abstract as A
 
--- * Traversals
+#include "undefined.h"
+import Agda.Utils.Impossible
+
+-- * Generic traversals
 
 type NAP = NamedArg Pattern
 
@@ -44,11 +52,9 @@ instance MapNamedArgPattern NAP where
       -- AsP: we hand the NamedArg info to the subpattern
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
 
-instance MapNamedArgPattern a => MapNamedArgPattern [a] where
-
+instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
-
-instance MapNamedArgPattern a => MapNamedArgPattern (Maybe a) where
+instance MapNamedArgPattern a => MapNamedArgPattern (Maybe a)            where
 
 -- | Generic pattern traversal.
 
@@ -66,6 +72,7 @@ class APatternLike a p | p -> a where
   foldrAPattern = foldMap . foldrAPattern
 
 -- | Compute from each subpattern a value and collect them all in a monoid.
+
 foldAPattern :: (APatternLike a p, Monoid m) => (Pattern' a -> m) -> p -> m
 foldAPattern f = foldrAPattern $ \ p m -> f p `mappend` m
 
@@ -95,7 +102,7 @@ instance APatternLike a b => APatternLike a [b]                  where
 instance APatternLike a b => APatternLike a (Maybe b)            where
 instance APatternLike a b => APatternLike a (FieldAssignment' b) where
 
--- * Example folds.
+-- * Specific folds
 
 -- | Collect pattern variables in left-to-right textual order.
 
@@ -116,3 +123,29 @@ patternVars p = foldAPattern f p `appEndo` []
     A.DotP        {} -> mempty
     A.AbsurdP     {} -> mempty
     A.PatternSynP {} -> mempty
+
+-- | Check if a pattern contains a specific (sub)pattern.
+
+containsAPattern :: APatternLike a p => (Pattern' a -> Bool) -> p -> Bool
+containsAPattern f = getAny . foldAPattern (Any . f)
+
+-- | Check if a pattern contains an absurd pattern.
+--   For instance, @suc ()@, does so.
+--
+--   Precondition: contains no pattern synonyms.
+
+containsAbsurdPattern :: APatternLike a p => p -> Bool
+containsAbsurdPattern = containsAPattern $ \case
+    A.PatternSynP{} -> __IMPOSSIBLE__
+    A.AbsurdP{}     -> True
+    _               -> False
+
+-- | Check if a pattern contains an @-pattern.
+--
+--   Precondition: contains no pattern synonyms.
+
+containsAsPattern :: APatternLike a p => p -> Bool
+containsAsPattern = containsAPattern $ \case
+    A.PatternSynP{} -> __IMPOSSIBLE__
+    A.AsP{}         -> True
+    _               -> False

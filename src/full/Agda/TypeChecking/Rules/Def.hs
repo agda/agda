@@ -12,7 +12,6 @@ import Control.Monad.Reader hiding (forM, mapM)
 import Data.Function
 import Data.List hiding (sort)
 import Data.Maybe
-import Data.Monoid ( Any(..) )
 import Data.Traversable
 import qualified Data.Set as Set
 
@@ -20,7 +19,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract.Pattern ( APatternLike, foldAPattern )
+import Agda.Syntax.Abstract.Pattern ( containsAbsurdPattern )
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
@@ -805,15 +804,6 @@ newSection m tel cont = do
       nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection m
 
     withCurrentModule m cont
-
-
--- | Check if a pattern contains an absurd pattern.
---   For instance, @suc ()@.
-containsAbsurdPattern :: APatternLike a p => p -> Bool
-containsAbsurdPattern p = getAny . (`foldAPattern` p) $ \case
-    A.PatternSynP{} -> __IMPOSSIBLE__
-    A.AbsurdP{}     -> Any True
-    _               -> Any False
 
 -- | Set the current clause number.
 atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a

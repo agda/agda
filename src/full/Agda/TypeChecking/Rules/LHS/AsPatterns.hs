@@ -11,7 +11,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete ()
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Abstract.Pattern (foldAPattern)
+import Agda.Syntax.Abstract.Pattern ( containsAsPattern )
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -69,7 +69,7 @@ asPatterns (ProjT a : as) (p : ps) (Proj{} : vs) = do
   ps <- lift $ insertImplicitPatternsT DontExpandLast ps a
   asPatterns as ps vs
 asPatterns (ArgT a : as) (p : ps) (Apply v : vs)
-  | noAsPatterns (namedArg p) = asPatterns as ps vs
+  | not $ containsAsPattern p = asPatterns as ps vs
   | otherwise =
     case namedArg p of
       A.AsP _ x p' -> do
@@ -106,10 +106,3 @@ conPattern a (Con c ci args) = do
   let as = map unDom $ fromMaybe __IMPOSSIBLE__ $ typeArgsWithTel tel $ map unArg args
   return (d, c, tel, as, args)
 conPattern _ _ = __IMPOSSIBLE__
-
--- | Is the pattern free of as-patterns?
-noAsPatterns :: A.Pattern -> Bool
-noAsPatterns p = getAll . (`foldAPattern` p) $ \case
-  A.PatternSynP{} -> __IMPOSSIBLE__
-  A.AsP{}         -> All False
-  _               -> All True
