@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Extract all names from things.
+
 module Agda.Syntax.Internal.Names where
 
 import Data.Foldable
@@ -16,6 +18,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
@@ -26,19 +29,18 @@ import Agda.Utils.Impossible
 class NamesIn a where
   namesIn :: a -> Set QName
 
-namesInFoldable :: (Foldable f, NamesIn a) => f a -> Set QName
-namesInFoldable x = Set.unions $ foldMap ((:[]) . namesIn) x
+  default namesIn :: (Foldable f, NamesIn b, f b ~ a) => a -> Set QName
+  namesIn = foldMap namesIn
 
-instance NamesIn a => NamesIn (Maybe a)       where namesIn = namesInFoldable
-instance NamesIn a => NamesIn [a]             where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Arg a)         where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Dom a)         where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Named n a)     where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Abs a)         where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (WithArity a)   where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Tele a)        where namesIn = namesInFoldable
-
-instance NamesIn a => NamesIn (C.FieldAssignment' a) where namesIn = namesInFoldable
+instance NamesIn a => NamesIn (Maybe a)              where
+instance NamesIn a => NamesIn [a]                    where
+instance NamesIn a => NamesIn (Arg a)                where
+instance NamesIn a => NamesIn (Dom a)                where
+instance NamesIn a => NamesIn (Named n a)            where
+instance NamesIn a => NamesIn (Abs a)                where
+instance NamesIn a => NamesIn (WithArity a)          where
+instance NamesIn a => NamesIn (Tele a)               where
+instance NamesIn a => NamesIn (C.FieldAssignment' a) where
 
 instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
   namesIn (x, y) = Set.union (namesIn x) (namesIn y)
@@ -46,12 +48,21 @@ instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
 instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
   namesIn (x, y, z) = namesIn (x, (y, z))
 
+-- Andreas, 2017-07-27
+-- In the following clauses, the choice of fields is not obvious
+-- to the reader.  Please comment on the choices.
+--
+-- Also, this would be more robust if these were constructor-style
+-- matches instead of record-style matches.
+-- If someone adds a field containing names, this would go unnoticed.
+
 instance NamesIn Definition where
   namesIn def = namesIn (defType def, theDef def)
 
 instance NamesIn Defn where
   namesIn def = case def of
     Axiom -> Set.empty
+    -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
     Function    { funClauses = cl, funCompiled = cc }              -> namesIn (cl, cc)
     Datatype    { dataClause = cl, dataCons = cs, dataSort = s }   -> namesIn (cl, cs, s)
     Record      { recClause = cl, recConHead = c, recFields = fs } -> namesIn (cl, c, fs)
@@ -69,6 +80,8 @@ instance NamesIn CompiledClauses where
   namesIn (Done _ v) = namesIn v
   namesIn Fail       = Set.empty
 
+-- Andreas, 2017-07-27
+-- Why ignoring the litBranches?
 instance NamesIn a => NamesIn (Case a) where
   namesIn Branches{ conBranches = bs, catchAllBranch = c } =
     namesIn (Map.toList bs, c)
@@ -135,13 +148,11 @@ instance NamesIn a => NamesIn (Elim' a) where
   namesIn (Apply arg) = namesIn arg
   namesIn (Proj _ f)  = namesIn f
 
-instance NamesIn QName   where namesIn x = Set.singleton x
+instance NamesIn QName   where namesIn x = Set.singleton x  -- interesting case
 instance NamesIn ConHead where namesIn h = namesIn (conName h)
 
-instance NamesIn a => NamesIn (Open a) where
-  namesIn = namesIn . openThing
-
-instance NamesIn a => NamesIn (Local a) where namesIn = namesIn . dget
+instance NamesIn a => NamesIn (Open a)  where
+instance NamesIn a => NamesIn (Local a) where
 
 instance NamesIn DisplayForm where
   namesIn (Display _ ps v) = namesIn (ps, v)
