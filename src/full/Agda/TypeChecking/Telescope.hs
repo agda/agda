@@ -35,32 +35,6 @@ import qualified Agda.Utils.VarSet as VarSet
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-data OutputTypeName
-  = OutputTypeName QName
-  | OutputTypeVar
-  | OutputTypeNameNotYetKnown
-  | NoOutputTypeName
-
--- | Strips all Pi's and return the head definition name, if possible.
-getOutputTypeName :: Type -> TCM OutputTypeName
-getOutputTypeName t = do
-  TelV tel t' <- telView t
-  ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ v ->
-    case ignoreSharing v of
-      -- Possible base types:
-      Def n _  -> return $ OutputTypeName n
-      Sort{}   -> return NoOutputTypeName
-      Var n _  -> return OutputTypeVar
-      -- Not base types:
-      Con{}    -> __IMPOSSIBLE__
-      Lam{}    -> __IMPOSSIBLE__
-      Lit{}    -> __IMPOSSIBLE__
-      Level{}  -> __IMPOSSIBLE__
-      MetaV{}  -> __IMPOSSIBLE__
-      Pi{}     -> __IMPOSSIBLE__
-      Shared{} -> __IMPOSSIBLE__
-      DontCare{} -> __IMPOSSIBLE__
-
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Dom Type]
 flattenTel EmptyTel          = []
@@ -369,6 +343,32 @@ piApply1 t v = do
 ---------------------------------------------------------------------------
 -- * Instance definitions
 ---------------------------------------------------------------------------
+
+data OutputTypeName
+  = OutputTypeName QName
+  | OutputTypeVar
+  | OutputTypeNameNotYetKnown
+  | NoOutputTypeName
+
+-- | Strips all Pi's and return the head definition name, if possible.
+getOutputTypeName :: Type -> TCM OutputTypeName
+getOutputTypeName t = do
+  TelV tel t' <- telView t
+  ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ v ->
+    case ignoreSharing v of
+      -- Possible base types:
+      Def n _  -> return $ OutputTypeName n
+      Sort{}   -> return NoOutputTypeName
+      Var n _  -> return OutputTypeVar
+      -- Not base types:
+      Con{}    -> __IMPOSSIBLE__
+      Lam{}    -> __IMPOSSIBLE__
+      Lit{}    -> __IMPOSSIBLE__
+      Level{}  -> __IMPOSSIBLE__
+      MetaV{}  -> __IMPOSSIBLE__
+      Pi{}     -> __IMPOSSIBLE__
+      Shared{} -> __IMPOSSIBLE__
+      DontCare{} -> __IMPOSSIBLE__
 
 addTypedInstance :: QName -> Type -> TCM ()
 addTypedInstance x t = do
