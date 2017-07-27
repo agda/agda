@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP               #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -330,19 +331,19 @@ rewriteWith :: Maybe Type
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
 rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
-  reportSDoc "rewriting" 75 (sep
+  traceSDoc "rewriting" 75 (sep
     [ text "attempting to rewrite term " <+> prettyTCM (v `applyE` es)
     , text " with rule " <+> prettyTCM rew
-    ])
+    ]) $ do
   result <- nonLinMatch gamma ps es
   case result of
     Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
-      reportSDoc "rewriting" 70 (sep
+      traceSDoc "rewriting" 70 (sep
         [ text "rewrote " <+> prettyTCM (v `applyE` es)
         , text " to " <+> prettyTCM v'
-        ])
+        ]) $ do
       return $ Right v'
 
     {- OLD CODE:

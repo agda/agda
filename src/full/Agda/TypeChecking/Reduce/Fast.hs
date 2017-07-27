@@ -532,6 +532,6 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
           if f `elem` pds
           then return (NoReduction $ NotBlocked MissingClauses es)
           else do
-            reportSLn "impossible" 10
+            traceSLn "impossible" 10
               ("Incomplete pattern matching when applying " ++ show f)
-            __IMPOSSIBLE__
+              __IMPOSSIBLE__

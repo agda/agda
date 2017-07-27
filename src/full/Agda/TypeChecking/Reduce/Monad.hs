@@ -135,11 +135,11 @@ applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
 
 instance MonadDebug ReduceM where
 
-  displayDebugMessage n s = do
+  traceDebugMessage n s cont = do
     ReduceEnv env st <- askR
     unsafePerformIO $ do
       _ <- runTCM env st $ displayDebugMessage n s
-      return $ return ()
+      return $ cont
 
   formatDebugMessage k n d = do
     ReduceEnv env st <- askR

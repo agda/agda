@@ -32,6 +32,11 @@ import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
   displayDebugMessage :: Int -> String -> m ()
+  displayDebugMessage n s = traceDebugMessage n s $ return ()
+
+  traceDebugMessage :: Int -> String -> m a -> m a
+  traceDebugMessage n s cont = displayDebugMessage n s >> cont
+
   formatDebugMessage  :: VerboseKey -> Int -> TCM Doc -> m String
 
 instance (MonadIO m) => MonadDebug (TCMT m) where
@@ -91,6 +96,18 @@ reportSDoc :: (HasOptions m, MonadDebug m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
   displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n d
+
+traceSLn :: (HasOptions m, MonadDebug m)
+         => VerboseKey -> Int -> String -> m a -> m a
+traceSLn k n s cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
+  traceDebugMessage n (s ++ "\n") cont
+
+-- | Conditionally render debug 'Doc', print it, and then continue.
+traceSDoc :: (HasOptions m, MonadDebug m)
+          => VerboseKey -> Int -> TCM Doc -> m a -> m a
+traceSDoc k n d cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
+  s <- formatDebugMessage k n d
+  traceDebugMessage n (s ++ "\n") cont
 
 -- | Print brackets around debug messages issued by a computation.
 {-# SPECIALIZE verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a #-}

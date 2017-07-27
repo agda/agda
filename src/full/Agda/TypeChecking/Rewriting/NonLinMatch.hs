@@ -216,9 +216,9 @@ tellSub r i v = do
 
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
 tellEq gamma k u v = do
-  reportSDoc "rewriting" 60 (sep
+  traceSDoc "rewriting" 60 (sep
                [ text "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
-               , text " and " <+> addContext k (prettyTCM v) ])
+               , text " and " <+> addContext k (prettyTCM v) ]) $ do
   nlmEqs %= (PostponedEquation k u v:)
 
 type Sub = IntMap (Relevance, Term)
@@ -259,9 +259,9 @@ instance Match a b => Match (Elim' a) (Elim' b) where
      (Apply p, Apply v) -> let r' = r `composeRelevance` getRelevance p
                            in  match r' gamma k p v
      (Proj _ x, Proj _ y) -> if x == y then return () else
-                             reportSDoc "rewriting" 80 (sep
+                             traceSDoc "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
-                               , text " and " <+> prettyTCM y ]) >> mzero
+                               , text " and " <+> prettyTCM y ]) mzero
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
 
@@ -294,20 +294,20 @@ instance Match NLPat Term where
         v = ignoreBlocking vb
         prettyPat  = addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
         prettyTerm = addContext k (prettyTCM v)
-    reportSDoc "rewriting" 100 (sep
+    traceSDoc "rewriting" 100 (sep
       [ text "matching" <+> prettyPat
-      , text "with" <+> prettyTerm])
+      , text "with" <+> prettyTerm]) $ do
     let yes = return ()
         no msg = do
-          reportSDoc "rewriting" 80 (sep
+          traceSDoc "rewriting" 80 (sep
             [ text "mismatch between" <+> prettyPat
             , text " and " <+> prettyTerm
-            , msg ])
+            , msg ]) $ do
           matchingBlocked b
         block b' = do
-          reportSDoc "rewriting" 80 (sep
+          traceSDoc "rewriting" 80 (sep
             [ text "matching blocked on meta"
-            , text (show b) ])
+            , text (show b) ]) $ do
           matchingBlocked (b `mappend` b')
     case p of
       PWild  -> yes
@@ -315,7 +315,7 @@ instance Match NLPat Term where
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
         ctx <- zip <$> getContextNames <*> getContextId
-        reportSDoc "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx))
+        traceSDoc "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx)) $ do
         cid <- getContextId
         case (maybe Nothing (\i -> elemIndex i cid) id) of
           Just j -> if v == Var (j+n) (map (Apply . fmap var) bvs)
@@ -436,13 +436,13 @@ checkPostponedEquations sub eqs = forM' eqs $
 -- main function
 nonLinMatch :: (Match a b) => Telescope -> a -> b -> ReduceM (Either Blocked_ Substitution)
 nonLinMatch gamma p v = do
-  let no msg b = reportSDoc "rewriting" 80 (sep
+  let no msg b = traceSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
-                   , text "blocking: " <+> text (show b) ]) >> return (Left b)
+                   , text "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match Relevant gamma EmptyTel p v) (no "matching") $ \ s -> do
     let sub = makeSubstitution gamma $ s^.nlmSub
         eqs = s^.nlmEqs
-    reportSDoc "rewriting" 90 (text $ "sub = " ++ show sub)
+    traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ do
     ok <- checkPostponedEquations sub eqs
     case ok of
       Nothing -> return $ Right sub
@@ -462,10 +462,10 @@ equal u v = do
                 (NotBlocked ReallyNotBlocked ())
                 (\m -> Blocked m ())
   if ok then return Nothing else do
-    reportSDoc "rewriting" 80 (sep
+    traceSDoc "rewriting" 80 (sep
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
-      ])
+      ]) $ do
     return $ Just block
 
 -- | Normalise the given term but also preserve blocking tags
