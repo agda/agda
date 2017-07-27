@@ -43,6 +43,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern ( foldAPattern )
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -833,8 +834,13 @@ instance BlankVars TypedBinding where
   blank bound (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
 
+-- | Collect the binders in some abstract syntax lhs.
+
 class Binder a where
   varsBoundIn :: a -> Set Name
+
+  default varsBoundIn :: (Foldable f, Binder b, f b ~ a) => a -> Set Name
+  varsBoundIn = foldMap varsBoundIn
 
 instance Binder A.LHS where
   varsBoundIn (A.LHS _ core ps) = varsBoundIn (core, ps)
@@ -844,18 +850,18 @@ instance Binder A.LHSCore where
   varsBoundIn (A.LHSProj _ b ps) = varsBoundIn (b, ps)
 
 instance Binder A.Pattern where
-  varsBoundIn p = case p of
-    A.VarP x             -> if prettyShow x == "()" then empty else singleton x -- TODO: get rid of this hack?
-    A.ConP _ _ ps        -> varsBoundIn ps
-    A.ProjP{}            -> empty
-    A.DefP _ _ ps        -> varsBoundIn ps
-    A.WildP{}            -> empty
-    A.AsP _ x p          -> varsBoundIn p  -- This does not include the x because of issue #2414.
-    A.DotP{}             -> empty
-    A.AbsurdP{}          -> empty
-    A.LitP{}             -> empty
-    A.PatternSynP _ _ ps -> varsBoundIn ps
-    A.RecP _ fs          -> varsBoundIn fs
+  varsBoundIn = foldAPattern $ \case
+    A.VarP x            -> if prettyShow x == "()" then empty else singleton x -- TODO: get rid of this hack?
+    A.AsP _ x _         -> empty
+    A.ConP _ _ _        -> empty
+    A.ProjP{}           -> empty
+    A.DefP _ _ _        -> empty
+    A.WildP{}           -> empty
+    A.DotP{}            -> empty
+    A.AbsurdP{}         -> empty
+    A.LitP{}            -> empty
+    A.PatternSynP _ _ _ -> empty
+    A.RecP _ _          -> empty
 
 instance Binder A.LamBinding where
   varsBoundIn (A.DomainFree _ x) = singleton x
@@ -875,20 +881,13 @@ instance Binder LetBinding where
   varsBoundIn LetOpen{}           = empty
   varsBoundIn LetDeclaredVariable{} = empty
 
-instance Binder a => Binder (FieldAssignment' a) where
-  varsBoundIn = varsBoundIn . (^. exprFieldA)
-
-instance Binder a => Binder (Arg a) where
-  varsBoundIn = varsBoundIn . unArg
-
-instance Binder a => Binder (Named x a) where
-  varsBoundIn = varsBoundIn . namedThing
-
 instance Binder (WithHiding Name) where
   varsBoundIn (WithHiding _ x) = singleton x
 
-instance Binder a => Binder [a] where
-  varsBoundIn xs = Set.unions $ map varsBoundIn xs
+instance Binder a => Binder (FieldAssignment' a) where
+instance Binder a => Binder (Arg a)              where
+instance Binder a => Binder (Named x a)          where
+instance Binder a => Binder [a]                  where
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y
