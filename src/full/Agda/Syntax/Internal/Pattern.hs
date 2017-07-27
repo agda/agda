@@ -14,8 +14,8 @@ import Control.Monad.State
 import Data.Maybe
 import Data.Monoid
 import Data.List
-import Data.Foldable (foldMap)
-import Data.Traversable (traverse)
+import Data.Foldable (Foldable, foldMap)
+import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (IsProjP(..))

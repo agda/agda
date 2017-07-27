@@ -26,14 +26,14 @@ import Control.Applicative hiding (empty)
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 
-import Data.Foldable (foldMap)
+import Data.Foldable (Foldable, foldMap)
 import Data.List hiding (null, sort)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (traverse, mapM)
+import Data.Traversable (Traversable, traverse, mapM)
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Literal
