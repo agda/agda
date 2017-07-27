@@ -400,7 +400,7 @@ instance NLPatVars NLPType where
 instance NLPatVars NLPat where
   nlPatVarsUnder k p =
     case p of
-      PVar _ i _ -> singleton $ i - k
+      PVar i _  -> singleton $ i - k
       PDef _ es -> nlPatVarsUnder k es
       PWild     -> empty
       PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
@@ -410,29 +410,6 @@ instance NLPatVars NLPat where
 
 rewArity :: RewriteRule -> Int
 rewArity = length . rewPats
-
--- | Erase the CtxId's of rewrite rules
-class KillCtxId a where
-  killCtxId :: a -> a
-
-instance (Functor f, KillCtxId a) => KillCtxId (f a) where
-  killCtxId = fmap killCtxId
-
-instance KillCtxId RewriteRule where
-  killCtxId rule@RewriteRule{ rewPats = ps } = rule{ rewPats = killCtxId ps }
-
-instance KillCtxId NLPType where
-  killCtxId (NLPType l a) = NLPType (killCtxId l) (killCtxId a)
-
-instance KillCtxId NLPat where
-  killCtxId p = case p of
-    PVar _ i bvs   -> PVar Nothing i bvs
-    PWild          -> p
-    PDef f es      -> PDef f $ killCtxId es
-    PLam i x       -> PLam i $ killCtxId x
-    PPi a b        -> PPi (killCtxId a) (killCtxId b)
-    PBoundVar i es -> PBoundVar i $ killCtxId es
-    PTerm _        -> p
 
 -- | Get all symbols that a rewrite rule matches against
 class GetMatchables a where
@@ -444,7 +421,7 @@ instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
 instance GetMatchables NLPat where
   getMatchables p =
     case p of
-      PVar _ _ _     -> empty
+      PVar _ _       -> empty
       PWild          -> empty
       PDef f _       -> singleton f
       PLam _ x       -> empty
@@ -458,7 +435,7 @@ instance GetMatchables RewriteRule where
 -- Only computes free variables that are not bound (i.e. those in a PTerm)
 instance Free NLPat where
   freeVars' p = case p of
-    PVar _ _ _ -> mempty
+    PVar _ _ -> mempty
     PWild -> mempty
     PDef _ es -> freeVars' es
     PLam _ u -> freeVars' u

@@ -54,7 +54,6 @@ import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
-import Agda.TypeChecking.Rewriting (killCtxId)
 import Agda.TypeChecking.DeadCode
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -147,7 +146,7 @@ addImportedThings ::
   Signature -> BuiltinThings PrimFun ->
   A.PatternSynDefns -> DisplayForms -> [TCWarning] -> TCM ()
 addImportedThings isig ibuiltin patsyns display warnings = do
-  stImports              %= \ imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
+  stImports              %= \ imp -> unionSignatures [imp, isig]
   stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
   stPatternSynImports    %= \ imp -> Map.union imp patsyns
   stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display

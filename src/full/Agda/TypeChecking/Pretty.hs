@@ -423,7 +423,7 @@ instance PrettyTCM (Elim' DisplayTerm) where
   prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar id x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
+  prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)

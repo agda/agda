@@ -137,11 +137,7 @@ instance PatternFrom Term NLPat where
                  allBoundVars = IntSet.fromList (downFrom k)
                  ok = not (isIrrelevant r) ||
                       IntSet.fromList (map unArg bvs) == allBoundVars
-             -- Pattern variables are labeled with their context id, because they
-             -- can only be instantiated once they're no longer bound by the
-             -- context (see Issue 1652).
-             id <- (!! i') <$> getContextId
-             if ok then return (PVar (Just id) i bvs) else done
+             if ok then return (PVar i bvs) else done
            Nothing -> done
       Lam i t  -> PLam i <$> patternFrom r k t
       Lit{}    -> done
@@ -311,30 +307,20 @@ instance Match NLPat Term where
           matchingBlocked (b `mappend` b')
     case p of
       PWild  -> yes
-      PVar id i bvs -> do
-        -- If the variable is still bound by the current context, we cannot
-        -- instantiate it so it has to match on the nose (see Issue 1652).
-        ctx <- zip <$> getContextNames <*> getContextId
-        traceSDoc "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx)) $ do
-        cid <- getContextId
-        case (maybe Nothing (\i -> elemIndex i cid) id) of
-          Just j -> if v == Var (j+n) (map (Apply . fmap var) bvs)
-                    then tellSub r (i-n) (var j)
-                    else no (text $ "(CtxId = " ++ show id ++ ")")
-          Nothing -> do
-            let allowedVars :: IntSet
-                allowedVars = IntSet.fromList (map unArg bvs)
-                isBadVar :: Int -> Bool
-                isBadVar i = i < n && not (i `IntSet.member` allowedVars)
-                perm :: Permutation
-                perm = Perm n $ reverse $ map unArg $ bvs
-                tel :: Telescope
-                tel = permuteTel perm k
-            ok <- liftRed $ reallyFree isBadVar v
-            case ok of
-              Left b         -> block b
-              Right Nothing  -> no (text "")
-              Right (Just v) -> tellSub r (i-n) $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
+      PVar i bvs -> do
+        let allowedVars :: IntSet
+            allowedVars = IntSet.fromList (map unArg bvs)
+            isBadVar :: Int -> Bool
+            isBadVar i = i < n && not (i `IntSet.member` allowedVars)
+            perm :: Permutation
+            perm = Perm n $ reverse $ map unArg $ bvs
+            tel :: Telescope
+            tel = permuteTel perm k
+        ok <- liftRed $ reallyFree isBadVar v
+        case ok of
+          Left b         -> block b
+          Right Nothing  -> no (text "")
+          Right (Just v) -> tellSub r (i-n) $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of

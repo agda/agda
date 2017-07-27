@@ -742,9 +742,9 @@ instance Subst Term Pattern where
     ProjP{}      -> p
 
 instance DeBruijn NLPat where
-  deBruijnVar i = PVar Nothing i []
+  deBruijnVar i = PVar i []
   deBruijnView p = case p of
-    PVar _ i [] -> Just i
+    PVar i []   -> Just i
     PVar{}      -> Nothing
     PWild{}     -> Nothing
     PDef{}      -> Nothing
@@ -758,7 +758,7 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
   where
     nlPatToTerm :: NLPat -> Term
     nlPatToTerm p = case p of
-      PVar _ i xs    -> Var i $ map (Apply . fmap var) xs
+      PVar i xs      -> Var i $ map (Apply . fmap var) xs
       PTerm u        -> u
       PWild          -> __IMPOSSIBLE__
       PDef f es      -> __IMPOSSIBLE__
@@ -768,7 +768,7 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
 
 instance Subst NLPat NLPat where
   applySubst rho p = case p of
-    PVar id i bvs -> lookupS rho i `applyBV` bvs
+    PVar i bvs -> lookupS rho i `applyBV` bvs
     PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
@@ -779,7 +779,7 @@ instance Subst NLPat NLPat where
     where
       applyBV :: NLPat -> [Arg Int] -> NLPat
       applyBV p ys = case p of
-        PVar id i xs   -> PVar id i (xs ++ ys)
+        PVar i xs      -> PVar i (xs ++ ys)
         PTerm u        -> PTerm $ u `apply` map (fmap var) ys
         PWild          -> __IMPOSSIBLE__
         PDef f es      -> __IMPOSSIBLE__
