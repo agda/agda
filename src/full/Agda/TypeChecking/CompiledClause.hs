@@ -164,16 +164,13 @@ instance KillRange CompiledClauses where
 -- * TermLike instances
 
 instance TermLike a => TermLike (WithArity a) where
-  traverseTerm  = fmap . traverseTerm
   traverseTermM = traverse . traverseTermM
   foldTerm      = foldMap . foldTerm
 
 instance TermLike a => TermLike (Case a) where
-  traverseTerm  = fmap . traverseTerm
   traverseTermM = traverse . traverseTermM
   foldTerm      = foldMap . foldTerm
 
 instance TermLike a => TermLike (CompiledClauses' a) where
-  traverseTerm  = fmap . traverseTerm
   traverseTermM = traverse . traverseTermM
   foldTerm      = foldMap . foldTerm
