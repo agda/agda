@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances       #-}
 
 {-|
@@ -732,21 +733,22 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
                                  = all varOrDot $ map namedArg ps
           varOrDot _             = False
 
--- | @blank bound x@ replaces all variables in @x@ that are not in @bound@ by
+-- | @blank bound e@ replaces all variables in expression @e@ that are not in @bound@ by
 --   an underscore @_@. It is used for printing dot patterns: we don't want to
 --   make implicit variables explicit, so we blank them out in the dot patterns
 --   instead (this is fine since dot patterns can be inferred anyway).
+
 class BlankVars a where
   blank :: Set Name -> a -> a
 
-instance BlankVars a => BlankVars (Arg a) where
-  blank bound = fmap $ blank bound
+  default blank :: (Functor f, BlankVars b, f b ~ a) => Set Name -> a -> a
+  blank = fmap . blank
 
-instance BlankVars a => BlankVars (Named s a) where
-  blank bound = fmap $ blank bound
-
-instance BlankVars a => BlankVars [a] where
-  blank bound = fmap $ blank bound
+instance BlankVars a => BlankVars (Arg a)              where
+instance BlankVars a => BlankVars (Named s a)          where
+instance BlankVars a => BlankVars [a]                  where
+instance BlankVars a => BlankVars (A.Pattern' a)       where
+instance BlankVars a => BlankVars (FieldAssignment' a) where
 
 instance (BlankVars a, BlankVars b) => BlankVars (a, b) where
   blank bound (x, y) = (blank bound x, blank bound y)
@@ -773,25 +775,11 @@ instance BlankVars A.LHSCore where
   blank bound (A.LHSHead f ps) = A.LHSHead f $ blank bound ps
   blank bound (A.LHSProj p b ps) = uncurry (A.LHSProj p) $ blank bound (b, ps)
 
-instance BlankVars A.Pattern where
-  blank bound p = case p of
-    A.VarP _      -> p   -- do not blank pattern vars
-    A.ConP c i ps -> A.ConP c i $ blank bound ps
-    A.ProjP{}     -> p
-    A.DefP i f ps -> A.DefP i f $ blank bound ps
-    A.DotP i o e  -> A.DotP i o $ blank bound e
-    A.WildP _     -> p
-    A.AbsurdP _   -> p
-    A.LitP _      -> p
-    A.AsP i n p   -> A.AsP i n $ blank bound p
-    A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-    A.RecP i fs   -> A.RecP i $ blank bound fs
-
 instance BlankVars A.Expr where
   blank bound e = case e of
     A.ScopedExpr i e       -> A.ScopedExpr i $ blank bound e
     A.Var x                -> if x `Set.member` bound then e
-                              else A.Underscore emptyMetaInfo
+                              else A.Underscore emptyMetaInfo  -- Here is the action!
     A.Def _                -> e
     A.Proj{}               -> e
     A.Con _                -> e
@@ -824,9 +812,6 @@ instance BlankVars A.Expr where
     A.PatternSyn {}        -> e
     A.Macro {}             -> e
 
-instance BlankVars a => BlankVars (FieldAssignment' a) where
-  blank bound = over exprFieldA (blank bound)
-
 instance BlankVars A.ModuleName where
   blank bound = id
 
@@ -846,6 +831,7 @@ instance BlankVars TypedBindings where
 instance BlankVars TypedBinding where
   blank bound (TBind r n e) = TBind r n $ blank bound e
   blank bound (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
+
 
 class Binder a where
   varsBoundIn :: a -> Set Name
