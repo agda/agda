@@ -422,7 +422,7 @@ reallyFree f v = do
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
-  prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) EmptyS
+  prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) $ EmptyS __IMPOSSIBLE__
     where
       val i = case IntMap.lookup i sub of
                 Just (Irrelevant, v) -> Just $ dontCare v

@@ -1058,7 +1058,7 @@ instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
       IdS                  -> return IdS
-      EmptyS               -> return EmptyS
+      EmptyS err           -> return $ EmptyS err
       Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
       Lift n sigma         -> Lift n         <$> instantiateFull' sigma
       Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma

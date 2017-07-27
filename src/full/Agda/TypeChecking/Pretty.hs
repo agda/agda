@@ -174,7 +174,7 @@ instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutI
 instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = text "idS"
   prettyTCM (Wk m IdS) = text "wkS" <+> pretty m
-  prettyTCM EmptyS     = text "emptyS"
+  prettyTCM (EmptyS _) = text "emptyS"
   prettyTCM rho = prettyTCM u <+> comma <+> prettyTCM rho1
     where
       (rho1, rho2) = splitS 1 rho

@@ -395,7 +395,7 @@ instance EmbPrj a => EmbPrj (Builtin a) where
 
 instance EmbPrj a => EmbPrj (Substitution' a) where
   icod_ IdS              = icodeN' IdS
-  icod_ EmptyS           = icodeN 1 EmptyS
+  icod_ (EmptyS a)       = icodeN 1 EmptyS a
   icod_ (a :# b)         = icodeN 2 (:#) a b
   icod_ (Strengthen a b) = icodeN 3 Strengthen a b
   icod_ (Wk a b)         = icodeN 4 Wk a b
@@ -403,7 +403,7 @@ instance EmbPrj a => EmbPrj (Substitution' a) where
 
   value = vcase valu where
     valu []        = valuN IdS
-    valu [1]       = valuN EmptyS
+    valu [1, a]    = valuN EmptyS a
     valu [2, a, b] = valuN (:#) a b
     valu [3, a, b]    = valuN Strengthen a b
     valu [4, a, b] = valuN Wk a b
