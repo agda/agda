@@ -36,7 +36,7 @@ import Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Datatypes (getConType)
+import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
@@ -565,6 +565,7 @@ compareAtom cmp t m n =
             (Def f es, Def f' es') ->
               unlessM (bothAbsurd f f') $ do
                 trySizeUniv cmp t m n f es f' es'
+            -- Due to eta-expansion, these constructors are fully applied.
             (Con x ci xArgs, Con y _ yArgs)
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
@@ -630,7 +631,7 @@ compareAtom cmp t m n =
                 -- to solve left-over constraints.
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation
-          maybe impossible return =<< getConType c t
+          maybe impossible (return . snd) =<< getFullyAppliedConType c t
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
           (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
@@ -729,8 +730,14 @@ antiUnify pid a u v = do
     (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
       a <- typeOfBV i
       antiUnifyElims pid a (var i) us vs
+    -- Andreas, 2017-07-27:
+    -- It seems that nothing guarantees here that the constructors are fully
+    -- applied!?  Thus, @a@ could be a function type and we need the robust
+    -- @getConType@ here.
+    -- (Note that @patternViolation@ swallows exceptions coming from @getConType@
+    -- thus, we would not see clearly if we used @getFullyAppliedConType@ instead.)
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
-      a <- maybe patternViolation return =<< getConType x a
+      a <- maybe patternViolation (return . snd) =<< getConType x a
       antiUnifyElims pid a (Con x ci []) (map Apply us) (map Apply vs)
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs

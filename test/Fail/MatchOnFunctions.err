@@ -1,0 +1,3 @@
+MatchOnFunctions.agda:7,6-9
+Cannot pattern match on functions
+when checking that the pattern suc has type Nat → Nat

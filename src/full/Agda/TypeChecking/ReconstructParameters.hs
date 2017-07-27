@@ -1,8 +1,10 @@
 {-# LANGUAGE CPP #-}
+
 -- | Reconstruct dropped parameters from constructors.  Used by
 --   with-abstraction to avoid ill-typed abstractions (#745). Note that the
---   term in invalid after parameter reconstruction. Parameters need to be
+--   term is invalid after parameter reconstruction. Parameters need to be
 --   dropped again before using it.
+
 module Agda.TypeChecking.ReconstructParameters where
 
 import Control.Applicative

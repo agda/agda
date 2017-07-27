@@ -19,6 +19,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
+import Agda.Syntax.Abstract.Pattern ( containsAbsurdPattern )
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
@@ -645,7 +646,7 @@ checkRHS
                                               -- Note: the as-bindings are already bound (in checkClause)
 checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb _) rhs0 = handleRHS rhs0
   where
-  absurdPat = any (containsAbsurdPattern . namedArg) aps
+  absurdPat = containsAbsurdPattern aps
   handleRHS rhs =
     case rhs of
 
@@ -978,23 +979,6 @@ newSection m tel cont = do
       nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection m
 
     withCurrentModule m cont
-
-
--- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
-containsAbsurdPattern :: A.Pattern -> Bool
-containsAbsurdPattern p = case p of
-    A.AbsurdP _   -> True
-    A.VarP _      -> False
-    A.WildP _     -> False
-    A.DotP _ _ _  -> False
-    A.LitP _      -> False
-    A.AsP _ _ p   -> containsAbsurdPattern p
-    A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
-    A.RecP _ fs   -> any (containsAbsurdPattern . (^. exprFieldA)) fs
-    A.ProjP{}     -> False
-    A.DefP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
-    A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
-    A.EqualP{}    -> False
 
 -- | Set the current clause number.
 atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a

@@ -9,6 +9,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- | This module contains the definition of hereditary substitution
+-- and application operating on internal syntax which is in β-normal
+-- form (β including projection reductions).
+--
+-- Further, it contains auxiliary functions which rely on substitution
+-- but not on reduction.
+
 module Agda.TypeChecking.Substitute
   ( module Agda.TypeChecking.Substitute
   , module Agda.TypeChecking.Substitute.Class
@@ -950,12 +957,32 @@ projDropParsApply (Projection prop d r _ lams) o args =
 -- * Telescopes
 ---------------------------------------------------------------------------
 
+-- ** Telescope view of a type
+
 type TelView = TelV Type
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Typeable, Show, Functor)
 
 deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
 deriving instance (Subst t a, Ord a) => Ord (TelV a)
+
+-- | Takes off all exposed function domains from the given type.
+--   This means that it does not reduce to expose @Pi@-types.
+telView' :: Type -> TelView
+telView' = telView'UpTo (-1)
+
+-- | @telView'UpTo n t@ takes off the first @n@ exposed function types of @t@.
+-- Takes off all (exposed ones) if @n < 0@.
+telView'UpTo :: Int -> Type -> TelView
+telView'UpTo 0 t = TelV EmptyTel t
+telView'UpTo n t = case ignoreSharing $ unEl t of
+  Pi a b  -> absV a (absName b) $ telView'UpTo (n - 1) (absBody b)
+  _       -> TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+
+-- ** Creating telescopes from lists of types
 
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
@@ -974,20 +1001,8 @@ bindsWithHidingToTel' f (WithHiding h x : xs) t =
 bindsWithHidingToTel :: [WithHiding Name] -> Dom Type -> ListTel
 bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
 
--- | Takes off all exposed function domains from the given type.
---   This means that it does not reduce to expose @Pi@-types.
-telView' :: Type -> TelView
-telView' = telView'UpTo (-1)
 
--- | @telView'UpTo n t@ takes off the first @n@ exposed function types of @t@.
--- Takes off all (exposed ones) if @n < 0@.
-telView'UpTo :: Int -> Type -> TelView
-telView'UpTo 0 t = TelV EmptyTel t
-telView'UpTo n t = case ignoreSharing $ unEl t of
-  Pi a b  -> absV a (absName b) $ telView'UpTo (n - 1) (absBody b)
-  _       -> TelV EmptyTel t
-  where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+-- ** Abstracting in terms and types
 
 -- | @mkPi dom t = telePi (telFromList [dom]) t@
 mkPi :: Dom (ArgName, Type) -> Type -> Type
@@ -1047,6 +1062,21 @@ instance TeleNoAbs ListTel where
 instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel
 
+
+-- ** Telescope typing
+
+-- | Given arguments @vs : tel@ (vector typing), extract their individual types.
+--   Returns @Nothing@ is @tel@ is not long enough.
+
+typeArgsWithTel :: Telescope -> [Term] -> Maybe [Dom Type]
+typeArgsWithTel _ []                         = return []
+typeArgsWithTel (ExtendTel dom tel) (v : vs) = (dom :) <$> typeArgsWithTel (absApp tel v) vs
+typeArgsWithTel EmptyTel{} (_:_)             = Nothing
+
+---------------------------------------------------------------------------
+-- * Clauses
+---------------------------------------------------------------------------
+
 -- | In compiled clauses, the variables in the clause body are relative to the
 --   pattern variables (including dot patterns) instead of the clause telescope.
 compiledClauseBody :: Clause -> Maybe Term
@@ -1055,6 +1085,8 @@ compiledClauseBody cl = applySubst (renamingR perm) $ clauseBody cl
 
 ---------------------------------------------------------------------------
 -- * Syntactic equality and order
+--
+-- Needs weakening.
 ---------------------------------------------------------------------------
 
 deriving instance Eq Substitution
@@ -1145,6 +1177,9 @@ instance Ord Term where
   _          `compare` MetaV{}    = GT
   DontCare{} `compare` DontCare{} = EQ
 
+-- | Equality of binders relies on weakening
+--   which is a specical case of renaming
+--   which is a specical case of substitution.
 instance (Subst t a, Eq a) => Eq (Abs a) where
   NoAbs _ a == NoAbs _ b = a == b
   Abs   _ a == Abs   _ b = a == b

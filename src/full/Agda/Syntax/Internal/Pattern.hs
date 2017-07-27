@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                    #-}
+{-# LANGUAGE TypeFamilies           #-}  -- because of type equality ~
 {-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -81,17 +82,19 @@ class LabelPatVars a b i | b -> i where
   -- ^ Intended, but unpractical due to the absence of type-level lambda, is:
   --   @labelPatVars :: f (Pattern' x) -> State [i] (f (Pattern' (i,x)))@
 
-instance LabelPatVars a b i => LabelPatVars (Arg a) (Arg b) i where
+  default labelPatVars
+    :: (Traversable f, LabelPatVars a' b' i, f a' ~ a, f b' ~ b)
+    => a -> State [i] b
   labelPatVars = traverse labelPatVars
+
+  default unlabelPatVars
+    :: (Traversable f, LabelPatVars a' b' i, f a' ~ a, f b' ~ b)
+    => b -> a
   unlabelPatVars = fmap unlabelPatVars
 
+instance LabelPatVars a b i => LabelPatVars (Arg a) (Arg b) i         where
 instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
-  labelPatVars = traverse labelPatVars
-  unlabelPatVars = fmap unlabelPatVars
-
-instance LabelPatVars a b i => LabelPatVars [a] [b] i where
-  labelPatVars = traverse labelPatVars
-  unlabelPatVars = fmap unlabelPatVars
+instance LabelPatVars a b i => LabelPatVars [a] [b] i                 where
 
 instance LabelPatVars Pattern DeBruijnPattern Int where
   labelPatVars p =
@@ -209,18 +212,26 @@ instance MapNamedArg Pattern' where
       ProjP o q   -> setNamedArg np $ ProjP o q  -- ditto
       ConP c i ps -> setNamedArg np $ ConP c i $ map (mapNamedArg f) ps
 
+
 -- | Generic pattern traversal.
 --
 --   Pre-applies a pattern modification, recurses, and post-applies another one.
 
 class PatternLike a b where
+
+  -- | Fold pattern.
   foldrPattern
     :: Monoid m
     => (Pattern' a -> m -> m)
          -- ^ Combine a pattern and the value computed from its subpatterns.
-    -> b
-    -> m
+    -> b -> m
 
+  default foldrPattern
+    :: (Monoid m, Foldable f, PatternLike a p, f p ~ b)
+    => (Pattern' a -> m -> m) -> b -> m
+  foldrPattern = foldMap . foldrPattern
+
+  -- | Traverse pattern.
   traversePatternM :: (Monad m
 #if __GLASGOW_HASKELL__ <= 708
     , Applicative m, Functor m
@@ -229,11 +240,22 @@ class PatternLike a b where
       -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
       -> b -> m b
 
+  default traversePatternM :: (Traversable f, PatternLike a p, f p ~ b, Monad m
+#if __GLASGOW_HASKELL__ <= 708
+    , Applicative m, Functor m
+#endif
+    ) => (Pattern' a -> m (Pattern' a))
+      -> (Pattern' a -> m (Pattern' a))
+      -> b -> m b
+  traversePatternM pre post = traverse $ traversePatternM pre post
+
 -- | Compute from each subpattern a value and collect them all in a monoid.
+
 foldPattern :: (PatternLike a b, Monoid m) => (Pattern' a -> m) -> b -> m
 foldPattern f = foldrPattern $ \ p m -> f p `mappend` m
 
 -- | Traverse pattern(s) with a modification before the recursive descent.
+
 preTraversePatternM :: (PatternLike a b, Monad m
 #if __GLASGOW_HASKELL__ <= 708
   , Applicative m, Functor m
@@ -243,6 +265,7 @@ preTraversePatternM :: (PatternLike a b, Monad m
 preTraversePatternM pre = traversePatternM pre return
 
 -- | Traverse pattern(s) with a modification after the recursive descent.
+
 postTraversePatternM :: (PatternLike a b, Monad m
 #if __GLASGOW_HASKELL__ <= 708
   , Applicative m, Functor m
@@ -275,14 +298,6 @@ instance PatternLike a (Pattern' a) where
 
 -- Boilerplate instances:
 
-instance PatternLike a b => PatternLike a [b] where
-  foldrPattern = foldMap . foldrPattern
-  traversePatternM pre post = traverse $ traversePatternM pre post
-
-instance PatternLike a b => PatternLike a (Arg b) where
-  foldrPattern = foldMap . foldrPattern
-  traversePatternM pre post = traverse $ traversePatternM pre post
-
+instance PatternLike a b => PatternLike a [b]         where
+instance PatternLike a b => PatternLike a (Arg b)     where
 instance PatternLike a b => PatternLike a (Named x b) where
-  foldrPattern = foldMap . foldrPattern
-  traversePatternM pre post = traverse $ traversePatternM pre post

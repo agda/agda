@@ -25,7 +25,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Datatypes (getConType)
+import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -39,11 +39,14 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-- * Bidirectional rechecker
 
 -- -- | Entry point for e.g. checking WithFunctionType.
 -- checkType :: Type -> TCM ()
@@ -161,16 +164,12 @@ checkInternal' action v t = do
       a <- metaType x
       checkSpine action a (MetaV x []) es t
     Con c ci vs -> do
-      -- we need to fully apply the constructor to make getConType work
-      TelV tel t <- telView t
-      addContext tel $ do
-        let failure = typeError $ DoesNotConstructAnElementOf (conName c) t
-            vs'     = raise (size tel) vs ++ teleArgs tel
-        a <- maybe failure return =<< getConType c t
-        Con c ci vs2 <- checkArgs action a (Con c ci []) vs' t
-                 -- Strip away the extra arguments
-        return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
-               $ Con c ci (take (length vs) vs2)
+      let failure = do
+            -- To report the error, we need to get the data type that @t@ may end in.
+            TelV tel a <- telView t
+            addContext tel $ typeError $ DoesNotConstructAnElementOf (conName c) a
+      (_, a) <- fromMaybeM failure $ getConType c t
+      checkArgs action a (Con c ci []) vs t
     Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
@@ -200,7 +199,41 @@ checkInternal' action v t = do
     DontCare v -> DontCare <$> checkInternal' action v t
     Shared{}   -> __IMPOSSIBLE__
 
-checkSpine :: Action -> Type -> Term -> Elims -> Type -> TCM Term
+-- | Make sure a constructor is fully applied
+--   and infer the type of the constructor.
+--   Raises a type error if the constructor does not belong to the given type.
+fullyApplyCon
+  :: ConHead -- ^ Constructor.
+  -> Args    -- ^ Constructor arguments.
+  -> Type    -- ^ Type of the constructor application.
+  -> (QName -> Type -> Args -> Type -> Args -> Telescope -> Type -> TCM a)
+       -- ^ Name of the data/record type,
+       --   type of the data/record type,
+       --   reconstructed parameters,
+       --   type of the constructor (applied to parameters),
+       --   full application arguments,
+       --   types of missing arguments (already added to context),
+       --   type of the full application.
+  -> TCM a
+fullyApplyCon c vs t0 ret = do
+  TelV tel t <- telView t0
+  -- The type of the constructor application may still be a function
+  -- type.  In this case, we introduce the domains @tel@ into the context
+  -- and apply the constructor to these fresh variables.
+  addContext tel $ do
+    getFullyAppliedConType c t >>= \case
+      Nothing ->
+        typeError $ DoesNotConstructAnElementOf (conName c) t
+      Just ((d, dt, pars), a) ->
+        ret d dt pars a (raise (size tel) vs ++ teleArgs tel) tel t
+
+checkSpine
+  :: Action
+  -> Type      -- ^ Type of the head @self@.
+  -> Term      -- ^ The head @self@.
+  -> Elims     -- ^ The eliminations @es@.
+  -> Type      -- ^ Expected type of the application @self es@.
+  -> TCM Term  -- ^ The application after modification by the @Action@.
 checkSpine action a self es t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ text "checking spine "
@@ -212,7 +245,13 @@ checkSpine action a self es t = do
   t' <- reduce t'
   v' <$ coerceSize subtype v t' t
 
-checkArgs :: Action -> Type -> Term -> Args -> Type -> TCM Term
+checkArgs
+  :: Action
+  -> Type      -- ^ Type of the head.
+  -> Term      -- ^ The head.
+  -> Args      -- ^ The arguments.
+  -> Type      -- ^ Expected type of the application.
+  -> TCM Term  -- ^ The application after modification by the @Action@.
 checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.

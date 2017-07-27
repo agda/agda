@@ -827,7 +827,6 @@ instance TermLike Constraint where
       UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
       Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
       FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
-  traverseTerm f c  = __IMPOSSIBLE__ -- Not yet implemented
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
@@ -873,7 +872,7 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 
 -- | A thing tagged with the context it came from.
 data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
-    deriving (Typeable, Data, Show, Functor)
+    deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 instance Decoration Open where
   traverseF f (OpenThing cxt x) = OpenThing cxt <$> f x

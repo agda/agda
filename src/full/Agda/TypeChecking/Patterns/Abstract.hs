@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP          #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).
@@ -10,6 +11,7 @@ import Data.Traversable hiding (mapM, sequence)
 import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Concrete (FieldAssignment')
 import Agda.Syntax.Common
@@ -52,50 +54,54 @@ expandLitPattern p = traverse (traverse expand) p
     negLit = typeError $ GenericError $
       "Negative literals are not supported in patterns"
 
+
 -- | Expand away (deeply) all pattern synonyms in a pattern.
+
+-- Unfortunately, the more general type signature
+--
+--   expandPatternSynonyms :: forall a p . APatternLike a p => p -> TCM p
+--
+-- is rejected by GHC 7.10
+--
+--   Could not deduce (APatternLike A.Expr p)
+--     arising from a use of ‘postTraverseAPatternM’
+--
+-- I am mystified (Andreas, 2017-07-27)
+
+-- expandPatternSynonyms :: forall a p . APatternLike a p => p -> TCM p
+
+-- As a workaround, we define this function only for a = A.Exp, p = A.Pattern'
+-- and keep the type class ExpandPatternSynonyms (which would otherwise be superfluous).
+
+expandPatternSynonyms' :: A.Pattern -> TCM A.Pattern
+expandPatternSynonyms' = postTraverseAPatternM $ \case
+
+  A.PatternSynP i x as -> setCurrentRange i $ do
+    (ns, p) <- killRange <$> lookupPatternSyn x
+
+    -- Must expand arguments before instantiating otherwise pattern
+    -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
+    p :: A.Pattern <- expandPatternSynonyms' (vacuous p :: A.Pattern)
+
+    case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
+      Nothing       -> typeError $ BadArgumentsToPatternSynonym x
+      Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
+      Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p
+
+  p -> return p
+
 class ExpandPatternSynonyms a where
   expandPatternSynonyms :: a -> TCM a
 
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Maybe a) where
+  default expandPatternSynonyms
+    :: (Traversable f, ExpandPatternSynonyms b, f b ~ a) => a -> TCM a
   expandPatternSynonyms = traverse expandPatternSynonyms
 
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms [a] where
-  expandPatternSynonyms = traverse expandPatternSynonyms
-
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Arg a) where
-  expandPatternSynonyms = traverse expandPatternSynonyms
-
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Named n a) where
-  expandPatternSynonyms = traverse expandPatternSynonyms
-
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Maybe a)            where
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms [a]                  where
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Arg a)              where
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Named n a)          where
 instance ExpandPatternSynonyms a => ExpandPatternSynonyms (FieldAssignment' a) where
-  expandPatternSynonyms = traverse expandPatternSynonyms
 
 instance ExpandPatternSynonyms A.Pattern where
- expandPatternSynonyms p =
-  case p of
-    A.VarP{}             -> return p
-    A.WildP{}            -> return p
-    A.DotP{}             -> return p
-    A.LitP{}             -> return p
-    A.AbsurdP{}          -> return p
-    A.ProjP{}            -> return p
-    A.ConP i ds as       -> A.ConP i ds <$> expandPatternSynonyms as
-    A.DefP i q as        -> A.DefP i q <$> expandPatternSynonyms as
-    A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p
-    A.RecP i as          -> A.RecP i <$> expandPatternSynonyms as
-    A.EqualP{}           -> return p
-    A.PatternSynP i x as -> setCurrentRange i $ do
-      p <- killRange <$> lookupPatternSyn x
-        -- Must expand arguments before instantiating otherwise pattern
-        -- synonyms could get into dot patterns (which is __IMPOSSIBLE__)
-      instPatternSyn p =<< expandPatternSynonyms as
-
-      where
-        instPatternSyn :: A.PatternSynDefn -> [NamedArg A.Pattern] -> TCM A.Pattern
-        instPatternSyn (ns, p) as = do
-          p <- expandPatternSynonyms (vacuous p)
-          case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
-            Nothing       -> typeError $ BadArgumentsToPatternSynonym x
-            Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
-            Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p
+  expandPatternSynonyms = expandPatternSynonyms'

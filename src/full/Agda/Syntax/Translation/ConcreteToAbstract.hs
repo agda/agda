@@ -41,6 +41,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern ( patternVars )
 import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -143,38 +144,6 @@ checkPatternLinearity ps = do
   unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ ys -> do
     typeError $ RepeatedVariablesInPattern ys
 
-class PatternVars a where
-  patternVars :: a -> [A.Name]
-
-instance PatternVars a => PatternVars [a] where
-  patternVars = concatMap patternVars
-
-instance PatternVars a => PatternVars (Arg a) where
-  patternVars = patternVars . unArg
-
-instance PatternVars a => PatternVars (Named n a) where
-  patternVars = patternVars . namedThing
-
-instance PatternVars a => PatternVars (C.FieldAssignment' a) where
-  patternVars = patternVars . (^. exprFieldA)
-
-instance PatternVars (A.Pattern' e) where
-  patternVars p = case p of
-      A.VarP x               -> [x]
-      A.ConP _ _ args        -> patternVars args
-      A.ProjP _ _ _          -> []
-      A.WildP _              -> []
-      A.AsP _ x p            -> x : patternVars p
-      A.DotP _ _ _           -> []
-      A.AbsurdP _            -> []
-      A.LitP _               -> []
-      A.DefP _ _ args        -> patternVars args
-        -- Projection pattern, @args@ should be empty unless we have
-        -- indexed records.
-      A.PatternSynP _ _ args -> patternVars args
-      A.RecP _ fs            -> patternVars fs
-      A.EqualP{}             -> []
-
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotorEqPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
 noDotorEqPattern err = dot
@@ -193,6 +162,10 @@ noDotorEqPattern err = dot
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
+
+-- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
+noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
+noDotPattern err = traverse $ const $ typeError $ GenericError err
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> ScopeM C.Expr
@@ -2058,18 +2031,7 @@ instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
 -- bound anywhere in the pattern.
 
 instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
-    toAbstract (A.VarP x)             = return $ A.VarP x
-    toAbstract (A.ConP i ds as)       = A.ConP i ds <$> mapM toAbstract as
-    toAbstract (A.ProjP i o ds)       = return $ A.ProjP i o ds
-    toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
-    toAbstract (A.WildP i)            = return $ A.WildP i
-    toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
-    toAbstract (A.DotP i o e)         = A.DotP i o <$> insideDotPattern (toAbstract e)
-    toAbstract (A.EqualP i es)        = return $ A.EqualP i es
-    toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
-    toAbstract (A.LitP l)             = return $ A.LitP l
-    toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
-    toAbstract (A.RecP i fs)          = A.RecP i <$> mapM (traverse toAbstract) fs
+  toAbstract = traverse $ insideDotPattern . toAbstract
 
 resolvePatternIdentifier ::
   Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)

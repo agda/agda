@@ -56,6 +56,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -560,8 +561,10 @@ instance PrettyTCM TypeError where
     UninstantiatedDotPattern e -> fsep $
       pwords "Failed to infer the value of dotted pattern"
 
-    IlltypedPattern p a -> fsep $
-      pwords "Type mismatch"
+    IlltypedPattern p a -> do
+      let ho _ _ = fsep $ pwords "Cannot pattern match on functions"
+      ifPiType a ho $ {- else -} \ _ -> do
+        fsep $ pwords "Type mismatch"
 
     IllformedProjectionPattern p -> fsep $
       pwords "Ill-formed projection pattern " ++ [prettyA p]

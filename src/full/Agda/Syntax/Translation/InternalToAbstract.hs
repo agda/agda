@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances       #-}
 
 {-|
@@ -42,6 +43,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern ( foldAPattern )
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -748,21 +750,22 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
                                  = all varOrDot $ map namedArg ps
           varOrDot _             = False
 
--- | @blank bound x@ replaces all variables in @x@ that are not in @bound@ by
+-- | @blank bound e@ replaces all variables in expression @e@ that are not in @bound@ by
 --   an underscore @_@. It is used for printing dot patterns: we don't want to
 --   make implicit variables explicit, so we blank them out in the dot patterns
 --   instead (this is fine since dot patterns can be inferred anyway).
+
 class BlankVars a where
   blank :: Set Name -> a -> a
 
-instance BlankVars a => BlankVars (Arg a) where
-  blank bound = fmap $ blank bound
+  default blank :: (Functor f, BlankVars b, f b ~ a) => Set Name -> a -> a
+  blank = fmap . blank
 
-instance BlankVars a => BlankVars (Named s a) where
-  blank bound = fmap $ blank bound
-
-instance BlankVars a => BlankVars [a] where
-  blank bound = fmap $ blank bound
+instance BlankVars a => BlankVars (Arg a)              where
+instance BlankVars a => BlankVars (Named s a)          where
+instance BlankVars a => BlankVars [a]                  where
+-- instance BlankVars a => BlankVars (A.Pattern' a)       where  -- see case EqualP !
+instance BlankVars a => BlankVars (FieldAssignment' a) where
 
 instance (BlankVars a, BlankVars b) => BlankVars (a, b) where
   blank bound (x, y) = (blank bound x, blank bound y)
@@ -808,7 +811,7 @@ instance BlankVars A.Expr where
   blank bound e = case e of
     A.ScopedExpr i e       -> A.ScopedExpr i $ blank bound e
     A.Var x                -> if x `Set.member` bound then e
-                              else A.Underscore emptyMetaInfo
+                              else A.Underscore emptyMetaInfo  -- Here is the action!
     A.Def _                -> e
     A.Proj{}               -> e
     A.Con _                -> e
@@ -841,9 +844,6 @@ instance BlankVars A.Expr where
     A.PatternSyn {}        -> e
     A.Macro {}             -> e
 
-instance BlankVars a => BlankVars (FieldAssignment' a) where
-  blank bound = over exprFieldA (blank bound)
-
 instance BlankVars A.ModuleName where
   blank bound = id
 
@@ -864,8 +864,14 @@ instance BlankVars TypedBinding where
   blank bound (TBind r n e) = TBind r n $ blank bound e
   blank bound (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
+
+-- | Collect the binders in some abstract syntax lhs.
+
 class Binder a where
   varsBoundIn :: a -> Set Name
+
+  default varsBoundIn :: (Foldable f, Binder b, f b ~ a) => a -> Set Name
+  varsBoundIn = foldMap varsBoundIn
 
 instance Binder A.LHS where
   varsBoundIn (A.LHS _ core ps) = varsBoundIn (core, ps)
@@ -875,19 +881,19 @@ instance Binder A.LHSCore where
   varsBoundIn (A.LHSProj _ b ps) = varsBoundIn (b, ps)
 
 instance Binder A.Pattern where
-  varsBoundIn p = case p of
-    A.VarP x             -> if prettyShow x == "()" then empty else singleton x -- TODO: get rid of this hack?
-    A.ConP _ _ ps        -> varsBoundIn ps
-    A.ProjP{}            -> empty
-    A.DefP _ _ ps        -> varsBoundIn ps
-    A.WildP{}            -> empty
-    A.AsP _ x p          -> varsBoundIn p  -- This does not include the x because of issue #2414.
-    A.DotP{}             -> empty
-    A.AbsurdP{}          -> empty
-    A.LitP{}             -> empty
-    A.PatternSynP _ _ ps -> varsBoundIn ps
-    A.RecP _ fs          -> varsBoundIn fs
-    A.EqualP{}           -> empty
+  varsBoundIn = foldAPattern $ \case
+    A.VarP x            -> if prettyShow x == "()" then empty else singleton x -- TODO: get rid of this hack?
+    A.AsP _ x _         -> empty
+    A.ConP _ _ _        -> empty
+    A.ProjP{}           -> empty
+    A.DefP _ _ _        -> empty
+    A.WildP{}           -> empty
+    A.DotP{}            -> empty
+    A.AbsurdP{}         -> empty
+    A.LitP{}            -> empty
+    A.PatternSynP _ _ _ -> empty
+    A.RecP _ _          -> empty
+    A.EqualP{}          -> empty
 
 instance Binder A.LamBinding where
   varsBoundIn (A.DomainFree _ x) = singleton x
@@ -907,20 +913,13 @@ instance Binder LetBinding where
   varsBoundIn LetOpen{}           = empty
   varsBoundIn LetDeclaredVariable{} = empty
 
-instance Binder a => Binder (FieldAssignment' a) where
-  varsBoundIn = varsBoundIn . (^. exprFieldA)
-
-instance Binder a => Binder (Arg a) where
-  varsBoundIn = varsBoundIn . unArg
-
-instance Binder a => Binder (Named x a) where
-  varsBoundIn = varsBoundIn . namedThing
-
 instance Binder (WithHiding Name) where
   varsBoundIn (WithHiding _ x) = singleton x
 
-instance Binder a => Binder [a] where
-  varsBoundIn xs = Set.unions $ map varsBoundIn xs
+instance Binder a => Binder (FieldAssignment' a) where
+instance Binder a => Binder (Arg a)              where
+instance Binder a => Binder (Named x a)          where
+instance Binder a => Binder [a]                  where
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y

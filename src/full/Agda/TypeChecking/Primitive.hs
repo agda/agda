@@ -87,7 +87,6 @@ instance Integral Nat where
     where (q, r) = quotRem a b
 
 instance TermLike Nat where
-  traverseTerm  _ = id
   traverseTermM _ = pure
   foldTerm _      = mempty
 
