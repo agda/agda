@@ -54,9 +54,9 @@ class Abstract t where
 -- For terms:
 --
 --  Γ ⊢ ρ : Δ
---  Δ ⊢ t : σ
+--  Δ ⊢ t : A
 -- -----------
--- Γ ⊢ tρ : σρ
+-- Γ ⊢ tρ : Aρ
 
 class DeBruijn t => Subst t a | a -> t where
   applySubst :: Substitution' t -> a -> a
@@ -269,4 +269,3 @@ underLambdas n cont a v = loop n a v where
   loop n a v = case ignoreSharing v of
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
-
