@@ -9,8 +9,10 @@
 module Agda.Syntax.Abstract.Pattern where
 
 import Control.Monad ((>=>))
+import Control.Applicative (Applicative)
 
 import Data.Foldable (Foldable, foldMap)
+import Data.Traversable (Traversable, traverse)
 import Data.Functor
 import Data.Monoid
 
