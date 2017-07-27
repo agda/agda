@@ -146,21 +146,7 @@ checkPatternLinearity ps = do
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
-noDotPattern err = dot
-  where
-    dot :: A.Pattern' e -> ScopeM (A.Pattern' Void)
-    dot p = case p of
-      A.VarP x               -> pure $ A.VarP x
-      A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
-      A.ProjP i o d          -> pure $ A.ProjP i o d
-      A.WildP i              -> pure $ A.WildP i
-      A.AsP i x p            -> A.AsP i x <$> dot p
-      A.DotP{}               -> typeError $ GenericError err
-      A.AbsurdP i            -> pure $ A.AbsurdP i
-      A.LitP l               -> pure $ A.LitP l
-      A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
-      A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
-      A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
+noDotPattern err = traverse $ const $ typeError $ GenericError err
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> ScopeM C.Expr
