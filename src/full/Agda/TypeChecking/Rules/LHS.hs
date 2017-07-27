@@ -676,8 +676,6 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
         applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
         bindAsPatterns asb' $ do
 
-          rebindLocalRewriteRules
-
           -- Check dot patterns
           mapM_ checkDotPattern dpi
           mapM_ (uncurry isEmptyType) sbe

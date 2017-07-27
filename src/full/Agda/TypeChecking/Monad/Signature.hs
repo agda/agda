@@ -878,6 +878,22 @@ instantiateDef d = do
       unwords (map show $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
   return $ d `apply` vs
 
+instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
+                           ReadTCState m, MonadReader TCEnv m, MonadDebug m)
+                       => RewriteRule -> m RewriteRule
+instantiateRewriteRule rew = do
+  traceSLn "rewriting" 60 ("instantiating rewrite rule " ++ show (rewName rew) ++ " to the local context.") $ do
+  vs  <- freeVarsToApply $ rewName rew
+  let rew' = rew `apply` vs
+  traceSLn "rewriting" 60 ("instantiated rewrite rule: ") $ do
+  traceSLn "rewriting" 60 (show rew') $ do
+  return rew'
+
+instantiateRewriteRules :: (Functor m, HasConstInfo m, HasOptions m,
+                            ReadTCState m, MonadReader TCEnv m, MonadDebug m)
+                        => RewriteRules -> m RewriteRules
+instantiateRewriteRules = mapM instantiateRewriteRule
+
 -- | Give the abstract view of a definition.
 makeAbstract :: Definition -> Maybe Definition
 makeAbstract d =

@@ -309,20 +309,6 @@ addRewriteRules f rews = do
   --  , vcat (map prettyTCM rules)
   --  ]
 
--- | Sledgehammer approach to local rewrite rules. Rebind them after each
---   left-hand side (which scrambles the context).
-rebindLocalRewriteRules :: TCM ()
-rebindLocalRewriteRules = do
-  current <- currentModule
-  ruleMap <- use $ stSignature . sigRewriteRules
-  let isLocal r = m == current || m `isSubModuleOf` current
-        where m = qnameModule $ rewName r
-      ruleMap' = HMap.map (filter (not . isLocal)) ruleMap
-      locals = map rewName $ filter isLocal $ concat $ map reverse $ HMap.elems ruleMap
-  unless (null locals) $ __CRASH_WHEN__ "rewriting.local.crash" 1000
-  stSignature . sigRewriteRules .= ruleMap'
-  mapM_ addRewriteRule locals
-
 -- | @rewriteWith t f es rew@
 --   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type

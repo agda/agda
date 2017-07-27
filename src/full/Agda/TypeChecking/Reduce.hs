@@ -422,7 +422,7 @@ unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Bloc
 unfoldDefinitionStep unfoldDelayed v0 f es =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
-  rewr <- getRewriteRulesFor f
+  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asks envAllowedReductions
   let def = theDef info
       v   = v0 `applyE` es
@@ -514,7 +514,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
 reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
 reduceDefCopy f es = do
   info <- TCM.getConstInfo f
-  rewr <- TCM.getRewriteRulesFor f
+  rewr <- instantiateRewriteRules =<< TCM.getRewriteRulesFor f
   if (defCopy info) then reduceDef_ info rewr f es else return $ NoReduction ()
   where
     reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> TCM (Reduced () Term)

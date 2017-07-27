@@ -422,7 +422,7 @@ reallyFree f v = do
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
-  prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) $ EmptyS __IMPOSSIBLE__
+  prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) IdS
     where
       val i = case IntMap.lookup i sub of
                 Just (Irrelevant, v) -> Just $ dontCare v
@@ -431,7 +431,12 @@ makeSubstitution gamma sub =
 
 checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM (Maybe Blocked_)
 checkPostponedEquations sub eqs = forM' eqs $
-  \ (PostponedEquation k lhs rhs) -> equal (applySubst (liftS (size k) sub) lhs) rhs
+  \ (PostponedEquation k lhs rhs) -> do
+      let lhs' = applySubst (liftS (size k) sub) lhs
+      traceSDoc "rewriting" 60 (sep
+        [ text "checking postponed equality between" , addContext k (prettyTCM lhs')
+        , text " and " , addContext k (prettyTCM rhs) ]) $ do
+      equal lhs' rhs
 
 -- main function
 nonLinMatch :: (Match a b) => Telescope -> a -> b -> ReduceM (Either Blocked_ Substitution)

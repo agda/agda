@@ -261,7 +261,7 @@ fastReduce allowNonTerminating v = do
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- getRewriteRulesFor f
+    rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
     compactDef z s pf info rewr
   ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating rwr z s v
 
