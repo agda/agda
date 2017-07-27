@@ -188,6 +188,12 @@ Emacs mode
   The Agda input method did not bind bold digits. They are now
   available. The naming scheme is `\Bx` for digit `x`.
 
+* New bindings: More variants of the colon are now available.
+
+  The Agda input method originally only bound the standard unicode colon,
+  which looks deceptively like the normal colon, but typing `\:` you can
+  now get a whole slew of colons.
+
 * Case splitting now preserves underscores.
   [Issue [#819](https://github.com/agda/agda/issues/819)]
   ```agda
