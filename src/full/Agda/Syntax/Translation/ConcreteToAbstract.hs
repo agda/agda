@@ -1998,17 +1998,7 @@ instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
 -- bound anywhere in the pattern.
 
 instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
-    toAbstract (A.VarP x)             = return $ A.VarP x
-    toAbstract (A.ConP i ds as)       = A.ConP i ds <$> mapM toAbstract as
-    toAbstract (A.ProjP i o ds)       = return $ A.ProjP i o ds
-    toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
-    toAbstract (A.WildP i)            = return $ A.WildP i
-    toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
-    toAbstract (A.DotP i o e)         = A.DotP i o <$> insideDotPattern (toAbstract e)
-    toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
-    toAbstract (A.LitP l)             = return $ A.LitP l
-    toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
-    toAbstract (A.RecP i fs)          = A.RecP i <$> mapM (traverse toAbstract) fs
+  toAbstract = traverse $ insideDotPattern . toAbstract
 
 resolvePatternIdentifier ::
   Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
