@@ -82,17 +82,19 @@ class LabelPatVars a b i | b -> i where
   -- ^ Intended, but unpractical due to the absence of type-level lambda, is:
   --   @labelPatVars :: f (Pattern' x) -> State [i] (f (Pattern' (i,x)))@
 
-instance LabelPatVars a b i => LabelPatVars (Arg a) (Arg b) i where
+  default labelPatVars
+    :: (Traversable f, LabelPatVars a' b' i, f a' ~ a, f b' ~ b)
+    => a -> State [i] b
   labelPatVars = traverse labelPatVars
+
+  default unlabelPatVars
+    :: (Traversable f, LabelPatVars a' b' i, f a' ~ a, f b' ~ b)
+    => b -> a
   unlabelPatVars = fmap unlabelPatVars
 
+instance LabelPatVars a b i => LabelPatVars (Arg a) (Arg b) i         where
 instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
-  labelPatVars = traverse labelPatVars
-  unlabelPatVars = fmap unlabelPatVars
-
-instance LabelPatVars a b i => LabelPatVars [a] [b] i where
-  labelPatVars = traverse labelPatVars
-  unlabelPatVars = fmap unlabelPatVars
+instance LabelPatVars a b i => LabelPatVars [a] [b] i                 where
 
 instance LabelPatVars Pattern DeBruijnPattern Int where
   labelPatVars p =
