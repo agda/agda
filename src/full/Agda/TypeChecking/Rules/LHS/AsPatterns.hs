@@ -60,11 +60,6 @@ smashType a self (e : es) =
       Just (_, self, a) <- projectTyped self a o f
       (ProjT a :) <$> smashType a self es
 
-smashTel :: Telescope -> [Term] -> [Type]
-smashTel _ []                       = []
-smashTel (ExtendTel a tel) (v : vs) = unDom a : smashTel (absApp tel v) vs
-smashTel EmptyTel{} (_:_)           = __IMPOSSIBLE__
-
 asPatterns :: [ElimType] -> [NamedArg A.Pattern] -> [Elim] -> WriterT [AsBinding] TCM ()
 asPatterns _ [] _ = return ()
 asPatterns (ProjT a : as) (p : ps) (Proj{} : vs) = do
@@ -95,7 +90,7 @@ conPattern :: Type -> Term -> TCM (QName, ConHead, Telescope, [Type], Args)
 conPattern a (Con c ci args) = do
   Just (pars, ca) <- getConType c =<< reduce a
   TelV tel (El _ (Def d _)) <- telView ca
-  let as = smashTel tel (map unArg args)
+  let as = map unDom $ fromMaybe __IMPOSSIBLE__ $ typeArgsWithTel tel $ map unArg args
   return (d, c, tel, as, args)
 conPattern _ _ = __IMPOSSIBLE__
 

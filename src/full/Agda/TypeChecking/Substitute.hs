@@ -1056,6 +1056,16 @@ instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel
 
 
+-- ** Telescope typing
+
+-- | Given arguments @vs : tel@ (vector typing), extract their individual types.
+--   Returns @Nothing@ is @tel@ is not long enough.
+
+typeArgsWithTel :: Telescope -> [Term] -> Maybe [Dom Type]
+typeArgsWithTel _ []                         = return []
+typeArgsWithTel (ExtendTel dom tel) (v : vs) = (dom :) <$> typeArgsWithTel (absApp tel v) vs
+typeArgsWithTel EmptyTel{} (_:_)             = Nothing
+
 ---------------------------------------------------------------------------
 -- * Clauses
 ---------------------------------------------------------------------------
