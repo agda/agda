@@ -1,3 +1,6 @@
+-- Andreas, 2012-10-19 issue #719 blame correct module
+-- Andreas, 2017-07-28 point to correct binding site ("as A")
+
 module Issue719 where
 
   import Common.Size as A
@@ -5,8 +8,14 @@ module Issue719 where
 
   private open module A = M
 
--- NOT NICE:
+-- WAS:
 -- Duplicate definition of module A. Previous definition of module A
--- at /Users/abel/cover/alfa/Agda2-clean/test/Common/Size.agda:7,15-19
+-- at .../Common/Size.agda:7,15-19
+-- when scope checking the declaration
+--   open module A = M
+
+-- EXPECTED:
+-- Duplicate definition of module A. Previous definition of module A
+-- at .../Issue719.agda:6,25-26
 -- when scope checking the declaration
 --   open module A = M

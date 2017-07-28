@@ -54,6 +54,10 @@ forMaybe = flip mapMaybe
 caseMaybe :: Maybe a -> b -> (a -> b) -> b
 caseMaybe m d f = maybe d f m
 
+-- | 'caseMaybe' with flipped branches.
+ifJust :: Maybe a -> (a -> b) -> b -> b
+ifJust m f d = maybe d f m
+
 -- * Monads and Maybe.
 
 -- | Monadic version of 'maybe'.
