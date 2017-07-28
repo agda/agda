@@ -1,6 +1,5 @@
 Issue260d.agda:5,8-9
-Duplicate definition of module D. Previous definition of datatype
-module D at
-Issue260d.agda:4,6-7
+Duplicate definition of module D. Previous definition of (datatype)
+module D at Issue260d.agda:4,6-7
 when scope checking the declaration
   module D where

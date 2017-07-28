@@ -33,7 +33,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
-import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
+import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)

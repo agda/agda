@@ -608,9 +608,9 @@ instance PrettyTCM TypeError where
       pwords "Previous definition of" ++ [help m] ++ pwords "module" ++ [prettyTCM x] ++
       pwords "at" ++ [prettyTCM r]
       where
-        help m = do
-          b <- isDatatypeModule m
-          if b then text "datatype" else empty
+        help m = caseMaybeM (isDatatypeModule m) empty $ \case
+          IsData   -> text "(datatype)"
+          IsRecord -> text "(record)"
 
         -- Andreas, 2017-07-25, issue #2649
         -- Take the first nameBindingSite we can get hold of.
@@ -882,8 +882,10 @@ instance PrettyTCM TypeError where
       where
         help :: ModuleName -> TCM Doc
         help m = do
-          b <- isDatatypeModule m
-          sep [prettyTCM m, if b then text "(datatype module)" else empty]
+          anno <- caseMaybeM (isDatatypeModule m) (return empty) $ \case
+            IsData   -> return $ text "(datatype module)"
+            IsRecord -> return $ text "(record module)"
+          sep [prettyTCM m, anno ]
 
     UninstantiatedModule x -> fsep (
       pwords "Cannot access the contents of the parameterised module"

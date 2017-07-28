@@ -56,10 +56,9 @@ type ScopeM = TCM
 
 -- * Errors
 
-isDatatypeModule :: A.ModuleName -> ScopeM Bool
+isDatatypeModule :: A.ModuleName -> ScopeM (Maybe DataOrRecord)
 isDatatypeModule m = do
-   sc <- getScope
-   return $ maybe __IMPOSSIBLE__ scopeDatatypeModule (Map.lookup m (scopeModules sc))
+   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m . scopeModules <$> getScope
 
 -- * General operations
 
@@ -97,8 +96,9 @@ getNamedScope m = do
 getCurrentScope :: ScopeM Scope
 getCurrentScope = getNamedScope =<< getCurrentModule
 
--- | Create a new module with an empty scope (Bool is True if it is a datatype module)
-createModule :: Bool -> A.ModuleName -> ScopeM ()
+-- | Create a new module with an empty scope.
+--   (@Just@ if it is a datatype or record module.)
+createModule :: Maybe DataOrRecord -> A.ModuleName -> ScopeM ()
 createModule b m = do
   reportSLn "scope.createModule" 10 $ "createModule " ++ prettyShow m
   s <- getCurrentScope
@@ -520,7 +520,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             if (x == y) then return x else do
             lift $ reportSLn "scope.copy" 50 $ "  Copying module " ++ prettyShow x ++ " to " ++ prettyShow y
             addMod x y rec
-            lift $ createModule False y
+            lift $ createModule Nothing y
             -- We need to copy the contents of included modules recursively (only when 'rec')
             when rec $ copyRec x y
             return y
