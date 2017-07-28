@@ -117,7 +117,7 @@ There are a few exceptions to what you have to specify as hints:
 Timeout
 -------
 
-The timeout is five seconds by default but can be changed by adding
+The timeout is one second by default but can be changed by adding
 ``-t <n>`` to the parameters, where ``<n>`` is the number of seconds.
 
 Listing and choosing among several solutions
