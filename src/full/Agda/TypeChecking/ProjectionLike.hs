@@ -80,8 +80,9 @@ import Agda.TypeChecking.DropArgs
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -223,7 +224,7 @@ eligibleForProjectionLike d = do
 makeProjection :: QName -> TCM ()
 makeProjection x = -- if True then return () else do
  inTopContext $ do
-  -- reportSLn "tc.proj.like" 30 $ "Considering " ++ show x ++ " for projection likeness"
+  reportSLn "tc.proj.like" 70 $ "Considering " ++ prettyShow x ++ " for projection likeness"
   defn <- getConstInfo x
   let t = defType defn
   reportSDoc "tc.proj.like" 20 $ sep

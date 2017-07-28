@@ -22,6 +22,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Impossible
 import Agda.Utils.Functor ( ($>) )
+import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
@@ -61,7 +62,7 @@ etaExpandClause clause = liftTCM $ do
       reportSDoc "term.clause.expand" 30 $ inTopContext $ vcat
         [ text "etaExpandClause"
         , text "  body    = " <+> (addContext ctel' $ prettyTCM body)
-        , text "  xs      = " <+> text (show xs)
+        , text "  xs      = " <+> text (prettyShow xs)
         , text "  new tel = " <+> prettyTCM ctel'
         ]
       return $ Clause rl rf ctel' ps' (Just body') (Just (t $> t')) catchall

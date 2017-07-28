@@ -153,15 +153,15 @@ instance HasConstInfo ReduceM where
     let defs  = st^.(stSignature . sigDefinitions)
         idefs = st^.(stImports . sigDefinitions)
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> trace ("Unbound name: " ++ show q ++ " " ++ showQNameId q) __IMPOSSIBLE__
+        []  -> trace ("Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q) __IMPOSSIBLE__
         [d] -> mkAbs env d
-        ds  -> trace ("Ambiguous name: " ++ show q) __IMPOSSIBLE__
+        ds  -> trace ("Ambiguous name: " ++ prettyShow q) __IMPOSSIBLE__
     where
       mkAbs env d
         | treatAbstractly' q' env = fromMaybe err $ makeAbstract d
         | otherwise               = d
         where
-          err = trace ("Not in scope: " ++ show q) __IMPOSSIBLE__
+          err = trace ("Not in scope: " ++ prettyShow q) __IMPOSSIBLE__
           q' = case theDef d of
             -- Hack to make abstract constructors work properly. The constructors
             -- live in a module with the same name as the datatype, but for 'abstract'

@@ -305,8 +305,8 @@ instance PrettyTCM AsBinding where
 
 instance PP.Pretty AsBinding where
   pretty (AsB x v a) =
-    PP.text (show x ++ " =") PP.<+> PP.hang (PP.pretty v PP.<+> PP.text ":") 2
-                                            (PP.pretty a)
+    PP.pretty x PP.<+> PP.text "=" PP.<+>
+      PP.hang (PP.pretty v PP.<+> PP.text ":") 2 (PP.pretty a)
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a

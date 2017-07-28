@@ -20,6 +20,8 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Internal as I
 
+import Agda.Utils.Pretty ( prettyShow )
+
 findMentions :: Rewrite -> Range -> String -> ScopeM [(C.Name, I.Type)]
 findMentions norm rg nm = do
   -- We start by dealing with the user's input
@@ -52,7 +54,7 @@ findMentions norm rg nm = do
   ress <- forM namesInScope $ \ (x, n) -> do
     t <- normalForm norm =<< typeOfConst (anameName n)
     let namesInT = Set.toList $ namesIn t
-    let defName  = show x
+    let defName  = prettyShow x
     return $ do
       guard $ all (`isInfixOf` defName)   userSubStrings
       guard $ all (any (`elem` namesInT)) userIdentifiers

@@ -492,7 +492,6 @@ prune m' vs xs = do
       [ text "attempting kills"
       , nest 2 $ vcat
         [ text "m'    =" <+> pretty m'
-        -- , text "xs    =" <+> text (show xs)
         , text "xs    =" <+> prettyList (map (prettyTCM . var) xs)
         , text "vs    =" <+> prettyList (map prettyTCM vs)
         , text "kills =" <+> text (show kills)

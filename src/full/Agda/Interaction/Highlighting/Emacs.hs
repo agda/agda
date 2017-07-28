@@ -38,7 +38,8 @@ import Agda.Utils.Impossible
 toAtoms :: Aspects -> [String]
 toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
   where
-  toAtom x = map toLower (show x)
+  toAtom :: Show a => a -> String
+  toAtom = map toLower . show
 
   kindToAtom (Constructor Inductive)   = "inductiveconstructor"
   kindToAtom (Constructor CoInductive) = "coinductiveconstructor"

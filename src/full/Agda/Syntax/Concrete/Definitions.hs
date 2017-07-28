@@ -1216,14 +1216,14 @@ niceDeclarations ds = do
       xStrings   = nameStringParts x
       patStrings = concatMap nameStringParts pns
       in
---          trace ("x = " ++ show x) $
+--          trace ("x = " ++ prettyShow x) $
 --          trace ("pns = " ++ show pns) $
 --          trace ("xStrings = " ++ show xStrings) $
 --          trace ("patStrings = " ++ show patStrings) $
 --          trace ("mFixity = " ++ show mFixity) $
       case (headMaybe pns, mFixity) of
         -- first identifier in the patterns is the fun.symbol?
-        (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ show y) $ True
+        (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ prettyShow y) $ True
         -- are the parts of x contained in p
         _ | xStrings `isSublistOf` patStrings -> True -- trace ("couldBe since isSublistOf") $ True
         -- looking for a mixfix fun.symb

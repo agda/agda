@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Lens
 import Agda.Utils.Null
+import Agda.Utils.Pretty ( prettyShow )
 
 noMutualBlock :: TCM a -> TCM a
 noMutualBlock = local $ \e -> e { envMutualBlock = Nothing }
@@ -81,4 +82,4 @@ mutualBlockOf x = do
   mb <- Map.toList <$> use stMutualBlocks
   case filter (Set.member x . mutualNames . snd) mb of
     (i, _) : _ -> return i
-    _          -> fail $ "No mutual block for " ++ show x
+    _          -> fail $ "No mutual block for " ++ prettyShow x

@@ -57,5 +57,4 @@ forceEqualTerms u v =
         setPtr v p `seq` compressPointerChain u `seq` return ()
       where p = last $ pointerChain u
     update _ _ = __IMPOSSIBLE__
-    report x y = reportSLn "tc.ptr" 50 $ "setting " ++ show x ++ "\n     to " ++ show y
-
+    report u v = reportSLn "tc.ptr" 50 $ "setting " ++ show u ++ "\n     to " ++ show v

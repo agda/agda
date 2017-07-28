@@ -89,6 +89,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty ( prettyShow )
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -206,30 +208,6 @@ isTypeEqualTo e0 t = scopedExpr e0 >>= \case
 leqType_ :: Type -> Type -> TCM ()
 leqType_ t t' = workOnTypes $ leqType t t'
 
-{- UNUSED
--- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
---   used when instantiating a meta variable.
-
-forcePi :: Hiding -> String -> Type -> TCM Type
-forcePi h name (El s t) =
-    do  t' <- reduce t
-        case t' of
-            Pi _ _      -> return $ El s t'
-            _           -> do
-                sa <- newSortMeta
-                sb <- newSortMeta
-                let s' = sLub sa sb
-
-                a <- newTypeMeta sa
-                x <- freshName_ name
-                let arg = setHiding h $ defaultDom a
-                b <- addContext (x, arg) $ newTypeMeta sb
-                let ty = El s' $ Pi arg (Abs (show x) b)
-                equalType (El s t') ty
-                ty' <- reduce ty
-                return ty'
--}
-
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------
@@ -329,7 +307,7 @@ checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
-  reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ show xs
+  reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ prettyShow xs
   let numbinds = length xs
       possiblePath = numbinds == 1
                    && (case unScope typ of
@@ -390,7 +368,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
 
     useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ show y
+        reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ y
 
         -- merge in the hiding info of the TBind
         let [WithHiding h x] = xs
@@ -710,9 +688,9 @@ checkRecordExpression mfs e t = do
           -- Record constructor.
           con  = killRange $ recConHead def
       reportSDoc "tc.term.rec" 20 $ vcat
-        [ text $ "  xs  = " ++ show xs
-        , text   "  ftel= " <> prettyTCM (recTel def)
-        , text $ "  con = " ++ show con
+        [ text "  xs  = " <> return (P.pretty xs)
+        , text "  ftel= " <> prettyTCM (recTel def)
+        , text "  con = " <> return (P.pretty con)
         ]
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
@@ -721,7 +699,7 @@ checkRecordExpression mfs e t = do
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
       let re = getRange e
-          meta x = A.Underscore $ A.MetaInfo re scope Nothing (show x)
+          meta x = A.Underscore $ A.MetaInfo re scope Nothing (prettyShow x)
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
@@ -910,11 +888,14 @@ checkExpr e t0 =
           let quoted (A.Def x) = return x
               quoted (A.Macro x) = return x
               quoted (A.Proj o (AmbQ [x])) = return x
-              quoted (A.Proj o (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
+              quoted (A.Proj o (AmbQ xs))  =
+                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow xs
               quoted (A.Con (AmbQ [x])) = return x
-              quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
+              quoted (A.Con (AmbQ xs))  =
+                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow xs
               quoted (A.ScopedExpr _ e) = quoted e
-              quoted _                  = typeError $ GenericError $ "quote: not a defined name"
+              quoted _                  =
+                typeError $ GenericError $ "quote: not a defined name"
           x <- quoted (namedThing e)
           ty <- qNameType
           coerce (quoteName x) ty t

@@ -111,15 +111,17 @@ highlightAsTypeChecked rPre r m
 -- | Lispify and print the given highlighting information.
 
 printHighlightingInfo :: MonadTCM tcm => HighlightingInfo -> tcm ()
-printHighlightingInfo x = do
+printHighlightingInfo info = do
   modToSrc <- use stModuleToSource
   method   <- view eHighlightingMethod
-  liftTCM $ reportSLn "highlighting" 50 $
-    "Printing highlighting info:\n" ++ show x ++ "\n" ++
-    "  modToSrc = " ++ show modToSrc
-  unless (null $ ranges x) $ do
+  liftTCM $ reportSLn "highlighting" 50 $ unlines
+    [ "Printing highlighting info:"
+    , show info
+    , "  modToSrc = " ++ show modToSrc
+    ]
+  unless (null $ ranges info) $ do
     liftTCM $ appInteractionOutputCallback $
-        Resp_HighlightingInfo x method modToSrc
+        Resp_HighlightingInfo info method modToSrc
 
 -- | Highlighting levels.
 
@@ -159,7 +161,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
             Partial {} -> "(first approximation)"
         ++ "."
 
-  reportSLn "highlighting.names" 60 $ "highlighting names = " ++ show names
+  reportSLn "highlighting.names" 60 $ "highlighting names = " ++ prettyShow names
 
   M.ignoreAbstractMode $ do
     modMap <- sourceToModule
