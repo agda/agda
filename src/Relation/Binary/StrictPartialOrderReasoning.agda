@@ -12,4 +12,10 @@ module Relation.Binary.StrictPartialOrderReasoning
 
 import Relation.Binary.PreorderReasoning as PreR
 import Relation.Binary.Properties.StrictPartialOrder as SPO
-open PreR (SPO.preorder S) public renaming (_∼⟨_⟩_ to _<⟨_⟩_)
+open PreR (SPO.preorder S) public
+open import Data.Sum
+
+_<⟨_⟩_ : ∀ x {y z} → _ → y IsRelatedTo z → x IsRelatedTo z
+x <⟨ x∼y ⟩ y∼z = x ∼⟨ inj₁ x∼y ⟩ y∼z
+
+infixr 2 _<⟨_⟩_

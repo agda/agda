@@ -83,6 +83,9 @@ Non-backwards compatible changes
   location was causing dependency cyles to form between `Data.Fin.Dec`,
   `Relation.Nullary.Negation` and `Data.Fin`.
 
+* Changed type of second parameter of `Relation.Binary.StrictPartialOrderReasoning._<⟨_⟩_`
+  from `x < y ⊎ x ≈ y` to `x < y`. `_≈⟨_⟩_` is left unchanged to take a value with type `x ≈ y`.
+
 Deprecated features
 -------------------
 
