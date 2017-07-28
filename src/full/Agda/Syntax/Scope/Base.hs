@@ -55,7 +55,7 @@ data Scope = Scope
       , scopeParents        :: [A.ModuleName]
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
-      , scopeDatatypeModule :: Bool
+      , scopeDatatypeModule :: Maybe DataOrRecord
       }
   deriving (Typeable, Data, Eq, Show)
 
@@ -343,7 +343,7 @@ emptyScope = Scope
   , scopeParents        = []
   , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
   , scopeImports        = Map.empty
-  , scopeDatatypeModule = False
+  , scopeDatatypeModule = Nothing
   }
 
 -- | The empty scope info.

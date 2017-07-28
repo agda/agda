@@ -1,5 +1,5 @@
 Issue260c.agda:5,8-9
-Duplicate definition of module R. Previous definition of module R
-at Issue260c.agda:4,8-9
+Duplicate definition of module R. Previous definition of (record)
+module R at Issue260c.agda:4,8-9
 when scope checking the declaration
   module R where

@@ -1,0 +1,7 @@
+Issue705-record.agda:10,6-7
+Ambiguous module name A. It could refer to any one of
+  A.A (record module)
+  Issue705-record.A
+(hint: Use C-c C-w (in Emacs) if you want to know why)
+when scope checking the declaration
+  open A

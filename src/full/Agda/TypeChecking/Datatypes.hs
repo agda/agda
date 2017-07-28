@@ -150,9 +150,6 @@ isDatatype d = do
     Record{recNamedCon = namedC} -> return namedC
     _                            -> return False
 
-data DataOrRecord = IsData | IsRecord
-  deriving (Eq, Ord, Show)
-
 -- | Check if a name refers to a datatype or a record.
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
