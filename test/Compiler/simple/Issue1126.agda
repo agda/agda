@@ -20,7 +20,8 @@ postulate
 postulate
   return  : ∀ {A} → A → IO A
 {-# COMPILE GHC return = (\ _ -> return) #-}
-
+{-# COMPILE JS return =
+    function(u0) { return function(u1) { return function(x) { return function(cb) { cb(x); }; }; }; } #-}
 
 force : Unit → IO Unit
 force unit = return unit
