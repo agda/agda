@@ -89,10 +89,6 @@ Deprecated features
 Deprecated features still exist and therefore existing code should still work
 but they may be removed in some future release of the library.
 
-* The infix versions of `_+-mono_` and `_*-mono_` in `Data.Nat.Properties`
-  have been deprecated in favour of `+-mono-≤` and `*-mono-≤` which better
-  follow the library's naming conventions.
-
 * The module `Data.Nat.Properties.Simple` is now deprecated. All proofs
   have been moved to `Data.Nat.Properties` where they should be used directly.
   The `Simple` file still exists for backwards compatability reasons and
@@ -110,6 +106,19 @@ but they may be removed in some future release of the library.
   directly. The `Multiplication.Properties` file still exists for backwards
   compatability reasons and re-exports the proofs from `Data.Integer.Properties`
   but will be removed in some future release.
+
+* The following renaming has occured in `Data.Nat.Properties`
+  ```agda
+  _+-mono_  ↦  *-mono-≤
+  _*-mono_  ↦  +-mono-≤
+  ```
+
+* The following renaming has occurred in `Data.Nat.Divisibility`:
+  ```agda
+  ∣-*   ↦   n|m*n
+  ∣-+   ↦   ∣m∣n⇒∣m+n
+  ∣-∸   ↦   ∣m+n|m⇒|n
+  ```
 
 Backwards compatible changes
 ----------------------------
@@ -552,6 +561,9 @@ Backwards compatible changes
   ∣-antisym        : Antisymmetric _≡_ _∣_
   ∣-isPreorder     : IsPreorder _≡_ _∣_
   ∣-isPartialOrder : IsPartialOrder _≡_ _∣_
+
+  n∣n              : n ∣ n
+  ∣m∸n∣n⇒∣m        : n ≤ m → i ∣ m ∸ n → i ∣ n → i ∣ m
   ```
 
 * A new module `Data.Rational.Properties` has been added, containing proofs:
