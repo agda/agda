@@ -242,16 +242,6 @@ install:
     fi
 
 ##############################################################################
-# Installing size-solver and shelltestrunner
-
-# Required for testing the size-solver program.
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make install-size-solver &&
-       cabal install shelltestrunner;
-    fi
-
-##############################################################################
 # Installing a recent version of Node (see Issue #2192)
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -367,6 +357,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
+       cabal install shelltestrunner &&
        make test-size-solver;
     fi
 
