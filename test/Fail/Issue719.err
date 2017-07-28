@@ -1,5 +1,5 @@
-Issue719.agda:6,23-24
+Issue719.agda:9,23-24
 Duplicate definition of module A. Previous definition of module A
-at Size.agda:7,15-19
+at Issue719.agda:6,25-26
 when scope checking the declaration
   open module A = M

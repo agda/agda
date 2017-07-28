@@ -1,7 +1,6 @@
 Issue481.agda:7,53-55
 Duplicate definition of module as. Previous definition of module as
-at
-Issue481ParametrizedModule.agda:1,15-41
+at Issue481.agda:6,50-52
 when scope checking the declaration
   open module as
     = .#Common.Issue481ParametrizedModule-9698317578869607234 as
