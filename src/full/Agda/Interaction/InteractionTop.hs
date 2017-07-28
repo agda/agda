@@ -840,9 +840,9 @@ interpret (Cmd_auto ii rng s) = do
   st <- lift $ get
   (time , res) <- maybeTimed $ lift $ Auto.auto ii rng s
   case autoProgress res of
-   Solutions xs -> do
-    lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show xs
-    forM_ xs $ \(ii, s) -> do
+   Solutions sols -> do
+    lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show sols
+    forM_ sols $ \(ii, s) -> do
       -- Andreas, 2014-07-05 Issue 1226:
       -- For highlighting, Resp_GiveAction needs to access
       -- the @oldInteractionScope@s of the interaction points solved by Auto.
@@ -854,7 +854,7 @@ interpret (Cmd_auto ii rng s) = do
       -- modifyTheInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
     -- Andreas, 2014-07-07: Remove the interaction points in one go.
-    modifyTheInteractionPoints (\\ (map fst xs))
+    modifyTheInteractionPoints (\\ (map fst sols))
     case autoMessage res of
      Nothing  -> interpret Cmd_metas
      Just msg -> display_info $ Info_Auto msg
@@ -1277,7 +1277,7 @@ showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
     (modules, types) <- B.moduleContents norm rng s
     types' <- forM types $ \ (x, t) -> do
       t <- TCP.prettyTCM t
-      return (show x, text ":" <+> t)
+      return (prettyShow x, text ":" <+> t)
     return $ vcat
       [ text "Modules"
       , nest 2 $ vcat $ map (text . show) modules
@@ -1296,7 +1296,7 @@ searchAbout norm rg nm = do
        hits <- findMentions norm rg tnm
        forM hits $ \ (x, t) -> do
          t <- TCP.prettyTCM t
-         return (show x, text ":" <+> t)
+         return (prettyShow x, text ":" <+> t)
     display_info $ Info_SearchAbout $
       text "Definitions about" <+> text (intercalate ", " $ words nm) $$
       nest 2 (align 10 fancy)

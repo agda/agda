@@ -23,10 +23,11 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.List
-import Agda.Utils.Maybe
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Pretty ( prettyShow )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -57,7 +58,7 @@ displayForm q es = do
     unless (null odfs) $ verboseS "tc.display.top" 100 $ do
       n <- getContextId
       reportSLn "tc.display.top" 100 $
-        "displayForm for " ++ show q ++ ": context = " ++ show n ++
+        "displayForm for " ++ prettyShow q ++ ": context = " ++ show n ++
         ", dfs = " ++ show odfs
     -- Use only the display forms that can be opened in the current context.
     dfs   <- catMaybes <$> mapM getLocal odfs
@@ -69,7 +70,7 @@ displayForm q es = do
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, es)
     unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
-      [ "name        : " ++ show q
+      [ "name        : " ++ prettyShow q
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show es
       , "matches     : " ++ show ms

@@ -794,10 +794,13 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
       buildInterface file topLevel syntaxInfo options
 
-    reportSLn "tc.top" 101 $ concat $
-      "Signature:\n" :
-      [ show x ++ "\n  type: " ++ show (defType def)
-               ++ "\n  def:  " ++ show cc ++ "\n"
+    reportSLn "tc.top" 101 $ unlines $
+      "Signature:" :
+      [ unlines
+          [ prettyShow x
+          , "  type: " ++ show (defType def)
+          , "  def:  " ++ show cc
+          ]
       | (x, def) <- HMap.toList $ iSignature i ^. sigDefinitions,
         Function{ funCompiled = cc } <- [theDef def]
       ]

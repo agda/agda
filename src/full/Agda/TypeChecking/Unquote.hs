@@ -662,7 +662,7 @@ evalTCM v = do
 
     constInfo :: QName -> TCM Definition
     constInfo x = getConstInfo x `catchError` \ _ ->
-                  genericError $ "Unbound name: " ++ show x
+                  genericError $ "Unbound name: " ++ prettyShow x
 
     tcGetType :: QName -> TCM Term
     tcGetType x = quoteType . defType =<< constInfo x
@@ -686,14 +686,17 @@ evalTCM v = do
       setDirty
       let h = getHiding i
           r = getRelevance i
-      when (h == Hidden) $ liftU $ typeError . GenericDocError =<< text "Cannot declare hidden function" <+> prettyTCM x
+      when (h == Hidden) $ liftU $ typeError . GenericDocError =<<
+        text "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftU $ do
-        reportSDoc "tc.unquote.decl" 10 $ sep [ text "declare" <+> prettyTCM x <+> text ":"
-                                              , nest 2 $ prettyTCM a ]
+        reportSDoc "tc.unquote.decl" 10 $ sep
+          [ text "declare" <+> prettyTCM x <+> text ":"
+          , nest 2 $ prettyTCM a
+          ]
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- isJust <$> tryMaybe (getConstInfo x)
-        when alreadyDefined $ genericError $ "Multiple declarations of " ++ show x
+        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a emptyFunction
         when (isInstance h) $ addTypedInstance x a
         primUnitUnit
@@ -701,7 +704,7 @@ evalTCM v = do
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
     tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftU $ do
       _ <- getConstInfo x `catchError` \ _ ->
-        genericError $ "Missing declaration for " ++ show x
+        genericError $ "Missing declaration for " ++ prettyShow x
       cs <- mapM (toAbstract_ . QNamed x) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ConcreteDef noRange

@@ -12,8 +12,6 @@ import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 import Data.Set (Set)
 
-import Text.PrettyPrint.HughesPJ hiding (empty)
-
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -22,6 +20,8 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
+
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -176,10 +176,10 @@ partP ms s =
   doc (text (show str)) $
   satNoPlaceholder isLocal
   where
-  str = show (foldr Qual (QName (Name noRange [Id s])) ms)
+  str = prettyShow $ foldr Qual (QName $ Name noRange [Id s]) ms
   isLocal e = case exprView e of
-      LocalV y | str == show y -> Just (getRange y)
-      _                        -> Nothing
+      LocalV y | str == prettyShow y -> Just $ getRange y
+      _ -> Nothing
 
 -- | Parses a split-up, unqualified name consisting of at least two
 -- name parts.

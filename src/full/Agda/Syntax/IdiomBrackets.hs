@@ -11,6 +11,8 @@ import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.Pretty ( prettyShow )
+
 parseIdiomBrackets :: Range -> Expr -> ScopeM Expr
 parseIdiomBrackets r e = do
   let qPure = QName $ Name noRange [Id "pure"]
@@ -44,5 +46,6 @@ ensureInScope :: QName -> ScopeM ()
 ensureInScope q = do
   r <- resolveName q
   case r of
-    UnknownName -> genericError $ show q ++ " needs to be in scope to use idiom brackets (| ... |)"
+    UnknownName -> genericError $
+      prettyShow q ++ " needs to be in scope to use idiom brackets (| ... |)"
     _ -> return ()

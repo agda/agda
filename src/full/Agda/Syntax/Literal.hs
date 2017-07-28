@@ -38,10 +38,10 @@ instance Show Literal where
 
 instance Pretty Literal where
     pretty (LitNat _ n)     = text $ show n
-    pretty (LitFloat _ x)   = text $ show x
+    pretty (LitFloat _ d)   = text $ show d
     pretty (LitString _ s)  = text $ showString' s ""
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
-    pretty (LitQName _ x)   = text $ show x
+    pretty (LitQName _ x)   = pretty x
     pretty (LitMeta _ _ x)  = pretty x
 
 showString' :: String -> ShowS

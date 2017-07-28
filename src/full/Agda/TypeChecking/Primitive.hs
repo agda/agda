@@ -53,7 +53,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (pretty)
+import Agda.Utils.Pretty (pretty, prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.String ( Str(Str), unStr )
 
@@ -831,7 +831,7 @@ lookupPrimitiveFunction x =
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do
   let s = case qnameName q of
-            Name _ x _ _ -> show x
+            Name _ x _ _ -> prettyShow x
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
 

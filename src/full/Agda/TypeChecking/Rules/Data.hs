@@ -36,6 +36,7 @@ import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
@@ -269,8 +270,9 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               ]
         , nest 2 $ text "nofPars =" <+> text (show n)
         ]
-    debugNonLinPars xs =
-      reportSDoc "tc.data.con" 15 $ text $ "these constructor parameters are non-linear: " ++ show xs
+    debugNonLinPars ks =
+      reportSDoc "tc.data.con" 15 $
+        text "these constructor parameters are non-linear:" <+> text (show ks)
     debugFitsIn s =
       reportSDoc "tc.data.con" 15 $ sep
         [ text "checking that the type fits in"
