@@ -1100,7 +1100,25 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         (outsideDecls, [ C.Module r m0 tel insideDecls ]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
-                then return $ C.QName $ C.Name (getRange m0) [Id $ stringToRawName $ rootNameModule file]
+                then do
+                  -- Andreas, 2017-07-28, issue #1077
+                  -- Check if the insideDecls end in a single module which has the same
+                  -- name as the file.  In this case, it is highly likely that the user
+                  -- put some non-allowed declarations before the top-level module in error.
+                  case flip span insideDecls $ \case { C.Module{} -> False; _ -> True } of
+                    (ds0, [ C.Module _ m1 _ _ ])
+                       | C.toTopLevelModuleName m1 == expectedMName
+                         -- If the anonymous module comes from the user,
+                         -- the range cannot be the beginningOfFile.
+                         -- That is the range if the parser inserted the anon. module.
+                       , r == beginningOfFile (getRange insideDecls) -> do
+
+                         traceCall (SetRange $ getRange ds0) $ typeError $ GenericError $
+                           "Illegal declaration(s) before top-level module"
+
+                    -- Otherwise, reconstruct the top-level module name
+                    _ -> return $ C.QName $ C.Name (getRange m0)
+                           [Id $ stringToRawName $ rootNameModule file]
                 -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:
                 -- -- We assign an anonymous file module the name expected from

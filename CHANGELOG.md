@@ -156,6 +156,38 @@ Language
   ```
   Before this change, you had to write `f .true c = true`.
 
+* Rule change for omitted top-level module headers.
+  [Issue [#1077](https://github.com/agda/agda/issues/1077)]
+
+  If your file is named `Bla.agda`, then the following content
+  is rejected.
+  ```agda
+    foo = Set
+    module Bla where
+      bar = Set
+  ```
+  Before the fix of this issue, Agda would add the missing module
+  header `module Bla where` at the top of the file.
+  However, in this particular case it is more likely the user
+  put the declaration `foo = Set` before the module start in error.
+  Now you get the error
+  ```
+    Illegal declaration(s) before top-level module
+  ```
+  if the following conditions are met:
+
+    1. There is at least one non-import declaration or non-toplevel pragma
+       before the start of the first module.
+
+    2. The module has the same name as the file.
+
+    3. The module is the only module at this level
+       (may have submodules, of course).
+
+  If you should see this error, insert a top-level module
+  before the illegal declarations, or move them inside the
+  existing module.
+
 Emacs mode
 ----------
 

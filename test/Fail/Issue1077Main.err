@@ -1,0 +1,4 @@
+Issue1077.agda:6,1-10
+Illegal declaration(s) before top-level module
+when scope checking the declaration
+  open import Issue1077
