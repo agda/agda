@@ -1476,7 +1476,11 @@ checkOrInferMeta newMeta mt i = do
     -- Rechecking an existing metavariable
     Just x -> do
       let v = MetaV x []
+      reportSDoc "tc.meta.check" 20 $
+        text "checking existing meta " <+> prettyTCM v
       t' <- jMetaType . mvJudgement <$> lookupMeta x
+      reportSDoc "tc.meta.check" 20 $
+        nest 2 $ text "of type " <+> prettyTCM t'
       case mt of
         Nothing -> return (v, t')
         Just t  -> (,t) <$> coerce v t' t

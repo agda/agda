@@ -582,7 +582,11 @@ assign dir x args v = do
   -- arguments to definitions as flexible), if that fails it tries again
   -- with full unfolding.
   v <- instantiate v
-  reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: assigning to " ++ show v
+  reportSDoc "tc.meta.assign" 45 $
+    text "MetaVars.assign: assigning to " <+> prettyTCM v
+
+  reportSLn "tc.meta.assign" 75 $
+    "MetaVars.assign: assigning to " ++ show v
 
   case (ignoreSharing v, mvJudgement mvar) of
       (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
@@ -616,7 +620,21 @@ assign dir x args v = do
     -- args <- etaContract =<< normalise args
 
     -- Also, try to expand away projected vars in meta args.
+    reportSDoc "tc.meta.assign.proj" 45 $ do
+      cxt <- getContextTelescope
+      vcat
+        [ text "context before projection expansion"
+        , nest 2 $ inTopContext $ prettyTCM cxt
+        ]
+
     expandProjectedVars args v $ \ args v -> do
+
+      reportSDoc "tc.meta.assign.proj" 45 $ do
+        cxt <- getContextTelescope
+        vcat
+          [ text "context after projection expansion"
+          , nest 2 $ inTopContext $ prettyTCM cxt
+          ]
 
       -- If we had the type here we could save the work we put
       -- into expanding projected variables.
@@ -890,8 +908,22 @@ assignMeta' m x t n ids v = do
        patternViolation -- WAS: __IMPOSSIBLE__
 
     -- Perform the assignment (and wake constraints).
+
+    let vsol = abstract tel' v'
+    -- -- Andreas, 2013-10-25 double check solution before assigning
+    -- -- Andreas, 2017-07-28
+    -- m <- lookupMeta x
+    -- case mvJudgement m of
+    --   IsSort{}    -> return ()  -- skip double check since type of meta is not accurate
+    --   HasType _ a -> do
+    --     reportSDoc "tc.meta.check" 30 $ vcat
+    --       [ text "double checking solution"
+    --       , nest 2 $ prettyTCM vsol <+> text " : " <+> prettyTCM a
+    --       ]
+    --     dontAssignMetas $ checkInternal vsol a  -- This can crash at assignTerm'!
+
     reportSDoc "tc.meta.assign" 10 $
-      text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM (abstract tel' v')
+      text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM vsol
     assignTerm x (telToArgs tel') v'
 
 
@@ -979,7 +1011,7 @@ instance NoProjectedVar Term where
     case ignoreSharing t of
       Var i es
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
-      -- Andreas, 2015-09-12 Issue 1316:
+      -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
       Con (ConHead _ Inductive (_:_)) _ vs -> noProjectedVar vs
       _ -> return ()

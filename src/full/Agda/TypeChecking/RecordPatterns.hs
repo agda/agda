@@ -121,7 +121,17 @@ getEtaAndArity c =
     RecordCon eta fs -> (eta == YesEta, size fs)
 
 translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
-translateCompiledClauses cc = snd <$> loop cc
+translateCompiledClauses cc = do
+  reportSDoc "tc.cc.record" 20 $ vcat
+    [ text "translate record patterns in compiled clauses"
+    , nest 2 $ return $ pretty cc
+    ]
+  cc <- snd <$> loop cc
+  reportSDoc "tc.cc.record" 20 $ vcat
+    [ text "translated compiled clauses (no eta record patterns):"
+    , nest 2 $ return $ pretty cc
+    ]
+  return cc
   where
 
     loop :: CompiledClauses -> TCM ([Bool], CompiledClauses)
