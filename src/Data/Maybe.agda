@@ -6,21 +6,23 @@
 
 module Data.Maybe where
 
-open import Level
+open import Category.Functor
+open import Category.Monad
+open import Category.Monad.Identity
 open import Function
+open import Level
 open import Relation.Nullary
+import Relation.Nullary.Decidable as Dec
+open import Relation.Binary as B
+open import Relation.Unary as U
 
 ------------------------------------------------------------------------
--- The type and some operations
+-- The base type and some operations
 
 open import Data.Maybe.Base public
 
 ------------------------------------------------------------------------
 -- Maybe monad
-
-open import Category.Functor
-open import Category.Monad
-open import Category.Monad.Identity
 
 functor : ∀ {f} → RawFunctor (Maybe {a = f})
 functor = record
@@ -57,8 +59,6 @@ monadPlus {f} = record
 ------------------------------------------------------------------------
 -- Equality
 
-open import Relation.Binary as B
-
 data Eq {a ℓ} {A : Set a} (_≈_ : Rel A ℓ) : Rel (Maybe A) (a ⊔ ℓ) where
   just    : ∀ {x y} (x≈y : x ≈ y) → Eq _≈_ (just x) (just y)
   nothing : Eq _≈_ nothing nothing
@@ -67,53 +67,59 @@ drop-just : ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ} {x y : A} →
             just x ⟨ Eq _≈_ ⟩ just y → x ≈ y
 drop-just (just x≈y) = x≈y
 
-setoid : ∀ {ℓ₁ ℓ₂} → Setoid ℓ₁ ℓ₂ → Setoid _ _
-setoid S = record
-  { Carrier       = Maybe S.Carrier
-  ; _≈_           = _≈_
-  ; isEquivalence = record
-    { refl  = refl
-    ; sym   = sym
-    ; trans = trans
-    }
+Eq-refl : ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ} →
+       Reflexive _≈_ → Reflexive (Eq _≈_)
+Eq-refl refl {just x}  = just refl
+Eq-refl refl {nothing} = nothing
+
+Eq-sym :  ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ} →
+       Symmetric _≈_ → Symmetric (Eq _≈_)
+Eq-sym sym (just x≈y) = just (sym x≈y)
+Eq-sym sym nothing    = nothing
+
+Eq-trans : ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ} →
+       Transitive _≈_ → Transitive (Eq _≈_)
+Eq-trans trans (just x≈y) (just y≈z) = just (trans x≈y y≈z)
+Eq-trans trans nothing    nothing    = nothing
+
+Eq-dec : ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ} →
+      B.Decidable _≈_ → B.Decidable (Eq _≈_)
+Eq-dec dec (just x) (just y)  with dec x y
+...  | yes x≈y = yes (just x≈y)
+...  | no  x≉y = no (x≉y ∘ drop-just)
+Eq-dec dec (just x) nothing = no λ()
+Eq-dec dec nothing (just y)  = no λ()
+Eq-dec dec nothing nothing = yes nothing
+
+Eq-isEquivalence : ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ}
+                → IsEquivalence _≈_ → IsEquivalence (Eq _≈_)
+Eq-isEquivalence isEq = record
+  { refl  = Eq-refl (IsEquivalence.refl isEq)
+  ; sym   = Eq-sym (IsEquivalence.sym isEq)
+  ; trans = Eq-trans (IsEquivalence.trans isEq)
   }
-  where
-  module S = Setoid S
-  _≈_ = Eq S._≈_
 
-  refl : ∀ {x} → x ≈ x
-  refl {just x}  = just S.refl
-  refl {nothing} = nothing
+Eq-isDecEquivalence : ∀ {a ℓ} {A : Set a} {_≈_ : Rel A ℓ}
+                → IsDecEquivalence _≈_ → IsDecEquivalence (Eq _≈_)
+Eq-isDecEquivalence isDecEq = record
+  { isEquivalence = Eq-isEquivalence
+                      (IsDecEquivalence.isEquivalence isDecEq)
+  ; _≟_           = Eq-dec (IsDecEquivalence._≟_ isDecEq)
+  }
 
-  sym : ∀ {x y} → x ≈ y → y ≈ x
-  sym (just x≈y) = just (S.sym x≈y)
-  sym nothing    = nothing
-
-  trans : ∀ {x y z} → x ≈ y → y ≈ z → x ≈ z
-  trans (just x≈y) (just y≈z) = just (S.trans x≈y y≈z)
-  trans nothing    nothing    = nothing
+setoid : ∀ {ℓ₁ ℓ₂} → Setoid ℓ₁ ℓ₂ → Setoid _ _
+setoid S = record {
+    isEquivalence = Eq-isEquivalence (Setoid.isEquivalence S)
+  }
 
 decSetoid : ∀ {ℓ₁ ℓ₂} → DecSetoid ℓ₁ ℓ₂ → DecSetoid _ _
-decSetoid D = record
-  { isDecEquivalence = record
-    { isEquivalence = Setoid.isEquivalence (setoid (DecSetoid.setoid D))
-    ; _≟_           = _≟_
-    }
+decSetoid D = record {
+    isDecEquivalence = Eq-isDecEquivalence
+                         (DecSetoid.isDecEquivalence D)
   }
-  where
-  _≟_ : B.Decidable (Eq (DecSetoid._≈_ D))
-  just x  ≟ just y  with DecSetoid._≟_ D x y
-  just x  ≟ just y  | yes x≈y = yes (just x≈y)
-  just x  ≟ just y  | no  x≉y = no (x≉y ∘ drop-just)
-  just x  ≟ nothing = no λ()
-  nothing ≟ just y  = no λ()
-  nothing ≟ nothing = yes nothing
 
 ------------------------------------------------------------------------
 -- Any and All are preserving decidability
-
-import Relation.Nullary.Decidable as Dec
-open import Relation.Unary as U
 
 anyDec : ∀ {a p} {A : Set a} {P : A → Set p} →
          U.Decidable P → U.Decidable (Any P)

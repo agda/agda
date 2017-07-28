@@ -473,6 +473,16 @@ Backwards compatible changes
   ∈-map⁻ :  y ∈ map f xs → ∃ λ x → x ∈ xs × y ≈ f x
   ```
 
+* Added proofs to `Data.Maybe`:
+  ```agda
+  Eq-refl             : Reflexive _≈_ → Reflexive (Eq _≈_)
+  Eq-sym              : Symmetric _≈_ → Symmetric (Eq _≈_)
+  Eq-trans            : Transitive _≈_ → Transitive (Eq _≈_)
+  Eq-dec              : Decidable _≈_ → Decidable (Eq _≈_)
+  Eq-isEquivalence    : IsEquivalence _≈_ → IsEquivalence (Eq _≈_)
+  Eq-isDecEquivalence : IsDecEquivalence _≈_ → IsDecEquivalence (Eq _≈_)
+  ```
+
 * Added proofs to `Data.Nat.Properties`:
   ```agda
   suc-injective        : suc m ≡ suc n → m ≡ n
