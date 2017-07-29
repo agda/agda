@@ -242,16 +242,6 @@ install:
     fi
 
 ##############################################################################
-# Installing size-solver and shelltestrunner
-
-# Required for testing the size-solver program.
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make install-size-solver &&
-       cabal install shelltestrunner;
-    fi
-
-##############################################################################
 # Installing a recent version of Node (see Issue #2192)
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -362,12 +352,12 @@ script:
        make BUILD_DIR=$BUILD_DIR lib-interaction;
     fi
 
-# ASR (2017-07-25). Temporally disabled for GHC 7.8.4 [Issue #2655].
-  - if [[ $TEST = "MAIN" && $GHC_VER != "7.8.4" ]]; then
+  - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR TAGS;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
+       cabal install shelltestrunner &&
        make test-size-solver;
     fi
 
