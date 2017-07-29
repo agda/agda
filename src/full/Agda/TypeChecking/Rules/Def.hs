@@ -207,7 +207,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> Maybe Substitution -- ^ substitution (from with abstraction) that needs to be applied to module parameters
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
-checkFunDefS t ai delayed extlam with i name withSub cs =
+checkFunDefS t ai delayed extlam with i name withSub cs = do
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
@@ -259,18 +259,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           typeError $ GenericError "no actual pattern matching in systems!"
 
 
-        reportSDoc "tc.def.fun" 70 $
+        reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ [ text "checked clauses:" ] ++ map (nest 2 . text . show) cs
 
         -- After checking, remove the clauses again.
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
         modifyFunClauses name (const [])
 
-        reportSDoc "tc.cc" 25 $ do
+        reportSDoc "tc.cc" 25 $ inTopContext $ do
           sep [ text "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
               ]
-        reportSDoc "tc.cc" 60 $ do
+        reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ text "raw clauses: "
               , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
@@ -309,7 +309,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         inv <- Bench.billTo [Bench.Injectivity] $
           checkInjectivity name cs
 
-        reportSDoc "tc.cc" 15 $ do
+        reportSDoc "tc.cc" 15 $ inTopContext $ do
           sep [ text "clauses before compilation"
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
@@ -329,7 +329,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
 
-        reportSDoc "tc.cc" 60 $ do
+        reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ text "compiled clauses of" <+> prettyTCM name
               , nest 2 $ text (show cc)
               ]

@@ -670,14 +670,14 @@ checkRecordExpression mfs e t = do
     -- Case: We know the type of the record already.
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
-      reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
+      reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ prettyShow r
 
       reportSDoc "tc.term.rec" 30 $ text "  xs  = " <> do
-        text =<< show . map unArg <$> getRecordFieldNames r
+        text =<< prettyShow . map unArg <$> getRecordFieldNames r
       reportSDoc "tc.term.rec" 30 $ text "  ftel= " <> do
         prettyTCM =<< getRecordFieldTypes r
       reportSDoc "tc.term.rec" 30 $ text "  con = " <> do
-        text =<< show <$> getRecordConstructor r
+        text =<< prettyShow <$> getRecordConstructor r
 
       def <- getRecordDef r
       let -- Field names with ArgInfo.
@@ -722,8 +722,8 @@ checkRecordExpression mfs e t = do
           -- If there are no records with the right fields we might as well fail right away.
         [] -> case fields of
           []  -> typeError $ GenericError "There are no records in scope"
-          [f] -> typeError $ GenericError $ "There is no known record with the field " ++ show f
-          _   -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map show fields)
+          [f] -> typeError $ GenericError $ "There is no known record with the field " ++ prettyShow f
+          _   -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
           def <- getConstInfo r
@@ -845,7 +845,7 @@ checkExpr e t0 =
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
           [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
-          , nest 2 $ text "at " <+> (text . show =<< getCurrentRange)
+          , nest 2 $ text "at " <+> (text . prettyShow =<< getCurrentRange)
           ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
       text "Checking" <+> fsep [ prettyTCM e, text ":", text (show t0) ]
@@ -1151,7 +1151,7 @@ inferOrCheckProjApp
 inferOrCheckProjApp e o ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ text "checking ambiguous projection"
-    , text $ "  ds   = " ++ show ds
+    , text $ "  ds   = " ++ prettyShow ds
     , text   "  args = " <+> sep (map prettyTCM args)
     , text   "  t    = " <+> caseMaybe mt (text "Nothing") prettyTCM
     ]
@@ -1159,7 +1159,7 @@ inferOrCheckProjApp e o ds args mt = do
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
         "Cannot resolve overloaded projection "
-        ++ show (A.nameConcrete $ A.qnameName $ head ds)
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ head ds)
         ++ " because " ++ reason
       refuseNotApplied = refuse "it is not applied to a visible argument"
       refuseNoMatching = refuse "no matching candidate found"
@@ -1219,7 +1219,7 @@ inferOrCheckProjApp e o ds args mt = do
           -- try to project it with all of the possible projections
           let try d = do
               reportSDoc "tc.proj.amb" 30 $ vcat
-                [ text $ "trying projection " ++ show d
+                [ text $ "trying projection " ++ prettyShow d
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
 
@@ -1229,7 +1229,7 @@ inferOrCheckProjApp e o ds args mt = do
                 [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
                 ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
                 [ text $ "  proper       = " ++ show proper
-                , text $ "  orig         = " ++ show orig
+                , text $ "  orig         = " ++ prettyShow orig
                 ])
 
               -- Andreas, 2017-01-21, issue #2422
@@ -1275,7 +1275,7 @@ inferOrCheckProjApp e o ds args mt = do
             [] -> refuseNoMatching
             [[]] -> refuseNoMatching
             (_:_:_) -> refuse $ "several matching candidates found: "
-                 ++ show (map (fst . snd) $ concat cands)
+                 ++ prettyShow (map (fst . snd) $ concat cands)
             -- case: just one matching projection d
             -- the term u = d v
             -- the type tb is the type of this application
@@ -1338,7 +1338,7 @@ checkApplication hd args e t = do
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs@(_:_:_)) -> do
       -- First we should figure out which constructor we want.
-      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
+      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs
 
       -- Get the datatypes of the various constructors
       let getData Constructor{conData = d} = d
@@ -1349,7 +1349,7 @@ checkApplication hd args e t = do
       -- since they may have different types (different parameters).
       -- See issue 279.
       cons  <- mapM getConForm cs
-      reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cons
+      reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
       dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
       -- Type error
       let badCon t = typeError $ DoesNotConstructAnElementOf (head cs) t
@@ -1364,7 +1364,7 @@ checkApplication hd args e t = do
                caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                  case [ c | (d', c) <- dcs, d == d' ] of
                    [c] -> do
-                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
                      storeDisambiguatedName $ conName c
                      return $ Just c
                    []  -> badCon $ t' $> Def d []
@@ -1518,7 +1518,11 @@ checkOrInferMeta newMeta mt i = do
     -- Rechecking an existing metavariable
     Just x -> do
       let v = MetaV x []
+      reportSDoc "tc.meta.check" 20 $
+        text "checking existing meta " <+> prettyTCM v
       t' <- jMetaType . mvJudgement <$> lookupMeta x
+      reportSDoc "tc.meta.check" 20 $
+        nest 2 $ text "of type " <+> prettyTCM t'
       case mt of
         Nothing -> return (v, t')
         Just t  -> (,t) <$> coerce v t' t
@@ -1534,7 +1538,7 @@ domainFree info x =
       { A.metaRange          = r
       , A.metaScope          = emptyScopeInfo
       , A.metaNumber         = Nothing
-      , A.metaNameSuggestion = show $ A.nameConcrete x
+      , A.metaNameSuggestion = prettyShow $ A.nameConcrete x
       }
 
 ---------------------------------------------------------------------------
@@ -1583,7 +1587,7 @@ inferHead e = do
       -- Next get the number of parameters in the current context.
       Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
 
-      reportSLn "tc.term.con" 7 $ unwords [show c, "has", show n, "parameters."]
+      reportSLn "tc.term.con" 7 $ unwords [prettyShow c, "has", show n, "parameters."]
 
       -- So when applying the constructor throw away the parameters.
       return (applyE u . genericDrop n, a)
@@ -1859,11 +1863,11 @@ checkHeadApplication e t hd args = do
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       arg <- case args of
                [a] | getHiding a == NotHidden -> return $ namedArg a
-               _ -> typeError $ GenericError $ show c ++ " must be applied to exactly one argument."
+               _ -> typeError $ GenericError $ prettyShow c ++ " must be applied to exactly one argument."
 
       -- The name of the fresh function.
       i <- fresh :: TCM Int
-      let name = filter (/= '_') (show $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
+      let name = filter (/= '_') (prettyShow $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
 
       kit <- coinductionKit'
       let flat = nameOfFlat kit
@@ -2130,7 +2134,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
                   , text $ "info'     = " ++ show info'
-                  , text $ "absName b = " ++ show (absName b)
+                  , text $ "absName b = " ++ absName b
                   , text $ "nameOf e  = " ++ show (nameOf e)
                   ]
                 wrongPi

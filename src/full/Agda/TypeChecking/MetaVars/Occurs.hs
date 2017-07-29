@@ -257,7 +257,11 @@ instance Occurs Term where
             if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) es else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
-              isST <- isSingletonType =<< typeOfBV i
+              reportSDoc "tc.meta.occurs" 35 $ text "offending variable: " <+> prettyTCM (var i)
+              t <-  typeOfBV i
+              reportSDoc "tc.meta.occurs" 35 $ nest 2 $ text "of type " <+> prettyTCM t
+              isST <- isSingletonType t
+              reportSDoc "tc.meta.occurs" 35 $ nest 2 $ text "(after singleton test)"
               case isST of
                 -- cannot decide, blocked by meta-var
                 Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"

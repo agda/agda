@@ -465,7 +465,11 @@ expandRecordVar i gamma0 = do
           -- Use "f(x)" as variable name for the projection f(x).
           s     = prettyShow x
           tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
-          delta = telFromList $ gamma1 ++ telToList tel' ++ applySubst tau0 gamma2
+          delta = telFromList $ gamma1 ++ telToList tel' ++
+                    telToList (applySubst tau0 $ telFromList gamma2)
+                    -- Andreas, 2017-07-29, issue #2644
+                    -- We cannot substitute directly into a ListTel like gamma2,
+                    -- we have to convert it to a telescope first, otherwise we get garbage.
 
       return (delta, sigma, tau, tel)
 
