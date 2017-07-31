@@ -615,6 +615,14 @@ Backwards compatible changes
   s*s≡+          : s * s ≡ +
   ```
 
+* Added definitions to `Data.Sum`:
+  ```agda
+  From-inj₁ : ∀ {a b} {A : Set a} {B : Set b} → A ⊎ B → Set a
+  from-inj₁ : ∀ {a b} {A : Set a} {B : Set b} (x : A ⊎ B) → From-inj₁ x
+  From-inj₂ : ∀ {a b} {A : Set a} {B : Set b} → A ⊎ B → Set b
+  from-inj₂ : ∀ {a b} {A : Set a} {B : Set b} (x : A ⊎ B) → From-inj₂ x
+  ```
+
 * Added a functor encapsulating `map` in `Data.Vec`:
   ```agda
   functor = record { _<$>_ = map}
