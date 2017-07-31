@@ -9,18 +9,24 @@
 
 module Data.Nat.Properties where
 
-open import Data.Nat as Nat
 open import Relation.Binary
 open import Function
 open import Algebra
+import Algebra.RingSolver.Simple as Solver
+import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Algebra.Structures
+open import Data.Nat as Nat
+open import Data.Product
+open import Data.Sum
 open import Relation.Nullary
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality
 open import Algebra.FunctionProperties (_≡_ {A = ℕ})
+  hiding (LeftCancellative; RightCancellative; Cancellative)
+open import Algebra.FunctionProperties
+  using (LeftCancellative; RightCancellative; Cancellative)
 open import Algebra.FunctionProperties.Consequences (setoid ℕ)
-open import Data.Product
-open import Data.Sum
+
 open ≡-Reasoning
 
 ------------------------------------------------------------------------
@@ -76,16 +82,26 @@ suc-injective refl = refl
   ; trans         = ≤-trans
   }
 
+≤-preorder : Preorder _ _ _
+≤-preorder = record
+  { isPreorder = ≤-isPreorder
+  }
+
 ≤-isPartialOrder : IsPartialOrder _≡_ _≤_
 ≤-isPartialOrder = record
   { isPreorder = ≤-isPreorder
-  ; antisym  = ≤-antisym
+  ; antisym    = ≤-antisym
   }
 
 ≤-isTotalOrder : IsTotalOrder _≡_ _≤_
 ≤-isTotalOrder = record
   { isPartialOrder = ≤-isPartialOrder
-  ; total = ≤-total
+  ; total          = ≤-total
+  }
+
+≤-totalOrder : TotalOrder _ _ _
+≤-totalOrder = record
+  { isTotalOrder = ≤-isTotalOrder
   }
 
 ≤-isDecTotalOrder : IsDecTotalOrder _≡_ _≤_
@@ -97,10 +113,7 @@ suc-injective refl = refl
 
 ≤-decTotalOrder : DecTotalOrder _ _ _
 ≤-decTotalOrder = record
-  { Carrier         = ℕ
-  ; _≈_             = _≡_
-  ; _≤_             = _≤_
-  ; isDecTotalOrder = ≤-isDecTotalOrder
+  { isDecTotalOrder = ≤-isDecTotalOrder
   }
 
 -- Other properties of _≤_
@@ -125,17 +138,6 @@ pred-mono (s≤s le) = le
 ≤⇒pred≤ : ∀ {m n} → m ≤ n → pred m ≤ n
 ≤⇒pred≤ {zero}  le = le
 ≤⇒pred≤ {suc m} le = ≤-trans (n≤1+n m) le
-
--- A module for reasoning about the _≤_ relation
-module ≤-Reasoning where
-  open import Relation.Binary.PartialOrderReasoning
-    (DecTotalOrder.poset ≤-decTotalOrder) public
-    renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
-
-  infixr 2 _<⟨_⟩_
-
-  _<⟨_⟩_ : ∀ x {y z} → x < y → y IsRelatedTo z → suc x IsRelatedTo z
-  x <⟨ x<y ⟩ y≤z = suc x ≤⟨ x<y ⟩ y≤z
 
 ------------------------------------------------------------------------
 -- Properties of _<_
@@ -177,10 +179,7 @@ x <? y = suc x ≤? y
 
 strictTotalOrder : StrictTotalOrder _ _ _
 strictTotalOrder = record
-  { Carrier            = ℕ
-  ; _≈_                = _≡_
-  ; _<_                = _<_
-  ; isStrictTotalOrder = <-isStrictTotalOrder
+  { isStrictTotalOrder = <-isStrictTotalOrder
   }
 
 -- Other properties of _<_
@@ -306,20 +305,27 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 
 -- Other properties of _+_
 
-cancel-+-left : LeftCancellative _+_
+cancel-+-left : LeftCancellative _≡_ _+_
 cancel-+-left zero    eq = eq
-cancel-+-left (suc i) eq = cancel-+-left i (cong pred eq)
+cancel-+-left (suc m) eq = cancel-+-left m (cong pred eq)
 
-cancel-+-right : RightCancellative _+_
-cancel-+-right {x} y z eq =
-  cancel-+-left x (trans (trans (+-comm x y) eq) (+-comm z x))
+cancel-+-right : RightCancellative _≡_ _+_
+cancel-+-right {m} n o eq =
+  cancel-+-left m (subst₂ _≡_ (+-comm n m) (+-comm o m) eq)
 
-+-cancellative : Cancellative _+_
++-cancellative : Cancellative _≡_ _+_
 +-cancellative = cancel-+-left , cancel-+-right
 
-cancel-+-left-≤ : ∀ i {j k} → i + j ≤ i + k → j ≤ k
+cancel-+-left-≤ : LeftCancellative _≤_ _+_
 cancel-+-left-≤ zero    le       = le
-cancel-+-left-≤ (suc i) (s≤s le) = cancel-+-left-≤ i le
+cancel-+-left-≤ (suc m) (s≤s le) = cancel-+-left-≤ m le
+
+cancel-+-right-≤ : RightCancellative _≤_ _+_
+cancel-+-right-≤ {m} n o le =
+  cancel-+-left-≤ m (subst₂ _≤_ (+-comm n m) (+-comm o m) le)
+
++-cancellative-≤ : Cancellative _≤_ _+_
++-cancellative-≤ = cancel-+-left-≤ , cancel-+-right-≤
 
 ≤-steps : ∀ {m n} k → m ≤ n → m ≤ k + n
 ≤-steps zero    m≤n = m≤n
@@ -342,10 +348,6 @@ n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
 +-mono-≤ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 +-mono-≤ {_} {m} z≤n       o≤p = ≤-trans o≤p (n≤m+n m _)
 +-mono-≤ {_} {_} (s≤s m≤n) o≤p = s≤s (+-mono-≤ m≤n o≤p)
-
--- DEPRECATED - please use +-mono-≤ instead
-_+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
-_+-mono_ = +-mono-≤
 
 +-monoˡ-< : _+_ Preserves₂ _<_ ⟶ _≤_ ⟶ _<_
 +-monoˡ-< {_} {suc y} (s≤s z≤n)       u≤v = s≤s (≤-steps y u≤v)
@@ -468,17 +470,8 @@ isCommutativeSemiring = record
 
 commutativeSemiring : CommutativeSemiring _ _
 commutativeSemiring = record
-  { _+_                   = _+_
-  ; _*_                   = _*_
-  ; 0#                    = 0
-  ; 1#                    = 1
-  ; isCommutativeSemiring = isCommutativeSemiring
+  { isCommutativeSemiring = isCommutativeSemiring
   }
-
-import Algebra.RingSolver.Simple as Solver
-import Algebra.RingSolver.AlmostCommutativeRing as ACR
-module SemiringSolver =
-  Solver (ACR.fromCommutativeSemiring commutativeSemiring) _≟_
 
 -- Other properties of _*_
 
@@ -498,10 +491,6 @@ cancel-*-right-≤ (suc i) (suc j) k le =
 *-mono-≤ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 *-mono-≤ z≤n       _   = z≤n
 *-mono-≤ (s≤s m≤n) u≤v = +-mono-≤ u≤v (*-mono-≤ m≤n u≤v)
-
--- DEPRECATED - please use *-mono-≤ instead
-_*-mono_ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
-_*-mono_ = *-mono-≤
 
 *-mono-< : _*_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
 *-mono-< (s≤s z≤n)       (s≤s u≤v) = s≤s z≤n
@@ -609,7 +598,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊓-distribʳ-⊔ (suc m) zero    o       = refl
 ⊓-distribʳ-⊔ zero    n       o       = begin
   (n ⊔ o) ⊓ 0    ≡⟨ ⊓-comm (n ⊔ o) 0 ⟩
-  0 ⊓ (n ⊔ o)    ≡⟨ refl ⟩
+  0 ⊓ (n ⊔ o)    ≡⟨⟩
   0 ⊓ n ⊔ 0 ⊓ o  ≡⟨ ⊓-comm 0 n ⟨ cong₂ _⊔_ ⟩ ⊓-comm 0 o ⟩
   n ⊓ 0 ⊔ o ⊓ 0  ∎
 
@@ -673,10 +662,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 
 ⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne _ _
 ⊔-⊓-0-commutativeSemiringWithoutOne = record
-  { _+_                             = _⊔_
-  ; _*_                             = _⊓_
-  ; 0#                              = 0
-  ; isCommutativeSemiringWithoutOne =
+  { isCommutativeSemiringWithoutOne =
       ⊔-⊓-0-isCommutativeSemiringWithoutOne
   }
 
@@ -700,9 +686,7 @@ isDistributiveLattice = record
 
 distributiveLattice : DistributiveLattice _ _
 distributiveLattice = record
-  { _∨_                   = _⊓_
-  ; _∧_                   = _⊔_
-  ; isDistributiveLattice = isDistributiveLattice
+  { isDistributiveLattice = isDistributiveLattice
   }
 
 -- Ordering properties of _⊔_ and _⊓_
@@ -781,7 +765,7 @@ n∸n≡0 zero    = refl
 n∸n≡0 (suc n) = n∸n≡0 n
 
 ∸-+-assoc : ∀ m n o → (m ∸ n) ∸ o ≡ m ∸ (n + o)
-∸-+-assoc m       n       zero    = cong (_∸_ m) (sym $ +-right-identity n)
+∸-+-assoc m       n       zero    = cong (m ∸_) (sym $ +-right-identity n)
 ∸-+-assoc zero    zero    (suc o) = refl
 ∸-+-assoc zero    (suc n) (suc o) = refl
 ∸-+-assoc (suc m) zero    (suc o) = refl
@@ -790,8 +774,8 @@ n∸n≡0 (suc n) = n∸n≡0 n
 +-∸-assoc : ∀ m {n o} → o ≤ n → (m + n) ∸ o ≡ m + (n ∸ o)
 +-∸-assoc m (z≤n {n = n})             = begin m + n ∎
 +-∸-assoc m (s≤s {m = o} {n = n} o≤n) = begin
-  (m + suc n) ∸ suc o  ≡⟨ cong (λ n → n ∸ suc o) (+-suc m n) ⟩
-  suc (m + n) ∸ suc o  ≡⟨ refl ⟩
+  (m + suc n) ∸ suc o  ≡⟨ cong (_∸ suc o) (+-suc m n) ⟩
+  suc (m + n) ∸ suc o  ≡⟨⟩
   (m + n) ∸ o          ≡⟨ +-∸-assoc m o≤n ⟩
   m + (n ∸ o)          ∎
 
@@ -815,7 +799,7 @@ m+n∸n≡m m n = begin
 m+n∸m≡n : ∀ {m n} → m ≤ n → m + (n ∸ m) ≡ n
 m+n∸m≡n {m} {n} m≤n = begin
   m + (n ∸ m)  ≡⟨ sym $ +-∸-assoc m m≤n ⟩
-  (m + n) ∸ m  ≡⟨ cong (λ n → n ∸ m) (+-comm m n) ⟩
+  (m + n) ∸ m  ≡⟨ cong (_∸ m) (+-comm m n) ⟩
   (n + m) ∸ m  ≡⟨ m+n∸n≡m n m ⟩
   n            ∎
 
@@ -838,20 +822,20 @@ m⊓n+n∸m≡n (suc m) (suc n) = cong suc $ m⊓n+n∸m≡n m n
 -- handle ∸ would be nice...
 i∸k∸j+j∸k≡i+j∸k : ∀ i j k → i ∸ (k ∸ j) + (j ∸ k) ≡ i + j ∸ k
 i∸k∸j+j∸k≡i+j∸k zero j k = begin
-  0 ∸ (k ∸ j) + (j ∸ k) ≡⟨ cong (λ x → x + (j ∸ k)) (0∸n≡0 (k ∸ j)) ⟩
-  0 + (j ∸ k)           ≡⟨ refl ⟩
+  0 ∸ (k ∸ j) + (j ∸ k) ≡⟨ cong (_+ (j ∸ k)) (0∸n≡0 (k ∸ j)) ⟩
+  0 + (j ∸ k)           ≡⟨⟩
   j ∸ k                 ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
   suc i ∸ (0 ∸ j) + j ≡⟨ cong (λ x → suc i ∸ x + j) (0∸n≡0 j) ⟩
-  suc i ∸ 0 + j       ≡⟨ refl ⟩
+  suc i ∸ 0 + j       ≡⟨⟩
   suc (i + j)         ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
   i ∸ k + 0  ≡⟨ +-right-identity _ ⟩
-  i ∸ k      ≡⟨ cong (λ x → x ∸ k) (sym (+-right-identity _)) ⟩
+  i ∸ k      ≡⟨ cong (_∸ k) (sym (+-right-identity _)) ⟩
   i + 0 ∸ k  ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
   suc i ∸ (k ∸ j) + (j ∸ k) ≡⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
-  suc i + j ∸ k             ≡⟨ cong (λ x → x ∸ k) (sym (+-suc i j)) ⟩
+  suc i + j ∸ k             ≡⟨ cong (_∸ k) (sym (+-suc i j)) ⟩
   i + suc j ∸ k             ∎
 
 *-distrib-∸ʳ : _*_ DistributesOverʳ _∸_
@@ -897,3 +881,28 @@ im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
 ⌊n/2⌋≤′n : ∀ n → ⌊ n /2⌋ ≤′ n
 ⌊n/2⌋≤′n zero    = ≤′-refl
 ⌊n/2⌋≤′n (suc n) = ≤′-step (⌈n/2⌉≤′n n)
+
+------------------------------------------------------------------------
+-- Submodules for reasoning about natural number relations
+
+-- A module for automatically solving propositional equivalences
+module SemiringSolver =
+  Solver (ACR.fromCommutativeSemiring commutativeSemiring) _≟_
+
+-- A module for reasoning about the _≤_ relation
+module ≤-Reasoning where
+  open import Relation.Binary.PartialOrderReasoning
+    (DecTotalOrder.poset ≤-decTotalOrder) public
+    renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+
+  infixr 2 _<⟨_⟩_
+
+  _<⟨_⟩_ : ∀ x {y z} → x < y → y IsRelatedTo z → suc x IsRelatedTo z
+  x <⟨ x<y ⟩ y≤z = suc x ≤⟨ x<y ⟩ y≤z
+
+------------------------------------------------------------------------
+-- DEPRECATED - please use new names as continuing support for the old
+-- names is not guaranteed.
+
+_*-mono_ = *-mono-≤
+_+-mono_ = +-mono-≤

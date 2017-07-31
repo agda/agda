@@ -516,8 +516,10 @@ Backwards compatible changes
 
   +-left-identity      : LeftIdentity 0 _+_
   +-identity           : Identity 0 _+_
-  cancel-+-right       : RightCancellative _+_
-  +-cancellative       : Cancellative _+_
+  cancel-+-right       : RightCancellative _≡_ _+_
+  +-cancellative       : Cancellative _≡_ _+_
+  cancel-+-right-≤     : RightCancellative _≤_ _+_
+  +-cancellative-≤     : Cancellative _≤_ _+_
   +-isSemigroup        : IsSemigroup _≡_ _+_
   +-monoˡ-<            : _+_ Preserves₂ _<_ ⟶ _≤_ ⟶ _<_
   +-monoʳ-<            : _+_ Preserves₂ _≤_ ⟶ _<_ ⟶ _<_
