@@ -126,6 +126,12 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
+* Giving access to `primForce` and `primForceLemma` via `Strict`. Also providing
+  the call-by-value application combinator `_$!_`.
+
+* Systematically providing non-dependent versions of the application combinators
+  for use cases where the most general one leads to unsolved meta variables.
+
 * Added support for GHC 8.0.2 and 8.2.1.
 
 * Removed the empty `Irrelevance` module

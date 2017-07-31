@@ -7,12 +7,13 @@
 module Function where
 
 open import Level
+open import Strict
 
 infixr 9 _∘_ _∘′_
 infixl 8 _ˢ_
 infixl 1 _on_
 infixl 1 _⟨_⟩_
-infixr 0 _-[_]-_ _$_
+infixr 0 _-[_]-_ _$_ _$′_ _$!_ _$!′_
 infixl 0 _∋_
 
 ------------------------------------------------------------------------
@@ -70,6 +71,21 @@ flip f = λ y x → f x y
 _$_ : ∀ {a b} {A : Set a} {B : A → Set b} →
       ((x : A) → B x) → ((x : A) → B x)
 f $ x = f x
+
+_$′_ : ∀ {a b} {A : Set a} {B : Set b} →
+       (A → B) → (A → B)
+_$′_ = _$_
+
+-- Strict (call-by-value) application
+
+_$!_ : ∀ {a b} {A : Set a} {B : A → Set b} →
+       ((x : A) → B x) → ((x : A) → B x)
+_$!_ = flip force
+
+_$!′_ : ∀ {a b} {A : Set a} {B : Set b} →
+        (A → B) → (A → B)
+_$!′_ = _$!_
+
 
 _⟨_⟩_ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
         A → (A → B → C) → B → C
