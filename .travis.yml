@@ -75,7 +75,7 @@ after_success:
   - git fetch upstream && git reset upstream/gh-pages
   - git add -f \*.html
   - git commit -m "Automatic HTML update via Travis"
-  - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; git push -q upstream HEAD:gh-pages &>/dev/null
+  - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; git push -q upstream HEAD:gh-pages &>/dev/null; fi
 
 notifications:
   email: false
