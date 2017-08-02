@@ -332,7 +332,11 @@ pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
 pathViewAsPi' :: Type -> TCM (Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi' t = do
-  t <- pathView =<< reduce t
+  pathViewAsPi'whnf =<< reduce t
+
+pathViewAsPi'whnf :: Type -> TCM (Either ((Dom Type, Abs Type), (Term,Term)) Type)
+pathViewAsPi'whnf t = do
+  t <- pathView t
   case t of
     PathType s l p a x y -> do
       let name | Lam _ (Abs n _) <- unArg a = n
@@ -373,6 +377,11 @@ ifNotPi = flip . ifPi
 --   If it is a @Pi@, pass its parts to the second continuation.
 ifNotPiType :: MonadTCM tcm => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
 ifNotPiType = flip . ifPiType
+
+ifNotPiOrPathType :: MonadTCM tcm => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPiOrPathType t no yes = do
+  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< liftTCM (pathViewAsPi'whnf t))
+
 
 -- | A safe variant of piApply.
 
