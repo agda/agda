@@ -33,6 +33,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
+import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
@@ -898,7 +899,7 @@ assignMeta' m x t n ids v = do
     reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
     reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
 
-    TelV tel' _ <- telViewUpTo n t
+    (telv@(TelV tel' _),bs) <- telViewUpToPathBoundary n t
     reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
     reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
     -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
@@ -924,8 +925,20 @@ assignMeta' m x t n ids v = do
 
     reportSDoc "tc.meta.assign" 10 $
       text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM vsol
-    assignTerm x (telToArgs tel') v'
 
+    v' <- blockOnBoundary telv bs v'
+
+    assignTerm x (telToArgs tel') v'
+  where
+    blockOnBoundary :: TelView -> Boundary -> Term -> TCM Term
+    blockOnBoundary telv         [] v = return v
+    blockOnBoundary (TelV tel t) bs v = addContext tel $
+      blockTerm t $ do
+        neg <- primINeg
+        forM_ bs $ \ (r,(x,y)) -> do
+          equalTermOnFace (neg `apply1` r) t x v
+          equalTermOnFace r  t y v
+        return v
 
 -- | Turn the assignment problem @_X args <= SizeLt u@ into
 -- @_X args = SizeLt (_Y args)@ and constraint

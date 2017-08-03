@@ -327,6 +327,27 @@ telViewUpToPath n t = do
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
+-- | [[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]
+type Boundary = [(Term,(Term,Term))]
+
+-- | Like @telViewUpToPath@ but also returns the @Boundary@ expected
+-- by the Path types encountered. The boundary terms live in the
+-- telescope given by the @TelView@.
+telViewUpToPathBoundary :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary 0 t = return $ (TelV EmptyTel t,[])
+telViewUpToPathBoundary n t = do
+  vt <- pathViewAsPi' $ t
+  case vt of
+    Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary (n - 1) (absBody b)
+    Right (El _ t) | Pi a b <- ignoreSharing t
+                   -> absV a (absName b) <$> telViewUpToPathBoundary (n - 1) (absBody b)
+    _              -> return $ (TelV EmptyTel t,[])
+  where
+    absV a x (TelV tel t, cs) = (TelV (ExtendTel a (Abs x tel)) t, cs)
+    addEndPoints xy (telv@(TelV tel _),cs) = (telv, (var $ size tel - 1, xyInTel):cs)
+      where
+       xyInTel = raise (size tel) xy `apply` drop 1 (teleArgs tel)
+
 pathViewAsPi :: Type -> TCM (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
