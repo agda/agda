@@ -259,6 +259,9 @@ class ToConcrete a c | a -> c where
     toConcrete :: a -> AbsToCon c
     bindToConcrete :: a -> (c -> AbsToCon b) -> AbsToCon b
 
+    -- Christian Sattler, 2017-08-05:
+    -- These default implementations are not valid semantically (at least
+    -- the second one). Perhaps they (it) should be removed.
     toConcrete     x     = bindToConcrete x return
     bindToConcrete x ret = ret =<< toConcrete x
 
@@ -546,8 +549,17 @@ makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg info (A.TBind _ [WithHidi
     _ -> b
 makeDomainFree b = b
 
+-- Christian Sattler, 2017-08-05, fixing #2669
+-- Both methods of ToConcrete (FieldAssignment' a) (FieldAssignment' c) need
+-- to be implemented, each in terms of the corresponding one of ToConcrete a c.
+-- This mirrors the instance ToConcrete (Arg a) (Arg c).
+-- The default implementations of ToConcrete are not valid semantically.
 instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) where
     toConcrete = traverse toConcrete
+
+    bindToConcrete (FieldAssignment name a) ret =
+      bindToConcrete a $ ret . Arg info
+
 
 -- Binder instances -------------------------------------------------------
 
