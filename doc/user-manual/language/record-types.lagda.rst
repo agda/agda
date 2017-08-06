@@ -5,6 +5,7 @@
   open import Agda.Builtin.Bool
   open import Agda.Builtin.Nat hiding (_==_; _<_)
   open import Agda.Builtin.List
+  open import Agda.Builtin.Equality
 
   _||_ : Bool → Bool → Bool
   true  || x = true
@@ -130,9 +131,13 @@ For named definitions, this can also be expressed using copatterns:
    <recordname>.<fieldname2> <named-def> = <term2>
    ...
 
+Records can also be constructed by :ref:`updating other records
+<record-update>`.
 
-Building records from modules and record update
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _record-building-from-modules:
+
+Building records from modules
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``record { <fields> }`` syntax also accept module names. Fields
 are defined using the corresponding definitions from the given module.
@@ -173,13 +178,6 @@ example building on the example above:
    r2 : A → R
    r2 a = record { M hiding (y); M2 a renaming (w to y) }
 
-In particular, together with the fact that :ref:`all records define a module <record-modules>`, this can be used to "update" a record:
-
-.. code-block:: agda
-
-   r3 : R -- keeps all field values of r except for y
-   r3 = record { R r; y = ... }
-
 Decomposing record values
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -203,6 +201,89 @@ Internally, this is translated to
 .. note::
    Naming the constructor is not required to enable pattern matching against
    record values. Record expressions can appear as patterns.
+
+.. _record-update:
+
+Record update
+~~~~~~~~~~~~~
+
+Assume that we have a record type and a corresponding value:
+::
+
+  record MyRecord : Set where
+    field
+      a b c : Nat
+
+  old : MyRecord
+  old = record { a = 1; b = 2; c = 3 }
+
+Then we can update (some of) the record value’s fields in the following way:
+::
+
+  new : MyRecord
+  new = record old { a = 0; c = 5 }
+
+Here ``new`` normalises to ``record { a = 0; b = 2; c = 5 }``. Any
+expression yielding a value of type ``MyRecord`` can be used instead of
+``old``. Using that :ref:`records can be built from module names <record-building-from-modules>`, together with the fact that :ref:`all records define a module <record-modules>`, this can also be written as
+
+::
+
+  new' : MyRecord
+  new'  = record { MyRecord old; a = 0; c = 5}
+
+..
+  ::
+  _ : new ≡ new' -- make sure that old and new syntax agree
+  _ = refl
+
+Record updating is not allowed to change types: the resulting value
+must have the same type as the original one, including the record
+parameters. Thus, the type of a record update can be inferred if the
+type of the original record can be inferred.
+
+The record update syntax is expanded before type checking. When the
+expression
+
+.. code-block:: agda
+
+  record old { upd-fields }
+
+is checked against a record type ``R``, it is expanded to
+
+.. code-block:: agda
+
+  let r = old in record { new-fields }
+
+where ``old`` is required to have type ``R`` and ``new-fields`` is defined as
+follows: for each field ``x`` in ``R``,
+
+  - if ``x = e`` is contained in ``upd-fields`` then ``x = e`` is
+    included in ``new-fields``, and otherwise
+  - if ``x`` is an explicit field then ``x = R.x r`` is included in
+    ``new-fields``, and
+  - if ``x`` is an :ref:`implicit <implicit-arguments>` or :ref:`instance field <instance-arguments>`, then it is omitted from ``new-fields``.
+
+The reason for treating implicit and instance fields specially is to
+allow code like the following::
+
+  data Vec (A : Set) : Nat → Set where
+    [] : Vec A zero
+    _∷_ : ∀{n} → A → Vec A n → Vec A (suc n)
+
+  record R : Set where
+    field
+      {length} : Nat
+      vec      : Vec Nat length
+      -- More fields ...
+
+  xs : R
+  xs = record { vec = 0 ∷ 1 ∷ 2 ∷ [] }
+
+  ys = record xs { vec = 0 ∷ [] }
+
+Without the special treatment the last expression would need to
+include a new binding for ``length`` (for instance ``length = _``).
 
 
 .. _record-modules:

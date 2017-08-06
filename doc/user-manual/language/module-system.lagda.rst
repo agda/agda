@@ -240,8 +240,8 @@ Sometimes the name of an imported module clashes with a local module. In this ca
 
 It is also possible to attach modifiers to import statements, limiting or changing what names are visible from inside the module.
 
-Datatype modules
-----------------
+Datatype modules and record modules
+-----------------------------------
 When you define a datatype it also defines a module so constructors can now be referred to qualified by their data type.
 For instance, given::
 
@@ -269,66 +269,5 @@ Previously you had to write something like
 
 to make the type checker able to figure out that you wanted the natural number suc in this case.
 
-Record update syntax
---------------------
-Assume that we have a record type and a corresponding value:
-::
-
-  record MyRecord : Set where
-    field
-      a b c : Nat
-
-  old : MyRecord
-  old = record { a = 1; b = 2; c = 3 }
-
-Then we can update (some of) the record value’s fields in the following way:
-::
-
-  new : MyRecord
-  new = record old { a = 0; c = 5 }
-
-Here new normalises to record { a = 0; b = 2; c = 5 }. Any expression yielding a value of type MyRecord can be used instead of old.
-
-Record updating is not allowed to change types: the resulting value must have the same type as the original one, including the record parameters. Thus, the type of a record update can be inferred if the type of the original record can be inferred.
-
-The record update syntax is expanded before type checking. When the expression
-
-.. code-block:: agda
-
-  record old { upd-fields }
-
-is checked against a record type R, it is expanded to
-
-.. code-block:: agda
-
-  let r = old in record { new-fields }
-
-where old is required to have type R and new-fields is defined as
-follows: for each field x in R,
-
-  - if x = e is contained in upd-fields then x = e is included in
-    new-fields, and otherwise
-  - if x is an explicit field then x = R.x r is included in
-    new-fields, and
-  - if x is an implicit or instance field, then it is omitted from
-    new-fields.
-
-(Instance arguments are explained below.) The reason for treating implicit and instance fields specially is to allow code like the following:
-::
-
-  data Vec (A : Set) : Nat → Set where
-    [] : Vec A zero
-    _∷_ : ∀{n} → A → Vec A n → Vec A (suc n)
-
-  record R : Set where
-    field
-      {length} : Nat
-      vec      : Vec Nat length
-      -- More fields ...
-
-  xs : R
-  xs = record { vec = 0 ∷ 1 ∷ 2 ∷ [] }
-
-  ys = record xs { vec = 0 ∷ [] }
-
-Without the special treatment the last expression would need to include a new binding for length (for instance “length = _”).
+Also record declarations define a corresponding module, see
+:ref:`record-modules`.
