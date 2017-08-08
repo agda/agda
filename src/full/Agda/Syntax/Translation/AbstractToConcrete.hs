@@ -558,7 +558,7 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
     toConcrete = traverse toConcrete
 
     bindToConcrete (FieldAssignment name a) ret =
-      bindToConcrete a $ ret . Arg info
+      bindToConcrete a $ ret . FieldAssignment name
 
 
 -- Binder instances -------------------------------------------------------
