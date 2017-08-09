@@ -73,6 +73,11 @@ xqual q n = do m1 <- topLevelModuleName (qnameModule q)
                if m1 == m2 then return (HS.UnQual n)
                   else addImport m1 >> return (HS.Qual (mazMod m1) n)
 
+-- add the module defining q to the accumulated stImportedModules.
+ximport :: QName -> TCM ()
+ximport q = xqual q (HS.Ident "") >> return ()
+
+
 xhqn :: String -> QName -> TCM HS.QName
 xhqn s q = xqual q (unqhname s q)
 

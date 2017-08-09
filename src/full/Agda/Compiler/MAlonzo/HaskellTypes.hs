@@ -17,6 +17,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
+import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pragmas
 
 import Agda.Utils.Except ( MonadError(catchError) )
@@ -66,9 +67,9 @@ getHsType :: QName -> TCM HaskellType
 getHsType x = do
   d <- getHaskellPragma x
   setCurrentRange d $ case d of
-    Just (HsType _ t)   -> return t
+    Just (HsType _ t)   -> ximport x >> return t
     Just HsDefn{}       -> return hsUnit
-    Just (HsData _ t _) -> return t
+    Just (HsData _ t _) -> ximport x >> return t
     _                   -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: Nat -> TCM HaskellCode
