@@ -188,6 +188,28 @@ Language
   before the illegal declarations, or move them inside the
   existing module.
 
+* Pattern matching lambdas (also known as extended lambdas) can now be
+  nullary, mirroring the behaviour for ordinary function definitions.
+  [Issue [#2671](https://github.com/agda/agda/issues/2671)]
+
+  This is useful for case splitting on the result inside an
+  expression: given
+  ```agda
+  record _×_ (A B : Set) : Set where
+    field
+      π₁ : A
+      π₂ : B
+  open _×_
+  ```
+  one may case split on the result (C-c C-c RET) in a hole
+  ```agda
+    λ { → {!!}}
+  ```
+  of type A × B to produce
+  ```agda
+    λ { .π₁ → {!!} ; .π₂ → {!!}}  
+  ```
+
 Emacs mode
 ----------
 
