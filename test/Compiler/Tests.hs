@@ -75,6 +75,8 @@ disabledTests =
   [ -- See issue 1528
     RFInclude "Compiler/.*/simple/Sharing"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
+    -- Fix to 2524 is too unsafe
+  , RFInclude "Compiler/.*/simple/Issue2524"
   ]
 
 tests :: IO TestTree
