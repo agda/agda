@@ -145,9 +145,8 @@ repl subs = go where
 conArityAndPars :: QName -> TCM (Nat, Nat)
 conArityAndPars q = do
   def <- getConstInfo q
-  TelV tel _ <- telView $ defType def
+  n   <- typeArity (defType def)
   let Constructor{ conPars = np } = theDef def
-      n = length (telToList tel)
   return (n - np, np)
 
 -- | Sets up the compilation environment.
