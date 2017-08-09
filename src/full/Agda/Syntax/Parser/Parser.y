@@ -664,6 +664,15 @@ Application3
     : Expr3              { [$1] }
     | Expr3 Application3 { $1 : $2 }
 
+-- Christian Sattler, 2017-08-04, issue #2671
+-- We allow empty lists of expressions for the LHS of extended lambda clauses.
+-- I am not sure what Application3 is otherwise used for, so I keep the
+-- original type and create this copy solely for extended lambda clauses.
+Application3PossiblyEmpty :: { [Expr] }
+Application3PossiblyEmpty
+    :                                 { [] }
+    | Expr3 Application3PossiblyEmpty { $1 : $2 }
+
 -- Level 3: Atoms
 Expr3Curly
     : '{' Expr '}'                      { HiddenArg (getRange ($1,$2,$3)) (maybeNamed $2) }
@@ -848,11 +857,11 @@ LamBindsAbsurd
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
 NonAbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
 NonAbsurdLamClause
-  : Application3 '->' Expr {% do
+  : Application3PossiblyEmpty '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $1) $1) ;
       return (p [] [], RHS $3, NoWhere, False)
         }
-  | CatchallPragma Application3 '->' Expr {% do
+  | CatchallPragma Application3PossiblyEmpty '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $2) $2) ;
       return (p [] [], RHS $4, NoWhere, True)
         }
