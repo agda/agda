@@ -77,6 +77,7 @@ import Agda.Utils.Pretty (prettyShow, Pretty)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Singleton
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Paths_Agda
@@ -296,7 +297,10 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
                                  emptyBinds]
           ]
 
-      Axiom{} -> return $ fb axiomErr
+      Axiom{} -> do
+        ar <- typeArity ty
+        return $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
+                 fb axiomErr
       Primitive{ primName = s } -> fb <$> primBody s
 
       Function{} -> function pragma $ functionViaTreeless q
@@ -306,7 +310,8 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ cds ++ ccscov
+        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++
+                 [compiledTypeSynonym q ty np] ++ cds ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         computeErasedConstructorArgs q
         (ars, cds) <- unzip <$> mapM condecl cs
@@ -318,7 +323,8 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q np cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++ cds ++ ccscov
+        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++
+                 [compiledTypeSynonym q ty np] ++ cds ++ ccscov
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         computeErasedConstructorArgs q
         let c = conName con
@@ -675,6 +681,13 @@ compiledcondecl q = do
   hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
+
+compiledTypeSynonym :: QName -> String -> Nat -> HS.Decl
+compiledTypeSynonym q hsT arity =
+  HS.TypeDecl (unqhname "T" q) (map HS.UnkindedVar vs)
+              (foldl HS.TyApp (HS.FakeType hsT) $ map HS.TyVar vs)
+  where
+    vs = [ ihname "a" i | i <- [0 .. arity - 1]]
 
 tvaldecl :: QName
          -> Induction
