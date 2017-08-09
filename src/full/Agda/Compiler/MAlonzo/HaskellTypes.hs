@@ -13,11 +13,14 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
 import Agda.Compiler.MAlonzo.Pragmas
+import Agda.Compiler.MAlonzo.Misc
+import Agda.Compiler.MAlonzo.Pretty
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Pretty (prettyShow)
@@ -65,11 +68,21 @@ notAHaskellType a = typeError . GenericDocError =<< do
 getHsType :: QName -> TCM HaskellType
 getHsType x = do
   d <- getHaskellPragma x
+  let namedType = do
+        -- For these builtin types, the type name (xhqn ...) refers to the
+        -- generated, but unused, datatype and not the primitive type.
+        nat  <- getBuiltinName builtinNat
+        int  <- getBuiltinName builtinInteger
+        bool <- getBuiltinName builtinBool
+        case () of
+          _ | Just x `elem` [nat, int] -> return "Integer"
+            | Just x == bool           -> return "Bool"
+            | otherwise                -> prettyShow <$> xhqn "T" x
   setCurrentRange d $ case d of
-    Just (HsType _ t)   -> return t
-    Just HsDefn{}       -> return hsUnit
-    Just (HsData _ t _) -> return t
-    _                   -> notAHaskellType (El Prop $ Def x [])
+    Just HsDefn{} -> return hsUnit
+    Just HsType{} -> namedType
+    Just HsData{} -> namedType
+    _             -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i

@@ -10,7 +10,6 @@ import Data.Traversable (traverse)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
@@ -94,12 +93,9 @@ getHaskellPragma q = do
   def <- getConstInfo q
   setCurrentRange pragma $ pragma <$ sanityCheckPragma def pragma
 
--- | Precondition: we are in 'IgnoreAbstractMode'.
 sanityCheckPragma :: Definition -> Maybe HaskellPragma -> TCM ()
 sanityCheckPragma _ Nothing = return ()
-sanityCheckPragma def (Just HsDefn{}) = unless (defAbstract def == AbstractDef) $
-  -- Andreas, 2017-03-30, issue #2524:
-  -- Allow arbitrary compilation of abstract definitions.
+sanityCheckPragma def (Just HsDefn{}) =
   case theDef def of
     Axiom{}        -> return ()
     Function{}     -> return ()
@@ -114,28 +110,20 @@ sanityCheckPragma def (Just HsDefn{}) = unless (defAbstract def == AbstractDef) 
               , text "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}" ]
 sanityCheckPragma def (Just HsData{}) =
   case theDef def of
-    AbstractDefn -> __IMPOSSIBLE__
     Datatype{} -> return ()
     Record{}   -> return ()
     _          -> typeError $ GenericError "Haskell data types can only be given for data or record types."
 sanityCheckPragma def (Just HsType{}) =
   case theDef def of
-    AbstractDefn -> __IMPOSSIBLE__
-    Axiom{}      -> return ()
-    Datatype{}   -> do
+    Axiom{} -> return ()
+    Datatype{} -> do
       -- We use HsType pragmas for Nat, Int and Bool
       nat  <- getBuiltinName builtinNat
       int  <- getBuiltinName builtinInteger
       bool <- getBuiltinName builtinBool
-      unless (Just (defName def) `elem` [nat, int, bool]) errIfNotAbstract
-    Record{}     -> errIfNotAbstract
-    Constructor{}-> errIfNotAbstract
-    Function{}   -> err
-    Primitive{}  -> err
+      unless (Just (defName def) `elem` [nat, int, bool]) err
+    _ -> err
   where
-    -- Andreas, 2017-03-30, issue #2524:
-    -- Allow arbitrary compilation of abstract definitions.
-    errIfNotAbstract = unless (defAbstract def == AbstractDef) err
     err = typeError $ GenericError "Haskell types can only be given for postulates."
 sanityCheckPragma def (Just HsExport{}) =
   case theDef def of
@@ -176,3 +164,4 @@ inlineHaskell = filter (not . isImport) <$> foreignHaskell
 
 haskellImports :: TCM [String]
 haskellImports = filter isImport <$> foreignHaskell
+

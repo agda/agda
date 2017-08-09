@@ -417,6 +417,12 @@ piApply1 t v = do
   (_, b) <- mustBePi t
   return $ absApp b v
 
+-- | Compute type arity
+typeArity :: Type -> TCM Nat
+typeArity t = do
+  TelV tel _ <- telView t
+  return (size tel)
+
 ---------------------------------------------------------------------------
 -- * Instance definitions
 ---------------------------------------------------------------------------
