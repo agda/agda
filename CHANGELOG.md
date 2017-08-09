@@ -207,7 +207,7 @@ Language
   ```
   of type A × B to produce
   ```agda
-    λ { .π₁ → {!!} ; .π₂ → {!!}}  
+    λ { .π₁ → {!!} ; .π₂ → {!!}}
   ```
 
 Emacs mode
