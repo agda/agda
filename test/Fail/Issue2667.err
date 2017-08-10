@@ -1,0 +1,8 @@
+Issue2667.agda:15,1-16,26
+Inaccessible (dotted) patterns from the parent clause must also be
+inaccessible in the with clause, when checking the pattern {b = s
+c},
+when checking that the clause
+poo p with Bot
+poo {b = s c} p | _ = P c
+has type {b : A} → P b → Set
