@@ -183,7 +183,8 @@ install:
        export PATH=$HOME/.cabal/bin:$PATH &&
        if [[ $CABAL_VER = "1.18" ]]; then
           cabal install cabal-install &&
-          cabal --version;
+          cabal --version &&
+          cabal update;
        fi &&
        cabal install cpphs-1.20.8 &&
        cpphs --version;
