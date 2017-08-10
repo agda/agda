@@ -126,6 +126,9 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
+* Made BoundedVec level polymorphic and added conversion function between the
+  efficient representation and the inefficient one.
+
 * Giving access to `primForce` and `primForceLemma` via `Strict`. Also providing
   the call-by-value application combinator `_$!_`.
 

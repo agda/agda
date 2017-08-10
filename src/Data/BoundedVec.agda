@@ -11,6 +11,7 @@ module Data.BoundedVec where
 open import Data.Nat
 open import Data.List.Base as List using (List)
 open import Data.Vec as Vec using (Vec)
+import Data.BoundedVec.Inefficient as Ineff
 open import Relation.Binary.PropositionalEquality
 open import Data.Nat.Properties
 open SemiringSolver
@@ -20,15 +21,16 @@ open SemiringSolver
 
 abstract
 
-  data BoundedVec (a : Set) : ℕ → Set where
-    bVec : ∀ {m n} (xs : Vec a n) → BoundedVec a (n + m)
+  data BoundedVec {a} (A : Set a) : ℕ → Set a where
+    bVec : ∀ {m n} (xs : Vec A n) → BoundedVec A (n + m)
 
-  [] : ∀ {a n} → BoundedVec a n
+  [] : ∀ {a n} {A : Set a} → BoundedVec A n
   [] = bVec Vec.[]
 
   infixr 5 _∷_
 
-  _∷_ : ∀ {a n} → a → BoundedVec a n → BoundedVec a (suc n)
+  _∷_ : ∀ {a n} {A : Set a} →
+        A → BoundedVec A n → BoundedVec A (suc n)
   x ∷ bVec xs = bVec (Vec._∷_ x xs)
 
 ------------------------------------------------------------------------
@@ -36,13 +38,13 @@ abstract
 
 infixr 5 _∷v_
 
-data View (a : Set) : ℕ → Set where
-  []v  : ∀ {n} → View a n
-  _∷v_ : ∀ {n} (x : a) (xs : BoundedVec a n) → View a (suc n)
+data View {a} (A : Set a) : ℕ → Set a where
+  []v  : ∀ {n} → View A n
+  _∷v_ : ∀ {n} (x : A) (xs : BoundedVec A n) → View A (suc n)
 
 abstract
 
-  view : ∀ {a n} → BoundedVec a n → View a n
+  view : ∀ {a n} {A : Set a} → BoundedVec A n → View A n
   view (bVec Vec.[])         = []v
   view (bVec (Vec._∷_ x xs)) = x ∷v bVec xs
 
@@ -51,9 +53,9 @@ abstract
 
 abstract
 
-  ↑ : ∀ {a n} → BoundedVec a n → BoundedVec a (suc n)
-  ↑ {a = a} (bVec {m = m} {n = n} xs) =
-    subst (BoundedVec a) lemma
+  ↑ : ∀ {a n} {A : Set a} → BoundedVec A n → BoundedVec A (suc n)
+  ↑ {A = A} (bVec {m = m} {n = n} xs) =
+    subst (BoundedVec A) lemma
             (bVec {m = suc m} xs)
     where
     lemma : n + (1 + m) ≡ 1 + (n + m)
@@ -63,15 +65,26 @@ abstract
 ------------------------------------------------------------------------
 -- Conversions
 
-abstract
+module _ {a} {A : Set a} where
 
-  fromList : ∀ {a} → (xs : List a) → BoundedVec a (List.length xs)
-  fromList {a = a} xs =
-    subst (BoundedVec a) lemma
+ abstract
+
+  fromList : (xs : List A) → BoundedVec A (List.length xs)
+  fromList xs =
+    subst (BoundedVec A) lemma
             (bVec {m = zero} (Vec.fromList xs))
     where
     lemma : List.length xs + 0 ≡ List.length xs
     lemma = solve 1 (λ m → m :+ con 0  :=  m) refl _
 
-  toList : ∀ {a n} → BoundedVec a n → List a
+  toList : ∀ {n} → BoundedVec A n → List A
   toList (bVec xs) = Vec.toList xs
+
+  toInefficient : ∀ {n} → BoundedVec A n → Ineff.BoundedVec A n
+  toInefficient xs with view xs
+  ... | []v     = Ineff.[]
+  ... | y ∷v ys = y Ineff.∷ toInefficient ys
+
+  fromInefficient : ∀ {n} → Ineff.BoundedVec A n → BoundedVec A n
+  fromInefficient Ineff.[]       = []
+  fromInefficient (x Ineff.∷ xs) = x ∷ fromInefficient xs
