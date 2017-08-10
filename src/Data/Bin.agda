@@ -99,11 +99,7 @@ fromℕ n = fromBits $ ntoBits n
 
 -- Wrapped so that the parameters can be inferred.
 
-infix 4 _<_ _≤_
-
-data _≤_ : Bin → Bin → Set where
-  z≤n : ∀ {b} → 0# ≤ b
-  s≤s : ∀ {as bs} → Lex-≤ _≡_ Fin._≤_ as bs → as 1# ≤ bs 1#
+infix 4 _<_
 
 data _<_ (b₁ b₂ : Bin) : Set where
   less : (lt : (Nat._<_ on toℕ) b₁ b₂) → b₁ < b₂
