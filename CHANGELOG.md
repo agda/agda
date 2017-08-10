@@ -247,6 +247,13 @@ Backwards compatible changes
   ∧-∨-distribʳ : _∧_ DistributesOverʳ _∨_
   ```
 
+* Added pattern synonyms to `Data.Bin` to improve readability:
+  ```agda
+  pattern 0b = zero
+  pattern 1b = 1+ zero
+  pattern ⊥b = 1+ 1+ ()
+  ```
+
 * A new module `Data.Bin.Properties` has been added, containing proofs:
   ```agda
   1#-injective         : as 1# ≡ bs 1# → as ≡ bs
@@ -264,6 +271,12 @@ Backwards compatible changes
   1<[23]               : [] 1# < (b ∷ []) 1#
   1<2+                 : [] 1# < (b ∷ bs) 1#
   0<1+                 : 0# < bs 1#
+  ```
+
+* Added the following to `Data.Digit`:
+  ```agda
+  Expansion : ℕ → Set
+  Expansion base = List (Fin base)
   ```
 
 * Added functions to `Data.Fin`:
