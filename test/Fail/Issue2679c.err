@@ -1,0 +1,6 @@
+Issue2679c.agda:11,15-21
+I'm not sure if there should be a case for the constructor conC,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  conB b ≟ _11 a1 a2 a3
+when checking that the pattern conC b has type C a1 (_11 a1 a2 a3)
