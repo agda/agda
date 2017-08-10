@@ -700,7 +700,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
       , text "as     =" <+> addContext delta1 (prettyTCM as)
       , text "vs     =" <+> do addContext delta1 $ prettyTCM vs
       , text "b      =" <+> do addContext delta1 $ addContext delta2 $ prettyTCM b
-      , text "qs     =" <+> prettyList (map pretty qs)
+      , text "qs     =" <+> do addContext delta $ prettyTCMPatternList qs
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
       , text "fperm  =" <+> text (show finalPerm)
