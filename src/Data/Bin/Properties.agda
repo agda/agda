@@ -7,14 +7,14 @@
 module Data.Bin.Properties where
 
 open import Data.Bin
-open import Data.Digit using (Bit)
+open import Data.Digit using (Bit; Expansion)
 import Data.Fin as Fin
 import Data.Fin.Properties as 𝔽ₚ
 open import Data.List.Base using (List; []; _∷_)
 open import Data.List.Properties using (∷-injective)
 open import Data.Nat
   using (ℕ; zero; z≤n; s≤s; ≤-pred)
-  renaming (suc to 1+_; _+_ to _+ℕ_; _*_ to _*ℕ_)
+  renaming (suc to 1+_; _+_ to _+ℕ_; _*_ to _*ℕ_; _≤_ to _≤ℕ_)
 import Data.Nat.Properties as ℕₚ
 open import Data.Product using (proj₁; proj₂)
 open import Function using (_∘_)
@@ -30,13 +30,13 @@ open import Relation.Nullary using (yes; no)
 1#-injective : ∀ {as bs} → as 1# ≡ bs 1# → as ≡ bs
 1#-injective refl = refl
 
-infix 4 _≟_ _≟LB_
+infix 4 _≟_ _≟ₑ_
 
-_≟LB_ : Decidable (_≡_ {A = List Bit})
-_≟LB_ []       []       = yes refl
-_≟LB_ []       (_ ∷ _)  = no λ()
-_≟LB_ (_ ∷ _) []        = no λ()
-_≟LB_ (x ∷ xs) (y ∷ ys) with x 𝔽ₚ.≟ y | xs ≟LB ys
+_≟ₑ_ : ∀ {base} → Decidable (_≡_ {A = Expansion base})
+_≟ₑ_ []       []       = yes refl
+_≟ₑ_ []       (_ ∷ _)  = no λ()
+_≟ₑ_ (_ ∷ _) []        = no λ()
+_≟ₑ_ (x ∷ xs) (y ∷ ys) with x 𝔽ₚ.≟ y | xs ≟ₑ ys
 ... | _        | no xs≢ys = no (xs≢ys ∘ proj₂ ∘ ∷-injective)
 ... | no  x≢y  | _        = no (x≢y   ∘ proj₁ ∘ ∷-injective)
 ... | yes refl | yes refl = yes refl
@@ -45,7 +45,7 @@ _≟_ : Decidable {A = Bin} _≡_
 0#    ≟ 0#    = yes refl
 0#    ≟ bs 1# = no λ()
 as 1# ≟ 0#    = no λ()
-as 1# ≟ bs 1# with as ≟LB bs
+as 1# ≟ bs 1# with as ≟ₑ bs
 ... | yes refl  = yes refl
 ... | no  as≢bs = no (as≢bs ∘ 1#-injective)
 

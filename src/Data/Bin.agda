@@ -8,8 +8,9 @@ module Data.Bin where
 
 open import Data.Nat as Nat
   using (ℕ; zero; z≤n; s≤s) renaming (suc to 1+_)
-open import Data.Digit
-open import Data.Fin as Fin using (Fin; zero) renaming (suc to 1+_)
+open import Data.Digit  using (fromDigits; toDigits; Bit)
+open import Data.Fin as Fin using (Fin; zero)
+  renaming (suc to 1+_)
 open import Data.Fin.Properties as FP using (_+′_)
 open import Data.List.Base as List hiding (downFrom)
 open import Function
@@ -17,28 +18,35 @@ open import Data.Product using (uncurry; _,_; _×_)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
   using (_≡_; _≢_; refl; sym)
+open import Relation.Binary.List.StrictLex
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
+
+------------------------------------------------------------------------
+-- Bits
+
+pattern 0b = zero
+pattern 1b = 1+ zero
+pattern ⊥b = 1+ 1+ ()
 
 ------------------------------------------------------------------------
 -- The type
 
 -- A representation of binary natural numbers in which there is
--- exactly one representative for every number.
+-- exactly one representative for every number. The function toℕ below
+-- defines the meaning of Bin.
 
--- The function toℕ below defines the meaning of Bin.
-
-infix 8 _1#
-
--- bs stands for the binary number 1<reverse bs>, which is positive.
+-- `bs 1#` stands for the binary number "1<reverse bs>" e.g.
+-- `(0b ∷ [])           1#` represents "10"
+-- `(0b ∷ 1b ∷ 1b ∷ []) 1#` represents "1110"
 
 Bin⁺ : Set
 Bin⁺ = List Bit
 
+infix 8 _1#
+
 data Bin : Set where
-  -- Zero.
   0#  : Bin
-  -- bs 1# stands for the binary number 1<reverse bs>.
   _1# : (bs : Bin⁺) → Bin
 
 ------------------------------------------------------------------------
@@ -60,12 +68,12 @@ toℕ = fromDigits ∘ toBits
 -- significant one.
 
 fromBits : List Bit → Bin
-fromBits []                = 0#
-fromBits (b          ∷ bs) with fromBits bs
-fromBits (b          ∷ bs) | bs′ 1# = (b ∷ bs′) 1#
-fromBits (zero       ∷ bs) | 0#     = 0#
-fromBits ((1+ zero)  ∷ bs) | 0#     = [] 1#
-fromBits ((1+ 1+ ()) ∷ bs) | _
+fromBits []        = 0#
+fromBits (b  ∷ bs) with fromBits bs
+fromBits (b  ∷ bs) | bs′ 1# = (b ∷ bs′) 1#
+fromBits (0b ∷ bs) | 0#     = 0#
+fromBits (1b ∷ bs) | 0#     = [] 1#
+fromBits (⊥b ∷ bs) | _
 
 private
   pattern 2+_ n = 1+ 1+ n
@@ -91,7 +99,11 @@ fromℕ n = fromBits $ ntoBits n
 
 -- Wrapped so that the parameters can be inferred.
 
-infix 4 _<_
+infix 4 _<_ _≤_
+
+data _≤_ : Bin → Bin → Set where
+  z≤n : ∀ {b} → 0# ≤ b
+  s≤s : ∀ {as bs} → Lex-≤ _≡_ Fin._≤_ as bs → as 1# ≤ bs 1#
 
 data _<_ (b₁ b₂ : Bin) : Set where
   less : (lt : (Nat._<_ on toℕ) b₁ b₂) → b₁ < b₂
@@ -139,19 +151,19 @@ Carry = Bit
 
 addBits : Carry → Bit → Bit → Carry × Bit
 addBits c b₁ b₂ with c +′ (b₁ +′ b₂)
-... | zero          = (0b , 0b)
-... | 1+ zero       = (0b , 1b)
-... | 1+ 1+ zero    = (1b , 0b)
-... | 1+ 1+ 1+ zero = (1b , 1b)
+... | zero           = (0b , 0b)
+... | 1+ zero        = (0b , 1b)
+... | 1+ 1+ zero     = (1b , 0b)
+... | 1+ 1+ 1+ zero  = (1b , 1b)
 ... | 1+ 1+ 1+ 1+ ()
 
 addCarryToBitList : Carry → List Bit → List Bit
-addCarryToBitList zero      bs               = bs
-addCarryToBitList (1+ zero) []               = 1b ∷ []
-addCarryToBitList (1+ zero) (zero      ∷ bs) = 1b ∷ bs
-addCarryToBitList (1+ zero) ((1+ zero) ∷ bs) = 0b ∷ addCarryToBitList 1b bs
-addCarryToBitList (1+ 1+ ()) _
-addCarryToBitList _ ((1+ 1+ ()) ∷ _)
+addCarryToBitList 0b bs        = bs
+addCarryToBitList 1b []        = 1b ∷ []
+addCarryToBitList 1b (0b ∷ bs) = 1b ∷ bs
+addCarryToBitList 1b (1b ∷ bs) = 0b ∷ addCarryToBitList 1b bs
+addCarryToBitList ⊥b _
+addCarryToBitList _  (⊥b ∷ _)
 
 addBitLists : Carry → List Bit → List Bit → List Bit
 addBitLists c []         bs₂        = addCarryToBitList c bs₂
@@ -172,11 +184,11 @@ _*_ : Bin → Bin → Bin
 0#                  * n = 0#
 []               1# * n = n
 -- (b + 2 * bs 1#) * n = b * n + 2 * (bs 1# * n)
-(b         ∷ bs) 1# * n with bs 1# * n
-(b         ∷ bs) 1# * n | 0#     = 0#
-(zero      ∷ bs) 1# * n | bs' 1# = (0b ∷ bs') 1#
-((1+ zero) ∷ bs) 1# * n | bs' 1# = n + (0b ∷ bs') 1#
-((1+ 1+ ()) ∷ _) 1# * _ | _
+(b  ∷ bs) 1# * n with bs 1# * n
+(b  ∷ bs) 1# * n | 0#     = 0#
+(0b ∷ bs) 1# * n | bs' 1# = (0b ∷ bs') 1#
+(1b ∷ bs) 1# * n | bs' 1# = n + (0b ∷ bs') 1#
+(⊥b ∷ _)  1# * _ | _
 
 -- Successor.
 
@@ -191,10 +203,10 @@ suc n = [] 1# + n
 -- Predecessor.
 
 pred : Bin⁺ → Bin
-pred []                = 0#
-pred (zero       ∷ bs) = pred bs *2+1
-pred ((1+ zero)  ∷ bs) = (zero ∷ bs) 1#
-pred ((1+ 1+ ()) ∷ bs)
+pred []        = 0#
+pred (0b ∷ bs) = pred bs *2+1
+pred (1b ∷ bs) = (zero ∷ bs) 1#
+pred (⊥b ∷ bs)
 
 -- downFrom n enumerates all numbers from n - 1 to 0. This function is
 -- linear in n. Analysis: fromℕ takes linear time, and the preds used

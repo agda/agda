@@ -176,14 +176,16 @@ Backwards compatible changes
 * Added new module `Algebra.FunctionProperties.Consequences` for basic causal relationships between
   properties, containing:
   ```agda
-  comm+idˡ⇒idʳ       : Commutative _•_ → LeftIdentity e _•_ → RightIdentity e _•_
-  comm+idʳ⇒idˡ       : Commutative _•_ → RightIdentity e _•_ → LeftIdentity e _•_
-  comm+zeˡ⇒zeʳ       : Commutative _•_ → LeftZero e _•_ → RightZero e _•_
-  comm+zeʳ⇒zeˡ       : Commutative _•_ → RightZero e _•_ → LeftZero e _•_
-  comm+invˡ⇒invʳ     : Commutative _•_ → LeftInverse e _⁻¹ _•_ → RightInverse e _⁻¹ _•_
-  comm+invʳ⇒invˡ     : Commutative _•_ → RightInverse e _⁻¹ _•_ → LeftInverse e _⁻¹ _•_
-  comm+distrˡ⇒distrʳ : Commutative _•_ → _•_ DistributesOverˡ _◦_ → _•_ DistributesOverʳ _◦_
-  comm+distrʳ⇒distrˡ : Commutative _•_ → _•_ DistributesOverʳ _◦_ → _•_ DistributesOverˡ _◦_
+  comm+idˡ⇒idʳ         : Commutative _•_ → LeftIdentity e _•_ → RightIdentity e _•_
+  comm+idʳ⇒idˡ         : Commutative _•_ → RightIdentity e _•_ → LeftIdentity e _•_
+  comm+zeˡ⇒zeʳ         : Commutative _•_ → LeftZero e _•_ → RightZero e _•_
+  comm+zeʳ⇒zeˡ         : Commutative _•_ → RightZero e _•_ → LeftZero e _•_
+  comm+invˡ⇒invʳ       : Commutative _•_ → LeftInverse e _⁻¹ _•_ → RightInverse e _⁻¹ _•_
+  comm+invʳ⇒invˡ       : Commutative _•_ → RightInverse e _⁻¹ _•_ → LeftInverse e _⁻¹ _•_
+  comm+distrˡ⇒distrʳ   : Commutative _•_ → _•_ DistributesOverˡ _◦_ → _•_ DistributesOverʳ _◦_
+  comm+distrʳ⇒distrˡ   : Commutative _•_ → _•_ DistributesOverʳ _◦_ → _•_ DistributesOverˡ _◦_
+  comm+cancelˡ⇒cancelʳ : Commutative _•_ → LeftCancellative _•_ → RightCancellative _•_
+  comm+cancelˡ⇒cancelʳ : Commutative _•_ → LeftCancellative _•_ → RightCancellative _•_
   sel⇒idem           : Selective _•_ → Idempotent _•_
   ```
 
@@ -546,6 +548,9 @@ Backwards compatible changes
   +-monoˡ-<            : _+_ Preserves₂ _<_ ⟶ _≤_ ⟶ _<_
   +-monoʳ-<            : _+_ Preserves₂ _≤_ ⟶ _<_ ⟶ _<_
   +-mono-<             : _+_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
+  m+n≤o⇒m≤o            : m + n ≤ o → m ≤ o
+  m+n≤o⇒n≤o            : m + n ≤ o → n ≤ o
+  m+n≮n                : m + n ≮ n
 
   *-zeroˡ              : LeftZero 0 _*_
   *-zero               : Zero 0 _*_
@@ -558,6 +563,7 @@ Backwards compatible changes
   *-mono-<             : _*_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
   *-monoˡ-<            : (_* suc n) Preserves _<_ ⟶ _<_
   *-monoʳ-<            : (suc n *_) Preserves _<_ ⟶ _<_
+  *-cancelˡ-≡          : suc k * i ≡ suc k * j → i ≡ j
 
   ⊔-assoc              : Associative _⊔_
   ⊔-comm               : Commutative _⊔_
@@ -579,6 +585,7 @@ Backwards compatible changes
   m≤m⊔n                : m ≤ m ⊔ n
   m⊔n≤m+n              : m ⊔ n ≤ m + n
   m⊓n≤m+n              : m ⊓ n ≤ m + n
+  m⊓n≤m⊔n              : m ⊔ n ≤ m ⊔ n
   ⊔-mono-≤             : _⊔_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
   ⊔-mono-<             : _⊔_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
   ⊓-mono-≤             : _⊓_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
@@ -592,6 +599,10 @@ Backwards compatible changes
   ⊔-isSemigroup        : IsSemigroup _≡_ _⊔_
   ⊓-isSemigroup        : IsSemigroup _≡_ _⊓_
   ⊓-⊔-isLattice        : IsLattice _≡_ _⊓_ _⊔_
+
+  ∸-distribʳ-⊔         : _∸_ DistributesOverʳ _⊔_
+  ∸-distribʳ-⊓         : _∸_ DistributesOverʳ _⊓_
+  +-∸-comm             : o ≤ m → (m + n) ∸ o ≡ (m ∸ o) + n
   ```
 
 * Added decidability relation to `Data.Nat.GCD`

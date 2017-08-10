@@ -303,18 +303,34 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
   ; comm        = +-comm
   }
 
--- Other properties of _+_
+-- Other properties of _+_ and _≡_
 
 +-cancelˡ-≡ : LeftCancellative _≡_ _+_
 +-cancelˡ-≡ zero    eq = eq
 +-cancelˡ-≡ (suc m) eq = +-cancelˡ-≡ m (cong pred eq)
 
 +-cancelʳ-≡ : RightCancellative _≡_ _+_
-+-cancelʳ-≡ {m} n o eq =
-  +-cancelˡ-≡ m (subst₂ _≡_ (+-comm n m) (+-comm o m) eq)
++-cancelʳ-≡ = comm+cancelˡ⇒cancelʳ +-comm +-cancelˡ-≡
 
 +-cancel-≡ : Cancellative _≡_ _+_
 +-cancel-≡ = +-cancelˡ-≡ , +-cancelʳ-≡
+
+m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
+m≢1+m+n zero    ()
+m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
+
+i+1+j≢i : ∀ i {j} → i + suc j ≢ i
+i+1+j≢i zero    ()
+i+1+j≢i (suc i) = (i+1+j≢i i) ∘ suc-injective
+
+i+j≡0⇒i≡0 : ∀ i {j} → i + j ≡ 0 → i ≡ 0
+i+j≡0⇒i≡0 zero    eq = refl
+i+j≡0⇒i≡0 (suc i) ()
+
+i+j≡0⇒j≡0 : ∀ i {j} → i + j ≡ 0 → j ≡ 0
+i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j (trans (+-comm j i) (i+j≡0))
+
+-- Properties of _+_ and orderings
 
 +-cancelˡ-≤ : LeftCancellative _≤_ _+_
 +-cancelˡ-≤ zero    le       = le
@@ -327,23 +343,25 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 +-cancel-≤ : Cancellative _≤_ _+_
 +-cancel-≤ = +-cancelˡ-≤ , +-cancelʳ-≤
 
-≤-steps : ∀ {m n} k → m ≤ n → m ≤ k + n
-≤-steps zero    m≤n = m≤n
-≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
-
 m≤m+n : ∀ m n → m ≤ m + n
 m≤m+n zero    n = z≤n
 m≤m+n (suc m) n = s≤s (m≤m+n m n)
 
-m≤′m+n : ∀ m n → m ≤′ m + n
-m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
-
-n≤′m+n : ∀ m n → n ≤′ m + n
-n≤′m+n zero    n = ≤′-refl
-n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
-
 n≤m+n : ∀ m n → n ≤ m + n
-n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
+n≤m+n m zero    = z≤n
+n≤m+n m (suc n) = subst (suc n ≤_) (sym (+-suc m n)) (s≤s (n≤m+n m n))
+
+≤-steps : ∀ {m n} k → m ≤ n → m ≤ k + n
+≤-steps zero    m≤n = m≤n
+≤-steps (suc k) m≤n = ≤-step (≤-steps k m≤n)
+
+m+n≤o⇒m≤o : ∀ m {n o} → m + n ≤ o → m ≤ o
+m+n≤o⇒m≤o zero    m+n≤o       = z≤n
+m+n≤o⇒m≤o (suc m) (s≤s m+n≤o) = s≤s (m+n≤o⇒m≤o m m+n≤o)
+
+m+n≤o⇒n≤o : ∀ m {n o} → m + n ≤ o → n ≤ o
+m+n≤o⇒n≤o zero    n≤o   = n≤o
+m+n≤o⇒n≤o (suc m) m+n<o = m+n≤o⇒n≤o m (<⇒≤ m+n<o)
 
 +-mono-≤ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 +-mono-≤ {_} {m} z≤n       o≤p = ≤-trans o≤p (n≤m+n m _)
@@ -364,20 +382,16 @@ n≤m+n m n = ≤′⇒≤ (n≤′m+n m n)
 ¬i+1+j≤i zero    ()
 ¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
 
-m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
-m≢1+m+n zero    ()
-m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
+m+n≮n : ∀ m n → m + n ≮ n
+m+n≮n zero    n                   = <-irrefl refl
+m+n≮n (suc m) (suc n) (s≤s m+n<n) = m+n≮n m (suc n) (≤-step m+n<n)
 
-i+1+j≢i : ∀ i {j} → i + suc j ≢ i
-i+1+j≢i zero    ()
-i+1+j≢i (suc i) = (i+1+j≢i i) ∘ suc-injective
+m≤′m+n : ∀ m n → m ≤′ m + n
+m≤′m+n m n = ≤⇒≤′ (m≤m+n m n)
 
-i+j≡0⇒i≡0 : ∀ i {j} → i + j ≡ 0 → i ≡ 0
-i+j≡0⇒i≡0 zero    eq = refl
-i+j≡0⇒i≡0 (suc i) ()
-
-i+j≡0⇒j≡0 : ∀ i {j} → i + j ≡ 0 → j ≡ 0
-i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j (trans (+-comm j i) (i+j≡0))
+n≤′m+n : ∀ m n → n ≤′ m + n
+n≤′m+n zero    n = ≤′-refl
+n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
 
 ------------------------------------------------------------------------
 -- Properties of _*_
@@ -482,6 +496,26 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j (trans (+-comm j i) (i+j≡0))
 *-cancelʳ-≡ (suc i) (suc j) {k} eq =
   cong suc (*-cancelʳ-≡ i j (+-cancelˡ-≡ (suc k) eq))
 
+*-cancelˡ-≡ : ∀ {i j} k → suc k * i ≡ suc k * j → i ≡ j
+*-cancelˡ-≡ {i} {j} k eq = *-cancelʳ-≡ i j
+  (subst₂ _≡_ (*-comm (suc k) i) (*-comm (suc k) j) eq)
+
+i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
+i*j≡0⇒i≡0∨j≡0 zero    {j}     eq = inj₁ refl
+i*j≡0⇒i≡0∨j≡0 (suc i) {zero}  eq = inj₂ refl
+i*j≡0⇒i≡0∨j≡0 (suc i) {suc j} ()
+
+i*j≡1⇒i≡1 : ∀ i j → i * j ≡ 1 → i ≡ 1
+i*j≡1⇒i≡1 (suc zero)    j             _  = refl
+i*j≡1⇒i≡1 zero          j             ()
+i*j≡1⇒i≡1 (suc (suc i)) (suc (suc j)) ()
+i*j≡1⇒i≡1 (suc (suc i)) (suc zero)    ()
+i*j≡1⇒i≡1 (suc (suc i)) zero          eq =
+  contradiction (trans (*-comm 0 i) eq) λ()
+
+i*j≡1⇒j≡1 : ∀ i j → i * j ≡ 1 → j ≡ 1
+i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
+
 *-cancelʳ-≤ : ∀ i j k → i * suc k ≤ j * suc k → i ≤ j
 *-cancelʳ-≤ zero    _       _ _  = z≤n
 *-cancelʳ-≤ (suc i) zero    _ ()
@@ -507,22 +541,6 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j (trans (+-comm j i) (i+j≡0))
 *-monoʳ-< (suc n) (s≤s m≤o) =
   +-mono-≤ (s≤s m≤o) (<⇒≤ (*-monoʳ-< n (s≤s m≤o)))
 
-i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
-i*j≡0⇒i≡0∨j≡0 zero    {j}     eq = inj₁ refl
-i*j≡0⇒i≡0∨j≡0 (suc i) {zero}  eq = inj₂ refl
-i*j≡0⇒i≡0∨j≡0 (suc i) {suc j} ()
-
-i*j≡1⇒i≡1 : ∀ i j → i * j ≡ 1 → i ≡ 1
-i*j≡1⇒i≡1 (suc zero)    j             _  = refl
-i*j≡1⇒i≡1 zero          j             ()
-i*j≡1⇒i≡1 (suc (suc i)) (suc (suc j)) ()
-i*j≡1⇒i≡1 (suc (suc i)) (suc zero)    ()
-i*j≡1⇒i≡1 (suc (suc i)) zero          eq =
-  contradiction (trans (*-comm 0 i) eq) λ()
-
-i*j≡1⇒j≡1 : ∀ i j → i * j ≡ 1 → j ≡ 1
-i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
-
 ------------------------------------------------------------------------
 -- Properties of _⊔_ and _⊓_
 
@@ -547,7 +565,6 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊔-comm (suc m) zero    = refl
 ⊔-comm (suc m) (suc n) = cong suc (⊔-comm m n)
 
--- ∀ x y → (x ⊔ y ≡ x) ⊎ (x ⊔ y ≡ y)
 ⊔-sel : Selective _⊔_
 ⊔-sel zero    _    = inj₂ refl
 ⊔-sel (suc m) zero = inj₁ refl
@@ -555,7 +572,6 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ... | inj₁ m⊔n≡m = inj₁ (cong suc m⊔n≡m)
 ... | inj₂ m⊔n≡n = inj₂ (cong suc m⊔n≡n)
 
--- ∀ x → x ⊔ x ≡ x
 ⊔-idem : Idempotent _⊔_
 ⊔-idem = sel⇒idem ⊔-sel
 
@@ -580,7 +596,6 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊓-comm (suc m) zero    = refl
 ⊓-comm (suc m) (suc n) = cong suc (⊓-comm m n)
 
--- ∀ x y → (x ⊓ y ≡ x) ⊎ (x ⊓ y ≡ y)
 ⊓-sel : Selective _⊓_
 ⊓-sel zero    _    = inj₁ refl
 ⊓-sel (suc m) zero = inj₂ refl
@@ -588,7 +603,6 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ... | inj₁ m⊓n≡m = inj₁ (cong suc m⊓n≡m)
 ... | inj₂ m⊓n≡n = inj₂ (cong suc m⊓n≡n)
 
--- ∀ x → x ⊓ x ≡ x
 ⊓-idem : Idempotent _⊓_
 ⊓-idem = sel⇒idem ⊓-sel
 
@@ -706,6 +720,11 @@ m≤m⊔n (suc m) (suc n) = s≤s $ m≤m⊔n m n
 n≤m⊔n : ∀ m n → n ≤ m ⊔ n
 n≤m⊔n m n = subst (n ≤_) (⊔-comm n m) (m≤m⊔n n m)
 
+m⊓n≤m⊔n : ∀ m n → m ⊔ n ≤ m ⊔ n
+m⊓n≤m⊔n zero    n       = ≤-refl
+m⊓n≤m⊔n (suc m) zero    = ≤-refl
+m⊓n≤m⊔n (suc m) (suc n) = s≤s (m⊓n≤m⊔n m n)
+
 ⊔-mono-≤ : _⊔_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 ⊔-mono-≤ {x} {y} {u} {v} x≤y u≤v with ⊔-sel x u
 ... | inj₁ x⊔u≡x rewrite x⊔u≡x = ≤-trans x≤y (m≤m⊔n y v)
@@ -763,6 +782,12 @@ m⊓n≤m+n m n with ⊓-sel m n
 n∸n≡0 : ∀ n → n ∸ n ≡ 0
 n∸n≡0 zero    = refl
 n∸n≡0 (suc n) = n∸n≡0 n
+
++-∸-comm : ∀ {m} n {o} → o ≤ m → (m + n) ∸ o ≡ (m ∸ o) + n
++-∸-comm {zero}  _ {suc o} ()
++-∸-comm {zero}  _ {zero}  _         = refl
++-∸-comm {suc m} _ {zero}  _         = refl
++-∸-comm {suc m} n {suc o} (s≤s o≤m) = +-∸-comm n o≤m
 
 ∸-+-assoc : ∀ m n o → (m ∸ n) ∸ o ≡ m ∸ (n + o)
 ∸-+-assoc m       n       zero    = cong (m ∸_) (sym $ +-identityʳ n)
@@ -840,14 +865,28 @@ i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
 
 *-distribʳ-∸ : _*_ DistributesOverʳ _∸_
 *-distribʳ-∸ i zero k = begin
-  (0 ∸ k) * i  ≡⟨ cong₂ _*_ (0∸n≡0 k) refl ⟩
+  (0 ∸ k) * i  ≡⟨ cong (_* i) (0∸n≡0 k) ⟩
   0            ≡⟨ sym $ 0∸n≡0 (k * i) ⟩
-  0 ∸ k * i    ∎
-*-distribʳ-∸ i (suc j) zero    = begin i + j * i ∎
+  0 ∸ (k * i)  ∎
+*-distribʳ-∸ i (suc j) zero    = refl
 *-distribʳ-∸ i (suc j) (suc k) = begin
   (j ∸ k) * i             ≡⟨ *-distribʳ-∸ i j k ⟩
   j * i ∸ k * i           ≡⟨ sym $ [i+j]∸[i+k]≡j∸k i _ _ ⟩
   i + j * i ∸ (i + k * i) ∎
+
+∸-distribʳ-⊓ : _∸_ DistributesOverʳ _⊓_
+∸-distribʳ-⊓ zero    y       z       = refl
+∸-distribʳ-⊓ (suc x) zero    zero    = refl
+∸-distribʳ-⊓ (suc x) zero    (suc z) = refl
+∸-distribʳ-⊓ (suc x) (suc y) zero    = sym (⊓-zeroʳ (y ∸ x))
+∸-distribʳ-⊓ (suc x) (suc y) (suc z) = ∸-distribʳ-⊓ x y z
+
+∸-distribʳ-⊔ : _∸_ DistributesOverʳ _⊔_
+∸-distribʳ-⊔ zero    y       z       = refl
+∸-distribʳ-⊔ (suc x) zero    zero    = refl
+∸-distribʳ-⊔ (suc x) zero    (suc z) = refl
+∸-distribʳ-⊔ (suc x) (suc y) zero    = sym (⊔-identityʳ (y ∸ x))
+∸-distribʳ-⊔ (suc x) (suc y) (suc z) = ∸-distribʳ-⊔ x y z
 
 im≡jm+n⇒[i∸j]m≡n : ∀ i j m n → i * m ≡ j * m + n → (i ∸ j) * m ≡ n
 im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
@@ -905,7 +944,6 @@ module ≤-Reasoning where
 ------------------------------------------------------------------------
 -- Please use the new names as support for the old is not guaranteed.
 
-{-
 _*-mono_ = *-mono-≤
 _+-mono_ = +-mono-≤
 
@@ -926,4 +964,3 @@ distributiveLattice                   = ⊓-⊔-distributiveLattice
 ⊔-⊓-0-isSemiringWithoutOne            = ⊔-⊓-isSemiringWithoutOne
 ⊔-⊓-0-isCommutativeSemiringWithoutOne = ⊔-⊓-isCommutativeSemiringWithoutOne
 ⊔-⊓-0-commutativeSemiringWithoutOne   = ⊔-⊓-commutativeSemiringWithoutOne
--}

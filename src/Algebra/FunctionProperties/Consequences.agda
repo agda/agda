@@ -86,6 +86,25 @@ comm+distrʳ⇒distrˡ {_•_} {_◦_} cong comm distrˡ x y z = begin
   (x • y) ◦ (x • z) ∎
 
 ------------------------------------------------------------------------
+-- Transposing cancellativity
+
+comm+cancelˡ⇒cancelʳ : ∀ {_•_} → Commutative _•_ →
+                     LeftCancellative _•_ →  RightCancellative _•_
+comm+cancelˡ⇒cancelʳ {_•_} comm cancelˡ {x} y z eq = cancelˡ x (begin
+  x • y ≈⟨ comm x y ⟩
+  y • x ≈⟨ eq ⟩
+  z • x ≈⟨ comm z x ⟩
+  x • z ∎)
+
+comm+cancelʳ⇒cancelˡ : ∀ {_•_} → Commutative _•_ →
+                     RightCancellative _•_ → LeftCancellative _•_
+comm+cancelʳ⇒cancelˡ {_•_} comm cancelʳ x {y} {z} eq = cancelʳ y z (begin
+  y • x ≈⟨ comm y x ⟩
+  x • y ≈⟨ eq ⟩
+  x • z ≈⟨ comm x z ⟩
+  z • x ∎)
+
+------------------------------------------------------------------------
 -- Selectivity implies idempotence
 
 sel⇒idem : ∀ {_•_} → Selective _•_ → Idempotent _•_
