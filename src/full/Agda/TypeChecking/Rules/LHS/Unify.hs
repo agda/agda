@@ -494,67 +494,67 @@ instance PrettyTCM UnifyStep where
   prettyTCM step = case step of
     Deletion k a u v -> text "Deletion" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "type:       " <+> prettyTCM a
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     Solution k a i u -> text "Solution" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
+      , text "type:       " <+> prettyTCM a
       , text "variable:   " <+> text (show i)
-      , text "term:       " <+> text (show u)
+      , text "term:       " <+> prettyTCM u
       ])
     Injectivity k a d pars ixs c -> text "Injectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
-      , text "datatype:   " <+> text (show d)
-      , text "parameters: " <+> text (show pars)
-      , text "indices:    " <+> text (show ixs)
-      , text "constructor:" <+> text (show c)
+      , text "type:       " <+> prettyTCM a
+      , text "datatype:   " <+> prettyTCM d
+      , text "parameters: " <+> prettyList_ (map prettyTCM pars)
+      , text "indices:    " <+> prettyList_ (map prettyTCM ixs)
+      , text "constructor:" <+> prettyTCM c
       ])
     Conflict k d pars u v -> text "Conflict" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "datatype:   " <+> text (show d)
-      , text "parameters: " <+> text (show pars)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "datatype:   " <+> prettyTCM d
+      , text "parameters: " <+> prettyList_ (map prettyTCM pars)
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     Cycle k d pars i u -> text "Cycle" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "datatype:   " <+> text (show d)
-      , text "parameters: " <+> text (show pars)
+      , text "datatype:   " <+> prettyTCM d
+      , text "parameters: " <+> prettyList_ (map prettyTCM pars)
       , text "variable:   " <+> text (show i)
-      , text "term:       " <+> text (show u)
+      , text "term:       " <+> prettyTCM u
       ])
     EtaExpandVar fi r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
       [ text "variable:   " <+> text (show fi)
-      , text "record type:" <+> text (show r)
-      , text "parameters: " <+> text (show pars)
+      , text "record type:" <+> prettyTCM r
+      , text "parameters: " <+> prettyTCM pars
       ])
     EtaExpandEquation k r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "record type:" <+> text (show r)
-      , text "parameters: " <+> text (show pars)
+      , text "record type:" <+> prettyTCM r
+      , text "parameters: " <+> prettyTCM pars
       ])
     LitConflict k a u v -> text "LitConflict" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "type:       " <+> prettyTCM a
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     StripSizeSuc k u v -> text "StripSizeSuc" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     SkipIrrelevantEquation k -> text "SkipIrrelevantEquation" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       ])
     TypeConInjectivity k d us vs -> text "TypeConInjectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "datatype:   " <+> text (show d)
-      , text "lhs:        " <+> text (show us)
-      , text "rhs:        " <+> text (show vs)
+      , text "datatype:   " <+> prettyTCM d
+      , text "lhs:        " <+> prettyList_ (map prettyTCM us)
+      , text "rhs:        " <+> prettyList_ (map prettyTCM vs)
       ])
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
@@ -1198,7 +1198,8 @@ unify s strategy = if isUnifyStateSolved s
                  -> UnifyM (UnificationResult' UnifyState)
                  -> UnifyM (UnificationResult' UnifyState)
     tryUnifyStep step fallback = do
-      reportSDoc "tc.lhs.unify" 20 $ text "trying unifyStep" <+> prettyTCM step
+      addContext (varTel s) $
+        reportSDoc "tc.lhs.unify" 20 $ text "trying unifyStep" <+> prettyTCM step
       x <- unifyStep s step
       case x of
         Unifies s'   -> do
