@@ -1,18 +1,7 @@
-Failed to solve the following constraints:
-  _118 :=
-    λ {.Γ} {.Γ′} {.t} {.A} η j → up (ren-true--fail η (_113 η j))
-    [blocked on problem 168]
-  [168, 173, 175] _116 := λ {.Γ} {.Γ′} {.t} {.A} η j → suc _103
-                    [blocked on problem 176]
-  [168, 173, 175, 176] suc _103 = _103 : Nat
-  [168] _114 := λ {.Γ} {.Γ′} {.t} {.A} η j → suc _103
-          [blocked on problem 170]
-  [168, 170, 171, 172] suc _103 = _103 : Nat
-  _112 := (λ {.Γ} {.Γ′} {.t} {.A} η j → j) [blocked on problem 155]
-  [155] _110 := (λ {.Γ} {.Γ′} {.t} {.A} η j → _103)
-          [blocked on problem 157]
-  [155, 157, 158] _103 = (suc _103) : Nat
-Unsolved metas at the following locations:
-  Issue1982.agda:28,40-46
-  Issue1982.agda:29,48-49
-  Issue1982.agda:29,27-50
+Issue1982.agda:29,19-23
+I'm not sure if there should be a case for the constructor up,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  {_} ≟ {_}
+  (! t) ∶ (t ∶ A₁) ≟ A
+when checking that the pattern up j has type True Γ A

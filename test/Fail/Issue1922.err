@@ -1,0 +1,6 @@
+Issue1922.agda:30,17-21
+I'm not sure if there should be a case for the constructor zero,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  suc n ≟ _n_26
+when checking that the pattern zero has type Fin _n_26
