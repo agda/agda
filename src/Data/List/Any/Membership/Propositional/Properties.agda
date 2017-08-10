@@ -266,7 +266,7 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
     ∈xs j  | tri> _ i≢j _       = ∈-if-not-i i≢j
     ∈xs .i | tri≈ _ refl _      =
       ∈-if-not-i (m≢1+m+n i ∘
-                  subst (_≡_ i ∘ suc) (sym (+-right-identity i)))
+                  subst (_≡_ i ∘ suc) (sym (+-identityʳ i)))
 
     injective′ : Inj.Injective {B = P.setoid A} (→-to-⟶ f)
     injective′ {j} {k} eq with STO.compare i j | STO.compare i k

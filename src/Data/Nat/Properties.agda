@@ -177,8 +177,8 @@ x <? y = suc x ≤? y
   ; compare       = <-cmp
   }
 
-strictTotalOrder : StrictTotalOrder _ _ _
-strictTotalOrder = record
+<-strictTotalOrder : StrictTotalOrder _ _ _
+<-strictTotalOrder = record
   { isStrictTotalOrder = <-isStrictTotalOrder
   }
 
@@ -271,18 +271,18 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 +-assoc zero    _ _ = refl
 +-assoc (suc m) n o = cong suc (+-assoc m n o)
 
-+-left-identity : LeftIdentity 0 _+_
-+-left-identity _ = refl
++-identityˡ : LeftIdentity 0 _+_
++-identityˡ _ = refl
 
-+-right-identity : RightIdentity 0 _+_
-+-right-identity zero    = refl
-+-right-identity (suc n) = cong suc (+-right-identity n)
++-identityʳ : RightIdentity 0 _+_
++-identityʳ zero    = refl
++-identityʳ (suc n) = cong suc (+-identityʳ n)
 
 +-identity : Identity 0 _+_
-+-identity = +-left-identity , +-right-identity
++-identity = +-identityˡ , +-identityʳ
 
 +-comm : Commutative _+_
-+-comm zero    n = sym (+-right-identity n)
++-comm zero    n = sym (+-identityʳ n)
 +-comm (suc m) n = begin
   suc m + n   ≡⟨⟩
   suc (m + n) ≡⟨ cong suc (+-comm m n) ⟩
@@ -299,33 +299,33 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 +-0-isCommutativeMonoid : IsCommutativeMonoid _≡_ _+_ 0
 +-0-isCommutativeMonoid = record
   { isSemigroup = +-isSemigroup
-  ; identityˡ    = +-left-identity
+  ; identityˡ    = +-identityˡ
   ; comm        = +-comm
   }
 
 -- Other properties of _+_
 
-cancel-+-left : LeftCancellative _≡_ _+_
-cancel-+-left zero    eq = eq
-cancel-+-left (suc m) eq = cancel-+-left m (cong pred eq)
++-cancelˡ-≡ : LeftCancellative _≡_ _+_
++-cancelˡ-≡ zero    eq = eq
++-cancelˡ-≡ (suc m) eq = +-cancelˡ-≡ m (cong pred eq)
 
-cancel-+-right : RightCancellative _≡_ _+_
-cancel-+-right {m} n o eq =
-  cancel-+-left m (subst₂ _≡_ (+-comm n m) (+-comm o m) eq)
++-cancelʳ-≡ : RightCancellative _≡_ _+_
++-cancelʳ-≡ {m} n o eq =
+  +-cancelˡ-≡ m (subst₂ _≡_ (+-comm n m) (+-comm o m) eq)
 
-+-cancellative : Cancellative _≡_ _+_
-+-cancellative = cancel-+-left , cancel-+-right
++-cancel-≡ : Cancellative _≡_ _+_
++-cancel-≡ = +-cancelˡ-≡ , +-cancelʳ-≡
 
-cancel-+-left-≤ : LeftCancellative _≤_ _+_
-cancel-+-left-≤ zero    le       = le
-cancel-+-left-≤ (suc m) (s≤s le) = cancel-+-left-≤ m le
++-cancelˡ-≤ : LeftCancellative _≤_ _+_
++-cancelˡ-≤ zero    le       = le
++-cancelˡ-≤ (suc m) (s≤s le) = +-cancelˡ-≤ m le
 
-cancel-+-right-≤ : RightCancellative _≤_ _+_
-cancel-+-right-≤ {m} n o le =
-  cancel-+-left-≤ m (subst₂ _≤_ (+-comm n m) (+-comm o m) le)
++-cancelʳ-≤ : RightCancellative _≤_ _+_
++-cancelʳ-≤ {m} n o le =
+  +-cancelˡ-≤ m (subst₂ _≤_ (+-comm n m) (+-comm o m) le)
 
-+-cancellative-≤ : Cancellative _≤_ _+_
-+-cancellative-≤ = cancel-+-left-≤ , cancel-+-right-≤
++-cancel-≤ : Cancellative _≤_ _+_
++-cancel-≤ = +-cancelˡ-≤ , +-cancelʳ-≤
 
 ≤-steps : ∀ {m n} k → m ≤ n → m ≤ k + n
 ≤-steps zero    m≤n = m≤n
@@ -394,54 +394,54 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j (trans (+-comm j i) (i+j≡0))
   suc (m + (n + m * n)) ≡⟨⟩
   suc m + suc m * n     ∎
 
-*-left-identity : LeftIdentity 1 _*_
-*-left-identity x = +-right-identity x
+*-identityˡ : LeftIdentity 1 _*_
+*-identityˡ x = +-identityʳ x
 
-*-right-identity : RightIdentity 1 _*_
-*-right-identity zero    = refl
-*-right-identity (suc x) = cong suc (*-right-identity x)
+*-identityʳ : RightIdentity 1 _*_
+*-identityʳ zero    = refl
+*-identityʳ (suc x) = cong suc (*-identityʳ x)
 
 *-identity : Identity 1 _*_
-*-identity = *-left-identity , *-right-identity
+*-identity = *-identityˡ , *-identityʳ
 
-*-left-zero : LeftZero 0 _*_
-*-left-zero _ = refl
+*-zeroˡ : LeftZero 0 _*_
+*-zeroˡ _ = refl
 
-*-right-zero : RightZero 0 _*_
-*-right-zero zero    = refl
-*-right-zero (suc n) = *-right-zero n
+*-zeroʳ : RightZero 0 _*_
+*-zeroʳ zero    = refl
+*-zeroʳ (suc n) = *-zeroʳ n
 
 *-zero : Zero 0 _*_
-*-zero = *-left-zero , *-right-zero
+*-zero = *-zeroˡ , *-zeroʳ
 
 *-comm : Commutative _*_
-*-comm zero    n = sym (*-right-zero n)
+*-comm zero    n = sym (*-zeroʳ n)
 *-comm (suc m) n = begin
   suc m * n  ≡⟨⟩
   n + m * n  ≡⟨ cong (n +_) (*-comm m n) ⟩
   n + n * m  ≡⟨ sym (+-*-suc n m) ⟩
   n * suc m  ∎
 
-distribʳ-*-+ : _*_ DistributesOverʳ _+_
-distribʳ-*-+ m zero    o = refl
-distribʳ-*-+ m (suc n) o = begin
+*-distribʳ-+ : _*_ DistributesOverʳ _+_
+*-distribʳ-+ m zero    o = refl
+*-distribʳ-+ m (suc n) o = begin
   (suc n + o) * m     ≡⟨⟩
-  m + (n + o) * m     ≡⟨ cong (m +_) (distribʳ-*-+ m n o) ⟩
+  m + (n + o) * m     ≡⟨ cong (m +_) (*-distribʳ-+ m n o) ⟩
   m + (n * m + o * m) ≡⟨ sym (+-assoc m (n * m) (o * m)) ⟩
   m + n * m + o * m   ≡⟨⟩
   suc n * m + o * m   ∎
 
-distribˡ-*-+ : _*_ DistributesOverˡ _+_
-distribˡ-*-+ = comm+distrʳ⇒distrˡ (cong₂ _+_) *-comm distribʳ-*-+
+*-distribˡ-+ : _*_ DistributesOverˡ _+_
+*-distribˡ-+ = comm+distrʳ⇒distrˡ (cong₂ _+_) *-comm *-distribʳ-+
 
-distrib-*-+ : _*_ DistributesOver _+_
-distrib-*-+ = distribˡ-*-+ , distribʳ-*-+
+*-distrib-+ : _*_ DistributesOver _+_
+*-distrib-+ = *-distribˡ-+ , *-distribʳ-+
 
 *-assoc : Associative _*_
 *-assoc zero    n o = refl
 *-assoc (suc m) n o = begin
   (suc m * n) * o     ≡⟨⟩
-  (n + m * n) * o     ≡⟨ distribʳ-*-+ o n (m * n) ⟩
+  (n + m * n) * o     ≡⟨ *-distribʳ-+ o n (m * n) ⟩
   n * o + (m * n) * o ≡⟨ cong (n * o +_) (*-assoc m n o) ⟩
   n * o + m * (n * o) ≡⟨⟩
   suc m * (n * o)     ∎
@@ -456,37 +456,37 @@ distrib-*-+ = distribˡ-*-+ , distribʳ-*-+
 *-1-isCommutativeMonoid : IsCommutativeMonoid _≡_ _*_ 1
 *-1-isCommutativeMonoid = record
   { isSemigroup = *-isSemigroup
-  ; identityˡ    = *-left-identity
+  ; identityˡ    = *-identityˡ
   ; comm        = *-comm
   }
 
-isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ 0 1
-isCommutativeSemiring = record
+*-+-isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ 0 1
+*-+-isCommutativeSemiring = record
   { +-isCommutativeMonoid = +-0-isCommutativeMonoid
   ; *-isCommutativeMonoid = *-1-isCommutativeMonoid
-  ; distribʳ              = distribʳ-*-+
-  ; zeroˡ                 = *-left-zero
+  ; distribʳ              = *-distribʳ-+
+  ; zeroˡ                 = *-zeroˡ
   }
 
-commutativeSemiring : CommutativeSemiring _ _
-commutativeSemiring = record
-  { isCommutativeSemiring = isCommutativeSemiring
+*-+-commutativeSemiring : CommutativeSemiring _ _
+*-+-commutativeSemiring = record
+  { isCommutativeSemiring = *-+-isCommutativeSemiring
   }
 
 -- Other properties of _*_
 
-cancel-*-right : ∀ i j {k} → i * suc k ≡ j * suc k → i ≡ j
-cancel-*-right zero    zero        eq = refl
-cancel-*-right zero    (suc j)     ()
-cancel-*-right (suc i) zero        ()
-cancel-*-right (suc i) (suc j) {k} eq =
-  cong suc (cancel-*-right i j (cancel-+-left (suc k) eq))
+*-cancelʳ-≡ : ∀ i j {k} → i * suc k ≡ j * suc k → i ≡ j
+*-cancelʳ-≡ zero    zero        eq = refl
+*-cancelʳ-≡ zero    (suc j)     ()
+*-cancelʳ-≡ (suc i) zero        ()
+*-cancelʳ-≡ (suc i) (suc j) {k} eq =
+  cong suc (*-cancelʳ-≡ i j (+-cancelˡ-≡ (suc k) eq))
 
-cancel-*-right-≤ : ∀ i j k → i * suc k ≤ j * suc k → i ≤ j
-cancel-*-right-≤ zero    _       _ _  = z≤n
-cancel-*-right-≤ (suc i) zero    _ ()
-cancel-*-right-≤ (suc i) (suc j) k le =
-  s≤s (cancel-*-right-≤ i j k (cancel-+-left-≤ (suc k) le))
+*-cancelʳ-≤ : ∀ i j k → i * suc k ≤ j * suc k → i ≤ j
+*-cancelʳ-≤ zero    _       _ _  = z≤n
+*-cancelʳ-≤ (suc i) zero    _ ()
+*-cancelʳ-≤ (suc i) (suc j) k le =
+  s≤s (*-cancelʳ-≤ i j k (+-cancelˡ-≤ (suc k) le))
 
 *-mono-≤ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 *-mono-≤ z≤n       _   = z≤n
@@ -532,18 +532,18 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊔-assoc (suc m) (suc n) zero    = refl
 ⊔-assoc (suc m) (suc n) (suc o) = cong suc $ ⊔-assoc m n o
 
-⊔-left-identity : LeftIdentity 0 _⊔_
-⊔-left-identity _ = refl
+⊔-identityˡ : LeftIdentity 0 _⊔_
+⊔-identityˡ _ = refl
 
-⊔-right-identity : RightIdentity 0 _⊔_
-⊔-right-identity zero    = refl
-⊔-right-identity (suc n) = refl
+⊔-identityʳ : RightIdentity 0 _⊔_
+⊔-identityʳ zero    = refl
+⊔-identityʳ (suc n) = refl
 
 ⊔-identity : Identity 0 _⊔_
-⊔-identity = ⊔-left-identity , ⊔-right-identity
+⊔-identity = ⊔-identityˡ , ⊔-identityʳ
 
 ⊔-comm : Commutative _⊔_
-⊔-comm zero    n       = sym $ ⊔-right-identity n
+⊔-comm zero    n       = sym $ ⊔-identityʳ n
 ⊔-comm (suc m) zero    = refl
 ⊔-comm (suc m) (suc n) = cong suc (⊔-comm m n)
 
@@ -565,18 +565,18 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊓-assoc (suc m) (suc n) zero    = refl
 ⊓-assoc (suc m) (suc n) (suc o) = cong suc $ ⊓-assoc m n o
 
-⊓-left-zero : LeftZero 0 _⊓_
-⊓-left-zero _ = refl
+⊓-zeroˡ : LeftZero 0 _⊓_
+⊓-zeroˡ _ = refl
 
-⊓-right-zero : RightZero 0 _⊓_
-⊓-right-zero zero    = refl
-⊓-right-zero (suc n) = refl
+⊓-zeroʳ : RightZero 0 _⊓_
+⊓-zeroʳ zero    = refl
+⊓-zeroʳ (suc n) = refl
 
 ⊓-zero : Zero 0 _⊓_
-⊓-zero = ⊓-left-zero , ⊓-right-zero
+⊓-zero = ⊓-zeroˡ , ⊓-zeroʳ
 
 ⊓-comm : Commutative _⊓_
-⊓-comm zero    n       = sym $ ⊓-right-zero n
+⊓-comm zero    n       = sym $ ⊓-zeroʳ n
 ⊓-comm (suc m) zero    = refl
 ⊓-comm (suc m) (suc n) = cong suc (⊓-comm m n)
 
@@ -617,7 +617,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊓-abs-⊔ zero    n       = refl
 ⊓-abs-⊔ (suc m) (suc n) = cong suc $ ⊓-abs-⊔ m n
 ⊓-abs-⊔ (suc m) zero    = cong suc $ begin
-  m ⊓ m       ≡⟨ cong (_⊓_ m) $ sym $ ⊔-right-identity m ⟩
+  m ⊓ m       ≡⟨ cong (m ⊓_) $ sym $ ⊔-identityʳ m ⟩
   m ⊓ (m ⊔ 0) ≡⟨ ⊓-abs-⊔ m zero ⟩
   m           ∎
 
@@ -634,7 +634,7 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
 ⊔-0-isCommutativeMonoid : IsCommutativeMonoid _≡_ _⊔_ 0
 ⊔-0-isCommutativeMonoid = record
   { isSemigroup = ⊔-isSemigroup
-  ; identityˡ    = ⊔-left-identity
+  ; identityˡ    = ⊔-identityˡ
   ; comm        = ⊔-comm
   }
 
@@ -645,25 +645,25 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
   ; ∙-cong        = cong₂ _⊓_
   }
 
-⊔-⊓-0-isSemiringWithoutOne : IsSemiringWithoutOne _≡_ _⊔_ _⊓_ 0
-⊔-⊓-0-isSemiringWithoutOne = record
+⊔-⊓-isSemiringWithoutOne : IsSemiringWithoutOne _≡_ _⊔_ _⊓_ 0
+⊔-⊓-isSemiringWithoutOne = record
   { +-isCommutativeMonoid = ⊔-0-isCommutativeMonoid
   ; *-isSemigroup         = ⊓-isSemigroup
   ; distrib               = ⊓-distrib-⊔
   ; zero                  = ⊓-zero
   }
 
-⊔-⊓-0-isCommutativeSemiringWithoutOne
+⊔-⊓-isCommutativeSemiringWithoutOne
   : IsCommutativeSemiringWithoutOne _≡_ _⊔_ _⊓_ 0
-⊔-⊓-0-isCommutativeSemiringWithoutOne = record
-  { isSemiringWithoutOne = ⊔-⊓-0-isSemiringWithoutOne
+⊔-⊓-isCommutativeSemiringWithoutOne = record
+  { isSemiringWithoutOne = ⊔-⊓-isSemiringWithoutOne
   ; *-comm               = ⊓-comm
   }
 
-⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne _ _
-⊔-⊓-0-commutativeSemiringWithoutOne = record
+⊔-⊓-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne _ _
+⊔-⊓-commutativeSemiringWithoutOne = record
   { isCommutativeSemiringWithoutOne =
-      ⊔-⊓-0-isCommutativeSemiringWithoutOne
+      ⊔-⊓-isCommutativeSemiringWithoutOne
   }
 
 ⊓-⊔-isLattice : IsLattice _≡_ _⊓_ _⊔_
@@ -678,15 +678,15 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
   ; absorptive    = ⊓-⊔-absorptive
   }
 
-isDistributiveLattice : IsDistributiveLattice _≡_ _⊓_ _⊔_
-isDistributiveLattice = record
+⊓-⊔-isDistributiveLattice : IsDistributiveLattice _≡_ _⊓_ _⊔_
+⊓-⊔-isDistributiveLattice = record
   { isLattice   = ⊓-⊔-isLattice
   ; ∨-∧-distribʳ = ⊓-distribʳ-⊔
   }
 
-distributiveLattice : DistributiveLattice _ _
-distributiveLattice = record
-  { isDistributiveLattice = isDistributiveLattice
+⊓-⊔-distributiveLattice : DistributiveLattice _ _
+⊓-⊔-distributiveLattice = record
+  { isDistributiveLattice = ⊓-⊔-isDistributiveLattice
   }
 
 -- Ordering properties of _⊔_ and _⊓_
@@ -765,7 +765,7 @@ n∸n≡0 zero    = refl
 n∸n≡0 (suc n) = n∸n≡0 n
 
 ∸-+-assoc : ∀ m n o → (m ∸ n) ∸ o ≡ m ∸ (n + o)
-∸-+-assoc m       n       zero    = cong (m ∸_) (sym $ +-right-identity n)
+∸-+-assoc m       n       zero    = cong (m ∸_) (sym $ +-identityʳ n)
 ∸-+-assoc zero    zero    (suc o) = refl
 ∸-+-assoc zero    (suc n) (suc o) = refl
 ∸-+-assoc (suc m) zero    (suc o) = refl
@@ -792,8 +792,8 @@ n≤m+n∸m (suc m) (suc n) = s≤s (n≤m+n∸m m n)
 m+n∸n≡m : ∀ m n → (m + n) ∸ n ≡ m
 m+n∸n≡m m n = begin
   (m + n) ∸ n  ≡⟨ +-∸-assoc m (≤-refl {x = n}) ⟩
-  m + (n ∸ n)  ≡⟨ cong (_+_ m) (n∸n≡0 n) ⟩
-  m + 0        ≡⟨ +-right-identity m ⟩
+  m + (n ∸ n)  ≡⟨ cong (m +_) (n∸n≡0 n) ⟩
+  m + 0        ≡⟨ +-identityʳ m ⟩
   m            ∎
 
 m+n∸m≡n : ∀ {m n} → m ≤ n → m + (n ∸ m) ≡ n
@@ -830,30 +830,30 @@ i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
   suc i ∸ 0 + j       ≡⟨⟩
   suc (i + j)         ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
-  i ∸ k + 0  ≡⟨ +-right-identity _ ⟩
-  i ∸ k      ≡⟨ cong (_∸ k) (sym (+-right-identity _)) ⟩
+  i ∸ k + 0  ≡⟨ +-identityʳ _ ⟩
+  i ∸ k      ≡⟨ cong (_∸ k) (sym (+-identityʳ _)) ⟩
   i + 0 ∸ k  ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
   suc i ∸ (k ∸ j) + (j ∸ k) ≡⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
   suc i + j ∸ k             ≡⟨ cong (_∸ k) (sym (+-suc i j)) ⟩
   i + suc j ∸ k             ∎
 
-*-distrib-∸ʳ : _*_ DistributesOverʳ _∸_
-*-distrib-∸ʳ i zero k = begin
+*-distribʳ-∸ : _*_ DistributesOverʳ _∸_
+*-distribʳ-∸ i zero k = begin
   (0 ∸ k) * i  ≡⟨ cong₂ _*_ (0∸n≡0 k) refl ⟩
   0            ≡⟨ sym $ 0∸n≡0 (k * i) ⟩
   0 ∸ k * i    ∎
-*-distrib-∸ʳ i (suc j) zero    = begin i + j * i ∎
-*-distrib-∸ʳ i (suc j) (suc k) = begin
-  (j ∸ k) * i             ≡⟨ *-distrib-∸ʳ i j k ⟩
+*-distribʳ-∸ i (suc j) zero    = begin i + j * i ∎
+*-distribʳ-∸ i (suc j) (suc k) = begin
+  (j ∸ k) * i             ≡⟨ *-distribʳ-∸ i j k ⟩
   j * i ∸ k * i           ≡⟨ sym $ [i+j]∸[i+k]≡j∸k i _ _ ⟩
   i + j * i ∸ (i + k * i) ∎
 
 im≡jm+n⇒[i∸j]m≡n : ∀ i j m n → i * m ≡ j * m + n → (i ∸ j) * m ≡ n
 im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
-  (i ∸ j) * m            ≡⟨ *-distrib-∸ʳ m i j ⟩
-  (i * m) ∸ (j * m)      ≡⟨ cong₂ _∸_ eq (refl {x = j * m}) ⟩
-  (j * m + n) ∸ (j * m)  ≡⟨ cong₂ _∸_ (+-comm (j * m) n) (refl {x = j * m}) ⟩
+  (i ∸ j) * m            ≡⟨ *-distribʳ-∸ m i j ⟩
+  (i * m) ∸ (j * m)      ≡⟨ cong (_∸ j * m) eq ⟩
+  (j * m + n) ∸ (j * m)  ≡⟨ cong (_∸ j * m) (+-comm (j * m) n) ⟩
   (n + j * m) ∸ (j * m)  ≡⟨ m+n∸n≡m n (j * m) ⟩
   n                      ∎
 
@@ -883,11 +883,11 @@ im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
 ⌊n/2⌋≤′n (suc n) = ≤′-step (⌈n/2⌉≤′n n)
 
 ------------------------------------------------------------------------
--- Submodules for reasoning about natural number relations
+-- Modules for reasoning about natural number relations
 
 -- A module for automatically solving propositional equivalences
 module SemiringSolver =
-  Solver (ACR.fromCommutativeSemiring commutativeSemiring) _≟_
+  Solver (ACR.fromCommutativeSemiring *-+-commutativeSemiring) _≟_
 
 -- A module for reasoning about the _≤_ relation
 module ≤-Reasoning where
@@ -901,8 +901,29 @@ module ≤-Reasoning where
   x <⟨ x<y ⟩ y≤z = suc x ≤⟨ x<y ⟩ y≤z
 
 ------------------------------------------------------------------------
--- DEPRECATED - please use new names as continuing support for the old
--- names is not guaranteed.
+-- DEPRECATED NAMES
+------------------------------------------------------------------------
+-- Please use the new names as support for the old is not guaranteed.
 
+{-
 _*-mono_ = *-mono-≤
 _+-mono_ = +-mono-≤
+
++-right-identity = +-identityʳ
+*-right-zero     = *-zeroʳ
+distribʳ-*-+     = *-distribʳ-+
+*-distrib-∸ʳ     = *-distribʳ-∸
+cancel-+-left    = +-cancelˡ-≡
+cancel-+-left-≤  = +-cancelˡ-≤
+cancel-*-right   = *-cancelʳ-≡
+cancel-*-right-≤ = *-cancelʳ-≤
+
+strictTotalOrder                      = <-strictTotalOrder
+isCommutativeSemiring                 = *-+-isCommutativeSemiring
+commutativeSemiring                   = *-+-commutativeSemiring
+isDistributiveLattice                 = ⊓-⊔-isDistributiveLattice
+distributiveLattice                   = ⊓-⊔-distributiveLattice
+⊔-⊓-0-isSemiringWithoutOne            = ⊔-⊓-isSemiringWithoutOne
+⊔-⊓-0-isCommutativeSemiringWithoutOne = ⊔-⊓-isCommutativeSemiringWithoutOne
+⊔-⊓-0-commutativeSemiringWithoutOne   = ⊔-⊓-commutativeSemiringWithoutOne
+-}

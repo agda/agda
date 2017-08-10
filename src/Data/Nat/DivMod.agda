@@ -83,7 +83,7 @@ private
 
   division-lemma mod-acc div-acc zero n = begin
 
-    mod-acc + div-acc * suc s + zero  ≡⟨ +-right-identity _ ⟩
+    mod-acc + div-acc * suc s + zero  ≡⟨ +-identityʳ _ ⟩
 
     mod-acc + div-acc * suc s         ∎
 

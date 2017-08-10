@@ -138,7 +138,7 @@ lem₁₀ : ∀ {a′} b c {d} e f → let a = suc a′ in
 lem₁₀ {a′} b c {d} e f eq =
   NatProp.i*j≡1⇒j≡1 (e * f ∸ b * c) d
     (NatProp.im≡jm+n⇒[i∸j]m≡n (e * f) (b * c) d 1
-       (NatProp.cancel-*-right (e * f * d) (b * c * d + 1) (begin
+       (NatProp.*-cancelʳ-≡ (e * f * d) (b * c * d + 1) (begin
           e * f * d * a        ≡⟨ solve 4 (λ e f d a → e :* f :* d :* a
                                                    :=  e :* (f :* d :* a))
                                           refl e f d a ⟩

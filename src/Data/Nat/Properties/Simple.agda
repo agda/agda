@@ -10,14 +10,15 @@ module Data.Nat.Properties.Simple where
 
 open import Data.Nat.Properties public using
   ( +-assoc
-  ; +-right-identity
-  ; +-left-identity
   ; +-suc
   ; +-comm
   ; +-*-suc
-  ; *-right-zero
-  ; *-left-zero
   ; *-comm
-  ; distribʳ-*-+
   ; *-assoc
+  ) renaming
+  ( +-identityʳ  to +-right-identity
+  ; +-identityˡ  to +-left-identity
+  ; *-zeroʳ      to *-right-zero
+  ; *-zeroˡ      to *-left-zero
+  ; *-distribʳ-+ to distribʳ-*-+
   )

@@ -24,7 +24,6 @@ open import Relation.Binary
 open import Algebra
 private
   module P  = Poset Div.poset
-  module CS = CommutativeSemiring NatProp.commutativeSemiring
 
 -- Coprime m n is inhabited iff m and n are coprime (relatively
 -- prime), i.e. if their only common divisor is 1.
@@ -126,8 +125,8 @@ data GCD′ : ℕ → ℕ → ℕ → Set where
 gcd-gcd′ : ∀ {d m n} → GCD m n d → GCD′ m n d
 gcd-gcd′         g with GCD.commonDivisor g
 gcd-gcd′ {zero}  g | (divides q₁ refl , divides q₂ refl)
-                     with q₁ * 0 | CS.*-comm 0 q₁
-                        | q₂ * 0 | CS.*-comm 0 q₂
+                     with q₁ * 0 | NatProp.*-comm 0 q₁
+                        | q₂ * 0 | NatProp.*-comm 0 q₂
 ...                  | .0 | refl | .0 | refl = gcd-* 1 1 (1-coprimeTo 1)
 gcd-gcd′ {suc d} g | (divides q₁ refl , divides q₂ refl) =
   gcd-* q₁ q₂ (Bézout-coprime (Bézout.identity g))
@@ -152,7 +151,7 @@ prime⇒coprime (suc (suc m)) _  _ _  _ {1} _                       = refl
 prime⇒coprime (suc (suc m)) p  _ _  _ {0} (divides q 2+m≡q*0 , _) =
   ⊥-elim $ NatProp.i+1+j≢i 0 (begin
     2 + m  ≡⟨ 2+m≡q*0 ⟩
-    q * 0  ≡⟨ proj₂ CS.zero q ⟩
+    q * 0  ≡⟨ proj₂ NatProp.*-zero q ⟩
     0      ∎)
   where open PropEq.≡-Reasoning
 prime⇒coprime (suc (suc m)) p (suc n) _ 1+n<2+m {suc (suc i)}

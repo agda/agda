@@ -24,27 +24,22 @@ ex₂ : 3 + 5 ≡ 2 * 4
 ex₂ = refl
 
 -- Data.Nat.Properties contains a number of properties about natural
--- numbers. Algebra defines what a commutative semiring is, among
--- other things.
+-- numbers.
 
-open import Algebra
 import Data.Nat.Properties as Nat
-private
-  module CS = CommutativeSemiring Nat.commutativeSemiring
 
 ex₃ : ∀ m n → m * n ≡ n * m
-ex₃ m n = CS.*-comm m n
+ex₃ m n = Nat.*-comm m n
 
 -- The module ≡-Reasoning in Relation.Binary.PropositionalEquality
 -- provides some combinators for equational reasoning.
 
 open ≡-Reasoning
-open import Data.Product
 
 ex₄ : ∀ m n → m * (n + 0) ≡ n * m
 ex₄ m n = begin
-  m * (n + 0)  ≡⟨ cong (_*_ m) (proj₂ CS.+-identity n) ⟩
-  m * n        ≡⟨ CS.*-comm m n ⟩
+  m * (n + 0)  ≡⟨ cong (_*_ m) (Nat.+-identityʳ n) ⟩
+  m * n        ≡⟨ Nat.*-comm m n ⟩
   n * m        ∎
 
 -- The module SemiringSolver in Data.Nat.Properties contains a solver

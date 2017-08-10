@@ -98,22 +98,35 @@ but they may be removed in some future release of the library.
   re-exports the proofs from `Data.Nat.Properties` but will be removed in some
   future release.
 
-* The module `Data.Integer.Addition.Properties` is now deprecated. All proofs
+* The modules `Data.Integer.Addition.Properties` and
+  `Data.Integer.Multiplication.Properties` are now deprecated. All proofs
   have been moved to `Data.Integer.Properties` where they should be used
-  directly. The `Addition.Properties` file still exists for backwards
-  compatability reasons and re-exports the proofs from `Data.Integer.Properties`
-  but will be removed in some future release.
-
-* The module `Data.Integer.Multiplication.Properties` is now deprecated. All
-  proofs have been moved to `Data.Integer.Properties` where they should be used
-  directly. The `Multiplication.Properties` file still exists for backwards
-  compatability reasons and re-exports the proofs from `Data.Integer.Properties`
-  but will be removed in some future release.
+  directly. The `Addition.Properties` and `Multiplication.Properties` files
+  still exist for backwards compatability reasons and re-exports the proofs from
+  `Data.Integer.Properties` but will be removed in some future release.
 
 * The following renaming has occured in `Data.Nat.Properties`
   ```agda
-  _+-mono_  ↦  *-mono-≤
-  _*-mono_  ↦  +-mono-≤
+  _+-mono_          ↦  *-mono-≤
+  _*-mono_          ↦  +-mono-≤
+
+  +-right-identity  ↦  +-identityʳ
+  *-right-zero      ↦  *-zeroʳ
+  distribʳ-*-+      ↦  *-distribʳ-+
+  *-distrib-∸ʳ      ↦  *-distribʳ-∸
+  cancel-+-left     ↦  +-cancelˡ-≡
+  cancel-+-left-≤   ↦  +-cancelˡ-≤
+  cancel-*-right    ↦  *-cancelʳ-≡
+  cancel-*-right-≤  ↦  *-cancelʳ-≤
+
+  strictTotalOrder                      ↦  <-strictTotalOrder
+  isCommutativeSemiring                 ↦  *-+-isCommutativeSemiring
+  commutativeSemiring                   ↦  *-+-commutativeSemiring
+  isDistributiveLattice                 ↦  ⊓-⊔-isDistributiveLattice
+  distributiveLattice                   ↦  ⊓-⊔-distributiveLattice
+  ⊔-⊓-0-isSemiringWithoutOne            ↦  ⊔-⊓-isSemiringWithoutOne
+  ⊔-⊓-0-isCommutativeSemiringWithoutOne ↦  ⊔-⊓-isCommutativeSemiringWithoutOne
+  ⊔-⊓-0-commutativeSemiringWithoutOne   ↦  ⊔-⊓-commutativeSemiringWithoutOne
   ```
 
 * The following renaming has occurred in `Data.Nat.Divisibility`:
@@ -523,31 +536,45 @@ Backwards compatible changes
   ≮⇒≥                  : _≮_ ⇒ _≥_
   ≤+≢⇒<                : m ≤ n → m ≢ n → m < n
 
-  +-left-identity      : LeftIdentity 0 _+_
+  +-identityˡ          : LeftIdentity 0 _+_
   +-identity           : Identity 0 _+_
-  cancel-+-right       : RightCancellative _≡_ _+_
-  +-cancellative       : Cancellative _≡_ _+_
-  cancel-+-right-≤     : RightCancellative _≤_ _+_
-  +-cancellative-≤     : Cancellative _≤_ _+_
+  +-cancelʳ-≡          : RightCancellative _≡_ _+_
+  +-cancel-≡           : Cancellative _≡_ _+_
+  +-cancelʳ-≤          : RightCancellative _≤_ _+_
+  +-cancel-≤           : Cancellative _≤_ _+_
   +-isSemigroup        : IsSemigroup _≡_ _+_
   +-monoˡ-<            : _+_ Preserves₂ _<_ ⟶ _≤_ ⟶ _<_
   +-monoʳ-<            : _+_ Preserves₂ _≤_ ⟶ _<_ ⟶ _<_
   +-mono-<             : _+_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
 
-  *-left-zero          : LeftZero 0 _*_
+  *-zeroˡ              : LeftZero 0 _*_
   *-zero               : Zero 0 _*_
-  *-left-identity      : LeftIdentity 1 _*_
-  *-right-identity     : RightIdentity 1 _*_
+  *-identityˡ          : LeftIdentity 1 _*_
+  *-identityʳ          : RightIdentity 1 _*_
   *-identity           : Identity 1 _*_
-  distribˡ-*-+         : _*_ DistributesOverˡ _+_
-  distrib-*-+          : _*_ DistributesOver _+_
+  *-distribˡ-+         : _*_ DistributesOverˡ _+_
+  *-distrib-+          : _*_ DistributesOver _+_
   *-isSemigroup        : IsSemigroup _≡_ _*_
   *-mono-<             : _*_ Preserves₂ _<_ ⟶ _<_ ⟶ _<_
   *-monoˡ-<            : (_* suc n) Preserves _<_ ⟶ _<_
   *-monoʳ-<            : (suc n *_) Preserves _<_ ⟶ _<_
 
-  ⊓-idem               : Idempotent _⊓_
+  ⊔-assoc              : Associative _⊔_
+  ⊔-comm               : Commutative _⊔_
   ⊔-idem               : Idempotent _⊔_
+  ⊔-identityˡ          : LeftIdentity 0 _⊔_
+  ⊔-identityʳ          : RightIdentity 0 _⊔_
+  ⊔-identity           : Identity 0 _⊔_
+  ⊓-assoc              : Associative _⊓_
+  ⊓-comm               : Commutative _⊓_
+  ⊓-idem               : Idempotent _⊓_
+  ⊓-zeroˡ              : LeftZero 0 _⊓_
+  ⊓-zeroʳ              : RightZero 0 _⊓_
+  ⊓-zero               : Zero 0 _⊓_
+  ⊓-distribʳ-⊔         : _⊓_ DistributesOverʳ _⊔_
+  ⊓-distribˡ-⊔         : _⊓_ DistributesOverˡ _⊔_
+  ⊔-abs-⊓              : _⊔_ Absorbs _⊓_
+  ⊓-abs-⊔              : _⊓_ Absorbs _⊔_
   m⊓n≤n                : m ⊓ n ≤ n
   m≤m⊔n                : m ≤ m ⊔ n
   m⊔n≤m+n              : m ⊔ n ≤ m + n

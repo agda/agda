@@ -51,7 +51,7 @@ quotient (divides q _) = q
   where open ≤-Reasoning
 
 ∣-reflexive : _≡_ ⇒ _∣_
-∣-reflexive {n} refl = divides 1 (sym (*-left-identity n))
+∣-reflexive {n} refl = divides 1 (sym (*-identityˡ n))
 
 ∣-refl : Reflexive _∣_
 ∣-refl = ∣-reflexive refl
@@ -97,7 +97,7 @@ module ∣-Reasoning = PartialOrderReasoning poset
 infix 10 1∣_ _∣0
 
 1∣_ : ∀ n → 1 ∣ n
-1∣ n = divides n (sym (*-right-identity n))
+1∣ n = divides n (sym (*-identityʳ n))
 
 _∣0 : ∀ n → n ∣ 0
 n ∣0 = divides 0 refl
@@ -119,7 +119,7 @@ n|m*n m = divides m refl
 
 ∣m∣n⇒∣m+n : ∀ {i m n} → i ∣ m → i ∣ n → i ∣ m + n
 ∣m∣n⇒∣m+n (divides p refl) (divides q refl) =
-  divides (p + q) (sym (distribʳ-*-+ _ p q))
+  divides (p + q) (sym (*-distribʳ-+ _ p q))
 
 ∣m+n|m⇒|n : ∀ {i m n} → i ∣ m + n → i ∣ m → i ∣ n
 ∣m+n|m⇒|n {i} {m} {n} (divides p m+n≡p*i) (divides q m≡q*i) =
@@ -127,7 +127,7 @@ n|m*n m = divides m refl
     n             ≡⟨ sym (m+n∸n≡m n m) ⟩
     n + m ∸ m     ≡⟨ cong (_∸ m) (+-comm n m) ⟩
     m + n ∸ m     ≡⟨ cong₂ _∸_ m+n≡p*i m≡q*i ⟩
-    p * i ∸ q * i ≡⟨ sym (*-distrib-∸ʳ i p q) ⟩
+    p * i ∸ q * i ≡⟨ sym (*-distribʳ-∸ i p q) ⟩
     (p ∸ q) * i   ∎)
   where open PropEq.≡-Reasoning
 
@@ -137,7 +137,7 @@ n|m*n m = divides m refl
     m             ≡⟨ sym (m+n∸m≡n n≤m) ⟩
     n + (m ∸ n)   ≡⟨ +-comm n (m ∸ n) ⟩
     m ∸ n + n     ≡⟨ cong₂ _+_ m∸n≡p*i n≡q*o ⟩
-    p * i + q * i ≡⟨ sym (distribʳ-*-+ i p q)  ⟩
+    p * i + q * i ≡⟨ sym (*-distribʳ-+ i p q)  ⟩
     (p + q) * i   ∎)
   where open PropEq.≡-Reasoning
 
@@ -152,7 +152,7 @@ n|m*n m = divides m refl
 
 /-cong : ∀ {i j} k → suc k * i ∣ suc k * j → i ∣ j
 /-cong {i} {j} k (divides q eq) =
-  divides q (cancel-*-right j (q * i) (begin
+  divides q (*-cancelʳ-≡ j (q * i) (begin
     j * (suc k)        ≡⟨ *-comm j (suc k) ⟩
     (suc k) * j        ≡⟨ eq ⟩
     q * ((suc k) * i)  ≡⟨ cong (q *_) (*-comm (suc k) i) ⟩
@@ -167,7 +167,7 @@ nonZeroDivisor-lemma
   : ∀ m q (r : Fin (1 + m)) → toℕ r ≢ 0 →
     1 + m ∤ toℕ r + q * (1 + m)
 nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
-  toℕ r      ≡⟨ sym (*-left-identity (toℕ r)) ⟩
+  toℕ r      ≡⟨ sym (*-identityˡ (toℕ r)) ⟩
   1 * toℕ r  ≡⟨ eq ⟩
   0          ∎
   where open PropEq.≡-Reasoning
@@ -175,7 +175,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
   ¬i+1+j≤i m $ begin
     m + suc (q * suc m) ≡⟨ +-suc m (q * suc m) ⟩
     suc (m + q * suc m) ≡⟨ sym eq ⟩
-    1 * toℕ r           ≡⟨ *-left-identity (toℕ r) ⟩
+    1 * toℕ r           ≡⟨ *-identityˡ (toℕ r) ⟩
     toℕ r               ≤⟨ ≤-pred $ FP.bounded r ⟩
     m                   ∎
   where open ≤-Reasoning

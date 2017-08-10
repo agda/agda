@@ -17,13 +17,11 @@ import Data.AVL
 -- total order, and values, which are indexed by keys. Let us use
 -- natural numbers as keys and vectors of strings as values.
 
-import Data.Nat.Properties as ℕ
+open import Data.Nat.Properties using (<-isStrictTotalOrder)
 open import Data.String using (String)
 open import Data.Vec using (Vec; _∷_; [])
-open import Relation.Binary using (module StrictTotalOrder)
 
-open Data.AVL (Vec String)
-              (StrictTotalOrder.isStrictTotalOrder ℕ.strictTotalOrder)
+open Data.AVL (Vec String) (<-isStrictTotalOrder)
 
 ------------------------------------------------------------------------
 -- Construction of trees

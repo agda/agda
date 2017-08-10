@@ -12,7 +12,7 @@ open import Category.Monad
 open import Data.Empty
 open import Function
 open import Data.Nat
-import Data.Nat.Properties as NatProp
+open import Data.Nat.Properties
 open import Data.Product as Prod hiding (map)
 open import Data.Sum hiding (map)
 open import Relation.Binary.PropositionalEquality
@@ -20,8 +20,6 @@ open import Relation.Nullary
 open import Relation.Nullary.Negation
 open import Relation.Unary using (_∪_; _⊆_)
 open RawMonad (¬¬-Monad {p = Level.zero})
-private
-  module NatLattice = DistributiveLattice NatProp.distributiveLattice
 
 -- Only true finitely often.
 
@@ -33,16 +31,16 @@ Fin P = ∃ λ i → ∀ j → i ≤ j → ¬ P j
 _∪-Fin_ : ∀ {P Q} → Fin P → Fin Q → Fin (P ∪ Q)
 _∪-Fin_ {P} {Q} (i , ¬p) (j , ¬q) = (i ⊔ j , helper)
   where
-  open NatProp.≤-Reasoning
+  open ≤-Reasoning
 
   helper : ∀ k → i ⊔ j ≤ k → ¬ (P ∪ Q) k
   helper k i⊔j≤k (inj₁ p) = ¬p k (begin
-    i      ≤⟨ NatProp.m≤m⊔n i j ⟩
+    i      ≤⟨ m≤m⊔n i j ⟩
     i ⊔ j  ≤⟨ i⊔j≤k ⟩
     k      ∎) p
   helper k i⊔j≤k (inj₂ q) = ¬q k (begin
-    j      ≤⟨ NatProp.m≤m⊔n j i ⟩
-    j ⊔ i  ≡⟨ NatLattice.∧-comm j i ⟩
+    j      ≤⟨ m≤m⊔n j i ⟩
+    j ⊔ i  ≡⟨ ⊔-comm j i ⟩
     i ⊔ j  ≤⟨ i⊔j≤k ⟩
     k      ∎) q
 
@@ -88,4 +86,4 @@ twoDifferentWitnesses
 twoDifferentWitnesses inf =
   witness inf                     >>= λ w₁ →
   witness (up (1 + proj₁ w₁) inf) >>= λ w₂ →
-  return (_ , _ , NatProp.m≢1+m+n (proj₁ w₁) , proj₂ w₁ , proj₂ w₂)
+  return (_ , _ , m≢1+m+n (proj₁ w₁) , proj₂ w₁ , proj₂ w₂)

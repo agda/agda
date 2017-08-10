@@ -20,7 +20,6 @@ open import Algebra
 open import Relation.Binary
 private
   module P  = Poset Div.poset
-  module CS = CommutativeSemiring NatProp.commutativeSemiring
 
 ------------------------------------------------------------------------
 -- Least common multiple (lcm).
@@ -91,7 +90,7 @@ lcm .(q₁ * d) .(q₂ * d) | (d , gcd-* q₁ q₂ q₁-q₂-coprime) =
 
     q₂∣q₃ : q₂ ∣ q₃
     q₂∣q₃ = coprime-divisor (Coprime.sym q₁-q₂-coprime)
-              (divides q₄ $ NatProp.cancel-*-right _ _ (begin
+              (divides q₄ $ NatProp.*-cancelʳ-≡ _ _ (begin
                  q₁ * q₃ * d′    ≡⟨ lem₁ q₁ q₃ d′ ⟩
                  q₃ * (q₁ * d′)  ≡⟨ PropEq.sym eq₃ ⟩
                  m               ≡⟨ eq₄ ⟩
