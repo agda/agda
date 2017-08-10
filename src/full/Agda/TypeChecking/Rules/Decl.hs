@@ -297,7 +297,12 @@ revisitRecordPatternTranslation qs = do
   classify q = inConcreteOrAbstractMode q $ \ def -> do
     case theDef def of
       Record{ recEtaEquality' = Inferred True } -> return $ Just $ Left q
-      Function{ funCompiled = Just cc } -> return $ Just $ Right (q, cc)
+      Function
+        { funProjection = Nothing
+            -- Andreas, 2017-08-10, issue #2664:
+            -- Do not record pattern translate record projection definitions!
+        , funCompiled   = Just cc
+        } -> return $ Just $ Right (q, cc)
       _ -> return Nothing
 
 type FinalChecks = Maybe (TCM ())
