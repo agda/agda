@@ -90,7 +90,14 @@ class IsFlexiblePattern a where
   maybeFlexiblePattern :: a -> MaybeT TCM FlexibleVarKind
 
   isFlexiblePattern :: a -> TCM Bool
-  isFlexiblePattern p = isJust <$> runMaybeT (maybeFlexiblePattern p)
+  isFlexiblePattern p =
+    maybe False notOtherFlex <$> runMaybeT (maybeFlexiblePattern p)
+    where
+    notOtherFlex = \case
+      RecordFlex fls -> all notOtherFlex fls
+      ImplicitFlex   -> True
+      DotFlex        -> True
+      OtherFlex      -> False
 
 instance IsFlexiblePattern A.Pattern where
   maybeFlexiblePattern p =

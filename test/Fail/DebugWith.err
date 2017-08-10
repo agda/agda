@@ -30,8 +30,7 @@ checkWithFunction
   as     = [P b]
   vs     = [f b]
   b      = Set
-  qs     = [trash1 = trash1@4, b = b@3, trash2 = trash2@2, f = f@1,
-            trash3 = trash3@0]
+  qs     = [trash1, b, trash2, f, trash3]
   perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
   perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
   fperm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
