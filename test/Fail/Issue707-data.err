@@ -1,6 +1,6 @@
-Issue707-data.agda:12,15-16
-The case for the constructor d is impossible
-because unification ended with a conflicting equation
-  true ≟ false
-Possible solution: remove the clause, or use an absurd pattern ().
-when checking that the pattern d has type D false
+Issue707-data.agda:11,15-16
+I'm not sure if there should be a case for the constructor c,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  ?0 ≟ true
+when checking that the pattern c has type D true
