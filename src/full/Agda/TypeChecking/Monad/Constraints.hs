@@ -142,10 +142,16 @@ buildConstraint c = flip buildProblemConstraint c =<< asks envActiveProblems
 
 -- | Add new a constraint
 addConstraint' :: Constraint -> TCM ()
-addConstraint' c = do
+addConstraint' = addConstraintTo stSleepingConstraints
+
+addAwakeConstraint' :: Constraint -> TCM ()
+addAwakeConstraint' = addConstraintTo stAwakeConstraints
+
+addConstraintTo :: Lens' Constraints TCState -> Constraint -> TCM ()
+addConstraintTo bucket c = do
     pc <- build
     stDirty .= True
-    stSleepingConstraints %= (pc :)
+    bucket %= (pc :)
   where
     build | isBlocking c = buildConstraint c
           | otherwise    = buildProblemConstraint_ c
