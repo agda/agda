@@ -201,7 +201,7 @@ newIFSMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> text ":" <+> prettyTCM t
     ]
-  addConstraint $ FindInScope x Nothing Nothing
+  addAwakeConstraint' $ FindInScope x Nothing Nothing
   etaExpandMetaSafe x
   return (x, MetaV x $ map Apply vs)
 
