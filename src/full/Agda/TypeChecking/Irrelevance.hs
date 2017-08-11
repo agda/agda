@@ -4,6 +4,7 @@
 -}
 module Agda.TypeChecking.Irrelevance where
 
+import Control.Arrow (first, second)
 import Control.Applicative
 import Control.Monad.Reader
 
@@ -63,12 +64,10 @@ applyRelevanceToContext rel =
     Relevant -> id
     Forced{} -> id
     _        -> local $ \ e -> e
-      { envContext   = modifyContextEntries (inverseApplyRelevance rel) (envContext e)
-      , envLetBindings = Map.map
-          (fmap $ \ (t, a) -> (t, inverseApplyRelevance rel a))
-          (envLetBindings e)
+      { envContext     = modifyContextEntries      (inverseApplyRelevance rel) (envContext e)
+      , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance rel) (envLetBindings e)
                                                   -- enable local  irr. defs
-      , envRelevance = composeRelevance rel (envRelevance e)
+      , envRelevance   = composeRelevance rel (envRelevance e)
                                                   -- enable global irr. defs
       }
 
