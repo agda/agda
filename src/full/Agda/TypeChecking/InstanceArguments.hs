@@ -402,7 +402,7 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
-dropSameCandidates m cands0 = do
+dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   metas <- Set.fromList . Map.keys <$> getMetaStore
   let freshMetas x = not $ Set.null $ Set.difference (Set.fromList $ allMetas x) metas
 
@@ -420,16 +420,18 @@ dropSameCandidates m cands0 = do
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
+    cvd : _ | isIrrelevant rel -> do
+      reportSLn "tc.instance" 30 "Meta is irrelevant so any candidate will do."
+      return [cvd]
     cvd@(_, v, a, _) : vas -> do
         if freshMetas (v, a)
           then return (cvd : vas)
           else (cvd :) <$> dropWhileM equal vas
       where
-        equal _ | isIrrelevant rel = return True
         equal (_, v', a', _)
             | freshMetas (v', a') = return False  -- If there are fresh metas we can't compare
             | otherwise           =
-          verboseBracket "tc.instance" 30 "checkEqualCandidates" $ do
+          verboseBracket "tc.instance" 30 "comparingCandidates" $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> text "==", nest 2 $ prettyTCM v' ]
           localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
                              {- then -} (return True)
@@ -486,7 +488,7 @@ checkCandidates m t cands = disableDestructiveUpdate $
         debugConstraints
         verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $
           liftTCM $ runCandidateCheck $ do
-            reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+            reportSLn "tc.instance" 70 $ "  t: " ++ prettyShow t ++ "\n  t':" ++ prettyShow t' ++ "\n  term: " ++ prettyShow term ++ "."
             reportSDoc "tc.instance" 20 $ vcat
               [ text "checkCandidateForMeta"
               , text "t    =" <+> prettyTCM t
