@@ -567,7 +567,7 @@ reifyTerm expandAnonDefs0 v = do
               let padVis  = map (fmap (unnamed . namedThing)) padVisNamed
 
               -- Keep only the rest with the same visibility of @dom@...
-              let padTail = filter ((getHiding dom ==) . getHiding) padRest
+              let padTail = filter (sameHiding dom) padRest
 
               -- ... and even the same name.
               let padSame = filter ((Just (fst (unDom dom)) ==) . fmap rangedThing . nameOf . unArg) padTail

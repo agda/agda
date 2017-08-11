@@ -201,6 +201,13 @@ isInstance x =
     Instance{} -> True
     _          -> False
 
+-- | Ignores 'Overlappable'.
+sameHiding :: (LensHiding a, LensHiding b) => a -> b -> Bool
+sameHiding x y =
+  case (getHiding x, getHiding y) of
+    (Instance{}, Instance{}) -> True
+    (hx, hy)                 -> hx == hy
+
 ---------------------------------------------------------------------------
 -- * Relevance
 ---------------------------------------------------------------------------

@@ -83,7 +83,7 @@ etaExpandClause clause = liftTCM $ do
     useNames []     tel       = map (setOrigin Inserted) tel
     useNames (_:_)  []        = []  -- Andreas, 2017-03-24: not IMPOSSIBLE when positivity checking comes before termination checking, see examples/tactics/ac/AC.agda
     useNames (x:xs) (dom:tel)
-      | getHiding x == getHiding dom =
+      | sameHiding x dom =
           -- set the ArgName of the dom
           fmap (first $ const $ unArg x) dom : useNames xs tel
       | otherwise =

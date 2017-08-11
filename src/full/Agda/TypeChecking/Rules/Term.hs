@@ -332,7 +332,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- merge in the hiding info of the TBind
         let [WithHiding h x] = xs
         info <- return $ mapHiding (mappend h) info
-        unless (getHiding dom == getHiding info) $ typeError $ WrongHidingInLambda target
+        unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
         info <- lambdaIrrelevanceCheck info dom
         -- Andreas, 2015-05-28 Issue 1523
@@ -428,7 +428,7 @@ insertHiddenLambdas h target postpone ret = do
       Pi dom b -> do
         let h' = getHiding dom
         -- Found expected hiding: return function type.
-        if h == h' then ret t else do
+        if sameHiding h h' then ret t else do
           -- Found a visible argument but expected a hidden one:
           -- That's an error, as we cannot insert a visible lambda.
           if visible h' then typeError $ WrongHidingInLambda target else do
@@ -448,7 +448,7 @@ checkAbsurdLambda i h e t = do
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t' -> do
     case ignoreSharing $ unEl t' of
       Pi dom@(Dom info' a) b
-        | h /= getHiding info' -> typeError $ WrongHidingInLambda t'
+        | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
         | not (null $ allMetas a) ->
             postponeTypeCheckingProblem (CheckExpr e t') $
               null . allMetas <$> instantiateFull a
@@ -993,9 +993,9 @@ checkExpr e t0 =
       checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
 
     hiddenLambdaOrHole h e = case e of
-      A.AbsurdLam _ h'        -> h == h'
+      A.AbsurdLam _ h'        -> sameHiding h h'
       A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
-      A.Lam _ bind _          -> h == getHiding bind
+      A.Lam _ bind _          -> sameHiding h bind
       A.QuestionMark{}        -> True
       _                       -> False
 
@@ -1672,7 +1672,7 @@ checkConstructorApplication org t c args = do
         h    = getHiding arg
 
         namedPar   x = dropPar ((x ==) . unDom)
-        unnamedPar h = dropPar ((h ==) . getHiding)
+        unnamedPar h = dropPar (sameHiding h)
 
         dropPar this (p : ps) | this p    = Just ps
                               | otherwise = dropPar this ps
@@ -1871,7 +1871,7 @@ checkKnownArgument arg [] _ = genericDocError =<< do
 checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom info' a, b) <- mustBePi t
   -- Skip the arguments from vs that do not correspond to e
-  if not (getHiding info == getHiding info'
+  if not (sameHiding info info'
           && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
@@ -1958,7 +1958,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
           expand NotHidden y = False
           -- insert a hidden argument if arg is not hidden or has different name
           -- insert an instance argument if arg is not instance  or has different name
-          expand hy        y = hy /= hx || maybe False (y /=) mx
+          expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
       (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
@@ -1991,7 +1991,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case ignoreSharing $ unEl t0' of
           Pi (Dom info' a) b
-            | getHiding info == getHiding info'
+            | sameHiding info info'
               && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
                 u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments

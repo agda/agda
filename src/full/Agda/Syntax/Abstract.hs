@@ -1103,7 +1103,7 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
       | otherwise      = return (wild r, as)
 
     matchNext _ [] = False
-    matchNext n (a:as) = getHiding n == getHiding a && matchName
+    matchNext n (a:as) = sameHiding n a && matchName
       where
         x = unranged $ C.nameToRawName $ nameConcrete $ unArg n
         matchName = maybe True (== x) (nameOf $ unArg a)

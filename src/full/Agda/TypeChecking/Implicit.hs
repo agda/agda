@@ -113,13 +113,14 @@ insertImplicit a ts =
     Just x  -> find [] (rangedThing x) (getHiding a) ts
   where
     upto h [] = Nothing
-    upto h (NotHidden:_) = Nothing
-    upto h (h':_) | h == h' = Just []
-    upto h (h':hs) = (h':) <$> upto h hs
+    upto h (NotHidden : _) = Nothing
+    upto h (h' : _) | sameHiding h h' = Just []
+    upto h (h' : hs) = (h' :) <$> upto h hs
+
     find :: [Hiding] -> ArgName -> Hiding -> [Arg ArgName] -> ImplicitInsertion
     find _ x _ (a@(Arg{}) : _) | visible a = NoSuchName x
     find hs x hidingx (a@(Arg _ y) : ts)
-      | x == y && hidingx == getHiding a = impInsert $ reverse hs
-      | x == y && hidingx /= getHiding a = BadImplicits
-      | otherwise = find (getHiding a:hs) x hidingx ts
-    find i x _ []                            = NoSuchName x
+      | x == y && sameHiding hidingx a = impInsert $ reverse hs
+      | x == y && sameHiding hidingx a = BadImplicits
+      | otherwise = find (getHiding a : hs) x hidingx ts
+    find i x _ [] = NoSuchName x
