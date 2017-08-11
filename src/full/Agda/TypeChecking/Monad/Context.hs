@@ -173,6 +173,10 @@ addContext' :: (MonadTCM tcm, MonadDebug tcm, AddContext b)
             => b -> tcm a -> tcm a
 addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
 
+-- | Wrapper to tell 'addContext' not to 'unshadowName's. Used when adding a
+--   user-provided, but already type checked, telescope to the context.
+newtype KeepNames a = KeepNames a
+
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
 #else
@@ -210,6 +214,12 @@ instance AddContext (String, Dom Type) where
     addCtx x dom ret
   contextSize _ = 1
 
+instance AddContext (KeepNames String, Dom Type) where
+  addContext (KeepNames s, dom) ret = do
+    x <- freshName_ s
+    addCtx x dom ret
+  contextSize _ = 1
+
 instance AddContext (Dom Type) where
   addContext dom = addContext ("_", dom)
   contextSize _ = 1
@@ -226,6 +236,12 @@ instance AddContext String where
   addContext s = addContext (s, dummyDom)
   contextSize _ = 1
 
+instance AddContext (KeepNames Telescope) where
+  addContext (KeepNames tel) ret = loop tel where
+    loop EmptyTel          = ret
+    loop (ExtendTel t tel) = underAbstraction' KeepNames t tel loop
+  contextSize (KeepNames tel) = size tel
+
 instance AddContext Telescope where
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
@@ -239,8 +255,12 @@ dummyDom = defaultDom typeDontCare
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
-underAbstraction _ (NoAbs _ v) k = k v
-underAbstraction t a           k = addContext (realName $ absName a, t) $ k $ absBody a
+underAbstraction = underAbstraction' id
+
+underAbstraction' :: (Subst t a, MonadTCM tcm, AddContext (name, Dom Type)) =>
+                     (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstraction' _ _ (NoAbs _ v) k = k v
+underAbstraction' wrap t a        k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
