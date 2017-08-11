@@ -570,10 +570,15 @@ checkExtendedLambda i di qname cs e t = do
 --   * If successful, return Nothing.
 --
 --   * If @IlltypedPattern p a@ is thrown and type @a@ is blocked on some meta @x@
---     return @Just x@.  Note that the returned meta might only exists in the state
---     where the error was thrown, thus, be an invalid 'MetaId' in the current state.
+--     return @Just x@.
+--
+--   * If @SplitError (UnificationStuck c tel us vs _)@ is thrown and the unification
+--     problem @us =?= vs : tel@ is blocked on some meta @x@ return @Just x@.
 --
 --   * If another error was thrown or the type @a@ is not blocked, reraise the error.
+--
+--   Note that the returned meta might only exists in the state where the error was
+--   thrown, thus, be an invalid 'MetaId' in the current state.
 --
 catchIlltypedPatternBlockedOnMeta :: TCM () -> TCM (Maybe (TCErr, MetaId))
 catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
@@ -585,6 +590,14 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
         put s
         enterClosure cl $ \ _ -> do
           ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ -> return Nothing
+      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
+    TypeError s cl@Closure{ clValue = SplitError (UnificationStuck c tel us vs _) } -> do
+      mx <- localState $ do
+        put s
+        enterClosure cl $ \ _ -> do
+          problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
+          -- over-approximating the set of metas actually blocking unification
+          return $ listToMaybe $ allMetas problem
       caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     _ -> reraise
 
