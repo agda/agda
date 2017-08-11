@@ -71,8 +71,17 @@ applyRelevanceToContext rel =
                                                   -- enable global irr. defs
       }
 
--- | Wake up irrelevant variables and make them relevant.  For instance,
---   in an irrelevant function argument otherwise irrelevant variables
---   may be used, so they are awoken before type checking the argument.
+-- | Wake up irrelevant variables and make them relevant. This is used
+--   when type checking terms in a hole, in which case you want to be able to
+--   (for instance) infer the type of an irrelevant variable. In the course
+--   of type checking an irrelevant function argument 'applyRelevanceToContext'
+--   is used instead, which also sets the context relevance to 'Irrelevant'.
+--   This is not the right thing to do when type checking interactively in a
+--   hole since it also marks all metas created during type checking as
+--   irrelevant (issue #2568).
 wakeIrrelevantVars :: TCM a -> TCM a
-wakeIrrelevantVars = applyRelevanceToContext Irrelevant
+wakeIrrelevantVars = local $ \ e -> e
+  { envContext     = modifyContextEntries      (inverseApplyRelevance Irrelevant) (envContext e)
+  , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance Irrelevant) (envLetBindings e)
+  }
+
