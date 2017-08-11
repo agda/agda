@@ -187,7 +187,10 @@ instance AddContext (Name, Dom Type) where
 
 instance AddContext (Dom (Name, Type)) where
   addContext = addContext . distributeF
-  -- addContext dom = addCtx (fst $ unDom dom) (snd <$> dom)
+  contextSize _ = 1
+
+instance AddContext (Dom (String, Type)) where
+  addContext = addContext . distributeF
   contextSize _ = 1
 
 instance AddContext ([Name], Dom Type) where
@@ -205,11 +208,6 @@ instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
     x <- unshadowName =<< freshName_ s
     addCtx x dom ret
-  contextSize _ = 1
-
-instance AddContext (Dom (String, Type)) where
-  addContext = addContext . distributeF
-  -- addContext dom = addContext (fst $ unDom dom, snd <$> dom)
   contextSize _ = 1
 
 instance AddContext (Dom Type) where
@@ -242,9 +240,7 @@ dummyDom = defaultDom typeDontCare
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction _ (NoAbs _ v) k = k v
-underAbstraction t a           k = do
-    x <- unshadowName =<< freshName_ (realName $ absName a)
-    addContext (x, t) $ k $ absBody a
+underAbstraction t a           k = addContext (realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
