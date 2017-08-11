@@ -708,8 +708,6 @@ scopeCheckExtendedLam r cs = do
         UnknownName -> return cname
         _           -> nextlamname r (i+1) s
 
-
-
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
@@ -718,24 +716,26 @@ instance ToAbstract C.Expr A.Expr where
       Ident x -> toAbstract (OldQName x Nothing)
 
   -- Literals
-      C.Lit l@(LitNat r n) -> do
-        let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
-                    | otherwise = getBuiltin' builtinFromNat
-            l'   = LitNat r (abs n)
-            info = ExprRange r
-        conv <- builtin
-        case conv of
-          Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l')
-          _                -> return $ A.Lit l
+      C.Lit l ->
+        case l of
+          LitNat r n -> do
+            let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
+                        | otherwise = getBuiltin' builtinFromNat
+                l'   = LitNat r (abs n)
+                info = ExprRange r
+            conv <- builtin
+            case conv of
+              Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l')
+              _                -> return $ A.Lit l
 
-      C.Lit l@(LitString r s) -> do
-        conv <- getBuiltin' builtinFromString
-        let info = ExprRange r
-        case conv of
-          Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l)
-          _                -> return $ A.Lit l
+          LitString r s -> do
+            conv <- getBuiltin' builtinFromString
+            let info = ExprRange r
+            case conv of
+              Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l)
+              _                -> return $ A.Lit l
 
-      C.Lit l -> return $ A.Lit l
+          _ -> return $ A.Lit l
 
   -- Meta variables
       C.QuestionMark r n -> do
