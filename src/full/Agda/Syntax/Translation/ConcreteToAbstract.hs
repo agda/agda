@@ -720,7 +720,7 @@ instance ToAbstract C.Expr A.Expr where
         case l of
           LitNat r n -> do
             let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
-                        | otherwise = getBuiltin' builtinFromNat
+                        | otherwise = ensureInScope =<< getBuiltin' builtinFromNat
                 l'   = LitNat r (abs n)
                 info = ExprRange r
             conv <- builtin
@@ -729,13 +729,17 @@ instance ToAbstract C.Expr A.Expr where
               _                -> return $ A.Lit l
 
           LitString r s -> do
-            conv <- getBuiltin' builtinFromString
+            conv <- ensureInScope =<< getBuiltin' builtinFromString
             let info = ExprRange r
             case conv of
               Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l)
               _                -> return $ A.Lit l
 
           _ -> return $ A.Lit l
+        where
+          ensureInScope :: Maybe I.Term -> ScopeM (Maybe I.Term)
+          ensureInScope v@(Just (I.Def q _)) = ifM (isNameInScope q <$> getScope) (return v) (return Nothing)
+          ensureInScope _ = return Nothing
 
   -- Meta variables
       C.QuestionMark r n -> do
