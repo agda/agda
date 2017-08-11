@@ -169,6 +169,10 @@ visible a = getHiding a == NotHidden
 notVisible :: LensHiding a => a -> Bool
 notVisible a = getHiding a /= NotHidden
 
+-- | 'Hidden' arguments are @hidden@.
+hidden :: LensHiding a => a -> Bool
+hidden a = getHiding a == Hidden
+
 hide :: LensHiding a => a -> a
 hide = setHiding Hidden
 

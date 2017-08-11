@@ -131,7 +131,7 @@ isType_ e =
     A.Set _ n    -> do
       return $ sort (mkType n)
     A.App i s arg
-      | getHiding arg == NotHidden,
+      | visible arg,
         A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -1139,7 +1139,7 @@ inferOrCheckProjApp e o ds args mt = do
   -- For now, we only allow ambiguous projections if the first visible
   -- argument is the record value.
 
-  case filter (visible . getHiding . snd) $ zip [0..] args of
+  case filter (visible . snd) $ zip [0..] args of
 
     -- Case: we have no visible argument to the projection.
     -- In inference mode, we really need the visible argument, postponing does not help
@@ -1750,7 +1750,7 @@ checkHeadApplication e t hd args = do
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       arg <- case args of
-               [a] | getHiding a == NotHidden -> return $ namedArg a
+               [a] | visible a -> return $ namedArg a
                _ -> typeError $ GenericError $ prettyShow c ++ " must be applied to exactly one argument."
 
       -- The name of the fresh function.
@@ -1932,7 +1932,7 @@ checkArguments exh r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden &&
+      expand (Pi (Dom info _) _)   Hidden = not (hidden info) &&
                                             exh == ExpandLast
       expand _                     Hidden = exh == ExpandLast
       expand (Pi (Dom info _) _) Instance{} = not $ isInstance info
@@ -2147,14 +2147,14 @@ inferExprForWith e = do
         typeError $ WithOnFreeVariable e v0
       _        -> return ()
     -- Possibly insert hidden arguments.
-    TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
+    TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
     case ignoreSharing $ unEl t0 of
       Def d vs -> do
         res <- isDataOrRecordType d
         case res of
           Nothing -> return (v, t)
           Just{}  -> do
-            (args, t1) <- implicitArgs (-1) (NotHidden /=) t
+            (args, t1) <- implicitArgs (-1) notVisible t
             return (v `apply` args, t1)
       _ -> return (v, t)
 

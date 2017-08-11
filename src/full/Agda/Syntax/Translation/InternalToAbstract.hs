@@ -900,8 +900,8 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
   where
     stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
-      | getHiding a == NotHidden = fmap (unnamed . namedThing) a
-      | otherwise                = a
+      | visible a = fmap (unnamed . namedThing) a
+      | otherwise = a
 
     reifyPat :: MonadTCM tcm => I.DeBruijnPattern -> tcm A.Pattern
     reifyPat p = do

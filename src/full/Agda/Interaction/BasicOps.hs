@@ -833,7 +833,7 @@ introTactic pmLambda ii = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
             (return $ map unArg hfs)
-            (return [ unArg a | a <- hfs, getHiding a == NotHidden ])
+            (return [ unArg a | a <- hfs, visible a ])
       let e = C.Rec noRange $ for fs $ \ f ->
             Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
       return [ prettyShow e ]

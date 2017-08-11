@@ -46,7 +46,7 @@ implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
       Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
-          info' <- if getHiding info == Hidden then return info else do
+          info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               text "inserting instance meta for type" <+> prettyTCM a
             return $ makeInstance info
@@ -106,7 +106,7 @@ insertImplicit _ [] = __IMPOSSIBLE__
 insertImplicit a ts | visible a = impInsert $ nofHidden ts
   where
     nofHidden :: [Arg a] -> [Hiding]
-    nofHidden = takeWhile (NotHidden /=) . map getHiding
+    nofHidden = takeWhile notVisible . map getHiding
 insertImplicit a ts =
   case nameOf (unArg a) of
     Nothing -> maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts

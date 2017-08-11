@@ -1098,9 +1098,9 @@ insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] ->
 insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
   where
     matchNextArg r n as@(~(a : as'))
-      | matchNext n as           = return (namedArg a, as')
-      | getHiding n == NotHidden = Nothing
-      | otherwise                = return (wild r, as)
+      | matchNext n as = return (namedArg a, as')
+      | visible n      = Nothing
+      | otherwise      = return (wild r, as)
 
     matchNext _ [] = False
     matchNext n (a:as) = getHiding n == getHiding a && matchName
@@ -1110,7 +1110,7 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
 
     matchArgs r [] []     = return ([], [])
     matchArgs r [] as     = Nothing
-    matchArgs r (n:ns) [] | getHiding n == NotHidden = return ([], n : ns)    -- under-applied
+    matchArgs r (n:ns) [] | visible n = return ([], n : ns)    -- under-applied
     matchArgs r (n:ns) as = do
       (p, as) <- matchNextArg r n as
       first ((unArg n, p) :) <$> matchArgs (getRange p) ns as
