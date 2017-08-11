@@ -353,7 +353,12 @@ instance SetRange QName where
                    }
 
 instance SetRange ModuleName where
-  setRange r (MName ns) = MName (map (setRange r) ns)
+  setRange r (MName ns) = MName (zipWith setRange rs ns)
+    where
+      -- Put the range only on the last name. Otherwise
+      -- we get overlapping jump-to-definition links for all
+      -- the parts (See #2666).
+      rs = replicate (length ns - 1) noRange ++ [r]
 
 -- ** KillRange
 

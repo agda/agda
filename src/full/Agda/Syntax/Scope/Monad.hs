@@ -295,7 +295,7 @@ resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
   case ms of
-    [AbsModule m why] -> return $ AbsModule (m `withRangesOfQ` x) why
+    [AbsModule m why] -> return $ AbsModule (m `withRangeOf` x) why
     []                -> typeError $ NoSuchModule x
     ms                -> typeError $ AmbiguousModule x (map amodName ms)
 
