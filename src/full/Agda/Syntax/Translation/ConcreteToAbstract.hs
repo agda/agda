@@ -2070,7 +2070,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
     toAbstract (AppP (QuoteP _) p)
       | IdentP x <- namedArg p,
-        getHiding p == NotHidden = do
+        visible p = do
       e <- toAbstract (OldQName x Nothing)
       let quoted (A.Def x) = return x
           quoted (A.Macro x) = return x

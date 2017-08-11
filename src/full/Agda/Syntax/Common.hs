@@ -169,6 +169,10 @@ visible a = getHiding a == NotHidden
 notVisible :: LensHiding a => a -> Bool
 notVisible a = getHiding a /= NotHidden
 
+-- | 'Hidden' arguments are @hidden@.
+hidden :: LensHiding a => a -> Bool
+hidden a = getHiding a == Hidden
+
 hide :: LensHiding a => a -> a
 hide = setHiding Hidden
 
@@ -196,6 +200,13 @@ isInstance x =
   case getHiding x of
     Instance{} -> True
     _          -> False
+
+-- | Ignores 'Overlappable'.
+sameHiding :: (LensHiding a, LensHiding b) => a -> b -> Bool
+sameHiding x y =
+  case (getHiding x, getHiding y) of
+    (Instance{}, Instance{}) -> True
+    (hx, hy)                 -> hx == hy
 
 ---------------------------------------------------------------------------
 -- * Relevance

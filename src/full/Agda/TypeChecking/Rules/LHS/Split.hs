@@ -202,7 +202,7 @@ splitProblem mf (Problem ps qs tel pr) = do
 
             -- Andreas, 2016-12-31, issue #2374:
             -- We can also disambiguate by hiding info.
-            unless (getHiding p == getHiding ai) $ ambErr $ wrongHiding d
+            unless (sameHiding p ai) $ ambErr $ wrongHiding d
 
             -- Andreas, 2016-12-31, issue #1976:
             -- Check parameters.
@@ -289,7 +289,7 @@ splitProblem mf (Problem ps qs tel pr) = do
         ]
 
       -- Andreas, 2016-06-30, issue #2075: need test here!
-      unless (getHiding p == getHiding ai) $ typeError WrongHidingInLHS
+      unless (sameHiding p ai) $ typeError WrongHidingInLHS
 
       -- Possible reinvokations:
       let -- 1. Redo this argument (after meta instantiation).

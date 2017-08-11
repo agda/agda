@@ -266,7 +266,7 @@ checkArgInfo action ai ai' = do
   return $ setRelevance r ai
 
 checkHiding    :: Hiding -> Hiding -> TCM ()
-checkHiding    h h' = unless (h == h') $ typeError $ HidingMismatch h h'
+checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 
 -- | @checkRelevance action term type@.
 --

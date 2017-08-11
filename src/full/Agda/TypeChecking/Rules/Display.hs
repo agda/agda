@@ -35,7 +35,7 @@ patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret = do
-  let isMatch = getHiding p == getHiding a &&
+  let isMatch = sameHiding p a &&
                 (visible p || isNothing (nameOf (unArg p)) ||
                  Just (absName tel) == (rangedThing <$> nameOf (unArg p)))
   case isMatch of

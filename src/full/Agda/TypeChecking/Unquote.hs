@@ -684,9 +684,8 @@ evalTCM v = do
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclareDef (Arg i x) a = inOriginalContext $ do
       setDirty
-      let h = getHiding i
-          r = getRelevance i
-      when (h == Hidden) $ liftU $ typeError . GenericDocError =<<
+      let r = getRelevance i
+      when (hidden i) $ liftU $ typeError . GenericDocError =<<
         text "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftU $ do
@@ -698,7 +697,7 @@ evalTCM v = do
         alreadyDefined <- isJust <$> tryMaybe (getConstInfo x)
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a emptyFunction
-        when (isInstance h) $ addTypedInstance x a
+        when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term

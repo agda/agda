@@ -502,8 +502,8 @@ instance Pretty Fixity' where
  -- Andreas 2010-09-24: and in record fields
 instance Pretty a => Pretty (Arg a) where
   prettyPrec p (Arg ai e) = prettyHiding ai id $ prettyPrec p' e
-      where p' | getHiding ai == NotHidden = p
-               | otherwise                 = 0
+      where p' | visible ai = p
+               | otherwise  = 0
 
 instance Pretty e => Pretty (Named_ e) where
     prettyPrec p (Named Nothing e) = prettyPrec p e

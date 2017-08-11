@@ -132,7 +132,7 @@ isType_ e =
     A.Set _ n    -> do
       return $ sort (mkType n)
     A.App i s arg
-      | getHiding arg == NotHidden,
+      | visible arg,
         A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -373,7 +373,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
         -- merge in the hiding info of the TBind
         let [WithHiding h x] = xs
         info <- return $ mapHiding (mappend h) info
-        unless (getHiding dom == getHiding info) $ typeError $ WrongHidingInLambda target
+        unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
         info <- lambdaIrrelevanceCheck info dom
         -- Andreas, 2015-05-28 Issue 1523
@@ -469,7 +469,7 @@ insertHiddenLambdas h target postpone ret = do
       Pi dom b -> do
         let h' = getHiding dom
         -- Found expected hiding: return function type.
-        if h == h' then ret t else do
+        if sameHiding h h' then ret t else do
           -- Found a visible argument but expected a hidden one:
           -- That's an error, as we cannot insert a visible lambda.
           if visible h' then typeError $ WrongHidingInLambda target else do
@@ -489,7 +489,7 @@ checkAbsurdLambda i h e t = do
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t' -> do
     case ignoreSharing $ unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
-        | h /= getHiding info' -> typeError $ WrongHidingInLambda t'
+        | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
         | not (null $ allMetas a) ->
             postponeTypeCheckingProblem (CheckExpr e t') $
               null . allMetas <$> instantiateFull a
@@ -1035,9 +1035,9 @@ checkExpr e t0 =
       checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
 
     hiddenLambdaOrHole h e = case e of
-      A.AbsurdLam _ h'        -> h == h'
+      A.AbsurdLam _ h'        -> sameHiding h h'
       A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
-      A.Lam _ bind _          -> h == getHiding bind
+      A.Lam _ bind _          -> sameHiding h bind
       A.QuestionMark{}        -> True
       _                       -> False
 
@@ -1181,7 +1181,7 @@ inferOrCheckProjApp e o ds args mt = do
   -- For now, we only allow ambiguous projections if the first visible
   -- argument is the record value.
 
-  case filter (visible . getHiding . snd) $ zip [0..] args of
+  case filter (visible . snd) $ zip [0..] args of
 
     -- Case: we have no visible argument to the projection.
     -- In inference mode, we really need the visible argument, postponing does not help
@@ -1715,7 +1715,7 @@ checkConstructorApplication org t c args = do
         h    = getHiding arg
 
         namedPar   x = dropPar ((x ==) . unDom)
-        unnamedPar h = dropPar ((h ==) . getHiding)
+        unnamedPar h = dropPar (sameHiding h)
 
         dropPar this (p : ps) | this p    = Just ps
                               | otherwise = dropPar this ps
@@ -1862,7 +1862,7 @@ checkHeadApplication e t hd args = do
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       arg <- case args of
-               [a] | getHiding a == NotHidden -> return $ namedArg a
+               [a] | visible a -> return $ namedArg a
                _ -> typeError $ GenericError $ prettyShow c ++ " must be applied to exactly one argument."
 
       -- The name of the fresh function.
@@ -1988,7 +1988,7 @@ checkKnownArgument arg [] _ = genericDocError =<< do
 checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
   -- Skip the arguments from vs that do not correspond to e
-  if not (getHiding info == getHiding info'
+  if not (sameHiding info info'
           && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
@@ -2049,7 +2049,7 @@ checkArguments exh r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       mapFst (map Apply) <$> implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi (Dom{domInfo = info}) _)   Hidden = getHiding info /= Hidden &&
+      expand (Pi (Dom{domInfo = info}) _)   Hidden = not (hidden info) &&
                                             exh == ExpandLast
       expand _                     Hidden = exh == ExpandLast
       expand (Pi Dom{domInfo = info} _) Instance{} = not $ isInstance info
@@ -2075,7 +2075,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
           expand NotHidden y = False
           -- insert a hidden argument if arg is not hidden or has different name
           -- insert an instance argument if arg is not instance  or has different name
-          expand hy        y = hy /= hx || maybe False (y /=) mx
+          expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
       (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
@@ -2109,7 +2109,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case ignoreSharing $ unEl t0' of
           Pi (Dom{domInfo = info', unDom = a}) b
-            | getHiding info == getHiding info'
+            | sameHiding info info'
               && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
                 u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
@@ -2272,14 +2272,14 @@ inferExprForWith e = do
         typeError $ WithOnFreeVariable e v0
       _        -> return ()
     -- Possibly insert hidden arguments.
-    TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
+    TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
     case ignoreSharing $ unEl t0 of
       Def d vs -> do
         res <- isDataOrRecordType d
         case res of
           Nothing -> return (v, t)
           Just{}  -> do
-            (args, t1) <- implicitArgs (-1) (NotHidden /=) t
+            (args, t1) <- implicitArgs (-1) notVisible t
             return (v `apply` args, t1)
       _ -> return (v, t)
 

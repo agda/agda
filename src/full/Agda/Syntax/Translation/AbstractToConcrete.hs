@@ -574,7 +574,7 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
     where
       recoverLabels :: Arg A.TypedBinding -> Arg C.TypedBinding -> [Arg C.TypedBinding]
       recoverLabels b cb
-        | getHiding b == NotHidden = [cb]   -- We don't care about labels for explicit args
+        | visible b = [cb]   -- We don't care about labels for explicit args
         | otherwise = traverse (recover (unArg b)) cb
 
       recover (A.TBind _ xs _) (C.TBind r ys e) = tbind r e (zipWith label xs ys)

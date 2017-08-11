@@ -85,7 +85,7 @@ etaExpandClause clause = liftTCM $ do
     -- Andreas, 2017-03-24: the following case is not IMPOSSIBLE when positivity checking comes before termination checking, see examples/tactics/ac/AC.agda
     useNames (_:_)  []        = []
     useNames (x:xs) (dom:tel)
-      | getHiding x == getHiding dom =
+      | sameHiding x dom =
           -- set the ArgName of the dom
           fmap (first $ const $ unArg x) dom : useNames xs tel
       | otherwise =

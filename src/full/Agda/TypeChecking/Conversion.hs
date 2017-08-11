@@ -669,7 +669,7 @@ compareDom :: Free c
   -> TCM ()     -- ^ Continuation if comparison is successful.
   -> TCM ()
 compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDom = a2}) b1 b2 errH errR cont
-  | getHiding dom1 /= getHiding dom2 = errH
+  | not (sameHiding dom1 dom2) = errH
   -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
   | not $ compareRelevance cmp (ignoreForced $ getRelevance dom1)
                                (ignoreForced $ getRelevance dom2) = errR

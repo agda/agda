@@ -75,7 +75,7 @@ etaOnce v = case v of
           -- Contracting with any irrelevant argument breaks subject reduction.
           -- E.g. \ .x -> f .(subst P eq x)  can in general not be contracted to f.
           -- -- | (isIrrelevant info || isVar0 tyty v)
-                    && getHiding i == getHiding info
+                    && sameHiding i info
                     && not (freeIn 0 u) ->
             return $ strengthen __IMPOSSIBLE__ u
         _ -> return v

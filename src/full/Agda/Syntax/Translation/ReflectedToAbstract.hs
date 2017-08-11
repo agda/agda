@@ -74,7 +74,7 @@ instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
     arg     <- toAbstract arg
     showImp <- lift showImplicitArguments
-    return $ if showImp || getHiding arg == NotHidden
+    return $ if showImp || visible arg
              then App (ExprRange noRange) f arg
              else f
 
