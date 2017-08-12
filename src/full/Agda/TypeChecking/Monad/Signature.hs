@@ -632,10 +632,12 @@ getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
   getRewriteRulesFor = defaultGetRewriteRulesFor get
-  getConstInfo q = join $ pureTCM $ \st env ->
+  getConstInfo q = do
+    st  <- get
+    env <- ask
     let defs  = st^.(stSignature . sigDefinitions)
         idefs = st^.(stImports . sigDefinitions)
-    in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
+    case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> fail $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
         [d] -> mkAbs env d
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
@@ -658,7 +660,7 @@ instance HasConstInfo (TCMT IO) where
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
-instance (HasConstInfo m) => HasConstInfo (MaybeT m) where
+instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getConstInfo = lift . getConstInfo
   getRewriteRulesFor = lift . getRewriteRulesFor
 
