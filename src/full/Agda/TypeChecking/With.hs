@@ -8,6 +8,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
+import Data.Either
 import Data.List
 import Data.Maybe
 import Data.Monoid
@@ -492,7 +493,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
          Def d es <- liftTCM $ ignoreSharing <$> normalise (unEl $ unDom a)
          let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
          -- Get the original constructor and field names.
-         c <- (`withRangeOf` c) <$> do liftTCM $ getConForm $ conName c
+         c <- either __IMPOSSIBLE__ (`withRangeOf` c) <$> do liftTCM $ getConForm $ conName c
 
          case namedArg p of
 
@@ -512,7 +513,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           A.ConP _ (A.AmbQ cs') ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
-            cs' <- liftTCM $ mapM getConForm cs'
+            -- Andreas, 2017-08-13, herein, ignore abstract constructors.
+            cs' <- liftTCM $ do snd . partitionEithers <$> mapM getConForm cs'
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'

@@ -516,7 +516,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
 
   -- Get the real constructor name
-  con <- liftTCM $ getConForm c
+  con <- liftTCM $ fromRight __IMPOSSIBLE__ <$> getConForm c
   con <- return $ con { conName = c }  -- What if we restore the current name?
                                        -- Andreas, 2013-11-29 changes nothing!
 

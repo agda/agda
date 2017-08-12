@@ -814,7 +814,10 @@ checkLHS f st@(LHSState problem dpi sbe) = do
             ]
           ]
 
-        c <- (`withRangeOf` c) <$> getConForm c
+        c <- either
+               (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c))
+               (return . (`withRangeOf` c))
+               =<< getConForm c
         ca <- defType <$> getConInfo c
 
         reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat

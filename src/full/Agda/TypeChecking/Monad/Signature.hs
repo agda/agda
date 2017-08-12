@@ -613,6 +613,12 @@ data SigError
   = SigUnknown String -- ^ The name is not in the signature; default error message.
   | SigAbstract       -- ^ The name is not available, since it is abstract.
 
+-- | Standard eliminator for 'SigError'.
+sigError :: (String -> a) -> a -> SigError -> a
+sigError f a = \case
+  SigUnknown s -> f s
+  SigAbstract  -> a
+
 class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.

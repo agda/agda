@@ -75,15 +75,15 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef, checkFunDef', useTerPragma)
 
+import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   )
-
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (groupOn)
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1117,7 +1117,7 @@ inferOrCheckProjApp e o ds args mt = do
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
         "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ head ds)
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ fromMaybe __IMPOSSIBLE__ $ headMaybe ds)
         ++ " because " ++ reason
       refuseNotApplied = refuse "it is not applied to a visible argument"
       refuseNoMatching = refuse "no matching candidate found"
@@ -1294,49 +1294,62 @@ checkApplication hd args e t = do
     A.Proj o (AmbQ ds@(_:_:_)) -> checkProjApp e o ds args t
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs@(_:_:_)) -> do
+    A.Con (AmbQ cs0@(_:_:_)) -> do
       -- First we should figure out which constructor we want.
-      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs
+      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
       -- Get the datatypes of the various constructors
       let getData Constructor{conData = d} = d
           getData _                        = __IMPOSSIBLE__
-      reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
+      reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs0)
       -- We use the reduced constructor when disambiguating, but
       -- the original constructor for type checking. This is important
       -- since they may have different types (different parameters).
       -- See issue 279.
-      cons  <- mapM getConForm cs
+      -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
+      (cs, cons)  <- unzip . snd . partitionEithers <$> do
+         forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
       reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
-      dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
-      -- Type error
-      let badCon t = typeError $ DoesNotConstructAnElementOf (head cs) t
-      -- Lets look at the target type at this point
-      let getCon :: TCM (Maybe ConHead)
-          getCon = do
-            TelV tel t1 <- telView t
-            addContext tel $ do
-             reportSDoc "tc.check.term.con" 40 $ nest 2 $
-               text "target type: " <+> prettyTCM t1
-             ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
-               caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
-                 case [ c | (d', c) <- dcs, d == d' ] of
-                   [c] -> do
-                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
-                     storeDisambiguatedName $ conName c
-                     return $ Just c
-                   []  -> badCon $ t' $> Def d []
-                   cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
-      let unblock = isJust <$> getCon -- to unblock, call getCon later again
-      mc <- getCon
-      case mc of
-        Just c  -> checkConstructorApplication e t c args
-        Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
+      case cons of
+        []  -> typeError $ AbstractConstructorNotInScope $
+                 fromMaybe __IMPOSSIBLE__ $ headMaybe cs0
+        [con] -> do
+          let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
+          reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+          storeDisambiguatedName $ conName c
+          checkConstructorApplication e t c args
+        _   -> do
+          dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
+          -- Type error
+          let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
+                fromMaybe __IMPOSSIBLE__ $ headMaybe cs
+          -- Lets look at the target type at this point
+          let getCon :: TCM (Maybe ConHead)
+              getCon = do
+                TelV tel t1 <- telView t
+                addContext tel $ do
+                 reportSDoc "tc.check.term.con" 40 $ nest 2 $
+                   text "target type: " <+> prettyTCM t1
+                 ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
+                   caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
+                     case [ c | (d', c) <- dcs, d == d' ] of
+                       [c] -> do
+                         reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
+                         storeDisambiguatedName $ conName c
+                         return $ Just c
+                       []  -> badCon $ t' $> Def d []
+                       cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
+          let unblock = isJust <$> getCon -- to unblock, call getCon later again
+          mc <- getCon
+          case mc of
+            Just c  -> checkConstructorApplication e t c args
+            Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
 
     -- Subcase: non-ambiguous constructor
     A.Con (AmbQ [c]) -> do
       -- augment c with record fields, but do not revert to original name
-      con <- getOrigConHead c
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+        getOrigConHead c
       checkConstructorApplication e t con args
 
     -- Subcase: pattern synonym
@@ -1539,7 +1552,8 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <- getOrigConHead c
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+        getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.

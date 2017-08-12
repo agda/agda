@@ -10,6 +10,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
 import Control.Monad.Trans.Maybe
 
+import Data.Either
 import Data.Maybe (fromMaybe)
 import Data.List hiding (null)
 import Data.Traversable hiding (mapM, sequence)
@@ -48,6 +49,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Either
 import Agda.Utils.Except (catchError)
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
@@ -385,22 +387,24 @@ splitProblem mf (Problem ps qs tel pr) = do
                     traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
                       -- Check that we construct something in the right datatype
                       c <- lift $ do
-                          cs' <- mapM canonicalName cs
+                          -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
+                          (cs1, cs') <- unzip . snd . partitionEithers <$> do
+                            forM cs $ \ c -> mapRight ((c,) . conName) <$> getConHead c
+                          when (null cs1) $ typeError $ AbstractConstructorNotInScope $ head cs
                           d'  <- canonicalName d
-                          let cons def = case theDef def of
-                                Datatype{dataCons = cs} -> cs
-                                Record{recConHead = c}      -> [conName c]
-                                _                       -> __IMPOSSIBLE__
-                          cs0 <- cons <$> getConstInfo d'
-                          case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
+                          cs0 <- (theDef <$> getConstInfo d') <&> \case
+                                Datatype{dataCons = cs0} -> cs0
+                                Record{recConHead = c0}  -> [conName c0]
+                                _ -> __IMPOSSIBLE__
+                          case [ c | (c, c') <- zip cs1 cs', elem c' cs0 ] of
                             [c]   -> do
                               -- If constructor pattern was ambiguous,
                               -- remember our choice for highlighting info.
                               when (length cs >= 2) $ storeDisambiguatedName c
                               return c
-                            []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
-                            cs    -> -- if there are more than one we give up (they might have different types)
-                              typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
+                            []    -> typeError $ ConstructorPatternInWrongDatatype (head cs1) d
+                            cs3   -> -- if there are more than one we give up (they might have different types)
+                              typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs3
 
                       let (pars, ixs) = genericSplitAt np vs
                       lift $ reportSDoc "tc.lhs.split" 10 $ vcat
