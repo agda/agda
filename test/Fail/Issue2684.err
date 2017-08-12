@@ -1,0 +1,3 @@
+Issue2684.agda:12,8-9
+Constructor c is abstract, thus, not in scope here
+when checking that the expression c has type D
