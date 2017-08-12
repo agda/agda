@@ -638,7 +638,7 @@ instance HasConstInfo (TCMT IO) where
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> fail $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
         [d] -> mkAbs env d
-        ds  -> fail $ "Ambiguous name: " ++ prettyShow q
+        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
         | treatAbstractly' q' env =
