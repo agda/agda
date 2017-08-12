@@ -64,6 +64,7 @@ import Agda.TypeChecking.DropArgs
 
 import Agda.Interaction.Options ( optPostfixProjections )
 
+import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -487,8 +488,8 @@ reifyTerm expandAnonDefs0 v = do
       reportSLn "reify.def" 70 $ "freeVars for " ++ prettyShow x ++ " = " ++ show n
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
-      let fallback = elims (A.Def x) =<< reify (drop n es)
-      caseMaybeM (tryMaybe $ getConstInfo x) fallback $ \ defn -> do
+      let fallback _ = elims (A.Def x) =<< reify (drop n es)
+      caseEitherM (getConstInfo' x) fallback $ \ defn -> do
       let def = theDef defn
 
       -- Check if we have an absurd lambda.
