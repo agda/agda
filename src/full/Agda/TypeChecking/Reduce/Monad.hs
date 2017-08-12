@@ -149,25 +149,27 @@ instance MonadDebug ReduceM where
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
-  getConstInfo q = ReduceM $ \(ReduceEnv env st) ->
+  getConstInfo q = do
+    ReduceEnv env st <- askR
     let defs  = st^.(stSignature . sigDefinitions)
         idefs = st^.(stImports . sigDefinitions)
-    in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> trace ("Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q) __IMPOSSIBLE__
+    case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         [d] -> mkAbs env d
-        ds  -> trace ("Ambiguous name: " ++ prettyShow q) __IMPOSSIBLE__
+        []  -> __IMPOSSIBLE_VERBOSE__ $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
+        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
+      mkAbs :: TCEnv -> Definition -> ReduceM Definition
       mkAbs env d
-        | treatAbstractly' q' env = fromMaybe err $ makeAbstract d
-        | otherwise               = d
+        | treatAbstractly' q' env = maybe err return $ makeAbstract d
+        | otherwise               = return d
         where
-          err = trace ("Not in scope: " ++ prettyShow q) __IMPOSSIBLE__
+          err = __IMPOSSIBLE_VERBOSE__ $ "Not in scope: " ++ prettyShow q
           q' = case theDef d of
             -- Hack to make abstract constructors work properly. The constructors
             -- live in a module with the same name as the datatype, but for 'abstract'
             -- purposes they're considered to be in the same module as the datatype.
             Constructor{} -> dropLastModule q
-            _                 -> q
+            _ -> q
 
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }

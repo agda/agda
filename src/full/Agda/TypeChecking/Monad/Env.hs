@@ -102,6 +102,8 @@ allowAllReductions = putAllowedReductions allReductions
 allowNonTerminatingReductions :: TCM a -> TCM a
 allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
 
+-- * Concerning 'envInsideDotPattern'
+
 insideDotPattern :: TCM a -> TCM a
 insideDotPattern = local $ \e -> e { envInsideDotPattern = True }
 
