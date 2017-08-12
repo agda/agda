@@ -27,7 +27,6 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Datatypes ( getConHead )
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
@@ -53,6 +52,7 @@ import Agda.Utils.Except
   , ExceptT
   , runExceptT
   )
+import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -157,7 +157,7 @@ choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 ensureDef :: QName -> UnquoteM QName
 ensureDef x = do
-  i <- liftU $ (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
+  i <- liftU $ either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> do
       def <- liftU $ prettyTCM =<< primAgdaTermDef
@@ -167,7 +167,7 @@ ensureDef x = do
 
 ensureCon :: QName -> UnquoteM QName
 ensureCon x = do
-  i <- liftU $ (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
+  i <- liftU $ either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> return x
     _ -> do
@@ -661,8 +661,8 @@ evalTCM v = do
         go (a : as) m = extendCxt a $ go as m
 
     constInfo :: QName -> TCM Definition
-    constInfo x = getConstInfo x `catchError` \ _ ->
-                  genericError $ "Unbound name: " ++ prettyShow x
+    constInfo x = either err return =<< getConstInfo' x
+      where err _ = genericError $ "Unbound name: " ++ prettyShow x
 
     tcGetType :: QName -> TCM Term
     tcGetType x = quoteType . defType =<< constInfo x
@@ -694,7 +694,7 @@ evalTCM v = do
           , nest 2 $ prettyTCM a
           ]
         a <- isType_ =<< toAbstract_ a
-        alreadyDefined <- isJust <$> tryMaybe (getConstInfo x)
+        alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a emptyFunction
         when (isInstance i) $ addTypedInstance x a
@@ -702,7 +702,7 @@ evalTCM v = do
 
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
     tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftU $ do
-      _ <- getConstInfo x `catchError` \ _ ->
+      whenM (isLeft <$> getConstInfo' x) $
         genericError $ "Missing declaration for " ++ prettyShow x
       cs <- mapM (toAbstract_ . QNamed x) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
