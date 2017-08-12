@@ -2,16 +2,7 @@
 -- | Utilities for the 'Either' type
 ------------------------------------------------------------------------
 
-module Agda.Utils.Either
-  ( whileLeft, caseEitherM
-  , mapEither, mapLeft, mapRight
-  , traverseEither
-  , isLeft, isRight
-  , fromLeft, fromRight
-  , maybeLeft, maybeRight
-  , allLeft, allRight
-  , maybeToEither
-  ) where
+module Agda.Utils.Either where
 
 -- | Loop while we have an exception.
 
