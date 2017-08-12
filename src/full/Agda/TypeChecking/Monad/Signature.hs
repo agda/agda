@@ -613,10 +613,20 @@ data SigError
   = SigUnknown String -- ^ The name is not in the signature; default error message.
   | SigAbstract       -- ^ The name is not available, since it is abstract.
 
-class (Functor m, Applicative m, Monad m) => HasConstInfo m where
+class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
+  getConstInfo q = getConstInfo' q >>= \case
+      Right d -> return d
+      Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
+      Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
+        "Abstract, thus, not in scope: " ++ prettyShow q
+
+  -- | Version that reports exceptions:
+  getConstInfo' :: QName -> m (Either SigError Definition)
+  getConstInfo' q = Right <$> getConstInfo q
+
   -- | Lookup the rewrite rules with the given head symbol.
   getRewriteRulesFor :: QName -> m RewriteRules
 
@@ -637,10 +647,11 @@ getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
   getRewriteRulesFor = defaultGetRewriteRulesFor get
-  getConstInfo q = do
+  getConstInfo' q = do
     st  <- get
     env <- ask
-    defaultGetConstInfo st env q >>= \case
+    defaultGetConstInfo st env q
+  getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
       Left (SigUnknown err) -> fail err
       Left SigAbstract      -> notInScope $ qnameToConcrete q

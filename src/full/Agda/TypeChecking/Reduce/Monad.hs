@@ -149,10 +149,6 @@ instance MonadDebug ReduceM where
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
-  getConstInfo q = do
+  getConstInfo' q = do
     ReduceEnv env st <- askR
-    defaultGetConstInfo st env q >>= \case
-      Right d -> return d
-      Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
-      Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
-        "Abstract, thus, not in scope: " ++ prettyShow q
+    defaultGetConstInfo st env q
