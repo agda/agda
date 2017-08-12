@@ -180,12 +180,12 @@ install:
        cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
        if [[ $CABAL_VER = "1.18" ]]; then
-          cabal install cabal-install &&
-          cabal --version &&
-          cabal update;
+          cabal install cabal-install;
        fi &&
+       export PATH=$HOME/.cabal/bin:$PATH &&
+       cabal --version &&
+       cabal update &&
        cabal install cpphs-1.20.8 &&
        cpphs --version;
     fi
