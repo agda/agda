@@ -608,6 +608,11 @@ singleConstructorType q = do
         _                          -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
+-- | Signature lookup errors.
+data SigError
+  = SigUnknown String -- ^ The name is not in the signature; default error message.
+  | SigAbstract       -- ^ The name is not available, since it is abstract.
+
 class (Functor m, Applicative m, Monad m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
@@ -635,20 +640,29 @@ instance HasConstInfo (TCMT IO) where
   getConstInfo q = do
     st  <- get
     env <- ask
+    defaultGetConstInfo st env q >>= \case
+      Right d -> return d
+      Left (SigUnknown err) -> fail err
+      Left SigAbstract      -> notInScope $ qnameToConcrete q
+
+defaultGetConstInfo
+  :: (HasOptions m, MonadDebug m)
+  => TCState -> TCEnv -> QName -> m (Either SigError Definition)
+defaultGetConstInfo st env q = do
     let defs  = st^.(stSignature . sigDefinitions)
         idefs = st^.(stImports . sigDefinitions)
     case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> fail $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
+        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
         [d] -> mkAbs env d
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
         | treatAbstractly' q' env =
           case makeAbstract d of
-            Just d      -> return d
-            Nothing     -> notInScope $ qnameToConcrete q
+            Just d      -> return $ Right d
+            Nothing     -> return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
-        | otherwise = return d
+        | otherwise = return $ Right d
         where
           q' = case theDef d of
             -- Hack to make abstract constructors work properly. The constructors
