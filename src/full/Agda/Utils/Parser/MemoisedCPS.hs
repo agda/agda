@@ -33,6 +33,7 @@ module Agda.Utils.Parser.MemoisedCPS
 import Control.Applicative
 import Control.Monad (ap, liftM2)
 import Control.Monad.State.Strict (State, evalState, runState, get, put, modify')
+
 import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
@@ -42,6 +43,8 @@ import Data.HashSet (HashSet)
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
 import Data.List
+import Data.Maybe
+
 import Text.PrettyPrint.HughesPJ hiding (empty)
 import qualified Text.PrettyPrint.HughesPJ as PP
 
@@ -189,7 +192,7 @@ instance ParserClass (Parser k r tok) k r tok where
   memoise key p = P $ \input i k -> do
 
     let alter j zero f m =
-          IntMap.alter (Just . f . maybe zero id) j m
+          IntMap.alter (Just . f . fromMaybe zero) j m
 
         lookupTable   = fmap (\m -> Map.lookup key =<<
                                     IntMap.lookup i m) get

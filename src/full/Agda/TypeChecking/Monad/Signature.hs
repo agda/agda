@@ -535,13 +535,13 @@ addDisplayForm x df = do
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: QName -> TCM Bool
-isLocal x = isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
+isLocal x = HMap.member x <$> use (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- defDisplay <$> getConstInfo q
-  ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
-  ds2 <- maybe [] id . HMap.lookup q <$> use stImportedDisplayForms
+  ds1 <- HMap.lookupDefault [] q <$> use stImportsDisplayForms
+  ds2 <- HMap.lookupDefault [] q <$> use stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 

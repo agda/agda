@@ -150,7 +150,7 @@ translateCompiledClauses cc = do
 
       -- recurse on and compute variable status of catch-all clause
       (xssa, catchAll) <- unzipMaybe <$> Trav.mapM loop catchAll
-      let xsa = maybe (repeat True) id xssa
+      let xsa = fromMaybe (repeat True) xssa
 
       -- recurse on compute variable status of literal clauses
       (xssl, litMap)   <- Map.unzip <$> Trav.mapM loop litMap

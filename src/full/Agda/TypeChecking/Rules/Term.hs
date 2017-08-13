@@ -2116,7 +2116,7 @@ inferOrCheck e mt = case e of
     (f, t0) <- inferHead hd
     res <- runErrorT $ checkArguments DontExpandLast
                                       (getRange hd) args t0 $
-                                      maybe (sort Prop) id mt
+                                      fromMaybe (sort Prop) mt
     case res of
       Right (vs, t1) -> maybe (return (f vs, t1))
                               (\ t -> (,t) <$> coerce (f vs) t1 t)

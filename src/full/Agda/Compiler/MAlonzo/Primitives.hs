@@ -6,7 +6,7 @@ import Control.Monad.State
 import Data.Char
 import Data.List as L
 import Data.Map as M
-import qualified Agda.Utils.Haskell.Syntax as HS
+import Data.Maybe
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -21,10 +21,13 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
-import Agda.Utils.Monad
+
+import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Lens
+import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -110,13 +113,13 @@ xForPrim table = do
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
-  concat <$> sequence [ maybe (return []) id $ L.lookup s table
+  concat <$> sequence [ fromMaybe (return []) $ L.lookup s table
                         | (s, def) <- bs, getName def `elem` qs ]
 
 
 -- Definition bodies for primitive functions
 primBody :: String -> TCM HS.Exp
-primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
+primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
              L.lookup s $
   [
   -- Integer functions
