@@ -5871,8 +5871,6 @@ Tools
 
 * Key bindings for controlling simplification/normalisation:
 
-  [TODO: Simplification should be explained somewhere.]
-
   Commands like `Goal type and context` (`C-c C-,`) could previously
   be invoked in two ways. By default the output was normalised, but if
   a prefix argument was used (for instance via `C-u C-c C-,`), then no
@@ -5885,9 +5883,6 @@ Tools
 
   - If `C-u` is used twice (`C-u C-u C-c C-,`), then the result is
     normalised.
-
-  [TODO: As part of the release of Agda 2.3.4 the key binding page on
-  the wiki should be updated.]
 
 ### LaTeX-backend
 
