@@ -539,7 +539,7 @@ isLocal x = HMap.member x <$> use (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
-  ds  <- defDisplay <$> getConstInfo q
+  ds  <- either (const []) defDisplay <$> getConstInfo' q
   ds1 <- HMap.lookupDefault [] q <$> use stImportsDisplayForms
   ds2 <- HMap.lookupDefault [] q <$> use stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
