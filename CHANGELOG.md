@@ -5886,9 +5886,6 @@ Tools
   - If `C-u` is used twice (`C-u C-u C-c C-,`), then the result is
     normalised.
 
-  [TODO: As part of the release of Agda 2.3.4 the key binding page on
-  the wiki should be updated.]
-
 ### LaTeX-backend
 
 * Two new color scheme options were added to `agda.sty`:
