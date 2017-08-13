@@ -2,16 +2,7 @@
 -- | Utilities for the 'Either' type
 ------------------------------------------------------------------------
 
-module Agda.Utils.Either
-  ( whileLeft, caseEitherM
-  , mapEither, mapLeft, mapRight
-  , traverseEither
-  , isLeft, isRight
-  , fromLeft, fromRight
-  , maybeLeft, maybeRight
-  , allLeft, allRight
-  , maybeToEither
-  ) where
+module Agda.Utils.Either where
 
 -- | Loop while we have an exception.
 
@@ -66,6 +57,14 @@ fromLeft = either id
 -- | Analogue of 'Data.Maybe.fromMaybe'.
 fromRight :: (a -> b) -> Either a b -> b
 fromRight f = either f id
+
+-- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.
+fromLeftM :: Monad m => (b -> m a) -> Either a b -> m a
+fromLeftM = either return
+
+-- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.
+fromRightM :: Monad m => (a -> m b) -> Either a b -> m b
+fromRightM f = either f return
 
 -- | Safe projection from 'Left'.
 --   @

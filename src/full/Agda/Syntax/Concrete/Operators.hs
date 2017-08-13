@@ -25,7 +25,7 @@ import Control.Monad
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
 import Data.Function
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -263,7 +263,7 @@ buildParsers r flat kind exprNames = do
         -- resulting in a confusing error message claiming that "if"
         -- is not in scope.
 
-        (non, fix) = partition nonfix (filter (and . partsPresent) ops)
+        (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
         cons       = getDefinedNames [ConName, PatternSynName] flat
         conNames   = Set.fromList $
@@ -331,8 +331,8 @@ buildParsers r flat kind exprNames = do
         relatedOperators :: [(Integer, [NotationSection])]
         relatedOperators =
           map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
-          groupBy ((==) `on` fst) .
-          sortBy (compare `on` fst) .
+          List.groupBy ((==) `on` fst) .
+          List.sortBy (compare `on` fst) .
           mapMaybe (\n -> case level n of
                             Unrelated     -> Nothing
                             r@(Related l) ->
@@ -645,7 +645,7 @@ classifyPattern conf p =
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
-      (p2, ps3) <- uncons rest -- when (null rest): no field pattern or def pattern found
+      (p2, ps3) <- List.uncons rest -- when (null rest): no field pattern or def pattern found
       guard $ all (isLeft . namedArg) ps3
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
@@ -718,7 +718,7 @@ appView p = case p of
 --   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
 qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
-  nub $ filter (not . null) $ map (init . qnameParts) qs
+  List.nub $ filter (not . null) $ map (init . qnameParts) qs
 
 -- | Parse a list of expressions into an application.
 parseApplication :: [Expr] -> ScopeM Expr

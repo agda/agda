@@ -14,7 +14,7 @@ import Control.Monad.Writer
 import Data.Char
 import Data.Either
 import Data.Function
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import System.Directory
 import System.FilePath
@@ -118,7 +118,7 @@ parseLibFiles libFile files = do
   rs <- mapM (parseLibFile . snd) files
   let loc line | Just f <- libFile = f ++ ":" ++ show line ++ ": "
                | otherwise         = ""
-      errs = [ if isPrefixOf "Failed to read" err
+      errs = [ if List.isPrefixOf "Failed to read" err
                 then OtherError $ loc line ++ err
                 else OtherError $ path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ") ++ err
              | ((line, path), Left err) <- zip files rs ]
@@ -154,9 +154,9 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
     return $ runWriter ((dot ++) . incs <$> find file [] xs)
   where
     xsTr = map trim xs0
-    xs   = delete "." xsTr
+    xs   = List.delete "." xsTr
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-    incs = nub . concatMap libIncludes
+    incs = List.nub . concatMap libIncludes
     dot  = [ "." | elem "." xsTr ]
 
     find :: FilePath -> [LibName] -> [LibName] -> Writer [LibError] [AgdaLibFile]
@@ -175,7 +175,7 @@ findLib x libs =
     l : ls -> l : takeWhile ((== versionMeasure l) . versionMeasure) ls
     []     -> []
   where
-    ls = sortBy (flip compare `on` versionMeasure) [ l | l <- libs, matchLib x l ]
+    ls = List.sortBy (flip compare `on` versionMeasure) [ l | l <- libs, matchLib x l ]
 
     -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
     versionMeasure l = (rx, null vs, vs)

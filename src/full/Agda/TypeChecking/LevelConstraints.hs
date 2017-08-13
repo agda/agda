@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
-import Data.List as List
+import qualified Data.List as List
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
@@ -36,7 +36,7 @@ matchLeq (a :=< b) (c :=< d)
   | otherwise              = False
   where
     free :: Free a => a -> [Int]
-    free = nub . runFree (:[]) IgnoreNot  -- Note: use a list to preserve order of variables
+    free = List.nub . runFree (:[]) IgnoreNot  -- Note: use a list to preserve order of variables
     xs  = free (a, b)
     ys  = free (c, d)
     rho = mkSub $ List.sort $ zip ys xs

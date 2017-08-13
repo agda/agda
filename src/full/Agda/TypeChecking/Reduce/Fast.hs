@@ -67,7 +67,6 @@ module Agda.TypeChecking.Reduce.Fast
 import Control.Applicative
 import Control.Monad.Reader
 
-import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)

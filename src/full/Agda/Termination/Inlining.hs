@@ -48,7 +48,7 @@ module Agda.Termination.Inlining
 import Control.Applicative
 import Control.Monad.State
 
-import Data.List as List
+import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable (traverse)
 

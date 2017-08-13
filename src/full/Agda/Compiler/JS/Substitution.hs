@@ -2,9 +2,9 @@ module Agda.Compiler.JS.Substitution where
 
 import Prelude hiding ( map, lookup )
 import Data.Map ( empty, unionWith, singleton, findWithDefault )
-import qualified Data.Map as M ( map )
+import qualified Data.Map as Map
 import Data.List ( genericIndex )
-import qualified Data.List as L ( map )
+import qualified Data.List as List
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Compiler.JS.Syntax
@@ -17,8 +17,8 @@ import Agda.Utils.Function ( iterate' )
 map :: Nat -> (Nat -> LocalId -> Exp) -> Exp -> Exp
 map m f (Local i)       = f m i
 map m f (Lambda i e)    = Lambda i (map (m + i) f e)
-map m f (Object o)      = Object (M.map (map m f) o)
-map m f (Apply e es)    = Apply (map m f e) (L.map (map m f) es)
+map m f (Object o)      = Object (Map.map (map m f) o)
+map m f (Apply e es)    = Apply (map m f e) (List.map (map m f) es)
 map m f (Lookup e l)    = Lookup (map m f e) l
 map m f (If e e' e'')   = If (map m f e) (map m f e') (map m f e'')
 map m f (PreOp op e)    = PreOp op (map m f e)
@@ -54,8 +54,8 @@ substituter n es m (LocalId i) | otherwise   = Local (LocalId (i - n))
 map' :: Nat -> (Nat -> LocalId -> Exp) -> Exp -> Exp
 map' m f (Local i)       = f m i
 map' m f (Lambda i e)    = Lambda i (map' (m + i) f e)
-map' m f (Object o)      = Object (M.map (map' m f) o)
-map' m f (Apply e es)    = apply (map' m f e) (L.map (map' m f) es)
+map' m f (Object o)      = Object (Map.map (map' m f) o)
+map' m f (Apply e es)    = apply (map' m f e) (List.map (map' m f) es)
 map' m f (Lookup e l)    = lookup (map' m f e) l
 map' m f (If e e' e'')   = If (map' m f e) (map' m f e') (map' m f e'')
 map' m f (PreOp op e)    = PreOp op (map' m f e)
@@ -84,10 +84,10 @@ lookup e          l = Lookup e l
 
 self :: Exp -> Exp -> Exp
 self e (Self)         = e
-self e (Object o)     = Object (M.map (self e) o)
+self e (Object o)     = Object (Map.map (self e) o)
 self e (Apply f es)   = case (self e f) of
   (Lambda n g) -> self e (subst' n es g)
-  g            -> Apply g (L.map (self e) es)
+  g            -> Apply g (List.map (self e) es)
 self e (Lookup f l)   = lookup (self e f) l
 self e (If f g h)     = If (self e f) (self e g) (self e h)
 self e (BinOp f op g) = BinOp (self e f) op (self e g)

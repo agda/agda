@@ -4,7 +4,7 @@ import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Data.Char
-import Data.List
+import qualified Data.List as List
 import System.FilePath
 
 import Agda.Interaction.Library.Base
@@ -72,10 +72,10 @@ fromGeneric' fields fs = do
 checkFields :: [Field] -> [String] -> P ()
 checkFields fields fs = do
   let mandatory = [ fName f | f <- fields, not $ fOptional f ]
-      missing   = mandatory \\ fs
-      dup       = fs \\ nub fs
+      missing   = mandatory List.\\ fs
+      dup       = fs List.\\ List.nub fs
       s xs      = if length xs > 1 then "s" else ""
-      list xs   = intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
+      list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
   when (not $ null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
   when (not $ null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
 
@@ -124,4 +124,3 @@ stripComments (c : s)     = cons c (stripComments s)
   where
     cons c "" | isSpace c = ""
     cons c s = c : s
-

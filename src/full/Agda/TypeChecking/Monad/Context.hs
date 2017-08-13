@@ -10,7 +10,7 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.List hiding (sort)
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
@@ -91,7 +91,7 @@ updateModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
                        => Substitution -> tcm a -> tcm a
 updateModuleParameters sub ret = do
   pm <- use stModuleParameters
-  let showMP pref mps = intercalate "\n" $
+  let showMP pref mps = List.intercalate "\n" $
         [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
         | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
                               (Map.toList mps)
@@ -297,7 +297,7 @@ getContext = asks $ map ctxEntry . envContext
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
 getContextSize :: (Applicative m, MonadReader TCEnv m) => m Nat
-getContextSize = genericLength <$> asks envContext
+getContextSize = length <$> asks envContext
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
@@ -361,7 +361,7 @@ getVarInfo
 getVarInfo x =
     do  ctx <- getContext
         def <- asks envLetBindings
-        case findIndex ((==x) . fst . unDom) ctx of
+        case List.findIndex ((==x) . fst . unDom) ctx of
             Just n -> do
                 t <- typeOfBV' n
                 return (var n, t)

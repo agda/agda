@@ -14,7 +14,7 @@ import Control.Applicative ( (<$), pure )
 
 import Data.Functor
 import Control.Monad.State
-import Data.List hiding (null)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.IORef
 import qualified System.Timeout
@@ -445,7 +445,7 @@ auto ii rng argstr = do
            Just score -> Just (show cn, score)
          ) modnames
 
-      let sorthits = sortBy (\(_, (pa1, pb1)) (_, (pa2, pb2)) -> case compare pa2 pa1 of {EQ -> compare pb1 pb2; o -> o}) hits
+      let sorthits = List.sortBy (\(_, (pa1, pb1)) (_, (pa2, pb2)) -> case compare pa2 pa1 of {EQ -> compare pb1 pb2; o -> o}) hits
       if listmode || pick == (-1) then
         let pick' = max 0 pick
         in if pick' >= length sorthits then
@@ -494,7 +494,7 @@ getEqCombinators ii rng = do
 -- | Templates for error messages
 
 genericNotEnough :: String -> Int -> String
-genericNotEnough str n = intercalate " " $ case n of
+genericNotEnough str n = List.intercalate " " $ case n of
   0 -> [ "No"    , str, "found"]
   1 -> [ "Only 1", str, "found" ]
   _ -> [ "Only", show n, str ++ "s", "found" ]
@@ -504,4 +504,3 @@ insuffsols  = genericNotEnough "solution"
 
 insuffcands :: Int -> String
 insuffcands = genericNotEnough "candidate"
-

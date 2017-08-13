@@ -12,7 +12,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
-import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -138,7 +138,7 @@ addDeprecatedPragma old b q s = do
   addPragma b q s
 
 dataFormat :: String -> [String] -> String
-dataFormat ty cons = "= data " ++ ty ++ " (" ++ intercalate " | " cons ++ ")"
+dataFormat ty cons = "= data " ++ ty ++ " (" ++ List.intercalate " | " cons ++ ")"
 
 addHaskellCode :: QName -> HaskellCode -> TCM ()
 addHaskellCode q hsCode = addDeprecatedPragma "COMPILED" ghcBackendName q $ "= " ++ hsCode
@@ -318,8 +318,8 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     -- and if a constructor is copied its datatype needs to be.
     closeConstructors :: Ren QName -> TCM (Ren QName)
     closeConstructors rd = do
-        ds <- nub . concat <$> mapM (constructorData . fst) rd
-        cs <- nub . concat <$> mapM (dataConstructors . fst) rd
+        ds <- List.nub . concat <$> mapM (constructorData . fst) rd
+        cs <- List.nub . concat <$> mapM (dataConstructors . fst) rd
         new <- concat <$> mapM rename (ds ++ cs)
         reportSLn "tc.mod.apply.complete" 30 $
           "also copying: " ++ prettyShow new
@@ -528,10 +528,10 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       tel       <- lookupSection x
       let sectionTel =  apply tel $ take totalArgs ts
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ prettyShow x ++ " to " ++ prettyShow y
-      reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ intercalate "; " (map prettyShow ts)
+      reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ List.intercalate "; " (map prettyShow ts)
       reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
-      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
-      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
+      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ List.intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
+      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ List.intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
       addContext sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).
@@ -546,13 +546,13 @@ addDisplayForm x df = do
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: QName -> TCM Bool
-isLocal x = isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
+isLocal x = HMap.member x <$> use (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
-  ds  <- defDisplay <$> getConstInfo q
-  ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
-  ds2 <- maybe [] id . HMap.lookup q <$> use stImportedDisplayForms
+  ds  <- either (const []) defDisplay <$> getConstInfo' q
+  ds1 <- HMap.lookupDefault [] q <$> use stImportsDisplayForms
+  ds2 <- HMap.lookupDefault [] q <$> use stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 
@@ -623,10 +623,31 @@ singleConstructorType q = do
         _                          -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
-class (Functor m, Applicative m, Monad m) => HasConstInfo m where
+-- | Signature lookup errors.
+data SigError
+  = SigUnknown String -- ^ The name is not in the signature; default error message.
+  | SigAbstract       -- ^ The name is not available, since it is abstract.
+
+-- | Standard eliminator for 'SigError'.
+sigError :: (String -> a) -> a -> SigError -> a
+sigError f a = \case
+  SigUnknown s -> f s
+  SigAbstract  -> a
+
+class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
+  getConstInfo q = getConstInfo' q >>= \case
+      Right d -> return d
+      Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
+      Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
+        "Abstract, thus, not in scope: " ++ prettyShow q
+
+  -- | Version that reports exceptions:
+  getConstInfo' :: QName -> m (Either SigError Definition)
+  getConstInfo' q = Right <$> getConstInfo q
+
   -- | Lookup the rewrite rules with the given head symbol.
   getRewriteRulesFor :: QName -> m RewriteRules
 
@@ -647,21 +668,33 @@ getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
   getRewriteRulesFor = defaultGetRewriteRulesFor get
-  getConstInfo q = join $ pureTCM $ \st env ->
+  getConstInfo' q = do
+    st  <- get
+    env <- ask
+    defaultGetConstInfo st env q
+  getConstInfo q = getConstInfo' q >>= \case
+      Right d -> return d
+      Left (SigUnknown err) -> fail err
+      Left SigAbstract      -> notInScope $ qnameToConcrete q
+
+defaultGetConstInfo
+  :: (HasOptions m, MonadDebug m)
+  => TCState -> TCEnv -> QName -> m (Either SigError Definition)
+defaultGetConstInfo st env q = do
     let defs  = st^.(stSignature . sigDefinitions)
         idefs = st^.(stImports . sigDefinitions)
-    in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> fail $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
+    case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
+        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
         [d] -> mkAbs env d
-        ds  -> fail $ "Ambiguous name: " ++ prettyShow q
+        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
         | treatAbstractly' q' env =
           case makeAbstract d of
-            Just d      -> return d
-            Nothing     -> notInScope $ qnameToConcrete q
+            Just d      -> return $ Right d
+            Nothing     -> return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
-        | otherwise = return d
+        | otherwise = return $ Right d
         where
           q' = case theDef d of
             -- Hack to make abstract constructors work properly. The constructors
@@ -673,7 +706,7 @@ instance HasConstInfo (TCMT IO) where
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
-instance (HasConstInfo m) => HasConstInfo (MaybeT m) where
+instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getConstInfo = lift . getConstInfo
   getRewriteRulesFor = lift . getRewriteRulesFor
 

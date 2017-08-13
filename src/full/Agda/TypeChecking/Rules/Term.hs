@@ -15,7 +15,7 @@ import Control.Monad.Reader
 import Data.Maybe
 import Data.Either (partitionEithers)
 import Data.Monoid (mappend)
-import Data.List hiding (sort, null)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (sequenceA)
@@ -76,15 +76,15 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef, checkFunDef', useTerPragma)
 
+import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   )
-
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (groupOn)
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -558,8 +558,8 @@ checkExtendedLambda i di qname cs e t = do
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
      args     <- getContextArgs
      freevars <- getCurrentModuleFreeVars
-     let argsNoParam = genericDrop freevars args -- don't count module parameters
-     let (hid, notHid) = partition notVisible argsNoParam
+     let argsNoParam = drop freevars args -- don't count module parameters
+     let (hid, notHid) = List.partition notVisible argsNoParam
      reportSDoc "tc.term.exlam" 30 $ vcat $
        [ text "dropped args: " <+> prettyTCM (take freevars args)
        , text "hidden  args: " <+> prettyTCM hid
@@ -636,7 +636,7 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
 expandModuleAssigns :: [Either A.Assign A.ModuleName] -> [C.Name] -> TCM A.Assigns
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
-      exs' = exs \\ map (view nameFieldA) fs
+      exs' = exs List.\\ map (view nameFieldA) fs
   fs' <- forM exs' $ \ f -> do
     pms <- forM ms $ \ m -> do
        modScope <- getNamedScope m
@@ -1159,7 +1159,7 @@ inferOrCheckProjApp e o ds args mt = do
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
         "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ head ds)
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ fromMaybe __IMPOSSIBLE__ $ headMaybe ds)
         ++ " because " ++ reason
       refuseNotApplied = refuse "it is not applied to a visible argument"
       refuseNoMatching = refuse "no matching candidate found"
@@ -1195,7 +1195,7 @@ inferOrCheckProjApp e o ds args mt = do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
-          case catMaybes $ for fs $ \ (Arg _ f) -> find (f ==) ds of
+          case catMaybes $ for fs $ \ (Arg _ f) -> List.find (f ==) ds of
             [] -> refuseNoMatching
             [d] -> do
               storeDisambiguatedName d
@@ -1336,49 +1336,62 @@ checkApplication hd args e t = do
     A.Proj o (AmbQ ds@(_:_:_)) -> checkProjApp e o ds args t
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs@(_:_:_)) -> do
+    A.Con (AmbQ cs0@(_:_:_)) -> do
       -- First we should figure out which constructor we want.
-      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs
+      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
       -- Get the datatypes of the various constructors
       let getData Constructor{conData = d} = d
           getData _                        = __IMPOSSIBLE__
-      reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
+      reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs0)
       -- We use the reduced constructor when disambiguating, but
       -- the original constructor for type checking. This is important
       -- since they may have different types (different parameters).
       -- See issue 279.
-      cons  <- mapM getConForm cs
+      -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
+      (cs, cons)  <- unzip . snd . partitionEithers <$> do
+         forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
       reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
-      dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
-      -- Type error
-      let badCon t = typeError $ DoesNotConstructAnElementOf (head cs) t
-      -- Lets look at the target type at this point
-      let getCon :: TCM (Maybe ConHead)
-          getCon = do
-            TelV tel t1 <- telView t
-            addContext tel $ do
-             reportSDoc "tc.check.term.con" 40 $ nest 2 $
-               text "target type: " <+> prettyTCM t1
-             ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
-               caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
-                 case [ c | (d', c) <- dcs, d == d' ] of
-                   [c] -> do
-                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
-                     storeDisambiguatedName $ conName c
-                     return $ Just c
-                   []  -> badCon $ t' $> Def d []
-                   cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
-      let unblock = isJust <$> getCon -- to unblock, call getCon later again
-      mc <- getCon
-      case mc of
-        Just c  -> checkConstructorApplication e t c args
-        Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
+      case cons of
+        []  -> typeError $ AbstractConstructorNotInScope $
+                 fromMaybe __IMPOSSIBLE__ $ headMaybe cs0
+        [con] -> do
+          let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
+          reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+          storeDisambiguatedName $ conName c
+          checkConstructorApplication e t c args
+        _   -> do
+          dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
+          -- Type error
+          let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
+                fromMaybe __IMPOSSIBLE__ $ headMaybe cs
+          -- Lets look at the target type at this point
+          let getCon :: TCM (Maybe ConHead)
+              getCon = do
+                TelV tel t1 <- telView t
+                addContext tel $ do
+                 reportSDoc "tc.check.term.con" 40 $ nest 2 $
+                   text "target type: " <+> prettyTCM t1
+                 ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
+                   caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
+                     case [ c | (d', c) <- dcs, d == d' ] of
+                       [c] -> do
+                         reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
+                         storeDisambiguatedName $ conName c
+                         return $ Just c
+                       []  -> badCon $ t' $> Def d []
+                       cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
+          let unblock = isJust <$> getCon -- to unblock, call getCon later again
+          mc <- getCon
+          case mc of
+            Just c  -> checkConstructorApplication e t c args
+            Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
 
     -- Subcase: non-ambiguous constructor
     A.Con (AmbQ [c]) -> do
       -- augment c with record fields, but do not revert to original name
-      con <- getOrigConHead c
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+        getOrigConHead c
       checkConstructorApplication e t con args
 
     -- Subcase: pattern synonym
@@ -1581,7 +1594,8 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <- getOrigConHead c
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+        getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.
@@ -1590,7 +1604,7 @@ inferHead e = do
       reportSLn "tc.term.con" 7 $ unwords [prettyShow c, "has", show n, "parameters."]
 
       -- So when applying the constructor throw away the parameters.
-      return (applyE u . genericDrop n, a)
+      return (applyE u . drop n, a)
     (A.Con _) -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
     (A.QuestionMark i ii) -> inferMeta (newQuestionMark ii) i
     (A.Underscore i)   -> inferMeta (newValueMeta RunMetaOccursCheck) i
@@ -1663,7 +1677,7 @@ checkConstructorApplication org t c args = do
            reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
            when (n > n')  -- preprocessor does not like ', so put on next line
              __IMPOSSIBLE__
-           let ps    = genericTake n $ genericDrop (n' - n) vs
+           let ps    = take n $ drop (n' - n) vs
                ctype = defType cdef
            reportSDoc "tc.term.con" 20 $ vcat
              [ text "special checking of constructor application of" <+> prettyTCM c
@@ -2227,7 +2241,7 @@ inferOrCheck e mt = case e of
     (f, t0) <- inferHead hd
     res <- runErrorT $ checkArguments DontExpandLast
                                       (getRange hd) args t0 $
-                                      maybe (sort Prop) id mt
+                                      fromMaybe (sort Prop) mt
     case res of
       Right (vs, t1) -> maybe (return (f vs, t1))
                               (\ t -> (,t) <$> coerce (f vs) t1 t)
@@ -2367,7 +2381,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We get list of names of the let-bound vars from the context.
         let xs   = map (fst . unDom) (reverse binds)
         -- We add all the bindings to the context.
-        foldr (uncurry4 addLetBinding) ret $ zip4 infos xs sigma ts
+        foldr (uncurry4 addLetBinding) ret $ List.zip4 infos xs sigma ts
 
 checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   -- Any variables in the context that doesn't belong to the current

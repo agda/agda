@@ -17,7 +17,6 @@ module Agda.Interaction.Highlighting.Range
   ) where
 
 import Control.Applicative ((<$>))
-import Data.List
 import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Position as P

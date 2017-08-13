@@ -4,9 +4,9 @@ module Agda.Compiler.MAlonzo.Primitives where
 
 import Control.Monad.State
 import Data.Char
-import Data.List as L
+import qualified Data.List as List
 import Data.Map as M
-import qualified Agda.Utils.Haskell.Syntax as HS
+import Data.Maybe
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -21,10 +21,13 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
-import Agda.Utils.Monad
+
+import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Lens
+import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
+import qualified Agda.Utils.Haskell.Syntax as HS
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -34,8 +37,8 @@ isMainFunction q = "main" == show (nameConcrete $ qnameName q)
 
 hasMainFunction :: Interface -> IsMain
 hasMainFunction i
-  | L.any isMainFunction names = IsMain
-  | otherwise                  = NotMain
+  | List.any isMainFunction names = IsMain
+  | otherwise                     = NotMain
   where
     names = HMap.keys $ iSignature i ^. sigDefinitions
 
@@ -78,12 +81,12 @@ treelessPrimName p =
     -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
     PIf   -> __IMPOSSIBLE__
 
--- Haskell modules to be imported for BUILT-INs
+-- | Haskell modules to be imported for BUILT-INs
 importsForPrim :: TCM [HS.ModuleName]
 importsForPrim =
   fmap (++ [HS.ModuleName "Data.Text"]) $
   xForPrim $
-  L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
+  List.map (\(s, ms) -> (s, return (List.map HS.ModuleName ms))) $
   [ "CHAR"              |-> ["Data.Char"]
   , "primIsAlpha"       |-> ["Data.Char"]
   , "primIsAscii"       |-> ["Data.Char"]
@@ -110,14 +113,14 @@ xForPrim table = do
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
-  concat <$> sequence [ maybe (return []) id $ L.lookup s table
+  concat <$> sequence [ fromMaybe (return []) $ List.lookup s table
                         | (s, def) <- bs, getName def `elem` qs ]
 
 
--- Definition bodies for primitive functions
+-- | Definition bodies for primitive functions
 primBody :: String -> TCM HS.Exp
-primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
-             L.lookup s $
+primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
+             List.lookup s $
   [
   -- Integer functions
     "primIntegerPlus"    |-> binAsis "(+)" "Integer"
@@ -233,7 +236,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
   axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
-  unimplemented | s `L.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
+  unimplemented | s `List.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
                 | otherwise = typeError $ NotImplemented s
 
   lam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)

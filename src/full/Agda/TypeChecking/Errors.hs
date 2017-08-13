@@ -376,6 +376,7 @@ errorString err = case err of
   NotAnExpression{}                        -> "NotAnExpression"
   NotImplemented{}                         -> "NotImplemented"
   NotSupported{}                           -> "NotSupported"
+  AbstractConstructorNotInScope{}          -> "AbstractConstructorNotInScope"
   NotInScope{}                             -> "NotInScope"
   NotLeqSort{}                             -> "NotLeqSort"
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
@@ -861,6 +862,11 @@ instance PrettyTCM TypeError where
       $$ nest 2 (vcat $ map (text . filePath) files)
 
     BothWithAndRHS -> fsep $ pwords "Unexpected right hand side"
+
+    AbstractConstructorNotInScope q -> fsep $
+      [ text "Constructor"
+      , prettyTCM q
+      ] ++ pwords "is abstract, thus, not in scope here"
 
     NotInScope xs -> do
       inscope <- Set.toList . concreteNamesInScope <$> getScope

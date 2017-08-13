@@ -2,7 +2,10 @@
 
 {-# OPTIONS -vtc.pos.occ:20 #-} -- KEEP!, this triggered the __IMPOSSIBLE__
 
--- {-# OPTIONS -vtc.pos.occ:70 -v tc.rec:80 --show-implicit #-}
+-- {-# OPTIONS -v tc.pos.occ:70 -v tc.rec:80 --show-implicit #-}
+
+-- {-# OPTIONS -v impossible:10 #-}
+-- {-# OPTIONS -v reify.clause:60 #-}
 
 data ⊥ : Set where
 

@@ -12,8 +12,9 @@ import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Size
+import Agda.Utils.Either
 import Agda.Utils.Functor
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -23,21 +24,20 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 -- | Get true constructor with record fields.
-getConHead :: QName -> TCM ConHead
-getConHead c = conSrcCon . theDef <$> getConstInfo c
+getConHead :: QName -> TCM (Either SigError ConHead)
+getConHead c = mapRight (conSrcCon . theDef) <$> getConstInfo' c
 
 -- | Get true constructor with fields, expanding literals to constructors
 --   if possible.
-getConForm :: QName -> TCM ConHead
-getConForm c = do
-  ch <- getConHead c
+getConForm :: QName -> TCM (Either SigError ConHead)
+getConForm c = caseEitherM (getConHead c) (return . Left) $ \ ch -> do
   Con con _ [] <- ignoreSharing <$> constructorForm (Con ch ConOCon [])
-  return con
+  return $ Right con
 
 -- | Augment constructor with record fields (preserve constructor name).
 --   The true constructor might only surface via 'reduce'.
-getOrigConHead :: QName -> TCM ConHead
-getOrigConHead c = setConName c <$> getConHead c
+getOrigConHead :: QName -> TCM (Either SigError ConHead)
+getOrigConHead c = mapRight (setConName c) <$> getConHead c
 
 -- | Get the name of the datatype constructed by a given constructor.
 --   Precondition: The argument must refer to a constructor
@@ -95,7 +95,7 @@ getFullyAppliedConType
        --     @pars@ are the reconstructed parameters,
        --     @ct@   is the type of the constructor instantiated to the parameters.
 getFullyAppliedConType c t = do
-  c <- getConHead $ conName c
+  c <- fromRight __IMPOSSIBLE__ <$> do getConHead $ conName c
   case ignoreSharing $ unEl t of
     -- Note that if we come e.g. from getConType,
     -- then the non-parameter arguments of @es@ might contain __IMPOSSIBLE__

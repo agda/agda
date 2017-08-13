@@ -3,7 +3,7 @@ module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
 import Control.Applicative
 import Data.Maybe
-import Data.List
+import qualified Data.List as List
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -67,11 +67,11 @@ patternToTerm p ret =
   case p of
     A.VarP x               -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ (AmbQ [c]) ps -> pappToTerm c (Con (ConHead c Inductive []) ConOCon) ps ret
-    A.ConP _ (AmbQ cs) _   -> genericError $ "Ambiguous constructor: " ++ intercalate ", " (map show cs)
+    A.ConP _ (AmbQ cs) _   -> genericError $ "Ambiguous constructor: " ++ List.intercalate ", " (map show cs)
     A.ProjP _ _ (AmbQ [d]) -> ret 0 (Def d [])
-    A.ProjP _ _ (AmbQ ds)    -> genericError $ "Ambiguous projection: " ++ intercalate ", " (map show ds)
+    A.ProjP _ _ (AmbQ ds)    -> genericError $ "Ambiguous projection: " ++ List.intercalate ", " (map show ds)
     A.DefP _ (AmbQ [f]) ps -> pappToTerm f (Def f . map Apply) ps ret
-    A.DefP _ (AmbQ ds) _   -> genericError $ "Ambiguous DefP: " ++ intercalate ", " (map show ds)
+    A.DefP _ (AmbQ ds) _   -> genericError $ "Ambiguous DefP: " ++ List.intercalate ", " (map show ds)
     A.LitP l               -> ret 0 (Lit l)
     A.WildP _              -> bindWild $ ret 1 (Var 0 [])
     _ -> do

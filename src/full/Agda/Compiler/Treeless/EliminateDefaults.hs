@@ -5,7 +5,7 @@ module Agda.Compiler.Treeless.EliminateDefaults where
 
 import Control.Applicative
 import Control.Monad
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 
 import Agda.Syntax.Abstract.Name (QName)
@@ -31,7 +31,7 @@ eliminateCaseDefaults = tr
     tr t = case t of
       TCase sc ct@(CTData qn) def alts | not (isUnreachable def) -> do
         dtCons <- defConstructors . theDef <$> getConstInfo qn
-        let missingCons = dtCons \\ map aCon alts
+        let missingCons = dtCons List.\\ map aCon alts
         def <- tr def
         newAlts <- forM missingCons $ \con -> do
           Constructor {conArity = ar} <- theDef <$> getConstInfo con

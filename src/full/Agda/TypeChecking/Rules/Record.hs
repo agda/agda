@@ -463,6 +463,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           , text "ftel1 =" <+> prettyTCM ftel1
           , text "t     =" <+> prettyTCM t
           , text "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
+          , text "abstr =" <+> (text . show) (Info.defAbstract info)
           ]
         ]
 
@@ -531,7 +532,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
             cpo    = if hasNamedCon then ConOCon else ConORec
             cpi    = ConPatternInfo (Just cpo) False (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
-                     [ Arg info $ unnamed $ varP "x" | Dom{domInfo = info} <- telToList ftel ]
+                     [ Arg ai' $ unnamed $ varP "x" | Dom{domInfo = ai'} <- telToList ftel ]
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
             clause = Clause { clauseLHSRange  = getRange info

@@ -10,7 +10,7 @@ module Agda.TypeChecking.Monad.Open
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
-import Data.List
+import qualified Data.List as List
 
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Base
@@ -39,8 +39,8 @@ getOpen :: (Subst t a, MonadReader TCEnv m) => Open a -> m a
 getOpen (OpenThing []  x) = return x
 getOpen (OpenThing ctx x) = do
   ctx' <- getContextId
-  unless (ctx `isSuffixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
-  return $ raise (genericLength ctx' - genericLength ctx) x
+  unless (ctx `List.isSuffixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
+  return $ raise (length ctx' - length ctx) x
 
 -- | Try to use an 'Open' the current context.
 --   Returns 'Nothing' if current context is not an extension of the
@@ -49,6 +49,6 @@ tryOpen :: (Subst t a, MonadReader TCEnv m) => Open a -> m (Maybe a)
 tryOpen (OpenThing []  x) = return $ Just x
 tryOpen (OpenThing ctx x) = do
   ctx' <- getContextId
-  if (ctx `isSuffixOf` ctx')
-    then return $ Just $ raise (genericLength ctx' - genericLength ctx) x
+  if (ctx `List.isSuffixOf` ctx')
+    then return $ Just $ raise (length ctx' - length ctx) x
     else return Nothing

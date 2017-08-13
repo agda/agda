@@ -17,7 +17,7 @@ import Control.Monad.State
 
 import Data.Maybe
 import Data.Array
-import Data.List
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -42,7 +42,7 @@ type AdjList node edge = Map node [(node, edge)]
 warshallG :: (SemiRing edge, Ord node) => AdjList node edge -> AdjList node edge
 warshallG g = fromMatrix $ warshall m
   where
-    nodes = zip (nub $ Map.keys g ++ map fst (concat $ Map.elems g))
+    nodes = zip (List.nub $ Map.keys g ++ map fst (concat $ Map.elems g))
                 [0..]
     len   = length nodes
     b     = ((0,0), (len - 1,len - 1))
@@ -322,15 +322,15 @@ solve cs = -- trace (show cs) $
          -- compute the sets of flexible and rigid node numbers
          ns  = Map.keys (nodeMap gr)
          -- a set of flexible variables
-         flexs  = foldl' (\ l k -> case k of (Flex i) -> i : l
-                                             (Rigid _) -> l) [] ns
+         flexs  = List.foldl' (\ l -> \case (Flex i ) -> i : l
+                                            (Rigid _) -> l)     [] ns
          -- a set of rigid variables
-         rigids = foldl' (\ l k -> case k of (Flex _) -> l
-                                             (Rigid i) -> i : l) [] ns
+         rigids = List.foldl' (\ l -> \case (Flex _ ) -> l
+                                            (Rigid i) -> i : l) [] ns
 
          -- rigid matrix indices
-         rInds = foldl' (\ l r -> let Just i = Map.lookup (Rigid r) (nodeMap gr)
-                                  in i : l) [] rigids
+         rInds = List.foldl' (\ l r -> let Just i = Map.lookup (Rigid r) (nodeMap gr)
+                                       in i : l) [] rigids
 
          -- check whether there is a solution
          -- d   = [ m!(i,i) | i <- [0 .. (n-1)] ]  -- diagonal
@@ -381,7 +381,7 @@ while flexible variables and rigid rows left
          loop1 flxs (r:rgds) subst =
             let row = fromJust $ Map.lookup (Rigid r) (nodeMap gr)
                 (flxs',subst') =
-                  foldl' (\ (flx,sub) f ->
+                  List.foldl' (\ (flx,sub) f ->
                           let col = fromJust $ Map.lookup (Flex f) (nodeMap gr)
                           in  case (inScope f r, m!(row,col)) of
 --                                Finite z | z <= 0 ->

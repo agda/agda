@@ -967,13 +967,6 @@ hasElims v =
     DontCare{} -> Nothing
     Shared{}   -> __IMPOSSIBLE__
 
-{- PROBABLY USELESS
-getElims :: Term -> (Elims -> Term, Elims)
-getElims v = maybe default id $ hasElims v
-  where
-    default = (\ [] -> v, [])
--}
-
 -- | Drop 'Apply' constructor. (Unsafe!)
 argFromElim :: Elim' a -> Arg a
 argFromElim (Apply u) = u

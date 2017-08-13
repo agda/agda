@@ -6,7 +6,7 @@ import Control.Arrow (first)
 
 import Data.Functor ((<$>))
 import Data.Function
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -263,7 +263,7 @@ duplicates = mapMaybe dup . Bag.groups . Bag.fromList
     dup (a : _ : _) = Just a
     dup _           = Nothing
 
--- | A variant of 'groupBy' which applies the predicate to consecutive
+-- | A variant of 'List.groupBy' which applies the predicate to consecutive
 -- pairs.
 
 groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
@@ -276,10 +276,10 @@ groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
                    []            -> []
                    ((_, z) : zs) -> grp z zs
 
--- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'sortBy' ('compare' \`on\` f)@.
+-- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
 
 groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
-groupOn f = groupBy ((==) `on` f) . sortBy (compare `on` f)
+groupOn f = List.groupBy ((==) `on` f) . List.sortBy (compare `on` f)
 
 -- | @splitExactlyAt n xs = Just (ys, zs)@ iff @xs = ys ++ zs@
 --   and @genericLength ys = n@.
@@ -329,10 +329,10 @@ zipWith' f = loop
 nubOn :: Ord b => (a -> b) -> [a] -> [a]
 nubOn tag =
   map snd
-  . sortBy (compare `on` fst)
+  . List.sortBy (compare `on` fst)
   . map (snd . head)
-  . groupBy ((==) `on` fst)
-  . sortBy (compare `on` fst)
+  . List.groupBy ((==) `on` fst)
+  . List.sortBy (compare `on` fst)
   . map (\p@(_, x) -> (tag x, p))
   . zip [1..]
 
@@ -345,7 +345,7 @@ nubOn tag =
 --
 -- Furthermore
 --
--- > sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs.
+-- > List.sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs.
 uniqOn :: Ord b => (a -> b) -> [a] -> [a]
 uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 
@@ -372,8 +372,8 @@ editDistanceSpec (x : xs) (y : ys)
 
 editDistance :: Eq a => [a] -> [a] -> Int
 editDistance xs ys = editD 0 0
-  where xss = tails xs
-        yss = tails ys
+  where xss = List.tails xs
+        yss = List.tails ys
         tbl = Map.fromList [ ((i, j), editD' i j) | i <- [0..length xss - 1], j <- [0..length yss - 1] ]
         editD i j = tbl Map.! (i, j)
         editD' i j =

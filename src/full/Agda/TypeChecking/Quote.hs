@@ -22,7 +22,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Datatypes ( getConHead )
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level

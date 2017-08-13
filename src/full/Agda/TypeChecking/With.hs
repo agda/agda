@@ -8,7 +8,8 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
-import Data.List
+import Data.Either
+import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
 import Data.Traversable (traverse)
@@ -212,13 +213,13 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
   where
     -- Nested with-functions will iterate this function once for each parent clause.
     buildWithClause (A.Clause (A.SpineLHS i _ ps wps) inheritedDots rhs wh catchall) = do
-      let (wps0, wps1) = genericSplitAt n wps
+      let (wps0, wps1) = splitAt n wps
           ps0          = map defaultNamedArg wps0
       reportSDoc "tc.with" 50 $ text "inheritedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
                                                                | A.NamedDot x v a <- inheritedDots ]
       rhs <- buildRHS rhs
       (namedDots, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
-      let (ps1, ps2) = genericSplitAt n1 ps'
+      let (ps1, ps2) = splitAt n1 ps'
       let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) (inheritedDots ++ namedDots) rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
@@ -492,7 +493,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
          Def d es <- liftTCM $ ignoreSharing <$> normalise (unEl $ unDom a)
          let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
          -- Get the original constructor and field names.
-         c <- (`withRangeOf` c) <$> do liftTCM $ getConForm $ conName c
+         c <- either __IMPOSSIBLE__ (`withRangeOf` c) <$> do liftTCM $ getConForm $ conName c
 
          case namedArg p of
 
@@ -512,7 +513,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           A.ConP _ (A.AmbQ cs') ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
-            cs' <- liftTCM $ mapM getConForm cs'
+            -- Andreas, 2017-08-13, herein, ignore abstract constructors.
+            cs' <- liftTCM $ do snd . partitionEithers <$> mapM getConForm cs'
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
@@ -587,7 +589,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Get the type and number of parameters of the constructor.
           Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
           -- Compute the argument telescope for the constructor
-          let ct' = ct `piApply` genericTake np us
+          let ct' = ct `piApply` take np us
           TelV tel' _ <- liftTCM $ telView ct'
 
           reportSDoc "tc.with.strip" 20 $
@@ -595,7 +597,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                  , text "ct' = " <+> prettyTCM ct'
                  , text "np  = " <+> text (show np)
                  , text "us  = " <+> prettyList (map prettyTCM us)
-                 , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
+                 , text "us' = " <+> prettyList (map prettyTCM $ take np us)
                  ]
 
           -- Compute the new type
@@ -715,7 +717,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
     -- Andreas, 2015-10-28: Yes, but properly! (Issue 1407)
     sub top ys wild = parallelS $ map term [0 .. m + top - 1]
       where
-        term i = maybe wild var $ findIndex (Just i ==) ys
+        term i = maybe wild var $ List.findIndex (Just i ==) ys
     -- -- OLD
     -- sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
     --   where

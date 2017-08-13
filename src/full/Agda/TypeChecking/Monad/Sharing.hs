@@ -4,7 +4,7 @@ module Agda.TypeChecking.Monad.Sharing where
 
 import Control.Applicative
 import Control.Monad.Reader
-import Data.List
+import qualified Data.List as List
 import Data.Function
 import Data.Traversable
 
@@ -44,7 +44,7 @@ updateSharedTermT f v =
 forceEqualTerms :: Term -> Term -> TCM ()
 forceEqualTerms u v =
   whenM (asks envAllowDestructiveUpdate) $
-  when (null $ (intersect `on` pointerChain) u v) $
+  when (null $ (List.intersect `on` pointerChain) u v) $
   case (u, v) of
     (Shared p, Shared q) | p > q -> update u v
     (_, Shared{})                -> update v u

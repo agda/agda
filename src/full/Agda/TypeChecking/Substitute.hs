@@ -26,7 +26,6 @@ module Agda.TypeChecking.Substitute
 import Control.Applicative
 import Data.Function
 import Data.Functor
-import Data.List hiding (sort, drop)
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
@@ -86,7 +85,7 @@ canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case ignoreSharing v of
     (Con (ConHead _ _ fs) _ vs) -> do
-      i <- elemIndex f fs
+      i <- List.elemIndex f fs
       headMaybe (drop i vs)
     _ -> Nothing
 
@@ -100,7 +99,7 @@ conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
-      i = maybe failure id            $ elemIndex f fs
+      i = maybe failure id            $ List.elemIndex f fs
       v = maybe failure argToDontCare $ headMaybe $ drop i args
   in  applyE v es
 
@@ -484,7 +483,7 @@ instance DoDrop a => Abstract (Drop a) where
 instance Apply Permutation where
   -- The permutation must start with [0..m - 1]
   -- NB: section (- m) not possible (unary minus), hence (flip (-) m)
-  apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ genericDrop m xs
+  apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ drop m xs
     where
       m = size args
 
@@ -601,7 +600,7 @@ instance Abstract Defn where
       d { primClauses = abstract tel cs }
 
 instance Abstract PrimFun where
-    abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ genericDrop n ts
+    abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
         where n = size tel
 
 instance Abstract Clause where

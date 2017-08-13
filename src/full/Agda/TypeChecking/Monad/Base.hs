@@ -2671,6 +2671,7 @@ data TypeError
           -- the include path says contains the module.
     -- Scope errors
         | BothWithAndRHS
+        | AbstractConstructorNotInScope A.QName
         | NotInScope [C.QName]
         | NoSuchModule C.QName
         | AmbiguousName C.QName [A.QName]

@@ -2,7 +2,7 @@
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
-import Data.List
+import qualified Data.List as List
 import Data.Monoid
 
 import Agda.Syntax.Common
@@ -27,7 +27,7 @@ withCurrentModule m =
 getAnonymousVariables :: MonadReader TCEnv m => ModuleName -> m Nat
 getAnonymousVariables m = do
   ms <- asks envAnonymousModules
-  return $ sum [ n | (m', n) <- ms, mnameToList m' `isPrefixOf` mnameToList m ]
+  return $ sum [ n | (m', n) <- ms, mnameToList m' `List.isPrefixOf` mnameToList m ]
 
 -- | Add variables bound by an anonymous module.
 withAnonymousModule :: ModuleName -> Nat -> TCM a -> TCM a
@@ -101,6 +101,8 @@ allowAllReductions = putAllowedReductions allReductions
 -- | Allow all reductions including non-terminating functions.
 allowNonTerminatingReductions :: TCM a -> TCM a
 allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
+
+-- * Concerning 'envInsideDotPattern'
 
 insideDotPattern :: TCM a -> TCM a
 insideDotPattern = local $ \e -> e { envInsideDotPattern = True }

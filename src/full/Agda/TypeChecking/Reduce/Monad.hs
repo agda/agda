@@ -149,25 +149,6 @@ instance MonadDebug ReduceM where
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
-  getConstInfo q = ReduceM $ \(ReduceEnv env st) ->
-    let defs  = st^.(stSignature . sigDefinitions)
-        idefs = st^.(stImports . sigDefinitions)
-    in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> trace ("Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q) __IMPOSSIBLE__
-        [d] -> mkAbs env d
-        ds  -> trace ("Ambiguous name: " ++ prettyShow q) __IMPOSSIBLE__
-    where
-      mkAbs env d
-        | treatAbstractly' q' env = fromMaybe err $ makeAbstract d
-        | otherwise               = d
-        where
-          err = trace ("Not in scope: " ++ prettyShow q) __IMPOSSIBLE__
-          q' = case theDef d of
-            -- Hack to make abstract constructors work properly. The constructors
-            -- live in a module with the same name as the datatype, but for 'abstract'
-            -- purposes they're considered to be in the same module as the datatype.
-            Constructor{} -> dropLastModule q
-            _                 -> q
-
-          dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+  getConstInfo' q = do
+    ReduceEnv env st <- askR
+    defaultGetConstInfo st env q

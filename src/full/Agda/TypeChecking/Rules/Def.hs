@@ -10,7 +10,7 @@ import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Reader hiding (forM, mapM)
 
 import Data.Function
-import Data.List hiding (sort)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable
 import qualified Data.Set as Set
@@ -252,7 +252,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               inTopContext $ addClauses name [c]
               return (c,b)
 
-        (cs,isOneIxs) <- return $ (second (nub . concat) . unzip) cs
+        (cs,isOneIxs) <- return $ (second (List.nub . concat) . unzip) cs
 
         let isSystem = not . null $ isOneIxs
         when isSystem $ unless canBeSystem $
@@ -462,7 +462,7 @@ checkSystemCoverage f [n] t cs = do
       reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
 
-      forM_ (init $ init $ tails pcs) $ \ ((phi1,cl1):pcs') -> do
+      forM_ (init $ init $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
           phi12 <- reduce (imin `apply` [argN phi1, argN phi2])
           forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
@@ -828,9 +828,9 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb _) vs0 as cs = Bench.
         let n = size us
             m = size delta
             -- First the variables bound outside this definition
-            (us0, us1') = genericSplitAt (n - m) us
+            (us0, us1') = splitAt (n - m) us
             -- Then permute the rest and grab those needed to for the with arguments
-            (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
+            (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
             v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes

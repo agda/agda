@@ -24,7 +24,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold (toList)
-import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
@@ -162,7 +162,7 @@ scopeCheckImport x = do
     verboseS "import.scope" 10 $ do
       visited <- Map.keys <$> getVisitedModules
       reportSLn "import.scope" 10 $
-        "  visited: " ++ intercalate ", " (map prettyShow visited)
+        "  visited: " ++ List.intercalate ", " (map prettyShow visited)
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getInterface x
@@ -672,7 +672,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     verboseS "import.iface.create" 10 $ do
       visited <- Map.keys <$> getVisitedModules
       reportSLn "import.iface.create" 10 $
-        "  visited: " ++ intercalate ", " (map prettyShow visited)
+        "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
     -- Parsing.
     (pragmas, top) <- Bench.billTo [Bench.Parsing] $

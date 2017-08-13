@@ -3,7 +3,6 @@
 module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
 import Control.Applicative
-import Data.List
 import Data.Maybe
 
 import Agda.Syntax.Abstract.Name (QName)

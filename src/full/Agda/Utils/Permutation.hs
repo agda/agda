@@ -7,7 +7,6 @@ import Prelude hiding (drop, null)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List hiding (drop, null)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Array
@@ -103,7 +102,7 @@ instance InversePermute [Maybe a] [Maybe a] where
     where tabulate m = for [0..n-1] $ \ i -> IntMap.lookup i m
 
 instance InversePermute (Int -> a) [Maybe a] where
-  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> findIndex (x ==) xs
+  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> List.findIndex (x ==) xs
 
 -- | Identity permutation.
 idP :: Int -> Permutation
@@ -115,7 +114,7 @@ takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
 -- | Pick the elements that are not picked by the permutation.
 droppedP :: Permutation -> Permutation
-droppedP (Perm n xs) = Perm n $ [0..n-1] \\ xs
+droppedP (Perm n xs) = Perm n $ [0..n-1] List.\\ xs
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',
@@ -150,9 +149,9 @@ invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
 compactP :: Permutation -> Permutation
 compactP (Perm n xs) = Perm m $ map adjust xs
   where
-    m            = genericLength xs
-    missing      = [0..n - 1] \\ xs
-    holesBelow k = genericLength $ filter (< k) missing
+    m            = List.genericLength xs
+    missing      = [0..n - 1] List.\\ xs
+    holesBelow k = List.genericLength $ filter (< k) missing
     adjust k = k - holesBelow k
 
 -- | @permute (reverseP p) xs ==

@@ -4,7 +4,7 @@ module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.State (gets)
 import Data.Char
-import Data.List as List
+import qualified Data.List as List
 import Data.Map as Map
 import Data.Set as Set
 import Data.Function

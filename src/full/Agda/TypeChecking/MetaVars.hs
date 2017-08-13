@@ -8,7 +8,6 @@ import Prelude hiding (null)
 import Control.Monad.Reader
 
 import Data.Function
-import Data.List hiding (sort, null)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
@@ -65,7 +64,7 @@ import Agda.Utils.Impossible
 --   @reverse@ is necessary because we are directly abstracting over the list.
 --
 findIdx :: Eq a => [a] -> a -> Maybe Int
-findIdx vs v = findIndex (==v) (reverse vs)
+findIdx vs v = List.findIndex (==v) (reverse vs)
 
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
@@ -1095,7 +1094,7 @@ type SubstCand = [(Int,Term)] -- ^ a possibly non-deterministic substitution
 --   Otherwise, raise the error.
 checkLinearity :: SubstCand -> ExceptT () TCM SubstCand
 checkLinearity ids0 = do
-  let ids = sortBy (compare `on` fst) ids0  -- see issue 920
+  let ids = List.sortBy (compare `on` fst) ids0  -- see issue 920
   let grps = groupOn fst ids
   concat <$> mapM makeLinear grps
   where

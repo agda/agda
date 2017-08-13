@@ -19,7 +19,7 @@ module Agda.Compiler.Backend
 
 import Control.Monad.State
 
-import Data.List
+import qualified Data.List as List
 import Data.Functor
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -94,7 +94,7 @@ callBackend name iMain i = do
     Backend b : _ -> compilerMain b iMain i
     []            -> genericError $ "No backend called '" ++ name ++ "' " ++
                                     "(installed backends: " ++
-                                    intercalate ", " [ backendName b | Backend b <- backends ] ++ ")"
+                                    List.intercalate ", " [ backendName b | Backend b <- backends ] ++ ")"
 
 -- Internals --------------------------------------------------------------
 
@@ -136,7 +136,7 @@ backendInteraction [] fallback check = fallback check
 backendInteraction backends _ check = do
   opts   <- commandLineOptions
   let backendNames = [ backendName b | Backend b <- backends ]
-      err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ intercalate ", " backendNames ++ ")"
+      err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ List.intercalate ", " backendNames ++ ")"
   when (optInteractive     opts) $ err "interactive"
   when (optGHCiInteraction opts) $ err "interaction"
   mi     <- check

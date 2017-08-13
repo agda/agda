@@ -618,14 +618,14 @@ instance ToConcrete LetBinding [C.Declaration] where
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
-          open = maybe DontOpen id $ minfoOpenShort i
-          dir  = maybe defaultImportDir{ importDirRange = r } id $ minfoDirective i
+          open = fromMaybe DontOpen $ minfoOpenShort i
+          dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
       -- This is no use since toAbstract LetDefs is in localToAbstract.
       local (openModule' x dir id) $
         ret [ C.ModuleMacro (getRange i) x' modapp open dir ]
     bindToConcrete (LetOpen i x _) ret = do
       x' <- toConcrete x
-      let dir = maybe defaultImportDir id $ minfoDirective i
+      let dir = fromMaybe defaultImportDir $ minfoDirective i
       local (openModule' x dir restrictPrivate) $
             ret [ C.Open (getRange i) x' dir ]
     bindToConcrete (LetDeclaredVariable _) ret =
@@ -807,8 +807,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.Import i x _) = do
     x <- toConcrete x
-    let open = maybe DontOpen id $ minfoOpenShort i
-        dir  = maybe defaultImportDir id $ minfoDirective i
+    let open = fromMaybe DontOpen $ minfoOpenShort i
+        dir  = fromMaybe defaultImportDir $ minfoDirective i
     return [ C.Import (getRange i) x Nothing open dir]
 
   toConcrete (A.Pragma i p)     = do

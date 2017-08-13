@@ -8,7 +8,7 @@ module Agda.Compiler.MAlonzo.Encode
 
 import Data.Char
 import Data.Function
-import Data.List
+import qualified Data.List as List
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.MAlonzo.Misc
@@ -26,7 +26,7 @@ import Agda.Compiler.MAlonzo.Misc
 -- @.@s may be adjacent.
 
 encodeModuleName :: HS.ModuleName -> HS.ModuleName
-encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case stripPrefix mazstr s of
+encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case List.stripPrefix mazstr s of
   Just s' -> mazstr ++ foldr encNamePart "" (splitUp' s')
   Nothing -> s
   where
@@ -66,4 +66,3 @@ encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case stripPrefix mazstr s o
 
   enc c r | isOK c    = c : r
           | otherwise = escapeChar : shows (fromEnum c) (escapeChar : r)
-

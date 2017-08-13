@@ -8,7 +8,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.List as List
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -98,7 +98,7 @@ initialIFSCandidates t = do
               m <- currentModule
               -- Are we inside the record module? If so it's safe and desirable
               -- to eta-expand once (issue #2320).
-              if qnameToList r `isPrefixOf` mnameToList m
+              if qnameToList r `List.isPrefixOf` mnameToList m
                 then return (Just (r, vs))
                 else return Nothing
         r -> return r
@@ -411,7 +411,7 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
 
   -- Take overlappable candidates into account
   let cands =
-        case partition (\ (c, _, _, _) -> candidateOverlappable c) cands0 of
+        case List.partition (\ (c, _, _, _) -> candidateOverlappable c) cands0 of
           (cand : _, []) -> [cand]  -- only overlappable candidates: pick the first one
           _              -> cands0  -- otherwise require equality
 
@@ -581,7 +581,7 @@ applyDroppingParameters t vs = do
     Con c ci [] -> do
       def <- theDef <$> getConInfo c
       case def of
-        Constructor {conPars = n} -> return $ Con c ci (genericDrop n vs)
+        Constructor {conPars = n} -> return $ Con c ci (drop n vs)
         _ -> __IMPOSSIBLE__
     Def f [] -> do
       mp <- isProjection f

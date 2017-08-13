@@ -27,7 +27,7 @@ import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 
 import Data.Foldable (Foldable, foldMap)
-import Data.List hiding (null, sort)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
@@ -64,6 +64,7 @@ import Agda.TypeChecking.DropArgs
 
 import Agda.Interaction.Options ( optPostfixProjections )
 
+import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -493,8 +494,8 @@ reifyTerm expandAnonDefs0 v = do
       reportSLn "reify.def" 70 $ "freeVars for " ++ prettyShow x ++ " = " ++ show n
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
-      let fallback = elims (A.Def x) =<< reify (drop n es)
-      caseMaybeM (tryMaybe $ getConstInfo x) fallback $ \ defn -> do
+      let fallback _ = elims (A.Def x) =<< reify (drop n es)
+      caseEitherM (getConstInfo' x) fallback $ \ defn -> do
       let def = theDef defn
 
       -- Check if we have an absurd lambda.
@@ -589,7 +590,7 @@ reifyTerm expandAnonDefs0 v = do
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
-           let hd = foldl' (A.App noExprInfo) (A.Def x) pad
+           let hd = List.foldl' (A.App noExprInfo) (A.Def x) pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
@@ -1005,7 +1006,7 @@ instance Reify NamedClause A.Clause where
       perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
       info = LHSRange noRange
 
-      dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
+      dropParams n (SpineLHS i f ps wps) = SpineLHS i f (drop n ps) wps
       stripImps (SpineLHS i f ps wps) = do
         (ps, wps) <- stripImplicits (ps, wps)
         return $ SpineLHS i f ps wps

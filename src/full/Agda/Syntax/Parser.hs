@@ -28,7 +28,8 @@ import Control.Monad ((>=>), forM_)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
-import Data.List
+
+import qualified Data.List as List
 import Data.Typeable ( Typeable )
 
 import Agda.Syntax.Position
@@ -147,7 +148,7 @@ parseFileExts = ".agda":literateExts
 
 parseFile' :: (Show a) => Parser a -> AbsolutePath -> PM a
 parseFile' p file =
-  if ".agda" `isSuffixOf` filePath file then
+  if ".agda" `List.isSuffixOf` filePath file then
     Agda.Syntax.Parser.parseFile p file
   else
     go literateProcessors
@@ -156,7 +157,7 @@ parseFile' p file =
                      errPath = file
                    , errValidExts = parseFileExts
                    }
-    go ((ext, po):pos) | ext `isSuffixOf` filePath file = parseLiterateFile po p file
+    go ((ext, po):pos) | ext `List.isSuffixOf` filePath file = parseLiterateFile po p file
     go (_:pos) = go pos
 
 ------------------------------------------------------------------------
