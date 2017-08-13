@@ -4,6 +4,7 @@
 module InternalTests.Syntax.Internal ( tests ) where
 
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Substitute ()
 
 import InternalTests.Helpers
 import InternalTests.Syntax.Common ()
