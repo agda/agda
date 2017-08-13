@@ -5871,8 +5871,6 @@ Tools
 
 * Key bindings for controlling simplification/normalisation:
 
-  [TODO: Simplification should be explained somewhere.]
-
   Commands like `Goal type and context` (`C-c C-,`) could previously
   be invoked in two ways. By default the output was normalised, but if
   a prefix argument was used (for instance via `C-u C-c C-,`), then no
