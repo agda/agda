@@ -657,16 +657,10 @@ instance HasConstInfo (TCMT IO) where
     st  <- get
     env <- ask
     defaultGetConstInfo st env q
-
-  -- Andreas, 2017-08-13.
-  -- This instance, throwing a not-in-scope error for an abstract constructor,
-  -- should no longer be necessary after the fix of #2684 and #2686.
-  -- To catch an error, use getConstInfo' instead.
-  --
-  -- getConstInfo q = getConstInfo' q >>= \case
-  --     Right d -> return d
-  --     Left (SigUnknown err) -> fail err
-  --     Left SigAbstract      -> notInScope $ qnameToConcrete q
+  getConstInfo q = getConstInfo' q >>= \case
+      Right d -> return d
+      Left (SigUnknown err) -> fail err
+      Left SigAbstract      -> notInScope $ qnameToConcrete q
 
 defaultGetConstInfo
   :: (HasOptions m, MonadDebug m)
