@@ -51,21 +51,8 @@ import Tags
 instance MonadTrans GhcT where
   lift m = GhcT $ const m
 
-#if !(MIN_VERSION_ghc(7,8,0))
-instance MonadIO m => MonadIO (GhcT m) where
-  liftIO = lift . liftIO
-
-instance MonadIO Ghc where
-  liftIO m = Ghc $ const m
-#endif
-
-#if MIN_VERSION_ghc(7,8,0)
 fileLoc :: FilePath -> RealSrcLoc
 fileLoc file = mkRealSrcLoc (mkFastString file) 1 0
-#else
-fileLoc :: FilePath -> RealSrcLoc
-fileLoc file = mkRealSrcLoc (mkZFastString file) 1 0
-#endif
 
 filePState :: DynFlags -> FilePath -> IO PState
 filePState dflags file = do
