@@ -196,7 +196,7 @@ install:
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       cabal install --enable-tests --only-dependencies --force-reinstalls;
+       make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --test --only-dependencies;
     fi
