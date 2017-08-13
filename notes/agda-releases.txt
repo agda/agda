@@ -64,11 +64,6 @@ followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Ensure that cabal haddock works with the latest version supported of
-  GHC:
-
-    make haddock
-
 * Run the test-suite:
 
     make compile-emacs-mode
