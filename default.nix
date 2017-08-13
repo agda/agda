@@ -33,7 +33,7 @@
 }:
 
 let
-  version = "2.5.3";
+  version = "2.5.2.20170813";
 in rec {
   Agda = mkDerivation {
     pname = "Agda";
