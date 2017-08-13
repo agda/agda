@@ -20,11 +20,6 @@ instance Arbitrary NotBlocked where
                        -- , StuckOn Elim  -- TODO
                        ]
 
-instance Eq (Blocked ()) where
-  Blocked m _     == Blocked m' _     = m == m'
-  NotBlocked bs _ == NotBlocked bs' _ = bs == bs'
-  _               == _                = False
-
 instance Arbitrary (Blocked ()) where
   arbitrary = do
     m  <- arbitrary
