@@ -24,7 +24,7 @@ import Control.Monad.STM
 import qualified Data.Char as Char
 import Data.Foldable (Foldable)
 import Data.Function
-import Data.List as List hiding (null)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -309,7 +309,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                      err : if unsolvedNotOK then [meta, constr] else []
         s1 <- lift $ prettyError e
         s2 <- lift $ prettyTCWarnings' =<< Imp.errorWarningsOfTCErr e
-        let s = intercalate "\n" $ filter (not . null) $ s1 : s2
+        let s = List.intercalate "\n" $ filter (not . null) $ s1 : s2
         x <- lift $ optShowImplicit <$> use stPragmaOptions
         unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
@@ -619,7 +619,7 @@ parseToReadsPrec p i s = case runIdentity . flip runStateT s . runExceptT $ pare
 -- | Demand an exact string.
 
 exact :: String -> Parse ()
-exact s = readsToParse (show s) $ fmap (\x -> ((),x)) . stripPrefix s . dropWhile (==' ')
+exact s = readsToParse (show s) $ fmap (\x -> ((),x)) . List.stripPrefix s . dropWhile (==' ')
 
 readParse :: Read a => Parse a
 readParse = readsToParse "read failed" $ listToMaybe . reads
@@ -854,7 +854,7 @@ interpret (Cmd_auto ii rng s) = do
       -- modifyTheInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
     -- Andreas, 2014-07-07: Remove the interaction points in one go.
-    modifyTheInteractionPoints (\\ (map fst sols))
+    modifyTheInteractionPoints (List.\\ (map fst sols))
     case autoMessage res of
      Nothing  -> interpret Cmd_metas
      Just msg -> display_info $ Info_Auto msg
@@ -1158,7 +1158,7 @@ give_gen ii rng s0 giveRefine = do
         ae    <- give_ref ii Nothing given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
-        return (ae, given, mis' \\ mis)
+        return (ae, given, mis' List.\\ mis)
     -- favonia: backup the old scope for highlighting
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
@@ -1217,7 +1217,7 @@ highlightExpr e =
 
 sortInteractionPoints :: [InteractionId] -> TCM [InteractionId]
 sortInteractionPoints is =
-  map fst . sortBy (compare `on` snd) <$> do
+  map fst . List.sortBy (compare `on` snd) <$> do
     forM is $ \ i -> do
       (i,) <$> getInteractionRange i
 
@@ -1298,7 +1298,7 @@ searchAbout norm rg nm = do
          t <- TCP.prettyTCM t
          return (prettyShow x, text ":" <+> t)
     display_info $ Info_SearchAbout $
-      text "Definitions about" <+> text (intercalate ", " $ words nm) $$
+      text "Definitions about" <+> text (List.intercalate ", " $ words nm) $$
       nest 2 (align 10 fancy)
 
 -- | Explain why something is in scope.

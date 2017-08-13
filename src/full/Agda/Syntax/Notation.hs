@@ -18,7 +18,7 @@ import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
 
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 
 import Data.Data (Data)
@@ -188,8 +188,8 @@ mkNotation holes ids = do
       -- The hole names are the keys of the @holeMap@.
       uniqueHoleNames = distinct [ x | (x, _) <- holeMap, x /= "_" ]
 
-      isExprLinear   xs = sort [ i | x <- xs, isNormalHole x, let Just i = holeTarget x ] == holeNumbers
-      isLambdaLinear xs = sort [ x | BindHole x <- xs ] ==
+      isExprLinear   xs = List.sort [ i | x <- xs, isNormalHole x, let Just i = holeTarget x ] == holeNumbers
+      isLambdaLinear xs = List.sort [ x | BindHole x <- xs ] ==
                           [ i | (i, h) <- numberedHoles,
                                 LambdaHole x _ <- [namedArg h], x /= "_" ]
 

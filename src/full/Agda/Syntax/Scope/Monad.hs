@@ -13,7 +13,7 @@ import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
 
-import Data.List as List
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -549,7 +549,7 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hidin
 
     -- Check for duplicate imports in a single import directive.
     -- @dup@ : To be imported names that are mentioned more than once.
-    let dup = targetNames \\ nub targetNames
+    let dup = targetNames List.\\ List.nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
 
     -- Apply the import directive.
@@ -592,7 +592,7 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hidin
         (Using xs, ys) -> do
           let uselessHiding = [ x | x@ImportedName{} <- ys ] ++
                               [ x | x@(ImportedModule y) <- ys, ImportedName y `notElem` names ]
-          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ intercalate ", " (map prettyShow uselessHiding)
+          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ List.intercalate ", " (map prettyShow uselessHiding)
                                                                 ++ " has no effect"
           return dir{ hiding = [] }
         _ -> return dir

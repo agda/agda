@@ -6,7 +6,7 @@ import Control.Applicative
 import Data.Foldable (foldMap)
 import Data.Semigroup
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.List
+import qualified Data.List as List
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Substitute
@@ -62,7 +62,7 @@ notId :: IdentityIn
 notId = IdIn []
 
 instance Semigroup IdentityIn where
-  IdIn xs <> IdIn ys = IdIn $ intersect xs ys
+  IdIn xs <> IdIn ys = IdIn $ List.intersect xs ys
 
 -- Does the function always return one of its arguments unchanged (possibly
 -- through recursive calls).
@@ -99,4 +99,3 @@ trivialIdentity q t =
     goAlt k (TALit _ b)   = go k b
     goAlt k (TAGuard _ b) = go k b
     goAlt k (TACon _ n b) = go (k + n) b
-

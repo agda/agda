@@ -13,7 +13,7 @@ import Control.Monad.State
 
 import Data.Maybe
 import Data.Monoid
-import Data.List
+import qualified Data.List as List
 import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable, traverse)
 
@@ -148,7 +148,7 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
   where
     ixs   = concatMap (getIndices . namedThing . unArg) ps
     n     = size $ catMaybes ixs
-    picks = forM (downFrom n) $ \ i -> findIndex (Just i ==) ixs
+    picks = forM (downFrom n) $ \ i -> List.findIndex (Just i ==) ixs
 
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP x)      = [Just $ dbPatVarIndex x]

@@ -15,7 +15,7 @@ import Control.Monad.Reader
 import Data.Maybe
 import Data.Either (partitionEithers)
 import Data.Monoid (mappend)
-import Data.List hiding (sort, null)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (sequenceA)
@@ -517,8 +517,8 @@ checkExtendedLambda i di qname cs e t = do
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
      args     <- getContextArgs
      freevars <- getCurrentModuleFreeVars
-     let argsNoParam = genericDrop freevars args -- don't count module parameters
-     let (hid, notHid) = partition notVisible argsNoParam
+     let argsNoParam = drop freevars args -- don't count module parameters
+     let (hid, notHid) = List.partition notVisible argsNoParam
      reportSDoc "tc.term.exlam" 30 $ vcat $
        [ text "dropped args: " <+> prettyTCM (take freevars args)
        , text "hidden  args: " <+> prettyTCM hid
@@ -595,7 +595,7 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
 expandModuleAssigns :: [Either A.Assign A.ModuleName] -> [C.Name] -> TCM A.Assigns
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
-      exs' = exs \\ map (view nameFieldA) fs
+      exs' = exs List.\\ map (view nameFieldA) fs
   fs' <- forM exs' $ \ f -> do
     pms <- forM ms $ \ m -> do
        modScope <- getNamedScope m
@@ -1153,7 +1153,7 @@ inferOrCheckProjApp e o ds args mt = do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
-          case catMaybes $ for fs $ \ (Arg _ f) -> find (f ==) ds of
+          case catMaybes $ for fs $ \ (Arg _ f) -> List.find (f ==) ds of
             [] -> refuseNoMatching
             [d] -> do
               storeDisambiguatedName d
@@ -1562,7 +1562,7 @@ inferHead e = do
       reportSLn "tc.term.con" 7 $ unwords [prettyShow c, "has", show n, "parameters."]
 
       -- So when applying the constructor throw away the parameters.
-      return (apply u . genericDrop n, a)
+      return (apply u . drop n, a)
     (A.Con _) -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
     (A.QuestionMark i ii) -> inferMeta (newQuestionMark ii) i
     (A.Underscore i)   -> inferMeta (newValueMeta RunMetaOccursCheck) i
@@ -1635,7 +1635,7 @@ checkConstructorApplication org t c args = do
            reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
            when (n > n')  -- preprocessor does not like ', so put on next line
              __IMPOSSIBLE__
-           let ps    = genericTake n $ genericDrop (n' - n) vs
+           let ps    = take n $ drop (n' - n) vs
                ctype = defType cdef
            reportSDoc "tc.term.con" 20 $ vcat
              [ text "special checking of constructor application of" <+> prettyTCM c
@@ -2256,7 +2256,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We get list of names of the let-bound vars from the context.
         let xs   = map (fst . unDom) (reverse binds)
         -- We add all the bindings to the context.
-        foldr (uncurry4 addLetBinding) ret $ zip4 infos xs sigma ts
+        foldr (uncurry4 addLetBinding) ret $ List.zip4 infos xs sigma ts
 
 checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   -- Any variables in the context that doesn't belong to the current

@@ -8,7 +8,7 @@ import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 import Control.Applicative
 
-import Data.List as List hiding (sort)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import Data.Traversable
@@ -327,7 +327,7 @@ maybeFastReduceTerm v = do
                  else do
     s <- optSharing   <$> commandLineOptions
     allowed <- asks envAllowedReductions
-    let notAll = delete NonTerminatingReductions allowed /= allReductions
+    let notAll = List.delete NonTerminatingReductions allowed /= allReductions
     if s || notAll then slowReduceTerm v else fastReduce (elem NonTerminatingReductions allowed) v
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
@@ -462,10 +462,10 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
     noReduction    = return . NoReduction
     yesReduction s = return . YesReduction s
     reducePrimitive x v0 f es pf dontUnfold cls mcc rewr
-      | genericLength es < ar
+      | length es < ar
                   = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
-          let (es1,es2) = genericSplitAt ar es
+          let (es1,es2) = splitAt ar es
               args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
           r <- primFunImplementation pf args1
           case r of

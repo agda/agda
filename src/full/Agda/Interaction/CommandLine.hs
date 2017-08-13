@@ -5,7 +5,7 @@ module Agda.Interaction.CommandLine where
 import Control.Monad.Reader
 import Control.Applicative
 
-import Data.List as List
+import qualified Data.List as List
 import Data.Maybe
 
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
@@ -43,7 +43,7 @@ type Command a = (String, [String] -> TCM (ExitCode a))
 
 matchCommand :: String -> [Command a] -> Either [String] ([String] -> TCM (ExitCode a))
 matchCommand x cmds =
-    case List.filter (isPrefixOf x . fst) cmds of
+    case List.filter (List.isPrefixOf x . fst) cmds of
         [(_,m)] -> Right m
         xs      -> Left $ List.map fst xs
 
@@ -66,7 +66,7 @@ interaction prompt cmds eval = loop
                                     do  liftIO $ putStrLn $ "Unknown command '" ++ cmd ++ "'"
                                         loop
                                 Left xs ->
-                                    do  liftIO $ putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
+                                    do  liftIO $ putStrLn $ "More than one command match: " ++ concat (List.intersperse ", " xs)
                                         loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)

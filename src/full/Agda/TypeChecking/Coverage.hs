@@ -26,7 +26,7 @@ import Control.Applicative hiding (empty)
 #endif
 
 import Data.Either (lefts)
-import Data.List as List hiding (null)
+import qualified Data.List as List
 import Data.Monoid (Any(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -170,7 +170,7 @@ coverageCheck f t cs = do
       setCurrentRange cs $
         warning $ CoverageIssue f pss
   -- is = indices of unreachable clauses
-  let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
+  let is = filter (`Set.notMember` used) [0..length cs - 1]
   -- report an error if there are unreachable clauses
   unless (null is) $ do
       let unreached = map (cs !!) is
@@ -401,7 +401,7 @@ isDatatype ind at = do
           | isIrrelevant at && not splitOnIrrelevantDataAllowed ->
               throw IrrelevantDatatype
           | otherwise -> do
-              let (ps, is) = genericSplitAt np args
+              let (ps, is) = splitAt np args
               return (d, ps, is, cs)
         Record{recPars = np, recConHead = con, recInduction = i}
           | i == Just CoInductive && ind /= CoInductive ->
@@ -742,7 +742,7 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
-    let (tel1, Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    let (tel1, Dom info (n, t) : tel2) = splitAt (size tel - x - 1) $ telToList tel
     return (n, Dom info t, telFromList tel1, telFromList tel2)
 
   -- Check that t is a datatype or a record

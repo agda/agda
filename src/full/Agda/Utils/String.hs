@@ -1,7 +1,7 @@
 module Agda.Utils.String where
 
 import Data.Char
-import Data.List
+import qualified Data.List as List
 
 import Numeric
 
@@ -59,7 +59,7 @@ addFinalNewLine s | last s == '\n' = s
 -- | Indents every line the given number of steps.
 
 indent :: Integral i => i -> String -> String
-indent i = unlines . map (genericReplicate i ' ' ++) . lines
+indent i = unlines . map (List.genericReplicate i ' ' ++) . lines
 
 newtype Str = Str { unStr :: String }
   deriving Eq
@@ -70,7 +70,7 @@ instance Show Str where
 -- | Show a number using comma to separate powers of 1,000.
 
 showThousandSep :: Show a => a -> String
-showThousandSep = reverse . intercalate "," . chop 3 . reverse . show
+showThousandSep = reverse . List.intercalate "," . chop 3 . reverse . show
 
 -- | Remove leading whitespace.
 ltrim :: String -> String

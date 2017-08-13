@@ -17,7 +17,7 @@ import Control.Monad.Fix
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Traversable as Trav
@@ -171,8 +171,8 @@ translateCompiledClauses cc = do
                   RecordCon YesEta fs -> return $ Right fs
               Just{}  -> return $ Left 0
           let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
-              (xs0, rest) = genericSplitAt (unArg i) xs
-              (xs1, xs2 ) = genericSplitAt n rest
+              (xs0, rest) = splitAt (unArg i) xs
+              (xs1, xs2 ) = splitAt n rest
               -- if all dropped variables (xs1) are virgins and we are record cons.
               -- then new variable x is also virgin
               -- and we can translate away the split
@@ -329,8 +329,8 @@ recordSplitTree t = snd <$> loop t
         forM ts $ \ (c, t) -> do
           (xs, t) <- loop t
           (isRC, n) <- getEtaAndArity c
-          let (xs0, rest) = genericSplitAt i xs
-              (xs1, xs2)  = genericSplitAt n rest
+          let (xs0, rest) = splitAt i xs
+              (xs1, xs2)  = splitAt n rest
               x           = isRC && and xs1
               xs'         = xs0 ++ x : xs2
           return (xs, (RecordSplitNode c n x, t))
@@ -372,8 +372,8 @@ translateSplitTree t = snd <$> loop t
           (xs, t) <- loop t
           (isRC, n) <- getEtaAndArity c
           -- now drop variables from i to i+n-1
-          let (xs0, rest) = genericSplitAt i xs
-              (xs1, xs2)  = genericSplitAt n rest
+          let (xs0, rest) = splitAt i xs
+              (xs1, xs2)  = splitAt n rest
               -- if all dropped variables are virgins and we are record cons.
               -- then new variable x is also virgin
               -- and we can translate away the split
@@ -496,7 +496,7 @@ translateRecordPatterns clause = do
         -- It is important that dummyDom does not mention any variable
         -- (see the definition of reorderTel).
         where
-        isDotP n = case genericIndex cs n of
+        isDotP n = case List.genericIndex cs n of
                      Left DotP{} -> True
                      _           -> False
 
@@ -664,7 +664,7 @@ removeTree tree = do
   let ps = projections tree
       s  = map (\(p, _) -> p x) ps
 
-      count k = genericLength $ filter ((== k) . snd) ps
+      count k = length $ filter ((== k) . snd) ps
 
   return $ case tree of
     Leaf p     -> (p,   s, [Left p])
@@ -776,7 +776,7 @@ translateTel
 translateTel (Left (DotP{}) : rest)   tel = Nothing : translateTel rest tel
 translateTel (Right (n, x, t) : rest) tel = Just (x, t) :
                                               translateTel rest
-                                                (genericDrop (n VarPat) tel)
+                                                (drop (n VarPat) tel)
 translateTel (Left _ : rest) (t : tel)    = Just t : translateTel rest tel
 translateTel []              []           = []
 translateTel (Left _ : _)    []           = __IMPOSSIBLE__

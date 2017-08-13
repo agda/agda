@@ -42,7 +42,7 @@ import qualified Data.HashSet as Set
 import Data.HashSet (HashSet)
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 
 import Text.PrettyPrint.HughesPJ hiding (empty)
@@ -173,7 +173,7 @@ instance ParserClass (Parser k r tok) k r tok where
     flip evalState IntMap.empty $
     unP p (listArray (0, n - 1) toks) 0 $ \j x ->
       if j == n then return [x] else return []
-    where n = genericLength toks
+    where n = List.genericLength toks
 
   grammar _ = PP.empty
 

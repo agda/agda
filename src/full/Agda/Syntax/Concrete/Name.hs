@@ -13,7 +13,7 @@ import Control.Applicative
 
 import Data.ByteString.Char8 (ByteString)
 import Data.Function
-import Data.List
+import qualified Data.List as List
 
 import Data.Data (Data)
 import Data.Typeable (Typeable)
@@ -324,7 +324,7 @@ instance Pretty QName where
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where
-  pretty (TopLevelModuleName _ ms) = text $ intercalate "." ms
+  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." ms
 
 ------------------------------------------------------------------------
 -- * Range instances

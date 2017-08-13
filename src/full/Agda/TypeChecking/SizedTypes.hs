@@ -7,7 +7,7 @@ import Prelude hiding (null)
 
 import Control.Monad.Writer
 
-import Data.List hiding (null)
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -190,7 +190,7 @@ boundedSizeMetaHook v tel0 a = do
   case res of
     Just (BoundedLt u) -> do
       n <- getContextSize
-      let tel | n > 0     = telFromList $ genericDrop n $ telToList tel0
+      let tel | n > 0     = telFromList $ drop n $ telToList tel0
               | otherwise = tel0
       addContext' tel $ do
         v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
@@ -562,17 +562,17 @@ oldCanonicalizeSizeConstraint c@(Leq a n b) =
   case (a,b) of
     (Rigid{}, Rigid{})       -> return c
     (SizeMeta m xs, Rigid i) -> do
-      j <- findIndex (==i) xs
+      j <- List.findIndex (==i) xs
       return $ Leq (SizeMeta m [0..size xs-1]) n (Rigid j)
     (Rigid i, SizeMeta m xs) -> do
-      j <- findIndex (==i) xs
+      j <- List.findIndex (==i) xs
       return $ Leq (Rigid j) n (SizeMeta m [0..size xs-1])
     (SizeMeta m xs, SizeMeta l ys)
          -- try to invert xs on ys
-       | Just ys' <- mapM (\ y -> findIndex (==y) xs) ys ->
+       | Just ys' <- mapM (\ y -> List.findIndex (==y) xs) ys ->
            return $ Leq (SizeMeta m [0..size xs-1]) n (SizeMeta l ys')
          -- try to invert ys on xs
-       | Just xs' <- mapM (\ x -> findIndex (==x) ys) xs ->
+       | Just xs' <- mapM (\ x -> List.findIndex (==x) ys) xs ->
            return $ Leq (SizeMeta m xs') n (SizeMeta l [0..size ys-1])
          -- give up
        | otherwise -> Nothing
@@ -600,7 +600,7 @@ oldSolveSizeConstraints = whenM haveSizedTypes $ do
 
         -- Size metas in constraints.
         metas0 :: [(MetaId, Int)]  -- meta id + arity
-        metas0 = nub $ map (mapSnd length) $ concatMap flexibleVariables cs
+        metas0 = List.nub $ map (mapSnd length) $ concatMap flexibleVariables cs
 
         -- Unconstrained size metas that do not occur in constraints.
         metas1 :: [(MetaId, Int)]

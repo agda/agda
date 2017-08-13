@@ -6,7 +6,7 @@
 
 module Agda.TypeChecking.Patterns.Abstract where
 
-import Data.List
+import qualified Data.List as List
 import Data.Traversable hiding (mapM, sequence)
 import Data.Void
 
@@ -44,7 +44,7 @@ expandLitPattern p = traverse (traverse expand) p
               suc p = A.ConP cinfo (A.AmbQ [setRange r $ conName s]) [defaultNamedArg p]
               info  = A.PatRange r
               cinfo = A.ConPatInfo ConOCon info
-              p'    = foldr ($) zero $ genericReplicate n suc
+              p'    = foldr ($) zero $ List.genericReplicate n suc
           return $ foldr (A.AsP info) p' xs
       _ -> return p
     tooBig = typeError $ GenericError $

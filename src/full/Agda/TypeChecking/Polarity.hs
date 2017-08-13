@@ -5,7 +5,6 @@ module Agda.TypeChecking.Polarity where
 import Control.Applicative
 import Control.Monad.State
 
-import Data.List
 import Data.Maybe
 import Data.Traversable (traverse)
 
@@ -163,7 +162,7 @@ enablePhantomTypes def pol = case def of
   Datatype{ dataPars = np } -> enable np
   Record  { recPars  = np } -> enable np
   _                         -> pol
-  where enable np = let (pars, rest) = genericSplitAt np pol
+  where enable np = let (pars, rest) = splitAt np pol
                     in  purgeNonvariant pars ++ rest
 
 {- UNUSED
@@ -242,12 +241,12 @@ sizePolarity d pol0 = do
     case theDef def of
       Datatype{ dataPars = np, dataCons = cons } -> do
         let TelV tel _      = telView' $ defType def
-            (parTel, ixTel) = genericSplitAt np $ telToList tel
+            (parTel, ixTel) = splitAt np $ telToList tel
         case ixTel of
           []                 -> exit  -- No size index
           Dom _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
             -- we assume the size index to be 'Covariant' ...
-            let pol   = genericTake np pol0
+            let pol   = take np pol0
                 polCo = pol ++ [Covariant]
                 polIn = pol ++ [Invariant]
             setPolarity d $ polCo
@@ -312,7 +311,7 @@ checkSizeIndex d np i a = do
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
       where
-        (pars, Apply ix : ixs) = genericSplitAt np es
+        (pars, Apply ix : ixs) = splitAt np es
     _ -> __IMPOSSIBLE__
 
 -- | @polarities i a@ computes the list of polarities of de Bruijn index @i@

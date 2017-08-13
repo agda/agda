@@ -8,7 +8,6 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.List hiding (sort)
 import qualified Data.List as List
 import Data.Traversable hiding (mapM, sequence)
 
@@ -1121,7 +1120,7 @@ leqLevel a b = liftTCM $ do
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
-          | not $ null subsumed -> leqView (Max $ as \\ subsumed) (Max bs)
+          | not $ null subsumed -> leqView (Max $ as List.\\ subsumed) (Max bs)
           where
             subsumed = [ a | a@(Plus m l) <- as, n <- findN l, m <= n ]
             -- @findN a@ finds the unique(?) term @Plus n a@ in @bs@, if any.

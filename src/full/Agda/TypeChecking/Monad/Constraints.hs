@@ -7,7 +7,7 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 
-import Data.List as List
+import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -87,7 +87,7 @@ dropConstraints crit = do
 putConstraintsToSleep :: (ProblemConstraint -> Bool) -> TCM ()
 putConstraintsToSleep sleepy = do
   awakeOnes <- use stAwakeConstraints
-  let (gotoSleep, stayAwake) = partition sleepy awakeOnes
+  let (gotoSleep, stayAwake) = List.partition sleepy awakeOnes
   modifySleepingConstraints $ (++ gotoSleep)
   modifyAwakeConstraints    $ const stayAwake
 
@@ -102,8 +102,8 @@ data ConstraintStatus = AwakeConstraint | SleepingConstraint
 --   by events that would normally trigger a wakeup call.
 holdConstraints :: (ConstraintStatus -> ProblemConstraint -> Bool) -> TCM a -> TCM a
 holdConstraints p m = do
-  (holdAwake, stillAwake)   <- partition (p AwakeConstraint)    <$> use stAwakeConstraints
-  (holdAsleep, stillAsleep) <- partition (p SleepingConstraint) <$> use stSleepingConstraints
+  (holdAwake, stillAwake)   <- List.partition (p AwakeConstraint)    <$> use stAwakeConstraints
+  (holdAsleep, stillAsleep) <- List.partition (p SleepingConstraint) <$> use stSleepingConstraints
   stAwakeConstraints    .= stillAwake
   stSleepingConstraints .= stillAsleep
   let restore = do

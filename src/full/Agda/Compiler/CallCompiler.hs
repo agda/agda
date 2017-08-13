@@ -8,7 +8,9 @@ module Agda.Compiler.CallCompiler where
 
 import qualified Control.Exception as E
 import Control.Monad.Trans
-import Data.List as L
+
+import Data.List ( intercalate )
+import qualified Data.List as List
 import System.Exit
 import System.IO
 import System.Process

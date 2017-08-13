@@ -120,7 +120,7 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Semigroup hiding (Arg)
-import Data.List hiding (null, sort)
+import qualified Data.List as List
 
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
@@ -376,7 +376,7 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
     permuteFlex perm =
       mapMaybe $ \(FlexibleVar h o k p x) ->
-        FlexibleVar h o k p <$> findIndex (x==) (permPicks perm)
+        FlexibleVar h o k p <$> List.findIndex (x==) (permPicks perm)
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -659,7 +659,7 @@ findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
 findFlexible i flex =
   let flex'      = map flexVar flex
       flexible i = i `elem` flex'
-  in find ((i ==) . flexVar) flex
+  in List.find ((i ==) . flexVar) flex
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
@@ -1020,7 +1020,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
     text "Datatype type: " <+> prettyTCM dtype
 
   -- Split equation telescope into parts before and after current equation
-  let (eqListTel1, _ : eqListTel2) = genericSplitAt k $ telToList $ eqTel s
+  let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
       (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
 
   -- This is where the magic of higher-dimensional unification happens

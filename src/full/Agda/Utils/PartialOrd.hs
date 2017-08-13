@@ -3,7 +3,6 @@ module Agda.Utils.PartialOrd where
 
 import Data.Functor
 import Data.Maybe
-import Data.List
 import Data.Semigroup
 import Data.Set (Set)
 import qualified Data.Set as Set

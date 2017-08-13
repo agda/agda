@@ -10,7 +10,7 @@
 module Agda.Syntax.Parser.Comments
     where
 
-import Data.List
+import qualified Data.List as List
 
 import {-# SOURCE #-} Agda.Syntax.Parser.LexActions
 import Agda.Syntax.Parser.Monad
@@ -45,7 +45,7 @@ nestedComment inp inp' _ =
               i = posToInterval (lexSrcFile inp) p1 p2
               s = case (p1, p2) of
                     (Pn { posPos = p1 }, Pn { posPos = p2 }) ->
-                      genericTake (p2 - p1) $ lexInput inp
+                      List.genericTake (p2 - p1) $ lexInput inp
           return $ TokComment (i, s)
          else
           lexToken

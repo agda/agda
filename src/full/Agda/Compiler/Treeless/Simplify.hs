@@ -6,7 +6,7 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.Traversable (traverse)
-import Data.List
+import qualified Data.List as List
 
 import Agda.Syntax.Treeless
 import Agda.Syntax.Internal (Substitution'(..))
@@ -316,7 +316,7 @@ simplify FunctionKit{..} = simpl
         Nothing  -> return $ TCase x CTNat d bs
       where
         complete bs small (Just upper)
-          | null $ [0..upper - 1] \\ small = Just []
+          | null $ [0..upper - 1] List.\\ small = Just []
         complete (b@(TALit (LitNat _ n) _) : bs) small upper =
           (b :) <$> complete bs (n : small) upper
         complete (b@(TAGuard (TApp (TPrim PGeq) [TVar y, TLit (LitNat _ j)]) _) : bs) small upper | x == y =
@@ -371,12 +371,12 @@ aNeg (Neg a) = Pos a
 
 aCancel :: [Atom] -> [Atom]
 aCancel (a : as)
-  | elem (aNeg a) as = aCancel (delete (aNeg a) as)
+  | elem (aNeg a) as = aCancel (List.delete (aNeg a) as)
   | otherwise        = a : aCancel as
 aCancel [] = []
 
 sortR :: Ord a => [a] -> [a]
-sortR = sortBy (flip compare)
+sortR = List.sortBy (flip compare)
 
 aAdd :: Arith -> Arith -> Arith
 aAdd (a, xs) (b, ys) = (a + b, aCancel $ sortR $ xs ++ ys)
@@ -409,4 +409,3 @@ toArith t = (0, [Pos t])
 
 simplArith :: TTerm -> TTerm
 simplArith = fromArith . toArith
-

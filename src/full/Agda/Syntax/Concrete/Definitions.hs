@@ -52,7 +52,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import Data.Semigroup ( Semigroup, Monoid, (<>), mempty, mappend )
-import Data.List as List hiding (null)
+import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
@@ -1285,7 +1285,7 @@ niceDeclarations ds = do
         notAllowedInMutual Axiom{} = False
         notAllowedInMutual d       = declKind d == OtherDecl
         -- Pull type signatures to the top
-        (sigs, other) = partition isTypeSig ds
+        (sigs, other) = List.partition isTypeSig ds
         isTypeSig Axiom{}                     = True
         isTypeSig d | LoneSig{} <- declKind d = True
         isTypeSig _                           = False

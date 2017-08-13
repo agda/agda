@@ -4,7 +4,7 @@ module Agda.TypeChecking.Level where
 
 import Control.Applicative
 import Data.Maybe
-import Data.List as List
+import qualified Data.List as List
 import Data.Traversable (Traversable,traverse)
 
 import Agda.Syntax.Common
@@ -90,8 +90,8 @@ unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
     as  -> foldr1 max as
 
 unPlusV :: Term -> (Term -> Term) -> PlusLevel -> Term
-unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
-unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
+unPlusV zer suc (ClosedLevel n) = foldr (.) id (List.genericReplicate n suc) zer
+unPlusV _   suc (Plus n a)      = foldr (.) id (List.genericReplicate n suc) (unLevelAtom a)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = tryMaybe $ do

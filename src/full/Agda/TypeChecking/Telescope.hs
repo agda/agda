@@ -10,7 +10,7 @@ import Control.Monad (unless, guard)
 import Data.Foldable (forM_)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Maybe
 
 import Agda.Syntax.Common
@@ -198,7 +198,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
 
     ok    = all (<n) is && checkDependencies IntSet.empty is
 
-    isC   = downFrom n \\ is
+    isC   = downFrom n List.\\ is
 
     perm  = Perm n $ map (n-1-) $ is ++ isC
 
@@ -242,7 +242,7 @@ instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
     rho   = reverseP perm  -- works on de Bruijn levels
 
     u1    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u1 : A'
-    us    = map (\i -> fromMaybe (DotP u1) (deBruijnVar <$> findIndex (i ==) is)) [ 0 .. n-1 ]
+    us    = map (\i -> fromMaybe (DotP u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0

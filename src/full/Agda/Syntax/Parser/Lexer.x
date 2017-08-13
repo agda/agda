@@ -20,8 +20,6 @@ module Agda.Syntax.Parser.Lexer
     , AlexReturn(..), alexScanUser
     ) where
 
--- -- import Data.List
-
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Comments
 #ifndef __HADDOCK__

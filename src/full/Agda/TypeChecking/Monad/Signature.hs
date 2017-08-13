@@ -11,7 +11,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
-import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -128,7 +128,7 @@ addDeprecatedPragma old b q s = do
   addPragma b q s
 
 dataFormat :: String -> [String] -> String
-dataFormat ty cons = "= data " ++ ty ++ " (" ++ intercalate " | " cons ++ ")"
+dataFormat ty cons = "= data " ++ ty ++ " (" ++ List.intercalate " | " cons ++ ")"
 
 addHaskellCode :: QName -> HaskellCode -> TCM ()
 addHaskellCode q hsCode = addDeprecatedPragma "COMPILED" ghcBackendName q $ "= " ++ hsCode
@@ -308,8 +308,8 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     -- and if a constructor is copied its datatype needs to be.
     closeConstructors :: Ren QName -> TCM (Ren QName)
     closeConstructors rd = do
-        ds <- nub . concat <$> mapM (constructorData . fst) rd
-        cs <- nub . concat <$> mapM (dataConstructors . fst) rd
+        ds <- List.nub . concat <$> mapM (constructorData . fst) rd
+        cs <- List.nub . concat <$> mapM (dataConstructors . fst) rd
         new <- concat <$> mapM rename (ds ++ cs)
         reportSLn "tc.mod.apply.complete" 30 $
           "also copying: " ++ prettyShow new
@@ -517,10 +517,10 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       tel       <- lookupSection x
       let sectionTel =  apply tel $ take totalArgs ts
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ prettyShow x ++ " to " ++ prettyShow y
-      reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ intercalate "; " (map prettyShow ts)
+      reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ List.intercalate "; " (map prettyShow ts)
       reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
-      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
-      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
+      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ List.intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
+      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ List.intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
       addContext sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).

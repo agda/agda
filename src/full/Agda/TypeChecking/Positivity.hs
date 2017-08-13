@@ -18,7 +18,7 @@ import Data.Function
 import Data.Graph (SCC(..), flattenSCC)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List as List hiding (null)
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (mconcat)
@@ -271,7 +271,7 @@ instance PrettyTCM OccursWhere where
       nth n = pwords $ show (n + 1) ++ "th"
 
       -- remove consecutive duplicates
-      uniq = map head . group
+      uniq = map head . List.group
 
       prettyOs [] = __IMPOSSIBLE__
       prettyOs [o] = prettyO o <> text "."
@@ -597,16 +597,16 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             a <- defType <$> getConstInfo c
             TelV tel t <- telView' <$> normalise a -- normalization needed e.g. for test/succeed/Bush.agda
             let indices = case unEl t of
-                            Def _ vs -> genericDrop np vs
+                            Def _ vs -> drop np vs
                             _        -> __IMPOSSIBLE__
-            let tel'    = telFromList $ genericDrop np $ telToList tel
+            let tel'    = telFromList $ drop np $ telToList tel
                 vars np = map (Just . AnArg) $ downFrom np
             (>+<) <$> (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel')
                   <*> (OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
       (>+<) ioccs <$> (Concat <$> mapM conOcc cs)
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
-      let tel' = telFromList $ genericDrop np $ telToList tel
+      let tel' = telFromList $ drop np $ telToList tel
           vars = map (Just . AnArg) $ downFrom np
       getOccurrences vars =<< normalise tel' -- Andreas, 2017-01-01, issue #1899, treat like data types
 
@@ -694,7 +694,7 @@ buildOccurrenceGraph qs =
                    text (show i) <> text ":" <+> text (show n) <+>
                    text "occurrences, of total size" <+>
                    text (show s)) $
-           sortBy (compare `on` fst . snd) $
+           List.sortBy (compare `on` fst . snd) $
            map (\(i, os) -> (i, (length os, sum $ map size os))) $
            Map.toList (flatten occs))
       reportSDoc "tc.pos.occs" 50 $

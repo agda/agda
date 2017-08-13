@@ -5,7 +5,7 @@ import Control.Applicative
 import Control.Monad
 import Data.Maybe
 import Data.Char
-import Data.List
+import qualified Data.List as List
 import Data.Traversable (traverse)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -73,7 +73,7 @@ parsePragma (CompilerPragma r s) =
 
     notTypeOrData = do
       s <- look
-      guard $ not $ any (`isPrefixOf` s) ["type", "data"]
+      guard $ not $ any (`List.isPrefixOf` s) ["type", "data"]
 
     exportP = HsExport r <$ wordsP ["as"]        <* whitespace <*> hsIdent <* skipSpaces
     typeP   = HsType   r <$ wordsP ["=", "type"] <* whitespace <*> hsCode
@@ -153,7 +153,7 @@ getHaskellConstructor c = do
     _ -> return Nothing
 
 isImport :: String -> Bool
-isImport = isPrefixOf "import " . dropWhile isSpace
+isImport = List.isPrefixOf "import " . dropWhile isSpace
 
 foreignHaskell :: TCM [String]
 foreignHaskell = map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
@@ -164,4 +164,3 @@ inlineHaskell = filter (not . isImport) <$> foreignHaskell
 
 haskellImports :: TCM [String]
 haskellImports = filter isImport <$> foreignHaskell
-

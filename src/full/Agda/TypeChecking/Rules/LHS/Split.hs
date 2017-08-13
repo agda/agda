@@ -12,7 +12,7 @@ import Control.Monad.Trans.Maybe
 
 import Data.Either
 import Data.Maybe (fromMaybe)
-import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Traversable hiding (mapM, sequence)
 import Data.Foldable (msum)
 
@@ -197,7 +197,7 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- If the projection pattern name @d@ is not a field name,
             -- we have to try the next projection name.
             -- If this was not an ambiguous projection, that's an error.
-            argd <- maybe (ambErr $ wrongProj d amb) return $ find ((d ==) . unArg) fs
+            argd <- maybe (ambErr $ wrongProj d amb) return $ List.find ((d ==) . unArg) fs
             let ai' = setRelevance (getRelevance argd) ai
 
             -- Andreas, 2016-12-31, issue #2374:
@@ -305,7 +305,7 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- Subcase: a record type (d vs)
             Right (d, vs, def) -> do
               let np = recPars def
-              let (pars, ixs) = genericSplitAt np vs
+              let (pars, ixs) = splitAt np vs
               lift $ reportSDoc "tc.lhs.split" 10 $ vcat
                 [ sep [ text "splitting on"
                       , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
@@ -406,7 +406,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                             cs3   -> -- if there are more than one we give up (they might have different types)
                               typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs3
 
-                      let (pars, ixs) = genericSplitAt np vs
+                      let (pars, ixs) = splitAt np vs
                       lift $ reportSDoc "tc.lhs.split" 10 $ vcat
                         [ sep [ text "splitting on"
                               , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]

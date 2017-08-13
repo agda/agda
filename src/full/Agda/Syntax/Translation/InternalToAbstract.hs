@@ -27,7 +27,7 @@ import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 
 import Data.Foldable (Foldable, foldMap)
-import Data.List hiding (null, sort)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
@@ -584,7 +584,7 @@ reifyTerm expandAnonDefs0 v = do
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
-           let hd = foldl' (A.App noExprInfo) (A.Def x) pad
+           let hd = List.foldl' (A.App noExprInfo) (A.Def x) pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
@@ -974,7 +974,7 @@ instance Reify NamedClause A.Clause where
       perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
       info = LHSRange noRange
 
-      dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
+      dropParams n (SpineLHS i f ps wps) = SpineLHS i f (drop n ps) wps
       stripImps (SpineLHS i f ps wps) = do
         (ps, wps) <- stripImplicits (ps, wps)
         return $ SpineLHS i f ps wps

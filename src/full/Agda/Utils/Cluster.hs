@@ -15,7 +15,6 @@ import Data.Equivalence.Monad
 import Data.Char
 import Data.Functor
 import qualified Data.IntMap as IntMap
-import Data.List
 
 -- | Characteristic identifiers.
 type C = Int

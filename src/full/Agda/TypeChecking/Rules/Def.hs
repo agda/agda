@@ -10,7 +10,6 @@ import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Reader hiding (forM, mapM)
 
 import Data.Function
-import Data.List hiding (sort)
 import Data.Maybe
 import Data.Traversable
 import qualified Data.Set as Set
@@ -653,9 +652,9 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb) vs0 as cs = Bench.bi
         let n = size us
             m = size delta
             -- First the variables bound outside this definition
-            (us0, us1') = genericSplitAt (n - m) us
+            (us0, us1') = splitAt (n - m) us
             -- Then permute the rest and grab those needed to for the with arguments
-            (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
+            (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
             v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes

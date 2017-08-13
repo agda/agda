@@ -4,7 +4,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.GuardsToPrims ( convertGuards ) where
 
-import Data.List
+import qualified Data.List as List
 
 
 import Agda.Syntax.Abstract.Name (QName)
@@ -59,6 +59,6 @@ convertGuards = tr
 
 -- | Split alts into TAGuard alts and other alts.
 splitAlts :: [TAlt] -> ([TAlt], [TAlt])
-splitAlts = partition isGuardAlt
+splitAlts = List.partition isGuardAlt
   where isGuardAlt (TAGuard _ _) = True
         isGuardAlt _ = False

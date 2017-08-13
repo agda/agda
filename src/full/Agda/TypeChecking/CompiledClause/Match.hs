@@ -5,7 +5,7 @@ module Agda.TypeChecking.CompiledClause.Match where
 import Control.Applicative
 import Control.Monad.Reader (asks)
 
-import Data.List
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Agda.Syntax.Internal
@@ -96,7 +96,7 @@ match' ((c, es, patch) : stack) = do
 
       -- splitting on the @n@th elimination
       Case (Arg _ n) bs -> do
-        case genericSplitAt n es of
+        case splitAt n es of
           -- if the @n@th elimination is not supplied, no match
           (_, []) -> no (NotBlocked Underapplied) es
           -- if the @n@th elimination is @e0@
