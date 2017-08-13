@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE DeriveGeneric #-}
 #endif
 
@@ -39,14 +39,10 @@ import           Data.Data           (Data (..))
 import           Data.Semigroup      (Semigroup, Monoid, (<>), mempty, mappend)
 import           Data.Foldable       (Foldable (..))
 import           Data.Traversable    (Traversable (..))
-#if MIN_VERSION_base(4,7,0)
 import           Data.Typeable       (Typeable)
-#else
-import           Data.Typeable       (Typeable1)
-#endif
 import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
                                       fromMaybe, isJust, isNothing, maybe)
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 708
 import           GHC.Generics        (Generic (..))
 #endif
 
@@ -61,13 +57,9 @@ toLazy Nothing  = Lazy.Nothing
 toLazy (Just x) = Lazy.Just x
 
 deriving instance Data a => Data (Maybe a)
-#if MIN_VERSION_base(4,7,0)
 deriving instance Typeable Maybe
-#else
-deriving instance Typeable1 Maybe
-#endif
 
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 708
 deriving instance Generic  (Maybe a)
 #endif
 

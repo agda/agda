@@ -182,29 +182,19 @@ instance TagName name => HasTags (HsDecl name) where
     QuasiQuoteD{} -> []
 #endif
     VectD{}       -> []
-#if MIN_VERSION_ghc(7,8,0)
     RoleAnnotD{}  -> []
-#endif
 
-#if MIN_VERSION_ghc(7,8,0)
 instance TagName name => HasTags (FamilyDecl name) where
   tags d = tagsLN (fdLName d)
 
 instance HasTags (BasicTypes.Origin) where
   tags _ = []
-#endif
 
 instance TagName name => HasTags (TyClDecl name) where
-#if MIN_VERSION_ghc(7,8,0)
   tags (FamDecl d) = tags d
-#endif
   tags d = tagsLN (tcdLName d) ++
     case d of
-#if MIN_VERSION_ghc(7,8,0)
       DataDecl { tcdDataDefn = HsDataDefn { dd_cons = cons } }
-#else
-      TyDecl { tcdTyDefn = TyData { td_cons = cons } }
-#endif
         -> tags cons
       ClassDecl { tcdSigs = meths
                 , tcdATs  = ats
@@ -244,7 +234,7 @@ instance TagName name => HasTags (HsBind name) where
 #endif
 #if MIN_VERSION_ghc(7,10,0)
     PatSynBind (PSB { psb_id = x })   -> tagsLN x
-#elif MIN_VERSION_ghc(7,8,0)
+#else
     PatSynBind { patsyn_id = x }      -> tagsLN x
 #endif
 
@@ -259,11 +249,7 @@ instance TagName name => HasTags (Pat name) where
     AsPat x p                  -> tags (fmap Name x, p)
     ParPat p                   -> tags p
     BangPat p                  -> tags p
-#if MIN_VERSION_ghc(7,8,0)
     ListPat ps _ _             -> tags ps
-#else
-    ListPat ps _               -> tags ps
-#endif
     TuplePat ps _ _            -> tags ps
     PArrPat ps _               -> tags ps
     ConPatIn _ ps              -> tags ps
@@ -283,9 +269,7 @@ instance TagName name => HasTags (Pat name) where
 #if !MIN_VERSION_ghc(8,0,0)
     QuasiQuotePat{}            -> []
 #endif
-#if MIN_VERSION_ghc(7,8,0)
     SplicePat{}                -> []
-#endif
 #if MIN_VERSION_ghc(8,2,0)
     SumPat{}                   -> error "hTags error on SumPat"
 #endif
@@ -315,7 +299,7 @@ instance TagName name => HasTags (Sig name) where
     PatSynSig x _       -> concatMap tagsLN x
 #elif MIN_VERSION_ghc(8,0,0)
     PatSynSig x _       -> tagsLN x
-#elif MIN_VERSION_ghc(7,8,0)
+#else
     PatSynSig x _ _ _ _ -> tagsLN x
 #endif
 #if MIN_VERSION_ghc(8,0,0)
@@ -328,9 +312,7 @@ instance TagName name => HasTags (Sig name) where
     SpecSig{}           -> []
     SpecInstSig{}       -> []
     IdSig{}             -> []
-#if MIN_VERSION_ghc(7,8,0)
     MinimalSig{}        -> []
-#endif
 #if MIN_VERSION_ghc(8,2,0)
     SCCFunSig{}         -> []
     CompleteMatchSig{}  -> []
