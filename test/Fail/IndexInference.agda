@@ -1,3 +1,6 @@
+-- Jesper, 2017-08-13: This test case now fails since instantiation
+-- of metavariables during case splitting was disabled (see #2621).
+
 {-# OPTIONS -v tc.conv.irr:50 #-}
 -- {-# OPTIONS -v tc.lhs.unify:50 #-}
 module IndexInference where
