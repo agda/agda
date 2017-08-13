@@ -1091,6 +1091,7 @@ deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
 deriving instance Ord LevelAtom
+deriving instance Eq NotBlocked
 deriving instance Ord NotBlocked
 deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)

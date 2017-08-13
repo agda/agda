@@ -270,14 +270,6 @@ data NotBlocked
     --   which can be anything but a stuck @'Def'@.
   deriving (Show, Typeable, Data)
 
-instance Eq NotBlocked where
-  StuckOn _        == StuckOn _        = True  -- FIXME
-  Underapplied     == Underapplied     = True
-  AbsurdMatch      == AbsurdMatch      = True
-  MissingClauses   == MissingClauses   = True
-  ReallyNotBlocked == ReallyNotBlocked = True
-  _                == _                = False
-
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
 --   @'StuckOn'{}@ should be propagated, if tied, we take the left.
