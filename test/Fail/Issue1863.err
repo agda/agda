@@ -1,0 +1,6 @@
+Issue1863.agda:19,5-6
+I'm not sure if there should be a case for the constructor d,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  i tt ≟ _x_12
+when checking that the pattern d has type D _x_12

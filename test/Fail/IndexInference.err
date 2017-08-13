@@ -1,0 +1,7 @@
+IndexInference.agda:20,6-23
+I'm not sure if there should be a case for the constructor _::_,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  suc n ≟ _12
+when checking that the pattern a :: b :: c :: [] has type
+Vec Nat _12

@@ -576,6 +576,8 @@ checkExtendedLambda i di qname cs e t = do
        -- Case: we could not check the extended lambda because we are blocked on a meta.
        -- In this case, we want to postpone.
        Just (err, x) -> do
+         reportSDoc "tc.term.exlam" 50 $ vcat $
+           [ text "checking extended lambda got stuck on meta: " <+> text (show x) ]
          -- Note that we messed up the state a bit.  We might want to unroll these state changes.
          -- However, they are mostly harmless:
          -- 1. We created a new mutual block id.
@@ -588,19 +590,27 @@ checkExtendedLambda i di qname cs e t = do
          -- The meta might not be known in the reset state, as it could have been created
          -- somewhere on the way to the type error.
          mm <- Map.lookup x <$> getMetaStore
-         case mvInstantiation <$> mm of
+         x' <- case mvInstantiation <$> mm of
            -- Case: we do not know the meta
+           -- We mine the type of the extended lambda for a (possibly) blocking meta.
            Nothing -> do
-             -- TODO: mine for a meta in t
-             -- For now, we fail.
-             throwError err
+             reportSDoc "tc.term.exlam" 50 $ vcat $
+               [ text "meta was not found in reset state"
+               , text "trying to find meta in type of extlam..." ]
+             case allMetas t of
+               []    -> do
+                 reportSDoc "tc.term.exlam" 50 $ text "no meta found, giving up."
+                 throwError err
+               (x:_) -> do
+                 reportSDoc "tc.term.exlam" 50 $ text $ "found meta: " ++ show x
+                 return x
            -- Case: we know the meta here.
            Just InstV{} -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-           Just{} -> do
-             -- It has to be blocked on some meta, so we can postpone,
-             -- being sure it will be retired when a meta is solved
-             -- (which might be the blocking meta in which case we actually make progress).
-             postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x
+           Just{} -> return x
+         -- It has to be blocked on some meta, so we can postpone,
+         -- being sure it will be retired when a meta is solved
+         -- (which might be the blocking meta in which case we actually make progress).
+         postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x'
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
@@ -611,10 +621,15 @@ checkExtendedLambda i di qname cs e t = do
 --   * If successful, return Nothing.
 --
 --   * If @IlltypedPattern p a@ is thrown and type @a@ is blocked on some meta @x@
---     return @Just x@.  Note that the returned meta might only exists in the state
---     where the error was thrown, thus, be an invalid 'MetaId' in the current state.
+--     return @Just x@.
+--
+--   * If @SplitError (UnificationStuck c tel us vs _)@ is thrown and the unification
+--     problem @us =?= vs : tel@ is blocked on some meta @x@ return @Just x@.
 --
 --   * If another error was thrown or the type @a@ is not blocked, reraise the error.
+--
+--   Note that the returned meta might only exists in the state where the error was
+--   thrown, thus, be an invalid 'MetaId' in the current state.
 --
 catchIlltypedPatternBlockedOnMeta :: TCM () -> TCM (Maybe (TCErr, MetaId))
 catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
@@ -626,6 +641,14 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
         put s
         enterClosure cl $ \ _ -> do
           ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ -> return Nothing
+      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
+    TypeError s cl@Closure{ clValue = SplitError (UnificationStuck c tel us vs _) } -> do
+      mx <- localState $ do
+        put s
+        enterClosure cl $ \ _ -> do
+          problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
+          -- over-approximating the set of metas actually blocking unification
+          return $ listToMaybe $ allMetas problem
       caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     _ -> reraise
 

@@ -13,3 +13,6 @@ mutual
 
 -- Works, but maybe questionable.
 -- The _ is duplicated into two different internal metas.
+
+-- Jesper, 2017-08-13: This test case now fails since instantiation
+-- of metavariables during case splitting was disabled (see #2621).

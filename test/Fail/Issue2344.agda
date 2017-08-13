@@ -28,3 +28,6 @@ toNat-injective : ∀ (A : Set) X i → T (toNat _ i)  -- Yellow expected.
 toNat-injective A X (zero n) = mkT
 
 -- Should pass.
+
+-- Jesper, 2017-08-13: This test case now fails since instantiation
+-- of metavariables during case splitting was disabled (see #2621).

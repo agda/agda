@@ -1,3 +1,8 @@
-Issue2120.agda:16,22-26
-Type mismatch
-when checking that the pattern refl has type _17 zero
+Failed to solve the following constraints:
+  _22 := λ { (zero , refl) → zero } :? Σ Nat _B_19 → Nat
+  _20 := zero [blocked on problem 13]
+  [13] Nat =< _B_19 zero : Set
+Unsolved metas at the following locations:
+  Issue2120.agda:16,10-36
+  Issue2120.agda:16,48-49
+  Issue2120.agda:16,50-54

@@ -494,67 +494,67 @@ instance PrettyTCM UnifyStep where
   prettyTCM step = case step of
     Deletion k a u v -> text "Deletion" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "type:       " <+> prettyTCM a
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     Solution k a i u -> text "Solution" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
+      , text "type:       " <+> prettyTCM a
       , text "variable:   " <+> text (show i)
-      , text "term:       " <+> text (show u)
+      , text "term:       " <+> prettyTCM u
       ])
     Injectivity k a d pars ixs c -> text "Injectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
-      , text "datatype:   " <+> text (show d)
-      , text "parameters: " <+> text (show pars)
-      , text "indices:    " <+> text (show ixs)
-      , text "constructor:" <+> text (show c)
+      , text "type:       " <+> prettyTCM a
+      , text "datatype:   " <+> prettyTCM d
+      , text "parameters: " <+> prettyList_ (map prettyTCM pars)
+      , text "indices:    " <+> prettyList_ (map prettyTCM ixs)
+      , text "constructor:" <+> prettyTCM c
       ])
     Conflict k d pars u v -> text "Conflict" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "datatype:   " <+> text (show d)
-      , text "parameters: " <+> text (show pars)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "datatype:   " <+> prettyTCM d
+      , text "parameters: " <+> prettyList_ (map prettyTCM pars)
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     Cycle k d pars i u -> text "Cycle" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "datatype:   " <+> text (show d)
-      , text "parameters: " <+> text (show pars)
+      , text "datatype:   " <+> prettyTCM d
+      , text "parameters: " <+> prettyList_ (map prettyTCM pars)
       , text "variable:   " <+> text (show i)
-      , text "term:       " <+> text (show u)
+      , text "term:       " <+> prettyTCM u
       ])
     EtaExpandVar fi r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
       [ text "variable:   " <+> text (show fi)
-      , text "record type:" <+> text (show r)
-      , text "parameters: " <+> text (show pars)
+      , text "record type:" <+> prettyTCM r
+      , text "parameters: " <+> prettyTCM pars
       ])
     EtaExpandEquation k r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "record type:" <+> text (show r)
-      , text "parameters: " <+> text (show pars)
+      , text "record type:" <+> prettyTCM r
+      , text "parameters: " <+> prettyTCM pars
       ])
     LitConflict k a u v -> text "LitConflict" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "type:       " <+> text (show a)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "type:       " <+> prettyTCM a
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     StripSizeSuc k u v -> text "StripSizeSuc" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "lhs:        " <+> text (show u)
-      , text "rhs:        " <+> text (show v)
+      , text "lhs:        " <+> prettyTCM u
+      , text "rhs:        " <+> prettyTCM v
       ])
     SkipIrrelevantEquation k -> text "SkipIrrelevantEquation" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       ])
     TypeConInjectivity k d us vs -> text "TypeConInjectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
-      , text "datatype:   " <+> text (show d)
-      , text "lhs:        " <+> text (show us)
-      , text "rhs:        " <+> text (show vs)
+      , text "datatype:   " <+> prettyTCM d
+      , text "lhs:        " <+> prettyList_ (map prettyTCM us)
+      , text "rhs:        " <+> prettyList_ (map prettyTCM vs)
       ])
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
@@ -712,14 +712,6 @@ dataStrategy k s = do
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (ignoreSharing u, ignoreSharing v) of
-        (MetaV m es, Con c ci _   ) -> do
-          let lixs = applySubst (parallelS $ map unArg $ take k $ eqLHS s) ixs
-          us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars lixs c ci
-          return $ Injectivity k a d hpars ixs c
-        (Con c ci _   , MetaV m es) -> do
-          let rixs = applySubst (parallelS $ map unArg $ take k $ eqRHS s) ixs
-          vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars rixs c ci
-          return $ Injectivity k a d hpars ixs c
         (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
         (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars u v
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
@@ -735,62 +727,6 @@ dataStrategy k s = do
         case occurrence i u of
           StronglyRigid -> ret
           _ -> mzero
-
-    -- Instantiate the meta with a constructor applied to fresh metas
-    -- Returns the fresh metas if successful
-    instMetaCon :: MetaId -> Elims -> QName -> Args -> Args -> ConHead -> ConInfo -> TCM (Maybe Args)
-    instMetaCon m es d pars ixs c ci = do
-      caseMaybe (allApplyElims es) (return Nothing) $ \ us -> do
-        ifNotM (asks envAssignMetas) (return Nothing) $ {-else-} tryMaybe $ do
-          reportSDoc "tc.lhs.unify" 60 $
-            text "Trying to instantiate the meta" <+> prettyTCM (MetaV m es) <+>
-            text "with the constructor" <+> prettyTCM c <+> text "applied to fresh metas"
-          -- The new metas should have the same dependencies as the original meta
-          mv <- lookupMeta m
-
-          ctype <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
-          reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
-
-          margs <- withMetaInfo' mv $ do
-              let perm = mvPermutation mv
-              reportSDoc "tc.lhs.unify" 100 $ vcat
-                [ text "Permutation of meta: " <+> prettyTCM perm
-                ]
-              cxt <- instantiateFull =<< getContextTelescope
-              reportSDoc "tc.lhs.unify" 100 $ do
-                let flat = flattenTel cxt
-                let badRen  :: Substitution = renaming __IMPOSSIBLE__ perm
-                let goodRen :: Substitution = renaming __IMPOSSIBLE__ $ flipP perm
-                vcat
-                  [ text "Context of meta: " <+> (inTopContext $ prettyTCM cxt)
-                  , text "Flattened:       " <+> prettyTCM flat
-                  , text "Flattened (raw): " <+> text (show flat)
-                  , text "Bad renaming:    " <+> text (show badRen)
-                  , text "Good renaming:   " <+> text (show goodRen)
-                  , text "Raw permutation: " <+> prettyTCM (permute perm flat)
-                  ]
-              let tel = permuteTel perm cxt
-              reportSDoc "tc.lhs.unify" 100 $ text "Context tel (for new metas): " <+> prettyTCM tel
-              -- important: create the meta in the same environment as the original meta
-              newArgsMetaCtx ctype tel perm us
-          reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
-
-          let conIxs = case unEl (ctype `piApply` margs) of
-                         Def d' es | d == d' -> fromMaybe __IMPOSSIBLE__ $
-                           allApplyElims $ drop (length pars) es
-                         _ -> __IMPOSSIBLE__
-
-          dType <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
-
-          reportSDoc "tc.lhs.unify" 90 $ vcat $
-            [ text "Making sure that indices of the meta match those of the constructor:"
-            , text "Meta indices:       " <+> prettyTCM ixs
-            , text "Constructor indices:" <+> prettyTCM conIxs
-            ]
-          noConstraints $ compareArgs (repeat Invariant) dType (Def d $ map Apply pars) ixs conIxs
-
-          noConstraints $ assignV DirEq m us (Con c ci margs)
-          return margs
 
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
@@ -1203,7 +1139,8 @@ unify s strategy = if isUnifyStateSolved s
                  -> UnifyM (UnificationResult' UnifyState)
                  -> UnifyM (UnificationResult' UnifyState)
     tryUnifyStep step fallback = do
-      reportSDoc "tc.lhs.unify" 20 $ text "trying unifyStep" <+> prettyTCM step
+      addContext (varTel s) $
+        reportSDoc "tc.lhs.unify" 20 $ text "trying unifyStep" <+> prettyTCM step
       x <- unifyStep s step
       case x of
         Unifies s'   -> do
