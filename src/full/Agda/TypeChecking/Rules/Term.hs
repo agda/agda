@@ -535,6 +535,8 @@ checkExtendedLambda i di qname cs e t = do
        -- Case: we could not check the extended lambda because we are blocked on a meta.
        -- In this case, we want to postpone.
        Just (err, x) -> do
+         reportSDoc "tc.term.exlam" 50 $ vcat $
+           [ text "checking extended lambda got stuck on meta: " <+> text (show x) ]
          -- Note that we messed up the state a bit.  We might want to unroll these state changes.
          -- However, they are mostly harmless:
          -- 1. We created a new mutual block id.
@@ -547,19 +549,27 @@ checkExtendedLambda i di qname cs e t = do
          -- The meta might not be known in the reset state, as it could have been created
          -- somewhere on the way to the type error.
          mm <- Map.lookup x <$> getMetaStore
-         case mvInstantiation <$> mm of
+         x' <- case mvInstantiation <$> mm of
            -- Case: we do not know the meta
+           -- We mine the type of the extended lambda for a (possibly) blocking meta.
            Nothing -> do
-             -- TODO: mine for a meta in t
-             -- For now, we fail.
-             throwError err
+             reportSDoc "tc.term.exlam" 50 $ vcat $
+               [ text "meta was not found in reset state"
+               , text "trying to find meta in type of extlam..." ]
+             case allMetas t of
+               []    -> do
+                 reportSDoc "tc.term.exlam" 50 $ text "no meta found, giving up."
+                 throwError err
+               (x:_) -> do
+                 reportSDoc "tc.term.exlam" 50 $ text $ "found meta: " ++ show x
+                 return x
            -- Case: we know the meta here.
            Just InstV{} -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-           Just{} -> do
-             -- It has to be blocked on some meta, so we can postpone,
-             -- being sure it will be retired when a meta is solved
-             -- (which might be the blocking meta in which case we actually make progress).
-             postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x
+           Just{} -> return x
+         -- It has to be blocked on some meta, so we can postpone,
+         -- being sure it will be retired when a meta is solved
+         -- (which might be the blocking meta in which case we actually make progress).
+         postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x'
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
