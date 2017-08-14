@@ -26,37 +26,23 @@ Installation and infrastructure
 Language
 --------
 
-* BUILTIN REFL is now superfluous, subsumed by BUILTIN EQUALITY
-  [Issue [#2389](https://github.com/agda/agda/issues/2389)].
+### Pattern matching
 
-* BUILTIN EQUALITY is now more liberal
-  [Issue [#2386](https://github.com/agda/agda/issues/2386)].
-  It accepts, among others, the following new definitions of equality:
+* Dot patterns.
+
+  The dot in front of an inaccessible pattern can now be skipped if the
+  pattern consists entirely of constructors or literals. For example:
   ```agda
-    -- Non-universe polymorphic:
-    data _≡_ {A : Set} (x : A) : A → Set where
-      refl : x ≡ x
+    open import Agda.Builtin.Bool
 
-    -- ... with explicit argument to refl;
-    data _≡_ {A : Set} : (x y : A) → Set where
-      refl : {x : A} → x ≡ x
+    data D : Bool → Set where
+      c : D true
 
-    -- ... even visible
-    data _≡_ {A : Set} : (x y : A) → Set where
-      refl : (x : A) → x ≡ x
-
-    -- Equality in a different universe than domain:
-    -- (also with explicit argument to refl)
-    data _≡_ {a} {A : Set a} (x : A) : A → Set where
-      refl : x ≡ x
+    f : (x : Bool) → D x → Bool
+    f true c = true
 
   ```
-  The standard definition is still:
-  ```agda
-    -- Equality in same universe as domain:
-    data _≡_ {a} {A : Set a} (x : A) : A → Set a where
-      refl : x ≡ x
-  ```
+  Before this change, you had to write `f .true c = true`.
 
 * With-clause patterns can be replaced by _
   [Issue [#2363](https://github.com/agda/agda/issues/2363)].
@@ -96,6 +82,28 @@ Language
     test _ _          | true = true!  -- underscore instead of (isTrue _)
   ```
 
+* Pattern matching lambdas (also known as extended lambdas) can now be
+  nullary, mirroring the behaviour for ordinary function definitions.
+  [Issue [#2671](https://github.com/agda/agda/issues/2671)]
+
+  This is useful for case splitting on the result inside an
+  expression: given
+  ```agda
+  record _×_ (A B : Set) : Set where
+    field
+      π₁ : A
+      π₂ : B
+  open _×_
+  ```
+  one may case split on the result (C-c C-c RET) in a hole
+  ```agda
+    λ { → {!!}}
+  ```
+  of type A × B to produce
+  ```agda
+    λ { .π₁ → {!!} ; .π₂ → {!!}}
+  ```
+
 * Records with a field of an empty type are now recognized as empty by Agda.
   In particular, they can be matched against with an absurd pattern ().
   For example:
@@ -129,6 +137,8 @@ Language
   Aside from datatypes, this pragma can also be used to mark other definitions
   as being injective (for example postulates).
 
+### Reflection
+
 * New TC primitive: `debugPrint`.
 
   ```agda
@@ -140,21 +150,41 @@ Language
   giving `-v a.b.c:10` enables printing from `debugPrint "a.b.c.d" 10 msg`. In the
   Emacs mode, debug output ends up in the `*Agda debug*` buffer.
 
-* Dot patterns.
+### Built-ins
 
-  The dot in front of an inaccessible pattern can now be skipped if the
-  pattern consists entirely of constructors or literals. For example:
+* BUILTIN REFL is now superfluous, subsumed by BUILTIN EQUALITY
+  [Issue [#2389](https://github.com/agda/agda/issues/2389)].
+
+* BUILTIN EQUALITY is now more liberal
+  [Issue [#2386](https://github.com/agda/agda/issues/2386)].
+  It accepts, among others, the following new definitions of equality:
   ```agda
-    open import Agda.Builtin.Bool
+    -- Non-universe polymorphic:
+    data _≡_ {A : Set} (x : A) : A → Set where
+      refl : x ≡ x
 
-    data D : Bool → Set where
-      c : D true
+    -- ... with explicit argument to refl;
+    data _≡_ {A : Set} : (x y : A) → Set where
+      refl : {x : A} → x ≡ x
 
-    f : (x : Bool) → D x → Bool
-    f true c = true
+    -- ... even visible
+    data _≡_ {A : Set} : (x y : A) → Set where
+      refl : (x : A) → x ≡ x
+
+    -- Equality in a different universe than domain:
+    -- (also with explicit argument to refl)
+    data _≡_ {a} {A : Set a} (x : A) : A → Set where
+      refl : x ≡ x
 
   ```
-  Before this change, you had to write `f .true c = true`.
+  The standard definition is still:
+  ```agda
+    -- Equality in same universe as domain:
+    data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+      refl : x ≡ x
+  ```
+
+### Miscellaneous
 
 * Rule change for omitted top-level module headers.
   [Issue [#1077](https://github.com/agda/agda/issues/1077)]
@@ -188,28 +218,6 @@ Language
   before the illegal declarations, or move them inside the
   existing module.
 
-* Pattern matching lambdas (also known as extended lambdas) can now be
-  nullary, mirroring the behaviour for ordinary function definitions.
-  [Issue [#2671](https://github.com/agda/agda/issues/2671)]
-
-  This is useful for case splitting on the result inside an
-  expression: given
-  ```agda
-  record _×_ (A B : Set) : Set where
-    field
-      π₁ : A
-      π₂ : B
-  open _×_
-  ```
-  one may case split on the result (C-c C-c RET) in a hole
-  ```agda
-    λ { → {!!}}
-  ```
-  of type A × B to produce
-  ```agda
-    λ { .π₁ → {!!} ; .π₂ → {!!}}
-  ```
-
 Emacs mode
 ----------
 
@@ -224,6 +232,10 @@ Emacs mode
     The definition with incomplete patterns are highlighted in
     wheat.
 
+* Clauses which do not hold definitionally are now highlighted in white smoke.
+
+* Fewer commands have the side effect that the buffer is saved.
+
 * Aborting commands.
 
   Now one can (try to) abort an Agda command by using `C-c C-x C-a` or
@@ -237,16 +249,14 @@ Emacs mode
   external commands (like GHC) are not aborted, and their output may
   continue to be sent to the Emacs mode.
 
-* New bindings: All the bold digits are now available
+* New bindings for the Agda input method:
 
-  The Agda input method did not bind bold digits. They are now
-  available. The naming scheme is `\Bx` for digit `x`.
+  - All the bold digits are now available. The naming scheme is `\Bx` for digit `x`.
 
-* New bindings: More variants of the colon are now available.
+  - Typing `\:` you can now get a whole slew of colons.
 
-  The Agda input method originally only bound the standard unicode colon,
-  which looks deceptively like the normal colon, but typing `\:` you can
-  now get a whole slew of colons.
+    (The Agda input method originally only bound the standard unicode colon,
+    which looks deceptively like the normal colon.)
 
 * Case splitting now preserves underscores.
   [Issue [#819](https://github.com/agda/agda/issues/819)]
@@ -273,12 +283,6 @@ Emacs mode
   ```agda
     test0 x | q = ?
   ```
-
-* Fewer commands have the side effect that the buffer is saved.
-
-* Highlighting for clauses which do not hold definitionally
-
-  These clauses are now highlighted in white smoke.
 
 Compiler backends
 -----------------
