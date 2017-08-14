@@ -54,11 +54,7 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Pretty
-#if MIN_VERSION_base(4,8,0)
-import Agda.Utils.List hiding ( uncons )
-#else
 import Agda.Utils.List
-#endif
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
@@ -645,7 +641,7 @@ classifyPattern conf p =
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
-      (p2, ps3) <- List.uncons rest -- when (null rest): no field pattern or def pattern found
+      (p2, ps3) <- uncons rest -- when (null rest): no field pattern or def pattern found
       guard $ all (isLeft . namedArg) ps3
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
