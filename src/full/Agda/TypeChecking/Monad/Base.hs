@@ -1458,7 +1458,7 @@ data FunctionFlag
 
 data Defn = Axiom
             -- ^ Postulate.
-          | AbstractDefn
+          | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
           | Function
             { funClauses        :: [Clause]
@@ -3226,7 +3226,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      AbstractDefn -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
+      AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j

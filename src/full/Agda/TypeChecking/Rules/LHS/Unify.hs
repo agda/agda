@@ -817,7 +817,7 @@ injectiveTypeConStrategy k s = do
                 Datatype{} -> True
                 Record{}   -> True
                 Axiom{}    -> True
-                AbstractDefn -> False -- True triggers issue #2250
+                AbstractDefn{} -> False -- True triggers issue #2250
                 Function{}   -> False
                 Primitive{}  -> False
                 Constructor{}-> __IMPOSSIBLE__  -- Never a type!

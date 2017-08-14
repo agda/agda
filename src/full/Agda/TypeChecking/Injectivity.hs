@@ -66,7 +66,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
         Function{}    -> no
         Primitive{}   -> no
         Constructor{} -> __IMPOSSIBLE__
-        AbstractDefn  -> __IMPOSSIBLE__
+        AbstractDefn{}-> __IMPOSSIBLE__
     Con c _ _ -> return (Just $ ConsHead $ conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
