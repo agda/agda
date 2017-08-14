@@ -75,7 +75,7 @@ Language
   pattern variables.  Note that `x` is not in scope in the
   with-clause!
 
-  An more elaborate example, which cannot be reduced to
+  A more elaborate example, which cannot be reduced to
   an ellipsis `...`:
   ```agda
     record R : Set where
@@ -128,7 +128,7 @@ Language
     Fin-injective : {m n : Nat} → Fin m ≡ Fin n → m ≡ n
     Fin-injective refl = refl
   ```
-  Aside from datatypes, this pragma can also be used to mark other definition
+  Aside from datatypes, this pragma can also be used to mark other definitions
   as being injective (for example postulates).
 
 * New TC primitive: `debugPrint`.
