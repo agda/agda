@@ -36,7 +36,7 @@ Non-backwards compatible changes
 * Currently the library does not directly expose proofs of basic properties such as reflexivity,
   transitivity etc. for `_≤_` in numeric datatypes such as `Nat`, `Integer` etc. In order to use these
   properties it was necessary to first import the `decTotalOrder` proof from `Data.X` and then
-  separately open it, often having to rename the proofs as well. This is often adds unneccessary lines of
+  separately open it, often having to rename the proofs as well. This adds unneccessary lines of
   code to the import statements for what are very commonly used properties.
 
   These basic proofs have now been added in `Data.X.Properties` along with proofs that they form
@@ -87,6 +87,7 @@ Non-backwards compatible changes
 
 * Changed type of second parameter of `Relation.Binary.StrictPartialOrderReasoning._<⟨_⟩_`
   from `x < y ⊎ x ≈ y` to `x < y`. `_≈⟨_⟩_` is left unchanged to take a value with type `x ≈ y`.
+  Old code may be fixed by prefixing the contents of `_<⟨_⟩_` with `inj₁`.
 
 Deprecated features
 -------------------
@@ -150,14 +151,12 @@ Backwards compatible changes
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
 
-* Made BoundedVec level polymorphic and added conversion function between the
-  efficient representation and the inefficient one.
+* Made `Data.BoundedVec` polymorphic with respect to levels.
 
-* Giving access to `primForce` and `primForceLemma` via `Strict`. Also providing
-  the call-by-value application combinator `_$!_`.
+* Access to `primForce` and `primForceLemma` has been provided via the new
+  top-level module `Strict`.
 
-* Systematically providing non-dependent versions of the application combinators
-  for use cases where the most general one leads to unsolved meta variables.
+* New call-by-value application combinator `_$!_` in `Function`.
 
 * Added properties to `Algebra.FunctionProperties`:
   ```agda
@@ -264,6 +263,12 @@ Backwards compatible changes
   1<[23]               : [] 1# < (b ∷ []) 1#
   1<2+                 : [] 1# < (b ∷ bs) 1#
   0<1+                 : 0# < bs 1#
+  ```
+
+* Added functions to `Data.BoundedVec`:
+  ```agda
+  toInefficient   : BoundedVec A n → Ineff.BoundedVec A n
+  fromInefficient : Ineff.BoundedVec A n → BoundedVec A n
   ```
 
 * Added the following to `Data.Digit`:
@@ -744,6 +749,13 @@ Backwards compatible changes
 
   All₂-concat⁺ : All₂ (All₂ _~_) xss yss → All₂ _~_ (concat xss) (concat yss)
   All₂-concat⁻ : All₂ _~_ (concat xss) (concat yss) → All₂ (All₂ _~_) xss yss
+  ```
+
+* Added non-dependant versions of the application combinators in `Function` for use
+  cases where the most general one leads to unsolved meta variables:
+  ```agda
+  _$′_  : (A → B) → (A → B)
+  _$!′_ : (A → B) → (A → B)
   ```
 
 * Added proofs to `Relation.Binary.Consequences`

@@ -894,15 +894,13 @@ i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
 
 ∸-distribʳ-⊓ : _∸_ DistributesOverʳ _⊓_
 ∸-distribʳ-⊓ zero    y       z       = refl
-∸-distribʳ-⊓ (suc x) zero    zero    = refl
-∸-distribʳ-⊓ (suc x) zero    (suc z) = refl
+∸-distribʳ-⊓ (suc x) zero    z       = refl
 ∸-distribʳ-⊓ (suc x) (suc y) zero    = sym (⊓-zeroʳ (y ∸ x))
 ∸-distribʳ-⊓ (suc x) (suc y) (suc z) = ∸-distribʳ-⊓ x y z
 
 ∸-distribʳ-⊔ : _∸_ DistributesOverʳ _⊔_
 ∸-distribʳ-⊔ zero    y       z       = refl
-∸-distribʳ-⊔ (suc x) zero    zero    = refl
-∸-distribʳ-⊔ (suc x) zero    (suc z) = refl
+∸-distribʳ-⊔ (suc x) zero    z       = refl
 ∸-distribʳ-⊔ (suc x) (suc y) zero    = sym (⊔-identityʳ (y ∸ x))
 ∸-distribʳ-⊔ (suc x) (suc y) (suc z) = ∸-distribʳ-⊔ x y z
 
@@ -960,7 +958,8 @@ module ≤-Reasoning where
 ------------------------------------------------------------------------
 -- DEPRECATED NAMES
 ------------------------------------------------------------------------
--- Please use the new names as support for the old is not guaranteed.
+-- Please use the new names as continuing support for the old names is
+-- not guaranteed.
 
 _*-mono_ = *-mono-≤
 _+-mono_ = +-mono-≤
