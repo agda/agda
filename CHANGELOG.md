@@ -83,6 +83,8 @@ Non-backwards compatible changes
   location was causing dependency cyles to form between `Data.Fin.Dec`,
   `Relation.Nullary.Negation` and `Data.Fin`.
 
+* Moved `fold`, `add` and `mul` from `Data.Nat` to new module `Data.Nat.GeneralisedArithmetic`.
+
 * Changed type of second parameter of `Relation.Binary.StrictPartialOrderReasoning._<⟨_⟩_`
   from `x < y ⊎ x ≈ y` to `x < y`. `_≈⟨_⟩_` is left unchanged to take a value with type `x ≈ y`.
 
@@ -139,20 +141,6 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
-* Defined `_^_` in terms of Nat's `fold` and proved some of its properties.
-  Used the opportunity to prove some fold-fusion properties (distributivity
-  over _+_ and _*_; simplification of higher-order folds; fusion with an
-  associative function; id, _+_, _*_ are all particular folds; etc.)
-
-* Made BoundedVec level polymorphic and added conversion function between the
-  efficient representation and the inefficient one.
-
-* Giving access to `primForce` and `primForceLemma` via `Strict`. Also providing
-  the call-by-value application combinator `_$!_`.
-
-* Systematically providing non-dependent versions of the application combinators
-  for use cases where the most general one leads to unsolved meta variables.
-
 * Added support for GHC 8.0.2 and 8.2.1.
 
 * Removed the empty `Irrelevance` module
@@ -162,14 +150,14 @@ Backwards compatible changes
 * `Data.Container` and `Data.Container.Indexed` now allow for different
   levels in the container and in the data it contains.
 
-* Added new module `Data.Empty.Irrelevant` containing an irrelevant version of
-  `⊥-elim`.
+* Made BoundedVec level polymorphic and added conversion function between the
+  efficient representation and the inefficient one.
 
-* Added syntax for existential quantifiers in `Data.Product`:
-  ```agda
-  ∃-syntax (λ x → B) = ∃[ x ] B
-  ∄-syntax (λ x → B) = ∄[ x ] B
-  ```
+* Giving access to `primForce` and `primForceLemma` via `Strict`. Also providing
+  the call-by-value application combinator `_$!_`.
+
+* Systematically providing non-dependent versions of the application combinators
+  for use cases where the most general one leads to unsolved meta variables.
 
 * Added properties to `Algebra.FunctionProperties`:
   ```agda
@@ -283,6 +271,8 @@ Backwards compatible changes
   Expansion : ℕ → Set
   Expansion base = List (Fin base)
   ```
+
+* Added new module `Data.Empty.Irrelevant` containing an irrelevant version of `⊥-elim`.
 
 * Added functions to `Data.Fin`:
   ```agda
@@ -525,6 +515,8 @@ Backwards compatible changes
   Eq-isDecEquivalence : IsDecEquivalence _≈_ → IsDecEquivalence (Eq _≈_)
   ```
 
+* Added exponentiation operator `_^_` to `Data.Nat.Base`
+
 * Added proofs to `Data.Nat.Properties`:
   ```agda
   suc-injective        : suc m ≡ suc n → m ≡ n
@@ -582,6 +574,10 @@ Backwards compatible changes
   *-monoˡ-<            : (_* suc n) Preserves _<_ ⟶ _<_
   *-monoʳ-<            : (suc n *_) Preserves _<_ ⟶ _<_
   *-cancelˡ-≡          : suc k * i ≡ suc k * j → i ≡ j
+
+  ^-distribˡ-+-*       : m ^ (n + p) ≡ m ^ n * m ^ p
+  i^j≡0⇒i≡0            : i ^ j ≡ 0 → i ≡ 0
+  i^j≡1⇒j≡0∨i≡1        : i ^ j ≡ 1 → j ≡ 0 ⊎ i ≡ 1
 
   ⊔-assoc              : Associative _⊔_
   ⊔-comm               : Commutative _⊔_
@@ -644,6 +640,27 @@ Backwards compatible changes
 
   n∣n              : n ∣ n
   ∣m∸n∣n⇒∣m        : n ≤ m → i ∣ m ∸ n → i ∣ n → i ∣ m
+  ```
+
+* Added proofs to `Data.Nat.GeneralisedArithmetic`:
+  ```agda
+  fold-+     : fold z s (m + n) ≡ fold (fold z s n) s m
+  fold-k     : fold k (s ∘′_) m z ≡ fold (k z) s m
+  fold-*     : fold z s (m * n) ≡ fold z (fold id (s ∘_) n) m
+  fold-pull  : fold p s m ≡ g (fold z s m) p
+
+  id-is-fold : fold zero suc m ≡ m
+  +-is-fold  : fold n suc m ≡ m + n
+  *-is-fold  : fold zero (n +_) m ≡ m * n
+  ^-is-fold  : fold 1 (m *_) n ≡ m ^ n
+  *+-is-fold : fold p (n +_) m ≡ m * n + p
+  ^*-is-fold : fold p (m *_) n ≡ m ^ n * p
+  ```
+
+* Added syntax for existential quantifiers in `Data.Product`:
+  ```agda
+  ∃-syntax (λ x → B) = ∃[ x ] B
+  ∄-syntax (λ x → B) = ∄[ x ] B
   ```
 
 * A new module `Data.Rational.Properties` has been added, containing proofs:

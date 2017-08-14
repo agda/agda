@@ -12,6 +12,7 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.Maybe as Maybe
   using (Maybe; decToMaybe; From-just; from-just)
 open import Data.Nat.Base as ℕ using (ℕ; zero; suc; _+_)
+open import Data.Nat.GeneralisedArithmetic using (fold)
 open import Data.Product using (_×_; proj₁; proj₂; uncurry)
 open import Data.Vec using (Vec; []; _∷_; lookup; replicate)
 
@@ -69,7 +70,7 @@ Normal n = Vec ℕ n
 
 ⟦_⟧⇓ : ∀ {n} → Normal n → Env n → Carrier
 ⟦ []    ⟧⇓ _ = ε
-⟦ n ∷ v ⟧⇓ (a ∷ ρ) = ℕ.fold (⟦ v ⟧⇓ ρ) (λ b → a ∙ b) n
+⟦ n ∷ v ⟧⇓ (a ∷ ρ) = fold (⟦ v ⟧⇓ ρ) (λ b → a ∙ b) n
 
 ------------------------------------------------------------------------
 -- Constructions on normal forms
@@ -123,7 +124,7 @@ comp-correct (l ∷ v) (m ∷ w) (a ∷ ρ) = lemma l m (comp-correct v w ρ)
         (b ∙ a) ∙ c  ≈⟨ assoc _ _ _ ⟩
         b ∙ (a ∙ c)  ∎
     lemma : ∀ l m {d b c} (p : d ≈ b ∙ c) →
-      ℕ.fold d (_∙_ a) (l + m) ≈ ℕ.fold b (_∙_ a) l ∙ ℕ.fold c (_∙_ a) m
+      fold d (a ∙_) (l + m) ≈ fold b (a ∙_) l ∙ fold c (a ∙_) m
     lemma zero zero p = p
     lemma zero (suc m) p = trans (∙-cong refl (lemma zero m p)) (flip12 _ _ _)
     lemma (suc l) m p = trans (∙-cong refl (lemma l m p)) (sym (assoc a _ _))
