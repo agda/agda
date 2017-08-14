@@ -553,6 +553,161 @@ Pragmas and options
   - `error` for turning warnings into errors
   - `ignore` for not displaying warnings
 
+List of fixed issues
+--------------------
+
+For 2.5.3, the following additional issues have been fixed
+(see [bug tracker](https://github.com/agda/agda/issues)):
+
+
+  - [#623](https://github.com/agda/agda/issues/623): Error message points to importing module rather than imported module
+  - [#657](https://github.com/agda/agda/issues/657): Yet another display form problem
+  - [#705](https://github.com/agda/agda/issues/705): confusing error message for ambiguous datatype module name
+  - [#719](https://github.com/agda/agda/issues/719): Error message for duplicate module definition points to external module instead of internal module
+  - [#776](https://github.com/agda/agda/issues/776): Unsolvable constraints should give error
+  - [#819](https://github.com/agda/agda/issues/819): Case-splitting doesn't preserve underscores
+  - [#883](https://github.com/agda/agda/issues/883): Rewrite loses type information
+  - [#899](https://github.com/agda/agda/issues/899): Instance search fails if there are several definitionally equal values in scope
+  - [#1077](https://github.com/agda/agda/issues/1077): problem with module syntax, with parametric module import
+  - [#1126](https://github.com/agda/agda/issues/1126): Port optimizations from the Epic backend
+  - [#1175](https://github.com/agda/agda/issues/1175): Internal Error in Auto
+  - [#1544](https://github.com/agda/agda/issues/1544): Positivity polymorphism needed for compositional positivity analysis
+  - [#1664](https://github.com/agda/agda/issues/1664): Add Reflection primitives to expose precedence and fixity
+  - [#1817](https://github.com/agda/agda/issues/1817): Solvable size constraints reported as unsolvable
+  - [#1832](https://github.com/agda/agda/issues/1832): Insufficient indentation in LaTeX-rendered Agda code
+  - [#1834](https://github.com/agda/agda/issues/1834): Copattern matching: order of clauses should not matter here
+  - [#1886](https://github.com/agda/agda/issues/1886): Second copies of telescopes not checked?
+  - [#1899](https://github.com/agda/agda/issues/1899): Positivity checker does not treat datatypes and record types in the same way
+  - [#1975](https://github.com/agda/agda/issues/1975): Type-incorrect instantiated overloaded constructor accepted in pattern
+  - [#1976](https://github.com/agda/agda/issues/1976): Type-incorrect instantiated projection accepted in pattern
+  - [#2035](https://github.com/agda/agda/issues/2035): Matching on string causes solver to fail with internal error
+  - [#2146](https://github.com/agda/agda/issues/2146): Unicode syntax for instance arguments
+  - [#2229](https://github.com/agda/agda/issues/2229): Absence or presence of top-level module header affects scope
+  - [#2261](https://github.com/agda/agda/issues/2261): Internal error in Auto/CaseSplit.hs:284
+  - [#2354](https://github.com/agda/agda/issues/2354): Interaction between instance search, size solver, and ordinary constraint solver.
+  - [#2355](https://github.com/agda/agda/issues/2355): Literate Agda parser does not recognize TeX comments
+  - [#2360](https://github.com/agda/agda/issues/2360): With clause stripping chokes on ambiguous projection
+  - [#2362](https://github.com/agda/agda/issues/2362): Printing of parent patterns when with-clause does not match
+  - [#2363](https://github.com/agda/agda/issues/2363): Allow underscore in with-clause patterns
+  - [#2366](https://github.com/agda/agda/issues/2366): With-clause patterns renamed in error message
+  - [#2368](https://github.com/agda/agda/issues/2368): Internal error after refining a tactic @ MetaVars.hs:267
+  - [#2371](https://github.com/agda/agda/issues/2371): Shadowed module parameter crashes interaction
+  - [#2372](https://github.com/agda/agda/issues/2372): problems when instances are declared with inferred types
+  - [#2374](https://github.com/agda/agda/issues/2374): Ambiguous projection pattern could be disambiguated by visibility
+  - [#2376](https://github.com/agda/agda/issues/2376): Termination checking interacts badly with eta-contraction
+  - [#2377](https://github.com/agda/agda/issues/2377): open public is useless before module header
+  - [#2381](https://github.com/agda/agda/issues/2381): Search (`C-c C-z`) panics on pattern synonyms
+  - [#2400](https://github.com/agda/agda/issues/2400): LaTeX backend error on LaTeX comments
+  - [#2402](https://github.com/agda/agda/issues/2402): Parameters not dropped when reporting incomplete patterns
+  - [#2403](https://github.com/agda/agda/issues/2403): Termination checker should reduce arguments in structural order check
+  - [#2405](https://github.com/agda/agda/issues/2405): instance search failing in parameterized module
+  - [#2408](https://github.com/agda/agda/issues/2408): DLub sorts are not serialized
+  - [#2412](https://github.com/agda/agda/issues/2412): Problem with checking  with sized types
+  - [#2413](https://github.com/agda/agda/issues/2413): Agda crashes on x@y pattern
+  - [#2415](https://github.com/agda/agda/issues/2415): Size solver reports "inconsistent upper bound" even though there is a solution
+  - [#2416](https://github.com/agda/agda/issues/2416): Cannot give size as computed by solver
+  - [#2422](https://github.com/agda/agda/issues/2422): Overloaded inherited projections don't resolve
+  - [#2423](https://github.com/agda/agda/issues/2423): Inherited projection on lhs
+  - [#2426](https://github.com/agda/agda/issues/2426): On just warning about missing cases
+  - [#2429](https://github.com/agda/agda/issues/2429): Irrelevant lambda should be accepted when relevant lambda is expected
+  - [#2430](https://github.com/agda/agda/issues/2430): Another regression related to parameter refinement?
+  - [#2433](https://github.com/agda/agda/issues/2433): rebindLocalRewriteRules re-adds global rewrite rules
+  - [#2434](https://github.com/agda/agda/issues/2434): Exact split analysis is too strict when matching on eta record constructor
+  - [#2441](https://github.com/agda/agda/issues/2441): Incorrect alignement in latex using the new ACM format
+  - [#2444](https://github.com/agda/agda/issues/2444): Generalising compiler pragmas
+  - [#2445](https://github.com/agda/agda/issues/2445): The LaTeX backend is slow
+  - [#2447](https://github.com/agda/agda/issues/2447): Cache loaded interfaces even if a type error is encountered
+  - [#2451](https://github.com/agda/agda/issues/2451): Agda panics when attempting to rewrite a typeclass Eq
+  - [#2456](https://github.com/agda/agda/issues/2456): Internal error when postulating instance
+  - [#2458](https://github.com/agda/agda/issues/2458): Regression: Agda-2.5.3 loops where Agda-2.5.2 passes
+  - [#2462](https://github.com/agda/agda/issues/2462): Overloaded postfix projection does not resolve
+  - [#2464](https://github.com/agda/agda/issues/2464): Eta contraction for irrelevant functions breaks subject reduction
+  - [#2466](https://github.com/agda/agda/issues/2466): Case split to make hidden variable visible does not work
+  - [#2467](https://github.com/agda/agda/issues/2467): REWRITE without BUILTIN REWRITE crashes
+  - [#2469](https://github.com/agda/agda/issues/2469): "Partial" pattern match causes segfault at runtime
+  - [#2472](https://github.com/agda/agda/issues/2472): Regression related to the auto command
+  - [#2477](https://github.com/agda/agda/issues/2477): Sized data type analysis brittle, does not reduce size
+  - [#2478](https://github.com/agda/agda/issues/2478): Multiply defined labels on the user manual (pdf)
+  - [#2479](https://github.com/agda/agda/issues/2479): "Occurs check" error in generated Haskell code
+  - [#2480](https://github.com/agda/agda/issues/2480): Agda accepts incorrect (?) code, subject reduction broken
+  - [#2482](https://github.com/agda/agda/issues/2482): Wrong counting of data parameters with new-style mutual blocks
+  - [#2483](https://github.com/agda/agda/issues/2483): Files are sometimes truncated to a size of 201 bytes
+  - [#2486](https://github.com/agda/agda/issues/2486): Imports via FOREIGN are not transitively inherited anymore
+  - [#2488](https://github.com/agda/agda/issues/2488): Instance search inhibits holes for instance fields
+  - [#2493](https://github.com/agda/agda/issues/2493): Regression: Agda seems to loop when expression is given
+  - [#2494](https://github.com/agda/agda/issues/2494): Instance fields sometimes have incorrect goal types
+  - [#2495](https://github.com/agda/agda/issues/2495): Regression: termination checker of Agda-2.5.3 seemingly loops where Agda-2.5.2 passes
+  - [#2500](https://github.com/agda/agda/issues/2500): Adding fields to a record can cause Agda to reject previous definitions
+  - [#2510](https://github.com/agda/agda/issues/2510): Wrong error with --no-pattern-matching
+  - [#2517](https://github.com/agda/agda/issues/2517): "Not a variable error"
+  - [#2518](https://github.com/agda/agda/issues/2518): CopatternReductions in TreeLess
+  - [#2523](https://github.com/agda/agda/issues/2523): The documentation of `--without-K` is outdated
+  - [#2529](https://github.com/agda/agda/issues/2529): Unable to install Agda on Windows.
+  - [#2537](https://github.com/agda/agda/issues/2537): case splitting with 'with' creates {_} instead of replicating the arguments it found.
+  - [#2538](https://github.com/agda/agda/issues/2538): Internal error when parsing as-pattern
+  - [#2543](https://github.com/agda/agda/issues/2543): Case splitting with ellipsis produces spurious parentheses
+  - [#2545](https://github.com/agda/agda/issues/2545): Race condition in api tests
+  - [#2549](https://github.com/agda/agda/issues/2549): Rewrite rule for higher path constructor does not fire
+  - [#2550](https://github.com/agda/agda/issues/2550): Internal error in Agda.TypeChecking.Substitute
+  - [#2552](https://github.com/agda/agda/issues/2552): Let bindings in module telescopes crash Agda.Interaction.BasicOps
+  - [#2553](https://github.com/agda/agda/issues/2553): Internal error in Agda.TypeChecking.CheckInternal
+  - [#2554](https://github.com/agda/agda/issues/2554): More flexible size-assignment in successor style
+  - [#2555](https://github.com/agda/agda/issues/2555): Why does the positivity checker care about non-recursive occurrences?
+  - [#2558](https://github.com/agda/agda/issues/2558): Internal error in Warshall Solver
+  - [#2560](https://github.com/agda/agda/issues/2560): Internal Error in Reduce.Fast
+  - [#2564](https://github.com/agda/agda/issues/2564): Non-exact-split highlighting makes other highlighting disappear
+  - [#2568](https://github.com/agda/agda/issues/2568): agda2-infer-type-maybe-toplevel (in hole) does not respect "single-solution" requirement of instance resolution
+  - [#2571](https://github.com/agda/agda/issues/2571): Record pattern translation does not eta contract
+  - [#2573](https://github.com/agda/agda/issues/2573): Rewrite rules fail depending on unrelated changes
+  - [#2574](https://github.com/agda/agda/issues/2574): No link attached to module without toplevel name
+  - [#2575](https://github.com/agda/agda/issues/2575): Internal error, related to caching
+  - [#2577](https://github.com/agda/agda/issues/2577): deBruijn fail for higher order instance problem
+  - [#2578](https://github.com/agda/agda/issues/2578): Catch-all clause face used incorrectly for parent with pattern
+  - [#2579](https://github.com/agda/agda/issues/2579): Import statements with module instantiation should not trigger an error message
+  - [#2580](https://github.com/agda/agda/issues/2580): Implicit absurd match is NonVariant, explicit not
+  - [#2583](https://github.com/agda/agda/issues/2583): Wrong de Bruijn index introduced by absurd pattern
+  - [#2584](https://github.com/agda/agda/issues/2584): Duplicate warning printing
+  - [#2585](https://github.com/agda/agda/issues/2585): Definition by copatterns not modulo eta
+  - [#2586](https://github.com/agda/agda/issues/2586): "λ where" with single absurd clause not parsed
+  - [#2588](https://github.com/agda/agda/issues/2588): `agda --latex` produces invalid LaTeX when there are block comments
+  - [#2592](https://github.com/agda/agda/issues/2592): Internal Error in Agda/TypeChecking/Serialise/Instances/Common.hs
+  - [#2597](https://github.com/agda/agda/issues/2597): Inline record definitions confuse the reflection API
+  - [#2602](https://github.com/agda/agda/issues/2602): Debug output messes up AgdaInfo buffer
+  - [#2603](https://github.com/agda/agda/issues/2603): Internal error in MetaVars.hs
+  - [#2605](https://github.com/agda/agda/issues/2605): HTML backend generates anchors for whitespace
+  - [#2606](https://github.com/agda/agda/issues/2606): Check that LHS of a rewrite rule doesn't reduce is too strict
+  - [#2612](https://github.com/agda/agda/issues/2612): `exact-split` documentation is outdated and incomplete
+  - [#2613](https://github.com/agda/agda/issues/2613): Parametrised modules, with-abstraction and termination
+  - [#2620](https://github.com/agda/agda/issues/2620): Internal error in auto.
+  - [#2621](https://github.com/agda/agda/issues/2621): Case splitting instantiates meta
+  - [#2626](https://github.com/agda/agda/issues/2626): triggered internal error with sized types in MetaVars module
+  - [#2629](https://github.com/agda/agda/issues/2629): Exact splitting should not complain about absurd clauses
+  - [#2631](https://github.com/agda/agda/issues/2631): docs for auto aren't clear on how to use flags/options
+  - [#2632](https://github.com/agda/agda/issues/2632): some flags to auto dont seem to work in current agda 2.5.2
+  - [#2637](https://github.com/agda/agda/issues/2637): Internal error in Agda.TypeChecking.Pretty, possibly related to sized types
+  - [#2639](https://github.com/agda/agda/issues/2639): Performance regression, possibly related to the size solver
+  - [#2641](https://github.com/agda/agda/issues/2641): Required instance of FromNat when compiling imported files
+  - [#2642](https://github.com/agda/agda/issues/2642): Records with duplicate fields
+  - [#2644](https://github.com/agda/agda/issues/2644): Wrong substitution in expandRecordVar
+  - [#2645](https://github.com/agda/agda/issues/2645): Agda accepts postulated fields in a record
+  - [#2646](https://github.com/agda/agda/issues/2646): Only warn if fixities for undefined symbols are given
+  - [#2649](https://github.com/agda/agda/issues/2649): Empty list of "previous definition" in duplicate definition error
+  - [#2652](https://github.com/agda/agda/issues/2652): Added a new variant of the colon to the Agda input method
+  - [#2653](https://github.com/agda/agda/issues/2653): agda-mode: "cannot refine" inside instance argument even though term to be refined typechecks there
+  - [#2654](https://github.com/agda/agda/issues/2654): Internal error on result splitting without --postfix-projections
+  - [#2664](https://github.com/agda/agda/issues/2664): Segmentation fault with compiled programs using mutual record
+  - [#2665](https://github.com/agda/agda/issues/2665): Documentation: Record update syntax in wrong location
+  - [#2666](https://github.com/agda/agda/issues/2666): Internal error at Agda/Syntax/Abstract/Name.hs:113
+  - [#2667](https://github.com/agda/agda/issues/2667): Panic error on unbound variable.
+  - [#2669](https://github.com/agda/agda/issues/2669): Interaction: incorrect field variable name generation
+  - [#2679](https://github.com/agda/agda/issues/2679): Internal error at "Typechecking/Abstract.hs:133" and "TypeChecking/Telescope.hs:68"
+  - [#2682](https://github.com/agda/agda/issues/2682): What are the rules for projections of abstract records?
+  - [#2684](https://github.com/agda/agda/issues/2684): Bad error message for abstract constructor
+  - [#2686](https://github.com/agda/agda/issues/2686): Abstract constructors should be ignored when resolving overloading
+
+
+
+
 Release notes for Agda version 2.5.2
 ====================================
 
