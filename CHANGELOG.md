@@ -139,6 +139,11 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
+* Defined `_^_` in terms of Nat's `fold` and proved some of its properties.
+  Used the opportunity to prove some fold-fusion properties (distributivity
+  over _+_ and _*_; simplification of higher-order folds; fusion with an
+  associative function; id, _+_, _*_ are all particular folds; etc.)
+
 * Made BoundedVec level polymorphic and added conversion function between the
   efficient representation and the inefficient one.
 

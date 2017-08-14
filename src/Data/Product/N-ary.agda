@@ -12,7 +12,7 @@
 
 module Data.Product.N-ary where
 
-open import Data.Nat
+open import Data.Nat hiding (_^_)
 open import Data.Product
 open import Data.Unit
 open import Data.Vec

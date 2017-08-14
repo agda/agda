@@ -542,6 +542,90 @@ i*j≡1⇒j≡1 i j eq = i*j≡1⇒i≡1 j i (trans (*-comm j i) eq)
   +-mono-≤ (s≤s m≤o) (<⇒≤ (*-monoʳ-< n (s≤s m≤o)))
 
 ------------------------------------------------------------------------
+-- Properties of fold
+
+module _ {ℓ} {a : Set ℓ} {s : a → a} {z : a} where
+
+ fold-+ : ∀ m {n} → fold z s (m + n) ≡ fold (fold z s n) s m
+ fold-+ zero    = refl
+ fold-+ (suc m) = cong s (fold-+ m)
+
+ fold-k : ∀ {k} m → fold k (s ∘′_) m z ≡ fold (k z) s m
+ fold-k zero    = refl
+ fold-k (suc m) = cong s (fold-k m)
+
+module _ {ℓ} {a : Set ℓ} {s : a → a} {z : a} where
+
+ fold-* : ∀ m {n} → fold z s (m * n) ≡ fold z (fold id (s ∘_) n) m
+ fold-* zero        = refl
+ fold-* (suc m) {n} = let +n = fold id (s ∘′_) n in begin
+  fold z s (n + m * n)        ≡⟨ fold-+ n ⟩
+  fold (fold z s (m * n)) s n ≡⟨ cong (λ z → fold z s n) (fold-* m) ⟩
+  fold (fold z +n m) s n      ≡⟨ sym (fold-k n) ⟩
+  fold z +n (suc m)           ∎
+
+id-is-fold : ∀ m → fold zero suc m ≡ m
+id-is-fold zero    = refl
+id-is-fold (suc m) = cong suc (id-is-fold m)
+
++-is-fold : ∀ m {n} → fold n suc m ≡ m + n
++-is-fold zero    = refl
++-is-fold (suc m) = cong suc (+-is-fold m)
+
+*-is-fold : ∀ m {n} → fold zero (n +_) m ≡ m * n
+*-is-fold zero        = refl
+*-is-fold (suc m) {n} = cong (n +_) (*-is-fold m)
+
+^-is-fold : ∀ {m} n → fold 1 (m *_) n ≡ m ^ n
+^-is-fold     zero    = refl
+^-is-fold {m} (suc n) = cong (m *_) (^-is-fold n)
+
+module _ {ℓ} {a : Set ℓ} {s : a → a} {z : a}
+         (g : a → a → a) (p : a)
+         (eqz : g z p ≡ p)
+         (eqs : ∀ l → s (g l p) ≡ g (s l) p)
+         where
+
+ fold-pull : ∀ m → fold p s m ≡ g (fold z s m) p
+ fold-pull zero    = sym eqz
+ fold-pull (suc m) = begin
+  s (fold p s m)       ≡⟨ cong s (fold-pull m) ⟩
+  s (g (fold z s m) p) ≡⟨ eqs (fold z s m) ⟩
+  g (s (fold z s m)) p ∎
+
+*+-is-fold : ∀ m n {p} → fold p (n +_) m ≡ m * n + p
+*+-is-fold m n {p} = begin
+  fold p (n +_) m     ≡⟨ fold-pull _+_ p refl (λ l → sym (+-assoc n l p)) m ⟩
+  fold 0 (n +_) m + p ≡⟨ cong (_+ p) (*-is-fold m) ⟩
+  m * n + p           ∎
+
+^*-is-fold : ∀ m n {p} → fold p (m *_) n ≡ m ^ n * p
+^*-is-fold m n {p} = begin
+  fold p (m *_) n     ≡⟨ fold-pull _*_ p (*-identityˡ p)
+                           (λ l → sym (*-assoc m l p)) n ⟩
+  fold 1 (m *_) n * p ≡⟨ cong (_* p) (^-is-fold n) ⟩
+  m ^ n * p           ∎
+
+------------------------------------------------------------------------
+-- Properties of _^_
+
+exp-+ : ∀ m n p → m ^ (n + p) ≡ m ^ n * m ^ p
+exp-+ m n p = let m^ = fold 1 (m *_) in begin
+  m ^ (n + p)           ≡⟨ sym (^-is-fold (n + p)) ⟩
+  m^  (n + p)           ≡⟨ fold-+ n ⟩
+  fold (m^ p) (m *_) n  ≡⟨ cong (λ z → fold z (m *_) n) (^-is-fold p) ⟩
+  fold (m ^ p) (m *_) n ≡⟨ ^*-is-fold m n ⟩
+  (m ^ n) * (m ^ p)     ∎
+
+i^j≡0⇒i≡0 : ∀ i j → i ^ j ≡ 0 → i ≡ 0
+i^j≡0⇒i≡0 i zero    ()
+i^j≡0⇒i≡0 i (suc j) eq = [ id , i^j≡0⇒i≡0 i j ]′ (i*j≡0⇒i≡0∨j≡0 i eq)
+
+i^j≡1⇒j≡0∨i≡1 : ∀ i j → i ^ j ≡ 1 → j ≡ 0 ⊎ i ≡ 1
+i^j≡1⇒j≡0∨i≡1 i zero    _  = inj₁ refl
+i^j≡1⇒j≡0∨i≡1 i (suc j) eq = inj₂ (i*j≡1⇒i≡1 i (i ^ j) eq)
+
+------------------------------------------------------------------------
 -- Properties of _⊔_ and _⊓_
 
 ⊔-assoc : Associative _⊔_
