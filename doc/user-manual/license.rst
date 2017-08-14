@@ -9,7 +9,7 @@ Agda 2 was originally written by Ulf Norell,
 partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
 
-Agda 2 in version 2.5.3 is actively developed mainly by Andreas Abel,
+Agda 2 is currently actively developed mainly by Andreas Abel,
 Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp
 Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan,
 Andrés Sicard-Ramírez, and Andrea Vezzosi.
