@@ -41,6 +41,11 @@ be followed:
 
 * Update the LICENSE file, if necessary.
 
+  Note: the list of contributors is duplicated in the following locations:
+
+  - doc/user-manual/license.rst
+  - doc/user-manual/conf.py
+
 * Add a second source-repository section to Agda.cabal:
 
     source-repository this
