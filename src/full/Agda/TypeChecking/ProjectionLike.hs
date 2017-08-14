@@ -174,16 +174,18 @@ elimView loneProjToLambda v = do
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
 eligibleForProjectionLike :: QName -> TCM Bool
-eligibleForProjectionLike d = do
-  defn <- theDef <$> getConstInfo d
-  return $ case defn of
+eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
+  where
+  eligible = \case
     Datatype{} -> True
     Record{}   -> True
     Axiom{}    -> True
     Function{}    -> False
     Primitive{}   -> False
     Constructor{} -> __IMPOSSIBLE__
-    AbstractDefn  -> False
+    AbstractDefn d -> eligible d
+      -- Andreas, 2017-08-14, issue #2682:
+      -- Abstract records still export the projections.
       -- Andreas, 2016-10-11 AIM XXIV
       -- Projection-like at abstract types violates the parameter reconstructibility property.
       -- See test/Fail/AbstractTypeProjectionLike.

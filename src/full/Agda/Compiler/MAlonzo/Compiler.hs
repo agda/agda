@@ -332,7 +332,7 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
         let ar = I.arity ty
         cd <- snd <$> condecl c
         return $ tvaldecl q Inductive noFields ar [cd] cl
-      AbstractDefn -> __IMPOSSIBLE__
+      AbstractDefn{} -> __IMPOSSIBLE__
   where
   function :: Maybe HaskellPragma -> TCM [HS.Decl] -> TCM [HS.Decl]
   function mhe fun = do

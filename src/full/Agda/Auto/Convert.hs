@@ -116,7 +116,7 @@ tomy imi icns typs = do
            return (Def narg clauses' Nothing Nothing, [])
      (cont, projfcns2) <- case defn of
       MB.Axiom {} -> return (Postulate, [])
-      MB.AbstractDefn -> return (Postulate, [])
+      MB.AbstractDefn{} -> return (Postulate, [])
       MB.Function {MB.funClauses = clauses} -> clausesToDef clauses
       -- MB.Primitive {MB.primClauses = []} -> throwError $ strMsg "Auto: Primitive functions are not supported" -- Andreas, 2013-06-17 breaks interaction/AutoMisc
       MB.Primitive {MB.primClauses = clauses} -> clausesToDef clauses

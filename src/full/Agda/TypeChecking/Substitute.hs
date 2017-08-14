@@ -250,7 +250,7 @@ instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
-    AbstractDefn -> d
+    AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Nothing } ->
       d { funClauses    = apply cs args
@@ -563,7 +563,7 @@ instance Abstract ProjLams where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
-    AbstractDefn -> d
+    AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Nothing  } ->
       d { funClauses  = abstract tel cs

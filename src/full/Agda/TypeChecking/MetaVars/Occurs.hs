@@ -555,7 +555,7 @@ isNeutral b f es = liftTCM $ do
   def <- getConstInfo f
   if defMatchable def then no else do
   case theDef def of
-    AbstractDefn -> yes
+    AbstractDefn{} -> yes
     Axiom{}    -> yes
     Datatype{} -> yes
     Record{}   -> yes
