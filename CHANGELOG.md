@@ -137,6 +137,22 @@ Language
   Aside from datatypes, this pragma can also be used to mark other definitions
   as being injective (for example postulates).
 
+* Metavariables can no longer be instantiated during case splitting. This means
+  Agda will refuse to split instead of taking the first constructor it finds.
+  For example:
+  ```agda
+    open import Agda.Builtin.Nat
+
+    data Vec (A : Set) : Nat → Set where
+      nil : Vec A 0
+      cons : {n : Nat} → A → Vec A n → Vec A (suc n)
+
+    foo : Vec Nat _ → Nat
+    foo x = {!x!}
+  ```
+  In Agda 2.5.2, case splitting on `x` produced the single clause
+  `foo nil = {!!}`, but now Agda refuses to split.
+
 ### Reflection
 
 * New TC primitive: `debugPrint`.
