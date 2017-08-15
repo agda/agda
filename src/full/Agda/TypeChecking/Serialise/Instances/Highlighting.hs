@@ -83,7 +83,7 @@ instance EmbPrj HP.OtherAspect where
     valu [5] = valuN HP.TypeChecks
     valu [6] = valuN HP.UnsolvedConstraint
     valu [7] = valuN HP.PositivityProblem
-    valu [8] = valuN HP.ReachabilityProblem
+    valu [8] = valuN HP.DeadCodeProblem
     valu [9] = valuN HP.CoverageProblem
     valu [10] = valuN HP.CatchallClause
     valu _   = malformed
