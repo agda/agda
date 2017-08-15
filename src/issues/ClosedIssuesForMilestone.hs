@@ -5,7 +5,7 @@
 {-# LANGUAGE NamedFieldPuns            #-}
 
 import Data.Foldable
-import Data.List ( intercalate )
+-- import Data.List ( intercalate )
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -21,7 +21,7 @@ import GitHub.Data.Issues ( Issue( Issue, issueMilestone, issueNumber, issueTitl
 import GitHub.Data.Name ( Name( N ) )
 import GitHub.Data.Milestone ( Milestone( milestoneNumber, milestoneTitle ) )
 import GitHub.Data.Options ( stateClosed )
-import GitHub.Data.Options ( IssueState(..), IssueRepoMod(..) ) -- not exported:, FilterBy(..) )
+-- import GitHub.Data.Options ( IssueState(..), IssueRepoMod(..) ) -- not exported:, FilterBy(..) )
 import GitHub.Data.URL ( URL, getUrl )
 
 import qualified GitHub.Endpoints.Issues.Milestones as GH ( milestones' )
