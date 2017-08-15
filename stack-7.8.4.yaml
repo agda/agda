@@ -12,6 +12,7 @@ extra-deps:
 - STMonadTrans-0.4.3
 - binary-0.7.2.1
 - boxes-0.1.4
+- cpphs-1.20.8
 - data-hash-0.2.0.1
 - equivalence-0.3.2
 - fail-4.9.0.0
