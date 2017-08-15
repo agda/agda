@@ -87,7 +87,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc" CPPHS_MANUAL_INSTALL=NO
+    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc" MANUAL_INSTALL_BUILD_TOOLS=NO
       addons:
         apt:
           packages:
@@ -95,7 +95,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=7.10.3 BUILD=STACK ARGS="--stack-yaml stack-7.10.3.yaml --system-ghc" CPPHS_MANUAL_INSTALL=YES
+    - env: TEST=STACKAGE GHC_VER=7.10.3 BUILD=STACK ARGS="--stack-yaml stack-7.10.3.yaml --system-ghc" MANUAL_INSTALL_BUILD_TOOLS=YES
       addons:
         apt:
           packages:
@@ -103,7 +103,7 @@ matrix:
           sources:
             - hvr-ghc
     
-    - env: TEST=STACKAGE GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc" CPPHS_MANUAL_INSTALL=YES
+    - env: TEST=STACKAGE GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc" MANUAL_INSTALL_BUILD_TOOLS=YES
       addons:
         apt:
           packages:
@@ -209,16 +209,17 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-# We have to manually install `cpphs` for older snapshots because `stack` does not
-# install build tools outside the assigned snapshot. [Issue commercialhaskell/stack #595]
+# We have to manually install `alex` and `cpphs` for older snapshots
+# because `stack` refuses to install build tools outside the designated
+# snapshot. [Issue commercialhaskell/stack #595]
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
-       if [[ $CPPHS_MANUAL_INSTALL = "YES" ]]; then
-           stack install $ARGS cpphs;
+       if [[ $MANUAL_INSTALL_BUILD_TOOLS = "YES" ]]; then
+           stack install $ARGS alex cpphs;
        fi;
        stack build $ARGS --no-terminal --only-dependencies;
     fi
