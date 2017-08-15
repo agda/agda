@@ -209,9 +209,9 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-# We have to manually install `alex` and `cpphs` for older snapshots
-# because `stack` refuses to install build tools outside the designated
-# snapshot. [Issue commercialhaskell/stack #595]
+# We have to manually install `alex`, `cpphs` and possibly `happy`
+# for older snapshots because `stack` refuses to install build tools
+# outside the designated snapshot. [Issue commercialhaskell/stack #595]
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
@@ -219,7 +219,7 @@ install:
        make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
        if [[ $MANUAL_INSTALL_BUILD_TOOLS = "YES" ]]; then
-           stack install $ARGS alex cpphs;
+           stack install $ARGS alex cpphs happy;
        fi;
        stack build $ARGS --no-terminal --only-dependencies;
     fi
