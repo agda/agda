@@ -220,7 +220,7 @@ install:
        if [[ $CPPHS_MANUAL_INSTALL = "YES" ]]; then
            stack install $ARGS cpphs;
        fi;
-       stack build $ARGS --no-terminal --test --only-dependencies;
+       stack build $ARGS --no-terminal --only-dependencies;
     fi
 
 ##############################################################################
@@ -287,8 +287,8 @@ install:
 # N.B. that this test is not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE" ]]; then
-       stack build $ARGS --no-terminal --test --no-run-tests &&
-       stack build $ARGS --no-terminal --test --no-run-tests --flag Agda:-cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
+       stack build $ARGS --no-terminal &&
+       stack build $ARGS --no-terminal --flag Agda:-cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
 ##############################################################################
