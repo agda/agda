@@ -219,7 +219,7 @@ install:
        make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
        if [[ $MANUAL_INSTALL_BUILD_TOOLS = "YES" ]]; then
-           stack install $ARGS alex cpphs happy;
+           stack install $ARGS --no-terminal alex cpphs happy;
        fi;
        stack build $ARGS --no-terminal --only-dependencies;
     fi
