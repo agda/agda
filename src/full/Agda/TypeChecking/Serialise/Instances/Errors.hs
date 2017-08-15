@@ -169,11 +169,13 @@ instance EmbPrj WarningMode where
   icod_ LeaveAlone        = icodeN 0 LeaveAlone
   icod_ TurnIntoErrors    = icodeN 1 TurnIntoErrors
   icod_ IgnoreAllWarnings = icodeN 2 IgnoreAllWarnings
+  icod_ UselessImports    = icodeN 3 UselessImports
 
   value = vcase valu where
     valu [0] = valuN LeaveAlone
     valu [1] = valuN TurnIntoErrors
     valu [2] = valuN IgnoreAllWarnings
+    valu [3] = valuN UselessImports
     valu _   = malformed
 
 

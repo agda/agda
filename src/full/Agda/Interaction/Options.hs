@@ -89,7 +89,11 @@ data IgnoreFlags = IgnoreFlags | RespectFlags
 
 -- Potentially turn harmless warnings into nothing, or errors
 -- (does not apply to non-fatal errors)
-data WarningMode = LeaveAlone | TurnIntoErrors | IgnoreAllWarnings
+data WarningMode =
+    LeaveAlone
+  | TurnIntoErrors
+  | IgnoreAllWarnings
+  | UselessImports
   deriving (Show, Eq
 #if __GLASGOW_HASKELL__ <= 708
            , Typeable
@@ -101,6 +105,7 @@ warningModes =
   [ (defaultWarningMode, LeaveAlone)
   , ("ignore"          , IgnoreAllWarnings)
   , ("error"           , TurnIntoErrors)
+  , ("useless-imports" , UselessImports)
   ]
 
 -- Don't forget to update

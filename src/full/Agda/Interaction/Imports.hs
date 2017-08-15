@@ -730,7 +730,8 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
         reportSLn "import.iface.create" 7 $ "Starting type checking."
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 $ "Finished type checking."
-        checkUselessImports
+        wmode <- optWarningMode <$> pragmaOptions
+        when (wmode == UselessImports) checkUselessImports
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.

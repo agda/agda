@@ -3103,6 +3103,7 @@ warning w = do
                            AllWarnings -> return ()
     TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
     LeaveAlone -> raiseWarning tcwarn
+    UselessImports -> raiseWarning tcwarn
   where raiseWarning tcw = stTCWarnings %= (tcw :)
 
 -- | Running the type checking monad (most general form).
