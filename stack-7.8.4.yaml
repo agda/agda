@@ -1,0 +1,35 @@
+resolver: lts-2.22
+
+flags:
+  QuickCheck:
+    base4: true
+    base4point8: false
+
+extra-deps:
+- EdisonAPI-1.3.1
+- EdisonCore-1.3.1.1
+- QuickCheck-2.8.2
+- STMonadTrans-0.4.3
+- binary-0.7.2.1
+- boxes-0.1.4
+- cpphs-1.20.8
+- data-hash-0.2.0.1
+- equivalence-0.3.2
+- fail-4.9.0.0
+- geniplate-mirror-0.7.5
+- gitrev-1.2.0
+- haskeline-0.7.1.3
+- ieee754-0.7.8
+- monadplus-1.4.2
+- mtl-2.2.1
+- murmur-hash-0.1.0.9
+- regex-tdfa-1.2.2
+- regex-tdfa-text-1.0.0.3
+- semigroups-0.18
+- transformers-0.4.2.0
+- transformers-compat-0.4.0.4
+- void-0.7.1
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
