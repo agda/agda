@@ -85,6 +85,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty hiding ((<>))
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 
@@ -1212,7 +1213,7 @@ instance Pretty DisplayTerm where
   prettyPrec p v =
     case v of
       DTerm v          -> prettyPrec p v
-      DDot v           -> text "." <> prettyPrec 10 v
+      DDot v           -> text "." P.<> prettyPrec 10 v
       DDef f es        -> pretty f `pApp` es
       DCon c _ vs      -> pretty (conName c) `pApp` map Apply vs
       DWithApp h ws es ->
