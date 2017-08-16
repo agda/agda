@@ -252,13 +252,16 @@ instance Apply Defn where
     Axiom{} -> d
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funExtLam = extLam
             , funProjection = Nothing } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
+        , funExtLam     = modifySystem (`apply` args) <$> extLam
         }
 
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funExtLam = extLam
             , funProjection = Just p0} ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
@@ -271,6 +274,7 @@ instance Apply Defn where
                 , funCompiled       = apply cc args'
                 , funInv            = apply inv args'
                 , funProjection     = if isVar0 then Just p{ projIndex = 0 } else Nothing
+                , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
                 }
               where
                 larg  = last args -- the record value
@@ -413,6 +417,24 @@ instance Apply CompiledClauses where
       | otherwise -> __IMPOSSIBLE__
     where
       len = length args
+
+instance Apply ExtLamInfo where
+  apply (ExtLamInfo n h sys) args = ExtLamInfo n h (apply sys args)
+
+instance Apply System where
+  -- We assume we apply a system only to arguments introduced by
+  -- lambda lifting.
+  apply (System tel sys) args
+      = if nargs > ntel then __IMPOSSIBLE__
+        else System newTel (map (map (f -*- id) -*- f) sys)
+
+    where
+      f = applySubst sigma
+      nargs = length args
+      ntel = size tel
+      newTel = apply tel args
+      -- newTel ⊢ σ : tel
+      sigma = liftS (ntel - nargs) (parallelS (reverse $ map unArg args))
 
 instance Apply a => Apply (WithArity a) where
   apply  (WithArity n a) args = WithArity n $ apply  a args
@@ -560,17 +582,23 @@ instance Abstract ProjLams where
   abstract tel (ProjLams lams) = ProjLams $
     map (\ !dom -> argFromDom (fst <$> dom)) (telToList tel) ++ lams
 
+instance Abstract System where
+  abstract tel (System tel1 sys) = System (abstract tel tel1) sys
+
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funExtLam = extLam
             , funProjection = Nothing  } ->
       d { funClauses  = abstract tel cs
         , funCompiled = abstract tel cc
         , funInv      = abstract tel inv
+        , funExtLam   = modifySystem (abstract tel) <$> extLam
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funExtLam = extLam
             , funProjection = Just p } ->
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
@@ -578,6 +606,7 @@ instance Abstract Defn where
         d' { funClauses  = abstract tel1 cs
            , funCompiled = abstract tel1 cc
            , funInv      = abstract tel1 inv
+           , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
            }
         where
           d' = d { funProjection = Just $ abstract tel p }

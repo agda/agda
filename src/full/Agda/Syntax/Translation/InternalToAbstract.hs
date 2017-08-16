@@ -519,10 +519,10 @@ reifyTerm expandAnonDefs0 v = do
         toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-             Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
+             Function{ funExtLam = Just (ExtLamInfo h nh sys) } -> Just (toppars + h + nh, sys)
              _ -> Nothing
         case extLam of
-          Just pars | df -> reifyExtLam x pars (defClauses defn) es
+          Just (pars,sys) | df -> reifyExtLam x pars sys (defClauses defn) es
 
         -- Otherwise (ordinary function call):
           _ -> do
@@ -612,8 +612,8 @@ reifyTerm expandAnonDefs0 v = do
     -- patterns, we fall back to printing the internal function created for the
     -- extended lambda, instead trying to construct the nice syntax.
 
-    reifyExtLam :: QName -> Int -> [I.Clause] -> I.Elims -> TCM Expr
-    reifyExtLam x npars cls es = do
+    reifyExtLam :: QName -> Int -> Maybe System -> [I.Clause] -> I.Elims -> TCM Expr
+    reifyExtLam x npars msys cls es = do
       reportSLn "reify.def" 10 $ "reifying extended lambda " ++ prettyShow x
       reportSLn "reify.def" 50 $ render $ nest 2 $ vcat
         [ text "npars =" <+> pretty npars
@@ -622,10 +622,13 @@ reifyTerm expandAnonDefs0 v = do
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
       let (pars, rest) = splitAt npars es
+
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
       -- (this is taken care of by @apply@).
-      cls <- mapM (reify . NamedClause x False . (`applyE` pars)) cls
+      cls <- caseMaybe msys
+               (mapM (reify . NamedClause x False . (`applyE` pars)) cls)
+               (reify . QNamed x . (`applyE` pars))
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
       elims (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
@@ -1010,6 +1013,30 @@ instance Reify NamedClause A.Clause where
       stripImps (SpineLHS i f ps wps) = do
         (ps, wps) <- stripImplicits (ps, wps)
         return $ SpineLHS i f ps wps
+
+instance Reify (QNamed System) [A.Clause] where
+  reify (QNamed f (System tel sys)) = addContext tel $ do
+    reportSLn "reify.system" 40 $ unlines $ show tel : map show sys
+    unview <- intervalUnview'
+    forM sys $ \ (alpha,u) -> do
+      rhs <- RHS <$> reify u <*> pure Nothing
+      ep <- fmap (A.EqualP patNoRange) . forM alpha $ \ (phi,b) -> do
+        let
+            d True = unview IOne
+            d False = unview IZero
+        reify (phi, d b)
+      -- Since stripImplicits assumes all visible variables are bound
+      -- in the patterns, we create them for the full context and then
+      -- keep only the ones for "tel"
+      tel' <- getContextTelescope
+      ps <- reifyPatterns $ teleNamedArgs tel'
+      ps <- return $ ps ++ [defaultNamedArg ep]
+      (ps,[]) <- stripImplicits (ps,[])
+      ps <- return $ drop (size tel' - size tel) ps
+      let
+        lhs = SpineLHS (LHSRange noRange) f ps []
+        result = A.Clause (spineToLhs lhs) [] rhs [] False
+      return result
 
 instance Reify Type Expr where
     reifyWhen = reifyWhenE

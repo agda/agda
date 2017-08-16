@@ -211,7 +211,7 @@ quotingKit = do
             let
               conOrProjPars = defParameters defn
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } = do
+              qx Function{ funExtLam = Just (ExtLamInfo h nh _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     -- Andreas, 2017-01-23 quoting Ulf

@@ -4,7 +4,7 @@
 module Agda.TypeChecking.Rules.Def where
 
 import Prelude hiding (mapM)
-import Control.Arrow ((***),second)
+import Control.Arrow ((***),first,second)
 import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Reader hiding (forM, mapM)
@@ -278,9 +278,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
-        cs <- if not isSystem then return cs else do
+        (cs,sys) <- if not isSystem then return (cs, Nothing) else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 inTopContext $ checkSystemCoverage name isOneIxs fullType cs
+                 sys <- inTopContext $ checkSystemCoverage name isOneIxs fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseFullRange = noRange
@@ -291,7 +291,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
                        }
-                 return (cs ++ [c])
+                 return (cs ++ [c], Just sys)
 
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull {- =<< mapM rebindClause -} cs
@@ -349,7 +349,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funDelayed        = delayed
              , funInv            = inv
              , funAbstr          = Info.defAbstract i
-             , funExtLam         = extlam
+             , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
              , funCopatternLHS   = isCopatternLHS cs
              }
@@ -410,7 +410,7 @@ checkSystemCoverage
   -> [Int]
   -> Type
   -> [Clause]
-  -> TCM ()
+  -> TCM System
 checkSystemCoverage f [n] t cs = do
   reportSDoc "tc.sys.cover" 10 $ text (show (n , length cs)) <+> prettyTCM t
   TelV gamma t <- telViewUpTo n t
@@ -431,15 +431,18 @@ checkSystemCoverage f [n] t cs = do
         isDir (ConP q _ []) | Just (conName q) == io = Just True
         isDir _ = Nothing
 
+        collectDirs :: [Int] -> [DeBruijnPattern] -> [(Int,Bool)]
         collectDirs [] [] = []
         collectDirs (i : is) (p : ps) | Just d <- isDir p = (i,d) : collectDirs is ps
                                       | otherwise         = collectDirs is ps
         collectDirs _ _ = __IMPOSSIBLE__
 
+        dir :: (Int,Bool) -> Term
         dir (i,False) = ineg `apply` [argN $ var i]
         dir (i,True) = var i
 
         -- andI and orI have cases for singletons to improve error messages.
+        andI, orI :: [Term] -> Term
         andI [] = i1
         andI [t] = t
         andI (t:ts) = (\ x -> imin `apply` [argN t, argN x]) $ andI ts
@@ -450,7 +453,9 @@ checkSystemCoverage f [n] t cs = do
 
       let
         pats = map (take n . map (namedThing . unArg) . namedClausePats) cs
+        alphas :: [[(Int,Bool)]] -- the face maps corresponding to each clause
         alphas = map (collectDirs (downFrom n)) pats
+        phis :: [Term] -- the φ terms for each clause (i.e. the alphas as terms)
         phis = map andI $ map (map dir) alphas
         psi = orI $ phis
         pcs = zip phis cs
@@ -479,10 +484,32 @@ checkSystemCoverage f [n] t cs = do
             v1 <- body cl1
             v2 <- body cl2
             equalTerm t' v1 v2
-      return ()
-    _ -> __IMPOSSIBLE__
 
-  where
+      sys <- forM (zip alphas cs) $ \ (alpha,cl) -> do
+
+            let
+                -- Δ = Γ_α , Δ'α
+                delta = clauseTel cl
+                -- Δ ⊢ b
+                Just b = clauseBody cl
+                -- Δ ⊢ ps : Γ , o : [φ] , Δ'
+                -- we assume that there's no pattern matching other
+                -- than from the system
+                ps = namedClausePats cl
+                extra = length (drop (size gamma + 1) ps)
+                -- size Δ'α = size Δ' = extra
+                -- Γ , α ⊢ u
+                takeLast n xs = drop (length xs - n) xs
+                weak [] = idS
+                weak (i:is) = weak is `composeS` liftS i (raiseS 1)
+                tel = telFromList (takeLast extra (telToList delta))
+                u = abstract tel (liftS extra (weak $ List.sort $ map fst alpha) `applySubst` b)
+            return (map (first var) alpha,u)
+
+      reportSDoc "tc.sys.cover.sys" 20 $ fsep $ prettyTCM gamma : map prettyTCM sys
+      reportSDoc "tc.sys.cover.sys" 40 $ fsep $ (text . show) gamma : map (text . show) sys
+      return (System gamma sys) -- gamma uses names from the type, not the patterns, could we do better?
+    _ -> __IMPOSSIBLE__
 checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
 
 checkBodyEndPoints

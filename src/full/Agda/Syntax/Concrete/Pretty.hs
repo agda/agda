@@ -527,7 +527,7 @@ instance Pretty Pattern where
             LitP l          -> pretty l
             QuoteP _        -> text "quote"
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
-            EqualP _ es     -> sep $ concat [ [pretty e1, text "=", pretty e2] | (e1,e2) <- es ]
+            EqualP _ es     -> sep $ [ parens (sep [pretty e1, text "=", pretty e2]) | (e1,e2) <- es ]
 
 prettyOpApp :: forall a .
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]

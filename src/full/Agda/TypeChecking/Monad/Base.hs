@@ -1400,11 +1400,30 @@ type CompiledRepresentation = Map BackendName [CompilerPragma]
 noCompiledRep :: CompiledRepresentation
 noCompiledRep = Map.empty
 
+-- A face represented as a list of equality constraints.
+-- (r,False) ↦ (r = i0)
+-- (r,True ) ↦ (r = i1)
+type Face = [(Term,Bool)]
+
+-- | An alternative representation of partial elements in a telescope:
+--   Γ ⊢ λ Δ. [φ₁ u₁, ... , φₙ uₙ] : Δ → PartialP (∨_ᵢ φᵢ) T
+--   see cubicaltt paper (however we do not store the type T).
+data System = System
+  { systemTel :: Telescope
+    -- ^ the telescope Δ, binding vars for the clauses, Γ ⊢ Δ
+  , systemClauses :: [(Face,Term)]
+    -- ^ a system [φ₁ u₁, ... , φₙ uₙ] where Γ, Δ ⊢ φᵢ and Γ, Δ, φᵢ ⊢ uᵢ
+  } deriving (Typeable, Data, Show)
+
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
   { extLamNumHidden :: Int  -- Number of hidden args to be dropped when printing.
   , extLamNumNonHid :: Int  -- Number of visible args to be dropped when printing.
-  } deriving (Typeable, Data, Eq, Ord, Show)
+  , extLamSys :: !(Maybe System)
+  } deriving (Typeable, Data, Show)
+
+modifySystem :: (System -> System) -> ExtLamInfo -> ExtLamInfo
+modifySystem f e = let !e' = e { extLamSys = f <$> extLamSys e } in e'
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
@@ -3242,8 +3261,11 @@ instance KillRange CompiledRepresentation where
 instance KillRange EtaEquality where
   killRange = id
 
+instance KillRange System where
+  killRange (System tel sys) = System (killRange tel) (killRange sys)
+
 instance KillRange ExtLamInfo where
-  killRange = id
+  killRange (ExtLamInfo x y r) = ExtLamInfo x y (killRange r)
 
 instance KillRange FunctionFlag where
   killRange = id

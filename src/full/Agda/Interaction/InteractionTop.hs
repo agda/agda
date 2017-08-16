@@ -951,7 +951,7 @@ interpret (Cmd_make_case ii rng s) = do
     extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause
     extlam_dropLLifted Nothing _ x = x
     extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{} _) _ _ _ _) = __IMPOSSIBLE__
-    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden (A.Clause (A.LHS info (A.LHSHead name nps) ps) dots rhs decl catchall)
+    extlam_dropLLifted (Just (ExtLamInfo h nh _)) hidden (A.Clause (A.LHS info (A.LHSHead name nps) ps) dots rhs decl catchall)
       = let n = if hidden then h + nh else nh
         in
          (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) dots rhs decl catchall)

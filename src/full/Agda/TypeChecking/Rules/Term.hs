@@ -569,7 +569,7 @@ checkExtendedLambda i di qname cs e t = do
      -- in case the lhs checker failed due to insufficient type info for the patterns.
      -- Issues 480, 1159, 1811.
      mx <- catchIlltypedPatternBlockedOnMeta $ abstract (A.defAbstract di) $
-       checkFunDef' t info NotDelayed (Just $ ExtLamInfo (length hid) (length notHid)) Nothing di qname cs
+       checkFunDef' t info NotDelayed (Just $ ExtLamInfo (length hid) (length notHid) Nothing) Nothing di qname cs
      case mx of
        -- Case: type checking succeeded, so we go ahead.
        Nothing -> return $ Def qname $ map Apply args
