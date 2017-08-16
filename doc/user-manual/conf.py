@@ -53,7 +53,25 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Agda'
-copyright = u'2016, Ulf Norell, Andreas Abel, Nils Anders Danielsson, Makoto Takeyama, Catarina Coquand, with contributions by Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, James Chapman, Jesper Cockx, Dominique Devriese, Peter Divanski, Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson, Philipp Hausmann, Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez, Andrea Vezzosi, and many more.'
+copyright = u'''2005-2017 remains with the authors.
+Agda 2 was originally written by Ulf Norell,
+partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
+and from Agdalight by Ulf Norell and Andreas Abel.
+
+Agda 2 is currently actively developed mainly by Andreas Abel,
+Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp
+Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan,
+Andrés Sicard-Ramírez, and Andrea Vezzosi.
+
+Further, Agda 2 has received contributions by, amongst others, Stevan
+Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
+James Chapman, Dominique Devriese, Péter Divianszki, Olle Fredriksson,
+Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik
+Jansson, Alan Jeffrey, Wolfram Kahl, Pepijn Kokke, Fredrik Lindblad,
+Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin,
+Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto
+Takeyama.  The full list of contributors is available at
+https://github.com/agda/agda/graphs/contributors'''
 author = u'The Agda Team'
 
 # The version info for the project you're documenting, acts as replacement for

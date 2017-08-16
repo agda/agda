@@ -227,7 +227,7 @@ getDefType f t = do
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
   reportSDoc "tc.deftype" 20 $ vcat
-    [ text "definition f = " <> prettyTCM f <+> text ("raw: " ++ prettyShow f)
+    [ text "definition f = " <> prettyTCM f <+> text ("  -- raw: " ++ prettyShow f)
     , text "has type   a = " <> prettyTCM a
     , text "principal  t = " <> prettyTCM t
     ]

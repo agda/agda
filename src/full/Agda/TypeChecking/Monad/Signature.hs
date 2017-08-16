@@ -940,13 +940,16 @@ makeAbstract d =
                }
   where
     makeAbs Axiom         = Just Axiom
-    makeAbs Datatype   {} = Just AbstractDefn
-    makeAbs Function   {} = Just AbstractDefn
+    makeAbs d@Datatype {} = Just $ AbstractDefn d
+    makeAbs d@Function {} = Just $ AbstractDefn d
     makeAbs Constructor{} = Nothing
     -- Andreas, 2012-11-18:  Make record constructor and projections abstract.
-    makeAbs d@Record{}    = Just AbstractDefn
+    -- Andreas, 2017-08-14:  Projections are actually not abstract (issue #2682).
+    -- Return the Defn under a wrapper to allow e.g. eligibleForProjectionLike
+    -- to see whether the abstract thing is a record type or not.
+    makeAbs d@Record{}    = Just $ AbstractDefn d
     makeAbs Primitive{}   = __IMPOSSIBLE__
-    makeAbs AbstractDefn  = __IMPOSSIBLE__
+    makeAbs AbstractDefn{}= __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
@@ -1025,7 +1028,7 @@ droppedPars d = case theDef d of
     Record     {recPars = _} -> 0  -- not dropped
     Constructor{conPars = n} -> n
     Primitive{}              -> 0
-    AbstractDefn             -> __IMPOSSIBLE__
+    AbstractDefn{}           -> __IMPOSSIBLE__
 
 -- | Is it the name of a record projection?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}

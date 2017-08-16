@@ -289,7 +289,7 @@ instance EmbPrj Defn where
   icod_ (Record      a b c d e f g h i j)       = icodeN 3 Record a b c d e f g h i j
   icod_ (Constructor a b c d e f g)             = icodeN 4 Constructor a b c d e f g
   icod_ (Primitive   a b c d)                   = icodeN 5 Primitive a b c d
-  icod_ AbstractDefn                            = __IMPOSSIBLE__
+  icod_ AbstractDefn{}                          = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0]                                     = valuN Axiom

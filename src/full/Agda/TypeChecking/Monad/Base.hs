@@ -85,6 +85,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty hiding ((<>))
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 
@@ -1208,6 +1209,22 @@ instance Free DisplayTerm where
   freeVars' (DDot v)           = freeVars' v
   freeVars' (DTerm v)          = freeVars' v
 
+instance Pretty DisplayTerm where
+  prettyPrec p v =
+    case v of
+      DTerm v          -> prettyPrec p v
+      DDot v           -> text "." P.<> prettyPrec 10 v
+      DDef f es        -> pretty f `pApp` es
+      DCon c _ vs      -> pretty (conName c) `pApp` map Apply vs
+      DWithApp h ws es ->
+        mparens (p > 0)
+          (sep [ pretty h
+              , nest 2 $ fsep [ text "|" <+> pretty w | w <- ws ] ])
+        `pApp` es
+    where
+      pApp d els = mparens (not (null els) && p > 9) $
+                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
+
 -- | By default, we have no display form.
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
@@ -1458,7 +1475,7 @@ data FunctionFlag
 
 data Defn = Axiom
             -- ^ Postulate.
-          | AbstractDefn
+          | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
           | Function
             { funClauses        :: [Clause]
@@ -3226,7 +3243,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      AbstractDefn -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
+      AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j

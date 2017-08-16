@@ -4,14 +4,25 @@
 The Agda License
 ################
 
-Copyright (c) 2005-2015 Ulf Norell, Andreas Abel, Nils Anders
-Danielsson, Andrés Sicard-Ramírez, Dominique Devriese, Péter
-Divianszki, Francesco Mazzoli, Stevan Andjelkovic, Daniel Gustafsson,
-Alan Jeffrey, Makoto Takeyama, Andrea Vezzosi, Nicolas Pouillard,
-James Chapman, Jean-Philippe Bernardy, Fredrik Lindblad, Nobuo
-Yamashita, Fredrik Nordvall Forsberg, Patrik Jansson, Guilhem Moulin,
-Stefan Monnier, Marcin Benke, Olle Fredriksson, Darin Morrison, Jesper
-Cockx, Wolfram Kahl, Catarina Coquand
+Copyright (c) 2005-2017 remains with the authors.
+Agda 2 was originally written by Ulf Norell,
+partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
+and from Agdalight by Ulf Norell and Andreas Abel.
+
+Agda 2 is currently actively developed mainly by Andreas Abel,
+Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp
+Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan,
+Andrés Sicard-Ramírez, and Andrea Vezzosi.
+
+Further, Agda 2 has received contributions by, amongst others, Stevan
+Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
+James Chapman, Dominique Devriese, Péter Divianszki, Olle Fredriksson,
+Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik
+Jansson, Alan Jeffrey, Wolfram Kahl, Pepijn Kokke, Fredrik Lindblad,
+Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin,
+Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto
+Takeyama.  The full list of contributors is available at
+https://github.com/agda/agda/graphs/contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -96,4 +107,3 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
-
