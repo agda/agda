@@ -1,0 +1,10 @@
+resolver: lts-6.35
+
+extra-deps:
+- STMonadTrans-0.4.3
+- cpphs-1.20.8
+- equivalence-0.3.2
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
