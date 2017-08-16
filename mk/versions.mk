@@ -1,5 +1,5 @@
 # Agda version.
-VERSION=2.5.2.20170813
+VERSION=2.5.2.20170816
 
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
