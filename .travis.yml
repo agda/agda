@@ -210,8 +210,11 @@ install:
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
 # We have to manually install `alex`, `cpphs` and possibly `happy`
-# for older snapshots because `stack` refuses to install build tools
-# outside the designated snapshot. [Issue commercialhaskell/stack #595]
+# for older snapshots because `stack` seems to have trouble installing
+# build tools for those snapshots.  Note that the version of `cpphs`
+# is currently specified in the yaml files.
+#
+# See https://github.com/commercialhaskell/stack/issues/595.
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
