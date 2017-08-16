@@ -270,8 +270,12 @@ type Telescope  = [TypedBindings]
 data NamedDotPattern = NamedDot Name I.Term I.Type
   deriving (Typeable, Data, Show)
 
-instance Eq NamedDotPattern where
-  _ == _ = True -- These are not relevant for caching purposes
+data StrippedDotPattern = StrippedDot Expr I.Term I.Type
+  deriving (Typeable, Data, Show)
+
+-- These are not relevant for caching purposes
+instance Eq NamedDotPattern    where _ == _ = True
+instance Eq StrippedDotPattern where _ == _ = True
 
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
@@ -281,6 +285,10 @@ data Clause' lhs = Clause
   , clauseNamedDots  :: [NamedDotPattern]
       -- ^ Only in with-clauses where we inherit some already checked dot patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
+  , clauseStrippedDots :: [StrippedDotPattern]
+      -- ^ In with-clauses where a dot pattern from the parent clause is
+      --   repeated in the with-clause. In this case it's not actually part of
+      --   the clause, but it still needs to be checked (Issue 142).
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
@@ -654,7 +662,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSProj d lhscore ps) = d `fuseRange` lhscore `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs,rhs,ds)
+    getRange (Clause lhs _ _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
@@ -778,10 +786,13 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSProj a b c) = killRange3 LHSProj a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs dots rhs ds catchall) = killRange5 Clause lhs dots rhs ds catchall
+  killRange (Clause lhs dots sdots rhs ds catchall) = killRange6 Clause lhs dots sdots rhs ds catchall
 
 instance KillRange NamedDotPattern where
   killRange (NamedDot a b c) = killRange3 NamedDot a b c
+
+instance KillRange StrippedDotPattern where
+  killRange (StrippedDot a b c) = killRange3 StrippedDot a b c
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
@@ -864,7 +875,7 @@ instance AllNames Declaration where
   allNames (ScopedDecl _ decls)       = allNames decls
 
 instance AllNames Clause where
-  allNames (Clause _ _ rhs decls _) = allNames rhs >< allNames decls
+  allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e

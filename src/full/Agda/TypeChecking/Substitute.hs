@@ -845,6 +845,9 @@ instance Subst Term ModuleParameters where
 instance Subst Term A.NamedDotPattern where
   applySubst rho (A.NamedDot x v a) = A.NamedDot x (applySubst rho v) (applySubst rho a)
 
+instance Subst Term A.StrippedDotPattern where
+  applySubst rho (A.StrippedDot e v a) = A.StrippedDot e (applySubst rho v) (applySubst rho a)
+
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
