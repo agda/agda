@@ -1211,6 +1211,22 @@ instance Free DisplayTerm where
   freeVars' (DDot v)           = freeVars' v
   freeVars' (DTerm v)          = freeVars' v
 
+instance Pretty DisplayTerm where
+  prettyPrec p v =
+    case v of
+      DTerm v          -> prettyPrec p v
+      DDot v           -> text "." <> prettyPrec 10 v
+      DDef f es        -> pretty f `pApp` es
+      DCon c _ vs      -> pretty (conName c) `pApp` map Apply vs
+      DWithApp h ws es ->
+        mparens (p > 0)
+          (sep [ pretty h
+              , nest 2 $ fsep [ text "|" <+> pretty w | w <- ws ] ])
+        `pApp` es
+    where
+      pApp d els = mparens (not (null els) && p > 9) $
+                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
+
 -- | By default, we have no display form.
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []

@@ -1322,7 +1322,7 @@ instance Pretty Sort where
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
-instance Pretty Elim where
+instance Pretty tm => Pretty (Elim' tm) where
   prettyPrec p (Apply v)    = prettyPrec p v
   prettyPrec _ (Proj _o x)  = text ("." ++ prettyShow x)
   prettyPrec p (IApply x y r) = prettyPrec p r
