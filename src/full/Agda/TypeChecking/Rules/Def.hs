@@ -386,7 +386,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots stripp
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedDots $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 

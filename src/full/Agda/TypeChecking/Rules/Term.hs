@@ -2225,7 +2225,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _ asb) -> bindAsPatterns asb $ do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _t _ asb) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope
