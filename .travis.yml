@@ -223,7 +223,7 @@ install:
 # We are using `make CABAL_OPTS...` because we are including the
 # options to `cabal install` set up in the `Makefile`.
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       travis_retry cabal fetch `cabal install --dependencies-only --force-reinstalls --dry-run | sed 1,2d` &&
+       travis_retry cabal fetch `cabal install --dependencies-only --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest: [0-9\.]*)||g"` &&
        make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
        if [[ $MANUAL_INSTALL_BUILD_TOOLS = "YES" ]]; then
