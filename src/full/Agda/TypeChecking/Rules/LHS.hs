@@ -608,10 +608,12 @@ checkLeftHandSide
      -- ^ The expected type @a = Γ → b@.
   -> Maybe Substitution
      -- ^ Module parameter substitution from with-abstraction.
+  -> [A.StrippedDotPattern]
+     -- ^ Dot patterns that have been stripped away by with-desugaring.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
+checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
 
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
@@ -694,9 +696,9 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
           patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# (EmptyS __IMPOSSIBLE__)
           paramSub = composeS patSub withSub
           lhsResult = LHSResult (length cxt) delta qs b' patSub asb' (catMaybes psplit)
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> text (show patSub)
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> text (show withSub)
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> text (show paramSub)
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> pretty withSub
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> pretty paramSub
 
       let newLets = [ AsB x (applySubst paramSub v) (applySubst paramSub $ unDom a) | (x, (v, a)) <- oldLets ]
       reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
@@ -710,6 +712,11 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
           mapM_ checkDotPattern dpi
           mapM_ (uncurry isEmptyType) sbe
           checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
+
+          -- Type check dot patterns that have been thrown away by
+          -- with-desugaring.
+          mapM_ checkStrippedDotPattern $ applySubst paramSub strippedDots
+
 
         -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
         ret lhsResult
@@ -1169,3 +1176,16 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
       Just False -> mapM_ (check . namedArg) ps
       Just True  -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"
+
+-- | Type check dot pattern stripped from a with function.
+checkStrippedDotPattern :: A.StrippedDotPattern -> TCM ()
+checkStrippedDotPattern (A.StrippedDot e v a) = do
+  reportSDoc "tc.with.dot" 30 $ vcat
+    [ text "Checking stripped dot pattern"
+    , nest 2 $ vcat [ text "e =" <+> prettyTCM e
+                    , text "v =" <+> prettyTCM v
+                    , text "a =" <+> prettyTCM a
+                    , text "Γ =" <+> (inTopContext . prettyTCM =<< getContextTelescope) ] ]
+  u <- checkExpr e a
+  equalTerm a u v
+

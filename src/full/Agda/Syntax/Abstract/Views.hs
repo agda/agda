@@ -311,7 +311,7 @@ instance ExprLike LetBinding where
 instance ExprLike a => ExprLike (Pattern' a) where
 
 instance ExprLike a => ExprLike (Clause' a) where
-  recurseExpr f (Clause lhs dots rhs ds ca) = Clause <$> rec lhs <*> pure dots <*> rec rhs <*> rec ds <*> pure ca
+  recurseExpr f (Clause lhs dots sdots rhs ds ca) = Clause <$> rec lhs <*> pure dots <*> pure sdots <*> rec rhs <*> rec ds <*> pure ca
     where rec = recurseExpr f
 
 instance ExprLike RHS where
