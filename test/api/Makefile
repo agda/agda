@@ -4,7 +4,7 @@ include $(TOP)/mk/paths.mk
 
 AGDA = $(AGDA_BIN) -v0
 
-all : Issue1168.api PrettyInterface.api
+all : Issue1168.api PrettyInterface.api ScopeFromInterface.api
 
 %.agdai : %.agda $(AGDA_BIN)
 	$(AGDA) $<
