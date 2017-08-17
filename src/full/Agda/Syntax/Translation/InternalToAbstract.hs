@@ -1039,7 +1039,7 @@ instance Reify (QNamed System) [A.Clause] where
       ps <- return $ drop (size tel' - size tel) ps
       let
         lhs = SpineLHS (LHSRange noRange) f ps []
-        result = A.Clause (spineToLhs lhs) [] rhs [] False
+        result = A.Clause (spineToLhs lhs) [] [] rhs [] False
       return result
 
 instance Reify Type Expr where
