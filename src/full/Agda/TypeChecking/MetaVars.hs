@@ -200,7 +200,11 @@ newIFSMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> text ":" <+> prettyTCM t
     ]
-  addConstraint $ FindInScope x Nothing Nothing
+  let c = FindInScope x Nothing Nothing
+  -- If we're not already solving instance constraints we should add this
+  -- to the awake constraints to make sure we don't forget about it. If we
+  -- are solving constraints it will get woken up later (see #2690)
+  ifM isSolvingConstraints (addConstraint c) (addAwakeConstraint' c)
   etaExpandMetaSafe x
   return (x, MetaV x $ map Apply vs)
 
