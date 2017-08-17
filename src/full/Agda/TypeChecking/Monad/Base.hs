@@ -670,14 +670,15 @@ data Interface = Interface
     -- ^ Module name of this interface.
   , iScope           :: Map ModuleName Scope
     -- ^ Scope defined by this module.
+    --
+    --   Andreas, AIM XX: Too avoid duplicate serialization, this field is
+    --   not serialized, so if you deserialize an interface, @iScope@
+    --   will be empty.
+    --   But 'constructIScope' constructs 'iScope' from 'iInsideScope'.
   , iInsideScope     :: ScopeInfo
     -- ^ Scope after we loaded this interface.
     --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
     --   and     'Agda.Interaction.CommandLine.interactionLoop'.
-    --
-    --   Andreas, AIM XX: For performance reason, this field is
-    --   not serialized, so if you deserialize an interface, @iInsideScope@
-    --   will be empty.  You need to type-check the file to get @iInsideScope@.
   , iSignature       :: Signature
   , iDisplayForms    :: DisplayForms
     -- ^ Display forms added for imported identifiers.
