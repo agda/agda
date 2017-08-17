@@ -115,10 +115,10 @@ lcm .(q₁ * d) .(q₂ * d) | (d , gcd-* q₁ q₂ q₁-q₂-coprime) =
 gcd*lcm : ∀ {i j d m} → GCD i j d → LCM i j m → i * j ≡ d * m
 gcd*lcm  {i}        {j}       {d}  {m}               g l with LCM.unique l (proj₂ (lcm i j))
 gcd*lcm  {i}        {j}       {d} .{proj₁ (lcm i j)} g l | refl with gcd′ i j
-gcd*lcm .{q₁ * d′} .{q₂ * d′} {d} .{q₁ * q₂ * d′}    g l | refl | (d′ , gcd-* q₁ q₂ q₁-q₂-coprime)
+gcd*lcm .{q₁ * d′} .{q₂ * d′} {d}                    g l | refl | (d′ , gcd-* q₁ q₂ q₁-q₂-coprime)
                                                            with GCD.unique g
                                                                   (gcd′-gcd (gcd-* q₁ q₂ q₁-q₂-coprime))
-gcd*lcm .{q₁ * d}  .{q₂ * d}  {d} .{q₁ * q₂ * d}     g l | refl | (.d , gcd-* q₁ q₂ q₁-q₂-coprime) | refl =
+gcd*lcm .{q₁ * d}  .{q₂ * d}  {d}                    g l | refl | (.d , gcd-* q₁ q₂ q₁-q₂-coprime) | refl =
   solve 3 (λ q₁ q₂ d → q₁ :* d :* (q₂ :* d)
                    :=  d :* (q₁ :* q₂ :* d))
           refl q₁ q₂ d
