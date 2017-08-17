@@ -46,7 +46,7 @@ Non-backwards compatible changes
   `Data.X.Properties`.
 
   The numeric datatypes for which this has been done are `Nat`, `Integer`, `Rational` and `Bin`.
-  
+
   As a consequence the module `≤-Reasoning` has also had to have been moved from `Data.Nat` to
   `Data.Nat.Properties`.
 
@@ -77,10 +77,10 @@ Non-backwards compatible changes
   (pattern-matching) definition. Previously it was defined using a private
   internal module which made pattern matching difficult.
 
-* The arguments of `≤pred⇒≤` and `≤⇒pred≤` in `Data.Nat.Properties` are now implicit 
-  rather than explicit (was `∀ m n → m ≤ pred n → m ≤ n` and is now 
-  `∀ {m n} → m ≤ pred n → m ≤ n`). This makes it consistent with `<⇒≤pred` which 
-  already used implicit arguments, and shouldn't introduce any significant problems 
+* The arguments of `≤pred⇒≤` and `≤⇒pred≤` in `Data.Nat.Properties` are now implicit
+  rather than explicit (was `∀ m n → m ≤ pred n → m ≤ n` and is now
+  `∀ {m n} → m ≤ pred n → m ≤ n`). This makes it consistent with `<⇒≤pred` which
+  already used implicit arguments, and shouldn't introduce any significant problems
   as both parameters can be inferred by Agda.
 
 * Moved `¬∀⟶∃¬` from `Relation.Nullary.Negation` to `Data.Fin.Dec`. Its old
