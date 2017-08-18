@@ -37,7 +37,7 @@ agdaLibFields =
 defaultLibFile :: AgdaLibFile
 defaultLibFile = AgdaLib { libName = "", libFile = "", libIncludes = [], libDepends = [] }
 
--- | .agda-lib parser
+-- | @.agda-lib@ parser
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
   (fmap setPath . parseLib <$> readFile file) `catchIO` \e ->
