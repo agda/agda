@@ -12,6 +12,8 @@ import Data.ByteString as BS
 
 import Paths_Agda
 
+import Agda.Utils.Functor
+
 -- | @copyDirContent src dest@ recursively copies directory @src@ onto @dest@.
 --
 --   First, a to-do list of copy actions is created.
