@@ -1,13 +1,16 @@
 
 module Agda.Interaction.Library.Base where
 
+-- | A symbolic library name.
+--
 type LibName = String
 
+-- | Content of a @.agda-lib@ file.
+--
 data AgdaLibFile = AgdaLib
-  { libName     :: LibName
-  , libFile     :: FilePath
-  , libIncludes :: [FilePath]
-  , libDepends  :: [LibName]
+  { libName     :: LibName     -- ^ The symbolic name of the library.
+  , libFile     :: FilePath    -- ^ Path to this @.agda-lib@ file (not content of the file).
+  , libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
+  , libDepends  :: [LibName]   -- ^ Dependencies.
   }
   deriving (Show)
-

@@ -16,12 +16,14 @@ import Data.Either
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
+import System.Directory ( getAppUserDataDirectory )
 import System.Directory
 import System.FilePath
 import System.Environment
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Environment
 import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
@@ -35,26 +37,47 @@ type LibM = ExceptT Doc IO
 catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO = catch
 
+-- | Get the path to @~/.agda@ (system-specific).
+--   Can be overwritten by the @AGDA_DIR@ environment variable.
+--
+--   (This is not to be confused with the directory for the data files
+--   that Agda needs (e.g. the primitive modules).)
+--
 getAgdaAppDir :: IO FilePath
 getAgdaAppDir = do
-  agdaDir <- lookupEnv "AGDA_DIR"
-  case agdaDir of
-    Nothing  -> getAppUserDataDirectory "agda"
-    Just dir ->
+  -- System-specific command to build the path to ~/.agda (Unix) or %APPDATA%\agda (Win)
+  let agdaDir = getAppUserDataDirectory "agda"
+  -- The default can be overwritten by setting the AGDA_DIR environment variable
+  caseMaybeM (lookupEnv "AGDA_DIR") agdaDir $ \ dir ->
       ifM (doesDirectoryExist dir) (canonicalizePath dir) $ do
-        d <- getAppUserDataDirectory "agda"
+        d <- agdaDir
         putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
         return d
 
+-- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
+--   The content of @libraries@ is is a list of pathes to @.agda-lib@ files.
+--
+--   Agda honors also version specific @libraries@ files, e.g. @libraries-2.6.0@.
+--
+--   @defaultLibraryFiles@ gives a list of all @libraries@ files Agda should process
+--   by default.
+--
 defaultLibraryFiles :: [FilePath]
 defaultLibraryFiles = ["libraries-" ++ version, "libraries"]
 
+-- | The @defaultsFile@ contains a list of library names relevant for each Agda project.
+--
 defaultsFile :: FilePath
 defaultsFile = "defaults"
 
-data LibError = LibNotFound FilePath LibName
-              | AmbiguousLib LibName [AgdaLibFile]
-              | OtherError String
+data LibError
+  = LibNotFound FilePath LibName
+      -- ^ Raised when a library name could no successfully be resolved
+      --   to an @.agda-lib@ file.
+  | AmbiguousLib LibName [AgdaLibFile]
+      -- ^ Raised when a library name is defined in several @.agda-lib files@.
+  | OtherError String
+      -- ^ Generic error.
   deriving (Show)
 
 mkLibM :: [AgdaLibFile] -> IO (a, [LibError]) -> LibM a
@@ -188,7 +211,8 @@ matchLib x l = rx == ry && (vx == vy || null vx)
     (rx, vx) = versionView x
     (ry, vy) = versionView $ libName l
 
--- versionView "foo-1.2.3" == ("foo", [1, 2, 3])
+-- | @versionView "foo-1.2.3" == ("foo", [1, 2, 3])@
+--
 versionView :: LibName -> (LibName, [Int])
 versionView s =
   case span (\ c -> isDigit c || c == '.') (reverse s) of
