@@ -10,18 +10,25 @@ import Data.ByteString as BS
 
 import Paths_Agda
 
+-- | @copyDirContent src dest@ recursively copies directory @src@ onto @dest@.
+--
+--   Precondition: @src@ and @dest@ are disjoint.
+--   E.g. @copyDirContent "A/" "A/B/"@ would loop producing @A/B/B/B/...@.
+--
 copyDirContent :: FilePath -> FilePath -> IO ()
 copyDirContent src dest = do
   createDirectoryIfMissing True dest
   chlds <- getDirectoryContents src
-  mapM_ (\x -> do
+  forM_ chlds $ \ x -> do
     isDir <- doesDirectoryExist (src </> x)
     case isDir of
       _ | x == "." || x == ".." -> return ()
       True  -> copyDirContent (src </> x) (dest </> x)
       False -> copyIfChanged (src </> x) (dest </> x)
-    ) chlds
 
+-- | @copyIfChanged src dst@ makes sure that @dst@ exists
+--   and has the same content as @dst@.
+--
 copyIfChanged :: FilePath -> FilePath -> IO ()
 copyIfChanged src dst = do
   exist <- doesFileExist dst
@@ -29,4 +36,3 @@ copyIfChanged src dst = do
     new <- BS.readFile src
     old <- BS.readFile dst
     unless (old == new) $ copyFile src dst
-
