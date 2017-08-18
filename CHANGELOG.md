@@ -114,8 +114,8 @@ but they may be removed in some future release of the library.
 
 * The following renaming has occured in `Data.Nat.Properties`
   ```agda
-  _+-mono_          ↦  *-mono-≤
-  _*-mono_          ↦  +-mono-≤
+  _+-mono_          ↦  +-mono-≤
+  _*-mono_          ↦  *-mono-≤
 
   +-right-identity  ↦  +-identityʳ
   *-right-zero      ↦  *-zeroʳ
