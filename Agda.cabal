@@ -4,7 +4,7 @@ cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-author:          Ulf Norell, Andreas Abel, Nils Anders Danielsson, Makoto Takeyama, Catarina Coquand, with contributions by Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, James Chapman, Jesper Cockx, Dominique Devriese, Peter Divanski, Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson, Philipp Hausmann, Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez, Andrea Vezzosi and many more.
+author:          Agda 2 was originally written by Ulf Norell, partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama, and from Agdalight by Ulf Norell and Andreas Abel. Agda 2 is currently actively developed mainly by Andreas Abel, Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan, Andrés Sicard-Ramírez, and Andrea Vezzosi. Further, Agda 2 has received contributions by, amongst others, Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie, James Chapman, Dominique Devriese, Péter Diviánszki, Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Pepijn Kokke, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto Takeyama and many more.
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
@@ -29,7 +29,7 @@ description:
   Emacs mode. If you want to use the Emacs mode you can set it up by
   running @agda-mode setup@ (see the README).
   .
-  Note that the Agda library does not follow the package versioning
+  Note that the Agda package does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
 tested-with:        GHC == 7.8.4
@@ -443,6 +443,7 @@ library
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
                     Agda.Utils.IndexedList
+                    Agda.Utils.IO
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
                     Agda.Utils.IO.UTF8
