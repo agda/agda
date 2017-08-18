@@ -23,6 +23,7 @@ import System.Environment
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
+import Agda.Utils.IO ( catchIO )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Environment
@@ -33,9 +34,6 @@ import Agda.Utils.Pretty
 import Agda.Version
 
 type LibM = ExceptT Doc IO
-
-catchIO :: IO a -> (IOException -> IO a) -> IO a
-catchIO = catch
 
 -- | Get the path to @~/.agda@ (system-specific).
 --   Can be overwritten by the @AGDA_DIR@ environment variable.

@@ -9,9 +9,7 @@ import System.FilePath
 
 import Agda.Interaction.Library.Base
 import Agda.Utils.Except ( MonadError(throwError) )
-
-catchIO :: IO a -> (IOException -> IO a) -> IO a
-catchIO = catch
+import Agda.Utils.IO ( catchIO )
 
 type P = Either String
 

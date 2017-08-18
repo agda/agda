@@ -442,6 +442,7 @@ library
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
                     Agda.Utils.IndexedList
+                    Agda.Utils.IO
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
                     Agda.Utils.IO.UTF8
