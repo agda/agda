@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Datatypes where
 
 import Data.Maybe (fromMaybe)
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -11,9 +12,11 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
+import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -68,12 +71,29 @@ getConType
        --     @pars@ are the reconstructed parameters,
        --     @ct@   is the type of the constructor instantiated to the parameters.
 getConType c t = do
+  reportSDoc "tc.getConType" 30 $ sep $
+    [ text "getConType: constructor "
+    , prettyTCM c
+    , text " at type "
+    , prettyTCM t
+    ]
   TelV tel t <- telView t
   -- Now @t@ lives under @tel@, we need to remove the dependency on @tel@.
   -- This will succeed if @t@ is indeed a data/record type that is the
   -- type of a constructor coming from a term
   -- (applied to at least the parameters).
-  getFullyAppliedConType c $ applySubst (strengthenS __IMPOSSIBLE__ (size tel)) t
+  -- Note: @t@ will have some unbound deBruijn indices if view outside of @tel@.
+  reportSLn "tc.getConType" 35 $ "  target type: " ++ prettyShow t
+  applySubst (strengthenS __IMPOSSIBLE__ (size tel)) <$> do
+    addContext tel $ getFullyAppliedConType c t
+  -- Andreas, 2017-08-18, issue #2703:
+  -- The original code
+  --    getFullyAppliedConType c $ applySubst (strengthenS __IMPOSSIBLE__ (size tel)) t
+  -- crashes because substitution into @Def@s is slightly too strict
+  -- (see @defApp@ and @canProject@).
+  -- Strengthening the parameters after the call to @getFullyAppliedConType@
+  -- does not produce intermediate terms with __IMPOSSIBLE__s and this thus
+  -- robust wrt. strictness/laziness of substitution.
 
 -- | @getFullyAppliedConType c t@ computes the constructor parameters
 --   from data type @t@ and returns them
@@ -95,12 +115,16 @@ getFullyAppliedConType
        --     @pars@ are the reconstructed parameters,
        --     @ct@   is the type of the constructor instantiated to the parameters.
 getFullyAppliedConType c t = do
+  reportSLn "tc.getConType" 35 $ List.intercalate " " $
+    [ "getFullyAppliedConType", prettyShow c, prettyShow t ]
   c <- fromRight __IMPOSSIBLE__ <$> do getConHead $ conName c
   case ignoreSharing $ unEl t of
     -- Note that if we come e.g. from getConType,
     -- then the non-parameter arguments of @es@ might contain __IMPOSSIBLE__
     -- coming from strengthening.  (Thus, printing them is not safe.)
     Def d es -> do
+      reportSLn "tc.getConType" 35 $ List.intercalate " " $
+        [ "getFullyAppliedConType: case Def", prettyShow d, prettyShow es ]
       def <- getConstInfo d
       let cont n = do
             -- At this point we can be sure that the parameters are well-scoped.
