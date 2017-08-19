@@ -167,22 +167,25 @@ stripCommentLines = concatMap strip . zip [1..] . lines
       where s' = trimLineComment s
 
 formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
-formatLibError installed (LibNotFound file lib) = do
-  return $ vcat $
+formatLibError installed = \case
+
+  LibNotFound file lib -> return $ vcat $
     [ text $ "Library '" ++ lib ++ "' not found."
     , sep [ text "Add the path to its .agda-lib file to"
           , nest 2 $ text $ "'" ++ file ++ "'"
-          , text "to install." ]
+          , text "to install."
+          ]
     , text "Installed libraries:"
     ] ++
     map (nest 2)
       (if null installed then [text "(none)"]
       else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ] | l <- installed ])
-formatLibError _ (AmbiguousLib lib tgts) = return $
-  vcat $ sep [ text $ "Ambiguous library '" ++ lib ++ "'."
-             , text "Could refer to any one of" ]
-       : [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
-formatLibError _ (OtherError err) = return $ text err
+
+  AmbiguousLib lib tgts -> return $ vcat $
+    [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", text "Could refer to any one of" ]
+    ] ++ [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
+
+  OtherError err -> return $ text err
 
 libraryIncludePaths :: Maybe FilePath -> [AgdaLibFile] -> [LibName] -> LibM [FilePath]
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
