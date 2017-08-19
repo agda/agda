@@ -44,6 +44,16 @@ prop_versionView_example = once $ and
 prop_versionView_roundtrip :: VersionView -> Bool
 prop_versionView_roundtrip vv = vv == versionView (unVersionView vv)
 
+-- | Examples for 'findLib'.
+prop_findLib_example :: Property
+prop_findLib_example = once $ and
+  [ findLib' id "a"   [ "a-1", "a-02", "a-2", "b" ] == [ "a-02", "a-2" ]
+  , findLib' id "a"   [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a" ]
+  , findLib' id "a-1" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-1", "a-01" ]
+  , findLib' id "a-2" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-2" ]
+  , findLib' id "c"   [ "a", "a-1", "a-01", "a-2", "b" ] == []
+  ]
+
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------

@@ -7,6 +7,7 @@ module Agda.Interaction.Library
   , LibM
   -- * Testing
   , VersionView(..), versionView, unVersionView
+  , findLib'
   ) where
 
 import Control.Arrow (first, second)
@@ -202,21 +203,48 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
             []  -> tell [LibNotFound file x] >> find file (x : visited) xs
             ls  -> tell [AmbiguousLib x ls] >> find file (x : visited) xs
 
+-- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
+--
+--   1. Case @x@ is unversioned:
+--      If @x@ is contained in @libs@, then that match is returned.
+--      Otherwise, the matches with the highest version number are returned.
+--
+--   2. Case @x@ is versioned: the matches with the highest version number are returned.
+--
+--   Examples, see 'findLib''.
+--
 findLib :: LibName -> [AgdaLibFile] -> [AgdaLibFile]
-findLib x libs =
+findLib = findLib' libName
+
+-- | Generalized version of 'findLib' for testing.
+--   @
+--     findLib' id "a"   [ "a-1", "a-02", "a-2", "b" ] == [ "a-02", "a-2" ]
+--
+--     findLib' id "a"   [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a" ]
+--     findLib' id "a-1" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-1", "a-01" ]
+--     findLib' id "a-2" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-2" ]
+--     findLib' id "c"   [ "a", "a-1", "a-01", "a-2", "b" ] == []
+--   @
+findLib' :: (a -> LibName) -> LibName -> [a] -> [a]
+findLib' libName x libs =
   case ls of
-    l : ls -> l : takeWhile ((== versionMeasure l) . versionMeasure) ls
-    []     -> []
+    -- Take the first and all exact matches (modulo leading zeros in version numbers).
+    l : ls' -> l : takeWhile (((==) `on` versionMeasure) l) ls'
+    []      -> []
   where
-    ls = List.sortBy (flip compare `on` versionMeasure) [ l | l <- libs, matchLib x l ]
+    -- @LibName@s that match @x@, sorted descendingly.
+    -- The unversioned LibName, if any, will come first.
+    ls = List.sortBy (flip compare `on` versionMeasure) [ l | l <- libs, x `hasMatch` libName l ]
 
     -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
     versionMeasure l = (rx, null vs, vs)
       where
         VersionView rx vs = versionView (libName l)
 
-matchLib :: LibName -> AgdaLibFile -> Bool
-matchLib x l = rx == ry && (vx == vy || null vx)
+-- | @x `hasMatch` y@ if @x@ and @y@ have the same @vvBase@ and
+--   either @x@ has no version qualifier or the versions also match.
+hasMatch :: LibName -> LibName -> Bool
+hasMatch x y = rx == ry && (vx == vy || null vx)
   where
     VersionView rx vx = versionView x
     VersionView ry vy = versionView y
