@@ -27,7 +27,7 @@ cluster :: (a -> (C,[C])) -> [a] -> [[a]]
 cluster f as = cluster' $ map (\ a -> (a, f a)) as
 
 -- | Partition a list of @a@s paired with a non-empty list of
---   characteristics $C$ into groups
+--   characteristics @C@ into groups
 --   such that each element in a group shares at least one characteristic
 --   with at least one other element of the group.
 cluster' :: [(a,(C,[C]))] -> [[a]]

@@ -27,7 +27,7 @@ octDigit = decDigit
 -- punctuation, symbols, separators (including spaces) and others
 -- (including control characters).
 --
--- These are the tests that 'Data.Char' offers
+-- These are the tests that 'Data.Char' offers:
 data UnicodeTest
   = IsControl | IsSpace
   | IsLower | IsUpper | IsAlpha | IsAlphaNum | IsPrint
@@ -51,4 +51,3 @@ unicodeTests =
 -- | Find out which tests a character satisfies.
 testChar :: Char -> [UnicodeTest]
 testChar c = map fst $ filter (($ c) . snd) unicodeTests
-
