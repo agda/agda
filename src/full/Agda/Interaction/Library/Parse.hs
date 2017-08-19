@@ -62,12 +62,6 @@ parseLibFile file =
 parseLib :: String -> P AgdaLibFile
 parseLib s = fromGeneric =<< parseGeneric s
 
-findField :: String -> [Field] -> P Field
-findField s fs =
-  case [ f | f <- fs, fName f == s ] of
-    f : _ -> return f
-    []    -> throwError $ "Unknown field '" ++ s ++ "'"
-
 -- | Parse 'GenericFile' with 'agdaLibFields' descriptors.
 fromGeneric :: GenericFile -> P AgdaLibFile
 fromGeneric = fromGeneric' agdaLibFields
@@ -100,6 +94,11 @@ checkFields fields fs = do
       list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
   when (not $ null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
   when (not $ null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
+
+-- | Find 'Field' with given 'fName', throw error if unknown.
+findField :: String -> [Field] -> P Field
+findField s fs = maybe err return $ List.find ((s ==) . fName) fs
+  where err = throwError $ "Unknown field '" ++ s ++ "'"
 
 -- Generic file parser ----------------------------------------------------
 
