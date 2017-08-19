@@ -5,7 +5,7 @@ module Agda.Interaction.Library
   , libraryIncludePaths
   , LibName
   , LibM
-  -- * Testing
+  -- * Exported for testing
   , VersionView(..), versionView, unVersionView
   , findLib'
   ) where
@@ -218,14 +218,14 @@ findLib :: LibName -> [AgdaLibFile] -> [AgdaLibFile]
 findLib = findLib' libName
 
 -- | Generalized version of 'findLib' for testing.
---   @
---     findLib' id "a"   [ "a-1", "a-02", "a-2", "b" ] == [ "a-02", "a-2" ]
 --
---     findLib' id "a"   [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a" ]
---     findLib' id "a-1" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-1", "a-01" ]
---     findLib' id "a-2" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-2" ]
---     findLib' id "c"   [ "a", "a-1", "a-01", "a-2", "b" ] == []
---   @
+--   > findLib' id "a"   [ "a-1", "a-02", "a-2", "b" ] == [ "a-02", "a-2" ]
+--
+--   > findLib' id "a"   [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a" ]
+--   > findLib' id "a-1" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-1", "a-01" ]
+--   > findLib' id "a-2" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-2" ]
+--   > findLib' id "c"   [ "a", "a-1", "a-01", "a-2", "b" ] == []
+--
 findLib' :: (a -> LibName) -> LibName -> [a] -> [a]
 findLib' libName x libs =
   case ls of
@@ -251,10 +251,10 @@ hasMatch x y = rx == ry && (vx == vy || null vx)
     VersionView ry vy = versionView y
 
 -- | Split a library name into basename and a list of version numbers.
---   @
---     versionView "foo-1.2.3"    == VersionView "foo" [1, 2, 3]
---     versionView "foo-01.002.3" == VersionView "foo" [1, 2, 3]
---   @
+--
+--   > versionView "foo-1.2.3"    == VersionView "foo" [1, 2, 3]
+--   > versionView "foo-01.002.3" == VersionView "foo" [1, 2, 3]
+--
 --   Note that because of leading zeros, @versionView@ is not injective.
 --   (@unVersionView . versionView@ would produce a normal form.)
 versionView :: LibName -> VersionView
