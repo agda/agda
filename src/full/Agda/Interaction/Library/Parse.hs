@@ -17,15 +17,24 @@ import Agda.Utils.String ( ltrim )
 --
 type P = Either String
 
-type GenericFile = [(String, [String])]
+-- | The config files we parse have the generic structure of a sequence
+--   of @field : content@ entries.
+type GenericFile = [GenericEntry]
 
+data GenericEntry = GenericEntry
+  { geHeader  :: String   -- ^ E.g. field name.
+  , geContent :: [String] -- ^ E.g. field content.
+  }
+
+-- | Library file field format format [sic!].
 data Field = forall a. Field
-  { fName     :: String
-  , fOptional :: Bool
-  , fParse    :: [String] -> P a
-  , fSet      :: a -> AgdaLibFile -> AgdaLibFile }
+  { fName     :: String                           -- ^ Name of the field.
+  , fOptional :: Bool                             -- ^ Is it optional?
+  , fParse    :: [String] -> P a                  -- ^ Content parser for this field.
+  , fSet      :: a -> AgdaLibFile -> AgdaLibFile  -- ^ Sets parsed content in 'AgdaLibFile' structure.
+  }
 
--- | .agda-lib file format
+-- | @.agda-lib@ file format with parsers and setters.
 agdaLibFields :: [Field]
 agdaLibFields =
   [ Field "name"    False parseName                      $ \ name l -> l { libName     = name }
@@ -36,10 +45,11 @@ agdaLibFields =
     parseName [s] | [name] <- words s = pure name
     parseName ls = throwError $ "Bad library name: '" ++ unwords ls ++ "'"
 
-defaultLibFile :: AgdaLibFile
-defaultLibFile = AgdaLib { libName = "", libFile = "", libIncludes = [], libDepends = [] }
-
--- | @.agda-lib@ parser
+-- | Parse @.agda-lib@ file.
+--
+--   Sets 'libFile' name and turn mentioned include directories into absolute pathes
+--   (provided the given 'FilePath' is absolute).
+--
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
   (fmap setPath . parseLib <$> readFile file) `catchIO` \e ->
@@ -48,6 +58,7 @@ parseLibFile file =
     setPath lib = unrelativise (takeDirectory file) lib{ libFile = file }
     unrelativise dir lib = lib { libIncludes = map (dir </>) (libIncludes lib) }
 
+-- | Parse file contents.
 parseLib :: String -> P AgdaLibFile
 parseLib s = fromGeneric =<< parseGeneric s
 
@@ -57,16 +68,21 @@ findField s fs =
     f : _ -> return f
     []    -> throwError $ "Unknown field '" ++ s ++ "'"
 
+-- | Parse 'GenericFile' with 'agdaLibFields' descriptors.
 fromGeneric :: GenericFile -> P AgdaLibFile
 fromGeneric = fromGeneric' agdaLibFields
 
+-- | Given a list of 'Field' descriptors (with their custom parsers),
+--   parse a 'GenericFile' into the 'AgdaLibFile' structure.
+--
+--   Checks mandatory fields are present; no duplicate fields, no unknown fields.
 fromGeneric' :: [Field] -> GenericFile -> P AgdaLibFile
 fromGeneric' fields fs = do
-  checkFields fields (map fst fs)
-  foldM upd defaultLibFile fs
+  checkFields fields (map geHeader fs)
+  foldM upd emptyLibFile fs
   where
-    upd :: AgdaLibFile -> (String, [String]) -> P AgdaLibFile
-    upd l (h, cs) = do
+    upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
+    upd l (GenericEntry h cs) = do
       Field{..} <- findField h fields
       x         <- fParse cs
       return $ fSet x l
@@ -130,9 +146,13 @@ data GenericLine
 parseLine :: Int -> String -> P [GenericLine]
 parseLine _ "" = pure []
 parseLine l s@(c:_)
+    -- Indented lines are 'Content'.
   | isSpace c   = pure [Content l $ ltrim s]
+    -- Non-indented lines are 'Header'.
   | otherwise   =
     case break (==':') s of
+      -- Headers are single words followed by a colon.
+      -- Anything after the colon that is not whitespace is 'Content'.
       (h, ':' : r) ->
         case words h of
           [h] -> pure $ [Header l h] ++ [Content l r' | let r' = ltrim r, not (null r')]
@@ -140,10 +160,14 @@ parseLine l s@(c:_)
           hs  -> throwError $ show l ++ ": Bad field name " ++ show h
       _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (ltrim s)
 
+-- | Collect 'Header' and subsequent 'Content's into 'GenericEntry'.
+--
+--   Tailing 'Content's?  That's an error.
+--
 groupLines :: [GenericLine] -> P GenericFile
 groupLines [] = pure []
 groupLines (Content l c : _) = throwError $ show l ++ ": Missing field"
-groupLines (Header _ h : ls) = ((h, [ c | Content _ c <- cs ]) :) <$> groupLines ls1
+groupLines (Header _ h : ls) = (GenericEntry h [ c | Content _ c <- cs ] :) <$> groupLines ls1
   where
     (cs, ls1) = span isContent ls
     isContent Content{} = True
