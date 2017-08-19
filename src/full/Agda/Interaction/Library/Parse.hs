@@ -13,6 +13,8 @@ import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.String ( ltrim )
 
+-- | Parser monad: Can throw @String@ error messages.
+--
 type P = Either String
 
 type GenericFile = [(String, [String])]
@@ -69,11 +71,15 @@ fromGeneric' fields fs = do
       x         <- fParse cs
       return $ fSet x l
 
+-- | Ensure that there are no duplicate fields and no mandatory fields are missing.
 checkFields :: [Field] -> [String] -> P ()
 checkFields fields fs = do
   let mandatory = [ fName f | f <- fields, not $ fOptional f ]
+      -- Missing fields.
       missing   = mandatory List.\\ fs
+      -- Duplicate fields.
       dup       = fs List.\\ List.nub fs
+      -- Plural s for error message.
       s xs      = if length xs > 1 then "s" else ""
       list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
   when (not $ null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
@@ -81,13 +87,46 @@ checkFields fields fs = do
 
 -- Generic file parser ----------------------------------------------------
 
+-- | Example:
+--   @
+--     parseGeneric "name:Main--BLA\ndepend:--BLA\n  standard-library--BLA\ninclude : . --BLA\n  src more-src   \n"
+--     == Right [("name",["Main"]),("depend",["standard-library"]),("include",[".","src more-src"])]
+--   @
 parseGeneric :: String -> P GenericFile
 parseGeneric s =
   groupLines =<< concat <$> mapM (uncurry parseLine) (zip [1..] $ map stripComments $ lines s)
 
-data GenericLine = Header Int String | Content Int String
+-- | Lines with line numbers.
+data GenericLine
+  = Header  Int String
+      -- ^ Header line, like a field name, e.g. "include :".  Cannot be indented.
+  | Content Int String
+      -- ^ Other line.  Must be indented.
   deriving (Show)
 
+-- | Parse line into 'Header' and 'Content' components.
+--
+--   Precondition: line comments and trailing whitespace have been stripped away.
+--
+--   Example file:
+--   @
+--     name: Main
+--     depend:
+--       standard-library
+--     include: .
+--       src more-src
+--   @
+--   This should give
+--   @
+--      [ Header  1 "name"
+--      , Content 1 "Main"
+--      , Header  2 "depend"
+--      , Content 3 "standard-library"
+--      , Header  4 "include"
+--      , Content 4 "."
+--      , Content 5 "src more-src"
+--      ]
+--   @
 parseLine :: Int -> String -> P [GenericLine]
 parseLine _ "" = pure []
 parseLine l s@(c:_)
@@ -114,6 +153,7 @@ groupLines (Header _ h : ls) = ((h, [ c | Content _ c <- cs ]) :) <$> groupLines
 trimLineComment :: String -> String
 trimLineComment = stripComments . ltrim
 
+-- | Break a comma-separated string.  Result strings are @trim@med.
 splitCommas :: String -> [String]
 splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
 
