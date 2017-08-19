@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
--- | Finite bijections (implemented as a pair of maps).
+-- | Finite bijections (implemented as a pair of tree maps).
 
 module Agda.Utils.BiMap where
 
@@ -40,7 +40,7 @@ empty = BiMap Map.empty Map.empty
 singleton :: a -> b -> BiMap a b
 singleton a b = BiMap (Map.singleton a b) (Map.singleton b a)
 
--- | Insert.  Overwrites existing value if present.
+-- | Insert.  Overwrites existing value if present. O(Map.insert).
 insert :: (Ord a, Ord b) => a -> b -> BiMap a b -> BiMap a b
 insert a b (BiMap t u) = BiMap (Map.insert a b t) (Map.insert b a u)
 
@@ -50,16 +50,16 @@ union (BiMap t1 b1) (BiMap t2 b2) = BiMap (Map.union t1 t2) (Map.union b1 b2)
 
 -- | Construct from a list of pairs.
 --
---   Does not check for actual bijectivity of constructed finite map.
+--   Does not check for actual bijectivity of constructed finite map. O(n log n)
 fromList :: (Ord a, Ord b) => [(a,b)] -> BiMap a b
 fromList = List.foldl' (flip (uncurry insert)) empty
 
--- | Turn into list, sorted ascendingly by first value.
+-- | Turn into list, sorted ascendingly by first value.  O(Map.toList)
 toList :: BiMap a b -> [(a,b)]
 toList = Map.toAscList . biMapThere
 
 ------------------------------------------------------------------------
--- * Instances
+-- Instances
 ------------------------------------------------------------------------
 
 instance (Ord a, Ord b) => Eq (BiMap a b) where
@@ -70,4 +70,3 @@ instance (Ord a, Ord b) => Ord (BiMap a b) where
 
 instance (Show a, Show b) => Show (BiMap a b) where
   show bimap = "Agda.Utils.BiMap.fromList " ++ show (toList bimap)
-

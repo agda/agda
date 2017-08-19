@@ -674,6 +674,7 @@ test-suite internal-tests
                 , InternalTests.Interaction.Highlighting.Generate
                 , InternalTests.Interaction.Highlighting.Precise
                 , InternalTests.Interaction.Highlighting.Range
+                , InternalTests.Interaction.Library
                 , InternalTests.Interaction.Options
                 , InternalTests.Syntax.Abstract.Name
                 , InternalTests.Syntax.Common

@@ -15,6 +15,7 @@ import InternalTests.Interaction.Highlighting.Emacs           as InteEmac     ( 
 import InternalTests.Interaction.Highlighting.Generate        as InteGene     ( tests )
 import InternalTests.Interaction.Highlighting.Precise         as IntePrec     ( tests )
 import InternalTests.Interaction.Highlighting.Range           as InteRang     ( tests )
+import InternalTests.Interaction.Library                      as Library      ( tests )
 import InternalTests.Interaction.Options                      as InteOpti     ( tests )
 import InternalTests.Syntax.Common                            as SyntCommon   ( tests )
 import InternalTests.Syntax.Internal                          as SyntInternal ( tests )
@@ -54,7 +55,8 @@ import InternalTests.Utils.Warshall                           as UtilWarsh    ( 
 
 runAllTests :: IO Bool
 runAllTests = runTests "QuickCheck test suite:"
-  [ Free.tests
+  [ Library.tests
+  , Free.tests
   , Irrel.tests
   , SizedTypes.tests
   , UtilFav.tests

@@ -5,6 +5,9 @@ module Agda.Interaction.Library
   , libraryIncludePaths
   , LibName
   , LibM
+  -- * Exported for testing
+  , VersionView(..), versionView, unVersionView
+  , findLib'
   ) where
 
 import Control.Arrow (first, second)
@@ -23,17 +26,29 @@ import System.Environment
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
-import Agda.Utils.IO ( catchIO )
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
+
 import Agda.Utils.Environment
 import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
+import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.String ( trim, ltrim )
 
 import Agda.Version
 
 type LibM = ExceptT Doc IO
+
+-- | Library names are structured into the base name and a suffix of version
+--   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
+data VersionView = VersionView
+  { vvBase    :: LibName
+      -- ^ Actual library name.
+  , vvNumbers :: [Integer]
+      -- ^ Major version, minor version, subminor version, etc., all non-negative.
+      --   Note: a priori, there is no reason why the version numbers should be @Int@s.
+  } deriving (Eq, Show)
 
 -- | Get the path to @~/.agda@ (system-specific).
 --   Can be overwritten by the @AGDA_DIR@ environment variable.
@@ -149,25 +164,28 @@ stripCommentLines :: String -> [(Int, String)]
 stripCommentLines = concatMap strip . zip [1..] . lines
   where
     strip (i, s) = [ (i, s') | not $ null s' ]
-      where s' = stripComments $ dropWhile isSpace s
+      where s' = trimLineComment s
 
 formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
-formatLibError installed (LibNotFound file lib) = do
-  return $ vcat $
+formatLibError installed = \case
+
+  LibNotFound file lib -> return $ vcat $
     [ text $ "Library '" ++ lib ++ "' not found."
     , sep [ text "Add the path to its .agda-lib file to"
           , nest 2 $ text $ "'" ++ file ++ "'"
-          , text "to install." ]
+          , text "to install."
+          ]
     , text "Installed libraries:"
     ] ++
     map (nest 2)
       (if null installed then [text "(none)"]
       else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ] | l <- installed ])
-formatLibError _ (AmbiguousLib lib tgts) = return $
-  vcat $ sep [ text $ "Ambiguous library '" ++ lib ++ "'."
-             , text "Could refer to any one of" ]
-       : [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
-formatLibError _ (OtherError err) = return $ text err
+
+  AmbiguousLib lib tgts -> return $ vcat $
+    [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", text "Could refer to any one of" ]
+    ] ++ [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
+
+  OtherError err -> return $ text err
 
 libraryIncludePaths :: Maybe FilePath -> [AgdaLibFile] -> [LibName] -> LibM [FilePath]
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
@@ -176,7 +194,6 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
   where
     xsTr = map trim xs0
     xs   = List.delete "." xsTr
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
     incs = List.nub . concatMap libIncludes
     dot  = [ "." | elem "." xsTr ]
 
@@ -190,32 +207,71 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
             []  -> tell [LibNotFound file x] >> find file (x : visited) xs
             ls  -> tell [AmbiguousLib x ls] >> find file (x : visited) xs
 
+-- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
+--
+--   1. Case @x@ is unversioned:
+--      If @x@ is contained in @libs@, then that match is returned.
+--      Otherwise, the matches with the highest version number are returned.
+--
+--   2. Case @x@ is versioned: the matches with the highest version number are returned.
+--
+--   Examples, see 'findLib''.
+--
 findLib :: LibName -> [AgdaLibFile] -> [AgdaLibFile]
-findLib x libs =
+findLib = findLib' libName
+
+-- | Generalized version of 'findLib' for testing.
+--
+--   > findLib' id "a"   [ "a-1", "a-02", "a-2", "b" ] == [ "a-02", "a-2" ]
+--
+--   > findLib' id "a"   [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a" ]
+--   > findLib' id "a-1" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-1", "a-01" ]
+--   > findLib' id "a-2" [ "a", "a-1", "a-01", "a-2", "b" ] == [ "a-2" ]
+--   > findLib' id "c"   [ "a", "a-1", "a-01", "a-2", "b" ] == []
+--
+findLib' :: (a -> LibName) -> LibName -> [a] -> [a]
+findLib' libName x libs =
   case ls of
-    l : ls -> l : takeWhile ((== versionMeasure l) . versionMeasure) ls
-    []     -> []
+    -- Take the first and all exact matches (modulo leading zeros in version numbers).
+    l : ls' -> l : takeWhile (((==) `on` versionMeasure) l) ls'
+    []      -> []
   where
-    ls = List.sortBy (flip compare `on` versionMeasure) [ l | l <- libs, matchLib x l ]
+    -- @LibName@s that match @x@, sorted descendingly.
+    -- The unversioned LibName, if any, will come first.
+    ls = List.sortBy (flip compare `on` versionMeasure) [ l | l <- libs, x `hasMatch` libName l ]
 
     -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
     versionMeasure l = (rx, null vs, vs)
       where
-        (rx, vs) = versionView (libName l)
+        VersionView rx vs = versionView (libName l)
 
-matchLib :: LibName -> AgdaLibFile -> Bool
-matchLib x l = rx == ry && (vx == vy || null vx)
+-- | @x `hasMatch` y@ if @x@ and @y@ have the same @vvBase@ and
+--   either @x@ has no version qualifier or the versions also match.
+hasMatch :: LibName -> LibName -> Bool
+hasMatch x y = rx == ry && (vx == vy || null vx)
   where
-    (rx, vx) = versionView x
-    (ry, vy) = versionView $ libName l
+    VersionView rx vx = versionView x
+    VersionView ry vy = versionView y
 
--- | @versionView "foo-1.2.3" == ("foo", [1, 2, 3])@
+-- | Split a library name into basename and a list of version numbers.
 --
-versionView :: LibName -> (LibName, [Int])
+--   > versionView "foo-1.2.3"    == VersionView "foo" [1, 2, 3]
+--   > versionView "foo-01.002.3" == VersionView "foo" [1, 2, 3]
+--
+--   Note that because of leading zeros, @versionView@ is not injective.
+--   (@unVersionView . versionView@ would produce a normal form.)
+versionView :: LibName -> VersionView
 versionView s =
   case span (\ c -> isDigit c || c == '.') (reverse s) of
-    (v, '-' : x) | valid vs -> (reverse x, reverse $ map (read . reverse) vs)
+    (v, '-' : x) | valid vs ->
+      VersionView (reverse x) $ reverse $ map (read . reverse) vs
       where vs = chopWhen (== '.') v
             valid [] = False
             valid vs = not $ any null vs
-    _ -> (s, [])
+    _ -> VersionView s []
+
+-- | Print a @VersionView@, inverse of @versionView@ (modulo leading zeros).
+unVersionView :: VersionView -> LibName
+unVersionView = \case
+  VersionView base [] -> base
+  VersionView base vs -> base ++ "-" ++ List.intercalate "." (map show vs)

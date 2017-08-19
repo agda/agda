@@ -5,6 +5,7 @@ include $(TOP)/mk/paths.mk
 # Enable read -n and 2>&1 |.
 SHELL=/usr/bin/env bash
 
+# Get the current directory (OS dependent).
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
 pwd=$(shell (cmd /c 'echo %CD%') | sed -e 's/\\/\\\\\\\\/g')
@@ -23,6 +24,7 @@ endif
 
 clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
 
+# Construct the list of tests to carry out.
 # Andreas, 2017-04-24 ls -t: sort by newest first
 AgdaFiles=$(shell ls -t *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
@@ -40,9 +42,9 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
               -e 's/\((agda2-info-action "\*Agda Version\*" "Agda version \([[:digit:]]\+\.\)\+[[:digit:]]\+\)\(-[[:alnum:]]\+\(-dirty\)\?\)\?\(" nil)\)/\1\5/g' \
               -e 's/\(\\n\| \)\+/ /g' \
-							-e 's/^ //g' \
+              -e 's/^ //g' \
               -e '/Linking /d' \
-							-e 's/Agda2> //g' \
+              -e 's/Agda2> //g' \
      | $(clean)
 
 run_test=if test -f $*.in; \

@@ -14,3 +14,6 @@ data AgdaLibFile = AgdaLib
   , libDepends  :: [LibName]   -- ^ Dependencies.
   }
   deriving (Show)
+
+emptyLibFile :: AgdaLibFile
+emptyLibFile = AgdaLib { libName = "", libFile = "", libIncludes = [], libDepends = [] }
