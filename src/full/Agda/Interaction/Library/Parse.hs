@@ -130,15 +130,15 @@ data GenericLine
 parseLine :: Int -> String -> P [GenericLine]
 parseLine _ "" = pure []
 parseLine l s@(c:_)
-  | isSpace c   = pure [Content l $ trimLineComment s]
+  | isSpace c   = pure [Content l $ ltrim s]
   | otherwise   =
     case break (==':') s of
       (h, ':' : r) ->
         case words h of
-          [h] -> pure $ [Header l h] ++ [Content l s | let s = trimLineComment r, not (null s)]
+          [h] -> pure $ [Header l h] ++ [Content l r' | let r' = ltrim r, not (null r')]
           []  -> throwError $ show l ++ ": Missing field name"
           hs  -> throwError $ show l ++ ": Bad field name " ++ show h
-      _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (trimLineComment s)
+      _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (ltrim s)
 
 groupLines :: [GenericLine] -> P GenericFile
 groupLines [] = pure []
