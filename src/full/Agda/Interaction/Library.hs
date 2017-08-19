@@ -5,6 +5,8 @@ module Agda.Interaction.Library
   , libraryIncludePaths
   , LibName
   , LibM
+  -- * Testing
+  , VersionView(..), versionView, unVersionView
   ) where
 
 import Control.Arrow (first, second)
@@ -34,6 +36,16 @@ import Agda.Utils.Pretty
 import Agda.Version
 
 type LibM = ExceptT Doc IO
+
+-- | Library names are structured into the base name and a suffix of version
+--   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
+data VersionView = VersionView
+  { vvBase    :: LibName
+      -- ^ Actual library name.
+  , vvNumbers :: [Integer]
+      -- ^ Major version, minor version, subminor version, etc., all non-negative.
+      --   Note: a priori, there is no reason why the version numbers should be @Int@s.
+  } deriving (Eq, Show)
 
 -- | Get the path to @~/.agda@ (system-specific).
 --   Can be overwritten by the @AGDA_DIR@ environment variable.
@@ -201,21 +213,33 @@ findLib x libs =
     -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
     versionMeasure l = (rx, null vs, vs)
       where
-        (rx, vs) = versionView (libName l)
+        VersionView rx vs = versionView (libName l)
 
 matchLib :: LibName -> AgdaLibFile -> Bool
 matchLib x l = rx == ry && (vx == vy || null vx)
   where
-    (rx, vx) = versionView x
-    (ry, vy) = versionView $ libName l
+    VersionView rx vx = versionView x
+    VersionView ry vy = versionView y
 
--- | @versionView "foo-1.2.3" == ("foo", [1, 2, 3])@
---
-versionView :: LibName -> (LibName, [Int])
+-- | Split a library name into basename and a list of version numbers.
+--   @
+--     versionView "foo-1.2.3"    == VersionView "foo" [1, 2, 3]
+--     versionView "foo-01.002.3" == VersionView "foo" [1, 2, 3]
+--   @
+--   Note that because of leading zeros, @versionView@ is not injective.
+--   (@unVersionView . versionView@ would produce a normal form.)
+versionView :: LibName -> VersionView
 versionView s =
   case span (\ c -> isDigit c || c == '.') (reverse s) of
-    (v, '-' : x) | valid vs -> (reverse x, reverse $ map (read . reverse) vs)
+    (v, '-' : x) | valid vs ->
+      VersionView (reverse x) $ reverse $ map (read . reverse) vs
       where vs = chopWhen (== '.') v
             valid [] = False
             valid vs = not $ any null vs
-    _ -> (s, [])
+    _ -> VersionView s []
+
+-- | Print a @VersionView@, inverse of @versionView@ (modulo leading zeros).
+unVersionView :: VersionView -> LibName
+unVersionView = \case
+  VersionView base [] -> base
+  VersionView base vs -> base ++ "-" ++ List.intercalate "." (map show vs)
