@@ -26,13 +26,15 @@ import System.Environment
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
-import Agda.Utils.IO ( catchIO )
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
+
 import Agda.Utils.Environment
 import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
+import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.String ( trim, ltrim )
 
 import Agda.Version
 
@@ -162,7 +164,7 @@ stripCommentLines :: String -> [(Int, String)]
 stripCommentLines = concatMap strip . zip [1..] . lines
   where
     strip (i, s) = [ (i, s') | not $ null s' ]
-      where s' = stripComments $ dropWhile isSpace s
+      where s' = trimLineComment s
 
 formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
 formatLibError installed (LibNotFound file lib) = do
@@ -189,7 +191,6 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
   where
     xsTr = map trim xs0
     xs   = List.delete "." xsTr
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
     incs = List.nub . concatMap libIncludes
     dot  = [ "." | elem "." xsTr ]
 

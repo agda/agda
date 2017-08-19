@@ -1,4 +1,4 @@
-module Agda.Interaction.Library.Parse (parseLibFile, stripComments, splitCommas) where
+module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment ) where
 
 import Control.Applicative
 import Control.Exception
@@ -8,8 +8,10 @@ import qualified Data.List as List
 import System.FilePath
 
 import Agda.Interaction.Library.Base
+
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.IO ( catchIO )
+import Agda.Utils.String ( ltrim )
 
 type P = Either String
 
@@ -89,15 +91,15 @@ data GenericLine = Header Int String | Content Int String
 parseLine :: Int -> String -> P [GenericLine]
 parseLine _ "" = pure []
 parseLine l s@(c:_)
-  | isSpace c   = pure [Content l $ trim s]
+  | isSpace c   = pure [Content l $ trimLineComment s]
   | otherwise   =
     case break (==':') s of
       (h, ':' : r) ->
         case words h of
-          [h] -> pure $ [Header l h] ++ [Content l s | let s = trim r, not (null s)]
+          [h] -> pure $ [Header l h] ++ [Content l s | let s = trimLineComment r, not (null s)]
           []  -> throwError $ show l ++ ": Missing field name"
           hs  -> throwError $ show l ++ ": Bad field name " ++ show h
-      _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (trim s)
+      _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (trimLineComment s)
 
 groupLines :: [GenericLine] -> P GenericFile
 groupLines [] = pure []
@@ -108,8 +110,9 @@ groupLines (Header _ h : ls) = ((h, [ c | Content _ c <- cs ]) :) <$> groupLines
     isContent Content{} = True
     isContent Header{} = False
 
-trim :: String -> String
-trim = stripComments . dropWhile isSpace
+-- | Remove leading whitespace and line comment.
+trimLineComment :: String -> String
+trimLineComment = stripComments . ltrim
 
 splitCommas :: String -> [String]
 splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
