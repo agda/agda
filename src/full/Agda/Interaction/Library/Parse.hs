@@ -22,8 +22,8 @@ type P = Either String
 type GenericFile = [GenericEntry]
 
 data GenericEntry = GenericEntry
-  { geHeader  :: String   -- ^ E.g. field name.
-  , geContent :: [String] -- ^ E.g. field content.
+  { geHeader  :: String   -- ^ E.g. field name.    @trim@med.
+  , geContent :: [String] -- ^ E.g. field content. @trim@med.
   }
 
 -- | Library file field format format [sic!].
@@ -103,20 +103,25 @@ findField s fs = maybe err return $ List.find ((s ==) . fName) fs
 -- Generic file parser ----------------------------------------------------
 
 -- | Example:
---   @
+--
+-- @
 --     parseGeneric "name:Main--BLA\ndepend:--BLA\n  standard-library--BLA\ninclude : . --BLA\n  src more-src   \n"
 --     == Right [("name",["Main"]),("depend",["standard-library"]),("include",[".","src more-src"])]
---   @
+-- @
 parseGeneric :: String -> P GenericFile
 parseGeneric s =
   groupLines =<< concat <$> mapM (uncurry parseLine) (zip [1..] $ map stripComments $ lines s)
 
+type LineNumber = Int
+
 -- | Lines with line numbers.
 data GenericLine
-  = Header  Int String
+  = Header  LineNumber String
       -- ^ Header line, like a field name, e.g. "include :".  Cannot be indented.
-  | Content Int String
+      --   @String@ is 'trim'med.
+  | Content LineNumber String
       -- ^ Other line.  Must be indented.
+      --   @String@ is 'trim'med.
   deriving (Show)
 
 -- | Parse line into 'Header' and 'Content' components.
@@ -142,7 +147,7 @@ data GenericLine
 --      , Content 5 "src more-src"
 --      ]
 --   @
-parseLine :: Int -> String -> P [GenericLine]
+parseLine :: LineNumber -> String -> P [GenericLine]
 parseLine _ "" = pure []
 parseLine l s@(c:_)
     -- Indented lines are 'Content'.
