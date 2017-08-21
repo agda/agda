@@ -1,3 +1,4 @@
+-- | Basic data types for library management.
 
 module Agda.Interaction.Library.Base where
 

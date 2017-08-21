@@ -1,3 +1,26 @@
+-- | Parser for @.agda-lib@ files.
+--
+--   Example file:
+--
+--   @
+--     name: Main
+--     depend:
+--       standard-library
+--     include: .
+--       src more-src
+--   @
+--
+--   Should parse as:
+--
+--   @
+--     AgdaLib
+--       { libName     = "Main"
+--       , libFile     = path_to_this_file
+--       , libIncludes = [ "." , "src" , "more-src" ]
+--       , libDepends  = [ "standard-library" ]
+--       }
+--   @
+--
 module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment, LineNumber ) where
 
 import Control.Applicative
@@ -129,6 +152,7 @@ data GenericLine
 --   Precondition: line comments and trailing whitespace have been stripped away.
 --
 --   Example file:
+--
 --   @
 --     name: Main
 --     depend:
@@ -136,16 +160,18 @@ data GenericLine
 --     include: .
 --       src more-src
 --   @
+--
 --   This should give
+--
 --   @
---      [ Header  1 "name"
---      , Content 1 "Main"
---      , Header  2 "depend"
---      , Content 3 "standard-library"
---      , Header  4 "include"
---      , Content 4 "."
---      , Content 5 "src more-src"
---      ]
+--     [ Header  1 "name"
+--     , Content 1 "Main"
+--     , Header  2 "depend"
+--     , Content 3 "standard-library"
+--     , Header  4 "include"
+--     , Content 4 "."
+--     , Content 5 "src more-src"
+--     ]
 --   @
 parseLine :: LineNumber -> String -> P [GenericLine]
 parseLine _ "" = pure []
