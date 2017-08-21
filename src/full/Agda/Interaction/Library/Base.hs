@@ -1,9 +1,16 @@
+-- | Basic data types for library management.
 
 module Agda.Interaction.Library.Base where
 
 -- | A symbolic library name.
 --
 type LibName = String
+
+-- | The special name @\".\"@ is used to indicated that the current directory
+--   should count as a project root.
+--
+libNameForCurrentDir :: LibName
+libNameForCurrentDir = "."
 
 -- | Content of a @.agda-lib@ file.
 --
