@@ -38,6 +38,7 @@ import Agda.Utils.String ( trim, ltrim )
 
 import Agda.Version
 
+-- | Throws 'Doc' exceptions.
 type LibM = ExceptT Doc IO
 
 -- | Library names are structured into the base name and a suffix of version
@@ -93,12 +94,16 @@ data LibError
       -- ^ Generic error.
   deriving (Show)
 
-mkLibM :: [AgdaLibFile] -> IO (a, [LibError]) -> LibM a
+-- | Collects 'LibError's.
+type LibErrorIO = WriterT [LibError] IO
+
+-- | Raise collected 'LibErrors' as exception.
+mkLibM :: [AgdaLibFile] -> LibErrorIO a -> LibM a
 mkLibM libs m = do
-  (x, err) <- lift m
+  (x, err) <- lift $ runWriterT m
   case err of
     [] -> return x
-    _  -> throwError =<< lift (vcat <$> mapM (formatLibError libs) err)
+    _  -> throwError =<< do lift $ vcat <$> mapM (formatLibError libs) err
 
 findAgdaLibFiles :: FilePath -> IO [FilePath]
 findAgdaLibFiles root = do
@@ -111,23 +116,24 @@ findAgdaLibFiles root = do
 
 getDefaultLibraries :: FilePath -> Bool -> LibM ([LibName], [FilePath])
 getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
-  libs <- findAgdaLibFiles root
+  libs <- lift $ findAgdaLibFiles root
   if null libs
     then
-    if optDefaultLibs then first (, []) <$> readDefaultsFile else return (([], []), [])
-    else first libsAndPaths <$> parseLibFiles Nothing (zip (repeat 0) libs)
+    if optDefaultLibs then (, []) <$> readDefaultsFile else return ([], [])
+    else libsAndPaths <$> parseLibFiles Nothing (zip (repeat 0) libs)
   where
     libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
 
-readDefaultsFile :: IO ([LibName], [LibError])
+readDefaultsFile :: LibErrorIO [LibName]
 readDefaultsFile = do
-    agdaDir <- getAgdaAppDir
+    agdaDir <- lift $ getAgdaAppDir
     let file = agdaDir </> defaultsFile
-    ifM (doesFileExist file) (do
-      ls <- map snd . stripCommentLines <$> readFile file
-      return ("." : concatMap splitCommas ls, [])
-      ) {- else -} (return (["."], []))
-  `catchIO` \e -> return (["."], [OtherError $ "Failed to read defaults file.\n" ++ show e])
+    ifNotM (lift $ doesFileExist file) (return ["."]) $ {-else-} do
+      ls <- lift $ map snd . stripCommentLines <$> readFile file
+      return $ "." : concatMap splitCommas ls
+  `catchIO` \ e -> do
+    tell [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
+    return ["."]
 
 getLibrariesFile :: Maybe FilePath -> IO FilePath
 getLibrariesFile (Just overrideLibFile) = return overrideLibFile
@@ -141,26 +147,30 @@ getLibrariesFile Nothing = do
 
 getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
-    file <- getLibrariesFile overrideLibFile
-    ifM (doesFileExist file) (do
-      ls    <- stripCommentLines <$> readFile file
-      files <- sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
+    file <- lift $ getLibrariesFile overrideLibFile
+    ifNotM (lift $ doesFileExist file) (return []) $ {-else-} do
+      ls    <- lift $ stripCommentLines <$> readFile file
+      files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
       parseLibFiles (Just file) files
-      ) {- else -} (return ([], []))
-  `catchIO` \e -> return ([], [OtherError $ "Failed to read installed libraries.\n" ++ show e])
+  `catchIO` \ e -> do
+    tell [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
+    return []
 
-parseLibFiles :: Maybe FilePath -> [(Int, FilePath)] -> IO ([AgdaLibFile], [LibError])
+parseLibFiles :: Maybe FilePath -> [(LineNumber, FilePath)] -> LibErrorIO [AgdaLibFile]
 parseLibFiles libFile files = do
-  rs <- mapM (parseLibFile . snd) files
+  rs <- lift $ mapM (parseLibFile . snd) files
+  -- Format and raise the errors.
   let loc line | Just f <- libFile = f ++ ":" ++ show line ++ ": "
                | otherwise         = ""
-      errs = [ if List.isPrefixOf "Failed to read" err
-                then OtherError $ loc line ++ err
-                else OtherError $ path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ") ++ err
-             | ((line, path), Left err) <- zip files rs ]
-  return (rights rs, errs)
+  tell [ OtherError $ pos ++ err
+       | ((line, path), Left err) <- zip files rs
+       , let pos = if List.isPrefixOf "Failed to read" err
+                   then loc line
+                   else path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
+       ]
+  return $ rights rs
 
-stripCommentLines :: String -> [(Int, String)]
+stripCommentLines :: String -> [(LineNumber, String)]
 stripCommentLines = concatMap strip . zip [1..] . lines
   where
     strip (i, s) = [ (i, s') | not $ null s' ]
@@ -188,7 +198,7 @@ formatLibError installed = \case
   OtherError err -> return $ text err
 
 libraryIncludePaths :: Maybe FilePath -> [AgdaLibFile] -> [LibName] -> LibM [FilePath]
-libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
+libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     file <- getLibrariesFile overrideLibFile
     return $ runWriter ((dot ++) . incs <$> find file [] xs)
   where
@@ -205,7 +215,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
           case findLib x libs of
             [l] -> (l :) <$> find file (x : visited) (libDepends l ++ xs)
             []  -> tell [LibNotFound file x] >> find file (x : visited) xs
-            ls  -> tell [AmbiguousLib x ls] >> find file (x : visited) xs
+            ls  -> tell [AmbiguousLib x ls]  >> find file (x : visited) xs
 
 -- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
 --

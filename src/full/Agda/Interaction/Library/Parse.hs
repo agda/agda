@@ -1,4 +1,4 @@
-module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment ) where
+module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment, LineNumber ) where
 
 import Control.Applicative
 import Control.Exception
