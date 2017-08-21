@@ -59,9 +59,6 @@ import Agda.Version
 -- Types and Monads
 ------------------------------------------------------------------------
 
--- | Throws 'Doc' exceptions.
-type LibM = ExceptT Doc IO
-
 -- | Library names are structured into the base name and a suffix of version
 --   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
 data VersionView = VersionView
@@ -71,6 +68,34 @@ data VersionView = VersionView
       -- ^ Major version, minor version, subminor version, etc., all non-negative.
       --   Note: a priori, there is no reason why the version numbers should be @Int@s.
   } deriving (Eq, Show)
+
+-- | Collected errors while processing library files.
+--
+data LibError
+  = LibNotFound FilePath LibName
+      -- ^ Raised when a library name could no successfully be resolved
+      --   to an @.agda-lib@ file.
+  | AmbiguousLib LibName [AgdaLibFile]
+      -- ^ Raised when a library name is defined in several @.agda-lib files@.
+  | OtherError String
+      -- ^ Generic error.
+  deriving (Show)
+
+-- | Collects 'LibError's.
+--
+type LibErrorIO = WriterT [LibError] IO
+
+-- | Throws 'Doc' exceptions.
+type LibM = ExceptT Doc IO
+
+-- | Raise collected 'LibErrors' as exception.
+--
+mkLibM :: [AgdaLibFile] -> LibErrorIO a -> LibM a
+mkLibM libs m = do
+  (x, err) <- lift $ runWriterT m
+  case err of
+    [] -> return x
+    _  -> throwError =<< do lift $ vcat <$> mapM (formatLibError libs) err
 
 ------------------------------------------------------------------------
 -- Resources
@@ -108,31 +133,6 @@ defaultLibraryFiles = ["libraries-" ++ version, "libraries"]
 --
 defaultsFile :: FilePath
 defaultsFile = "defaults"
-
--- | Collected errors while processing library files.
---
-data LibError
-  = LibNotFound FilePath LibName
-      -- ^ Raised when a library name could no successfully be resolved
-      --   to an @.agda-lib@ file.
-  | AmbiguousLib LibName [AgdaLibFile]
-      -- ^ Raised when a library name is defined in several @.agda-lib files@.
-  | OtherError String
-      -- ^ Generic error.
-  deriving (Show)
-
--- | Collects 'LibError's.
---
-type LibErrorIO = WriterT [LibError] IO
-
--- | Raise collected 'LibErrors' as exception.
---
-mkLibM :: [AgdaLibFile] -> LibErrorIO a -> LibM a
-mkLibM libs m = do
-  (x, err) <- lift $ runWriterT m
-  case err of
-    [] -> return x
-    _  -> throwError =<< do lift $ vcat <$> mapM (formatLibError libs) err
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project
