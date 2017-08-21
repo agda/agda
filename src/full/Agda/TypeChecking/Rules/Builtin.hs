@@ -145,9 +145,41 @@ coreBuiltins =
                                                 hPi "y" (El (varSort 2) <$> varM 1) $
                                                 tinterval --> (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0) -->
                                                 (El (varSort 3) <$> primId <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
-  , (builtinIsEquiv            |-> BuiltinUnknown Nothing (const $ const $ return ()))
-  , (builtinPathToEquiv        |-> BuiltinUnknown Nothing (const $ const $ return ()))
-  , (builtinCompGlue           |-> BuiltinUnknown Nothing (const $ const $ return ()))
+  , (builtinIsEquiv            |-> BuiltinUnknown (Just $ runNamesT [] (
+                                                    hPi' "l" (el $ cl primLevel) $ \ a ->
+                                                    hPi' "l'" (el $ cl primLevel) $ \ b ->
+                                                    nPi' "A" (sort . tmSort <$> a) $ \bA ->
+                                                    nPi' "B" (sort . tmSort <$> b) $ \bB ->
+                                                    (el' a bA --> el' b bB) --> ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
+                                                  ))
+                                                   (const $ const $ return ()))
+  , (builtinPathToEquiv        |-> BuiltinUnknown Nothing
+                                                -- (Just $ runNamesT [] (
+                                                --    hPi' "l" (el $ cl primLevel) $ \ a ->
+                                                --    nPi' "E" (cl tinterval --> (sort . tmSort <$> a)) $ \bE ->
+                                                --    el' a (cl primIsEquiv <#> a <#> a <@> (bE <@> cl primIZero) <@> (bE <@> cl primIOne) <@> _f)
+                                                --   ))
+                                         (const $ const $ return ()))
+  , (builtinCompGlue           |-> BuiltinUnknown (Just $ runNamesT [] (
+                                     hPi' "l"  (cl tinterval --> el (cl primLevel)) $ \ l ->
+                                     hPi' "l'" (cl tinterval --> el (cl primLevel)) $ \ l' ->
+                                     nPi' "A"  (nPi' "i" (cl tinterval) $ \ i -> sort . tmSort <$> (l <@> i)) $ \ bA ->
+                                     nPi' "φ"  (cl tinterval --> cl tinterval) $ \ phi ->
+                                     nPi' "T"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o -> sort . tmSort <$> (l' <@> i)) $ \ bT ->
+                                     nPi' "f"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o -> el' (l' <@> i) (bT <@> i <@> o)
+                                                                                                           --> el' (l <@> i) (bA <@> i)) $ \ f ->
+                                     nPi' "pf"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o ->
+                                                    el' (cl primLevelMax <@> (l' <@> i) <@> (l <@> i))
+                                                        (cl primIsEquiv <#> (l' <@> i) <#> (l <@> i)
+                                                                        <@> (bT <@> i <@> o) <@> (bA <@> i) <@> (f <@> i <@> o))) $ \ pf ->
+                                     nPi' "ψ" (cl tinterval) $ \ psi ->
+                                     let bB i = el' (l' <@> i) (cl primGlue <#> (l <@> i) <#> (l' <@> i)
+                                                                            <@> (bA <@> i) <@> (phi <@> i)
+                                                                            <@> (bT <@> i) <@> (f <@> i) <@> (pf <@> i))
+                                     in nPi' "b" (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" psi $ \ _ -> bB i) $ \ _b ->
+                                        bB (cl primIZero) --> bB (cl primIOne)
+                                     ))
+                                                      (const $ const $ return ()))
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaTerm           |-> BuiltinData tset
                                      [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
