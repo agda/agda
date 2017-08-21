@@ -118,8 +118,7 @@ getDefaultLibraries :: FilePath -> Bool -> LibM ([LibName], [FilePath])
 getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
   libs <- lift $ findAgdaLibFiles root
   if null libs
-    then
-    if optDefaultLibs then (, []) <$> readDefaultsFile else return ([], [])
+    then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else libsAndPaths <$> parseLibFiles Nothing (zip (repeat 0) libs)
   where
     libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
@@ -128,12 +127,12 @@ readDefaultsFile :: LibErrorIO [LibName]
 readDefaultsFile = do
     agdaDir <- lift $ getAgdaAppDir
     let file = agdaDir </> defaultsFile
-    ifNotM (lift $ doesFileExist file) (return ["."]) $ {-else-} do
+    ifNotM (lift $ doesFileExist file) (return []) $ {-else-} do
       ls <- lift $ map snd . stripCommentLines <$> readFile file
-      return $ "." : concatMap splitCommas ls
+      return $ concatMap splitCommas ls
   `catchIO` \ e -> do
     tell [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
-    return ["."]
+    return []
 
 getLibrariesFile :: Maybe FilePath -> IO FilePath
 getLibrariesFile (Just overrideLibFile) = return overrideLibFile
@@ -200,14 +199,12 @@ formatLibError installed = \case
 libraryIncludePaths :: Maybe FilePath -> [AgdaLibFile] -> [LibName] -> LibM [FilePath]
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     file <- getLibrariesFile overrideLibFile
-    return $ runWriter ((dot ++) . incs <$> find file [] xs)
+    return $ runWriter $ (dot ++) . incs <$> find file [] xs
   where
-    xsTr = map trim xs0
-    xs   = List.delete "." xsTr
+    (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
     incs = List.nub . concatMap libIncludes
-    dot  = [ "." | elem "." xsTr ]
+    dot = [ "." | not $ null dots ]
 
-    find :: FilePath -> [LibName] -> [LibName] -> Writer [LibError] [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)
       | elem x visited = find file visited xs
