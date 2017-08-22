@@ -11,6 +11,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -419,7 +420,7 @@ defineCompForFields applyProj name params fsT fns rect = do
   reportSDoc "comp.rec" 20 $ text $ show params
   reportSDoc "comp.rec" 20 $ text $ show deltaI
   reportSDoc "comp.rec" 10 $ text $ show fsT
-  compName <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName name)
+  compName <- freshAbstractQName noFixity' (C.Name noRange [C.Id $ "comp-" ++ P.prettyShow (A.qnameName name)])
   reportSLn "comp.rec" 5 $ ("Generated name: " ++ show compName ++ " " ++ showQNameId compName)
   compType <- (abstract deltaI <$>) $ runNamesT [] $ do
               rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
