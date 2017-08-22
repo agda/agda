@@ -1255,9 +1255,10 @@ instance InstantiateFull Defn where
     instantiateFull' d = case d of
       Axiom{} -> return d
       AbstractDefn d -> AbstractDefn <$> instantiateFull' d
-      Function{ funClauses = cs, funCompiled = cc, funInv = inv } -> do
+      Function{ funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam } -> do
         (cs, cc, inv) <- instantiateFull' (cs, cc, inv)
-        return $ d { funClauses = cs, funCompiled = cc, funInv = inv }
+        extLam <- instantiateFull' extLam
+        return $ d { funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam }
       Datatype{ dataSort = s, dataClause = cl } -> do
         s  <- instantiateFull' s
         cl <- instantiateFull' cl
@@ -1270,6 +1271,14 @@ instance InstantiateFull Defn where
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs
         return $ d { primClauses = cs }
+
+instance InstantiateFull ExtLamInfo where
+  instantiateFull' e@(ExtLamInfo { extLamSys = sys}) = do
+    sys <- instantiateFull' sys
+    return $ e { extLamSys = sys}
+
+instance InstantiateFull System where
+  instantiateFull' (System tel sys) = System <$> instantiateFull' tel <*> instantiateFull' sys
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
