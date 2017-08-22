@@ -37,6 +37,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.HTML
 import Agda.Interaction.Imports (getAllWarnings')
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Pretty
 import Agda.Utils.FileName

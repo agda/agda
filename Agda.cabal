@@ -420,6 +420,7 @@ library
                     Agda.TypeChecking.SyntacticEquality
                     Agda.TypeChecking.Telescope
                     Agda.TypeChecking.Unquote
+                    Agda.TypeChecking.Warnings
                     Agda.TypeChecking.With
                     Agda.Utils.AssocList
                     Agda.Utils.Bag

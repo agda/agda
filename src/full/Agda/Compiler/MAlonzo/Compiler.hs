@@ -63,6 +63,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
+import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.CompiledClause
 

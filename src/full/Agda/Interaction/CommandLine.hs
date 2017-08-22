@@ -30,6 +30,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
