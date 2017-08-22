@@ -582,6 +582,7 @@ For 2.5.3, the following additional issues have been fixed
   - [#1976](https://github.com/agda/agda/issues/1976): Type-incorrect instantiated projection accepted in pattern
   - [#2035](https://github.com/agda/agda/issues/2035): Matching on string causes solver to fail with internal error
   - [#2146](https://github.com/agda/agda/issues/2146): Unicode syntax for instance arguments
+  - [#2217](https://github.com/agda/agda/issues/2217): Abort Agda without losing state
   - [#2229](https://github.com/agda/agda/issues/2229): Absence or presence of top-level module header affects scope
   - [#2261](https://github.com/agda/agda/issues/2261): Internal error in Auto/CaseSplit.hs:284
   - [#2354](https://github.com/agda/agda/issues/2354): Interaction between instance search, size solver, and ordinary constraint solver.
