@@ -56,6 +56,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Warnings
 
 import Agda.Interaction.Options
 

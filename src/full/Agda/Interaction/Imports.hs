@@ -47,6 +47,7 @@ import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad

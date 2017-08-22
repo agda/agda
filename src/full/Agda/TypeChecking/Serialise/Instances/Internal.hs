@@ -91,9 +91,9 @@ instance EmbPrj I.Term where
   icod_ (Con    a b c) = icodeN 4 Con a b c
   icod_ (Pi       a b) = icodeN 5 Pi a b
   icod_ (Sort     a  ) = icodeN 7 Sort a
-  icod_ (MetaV    a b) = icodeN 8 MetaV a b
-  icod_ (DontCare a  ) = icodeN 9 DontCare a
-  icod_ (Level    a  ) = icodeN 10 Level a
+  icod_ (MetaV    a b) = __IMPOSSIBLE__
+  icod_ (DontCare a  ) = icodeN 8 DontCare a
+  icod_ (Level    a  ) = icodeN 9 Level a
   icod_ (Shared p)     = icodeMemo termD termC p $ icode (derefPtr p)
 
   value r = vcase valu' r where
@@ -106,9 +106,8 @@ instance EmbPrj I.Term where
     valu [4, a, b, c] = valuN Con a b c
     valu [5, a, b] = valuN Pi    a b
     valu [7, a]    = valuN Sort  a
-    valu [8, a, b] = valuN MetaV a b
-    valu [9, a]    = valuN DontCare a
-    valu [10, a]   = valuN Level a
+    valu [8, a]    = valuN DontCare a
+    valu [9, a]    = valuN Level a
     valu _         = malformed
 
 instance EmbPrj Level where
@@ -128,7 +127,7 @@ instance EmbPrj PlusLevel where
 instance EmbPrj LevelAtom where
   icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a
   icod_ (UnreducedLevel a) = icodeN 1 UnreducedLevel a
-  icod_ (MetaLevel a b)    = icodeN 2 MetaLevel a b
+  icod_ (MetaLevel a b)    = __IMPOSSIBLE__
   icod_ BlockedLevel{}     = __IMPOSSIBLE__
 
   value = vcase valu where
@@ -136,7 +135,6 @@ instance EmbPrj LevelAtom where
                                          -- since we do not want do (de)serialize
                                          -- the reason for neutrality
     valu [1, a] = valuN UnreducedLevel a
-    valu [2, a, b] = valuN MetaLevel a b
     valu _      = malformed
 
 instance EmbPrj I.Sort where

@@ -88,6 +88,7 @@ import Agda.Utils.Pretty hiding ((<>))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
+import Agda.Utils.Function
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -2402,16 +2403,14 @@ data Warning
 #endif
            )
 
--- we also keep the state so that we can print the warning correctly
--- later
 data TCWarning
   = TCWarning
-    { tcWarningOrigin :: SrcFile
-        -- ^ File where the warning was raised
-    , tcWarningState   :: TCState
-        -- ^ The state in which the warning was raised.
-    , tcWarningClosure :: Closure Warning
-        -- ^ The warning and the environment in which it was raised.
+    { tcWarningRange :: Range
+        -- ^ Range where the warning was raised
+    , tcWarning   :: Warning
+        -- ^ The warning itself
+    , tcWarningPrintedWarning :: Doc
+        -- ^ The warning printed in the state and environment where it was raised
     }
   deriving ( Show
 #if __GLASGOW_HASKELL__ <= 708
@@ -2419,11 +2418,11 @@ data TCWarning
 #endif
            )
 
-instance HasRange TCWarning where
-  getRange = envRange . clEnv . tcWarningClosure
+tcWarningOrigin :: TCWarning -> SrcFile
+tcWarningOrigin = rangeFile . tcWarningRange
 
-tcWarning :: TCWarning -> Warning
-tcWarning = clValue . tcWarningClosure
+instance HasRange TCWarning where
+  getRange = tcWarningRange
 
 -- used for merging lists of warnings
 instance Eq TCWarning where
@@ -2442,52 +2441,6 @@ getPartialDefs = do
     extractQName :: Warning -> Maybe QName
     extractQName (CoverageIssue f _) = Just f
     extractQName _                   = Nothing
-
--- | Classifying warnings: some are benign, others are (non-fatal) errors
-
-data WhichWarnings =
-    ErrorWarnings -- ^ warnings that will be turned into errors
-  | AllWarnings   -- ^ all warnings, including errors and benign ones
-  -- Note: order of constructors is important for the derived Ord instance
-  deriving (Eq, Ord)
-
-isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = case w of
-  UnsolvedMetaVariables{}    -> True
-  UnsolvedInteractionMetas{} -> True
-  UnsolvedConstraints{}      -> True
- -- rest
-  _                          -> False
-
-classifyWarning :: Warning -> WhichWarnings
-classifyWarning w = case w of
-  OldBuiltin{}               -> AllWarnings
-  EmptyRewritePragma         -> AllWarnings
-  UselessPublic              -> AllWarnings
-  UnreachableClauses{}       -> AllWarnings
-  UselessInline{}            -> AllWarnings
-  GenericWarning{}           -> AllWarnings
-  DeprecationWarning{}       -> AllWarnings
-  NicifierIssue{}            -> AllWarnings
-  TerminationIssue{}         -> ErrorWarnings
-  CoverageIssue{}            -> ErrorWarnings
-  CoverageNoExactSplit{}     -> ErrorWarnings
-  NotStrictlyPositive{}      -> ErrorWarnings
-  UnsolvedMetaVariables{}    -> ErrorWarnings
-  UnsolvedInteractionMetas{} -> ErrorWarnings
-  UnsolvedConstraints{}      -> ErrorWarnings
-  GenericNonFatalError{}     -> ErrorWarnings
-  SafeFlagPostulate{}        -> ErrorWarnings
-  SafeFlagPragma{}           -> ErrorWarnings
-  SafeFlagNonTerminating     -> ErrorWarnings
-  SafeFlagTerminating        -> ErrorWarnings
-  SafeFlagPrimTrustMe        -> ErrorWarnings
-  SafeFlagNoPositivityCheck  -> ErrorWarnings
-  SafeFlagPolarity           -> ErrorWarnings
-  ParseWarning{}             -> ErrorWarnings
-
-classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
-classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2951,16 +2904,6 @@ instance MonadError TCErr (TCMT IO) where
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
--- | Parse monad
-
-runPM :: PM a -> TCM a
-runPM m = do
-  (res, ws) <- runPMIO m
-  mapM_ (warning . ParseWarning) ws
-  case res of
-    Left  e -> throwError (Exception (getRange e) (pretty e))
-    Right a -> return a
-
 -- | Interaction monad.
 
 type IM = TCMT (Haskeline.InputT IO)
@@ -3121,33 +3064,6 @@ typeError err = liftTCM $ throwError =<< typeError_ err
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
 typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
 typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
-
-{-# SPECIALIZE genericWarning :: Doc -> TCM () #-}
-genericWarning :: MonadTCM tcm => Doc -> tcm ()
-genericWarning = warning . GenericWarning
-
-{-# SPECIALIZE genericNonFatalError :: Doc -> TCM () #-}
-genericNonFatalError :: MonadTCM tcm => Doc -> tcm ()
-genericNonFatalError = warning . GenericNonFatalError
-
-{-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
-warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
-warning_ w =
-  liftTCM $ TCWarning <$> (rangeFile <$> view eRange) <*> get <*> buildClosure w
-
-{-# SPECIALIZE warning :: Warning -> TCM () #-}
-warning :: MonadTCM tcm => Warning -> tcm ()
-warning w = do
-  tcwarn <- warning_ w
-  wmode <- optWarningMode <$> pragmaOptions
-  case wmode of
-    IgnoreAllWarnings -> case classifyWarning w of
-                           -- not allowed to ignore non-fatal errors
-                           ErrorWarnings -> raiseWarning tcwarn
-                           AllWarnings -> return ()
-    TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
-    LeaveAlone -> raiseWarning tcwarn
-  where raiseWarning tcw = stTCWarnings %= (tcw :)
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}

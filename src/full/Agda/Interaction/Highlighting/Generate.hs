@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Warnings (runPM)
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))

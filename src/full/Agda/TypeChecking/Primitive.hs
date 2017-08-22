@@ -54,6 +54,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Names
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Functor
 import Agda.Utils.List

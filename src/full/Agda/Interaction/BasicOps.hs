@@ -61,6 +61,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
+import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Termination.TermCheck (termMutual)
 
