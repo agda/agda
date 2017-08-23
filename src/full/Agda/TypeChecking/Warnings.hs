@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.Warnings where
 
 import qualified Data.List as List
@@ -14,6 +16,11 @@ import Agda.Interaction.Options
 import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Except
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ((<$>))
+#endif
+
 
 
 {-# SPECIALIZE genericWarning :: P.Doc -> TCM () #-}
