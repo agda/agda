@@ -1,20 +1,24 @@
+-- | ASTs for subset of GHC Haskell syntax.
 
 module Agda.Utils.Haskell.Syntax where
 
--- Modules --
+-- * Modules
 
 data Module = Module ModuleName [ModulePragma] [ImportDecl] [Decl]
 
-data ModulePragma = LanguagePragma [Name]
+data ModulePragma
+  = LanguagePragma [Name]
+  | OtherPragma String  -- ^ Unstructured pragma (Andreas, 2017-08-23, issue #2712).
 
 data ImportDecl = ImportDecl
-      { importModule    :: ModuleName
-      , importQualified :: Bool
-      , importSpecs     :: Maybe (Bool, [ImportSpec]) }
+  { importModule    :: ModuleName
+  , importQualified :: Bool
+  , importSpecs     :: Maybe (Bool, [ImportSpec])
+  }
 
 data ImportSpec = IVar Name
 
--- Declarations --
+-- * Declarations
 
 data Decl = TypeDecl Name [TyVarBind] Type
           | DataDecl DataOrNew Name [TyVarBind] [ConDecl] [Deriving]
@@ -45,7 +49,7 @@ data GuardedRhs = GuardedRhs [Stmt] Exp
 data Match = Match Name [Pat] Rhs (Maybe Binds)
   deriving (Eq)
 
--- Expressions --
+-- * Expressions
 
 data Type = TyForall [TyVarBind] Type
           | TyFun Type Type
@@ -90,7 +94,7 @@ data Alt = Alt Pat Rhs (Maybe Binds)
 data Literal = Int Integer | Frac Rational | Char Char | String String
   deriving (Eq)
 
--- Names --
+-- * Names
 
 data ModuleName = ModuleName String
   deriving (Eq, Ord)

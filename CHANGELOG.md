@@ -338,6 +338,12 @@ Compiler backends
   allowed for functions. This makes it possible to have both an Agda
   implementation and a native Haskell runtime implementation.
 
+  The GHC file header pragmas `LANGUAGE`, `OPTIONS_GHC`, and `INCLUDE`
+  inside a `FOREIGN GHC` pragma are recognized and printed correctly
+  at the top of the generated Haskell file.
+  [Issue [#2712](https://github.com/agda/agda/issues/2712)]
+
+
 * UHC compiler backend
 
   The UHC backend has been moved to its own repository
