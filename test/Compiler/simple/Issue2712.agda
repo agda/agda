@@ -2,7 +2,7 @@
 --
 -- GHC Pragmas like LANGUAGE have to appear at the top of the Haskell file.
 
--- {-# OPTIONS --no-main #-}  -- Not recognized as pragma option
+{-# OPTIONS --no-main #-}  -- Recognized as pragma option since #2714
 
 module Issue2712 where
 

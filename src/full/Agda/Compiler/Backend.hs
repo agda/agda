@@ -39,17 +39,18 @@ import Agda.Interaction.Highlighting.HTML
 import Agda.Interaction.Imports (getAllWarnings')
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Pretty
 import Agda.Utils.FileName
-import Agda.Utils.Lens
-import Agda.Utils.Impossible
 import Agda.Utils.Functor
 import Agda.Utils.IndexedList
+import Agda.Utils.Lens
+import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
 
 #include "undefined.h"
+import Agda.Utils.Impossible
 
 -- Public interface -------------------------------------------------------
 
@@ -145,7 +146,7 @@ backendInteraction backends _ check = do
   -- reset warnings
   stTCWarnings .= []
 
-  noMain <- optCompileNoMain <$> commandLineOptions
+  noMain <- optCompileNoMain <$> pragmaOptions
   let isMain | noMain    = NotMain
              | otherwise = IsMain
   case mi of
@@ -158,13 +159,21 @@ backendInteraction backends _ check = do
 
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
-compilerMain backend isMain i =
+compilerMain backend isMain0 i =
   inCompilerEnv i $ do
     onlyScoping <- optOnlyScopeChecking <$> commandLineOptions
     when (not (scopeCheckingSuffices backend) && onlyScoping) $
       genericError $
         "The --only-scope-checking flag cannot be combined with " ++
         backendName backend ++ "."
+
+    -- Andreas, 2017-08-23, issue #2714
+    -- If the backend is invoked from Emacs, we can only get the --no-main
+    -- pragma option now, coming from the interface file.
+    isMain <- ifM (optCompileNoMain <$> pragmaOptions)
+      {-then-} (return NotMain)
+      {-else-} (return isMain0)
+
     env  <- preCompile backend (options backend)
     mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env isMain i
     setInterface i

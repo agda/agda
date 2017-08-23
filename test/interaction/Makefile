@@ -76,6 +76,7 @@ setup_Auto-IndexedDatatypes = $(setup_Auto)
 setup_Auto-Misc = $(setup_Auto)
 setup_Auto-Modules = $(setup_Auto)
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
+cleanup_Issue2714  = rm -rf MAlonzo
 cleanup_CompilationWarnings = rm -rf MAlonzo
 setup_QuickLaTeX-Caching = rm -rf latex
 cleanup_QuickLaTeX-Caching = rm -rf latex
