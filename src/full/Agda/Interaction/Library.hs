@@ -162,7 +162,7 @@ findAgdaLibFiles root = do
 getDefaultLibraries
   :: FilePath  -- ^ Project root.
   -> Bool      -- ^ Use @defaults@ if no @.agda-lib@ file exists for this project?
-  -> LibM ([LibName], [FilePath])
+  -> LibM ([LibName], [FilePath])  -- ^ The returned @LibName@s are all non-empty strings.
 getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
   libs <- lift $ findAgdaLibFiles root
   if null libs
@@ -212,7 +212,7 @@ getLibrariesFile Nothing = do
 --
 getInstalledLibraries
   :: Maybe FilePath  -- ^ Override the default @libraries@ file?
-  -> LibM [AgdaLibFile]
+  -> LibM [AgdaLibFile] -- ^ Content of library files.  (Might have empty @LibName@s.)
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     file <- lift $ getLibrariesFile overrideLibFile
     ifNotM (lift $ doesFileExist file) (return []) $ {-else-} do
@@ -228,7 +228,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
 parseLibFiles
   :: Maybe FilePath            -- ^ Name of @libraries@ file for error reporting.
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
-  -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.
+  -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
 parseLibFiles libFile files = do
   rs <- lift $ mapM (parseLibFile . snd) files
   -- Format and raise the errors.
@@ -280,7 +280,7 @@ formatLibError installed = \case
 libraryIncludePaths
   :: Maybe FilePath  -- ^ @libraries@ file (error reporting only).
   -> [AgdaLibFile]   -- ^ Libraries Agda knows about.
-  -> [LibName]       -- ^ Library names to be resolved to (lists of) pathes.
+  -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
   -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     file <- getLibrariesFile overrideLibFile

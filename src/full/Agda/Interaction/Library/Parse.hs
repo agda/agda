@@ -60,7 +60,8 @@ data Field = forall a. Field
 -- | @.agda-lib@ file format with parsers and setters.
 agdaLibFields :: [Field]
 agdaLibFields =
-  [ Field "name"    False parseName                      $ \ name l -> l { libName     = name }
+  -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
+  [ Field "name"    True  parseName                      $ \ name l -> l { libName     = name }
   , Field "include" True  (pure . concatMap words)       $ \ inc  l -> l { libIncludes = inc }
   , Field "depend"  True  (pure . concatMap splitCommas) $ \ ds   l -> l { libDepends  = ds }
   ]
