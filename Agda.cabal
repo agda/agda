@@ -120,6 +120,7 @@ library
                 , async >= 2.0.2 && < 2.2
                 , base >= 4.7.0.2 && < 4.11
                 , binary >= 0.7.2.1 && < 0.9
+                , blaze-html >= 0.9 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
                 , bytestring >= 0.10.4.0 && < 0.11
                 , containers >= 0.5.5.1 && < 0.6
@@ -170,7 +171,6 @@ library
                 -- mtl).
                 , transformers >= 0.4.2.0 && < 0.6
                 , unordered-containers >= 0.2.5.0 && < 0.3
-                , xhtml >= 3000.2.1 && < 3000.3
 
   if impl(ghc < 7.10)
     build-depends: void >= 0.5.4 && < 0.9

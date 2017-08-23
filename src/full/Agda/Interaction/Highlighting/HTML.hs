@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.
@@ -14,12 +15,14 @@ module Agda.Interaction.Highlighting.HTML
   , code
   ) where
 
+import Prelude hiding ((!!))
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 
 import Data.Function
 import Data.Monoid
+import Data.Foldable (toList)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
 import qualified Data.Map    as Map
@@ -28,9 +31,12 @@ import qualified Data.List   as List
 import System.FilePath
 import System.Directory
 
-import Text.XHtml.Strict
-  -- The imported operator (!) attaches a list of html attribute to something.
-  -- It even applies (pointwise) to functions.
+import Text.Blaze.Html5 hiding (code, map, title)
+import qualified Text.Blaze.Html5 as Html5
+import Text.Blaze.Html5.Attributes
+import Text.Blaze.Html.Renderer.Pretty
+  -- The imported operator (!) attaches an Attribute to an Html value
+  -- The defined operator (!!) attaches a list of such Attributes
 
 import Paths_Agda
 
@@ -47,7 +53,7 @@ import Agda.Utils.FileName (filePath)
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -131,29 +137,37 @@ generatePage renderpage dir mod = do
   liftIO $ UTF8.writeFile target html
   where target = dir </> modToFile mod
 
+
+-- | Attach multiple Attributes
+
+(!!) :: Html -> [Attribute] -> Html
+h !! as = h ! mconcat as
+
 -- | Constructs the web page, including headers.
 
 page :: FilePath              -- ^ URL to the CSS file.
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
      -> Html
      -> String
-page css modName pagecontent = renderHtml $
-  header (thetitle << render (pretty modName)
-            +++
-          meta ! [ httpequiv "Content-Type"
-                 , content "text/html; charset=UTF-8"
-                 ]
-            +++
-          meta ! [ httpequiv "Content-Style-Type"
-                 , content "text/css"
-                 ]
-            +++
-          thelink noHtml ! [ href css
-                           , rel "stylesheet"
-                           , thetype "text/css"
-                           ])
-  +++
-  body << pre << pagecontent
+page css modName pagecontent = renderHtml $ docTypeHtml $ hdr <> rest
+
+  where
+
+    hdr = Html5.head $ mconcat
+      [ Html5.title (toHtml $ render $ pretty modName)
+      , meta !! [ httpEquiv "Content-Type"
+                , content "text/html; charset=UTF-8"
+                ]
+      , meta !! [ httpEquiv "Content-Style-Type"
+                , content "text/css"
+                ]
+      , link !! [ href (stringValue css)
+                , rel "stylesheet"
+                , type_ "text/css"
+                ]
+      ]
+
+    rest = body (pre pagecontent)
 
 -- | Constructs token stream ready to print.
 
@@ -182,26 +196,26 @@ code = mconcat . map mkHtml
   mkHtml (pos, s, mi) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
-    applyUnless (mi == mempty) (annotate pos mi) $ stringToHtml s
+    applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
 
   annotate :: Int -> Aspects -> Html -> Html
-  annotate pos mi = anchor ! attributes
+  annotate pos mi content = a content !! attributes
     where
-    attributes =
-      [name $ if here then anchorName (show pos) else show pos] ++
-      maybeToList (fmap link mDefinitionSite) ++
-      (case classes of
-        [] -> []
-        cs -> [theclass $ unwords cs])
+    attributes = concat
+      [ [name $ stringValue $ applyWhen here anchorName $ show pos ]
+      , toList $ fmap link mDefinitionSite
+      , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
+      ]
 
-    classes =
-      maybe [] noteClasses (note mi)
-      ++ otherAspectClasses (otherAspects mi)
-      ++ maybe [] aspectClasses (aspect mi)
+    classes = concat
+      [ concatMap noteClasses (note mi)
+      , otherAspectClasses (otherAspects mi)
+      , concatMap aspectClasses (aspect mi)
+      ]
 
     aspectClasses (Name mKind op) = kindClass ++ opClass
       where
-      kindClass = maybeToList $ fmap showKind mKind
+      kindClass = toList $ fmap showKind mKind
 
       showKind (Constructor Inductive)   = "InductiveConstructor"
       showKind (Constructor CoInductive) = "CoinductiveConstructor"
@@ -218,7 +232,7 @@ code = mconcat . map mkHtml
     mDefinitionSite = definitionSite mi
     here       = maybe False defSiteHere mDefinitionSite
     anchorName = (`fromMaybe` maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite)
-    link (DefinitionSite m pos _here aName) = href $
+    link (DefinitionSite m pos _here aName) = href $ stringValue $
       -- If the definition site points to the top of a file,
       -- we drop the anchor part and just link to the file.
       applyUnless (pos <= 1)
