@@ -78,7 +78,7 @@ encode a = do
       qnameC
       stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
-       icodeFileMod fileMod
+       icodeFileMod fileMod  -- Only fills absPathD from fileMod
        icode a
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
