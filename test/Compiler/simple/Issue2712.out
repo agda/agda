@@ -1,6 +1,3 @@
 COMPILE_SUCCEEDED
 
 ret > ExitSuccess
-out > No main function defined in Issue2712. Use --no-main to suppress
-out > this warning.
-out >

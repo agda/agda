@@ -123,7 +123,6 @@ data CommandLineOptions = Options
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
   , optGHCiInteraction  :: Bool
-  , optCompileNoMain    :: Bool
   , optOptimSmashing    :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
@@ -181,6 +180,7 @@ data PragmaOptions = PragmaOptions
   , optInstanceSearchDepth       :: Int
   , optSafe                      :: Bool
   , optWarningMode               :: WarningMode
+  , optCompileNoMain             :: Bool
   }
   deriving ( Show
            , Eq
@@ -221,7 +221,6 @@ defaultOptions = Options
   , optShowHelp         = False
   , optInteractive      = False
   , optGHCiInteraction  = False
-  , optCompileNoMain    = False
   , optOptimSmashing    = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
@@ -269,6 +268,7 @@ defaultPragmaOptions = PragmaOptions
   , optInstanceSearchDepth       = 500
   , optSafe                      = False
   , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
+  , optCompileNoMain             = False
   }
 
 -- | The default termination depth.
@@ -507,7 +507,7 @@ interactiveFlag  o = return $ o { optInteractive    = True
                                                       { optAllowUnsolved = True }
                                 }
 
-compileFlagNoMain :: Flag CommandLineOptions
+compileFlagNoMain :: Flag PragmaOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
 
 compileDirFlag :: FilePath -> Flag CommandLineOptions
@@ -584,8 +584,6 @@ standardOptions =
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
-    , Option []     ["no-main"] (NoArg compileFlagNoMain)
-                    "do not treat the requested module as the main module of a program when compiling"
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
@@ -714,6 +712,8 @@ pragmaOptions =
                     ("set warning mode to MODE (available: "
                        ++ intercalate ", " (map fst warningModes)
                        ++ ". Default: " ++  defaultWarningMode ++ ")")
+    , Option []     ["no-main"] (NoArg compileFlagNoMain)
+                    "do not treat the requested module as the main module of a program when compiling"
     ]
 
 -- | Used for printing usage info.

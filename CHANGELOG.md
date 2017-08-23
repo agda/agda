@@ -546,12 +546,21 @@ LaTeX backend
 Pragmas and options
 -------------------
 
-* The `--safe` option is now a valid pragma
+* The `--safe` option is now a valid pragma.
 
   This makes it possible to declare a module as being part of the safe
   subset of the language by stating `{-# OPTIONS --safe #-}` at the top
   of the corresponding file. Incompatibilities between the `--safe` option
   and other options or language constructs are non-fatal errors.
+
+* The `--no-main` option is now a valid pragma.
+
+  One can now suppress the compiler warning about a missing main function by
+  putting
+  ```agda
+    {-# OPTIONS --no-main #-}
+  ```
+  on top of the file.
 
 * New command-line option and pragma `--warning=MODE` (or `-W MODE`) for
   setting the warning mode. Current options are
