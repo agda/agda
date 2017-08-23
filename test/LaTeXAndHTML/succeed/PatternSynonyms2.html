@@ -1,105 +1,175 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-><head
-  ><title
-    >PatternSynonyms2</title
-    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
-     /><meta http-equiv="Content-Style-Type" content="text/css"
-     /><link href="Agda.css" rel="stylesheet" type="text/css"
-     /></head
-  ><body
-  ><pre
-    ><a name="1" class="Comment"
-      >\documentclass{article}
+<!DOCTYPE HTML>
+
+<html>
+    <head>
+        <title>
+            PatternSynonyms2
+        </title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="Content-Style-Type" content="text/css">
+        <link href="Agda.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <pre>
+            <a name="1" class="Comment">
+                \documentclass{article}
 \usepackage{agda}
 \begin{document}
 
-</a
-      >\begin{code}
-<a name="74" class="Keyword"
-      >data</a
-      > <a name="Nat" href="PatternSynonyms2.html#Nat" class="Datatype"
-      >Nat</a
-      > <a name="83" class="Symbol"
-      >:</a
-      > <a name="85" class="PrimitiveType"
-      >Set</a
-      > <a name="89" class="Keyword"
-      >where</a
-      >
-  <a name="Nat.zero" href="PatternSynonyms2.html#Nat.zero" class="InductiveConstructor"
-      >zero</a
-      > <a name="102" class="Symbol"
-      >:</a
-      > <a name="104" href="PatternSynonyms2.html#Nat" class="Datatype"
-      >Nat</a
-      >
-  <a name="Nat.suc" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor"
-      >suc</a
-      > <a name="114" class="Symbol"
-      >:</a
-      > <a name="116" href="PatternSynonyms2.html#Nat" class="Datatype"
-      >Nat</a
-      > <a name="120" class="Symbol"
-      >&#8594;</a
-      > <a name="122" href="PatternSynonyms2.html#Nat" class="Datatype"
-      >Nat</a
-      >
 
-<a name="127" class="Keyword"
-      >module</a
-      > <a name="134" href="PatternSynonyms2.html#134" class="Module"
-      >_</a
-      > <a name="136" class="Keyword"
-      >where</a
-      >
+            </a>
+            \begin{code}
 
-  <a name="145" class="Keyword"
-      >pattern</a
-      > <a name="153" href="PatternSynonyms2.html#153" class="InductiveConstructor"
-      >two</a
-      >   <a name="159" class="Symbol"
-      >=</a
-      > <a name="161" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor"
-      >suc</a
-      > <a name="165" class="Symbol"
-      >(</a
-      ><a name="166" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor"
-      >suc</a
-      > <a name="170" href="PatternSynonyms2.html#Nat.zero" class="InductiveConstructor"
-      >zero</a
-      ><a name="174" class="Symbol"
-      >)</a
-      >
-  <a name="178" class="Keyword"
-      >pattern</a
-      > <a name="186" href="PatternSynonyms2.html#186" class="InductiveConstructor"
-      >three</a
-      > <a name="192" class="Symbol"
-      >=</a
-      > <a name="194" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor"
-      >suc</a
-      > <a name="198" href="PatternSynonyms2.html#153" class="InductiveConstructor"
-      >two</a
-      >
+            <a name="74" class="Keyword">
+                data
+            </a>
+             
+            <a name="Nat" href="PatternSynonyms2.html#Nat" class="Datatype">
+                Nat
+            </a>
+             
+            <a name="83" class="Symbol">
+                :
+            </a>
+             
+            <a name="85" class="PrimitiveType">
+                Set
+            </a>
+             
+            <a name="89" class="Keyword">
+                where
+            </a>
+            
+  
+            <a name="Nat.zero" href="PatternSynonyms2.html#Nat.zero" class="InductiveConstructor">
+                zero
+            </a>
+             
+            <a name="102" class="Symbol">
+                :
+            </a>
+             
+            <a name="104" href="PatternSynonyms2.html#Nat" class="Datatype">
+                Nat
+            </a>
+            
+  
+            <a name="Nat.suc" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor">
+                suc
+            </a>
+             
+            <a name="114" class="Symbol">
+                :
+            </a>
+             
+            <a name="116" href="PatternSynonyms2.html#Nat" class="Datatype">
+                Nat
+            </a>
+             
+            <a name="120" class="Symbol">
+                →
+            </a>
+             
+            <a name="122" href="PatternSynonyms2.html#Nat" class="Datatype">
+                Nat
+            </a>
+            
 
-<a name="203" class="Keyword"
-      >data</a
-      > <a name="Bot" href="PatternSynonyms2.html#Bot" class="Datatype"
-      >Bot</a
-      > <a name="212" class="Symbol"
-      >:</a
-      > <a name="214" class="PrimitiveType"
-      >Set</a
-      > <a name="218" class="Keyword"
-      >where</a
-      >
-\end{code}<a name="234" class="Comment"
-      >
+
+            <a name="127" class="Keyword">
+                module
+            </a>
+             
+            <a name="134" href="PatternSynonyms2.html#134" class="Module">
+                _
+            </a>
+             
+            <a name="136" class="Keyword">
+                where
+            </a>
+            
+
+  
+            <a name="145" class="Keyword">
+                pattern
+            </a>
+             
+            <a name="153" href="PatternSynonyms2.html#153" class="InductiveConstructor">
+                two
+            </a>
+               
+            <a name="159" class="Symbol">
+                =
+            </a>
+             
+            <a name="161" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor">
+                suc
+            </a>
+             
+            <a name="165" class="Symbol">
+                (
+            </a>
+            <a name="166" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor">
+                suc
+            </a>
+             
+            <a name="170" href="PatternSynonyms2.html#Nat.zero" class="InductiveConstructor">
+                zero
+            </a>
+            <a name="174" class="Symbol">
+                )
+            </a>
+            
+  
+            <a name="178" class="Keyword">
+                pattern
+            </a>
+             
+            <a name="186" href="PatternSynonyms2.html#186" class="InductiveConstructor">
+                three
+            </a>
+             
+            <a name="192" class="Symbol">
+                =
+            </a>
+             
+            <a name="194" href="PatternSynonyms2.html#Nat.suc" class="InductiveConstructor">
+                suc
+            </a>
+             
+            <a name="198" href="PatternSynonyms2.html#153" class="InductiveConstructor">
+                two
+            </a>
+            
+
+
+            <a name="203" class="Keyword">
+                data
+            </a>
+             
+            <a name="Bot" href="PatternSynonyms2.html#Bot" class="Datatype">
+                Bot
+            </a>
+             
+            <a name="212" class="Symbol">
+                :
+            </a>
+             
+            <a name="214" class="PrimitiveType">
+                Set
+            </a>
+             
+            <a name="218" class="Keyword">
+                where
+            </a>
+            
+\end{code}
+            <a name="234" class="Comment">
+                
 
 \end{document}
-</a
-      ></pre
-    ></body
-  ></html
->
+
+            </a>
+        </pre>
+    </body>
+</html>

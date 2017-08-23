@@ -1,96 +1,152 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-><head
-  ><title
-    >Issue2019</title
-    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
-     /><meta http-equiv="Content-Style-Type" content="text/css"
-     /><link href="Agda.css" rel="stylesheet" type="text/css"
-     /></head
-  ><body
-  ><pre
-    ><a name="1" class="Comment"
-      >\documentclass{article}
+<!DOCTYPE HTML>
+
+<html>
+    <head>
+        <title>
+            Issue2019
+        </title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="Content-Style-Type" content="text/css">
+        <link href="Agda.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <pre>
+            <a name="1" class="Comment">
+                \documentclass{article}
 \usepackage{agda}
 
 \begin{document}
 
-</a
-      >\begin{code}
-<a name="75" class="Comment"
-      >-- We use non-standard spaces between the name of the term and the</a
-      >
-<a name="142" class="Comment"
-      >-- colon.</a
-      >
-<a name="152" class="Keyword"
-      >postulate</a
-      >
-  <a name="s00A0" href="Issue2019.html#s00A0" class="Postulate"
-      >s00A0</a
-      >&#160;<a name="170" class="Symbol"
-      >:</a
-      > <a name="172" class="PrimitiveType"
-      >Set</a
-      >  <a name="177" class="Comment"
-      >-- NO-BREAK SPACE        (&quot;\ &quot; with Agda input method)</a
-      >
-  <a name="s2004" href="Issue2019.html#s2004" class="Postulate"
-      >s2004</a
-      >&#8196;<a name="240" class="Symbol"
-      >:</a
-      > <a name="242" class="PrimitiveType"
-      >Set</a
-      >  <a name="247" class="Comment"
-      >-- THREE-PER-EM SPACE    (&quot;\;&quot; with Agda input method)</a
-      >
-  <a name="s202F" href="Issue2019.html#s202F" class="Postulate"
-      >s202F</a
-      >&#8239;<a name="310" class="Symbol"
-      >:</a
-      > <a name="312" class="PrimitiveType"
-      >Set</a
-      >  <a name="317" class="Comment"
-      >-- NARROW NO-BREAK SPACE (&quot;\,&quot; with Agda input method)</a
-      >
-\end{code}<a name="382" class="Comment"
-      >
 
-% Various whitespace characters: &quot; &#160;&#8196;&#8239;&quot;.
-</a
-      >\begin{code}
-<a name="438" class="Keyword"
-      >open</a
-      > <a name="443" class="Keyword"
-      >import</a
-      > <a name="450" href="Agda.Builtin.String.html" class="Module"
-      >Agda.Builtin.String</a
-      >
+            </a>
+            \begin{code}
 
-<a name="471" class="Comment"
-      >-- Various whitespace characters: &quot; &#160;&#8196;&#8239;&quot;.</a
-      >
+            <a name="75" class="Comment">
+                -- We use non-standard spaces between the name of the term and the
+            </a>
+            
 
-<a name="various-whitespace-characters" href="Issue2019.html#various-whitespace-characters" class="Function"
-      >various-whitespace-characters</a
-      > <a name="544" class="Symbol"
-      >:</a
-      > <a name="546" href="Agda.Builtin.String.html#String" class="Postulate"
-      >String</a
-      >
-<a name="553" href="Issue2019.html#various-whitespace-characters" class="Function"
-      >various-whitespace-characters</a
-      > <a name="583" class="Symbol"
-      >=</a
-      > <a name="585" class="String"
-      >&quot; &#160;&#8196;&#8239;&quot;</a
-      >
-\end{code}<a name="602" class="Comment"
-      >
+            <a name="142" class="Comment">
+                -- colon.
+            </a>
+            
+
+            <a name="152" class="Keyword">
+                postulate
+            </a>
+            
+  
+            <a name="s00A0" href="Issue2019.html#s00A0" class="Postulate">
+                s00A0
+            </a>
+             
+            <a name="170" class="Symbol">
+                :
+            </a>
+             
+            <a name="172" class="PrimitiveType">
+                Set
+            </a>
+              
+            <a name="177" class="Comment">
+                -- NO-BREAK SPACE        (&quot;\ &quot; with Agda input method)
+            </a>
+            
+  
+            <a name="s2004" href="Issue2019.html#s2004" class="Postulate">
+                s2004
+            </a>
+             
+            <a name="240" class="Symbol">
+                :
+            </a>
+             
+            <a name="242" class="PrimitiveType">
+                Set
+            </a>
+              
+            <a name="247" class="Comment">
+                -- THREE-PER-EM SPACE    (&quot;\;&quot; with Agda input method)
+            </a>
+            
+  
+            <a name="s202F" href="Issue2019.html#s202F" class="Postulate">
+                s202F
+            </a>
+             
+            <a name="310" class="Symbol">
+                :
+            </a>
+             
+            <a name="312" class="PrimitiveType">
+                Set
+            </a>
+              
+            <a name="317" class="Comment">
+                -- NARROW NO-BREAK SPACE (&quot;\,&quot; with Agda input method)
+            </a>
+            
+\end{code}
+            <a name="382" class="Comment">
+                
+
+% Various whitespace characters: &quot;    &quot;.
+
+            </a>
+            \begin{code}
+
+            <a name="438" class="Keyword">
+                open
+            </a>
+             
+            <a name="443" class="Keyword">
+                import
+            </a>
+             
+            <a name="450" href="Agda.Builtin.String.html" class="Module">
+                Agda.Builtin.String
+            </a>
+            
+
+
+            <a name="471" class="Comment">
+                -- Various whitespace characters: &quot;    &quot;.
+            </a>
+            
+
+
+            <a name="various-whitespace-characters" href="Issue2019.html#various-whitespace-characters" class="Function">
+                various-whitespace-characters
+            </a>
+             
+            <a name="544" class="Symbol">
+                :
+            </a>
+             
+            <a name="546" href="Agda.Builtin.String.html#String" class="Postulate">
+                String
+            </a>
+            
+
+            <a name="553" href="Issue2019.html#various-whitespace-characters" class="Function">
+                various-whitespace-characters
+            </a>
+             
+            <a name="583" class="Symbol">
+                =
+            </a>
+             
+            <a name="585" class="String">
+                &quot;    &quot;
+            </a>
+            
+\end{code}
+            <a name="602" class="Comment">
+                
 
 \end{document}
-</a
-      ></pre
-    ></body
-  ></html
->
+
+            </a>
+        </pre>
+    </body>
+</html>

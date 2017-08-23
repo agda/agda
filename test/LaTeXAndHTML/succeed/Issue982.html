@@ -1,16 +1,18 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-><head
-  ><title
-    >Issue982</title
-    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
-     /><meta http-equiv="Content-Style-Type" content="text/css"
-     /><link href="Agda.css" rel="stylesheet" type="text/css"
-     /></head
-  ><body
-  ><pre
-    ><a name="1" class="Comment"
-      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<!DOCTYPE HTML>
+
+<html>
+    <head>
+        <title>
+            Issue982
+        </title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="Content-Style-Type" content="text/css">
+        <link href="Agda.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <pre>
+            <a name="1" class="Comment">
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Testing with Ubuntu 14.04.
 
 % For testing this issue it is necessary to install the following
@@ -46,222 +48,397 @@
 
 %\renewcommand{\AgdaIndent}{\;\;}
 
-</a
-      >\begin{code}
-<a name="1095" class="Keyword"
-      >record</a
-      > <a name="Sigma" href="Issue982.html#Sigma" class="Record"
-      >Sigma</a
-      > <a name="1108" class="Symbol"
-      >(</a
-      ><a name="1109" href="Issue982.html#1109" class="Bound"
-      >A</a
-      > <a name="1111" class="Symbol"
-      >:</a
-      > <a name="1113" class="PrimitiveType"
-      >Set</a
-      ><a name="1116" class="Symbol"
-      >)</a
-      > <a name="1118" class="Symbol"
-      >(</a
-      ><a name="1119" href="Issue982.html#1119" class="Bound"
-      >B</a
-      > <a name="1121" class="Symbol"
-      >:</a
-      > <a name="1123" href="Issue982.html#1109" class="Bound"
-      >A</a
-      > <a name="1125" class="Symbol"
-      >&#8594;</a
-      > <a name="1127" class="PrimitiveType"
-      >Set</a
-      ><a name="1130" class="Symbol"
-      >)</a
-      > <a name="1132" class="Symbol"
-      >:</a
-      > <a name="1134" class="PrimitiveType"
-      >Set</a
-      > <a name="1138" class="Keyword"
-      >where</a
-      >
-  <a name="1146" class="Keyword"
-      >constructor</a
-      > <a name="Sigma._,_" href="Issue982.html#Sigma._,_" class="InductiveConstructor Operator"
-      >_,_</a
-      >
-  <a name="1164" class="Keyword"
-      >field</a
-      >
-    <a name="Sigma.proj&#8321;" href="Issue982.html#Sigma.proj&#8321;" class="Field"
-      >proj&#8321;</a
-      > <a name="1180" class="Symbol"
-      >:</a
-      > <a name="1182" href="Issue982.html#1109" class="Bound"
-      >A</a
-      >
-    <a name="Sigma.proj&#8322;" href="Issue982.html#Sigma.proj&#8322;" class="Field"
-      >proj&#8322;</a
-      > <a name="1194" class="Symbol"
-      >:</a
-      > <a name="1196" href="Issue982.html#1119" class="Bound"
-      >B</a
-      > <a name="1198" href="Issue982.html#Sigma.proj&#8321;" class="Field"
-      >proj&#8321;</a
-      >
 
-<a name="1205" class="Keyword"
-      >open</a
-      > <a name="1210" href="Issue982.html#Sigma" class="Module"
-      >Sigma</a
-      > <a name="1216" class="Keyword"
-      >public</a
-      >
-\end{code}<a name="1233" class="Comment"
-      >
+            </a>
+            \begin{code}
 
-</a
-      >\begin{code}
-<a name="uncurry" href="Issue982.html#uncurry" class="Function"
-      >uncurry</a
-      > <a name="1256" class="Symbol"
-      >:</a
-      > <a name="1258" class="Symbol"
-      >{</a
-      ><a name="1259" href="Issue982.html#1259" class="Bound"
-      >A</a
-      > <a name="1261" class="Symbol"
-      >:</a
-      > <a name="1263" class="PrimitiveType"
-      >Set</a
-      ><a name="1266" class="Symbol"
-      >}</a
-      > <a name="1268" class="Symbol"
-      >{</a
-      ><a name="1269" href="Issue982.html#1269" class="Bound"
-      >B</a
-      > <a name="1271" class="Symbol"
-      >:</a
-      > <a name="1273" href="Issue982.html#1259" class="Bound"
-      >A</a
-      > <a name="1275" class="Symbol"
-      >&#8594;</a
-      > <a name="1277" class="PrimitiveType"
-      >Set</a
-      ><a name="1280" class="Symbol"
-      >}</a
-      > <a name="1282" class="Symbol"
-      >{</a
-      ><a name="1283" href="Issue982.html#1283" class="Bound"
-      >C</a
-      > <a name="1285" class="Symbol"
-      >:</a
-      > <a name="1287" href="Issue982.html#Sigma" class="Record"
-      >Sigma</a
-      > <a name="1293" href="Issue982.html#1259" class="Bound"
-      >A</a
-      > <a name="1295" href="Issue982.html#1269" class="Bound"
-      >B</a
-      > <a name="1297" class="Symbol"
-      >&#8594;</a
-      > <a name="1299" class="PrimitiveType"
-      >Set</a
-      ><a name="1302" class="Symbol"
-      >}</a
-      > <a name="1304" class="Symbol"
-      >&#8594;</a
-      >
-          <a name="1316" class="Symbol"
-      >((</a
-      ><a name="1318" href="Issue982.html#1318" class="Bound"
-      >x</a
-      > <a name="1320" class="Symbol"
-      >:</a
-      > <a name="1322" href="Issue982.html#1259" class="Bound"
-      >A</a
-      ><a name="1323" class="Symbol"
-      >)</a
-      > <a name="1325" class="Symbol"
-      >&#8594;</a
-      > <a name="1327" class="Symbol"
-      >(</a
-      ><a name="1328" href="Issue982.html#1328" class="Bound"
-      >y</a
-      > <a name="1330" class="Symbol"
-      >:</a
-      > <a name="1332" href="Issue982.html#1269" class="Bound"
-      >B</a
-      > <a name="1334" href="Issue982.html#1318" class="Bound"
-      >x</a
-      ><a name="1335" class="Symbol"
-      >)</a
-      > <a name="1337" class="Symbol"
-      >&#8594;</a
-      > <a name="1339" href="Issue982.html#1283" class="Bound"
-      >C</a
-      > <a name="1341" class="Symbol"
-      >(</a
-      ><a name="1342" href="Issue982.html#1318" class="Bound"
-      >x</a
-      > <a name="1344" href="Issue982.html#Sigma._,_" class="InductiveConstructor Operator"
-      >,</a
-      > <a name="1346" href="Issue982.html#1328" class="Bound"
-      >y</a
-      ><a name="1347" class="Symbol"
-      >))</a
-      > <a name="1350" class="Symbol"
-      >&#8594;</a
-      >
-          <a name="1362" class="Symbol"
-      >((</a
-      ><a name="1364" href="Issue982.html#1364" class="Bound"
-      >p</a
-      > <a name="1366" class="Symbol"
-      >:</a
-      > <a name="1368" href="Issue982.html#Sigma" class="Record"
-      >Sigma</a
-      > <a name="1374" href="Issue982.html#1259" class="Bound"
-      >A</a
-      > <a name="1376" href="Issue982.html#1269" class="Bound"
-      >B</a
-      ><a name="1377" class="Symbol"
-      >)</a
-      > <a name="1379" class="Symbol"
-      >&#8594;</a
-      > <a name="1381" href="Issue982.html#1283" class="Bound"
-      >C</a
-      > <a name="1383" href="Issue982.html#1364" class="Bound"
-      >p</a
-      ><a name="1384" class="Symbol"
-      >)</a
-      >
-<a name="1386" href="Issue982.html#uncurry" class="Function"
-      >uncurry</a
-      > <a name="1394" href="Issue982.html#1394" class="Bound"
-      >f</a
-      > <a name="1396" class="Symbol"
-      >(</a
-      ><a name="1397" href="Issue982.html#1397" class="Bound"
-      >x</a
-      > <a name="1399" href="Issue982.html#Sigma._,_" class="InductiveConstructor Operator"
-      >,</a
-      > <a name="1401" href="Issue982.html#1401" class="Bound"
-      >y</a
-      ><a name="1402" class="Symbol"
-      >)</a
-      > <a name="1404" class="Symbol"
-      >=</a
-      > <a name="1406" href="Issue982.html#1394" class="Bound"
-      >f</a
-      > <a name="1408" href="Issue982.html#1397" class="Bound"
-      >x</a
-      > <a name="1410" href="Issue982.html#1401" class="Bound"
-      >y</a
-      >
-\end{code}<a name="1422" class="Comment"
-      >
+            <a name="1095" class="Keyword">
+                record
+            </a>
+             
+            <a name="Sigma" href="Issue982.html#Sigma" class="Record">
+                Sigma
+            </a>
+             
+            <a name="1108" class="Symbol">
+                (
+            </a>
+            <a name="1109" href="Issue982.html#1109" class="Bound">
+                A
+            </a>
+             
+            <a name="1111" class="Symbol">
+                :
+            </a>
+             
+            <a name="1113" class="PrimitiveType">
+                Set
+            </a>
+            <a name="1116" class="Symbol">
+                )
+            </a>
+             
+            <a name="1118" class="Symbol">
+                (
+            </a>
+            <a name="1119" href="Issue982.html#1119" class="Bound">
+                B
+            </a>
+             
+            <a name="1121" class="Symbol">
+                :
+            </a>
+             
+            <a name="1123" href="Issue982.html#1109" class="Bound">
+                A
+            </a>
+             
+            <a name="1125" class="Symbol">
+                →
+            </a>
+             
+            <a name="1127" class="PrimitiveType">
+                Set
+            </a>
+            <a name="1130" class="Symbol">
+                )
+            </a>
+             
+            <a name="1132" class="Symbol">
+                :
+            </a>
+             
+            <a name="1134" class="PrimitiveType">
+                Set
+            </a>
+             
+            <a name="1138" class="Keyword">
+                where
+            </a>
+            
+  
+            <a name="1146" class="Keyword">
+                constructor
+            </a>
+             
+            <a name="Sigma._,_" href="Issue982.html#Sigma._,_" class="InductiveConstructor Operator">
+                _,_
+            </a>
+            
+  
+            <a name="1164" class="Keyword">
+                field
+            </a>
+            
+    
+            <a name="Sigma.proj₁" href="Issue982.html#Sigma.proj₁" class="Field">
+                proj₁
+            </a>
+             
+            <a name="1180" class="Symbol">
+                :
+            </a>
+             
+            <a name="1182" href="Issue982.html#1109" class="Bound">
+                A
+            </a>
+            
+    
+            <a name="Sigma.proj₂" href="Issue982.html#Sigma.proj₂" class="Field">
+                proj₂
+            </a>
+             
+            <a name="1194" class="Symbol">
+                :
+            </a>
+             
+            <a name="1196" href="Issue982.html#1119" class="Bound">
+                B
+            </a>
+             
+            <a name="1198" href="Issue982.html#Sigma.proj₁" class="Field">
+                proj₁
+            </a>
+            
+
+
+            <a name="1205" class="Keyword">
+                open
+            </a>
+             
+            <a name="1210" href="Issue982.html#Sigma" class="Module">
+                Sigma
+            </a>
+             
+            <a name="1216" class="Keyword">
+                public
+            </a>
+            
+\end{code}
+            <a name="1233" class="Comment">
+                
+
+
+            </a>
+            \begin{code}
+
+            <a name="uncurry" href="Issue982.html#uncurry" class="Function">
+                uncurry
+            </a>
+             
+            <a name="1256" class="Symbol">
+                :
+            </a>
+             
+            <a name="1258" class="Symbol">
+                {
+            </a>
+            <a name="1259" href="Issue982.html#1259" class="Bound">
+                A
+            </a>
+             
+            <a name="1261" class="Symbol">
+                :
+            </a>
+             
+            <a name="1263" class="PrimitiveType">
+                Set
+            </a>
+            <a name="1266" class="Symbol">
+                }
+            </a>
+             
+            <a name="1268" class="Symbol">
+                {
+            </a>
+            <a name="1269" href="Issue982.html#1269" class="Bound">
+                B
+            </a>
+             
+            <a name="1271" class="Symbol">
+                :
+            </a>
+             
+            <a name="1273" href="Issue982.html#1259" class="Bound">
+                A
+            </a>
+             
+            <a name="1275" class="Symbol">
+                →
+            </a>
+             
+            <a name="1277" class="PrimitiveType">
+                Set
+            </a>
+            <a name="1280" class="Symbol">
+                }
+            </a>
+             
+            <a name="1282" class="Symbol">
+                {
+            </a>
+            <a name="1283" href="Issue982.html#1283" class="Bound">
+                C
+            </a>
+             
+            <a name="1285" class="Symbol">
+                :
+            </a>
+             
+            <a name="1287" href="Issue982.html#Sigma" class="Record">
+                Sigma
+            </a>
+             
+            <a name="1293" href="Issue982.html#1259" class="Bound">
+                A
+            </a>
+             
+            <a name="1295" href="Issue982.html#1269" class="Bound">
+                B
+            </a>
+             
+            <a name="1297" class="Symbol">
+                →
+            </a>
+             
+            <a name="1299" class="PrimitiveType">
+                Set
+            </a>
+            <a name="1302" class="Symbol">
+                }
+            </a>
+             
+            <a name="1304" class="Symbol">
+                →
+            </a>
+            
+          
+            <a name="1316" class="Symbol">
+                ((
+            </a>
+            <a name="1318" href="Issue982.html#1318" class="Bound">
+                x
+            </a>
+             
+            <a name="1320" class="Symbol">
+                :
+            </a>
+             
+            <a name="1322" href="Issue982.html#1259" class="Bound">
+                A
+            </a>
+            <a name="1323" class="Symbol">
+                )
+            </a>
+             
+            <a name="1325" class="Symbol">
+                →
+            </a>
+             
+            <a name="1327" class="Symbol">
+                (
+            </a>
+            <a name="1328" href="Issue982.html#1328" class="Bound">
+                y
+            </a>
+             
+            <a name="1330" class="Symbol">
+                :
+            </a>
+             
+            <a name="1332" href="Issue982.html#1269" class="Bound">
+                B
+            </a>
+             
+            <a name="1334" href="Issue982.html#1318" class="Bound">
+                x
+            </a>
+            <a name="1335" class="Symbol">
+                )
+            </a>
+             
+            <a name="1337" class="Symbol">
+                →
+            </a>
+             
+            <a name="1339" href="Issue982.html#1283" class="Bound">
+                C
+            </a>
+             
+            <a name="1341" class="Symbol">
+                (
+            </a>
+            <a name="1342" href="Issue982.html#1318" class="Bound">
+                x
+            </a>
+             
+            <a name="1344" href="Issue982.html#Sigma._,_" class="InductiveConstructor Operator">
+                ,
+            </a>
+             
+            <a name="1346" href="Issue982.html#1328" class="Bound">
+                y
+            </a>
+            <a name="1347" class="Symbol">
+                ))
+            </a>
+             
+            <a name="1350" class="Symbol">
+                →
+            </a>
+            
+          
+            <a name="1362" class="Symbol">
+                ((
+            </a>
+            <a name="1364" href="Issue982.html#1364" class="Bound">
+                p
+            </a>
+             
+            <a name="1366" class="Symbol">
+                :
+            </a>
+             
+            <a name="1368" href="Issue982.html#Sigma" class="Record">
+                Sigma
+            </a>
+             
+            <a name="1374" href="Issue982.html#1259" class="Bound">
+                A
+            </a>
+             
+            <a name="1376" href="Issue982.html#1269" class="Bound">
+                B
+            </a>
+            <a name="1377" class="Symbol">
+                )
+            </a>
+             
+            <a name="1379" class="Symbol">
+                →
+            </a>
+             
+            <a name="1381" href="Issue982.html#1283" class="Bound">
+                C
+            </a>
+             
+            <a name="1383" href="Issue982.html#1364" class="Bound">
+                p
+            </a>
+            <a name="1384" class="Symbol">
+                )
+            </a>
+            
+
+            <a name="1386" href="Issue982.html#uncurry" class="Function">
+                uncurry
+            </a>
+             
+            <a name="1394" href="Issue982.html#1394" class="Bound">
+                f
+            </a>
+             
+            <a name="1396" class="Symbol">
+                (
+            </a>
+            <a name="1397" href="Issue982.html#1397" class="Bound">
+                x
+            </a>
+             
+            <a name="1399" href="Issue982.html#Sigma._,_" class="InductiveConstructor Operator">
+                ,
+            </a>
+             
+            <a name="1401" href="Issue982.html#1401" class="Bound">
+                y
+            </a>
+            <a name="1402" class="Symbol">
+                )
+            </a>
+             
+            <a name="1404" class="Symbol">
+                =
+            </a>
+             
+            <a name="1406" href="Issue982.html#1394" class="Bound">
+                f
+            </a>
+             
+            <a name="1408" href="Issue982.html#1397" class="Bound">
+                x
+            </a>
+             
+            <a name="1410" href="Issue982.html#1401" class="Bound">
+                y
+            </a>
+            
+\end{code}
+            <a name="1422" class="Comment">
+                
 
 \end{document}
-</a
-      ></pre
-    ></body
-  ></html
->
+
+            </a>
+        </pre>
+    </body>
+</html>
