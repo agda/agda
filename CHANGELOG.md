@@ -300,6 +300,17 @@ Emacs mode
     test0 x | q = ?
   ```
 
+Library management
+------------------
+
+* The `name` field in an `.agda-lib` file is now optional.
+
+  This feature is convenient if you just want to specify the dependencies
+  and include pathes for your local project in an `.agda-lib` file.
+
+  Naturally, libraries without names cannot be depended on.
+
+
 Compiler backends
 -----------------
 
