@@ -1,0 +1,8 @@
+Issue2709.agda:70,6-38
+No instance of type
+Inner' (mkA _x_143) _145 _147 mkConstraint
+(_145 (mkA _x_143) → _147 (mkA _x_143))
+was found in scope.
+when checking that {A = Class' x A B (A x → B x)} is a valid
+argument to a function of type
+{a = a₁ : Level} {A = A₁ : Set a₁} {{x = x₁ : A₁}} → A₁
