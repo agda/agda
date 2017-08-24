@@ -95,20 +95,13 @@ conApp ch                  ci args []             = Con ch ci args
 conApp ch                  ci args (Apply a : es) = conApp ch ci (args ++ [a]) es
 conApp ch                  ci args (IApply{} : es) = __IMPOSSIBLE__
 conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
-  -- #2709: we might get illtyped terms due to sloppiness in conversion
-  -- checker. Don't __IMPOSSIBLE__ here. If we do, there are inconsistent
-  -- constraints somewhere that we should discover soon.
-  -- let failure = flip trace __IMPOSSIBLE__ $
-  --       "conApp: constructor " ++ show c ++
-  --       " with fields " ++ show fs ++
-  --       " projected by " ++ show f
-  --     i = maybe failure id            $ List.elemIndex f fs
-  --     v = maybe failure argToDontCare $ headMaybe $ drop i args
-  -- in  applyE v es
-  case List.elemIndex f fs of
-    Nothing -> applyE (Def f [Apply $ defaultArg (Con ch ci args)]) es
-    Just i  -> applyE v es
-      where v = maybe __IMPOSSIBLE__ argToDontCare $ headMaybe $ drop i args
+  let failure = flip trace __IMPOSSIBLE__ $
+        "conApp: constructor " ++ show c ++
+        " with fields " ++ show fs ++
+        " projected by " ++ show f
+      i = maybe failure id            $ List.elemIndex f fs
+      v = maybe failure argToDontCare $ headMaybe $ drop i args
+  in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v

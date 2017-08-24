@@ -183,7 +183,7 @@ match' ((c, es, patch) : stack) = do
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
   caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
     pds <- getPartialDefs
-    if f `elem` pds || True -- #2709: we might actually get here!
+    if f `elem` pds
     then return (NoReduction $ NotBlocked MissingClauses [])
     else do
       traceSLn "impossible" 10
