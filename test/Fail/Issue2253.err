@@ -1,0 +1,3 @@
+Issue2253.agda:17,6-7
+Cannot split on abstract data type B
+when checking that the pattern x has type B

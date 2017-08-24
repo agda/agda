@@ -344,9 +344,10 @@ isEtaRecordType a = case ignoreSharing $ unEl a of
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
-isRecordConstructor c = do
-  def <- theDef <$> getConstInfo c
-  case def of
+isRecordConstructor c = getConstInfo' c >>= \case
+  Left (SigUnknown err)        -> __IMPOSSIBLE__
+  Left SigAbstract             -> return Nothing
+  Right def -> case theDef $ def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 
