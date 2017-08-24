@@ -470,6 +470,7 @@ library
                     Agda.Utils.Size
                     Agda.Utils.String
                     Agda.Utils.Suffix
+                    Agda.Utils.Three
                     Agda.Utils.Time
                     Agda.Utils.Trie
                     Agda.Utils.Tuple
@@ -714,6 +715,7 @@ test-suite internal-tests
                 , InternalTests.Utils.Maybe.Strict
                 , InternalTests.Utils.PartialOrd
                 , InternalTests.Utils.Permutation
+                , InternalTests.Utils.Three
                 , InternalTests.Utils.Trie
                 , InternalTests.Utils.Warshall
 

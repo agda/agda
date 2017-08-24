@@ -50,12 +50,14 @@ import InternalTests.Utils.Maybe.Strict                       as UtilMaybeS   ( 
 import InternalTests.Utils.Monoid                             as UtilMonoid   ( tests )
 import InternalTests.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import InternalTests.Utils.Permutation                        as UtilPerm     ( tests )
+import InternalTests.Utils.Three                              as UtilThree    ( tests )
 import InternalTests.Utils.Trie                               as UtilTrie     ( tests )
 import InternalTests.Utils.Warshall                           as UtilWarsh    ( tests )
 
 runAllTests :: IO Bool
 runAllTests = runTests "QuickCheck test suite:"
-  [ Library.tests
+  [ UtilThree.tests
+  , Library.tests
   , Free.tests
   , Irrel.tests
   , SizedTypes.tests

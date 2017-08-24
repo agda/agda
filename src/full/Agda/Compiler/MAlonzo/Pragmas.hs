@@ -20,6 +20,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Parser.ReadP
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.String ( ltrim )
+import Agda.Utils.Three
 
 import Agda.Compiler.Common
 
@@ -191,10 +192,9 @@ classifyPragma s0 = case ltrim s0 of
 
 -- | Partition a list by 'KindOfForeignCode' attribute.
 partitionByKindOfForeignCode :: (a -> KindOfForeignCode) -> [a] -> ([a], [a], [a])
-partitionByKindOfForeignCode f = loop where
-  loop []     = ([], [], [])
-  loop (x:xs) = case f x of
-      ForeignFileHeaderPragma -> (x:as, bs, cs)
-      ForeignImport           -> (as, x:bs, cs)
-      ForeignOther            -> (as, bs, x:cs)
-    where (as, bs, cs) = loop xs
+partitionByKindOfForeignCode f = partition3 $ toThree . f
+  where
+  toThree = \case
+    ForeignFileHeaderPragma -> One
+    ForeignImport           -> Two
+    ForeignOther            -> Three
