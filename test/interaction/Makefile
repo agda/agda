@@ -83,7 +83,6 @@ cleanup_QuickLaTeX-Caching = rm -rf latex
 RTS_Issue637       = +RTS -K10000 -RTS
 RTS_Issue639       = --safe
 RTS_Issue1785      = --library-file=issue1785.libs
-RTS_Issue1829      = --caching +RTS -M4M -RTS
 
 # No recorded output
 ########################################################################
