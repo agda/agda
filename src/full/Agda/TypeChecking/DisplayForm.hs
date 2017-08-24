@@ -188,7 +188,7 @@ instance SubstWithOrigin (Arg Term) where
       -- pattern variable: replace origin if better
       Var x [] -> case ots !!! x of
         Just (WithOrigin o u) -> Arg (mapOrigin (replaceOrigin o) ai) u
-        Nothing -> __IMPOSSIBLE__
+        Nothing -> Arg ai $ applySubst rho v -- Issue #2717, not __IMPOSSIBLE__
       -- constructor: recurse
       Con c ci args -> Arg ai $ Con c ci $ substWithOrigin rho ots args
       -- def: recurse
