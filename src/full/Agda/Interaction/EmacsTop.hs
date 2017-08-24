@@ -13,6 +13,7 @@ import Data.Maybe
 import System.IO
 
 import Agda.Utils.Monad
+import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
@@ -166,8 +167,6 @@ lispifyResponse (Resp_Status s)
                  ]
              ]
   where
-    boolToMaybe b x = if b then Just x else Nothing
-
     checked  = boolToMaybe (sChecked               s) "Checked"
     showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
 

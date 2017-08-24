@@ -1,31 +1,36 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module LaTeXAndHTML.Tests where
-
-import Test.Tasty
-import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe)
-import Data.Char
-import Data.List
-import Data.Maybe
-import System.Directory
-import System.Exit
-import System.FilePath
-import System.Process
-import qualified System.Process.Text as PT
-import qualified System.Process.ByteString as PB
-import qualified Data.Text as T
-import System.IO.Temp
-import Data.Text.Encoding
-import qualified Data.ByteString as BS
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative ((<$>))
 #endif
 
+import Data.Char
+import qualified Data.List as List
+import Data.Maybe
+import Data.Text.Encoding
+import qualified Data.ByteString as BS
+
+import System.Directory
+import System.Exit
+import System.FilePath
+import System.IO.Temp
+import System.Process
+import qualified System.Process.Text as PT
+import qualified System.Process.ByteString as PB
+import qualified Data.Text as T
+
+import Test.Tasty
+import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced (readFileMaybe)
+
 import Utils
+
+import Agda.Utils.Three
 
 type LaTeXProg = String
 
@@ -35,17 +40,37 @@ allLaTeXProgs = ["pdflatex", "xelatex", "lualatex"]
 testDir :: FilePath
 testDir = "test" </> "LaTeXAndHTML" </> "succeed"
 
-tests :: IO TestTree
+-- | List of test groups with names
+--
+-- @
+--   [ "LaTeXAndHTML" , "HTMLOnly" , "LaTeXOnly" , "QuickLaTeXOnly" ]
+-- @.
+--
+tests :: IO [TestTree]
 tests = do
+  allTests <- taggedListOfAllTests
+  let (html, latex, quicklatex) = (\ f -> partition3 (f . fst) allTests) $ \case
+        HTML       -> One
+        LaTeX      -> Two
+        QuickLaTeX -> Three
+  return
+    [ testGroup "LaTeXAndHTML"   $ map snd allTests
+    , testGroup "HTMLOnly"       $ map snd html
+    , testGroup "LaTeXOnly"      $ map snd latex
+    , testGroup "QuickLaTeXOnly" $ map snd quicklatex
+    ]
+
+taggedListOfAllTests :: IO [(Kind, TestTree)]
+taggedListOfAllTests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
   agdaBin  <- getAgdaBin
-  return $ testGroup "LaTeXAndHTML"
-    [ mkLaTeXOrHTMLTest k agdaBin f
+  return $
+    [ (k, mkLaTeXOrHTMLTest k agdaBin f)
     | f <- inpFiles
     -- Note that the LaTeX backends are only tested on the @.lagda@
     -- and @.lagda.tex@ files.
     , k <- HTML : concat [ [ LaTeX, QuickLaTeX ]
-                         | any (`isSuffixOf` takeExtensions f)
+                         | any (`List.isSuffixOf` takeExtensions f)
                                [".lagda",".lagda.tex"]
                          ]
     ]

@@ -15,6 +15,12 @@ import Control.Monad.Trans.Maybe
 import Data.Maybe
 import Data.Functor
 
+-- * Conversion.
+
+-- | Retain object when tag is 'True'.
+boolToMaybe :: Bool -> a -> Maybe a
+boolToMaybe b x = if b then Just x else Nothing
+
 -- * Collection operations.
 
 -- | @unionWith@ for collections of size <= 1.

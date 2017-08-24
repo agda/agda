@@ -77,5 +77,5 @@ return [] -- KEEP!
 
 tests :: IO Bool
 tests = do
-  putStrLn "InternalTests.Utils.Bags"
+  putStrLn "InternalTests.Utils.Bag"
   $quickCheckAll
