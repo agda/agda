@@ -86,3 +86,5 @@ main = do
   -- Let Agda shut down gracefully.
   hClose wr
   waitForProcess p
+
+  return ()
