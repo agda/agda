@@ -100,11 +100,15 @@ vcat ds = P.vcat <$> sequence ds
 hang :: TCM Doc -> Int -> TCM Doc -> TCM Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
 
-($$), ($+$), (<>), (<+>) :: TCM Doc -> TCM Doc -> TCM Doc
+infixl 6 <>, <+>, <?>
+infixl 5 $$, $+$
+
+($$), ($+$), (<>), (<+>), (<?>) :: TCM Doc -> TCM Doc -> TCM Doc
 d1 $$ d2  = (P.$$) <$> d1 <*> d2
 d1 $+$ d2 = (P.$+$) <$> d1 <*> d2
 d1 <> d2  = (P.<>) <$> d1 <*> d2
 d1 <+> d2 = (P.<+>) <$> d1 <*> d2
+d1 <?> d2 = (P.<?>) <$> d1 <*> d2
 
 nest :: Int -> TCM Doc -> TCM Doc
 nest n d   = P.nest n <$> d
@@ -114,6 +118,9 @@ braces d   = P.braces <$> d
 dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
+
+pshow :: Show a => a -> TCM Doc
+pshow = pure . P.pshow
 
 -- | Comma-separated list in brackets.
 prettyList :: [TCM Doc] -> TCM Doc

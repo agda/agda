@@ -1610,6 +1610,81 @@ data Defn = Axiom
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
 
+instance Pretty Definition where
+  pretty Defn{..} =
+    text "Defn {" <?> vcat
+      [ text "defArgInfo        =" <?> pshow defArgInfo
+      , text "defName           =" <?> pretty defName
+      , text "defType           =" <?> pretty defType
+      , text "defPolarity       =" <?> pshow defPolarity
+      , text "defArgOccurrences =" <?> pshow defArgOccurrences
+      , text "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
+      , text "defMutual         =" <?> pshow defMutual
+      , text "defCompiledRep    =" <?> pshow defCompiledRep
+      , text "defInstance       =" <?> pshow defInstance
+      , text "defCopy           =" <?> pshow defCopy
+      , text "defMatchable      =" <?> pshow defMatchable
+      , text "defInjective      =" <?> pshow defInjective
+      , text "theDef            =" <?> pretty theDef ] <+> text "}"
+
+instance Pretty Defn where
+  pretty Axiom = text "Axiom"
+  pretty (AbstractDefn def) = text "AbstractDefn" <?> parens (pretty def)
+  pretty Function{..} =
+    text "Function {" <?> vcat
+      [ text "funClauses      =" <?> vcat (map pretty funClauses)
+      , text "funCompiled     =" <?> pshow funCompiled
+      , text "funTreeless     =" <?> pshow funTreeless
+      , text "funInv          =" <?> pshow funInv
+      , text "funMutual       =" <?> pshow funMutual
+      , text "funAbstr        =" <?> pshow funAbstr
+      , text "funDelayed      =" <?> pshow funDelayed
+      , text "funProjection   =" <?> pshow funProjection
+      , text "funFlags        =" <?> pshow funFlags
+      , text "funTerminates   =" <?> pshow funTerminates
+      , text "funWith         =" <?> pshow funWith
+      , text "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> text "}"
+  pretty Datatype{..} =
+    text "Datatype {" <?> vcat
+      [ text "dataPars       =" <?> pshow dataPars
+      , text "dataSmallPars  =" <?> pshow dataSmallPars
+      , text "dataNonLinPars =" <?> pshow dataNonLinPars
+      , text "dataIxs        =" <?> pshow dataIxs
+      , text "dataInduction  =" <?> pshow dataInduction
+      , text "dataClause     =" <?> pretty dataClause
+      , text "dataCons       =" <?> pshow dataCons
+      , text "dataSort       =" <?> pretty dataSort
+      , text "dataMutual     =" <?> pshow dataMutual
+      , text "dataAbstr      =" <?> pshow dataAbstr ] <?> text "}"
+  pretty Record{..} =
+    text "Record {" <?> vcat
+      [ text "recPars         =" <?> pshow recPars
+      , text "recClause       =" <?> pretty recClause
+      , text "recConHead      =" <?> pshow recConHead
+      , text "recNamedCon     =" <?> pshow recNamedCon
+      , text "recFields       =" <?> pshow recFields
+      , text "recTel          =" <?> pretty recTel
+      , text "recMutual       =" <?> pshow recMutual
+      , text "recEtaEquality' =" <?> pshow recEtaEquality'
+      , text "recInduction    =" <?> pshow recInduction
+      , text "recAbstr        =" <?> pshow recAbstr ] <?> text "}"
+  pretty Constructor{..} =
+    text "Constructor {" <?> vcat
+      [ text "conPars   =" <?> pshow conPars
+      , text "conArity  =" <?> pshow conArity
+      , text "conSrcCon =" <?> pshow conSrcCon
+      , text "conData   =" <?> pshow conData
+      , text "conAbstr  =" <?> pshow conAbstr
+      , text "conInd    =" <?> pshow conInd
+      , text "conErased =" <?> pshow conErased ] <?> text "}"
+  pretty Primitive{..} =
+    text "Primitive {" <?> vcat
+      [ text "primAbstr    =" <?> pshow primAbstr
+      , text "primName     =" <?> pshow primName
+      , text "primClauses  =" <?> pshow primClauses
+      , text "primCompiled =" <?> pshow primCompiled ] <?> text "}"
+
+
 -- | Is the record type recursive?
 recRecursive :: Defn -> Bool
 recRecursive (Record { recMutual = Just qs }) = not $ null qs
