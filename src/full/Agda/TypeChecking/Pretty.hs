@@ -119,6 +119,9 @@ dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
+pshow :: Show a => a -> TCM Doc
+pshow = pure . P.pshow
+
 -- | Comma-separated list in brackets.
 prettyList :: [TCM Doc] -> TCM Doc
 prettyList ds = P.pretty <$> sequence ds
