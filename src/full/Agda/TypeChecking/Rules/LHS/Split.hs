@@ -400,9 +400,14 @@ splitProblem mf (Problem ps qs tel pr) = do
             case ignoreSharing $ unEl a' of
               Def d [] | Just d == mi -> typeError $ GenericError "can't split on the Interval directly"
               -- Subcase: split type is a Def.
-              Def d es    -> do
+              Def d es    -> (liftTCM $ theDef <$> getConstInfo d) >>= \case
 
-                def <- liftTCM $ theDef <$> getConstInfo d
+               -- Issue #2253: the data type could be abstract.
+               AbstractDefn{} -> liftTCM $ traceCall (CheckPattern p EmptyTel a) $ do
+                 typeError . GenericDocError =<< do
+                   text "Cannot split on abstract data type" <+> prettyTCM d
+
+               def -> do
 
                 -- We cannot split on (shape-)irrelevant non-records.
                 -- Andreas, 2011-10-04 unless allowed by option

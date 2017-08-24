@@ -708,11 +708,11 @@ defaultGetConstInfo st env q = do
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
 instance HasConstInfo m => HasConstInfo (MaybeT m) where
-  getConstInfo = lift . getConstInfo
+  getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ExceptT err m) where
-  getConstInfo = lift . getConstInfo
+  getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 {-# INLINE getConInfo #-}
