@@ -207,6 +207,27 @@ latex-html-test :
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML
 
+.PHONY : html-test
+html-test :
+	@echo "======================================================================"
+	@echo "================ Suite of tests for the HTML backend ================="
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/HTMLOnly
+
+.PHONY : latex-test
+latex-test :
+	@echo "======================================================================"
+	@echo "================ Suite of tests for the LaTeX backend ================"
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXOnly
+
+.PHONY : quicklatex-test
+quicklatex-test :
+	@echo "======================================================================"
+	@echo "============= Suite of tests for the QuickLaTeX backend =============="
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly
+
 .PHONY : std-lib
 std-lib :
 	git submodule update --init std-lib
