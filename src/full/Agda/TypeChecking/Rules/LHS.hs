@@ -98,7 +98,9 @@ class IsFlexiblePattern a where
       OtherFlex      -> False
 
 instance IsFlexiblePattern A.Pattern where
-  maybeFlexiblePattern p =
+  maybeFlexiblePattern p = do
+    reportSDoc "tc.lhs.flex" 30 $ text "maybeFlexiblePattern" <+> prettyA p
+    reportSDoc "tc.lhs.flex" 60 $ text "maybeFlexiblePattern (raw) " <+> (text . show) p
     case p of
       A.DotP{}  -> return DotFlex
       A.VarP{}  -> return ImplicitFlex
@@ -192,7 +194,7 @@ updateInPatterns as ps qs = do
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       -- Case: the unifier eta-expanded the variable
-      ConP c cpi qs -> do
+      ConP _c _cpi qs -> do
         Def r es <- ignoreSharing <$> reduce (unEl $ unDom a)
         def      <- theDef <$> getConstInfo r
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -217,7 +219,7 @@ updateInPatterns as ps qs = do
     projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
       A.VarP x            -> map (makeWildField (PatRange $ getRange x)) fs
-      A.ConP cpi _ nps    -> nps
+      A.ConP _ _ nps      -> nps
       A.WildP pi          -> map (makeWildField pi) fs
       A.DotP pi o e       -> map (makeDotField pi o) fs
       A.ProjP _ _ _       -> __IMPOSSIBLE__
@@ -865,9 +867,11 @@ checkLHS f st@(LHSState problem dpi sbe) = do
 
         -- Get the type of the datatype.
         da <- (`piApply` vs) . defType <$> getConstInfo d
+        reportSDoc "tc.lhs.split" 30 $ text "  da = " <+> prettyTCM da
 
         -- Compute the flexible variables
         flex <- flexiblePatterns (problemInPat p0 ++ qs')
+        reportSDoc "tc.lhs.split" 30 $ text "computed flexible variables"
 
         -- Compute the constructor indices by dropping the parameters
         let us' = drop (size vs) us
@@ -1079,4 +1083,3 @@ checkStrippedDotPattern (A.StrippedDot e v a) = do
                     , text "Γ =" <+> (inTopContext . prettyTCM =<< getContextTelescope) ] ]
   u <- checkExpr e a
   equalTerm a u v
-
