@@ -58,31 +58,31 @@ main = do
   -- Start Agda, allocating handles to write commands and read
   -- results.
   [agda] <- getArgs
-  withCreateProcess ((proc agda args) { std_in  = CreatePipe
-                                      , std_out = CreatePipe
-                                      }) $
-    \(Just wr) (Just rd) Nothing p -> do
-      mapM_ (\h -> hSetEncoding h utf8) [wr, rd, stdout]
-      hSetBuffering wr LineBuffering
-      hSetBuffering rd NoBuffering
-      let echo = echoUntilPrompt rd stdout
+  (Just wr, Just rd, Nothing, p) <-
+    createProcess ((proc agda args) { std_in  = CreatePipe
+                                    , std_out = CreatePipe
+                                    })
+  mapM_ (\h -> hSetEncoding h utf8) [wr, rd, stdout]
+  hSetBuffering wr LineBuffering
+  hSetBuffering rd NoBuffering
+  let echo = echoUntilPrompt rd stdout
 
-      -- Run the given command repeatedly. Wait until the first
-      -- command has completed before initiating the /third/ one. Why
-      -- not the second one? Because this made the test case
-      -- considerably slower.
-      --
-      -- Note that a prompt precedes the output from the first
-      -- command. After the first command is initiated the initial
-      -- prompt is discarded and then a second command is initiated.
-      -- Only then is the output from the initial command echoed.
-      replicateM_ repetitions $ do
-        hPutStrLn wr command
-        echo
+  -- Run the given command repeatedly. Wait until the first
+  -- command has completed before initiating the /third/ one. Why
+  -- not the second one? Because this made the test case
+  -- considerably slower.
+  --
+  -- Note that a prompt precedes the output from the first
+  -- command. After the first command is initiated the initial
+  -- prompt is discarded and then a second command is initiated.
+  -- Only then is the output from the initial command echoed.
+  replicateM_ repetitions $ do
+    hPutStrLn wr command
+    echo
 
-      -- Echo the final output.
-      echo
+  -- Echo the final output.
+  echo
 
-      -- Let Agda shut down gracefully.
-      hClose wr
-      waitForProcess p
+  -- Let Agda shut down gracefully.
+  hClose wr
+  waitForProcess p
