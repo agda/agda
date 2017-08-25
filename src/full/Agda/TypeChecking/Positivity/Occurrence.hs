@@ -166,7 +166,7 @@ instance StarSemiRing Occurrence where
 instance Null Occurrence where
   empty = Unused
 
--- | The map contains bindings of the form @bound |-> es@, satisfying
+-- | The map contains bindings of the form @bound |-> ess@, satisfying
 -- the following property: for every non-empty list @w@,
 -- @'foldr1' 'otimes' w '<=' bound@ iff
 -- @'or' [ 'all' every w '&&' 'any' some w | (every, some) <- ess ]@.
