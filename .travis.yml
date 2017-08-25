@@ -139,8 +139,8 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  allow_failures:
-  - env: TEST=MAIN GHC_VER=8.2.1 BUILD=CABAL CABAL_VER=2.0
+  # allow_failures:
+  # - env: TEST=MAIN GHC_VER=8.2.1 BUILD=CABAL CABAL_VER=2.0
 
 ##############################################################################
 before_install:
