@@ -67,6 +67,7 @@ import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
+import Agda.TypeChecking.Warnings
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
@@ -950,11 +951,10 @@ interpret (Cmd_make_case ii rng s) = do
     -- Drops pattern added to extended lambda functions when lambda lifting them
     extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause
     extlam_dropLLifted Nothing _ x = x
-    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{} _) _ _ _ _) = __IMPOSSIBLE__
-    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden (A.Clause (A.LHS info (A.LHSHead name nps) ps) dots rhs decl catchall)
+    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{} _) _ _ _ _ _) = __IMPOSSIBLE__
+    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden cl@A.Clause{ A.clauseLHS = A.LHS info (A.LHSHead name nps) ps }
       = let n = if hidden then h + nh else nh
-        in
-         (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) dots rhs decl catchall)
+        in cl{ A.clauseLHS = A.LHS info (A.LHSHead name (drop n nps)) ps }
 
 interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
   liftLocalState $ do

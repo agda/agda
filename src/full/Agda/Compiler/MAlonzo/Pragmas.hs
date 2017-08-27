@@ -15,9 +15,12 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
-import Agda.Utils.Pretty hiding (char)
-import Agda.Utils.Parser.ReadP
+
 import Agda.Utils.Lens
+import Agda.Utils.Parser.ReadP
+import Agda.Utils.Pretty hiding (char)
+import Agda.Utils.String ( ltrim )
+import Agda.Utils.Three
 
 import Agda.Compiler.Common
 
@@ -152,15 +155,46 @@ getHaskellConstructor c = do
         _ -> return Nothing
     _ -> return Nothing
 
-isImport :: String -> Bool
-isImport = List.isPrefixOf "import " . dropWhile isSpace
-
-foreignHaskell :: TCM [String]
-foreignHaskell = map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+-- | Get content of @FOREIGN GHC@ pragmas, sorted by 'KindOfForeignCode':
+--   file header pragmas, import statements, rest.
+foreignHaskell :: TCM ([String], [String], [String])
+foreignHaskell = partitionByKindOfForeignCode classifyForeign
+    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
   where getCode (ForeignCode _ code) = code
 
-inlineHaskell :: TCM [String]
-inlineHaskell = filter (not . isImport) <$> foreignHaskell
+-- | Classify @FOREIGN@ Haskell code.
+data KindOfForeignCode
+  = ForeignFileHeaderPragma
+      -- ^ A pragma that must appear before the module header.
+  | ForeignImport
+      -- ^ An import statement.  Must appear right after the module header.
+  | ForeignOther
+      -- ^ The rest.  To appear after the import statements.
 
-haskellImports :: TCM [String]
-haskellImports = filter isImport <$> foreignHaskell
+-- | Classify a @FOREIGN GHC@ declaration.
+classifyForeign :: String -> KindOfForeignCode
+classifyForeign s0 = case ltrim s0 of
+  s | List.isPrefixOf "import " s -> ForeignImport
+  s | List.isPrefixOf "{-#" s -> classifyPragma $ drop 3 s
+  _ -> ForeignOther
+
+-- | Classify a Haskell pragma into whether it is a file header pragma or not.
+classifyPragma :: String -> KindOfForeignCode
+classifyPragma s0 = case ltrim s0 of
+  s | any (`List.isPrefixOf` s) fileHeaderPragmas -> ForeignFileHeaderPragma
+  _ -> ForeignOther
+  where
+  fileHeaderPragmas =
+    [ "LANGUAGE"
+    , "OPTIONS_GHC"
+    , "INCLUDE"
+    ]
+
+-- | Partition a list by 'KindOfForeignCode' attribute.
+partitionByKindOfForeignCode :: (a -> KindOfForeignCode) -> [a] -> ([a], [a], [a])
+partitionByKindOfForeignCode f = partition3 $ toThree . f
+  where
+  toThree = \case
+    ForeignFileHeaderPragma -> One
+    ForeignImport           -> Two
+    ForeignOther            -> Three

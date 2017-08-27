@@ -47,6 +47,7 @@ import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
@@ -883,9 +884,12 @@ errorWarningsOfTCErr err = case err of
       return $ filter (not . isUnsolvedWarning . tcWarning) ws
   _ -> return []
 
--- constructIScope :: ScopeInfo -> Map ModuleName Scope
+-- | Reconstruct the 'iScope' (not serialized)
+--   from the 'iInsideScope' (serialized).
+
 constructIScope :: Interface -> Interface
-constructIScope i = i{ iScope = billToPure [ Deserialization ] $ publicModules $ iInsideScope i }
+constructIScope i = billToPure [ Deserialization ] $
+  i{ iScope = publicModules $ iInsideScope i }
 
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.

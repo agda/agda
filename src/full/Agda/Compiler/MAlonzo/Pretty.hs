@@ -31,6 +31,8 @@ instance Pretty HS.Module where
 instance Pretty HS.ModulePragma where
   pretty (HS.LanguagePragma ps) =
     text "{-#" <+> text "LANGUAGE" <+> fsep (punctuate comma $ map pretty ps) <+> text "#-}"
+  pretty (HS.OtherPragma p) =
+    text p
 
 instance Pretty HS.ImportDecl where
   pretty HS.ImportDecl{ HS.importModule    = m
@@ -212,4 +214,3 @@ isOperator q =
 prettyQName :: HS.QName -> Doc
 prettyQName (HS.Qual m x)           = pretty m <> text "." <> pretty x
 prettyQName (HS.UnQual x)           = pretty x
-

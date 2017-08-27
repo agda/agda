@@ -88,6 +88,7 @@ import Agda.Utils.Pretty hiding ((<>))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
+import Agda.Utils.Function
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -670,14 +671,15 @@ data Interface = Interface
     -- ^ Module name of this interface.
   , iScope           :: Map ModuleName Scope
     -- ^ Scope defined by this module.
+    --
+    --   Andreas, AIM XX: Too avoid duplicate serialization, this field is
+    --   not serialized, so if you deserialize an interface, @iScope@
+    --   will be empty.
+    --   But 'constructIScope' constructs 'iScope' from 'iInsideScope'.
   , iInsideScope     :: ScopeInfo
     -- ^ Scope after we loaded this interface.
     --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
     --   and     'Agda.Interaction.CommandLine.interactionLoop'.
-    --
-    --   Andreas, AIM XX: For performance reason, this field is
-    --   not serialized, so if you deserialize an interface, @iInsideScope@
-    --   will be empty.  You need to type-check the file to get @iInsideScope@.
   , iSignature       :: Signature
   , iDisplayForms    :: DisplayForms
     -- ^ Display forms added for imported identifiers.
@@ -1581,6 +1583,81 @@ data Defn = Axiom
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
 
+instance Pretty Definition where
+  pretty Defn{..} =
+    text "Defn {" <?> vcat
+      [ text "defArgInfo        =" <?> pshow defArgInfo
+      , text "defName           =" <?> pretty defName
+      , text "defType           =" <?> pretty defType
+      , text "defPolarity       =" <?> pshow defPolarity
+      , text "defArgOccurrences =" <?> pshow defArgOccurrences
+      , text "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
+      , text "defMutual         =" <?> pshow defMutual
+      , text "defCompiledRep    =" <?> pshow defCompiledRep
+      , text "defInstance       =" <?> pshow defInstance
+      , text "defCopy           =" <?> pshow defCopy
+      , text "defMatchable      =" <?> pshow defMatchable
+      , text "defInjective      =" <?> pshow defInjective
+      , text "theDef            =" <?> pretty theDef ] <+> text "}"
+
+instance Pretty Defn where
+  pretty Axiom = text "Axiom"
+  pretty (AbstractDefn def) = text "AbstractDefn" <?> parens (pretty def)
+  pretty Function{..} =
+    text "Function {" <?> vcat
+      [ text "funClauses      =" <?> vcat (map pretty funClauses)
+      , text "funCompiled     =" <?> pshow funCompiled
+      , text "funTreeless     =" <?> pshow funTreeless
+      , text "funInv          =" <?> pshow funInv
+      , text "funMutual       =" <?> pshow funMutual
+      , text "funAbstr        =" <?> pshow funAbstr
+      , text "funDelayed      =" <?> pshow funDelayed
+      , text "funProjection   =" <?> pshow funProjection
+      , text "funFlags        =" <?> pshow funFlags
+      , text "funTerminates   =" <?> pshow funTerminates
+      , text "funWith         =" <?> pshow funWith
+      , text "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> text "}"
+  pretty Datatype{..} =
+    text "Datatype {" <?> vcat
+      [ text "dataPars       =" <?> pshow dataPars
+      , text "dataSmallPars  =" <?> pshow dataSmallPars
+      , text "dataNonLinPars =" <?> pshow dataNonLinPars
+      , text "dataIxs        =" <?> pshow dataIxs
+      , text "dataInduction  =" <?> pshow dataInduction
+      , text "dataClause     =" <?> pretty dataClause
+      , text "dataCons       =" <?> pshow dataCons
+      , text "dataSort       =" <?> pretty dataSort
+      , text "dataMutual     =" <?> pshow dataMutual
+      , text "dataAbstr      =" <?> pshow dataAbstr ] <?> text "}"
+  pretty Record{..} =
+    text "Record {" <?> vcat
+      [ text "recPars         =" <?> pshow recPars
+      , text "recClause       =" <?> pretty recClause
+      , text "recConHead      =" <?> pshow recConHead
+      , text "recNamedCon     =" <?> pshow recNamedCon
+      , text "recFields       =" <?> pshow recFields
+      , text "recTel          =" <?> pretty recTel
+      , text "recMutual       =" <?> pshow recMutual
+      , text "recEtaEquality' =" <?> pshow recEtaEquality'
+      , text "recInduction    =" <?> pshow recInduction
+      , text "recAbstr        =" <?> pshow recAbstr ] <?> text "}"
+  pretty Constructor{..} =
+    text "Constructor {" <?> vcat
+      [ text "conPars   =" <?> pshow conPars
+      , text "conArity  =" <?> pshow conArity
+      , text "conSrcCon =" <?> pshow conSrcCon
+      , text "conData   =" <?> pshow conData
+      , text "conAbstr  =" <?> pshow conAbstr
+      , text "conInd    =" <?> pshow conInd
+      , text "conErased =" <?> pshow conErased ] <?> text "}"
+  pretty Primitive{..} =
+    text "Primitive {" <?> vcat
+      [ text "primAbstr    =" <?> pshow primAbstr
+      , text "primName     =" <?> pshow primName
+      , text "primClauses  =" <?> pshow primClauses
+      , text "primCompiled =" <?> pshow primCompiled ] <?> text "}"
+
+
 -- | Is the record type recursive?
 recRecursive :: Defn -> Bool
 recRecursive (Record { recMutual = Just qs }) = not $ null qs
@@ -2374,16 +2451,14 @@ data Warning
 #endif
            )
 
--- we also keep the state so that we can print the warning correctly
--- later
 data TCWarning
   = TCWarning
-    { tcWarningOrigin :: SrcFile
-        -- ^ File where the warning was raised
-    , tcWarningState   :: TCState
-        -- ^ The state in which the warning was raised.
-    , tcWarningClosure :: Closure Warning
-        -- ^ The warning and the environment in which it was raised.
+    { tcWarningRange :: Range
+        -- ^ Range where the warning was raised
+    , tcWarning   :: Warning
+        -- ^ The warning itself
+    , tcWarningPrintedWarning :: Doc
+        -- ^ The warning printed in the state and environment where it was raised
     }
   deriving ( Show
 #if __GLASGOW_HASKELL__ <= 708
@@ -2391,11 +2466,11 @@ data TCWarning
 #endif
            )
 
-instance HasRange TCWarning where
-  getRange = envRange . clEnv . tcWarningClosure
+tcWarningOrigin :: TCWarning -> SrcFile
+tcWarningOrigin = rangeFile . tcWarningRange
 
-tcWarning :: TCWarning -> Warning
-tcWarning = clValue . tcWarningClosure
+instance HasRange TCWarning where
+  getRange = tcWarningRange
 
 -- used for merging lists of warnings
 instance Eq TCWarning where
@@ -2414,52 +2489,6 @@ getPartialDefs = do
     extractQName :: Warning -> Maybe QName
     extractQName (CoverageIssue f _) = Just f
     extractQName _                   = Nothing
-
--- | Classifying warnings: some are benign, others are (non-fatal) errors
-
-data WhichWarnings =
-    ErrorWarnings -- ^ warnings that will be turned into errors
-  | AllWarnings   -- ^ all warnings, including errors and benign ones
-  -- Note: order of constructors is important for the derived Ord instance
-  deriving (Eq, Ord)
-
-isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = case w of
-  UnsolvedMetaVariables{}    -> True
-  UnsolvedInteractionMetas{} -> True
-  UnsolvedConstraints{}      -> True
- -- rest
-  _                          -> False
-
-classifyWarning :: Warning -> WhichWarnings
-classifyWarning w = case w of
-  OldBuiltin{}               -> AllWarnings
-  EmptyRewritePragma         -> AllWarnings
-  UselessPublic              -> AllWarnings
-  UnreachableClauses{}       -> AllWarnings
-  UselessInline{}            -> AllWarnings
-  GenericWarning{}           -> AllWarnings
-  DeprecationWarning{}       -> AllWarnings
-  NicifierIssue{}            -> AllWarnings
-  TerminationIssue{}         -> ErrorWarnings
-  CoverageIssue{}            -> ErrorWarnings
-  CoverageNoExactSplit{}     -> ErrorWarnings
-  NotStrictlyPositive{}      -> ErrorWarnings
-  UnsolvedMetaVariables{}    -> ErrorWarnings
-  UnsolvedInteractionMetas{} -> ErrorWarnings
-  UnsolvedConstraints{}      -> ErrorWarnings
-  GenericNonFatalError{}     -> ErrorWarnings
-  SafeFlagPostulate{}        -> ErrorWarnings
-  SafeFlagPragma{}           -> ErrorWarnings
-  SafeFlagNonTerminating     -> ErrorWarnings
-  SafeFlagTerminating        -> ErrorWarnings
-  SafeFlagPrimTrustMe        -> ErrorWarnings
-  SafeFlagNoPositivityCheck  -> ErrorWarnings
-  SafeFlagPolarity           -> ErrorWarnings
-  ParseWarning{}             -> ErrorWarnings
-
-classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
-classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2922,16 +2951,6 @@ instance MonadError TCErr (TCMT IO) where
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
--- | Parse monad
-
-runPM :: PM a -> TCM a
-runPM m = do
-  (res, ws) <- runPMIO m
-  mapM_ (warning . ParseWarning) ws
-  case res of
-    Left  e -> throwError (Exception (getRange e) (pretty e))
-    Right a -> return a
-
 -- | Interaction monad.
 
 type IM = TCMT (Haskeline.InputT IO)
@@ -3092,33 +3111,6 @@ typeError err = liftTCM $ throwError =<< typeError_ err
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
 typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
 typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
-
-{-# SPECIALIZE genericWarning :: Doc -> TCM () #-}
-genericWarning :: MonadTCM tcm => Doc -> tcm ()
-genericWarning = warning . GenericWarning
-
-{-# SPECIALIZE genericNonFatalError :: Doc -> TCM () #-}
-genericNonFatalError :: MonadTCM tcm => Doc -> tcm ()
-genericNonFatalError = warning . GenericNonFatalError
-
-{-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
-warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
-warning_ w =
-  liftTCM $ TCWarning <$> (rangeFile <$> view eRange) <*> get <*> buildClosure w
-
-{-# SPECIALIZE warning :: Warning -> TCM () #-}
-warning :: MonadTCM tcm => Warning -> tcm ()
-warning w = do
-  tcwarn <- warning_ w
-  wmode <- optWarningMode <$> pragmaOptions
-  case wmode of
-    IgnoreAllWarnings -> case classifyWarning w of
-                           -- not allowed to ignore non-fatal errors
-                           ErrorWarnings -> raiseWarning tcwarn
-                           AllWarnings -> return ()
-    TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
-    LeaveAlone -> raiseWarning tcwarn
-  where raiseWarning tcw = stTCWarnings %= (tcw :)
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}

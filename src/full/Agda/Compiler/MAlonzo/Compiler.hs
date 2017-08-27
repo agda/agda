@@ -63,6 +63,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
+import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.CompiledClause
 
@@ -169,9 +170,12 @@ ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl
 ghcPostModule _ _ _ _ defs = do
   m      <- curHsMod
   imps   <- imports
-  code   <- inlineHaskell
-  hsImps <- haskellImports
-  writeModule $ HS.Module m [] imps (map fakeDecl (hsImps ++ code) ++ concat defs)
+  -- Get content of FOREIGN pragmas.
+  (headerPragmas, hsImps, code) <- foreignHaskell
+  writeModule $ HS.Module m
+    (map HS.OtherPragma headerPragmas)
+    imps
+    (map fakeDecl (hsImps ++ code) ++ concat defs)
   hasMainFunction <$> curIF
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]

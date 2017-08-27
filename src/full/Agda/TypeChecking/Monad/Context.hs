@@ -96,22 +96,22 @@ updateModuleParameters sub ret = do
         | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
                               (Map.toList mps)
         ]
-  verboseS "tc.cxt.param" 90 $ do
+  verboseS "tc.cxt.param" 105 $ do
     cxt <- reverse <$> getContext
-    reportSLn "tc.cxt.param" 90 $ unlines $
+    reportSLn "tc.cxt.param" 105 $ unlines $
       [ "updatingModuleParameters"
       , "  sub = " ++ show sub
       , "  cxt (last added last in list) = " ++ unwords (map (show . fst . unDom) cxt)
       , showMP "  old = " pm
       ]
   let pm' = applySubst sub pm
-  reportSLn "tc.cxt.param" 90 $ showMP "  new = " pm'
+  reportSLn "tc.cxt.param" 105 $ showMP "  new = " pm'
   stModuleParameters .= pm'
   x <- ret              -- We need to keep introduced modules around
   pm1 <- use stModuleParameters
   let pm'' = Map.union pm (defaultModuleParameters <$ Map.difference pm1 pm)
   stModuleParameters .= pm''
-  reportSLn "tc.cxt.param" 90 $ showMP "  restored = " pm''
+  reportSLn "tc.cxt.param" 105 $ showMP "  restored = " pm''
   return x
 
 -- | Since the @ModuleParamDict@ is relative to the current context,

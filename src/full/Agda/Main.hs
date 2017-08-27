@@ -30,6 +30,7 @@ import Agda.Interaction.Highlighting.HTML
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Common (IsMain (..))

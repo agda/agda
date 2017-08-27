@@ -102,7 +102,7 @@ matrix:
             - ghc-7.10.3
           sources:
             - hvr-ghc
-    
+
     - env: TEST=STACKAGE GHC_VER=7.8.4 BUILD=STACK ARGS="--stack-yaml stack-7.8.4.yaml --system-ghc" MANUAL_INSTALL_BUILD_TOOLS=YES
       addons:
         apt:
@@ -218,6 +218,8 @@ install:
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
+# We are using `make CABAL_OPTS...` because we are including the
+# options to `cabal install` set up in the `Makefile`.
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then

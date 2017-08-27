@@ -11,6 +11,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -108,7 +109,7 @@ checkDataDef i name ps cs =
                 , text "type (full):   " <+> prettyTCM t
                 , text "sort:   " <+> prettyTCM s
                 , text "indices:" <+> text (show nofIxs)
-                , text "params:"  <+> text (show ps)
+                , text "params:"  <+> text (show $ deepUnscope ps)
                 , text "small params:" <+> text (show smallPars)
                 ]
               ]

@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Local
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
@@ -76,7 +77,7 @@ addConstant q d = do
                     Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
               _ -> tel
   let d' = abstract tel' $ d { defName = q }
-  reportSLn "tc.signature" 60 $ "lambda-lifted definition = " ++ show d'
+  reportSDoc "tc.signature" 60 $ return $ text "lambda-lifted definition =" <?> pretty d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
@@ -467,7 +468,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , funWith           = with
                         , funCopatternLHS   = isCopatternLHS [cl]
                         }
-                  reportSLn "tc.mod.apply" 80 $ "new def for " ++ prettyShow x ++ "\n  " ++ show newDef
+                  reportSDoc "tc.mod.apply" 80 $ return $ (text "new def for" <+> pretty x) <?> pretty newDef
                   return newDef
 
             cl = Clause { clauseLHSRange  = getRange $ defClauses d
@@ -692,11 +693,11 @@ defaultGetConstInfo st env q = do
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
 instance HasConstInfo m => HasConstInfo (MaybeT m) where
-  getConstInfo = lift . getConstInfo
+  getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ExceptT err m) where
-  getConstInfo = lift . getConstInfo
+  getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 {-# INLINE getConInfo #-}

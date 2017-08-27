@@ -31,13 +31,6 @@ works : ∀ {j} → Wrap j → C
 works {c _} (wrap {c _}) with anything
 works {c _} (wrap .{c _}) | z = z
 
--- The following should not pass, but issue 142 is hard to fix
--- with the current infrastructure for with-clauses.
--- Not many attempts have been made since 2009, and none succeeded.
-issue142 : ∀ {j} → Wrap j → C
-issue142 {c _} (wrap {c _}) with anything
-issue142 {c _} (wrap .{c anything}) | z = z
-
 test : ∀ {j} → Wrap j → C
 test {c _} (wrap {c _}) with anything
 test {c _} (wrap {c _}) | z = z

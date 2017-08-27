@@ -56,6 +56,7 @@ import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
+import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie
 
@@ -173,8 +174,18 @@ instance EmbPrj DataOrRecord where
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
-    d <-  asks absPathD
-    liftIO $ fromMaybe __IMPOSSIBLE__ <$> H.lookup d file
+    d <- asks absPathD
+    liftIO $ flip fromMaybeM (H.lookup d file) $ do
+      -- The path @file@ should be cached in the dictionary @d@.
+      -- This seems not to be the case, thus, crash here.
+      -- But leave some hints for the posterity why things could go so wrong.
+      -- reportSLn "impossible" 10 -- does not work here
+      putStrLn $ unlines $
+        [ "Panic while serializing absolute path: " ++ show file
+        , "The path could not be found in the dictionary:"
+        ]
+      putStrLn . show =<< H.toList d
+      __IMPOSSIBLE__
 
   value m = do
     m :: TopLevelModuleName

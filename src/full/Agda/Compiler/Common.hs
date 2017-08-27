@@ -173,6 +173,13 @@ inCompilerEnv mainI cont = do
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 
+    -- Andreas, 2017-08-23, issue #2714 recover pragma option --no-main
+    -- Unfortunately, a pragma option is stored in the interface file as
+    -- just a list of strings, thus, the solution is a bit of hack:
+    -- We match on whether @["--no-main"]@ is one of the stored options.
+    when (["--no-main"] `elem` iPragmaOptions mainI) $
+      stPragmaOptions %= \ o -> o { optCompileNoMain = True }
+
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode $ do
       cont

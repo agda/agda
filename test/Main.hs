@@ -45,10 +45,10 @@ main = do
       exitWith (ExitFailure 1)
 
 tests :: IO TestTree
-tests =
-  testGroup "all" <$>
+tests = do
+  latexHtml <- LATEXHTML.tests
+  testGroup "all" . (latexHtml ++) <$>
     sequence [ COMP.tests
-             , LATEXHTML.tests
              , FAIL.tests
              , return INTERACTIVE.tests
              , SUCCEED.tests

@@ -25,13 +25,17 @@ import Agda.Utils.Impossible
 
 -- | A set with duplicates.
 --   Faithfully stores elements which are equal with regard to (==).
-newtype Bag a = Bag { bag :: Map a [a] }
+newtype Bag a = Bag
+  { bag :: Map a [a]
+      -- ^ The list contains all occurrences of @a@ (not just the duplicates!).
+      --   Hence, the invariant: the list is never empty.
+  }
   deriving (Eq, Ord)
   -- The list contains all occurrences of @a@ (not just the duplicates!).
-  -- Hence the invariant: the list is never empty!
+  -- Hence the invariant: the list is never empty.
   --
   -- This is slightly wasteful, but much easier to implement
-  -- in terms of Map as the alternative, which is to store
+  -- in terms of @Map@ as the alternative, which is to store
   -- only the duplicates in the list.
   -- See, e.g., implementation of 'union' which would be impossible
   -- to do in the other representation.  We would need a
@@ -43,23 +47,28 @@ newtype Bag a = Bag { bag :: Map a [a] }
 -- * Query
 ------------------------------------------------------------------------
 
+-- | Is the bag empty?
 null :: Bag a -> Bool
 null = Map.null . bag
 
+-- | Number of elements in the bag.  Duplicates count. O(n).
 size :: Bag a -> Int
 size = getSum . foldMap (Sum . length) . bag
 
--- | @bag ! a@ finds all elements equal to @a@.
+-- | @(bag ! a)@ finds all elements equal to @a@.  O(log n).
+--   Total function, returns @[]@ if none are.
 (!) :: Ord a => Bag a -> a -> [a]
 Bag b ! a = Map.findWithDefault [] a b
 
+-- | O(log n).
 member :: Ord a => a -> Bag a -> Bool
 member a = not . notMember a
 
+-- | O(log n).
 notMember :: Ord a => a -> Bag a -> Bool
 notMember a b = List.null (b ! a)
 
--- | Return the multiplicity of the given element.
+-- | Return the multiplicity of the given element. O(log n + count _ _).
 count :: Ord a => a -> Bag a -> Int
 count a b = length (b ! a)
 
@@ -67,9 +76,11 @@ count a b = length (b ! a)
 -- * Construction
 ------------------------------------------------------------------------
 
+-- | O(1)
 empty :: Bag a
 empty = Bag $ Map.empty
 
+-- | O(1)
 singleton :: a -> Bag a
 singleton a = Bag $ Map.singleton a [a]
 
@@ -133,7 +144,7 @@ traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
     trav []       = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
--- * Instances
+-- Instances
 ------------------------------------------------------------------------
 
 instance Show a => Show (Bag a) where

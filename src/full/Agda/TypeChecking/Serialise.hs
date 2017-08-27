@@ -61,7 +61,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20170728 * 10 + 0
+currentInterfaceVersion = 20170822 * 10 + 0
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -78,7 +78,7 @@ encode a = do
       qnameC
       stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
-       icodeFileMod fileMod
+       icodeFileMod fileMod  -- Only fills absPathD from fileMod
        icode a
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD

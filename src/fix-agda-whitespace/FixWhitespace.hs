@@ -28,6 +28,8 @@ extensions =
   , ".rst"
   , ".x"
   , ".y"
+  , ".yaml"
+  , ".yml"
   ]
 
 -- In test/succeed/LineEndings/ we test that Agda can handle various
@@ -67,7 +69,6 @@ excludedFiles =
 filesFilter :: FindClause Bool
 filesFilter = foldr1 (||?) (map (extension ==?) extensions)
           &&? foldr1 (&&?) (map (fileName /=?) excludedFiles)
-          &&? ((head <$> fileName) /=? '.')  -- exclude hidden files
 
 -- Modes.
 

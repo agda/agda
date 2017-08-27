@@ -5,6 +5,7 @@
 
 module Agda.TypeChecking.Errors
   ( prettyError
+  , prettyWarning
   , tcErrString
   , prettyTCWarnings'
   , prettyTCWarnings
@@ -12,6 +13,7 @@ module Agda.TypeChecking.Errors
   , applyFlagsToTCWarnings
   , dropTopLevelModule
   , stringTCErr
+  , sayWhen
   ) where
 
 import Prelude hiding (null)
@@ -97,14 +99,14 @@ prettyError err = liftTCM $ show <$> prettyError' err []
 ---------------------------------------------------------------------------
 
 instance PrettyTCM TCWarning where
-  prettyTCM (TCWarning _ tcst clw) = localState $ do
-    put tcst
-    sayWhen (envRange  $ clEnv clw)
-            (envCall   $ clEnv clw)
-            (prettyTCM clw)
+  prettyTCM = return . tcWarningPrintedWarning
 
 instance PrettyTCM Warning where
-  prettyTCM wng = case wng of
+  prettyTCM = prettyWarning
+
+{-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
+prettyWarning :: MonadTCM tcm => Warning -> tcm Doc
+prettyWarning wng = liftTCM $ case wng of
 
     UnsolvedMetaVariables ms  ->
       fsep ( pwords "Unsolved metas at the following locations:" )
@@ -232,9 +234,10 @@ applyFlagsToTCWarnings ifs ws = do
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap nub (foldMap pragmas ws) of
-              (TCWarning m tcst cl:_, sfp) ->
-                 [TCWarning m tcst (cl { clValue = SafeFlagPragma sfp })]
-              _           -> []
+              (TCWarning r w p:_, sfp) ->
+                 [TCWarning r (SafeFlagPragma sfp) p]
+              _                        -> []
+
 
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   negativeNotOK <- not . optDisablePositivity <$> pragmaOptions

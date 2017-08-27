@@ -79,6 +79,11 @@ strengthen err = applySubst (compactS err [Nothing])
 substUnder :: Subst t a => Nat -> t -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
 
+-- ** Identity instances
+
+instance Subst Term QName where
+  applySubst _ q = q
+
 ---------------------------------------------------------------------------
 -- * Explicit substitutions
 ---------------------------------------------------------------------------

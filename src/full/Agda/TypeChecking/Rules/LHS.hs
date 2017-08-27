@@ -98,7 +98,9 @@ class IsFlexiblePattern a where
       OtherFlex      -> False
 
 instance IsFlexiblePattern A.Pattern where
-  maybeFlexiblePattern p =
+  maybeFlexiblePattern p = do
+    reportSDoc "tc.lhs.flex" 30 $ text "maybeFlexiblePattern" <+> prettyA p
+    reportSDoc "tc.lhs.flex" 60 $ text "maybeFlexiblePattern (raw) " <+> (text . show) p
     case p of
       A.DotP{}  -> return DotFlex
       A.VarP{}  -> return ImplicitFlex
@@ -192,7 +194,7 @@ updateInPatterns as ps qs = do
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       -- Case: the unifier eta-expanded the variable
-      ConP c cpi qs -> do
+      ConP _c _cpi qs -> do
         Def r es <- ignoreSharing <$> reduce (unEl $ unDom a)
         def      <- theDef <$> getConstInfo r
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -217,7 +219,7 @@ updateInPatterns as ps qs = do
     projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
       A.VarP x            -> map (makeWildField (PatRange $ getRange x)) fs
-      A.ConP cpi _ nps    -> nps
+      A.ConP _ _ nps      -> nps
       A.WildP pi          -> map (makeWildField pi) fs
       A.DotP pi o e       -> map (makeDotField pi o) fs
       A.ProjP _ _ _       -> __IMPOSSIBLE__
@@ -585,10 +587,12 @@ checkLeftHandSide
      -- ^ The expected type @a = Γ → b@.
   -> Maybe Substitution
      -- ^ Module parameter substitution from with-abstraction.
+  -> [A.StrippedDotPattern]
+     -- ^ Dot patterns that have been stripped away by with-desugaring.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
+checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
 
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
@@ -671,9 +675,9 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
           patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# (EmptyS __IMPOSSIBLE__)
           paramSub = composeS patSub withSub
           lhsResult = LHSResult (length cxt) delta qs b' patSub asb'
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> text (show patSub)
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> text (show withSub)
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> text (show paramSub)
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> pretty withSub
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> pretty paramSub
 
       let newLets = [ AsB x (applySubst paramSub v) (applySubst paramSub $ unDom a) | (x, (v, a)) <- oldLets ]
       reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
@@ -687,6 +691,11 @@ checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.Check
           mapM_ checkDotPattern dpi
           mapM_ (uncurry isEmptyType) sbe
           checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
+
+          -- Type check dot patterns that have been thrown away by
+          -- with-desugaring.
+          mapM_ checkStrippedDotPattern $ applySubst paramSub strippedDots
+
 
         -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
         ret lhsResult
@@ -858,9 +867,11 @@ checkLHS f st@(LHSState problem dpi sbe) = do
 
         -- Get the type of the datatype.
         da <- (`piApply` vs) . defType <$> getConstInfo d
+        reportSDoc "tc.lhs.split" 30 $ text "  da = " <+> prettyTCM da
 
         -- Compute the flexible variables
         flex <- flexiblePatterns (problemInPat p0 ++ qs')
+        reportSDoc "tc.lhs.split" 30 $ text "computed flexible variables"
 
         -- Compute the constructor indices by dropping the parameters
         let us' = drop (size vs) us
@@ -1060,3 +1071,15 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
       Just False -> mapM_ (check . namedArg) ps
       Just True  -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"
+
+-- | Type check dot pattern stripped from a with function.
+checkStrippedDotPattern :: A.StrippedDotPattern -> TCM ()
+checkStrippedDotPattern (A.StrippedDot e v a) = do
+  reportSDoc "tc.with.dot" 30 $ vcat
+    [ text "Checking stripped dot pattern"
+    , nest 2 $ vcat [ text "e =" <+> prettyTCM e
+                    , text "v =" <+> prettyTCM v
+                    , text "a =" <+> prettyTCM a
+                    , text "Γ =" <+> (inTopContext . prettyTCM =<< getContextTelescope) ] ]
+  u <- checkExpr e a
+  equalTerm a u v

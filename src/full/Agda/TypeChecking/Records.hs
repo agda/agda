@@ -323,9 +323,10 @@ isEtaRecord :: HasConstInfo m => QName -> m Bool
 isEtaRecord r = maybe False recEtaEquality <$> isRecord r
 
 isEtaCon :: HasConstInfo m => QName -> m Bool
-isEtaCon c = do
-  cdef <- theDef <$> getConstInfo c
-  case cdef of
+isEtaCon c = getConstInfo' c >>= \case
+  Left (SigUnknown err) -> __IMPOSSIBLE__
+  Left SigAbstract -> return False
+  Right def -> case theDef def of
     Constructor {conData = r} -> isEtaRecord r
     _ -> return False
 
@@ -344,23 +345,23 @@ isEtaRecordType a = case ignoreSharing $ unEl a of
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
-isRecordConstructor c = do
-  def <- theDef <$> getConstInfo c
-  case def of
+isRecordConstructor c = getConstInfo' c >>= \case
+  Left (SigUnknown err)        -> __IMPOSSIBLE__
+  Left SigAbstract             -> return Nothing
+  Right def -> case theDef $ def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 
 -- | Check if a constructor name is the internally generated record constructor.
+--
+--   Works also for abstract constructors.
 isGeneratedRecordConstructor :: QName -> TCM Bool
-isGeneratedRecordConstructor c = do
-  def <- theDef <$> getConstInfo c
-  case def of
-    Constructor{ conData = r } -> do
-      def <- theDef <$> getConstInfo r
-      case def of
-        Record{ recNamedCon = False } -> return True
-        _                             -> return False
-    _ -> return False
+isGeneratedRecordConstructor c = ignoreAbstractMode $ do
+  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
+    case def of
+      Record{ recNamedCon = False } -> return True
+      _ -> return False
+
 
 -- | Turn off eta for unguarded recursive records.
 --   Projections do not preserve guardedness.

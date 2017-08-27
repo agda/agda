@@ -6,7 +6,7 @@ module Agda.TypeChecking.Pretty where
 import Agda.Syntax.Internal
 -- import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Pretty (Doc)
 -- import qualified Agda.Utils.Pretty as P
 
