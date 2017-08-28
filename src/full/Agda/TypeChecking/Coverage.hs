@@ -358,7 +358,9 @@ inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
                     , namedClausePats = ps
                     , clauseBody      = Just rhs
                     , clauseType      = Just t
-                    , clauseCatchall  = False }
+                    , clauseCatchall  = False
+                    , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                    }
   addClauses f [cl]
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 

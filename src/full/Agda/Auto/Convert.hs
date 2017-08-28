@@ -658,6 +658,7 @@ frommyClause (ids, pats, mrhs) = do
    , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False
+   , I.clauseUnreachable = Nothing -- TODO: Don't know here whether reachable or not !?
    }
 
 contains_constructor :: [CSPat O] -> Bool

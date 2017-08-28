@@ -150,7 +150,7 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
         where
         display (tel, ps) = prettyTCM $ NamedClause f True $
-          I.Clause noRange noRange tel ps Nothing Nothing False
+          empty { clauseTel = tel, namedClausePats = ps }
 
     CoverageNoExactSplit f cs -> vcat $
       [ fsep $ pwords "Exact splitting is enabled, but the following" ++ pwords (singPlural cs "clause" "clauses") ++
