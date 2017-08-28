@@ -304,6 +304,7 @@ Library management
 ------------------
 
 * The `name` field in an `.agda-lib` file is now optional.
+  [Issue [#2708](https://github.com/agda/agda/issues/2708)]
 
   This feature is convenient if you just want to specify the dependencies
   and include pathes for your local project in an `.agda-lib` file.
@@ -738,9 +739,12 @@ For 2.5.3, the following additional issues have been fixed
   - [#2682](https://github.com/agda/agda/issues/2682): What are the rules for projections of abstract records?
   - [#2684](https://github.com/agda/agda/issues/2684): Bad error message for abstract constructor
   - [#2686](https://github.com/agda/agda/issues/2686): Abstract constructors should be ignored when resolving overloading
+  - [#2690](https://github.com/agda/agda/issues/2690): [regression?] Agda engages in deep search instead of immediately failing
+  - [#2705](https://github.com/agda/agda/issues/2705): The GHC backend might diverge in infinite file creation
+  - [#2714](https://github.com/agda/agda/issues/2714): Option --no-main should be allowed as file-local option
   - [#2717](https://github.com/agda/agda/issues/2717): internal error at DisplayForm.hs:197
   - [#2721](https://github.com/agda/agda/issues/2721): Without-K doesn't prevent heterogeneous conflict between literals
-
+  - [#2723](https://github.com/agda/agda/issues/2723): Unreachable clauses in definition by copattern matching trip clause compiler
 
 Release notes for Agda version 2.5.2
 ====================================
