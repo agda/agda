@@ -154,12 +154,16 @@ coreBuiltins =
                                                     (el' a bA --> el' b bB) --> ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
                                                   ))
                                                    (const $ const $ return ()))
-  , (builtinPathToEquiv        |-> BuiltinUnknown Nothing
-                                                -- (Just $ runNamesT [] (
-                                                --    hPi' "l" (el $ cl primLevel) $ \ a ->
-                                                --    nPi' "E" (cl tinterval --> (sort . tmSort <$> a)) $ \bE ->
-                                                --    el' a (cl primIsEquiv <#> a <#> a <@> (bE <@> cl primIZero) <@> (bE <@> cl primIOne) <@> _f)
-                                                --   ))
+  , (builtinPathToEquiv        |-> BuiltinUnknown
+                                                (Just $ runNamesT [] (
+                                                   hPi' "l" (el $ cl primLevel) $ \ a ->
+                                                   nPi' "E" (cl tinterval --> (sort . tmSort <$> a)) $ \bE ->
+                                                   let comp = getPrimitiveTerm "primComp" in
+                                                   el' a (cl primIsEquiv <#> a <#> a <@> (bE <@> cl primIZero) <@> (bE <@> cl primIOne)
+                                                          <@> (cl comp <#> (lam "i" $ \ _ -> a) <@> bE <@> cl primIZero
+                                                                <@> (lam "i" $ \ i -> cl primIsOneEmpty <#> a <#> (lam "o" $ \ _ -> bE <@> i))
+                                                              )
+                                                         )))
                                          (const $ const $ return ()))
   , (builtinCompGlue           |-> BuiltinUnknown (Just $ runNamesT [] (
                                      hPi' "l"  (cl tinterval --> el (cl primLevel)) $ \ l ->
