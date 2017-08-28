@@ -739,6 +739,7 @@ For 2.5.3, the following additional issues have been fixed
   - [#2684](https://github.com/agda/agda/issues/2684): Bad error message for abstract constructor
   - [#2686](https://github.com/agda/agda/issues/2686): Abstract constructors should be ignored when resolving overloading
   - [#2717](https://github.com/agda/agda/issues/2717): internal error at DisplayForm.hs:197
+  - [#2721](https://github.com/agda/agda/issues/2721): Without-K doesn't prevent heterogeneous conflict between literals
 
 
 Release notes for Agda version 2.5.2
