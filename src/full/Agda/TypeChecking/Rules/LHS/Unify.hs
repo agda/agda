@@ -732,11 +732,13 @@ checkEqualityStrategy k s = do
 
 literalStrategy :: Int -> UnifyStrategy
 literalStrategy k s = do
-  eq <- liftTCM $ eqUnLevel $ getEquality k s
-  case eq of
-    Equal a u@(Lit l1) v@(Lit l2)
-     | l1 == l2  -> return $ Deletion k a u u -- TODO: wrong context of a, but does it matter?
-     | otherwise -> return $ LitConflict k a l1 l2 -- same problem here
+  let n = eqCount s
+  Equal a u v <- liftTCM $ eqUnLevel $ getEquality k s
+  ha <- mfromMaybe $ isHom n a
+  case (u , v) of
+    (Lit l1 , Lit l2)
+     | l1 == l2  -> return $ Deletion k ha u v
+     | otherwise -> return $ LitConflict k ha l1 l2
     _ -> mzero
 
 etaExpandVarStrategy :: Int -> UnifyStrategy
