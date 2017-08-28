@@ -395,6 +395,7 @@ defineCompR' name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just $ Var 1 [] `apply` [argN io, argN one]
+                         , clauseUnreachable = Just False
                          }
            reportSDoc "comp.rec.face" 17 $ text $ show c
            return c
@@ -408,6 +409,7 @@ defineCompR' name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just body -- abstract gamma $ Body $ body
+                         , clauseUnreachable = Just False
                          }
           reportSDoc "comp.rec" 17 $ text $ show c
 --          reportSDoc "comp.rec" 10 $ text $ show (clauseType c)
@@ -542,6 +544,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
+                            , clauseUnreachable = Just False
                             }
 
         let projection = Projection

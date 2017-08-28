@@ -138,6 +138,7 @@ bindBuiltinFlat e =
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
+          , clauseUnreachable = Just False
           }
         cc = Case (defaultArg 0) $ Branches False
                                (Map.singleton sharp

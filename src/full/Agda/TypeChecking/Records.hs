@@ -705,6 +705,8 @@ isSingletonType' regardIrrelevance t = do
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
 emap = mapRight . fmap
 
+-- | Replace projection patterns by the original projections.
+--
 class NormaliseProjP a where
   normaliseProjP :: HasConstInfo m => a -> m a
 

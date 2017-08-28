@@ -511,7 +511,7 @@ checkAbsurdLambda i h e t = do
                     , defArgOccurrences = [Unused] })
             $ emptyFunction
               { funClauses        =
-                  [Clause
+                  [ Clause
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
@@ -519,6 +519,7 @@ checkAbsurdLambda i h e t = do
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
+                    , clauseUnreachable = Just True -- absurd clauses are unreachable
                     }
                   ]
               , funCompiled       = Just Fail

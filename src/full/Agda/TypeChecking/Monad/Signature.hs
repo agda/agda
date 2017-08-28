@@ -491,6 +491,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
+                        , clauseUnreachable = Just False -- definitely not unreachable
                         }
 
     {- Example

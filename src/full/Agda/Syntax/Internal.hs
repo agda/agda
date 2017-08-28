@@ -391,6 +391,11 @@ data Clause = Clause
       --   pattern on the lhs.
     , clauseCatchall  :: Bool
       -- ^ Clause has been labelled as CATCHALL.
+    , clauseUnreachable :: Maybe Bool
+      -- ^ Clause has been labelled as unreachable by the coverage checker.
+      --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
+      --   @Just False@ means clause is not unreachable.
+      --   @Just True@ means clause is unreachable.
     }
   deriving (Typeable, Data, Show)
 
@@ -1020,8 +1025,8 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False
-  null (Clause _ _ tel pats body _ _)
+  empty = Clause empty empty empty empty empty empty False Nothing
+  null (Clause _ _ tel pats body _ _ _)
     =  null tel
     && null pats
     && null body
@@ -1190,8 +1195,8 @@ instance KillRange a => KillRange (Pattern' a) where
       ProjP o q        -> killRange1 (ProjP o) q
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall) =
-    killRange7 Clause rl rf tel ps body t catchall
+  killRange (Clause rl rf tel ps body t catchall unreachable) =
+    killRange8 Clause rl rf tel ps body t catchall unreachable
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

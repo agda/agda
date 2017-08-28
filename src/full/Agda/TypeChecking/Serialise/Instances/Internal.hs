@@ -357,7 +357,7 @@ instance EmbPrj TermHead where
     valu _      = malformed
 
 instance EmbPrj I.Clause where
-  icod_ (Clause a b c d e f g) = icodeN' Clause a b c d e f g
+  icod_ (Clause a b c d e f g h) = icodeN' Clause a b c d e f g h
 
   value = valueN Clause
 

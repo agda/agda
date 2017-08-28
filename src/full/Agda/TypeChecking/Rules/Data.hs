@@ -340,6 +340,7 @@ defineCompData d con params names fsT t = do
             , clauseLHSRange  = noRange
             , clauseCatchall = False
             , clauseBody = Just $ Con con ConOSystem (map argN bodies) -- abstract gamma $ Body $ Con con (map argN bodies)
+            , clauseUnreachable = Just False
             }
         cs = [clause]
     addClauses compName cs
@@ -380,6 +381,7 @@ defineProjections dataname con params names fsT t = do
           , clauseLHSRange  = noRange
           , clauseCatchall = False
           , clauseBody = Just $ var i
+          , clauseUnreachable = Just False
           }
 
     noMutualBlock $ do

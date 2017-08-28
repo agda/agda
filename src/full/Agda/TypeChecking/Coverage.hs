@@ -136,6 +136,13 @@ clauseToSplitClause cl = SClause
 type CoverM = ExceptT SplitError TCM
 
 -- | Top-level function for checking pattern coverage.
+--
+--   Effects:
+--
+--   - Marks unreachable clauses as such in the signature.
+--
+--   - Adds missing instances clauses to the signature.
+--
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
   TelV gamma a <- telViewUpToPath (-1) t
@@ -161,6 +168,11 @@ coverageCheck f t cs = do
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
   CoverResult splitTree used pss noex <- cover f cs sc
+  reportSDoc "tc.cover.top" 10 $ vcat
+    [ text "cover computed!"
+    , text $ "used clauses: " ++ show used
+    , text $ "non-exact clauses: " ++ show noex
+    ]
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ prettyShow splitTree
@@ -171,17 +183,32 @@ coverageCheck f t cs = do
   unless (null pss) $
       setCurrentRange cs $
         warning $ CoverageIssue f pss
+
+  -- Andreas, 2017-08-28, issue #2723:
+  -- Mark clauses as reachable or unreachable in the signature.
+  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) ->
+        let unreachable = i `Set.notMember` used in
+        (boolToMaybe unreachable i, cl { clauseUnreachable = Just unreachable  })
   -- is = indices of unreachable clauses
-  let is = filter (`Set.notMember` used) [0..length cs - 1]
-  -- report an error if there are unreachable clauses
+  let is = catMaybes is0
+  reportSDoc "tc.cover.top" 10 $ vcat
+    [ text $ "unreachable clauses: " ++ if null is then "(none)" else show is
+    ]
+  -- Replace the first clauses by @cs1@.  There might be more
+  -- added by @inferMissingClause@.
+  modifyFunClauses f $ \ cs0 -> cs1 ++ drop (length cs1) cs0
+
+  -- Warn if there are unreachable clauses and mark them as unreachable.
   unless (null is) $ do
-      let unreached = map (cs !!) is
-      setCurrentRange (map clauseFullRange unreached) $
-        warning $ UnreachableClauses f $ map namedClausePats unreached
+    -- Warn about unreachable clauses.
+    let unreached = filter ((Just True ==) . clauseUnreachable) cs1
+    setCurrentRange (map clauseFullRange unreached) $
+      warning $ UnreachableClauses f $ map namedClausePats unreached
+
   -- report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
   unless (null noex) $ do
-      let noexclauses = map (cs !!) (Set.toList noex)
+      let noexclauses = map (cs1 !!) $ Set.toList noex
       setCurrentRange (map clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
@@ -203,6 +230,9 @@ data CoverResult = CoverResult
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
+--
+--   Effect: adds missing instance clauses for @f@ to signature.
+--
 cover :: QName -> [Clause] -> SplitClause ->
          TCM CoverResult
 cover f cs sc@(SClause tel ps _ _ target) = do
@@ -345,11 +375,17 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
-inferMissingClause :: QName -> SplitClause -> TCM ()
+-- | Append a instance clause to the clauses of a function.
+inferMissingClause
+  :: QName
+       -- ^ Function name.
+  -> SplitClause
+       -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
+   -> TCM ()
 inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
   cl <- addContext tel $ withModuleParameters mpsub $ do
-    (x, rhs) <- case getHiding t of
+    (_x, rhs) <- case getHiding t of
                   Instance{} -> newIFSMeta "" (unArg t)
                   Hidden     -> __IMPOSSIBLE__
                   NotHidden  -> __IMPOSSIBLE__
@@ -359,8 +395,10 @@ inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
                     , namedClausePats = ps
                     , clauseBody      = Just rhs
                     , clauseType      = Just t
-                    , clauseCatchall  = False }
-  addClauses f [cl]
+                    , clauseCatchall  = False
+                    , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                    }
+  addClauses f [cl]  -- Important: add at the end.
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars

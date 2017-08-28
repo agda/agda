@@ -167,6 +167,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                           , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
+                          , clauseUnreachable = Just False
                           } ]
                       , funCompiled = Just $ Done [] $ bodyMod v
                       , funDelayed  = delayed
@@ -290,6 +291,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseBody = Nothing
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
+                       , clauseUnreachable = Just False
                        }
                  return (cs ++ [c], Just sys)
 
@@ -659,6 +661,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots stripp
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
+                 , clauseUnreachable = Nothing -- we don't know yet
                  }
 
 -- | Type check the @with@ and @rewrite@ lhss and/or the rhs.
