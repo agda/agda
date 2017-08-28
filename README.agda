@@ -62,8 +62,6 @@ module README where
 --     well-founded induction).
 -- • IO
 --     Input/output-related functions.
--- • Irrelevance
---     Definitions related to (proscriptive) irrelevance.
 -- • Level
 --     Universe levels.
 -- • Record
@@ -75,6 +73,8 @@ module README where
 --     binary relations).
 -- • Size
 --     Sizes used by the sized types mechanism.
+-- • Strict
+--     Provides access to the builtins relating to strictness.
 -- • Universe
 --     A definition of universes.
 
