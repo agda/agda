@@ -160,6 +160,11 @@ coverageCheck f t cs = do
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
   CoverResult splitTree used pss noex <- cover f cs sc
+  reportSDoc "tc.cover.top" 10 $ vcat
+    [ text "cover computed!"
+    , text $ "used clauses: " ++ show used
+    , text $ "non-exact clauses: " ++ show noex
+    ]
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ prettyShow splitTree
@@ -344,11 +349,17 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
-inferMissingClause :: QName -> SplitClause -> TCM ()
+-- | Append a instance clause to the clauses of a function.
+inferMissingClause
+  :: QName
+       -- ^ Function name.
+  -> SplitClause
+       -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
+   -> TCM ()
 inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
   cl <- addContext tel $ withModuleParameters mpsub $ do
-    (x, rhs) <- case getHiding t of
+    (_x, rhs) <- case getHiding t of
                   Instance{} -> newIFSMeta "" (unArg t)
                   Hidden     -> __IMPOSSIBLE__
                   NotHidden  -> __IMPOSSIBLE__
@@ -361,7 +372,7 @@ inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
                     , clauseCatchall  = False
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     }
-  addClauses f [cl]
+  addClauses f [cl]  -- Important: add at the end.
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
