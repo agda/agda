@@ -57,7 +57,9 @@ compileClauses mt cs = do
       splitTree <- coverageCheck q t cs
 
       -- The coverage checker might have added some clauses (#2288)!
-      cs <- normaliseProjP =<< defClauses <$> getConstInfo q
+      -- Throw away the unreachable clauses (#2723).
+      let notUnreachable = (Just True /=) . clauseUnreachable
+      cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
       let cls = unBruijn cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
