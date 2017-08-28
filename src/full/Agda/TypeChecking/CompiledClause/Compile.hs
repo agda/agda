@@ -48,12 +48,11 @@ compileClauses ::
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
-  cs <- normaliseProjP cs
   let unBruijn cs = [ Cl (map (fmap (fmap dbPatVarName . namedThing)) $ namedClausePats c)
                          (compiledClauseBody c) | c <- cs ]
   shared <- sharedFun
   case mt of
-    Nothing -> return $ compile shared $ unBruijn cs
+    Nothing -> compile shared . unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
