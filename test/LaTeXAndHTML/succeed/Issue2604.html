@@ -1,414 +1,74 @@
 <!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>Issue2604</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Comment">-- Andreas, 2017-06-16, issue #2604:</a>
+<a id="38" class="Comment">-- Symbolic anchors in generated HTML.</a>
 
-<html>
-    <head>
-        <title>
-            Issue2604
-        </title>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <meta http-equiv="Content-Style-Type" content="text/css">
-        <link href="Agda.css" rel="stylesheet" type="text/css">
-    </head>
-    <body>
-        <pre>
-            <a name="1" class="Comment">
-                -- Andreas, 2017-06-16, issue #2604:
-            </a>
-            
+<a id="78" class="Keyword">module</a> <a id="85" href="Issue2604.html" class="Module">Issue2604</a> <a id="95" class="Keyword">where</a>
 
-            <a name="38" class="Comment">
-                -- Symbolic anchors in generated HTML.
-            </a>
-            
+<a id="test1" href="Issue2604.html#test1" class="Function">test1</a> <a id="108" class="Symbol">:</a> <a id="110" class="PrimitiveType">Set₁</a>  <a id="116" class="Comment">-- Symbolic anchor</a>
+<a id="135" href="Issue2604.html#test1" class="Function">test1</a> <a id="141" class="Symbol">=</a> <a id="143" href="Issue2604.html#157" class="Function">bla</a>
+  <a id="149" class="Keyword">where</a>
+  <a id="157" href="Issue2604.html#157" class="Function">bla</a> <a id="161" class="Symbol">=</a> <a id="163" class="PrimitiveType">Set</a>   <a id="169" class="Comment">-- Position anchor</a>
 
+<a id="test2" href="Issue2604.html#test2" class="Function">test2</a> <a id="195" class="Symbol">:</a> <a id="197" class="PrimitiveType">Set₁</a>  <a id="203" class="Comment">-- Symbolic anchor</a>
+<a id="222" href="Issue2604.html#test2" class="Function">test2</a> <a id="228" class="Symbol">=</a> <a id="230" href="Issue2604.html#244" class="Function">bla</a>
+  <a id="236" class="Keyword">where</a>
+  <a id="244" href="Issue2604.html#244" class="Function">bla</a> <a id="248" class="Symbol">=</a> <a id="250" class="PrimitiveType">Set</a>   <a id="256" class="Comment">-- Position anchor</a>
 
-            <a name="78" class="Keyword">
-                module
-            </a>
-             
-            <a name="85" href="Issue2604.html" class="Module">
-                Issue2604
-            </a>
-             
-            <a name="95" class="Keyword">
-                where
-            </a>
-            
+<a id="test3" href="Issue2604.html#test3" class="Function">test3</a> <a id="282" class="Symbol">:</a> <a id="284" class="PrimitiveType">Set₁</a>  <a id="290" class="Comment">-- Symbolic anchor</a>
+<a id="309" href="Issue2604.html#test3" class="Function">test3</a> <a id="315" class="Symbol">=</a> <a id="317" href="Issue2604.html#M.bla" class="Function">bla</a>
+  <a id="323" class="Keyword">module</a> <a id="M" href="Issue2604.html#M" class="Module">M</a> <a id="332" class="Keyword">where</a>
+  <a id="M.bla" href="Issue2604.html#M.bla" class="Function">bla</a> <a id="344" class="Symbol">=</a> <a id="346" class="PrimitiveType">Set</a>  <a id="351" class="Comment">-- Symbolic anchor</a>
 
+<a id="371" class="Keyword">module</a> <a id="NamedModule" href="Issue2604.html#NamedModule" class="Module">NamedModule</a> <a id="390" class="Keyword">where</a>
+  <a id="NamedModule.test4" href="Issue2604.html#NamedModule.test4" class="Function">test4</a> <a id="404" class="Symbol">:</a> <a id="406" class="PrimitiveType">Set₁</a>  <a id="412" class="Comment">-- Symbolic anchor</a>
+  <a id="433" href="Issue2604.html#NamedModule.test4" class="Function">test4</a> <a id="439" class="Symbol">=</a> <a id="441" href="Issue2604.html#M.bla" class="Function">M.bla</a>
 
-            <a name="test1" href="Issue2604.html#test1" class="Function">
-                test1
-            </a>
-             
-            <a name="108" class="Symbol">
-                :
-            </a>
-             
-            <a name="110" class="PrimitiveType">
-                Set₁
-            </a>
-              
-            <a name="116" class="Comment">
-                -- Symbolic anchor
-            </a>
-            
+<a id="448" class="Keyword">module</a> <a id="455" href="Issue2604.html#455" class="Module">_</a> <a id="457" class="Keyword">where</a>
+  <a id="465" href="Issue2604.html#465" class="Function">test5</a> <a id="471" class="Symbol">:</a> <a id="473" class="PrimitiveType">Set₁</a>  <a id="479" class="Comment">-- Position anchor</a>
+  <a id="500" href="Issue2604.html#465" class="Function">test5</a> <a id="506" class="Symbol">=</a> <a id="508" href="Issue2604.html#M.bla" class="Function">M.bla</a>
 
-            <a name="135" href="Issue2604.html#test1" class="Function">
-                test1
-            </a>
-             
-            <a name="141" class="Symbol">
-                =
-            </a>
-             
-            <a name="143" href="Issue2604.html#157" class="Function">
-                bla
-            </a>
-            
-  
-            <a name="149" class="Keyword">
-                where
-            </a>
-            
-  
-            <a name="157" href="Issue2604.html#157" class="Function">
-                bla
-            </a>
-             
-            <a name="161" class="Symbol">
-                =
-            </a>
-             
-            <a name="163" class="PrimitiveType">
-                Set
-            </a>
-               
-            <a name="169" class="Comment">
-                -- Position anchor
-            </a>
-            
+<a id="515" class="Comment">-- Testing whether # in anchors confuses the browsers.</a>
+<a id="570" class="Comment">-- Not Firefox 54.0, at least (Andreas, 2017-06-20).</a>
+<a id="623" class="Comment">-- However, the Nu Html Checker complains (someone else, later).</a>
 
+<a id="#" href="Issue2604.html#%23" class="Function">#</a> <a id="691" class="Symbol">:</a> <a id="693" class="PrimitiveType">Set₁</a>
+<a id="698" href="Issue2604.html#%23" class="Function">#</a> <a id="700" class="Symbol">=</a> <a id="702" class="PrimitiveType">Set</a>
 
-            <a name="test2" href="Issue2604.html#test2" class="Function">
-                test2
-            </a>
-             
-            <a name="195" class="Symbol">
-                :
-            </a>
-             
-            <a name="197" class="PrimitiveType">
-                Set₁
-            </a>
-              
-            <a name="203" class="Comment">
-                -- Symbolic anchor
-            </a>
-            
+<a id="#a" href="Issue2604.html#%23a" class="Function">#a</a> <a id="710" class="Symbol">:</a> <a id="712" class="PrimitiveType">Set₁</a>
+<a id="717" href="Issue2604.html#%23a" class="Function">#a</a> <a id="720" class="Symbol">=</a> <a id="722" href="Issue2604.html#%23" class="Function">#</a>
 
-            <a name="222" href="Issue2604.html#test2" class="Function">
-                test2
-            </a>
-             
-            <a name="228" class="Symbol">
-                =
-            </a>
-             
-            <a name="230" href="Issue2604.html#244" class="Function">
-                bla
-            </a>
-            
-  
-            <a name="236" class="Keyword">
-                where
-            </a>
-            
-  
-            <a name="244" href="Issue2604.html#244" class="Function">
-                bla
-            </a>
-             
-            <a name="248" class="Symbol">
-                =
-            </a>
-             
-            <a name="250" class="PrimitiveType">
-                Set
-            </a>
-               
-            <a name="256" class="Comment">
-                -- Position anchor
-            </a>
-            
+<a id="b#" href="Issue2604.html#b%23" class="Function">b#</a> <a id="728" class="Symbol">:</a> <a id="730" class="PrimitiveType">Set₁</a>
+<a id="735" href="Issue2604.html#b%23" class="Function">b#</a> <a id="738" class="Symbol">=</a> <a id="740" href="Issue2604.html#%23a" class="Function">#a</a>
 
+<a id="##" href="Issue2604.html#%23%23" class="Function">##</a> <a id="747" class="Symbol">:</a> <a id="749" class="PrimitiveType">Set₁</a>
+<a id="754" href="Issue2604.html#%23%23" class="Function">##</a> <a id="757" class="Symbol">=</a> <a id="759" href="Issue2604.html#b%23" class="Function">b#</a>
 
-            <a name="test3" href="Issue2604.html#test3" class="Function">
-                test3
-            </a>
-             
-            <a name="282" class="Symbol">
-                :
-            </a>
-             
-            <a name="284" class="PrimitiveType">
-                Set₁
-            </a>
-              
-            <a name="290" class="Comment">
-                -- Symbolic anchor
-            </a>
-            
+<a id="763" class="Comment">-- The href attribute values #A and #%41 are (correctly?) treated as</a>
+<a id="832" class="Comment">-- pointers to the same destination by Firefox 54.0. To point to %41</a>
+<a id="901" class="Comment">-- one should use #%2541.</a>
 
-            <a name="309" href="Issue2604.html#test3" class="Function">
-                test3
-            </a>
-             
-            <a name="315" class="Symbol">
-                =
-            </a>
-             
-            <a name="317" href="Issue2604.html#M.bla" class="Function">
-                bla
-            </a>
-            
-  
-            <a name="323" class="Keyword">
-                module
-            </a>
-             
-            <a name="M" href="Issue2604.html#M" class="Module">
-                M
-            </a>
-             
-            <a name="332" class="Keyword">
-                where
-            </a>
-            
-  
-            <a name="M.bla" href="Issue2604.html#M.bla" class="Function">
-                bla
-            </a>
-             
-            <a name="344" class="Symbol">
-                =
-            </a>
-             
-            <a name="346" class="PrimitiveType">
-                Set
-            </a>
-              
-            <a name="351" class="Comment">
-                -- Symbolic anchor
-            </a>
-            
+<a id="A" href="Issue2604.html#A" class="Function">A</a> <a id="930" class="Symbol">:</a> <a id="932" class="PrimitiveType">Set₁</a>
+<a id="937" href="Issue2604.html#A" class="Function">A</a> <a id="939" class="Symbol">=</a> <a id="941" class="PrimitiveType">Set</a>
 
+<a id="%41" href="Issue2604.html#%2541" class="Function">%41</a> <a id="950" class="Symbol">:</a> <a id="952" class="PrimitiveType">Set₁</a>
+<a id="957" href="Issue2604.html#%2541" class="Function">%41</a> <a id="961" class="Symbol">=</a> <a id="963" href="Issue2604.html#A" class="Function">A</a>
 
-            <a name="371" class="Keyword">
-                module
-            </a>
-             
-            <a name="NamedModule" href="Issue2604.html#NamedModule" class="Module">
-                NamedModule
-            </a>
-             
-            <a name="390" class="Keyword">
-                where
-            </a>
-            
-  
-            <a name="NamedModule.test4" href="Issue2604.html#NamedModule.test4" class="Function">
-                test4
-            </a>
-             
-            <a name="404" class="Symbol">
-                :
-            </a>
-             
-            <a name="406" class="PrimitiveType">
-                Set₁
-            </a>
-              
-            <a name="412" class="Comment">
-                -- Symbolic anchor
-            </a>
-            
-  
-            <a name="433" href="Issue2604.html#NamedModule.test4" class="Function">
-                test4
-            </a>
-             
-            <a name="439" class="Symbol">
-                =
-            </a>
-             
-            <a name="441" href="Issue2604.html#M.bla" class="Function">
-                M.bla
-            </a>
-            
+<a id="966" class="Comment">-- Ampersands may need to be encoded in some way. The blaze-html</a>
+<a id="1031" class="Comment">-- library takes care of encoding id attribute values, and we manually</a>
+<a id="1102" class="Comment">-- replace ampersands with %26 in the fragment parts of href attribute</a>
+<a id="1173" class="Comment">-- values.</a>
 
+<a id="&amp;amp" href="Issue2604.html#%26amp" class="Function">&amp;amp</a> <a id="1190" class="Symbol">:</a> <a id="1192" class="PrimitiveType">Set₁</a>
+<a id="1197" href="Issue2604.html#%26amp" class="Function">&amp;amp</a> <a id="1202" class="Symbol">=</a> <a id="1204" class="PrimitiveType">Set</a>
 
-            <a name="448" class="Keyword">
-                module
-            </a>
-             
-            <a name="455" href="Issue2604.html#455" class="Module">
-                _
-            </a>
-             
-            <a name="457" class="Keyword">
-                where
-            </a>
-            
-  
-            <a name="465" href="Issue2604.html#465" class="Function">
-                test5
-            </a>
-             
-            <a name="471" class="Symbol">
-                :
-            </a>
-             
-            <a name="473" class="PrimitiveType">
-                Set₁
-            </a>
-              
-            <a name="479" class="Comment">
-                -- Position anchor
-            </a>
-            
-  
-            <a name="500" href="Issue2604.html#465" class="Function">
-                test5
-            </a>
-             
-            <a name="506" class="Symbol">
-                =
-            </a>
-             
-            <a name="508" href="Issue2604.html#M.bla" class="Function">
-                M.bla
-            </a>
-            
+<a id="&amp;lt" href="Issue2604.html#%26lt" class="Function">&amp;lt</a> <a id="1213" class="Symbol">:</a> <a id="1215" class="PrimitiveType">Set₁</a>
+<a id="1220" href="Issue2604.html#%26lt" class="Function">&amp;lt</a> <a id="1224" class="Symbol">=</a> <a id="1226" href="Issue2604.html#%26amp" class="Function">&amp;amp</a>
 
+<a id="1232" class="Comment">-- Test of fixity declarations. The id attribute value for the</a>
+<a id="1295" class="Comment">-- operator in the fixity declaration should be unique.</a>
 
-            <a name="515" class="Comment">
-                -- Testing whether # in anchors confuses the browsers.
-            </a>
-            
+<a id="1352" class="Keyword">infix</a> <a id="1358" class="Number">0</a> <a id="_%42∀_" href="Issue2604.html#_%2542%E2%88%80_" class="Function Operator">_%42∀_</a>
 
-            <a name="570" class="Comment">
-                -- Not Firefox 54.0, at least (Andreas, 2017-06-20).
-            </a>
-            
-
-
-            <a name="#" href="Issue2604.html##" class="Function">
-                #
-            </a>
-             
-            <a name="626" class="Symbol">
-                :
-            </a>
-             
-            <a name="628" class="PrimitiveType">
-                Set₁
-            </a>
-            
-
-            <a name="633" href="Issue2604.html##" class="Function">
-                #
-            </a>
-             
-            <a name="635" class="Symbol">
-                =
-            </a>
-             
-            <a name="637" class="PrimitiveType">
-                Set
-            </a>
-            
-
-
-            <a name="#a" href="Issue2604.html##a" class="Function">
-                #a
-            </a>
-             
-            <a name="645" class="Symbol">
-                :
-            </a>
-             
-            <a name="647" class="PrimitiveType">
-                Set₁
-            </a>
-            
-
-            <a name="652" href="Issue2604.html##a" class="Function">
-                #a
-            </a>
-             
-            <a name="655" class="Symbol">
-                =
-            </a>
-             
-            <a name="657" href="Issue2604.html##" class="Function">
-                #
-            </a>
-            
-
-
-            <a name="b#" href="Issue2604.html#b#" class="Function">
-                b#
-            </a>
-             
-            <a name="663" class="Symbol">
-                :
-            </a>
-             
-            <a name="665" class="PrimitiveType">
-                Set₁
-            </a>
-            
-
-            <a name="670" href="Issue2604.html#b#" class="Function">
-                b#
-            </a>
-             
-            <a name="673" class="Symbol">
-                =
-            </a>
-             
-            <a name="675" href="Issue2604.html##a" class="Function">
-                #a
-            </a>
-            
-
-
-            <a name="##" href="Issue2604.html###" class="Function">
-                ##
-            </a>
-             
-            <a name="682" class="Symbol">
-                :
-            </a>
-             
-            <a name="684" class="PrimitiveType">
-                Set₁
-            </a>
-            
-
-            <a name="689" href="Issue2604.html###" class="Function">
-                ##
-            </a>
-             
-            <a name="692" class="Symbol">
-                =
-            </a>
-             
-            <a name="694" href="Issue2604.html#b#" class="Function">
-                b#
-            </a>
-            
-
-        </pre>
-    </body>
-</html>
+<a id="_%42∀_" href="Issue2604.html#_%2542%E2%88%80_" class="Function Operator">_%42∀_</a> <a id="1375" class="Symbol">:</a> <a id="1377" class="PrimitiveType">Set₁</a>
+<a id="1382" href="Issue2604.html#_%2542%E2%88%80_" class="Function Operator">_%42∀_</a> <a id="1389" class="Symbol">=</a> <a id="1391" class="PrimitiveType">Set</a>
+</pre></body></html>

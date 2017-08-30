@@ -28,13 +28,15 @@ import qualified Data.IntMap as IntMap
 import qualified Data.Map    as Map
 import qualified Data.List   as List
 
+import qualified Network.URI.Encode
+
 import System.FilePath
 import System.Directory
 
 import Text.Blaze.Html5 hiding (code, map, title)
 import qualified Text.Blaze.Html5 as Html5
-import Text.Blaze.Html5.Attributes
-import Text.Blaze.Html.Renderer.Pretty
+import Text.Blaze.Html5.Attributes as Attr
+import Text.Blaze.Html.Renderer.String
   -- The imported operator (!) attaches an Attribute to an Html value
   -- The defined operator (!!) attaches a list of such Attributes
 
@@ -154,16 +156,10 @@ page css modName pagecontent = renderHtml $ docTypeHtml $ hdr <> rest
   where
 
     hdr = Html5.head $ mconcat
-      [ Html5.title (toHtml $ render $ pretty modName)
-      , meta !! [ httpEquiv "Content-Type"
-                , content "text/html; charset=UTF-8"
-                ]
-      , meta !! [ httpEquiv "Content-Style-Type"
-                , content "text/css"
-                ]
-      , link !! [ href (stringValue css)
-                , rel "stylesheet"
-                , type_ "text/css"
+      [ meta !! [ charset "utf-8" ]
+      , Html5.title (toHtml $ render $ pretty modName)
+      , link !! [ rel "stylesheet"
+                , href (stringValue css)
                 ]
       ]
 
@@ -202,7 +198,7 @@ code = mconcat . map mkHtml
   annotate pos mi content = a content !! attributes
     where
     attributes = concat
-      [ [name $ stringValue $ applyWhen here anchorName $ show pos ]
+      [ [Attr.id $ stringValue $ applyWhen here anchorName $ show pos ]
       , toList $ fmap link mDefinitionSite
       , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
@@ -236,5 +232,6 @@ code = mconcat . map mkHtml
       -- If the definition site points to the top of a file,
       -- we drop the anchor part and just link to the file.
       applyUnless (pos <= 1)
-        (++ "#" ++ fromMaybe (show pos) aName)
-        (modToFile m)
+        (++ "#" ++
+         Network.URI.Encode.encode (fromMaybe (show pos) aName))
+        (Network.URI.Encode.encode $ modToFile m)

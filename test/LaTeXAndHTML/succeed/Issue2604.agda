@@ -28,6 +28,7 @@ module _ where
 
 -- Testing whether # in anchors confuses the browsers.
 -- Not Firefox 54.0, at least (Andreas, 2017-06-20).
+-- However, the Nu Html Checker complains (someone else, later).
 
 # : Set₁
 # = Set
@@ -40,3 +41,32 @@ b# = #a
 
 ## : Set₁
 ## = b#
+
+-- The href attribute values #A and #%41 are (correctly?) treated as
+-- pointers to the same destination by Firefox 54.0. To point to %41
+-- one should use #%2541.
+
+A : Set₁
+A = Set
+
+%41 : Set₁
+%41 = A
+
+-- Ampersands may need to be encoded in some way. The blaze-html
+-- library takes care of encoding id attribute values, and we manually
+-- replace ampersands with %26 in the fragment parts of href attribute
+-- values.
+
+&amp : Set₁
+&amp = Set
+
+&lt : Set₁
+&lt = &amp
+
+-- Test of fixity declarations. The id attribute value for the
+-- operator in the fixity declaration should be unique.
+
+infix 0 _%42∀_
+
+_%42∀_ : Set₁
+_%42∀_ = Set
