@@ -300,6 +300,30 @@ Emacs mode
     test0 x | q = ?
   ```
 
+* New command to check an expression against the type of the hole
+  it is in and see what it elaborates to. This is useful to determine
+  e.g. what solution typeclass resolution yields.
+  The command is bound to `C-c C-;` and respects the `C-u` modifier.
+
+  ```agda
+    record Pointed (A : Set) : Set where
+      field point : A
+
+    it : ∀ {A : Set} {{x : A}} → A
+    it {{x}} = x
+
+    instance _ = record { point = 3 - 4 }
+
+    _ : Pointed Nat
+    _ = {! it !} -- C-u C-u C-c C-;
+  ```
+  yields
+  ```agda
+    Goal: Pointed Nat
+    Elaborates to: record { point = 0 }
+  ```
+
+
 Library management
 ------------------
 

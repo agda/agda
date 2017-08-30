@@ -62,6 +62,7 @@ will either use the text inside the goal or ask the user for input.
 ``C-c C-d``          Infer (**d**\ educe) type
 ``C-c C-,``          Goal type and context
 ``C-c C-.``          Goal type, context and inferred type
+``C-c C-;``          Goal type, context and checked term
 ``C-c C-o``          M\ **o**\ dule c\ **o**\ ntents
 ``C-c C-n``          Compute **n**\ ormal form
 ``C-u C-c C-n``      Compute normal form, ignoring ``abstract``

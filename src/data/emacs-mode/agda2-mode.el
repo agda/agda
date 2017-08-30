@@ -246,6 +246,7 @@ constituents.")
     (agda2-why-in-scope-maybe-toplevel       "\C-c\C-w"           (local global) "Explain why a particular name is in scope")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
+    (agda2-goal-and-context-and-checked      ,(kbd "C-c C-;")     (local)        "Goal type, context and checked type")
     (agda2-search-about-toplevel             ,(kbd "C-c C-z")     (local global) "Search About")
     (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")     (local global) "Module contents")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"           (local global) "Evaluate term to normal form")
@@ -1345,6 +1346,12 @@ top-level scope."
  agda2-goal-and-context-and-inferred
  "Shows the context, the goal and the given expression's inferred type"
  "Cmd_goal_type_context_infer"
+ "expression to type")
+
+(agda2-maybe-normalised
+ agda2-goal-and-context-and-checked
+ "Shows the context, the goal and check the given expression's against the hole's type"
+ "Cmd_goal_type_context_check"
  "expression to type")
 
 (agda2-maybe-normalised

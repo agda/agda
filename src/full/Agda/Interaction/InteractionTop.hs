@@ -39,6 +39,7 @@ import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
 import qualified Agda.TypeChecking.Monad as TM
 import qualified Agda.TypeChecking.Pretty as TCP
+import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
 
 import Agda.Syntax.Fixity
@@ -557,6 +558,11 @@ data Interaction' range
   | Cmd_goal_type_context_infer
                         B.Rewrite InteractionId range String
 
+  -- | Grabs the current goal's type and checks the expression in the hole
+  -- against it.
+  | Cmd_goal_type_context_check
+                        B.Rewrite InteractionId range String
+
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the scope of the given goal.
   | Cmd_show_module_contents
@@ -893,6 +899,17 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
     typ <- B.withInteractionId ii $
       prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
     return $ text "Have:" <+> typ
+  cmd_goal_type_context_and have norm ii rng s
+
+interpret (Cmd_goal_type_context_check norm ii rng s) = do
+  have <- liftLocalState $ B.withInteractionId ii $ do
+    expr <- B.parseExprIn ii rng s
+    goal <- B.typeOfMeta AsIs ii
+    term <- case goal of
+      OfType _ ty -> checkExpr expr =<< isType_ ty
+      _           -> __IMPOSSIBLE__
+    txt <- TCP.prettyTCM =<< normalForm norm term
+    return $ text "Elaborates to:" <+> txt
   cmd_goal_type_context_and have norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
