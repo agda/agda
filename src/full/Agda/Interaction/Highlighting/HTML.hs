@@ -119,7 +119,9 @@ generateHTMLWithPageGen generatePage = do
 -- | Converts module names to the corresponding HTML file names.
 
 modToFile :: C.TopLevelModuleName -> FilePath
-modToFile m = render (pretty m) <.> "html"
+modToFile m =
+  Network.URI.Encode.encode $
+    render (pretty m) <.> "html"
 
 -- | Generates a highlighted, hyperlinked version of the given module.
 
