@@ -4,8 +4,11 @@ module Agda.Utils.IO.UTF8
   ( readTextFile
   , Agda.Utils.IO.UTF8.hPutStr
   , Agda.Utils.IO.UTF8.writeFile
+  , writeTextToFile
   ) where
 
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy.IO as T
 import qualified System.IO as IO
 import Control.Applicative
 
@@ -54,3 +57,11 @@ hPutStr h s = do
 writeFile :: FilePath -> String -> IO ()
 writeFile file s = IO.withFile file IO.WriteMode $ \h -> do
   hPutStr h s
+
+-- | Writes a UTF8-encoded text file. The native convention for line
+-- endings is used.
+
+writeTextToFile :: FilePath -> Text -> IO ()
+writeTextToFile file s = IO.withFile file IO.WriteMode $ \h -> do
+  IO.hSetEncoding h IO.utf8
+  T.hPutStr h s
