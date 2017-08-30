@@ -70,3 +70,12 @@ infix 0 _%42∀_
 
 _%42∀_ : Set₁
 _%42∀_ = Set
+
+-- The following two variants of the character Ö should result in
+-- distinct links.
+
+Ö : Set₁
+Ö = Set
+
+Ö : Set₁
+Ö = Ö
