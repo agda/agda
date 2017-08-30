@@ -27,6 +27,7 @@ import Data.Maybe
 import qualified Data.IntMap as IntMap
 import qualified Data.Map    as Map
 import qualified Data.List   as List
+import Data.Text.Lazy (Text)
 
 import qualified Network.URI.Encode
 
@@ -36,7 +37,7 @@ import System.Directory
 import Text.Blaze.Html5 hiding (code, map, title)
 import qualified Text.Blaze.Html5 as Html5
 import Text.Blaze.Html5.Attributes as Attr
-import Text.Blaze.Html.Renderer.String
+import Text.Blaze.Html.Renderer.Text
   -- The imported operator (!) attaches an Attribute to an Html value
   -- The defined operator (!!) attaches a list of such Attributes
 
@@ -78,7 +79,7 @@ generateHTML = generateHTMLWithPageGen pageGen
   pageGen :: FilePath -> C.TopLevelModuleName -> CompressedFile -> TCM ()
   pageGen dir mod hinfo = generatePage renderer dir mod
     where
-    renderer :: FilePath -> FilePath -> String -> String
+    renderer :: FilePath -> FilePath -> String -> Text
     renderer css _ contents = page css mod $ code $ tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
@@ -123,7 +124,7 @@ modToFile m = render (pretty m) <.> "html"
 -- | Generates a highlighted, hyperlinked version of the given module.
 
 generatePage
-  :: (FilePath -> FilePath -> String -> String)  -- ^ Page renderer
+  :: (FilePath -> FilePath -> String -> Text)  -- ^ Page renderer
   -> FilePath              -- ^ Directory in which to create files.
   -> C.TopLevelModuleName  -- ^ Module to be highlighted.
   -> TCM ()
@@ -136,7 +137,7 @@ generatePage renderpage dir mod = do
   TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                            render (pretty mod) ++
                            " (" ++ target ++ ")."
-  liftIO $ UTF8.writeFile target html
+  liftIO $ UTF8.writeTextToFile target html
   where target = dir </> modToFile mod
 
 
@@ -150,7 +151,7 @@ h !! as = h ! mconcat as
 page :: FilePath              -- ^ URL to the CSS file.
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
      -> Html
-     -> String
+     -> Text
 page css modName pagecontent = renderHtml $ docTypeHtml $ hdr <> rest
 
   where
