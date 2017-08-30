@@ -423,6 +423,14 @@ HTML backend
     test5 = M.bla
   ```
 
+* Some generated HTML files now have different file names [Issue
+  [#2725](https://github.com/agda/agda/issues/2725)].
+
+  Agda now uses an encoding that amounts to first converting the
+  module names to UTF-8, and then percent-encoding the resulting
+  bytes. For instance, HTML for the module `Σ` is placed in
+  `%CE%A3.html`.
+
 LaTeX backend
 -------------
 
