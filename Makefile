@@ -55,7 +55,9 @@ CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
 
-CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR) --enable-tests
+SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
+CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
+                          $(SLOW_CABAL_INSTALL_OPTS)
 
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
@@ -64,6 +66,9 @@ CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
+
+CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
+                       $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : quick-install-bin
 quick-install-bin :
@@ -106,7 +111,7 @@ setup-emacs-mode : install-bin
 
 .PHONY : haddock
 haddock :
-	$(CABAL_CMD) configure --builddir=$(BUILD_DIR)
+	$(CABAL_CMD) configure $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
 
 .PHONY : doc-html
@@ -161,6 +166,7 @@ internal-tests :
 	@echo "======================== Internal test suite ========================="
 	@echo "======================================================================"
 #	$(AGDA_BIN) --test +RTS -M1g
+	$(CABAL_CMD) configure $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) test internal-tests --builddir=$(BUILD_DIR) -j$(PARALLEL_TESTS)
 
 .PHONY : succeed
