@@ -555,6 +555,10 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           _ -> mismatch
       where
         recurse v = do
+          caseMaybeM (liftTCM $ isPath t) (return ()) $ \ _ ->
+            typeError $ GenericError $
+              "With-clauses currently not supported under Path abstraction."
+
           t' <- piApply1 t v
           strip (self `apply1` v) t' ps qs
 
