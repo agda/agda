@@ -301,8 +301,9 @@ Emacs mode
   ```
 
 * New command to check an expression against the type of the hole
-  it is in and see what it elaborates to. This is useful to determine
-  e.g. what solution typeclass resolution yields.
+  it is in and see what it elaborates to.
+  [Issue [#2700](https://github.com/agda/agda/issues/2700)]
+  This is useful to determine e.g. what solution typeclass resolution yields.
   The command is bound to `C-c C-;` and respects the `C-u` modifier.
 
   ```agda
