@@ -232,7 +232,7 @@ private
     }
 
   -- Some properties that the functions above satisfy, proved using
-  -- <-rec.
+  -- <′-rec.
 
   half₁-+₂ : ∀ n → half₁ (twice n) ≡ n
   half₁-+₂ = <′-rec _ λ
