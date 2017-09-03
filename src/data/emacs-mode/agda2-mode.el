@@ -847,9 +847,42 @@ The variable `agda2-backend' determines which backend is used."
               (agda2-list-quote agda2-program-args)
               )))
 
-(defun agda2-give()
-  "Give to the goal at point the expression in it" (interactive)
-  (agda2-goal-cmd "Cmd_give" 'save "expression to give"))
+(defmacro agda2-maybe-forced (name comment cmd save want)
+  "This macro constructs a function NAME which runs CMD.
+COMMENT is used to build the function's comment. The function
+NAME takes a prefix argument which tells whether it should
+apply force or not when running CMD (through
+`agda2-goal-cmd';
+SAVE is used as `agda2-goal-cmd's SAVE argument and
+WANT is used as `agda2-goal-cmd's WANT argument)."
+  (let ((eval (make-symbol "eval")))
+  `(defun ,name (&optional prefix)
+     ,(concat comment ".
+
+The action depends on the prefix argument:
+
+* If the prefix argument is `nil' (i.e., if no prefix argument is
+  given), then no force is applied.
+
+* If any other prefix argument is used (for instance, if C-u is
+  typed once or twice right before the command is invoked), then
+  force is applied.")
+     (interactive "P")
+     (let ((,eval (cond ((equal prefix nil) "WithoutForce")
+                        ("WithForce"))))
+       (agda2-goal-cmd (concat ,cmd " " ,eval)
+                       ,save ,want)))))
+
+(agda2-maybe-forced
+  agda2-give
+  "Give to the goal at point the expression in it"
+  "Cmd_give"
+  'save
+  "expression to give")
+
+;; (defun agda2-give()
+;;   "Give to the goal at point the expression in it" (interactive)
+;;   (agda2-goal-cmd "Cmd_give" 'save "expression to give"))
 
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it."

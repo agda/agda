@@ -324,6 +324,13 @@ Emacs mode
     Elaborates to: record { point = 0 }
   ```
 
+* If `agda2-give` is called with a prefix, then giving is forced,
+  i.e., the safety checks are skipped,
+  including positivity, termination, and double type-checking.
+  [Issue [#2730](https://github.com/agda/agda/issues/2730)]
+
+  Invoke forced giving with key sequence `C-u C-c C-SPC`.
+
 
 Library management
 ------------------
