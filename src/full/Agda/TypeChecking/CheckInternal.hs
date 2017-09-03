@@ -37,7 +37,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor (($>))
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
@@ -162,12 +161,12 @@ checkInternal' action v t = do
       a <- metaType x
       checkSpine action a (MetaV x []) es t
     Con c ci vs -> do
-      let failure = do
-            -- To report the error, we need to get the data type that @t@ may end in.
-            TelV tel a <- telView t
-            addContext tel $ typeError $ DoesNotConstructAnElementOf (conName c) a
-      (_, a) <- fromMaybeM failure $ getConType c t
-      checkArgs action a (Con c ci []) vs t
+      -- We need to fully apply the constructor to make getConType work!
+      fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
+        Con c ci vs2 <- checkArgs action a (Con c ci []) vs' t
+        -- Strip away the extra arguments
+        return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
+          $ Con c ci $ take (length vs) vs2
     Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
       (a, b) <- shouldBePi t
