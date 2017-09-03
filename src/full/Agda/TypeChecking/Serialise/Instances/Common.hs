@@ -445,20 +445,24 @@ instance EmbPrj Origin where
   icod_ UserWritten = return 0
   icod_ Inserted    = return 1
   icod_ Reflected   = return 2
+  icod_ CaseSplit   = return 3
 
   value 0 = return UserWritten
   value 1 = return Inserted
   value 2 = return Reflected
+  value 3 = return CaseSplit
   value _ = malformed
 
 instance EmbPrj ConOrigin where
   icod_ ConOSystem = return 0
   icod_ ConOCon    = return 1
   icod_ ConORec    = return 2
+  icod_ ConOSplit  = return 3
 
   value 0 = return ConOSystem
   value 1 = return ConOCon
   value 2 = return ConORec
+  value 3 = return ConOSplit
   value _ = malformed
 
 instance EmbPrj ProjOrigin where

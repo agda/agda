@@ -40,6 +40,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
@@ -725,7 +726,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
 
           canStrip a = and
             [ notVisible a
-            , getOrigin a /= UserWritten
+            , getOrigin a `notElem` [ UserWritten , CaseSplit ]
             , varOrDot (namedArg a)
             ]
 
@@ -947,7 +948,17 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      case p of
-      I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
+      I.VarP x -> do
+        n <- liftTCM $ nameOfBV $ dbPatVarIndex x
+        case dbPatVarName x of
+          "_"  -> return $ A.VarP n
+          -- Andreas, 2017-09-03: TODO for #2580
+          -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
+          -- case splitter still produces them.
+          y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP n else
+            -- Andreas, 2017-09-03, issue #2729
+            -- Restore original pattern name.  AbstractToConcrete picks unique names.
+            return $ A.VarP n { nameConcrete = C.Name noRange [ C.Id y ] }
       I.DotP v -> do
         t <- liftTCM $ reify v
         -- This is only used for printing purposes, so the Origin shouldn't be

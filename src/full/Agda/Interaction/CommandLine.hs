@@ -204,7 +204,7 @@ actOnMeta _ _ = __IMPOSSIBLE__
 
 giveMeta :: [String] -> TCM ()
 giveMeta s | length s >= 2 = do
-  _ <- actOnMeta s (\ii -> \e -> give ii Nothing e)
+  _ <- actOnMeta s $ \ ii e -> give WithoutForce ii Nothing e
   return ()
 giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
@@ -212,7 +212,7 @@ giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
 refineMeta :: [String] -> TCM ()
 refineMeta s | length s >= 2 = do
-  _ <- actOnMeta s (\ii -> \e -> refine ii Nothing e)
+  _ <- actOnMeta s $ \ ii e -> refine WithoutForce ii Nothing e
   return ()
 refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 

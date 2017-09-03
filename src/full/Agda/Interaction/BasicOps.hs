@@ -97,10 +97,10 @@ parseExprIn ii rng s = do
     e   <- parseExpr rng s
     concreteToAbstract (clScope mi) e
 
-giveExpr :: Maybe InteractionId -> MetaId -> Expr -> TCM ()
+giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM ()
 -- When translator from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
-giveExpr mii mi e = do
+giveExpr force mii mi e = do
     mv <- lookupMeta mi
     -- In the context (incl. signature) of the meta variable,
     -- type check expression and assign meta
@@ -146,16 +146,16 @@ giveExpr mii mi e = do
             nowSolvingConstraints $ assign DirEq mi args v
 
         reportSDoc "interaction.give" 20 $ TP.text "give: meta variable updated!"
-        redoChecks mii
+        unless (force == WithForce) $ redoChecks mii
         wakeupConstraints mi
         solveSizeConstraints DontDefaultToInfty
-
         cubical <- optCubical <$> pragmaOptions
-        if cubical then return () else do -- don't double check with cubical, because it gets in the way too often.
-        -- Double check.
-        reportSDoc "interaction.give" 20 $ TP.text "give: double checking"
-        vfull <- instantiateFull v
-        checkInternal vfull t'
+        -- don't double check with cubical, because it gets in the way too often.
+        unless (cubical || force == WithForce) $ do
+          -- Double check.
+          reportSDoc "interaction.give" 20 $ TP.text "give: double checking"
+          vfull <- instantiateFull v
+          checkInternal vfull t'
 
 -- | After a give, redo termination etc. checks for function which was complemented.
 redoChecks :: Maybe InteractionId -> TCM ()
@@ -177,18 +177,19 @@ redoChecks (Just ii) = do
 --   Returns the given expression unchanged
 --   (for convenient generalization to @'refine'@).
 give
-  :: InteractionId  -- ^ Hole.
+  :: UseForce       -- ^ Skip safety checks?
+  -> InteractionId  -- ^ Hole.
   -> Maybe Range
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, the very expression is returned unchanged.
-give ii mr e = liftTCM $ do
+give force ii mr e = liftTCM $ do
   -- if Range is given, update the range of the interaction meta
   mi  <- lookupInteractionId ii
   whenJust mr $ updateMetaVarRange mi
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
-  catchError (giveExpr (Just ii) mi e) $ \ err -> case err of
+  catchError (giveExpr force (Just ii) mi e) $ \ err -> case err of
     -- Turn PatternErr into proper error:
     PatternErr{} -> typeError . GenericDocError =<< do
       withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
@@ -202,11 +203,12 @@ give ii mr e = liftTCM $ do
 --   This amounts to successively try to give @e@, @e ?@, @e ? ?@, ...
 --   Returns the successfully given expression.
 refine
-  :: InteractionId  -- ^ Hole.
+  :: UseForce       -- ^ Skip safety checks when giving?
+  -> InteractionId  -- ^ Hole.
   -> Maybe Range
   -> Expr           -- ^ The expression to refine the hole with.
   -> TCM Expr       -- ^ The successfully given expression.
-refine ii mr e = do
+refine force ii mr e = do
   mi <- lookupInteractionId ii
   mv <- lookupMeta mi
   let range = fromMaybe (getRange mv) mr
@@ -223,7 +225,7 @@ refine ii mr e = do
       where
         try :: Int -> Expr -> TCM Expr
         try 0 e = throwError $ stringTCErr "Cannot refine"
-        try n e = give ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
+        try n e = give force ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr
@@ -275,7 +277,9 @@ evalInMeta ii e =
         withMetaInfo mi $
             evalInCurrent e
 
-
+-- | Modifier for interactive commands,
+--   specifying the amount of normalization in the output.
+--
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Show, Read)
 
@@ -286,6 +290,9 @@ normalForm HeadNormal   t = {- etaContract =<< -} reduce t
 normalForm Simplified   t = {- etaContract =<< -} simplify t
 normalForm Normalised   t = {- etaContract =<< -} normalise t
 
+-- | Modifier for the interactive computation command,
+--   specifying the mode of computation and result display.
+--
 data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
   deriving (Show, Read, Eq)
 
@@ -306,6 +313,13 @@ showComputed UseShowInstance e =
     A.Lit (LitString _ s) -> pure (text s)
     _                     -> (text "Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
+
+-- | Modifier for interactive commands,
+--   specifying whether safety checks should be ignored.
+data UseForce
+  = WithForce     -- ^ Ignore additional checks, like termination/positivity...
+  | WithoutForce  -- ^ Don't ignore any checks.
+  deriving (Eq, Read, Show)
 
 data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
   deriving (Functor)

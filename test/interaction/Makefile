@@ -50,6 +50,7 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
 run_test=if test -f $*.in; \
     then cat $*.in \
          | $(sed) "s/ioTCM/IOTCM/g" \
+         | $(sed) "s/cmd_give/(cmd_give WithoutForce)/g" \
          | $(sed) "s/cmd_/Cmd_/g" \
          | $(sed) "s/showImplicitArgs/ShowImplicitArgs/g" \
          | $(sed) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
