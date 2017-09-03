@@ -100,6 +100,14 @@ withScope scope = local $ \e -> e { currentScope = scope }
 noTakenNames :: AbsToCon a -> AbsToCon a
 noTakenNames = local $ \e -> e { takenNames = Set.empty }
 
+-- | Bind a concrete name to an abstract in the translation environment.
+addBinding :: C.Name -> A.Name -> Env -> Env
+addBinding y x e =
+  e { takenNames   = Set.insert y $ takenNames e
+    , currentScope = (`updateScopeLocals` currentScope e) $
+        AssocList.insert y (LocalVar x __IMPOSSIBLE__ [])
+    }
+
 -- The Monad --------------------------------------------------------------
 
 -- | We put the translation into TCM in order to print debug messages.
@@ -169,19 +177,17 @@ lookupModule x =
             []      -> return $ mnameToConcrete x
                 -- this is what happens for names that are not in scope (private names)
 
+-- | Add a abstract name to the scope and produce an available concrete version of it.
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
-  names <- asks takenNames
   let y = nameConcrete x
-  case (Set.member y names) of
-    _ | isNoName y -> ret y
-    True           -> bindName (nextName x) ret
-    False          ->
-        local (\e -> e { takenNames   = Set.insert y $ takenNames e
-                       , currentScope = (`updateScopeLocals` currentScope e) $
-                           AssocList.insert y (LocalVar x __IMPOSSIBLE__ [])
-                       }
-              ) $ ret y
+  if isNoName y then ret y else do
+    names <- asks takenNames
+    let loop x = do
+          let y = nameConcrete x
+          if y `Set.member` names then loop $ nextName x
+          else local (addBinding y x) $ ret y
+    loop x
 
 -- Dealing with precedences -----------------------------------------------
 
