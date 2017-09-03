@@ -214,7 +214,7 @@ data Focus
     , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
     }
   | LitFocus Literal [NamedArg DeBruijnPattern] Type
-  | PartialFocus (Either (NamedArg A.Pattern) [(A.Expr,A.Expr)]) [NamedArg DeBruijnPattern] Type
+  | PartialFocus [(A.Expr,A.Expr)] [NamedArg DeBruijnPattern] Type
   | AbsurdFocus
     { absurdFocusRange :: PatInfo
     , absurdFocusVar   :: Int

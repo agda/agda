@@ -733,10 +733,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
   problem <- insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
   -- since we might insert eta expanded record patterns.
-  let
-    hasFinite = any domFinite $ telToList $ problemTel problem
-    handledFinite = if hasFinite then not . null $ psplit else True
-  if isSolvedProblem problem && handledFinite then return $ st { lhsProblem = problem } else do
+  if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
 
     unlessM (optPatternMatching <$> gets getPragmaOptions) $
       unless (problemAllVariables problem) $
@@ -766,12 +763,8 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
-    trySplit (Split p0 (Arg ai (PartialFocus (Left p) ip a)) p1) ret | Nothing `elem` psplit = ret
-    trySplit (Split p0 (Arg ai (PartialFocus (Left p) ip a)) p1) ret = do
-      st' <- updateProblemRest (LHSState problem dpi (psplit ++ [Nothing]) sbe)
-      checkLHS f st'
 
-    trySplit (Split p0 (Arg ai (PartialFocus (Right ts) ip a)) p1) ret = do
+    trySplit (Split p0 (Arg ai (PartialFocus ts ip a)) p1) ret = do
       tel <- getContextTelescope
       reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
       tInterval <- elInf primInterval
