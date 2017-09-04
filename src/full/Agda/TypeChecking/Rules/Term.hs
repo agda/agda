@@ -1612,6 +1612,8 @@ inferDef mkTerm x =
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
+    reportSDoc "tc.term.def" 60 $ do
+      text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
     reportSDoc "tc.term.def" 10 $ do
       text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
     let t = defType d
