@@ -60,11 +60,13 @@ run_test=if test -f $*.in; \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | $(AGDA_BIN) -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
+    elif test -f $*.hs; \
+    then /usr/bin/env runhaskell ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
     else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
 
-# Note that RTS_... variables are ignored when .sh files are used.
+# Note that RTS_... variables are ignored when .hs/.sh files are used.
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Issue2217    = rm -f Issue2217/M.agdai
@@ -106,7 +108,7 @@ RTS_Issue1785      = --library-file=issue1785.libs
 # the .agda or .lagda file.
 
 .SECONDEXPANSION:
-$(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.sh)
+$(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
