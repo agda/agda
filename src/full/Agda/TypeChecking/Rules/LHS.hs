@@ -789,9 +789,12 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
                                         -- TODO Andrea type error or something.
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
          phi <- reduce phi
-         [(gamma,sigma)] <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
+         refined <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
                             (\ sigma -> (,sigma) <$> getContextTelescope)
-         return (gamma,sigma)
+         case refined of
+           [(gamma,sigma)] -> return (gamma,sigma)
+           []              -> typeError $ GenericError $ "The face constraint is unsatisfiable."
+           _               -> typeError $ GenericError $ "Cannot have disjunctions in a face constraint."
       itisone <- primItIsOne
       -- substitute the literal in p1 and dpi
       reportSDoc "tc.lhs.faces" 10 $ text $ show sigma
