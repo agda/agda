@@ -332,6 +332,7 @@ Token
 File :: { ([Pragma], [Declaration]) }
 File : vopen TopLevel maybe_vclose { takeOptionsPragmas $2 }
 
+maybe_vclose :: { () }
 maybe_vclose : {- empty -} { () }
              | vclose      { () }
 
@@ -351,6 +352,7 @@ maybe_vclose : {- empty -} { () }
     brace. However when the parser sees the 'in' there will be a parse error.
     This is our cue to close the layout block.
 -}
+close :: { () }
 close : vclose  { () }
       | error   {% popContext }
 
@@ -359,6 +361,7 @@ close : vclose  { () }
 -- brace, so we don't have to distinguish between the two semi colons. You can't
 -- use a virtual semi colon in a block started by a concrete brace, but this is
 -- simply because the lexer will not generate virtual semis in this case.
+semi :: { Interval }
 semi : ';'    { $1 }
      | vsemi  { $1 }
 
@@ -617,6 +620,7 @@ Expr
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
+Expr1 :: { Expr }
 Expr1  : WithExprs {% case $1 of
                       { [e]    -> return e
                       ; e : es -> return $ WithApp (fuseRange e es) e es
@@ -635,6 +639,7 @@ Application
     | Expr3 Application { $1 : $2 }
 
 -- Level 2: Lambdas and lets
+Expr2 :: { Expr }
 Expr2
     : '\\' LamBindings Expr        { Lam (getRange ($1,$2,$3)) $2 $3 }
     | ExtendedOrAbsurdLam          { $1 }
@@ -674,10 +679,12 @@ Application3PossiblyEmpty
     | Expr3 Application3PossiblyEmpty { $1 : $2 }
 
 -- Level 3: Atoms
+Expr3Curly :: { Expr }
 Expr3Curly
     : '{' Expr '}'                      { HiddenArg (getRange ($1,$2,$3)) (maybeNamed $2) }
     | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
 
+Expr3NoCurly :: { Expr }
 Expr3NoCurly
     : QId                               { Ident $1 }
     | literal                           { Lit $1 }
@@ -701,6 +708,7 @@ Expr3NoCurly
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
 
+Expr3 :: { Expr }
 Expr3
     : Expr3Curly                        { $1 }
     | Expr3NoCurly                      { $1 }
@@ -743,8 +751,10 @@ FieldAssignment
  --------------------------------------------------------------------------}
 
 -- "Delta ->" to avoid conflict between Delta -> Gamma and Delta -> A.
+TeleArrow :: { Telescope }
 TeleArrow : Telescope1 '->' { $1 }
 
+Telescope1 :: { Telescope }
 Telescope1
     : TypedBindingss    { {-TeleBind-} $1 }
 
@@ -1004,6 +1014,7 @@ CommaImportNames
     : {- empty -}       { [] }
     | CommaImportNames1 { $1 }
 
+CommaImportNames1 :: { [ImportedName] }
 CommaImportNames1
     : ImportName                        { [$1] }
     | ImportName ';' CommaImportNames1  { $1 : $3 }
