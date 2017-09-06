@@ -38,7 +38,7 @@ Loading QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.a
 \AgdaField{proj₁}\<%
 \\
 %
-\\
+\\[\AgdaEmptyExtraSkip]%
 \>[0]\AgdaKeyword{data}\AgdaSpace{}%
 \AgdaDatatype{D}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
@@ -51,7 +51,7 @@ Loading QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.a
 \AgdaDatatype{D}\<%
 \\
 %
-\\
+\\[\AgdaEmptyExtraSkip]%
 \>[0]\AgdaFunction{f}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{A}\AgdaSpace{}%
