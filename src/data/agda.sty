@@ -4,7 +4,8 @@
 
 \ProvidesPackage{agda}
 
-\RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox}
+\RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox,
+                calc}
 
 % https://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
@@ -538,6 +539,14 @@
   \Agda@AlignEnd{}%
   \ignorespacesafterend}
 
+% Vertical space used for empty lines. By default \baselineskip.
+\newlength{\AgdaEmptySkip}
+\setlength{\AgdaEmptySkip}{\baselineskip}
+
+% Extra space to be inserted for empty lines (the difference between
+% \AgdaEmptySkip and \baselineskip). Used internally.
+\newlength{\AgdaEmptyExtraSkip}
+
 % The code environment.
 %
 % The implementation is based on plainhscode in lhs2TeX's
@@ -550,6 +559,7 @@
     \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}%
   \advance\leftskip\mathindent%
   \AgdaCodeStyle%
+  \setlength{\AgdaEmptyExtraSkip}{\AgdaEmptySkip - \baselineskip}%
   \pboxed%
   \ifthenelse{\value{Agda@Align} = 0}{}{%
     \ifthenelse{\value{Agda@AlignCurrent} = 1}{%

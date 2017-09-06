@@ -387,6 +387,13 @@ ptClose' c =
 ptNL :: Text
 ptNL = nl <+> T.pack "\\\\\n"
 
+ptEmptyLine :: Text
+ptEmptyLine =
+  nl <+> T.pack "\\\\["
+     <+> cmdPrefix
+     <+> T.pack "EmptyExtraSkip"
+     <+> T.pack "]%\n"
+
 cmdPrefix :: Text
 cmdPrefix = T.pack "\\Agda"
 
@@ -522,7 +529,8 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
   when (col == 0) $
     output . Text . ptOpen =<< columnZero
-  output $ Text $ ptClose <+> T.replicate (T.length s) ptNL
+  output $ Text $ ptClose <+> ptNL <+>
+                  T.replicate (T.length s - 1) ptEmptyLine
   resetColumn
   spaces ss
 
