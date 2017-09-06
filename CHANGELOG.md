@@ -531,6 +531,14 @@ LaTeX backend
   `\AgdaFormat` is the token, and the second argument the thing to
   be typeset.
 
+* One can now instruct the agda package not to select any fonts.
+
+  If the `nofontsetup` option is used, then some font packages are
+  loaded, but specific fonts are not selected:
+  ```latex
+  \usepackage[nofontsetup]{agda}
+  ```
+
 * The alignment feature regards the string `+̲`, containing `+` and a
   combining character, as having length two. However, it seems more
   reasonable to treat it as having length one, as it occupies a single
