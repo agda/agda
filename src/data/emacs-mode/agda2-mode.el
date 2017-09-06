@@ -246,6 +246,7 @@ constituents.")
     (agda2-why-in-scope-maybe-toplevel       "\C-c\C-w"           (local global) "Explain why a particular name is in scope")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
+    (agda2-goal-and-context-and-checked      ,(kbd "C-c C-;")     (local)        "Goal type, context and checked type")
     (agda2-search-about-toplevel             ,(kbd "C-c C-z")     (local global) "Search About")
     (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")     (local global) "Module contents")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"           (local global) "Evaluate term to normal form")
@@ -846,9 +847,42 @@ The variable `agda2-backend' determines which backend is used."
               (agda2-list-quote agda2-program-args)
               )))
 
-(defun agda2-give()
-  "Give to the goal at point the expression in it" (interactive)
-  (agda2-goal-cmd "Cmd_give" 'save "expression to give"))
+(defmacro agda2-maybe-forced (name comment cmd save want)
+  "This macro constructs a function NAME which runs CMD.
+COMMENT is used to build the function's comment. The function
+NAME takes a prefix argument which tells whether it should
+apply force or not when running CMD (through
+`agda2-goal-cmd';
+SAVE is used as `agda2-goal-cmd's SAVE argument and
+WANT is used as `agda2-goal-cmd's WANT argument)."
+  (let ((eval (make-symbol "eval")))
+  `(defun ,name (&optional prefix)
+     ,(concat comment ".
+
+The action depends on the prefix argument:
+
+* If the prefix argument is `nil' (i.e., if no prefix argument is
+  given), then no force is applied.
+
+* If any other prefix argument is used (for instance, if C-u is
+  typed once or twice right before the command is invoked), then
+  force is applied.")
+     (interactive "P")
+     (let ((,eval (cond ((equal prefix nil) "WithoutForce")
+                        ("WithForce"))))
+       (agda2-goal-cmd (concat ,cmd " " ,eval)
+                       ,save ,want)))))
+
+(agda2-maybe-forced
+  agda2-give
+  "Give to the goal at point the expression in it"
+  "Cmd_give"
+  'save
+  "expression to give")
+
+;; (defun agda2-give()
+;;   "Give to the goal at point the expression in it" (interactive)
+;;   (agda2-goal-cmd "Cmd_give" 'save "expression to give"))
 
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it."
@@ -1345,6 +1379,12 @@ top-level scope."
  agda2-goal-and-context-and-inferred
  "Shows the context, the goal and the given expression's inferred type"
  "Cmd_goal_type_context_infer"
+ "expression to type")
+
+(agda2-maybe-normalised
+ agda2-goal-and-context-and-checked
+ "Shows the context, the goal and check the given expression's against the hole's type"
+ "Cmd_goal_type_context_check"
  "expression to type")
 
 (agda2-maybe-normalised

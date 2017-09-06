@@ -470,7 +470,7 @@ checkAbsurdLambda i h e t = do
                     , defArgOccurrences = [Unused] })
             $ emptyFunction
               { funClauses        =
-                  [Clause
+                  [ Clause
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
@@ -478,6 +478,7 @@ checkAbsurdLambda i h e t = do
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
+                    , clauseUnreachable = Just True -- absurd clauses are unreachable
                     }
                   ]
               , funCompiled       = Just Fail
@@ -1611,6 +1612,8 @@ inferDef mkTerm x =
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
+    reportSDoc "tc.term.def" 60 $ do
+      text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
     reportSDoc "tc.term.def" 10 $ do
       text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
     let t = defType d

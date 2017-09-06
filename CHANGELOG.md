@@ -300,10 +300,43 @@ Emacs mode
     test0 x | q = ?
   ```
 
+* New command to check an expression against the type of the hole
+  it is in and see what it elaborates to.
+  [Issue [#2700](https://github.com/agda/agda/issues/2700)]
+  This is useful to determine e.g. what solution typeclass resolution yields.
+  The command is bound to `C-c C-;` and respects the `C-u` modifier.
+
+  ```agda
+    record Pointed (A : Set) : Set where
+      field point : A
+
+    it : ∀ {A : Set} {{x : A}} → A
+    it {{x}} = x
+
+    instance _ = record { point = 3 - 4 }
+
+    _ : Pointed Nat
+    _ = {! it !} -- C-u C-u C-c C-;
+  ```
+  yields
+  ```agda
+    Goal: Pointed Nat
+    Elaborates to: record { point = 0 }
+  ```
+
+* If `agda2-give` is called with a prefix, then giving is forced,
+  i.e., the safety checks are skipped,
+  including positivity, termination, and double type-checking.
+  [Issue [#2730](https://github.com/agda/agda/issues/2730)]
+
+  Invoke forced giving with key sequence `C-u C-c C-SPC`.
+
+
 Library management
 ------------------
 
 * The `name` field in an `.agda-lib` file is now optional.
+  [Issue [#2708](https://github.com/agda/agda/issues/2708)]
 
   This feature is convenient if you just want to specify the dependencies
   and include pathes for your local project in an `.agda-lib` file.
@@ -381,14 +414,14 @@ HTML backend
   identifiers themselves rather than just the file position
   [Issue [#2604](https://github.com/agda/agda/issues/2604)].
 
-  The new, symbolic anchors look like
+  Symbolic anchors look like
   ```html
-  <a name="test1">
-  <a name="M.bla">
+  <a id="test1">
+  <a id="M.bla">
   ```
-  while the old anchors just give the character position in the file:
+  while other anchors just give the character position in the file:
   ```html
-  <a name="42">
+  <a id="42">
   ```
 
   Top-level module names do not get a symbolic anchor, since the position of
@@ -422,6 +455,14 @@ HTML backend
     test5 : Set₁           -- Character position anchor
     test5 = M.bla
   ```
+
+* Some generated HTML files now have different file names [Issue
+  [#2725](https://github.com/agda/agda/issues/2725)].
+
+  Agda now uses an encoding that amounts to first converting the
+  module names to UTF-8, and then percent-encoding the resulting
+  bytes. For instance, HTML for the module `Σ` is placed in
+  `%CE%A3.html`.
 
 LaTeX backend
 -------------
@@ -497,6 +538,20 @@ LaTeX backend
   Note the use of `\DeclareRobustCommand`. The first argument to
   `\AgdaFormat` is the token, and the second argument the thing to
   be typeset.
+
+* One can now instruct the agda package not to select any fonts.
+
+  If the `nofontsetup` option is used, then some font packages are
+  loaded, but specific fonts are not selected:
+  ```latex
+  \usepackage[nofontsetup]{agda}
+  ```
+
+* The height of empty lines is now configurable
+  [[#2734](https://github.com/agda/agda/issues/2734)].
+
+  The height is controlled by the length `\AgdaEmptySkip`, which by
+  default is `\baselineskip`.
 
 * The alignment feature regards the string `+̲`, containing `+` and a
   combining character, as having length two. However, it seems more
@@ -738,7 +793,13 @@ For 2.5.3, the following additional issues have been fixed
   - [#2682](https://github.com/agda/agda/issues/2682): What are the rules for projections of abstract records?
   - [#2684](https://github.com/agda/agda/issues/2684): Bad error message for abstract constructor
   - [#2686](https://github.com/agda/agda/issues/2686): Abstract constructors should be ignored when resolving overloading
+  - [#2690](https://github.com/agda/agda/issues/2690): [regression?] Agda engages in deep search instead of immediately failing
+  - [#2705](https://github.com/agda/agda/issues/2705): The GHC backend might diverge in infinite file creation
+  - [#2714](https://github.com/agda/agda/issues/2714): Option --no-main should be allowed as file-local option
   - [#2717](https://github.com/agda/agda/issues/2717): internal error at DisplayForm.hs:197
+  - [#2721](https://github.com/agda/agda/issues/2721): Without-K doesn't prevent heterogeneous conflict between literals
+  - [#2723](https://github.com/agda/agda/issues/2723): Unreachable clauses in definition by copattern matching trip clause compiler
+  - [#2734](https://github.com/agda/agda/issues/2734): Make height of empty lines configurable
 
 
 Release notes for Agda version 2.5.2

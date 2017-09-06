@@ -39,6 +39,7 @@ import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
 import qualified Agda.TypeChecking.Monad as TM
 import qualified Agda.TypeChecking.Pretty as TCP
+import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
 
 import Agda.Syntax.Fixity
@@ -531,7 +532,7 @@ data Interaction' range
     -- If the range is 'noRange', then the string comes from the
     -- minibuffer rather than the goal.
 
-  | Cmd_give            InteractionId range String
+  | Cmd_give            UseForce InteractionId range String
 
   | Cmd_refine          InteractionId range String
 
@@ -555,6 +556,11 @@ data Interaction' range
     -- | Displays the current goal and context /and/ infers the type of an
     -- expression.
   | Cmd_goal_type_context_infer
+                        B.Rewrite InteractionId range String
+
+  -- | Grabs the current goal's type and checks the expression in the hole
+  -- against it.
+  | Cmd_goal_type_context_check
                         B.Rewrite InteractionId range String
 
     -- | Shows all the top-level names in the given module, along with
@@ -812,15 +818,15 @@ interpret (Cmd_highlight ii rng s) = do
     try err m = mkExceptT $ do
       (Right <$> m) `catchError` \ _ -> return (Left err)
 
-interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
-interpret (Cmd_refine ii rng s) = give_gen ii rng s Refine
+interpret (Cmd_give   force ii rng s) = give_gen force ii rng s Give
+interpret (Cmd_refine ii rng s) = give_gen WithoutForce ii rng s Refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro $ text "No introduction forms found."
-    [s]   -> give_gen ii rng s Intro
+    [s]   -> give_gen WithoutForce ii rng s Intro
     _:_:_ -> do
       display_info $ Info_Intro $
         sep [ text "Don't know which constructor to introduce of"
@@ -864,7 +870,7 @@ interpret (Cmd_auto ii rng s) = do
      Nothing  -> return ()
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCase R.Function cs
-   Refinement s -> give_gen ii rng s Refine
+   Refinement s -> give_gen WithoutForce ii rng s Refine
   maybe (return ()) (display_info . Info_Time) time
 
 interpret (Cmd_context norm ii _ _) =
@@ -893,6 +899,17 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
     typ <- B.withInteractionId ii $
       prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
     return $ text "Have:" <+> typ
+  cmd_goal_type_context_and have norm ii rng s
+
+interpret (Cmd_goal_type_context_check norm ii rng s) = do
+  have <- liftLocalState $ B.withInteractionId ii $ do
+    expr <- B.parseExprIn ii rng s
+    goal <- B.typeOfMeta AsIs ii
+    term <- case goal of
+      OfType _ ty -> checkExpr expr =<< isType_ ty
+      _           -> __IMPOSSIBLE__
+    txt <- TCP.prettyTCM =<< normalForm norm term
+    return $ text "Elaborates to:" <+> txt
   cmd_goal_type_context_and have norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
@@ -1124,19 +1141,20 @@ data GiveRefine = Give | Refine | Intro
 
 -- | A "give"-like action (give, refine, etc).
 --
---   @give_gen ii rng s give_ref mk_newtxt@
+--   @give_gen force ii rng s give_ref mk_newtxt@
 --   acts on interaction point @ii@
 --   occupying range @rng@,
 --   placing the new content given by string @s@,
 --   and replacing @ii@ by the newly created interaction points
---   in the state.
+--   in the state if safety checks pass (unless @force@ is applied).
 give_gen
-  :: InteractionId
+  :: UseForce       -- ^ Should safety checks be skipped?
+  -> InteractionId
   -> Range
   -> String
   -> GiveRefine
   -> CommandM ()
-give_gen ii rng s0 giveRefine = do
+give_gen force ii rng s0 giveRefine = do
   let s = trim s0
   lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   -- Andreas, 2015-02-26 if string is empty do nothing rather
@@ -1155,7 +1173,7 @@ give_gen ii rng s0 giveRefine = do
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
         given <- B.parseExprIn ii rng s
-        ae    <- give_ref ii Nothing given
+        ae    <- give_ref force ii Nothing given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
         return (ae, given, mis' List.\\ mis)

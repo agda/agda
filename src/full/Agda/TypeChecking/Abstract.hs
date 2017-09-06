@@ -130,6 +130,11 @@ abstractTerm a u@Con{} b v = do
                , nest 2 $ (prettyTCM =<< getContextTelescope) <+> text "⊢"
                , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ]
                , nest 2 $ prettyTCM err ]
+        reportSDoc "impossible" 60 $
+          vcat [ text "Type error in term to abstract (raw)"
+               , nest 2 $ ((text . show) =<< getContextTelescope) <+> text "⊢"
+               , nest 2 $ sep [ (text . show) v <+> text ":", nest 2 $ (text . show) b ]
+               ]
         __IMPOSSIBLE__
   reportSDoc "tc.abstract" 50 $ sep [ text "Resulting abstraction", nest 2 $ prettyTCM v ]
   modifySignature $ updateDefinitions $ HMap.delete hole

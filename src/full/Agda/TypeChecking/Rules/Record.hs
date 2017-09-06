@@ -412,6 +412,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
+                            , clauseUnreachable = Just False
                             }
 
         let projection = Projection

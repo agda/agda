@@ -181,15 +181,17 @@ install:
        haddock --version &&
        emacs --version &&
        export PARALLEL_TESTS=2 &&
-       cabal update &&
+       travis_retry cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
        if [[ $CABAL_VER = "1.18" ]]; then
+          travis_retry cabal fetch cabal-install &&
           cabal install cabal-install;
        fi &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cabal --version &&
-       cabal update &&
+       travis_retry cabal update &&
+       travis_retry cabal fetch cpphs-1.20.8 &&
        cabal install cpphs-1.20.8 &&
        cpphs --version;
     fi
@@ -221,6 +223,7 @@ install:
 # We are using `make CABAL_OPTS...` because we are including the
 # options to `cabal install` set up in the `Makefile`.
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
+       travis_retry cabal fetch `cabal install --dependencies-only --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
        make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
        if [[ $MANUAL_INSTALL_BUILD_TOOLS = "YES" ]]; then
@@ -267,7 +270,7 @@ install:
        export NODE_DIR=node-${NODE_VERSION}-linux-x64 &&
        export NODE_TARBALL=${NODE_DIR}.tar.xz &&
        cd $HOME &&
-       wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL} &&
+       travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL} &&
        tar xJf ${NODE_TARBALL} &&
        export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
        cd $AGDA_HOME &&
@@ -412,3 +415,4 @@ branches:
     - maint-2.4
     - stable-2.5
     - release-2.5.1
+    - Issue2604

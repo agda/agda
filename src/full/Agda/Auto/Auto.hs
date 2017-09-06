@@ -332,10 +332,10 @@ auto ii rng argstr = do
                         case lookup mi riis of
                          Nothing ->
                           -- catchError
-                           (giveExpr Nothing mi expr >> return (Nothing, Nothing))
+                           (giveExpr WithoutForce Nothing mi expr >> return (Nothing, Nothing))
                            -- (const retry)
                            -- (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
-                         Just ii' -> do ae <- give ii' Nothing expr
+                         Just ii' -> do ae <- give WithoutForce ii' Nothing expr
                                         mv <- lookupMeta mi
                                         let scope = getMetaScope mv
                                         ce <- abstractToConcreteEnv (makeEnv scope) ae
@@ -380,12 +380,12 @@ auto ii rng argstr = do
             case cls' of
              Left{} -> stopWithMsg "No solution found"
              Right cls' -> do
-              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall) -> do
+              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall reachable) -> do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
                  ps <- addContext tel $ normalise ps
                  body <- etaContract body
-                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall
+                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall reachable
               moduleTel <- lookupSection (AN.qnameModule def)
               pcs <- withInteractionId ii $ inTopContext $ addContext moduleTel $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks

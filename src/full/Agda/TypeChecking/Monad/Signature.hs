@@ -480,6 +480,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
+                        , clauseUnreachable = Just False -- definitely not unreachable
                         }
 
     {- Example
@@ -822,6 +823,7 @@ freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
   t <- defType <$> getConstInfo q
   let TelV tel _ = telView'UpTo (size vs) t
+  unless (size tel == size vs) __IMPOSSIBLE__
   return $ zipWith (\ (Arg _ v) (Dom ai _) -> Arg ai v) vs $ telToList tel
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}

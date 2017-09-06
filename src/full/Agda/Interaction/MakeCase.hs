@@ -298,7 +298,7 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
       -- We could introduce extra consistency checks, like
       -- if visible ai then __IMPOSSIBLE__ else
       -- or passing the parsed name along and comparing it with @x@
-      setOrigin UserWritten nx
+      setOrigin CaseSplit nx
     | otherwise = nx
 
 -- | Make clause with no rhs (because of absurd match).
@@ -318,7 +318,7 @@ makeAbsurdClause f (SClause tel ps _ _ t) = do
     -- Contract implicit record patterns before printing.
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
-    let c = Clause noRange noRange tel ps Nothing t False
+    let c = Clause noRange noRange tel ps Nothing t False Nothing
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
     reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)

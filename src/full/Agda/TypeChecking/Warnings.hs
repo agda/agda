@@ -36,7 +36,11 @@ warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
 warning_ w = do
   r <- view eRange
   c <- view eCall
-  p <- liftTCM $ sayWhen r c $ prettyWarning w
+  -- NicifierIssues print their own error locations in their list of
+  -- issues (but we might need to keep the overall range `r` for
+  -- comparing ranges)
+  let r' = case w of { NicifierIssue{} -> NoRange ; _ -> r }
+  p <- liftTCM $ sayWhen r' c $ prettyWarning w
   liftTCM $ return $ TCWarning r w p
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
