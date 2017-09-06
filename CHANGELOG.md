@@ -539,6 +539,12 @@ LaTeX backend
   \usepackage[nofontsetup]{agda}
   ```
 
+* The height of empty lines is now configurable
+  [[#2734](https://github.com/agda/agda/issues/2734)].
+
+  The height is controlled by the length `\AgdaEmptySkip`, which by
+  default is `\baselineskip`.
+
 * The alignment feature regards the string `+̲`, containing `+` and a
   combining character, as having length two. However, it seems more
   reasonable to treat it as having length one, as it occupies a single
@@ -785,6 +791,8 @@ For 2.5.3, the following additional issues have been fixed
   - [#2717](https://github.com/agda/agda/issues/2717): internal error at DisplayForm.hs:197
   - [#2721](https://github.com/agda/agda/issues/2721): Without-K doesn't prevent heterogeneous conflict between literals
   - [#2723](https://github.com/agda/agda/issues/2723): Unreachable clauses in definition by copattern matching trip clause compiler
+  - [#2734](https://github.com/agda/agda/issues/2734): Make height of empty lines configurable
+
 
 Release notes for Agda version 2.5.2
 ====================================

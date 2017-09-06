@@ -165,8 +165,8 @@ These rules are inspired by, but not identical to, the one used by
 lhs2TeX's poly mode (see Section 8.4 of the `manual for lhs2TeX
 version 1.17 <https://www.andres-loeh.de/lhs2tex/Guide2-1.17.pdf>`_).
 
-Vertical space around code
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Vertical space
+~~~~~~~~~~~~~~
 
 Code blocks are by default surrounded by vertical space. Use
 ``\AgdaNoSpaceAroundCode{}`` to avoid this vertical space, and
@@ -175,8 +175,9 @@ Code blocks are by default surrounded by vertical space. Use
 Note that, if ``\AgdaNoSpaceAroundCode{}`` is used, then empty lines
 before or after a code block will not necessarily lead to empty lines
 in the generated document. However, empty lines inside the code block
-do (by default) lead to empty lines in the output.
-
+do (by default) lead to empty lines in the output. The height of such
+empty lines can be controlled by the length ``\AgdaEmptySkip``, which
+by default is ``\baselineskip``.
 
 Breaking up code blocks
 ~~~~~~~~~~~~~~~~~~~~~~~
