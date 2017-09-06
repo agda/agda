@@ -18,47 +18,6 @@
   \fi
 \fi
 
-% XeLaTeX or LuaLaTeX
-\ifxetexorluatex
-
-    % Hack to get the amsthm package working.
-    % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
-    \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
-    \RequirePackage{fontspec}
-    \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
-    \RequirePackage{unicode-math}
-
-    \tracinglostchars=2 % If the font is missing some symbol, then say
-                        % so in the compilation output.
-    \setmainfont
-      [ Ligatures      = TeX
-      , BoldItalicFont = xits-bolditalic.otf
-      , BoldFont       = xits-bold.otf
-      , ItalicFont     = xits-italic.otf
-      ]
-      {xits-regular.otf}
-
-    \setmathfont{xits-math.otf}
-    \setmonofont[Mapping=tex-text]{FreeMono.otf}
-
-    % Make mathcal and mathscr appear as different.
-    % https://tex.stackexchange.com/questions/120065/xetex-what-happened-to-mathcal-and-mathscr
-    \setmathfont[range={\mathcal,\mathbfcal},StylisticSet=1]{xits-math.otf}
-    \setmathfont[range=\mathscr]{xits-math.otf}
-
-    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
-
-% pdfLaTeX
-\else
-    \RequirePackage{ucs, amsfonts, amssymb}
-    \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
-                                % safe does.
-
-    % https://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
-    \RequirePackage[T1]{fontenc}
-    \RequirePackage[utf8x]{inputenc}
-\fi
-
 % ----------------------------------------------------------------------
 % Options
 
@@ -75,7 +34,61 @@
   \@AgdaEnableLinkstrue
 }
 
+% If the "nofontsetup" option is used, then some font packages are
+% loaded, but specific fonts are not selected.
+\newif\if@AgdaSetupFonts\@AgdaSetupFontstrue
+\DeclareOption{nofontsetup}{
+  \@AgdaSetupFontsfalse
+}
+
 \ProcessOptions\relax
+
+% ----------------------------------------------------------------------
+% Font setup
+
+% XeLaTeX or LuaLaTeX
+\ifxetexorluatex
+
+    % Hack to get the amsthm package working.
+    % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
+    \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
+    \RequirePackage{fontspec}
+    \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
+    \RequirePackage{unicode-math}
+
+    \tracinglostchars=2 % If the font is missing some symbol, then say
+                        % so in the compilation output.
+
+    \if@AgdaSetupFonts
+      \setmainfont
+        [ Ligatures      = TeX
+        , BoldItalicFont = xits-bolditalic.otf
+        , BoldFont       = xits-bold.otf
+        , ItalicFont     = xits-italic.otf
+        ]
+        {xits-regular.otf}
+
+      \setmathfont{xits-math.otf}
+      \setmonofont[Mapping=tex-text]{FreeMono.otf}
+
+      % Make mathcal and mathscr appear as different.
+      % https://tex.stackexchange.com/questions/120065/xetex-what-happened-to-mathcal-and-mathscr
+      \setmathfont[range={\mathcal,\mathbfcal},StylisticSet=1]{xits-math.otf}
+      \setmathfont[range=\mathscr]{xits-math.otf}
+    \fi
+
+    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
+
+% pdfLaTeX
+\else
+    \RequirePackage{ucs, amsfonts, amssymb}
+    \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
+                                % safe does.
+
+    % https://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
+    \RequirePackage[T1]{fontenc}
+    \RequirePackage[utf8x]{inputenc}
+\fi
 
 % ----------------------------------------------------------------------
 % Colour schemes.

@@ -570,6 +570,9 @@ The following options can be given when loading ``agda.sty`` by using
 ``conor``
   Colour scheme similar to the colours used in Epigram1.
 
+``nofontsetup``
+  Instructs the package not to select any fonts.
+
 ``references``
   Enables :ref:`inline typesetting <latex-inline-references>` of
   referenced code.
