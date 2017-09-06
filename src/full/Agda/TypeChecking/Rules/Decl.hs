@@ -817,7 +817,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     -- We are now in the context @ptel@.
     -- Get the correct parameter telescope of @m2@.
     tel <- lookupSection m2
-    vs  <- moduleParamsToApply $ qnameModule $ mnameToQName m2
+    vs  <- moduleParamsToApply m2
     let tel'  = apply tel vs
     -- Compute the remaining parameter telescope after stripping of
     -- the initial parameters that are determined by the @args@.
@@ -865,7 +865,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
 checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
   let name = mnameToQName x
   tel' <- lookupSection x
-  vs   <- moduleParamsToApply $ qnameModule name
+  vs   <- moduleParamsToApply x
   let tel = tel' `apply` vs
       args = teleArgs tel
 
