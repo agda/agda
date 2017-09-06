@@ -1,181 +1,26 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-><head
-  ><title
-    >QuickLaTeX</title
-    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
-     /><meta http-equiv="Content-Style-Type" content="text/css"
-     /><link href="Agda.css" rel="stylesheet" type="text/css"
-     /></head
-  ><body
-  ><pre
-    ><a name="1" class="Comment"
-      >\documentclass{article}
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>QuickLaTeX</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Comment">\documentclass{article}
 
 \usepackage{agda}
 
 \begin{document}
 
-</a
-      >\begin{code}
-<a name="76" class="Symbol"
-      >{-#</a
-      > <a name="80" class="Keyword"
-      >BUILTIN</a
-      > SIZE <a name="Size" href="QuickLaTeX.html#Size" class="Postulate"
-      >Size</a
-      > <a name="98" class="Symbol"
-      >#-}</a
-      >
+</a>\begin{code}
+<a id="76" class="Symbol">{-#</a> <a id="80" class="Keyword">BUILTIN</a> SIZE <a id="Size" href="QuickLaTeX.html#Size" class="Postulate">Size</a> <a id="98" class="Symbol">#-}</a>
 
-<a name="103" class="Keyword"
-      >record</a
-      > <a name="Sigma" href="QuickLaTeX.html#Sigma" class="Record"
-      >Sigma</a
-      > <a name="116" class="Symbol"
-      >(</a
-      ><a name="117" href="QuickLaTeX.html#117" class="Bound"
-      >A</a
-      > <a name="119" class="Symbol"
-      >:</a
-      > <a name="121" class="PrimitiveType"
-      >Set</a
-      ><a name="124" class="Symbol"
-      >)</a
-      > <a name="126" class="Symbol"
-      >(</a
-      ><a name="127" href="QuickLaTeX.html#127" class="Bound"
-      >B</a
-      > <a name="129" class="Symbol"
-      >:</a
-      > <a name="131" href="QuickLaTeX.html#117" class="Bound"
-      >A</a
-      > <a name="133" class="Symbol"
-      >&#8594;</a
-      > <a name="135" class="PrimitiveType"
-      >Set</a
-      ><a name="138" class="Symbol"
-      >)</a
-      > <a name="140" class="Symbol"
-      >:</a
-      > <a name="142" class="PrimitiveType"
-      >Set</a
-      > <a name="146" class="Keyword"
-      >where</a
-      >
-  <a name="154" class="Keyword"
-      >coinductive</a
-      >
-  <a name="168" class="Keyword"
-      >constructor</a
-      > <a name="Sigma.c" href="QuickLaTeX.html#Sigma.c" class="CoinductiveConstructor"
-      >c</a
-      >
-  <a name="184" class="Keyword"
-      >field</a
-      >
-    <a name="Sigma.proj&#8321;" href="QuickLaTeX.html#Sigma.proj&#8321;" class="Field"
-      >proj&#8321;</a
-      > <a name="200" class="Symbol"
-      >:</a
-      > <a name="202" href="QuickLaTeX.html#117" class="Bound"
-      >A</a
-      >
-    <a name="Sigma.proj&#8322;" href="QuickLaTeX.html#Sigma.proj&#8322;" class="Field"
-      >proj&#8322;</a
-      > <a name="214" class="Symbol"
-      >:</a
-      > <a name="216" href="QuickLaTeX.html#127" class="Bound"
-      >B</a
-      > <a name="218" href="QuickLaTeX.html#Sigma.proj&#8321;" class="Field"
-      >proj&#8321;</a
-      >
+<a id="103" class="Keyword">record</a> <a id="Sigma" href="QuickLaTeX.html#Sigma" class="Record">Sigma</a> <a id="116" class="Symbol">(</a><a id="117" href="QuickLaTeX.html#117" class="Bound">A</a> <a id="119" class="Symbol">:</a> <a id="121" class="PrimitiveType">Set</a><a id="124" class="Symbol">)</a> <a id="126" class="Symbol">(</a><a id="127" href="QuickLaTeX.html#127" class="Bound">B</a> <a id="129" class="Symbol">:</a> <a id="131" href="QuickLaTeX.html#117" class="Bound">A</a> <a id="133" class="Symbol">→</a> <a id="135" class="PrimitiveType">Set</a><a id="138" class="Symbol">)</a> <a id="140" class="Symbol">:</a> <a id="142" class="PrimitiveType">Set</a> <a id="146" class="Keyword">where</a>
+  <a id="154" class="Keyword">coinductive</a>
+  <a id="168" class="Keyword">constructor</a> <a id="Sigma.c" href="QuickLaTeX.html#Sigma.c" class="CoinductiveConstructor">c</a>
+  <a id="184" class="Keyword">field</a>
+    <a id="Sigma.proj₁" href="QuickLaTeX.html#Sigma.proj%E2%82%81" class="Field">proj₁</a> <a id="200" class="Symbol">:</a> <a id="202" href="QuickLaTeX.html#117" class="Bound">A</a>
+    <a id="Sigma.proj₂" href="QuickLaTeX.html#Sigma.proj%E2%82%82" class="Field">proj₂</a> <a id="214" class="Symbol">:</a> <a id="216" href="QuickLaTeX.html#127" class="Bound">B</a> <a id="218" href="QuickLaTeX.html#Sigma.proj%E2%82%81" class="Field">proj₁</a>
 
-<a name="225" class="Keyword"
-      >data</a
-      > <a name="D" href="QuickLaTeX.html#D" class="Datatype"
-      >D</a
-      > <a name="232" class="Symbol"
-      >:</a
-      > <a name="234" class="PrimitiveType"
-      >Set</a
-      > <a name="238" class="Keyword"
-      >where</a
-      >
-  <a name="D.c" href="QuickLaTeX.html#D.c" class="InductiveConstructor"
-      >c</a
-      > <a name="248" class="Symbol"
-      >:</a
-      > <a name="250" href="QuickLaTeX.html#D" class="Datatype"
-      >D</a
-      >
+<a id="225" class="Keyword">data</a> <a id="D" href="QuickLaTeX.html#D" class="Datatype">D</a> <a id="232" class="Symbol">:</a> <a id="234" class="PrimitiveType">Set</a> <a id="238" class="Keyword">where</a>
+  <a id="D.c" href="QuickLaTeX.html#D.c" class="InductiveConstructor">c</a> <a id="248" class="Symbol">:</a> <a id="250" href="QuickLaTeX.html#D" class="Datatype">D</a>
 
-<a name="f" href="QuickLaTeX.html#f" class="Function"
-      >f</a
-      > <a name="255" class="Symbol"
-      >:</a
-      > <a name="257" class="Symbol"
-      >{</a
-      ><a name="258" href="QuickLaTeX.html#258" class="Bound"
-      >A</a
-      > <a name="260" class="Symbol"
-      >:</a
-      > <a name="262" class="PrimitiveType"
-      >Set</a
-      ><a name="265" class="Symbol"
-      >}</a
-      > <a name="267" class="Symbol"
-      >{</a
-      ><a name="268" href="QuickLaTeX.html#268" class="Bound"
-      >B</a
-      > <a name="270" class="Symbol"
-      >:</a
-      > <a name="272" href="QuickLaTeX.html#258" class="Bound"
-      >A</a
-      > <a name="274" class="Symbol"
-      >&#8594;</a
-      > <a name="276" class="PrimitiveType"
-      >Set</a
-      ><a name="279" class="Symbol"
-      >}</a
-      > <a name="281" class="Symbol"
-      >(</a
-      ><a name="282" href="QuickLaTeX.html#282" class="Bound"
-      >x</a
-      > <a name="284" class="Symbol"
-      >:</a
-      > <a name="286" href="QuickLaTeX.html#258" class="Bound"
-      >A</a
-      ><a name="287" class="Symbol"
-      >)</a
-      > <a name="289" class="Symbol"
-      >&#8594;</a
-      > <a name="291" href="QuickLaTeX.html#268" class="Bound"
-      >B</a
-      > <a name="293" href="QuickLaTeX.html#282" class="Bound"
-      >x</a
-      > <a name="295" class="Symbol"
-      >&#8594;</a
-      > <a name="297" href="QuickLaTeX.html#Sigma" class="Record"
-      >Sigma</a
-      > <a name="303" href="QuickLaTeX.html#258" class="Bound"
-      >A</a
-      > <a name="305" href="QuickLaTeX.html#268" class="Bound"
-      >B</a
-      >
-<a name="307" href="QuickLaTeX.html#f" class="Function"
-      >f</a
-      > <a name="309" class="Symbol"
-      >=</a
-      > <a name="311" href="QuickLaTeX.html#Sigma.c" class="CoinductiveConstructor"
-      >c</a
-      >
-\end{code}<a name="323" class="Comment"
-      >
+<a id="f" href="QuickLaTeX.html#f" class="Function">f</a> <a id="255" class="Symbol">:</a> <a id="257" class="Symbol">{</a><a id="258" href="QuickLaTeX.html#258" class="Bound">A</a> <a id="260" class="Symbol">:</a> <a id="262" class="PrimitiveType">Set</a><a id="265" class="Symbol">}</a> <a id="267" class="Symbol">{</a><a id="268" href="QuickLaTeX.html#268" class="Bound">B</a> <a id="270" class="Symbol">:</a> <a id="272" href="QuickLaTeX.html#258" class="Bound">A</a> <a id="274" class="Symbol">→</a> <a id="276" class="PrimitiveType">Set</a><a id="279" class="Symbol">}</a> <a id="281" class="Symbol">(</a><a id="282" href="QuickLaTeX.html#282" class="Bound">x</a> <a id="284" class="Symbol">:</a> <a id="286" href="QuickLaTeX.html#258" class="Bound">A</a><a id="287" class="Symbol">)</a> <a id="289" class="Symbol">→</a> <a id="291" href="QuickLaTeX.html#268" class="Bound">B</a> <a id="293" href="QuickLaTeX.html#282" class="Bound">x</a> <a id="295" class="Symbol">→</a> <a id="297" href="QuickLaTeX.html#Sigma" class="Record">Sigma</a> <a id="303" href="QuickLaTeX.html#258" class="Bound">A</a> <a id="305" href="QuickLaTeX.html#268" class="Bound">B</a>
+<a id="307" href="QuickLaTeX.html#f" class="Function">f</a> <a id="309" class="Symbol">=</a> <a id="311" href="QuickLaTeX.html#Sigma.c" class="CoinductiveConstructor">c</a>
+\end{code}<a id="323" class="Comment">
 
 \end{document}
-</a
-      ></pre
-    ></body
-  ></html
->
+</a></pre></body></html>

@@ -1,118 +1,37 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-><head
-  ><title
-    >InfixDeclaration</title
-    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
-     /><meta http-equiv="Content-Style-Type" content="text/css"
-     /><link href="Agda.css" rel="stylesheet" type="text/css"
-     /></head
-  ><body
-  ><pre
-    ><a name="1" class="Comment"
-      >\documentclass{article}
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>InfixDeclaration</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Comment">\documentclass{article}
 \usepackage{agda}
 
 \begin{document}
 
-</a
-      >\begin{code}
-<a name="75" class="Keyword"
-      >module</a
-      > <a name="82" href="InfixDeclaration.html" class="Module"
-      >InfixDeclaration</a
-      > <a name="99" class="Keyword"
-      >where</a
-      >
+</a>\begin{code}
+<a id="75" class="Keyword">module</a> <a id="82" href="InfixDeclaration.html" class="Module">InfixDeclaration</a> <a id="99" class="Keyword">where</a>
 
-<a name="106" class="Keyword"
-      >infix</a
-      > <a name="112" class="Number"
-      >5</a
-      > <a name="114" href="InfixDeclaration.html#_&gt;&gt;_" class="Datatype Operator"
-      >_&gt;&gt;_</a
-      > <a name="119" href="InfixDeclaration.html#_&lt;&lt;_" class="Datatype Operator"
-      >_&lt;&lt;_</a
-      >
+<a id="106" class="Keyword">infix</a> <a id="112" class="Number">5</a> <a id="114" href="InfixDeclaration.html#_%3E%3E_" class="Datatype Operator">_&gt;&gt;_</a> <a id="119" href="InfixDeclaration.html#_%3C%3C_" class="Datatype Operator">_&lt;&lt;_</a>
 
-<a name="125" class="Keyword"
-      >data</a
-      > <a name="_&gt;&gt;_" href="InfixDeclaration.html#_&gt;&gt;_" class="Datatype Operator"
-      >_&gt;&gt;_</a
-      > <a name="135" class="Symbol"
-      >:</a
-      > <a name="137" class="PrimitiveType"
-      >Set</a
-      > <a name="141" class="Keyword"
-      >where</a
-      >
-<a name="147" class="Keyword"
-      >data</a
-      > <a name="_&lt;&lt;_" href="InfixDeclaration.html#_&lt;&lt;_" class="Datatype Operator"
-      >_&lt;&lt;_</a
-      > <a name="157" class="Symbol"
-      >:</a
-      > <a name="159" class="PrimitiveType"
-      >Set</a
-      > <a name="163" class="Keyword"
-      >where</a
-      >
+<a id="125" class="Keyword">data</a> <a id="_&gt;&gt;_" href="InfixDeclaration.html#_%3E%3E_" class="Datatype Operator">_&gt;&gt;_</a> <a id="135" class="Symbol">:</a> <a id="137" class="PrimitiveType">Set</a> <a id="141" class="Keyword">where</a>
+<a id="147" class="Keyword">data</a> <a id="_&lt;&lt;_" href="InfixDeclaration.html#_%3C%3C_" class="Datatype Operator">_&lt;&lt;_</a> <a id="157" class="Symbol">:</a> <a id="159" class="PrimitiveType">Set</a> <a id="163" class="Keyword">where</a>
 
-\end{code}<a name="180" class="Comment"
-      >
+\end{code}<a id="180" class="Comment">
 
-Let's try some infix declaration with surrounding text.
+Let&#39;s try some infix declaration with surrounding text.
 
-</a
-      >\begin{code}
-<a name="252" class="Keyword"
-      >module</a
-      > <a name="SurroundingText" href="InfixDeclaration.html#SurroundingText" class="Module"
-      >SurroundingText</a
-      > <a name="275" class="Keyword"
-      >where</a
-      >
+</a>\begin{code}
+<a id="252" class="Keyword">module</a> <a id="SurroundingText" href="InfixDeclaration.html#SurroundingText" class="Module">SurroundingText</a> <a id="275" class="Keyword">where</a>
 
-\end{code}<a name="292" class="Comment"
-      >
+\end{code}<a id="292" class="Comment">
 
 In the following, we declare the fixity of two operators.
 
-</a
-      >\begin{code}
-  <a name="368" class="Keyword"
-      >infix</a
-      > <a name="374" class="Number"
-      >5</a
-      > <a name="376" href="InfixDeclaration.html#SurroundingText._+_" class="Postulate Operator"
-      >_+_</a
-      > <a name="380" href="InfixDeclaration.html#SurroundingText._*_" class="Postulate Operator"
-      >_*_</a
-      >
-\end{code}<a name="394" class="Comment"
-      >
+</a>\begin{code}
+  <a id="368" class="Keyword">infix</a> <a id="374" class="Number">5</a> <a id="376" href="InfixDeclaration.html#SurroundingText._%2B_" class="Postulate Operator">_+_</a> <a id="380" href="InfixDeclaration.html#SurroundingText._%2A_" class="Postulate Operator">_*_</a>
+\end{code}<a id="394" class="Comment">
 
 A fixity declaration can preceed the actual declaration of the names.
 
-</a
-      >\begin{code}
-  <a name="482" class="Keyword"
-      >postulate</a
-      > <a name="SurroundingText._+_" href="InfixDeclaration.html#SurroundingText._+_" class="Postulate Operator"
-      >_+_</a
-      > <a name="SurroundingText._*_" href="InfixDeclaration.html#SurroundingText._*_" class="Postulate Operator"
-      >_*_</a
-      > <a name="500" class="Symbol"
-      >:</a
-      > <a name="502" class="PrimitiveType"
-      >Set</a
-      >
-\end{code}<a name="516" class="Comment"
-      >
+</a>\begin{code}
+  <a id="482" class="Keyword">postulate</a> <a id="SurroundingText._+_" href="InfixDeclaration.html#SurroundingText._%2B_" class="Postulate Operator">_+_</a> <a id="SurroundingText._*_" href="InfixDeclaration.html#SurroundingText._%2A_" class="Postulate Operator">_*_</a> <a id="500" class="Symbol">:</a> <a id="502" class="PrimitiveType">Set</a>
+\end{code}<a id="516" class="Comment">
 
 \end{document}
-</a
-      ></pre
-    ></body
-  ></html
->
+</a></pre></body></html>

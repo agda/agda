@@ -414,14 +414,14 @@ HTML backend
   identifiers themselves rather than just the file position
   [Issue [#2604](https://github.com/agda/agda/issues/2604)].
 
-  The new, symbolic anchors look like
+  Symbolic anchors look like
   ```html
-  <a name="test1">
-  <a name="M.bla">
+  <a id="test1">
+  <a id="M.bla">
   ```
-  while the old anchors just give the character position in the file:
+  while other anchors just give the character position in the file:
   ```html
-  <a name="42">
+  <a id="42">
   ```
 
   Top-level module names do not get a symbolic anchor, since the position of
@@ -455,6 +455,14 @@ HTML backend
     test5 : Set₁           -- Character position anchor
     test5 = M.bla
   ```
+
+* Some generated HTML files now have different file names [Issue
+  [#2725](https://github.com/agda/agda/issues/2725)].
+
+  Agda now uses an encoding that amounts to first converting the
+  module names to UTF-8, and then percent-encoding the resulting
+  bytes. For instance, HTML for the module `Σ` is placed in
+  `%CE%A3.html`.
 
 LaTeX backend
 -------------
