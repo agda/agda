@@ -713,7 +713,7 @@ nameToFile modMap file xs x fr m mR =
   rs         = map P.getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
-  notHere d = d { defSiteHere = False, defSiteAnchor = Nothing }
+  notHere d = d { defSiteHere = False }
 
   mFilePos  :: Maybe DefinitionSite
   mFilePos   = do
