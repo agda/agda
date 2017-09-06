@@ -701,6 +701,7 @@ nameToFile :: SourceToModule
 nameToFile modMap file xs x fr m mR =
   -- We don't care if we get any funny ranges.
   if all (== Strict.Just file) fileNames then
+    frFile `mappend`
     several (map rToR rs)
             (aspects { definitionSite = mFilePos })
    else
@@ -708,7 +709,11 @@ nameToFile modMap file xs x fr m mR =
   where
   aspects    = m $ C.isOperator x
   fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
-  rs         = applyWhen (not $ null fr) (fr :) $ map P.getRange (x : xs)
+  frFile     = singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos })
+  rs         = map P.getRange (x : xs)
+
+  -- The fixity declaration should not get a symbolic anchor.
+  notHere d = d { defSiteHere = False, defSiteAnchor = Nothing }
 
   mFilePos  :: Maybe DefinitionSite
   mFilePos   = do
