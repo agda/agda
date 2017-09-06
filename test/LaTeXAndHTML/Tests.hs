@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Text.Encoding
 import qualified Data.ByteString as BS
 
+import qualified Network.URI.Encode
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -113,7 +114,7 @@ mkLaTeXOrHTMLTest k agdaBin inp =
   compFile    = dropAgdaExtension inp <.> ".compile"
   outFileName = case k of
     LaTeX      -> golden
-    HTML       -> golden
+    HTML       -> Network.URI.Encode.encode golden
     QuickLaTeX -> replaceExtension (dropExtension golden) "tex"
     where
     golden = takeFileName goldenFile

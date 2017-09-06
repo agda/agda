@@ -1,153 +1,40 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-><head
-  ><title
-    >MdMultiLanguage</title
-    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
-     /><meta http-equiv="Content-Style-Type" content="text/css"
-     /><link href="Agda.css" rel="stylesheet" type="text/css"
-     /></head
-  ><body
-  ><pre
-    ><a name="1" class="Comment"
-      >&lt;!--
-</a
-      >```
-<a name="10" class="Keyword"
-      >module</a
-      > <a name="17" href="MdMultiLanguage.html" class="Module"
-      >MdMultiLanguage</a
-      > <a name="33" class="Keyword"
-      >where</a
-      >
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>MdMultiLanguage</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Comment">&lt;!--
+</a>```
+<a id="10" class="Keyword">module</a> <a id="17" href="MdMultiLanguage.html" class="Module">MdMultiLanguage</a> <a id="33" class="Keyword">where</a>
 ```
-<a name="43" class="Comment"
-      >--&gt;
+<a id="43" class="Comment">--&gt;
 
   ```haskell
 a :: Bool
 a = True
 ```
 
-     </a
-      >```
-<a name="94" class="Keyword"
-      >data</a
-      > <a name="Bool" href="MdMultiLanguage.html#Bool" class="Datatype"
-      >Bool</a
-      > <a name="104" class="Symbol"
-      >:</a
-      > <a name="106" class="PrimitiveType"
-      >Set</a
-      > <a name="110" class="Keyword"
-      >where</a
-      >
-    <a name="Bool.true" href="MdMultiLanguage.html#Bool.true" class="InductiveConstructor"
-      >true</a
-      > <a name="125" class="Symbol"
-      >:</a
-      > <a name="127" href="MdMultiLanguage.html#Bool" class="Datatype"
-      >Bool</a
-      >
-    <a name="Bool.false" href="MdMultiLanguage.html#Bool.false" class="InductiveConstructor"
-      >false</a
-      > <a name="142" class="Symbol"
-      >:</a
-      > <a name="144" href="MdMultiLanguage.html#Bool" class="Datatype"
-      >Bool</a
-      >
-    <a name="Bool.aa" href="MdMultiLanguage.html#Bool.aa" class="InductiveConstructor"
-      >aa</a
-      > <a name="156" class="Symbol"
-      >:</a
-      > <a name="158" class="Comment"
-      >{- ``` -}</a
-      > <a name="168" href="MdMultiLanguage.html#Bool" class="Datatype"
-      >Bool</a
-      >
+     </a>```
+<a id="94" class="Keyword">data</a> <a id="Bool" href="MdMultiLanguage.html#Bool" class="Datatype">Bool</a> <a id="104" class="Symbol">:</a> <a id="106" class="PrimitiveType">Set</a> <a id="110" class="Keyword">where</a>
+    <a id="Bool.true" href="MdMultiLanguage.html#Bool.true" class="InductiveConstructor">true</a> <a id="125" class="Symbol">:</a> <a id="127" href="MdMultiLanguage.html#Bool" class="Datatype">Bool</a>
+    <a id="Bool.false" href="MdMultiLanguage.html#Bool.false" class="InductiveConstructor">false</a> <a id="142" class="Symbol">:</a> <a id="144" href="MdMultiLanguage.html#Bool" class="Datatype">Bool</a>
+    <a id="Bool.aa" href="MdMultiLanguage.html#Bool.aa" class="InductiveConstructor">aa</a> <a id="156" class="Symbol">:</a> <a id="158" class="Comment">{- ``` -}</a> <a id="168" href="MdMultiLanguage.html#Bool" class="Datatype">Bool</a>
 
-<a name="a" href="MdMultiLanguage.html#a" class="Function"
-      >a</a
-      > <a name="176" class="Symbol"
-      >:</a
-      > <a name="178" href="MdMultiLanguage.html#Bool" class="Datatype"
-      >Bool</a
-      >
-<a name="183" href="MdMultiLanguage.html#a" class="Function"
-      >a</a
-      > <a name="185" class="Symbol"
-      >=</a
-      > <a name="187" href="MdMultiLanguage.html#Bool.true" class="InductiveConstructor"
-      >true</a
-      >
+<a id="a" href="MdMultiLanguage.html#a" class="Function">a</a> <a id="176" class="Symbol">:</a> <a id="178" href="MdMultiLanguage.html#Bool" class="Datatype">Bool</a>
+<a id="183" href="MdMultiLanguage.html#a" class="Function">a</a> <a id="185" class="Symbol">=</a> <a id="187" href="MdMultiLanguage.html#Bool.true" class="InductiveConstructor">true</a>
 
 ```
-<a name="197" class="Comment"
-      >
+<a id="197" class="Comment">
 This is also parsed:
 
-</a
-      >```agda
-  <a name="230" class="Keyword"
-      >module</a
-      > <a name="MdQuotedDelim" href="MdMultiLanguage.html#MdQuotedDelim" class="Module"
-      >MdQuotedDelim</a
-      > <a name="251" class="Keyword"
-      >where</a
-      >
+</a>```agda
+  <a id="230" class="Keyword">module</a> <a id="MdQuotedDelim" href="MdMultiLanguage.html#MdQuotedDelim" class="Module">MdQuotedDelim</a> <a id="251" class="Keyword">where</a>
 
-        <a name="266" class="Keyword"
-      >data</a
-      > <a name="MdQuotedDelim.Bool&#8217;" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;" class="Datatype"
-      >Bool&#8217;</a
-      > <a name="277" class="Symbol"
-      >:</a
-      > <a name="279" class="PrimitiveType"
-      >Set</a
-      > <a name="283" class="Keyword"
-      >where</a
-      >
-            <a name="MdQuotedDelim.Bool&#8217;.true" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;.true" class="InductiveConstructor"
-      >true</a
-      > <a name="306" class="Symbol"
-      >:</a
-      > <a name="308" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;" class="Datatype"
-      >Bool&#8217;</a
-      >
-            <a name="MdQuotedDelim.Bool&#8217;.false" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;.false" class="InductiveConstructor"
-      >false</a
-      > <a name="332" class="Symbol"
-      >:</a
-      > <a name="334" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;" class="Datatype"
-      >Bool&#8217;</a
-      >
-            <a name="MdQuotedDelim.Bool&#8217;.aa" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;.aa" class="InductiveConstructor"
-      >aa</a
-      > <a name="355" class="Symbol"
-      >:</a
-      > <a name="357" class="Comment"
-      >{- ``` -}</a
-      > <a name="367" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;" class="Datatype"
-      >Bool&#8217;</a
-      >
+        <a id="266" class="Keyword">data</a> <a id="MdQuotedDelim.Bool’" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99" class="Datatype">Bool’</a> <a id="277" class="Symbol">:</a> <a id="279" class="PrimitiveType">Set</a> <a id="283" class="Keyword">where</a>
+            <a id="MdQuotedDelim.Bool’.true" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99.true" class="InductiveConstructor">true</a> <a id="306" class="Symbol">:</a> <a id="308" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99" class="Datatype">Bool’</a>
+            <a id="MdQuotedDelim.Bool’.false" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99.false" class="InductiveConstructor">false</a> <a id="332" class="Symbol">:</a> <a id="334" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99" class="Datatype">Bool’</a>
+            <a id="MdQuotedDelim.Bool’.aa" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99.aa" class="InductiveConstructor">aa</a> <a id="355" class="Symbol">:</a> <a id="357" class="Comment">{- ``` -}</a> <a id="367" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99" class="Datatype">Bool’</a>
 
-        <a name="MdQuotedDelim.a&#8217;" href="MdMultiLanguage.html#MdQuotedDelim.a&#8217;" class="Function"
-      >a&#8217;</a
-      > <a name="385" class="Symbol"
-      >:</a
-      > <a name="387" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;" class="Datatype"
-      >Bool&#8217;</a
-      >
-        <a name="401" href="MdMultiLanguage.html#MdQuotedDelim.a&#8217;" class="Function"
-      >a&#8217;</a
-      > <a name="404" class="Symbol"
-      >=</a
-      > <a name="406" href="MdMultiLanguage.html#MdQuotedDelim.Bool&#8217;.aa" class="InductiveConstructor"
-      >aa</a
-      >
+        <a id="MdQuotedDelim.a’" href="MdMultiLanguage.html#MdQuotedDelim.a%E2%80%99" class="Function">a’</a> <a id="385" class="Symbol">:</a> <a id="387" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99" class="Datatype">Bool’</a>
+        <a id="401" href="MdMultiLanguage.html#MdQuotedDelim.a%E2%80%99" class="Function">a’</a> <a id="404" class="Symbol">=</a> <a id="406" href="MdMultiLanguage.html#MdQuotedDelim.Bool%E2%80%99.aa" class="InductiveConstructor">aa</a>
   ```
-<a name="415" class="Comment"
-      >
+<a id="415" class="Comment">
 * This one is not:
 
     a : Set
@@ -156,24 +43,8 @@ This is also parsed:
 
 * But this one is:
 
-  </a
-      >```
-<a name="b" href="MdMultiLanguage.html#b" class="Function"
-      >b</a
-      > <a name="492" class="Symbol"
-      >:</a
-      > <a name="494" href="MdMultiLanguage.html#Bool" class="Datatype"
-      >Bool</a
-      >
-<a name="499" href="MdMultiLanguage.html#b" class="Function"
-      >b</a
-      > <a name="501" class="Symbol"
-      >=</a
-      > <a name="503" href="MdMultiLanguage.html#Bool.false" class="InductiveConstructor"
-      >false</a
-      >
+  </a>```
+<a id="b" href="MdMultiLanguage.html#b" class="Function">b</a> <a id="492" class="Symbol">:</a> <a id="494" href="MdMultiLanguage.html#Bool" class="Datatype">Bool</a>
+<a id="499" href="MdMultiLanguage.html#b" class="Function">b</a> <a id="501" class="Symbol">=</a> <a id="503" href="MdMultiLanguage.html#Bool.false" class="InductiveConstructor">false</a>
  ```
-</pre
-    ></body
-  ></html
->
+</pre></body></html>
