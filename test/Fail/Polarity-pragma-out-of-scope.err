@@ -1,4 +1,3 @@
-Polarity-pragma-out-of-scope.agda:6,1-8,21
 Polarity-pragma-out-of-scope.agda:8,16-17
 The following names are not declared in the same scope as their
 polarity pragmas (they could for instance be out of scope, imported
