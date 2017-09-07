@@ -17,7 +17,7 @@ import Control.Applicative
 import System.Directory
 import System.FilePath
 
-#if mingw32_HOST_OS
+#ifdef mingw32_HOST_OS
 import Control.Exception (bracket)
 import System.Win32 (findFirstFile, findClose, getFindDataFileName)
 #endif
@@ -68,7 +68,7 @@ mkAbsolute f
   | otherwise    = __IMPOSSIBLE__
 
 rootPath :: FilePath
-#if mingw32_HOST_OS
+#ifdef mingw32_HOST_OS
 rootPath = joinDrive "C:" [pathSeparator]
 #else
 rootPath = [pathSeparator]
@@ -114,7 +114,7 @@ infix 4 ===
 --  case insensitively.)
 
 doesFileExistCaseSensitive :: FilePath -> IO Bool
-#if mingw32_HOST_OS
+#ifdef mingw32_HOST_OS
 doesFileExistCaseSensitive f = do
   doesFileExist f `and2M` do
     bracket (findFirstFile f) (findClose . fst) $
