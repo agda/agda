@@ -261,6 +261,19 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 instance Pretty Precedence where
   pretty = text . show
 
+-- | When printing we keep track of a stack of precedences in order to be able
+--   to decide whether it's safe to leave out parens around lambdas. An empty
+--   stack is equivalent to `TopCtx`. Invariant: `notElem TopCtx`.
+type PrecedenceStack = [Precedence]
+
+pushPrecedence :: Precedence -> PrecedenceStack -> PrecedenceStack
+pushPrecedence TopCtx _  = []
+pushPrecedence p      ps = p : ps
+
+headPrecedence :: PrecedenceStack -> Precedence
+headPrecedence []      = TopCtx
+headPrecedence (p : _) = p
+
 -- | The precedence corresponding to a possibly hidden argument.
 hiddenArgumentCtx :: Hiding -> Precedence
 hiddenArgumentCtx NotHidden  = ArgumentCtx
@@ -269,25 +282,25 @@ hiddenArgumentCtx Instance{} = TopCtx
 
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
-opBrackets :: Fixity -> Precedence -> Bool
-opBrackets                   (Fixity _ (Related n1) LeftAssoc)
-           (LeftOperandCtx   (Fixity _ (Related n2) LeftAssoc))  | n1 >= n2 = False
-opBrackets                   (Fixity _ (Related n1) RightAssoc)
-           (RightOperandCtx  (Fixity _ (Related n2) RightAssoc)) | n1 >= n2 = False
-opBrackets f1
-           (LeftOperandCtx  f2) | Related f1 <- fixityLevel f1
-                                , Related f2 <- fixityLevel f2
-                                , f1 > f2 = False
-opBrackets f1
-           (RightOperandCtx f2) | Related f1 <- fixityLevel f1
-                                , Related f2 <- fixityLevel f2
-                                , f1 > f2 = False
-opBrackets _ TopCtx = False
-opBrackets _ FunctionSpaceDomainCtx = False
-opBrackets _ InsideOperandCtx       = False
-opBrackets _ WithArgCtx             = False
-opBrackets _ WithFunCtx             = False
-opBrackets _ _                      = True
+opBrackets :: Fixity -> PrecedenceStack -> Bool
+opBrackets f = brack f . headPrecedence
+  where
+    brack                        (Fixity _ (Related n1) LeftAssoc)
+               (LeftOperandCtx   (Fixity _ (Related n2) LeftAssoc))  | n1 >= n2 = False
+    brack                        (Fixity _ (Related n1) RightAssoc)
+               (RightOperandCtx  (Fixity _ (Related n2) RightAssoc)) | n1 >= n2 = False
+    brack f1   (LeftOperandCtx  f2) | Related f1 <- fixityLevel f1
+                                    , Related f2 <- fixityLevel f2
+                                    , f1 > f2 = False
+    brack f1   (RightOperandCtx f2) | Related f1 <- fixityLevel f1
+                                    , Related f2 <- fixityLevel f2
+                                    , f1 > f2 = False
+    brack _ TopCtx                 = False
+    brack _ FunctionSpaceDomainCtx = False
+    brack _ InsideOperandCtx       = False
+    brack _ WithArgCtx             = False
+    brack _ WithFunCtx             = False
+    brack _ _                      = True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the
 -- given context? A peculiar thing with lambdas is that they don't
@@ -298,31 +311,34 @@ opBrackets _ _                      = True
 --
 -- * Sometimes brackets are needed. Example: @m₁ >>= (λ x → x) >>= m₂@
 --   (here @_>>=_@ is left associative).
-lamBrackets :: Precedence -> Bool
-lamBrackets TopCtx = False
-lamBrackets _      = True
+lamBrackets :: PrecedenceStack -> Bool
+lamBrackets [] = False
+lamBrackets _  = True
 
 -- | Does a function application need brackets?
-appBrackets :: Precedence -> Bool
-appBrackets ArgumentCtx   = True
-appBrackets DotPatternCtx = True
-appBrackets _             = False
+appBrackets :: PrecedenceStack -> Bool
+appBrackets = brack . headPrecedence
+  where
+    brack ArgumentCtx   = True
+    brack DotPatternCtx = True
+    brack _             = False
 
 -- | Does a with application need brackets?
-withAppBrackets :: Precedence -> Bool
-withAppBrackets TopCtx                 = False
-withAppBrackets FunctionSpaceDomainCtx = False
-withAppBrackets WithFunCtx             = False
-withAppBrackets _                      = True
+withAppBrackets :: PrecedenceStack -> Bool
+withAppBrackets = brack . headPrecedence
+  where
+    brack TopCtx                 = False
+    brack FunctionSpaceDomainCtx = False
+    brack WithFunCtx             = False
+    brack _                      = True
 
 -- | Does a function space need brackets?
-piBrackets :: Precedence -> Bool
-piBrackets TopCtx   = False
-piBrackets _        = True
+piBrackets :: PrecedenceStack -> Bool
+piBrackets [] = False
+piBrackets _  = True
 
-roundFixBrackets :: Precedence -> Bool
-roundFixBrackets DotPatternCtx = True
-roundFixBrackets _ = False
+roundFixBrackets :: PrecedenceStack -> Bool
+roundFixBrackets ps = DotPatternCtx == headPrecedence ps
 
 instance HasRange Fixity where
   getRange = fixityRange

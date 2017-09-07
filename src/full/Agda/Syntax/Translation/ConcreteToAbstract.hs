@@ -439,9 +439,9 @@ toAbstractHiding h = toAbstractCtx $ hiddenArgumentCtx $ getHiding h
 
 setContextCPS :: Precedence -> (a -> ScopeM b) ->
                  ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
-setContextCPS p ret f = do
-  p' <- getContextPrecedence
-  withContextPrecedence p $ f $ withContextPrecedence p' . ret
+setContextCPS p ret f =
+  withContextPrecedence p $ f $
+    bracket_ popContextPrecedence (\ _ -> pushContextPrecedence p) . ret
 
 localToAbstractCtx :: ToAbstract concrete abstract =>
                      Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a

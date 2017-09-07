@@ -5,8 +5,8 @@ Failed to solve the following constraints:
     create Bool : Default Set
     create zero : Default ℕ
     create defNat : Default (Default ℕ)
-    (λ {ℓ} {A} → create (λ x → x)) :
-      ({ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A))
+    λ {ℓ} {A} → create (λ x → x) :
+      {ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A)
   Resolve instance argument _49 : Default _A_48
   Candidates
     create false : Default Bool
