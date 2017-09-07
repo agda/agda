@@ -842,7 +842,7 @@ checkExpr e t0 =
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' DontRunMetaOccursCheck) t0 i ii
+        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' RunMetaOccursCheck) t0 i ii
         A.Underscore i -> checkUnderscore t0 i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"

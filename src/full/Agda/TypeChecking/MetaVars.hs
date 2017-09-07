@@ -309,7 +309,7 @@ newRecordMetaCtx r pars tel perm ctx = do
   return $ Con con ConOSystem fields
 
 newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
-newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck
+newQuestionMark = newQuestionMark' $ newValueMeta' RunMetaOccursCheck
 
 newQuestionMark' :: (Type -> TCM (MetaId, Term)) -> InteractionId -> Type -> TCM (MetaId, Term)
 newQuestionMark' new ii t = do
