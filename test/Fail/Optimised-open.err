@@ -1,7 +1,7 @@
 after stripping
 ScopeInfo
   current = Optimised-open
-  context = TopCtx
+  context = []
   modules
     scope
     scope Optimised-open
@@ -25,7 +25,7 @@ ScopeInfo
 after stripping
 ScopeInfo
   current = Optimised-open.M₂
-  context = TopCtx
+  context = []
   modules
     scope
     scope Optimised-open

@@ -237,7 +237,7 @@ refine force ii mr e = do
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
-                , Info.metaScope = scope { scopePrecedence = ArgumentCtx }
+                , Info.metaScope = scope { scopePrecedence = [ArgumentCtx] }
                     -- Ulf, 2017-09-07: The `ArgumentCtx` above is causing #737.
                     -- If we're building an operator application the precedence
                     -- should be something else.
@@ -418,7 +418,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               target  <- reify target
               let bs = TypedBindings noRange $ Arg ai $
                        TBind noRange xs domType
-                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
+                  e  = A.Lam Info.defaultLamInfo_ (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do
               t0 <- reify t0
