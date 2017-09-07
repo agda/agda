@@ -238,6 +238,9 @@ refine force ii mr e = do
           let info = Info.MetaInfo
                 { Info.metaRange = rng
                 , Info.metaScope = scope { scopePrecedence = ArgumentCtx }
+                    -- Ulf, 2017-09-07: The `ArgumentCtx` above is causing #737.
+                    -- If we're building an operator application the precedence
+                    -- should be something else.
                 , metaNumber = Nothing -- in order to print just as ?, not ?n
                 , metaNameSuggestion = ""
                 }
