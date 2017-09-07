@@ -287,7 +287,7 @@ opBrackets = opBrackets' False
 
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
-opBrackets' :: Bool ->   -- ^ Is the last argument a parenless lambda?
+opBrackets' :: Bool ->   -- Is the last argument a parenless lambda?
                Fixity -> PrecedenceStack -> Bool
 opBrackets' isLam f ps = brack f (headPrecedence ps)
   where
@@ -340,7 +340,7 @@ appBrackets :: PrecedenceStack -> Bool
 appBrackets = appBrackets' False
 
 -- | Does a function application need brackets?
-appBrackets' :: Bool ->   -- ^ Is the argument of the application a parenless lambda?
+appBrackets' :: Bool ->   -- Is the argument of the application a parenless lambda?
                 PrecedenceStack -> Bool
 appBrackets' isLam ps = brack (headPrecedence ps)
   where
