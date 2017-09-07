@@ -67,6 +67,35 @@ instance KillRange ExprInfo where
   killRange (ExprRange r) = exprNoRange
 
 {--------------------------------------------------------------------------
+    Lambda information
+ --------------------------------------------------------------------------}
+
+-- | Information about lambdas.
+data LamInfo = LamInfo { lamRange  :: Range
+                       , lamOrigin :: Origin
+                       , lamParens :: Bool    -- ^ Do we prefer the lambda with or without parens?
+                       }
+  deriving (Typeable, Data, Show, Eq, Ord)
+
+-- | Default is system inserted and prefer parens.
+defaultLamInfo :: Range -> LamInfo
+defaultLamInfo r = LamInfo{ lamRange = r, lamOrigin = Inserted, lamParens = True }
+
+-- | `LamInfo` with no range information.
+defaultLamInfo_ :: LamInfo
+defaultLamInfo_ = defaultLamInfo noRange
+
+instance HasRange LamInfo where
+  getRange = lamRange
+
+instance KillRange LamInfo where
+  killRange (LamInfo r o p) = LamInfo (killRange r) o p
+
+instance LensOrigin LamInfo where
+  getOrigin = lamOrigin
+  setOrigin o i = i { lamOrigin = o }
+
+{--------------------------------------------------------------------------
     Module information
  --------------------------------------------------------------------------}
 
