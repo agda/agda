@@ -1,0 +1,23 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+\begin{AgdaAlign}
+\begin{code}
+module Issue2733-2 where
+\end{code}
+
+Indentation should be inserted before \AgdaKeyword{postulate}, but not
+before the last occurrence of \AgdaPrimitiveType{Set}, which should be
+aligned with the penultimate occurrence of \AgdaPrimitiveType{Set}:
+\begin{code}
+  postulate
+    A  : Set
+    B  : Set →
+         Set
+\end{code}
+\end{AgdaAlign}
+
+\end{document}

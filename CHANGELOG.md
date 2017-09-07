@@ -520,7 +520,9 @@ LaTeX backend
 
 * Some spacing issues
   [[#2353](https://github.com/agda/agda/issues/2353),
-  [#2441](https://github.com/agda/agda/issues/2441)] have been fixed.
+  [#2441](https://github.com/agda/agda/issues/2441),
+  [#2733](https://github.com/agda/agda/issues/2733),
+  [#2740](https://github.com/agda/agda/issues/2740)] have been fixed.
 
 * The user can now control the typesetting of (certain) individual tokens
   by redefining the `\AgdaFormat` command. Example:

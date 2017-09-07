@@ -1,0 +1,18 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+No indentation should be inserted before \AgdaKeyword{postulate} or
+the last occurrence of \AgdaPrimitiveType{Set}, and the last
+occurrence of \AgdaPrimitiveType{Set} should be aligned with the
+penultimate occurrence of \AgdaPrimitiveType{Set}:
+\begin{code}
+  postulate
+    A  : Set
+    B  : Set →
+         Set
+\end{code}
+
+\end{document}

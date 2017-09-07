@@ -366,10 +366,29 @@ columnName c = T.pack $ case columnKind c of
   Nothing -> show (columnColumn c)
   Just i  -> show i ++ "I"
 
-ptOpen :: AlignmentColumn -> Text
-ptOpen c = T.pack "\\>[" <+> columnName c <+> T.singleton ']'
+-- | Opens a column with the given name.
 
-ptOpenIndent :: AlignmentColumn -> Int -> Text
+ptOpen' :: Text -> Text
+ptOpen' name = T.pack "\\>[" <+> name <+> T.singleton ']'
+
+-- | Opens the given column.
+
+ptOpen :: AlignmentColumn -> Text
+ptOpen c = ptOpen' (columnName c)
+
+-- | Opens a special column that is only used at the beginning of
+-- lines.
+
+ptOpenBeginningOfLine :: Text
+ptOpenBeginningOfLine = ptOpen' (T.pack ".")
+
+-- | Opens the given column, and inserts an indentation instruction
+-- with the given argument at the end of it.
+
+ptOpenIndent
+  :: AlignmentColumn
+  -> Int              -- ^ Indentation instruction argument.
+  -> Text
 ptOpenIndent c delta =
   ptOpen c <+> T.pack "[@{}l@{"
            <+> cmdPrefix
@@ -554,28 +573,21 @@ spaces [ s ] = do
   else do
     columns    <- gets columnsPrev
     codeBlock  <- gets codeBlock
-    defaultCol <- columnZero
-
-    let (alignWith, indentFrom) =
-          case filter ((<= len) . columnColumn) columns ++
-               [defaultCol] of
-            c1 : c2 : _ | columnColumn c1 == len -> (Just c1, c2)
-            c : _       | columnColumn c  <  len -> (Nothing, c)
-            _                                    -> __IMPOSSIBLE__
 
     log' Spaces $
-      "col == 0: " ++ show (alignWith, indentFrom, len, columns)
+      "col == 0: " ++ show (len, columns)
 
-    -- Indent.
-    useColumn indentFrom
-    output $ Text $
-      ptOpenIndent indentFrom (codeBlock - columnCodeBlock indentFrom)
-
-    -- Align (in some cases).
-    case alignWith of
-      Just (alignWith@AlignmentColumn { columnKind = Just _ }) -> do
-          useColumn alignWith
-          output $ Text $ ptClose' alignWith
+    case filter ((<= len) . columnColumn) columns of
+      c : _ | columnColumn c == len, isJust (columnKind c) -> do
+        -- Align. (This happens automatically if the column is an
+        -- alignment column, but c is an indentation column.)
+        useColumn c
+        output $ Text $ ptOpenBeginningOfLine
+        output $ Text $ ptClose' c
+      c : _ | columnColumn c <  len -> do
+        -- Indent.
+        useColumn c
+        output $ Text $ ptOpenIndent c (codeBlock - columnCodeBlock c)
       _ -> return ()
 
   output $ MaybeColumn column
