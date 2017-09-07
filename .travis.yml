@@ -43,7 +43,6 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-2.0
             - ghc-8.2.1
             - texlive-binaries
@@ -54,7 +53,6 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.2
             - texlive-binaries
@@ -65,7 +63,6 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-1.22
             - ghc-7.10.3
             - texlive-binaries
@@ -76,7 +73,6 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.8.4
             - texlive-binaries
@@ -113,7 +109,6 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-2.0
             - ghc-8.2.1
           sources:
@@ -141,7 +136,7 @@ matrix:
 before_install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:$PATH;
+       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
     elif [[ $TEST = "STACKAGE" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     fi
@@ -186,8 +181,9 @@ install:
        export PATH=$HOME/.cabal/bin:$PATH &&
        cabal --version &&
        travis_retry cabal update &&
-       travis_retry cabal fetch happy cpphs-1.20.8 &&
-       cabal install happy cpphs-1.20.8 &&
+       travis_retry cabal fetch alex happy cpphs-1.20.8 &&
+       cabal install alex happy cpphs-1.20.8 &&
+       alex --version &&
        happy --version &&
        cpphs --version;
     fi
