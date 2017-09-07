@@ -330,7 +330,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
             if cubical then checkPath b body t
                        else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
 
-    postpone = \ m tgt -> postponeTypeCheckingProblem_ $ CheckExpr (A.Lam A.exprNoRange (A.DomainFull (A.TypedBindings noRange b)) body) tgt
+    postpone = \ m tgt -> postponeTypeCheckingProblem_ $ CheckExpr (A.Lam A.defaultLamInfo_ (A.DomainFull (A.TypedBindings noRange b)) body) tgt
     dontUseTargetType = do
       -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
