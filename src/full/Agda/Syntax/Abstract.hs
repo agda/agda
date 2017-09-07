@@ -73,9 +73,9 @@ data Expr
   | Dot ExprInfo Expr                  -- ^ @.e@, for postfix projection.
   | App  ExprInfo Expr (NamedArg Expr) -- ^ Ordinary (binary) application.
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
-  | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
-  | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
-  | ExtendedLam ExprInfo DefInfo QName [Clause]
+  | Lam  LamInfo LamBinding Expr      -- ^ @λ bs → e@.
+  | AbsurdLam LamInfo Hiding          -- ^ @λ()@ or @λ{}@.
+  | ExtendedLam LamInfo DefInfo QName [Clause]
   | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
@@ -1009,7 +1009,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange) (DomainFree defaultArgInfo n) $
+lambdaLiftExpr (n:ns) e = Lam defaultLamInfo_ (DomainFree defaultArgInfo n) $
                                      lambdaLiftExpr ns e
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern

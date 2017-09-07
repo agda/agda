@@ -422,7 +422,7 @@ reifyTerm expandAnonDefs0 v = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam noExprInfo (DomainFree info x) e
+      return $ A.Lam defaultLamInfo_ (DomainFree info x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -499,7 +499,7 @@ reifyTerm expandAnonDefs0 v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
-                  elims (A.AbsurdLam noExprInfo h) =<< reify (drop n es)
+                  elims (A.AbsurdLam defaultLamInfo_ h) =<< reify (drop n es)
 
       -- Otherwise (no absurd lambda):
        _ -> do
@@ -623,7 +623,7 @@ reifyTerm expandAnonDefs0 v = do
       cls <- mapM (reify . NamedClause x False . (`applyE` pars)) cls
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      elims (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
+      elims (A.ExtendedLam defaultLamInfo_ dInfo x cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]

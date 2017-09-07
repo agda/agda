@@ -5,7 +5,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : {o : ⊤} (p : ⊤) → ⊥ → ⊤ " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-give-action 0 "(λ x y → ?)")
+(agda2-give-action 0 "λ x y → ?")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?1 : ⊤ " nil)
 ((last . 1) . (agda2-goals-action '(1)))

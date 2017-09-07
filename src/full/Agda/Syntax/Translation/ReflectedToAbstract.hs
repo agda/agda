@@ -105,7 +105,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (DomainFree info name) e
+      return $ A.Lam (setOrigin Reflected defaultLamInfo_) (DomainFree info name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- lift $ getCurrentModule
@@ -113,7 +113,7 @@ instance ToAbstract Term Expr where
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ map (QNamed qname) cs
-      toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
+      toAbstract (A.ExtendedLam (setOrigin Reflected defaultLamInfo_) defInfo qname cs, es)
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)

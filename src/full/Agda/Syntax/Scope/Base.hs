@@ -100,7 +100,7 @@ data ScopeInfo = ScopeInfo
       { scopeCurrent       :: A.ModuleName
       , scopeModules       :: Map A.ModuleName Scope
       , scopeLocals        :: LocalVars
-      , scopePrecedence    :: Precedence
+      , scopePrecedence    :: PrecedenceStack
       , scopeInverseName   :: Map A.QName [C.QName]
       , scopeInverseModule :: Map A.ModuleName [C.QName]
       , scopeInScope       :: InScopeSet
@@ -352,7 +352,7 @@ emptyScopeInfo = ScopeInfo
   { scopeCurrent       = noModuleName
   , scopeModules       = Map.singleton noModuleName emptyScope
   , scopeLocals        = []
-  , scopePrecedence    = TopCtx
+  , scopePrecedence    = []
   , scopeInverseName   = Map.empty
   , scopeInverseModule = Map.empty
   , scopeInScope       = Set.empty
