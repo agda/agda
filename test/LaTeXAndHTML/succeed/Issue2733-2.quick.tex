@@ -1,0 +1,37 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+\begin{AgdaAlign}
+\begin{code}%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{Issue2733{-}2}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\end{code}
+
+Indentation should be inserted before \AgdaKeyword{postulate}, but not
+before the last occurrence of \AgdaPrimitiveType{Set}, which should be
+aligned with the penultimate occurrence of \AgdaPrimitiveType{Set}:
+\begin{code}%
+\>[0][@{}l@{\AgdaIndent{1}}]%
+\>[2]\AgdaKeyword{postulate}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaPostulate{A}%
+\>[7]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\\
+%
+\>[4]\AgdaPostulate{B}%
+\>[7]\AgdaSymbol{:}%
+\>[3I]\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[.]\<[3I]%
+\>[9]\AgdaPrimitiveType{Set}\<%
+\end{code}
+\end{AgdaAlign}
+
+\end{document}

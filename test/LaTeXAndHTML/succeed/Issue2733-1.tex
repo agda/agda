@@ -1,0 +1,30 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+No indentation should be inserted before \AgdaKeyword{postulate} or
+the last occurrence of \AgdaPrimitiveType{Set}, and the last
+occurrence of \AgdaPrimitiveType{Set} should be aligned with the
+penultimate occurrence of \AgdaPrimitiveType{Set}:
+\begin{code}%
+%
+\>[2]\AgdaKeyword{postulate}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaPostulate{A}%
+\>[7]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\\
+%
+\>[4]\AgdaPostulate{B}%
+\>[7]\AgdaSymbol{:}%
+\>[1I]\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[.]\<[1I]%
+\>[9]\AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\end{document}
