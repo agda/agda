@@ -283,45 +283,70 @@ hiddenArgumentCtx Instance{} = TopCtx
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
 opBrackets :: Fixity -> PrecedenceStack -> Bool
-opBrackets f = brack f . headPrecedence
+opBrackets = opBrackets' False
+
+-- | Do we need to bracket an operator application of the given fixity
+--   in a context with the given precedence.
+opBrackets' :: Bool ->   -- ^ Is the last argument a parenless lambda?
+               Fixity -> PrecedenceStack -> Bool
+opBrackets' isLam f ps = brack f (headPrecedence ps)
   where
+    false = isLam && lamBrackets' False ps -- require more parens for `e >>= λ x → e₁` than `e >>= e₁`
     brack                        (Fixity _ (Related n1) LeftAssoc)
-               (LeftOperandCtx   (Fixity _ (Related n2) LeftAssoc))  | n1 >= n2 = False
+               (LeftOperandCtx   (Fixity _ (Related n2) LeftAssoc))  | n1 >= n2 = false
     brack                        (Fixity _ (Related n1) RightAssoc)
-               (RightOperandCtx  (Fixity _ (Related n2) RightAssoc)) | n1 >= n2 = False
+               (RightOperandCtx  (Fixity _ (Related n2) RightAssoc)) | n1 >= n2 = false
     brack f1   (LeftOperandCtx  f2) | Related f1 <- fixityLevel f1
                                     , Related f2 <- fixityLevel f2
-                                    , f1 > f2 = False
+                                    , f1 > f2 = false
     brack f1   (RightOperandCtx f2) | Related f1 <- fixityLevel f1
                                     , Related f2 <- fixityLevel f2
-                                    , f1 > f2 = False
-    brack _ TopCtx                 = False
-    brack _ FunctionSpaceDomainCtx = False
-    brack _ InsideOperandCtx       = False
-    brack _ WithArgCtx             = False
-    brack _ WithFunCtx             = False
+                                    , f1 > f2 = false
+    brack _ TopCtx                 = false
+    brack _ FunctionSpaceDomainCtx = false
+    brack _ InsideOperandCtx       = false
+    brack _ WithArgCtx             = false
+    brack _ WithFunCtx             = false
     brack _ _                      = True
 
 -- | Does a lambda-like thing (lambda, let or pi) need brackets in the
 -- given context? A peculiar thing with lambdas is that they don't
--- need brackets in certain right operand contexts. However, we insert
--- brackets anyway, for the following reasons:
---
--- * Clarity.
---
--- * Sometimes brackets are needed. Example: @m₁ >>= (λ x → x) >>= m₂@
---   (here @_>>=_@ is left associative).
+-- need brackets in certain right operand contexts. To decide we need to look
+-- at the stack of precedences and not just the current precedence.
+-- Example: @m₁ >>= (λ x → x) >>= m₂@ (for @_>>=_@ left associative).
+-- The first argument is the parenthesis preference. If True, we add
+-- parentheses also in right operand contexts where they aren't strictly
+-- needed.
+lamBrackets' :: Bool -> PrecedenceStack -> Bool
+lamBrackets' _      []       = False
+lamBrackets' strict (p : ps) = case p of
+  TopCtx                 -> __IMPOSSIBLE__
+  ArgumentCtx            -> strict || lamBrackets' strict ps
+  RightOperandCtx{}      -> strict || lamBrackets' strict ps
+  FunctionSpaceDomainCtx -> True
+  LeftOperandCtx{}       -> True
+  FunctionCtx            -> True
+  InsideOperandCtx       -> True
+  WithFunCtx             -> True
+  WithArgCtx             -> True
+  DotPatternCtx          -> True
+
+-- | Preference for adding parentheses.
 lamBrackets :: PrecedenceStack -> Bool
-lamBrackets [] = False
-lamBrackets _  = True
+lamBrackets = lamBrackets' True
 
 -- | Does a function application need brackets?
 appBrackets :: PrecedenceStack -> Bool
-appBrackets = brack . headPrecedence
+appBrackets = appBrackets' False
+
+-- | Does a function application need brackets?
+appBrackets' :: Bool ->   -- ^ Is the argument of the application a parenless lambda?
+                PrecedenceStack -> Bool
+appBrackets' isLam ps = brack (headPrecedence ps)
   where
     brack ArgumentCtx   = True
     brack DotPatternCtx = True
-    brack _             = False
+    brack _             = isLam && lamBrackets' False ps -- allow e + e₁ λ x → e₂
 
 -- | Does a with application need brackets?
 withAppBrackets :: PrecedenceStack -> Bool

@@ -233,6 +233,17 @@ bracketP par ret m = m $ \p -> do
     ret p
 -}
 
+-- | Applications where the argument is a lambda without parentheses need
+--   parens more often than other applications.
+isParenlessLambda :: NamedArg A.Expr -> Bool
+isParenlessLambda e | notVisible e = False
+isParenlessLambda e =
+  case unScope $ namedArg e of
+    A.Lam i _ _           -> not $ lamParens i
+    A.AbsurdLam i _       -> not $ lamParens i
+    A.ExtendedLam i _ _ _ -> not $ lamParens i
+    _                     -> False
+
 -- Dealing with infix declarations ----------------------------------------
 
 -- | If a name is defined with a fixity that differs from the default, we have
@@ -426,7 +437,7 @@ instance ToConcrete A.Expr C.Expr where
         tryToRecoverOpApp e
         $ tryToRecoverNatural e
         -- or fallback to App
-        $ bracket appBrackets
+        $ bracket (appBrackets' $ isParenlessLambda e2)
         $ do e1' <- toConcreteCtx FunctionCtx e1
              e2' <- toConcreteCtx ArgumentCtx e2
              return $ C.App (getRange i) e1' e2'
@@ -438,9 +449,9 @@ instance ToConcrete A.Expr C.Expr where
         return $ C.WithApp (getRange i) e es
 
     toConcrete (A.AbsurdLam i h) =
-      bracket lamBrackets $ return $ C.AbsurdLam (getRange i) h
+      bracket (lamBrackets' $ lamParens i) $ return $ C.AbsurdLam (getRange i) h
     toConcrete e@(A.Lam i _ _)      =
-        bracket lamBrackets
+        bracket (lamBrackets' $ lamParens i)
         $ case lamView e of
             (bs, e) ->
                 bindToConcrete (map makeDomainFree bs) $ \bs -> do
@@ -459,7 +470,7 @@ instance ToConcrete A.Expr C.Expr where
                     _                              -> ([b], e)
             lamView e = ([], e)
     toConcrete (A.ExtendedLam i di qname cs) =
-        bracket lamBrackets $ do
+        bracket (lamBrackets' $ lamParens i) $ do
           decls <- concat <$> toConcrete cs
           let namedPat np = case getHiding np of
                  NotHidden  -> namedArg np
@@ -906,9 +917,9 @@ instance ToConcrete A.LHS C.LHS where
 instance ToConcrete A.LHSCore C.Pattern where
   bindToConcrete = bindToConcrete . lhsCoreToPattern
 
-appBrackets' :: [arg] -> PrecedenceStack -> Bool
-appBrackets' []    _   = False
-appBrackets' (_:_) ctx = appBrackets ctx
+appBracketsArgs :: [arg] -> PrecedenceStack -> Bool
+appBracketsArgs []    _   = False
+appBracketsArgs (_:_) ctx = appBrackets ctx
 
 -- Auxiliary wrappers for processing the bindings in patterns in the right order.
 newtype UserPattern a  = UserPattern a
@@ -1065,7 +1076,7 @@ instance ToConcrete A.Pattern C.Pattern where
         Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x
     -- Note: applyTo [] c = return c
-    applyTo args c = bracketP_ (appBrackets' args) $ do
+    applyTo args c = bracketP_ (appBracketsArgs args) $ do
       foldl C.AppP c <$> toConcreteCtx ArgumentCtx args
 
 
@@ -1103,7 +1114,7 @@ tryToRecoverNatural e def = do
     explore _ _ _ _ = Nothing
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
-tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket cOpApp view e) def return
+tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isParenlessLambda . defaultNamedArg) cOpApp view e) def return
   where
     view e = do
       let Application hd args = AV.appView e
@@ -1115,7 +1126,7 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket cOpApp view e) def re
         _                -> Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
-tryToRecoverOpAppP = recoverOpApp bracketP_ opApp view
+tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
   where
     opApp r x n ps =
       C.OpAppP r x (Set.singleton n) (map defaultNamedArg ps)
@@ -1129,11 +1140,12 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ opApp view
 
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
+  -> (a -> Bool)  -- ^ Check for parenless lambdas
   -> (Range -> C.QName -> A.Name -> [c] -> c)
   -> (a -> Maybe (Hd, [NamedArg a]))
   -> a
   -> AbsToCon (Maybe c)
-recoverOpApp bracket opApp view e = case view e of
+recoverOpApp bracket isParenlessLam opApp view e = case view e of
   Nothing -> mDefault
   Just (hd, args)
     | all visible args    -> do
@@ -1168,11 +1180,11 @@ recoverOpApp bracket opApp view e = case view e of
             as' = case as of
                     as@(_ : _ : _) -> init $ tail as
                     _              -> __IMPOSSIBLE__
-        e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
-        es <- mapM (toConcreteCtx InsideOperandCtx) as'
-        en <- toConcreteCtx (RightOperandCtx fixity) an
         Just <$> do
-          bracket (opBrackets fixity) $
+          bracket (opBrackets' (isParenlessLam an) fixity) $ do
+            e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
+            es <- mapM (toConcreteCtx InsideOperandCtx) as'
+            en <- toConcreteCtx (RightOperandCtx fixity) an
             return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
 
   -- prefix
@@ -1182,10 +1194,10 @@ recoverOpApp bracket opApp view e = case view e of
             as' = case as of
                     as@(_ : _) -> init as
                     _          -> __IMPOSSIBLE__
-        es <- mapM (toConcreteCtx InsideOperandCtx) as'
-        en <- toConcreteCtx (RightOperandCtx fixity) an
         Just <$> do
-          bracket (opBrackets fixity) $
+          bracket (opBrackets' (isParenlessLam an) fixity) $ do
+            es <- mapM (toConcreteCtx InsideOperandCtx) as'
+            en <- toConcreteCtx (RightOperandCtx fixity) an
             return $ opApp (getRange (n, en)) x n (es ++ [en])
 
   -- postfix

@@ -663,7 +663,7 @@ toAbstractLam r bs e ctx = do
     e <- toAbstractCtx ctx e
     -- We have at least one binder.  Get first @b@ and rest @bs@.
     caseList bs __IMPOSSIBLE__ $ \ b bs -> do
-      return $ A.Lam (setOrigin UserWritten $ defaultLamInfo r) b $ foldr mkLam e bs
+      return $ A.Lam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) b $ foldr mkLam e bs
   where
     -- We set the origin of the outer lambda to `UserWritten` and the origin of
     -- the inner lambdas to `Inserted`.
@@ -698,7 +698,7 @@ scopeCheckExtendedLam r cs = do
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
-      return $ A.ExtendedLam (setOrigin UserWritten $ defaultLamInfo r) di qname' cs
+      return $ A.ExtendedLam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) di qname' cs
     _ -> __IMPOSSIBLE__
 
   where
@@ -790,7 +790,7 @@ instance ToAbstract C.Expr A.Expr where
       C.InstanceArg _ _ -> nothingAppliedToInstanceArg e
 
   -- Lambda
-      C.AbsurdLam r h -> return $ A.AbsurdLam (setOrigin UserWritten $ defaultLamInfo r) h
+      C.AbsurdLam r h -> return $ A.AbsurdLam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) h
 
       C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
@@ -837,7 +837,14 @@ instance ToAbstract C.Expr A.Expr where
         A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
-      C.Paren _ e -> toAbstractCtx TopCtx e
+      C.Paren _ e -> setLamParens <$> toAbstractCtx TopCtx e
+        where
+          setP i = i { lamParens = True }
+          setLamParens (A.Lam i bs e)             = A.Lam (setP i) bs e
+          setLamParens (A.AbsurdLam i h)          = A.AbsurdLam (setP i) h
+          setLamParens (A.ExtendedLam i def q cs) = A.ExtendedLam (setP i) def q cs
+          setLamParens (A.ScopedExpr s e)         = A.ScopedExpr s (setLamParens e)
+          setLamParens e                          = e
 
   -- Idiom brackets
       C.IdiomBrackets r e ->
