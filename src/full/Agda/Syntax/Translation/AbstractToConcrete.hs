@@ -1084,10 +1084,19 @@ instance ToConcrete A.Pattern C.Pattern where
 
 data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
 
-cOpApp :: Range -> C.QName -> A.Name -> [C.Expr] -> C.Expr
+cOpApp :: Range -> C.QName -> A.Name -> [Maybe C.Expr] -> C.Expr
 cOpApp r x n es =
   C.OpApp r x (Set.singleton n)
-          (map (defaultNamedArg . noPlaceholder . Ordinary) es)
+          (map (defaultNamedArg . placeholder) eps)
+  where
+    x0 = C.unqualify x
+    positions | isPrefix  x0 =                [ Middle | _ <- drop 1 es ] ++ [End]
+              | isPostfix x0 = [Beginning] ++ [ Middle | _ <- drop 1 es ]
+              | isInfix x0   = [Beginning] ++ [ Middle | _ <- drop 2 es ] ++ [End]
+              | otherwise    =                [ Middle | _ <- es ]
+    eps = zip es positions
+    placeholder (Nothing, pos) = Placeholder pos
+    placeholder (Just e,  _)   = noPlaceholder (Ordinary e)
 
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverNatural e def = do
@@ -1116,12 +1125,15 @@ tryToRecoverNatural e def = do
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isParenlessLambda . defaultNamedArg) cOpApp view e) def return
   where
+    view (A.Lam i b e) | getOrigin i == Inserted =
+      -- TODO: section recovery goes here
+      Nothing
     view e = do
       let Application hd args = AV.appView e
       case hd of
-        Var x            -> Just (HdVar x, args)
-        Def f            -> Just (HdDef f, args)
-        Con (AmbQ (c:_)) -> Just (HdCon c, args)
+        Var x            -> Just (HdVar x, (map . fmap . fmap) Just args)
+        Def f            -> Just (HdDef f, (map . fmap . fmap) Just args)
+        Con (AmbQ (c:_)) -> Just (HdCon c, (map . fmap . fmap) Just args)
         Con (AmbQ [])    -> __IMPOSSIBLE__
         _                -> Nothing
 
@@ -1129,11 +1141,13 @@ tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
   where
     opApp r x n ps =
-      C.OpAppP r x (Set.singleton n) (map defaultNamedArg ps)
+      C.OpAppP r x (Set.singleton n) (map (defaultNamedArg . fromjust) ps)
+    fromjust (Just x) = x
+    fromjust Nothing  = __IMPOSSIBLE__  -- `view` does not generate any `Nothing`s
 
     view p = case p of
-      ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
-      DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, ps)
+      ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, (map . fmap . fmap) Just ps)
+      DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, (map . fmap . fmap) Just ps)
       _ -> __IMPOSSIBLE__
       -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
       -- _                      -> Nothing
@@ -1141,8 +1155,8 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (a -> Bool)  -- ^ Check for parenless lambdas
-  -> (Range -> C.QName -> A.Name -> [c] -> c)
-  -> (a -> Maybe (Hd, [NamedArg a]))
+  -> (Range -> C.QName -> A.Name -> [Maybe c] -> c)
+  -> (a -> Maybe (Hd, [NamedArg (Maybe a)]))  -- ^ `Nothing` for sections
   -> a
   -> AbsToCon (Maybe c)
 recoverOpApp bracket isParenlessLam opApp view e = case view e of
@@ -1181,10 +1195,10 @@ recoverOpApp bracket isParenlessLam opApp view e = case view e of
                     as@(_ : _ : _) -> init $ tail as
                     _              -> __IMPOSSIBLE__
         Just <$> do
-          bracket (opBrackets' (isParenlessLam an) fixity) $ do
-            e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
-            es <- mapM (toConcreteCtx InsideOperandCtx) as'
-            en <- toConcreteCtx (RightOperandCtx fixity) an
+          bracket (opBrackets' (maybe False isParenlessLam an) fixity) $ do
+            e1 <- traverse (toConcreteCtx $ LeftOperandCtx fixity) a1
+            es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx) as'
+            en <- traverse (toConcreteCtx $ RightOperandCtx fixity) an
             return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
 
   -- prefix
@@ -1195,9 +1209,9 @@ recoverOpApp bracket isParenlessLam opApp view e = case view e of
                     as@(_ : _) -> init as
                     _          -> __IMPOSSIBLE__
         Just <$> do
-          bracket (opBrackets' (isParenlessLam an) fixity) $ do
-            es <- mapM (toConcreteCtx InsideOperandCtx) as'
-            en <- toConcreteCtx (RightOperandCtx fixity) an
+          bracket (opBrackets' (maybe False isParenlessLam an) fixity) $ do
+            es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx) as'
+            en <- traverse (toConcreteCtx $ RightOperandCtx fixity) an
             return $ opApp (getRange (n, en)) x n (es ++ [en])
 
   -- postfix
@@ -1205,15 +1219,15 @@ recoverOpApp bracket isParenlessLam opApp view e = case view e of
     | Hole <- head xs = do
         let a1  = head as
             as' = tail as
-        e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
-        es <- mapM (toConcreteCtx InsideOperandCtx) as'
+        e1 <- traverse (toConcreteCtx $ LeftOperandCtx fixity) a1
+        es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx) as'
         Just <$> do
           bracket (opBrackets fixity) $
             return $ opApp (getRange (e1, n)) x n ([e1] ++ es)
 
   -- roundfix
   doQName _ x n as xs = do
-    es <- mapM (toConcreteCtx InsideOperandCtx) as
+    es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx) as
     Just <$> do
       bracket roundFixBrackets $
         return $ opApp (getRange x) x n es
@@ -1226,3 +1240,4 @@ instance ToConcrete InteractionId C.Expr where
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
       return $ C.Underscore noRange (Just $ prettyShow i)
+
