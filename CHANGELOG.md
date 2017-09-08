@@ -639,7 +639,7 @@ Pragmas and options
 List of fixed issues
 --------------------
 
-For 2.5.3, the following additional issues have been fixed
+For 2.5.3, the following issues have been fixed
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
   - [#142](https://github.com/agda/agda/issues/142): Inherited dot patterns in with functions are not checked
@@ -687,6 +687,7 @@ For 2.5.3, the following additional issues have been fixed
   - [#2377](https://github.com/agda/agda/issues/2377): open public is useless before module header
   - [#2381](https://github.com/agda/agda/issues/2381): Search (`C-c C-z`) panics on pattern synonyms
   - [#2386](https://github.com/agda/agda/issues/2386): Relax requirements of BUILTIN EQUALITY
+  - [#2389](https://github.com/agda/agda/issues/2389): BUILTIN REFL not needed
   - [#2400](https://github.com/agda/agda/issues/2400): LaTeX backend error on LaTeX comments
   - [#2402](https://github.com/agda/agda/issues/2402): Parameters not dropped when reporting incomplete patterns
   - [#2403](https://github.com/agda/agda/issues/2403): Termination checker should reduce arguments in structural order check
@@ -815,8 +816,10 @@ For 2.5.3, the following additional issues have been fixed
   - [#2729](https://github.com/agda/agda/issues/2729): Regression: case splitting uses variable name variants instead of the unused original names
   - [#2730](https://github.com/agda/agda/issues/2730): Command to give in spite of termination errors
   - [#2731](https://github.com/agda/agda/issues/2731): Agda fails to build with happy 1.19.6
+  - [#2733](https://github.com/agda/agda/issues/2733): Avoid some uses of \AgdaIndent?
   - [#2734](https://github.com/agda/agda/issues/2734): Make height of empty lines configurable
   - [#2736](https://github.com/agda/agda/issues/2736): Segfault using Alex 3.2.2 and cpphs
+  - [#2740](https://github.com/agda/agda/issues/2740): Indenting every line of code should be a no-op
 
 
 Release notes for Agda version 2.5.2
