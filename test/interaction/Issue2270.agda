@@ -19,3 +19,6 @@ postulate
 
 foo : (A : Set) → μ (_+ A)
 foo A = {!!}
+
+bar : (A : Set) → μ (λ section → section + A)
+bar A = {!!}
