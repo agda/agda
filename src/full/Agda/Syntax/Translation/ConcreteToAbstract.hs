@@ -439,9 +439,9 @@ toAbstractHiding h = toAbstractCtx $ hiddenArgumentCtx $ getHiding h
 
 setContextCPS :: Precedence -> (a -> ScopeM b) ->
                  ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
-setContextCPS p ret f = do
-  p' <- getContextPrecedence
-  withContextPrecedence p $ f $ withContextPrecedence p' . ret
+setContextCPS p ret f =
+  withContextPrecedence p $ f $
+    bracket_ popContextPrecedence (\ _ -> pushContextPrecedence p) . ret
 
 localToAbstractCtx :: ToAbstract concrete abstract =>
                      Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
@@ -663,9 +663,11 @@ toAbstractLam r bs e ctx = do
     e <- toAbstractCtx ctx e
     -- We have at least one binder.  Get first @b@ and rest @bs@.
     caseList bs __IMPOSSIBLE__ $ \ b bs -> do
-      return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
+      return $ A.Lam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) b $ foldr mkLam e bs
   where
-    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
+    -- We set the origin of the outer lambda to `UserWritten` and the origin of
+    -- the inner lambdas to `Inserted`.
+    mkLam b e = A.Lam (defaultLamInfo $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
 scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause, Bool)] -> ScopeM A.Expr
@@ -696,7 +698,7 @@ scopeCheckExtendedLam r cs = do
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
-      return $ A.ExtendedLam (ExprRange r) di qname' cs
+      return $ A.ExtendedLam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) di qname' cs
     _ -> __IMPOSSIBLE__
 
   where
@@ -788,7 +790,7 @@ instance ToAbstract C.Expr A.Expr where
       C.InstanceArg _ _ -> nothingAppliedToInstanceArg e
 
   -- Lambda
-      C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
+      C.AbsurdLam r h -> return $ A.AbsurdLam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) h
 
       C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
@@ -835,7 +837,14 @@ instance ToAbstract C.Expr A.Expr where
         A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
-      C.Paren _ e -> toAbstractCtx TopCtx e
+      C.Paren _ e -> setLamParens <$> toAbstractCtx TopCtx e
+        where
+          setP i = i { lamParens = True }
+          setLamParens (A.Lam i bs e)             = A.Lam (setP i) bs e
+          setLamParens (A.AbsurdLam i h)          = A.AbsurdLam (setP i) h
+          setLamParens (A.ExtendedLam i def q cs) = A.ExtendedLam (setP i) def q cs
+          setLamParens (A.ScopedExpr s e)         = A.ScopedExpr s (setLamParens e)
+          setLamParens e                          = e
 
   -- Idiom brackets
       C.IdiomBrackets r e ->
@@ -1292,12 +1301,12 @@ instance ToAbstract LetDef [A.LetBinding] where
         lambda e (Arg info (Named Nothing (A.VarP x))) =
                 return $ A.Lam i (A.DomainFree info x) e
             where
-                i = ExprRange (fuseRange x e)
+                i = defaultLamInfo (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
                 return $ A.Lam i' (A.DomainFree info x) e
             where
-                i' = ExprRange (fuseRange i e)
+                i' = defaultLamInfo (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
 newtype Blind a = Blind { unBlind :: a }
@@ -2133,7 +2142,7 @@ toAbstractOpApp op ns es = do
     es <- left (notaFixity nota) nonBindingParts es
     -- Prepend the generated section binders (if any).
     let body = foldl' app op es
-    return $ foldr (A.Lam (ExprRange (getRange body))) body binders
+    return $ foldr (A.Lam (defaultLamInfo (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.
     app e arg = A.App (ExprRange (fuseRange e arg)) e arg
@@ -2180,7 +2189,7 @@ toAbstractOpApp op ns es = do
                              replacePlaceholders as
       Placeholder _     -> do
         x <- freshName noRange "section"
-        let i = argInfo a
+        let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
         return ( A.DomainFree i x : ls
                , set (Left (Var x)) a : ns

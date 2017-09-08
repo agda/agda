@@ -1,0 +1,5 @@
+top_command (cmd_load currentFile [])
+goal_command 0 (cmd_refine_or_intro False) "cong (f x ∷_)"
+goal_command 1 (cmd_refine_or_intro False) "cong (λ section → f x ∷ section)"
+goal_command 2 (cmd_goal_type Normalised) ""
+goal_command 3 (cmd_goal_type Normalised) ""

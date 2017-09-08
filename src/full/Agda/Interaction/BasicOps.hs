@@ -182,11 +182,13 @@ give force ii mr e = liftTCM $ do
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
-  catchError (giveExpr force (Just ii) mi e) $ \ err -> case err of
-    -- Turn PatternErr into proper error:
-    PatternErr{} -> typeError . GenericDocError =<< do
-      withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
-    _ -> throwError err
+  do setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
+     giveExpr force (Just ii) mi e
+    `catchError` \ case
+      -- Turn PatternErr into proper error:
+      PatternErr{} -> typeError . GenericDocError =<< do
+        withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
+      err -> throwError err
   removeInteractionPoint ii
   return e
 
@@ -228,7 +230,10 @@ refine force ii mr e = do
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
-                , Info.metaScope = scope { scopePrecedence = ArgumentCtx }
+                , Info.metaScope = scope { scopePrecedence = [ArgumentCtx] }
+                    -- Ulf, 2017-09-07: The `ArgumentCtx` above is causing #737.
+                    -- If we're building an operator application the precedence
+                    -- should be something else.
                 , metaNumber = Nothing -- in order to print just as ?, not ?n
                 , metaNameSuggestion = ""
                 }
@@ -398,7 +403,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               target  <- reify target
               let bs = TypedBindings noRange $ Arg ai $
                        TBind noRange xs domType
-                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
+                  e  = A.Lam Info.defaultLamInfo_ (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do
               t0 <- reify t0

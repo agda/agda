@@ -19,11 +19,11 @@ Loading QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.a
 \>[0][@{}l@{\AgdaIndent{0}}]%
 \>[2]\AgdaKeyword{coinductive}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]%
+%
 \>[2]\AgdaKeyword{constructor}\AgdaSpace{}%
 \AgdaCoinductiveConstructor{c}\<%
 \\
-\>[0][@{}l@{\AgdaIndent{0}}]%
+%
 \>[2]\AgdaKeyword{field}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]%
@@ -31,7 +31,7 @@ Loading QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.a
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaBound{A}\<%
 \\
-\>[2][@{}l@{\AgdaIndent{0}}]%
+%
 \>[4]\AgdaField{proj₂}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaBound{B}\AgdaSpace{}%

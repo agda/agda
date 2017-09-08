@@ -211,6 +211,10 @@ setMetaNameSuggestion mi s = unless (null s || isUnderscore s) $ do
 updateMetaVarRange :: MetaId -> Range -> TCM ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)
 
+setMetaOccursCheck :: MetaId -> RunMetaOccursCheck -> TCM ()
+setMetaOccursCheck mi b = updateMetaVar mi $ \ mvar ->
+  mvar { mvInfo = (mvInfo mvar) { miMetaOccursCheck = b } }
+
 -- * Query and manipulate interaction points.
 
 modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> TCM ()

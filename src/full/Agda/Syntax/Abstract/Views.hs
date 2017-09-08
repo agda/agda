@@ -53,6 +53,15 @@ unAppView :: AppView -> Expr
 unAppView (Application h es) =
   foldl (App (ExprRange noRange)) h es
 
+-- | Collects plain lambdas.
+data LamView = LamView [(LamInfo, LamBinding)] Expr
+
+lamView :: Expr -> LamView
+lamView (Lam i b e) = cons (i, b) $ lamView e
+  where cons b (LamView bs e) = LamView (b : bs) e
+lamView (ScopedExpr _ e) = lamView e
+lamView e = LamView [] e
+
 -- | Gather top-level 'AsP'atterns to expose underlying pattern.
 asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = first (x :) $ asView p

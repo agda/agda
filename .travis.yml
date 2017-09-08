@@ -43,10 +43,8 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-2.0
             - ghc-8.2.1
-            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -55,10 +53,8 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.2
-            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -67,10 +63,8 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-1.22
             - ghc-7.10.3
-            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -79,10 +73,8 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.8.4
-            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -117,10 +109,8 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.7
             - cabal-install-2.0
             - ghc-8.2.1
-            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -146,7 +136,7 @@ matrix:
 before_install:
 
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
+       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
     elif [[ $TEST = "STACKAGE" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     fi
@@ -191,8 +181,10 @@ install:
        export PATH=$HOME/.cabal/bin:$PATH &&
        cabal --version &&
        travis_retry cabal update &&
-       travis_retry cabal fetch cpphs-1.20.8 &&
-       cabal install cpphs-1.20.8 &&
+       travis_retry cabal fetch alex happy cpphs-1.20.8 &&
+       cabal install alex happy cpphs-1.20.8 &&
+       alex --version &&
+       happy --version &&
        cpphs --version;
     fi
 
@@ -415,4 +407,3 @@ branches:
     - maint-2.4
     - stable-2.5
     - release-2.5.1
-    - Issue2604
