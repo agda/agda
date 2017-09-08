@@ -369,13 +369,13 @@ Compiler backends
   --- | ---
   `{-# COMPILED f e #-}` | `{-# COMPILE GHC f = e #-}`
   `{-# COMPILED_TYPE A T #-}` | `{-# COMPILE GHC A = type T #-}`
-  `{-# COMPILED_DATA A D C1 .. CN #-}` | `{-# COMPILE GHC A = data D (C1 | .. | CN) #-}`
+  `{-# COMPILED_DATA A D C1 .. CN #-}` | `{-# COMPILE GHC A = data D (C1 \| .. \| CN) #-}`
   `{-# COMPILED_DECLARE_DATA #-}` | obsolete, removed
   `{-# COMPILED_EXPORT f g #-}` | `{-# COMPILE GHC f as g #-}`
   `{-# IMPORT M #-}` | `{-# FOREIGN GHC import qualified M #-}`
   `{-# HASKELL code #-}` | `{-# FOREIGN GHC code #-}`
   `{-# COMPILED_UHC f e #-}` | `{-# COMPILE UHC f = e #-}`
-  `{-# COMPILED_DATA_UHC A D C1 .. CN #-}` | `{-# COMPILE UHC A = data D (C1 | .. | CN) #-}`
+  `{-# COMPILED_DATA_UHC A D C1 .. CN #-}` | `{-# COMPILE UHC A = data D (C1 \| .. \| CN) #-}`
   `{-# IMPORT_UHC M #-}` | `{-# FOREIGN UHC __IMPORT__ M #-}`
   `{-# COMPILED_JS f e #-}` | `{-# COMPILE JS f = e #-}`
 
