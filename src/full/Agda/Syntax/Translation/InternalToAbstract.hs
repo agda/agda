@@ -422,7 +422,7 @@ reifyTerm expandAnonDefs0 v = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam defaultLamInfo_ (DomainFree info x) e
+      return $ A.Lam (setOrigin (getOrigin info) defaultLamInfo_) (DomainFree info x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
