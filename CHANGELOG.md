@@ -642,7 +642,6 @@ List of fixed issues
 For 2.5.3, the following additional issues have been fixed
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-
   - [#142](https://github.com/agda/agda/issues/142): Inherited dot patterns in with functions are not checked
   - [#623](https://github.com/agda/agda/issues/623): Error message points to importing module rather than imported module
   - [#657](https://github.com/agda/agda/issues/657): Yet another display form problem
@@ -672,6 +671,7 @@ For 2.5.3, the following additional issues have been fixed
   - [#2229](https://github.com/agda/agda/issues/2229): Absence or presence of top-level module header affects scope
   - [#2253](https://github.com/agda/agda/issues/2253): Wrong scope error for abstract constructors
   - [#2261](https://github.com/agda/agda/issues/2261): Internal error in Auto/CaseSplit.hs:284
+  - [#2270](https://github.com/agda/agda/issues/2270): Printer does not use sections.
   - [#2329](https://github.com/agda/agda/issues/2329): Size solver does not use type `Size< i` to gain the necessary information
   - [#2354](https://github.com/agda/agda/issues/2354): Interaction between instance search, size solver, and ordinary constraint solver.
   - [#2355](https://github.com/agda/agda/issues/2355): Literate Agda parser does not recognize TeX comments
@@ -707,6 +707,7 @@ For 2.5.3, the following additional issues have been fixed
   - [#2444](https://github.com/agda/agda/issues/2444): Generalising compiler pragmas
   - [#2445](https://github.com/agda/agda/issues/2445): The LaTeX backend is slow
   - [#2447](https://github.com/agda/agda/issues/2447): Cache loaded interfaces even if a type error is encountered
+  - [#2449](https://github.com/agda/agda/issues/2449): Agda depends on additional C library icu
   - [#2451](https://github.com/agda/agda/issues/2451): Agda panics when attempting to rewrite a typeclass Eq
   - [#2456](https://github.com/agda/agda/issues/2456): Internal error when postulating instance
   - [#2458](https://github.com/agda/agda/issues/2458): Regression: Agda-2.5.3 loops where Agda-2.5.2 passes
@@ -764,6 +765,7 @@ For 2.5.3, the following additional issues have been fixed
   - [#2597](https://github.com/agda/agda/issues/2597): Inline record definitions confuse the reflection API
   - [#2602](https://github.com/agda/agda/issues/2602): Debug output messes up AgdaInfo buffer
   - [#2603](https://github.com/agda/agda/issues/2603): Internal error in MetaVars.hs
+  - [#2604](https://github.com/agda/agda/issues/2604): Use QNames as anchors in generated HTML
   - [#2605](https://github.com/agda/agda/issues/2605): HTML backend generates anchors for whitespace
   - [#2606](https://github.com/agda/agda/issues/2606): Check that LHS of a rewrite rule doesn't reduce is too strict
   - [#2612](https://github.com/agda/agda/issues/2612): `exact-split` documentation is outdated and incomplete
@@ -796,12 +798,25 @@ For 2.5.3, the following additional issues have been fixed
   - [#2684](https://github.com/agda/agda/issues/2684): Bad error message for abstract constructor
   - [#2686](https://github.com/agda/agda/issues/2686): Abstract constructors should be ignored when resolving overloading
   - [#2690](https://github.com/agda/agda/issues/2690): [regression?] Agda engages in deep search instead of immediately failing
+  - [#2700](https://github.com/agda/agda/issues/2700): Add a command to check against goal type (and normalise)
+  - [#2703](https://github.com/agda/agda/issues/2703): Regression: Internal error for underapplied indexed constructor
   - [#2705](https://github.com/agda/agda/issues/2705): The GHC backend might diverge in infinite file creation
+  - [#2708](https://github.com/agda/agda/issues/2708): Why is the `name` field in .agda-lib files mandatory?
+  - [#2710](https://github.com/agda/agda/issues/2710): Type checker hangs
+  - [#2712](https://github.com/agda/agda/issues/2712): Compiler Pragma for headers
   - [#2714](https://github.com/agda/agda/issues/2714): Option --no-main should be allowed as file-local option
   - [#2717](https://github.com/agda/agda/issues/2717): internal error at DisplayForm.hs:197
+  - [#2718](https://github.com/agda/agda/issues/2718): Interactive 'give' doesn't insert enough parenthesis
   - [#2721](https://github.com/agda/agda/issues/2721): Without-K doesn't prevent heterogeneous conflict between literals
   - [#2723](https://github.com/agda/agda/issues/2723): Unreachable clauses in definition by copattern matching trip clause compiler
+  - [#2725](https://github.com/agda/agda/issues/2725): File names for generated HTML files
+  - [#2726](https://github.com/agda/agda/issues/2726): Old regression related to with
+  - [#2727](https://github.com/agda/agda/issues/2727): Internal errors related to rewrite
+  - [#2729](https://github.com/agda/agda/issues/2729): Regression: case splitting uses variable name variants instead of the unused original names
+  - [#2730](https://github.com/agda/agda/issues/2730): Command to give in spite of termination errors
+  - [#2731](https://github.com/agda/agda/issues/2731): Agda fails to build with happy 1.19.6
   - [#2734](https://github.com/agda/agda/issues/2734): Make height of empty lines configurable
+  - [#2736](https://github.com/agda/agda/issues/2736): Segfault using Alex 3.2.2 and cpphs
 
 
 Release notes for Agda version 2.5.2
