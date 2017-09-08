@@ -451,7 +451,8 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.AbsurdLam i h) =
       bracket (lamBrackets' $ lamParens i) $ return $ C.AbsurdLam (getRange i) h
     toConcrete e@(A.Lam i _ _)      =
-        bracket (lamBrackets' $ lamParens i)
+        tryToRecoverOpApp e   -- recover sections
+        $ bracket (lamBrackets' $ lamParens i)
         $ case lamView e of
             (bs, e) ->
                 bindToConcrete (map makeDomainFree bs) $ \bs -> do
@@ -1125,17 +1126,44 @@ tryToRecoverNatural e def = do
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isParenlessLambda . defaultNamedArg) cOpApp view e) def return
   where
-    view (A.Lam i b e) | getOrigin i == Inserted =
-      -- TODO: section recovery goes here
-      Nothing
-    view e = do
-      let Application hd args = AV.appView e
-      case hd of
-        Var x            -> Just (HdVar x, (map . fmap . fmap) Just args)
-        Def f            -> Just (HdDef f, (map . fmap . fmap) Just args)
-        Con (AmbQ (c:_)) -> Just (HdCon c, (map . fmap . fmap) Just args)
-        Con (AmbQ [])    -> __IMPOSSIBLE__
-        _                -> Nothing
+    view e
+        -- Do we have a series of inserted lambdas?
+      | Just xs@(_:_) <- traverse insertedName bs =
+        (,) <$> getHead hd <*> sectionArgs xs args
+      where
+        LamView     bs body = AV.lamView e
+        Application hd args = AV.appView body
+
+        -- Only inserted domain-free visible lambdas come from sections.
+        insertedName (i, A.DomainFree ai x)
+          | getOrigin i == Inserted && visible ai = Just x
+        insertedName _ = Nothing
+
+        -- Build section arguments. Need to check that:
+        -- lambda bound variables appear in the right order and only as
+        -- top-level arguments.
+        sectionArgs :: [A.Name] -> [NamedArg A.Expr] -> Maybe [NamedArg (Maybe A.Expr)]
+        sectionArgs xs = go xs
+          where
+            noXs = getAll . foldExpr (\ case A.Var x -> All (notElem x xs)
+                                             _       -> All True)
+            go [] [] = return []
+            go (y : ys) (arg : args)
+              | visible arg
+              , A.Var y' <- namedArg arg
+              , y == y'       = (fmap (Nothing <$) arg :) <$> go ys args
+            go ys (arg : args)
+              | visible arg, noXs arg = ((fmap . fmap) Just arg :) <$> go ys args
+            go _ _ = Nothing
+
+    view e = (, (map . fmap . fmap) Just args) <$> getHead hd
+      where Application hd args = AV.appView e
+
+    getHead (Var x)              = Just (HdVar x)
+    getHead (Def f)              = Just (HdDef f)
+    getHead (Con (AmbQ (c : _))) = Just (HdCon c)
+    getHead (Con (AmbQ []))      = __IMPOSSIBLE__
+    getHead _                    = Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
