@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.5.3
+version:         2.5.4
 cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
