@@ -1,2 +1,2 @@
 (agda2-status-action "")
-(agda2-info-action "*Agda Version*" "Agda version 2.5.2.20170816" nil)
+(agda2-info-action "*Agda Version*" "Agda version 2.5.3" nil)
