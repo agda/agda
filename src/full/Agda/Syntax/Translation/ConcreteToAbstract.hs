@@ -2189,7 +2189,7 @@ toAbstractOpApp op ns es = do
                              replacePlaceholders as
       Placeholder _     -> do
         x <- freshName noRange "section"
-        let i = argInfo a
+        let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
         return ( A.DomainFree i x : ls
                , set (Left (Var x)) a : ns
