@@ -1,0 +1,28 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\noindent Text.
+\AgdaHide{
+\begin{code}
+  mutual
+\end{code}}
+\begin{code}
+    postulate A : Set
+\end{code}
+More text.
+\begin{AgdaMultiCode}{2}
+\begin{code}
+  mutual
+\end{code}
+\begin{code}
+    postulate B : Set
+\end{code}
+\end{AgdaMultiCode}
+Even more text.
+
+\end{document}
