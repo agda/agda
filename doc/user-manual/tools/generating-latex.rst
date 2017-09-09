@@ -634,10 +634,10 @@ Quicker generation without typechecking
 
 A faster variant of the backend is available by invoking
 ``QuickLaTeX`` from the Emacs mode, or using ``agda --latex
---only-scope-checking``.  When this variant of the backend is used the
-top-level module is not type-checked, only scope-checked. This implies
-that some highlighting information is not available. For instance,
-overloaded constructors are not resolved.
+--only-scope-checking``. When this variant of the backend is used the
+top-level module is not type-checked, only scope-checked. Note that
+this can affect the generated document. For instance, scope-checking
+does not resolve overloaded constructors.
 
 If the module has already been type-checked successfully, then this
 information is reused; in this case QuickLaTeX behaves like the
