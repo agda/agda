@@ -218,10 +218,8 @@ replaceSpaces :: Text -> Text
 replaceSpaces = T.map (\c -> if isSpaceNotNewline c then ' ' else c)
 
 
--- | Yields the next token, taking special care to begin/end code
--- blocks. Junk occuring before and after the code blocks is separated
--- into separate tokens, this makes it easier to keep track of whether
--- we are in a code block or not.
+-- | If the `Token` consists of spaces, the internal column counter is advanced
+--   by the length of the token. Otherwise, `moveColumnForToken` is a no-op.
 moveColumnForToken :: Token -> LaTeX ()
 moveColumnForToken t = do
   unless (isSpaces (text t)) $ do
@@ -294,12 +292,6 @@ registerColumnZero = do
 
 -- | Changes to the state that are performed at the start of a code
 -- block.
-
--- This code is based on the assumption that there are no
--- non-whitespace characters following \begin{code}. For occurrences
--- of \begin{code} which start a code block this is true. However, the
--- LaTeX backend does not identify code blocks correctly, see Issue
--- #2400.
 
 enterCode :: LaTeX ()
 enterCode = do
@@ -420,10 +412,8 @@ cmdArg :: Text -> Text
 cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
 
 ------------------------------------------------------------------------
--- * Automaton.
+-- * Output generation from a stream of labelled tokens.
 
--- | The start state, @nonCode@, prints non-code (the LaTeX part of
---   literate Agda) until it sees a @beginBlock@.
 processLayers :: [(LayerRole, Tokens)] -> LaTeX ()
 processLayers = mapM_ $ \(layerRole,toks) -> do
   case layerRole of
@@ -432,7 +422,8 @@ processLayers = mapM_ $ \(layerRole,toks) -> do
     L.Code    -> processCode    toks
 
 processMarkup, processComment, processCode :: Tokens -> LaTeX ()
--- | Deals with markup
+-- | Deals with markup. Markup does not produce output, but may advance
+--   the internal column counter.
 processMarkup  = mapM_ moveColumnForToken
 
 -- | Deals with literate text, which is output verbatim
@@ -513,7 +504,7 @@ processCode toks' = do
         where
         s = show kind
 
--- Escapes special characters.
+-- | Escapes special characters.
 escape :: Text -> Text
 escape (T.uncons -> Nothing)     = T.empty
 escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
@@ -592,7 +583,7 @@ spaces [ s ] = do
 
   output $ MaybeColumn column
 
--- Split multi-lines string literals into multiple string literals
+-- | Split multi-lines string literals into multiple string literals
 -- Isolating leading spaces for the alignment machinery to work
 -- properly
 stringLiteral :: Token -> Tokens
