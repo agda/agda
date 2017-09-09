@@ -1,0 +1,38 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\noindent Text.
+\AgdaHide{
+\begin{code}%
+%
+\>[2]\AgdaKeyword{mutual}\<%
+\end{code}}
+\begin{code}%
+\>[2][@{}l@{\AgdaIndent{1}}]%
+\>[4]\AgdaKeyword{postulate}\AgdaSpace{}%
+\AgdaPostulate{A}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\end{code}
+More text.
+\begin{AgdaMultiCode}{2}
+\begin{code}%
+%
+\>[2]\AgdaKeyword{mutual}\<%
+\end{code}
+\begin{code}%
+\>[2][@{}l@{\AgdaIndent{1}}]%
+\>[4]\AgdaKeyword{postulate}\AgdaSpace{}%
+\AgdaPostulate{B}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitiveType{Set}\<%
+\end{code}
+\end{AgdaMultiCode}
+Even more text.
+
+\end{document}
