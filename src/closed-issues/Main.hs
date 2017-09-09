@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 
+module Main ( main ) where
+
 import Data.Foldable
 -- import Data.List ( intercalate )
 import Data.Maybe
