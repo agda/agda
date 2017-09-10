@@ -142,7 +142,7 @@ library
                 -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
-                , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
+                , hashtables >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.1.3 && < 0.8
                 , ieee754 >= 0.7.8 && < 0.9
                 , monadplus >= 1.4 && < 1.5
