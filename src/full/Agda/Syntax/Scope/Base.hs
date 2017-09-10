@@ -286,6 +286,39 @@ instance Ord AbstractModule where
 lensAmodName :: Functor m => (A.ModuleName -> m A.ModuleName) -> AbstractModule -> m AbstractModule
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
+
+data ResolvedName
+  = -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
+    VarName
+    { resolvedVar      :: A.Name
+    , resolvedLetBound :: Bool    -- ^ Variable bound by @let@?
+    }
+
+  | -- | Function, data/record type, postulate.
+    DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
+
+  | -- | Record field name.  Needs to be distinguished to parse copatterns.
+    FieldName [AbstractName]       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
+
+  | -- | Data or record constructor name.
+    ConstructorName [AbstractName] -- ^ @('ConName' ==) . 'anameKind'@ for all names.
+
+  | -- | Name of pattern synonym.
+    PatternSynResName AbstractName -- ^ @('PatternSynName' ==) . 'anameKind'@ for name.
+
+  | -- | Unbound name.
+    UnknownName
+  deriving (Typeable, Data, Show, Eq)
+
+instance Pretty ResolvedName where
+  pretty = \case
+    VarName x _         -> text "variable"    <+> pretty x
+    DefinedName a x     -> pretty a           <+> pretty x
+    FieldName xs        -> text "field"       <+> pretty xs
+    ConstructorName xs  -> text "constructor" <+> pretty xs
+    PatternSynResName x -> text "pattern"     <+> pretty x
+    UnknownName         -> text "<unknown name>"
+
 -- * Operations on name and module maps.
 
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a

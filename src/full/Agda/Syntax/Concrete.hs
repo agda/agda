@@ -376,7 +376,7 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma
   = OptionsPragma             Range [String]
-  | BuiltinPragma             Range String Expr
+  | BuiltinPragma             Range String QName
   | RewritePragma             Range [QName]
   | CompiledDataPragma        Range QName String [String]
   | CompiledTypePragma        Range QName String

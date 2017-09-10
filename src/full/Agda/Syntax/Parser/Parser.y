@@ -1442,10 +1442,10 @@ OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($
 BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) (Ident $4) }
+      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) $4 }
     -- Extra rule to accept keword REWRITE also as built-in:
     | '{-#' 'BUILTIN' 'REWRITE' PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) "REWRITE" (Ident $4) }
+      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) "REWRITE" $4 }
 
 RewritePragma :: { Pragma }
 RewritePragma

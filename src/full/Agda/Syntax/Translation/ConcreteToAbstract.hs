@@ -493,6 +493,10 @@ data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
 newtype OldName a = OldName a
+
+-- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
+data ResolveQName = ResolveQName C.QName
+
 data PatName      = PatName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
@@ -520,6 +524,11 @@ instance ToAbstract OldQName A.Expr where
       ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
       UnknownName         -> notInScope x
       PatternSynResName d -> return $ nameExpr d
+
+instance ToAbstract ResolveQName ResolvedName where
+  toAbstract (ResolveQName x) = resolveName x >>= \case
+    UnknownName -> notInScope x
+    q -> return q
 
 data APatName = VarPatName A.Name
               | ConPatName [AbstractName]
@@ -1751,16 +1760,16 @@ instance ToAbstract C.Pragma [A.Pragma] where
             "INLINE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INLINE pragma should be a function"
       return [ A.InlinePragma y ]
-  toAbstract (C.BuiltinPragma _ b e) | isUntypedBuiltin b = do
-    bindUntypedBuiltin b =<< toAbstract e
+  toAbstract (C.BuiltinPragma _ b q) | isUntypedBuiltin b = do
+    bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
     return []
-  toAbstract (C.BuiltinPragma _ b e) = do
+  toAbstract (C.BuiltinPragma _ b q) = do
     -- Andreas, 2015-02-14
     -- Some builtins cannot be given a valid Agda type,
     -- thus, they do not come with accompanying postulate or definition.
     if b `elem` builtinsNoDef then do
-      case e of
-        C.Ident q@(C.QName x) -> do
+      case q of
+        C.QName x -> do
           unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
             "BUILTIN " ++ b ++ " declares an identifier " ++
             "(no longer expects an already defined identifier)"
@@ -1769,10 +1778,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
           return [ A.BuiltinNoDefPragma b y ]
         _ -> genericError $
           "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
-          "but found expression " ++ prettyShow e
+          "but found " ++ prettyShow q
     else do
-      e <- toAbstract e
-      return [ A.BuiltinPragma b e ]
+      q <- toAbstract $ ResolveQName q
+      return [ A.BuiltinPragma b q ]
   toAbstract (C.ImportPragma _ i) = do
     addHaskellImport i
     return []

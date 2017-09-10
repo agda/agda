@@ -15,6 +15,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
@@ -55,8 +56,8 @@ typeOfFlat = hPi "a" (el primLevel) $
 -- | Binds the INFINITY builtin, but does not change the type's
 -- definition.
 
-bindBuiltinInf :: A.Expr -> TCM ()
-bindBuiltinInf e = bindPostulatedName builtinInf e $ \inf _ ->
+bindBuiltinInf :: ResolvedName -> TCM ()
+bindBuiltinInf x = bindPostulatedName builtinInf x $ \inf _ ->
   instantiateFull =<< checkExpr (A.Def inf) =<< typeOfInf
 
 -- | Binds the SHARP builtin, and changes the definitions of INFINITY
@@ -67,9 +68,9 @@ bindBuiltinInf e = bindPostulatedName builtinInf e $ \inf _ ->
 -- codata ∞ {a} (A : Set a) : Set a where
 --   ♯_ : (x : A) → ∞ A
 
-bindBuiltinSharp :: A.Expr -> TCM ()
-bindBuiltinSharp e =
-  bindPostulatedName builtinSharp e $ \sharp sharpDefn -> do
+bindBuiltinSharp :: ResolvedName -> TCM ()
+bindBuiltinSharp x =
+  bindPostulatedName builtinSharp x $ \sharp sharpDefn -> do
     sharpType <- typeOfSharp
     TelV fieldTel _ <- telView sharpType
     sharpE    <- instantiateFull =<< checkExpr (A.Def sharp) sharpType
@@ -111,9 +112,9 @@ bindBuiltinSharp e =
 --   ♭ : ∀ {a} {A : Set a} → ∞ A → A
 --   ♭ (♯ x) = x
 
-bindBuiltinFlat :: A.Expr -> TCM ()
-bindBuiltinFlat e =
-  bindPostulatedName builtinFlat e $ \ flat flatDefn -> do
+bindBuiltinFlat :: ResolvedName -> TCM ()
+bindBuiltinFlat x =
+  bindPostulatedName builtinFlat x $ \ flat flatDefn -> do
     flatE       <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
     Def sharp _ <- ignoreSharing <$> primSharp
     kit         <- requireLevels
