@@ -1,11 +1,12 @@
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
 import Agda.Syntax.Abstract
+import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad
 
-bindBuiltinInf   :: Expr -> TCM ()
-bindBuiltinSharp :: Expr -> TCM ()
-bindBuiltinFlat  :: Expr -> TCM ()
+bindBuiltinInf   :: ResolvedName -> TCM ()
+bindBuiltinSharp :: ResolvedName -> TCM ()
+bindBuiltinFlat  :: ResolvedName -> TCM ()
 
 {- MOVED to TypeChecking.Monad.Builtin
 data CoinductionKit

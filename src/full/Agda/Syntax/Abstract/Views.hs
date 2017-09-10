@@ -342,7 +342,7 @@ instance ExprLike ModuleApplication where
 instance ExprLike Pragma where
   recurseExpr f p =
     case p of
-      BuiltinPragma s e           -> BuiltinPragma s <$> rec e
+      BuiltinPragma s x           -> pure p
       OptionsPragma{}             -> pure p
       BuiltinNoDefPragma{}        -> pure p
       RewritePragma{}             -> pure p

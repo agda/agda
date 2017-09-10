@@ -190,7 +190,9 @@ data ModuleApplication
 
 data Pragma
   = OptionsPragma [String]
-  | BuiltinPragma String Expr
+  | BuiltinPragma String ResolvedName
+    -- ^ 'ResolvedName' is not 'UnknownName'.
+    --   Name can be ambiguous e.g. for built-in constructors.
   | BuiltinNoDefPragma String QName
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
@@ -973,10 +975,13 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
+class NameToExpr a where
+  nameExpr :: a -> Expr
+
 -- | Turn an 'AbstractName' to an expression.
-nameExpr :: AbstractName -> Expr
-nameExpr d = mk (anameKind d) $ anameName d
-  where
+instance NameToExpr AbstractName where
+  nameExpr d = mk (anameKind d) $ anameName d
+    where
     mk DefName        x = Def x
     mk FldName        x = Proj ProjSystem $ AmbQ [x]
     mk ConName        x = Con $ AmbQ [x]
@@ -984,6 +989,16 @@ nameExpr d = mk (anameKind d) $ anameName d
     mk MacroName      x = Macro x
     mk QuotableName   x = App i (Quote i) (defaultNamedArg $ Def x)
       where i = ExprRange (getRange x)
+
+-- | Assumes name is not 'UnknownName'.
+instance NameToExpr ResolvedName where
+  nameExpr = \case
+    VarName x _         -> Var x
+    DefinedName _ x     -> nameExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
+    FieldName xs        -> Proj ProjSystem . AmbQ . map anameName $ xs
+    ConstructorName xs  -> Con . AmbQ . map anameName $ xs
+    PatternSynResName x -> PatternSyn $ anameName x
+    UnknownName         -> __IMPOSSIBLE__
 
 app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App (ExprRange noRange))

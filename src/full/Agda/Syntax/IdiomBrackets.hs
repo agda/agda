@@ -8,6 +8,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Operators
 
+import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 

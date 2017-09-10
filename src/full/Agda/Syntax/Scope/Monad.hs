@@ -200,38 +200,6 @@ freshAbstractQName fx x = do
 
 -- * Resolving names
 
-data ResolvedName
-  =   -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
-    VarName
-    { resolvedVar      :: A.Name
-    , resolvedLetBound :: Bool    -- ^ Variable bound by @let@?
-    }
-
-  |   -- | Function, data/record type, postulate.
-    DefinedName Access AbstractName
-
-  |   -- | Record field name.  Needs to be distinguished to parse copatterns.
-    FieldName [AbstractName]
-
-  |   -- | Data or record constructor name.
-    ConstructorName [AbstractName]
-
-  |   -- | Name of pattern synonym.
-    PatternSynResName AbstractName
-
-  |   -- | Unbound name.
-    UnknownName
-  deriving (Show, Eq)
-
-instance Pretty ResolvedName where
-  pretty = \case
-    VarName x _         -> text "variable"    <+> pretty x
-    DefinedName a x     -> pretty a           <+> pretty x
-    FieldName xs        -> text "field"       <+> pretty xs
-    ConstructorName xs  -> text "constructor" <+> pretty xs
-    PatternSynResName x -> text "pattern"     <+> pretty x
-    UnknownName         -> text "<unknown name>"
-
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName
 resolveName = resolveName' allKindsOfNames Nothing
@@ -270,10 +238,10 @@ resolveName' kinds names x = do
       case filtKind $ filtName $ scopeLookup' x scope of
         [] -> return UnknownName
 
-        ds       | all ((==ConName) . anameKind . fst) ds ->
+        ds       | all ((ConName ==) . anameKind . fst) ds ->
           return $ ConstructorName $ map (upd . fst) ds
 
-        ds       | all ((==FldName) . anameKind . fst) ds ->
+        ds       | all ((FldName ==) . anameKind . fst) ds ->
           return $ FieldName $ map (upd . fst) ds
 
         [(d, a)] | anameKind d == PatternSynName ->

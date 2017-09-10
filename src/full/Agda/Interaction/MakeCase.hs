@@ -19,7 +19,8 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Monad (resolveName, ResolvedName(..))
+import Agda.Syntax.Scope.Base  ( ResolvedName(..) )
+import Agda.Syntax.Scope.Monad ( resolveName )
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
 

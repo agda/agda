@@ -523,14 +523,14 @@ inductiveCheck b n t = do
         , "constructors"
         ]
 
--- | @bindPostulatedName builtin e m@ checks that @e@ is a postulated
--- name @q@, and binds the builtin @builtin@ to the term @m q def@,
+-- | @bindPostulatedName builtin q m@ checks that @q@ is a postulated
+-- name, and binds the builtin @builtin@ to the term @m q def@,
 -- where @def@ is the current 'Definition' of @q@.
 
 bindPostulatedName ::
-  String -> A.Expr -> (QName -> Definition -> TCM Term) -> TCM ()
-bindPostulatedName builtin e m = do
-  q   <- getName e
+  String -> ResolvedName -> (QName -> Definition -> TCM Term) -> TCM ()
+bindPostulatedName builtin x m = do
+  q   <- getName x
   def <- getConstInfo q
   case theDef def of
     Axiom {} -> bindBuiltinName builtin =<< m q def
@@ -539,18 +539,9 @@ bindPostulatedName builtin e m = do
   err = typeError $ GenericError $
           "The argument to BUILTIN " ++ builtin ++
           " must be a postulated name"
-
-  getName (A.Def q)          = return q
-  getName (A.ScopedExpr _ e) = getName e
-  getName _                  = err
-
--- REPLACED by TC.Functions.getDef
--- getDef :: Term -> TCM QName
--- getDef t = do
---   t <- etaContract =<< normalise t
---   case ignoreSharing t of
---     Def d _ -> return d
---     _ -> __IMPOSSIBLE__
+  getName = \case
+    DefinedName _ d -> return $ anameName d
+    _ -> err
 
 addHaskellPragma :: QName -> String -> TCM ()
 addHaskellPragma = addPragma ghcBackendName
@@ -598,12 +589,9 @@ bindBuiltinUnit t = do
     _ -> genericError "Builtin UNIT must be a singleton record type"
 
 -- | Bind BUILTIN EQUALITY and BUILTIN REFL.
-bindBuiltinEquality :: A.Expr -> TCM ()
-bindBuiltinEquality (A.ScopedExpr scope e) = do
-  setScope scope
-  bindBuiltinEquality e
-bindBuiltinEquality e = do
-  (v, _t) <- inferExpr e
+bindBuiltinEquality :: ResolvedName -> TCM ()
+bindBuiltinEquality x = do
+  (v, _t) <- inferExpr (A.nameExpr x)
 
   -- Equality needs to be a data type with 1 constructor
   (eq, def) <- inductiveCheck builtinEquality 1 v
@@ -653,7 +641,6 @@ bindBuiltinEquality e = do
   wrongRefl = genericError "Wrong type of constructor of BUILTIN EQUALITY"
 
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
-bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
 bindBuiltinInfo (BuiltinInfo s d) e = do
     case d of
       BuiltinData t cs -> do
@@ -731,17 +718,17 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         bindBuiltinName s v
 
 -- | Bind a builtin thing to an expression.
-bindBuiltin :: String -> A.Expr -> TCM ()
-bindBuiltin b e = do
+bindBuiltin :: String -> ResolvedName -> TCM ()
+bindBuiltin b x = do
   unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
   if | b == builtinRefl  -> warning $ OldBuiltin b builtinEquality
      | b == builtinZero  -> nowNat b
      | b == builtinSuc   -> nowNat b
-     | b == builtinInf   -> bindBuiltinInf e
-     | b == builtinSharp -> bindBuiltinSharp e
-     | b == builtinFlat  -> bindBuiltinFlat e
-     | b == builtinEquality -> bindBuiltinEquality e
-     | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
+     | b == builtinInf   -> bindBuiltinInf x
+     | b == builtinSharp -> bindBuiltinSharp x
+     | b == builtinFlat  -> bindBuiltinFlat x
+     | b == builtinEquality -> bindBuiltinEquality x
+     | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i (A.nameExpr x)
      | otherwise -> typeError $ NoSuchBuiltinName b
   where
     nowNat b = warning $ OldBuiltin b builtinNat
@@ -749,12 +736,11 @@ bindBuiltin b e = do
 isUntypedBuiltin :: String -> Bool
 isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
 
-bindUntypedBuiltin :: String -> A.Expr -> TCM ()
-bindUntypedBuiltin b e =
-  case A.unScope e of
-    A.Def q  -> bindBuiltinName b (Def q [])
-    A.Proj _ (AmbQ [q]) -> bindBuiltinName b (Def q [])
-    e        -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
+bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
+bindUntypedBuiltin b = \case
+  DefinedName _ x -> bindBuiltinName b (Def (anameName x) [])
+  FieldName [ x ] -> bindBuiltinName b (Def (anameName x) [])
+  _ -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
 
 -- | Bind a builtin thing to a new name.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()

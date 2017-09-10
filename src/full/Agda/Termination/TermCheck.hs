@@ -778,7 +778,15 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
          -- We still need to reduce constructors, even when with-inlining happened.
          es <- -- ifM terGetHaveInlinedWith (return es0) {-else-} $
            liftTCM $ forM es0 $
-             etaContract <=< traverse reduceCon <=< instantiateFull
+             -- 2017-09-09, re issue #2732
+             -- The eta-contraction here does not seem necessary to make structural order
+             -- comparison not having to worry about eta.
+             -- Maybe we thought an eta redex could come from a meta instantiation.
+             -- However, eta-contraction is already performed by instantiateFull.
+             -- See test/Succeed/Issue2732-termination.agda.
+             -- etaContract <=<
+             traverse reduceCon <=< instantiateFull
+
            -- 2017-05-16, issue #2403: Argument normalization is too expensive,
            -- even if we only expand non-recursive functions.
            -- Argument normalization TURNED OFF.
