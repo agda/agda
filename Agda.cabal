@@ -193,8 +193,8 @@ library
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
-  -- build with Alex 3.2.0.
-  build-tools:  alex >= 3.1.0 && < 3.2.0 || >= 3.2.1
+  -- build with Alex 3.2.0 and segfaults with 3.2.2.
+  build-tools:  alex >= 3.1.0 && < 3.2.0 || == 3.2.1 || >= 3.2.3
               , happy >= 1.19.4
 
   exposed-modules:  Agda.Auto.Auto
