@@ -1,9 +1,7 @@
-Version TODO
+Version 0.14
 ============
 
-The library has been tested using Agda version TODO.
-
-Important changes since 0.13:
+The library has been tested using Agda version 2.5.3.
 
 Non-backwards compatible changes
 --------------------------------
