@@ -163,12 +163,12 @@ literateTeX pos s = mkLayers pos$ tex s
   tex [] = []
   tex s  = let (line, rest) = getLine s in
     case r_begin `matchM` line of
-      Just (getAllTextSubmatches -> [_, pre, _, markup, blanks]) ->
-        (Comment, pre):(Markup, markup):(Code, blanks):code rest
+      Just (getAllTextSubmatches -> [_, pre, _, markup, whitespace]) ->
+        (Comment, pre):(Markup, markup):(Code, whitespace):code rest
       Just _                 -> __IMPOSSIBLE__
       Nothing                -> (Comment, line):tex rest
 
-  r_begin = rex "(([^\\%]|\\\\.)*)(\\\\begin\\{code\\})([[:space:]]*)"
+  r_begin = rex "(([^\\%]|\\\\.)*)(\\\\begin\\{code\\}[^\n]*)(\n)?"
 
 
   code :: String -> [(LayerRole, String)]

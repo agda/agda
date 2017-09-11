@@ -1,6 +1,28 @@
 Release notes for Agda version 2.5.4
 ====================================
 
+Syntax and LaTeX backend
+------------------------
+
+* The `code` environment can now take arguments [Issues
+  [#2744](https://github.com/agda/agda/issues/2744) and
+  [#2453](https://github.com/agda/agda/issues/2453)].
+
+  Everything from \begin{code} to the end of the line is preserved in
+  the generated LaTeX code, and not treated as Agda code.
+
+  The default implementation of the `code` environment recognises one
+  optional argument, `hide`, which can be used for code that should be
+  type-checked, but not typeset:
+  ```latex
+  \begin{code}[hide]
+    open import Module
+  \end{code}
+  ```
+
+  The `AgdaHide` macro has not been removed, but has been deprecated
+  in favour of `[hide]`.
+
 Release notes for Agda version 2.5.3
 ====================================
 

@@ -85,18 +85,14 @@ Features
 Hiding code
 ~~~~~~~~~~~
 
-Code that you do not want to show up in the output can be hidden using
-the LaTeX command ``\AgdaHide``:
+Code that you do not want to show up in the output can be hidden by
+giving the argument ``hide`` to the code block:
 
 .. code-block:: lagda
 
-   \AgdaHide{
-   \begin{code}
+   \begin{code}[hide]
    -- the code here will not be part of the final document
    \end{code}
-   }
-
-``\AgdaHide`` also eats trailing whitespace.
 
 Alignment
 ~~~~~~~~~
@@ -211,10 +207,9 @@ block. This can be accomplished in the following way:
    \begin{code}
      visible
    \end{code}
-   \AgdaHide{
-   \begin{code}
+   \begin{code}[hide]
      hidden
-   \end{code}}
+   \end{code}
    \begin{code}
      visible
    \end{code}
@@ -240,10 +235,9 @@ blocks (excluding hidden ones). Example usage:
      aligned with "code"
        aligned with "more code"
    \end{code}
-   \AgdaHide{
-   \begin{code}
+   \begin{code}[hide]
      hidden code
-   \end{code}}
+   \end{code}
    \begin{code}
        also aligned with "more code"
    \end{code}

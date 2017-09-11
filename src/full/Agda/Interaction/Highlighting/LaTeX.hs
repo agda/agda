@@ -422,9 +422,11 @@ processLayers = mapM_ $ \(layerRole,toks) -> do
     L.Code    -> processCode    toks
 
 processMarkup, processComment, processCode :: Tokens -> LaTeX ()
--- | Deals with markup. Markup does not produce output, but may advance
---   the internal column counter.
-processMarkup  = mapM_ moveColumnForToken
+
+-- | Deals with markup, which is output verbatim.
+processMarkup = mapM_ $ \t -> do
+  moveColumnForToken t
+  output (Text (text t))
 
 -- | Deals with literate text, which is output verbatim
 processComment = mapM_ $ \t -> do
@@ -435,11 +437,11 @@ processComment = mapM_ $ \t -> do
 -- | Deals with code blocks. Every token, except spaces, is pretty
 -- printed as a LaTeX command.
 processCode toks' = do
-  output $ Text $ beginCode <+> nl
+  output $ Text nl
   enterCode
   mapM_ go toks'
   ptOpenWhenColumnZero =<< gets column
-  output $ Text $ ptClose <+> nl <+> endCode
+  output $ Text $ ptClose <+> nl
   leaveCode
 
   where
