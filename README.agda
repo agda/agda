@@ -1,7 +1,7 @@
 module README where
 
 ------------------------------------------------------------------------
--- The Agda standard library, version 0.14
+-- The Agda standard library, development version
 --
 -- Author: Nils Anders Danielsson, with contributions from Andreas
 -- Abel, Stevan Andjelkovic, Jean-Philippe Bernardy, Peter Berry,
