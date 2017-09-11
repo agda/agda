@@ -52,8 +52,7 @@ record AlmostCommutativeRing c ℓ : Set (suc (c ⊔ ℓ)) where
     record { isCommutativeSemiring = isCommutativeSemiring }
 
   open CommutativeSemiring commutativeSemiring public
-         using ( setoid
-               ; +-semigroup; +-monoid; +-commutativeMonoid
+         using ( +-semigroup; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-monoid; *-commutativeMonoid
                ; semiring
                )

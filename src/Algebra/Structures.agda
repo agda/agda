@@ -28,6 +28,9 @@ record IsSemigroup {a ℓ} {A : Set a} (≈ : Rel A ℓ)
     assoc         : Associative ∙
     ∙-cong        : ∙ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
 
+  setoid : Setoid a ℓ
+  setoid = record { isEquivalence = isEquivalence }
+
   open IsEquivalence isEquivalence public
 
 record IsMonoid {a ℓ} {A : Set a} (≈ : Rel A ℓ)
@@ -88,6 +91,24 @@ record IsGroup {a ℓ} {A : Set a} (≈ : Rel A ℓ)
 
   _-_ : FunctionProperties.Op₂ A
   x - y = x ∙ (y ⁻¹)
+
+  uniqueˡ-⁻¹ : ∀ x y → ≈ (x ∙ y) ε → ≈ x (y ⁻¹)
+  uniqueˡ-⁻¹ x y eq = let open EqR setoid in begin
+    x                ≈⟨ sym (proj₂ identity x) ⟩
+    x ∙ ε            ≈⟨ ∙-cong refl (sym (proj₂ inverse y)) ⟩
+    x ∙ (y ∙ (y ⁻¹)) ≈⟨ sym (assoc x y (y ⁻¹)) ⟩
+    (x ∙ y) ∙ (y ⁻¹) ≈⟨ ∙-cong eq refl ⟩
+    ε ∙ (y ⁻¹)       ≈⟨ proj₁ identity (y ⁻¹) ⟩
+    y ⁻¹ ∎
+
+  uniqueʳ-⁻¹ : ∀ x y → ≈ (x ∙ y) ε → ≈ y (x ⁻¹)
+  uniqueʳ-⁻¹ x y eq = let open EqR setoid in begin
+    y                ≈⟨ sym (proj₁ identity y) ⟩
+    ε ∙ y            ≈⟨ ∙-cong (sym (proj₁ inverse x)) refl ⟩
+    ((x ⁻¹) ∙ x) ∙ y ≈⟨ assoc (x ⁻¹) x y ⟩
+    (x ⁻¹) ∙ (x ∙ y) ≈⟨ ∙-cong refl eq ⟩
+    (x ⁻¹) ∙ ε       ≈⟨ proj₂ identity (x ⁻¹) ⟩
+    x ⁻¹ ∎
 
 record IsAbelianGroup
          {a ℓ} {A : Set a} (≈ : Rel A ℓ)

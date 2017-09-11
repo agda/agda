@@ -26,7 +26,7 @@ open import Algebra.FunctionProperties (_≡_ {A = ℕ})
 open import Algebra.FunctionProperties
   using (LeftCancellative; RightCancellative; Cancellative)
 open import Algebra.FunctionProperties.Consequences (setoid ℕ)
-
+open import Algebra.Morphism
 open ≡-Reasoning
 
 ------------------------------------------------------------------------
@@ -296,12 +296,21 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
   ; ∙-cong        = cong₂ _+_
   }
 
++-semigroup : Semigroup _ _
++-semigroup = record { isSemigroup = +-isSemigroup }
+
 +-0-isCommutativeMonoid : IsCommutativeMonoid _≡_ _+_ 0
 +-0-isCommutativeMonoid = record
   { isSemigroup = +-isSemigroup
   ; identityˡ    = +-identityˡ
   ; comm        = +-comm
   }
+
++-0-monoid : Monoid _ _
++-0-monoid = record { isMonoid = IsCommutativeMonoid.isMonoid +-0-isCommutativeMonoid }
+
++-0-commutativeMonoid : CommutativeMonoid _ _
++-0-commutativeMonoid = record { isCommutativeMonoid = +-0-isCommutativeMonoid }
 
 -- Other properties of _+_ and _≡_
 
@@ -467,12 +476,21 @@ n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
   ; ∙-cong        = cong₂ _*_
   }
 
+*-semigroup : Semigroup _ _
+*-semigroup = record { isSemigroup = *-isSemigroup }
+
 *-1-isCommutativeMonoid : IsCommutativeMonoid _≡_ _*_ 1
 *-1-isCommutativeMonoid = record
   { isSemigroup = *-isSemigroup
   ; identityˡ    = *-identityˡ
   ; comm        = *-comm
   }
+
+*-1-monoid : Monoid _ _
+*-1-monoid = record { isMonoid = IsCommutativeMonoid.isMonoid *-1-isCommutativeMonoid }
+
+*-1-commutativeMonoid : CommutativeMonoid _ _
+*-1-commutativeMonoid = record { isCommutativeMonoid = *-1-isCommutativeMonoid }
 
 *-+-isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ 0 1
 *-+-isCommutativeSemiring = record
@@ -481,6 +499,9 @@ n≤′m+n (suc m) n = ≤′-step (n≤′m+n m n)
   ; distribʳ              = *-distribʳ-+
   ; zeroˡ                 = *-zeroˡ
   }
+
+*-+-semiring : Semiring _ _
+*-+-semiring = record { isSemiring = IsCommutativeSemiring.isSemiring *-+-isCommutativeSemiring }
 
 *-+-commutativeSemiring : CommutativeSemiring _ _
 *-+-commutativeSemiring = record
@@ -558,6 +579,19 @@ i^j≡0⇒i≡0 i (suc j) eq = [ id , i^j≡0⇒i≡0 i j ]′ (i*j≡0⇒i≡0�
 i^j≡1⇒j≡0∨i≡1 : ∀ i j → i ^ j ≡ 1 → j ≡ 0 ⊎ i ≡ 1
 i^j≡1⇒j≡0∨i≡1 i zero    _  = inj₁ refl
 i^j≡1⇒j≡0∨i≡1 i (suc j) eq = inj₂ (i*j≡1⇒i≡1 i (i ^ j) eq)
+
+
+^-semigroup-morphism : ∀ {x} → (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
+^-semigroup-morphism = record
+  { ⟦⟧-cong = cong (_ ^_)
+  ; ∙-homo  = ^-distribˡ-+-* _
+  }
+
+^-monoid-morphism : ∀ {x} → (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
+^-monoid-morphism = record
+  { sm-homo = ^-semigroup-morphism
+  ; ε-homo  = refl
+  }
 
 ------------------------------------------------------------------------
 -- Properties of _⊔_ and _⊓_

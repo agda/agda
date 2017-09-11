@@ -27,9 +27,6 @@ record Semigroup c ℓ : Set (suc (c ⊔ ℓ)) where
 
   open IsSemigroup isSemigroup public
 
-  setoid : Setoid _ _
-  setoid = record { isEquivalence = isEquivalence }
-
 -- A raw monoid is a monoid without any laws.
 
 record RawMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
@@ -56,8 +53,6 @@ record Monoid c ℓ : Set (suc (c ⊔ ℓ)) where
   semigroup : Semigroup _ _
   semigroup = record { isSemigroup = isSemigroup }
 
-  open Semigroup semigroup public using (setoid)
-
   rawMonoid : RawMonoid _ _
   rawMonoid = record
     { _≈_ = _≈_
@@ -80,7 +75,7 @@ record CommutativeMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
   monoid : Monoid _ _
   monoid = record { isMonoid = isMonoid }
 
-  open Monoid monoid public using (setoid; semigroup; rawMonoid)
+  open Monoid monoid public using (semigroup; rawMonoid)
 
 record IdempotentCommutativeMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _∙_
@@ -98,7 +93,7 @@ record IdempotentCommutativeMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
   commutativeMonoid = record { isCommutativeMonoid = isCommutativeMonoid }
 
   open CommutativeMonoid commutativeMonoid public
-    using (setoid; semigroup; rawMonoid; monoid)
+    using (semigroup; rawMonoid; monoid)
 
 record Group c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 _⁻¹
@@ -117,7 +112,7 @@ record Group c ℓ : Set (suc (c ⊔ ℓ)) where
   monoid : Monoid _ _
   monoid = record { isMonoid = isMonoid }
 
-  open Monoid monoid public using (setoid; semigroup; rawMonoid)
+  open Monoid monoid public using (semigroup; rawMonoid)
 
 record AbelianGroup c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 _⁻¹
@@ -136,7 +131,7 @@ record AbelianGroup c ℓ : Set (suc (c ⊔ ℓ)) where
   group : Group _ _
   group = record { isGroup = isGroup }
 
-  open Group group public using (setoid; semigroup; monoid; rawMonoid)
+  open Group group public using (semigroup; monoid; rawMonoid)
 
   commutativeMonoid : CommutativeMonoid _ _
   commutativeMonoid =
@@ -163,7 +158,7 @@ record NearSemiring c ℓ : Set (suc (c ⊔ ℓ)) where
   +-monoid = record { isMonoid = +-isMonoid }
 
   open Monoid +-monoid public
-         using (setoid)
+         using ()
          renaming ( semigroup to +-semigroup
                   ; rawMonoid to +-rawMonoid)
 
@@ -188,8 +183,7 @@ record SemiringWithoutOne c ℓ : Set (suc (c ⊔ ℓ)) where
   nearSemiring = record { isNearSemiring = isNearSemiring }
 
   open NearSemiring nearSemiring public
-         using ( setoid
-               ; +-semigroup; +-rawMonoid; +-monoid
+         using ( +-semigroup; +-rawMonoid; +-monoid
                ; *-semigroup
                )
 
@@ -219,7 +213,7 @@ record SemiringWithoutAnnihilatingZero c ℓ : Set (suc (c ⊔ ℓ)) where
     record { isCommutativeMonoid = +-isCommutativeMonoid }
 
   open CommutativeMonoid +-commutativeMonoid public
-         using (setoid)
+         using ()
          renaming ( semigroup to +-semigroup
                   ; rawMonoid to +-rawMonoid
                   ; monoid    to +-monoid
@@ -257,8 +251,7 @@ record Semiring c ℓ : Set (suc (c ⊔ ℓ)) where
 
   open SemiringWithoutAnnihilatingZero
          semiringWithoutAnnihilatingZero public
-         using ( setoid
-               ; +-semigroup; +-rawMonoid; +-monoid
+         using ( +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid
                )
@@ -291,8 +284,7 @@ record CommutativeSemiringWithoutOne c ℓ : Set (suc (c ⊔ ℓ)) where
     record { isSemiringWithoutOne = isSemiringWithoutOne }
 
   open SemiringWithoutOne semiringWithoutOne public
-         using ( setoid
-               ; +-semigroup; +-rawMonoid; +-monoid
+         using ( +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup
                ; nearSemiring
@@ -317,8 +309,7 @@ record CommutativeSemiring c ℓ : Set (suc (c ⊔ ℓ)) where
   semiring = record { isSemiring = isSemiring }
 
   open Semiring semiring public
-         using ( setoid
-               ; +-semigroup; +-rawMonoid; +-monoid
+         using ( +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid
                ; nearSemiring; semiringWithoutOne
@@ -375,8 +366,7 @@ record Ring c ℓ : Set (suc (c ⊔ ℓ)) where
   semiring = record { isSemiring = isSemiring }
 
   open Semiring semiring public
-         using ( setoid
-               ; +-semigroup; +-rawMonoid; +-monoid
+         using ( +-semigroup; +-rawMonoid; +-monoid
                ; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid
                ; nearSemiring; semiringWithoutOne
@@ -421,8 +411,7 @@ record CommutativeRing c ℓ : Set (suc (c ⊔ ℓ)) where
 
   open Ring ring public using (rawRing; +-group; +-abelianGroup)
   open CommutativeSemiring commutativeSemiring public
-         using ( setoid
-               ; +-semigroup; +-rawMonoid; +-monoid; +-commutativeMonoid
+         using ( +-semigroup; +-rawMonoid; +-monoid; +-commutativeMonoid
                ; *-semigroup; *-rawMonoid; *-monoid; *-commutativeMonoid
                ; nearSemiring; semiringWithoutOne
                ; semiringWithoutAnnihilatingZero; semiring
