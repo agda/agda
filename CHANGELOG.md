@@ -44,6 +44,8 @@ Backwards compatible changes
 
   ^-semigroup-morphism  : (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
   ^-monoid-morphism     : (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
+
+  m∸n+n≡m               : n ≤ m → (m ∸ n) + n ≡ m
   ```
 
 * Added new combinators to `Relation.Unary`:

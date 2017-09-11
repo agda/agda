@@ -580,14 +580,13 @@ i^j≡1⇒j≡0∨i≡1 : ∀ i j → i ^ j ≡ 1 → j ≡ 0 ⊎ i ≡ 1
 i^j≡1⇒j≡0∨i≡1 i zero    _  = inj₁ refl
 i^j≡1⇒j≡0∨i≡1 i (suc j) eq = inj₂ (i*j≡1⇒i≡1 i (i ^ j) eq)
 
-
-^-semigroup-morphism : ∀ {x} → (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
+^-semigroup-morphism : ∀ {n} → (n ^_) Is +-semigroup -Semigroup⟶ *-semigroup
 ^-semigroup-morphism = record
   { ⟦⟧-cong = cong (_ ^_)
   ; ∙-homo  = ^-distribˡ-+-* _
   }
 
-^-monoid-morphism : ∀ {x} → (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
+^-monoid-morphism : ∀ {n} → (n ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
 ^-monoid-morphism = record
   { sm-homo = ^-semigroup-morphism
   ; ε-homo  = refl
@@ -880,6 +879,9 @@ m+n∸m≡n {m} {n} m≤n = begin
   (n + m) ∸ m  ≡⟨ m+n∸n≡m n m ⟩
   n            ∎
 
+m∸n+n≡m : ∀ {m n} → n ≤ m → (m ∸ n) + n ≡ m
+m∸n+n≡m {m} {n} n≤m = trans (sym (+-∸-comm n n≤m)) (m+n∸n≡m m n)
+
 m⊓n+n∸m≡n : ∀ m n → (m ⊓ n) + (n ∸ m) ≡ n
 m⊓n+n∸m≡n zero    n       = refl
 m⊓n+n∸m≡n (suc m) zero    = refl
@@ -894,26 +896,6 @@ m⊓n+n∸m≡n (suc m) (suc n) = cong suc $ m⊓n+n∸m≡n m n
 [i+j]∸[i+k]≡j∸k : ∀ i j k → (i + j) ∸ (i + k) ≡ j ∸ k
 [i+j]∸[i+k]≡j∸k zero    j k = refl
 [i+j]∸[i+k]≡j∸k (suc i) j k = [i+j]∸[i+k]≡j∸k i j k
-
--- TODO: Can this proof be simplified? An automatic solver which can
--- handle ∸ would be nice...
-i∸k∸j+j∸k≡i+j∸k : ∀ i j k → i ∸ (k ∸ j) + (j ∸ k) ≡ i + j ∸ k
-i∸k∸j+j∸k≡i+j∸k zero j k = begin
-  0 ∸ (k ∸ j) + (j ∸ k) ≡⟨ cong (_+ (j ∸ k)) (0∸n≡0 (k ∸ j)) ⟩
-  0 + (j ∸ k)           ≡⟨⟩
-  j ∸ k                 ∎
-i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
-  suc i ∸ (0 ∸ j) + j ≡⟨ cong (λ x → suc i ∸ x + j) (0∸n≡0 j) ⟩
-  suc i ∸ 0 + j       ≡⟨⟩
-  suc (i + j)         ∎
-i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
-  i ∸ k + 0  ≡⟨ +-identityʳ _ ⟩
-  i ∸ k      ≡⟨ cong (_∸ k) (sym (+-identityʳ _)) ⟩
-  i + 0 ∸ k  ∎
-i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
-  suc i ∸ (k ∸ j) + (j ∸ k) ≡⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
-  suc i + j ∸ k             ≡⟨ cong (_∸ k) (sym (+-suc i j)) ⟩
-  i + suc j ∸ k             ∎
 
 *-distribʳ-∸ : _*_ DistributesOverʳ _∸_
 *-distribʳ-∸ i zero k = begin
@@ -938,6 +920,25 @@ i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
 ∸-distribʳ-⊔ (suc x) (suc y) zero    = sym (⊔-identityʳ (y ∸ x))
 ∸-distribʳ-⊔ (suc x) (suc y) (suc z) = ∸-distribʳ-⊔ x y z
 
+∸-mono : _∸_ Preserves₂ _≤_ ⟶ _≥_ ⟶ _≤_
+∸-mono z≤n         (s≤s n₁≥n₂)    = z≤n
+∸-mono (s≤s m₁≤m₂) (s≤s n₁≥n₂)    = ∸-mono m₁≤m₂ n₁≥n₂
+∸-mono m₁≤m₂       (z≤n {n = n₁}) = ≤-trans (n∸m≤n n₁ _) m₁≤m₂
+
+-- TODO: Can this proof be simplified? An automatic solver which can
+-- handle ∸ would be nice...
+i∸k∸j+j∸k≡i+j∸k : ∀ i j k → i ∸ (k ∸ j) + (j ∸ k) ≡ i + j ∸ k
+i∸k∸j+j∸k≡i+j∸k zero    j k    = cong (_+ (j ∸ k)) (0∸n≡0 (k ∸ j))
+i∸k∸j+j∸k≡i+j∸k (suc i) j zero = cong (λ x → suc i ∸ x + j) (0∸n≡0 j)
+i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
+  i ∸ k + 0  ≡⟨ +-identityʳ _ ⟩
+  i ∸ k      ≡⟨ cong (_∸ k) (sym (+-identityʳ _)) ⟩
+  i + 0 ∸ k  ∎
+i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
+  suc i ∸ (k ∸ j) + (j ∸ k) ≡⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
+  suc i + j ∸ k             ≡⟨ cong (_∸ k) (sym (+-suc i j)) ⟩
+  i + suc j ∸ k             ∎
+
 im≡jm+n⇒[i∸j]m≡n : ∀ i j m n → i * m ≡ j * m + n → (i ∸ j) * m ≡ n
 im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
   (i ∸ j) * m            ≡⟨ *-distribʳ-∸ m i j ⟩
@@ -945,11 +946,6 @@ im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
   (j * m + n) ∸ (j * m)  ≡⟨ cong (_∸ j * m) (+-comm (j * m) n) ⟩
   (n + j * m) ∸ (j * m)  ≡⟨ m+n∸n≡m n (j * m) ⟩
   n                      ∎
-
-∸-mono : _∸_ Preserves₂ _≤_ ⟶ _≥_ ⟶ _≤_
-∸-mono z≤n         (s≤s n₁≥n₂)    = z≤n
-∸-mono (s≤s m₁≤m₂) (s≤s n₁≥n₂)    = ∸-mono m₁≤m₂ n₁≥n₂
-∸-mono m₁≤m₂       (z≤n {n = n₁}) = ≤-trans (n∸m≤n n₁ _) m₁≤m₂
 
 ------------------------------------------------------------------------
 -- Properties of ⌊_/2⌋
