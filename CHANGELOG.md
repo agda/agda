@@ -1,18 +1,28 @@
 Version TODO
 ============
 
--The library has been tested using Agda version TODO.
+The library has been tested using Agda version TODO.
 
--Important changes since 0.14:
+Important changes since 0.14:
 
 Non-backwards compatible changes
 --------------------------------
+
+#### Other
+
+* Changed the fixity of `⋃` and `⋂` in `Relation.Unary` to make space for `_⊢_`.
 
 Deprecated features
 -------------------
 
 Backwards compatible changes
 ----------------------------
+
+* Added new combinators to `Relation.Unary`:
+  ```agda
+  ∀[_] : Pred A ℓ → Set _
+  _⊢_  : (A → B) → Pred B ℓ → Pred A ℓ
+  ```
 
 Version 0.14
 ============

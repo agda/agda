@@ -63,8 +63,12 @@ module _ {a} {A : Set a} -- The universe of discourse.
 
   -- The property of being universal.
 
+  infix 10 Universal
+
   Universal : ∀ {ℓ} → Pred A ℓ → Set _
   Universal P = ∀ x → x ∈ P
+
+  syntax Universal P = ∀[ P ]
 
   U-Universal : Universal U
   U-Universal = λ _ → _
@@ -132,7 +136,7 @@ module _ {a} {A : Set a} -- The universe of discourse.
 
   -- Infinitary union and intersection.
 
-  infix 9 ⋃ ⋂
+  infix 10 ⋃ ⋂
 
   ⋃ : ∀ {ℓ i} (I : Set i) → (I → Pred A ℓ) → Pred A _
   ⋃ I P = λ x → Σ[ i ∈ I ] P i x
@@ -143,6 +147,13 @@ module _ {a} {A : Set a} -- The universe of discourse.
   ⋂ I P = λ x → (i : I) → P i x
 
   syntax ⋂ I (λ i → P) = ⋂[ i ∶ I ] P
+
+-- Update.
+
+infixr 9 _⊢_
+
+_⊢_ : ∀ {a b} {A : Set a} {B : Set b} {ℓ} → (A → B) → Pred B ℓ → Pred A ℓ
+f ⊢ P = λ x → P (f x)
 
 ------------------------------------------------------------------------
 -- Unary relation combinators
