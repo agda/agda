@@ -409,7 +409,7 @@
 %
 % The implementation comes from lhs2TeX's polycode.fmt, written by
 % Andres Löh.
-\newcommand{\AgdaNewlineWithVerticalSpace}[1]{%
+\newcommand{\Agda@NewlineWithVerticalSpace}[1]{%
   {\parskip=0pt\parindent=0pt\par\vskip #1\noindent}}
 
 % Should there be space around code?
@@ -573,8 +573,8 @@
     \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
                 \(\not \boolean{Agda@Suppress} \or%
                   \value{Agda@SuppressCurrent} = 1\)}{%
-      \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}{%
-      \AgdaNewlineWithVerticalSpace{0pt}}%
+      \Agda@NewlineWithVerticalSpace{\abovedisplayskip}}{%
+      \Agda@NewlineWithVerticalSpace{0pt}}%
     %
     % Indent the entire code block.
     \advance\leftskip\mathindent%
@@ -605,8 +605,8 @@
                 \(\not \boolean{Agda@Suppress} \or%
                   \value{Agda@SuppressCurrent} =%
                   \value{Agda@SuppressLast}\)}{%
-      \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}{%
-      \AgdaNewlineWithVerticalSpace{0pt}}%
+      \Agda@NewlineWithVerticalSpace{\belowdisplayskip}}{%
+      \Agda@NewlineWithVerticalSpace{0pt}}%
     %
     % Step some code block counters, but only for non-hidden code.
     \stepcounter{Agda@AlignCurrent}%
