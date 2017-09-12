@@ -219,8 +219,7 @@ However, the result may be ugly: extra space is perhaps inserted
 around the code blocks. The ``AgdaSuppressSpace`` environment ensures
 that extra space is only inserted before the first code block, and
 after the last one (but not if ``\AgdaNoSpaceAroundCode{}`` is
-used). The environment takes one argument, the number of wrapped code
-blocks (excluding hidden ones). Example usage:
+used). Example usage:
 
 .. code-block:: latex
 
@@ -230,7 +229,7 @@ blocks (excluding hidden ones). Example usage:
        more code
    \end{code}
    Explanation...
-   \begin{AgdaSuppressSpace}{2}
+   \begin{AgdaSuppressSpace}
    \begin{code}
      aligned with "code"
        aligned with "more code"

@@ -465,10 +465,7 @@
 %
 % The AgdaSuppressSpace environment ensures that extra space is only
 % inserted before the first code block, and after the last one (but
-% not if \AgdaNoSpaceAroundCode{} is used).
-%
-% The environment takes one argument, the number of wrapped code
-% blocks (excluding hidden ones). Example usage:
+% not if \AgdaNoSpaceAroundCode{} is used). Example usage:
 %
 %   \begin{AgdaAlign}
 %   \begin{code}
@@ -476,7 +473,7 @@
 %       more code
 %   \end{code}
 %   Explanation...
-%   \begin{AgdaSuppressSpace}{2}
+%   \begin{AgdaSuppressSpace}
 %   \begin{code}
 %     aligned with "code"
 %       aligned with "more code"
@@ -495,12 +492,21 @@
 % There is also a combined environment, AgdaMultiCode, that combines
 % the effects of AgdaAlign and AgdaSuppressSpace.
 
+% The number of the current/next code block (excluding hidden ones).
+\newcounter{Agda@Current}
+\setcounter{Agda@Current}{0}
+
+% The number of the previous code block (excluding hidden ones), used
+% locally in \Agda@SuppressEnd.
+\newcounter{Agda@Previous}
+
 % Is AgdaAlign active?
 \newboolean{Agda@Align}
 \setboolean{Agda@Align}{false}
 
-% The current code block.
-\newcounter{Agda@AlignCurrent}
+% The number of the first code block (if any) in a given AgdaAlign
+% environment.
+\newcounter{Agda@AlignStart}
 
 \newcommand{\Agda@AlignStart}{%
   \ifthenelse{\boolean{Agda@Align}}{%
@@ -508,7 +514,7 @@
       AgdaAlign and AgdaMultiCode environments must not be
       nested.}}{%
     \setboolean{Agda@Align}{true}%
-    \setcounter{Agda@AlignCurrent}{1}}}
+    \setcounter{Agda@AlignStart}{\value{Agda@Current}}}}
 
 \newcommand{\Agda@AlignEnd}{\setboolean{Agda@Align}{false}}
 
@@ -521,31 +527,47 @@
 \newboolean{Agda@Suppress}
 \setboolean{Agda@Suppress}{false}
 
-% The current code block.
-\newcounter{Agda@SuppressCurrent}
+% The number of the first code block (if any) in a given
+% AgdaSuppressSpace environment.
+\newcounter{Agda@SuppressStart}
 
-% The expected number of code blocks.
-\newcounter{Agda@SuppressLast}
+% Does a "do not suppress space after" label exist for the current
+% code block? (This boolean is used locally in the code environment's
+% implementation.)
+\newboolean{Agda@DoNotSuppressSpaceAfter}
 
-\newcommand{\Agda@SuppressStart}[1]{%
+\newcommand{\Agda@SuppressStart}{%
   \ifthenelse{\boolean{Agda@Suppress}}{%
     \PackageError{agda}{Nested AgdaSuppressSpace environments}{%
       AgdaSuppressSpace and AgdaMultiCode environments must not be
       nested.}}{%
     \setboolean{Agda@Suppress}{true}%
-    \setcounter{Agda@SuppressLast}{#1}%
-    \setcounter{Agda@SuppressCurrent}{1}}}
+    \setcounter{Agda@SuppressStart}{\value{Agda@Current}}}}
 
-\newcommand{\Agda@SuppressEnd}{\setboolean{Agda@Suppress}{false}}
+% Marks the given code block as one that space should not be
+% suppressed after (if AgdaSpaceAroundCode and AgdaSuppressSpace are
+% both active).
+\newcommand{\Agda@DoNotSuppressSpaceAfter}[1]{%
+  % The use of labels is intended to ensure that LaTeX will provide a
+  % warning if the document needs to be recompiled.
+  \label{Agda@DoNotSuppressSpaceAfter@#1}}
 
-\newenvironment{AgdaSuppressSpace}[1]{%
-  \Agda@SuppressStart{#1}}{%
+\newcommand{\Agda@SuppressEnd}{%
+  \ifthenelse{\value{Agda@SuppressStart} = \value{Agda@Current}}{}{%
+    % Mark the previous code block in the .aux file.
+    \setcounter{Agda@Previous}{\theAgda@Current-1}%
+    \immediate\write\@auxout{%
+      \noexpand\Agda@DoNotSuppressSpaceAfter{\theAgda@Previous}}}%
+  \setboolean{Agda@Suppress}{false}}
+
+\newenvironment{AgdaSuppressSpace}{%
+  \Agda@SuppressStart{}}{%
   \Agda@SuppressEnd{}%
   \ignorespacesafterend}
 
-\newenvironment{AgdaMultiCode}[1]{%
+\newenvironment{AgdaMultiCode}{%
   \Agda@AlignStart{}%
-  \Agda@SuppressStart{#1}}{%
+  \Agda@SuppressStart{}}{%
   \Agda@SuppressEnd{}%
   \Agda@AlignEnd{}%
   \ignorespacesafterend}
@@ -572,7 +594,7 @@
     % switch to a new line.
     \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
                 \(\not \boolean{Agda@Suppress} \or%
-                  \value{Agda@SuppressCurrent} = 1\)}{%
+                  \value{Agda@SuppressStart} = \value{Agda@Current}\)}{%
       \Agda@NewlineWithVerticalSpace{\abovedisplayskip}}{%
       \Agda@NewlineWithVerticalSpace{0pt}}%
     %
@@ -591,7 +613,7 @@
       %
       % Conditionally preserve alignment between code blocks.
       \ifthenelse{\boolean{Agda@Align}}{%
-        \ifthenelse{\value{Agda@AlignCurrent} = 1}{%
+        \ifthenelse{\value{Agda@AlignStart} = \value{Agda@Current}}{%
           \savecolumns}{%
           \restorecolumns}}{}%
       %
@@ -599,18 +621,22 @@
       \BODY%
     \end{pboxed}%
     %
+    % Does the label Agda@DoNotSuppressAfter@<current code block
+    % number> exist?
+    \ifcsdef{r@Agda@DoNotSuppressSpaceAfter@\theAgda@Current}{%
+      \setboolean{Agda@DoNotSuppressSpaceAfter}{true}}{%
+      \setboolean{Agda@DoNotSuppressSpaceAfter}{false}}%
+    %
     % Conditionally emit space after the code block. Unconditionally
     % switch to a new line.
     \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
                 \(\not \boolean{Agda@Suppress} \or%
-                  \value{Agda@SuppressCurrent} =%
-                  \value{Agda@SuppressLast}\)}{%
+                  \boolean{Agda@DoNotSuppressSpaceAfter}\)}{%
       \Agda@NewlineWithVerticalSpace{\belowdisplayskip}}{%
       \Agda@NewlineWithVerticalSpace{0pt}}%
     %
-    % Step some code block counters, but only for non-hidden code.
-    \stepcounter{Agda@AlignCurrent}%
-    \stepcounter{Agda@SuppressCurrent}}}
+    % Step the code block counter, but only for non-hidden code.
+    \stepcounter{Agda@Current}}}
 
 % Space inserted after tokens.
 \newcommand{\AgdaSpace}{ }
@@ -633,7 +659,8 @@
                 \or
               \( \boolean{Agda@Align}
                    \and
-                 #1 < \value{Agda@AlignCurrent}
+                 \cnttest{\value{Agda@Current} - #1}{>=}{
+                          \value{Agda@AlignStart}}
               \)}{\AgdaIndentSpace{}}{}}
 
 \endinput

@@ -23,6 +23,11 @@ Syntax and LaTeX backend
   The `AgdaHide` macro has not been removed, but has been deprecated
   in favour of `[hide]`.
 
+* The `AgdaSuppressSpace` and `AgdaMultiCode` environments no longer
+  take an argument.
+
+  Instead some documents need to be compiled multiple times.
+
 Release notes for Agda version 2.5.3
 ====================================
 
