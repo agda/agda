@@ -1297,7 +1297,7 @@ instance Pretty DBPatVar where
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP x)      = prettyPrec n x
   prettyPrec _ (DotP t)      = text "." P.<> prettyPrec 10 t
-  prettyPrec _ (AbsurdP _)   = text "()"
+  prettyPrec _ (AbsurdP _)   = text absurdPatternName
   prettyPrec n (ConP c i nps)= mparens (n > 0) $
     pretty (conName c) <+> fsep (map pretty ps)
     where ps = map (fmap namedThing) nps
