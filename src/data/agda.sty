@@ -557,28 +557,50 @@
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
 \NewEnviron{code}[1][]{%
+  % Conditionally hide the code.
   \ifthenelse{\equal{#1}{hide}}{}{%
+    %
+    % Conditionally emit space before the code block. Unconditionally
+    % switch to a new line.
     \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
                 \(\not \boolean{Agda@Suppress} \or%
                   \value{Agda@SuppressCurrent} = 1\)}{%
       \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}{%
       \AgdaNewlineWithVerticalSpace{0pt}}%
+    %
+    % Indent the entire code block.
     \advance\leftskip\mathindent%
+    %
+    % The code's style can be customised.
     \AgdaCodeStyle%
+    %
+    % Used to control the height of empty lines.
     \setlength{\AgdaEmptyExtraSkip}{\AgdaEmptySkip - \baselineskip}%
+    %
+    % The environment used to handle indentation (of individual lines)
+    % and alignment.
     \begin{pboxed}%
+      %
+      % Conditionally preserve alignment between code blocks.
       \ifthenelse{\boolean{Agda@Align}}{%
         \ifthenelse{\value{Agda@AlignCurrent} = 1}{%
           \savecolumns}{%
           \restorecolumns}}{}%
+      %
+      % The code.
       \BODY%
     \end{pboxed}%
+    %
+    % Conditionally emit space after the code block. Unconditionally
+    % switch to a new line.
     \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
                 \(\not \boolean{Agda@Suppress} \or%
                   \value{Agda@SuppressCurrent} =%
                   \value{Agda@SuppressLast}\)}{%
       \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}{%
       \AgdaNewlineWithVerticalSpace{0pt}}%
+    %
+    % Step some code block counters, but only for non-hidden code.
     \stepcounter{Agda@AlignCurrent}%
     \stepcounter{Agda@SuppressCurrent}}}
 
