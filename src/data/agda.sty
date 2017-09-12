@@ -503,8 +503,12 @@
 \newcounter{Agda@AlignCurrent}
 
 \newcommand{\Agda@AlignStart}{%
-  \setboolean{Agda@Align}{true}%
-  \setcounter{Agda@AlignCurrent}{1}}
+  \ifthenelse{\boolean{Agda@Align}}{%
+    \PackageError{agda}{Nested AgdaAlign environments}{%
+      AgdaAlign and AgdaMultiCode environments must not be
+      nested.}}{%
+    \setboolean{Agda@Align}{true}%
+    \setcounter{Agda@AlignCurrent}{1}}}
 
 \newcommand{\Agda@AlignEnd}{\setboolean{Agda@Align}{false}}
 
@@ -524,9 +528,13 @@
 \newcounter{Agda@SuppressLast}
 
 \newcommand{\Agda@SuppressStart}[1]{%
-  \setboolean{Agda@Suppress}{true}%
-  \setcounter{Agda@SuppressLast}{#1}%
-  \setcounter{Agda@SuppressCurrent}{1}}
+  \ifthenelse{\boolean{Agda@Suppress}}{%
+    \PackageError{agda}{Nested AgdaSuppressSpace environments}{%
+      AgdaSuppressSpace and AgdaMultiCode environments must not be
+      nested.}}{%
+    \setboolean{Agda@Suppress}{true}%
+    \setcounter{Agda@SuppressLast}{#1}%
+    \setcounter{Agda@SuppressCurrent}{1}}}
 
 \newcommand{\Agda@SuppressEnd}{\setboolean{Agda@Suppress}{false}}
 
