@@ -85,18 +85,14 @@ Features
 Hiding code
 ~~~~~~~~~~~
 
-Code that you do not want to show up in the output can be hidden using
-the LaTeX command ``\AgdaHide``:
+Code that you do not want to show up in the output can be hidden by
+giving the argument ``hide`` to the code block:
 
 .. code-block:: lagda
 
-   \AgdaHide{
-   \begin{code}
+   \begin{code}[hide]
    -- the code here will not be part of the final document
    \end{code}
-   }
-
-``\AgdaHide`` also eats trailing whitespace.
 
 Alignment
 ~~~~~~~~~
@@ -211,10 +207,9 @@ block. This can be accomplished in the following way:
    \begin{code}
      visible
    \end{code}
-   \AgdaHide{
-   \begin{code}
+   \begin{code}[hide]
      hidden
-   \end{code}}
+   \end{code}
    \begin{code}
      visible
    \end{code}
@@ -224,8 +219,7 @@ However, the result may be ugly: extra space is perhaps inserted
 around the code blocks. The ``AgdaSuppressSpace`` environment ensures
 that extra space is only inserted before the first code block, and
 after the last one (but not if ``\AgdaNoSpaceAroundCode{}`` is
-used). The environment takes one argument, the number of wrapped code
-blocks (excluding hidden ones). Example usage:
+used). Example usage:
 
 .. code-block:: latex
 
@@ -235,15 +229,14 @@ blocks (excluding hidden ones). Example usage:
        more code
    \end{code}
    Explanation...
-   \begin{AgdaSuppressSpace}{2}
+   \begin{AgdaSuppressSpace}
    \begin{code}
      aligned with "code"
        aligned with "more code"
    \end{code}
-   \AgdaHide{
-   \begin{code}
+   \begin{code}[hide]
      hidden code
-   \end{code}}
+   \end{code}
    \begin{code}
        also aligned with "more code"
    \end{code}

@@ -9,6 +9,7 @@ module LaTeXAndHTML.Tests where
 import Control.Applicative ((<$>))
 #endif
 
+import Control.Monad
 import Data.Char
 import qualified Data.List as List
 import Data.Maybe
@@ -78,11 +79,16 @@ taggedListOfAllTests = do
 
 data LaTeXResult
   = AgdaFailed ProgramResult
-  | LaTeXFailed LaTeXProg ProgramResult
+  | LaTeXFailed [LaTeXProg]
   | Success T.Text -- ^ The resulting LaTeX or HTML file.
 
 data Kind = LaTeX | QuickLaTeX | HTML
   deriving Show
+
+-- The test output may not be very informative for failing tests. One
+-- can perhaps improve the user experience by switching from
+-- goldenVsAction to something else (see test/Fail/Tests.hs for one
+-- example).
 
 mkLaTeXOrHTMLTest
   :: Kind
@@ -90,7 +96,11 @@ mkLaTeXOrHTMLTest
   -> FilePath -- ^ Input file.
   -> TestTree
 mkLaTeXOrHTMLTest k agdaBin inp =
-  goldenVsAction testName goldenFile doRun printLaTeXResult
+  goldenVsAction
+    testName
+    goldenFile
+    (liftM2 (,) getCurrentDirectory doRun)
+    (uncurry printLaTeXResult)
   where
   extension = case k of
     LaTeX      -> "tex"
@@ -170,21 +180,33 @@ mkLaTeXOrHTMLTest k agdaBin inp =
       -> IO LaTeXResult
   runLaTeX texFile wd cont prog = do
       let proc' = (proc prog ["-interaction=errorstopmode", texFile]) { cwd = Just wd }
-      (ret, out, err) <- PB.readCreateProcessWithExitCode proc' BS.empty
+      (ret, _, _) <- PB.readCreateProcessWithExitCode proc' BS.empty
       if ret == ExitSuccess then
         cont
       else do
-        let dec = decodeUtf8With (\_ _ -> Just '?')
-            res = (ret, dec out, dec err)
-        return $ LaTeXFailed prog res
+        r <- cont
+        return $ case r of
+          LaTeXFailed progs -> LaTeXFailed (prog : progs)
+          _                 -> LaTeXFailed [prog]
 
-printLaTeXResult :: LaTeXResult -> T.Text
-printLaTeXResult (Success t)          = t
-printLaTeXResult (AgdaFailed p)       = "AGDA_COMPILE_FAILED\n\n" `T.append` printProcResult p
-printLaTeXResult (LaTeXFailed prog p) = "LATEX_COMPILE_FAILED with "
-    `T.append` (T.pack prog)
-    `T.append` "\n\n"
-    `T.append` printProcResult p
+printLaTeXResult
+  :: FilePath     -- ^ The current working directory.
+  -> LaTeXResult
+  -> T.Text
+printLaTeXResult dir r = case r of
+  Success t         -> t
+  AgdaFailed p      -> "AGDA_COMPILE_FAILED\n\n"
+                         `T.append`
+                       mangle (printProcResult p)
+  LaTeXFailed progs -> "LATEX_COMPILE_FAILED with "
+                         `T.append`
+                       T.intercalate ", " (map T.pack progs)
+  where
+  -- Tries to make the resulting string more platform-independent.
+  mangle        = T.unwords . T.words . removeCWD
+  removeCWD
+    | null dir  = id
+    | otherwise = T.concat . T.splitOn (T.pack dir)
 
 readMaybe :: Read a => String -> Maybe a
 readMaybe s =

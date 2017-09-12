@@ -1,0 +1,73 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+\noindent Before.
+\begin{AgdaMultiCode}
+\begin{code}[hide]
+  postulate
+\end{code}
+\begin{code}
+    A    : Set
+\end{code}
+\begin{code}
+    BBB  : Set
+\end{code}
+\end{AgdaMultiCode}
+After.
+
+\noindent Before.
+\begin{AgdaAlign}
+\begin{code}
+  postulate
+    C : Set
+\end{code}
+\begin{code}[hide]
+    D : Set
+\end{code}
+\begin{code}
+    E : Set
+\end{code}
+\end{AgdaAlign}
+After.
+
+\noindent Before.
+\begin{AgdaAlign}
+\begin{code}
+  postulate
+    F : Set
+\end{code}
+In between.
+\begin{AgdaSuppressSpace}
+\begin{code}
+  postulate
+    G : Set
+\end{code}
+\begin{code}[hide]
+  postulate
+\end{code}
+\begin{code}
+    H : Set
+\end{code}
+\end{AgdaSuppressSpace}
+\end{AgdaAlign}
+After.
+
+\noindent Before.
+\begin{AgdaMultiCode}
+\begin{code}
+  postulate
+    !_!    : Set → Set
+\end{code}
+\begin{code}[hide]
+  postulate
+\end{code}
+\begin{code}
+    <!_!>  : Set → Set
+\end{code}
+\end{AgdaMultiCode}
+After.
+
+\end{document}

@@ -5,7 +5,7 @@
 \ProvidesPackage{agda}
 
 \RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox,
-                calc}
+                calc, environ}
 
 % https://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
@@ -384,9 +384,14 @@
 \newcommand{\AgdaError}             [1]
     {\AgdaFontStyle{\textcolor{AgdaError}{\underline{#1}}}}
 
+% Used to hide code from LaTeX.
+%
+% Note that this macro has been deprecated in favour of giving the
+% hide argument to the code environment.
+\long\def\AgdaHide#1{\ignorespaces}
+
 % Misc.
 \newcommand{\AgdaHole}[1]{\colorbox{AgdaHole}{#1}}
-\long\def\AgdaHide#1{\ignorespaces} % Used to hide code from LaTeX.
 
 % ----------------------------------------------------------------------
 % The code environment.
@@ -404,19 +409,19 @@
 %
 % The implementation comes from lhs2TeX's polycode.fmt, written by
 % Andres Löh.
-\newcommand{\AgdaNewlineWithVerticalSpace}[1]{%
+\newcommand{\Agda@NewlineWithVerticalSpace}[1]{%
   {\parskip=0pt\parindent=0pt\par\vskip #1\noindent}}
 
-% 0: No space around code. 1: Space around code.
-\newcounter{Agda@SpaceAroundCode}
+% Should there be space around code?
+\newboolean{Agda@SpaceAroundCode}
 
 % Use this command to avoid extra space around code blocks.
 \newcommand{\AgdaNoSpaceAroundCode}{%
-  \setcounter{Agda@SpaceAroundCode}{0}}
+  \setboolean{Agda@SpaceAroundCode}{false}}
 
 % Use this command to include extra space around code blocks.
 \newcommand{\AgdaSpaceAroundCode}{%
-  \setcounter{Agda@SpaceAroundCode}{1}}
+  \setboolean{Agda@SpaceAroundCode}{true}}
 
 % By default space is inserted around code blocks.
 \AgdaSpaceAroundCode{}
@@ -447,10 +452,9 @@
 %   \begin{code}
 %     visible
 %   \end{code}
-%   \AgdaHide{
-%   \begin{code}
+%   \begin{code}[hide]
 %     hidden
-%   \end{code}}
+%   \end{code}
 %   \begin{code}
 %     visible
 %   \end{code}
@@ -461,10 +465,7 @@
 %
 % The AgdaSuppressSpace environment ensures that extra space is only
 % inserted before the first code block, and after the last one (but
-% not if \AgdaNoSpaceAroundCode{} is used).
-%
-% The environment takes one argument, the number of wrapped code
-% blocks (excluding hidden ones). Example usage:
+% not if \AgdaNoSpaceAroundCode{} is used). Example usage:
 %
 %   \begin{AgdaAlign}
 %   \begin{code}
@@ -472,15 +473,14 @@
 %       more code
 %   \end{code}
 %   Explanation...
-%   \begin{AgdaSuppressSpace}{2}
+%   \begin{AgdaSuppressSpace}
 %   \begin{code}
 %     aligned with "code"
 %       aligned with "more code"
 %   \end{code}
-%   \AgdaHide{
-%   \begin{code}
+%   \begin{code}[hide]
 %     hidden code
-%   \end{code}}
+%   \end{code}
 %   \begin{code}
 %       also aligned with "more code"
 %   \end{code}
@@ -492,49 +492,82 @@
 % There is also a combined environment, AgdaMultiCode, that combines
 % the effects of AgdaAlign and AgdaSuppressSpace.
 
-% 0: AgdaAlign is not active. 1: AgdaAlign is active.
-\newcounter{Agda@Align}
-\setcounter{Agda@Align}{0}
+% The number of the current/next code block (excluding hidden ones).
+\newcounter{Agda@Current}
+\setcounter{Agda@Current}{0}
 
-% The current code block.
-\newcounter{Agda@AlignCurrent}
+% The number of the previous code block (excluding hidden ones), used
+% locally in \Agda@SuppressEnd.
+\newcounter{Agda@Previous}
+
+% Is AgdaAlign active?
+\newboolean{Agda@Align}
+\setboolean{Agda@Align}{false}
+
+% The number of the first code block (if any) in a given AgdaAlign
+% environment.
+\newcounter{Agda@AlignStart}
 
 \newcommand{\Agda@AlignStart}{%
-  \setcounter{Agda@Align}{1}%
-  \setcounter{Agda@AlignCurrent}{1}}
+  \ifthenelse{\boolean{Agda@Align}}{%
+    \PackageError{agda}{Nested AgdaAlign environments}{%
+      AgdaAlign and AgdaMultiCode environments must not be
+      nested.}}{%
+    \setboolean{Agda@Align}{true}%
+    \setcounter{Agda@AlignStart}{\value{Agda@Current}}}}
 
-\newcommand{\Agda@AlignEnd}{\setcounter{Agda@Align}{0}}
+\newcommand{\Agda@AlignEnd}{\setboolean{Agda@Align}{false}}
 
 \newenvironment{AgdaAlign}{%
   \Agda@AlignStart{}}{%
   \Agda@AlignEnd{}%
   \ignorespacesafterend}
 
-% 0: AgdaSuppressSpace is not active. 1: AgdaSuppressSpace is active.
-\newcounter{Agda@Suppress}
-\setcounter{Agda@Suppress}{0}
+% Is AgdaSuppressSpace active?
+\newboolean{Agda@Suppress}
+\setboolean{Agda@Suppress}{false}
 
-% The current code block.
-\newcounter{Agda@SuppressCurrent}
+% The number of the first code block (if any) in a given
+% AgdaSuppressSpace environment.
+\newcounter{Agda@SuppressStart}
 
-% The expected number of code blocks.
-\newcounter{Agda@SuppressLast}
+% Does a "do not suppress space after" label exist for the current
+% code block? (This boolean is used locally in the code environment's
+% implementation.)
+\newboolean{Agda@DoNotSuppressSpaceAfter}
 
-\newcommand{\Agda@SuppressStart}[1]{%
-  \setcounter{Agda@Suppress}{1}%
-  \setcounter{Agda@SuppressLast}{#1}%
-  \setcounter{Agda@SuppressCurrent}{1}}
+\newcommand{\Agda@SuppressStart}{%
+  \ifthenelse{\boolean{Agda@Suppress}}{%
+    \PackageError{agda}{Nested AgdaSuppressSpace environments}{%
+      AgdaSuppressSpace and AgdaMultiCode environments must not be
+      nested.}}{%
+    \setboolean{Agda@Suppress}{true}%
+    \setcounter{Agda@SuppressStart}{\value{Agda@Current}}}}
 
-\newcommand{\Agda@SuppressEnd}{\setcounter{Agda@Suppress}{0}}
+% Marks the given code block as one that space should not be
+% suppressed after (if AgdaSpaceAroundCode and AgdaSuppressSpace are
+% both active).
+\newcommand{\Agda@DoNotSuppressSpaceAfter}[1]{%
+  % The use of labels is intended to ensure that LaTeX will provide a
+  % warning if the document needs to be recompiled.
+  \label{Agda@DoNotSuppressSpaceAfter@#1}}
 
-\newenvironment{AgdaSuppressSpace}[1]{%
-  \Agda@SuppressStart{#1}}{%
+\newcommand{\Agda@SuppressEnd}{%
+  \ifthenelse{\value{Agda@SuppressStart} = \value{Agda@Current}}{}{%
+    % Mark the previous code block in the .aux file.
+    \setcounter{Agda@Previous}{\theAgda@Current-1}%
+    \immediate\write\@auxout{%
+      \noexpand\Agda@DoNotSuppressSpaceAfter{\theAgda@Previous}}}%
+  \setboolean{Agda@Suppress}{false}}
+
+\newenvironment{AgdaSuppressSpace}{%
+  \Agda@SuppressStart{}}{%
   \Agda@SuppressEnd{}%
   \ignorespacesafterend}
 
-\newenvironment{AgdaMultiCode}[1]{%
+\newenvironment{AgdaMultiCode}{%
   \Agda@AlignStart{}%
-  \Agda@SuppressStart{#1}}{%
+  \Agda@SuppressStart{}}{%
   \Agda@SuppressEnd{}%
   \Agda@AlignEnd{}%
   \ignorespacesafterend}
@@ -549,32 +582,61 @@
 
 % The code environment.
 %
+% Code can be hidden by writing \begin{code}[hide].
+%
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
-\newenvironment{code}{%
-  \ifthenelse{\value{Agda@SpaceAroundCode} = 0 \or%
-              \not \(\value{Agda@Suppress} = 0 \or%
-                     \value{Agda@SuppressCurrent} = 1\)}{%
-    \AgdaNewlineWithVerticalSpace{0pt}}{%
-    \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}%
-  \advance\leftskip\mathindent%
-  \AgdaCodeStyle%
-  \setlength{\AgdaEmptyExtraSkip}{\AgdaEmptySkip - \baselineskip}%
-  \pboxed%
-  \ifthenelse{\value{Agda@Align} = 0}{}{%
-    \ifthenelse{\value{Agda@AlignCurrent} = 1}{%
-      \savecolumns}{%
-      \restorecolumns}}}{%
-  \endpboxed%
-  \ifthenelse{\value{Agda@SpaceAroundCode} = 0 \or%
-              \not \(\value{Agda@Suppress} = 0 \or%
-                     \value{Agda@SuppressCurrent} =%
-                     \value{Agda@SuppressLast}\)}{%
-    \AgdaNewlineWithVerticalSpace{0pt}}{%
-    \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}%
-  \stepcounter{Agda@AlignCurrent}%
-  \stepcounter{Agda@SuppressCurrent}%
-  \ignorespacesafterend}
+\NewEnviron{code}[1][]{%
+  % Conditionally hide the code.
+  \ifthenelse{\equal{#1}{hide}}{}{%
+    %
+    % Conditionally emit space before the code block. Unconditionally
+    % switch to a new line.
+    \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
+                \(\not \boolean{Agda@Suppress} \or%
+                  \value{Agda@SuppressStart} = \value{Agda@Current}\)}{%
+      \Agda@NewlineWithVerticalSpace{\abovedisplayskip}}{%
+      \Agda@NewlineWithVerticalSpace{0pt}}%
+    %
+    % Indent the entire code block.
+    \advance\leftskip\mathindent%
+    %
+    % The code's style can be customised.
+    \AgdaCodeStyle%
+    %
+    % Used to control the height of empty lines.
+    \setlength{\AgdaEmptyExtraSkip}{\AgdaEmptySkip - \baselineskip}%
+    %
+    % The environment used to handle indentation (of individual lines)
+    % and alignment.
+    \begin{pboxed}%
+      %
+      % Conditionally preserve alignment between code blocks.
+      \ifthenelse{\boolean{Agda@Align}}{%
+        \ifthenelse{\value{Agda@AlignStart} = \value{Agda@Current}}{%
+          \savecolumns}{%
+          \restorecolumns}}{}%
+      %
+      % The code.
+      \BODY%
+    \end{pboxed}%
+    %
+    % Does the label Agda@DoNotSuppressAfter@<current code block
+    % number> exist?
+    \ifcsdef{r@Agda@DoNotSuppressSpaceAfter@\theAgda@Current}{%
+      \setboolean{Agda@DoNotSuppressSpaceAfter}{true}}{%
+      \setboolean{Agda@DoNotSuppressSpaceAfter}{false}}%
+    %
+    % Conditionally emit space after the code block. Unconditionally
+    % switch to a new line.
+    \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
+                \(\not \boolean{Agda@Suppress} \or%
+                  \boolean{Agda@DoNotSuppressSpaceAfter}\)}{%
+      \Agda@NewlineWithVerticalSpace{\belowdisplayskip}}{%
+      \Agda@NewlineWithVerticalSpace{0pt}}%
+    %
+    % Step the code block counter, but only for non-hidden code.
+    \stepcounter{Agda@Current}}}
 
 % Space inserted after tokens.
 \newcommand{\AgdaSpace}{ }
@@ -594,10 +656,11 @@
 % in the same AgdaAlign or AgdaMultiCode environment.
 \newcommand{\AgdaIndent}[1]{%
   \ifthenelse{#1 = 0
-                \OR
-              \( \value{Agda@Align} = 1
-                   \AND
-                 #1 < \value{Agda@AlignCurrent}
+                \or
+              \( \boolean{Agda@Align}
+                   \and
+                 \cnttest{\value{Agda@Current} - #1}{>=}{
+                          \value{Agda@AlignStart}}
               \)}{\AgdaIndentSpace{}}{}}
 
 \endinput

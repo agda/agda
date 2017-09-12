@@ -18,16 +18,17 @@ as literate TeX_ files. All code has to appear in code blocks:
 
 .. code-block:: lagda
 
-   Lines outside of code blocks are ignored by Agda.
+   Ignored by Agda.
 
-   \begin{code}
+   \begin{code}[ignored by Agda]
    module Whatever where
    -- Agda code goes here
    \end{code}
 
-The text outside the code blocks is ignored. If you provide a suitable
-definition for the code environment, then literate Agda files can
-double as LaTeX document sources. Example definition:
+Text outside of code blocks is ignored, as well as text right after
+`\begin{code}`, on the same line. If you provide a suitable definition
+for the code environment, then literate Agda files can double as LaTeX
+document sources. Example definition:
 
 .. code-block:: latex
 
