@@ -783,19 +783,14 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
 
   case ns of
     []  -> do
-      let ps' = (fmap . fmap . fmap . fmap)
-                  (\(DBPatVar name y) -> if (x==y)
-                                         then DBPatVar absurdPatternName y
-                                         else DBPatVar name y)
-                  ps
+      let rho = liftS x $ consS (AbsurdP $ VarP $ DBPatVar absurdPatternName 0) $ raiseS 1
+          ps' = applySubst rho ps
       return $ Left $ SClause
-               { scTel  = telFromList $ telToList delta1 ++
-                                        [fmap ((,) "()") t] ++ -- add name "()"
-                                        telToList delta2
-               , scPats = ps
-               , scSubst = idS -- not used anyway
+               { scTel  = tel
+               , scPats = ps'
+               , scSubst              = __IMPOSSIBLE__ -- not used
                , scModuleParameterSub = __IMPOSSIBLE__ -- not used
-               , scTarget = Nothing -- not used
+               , scTarget             = Nothing
                }
 
     -- Andreas, 2011-10-03

@@ -891,7 +891,7 @@ instance Binder A.LHSCore where
 
 instance Binder A.Pattern where
   varsBoundIn = foldAPattern $ \case
-    A.VarP x            -> if prettyShow x == "()" then empty else singleton x -- TODO: get rid of this hack?
+    A.VarP x            -> singleton x
     A.AsP _ x _         -> empty
     A.ConP _ _ _        -> empty
     A.ProjP{}           -> empty
