@@ -412,16 +412,16 @@
 \newcommand{\AgdaNewlineWithVerticalSpace}[1]{%
   {\parskip=0pt\parindent=0pt\par\vskip #1\noindent}}
 
-% 0: No space around code. 1: Space around code.
-\newcounter{Agda@SpaceAroundCode}
+% Should there be space around code?
+\newboolean{Agda@SpaceAroundCode}
 
 % Use this command to avoid extra space around code blocks.
 \newcommand{\AgdaNoSpaceAroundCode}{%
-  \setcounter{Agda@SpaceAroundCode}{0}}
+  \setboolean{Agda@SpaceAroundCode}{false}}
 
 % Use this command to include extra space around code blocks.
 \newcommand{\AgdaSpaceAroundCode}{%
-  \setcounter{Agda@SpaceAroundCode}{1}}
+  \setboolean{Agda@SpaceAroundCode}{true}}
 
 % By default space is inserted around code blocks.
 \AgdaSpaceAroundCode{}
@@ -495,27 +495,27 @@
 % There is also a combined environment, AgdaMultiCode, that combines
 % the effects of AgdaAlign and AgdaSuppressSpace.
 
-% 0: AgdaAlign is not active. 1: AgdaAlign is active.
-\newcounter{Agda@Align}
-\setcounter{Agda@Align}{0}
+% Is AgdaAlign active?
+\newboolean{Agda@Align}
+\setboolean{Agda@Align}{false}
 
 % The current code block.
 \newcounter{Agda@AlignCurrent}
 
 \newcommand{\Agda@AlignStart}{%
-  \setcounter{Agda@Align}{1}%
+  \setboolean{Agda@Align}{true}%
   \setcounter{Agda@AlignCurrent}{1}}
 
-\newcommand{\Agda@AlignEnd}{\setcounter{Agda@Align}{0}}
+\newcommand{\Agda@AlignEnd}{\setboolean{Agda@Align}{false}}
 
 \newenvironment{AgdaAlign}{%
   \Agda@AlignStart{}}{%
   \Agda@AlignEnd{}%
   \ignorespacesafterend}
 
-% 0: AgdaSuppressSpace is not active. 1: AgdaSuppressSpace is active.
-\newcounter{Agda@Suppress}
-\setcounter{Agda@Suppress}{0}
+% Is AgdaSuppressSpace active?
+\newboolean{Agda@Suppress}
+\setboolean{Agda@Suppress}{false}
 
 % The current code block.
 \newcounter{Agda@SuppressCurrent}
@@ -524,11 +524,11 @@
 \newcounter{Agda@SuppressLast}
 
 \newcommand{\Agda@SuppressStart}[1]{%
-  \setcounter{Agda@Suppress}{1}%
+  \setboolean{Agda@Suppress}{true}%
   \setcounter{Agda@SuppressLast}{#1}%
   \setcounter{Agda@SuppressCurrent}{1}}
 
-\newcommand{\Agda@SuppressEnd}{\setcounter{Agda@Suppress}{0}}
+\newcommand{\Agda@SuppressEnd}{\setboolean{Agda@Suppress}{false}}
 
 \newenvironment{AgdaSuppressSpace}[1]{%
   \Agda@SuppressStart{#1}}{%
@@ -558,27 +558,27 @@
 % polycode.fmt, written by Andres Löh.
 \NewEnviron{code}[1][]{%
   \ifthenelse{\equal{#1}{hide}}{}{%
-    \ifthenelse{\value{Agda@SpaceAroundCode} = 0 \or%
-                \not \(\value{Agda@Suppress} = 0 \or%
-                       \value{Agda@SuppressCurrent} = 1\)}{%
-      \AgdaNewlineWithVerticalSpace{0pt}}{%
-      \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}%
+    \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
+                \(\not \boolean{Agda@Suppress} \or%
+                  \value{Agda@SuppressCurrent} = 1\)}{%
+      \AgdaNewlineWithVerticalSpace{\abovedisplayskip}}{%
+      \AgdaNewlineWithVerticalSpace{0pt}}%
     \advance\leftskip\mathindent%
     \AgdaCodeStyle%
     \setlength{\AgdaEmptyExtraSkip}{\AgdaEmptySkip - \baselineskip}%
     \begin{pboxed}%
-      \ifthenelse{\value{Agda@Align} = 0}{}{%
+      \ifthenelse{\boolean{Agda@Align}}{%
         \ifthenelse{\value{Agda@AlignCurrent} = 1}{%
           \savecolumns}{%
-          \restorecolumns}}%
+          \restorecolumns}}{}%
       \BODY%
     \end{pboxed}%
-    \ifthenelse{\value{Agda@SpaceAroundCode} = 0 \or%
-                \not \(\value{Agda@Suppress} = 0 \or%
-                       \value{Agda@SuppressCurrent} =%
-                       \value{Agda@SuppressLast}\)}{%
-      \AgdaNewlineWithVerticalSpace{0pt}}{%
-      \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}%
+    \ifthenelse{\boolean{Agda@SpaceAroundCode} \and%
+                \(\not \boolean{Agda@Suppress} \or%
+                  \value{Agda@SuppressCurrent} =%
+                  \value{Agda@SuppressLast}\)}{%
+      \AgdaNewlineWithVerticalSpace{\belowdisplayskip}}{%
+      \AgdaNewlineWithVerticalSpace{0pt}}%
     \stepcounter{Agda@AlignCurrent}%
     \stepcounter{Agda@SuppressCurrent}}}
 
@@ -600,9 +600,9 @@
 % in the same AgdaAlign or AgdaMultiCode environment.
 \newcommand{\AgdaIndent}[1]{%
   \ifthenelse{#1 = 0
-                \OR
-              \( \value{Agda@Align} = 1
-                   \AND
+                \or
+              \( \boolean{Agda@Align}
+                   \and
                  #1 < \value{Agda@AlignCurrent}
               \)}{\AgdaIndentSpace{}}{}}
 
