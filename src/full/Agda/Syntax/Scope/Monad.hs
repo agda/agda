@@ -141,14 +141,17 @@ modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
 modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
   AssocList.updateAt acc f
 
-pushContextPrecedence :: Precedence -> ScopeM ()
-pushContextPrecedence p = modifyScope_ $ \ s -> s { scopePrecedence = pushPrecedence p $ scopePrecedence s }
+pushContextPrecedence :: Precedence -> ScopeM PrecedenceStack
+pushContextPrecedence p = do
+  old <- scopePrecedence <$> getScope
+  modifyScope_ $ \ s -> s { scopePrecedence = pushPrecedence p $ scopePrecedence s }
+  return old
 
-popContextPrecedence :: ScopeM ()
-popContextPrecedence = modifyScope_ $ \ s -> s { scopePrecedence = drop 1 $ scopePrecedence s }
+setContextPrecedence :: PrecedenceStack -> ScopeM ()
+setContextPrecedence ps = modifyScope_ $ \ s -> s { scopePrecedence = ps }
 
 withContextPrecedence :: Precedence -> ScopeM a -> ScopeM a
-withContextPrecedence p = bracket_ (pushContextPrecedence p) (const popContextPrecedence)
+withContextPrecedence p = bracket_ (pushContextPrecedence p) setContextPrecedence
 
 getLocalVars :: ScopeM LocalVars
 getLocalVars = scopeLocals <$> getScope
