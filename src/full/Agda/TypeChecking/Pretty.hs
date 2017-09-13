@@ -27,6 +27,7 @@ import Data.Maybe
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Fixity (Precedence)
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
@@ -41,6 +42,7 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
+import Agda.Syntax.Scope.Monad (withContextPrecedence)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (equalityUnview)
@@ -142,6 +144,10 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 
 class PrettyTCM a where
   prettyTCM :: a -> TCM Doc
+
+-- | Pretty print with a given context precedence
+prettyTCMCtx :: PrettyTCM a => Precedence -> a -> TCM Doc
+prettyTCMCtx p = withContextPrecedence p . prettyTCM
 
 instance PrettyTCM Bool        where prettyTCM = pretty
 instance PrettyTCM C.Name      where prettyTCM = pretty
