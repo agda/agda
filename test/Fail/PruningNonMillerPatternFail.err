@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  _35 := (λ C k {.x} {.y} → refl) [blocked on problem 65]
+  _35 := λ C k {.x} {.y} → refl [blocked on problem 65]
   [65, 68] (_13 (_19 .x (λ k₁ → k₁ .y)) .y) = (_13 .x .x) : Nat
   _33 := (λ C k {.x} {.y} → refl) [blocked on problem 59]
   [59, 62] (_19 .x (λ k₁ → k₁ .x)) = .x : Nat

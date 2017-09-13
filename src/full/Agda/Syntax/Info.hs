@@ -67,33 +67,33 @@ instance KillRange ExprInfo where
   killRange (ExprRange r) = exprNoRange
 
 {--------------------------------------------------------------------------
-    Lambda information
+    Application information
  --------------------------------------------------------------------------}
 
--- | Information about lambdas.
-data LamInfo = LamInfo { lamRange  :: Range
-                       , lamOrigin :: Origin
-                       , lamParens :: Bool    -- ^ Do we prefer the lambda with or without parens?
+-- | Information about application
+data AppInfo = AppInfo { appRange  :: Range
+                       , appOrigin :: Origin
+                       , appParens :: ParenPreference -- ^ Do we prefer a appbda argument with or without parens?
                        }
   deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | Default is system inserted and prefer parens.
-defaultLamInfo :: Range -> LamInfo
-defaultLamInfo r = LamInfo{ lamRange = r, lamOrigin = Inserted, lamParens = True }
+defaultAppInfo :: Range -> AppInfo
+defaultAppInfo r = AppInfo{ appRange = r, appOrigin = Inserted, appParens = PreferParen }
 
--- | `LamInfo` with no range information.
-defaultLamInfo_ :: LamInfo
-defaultLamInfo_ = defaultLamInfo noRange
+-- | `AppInfo` with no range information.
+defaultAppInfo_ :: AppInfo
+defaultAppInfo_ = defaultAppInfo noRange
 
-instance HasRange LamInfo where
-  getRange = lamRange
+instance HasRange AppInfo where
+  getRange = appRange
 
-instance KillRange LamInfo where
-  killRange (LamInfo r o p) = LamInfo (killRange r) o p
+instance KillRange AppInfo where
+  killRange (AppInfo r o p) = AppInfo (killRange r) o p
 
-instance LensOrigin LamInfo where
-  getOrigin = lamOrigin
-  setOrigin o i = i { lamOrigin = o }
+instance LensOrigin AppInfo where
+  getOrigin = appOrigin
+  setOrigin o i = i { appOrigin = o }
 
 {--------------------------------------------------------------------------
     Module information

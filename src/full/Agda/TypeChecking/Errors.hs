@@ -1479,7 +1479,7 @@ instance PrettyTCM Call where
 
     where
     hPretty :: Arg (Named_ Expr) -> TCM Doc
-    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (getHiding a)) a
+    hPretty a = pretty =<< abstractToConcreteHiding a a
 
 ---------------------------------------------------------------------------
 -- * Natural language

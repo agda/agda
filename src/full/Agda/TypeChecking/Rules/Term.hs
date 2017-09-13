@@ -442,7 +442,7 @@ insertHiddenLambdas h target postpone ret = do
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
-checkAbsurdLambda :: A.LamInfo -> Hiding -> A.Expr -> Type -> TCM Term
+checkAbsurdLambda :: A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
 checkAbsurdLambda i h e t = do
   t <- instantiateFull t
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t' -> do
@@ -492,7 +492,7 @@ checkAbsurdLambda i h e t = do
 
 -- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.
 -- Precondition: @e = ExtendedLam i di qname cs@
-checkExtendedLambda :: A.LamInfo -> A.DefInfo -> QName -> [A.Clause] ->
+checkExtendedLambda :: A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
                        A.Expr -> Type -> TCM Term
 checkExtendedLambda i di qname cs e t = do
    -- Andreas, 2016-06-16 issue #2045
@@ -766,7 +766,7 @@ checkRecordUpdate ei recexpr fs e t = do
   where
     replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
     replaceFields n ei a@(Arg _ p) Nothing | visible a =
-        Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
+        Just $ A.App (A.defaultAppInfo $ getRange ei) (A.Def p) $ defaultNamedArg $ A.Var n
     replaceFields _ _  (Arg _ _) Nothing  = Nothing
     replaceFields _ _  _         (Just e) = Just $ e
 
@@ -969,8 +969,9 @@ checkExpr e t0 =
             (Right quotedCtx, Right quotedGoal) -> do
               quotedCtx  <- defaultNamedArg <$> reify quotedCtx
               quotedGoal <- defaultNamedArg <$> reify quotedGoal
-              let tac    = foldl (A.App i) (A.App i (A.App i e quotedCtx) quotedGoal) xs
-                  result = foldl (A.App i) (A.Unquote i) (defaultNamedArg tac : ys)
+              let ai     = A.defaultAppInfo (getRange i)
+                  tac    = foldl (A.App ai) (A.App ai (A.App ai e quotedCtx) quotedGoal) xs
+                  result = foldl (A.App ai) (A.Unquote i) (defaultNamedArg tac : ys)
               checkExpr result t
 
         A.ETel _   -> __IMPOSSIBLE__
@@ -1014,7 +1015,7 @@ checkExpr e t0 =
     doInsert info y = do
       x <- unshadowName <=< freshName rx $ notInScopeName y
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-      checkExpr (A.Lam (A.defaultLamInfo re) (domainFree info x) e) t
+      checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
 
     hiddenLambdaOrHole h e = case e of
       A.AbsurdLam _ h'        -> sameHiding h h'
@@ -1405,10 +1406,10 @@ checkApplication hd args e t = do
           mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
           mkArg t a | unEl t == tTerm =
             (fmap . fmap)
-              (A.App (A.ExprRange (getRange a)) (A.QuoteTerm A.exprNoRange) . defaultNamedArg) a
+              (A.App (A.defaultAppInfo (getRange a)) (A.QuoteTerm A.exprNoRange) . defaultNamedArg) a
           mkArg t a | unEl t == tName =
             (fmap . fmap)
-              (A.App (A.ExprRange (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a
+              (A.App (A.defaultAppInfo (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a
           mkArg t a | otherwise = a
 
           makeArgs :: [Dom (String, Type)] -> [NamedArg A.Expr] -> ([NamedArg A.Expr], [NamedArg A.Expr])
@@ -1422,7 +1423,7 @@ checkApplication hd args e t = do
               NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
 
           (macroArgs, otherArgs) = makeArgs argTel args
-          unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
+          unq = A.App (A.defaultAppInfo $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
 
           desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs) otherArgs
 

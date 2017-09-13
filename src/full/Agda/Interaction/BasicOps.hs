@@ -26,7 +26,7 @@ import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Common
-import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange)
+import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange,defaultAppInfo_,defaultAppInfo)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
@@ -35,7 +35,7 @@ import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Fixity(Precedence(..))
+import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
@@ -230,8 +230,8 @@ refine force ii mr e = do
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
-                , Info.metaScope = scope { scopePrecedence = [ArgumentCtx] }
-                    -- Ulf, 2017-09-07: The `ArgumentCtx` above is causing #737.
+                , Info.metaScope = scope { scopePrecedence = [argumentCtx_] }
+                    -- Ulf, 2017-09-07: The `argumentCtx_` above is causing #737.
                     -- If we're building an operator application the precedence
                     -- should be something else.
                 , metaNumber = Nothing -- in order to print just as ?, not ?n
@@ -256,7 +256,7 @@ refine force ii mr e = do
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
-          return $ smartApp (ExprRange r) e $ defaultNamedArg metaVar
+          return $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
           --ToDo: The position of metaVar is not correct
           --ToDo: The fixity of metavars is not correct -- fixed? MT
 
@@ -373,7 +373,7 @@ reifyElimToExpr e = case e of
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
     appl :: String -> Arg Expr -> Expr
-    appl s v = A.App exprNoRange (A.Lit (LitString noRange s)) $ fmap unnamed v
+    appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
@@ -403,14 +403,14 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               target  <- reify target
               let bs = TypedBindings noRange $ Arg ai $
                        TBind noRange xs domType
-                  e  = A.Lam Info.defaultLamInfo_ (DomainFull bs) body
+                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
             UnquoteTactic tac _ goal -> do
-              tac <- A.App exprNoRange (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
+              tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
               OfType tac <$> reify goal
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
@@ -474,17 +474,17 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (CmpInType cmp t e e') =
-      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx ArgumentCtx e
-                                               <*> toConcreteCtx ArgumentCtx e'
+      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx argumentCtx_ e
+                                               <*> toConcreteCtx argumentCtx_ e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
-    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx ArgumentCtx e
-                                                  <*> toConcreteCtx ArgumentCtx e'
-    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx ArgumentCtx e
-                                                    <*> toConcreteCtx ArgumentCtx e'
+    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx argumentCtx_ e
+                                                  <*> toConcreteCtx argumentCtx_ e'
+    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx argumentCtx_ e
+                                                    <*> toConcreteCtx argumentCtx_ e'
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
-    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx ArgumentCtx e
-                                                  <*> toConcreteCtx ArgumentCtx e'
+    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx argumentCtx_ e
+                                                  <*> toConcreteCtx argumentCtx_ e'
     toConcrete (Guard o pid) = Guard <$> toConcrete o <*> pure pid
     toConcrete (Assign m e) = noTakenNames $ Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
