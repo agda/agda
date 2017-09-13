@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument _12 : (C (Q _9))
+  Resolve instance argument _12 : C (Q _9)
   Candidates CQ : (C (Q Nat))
 Unsolved metas at the following locations:
   NonRigidlyConstrained.agda:15,14-15

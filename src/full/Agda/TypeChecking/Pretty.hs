@@ -27,7 +27,7 @@ import Data.Maybe
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity (Precedence)
+import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
@@ -264,48 +264,20 @@ instance PrettyTCM ProblemConstraint where
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-        ValueCmp cmp ty s t ->
-            sep [ sep [ prettyTCM s
-                      , prettyTCM cmp <+> prettyTCM t
-                      ]
-                , nest 2 $ text ":" <+> prettyTCM ty
-                ]
-        ElimCmp cmps t v us vs ->
-          sep [ sep [ prettyTCM us
-                    , nest 2 $ text "~~" <+> prettyTCM vs
-                    ]
-              , text ":" <+> prettyTCM t ]
-        LevelCmp cmp a b ->
-            sep [ prettyTCM a
-                , prettyTCM cmp <+> prettyTCM b
-                ]
-        TypeCmp cmp a b ->
-            sep [ prettyTCM a
-                , prettyTCM cmp <+> prettyTCM b
-                ]
-        TelCmp a b cmp tela telb ->
-            sep [ prettyTCM tela
-                , prettyTCM cmp <+> prettyTCM telb
-                ]
-        SortCmp cmp s1 s2 ->
-            sep [ prettyTCM s1
-                , prettyTCM cmp <+> prettyTCM s2
-                ]
-        Guarded c pid ->
-            sep [ prettyTCM c
-                , nest 2 $ brackets $ text "blocked on problem" <+> prettyTCM pid
-                ]
+        ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (text ":" <+> prettyTCMCtx TopCtx ty)
+        ElimCmp cmps t v us vs   -> prettyCmp (text "~~") us vs   <?> (text ":" <+> prettyTCMCtx TopCtx t)
+        LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
+        TypeCmp cmp a b          -> prettyCmp (prettyTCM cmp) a b
+        TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb
+        SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
+        Guarded c pid            -> prettyTCM c <?> (brackets $ text "blocked on problem" <+> prettyTCM pid)
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
             mi <- mvInstantiation <$> lookupMeta m
             case mi of
-              BlockedConst t ->
-                sep [ pretty m <+> text ":="
-                    , nest 2 $ prettyTCM t
-                    ]
+              BlockedConst t -> prettyCmp (text ":=") m t
               PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p ->
-                sep [ pretty m <+> text ":="
-                    , nest 2 $ prettyTCM p ]
+                prettyCmp (text ":=") m p
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
               InstV{} -> empty
@@ -322,8 +294,8 @@ instance PrettyTCM Constraint where
               --   __IMPOSSIBLE__
         FindInScope m mb mcands -> do
             t <- getMetaType m
-            sep [ hang (text "Resolve instance argument" <+> blk) 2 $
-                  hang (pretty m <+> text ":") 2 $ prettyTCM t
+            sep [ text "Resolve instance argument" <+> blk
+                    <?> prettyCmp (text ":") m t
                 , cands
                 ]
           where
@@ -340,9 +312,13 @@ instance PrettyTCM Constraint where
               where overlap c | candidateOverlappable c = text "overlap"
                               | otherwise               = empty
         IsEmpty r t ->
-            sep [ text "Is empty:", nest 2 $ prettyTCM t ]
+            text "Is empty:" <?> prettyTCMCtx TopCtx t
         CheckSizeLtSat t ->
-            sep [ text "Is not empty type of sizes:", nest 2 $ prettyTCM t ]
+            text "Is not empty type of sizes:" <?> prettyTCMCtx TopCtx t
+      where
+        prettyCmp :: (PrettyTCM a, PrettyTCM b) => TCM Doc -> a -> b -> TCM Doc
+        prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
+
 
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr e a) =
