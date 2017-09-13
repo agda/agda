@@ -1,0 +1,23 @@
+% The example below is, modulo a small change, due to Andrés
+% Sicard-Ramírez.
+
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+av
+\begin{code}
+  module Issue2401 where
+
+    data Bool : Set where
+      true  : Bool
+      false : Bool
+      dunno : Bool
+      aa    : {- \end{code} -} Bool
+
+\end{code}
+bleh
+
+\end{document}
