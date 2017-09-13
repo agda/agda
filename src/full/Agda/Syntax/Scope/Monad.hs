@@ -40,6 +40,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null (unlessNull)
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -147,11 +148,7 @@ popContextPrecedence :: ScopeM ()
 popContextPrecedence = modifyScope_ $ \ s -> s { scopePrecedence = drop 1 $ scopePrecedence s }
 
 withContextPrecedence :: Precedence -> ScopeM a -> ScopeM a
-withContextPrecedence p m = do
-  pushContextPrecedence p
-  x <- m
-  popContextPrecedence
-  return x
+withContextPrecedence p = bracket_ (pushContextPrecedence p) (const popContextPrecedence)
 
 getLocalVars :: ScopeM LocalVars
 getLocalVars = scopeLocals <$> getScope
@@ -164,11 +161,7 @@ setLocalVars vars = modifyLocalVars $ const vars
 
 -- | Run a computation without changing the local variables.
 withLocalVars :: ScopeM a -> ScopeM a
-withLocalVars m = do
-  vars <- getLocalVars
-  x    <- m
-  setLocalVars vars
-  return x
+withLocalVars = bracket_ getLocalVars setLocalVars
 
 -- * Names
 
