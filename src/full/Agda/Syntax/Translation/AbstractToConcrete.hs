@@ -34,6 +34,8 @@ import Data.Maybe
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Traversable (traverse)
 import Data.Void
 
@@ -53,6 +55,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..))
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Builtin
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
@@ -73,19 +76,21 @@ import Agda.Utils.Impossible
 
 data Env = Env { takenNames   :: Set C.Name
                , currentScope :: ScopeInfo
+               , builtins     :: Map String A.QName
+                  -- ^ Certain builtins (like `fromNat`) have special printing
                }
 
--- -- UNUSED
--- defaultEnv :: Env
--- defaultEnv = Env { takenNames   = Set.empty
---                  , currentScope = emptyScopeInfo
---                  }
-
 makeEnv :: ScopeInfo -> TCM Env
-makeEnv scope = return $
-  Env { takenNames   = Set.union vars defs
-      , currentScope = scope
-      }
+makeEnv scope = do
+  let builtin b = getBuiltin' b >>= \ case
+        Just (I.Def q _) | isNameInScope q scope -> return [(b, q)]
+        _                                        -> return []
+  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg ]
+  return $
+    Env { takenNames   = Set.union vars defs
+        , currentScope = scope
+        , builtins     = Map.fromList builtinList
+        }
   where
     vars  = Set.fromList $ map fst $ scopeLocals scope
     defs  = Map.keysSet $ nsNames $ everythingInScope scope
@@ -115,6 +120,11 @@ addBinding y x e =
     , currentScope = (`updateScopeLocals` currentScope e) $
         AssocList.insert y (LocalVar x __IMPOSSIBLE__ [])
     }
+
+-- | Get a function to check if a name refers to a particular builtin function.
+isBuiltinFun :: AbsToCon (A.QName -> String -> Bool)
+isBuiltinFun = asks $ is . builtins
+  where is m q b = Just q == Map.lookup b m
 
 -- The Monad --------------------------------------------------------------
 
@@ -450,14 +460,29 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Dot i e) =
       C.Dot (getRange i) <$> toConcrete e
 
-    toConcrete e@(A.App i e1 e2)    =
-        tryToRecoverOpApp e
-        $ tryToRecoverNatural e
-        -- or fallback to App
-        $ bracket (appBrackets' $ preferParenless (appParens i) && isLambda e2)
-        $ do e1' <- toConcreteCtx FunctionCtx e1
-             e2' <- toConcreteCtx (ArgumentCtx $ appParens i) e2
-             return $ C.App (getRange i) e1' e2'
+    toConcrete e@(A.App i e1 e2) = do
+      is <- isBuiltinFun
+      -- Special printing of desugared overloaded literals:
+      --  fromNat 4        --> 4
+      --  fromNeg 4        --> -4
+      --  fromString "foo" --> "foo"
+      -- Only when the corresponding conversion function is in scope and was
+      -- inserted by the system.
+      case (e1, namedArg e2) of
+        (A.Def q, l@A.Lit{})
+          | any (is q) [builtinFromNat, builtinFromString], visible e2,
+            getOrigin i == Inserted -> toConcrete l
+        (A.Def q, A.Lit (LitNat r n))
+          | q `is` builtinFromNeg, visible e2,
+            getOrigin i == Inserted -> toConcrete (A.Lit (LitNat r (-n)))
+        _ -> do
+          tryToRecoverOpApp e
+          $ tryToRecoverNatural e
+          -- or fallback to App
+          $ bracket (appBrackets' $ preferParenless (appParens i) && isLambda e2)
+          $ do e1' <- toConcreteCtx FunctionCtx e1
+               e2' <- toConcreteCtx (ArgumentCtx $ appParens i) e2
+               return $ C.App (getRange i) e1' e2'
 
     toConcrete (A.WithApp i e es) =
       bracket withAppBrackets $ do
