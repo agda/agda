@@ -22,11 +22,12 @@ module Agda.TypeChecking.Free
     , IsVarSet(..)
     , IgnoreSorts(..)
     , runFree , rigidVars, relevantVars, allVars
-    , allFreeVars
+    , allFreeVars, allFreeVarsWithOcc
     , allRelevantVars, allRelevantVarsIgnoring
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
+    , VarOcc(..)
     , occurrence
     , closed
     , freeVars -- only for testing
@@ -53,7 +54,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
   ( Free(..) , FreeEnv(..), initFreeEnv
-  , VarOcc(..), IgnoreSorts(..), Variable, SingleVar
+  , VarOcc(..), topVarOcc, VarMap, IgnoreSorts(..), Variable, SingleVar
   , MetaSet, IsVarSet(..), runFreeM
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
@@ -309,6 +310,10 @@ closed t = getAll $ runFree (const $ All False) IgnoreNot t
 -- | Collect all free variables.
 allFreeVars :: Free a => a -> VarSet
 allFreeVars = runFree Set.singleton IgnoreNot
+
+-- | Collect all free variables together with information about their occurrence.
+allFreeVarsWithOcc :: Free a => a -> VarMap
+allFreeVarsWithOcc = runFree (singleton . (,topVarOcc)) IgnoreNot
 
 -- | Collect all relevant free variables, excluding the "unused" ones, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet

@@ -8,6 +8,7 @@ import Prelude hiding (null)
 import Control.Monad.Reader
 
 import Data.Function
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
@@ -647,14 +648,16 @@ assign dir x args v = do
       -- e.g. _1 x (suc x) = suc (_2 x y)
       -- even though the lhs is not a pattern, we can prune the y from _2
 
-      (relVL, irrVL) <- do
+      (relVL, nonstrictVL, irrVL) <- do
         -- Andreas, 2016-11-03 #2211 attempt to do s.th. for unused
         if False -- irrelevant $ getMetaRelevance mvar
           then do
             reportSDoc "tc.meta.assign" 25 $ text "meta is irrelevant or unused"
-            return (Set.toList $ allFreeVars args, empty)
+            return (Set.toList $ allFreeVars args, empty, empty)
           else do
-            let relVL = Set.toList $ allRelevantVars args
+            let vars  = allFreeVarsWithOcc args
+                relVL       = IntMap.keys $ IntMap.filter isRelevantOrForced vars
+                nonstrictVL = IntMap.keys $ IntMap.filter isNonStrict vars
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may
             -- appear on the rhs.  (test/fail/Issue483b)
@@ -668,7 +671,7 @@ assign dir x args v = do
             irrVL <- concat <$> mapM fromIrrVar
                        [ v | Arg info v <- args, isIrrelevant info ]
                           -- irrelevant (getRelevance info) ]
-            return (relVL, irrVL)
+            return (relVL, nonstrictVL, irrVL)
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
               pr (Def c []) = prettyTCM c
@@ -676,6 +679,7 @@ assign dir x args v = do
           in vcat
                [ text "mvar args:" <+> sep (map (pr . unArg) args)
                , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
+               , text "fvars lhs (nonstrict):" <+> sep (map (text . show) nonstrictVL)
                , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
                ]
 
@@ -684,7 +688,7 @@ assign dir x args v = do
       -- Herein, distinguish relevant and irrelevant vars,
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
-      v <- liftTCM $ occursCheck x (relVL, irrVL) v
+      v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
       verboseS "tc.meta.assign" 30 $ do
