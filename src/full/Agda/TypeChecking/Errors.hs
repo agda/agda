@@ -46,7 +46,7 @@ import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.Syntax.Scope.Monad (isDatatypeModule)
+import Agda.Syntax.Scope.Monad (isDatatypeModule, withContextPrecedence)
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
@@ -1364,7 +1364,7 @@ instance PrettyTCM UnificationFailure where
 
 
 instance PrettyTCM Call where
-  prettyTCM c = case c of
+  prettyTCM c = withContextPrecedence TopCtx $ case c of
     CheckClause t cl -> do
       reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnscope cl)
       clc <- abstractToConcrete_ cl
@@ -1479,7 +1479,7 @@ instance PrettyTCM Call where
 
     where
     hPretty :: Arg (Named_ Expr) -> TCM Doc
-    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (getHiding a)) a
+    hPretty a = pretty =<< abstractToConcreteHiding a a
 
 ---------------------------------------------------------------------------
 -- * Natural language

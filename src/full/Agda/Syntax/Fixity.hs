@@ -249,12 +249,22 @@ noFixity = Fixity noRange Unrelated NonAssoc
 defaultFixity :: Fixity
 defaultFixity = Fixity noRange (Related 20) NonAssoc
 
+-- | Do we prefer parens around lambda arguments or not?
+data ParenPreference = PreferParen | PreferParenless
+  deriving (Eq, Ord, Show, Typeable, Data)
+
+preferParen :: ParenPreference -> Bool
+preferParen p = PreferParen == p
+
+preferParenless :: ParenPreference -> Bool
+preferParenless p = PreferParenless == p
+
 -- * Precendence
 
 -- | Precedence is associated with a context.
 data Precedence = TopCtx | FunctionSpaceDomainCtx
-                | LeftOperandCtx Fixity | RightOperandCtx Fixity
-                | FunctionCtx | ArgumentCtx | InsideOperandCtx
+                | LeftOperandCtx Fixity | RightOperandCtx Fixity ParenPreference
+                | FunctionCtx | ArgumentCtx ParenPreference | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
     deriving (Show, Typeable, Data, Eq)
 
@@ -274,11 +284,9 @@ headPrecedence :: PrecedenceStack -> Precedence
 headPrecedence []      = TopCtx
 headPrecedence (p : _) = p
 
--- | The precedence corresponding to a possibly hidden argument.
-hiddenArgumentCtx :: Hiding -> Precedence
-hiddenArgumentCtx NotHidden  = ArgumentCtx
-hiddenArgumentCtx Hidden     = TopCtx
-hiddenArgumentCtx Instance{} = TopCtx
+-- | Argument context preferring parens.
+argumentCtx_ :: Precedence
+argumentCtx_ = ArgumentCtx PreferParen
 
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
@@ -291,15 +299,15 @@ opBrackets' :: Bool ->   -- Is the last argument a parenless lambda?
                Fixity -> PrecedenceStack -> Bool
 opBrackets' isLam f ps = brack f (headPrecedence ps)
   where
-    false = isLam && lamBrackets' False ps -- require more parens for `e >>= λ x → e₁` than `e >>= e₁`
+    false = isLam && lamBrackets ps -- require more parens for `e >>= λ x → e₁` than `e >>= e₁`
     brack                        (Fixity _ (Related n1) LeftAssoc)
                (LeftOperandCtx   (Fixity _ (Related n2) LeftAssoc))  | n1 >= n2 = false
     brack                        (Fixity _ (Related n1) RightAssoc)
-               (RightOperandCtx  (Fixity _ (Related n2) RightAssoc)) | n1 >= n2 = false
+               (RightOperandCtx  (Fixity _ (Related n2) RightAssoc) _) | n1 >= n2 = false
     brack f1   (LeftOperandCtx  f2) | Related f1 <- fixityLevel f1
                                     , Related f2 <- fixityLevel f2
                                     , f1 > f2 = false
-    brack f1   (RightOperandCtx f2) | Related f1 <- fixityLevel f1
+    brack f1   (RightOperandCtx f2 _) | Related f1 <- fixityLevel f1
                                     , Related f2 <- fixityLevel f2
                                     , f1 > f2 = false
     brack _ TopCtx                 = false
@@ -314,15 +322,12 @@ opBrackets' isLam f ps = brack f (headPrecedence ps)
 -- need brackets in certain right operand contexts. To decide we need to look
 -- at the stack of precedences and not just the current precedence.
 -- Example: @m₁ >>= (λ x → x) >>= m₂@ (for @_>>=_@ left associative).
--- The first argument is the parenthesis preference. If True, we add
--- parentheses also in right operand contexts where they aren't strictly
--- needed.
-lamBrackets' :: Bool -> PrecedenceStack -> Bool
-lamBrackets' _      []       = False
-lamBrackets' strict (p : ps) = case p of
+lamBrackets :: PrecedenceStack -> Bool
+lamBrackets []       = False
+lamBrackets (p : ps) = case p of
   TopCtx                 -> __IMPOSSIBLE__
-  ArgumentCtx            -> strict || lamBrackets' strict ps
-  RightOperandCtx{}      -> strict || lamBrackets' strict ps
+  ArgumentCtx pref       -> preferParen pref || lamBrackets ps
+  RightOperandCtx _ pref -> preferParen pref || lamBrackets ps
   FunctionSpaceDomainCtx -> True
   LeftOperandCtx{}       -> True
   FunctionCtx            -> True
@@ -330,10 +335,6 @@ lamBrackets' strict (p : ps) = case p of
   WithFunCtx             -> True
   WithArgCtx             -> True
   DotPatternCtx          -> True
-
--- | Preference for adding parentheses.
-lamBrackets :: PrecedenceStack -> Bool
-lamBrackets = lamBrackets' True
 
 -- | Does a function application need brackets?
 appBrackets :: PrecedenceStack -> Bool
@@ -344,9 +345,9 @@ appBrackets' :: Bool ->   -- Is the argument of the application a parenless lamb
                 PrecedenceStack -> Bool
 appBrackets' isLam ps = brack (headPrecedence ps)
   where
-    brack ArgumentCtx   = True
+    brack ArgumentCtx{} = True
     brack DotPatternCtx = True
-    brack _             = isLam && lamBrackets' False ps -- allow e + e₁ λ x → e₂
+    brack _             = isLam && lamBrackets ps -- allow e + e₁ λ x → e₂
 
 -- | Does a with application need brackets?
 withAppBrackets :: PrecedenceStack -> Bool

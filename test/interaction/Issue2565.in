@@ -1,0 +1,14 @@
+top_command (cmd_load currentFile [])
+-- Need actual ranges here for 'literal give' to kick in.
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 0 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "4")
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 1 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "fromNat 4")
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 2 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "\"bar\"")
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 3 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "fromString \"bar\"")
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 4 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "-4")
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 5 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "fromNeg 4")
+goal_command 6 cmd_refine "_+_ 4"
+goal_command 7 cmd_refine "_+_ (fromNat 4)"
+IOTCM currentFile None Indirect (Cmd_refine 8 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "append \"foo\"")
+IOTCM currentFile None Indirect (Cmd_refine 9 (intervalsToRange Nothing [Interval (Pn () 1 2 3) (Pn () 1 2 3)]) "append (fromString \"foo\")")
+goal_command 10 cmd_refine "-4 +Z_"
+goal_command 11 cmd_refine "fromNeg 4 +Z_"

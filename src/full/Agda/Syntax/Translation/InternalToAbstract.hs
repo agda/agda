@@ -102,12 +102,12 @@ nelims e (I.Apply arg : es) = do
   arg <- reify arg  -- This replaces the arg by _ if irrelevant
   dontShowImp <- not <$> showImplicitArguments
   let hd | notVisible arg && dontShowImp = e
-         | otherwise                     = A.App noExprInfo e arg
+         | otherwise                     = A.App defaultAppInfo_ e arg
   nelims hd es
 nelims e (I.Proj o@ProjPrefix d  : es) =
-  nelims (A.App noExprInfo (A.Proj o $ AmbQ [d]) $ defaultNamedArg e) es
+  nelims (A.App defaultAppInfo_ (A.Proj o $ AmbQ [d]) $ defaultNamedArg e) es
 nelims e (I.Proj o d  : es) =
-  nelims (A.App noExprInfo e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
+  nelims (A.App defaultAppInfo_ e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
 
 -- | Drops hidden arguments unless --show-implicit.
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
@@ -422,7 +422,7 @@ reifyTerm expandAnonDefs0 v = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam (setOrigin (getOrigin info) defaultLamInfo_) (DomainFree info x) e
+      return $ A.Lam exprNoRange (DomainFree info x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -499,7 +499,7 @@ reifyTerm expandAnonDefs0 v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
-                  elims (A.AbsurdLam defaultLamInfo_ h) =<< reify (drop n es)
+                  elims (A.AbsurdLam exprNoRange h) =<< reify (drop n es)
 
       -- Otherwise (no absurd lambda):
        _ -> do
@@ -585,7 +585,7 @@ reifyTerm expandAnonDefs0 v = do
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
-           let hd = List.foldl' (A.App noExprInfo) (A.Def x) pad
+           let hd = List.foldl' (A.App defaultAppInfo_) (A.Def x) pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
@@ -623,7 +623,7 @@ reifyTerm expandAnonDefs0 v = do
       cls <- mapM (reify . NamedClause x False . (`applyE` pars)) cls
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      elims (A.ExtendedLam defaultLamInfo_ dInfo x cls) =<< reify rest
+      elims (A.ExtendedLam exprNoRange dInfo x cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
@@ -1007,7 +1007,7 @@ instance Reify Sort Expr where
         I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set noExprInfo n
         I.Type a -> do
           a <- reify a
-          return $ A.App noExprInfo (A.Set noExprInfo 0) (defaultNamedArg a)
+          return $ A.App defaultAppInfo_ (A.Set noExprInfo 0) (defaultNamedArg a)
         I.Prop       -> return $ A.Prop noExprInfo
         I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
         I.SizeUniv  -> do
@@ -1016,7 +1016,7 @@ instance Reify Sort Expr where
         I.DLub s1 s2 -> do
           lub <- freshName_ ("dLub" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
-          let app x y = A.App noExprInfo x (defaultNamedArg y)
+          let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var lub `app` e1 `app` e2
 
 instance Reify Level Expr where

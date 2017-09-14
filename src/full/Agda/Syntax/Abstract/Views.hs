@@ -24,22 +24,28 @@ import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.Utils.Either
 import Agda.Utils.Lens
 
-data AppView = Application Expr [NamedArg Expr]
+data AppView' arg = Application Expr [NamedArg arg]
+  deriving (Functor)
+
+type AppView = AppView' Expr
 
 -- | Gather applications to expose head and spine.
 --
 --   Note: everything is an application, possibly of itself to 0 arguments
 appView :: Expr -> AppView
-appView e =
+appView = fmap snd . appView'
+
+appView' :: Expr -> AppView' (AppInfo, Expr)
+appView' e =
   case e of
-    App _ e1 e2
+    App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
-                   -> Application f [defaultNamedArg e1]
+                   -> Application f [defaultNamedArg (i, e1)]
     App i e1 arg
-      | Application hd es <- appView e1
-                   -> Application hd $ es ++ [arg]
-    ScopedExpr _ e -> appView e
+      | Application hd es <- appView' e1
+                   -> Application hd $ es ++ [(fmap . fmap) (i,) arg]
+    ScopedExpr _ e -> appView' e
     _              -> Application e []
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
@@ -51,13 +57,13 @@ maybeProjTurnPostfix e =
 
 unAppView :: AppView -> Expr
 unAppView (Application h es) =
-  foldl (App (ExprRange noRange)) h es
+  foldl (App defaultAppInfo_) h es
 
 -- | Collects plain lambdas.
-data LamView = LamView [(LamInfo, LamBinding)] Expr
+data LamView = LamView [LamBinding] Expr
 
 lamView :: Expr -> LamView
-lamView (Lam i b e) = cons (i, b) $ lamView e
+lamView (Lam i b e) = cons b $ lamView e
   where cons b (LamView bs e) = LamView (b : bs) e
 lamView (ScopedExpr _ e) = lamView e
 lamView e = LamView [] e

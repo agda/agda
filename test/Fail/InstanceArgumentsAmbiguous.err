@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument _5 : A
+  Resolve instance argument _a_5 : A
   Candidates
     a₁ : A
     a₂ : A

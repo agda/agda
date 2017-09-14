@@ -33,7 +33,7 @@ import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteEnv, abstractToConcrete_, makeEnv, runAbsToCon, toConcrete)
+import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteScope, abstractToConcrete_, runAbsToCon, toConcrete)
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
@@ -338,7 +338,7 @@ auto ii rng argstr = do
                          Just ii' -> do ae <- give WithoutForce ii' Nothing expr
                                         mv <- lookupMeta mi
                                         let scope = getMetaScope mv
-                                        ce <- abstractToConcreteEnv (makeEnv scope) ae
+                                        ce <- abstractToConcreteScope scope ae
                                         let cmnt = if ii' == ii then agsyinfo ticks else ""
                                         return (Just (ii', show ce ++ cmnt), Nothing)
                            -- Andreas, 2015-05-17, Issue 1504

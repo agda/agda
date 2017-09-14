@@ -435,13 +435,14 @@ toAbstractTopCtx :: ToAbstract c a => c -> ScopeM a
 toAbstractTopCtx = toAbstractCtx TopCtx
 
 toAbstractHiding :: (LensHiding h, ToAbstract c a) => h -> c -> ScopeM a
-toAbstractHiding h = toAbstractCtx $ hiddenArgumentCtx $ getHiding h
+toAbstractHiding h | visible h = toAbstract -- don't change precedence if visible
+toAbstractHiding _             = toAbstractCtx TopCtx
 
 setContextCPS :: Precedence -> (a -> ScopeM b) ->
                  ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
-setContextCPS p ret f =
-  withContextPrecedence p $ f $
-    bracket_ popContextPrecedence (\ _ -> pushContextPrecedence p) . ret
+setContextCPS p ret f = do
+  old <- scopePrecedence <$> getScope
+  withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
 
 localToAbstractCtx :: ToAbstract concrete abstract =>
                      Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
@@ -641,6 +642,9 @@ mkArg' info e                   = Arg (setHiding NotHidden info) e
 mkArg :: C.Expr -> Arg C.Expr
 mkArg e = mkArg' defaultArgInfo e
 
+inferParenPreference :: C.Expr -> ParenPreference
+inferParenPreference C.Paren{} = PreferParen
+inferParenPreference _         = PreferParenless
 
 -- | Parse a possibly dotted C.Expr as A.Expr.  Bool = True if dotted.
 toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Bool)
@@ -672,11 +676,9 @@ toAbstractLam r bs e ctx = do
     e <- toAbstractCtx ctx e
     -- We have at least one binder.  Get first @b@ and rest @bs@.
     caseList bs __IMPOSSIBLE__ $ \ b bs -> do
-      return $ A.Lam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) b $ foldr mkLam e bs
+      return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
   where
-    -- We set the origin of the outer lambda to `UserWritten` and the origin of
-    -- the inner lambdas to `Inserted`.
-    mkLam b e = A.Lam (defaultLamInfo $ fuseRange b e) b e
+    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
 scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause, Bool)] -> ScopeM A.Expr
@@ -707,7 +709,7 @@ scopeCheckExtendedLam r cs = do
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
-      return $ A.ExtendedLam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) di qname' cs
+      return $ A.ExtendedLam (ExprRange r) di qname' cs
     _ -> __IMPOSSIBLE__
 
   where
@@ -734,7 +736,7 @@ instance ToAbstract C.Expr A.Expr where
             let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
                         | otherwise = ensureInScope =<< getBuiltin' builtinFromNat
                 l'   = LitNat r (abs n)
-                info = ExprRange r
+                info = defaultAppInfo r
             conv <- builtin
             case conv of
               Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l')
@@ -742,7 +744,7 @@ instance ToAbstract C.Expr A.Expr where
 
           LitString r s -> do
             conv <- ensureInScope =<< getBuiltin' builtinFromString
-            let info = ExprRange r
+            let info = defaultAppInfo r
             case conv of
               Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l)
               _                -> return $ A.Lit l
@@ -781,9 +783,11 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Application
       C.App r e1 e2 -> do
+        let parenPref = inferParenPreference (namedArg e2)
+            info = (defaultAppInfo r) { appOrigin = UserWritten, appParens = parenPref }
         e1 <- toAbstractCtx FunctionCtx e1
-        e2 <- toAbstractCtx ArgumentCtx e2
-        return $ A.App (ExprRange r) e1 e2
+        e2 <- toAbstractCtx (ArgumentCtx parenPref) e2
+        return $ A.App info e1 e2
 
   -- Operator application
       C.OpApp r op ns es -> toAbstractOpApp op ns es
@@ -799,7 +803,7 @@ instance ToAbstract C.Expr A.Expr where
       C.InstanceArg _ _ -> nothingAppliedToInstanceArg e
 
   -- Lambda
-      C.AbsurdLam r h -> return $ A.AbsurdLam (setOrigin UserWritten $ (defaultLamInfo r) { lamParens = False }) h
+      C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
 
       C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
@@ -846,14 +850,7 @@ instance ToAbstract C.Expr A.Expr where
         A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
-      C.Paren _ e -> setLamParens <$> toAbstractCtx TopCtx e
-        where
-          setP i = i { lamParens = True }
-          setLamParens (A.Lam i bs e)             = A.Lam (setP i) bs e
-          setLamParens (A.AbsurdLam i h)          = A.AbsurdLam (setP i) h
-          setLamParens (A.ExtendedLam i def q cs) = A.ExtendedLam (setP i) def q cs
-          setLamParens (A.ScopedExpr s e)         = A.ScopedExpr s (setLamParens e)
-          setLamParens e                          = e
+      C.Paren _ e -> toAbstractCtx TopCtx e
 
   -- Idiom brackets
       C.IdiomBrackets r e ->
@@ -1309,13 +1306,11 @@ instance ToAbstract LetDef [A.LetBinding] where
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
                 return $ A.Lam i (A.DomainFree info x) e
-            where
-                i = defaultLamInfo (fuseRange x e)
+            where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
                 return $ A.Lam i' (A.DomainFree info x) e
-            where
-                i' = defaultLamInfo (fuseRange i e)
+            where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
 newtype Blind a = Blind { unBlind :: a }
@@ -2151,17 +2146,28 @@ toAbstractOpApp op ns es = do
     es <- left (notaFixity nota) nonBindingParts es
     -- Prepend the generated section binders (if any).
     let body = foldl' app op es
-    return $ foldr (A.Lam (defaultLamInfo (getRange body))) body binders
+    return $ foldr (A.Lam (ExprRange (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.
-    app e arg = A.App (ExprRange (fuseRange e arg)) e arg
+    app e (pref, arg) = A.App info e arg
+      where info = (defaultAppInfo r) { appOrigin = getOrigin arg
+                                      , appParens = pref }
+            r = fuseRange e arg
 
-    -- Translate an argument.
+    inferParenPref :: NamedArg (Either A.Expr (OpApp C.Expr)) -> ParenPreference
+    inferParenPref e =
+      case namedArg e of
+        Right (Ordinary e) -> inferParenPreference e
+        Left{}             -> PreferParenless  -- variable inserted by section expansion
+        Right{}            -> PreferParenless  -- syntax lambda
+
+    -- Translate an argument. Returns the paren preference for the argument, so
+    -- we can build the correct info for the A.App node.
     toAbsOpArg :: Precedence ->
                   NamedArg (Either A.Expr (OpApp C.Expr)) ->
-                  ScopeM (NamedArg A.Expr)
-    toAbsOpArg cxt =
-      traverse $ traverse $ either return (toAbstractOpArg cxt)
+                  ScopeM (ParenPreference, NamedArg A.Expr)
+    toAbsOpArg cxt e = (pref,) <$> (traverse . traverse) (either return (toAbstractOpArg cxt)) e
+      where pref = inferParenPref e
 
     -- The hole left to the first @IdPart@ is filled with an expression in @LeftOperandCtx@.
     left f (IdPart _ : xs) es = inside f xs es
@@ -2185,7 +2191,8 @@ toAbstractOpApp op ns es = do
     -- The hole right of the last @IdPart@ is filled with an expression in @RightOperandCtx@.
     right _ (IdPart _)  [] = return []
     right f _          [e] = do
-        e <- toAbsOpArg (RightOperandCtx f) e
+        let pref = inferParenPref e
+        e <- toAbsOpArg (RightOperandCtx f pref) e
         return [e]
     right _ _     _  = __IMPOSSIBLE__
 
