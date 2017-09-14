@@ -1184,7 +1184,7 @@ give_gen force ii rng s0 giveRefine = do
     iis       <- lift $ sortInteractionPoints iis
     modifyTheInteractionPoints $ replace ii iis
     -- print abstract expr
-    ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
+    ce        <- lift $ abstractToConcreteScope scope ae
     lift $ reportSLn "interaction.give" 30 $ unlines
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scopePrecedence scope)

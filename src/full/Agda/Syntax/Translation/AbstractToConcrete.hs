@@ -13,13 +13,12 @@ module Agda.Syntax.Translation.AbstractToConcrete
     ( ToConcrete(..)
     , toConcreteCtx
     , abstractToConcrete_
-    , abstractToConcreteEnv
+    , abstractToConcreteScope
     , abstractToConcreteHiding
     , runAbsToCon
     , RangeAndPragma(..)
     , abstractToConcreteCtx
     , withScope
-    , makeEnv
     , AbsToCon, DontTouchMe, Env
     , noTakenNames
     ) where
@@ -82,10 +81,11 @@ data Env = Env { takenNames   :: Set C.Name
 --                  , currentScope = emptyScopeInfo
 --                  }
 
-makeEnv :: ScopeInfo -> Env
-makeEnv scope = Env { takenNames   = Set.union vars defs
-                    , currentScope = scope
-                    }
+makeEnv :: ScopeInfo -> TCM Env
+makeEnv scope = return $
+  Env { takenNames   = Set.union vars defs
+      , currentScope = scope
+      }
   where
     vars  = Set.fromList $ map fst $ scopeLocals scope
     defs  = Map.keysSet $ nsNames $ everythingInScope scope
@@ -124,10 +124,10 @@ type AbsToCon = ReaderT Env TCM
 runAbsToCon :: AbsToCon c -> TCM c
 runAbsToCon m = do
   scope <- getScope
-  runReaderT m (makeEnv scope)
+  runReaderT m =<< makeEnv scope
 
-abstractToConcreteEnv :: ToConcrete a c => Env -> a -> TCM c
-abstractToConcreteEnv flags a = runReaderT (toConcrete a) flags
+abstractToConcreteScope :: ToConcrete a c => ScopeInfo -> a -> TCM c
+abstractToConcreteScope scope a = runReaderT (toConcrete a) =<< makeEnv scope
 
 abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
 abstractToConcreteCtx ctx x = runAbsToCon $ withPrecedence ctx (toConcrete x)
