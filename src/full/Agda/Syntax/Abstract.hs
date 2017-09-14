@@ -71,11 +71,11 @@ data Expr
   | Underscore   MetaInfo
     -- ^ Meta variable for hidden argument (must be inferred locally).
   | Dot ExprInfo Expr                  -- ^ @.e@, for postfix projection.
-  | App  ExprInfo Expr (NamedArg Expr) -- ^ Ordinary (binary) application.
+  | App  AppInfo Expr (NamedArg Expr)  -- ^ Ordinary (binary) application.
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
-  | Lam  LamInfo LamBinding Expr      -- ^ @λ bs → e@.
-  | AbsurdLam LamInfo Hiding          -- ^ @λ()@ or @λ{}@.
-  | ExtendedLam LamInfo DefInfo QName [Clause]
+  | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
+  | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
+  | ExtendedLam ExprInfo DefInfo QName [Clause]
   | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
@@ -987,8 +987,9 @@ instance NameToExpr AbstractName where
     mk ConName        x = Con $ AmbQ [x]
     mk PatternSynName x = PatternSyn x
     mk MacroName      x = Macro x
-    mk QuotableName   x = App i (Quote i) (defaultNamedArg $ Def x)
-      where i = ExprRange (getRange x)
+    mk QuotableName   x = App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
+      where i = ExprRange r
+            r = getRange x
 
 -- | Assumes name is not 'UnknownName'.
 instance NameToExpr ResolvedName where
@@ -1001,7 +1002,7 @@ instance NameToExpr ResolvedName where
     UnknownName         -> __IMPOSSIBLE__
 
 app :: Expr -> [NamedArg Expr] -> Expr
-app = foldl (App (ExprRange noRange))
+app = foldl (App defaultAppInfo_)
 
 mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
 mkLet i [] e = e
@@ -1029,8 +1030,8 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam defaultLamInfo_ (DomainFree defaultArgInfo n) $
-                                     lambdaLiftExpr ns e
+lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo n) $
+                            lambdaLiftExpr ns e
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
 substPattern s p = case p of

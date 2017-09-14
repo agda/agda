@@ -75,7 +75,7 @@ instance ToAbstract (Expr, Elim) Expr where
     arg     <- toAbstract arg
     showImp <- lift showImplicitArguments
     return $ if showImp || visible arg
-             then App (ExprRange noRange) f arg
+             then App (setOrigin Reflected defaultAppInfo_) f arg
              else f
 
 instance ToAbstract (Expr, Elims) Expr where
@@ -105,7 +105,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam (setOrigin Reflected defaultLamInfo_) (DomainFree info name) e
+      return $ A.Lam exprNoRange (DomainFree info name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- lift $ getCurrentModule
@@ -113,7 +113,7 @@ instance ToAbstract Term Expr where
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ map (QNamed qname) cs
-      toAbstract (A.ExtendedLam (setOrigin Reflected defaultLamInfo_) defInfo qname cs, es)
+      toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)
@@ -131,7 +131,7 @@ mkDef f =
       (return $ A.Def f)
 
 mkSet :: Expr -> Expr
-mkSet e = App exprNoRange (A.Set exprNoRange 0) $ defaultNamedArg e
+mkSet e = App (setOrigin Reflected defaultAppInfo_) (A.Set exprNoRange 0) $ defaultNamedArg e
 
 instance ToAbstract Sort Expr where
   toAbstract (SetS x) = mkSet <$> toAbstract x

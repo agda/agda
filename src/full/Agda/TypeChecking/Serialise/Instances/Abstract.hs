@@ -139,30 +139,38 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
 
     i = patNoRange
 
+instance EmbPrj ParenPreference where
+  icod_ PreferParen     = icodeN' PreferParen
+  icod_ PreferParenless = icodeN 1 PreferParenless
+  value = vcase valu where
+    valu []  = valuN PreferParen
+    valu [1] = valuN PreferParenless
+    valu _   = malformed
+
 instance EmbPrj Precedence where
   icod_ TopCtx                 = icodeN' TopCtx
   icod_ FunctionSpaceDomainCtx = icodeN 1 FunctionSpaceDomainCtx
   icod_ (LeftOperandCtx a)     = icodeN 2 LeftOperandCtx a
-  icod_ (RightOperandCtx a)    = icodeN 3 RightOperandCtx a
+  icod_ (RightOperandCtx a b)  = icodeN 3 RightOperandCtx a b
   icod_ FunctionCtx            = icodeN 4 FunctionCtx
-  icod_ ArgumentCtx            = icodeN 5 ArgumentCtx
+  icod_ (ArgumentCtx a)        = icodeN 5 ArgumentCtx a
   icod_ InsideOperandCtx       = icodeN 6 InsideOperandCtx
   icod_ WithFunCtx             = icodeN 7 WithFunCtx
   icod_ WithArgCtx             = icodeN 8 WithArgCtx
   icod_ DotPatternCtx          = icodeN 9 DotPatternCtx
 
   value = vcase valu where
-    valu []     = valuN TopCtx
-    valu [1]    = valuN FunctionSpaceDomainCtx
-    valu [2, a] = valuN LeftOperandCtx a
-    valu [3, a] = valuN RightOperandCtx a
-    valu [4]    = valuN FunctionCtx
-    valu [5]    = valuN ArgumentCtx
-    valu [6]    = valuN InsideOperandCtx
-    valu [7]    = valuN WithFunCtx
-    valu [8]    = valuN WithArgCtx
-    valu [9]    = valuN DotPatternCtx
-    valu _      = malformed
+    valu []        = valuN TopCtx
+    valu [1]       = valuN FunctionSpaceDomainCtx
+    valu [2, a]    = valuN LeftOperandCtx a
+    valu [3, a, b] = valuN RightOperandCtx a b
+    valu [4]       = valuN FunctionCtx
+    valu [5, a]    = valuN ArgumentCtx a
+    valu [6]       = valuN InsideOperandCtx
+    valu [7]       = valuN WithFunCtx
+    valu [8]       = valuN WithArgCtx
+    valu [9]       = valuN DotPatternCtx
+    valu _         = malformed
 
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d e f g) = icodeN' (\ a b c d -> ScopeInfo a b c d e f g) a b c d
