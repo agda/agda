@@ -120,15 +120,18 @@ Note that instance arguments in types are always named, but the name can be ``_`
 Defining type classes
 ~~~~~~~~~~~~~~~~~~~~~
 
-The type of an instance argument must have the form ``{Γ} → C vs``,
-where ``C`` is a bound variable or the name of a data or record type,
-and ``{Γ}`` denotes an arbitrary number of (ordinary) implicit
-arguments (see :ref:`dependent-instances` below for an example where
-``Γ`` is non-empty). Other than that there are no requirements on the
-type of an instance argument. In particular, there is no special
-declaration to say that a type is a "type class". Instead,
-Haskell-style type classes are usually defined as :ref:`record types
-<record-types>`. For instance,
+The type of an instance argument should have the form ``{Γ} → C vs``,
+where ``C`` is a postulated name, a bound variable, or the name of a
+data or record type, and ``{Γ}`` denotes an arbitrary number of
+(ordinary) implicit arguments (see :ref:`dependent-instances` below
+for an example where ``Γ`` is non-empty). Instance arguments that do
+not have this form are currently accepted, but instance resolution may
+or may not work as described below for such arguments.
+
+Other than that there are no requirements on the type of an instance
+argument. In particular, there is no special declaration to say that a
+type is a "type class". Instead, Haskell-style type classes are
+usually defined as :ref:`record types <record-types>`. For instance,
 
 ::
 
