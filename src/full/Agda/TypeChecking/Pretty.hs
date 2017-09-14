@@ -268,7 +268,7 @@ instance PrettyTCM Constraint where
         ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (text ":" <+> prettyTCMCtx TopCtx ty)
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> text "|"
-                , prettyCmd (prettyTCM cmp) s t ]
+                , prettyCmp (prettyTCM cmp) s t ]
             <?> (text ":" <+> prettyTCMCtx TopCtx ty)
         ElimCmp cmps t v us vs   -> prettyCmp (text "~~") us vs   <?> (text ":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b

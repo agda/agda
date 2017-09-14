@@ -99,7 +99,7 @@ apps e = elims e . map I.Apply
 nelims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
 nelims e [] = return e
 nelims e (I.IApply x y r : es) =
-  nelims (A.App noExprInfo e $ defaultArg r) es
+  nelims (A.App defaultAppInfo_ e $ defaultArg r) es
 nelims e (I.Apply arg : es) = do
   arg <- reify arg  -- This replaces the arg by _ if irrelevant
   dontShowImp <- not <$> showImplicitArguments
