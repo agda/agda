@@ -287,8 +287,17 @@ instance LensRelevance Relevance where
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = getRelevance a == Relevant
 
+isRelevantOrForced :: LensRelevance a => a -> Bool
+isRelevantOrForced a = case getRelevance a of
+                 Relevant -> True
+                 Forced{} -> True
+                 _        -> False
+
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = getRelevance a == Irrelevant
+
+isNonStrict :: LensRelevance a => a -> Bool
+isNonStrict a = getRelevance a == NonStrict
 
 -- | Information ordering.
 -- @Relevant  \`moreRelevant\`

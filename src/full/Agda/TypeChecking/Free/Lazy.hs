@@ -112,6 +112,10 @@ botVarOcc = VarOcc (Flexible mempty) Irrelevant
 composeVarOcc :: VarOcc -> VarOcc -> VarOcc
 composeVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (composeFlexRig o o') (max r r')
 
+instance LensRelevance VarOcc where
+  getRelevance = varRelevance
+  setRelevance rel (VarOcc x _) = VarOcc x rel
+
 -- | Any representation of a set of variables need to be able to be modified by
 --   a variable occurrence. This is to ensure that free variable analysis is
 --   compositional. For instance, it should be possible to compute `fv (v [u/x])`

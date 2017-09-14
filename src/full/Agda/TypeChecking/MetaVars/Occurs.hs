@@ -177,20 +177,24 @@ abort Flex          err = patternViolation' 70 (show err) -- throws a PatternErr
 abort Rigid         err = patternViolation' 70 (show err)
 abort Irrel         err = patternViolation' 70 (show err)
 
--- | Distinguish relevant and irrelevant variables in occurs check.
-type Vars = ([Nat],[Nat])
+-- | Distinguish relevant, irrelevant and nonstrict variables in occurs check.
+type Vars = ([Nat],[Nat],[Nat])
+-- TODO: refactor this into an actual datatype
 
 goIrrelevant :: Vars -> Vars
-goIrrelevant (relVs, irrVs) = (irrVs ++ relVs, [])
+goIrrelevant (relVs, nonstrictVs, irrVs) = (irrVs ++ nonstrictVs ++ relVs, [], [])
+
+goNonStrict :: Vars -> Vars
+goNonStrict (relVs, nonstrictVs, irrVs) = (nonstrictVs ++ relVs, [], irrVs)
 
 allowedVar :: Nat -> Vars -> Bool
-allowedVar i (relVs, irrVs) = i `elem` relVs
+allowedVar i (relVs, nonstrictVs, irrVs) = i `elem` relVs
 
 takeRelevant :: Vars -> [Nat]
-takeRelevant = fst
+takeRelevant (relVs, nonstrictVs, irrVs) = relVs
 
 liftUnderAbs :: Vars -> Vars
-liftUnderAbs (relVs, irrVs) = (0 : map (1+) relVs, map (1+) irrVs)
+liftUnderAbs (relVs, nonstrictVs, irrVs) = (0 : map (1+) relVs, map (+1) nonstrictVs, map (1+) irrVs)
 
 -- | Extended occurs check.
 class Occurs t where
@@ -277,7 +281,7 @@ instance Occurs Term where
           Def d es    -> Def d <$> occDef d (leaveTop ctx) es
           Con c ci vs -> Con c ci <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
-          Sort s      -> Sort <$> occ (leaveTop ctx) s
+          Sort s      -> Sort <$> occurs red (leaveTop ctx) m (goNonStrict xs) s
           v@Shared{}  -> updateSharedTerm (occ ctx) v
           MetaV m' es -> do
               -- Check for loop
@@ -453,6 +457,8 @@ instance (Occurs a, Subst t a) => Occurs (Abs a) where
 instance Occurs a => Occurs (Arg a) where
   occurs red ctx m xs (Arg info x) | isIrrelevant info = Arg info <$>
     occurs red Irrel m (goIrrelevant xs) x
+  occurs red ctx m xs (Arg info x) | isNonStrict info  = Arg info <$>
+    occurs red ctx m (goNonStrict xs) x
   occurs red ctx m xs (Arg info x) = Arg info <$>
     occurs red ctx m xs x
 

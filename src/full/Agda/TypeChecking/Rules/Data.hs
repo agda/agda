@@ -96,7 +96,9 @@ checkDataDef i name ps cs =
               -- However, it might give the dreaded "Cannot instantiate meta..."
               -- error which we replace by a more understandable error
               -- in case of a suspected dependency.
-              s <- newSortMetaBelowInf
+              -- Jesper, 2017-09-14: since Set i depends non-strictly on i,
+              -- we need to create the new meta in a nonstrict context.
+              s <- applyRelevanceToContext NonStrict newSortMetaBelowInf
               catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
                   if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
                      fsep [ text "The sort of" <+> prettyTCM name
@@ -180,7 +182,8 @@ forceSort :: Type -> TCM Sort
 forceSort t = case ignoreSharing $ unEl t of
   Sort s -> return s
   _      -> do
-    s <- newSortMetaBelowInf
+    -- Universes depend non-strictly on their argument
+    s <- applyRelevanceToContext NonStrict newSortMetaBelowInf
     equalType t (sort s)
     return s
 
@@ -231,7 +234,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
           _ -> __IMPOSSIBLE__
         -- check that the type of the constructor is well-formed
-        t <- isType_ e
+        t <- workOnTypes $ isType_ e
         -- check that the type of the constructor ends in the data type
         n <- getContextSize
         debugEndsIn t d n

@@ -14,6 +14,9 @@ True true  = ⊤
 data D ..(b : Bool) : Set where
   c : True b → D b  -- should fail
 
+-- Jesper, 2017-09-14: I think the definition of D is fine, but the definition
+-- of cast below should fail since `D a` and `D b` are different types.
+
 fromD : {b : Bool} → D b → True b
 fromD (c p) = p
 

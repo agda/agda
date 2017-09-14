@@ -8,7 +8,7 @@ data List {a} (A : Set a) : Set a where
   []  : List A
   _∷_ : A → List A → List A
 
-data Vec {a} (A : Set a) : Nat → Set a where
+data Vec {a} (A : Set a) : ..(_ : Nat) → Set a where
   [] : Vec A 0
   _∷_ : ∀ ..{n} → A → Vec A n → Vec A (suc n)
 
@@ -21,7 +21,7 @@ vecToList : ∀ {a} {A : Set a} ..{n} → Vec A n → List A
 vecToList []       = []
 vecToList (x ∷ xs) = x ∷ vecToList xs
 
-data Fin : Nat → Set where
+data Fin : ..(_ : Nat) → Set where
   zero : ∀ ..{n} → Fin (suc n)
   suc  : ∀ ..{n} → Fin n → Fin (suc n)
 
