@@ -2,11 +2,11 @@ module _ where
 
 open import Common.Prelude
 
-data Vec (A : Set) : Nat → Set where
+data Vec (A : Set) : ..(_ : Nat) → Set where
   [] : Vec A 0
   _∷_ : ∀ ..{n} → A → Vec A n → Vec A (suc n)
 
-sum : ∀ {n} → Vec Nat n → Nat
+sum : ∀ ..{n} → Vec Nat n → Nat
 sum (x ∷ xs) = x + sum xs
 sum [] = 0
 

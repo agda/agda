@@ -1,4 +1,5 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-| Irrelevant function types.
 -}
@@ -16,6 +17,13 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Substitute.Class
+
+import Agda.Utils.Monad
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -85,3 +93,81 @@ wakeIrrelevantVars = local $ \ e -> e
   , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance Irrelevant) (envLetBindings e)
   }
 
+-- | Check whether something can be used in a position of the given relevance.
+class UsableRelevance a where
+  usableRel :: Relevance -> a -> TCM Bool
+
+instance UsableRelevance Term where
+  usableRel rel u = case ignoreSharing u of
+    Var i vs -> do
+      irel <- ignoreForced . getRelevance <$> typeOfBV' i
+      let ok = irel `moreRelevant` rel
+      reportSDoc "tc.irr" 50 $
+        text "Variable" <+> prettyTCM (var i) <+>
+        text ("has relevance " ++ show irel ++ ", which is " ++
+              (if ok then "" else "NOT ") ++ "more relevant than " ++ show rel)
+      return ok `and2M` usableRel rel vs
+    Def f vs -> do
+      frel <- ignoreForced <$> relOfConst f
+      return (frel `moreRelevant` rel) `and2M` usableRel rel vs
+    Con c _ vs -> usableRel rel vs
+    Lit l    -> return True
+    Lam _ v  -> usableRel rel v
+    Pi a b   -> usableRel rel (a,b)
+    Sort s   -> usableRel rel s
+    Level l  -> return True
+    MetaV m vs -> do
+      mrel <- ignoreForced . getMetaRelevance <$> lookupMeta m
+      return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
+    DontCare _ -> return $ isIrrelevant rel
+    Shared _ -> __IMPOSSIBLE__
+
+instance UsableRelevance a => UsableRelevance (Type' a) where
+  usableRel rel (El _ t) = usableRel rel t
+
+instance UsableRelevance Sort where
+  usableRel rel s = case s of
+    Type l -> usableRel rel l
+    Prop   -> return True
+    Inf    -> return True
+    SizeUniv -> return True
+    DLub s1 s2 -> usableRel rel (s1,s2)
+
+instance UsableRelevance Level where
+  usableRel rel (Max ls) = usableRel rel ls
+
+instance UsableRelevance PlusLevel where
+  usableRel rel ClosedLevel{} = return True
+  usableRel rel (Plus _ l)    = usableRel rel l
+
+instance UsableRelevance LevelAtom where
+  usableRel rel l = case l of
+    MetaLevel m vs -> do
+      mrel <- ignoreForced . getMetaRelevance <$> lookupMeta m
+      return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
+    NeutralLevel _ v -> usableRel rel v
+    BlockedLevel _ v -> usableRel rel v
+    UnreducedLevel v -> usableRel rel v
+
+instance UsableRelevance a => UsableRelevance [a] where
+  usableRel rel = andM . map (usableRel rel)
+
+instance (UsableRelevance a, UsableRelevance b) => UsableRelevance (a,b) where
+  usableRel rel (a,b) = usableRel rel a `and2M` usableRel rel b
+
+instance UsableRelevance a => UsableRelevance (Elim' a) where
+  usableRel rel (Apply a) = usableRel rel a
+  usableRel rel (Proj _ p) = do
+    prel <- ignoreForced <$> relOfConst p
+    return $ prel `moreRelevant` rel
+
+instance UsableRelevance a => UsableRelevance (Arg a) where
+  usableRel rel (Arg info u) =
+    let rel' = getRelevance info
+    in  usableRel (rel `composeRelevance` rel') u
+
+instance UsableRelevance a => UsableRelevance (Dom a) where
+  usableRel rel (Dom _ u) = usableRel rel u
+
+instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
+  usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
