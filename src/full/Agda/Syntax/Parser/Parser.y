@@ -1191,32 +1191,32 @@ Fields : 'field' ArgTypeSignatures
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
-Mutual : 'mutual' Declarations  { Mutual (fuseRange $1 $2) $2 }
+Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
 
 
 -- Abstract declarations.
 Abstract :: { Declaration }
-Abstract : 'abstract' Declarations  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' Declarations0  { Abstract (fuseRange $1 $2) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { Declaration }
-Private : 'private' Declarations        { Private (fuseRange $1 $2) UserWritten $2 }
+Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten $2 }
 
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations  { InstanceB (fuseRange $1 $2) $2 }
+Instance : 'instance' Declarations0  { InstanceB (fuseRange $1 $2) $2 }
 
 
 -- Macro declarations.
 Macro :: { Declaration }
-Macro : 'macro' Declarations { Macro (fuseRange $1 $2) $2 }
+Macro : 'macro' Declarations0 { Macro (fuseRange $1 $2) $2 }
 
 
 -- Postulates.
 Postulate :: { Declaration }
-Postulate : 'postulate' Declarations { Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }

@@ -84,6 +84,12 @@ instance EmbPrj DeclarationWarning where
     UselessPrivate a                  -> icodeN 3 UselessPrivate a
     UselessAbstract a                 -> icodeN 4 UselessAbstract a
     UselessInstance a                 -> icodeN 5 UselessInstance a
+    EmptyMutual a                     -> icodeN 6 EmptyMutual a
+    EmptyAbstract a                   -> icodeN 7 EmptyAbstract a
+    EmptyPrivate a                    -> icodeN 8 EmptyPrivate a
+    EmptyInstance a                   -> icodeN 9 EmptyInstance a
+    EmptyMacro a                      -> icodeN 10 EmptyMacro a
+    EmptyPostulate a                  -> icodeN 11 EmptyPostulate a
 
   value = vcase $ \case
     [0, a] -> valueN UnknownNamesInFixityDecl a
@@ -92,6 +98,12 @@ instance EmbPrj DeclarationWarning where
     [3, a] -> valueN UselessPrivate a
     [4, a] -> valueN UselessAbstract a
     [5, a] -> valueN UselessInstance a
+    [6, a] -> valueN EmptyMutual a
+    [7, a] -> valueN EmptyAbstract a
+    [8, a] -> valueN EmptyPrivate a
+    [9, a] -> valueN EmptyInstance a
+    [10,a] -> valueN EmptyMacro a
+    [11,a] -> valueN EmptyPostulate a
     _ -> malformed
 
 instance EmbPrj Doc where
