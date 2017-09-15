@@ -352,6 +352,7 @@ errorString err = case err of
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
   MetaOccursInItself{}                     -> "MetaOccursInItself"
+  MetaIrrelevantSolution{}                 -> "MetaIrrelevantSolution"
   ModuleArityMismatch{}                    -> "ModuleArityMismatch"
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
   ModuleDoesntExport{}                     -> "ModuleDoesntExport"
@@ -772,6 +773,10 @@ instance PrettyTCM TypeError where
 
     MetaOccursInItself m -> fsep $
       pwords "Cannot construct infinite solution of metavariable" ++ [prettyTCM $ MetaV m []]
+
+    MetaIrrelevantSolution m _ -> fsep $
+      pwords "Cannot instantiate the metavariable because (part of) the" ++
+      pwords "solution was created in an irrelevant context."
 
     BuiltinMustBeConstructor s e -> fsep $
       [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]

@@ -930,9 +930,9 @@ unifyStep s Solution{ solutionAt   = k
     return Nothing
     `catchError` \err -> return $ Just err
   -- The conditions on the relevances are as follows (see #2640):
-  -- * If the type of the equation is relevant, then the solution must be
+  -- - If the type of the equation is relevant, then the solution must be
   --   usable in a relevant position.
-  -- * If the type of the equation is (shape-)irrelevant, then the solution
+  -- - If the type of the equation is (shape-)irrelevant, then the solution
   --   must be usable in a μ-relevant position where μ is the relevance
   --   of the variable being solved.
   let eqrel  = getRelevance info
