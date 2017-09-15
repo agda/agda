@@ -206,6 +206,12 @@ data DeclarationWarning
   | UselessPrivate Range
   | UselessAbstract Range
   | UselessInstance Range
+  | EmptyMutual Range     -- ^ Empty @mutual@    block.
+  | EmptyAbstract Range   -- ^ Empty @abstract@  block.
+  | EmptyPrivate Range    -- ^ Empty @private@   block.
+  | EmptyInstance Range   -- ^ Empty @instance@  block
+  | EmptyMacro Range      -- ^ Empty @macro@     block.
+  | EmptyPostulate Range  -- ^ Empty @postulate@ block.
   deriving (Typeable, Data, Show)
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
@@ -249,6 +255,12 @@ instance HasRange DeclarationWarning where
   getRange (UselessPrivate r)                   = r
   getRange (UselessAbstract r)                  = r
   getRange (UselessInstance r)                  = r
+  getRange (EmptyMutual r)                      = r
+  getRange (EmptyAbstract r)                    = r
+  getRange (EmptyPrivate r)                     = r
+  getRange (EmptyInstance r)                    = r
+  getRange (EmptyMacro r)                       = r
+  getRange (EmptyPostulate r)                   = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _ _ _)         = r
@@ -346,6 +358,12 @@ instance Pretty DeclarationWarning where
     pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
+  pretty (EmptyMutual    _) = fsep $ pwords "Empty mutual block."
+  pretty (EmptyAbstract  _) = fsep $ pwords "Empty abstract block."
+  pretty (EmptyPrivate   _) = fsep $ pwords "Empty private block."
+  pretty (EmptyInstance  _) = fsep $ pwords "Empty instance block."
+  pretty (EmptyMacro     _) = fsep $ pwords "Empty macro block."
+  pretty (EmptyPostulate _) = fsep $ pwords "Empty postulate block."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -832,8 +850,11 @@ niceDeclarations ds = do
       (xs ++) <$> nice ys
 
     nice1 :: [Declaration] -> Nice ([NiceDeclaration], [Declaration])
-    nice1 []     = __IMPOSSIBLE__
-    nice1 (d:ds) = case d of
+    nice1 []     = return ([], []) -- Andreas, 2017-09-16, issue #2759: no longer __IMPOSSIBLE__
+    nice1 (d:ds) = do
+      let justWarning w = do niceWarning w; nice1 ds
+
+      case d of
 
         (TypeSig info x t)            -> do
           termCheck <- use terminationCheckPragma
@@ -911,21 +932,27 @@ niceDeclarations ds = do
                     niceDeclarations r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
+        Mutual r []  -> justWarning $ EmptyMutual r
         Mutual r ds' ->
           (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
 
+        Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->
           (,ds) <$> (abstractBlock r =<< nice ds')
 
+        Private r UserWritten []  -> justWarning $ EmptyPrivate r
         Private r o ds' ->
           (,ds) <$> (privateBlock r o =<< nice ds')
 
+        InstanceB r []  -> justWarning $ EmptyInstance r
         InstanceB r ds' ->
           (,ds) <$> (instanceBlock r =<< nice ds')
 
+        Macro r []  -> justWarning $ EmptyMacro r
         Macro r ds' ->
           (,ds) <$> (macroBlock r =<< nice ds')
 
+        Postulate r []  -> justWarning $ EmptyPostulate r
         Postulate _ ds' ->
           (,ds) <$> (mapM setPolarity =<< niceAxioms PostulateBlock ds')
           where
