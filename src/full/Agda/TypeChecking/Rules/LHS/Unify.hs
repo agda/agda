@@ -669,7 +669,7 @@ findFlexible i flex =
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
-  Equal (Dom info a) u v <- liftTCM $ eqUnLevel (getEquality k s)
+  Equal (Dom info fin a) u v <- liftTCM $ eqUnLevel (getEquality k s)
   ha <- mfromMaybe $ isHom n a
   (mi, mj) <- liftTCM $ addContext (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
   liftTCM $ reportSDoc "tc.lhs.unify" 30 $ text "isEtaVar results: " <+> text (show [mi,mj])
@@ -680,10 +680,10 @@ basicUnifyStrategy k s = do
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
        let choice = chooseFlex fi fj
-           firstTryLeft  = msum [ return (Solution k (Dom info ha) i v)
-                                , return (Solution k (Dom info ha) j u)]
-           firstTryRight = msum [ return (Solution k (Dom info ha) j u)
-                                , return (Solution k (Dom info ha) i v)]
+           firstTryLeft  = msum [ return (Solution k (Dom info fin ha) i v)
+                                , return (Solution k (Dom info fin ha) j u)]
+           firstTryRight = msum [ return (Solution k (Dom info fin ha) j u)
+                                , return (Solution k (Dom info fin ha) i v)]
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fi = " <+> text (show fi)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fj = " <+> text (show fj)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "chooseFlex: " <+> text (show choice)
@@ -693,9 +693,9 @@ basicUnifyStrategy k s = do
          ExpandBoth   -> mzero -- This should be taken care of by etaExpandEquationStrategy
          ChooseEither -> firstTryRight
     (Just i, _)
-     | Just _ <- findFlexible i flex -> return $ Solution k (Dom info ha) i v
+     | Just _ <- findFlexible i flex -> return $ Solution k (Dom info fin ha) i v
     (_, Just j)
-     | Just _ <- findFlexible j flex -> return $ Solution k (Dom info ha) j u
+     | Just _ <- findFlexible j flex -> return $ Solution k (Dom info fin ha) j u
     _ -> mzero
   where
     flex = flexVars s
@@ -703,7 +703,7 @@ basicUnifyStrategy k s = do
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
-  Equal (Dom _ a) u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
+  Equal (Dom _ _ a) u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
   case ignoreSharing $ unEl a of
     Def d es -> do
       npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
@@ -731,7 +731,7 @@ dataStrategy k s = do
 
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
-  let Equal (Dom _ a) u v = getEquality k s
+  let Equal (Dom _ _ a) u v = getEquality k s
       n = eqCount s
   ha <- mfromMaybe $ isHom n a
   return $ Deletion k ha u v
@@ -739,7 +739,7 @@ checkEqualityStrategy k s = do
 literalStrategy :: Int -> UnifyStrategy
 literalStrategy k s = do
   let n = eqCount s
-  Equal (Dom _ a) u v <- liftTCM $ eqUnLevel $ getEquality k s
+  Equal (Dom _ _ a) u v <- liftTCM $ eqUnLevel $ getEquality k s
   ha <- mfromMaybe $ isHom n a
   case (u , v) of
     (Lit l1 , Lit l2)
@@ -749,7 +749,7 @@ literalStrategy k s = do
 
 etaExpandVarStrategy :: Int -> UnifyStrategy
 etaExpandVarStrategy k s = do
-  Equal (Dom _ a) u v <- liftTCM $ eqUnLevel (getEquality k s)
+  Equal (Dom _ _ a) u v <- liftTCM $ eqUnLevel (getEquality k s)
   shouldEtaExpand u a s `mplus` shouldEtaExpand v a s
   where
     -- TODO: use IsEtaVar to check if the term is a variable
@@ -762,7 +762,7 @@ etaExpandVarStrategy k s = do
       guard $ not $ null ps
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         text "with projections " <+> prettyTCM (map snd ps)
-      let Dom _ b = getVarTypeUnraised (varCount s - 1 - i) s
+      let Dom _ _ b = getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- mcatMaybes $ liftTCM $ isEtaRecordType b
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         text "at record type " <+> prettyTCM d
@@ -771,7 +771,7 @@ etaExpandVarStrategy k s = do
 
 etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
-  let Equal (Dom _ a) u v = getEqualityUnraised k s
+  let Equal (Dom _ _ a) u v = getEqualityUnraised k s
   (d, pars) <- mcatMaybes $ liftTCM $ addContext tel $ isEtaRecordType a
   sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
   projLeft <- liftTCM $ shouldProject u
@@ -799,7 +799,7 @@ etaExpandEquationStrategy k s = do
 simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
   isSizeName <- liftTCM isSizeNameTest
-  let Equal (Dom _ a) u v = getEquality k s
+  let Equal (Dom _ _ a) u v = getEquality k s
   case ignoreSharing $ unEl a of
     Def d _ -> do
       guard $ isSizeName d
@@ -914,14 +914,14 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
         Unifies <$> liftTCM (reduceEqTel s')
 
 unifyStep s Solution{ solutionAt   = k
-                    , solutionType = Dom info a
+                    , solutionType = Dom info _ a
                     , solutionVar  = i
                     , solutionTerm = u } = do
   let m = varCount s
 
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
-  let Dom info' a' = getVarType (m-1-i) s
+  let Dom info' _ a' = getVarType (m-1-i) s
   equalTypes <- liftTCM $ addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ text "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ text "Variable type: " <+> prettyTCM a'
@@ -1007,7 +1007,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
     -- TODO: we could still make progress here if not --without-K,
     -- but I'm not sure if it's necessary.
     DontKnow _ -> let n           = eqCount s
-                      Equal (Dom _ a) u v = getEquality k s
+                      Equal (Dom _ _ a) u v = getEquality k s
                   in return $ DontKnow [UnifyIndicesNotVars
                        (varTel s `abstract` eqTel s) a
                        (raise n u) (raise n v) (raise (n-k) ixs)]

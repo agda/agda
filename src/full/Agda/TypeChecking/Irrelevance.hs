@@ -160,6 +160,7 @@ instance UsableRelevance a => UsableRelevance (Elim' a) where
   usableRel rel (Proj _ p) = do
     prel <- ignoreForced <$> relOfConst p
     return $ prel `moreRelevant` rel
+  usableRel rel (IApply x y v) = allM [x,y,v] $ usableRel rel
 
 instance UsableRelevance a => UsableRelevance (Arg a) where
   usableRel rel (Arg info u) =
@@ -167,7 +168,7 @@ instance UsableRelevance a => UsableRelevance (Arg a) where
     in  usableRel (rel `composeRelevance` rel') u
 
 instance UsableRelevance a => UsableRelevance (Dom a) where
-  usableRel rel (Dom _ u) = usableRel rel u
+  usableRel rel (Dom _ _ u) = usableRel rel u
 
 instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
