@@ -207,13 +207,14 @@ occursCheck
   => MetaId -> Vars -> a -> TCM a
 occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
+  let ctx = if isIrrelevant (getMetaRelevance mv) then Irrel else Top
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
   let redo m = m -- disableDestructiveUpdate m >> m
   -- First try without normalising the term
-  redo (occurs NoUnfold  Top m xs v) `catchError` \_ -> do
+  redo (occurs NoUnfold  ctx m xs v) `catchError` \_ -> do
     initOccursCheck mv
-    redo (occurs YesUnfold Top m xs v) `catchError` \err -> case err of
+    redo (occurs YesUnfold ctx m xs v) `catchError` \err -> case err of
                             -- Produce nicer error messages
       TypeError _ cl -> case clValue cl of
         MetaOccursInItself{} ->
@@ -237,6 +238,12 @@ occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Ben
                    , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
                    ]
             )
+        MetaIrrelevantSolution _ _ ->
+          typeError . GenericError . show =<<
+            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+                 , prettyTCM v
+                 , text "since (part of) the solution was created in an irrelevant context."
+                 ]
         _ -> throwError err
       _ -> throwError err
 
@@ -276,8 +283,15 @@ instance Occurs Term where
           Lam h f     -> Lam h <$> occ (leaveTop ctx) f
           Level l     -> Level <$> occ ctx l  -- stay in Top
           Lit l       -> return v
-          DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
-          Def d es    -> Def d <$> occDef d (leaveTop ctx) es
+          DontCare v  -> if ctx == Irrel then
+                           dontCare <$> occurs red ctx m xs v
+                         else
+                           abort (strongly ctx) $ MetaIrrelevantSolution m v
+          Def d es    -> do
+            drel <- relOfConst d
+            unless (not (unusableRelevance drel) || ctx == Irrel) $
+              abort ctx $ MetaIrrelevantSolution m $ Def d []
+            Def d <$> occDef d (leaveTop ctx) es
           Con c ci vs -> Con c ci <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
           Sort s      -> Sort <$> occurs red (leaveTop ctx) m (goNonStrict xs) s
@@ -435,7 +449,11 @@ instance Occurs Sort where
       SizeUniv   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
-  occurs red ctx m xs e@Proj{}  = return e
+  occurs red ctx m xs e@(Proj _ f) = do
+    frel <- relOfConst f
+    unless (not (unusableRelevance frel) || ctx == Irrel) $
+      abort ctx $ MetaIrrelevantSolution m $ Def f []
+    return e
   occurs red ctx m xs (Apply a) = Apply <$> occurs red ctx m xs a
 
   metaOccurs m (Proj{} ) = return ()
