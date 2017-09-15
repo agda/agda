@@ -134,7 +134,6 @@ data OccursCtx
   = Flex          -- ^ We are in arguments of a meta.
   | Rigid         -- ^ We are not in arguments of a meta but a bound var.
   | StronglyRigid -- ^ We are at the start or in the arguments of a constructor.
-  | Top           -- ^ We are at the term root (this turns into @StronglyRigid@).
   | Irrel         -- ^ We are in an irrelevant argument.
   deriving (Eq, Show)
 
@@ -149,14 +148,8 @@ unfold :: UnfoldStrategy -> Term -> TCM (Blocked Term)
 unfold NoUnfold  v = notBlocked <$> instantiate v
 unfold YesUnfold v = reduceB v
 
--- | Leave the top position.
-leaveTop :: OccursCtx -> OccursCtx
-leaveTop Top = StronglyRigid
-leaveTop ctx = ctx
-
 -- | Leave the strongly rigid position.
 weakly :: OccursCtx -> OccursCtx
-weakly Top           = Rigid
 weakly StronglyRigid = Rigid
 weakly ctx = ctx
 
@@ -170,7 +163,6 @@ patternViolation' n err = do
   patternViolation
 
 abort :: OccursCtx -> TypeError -> TCM a
-abort Top           err = typeError err
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
 abort Flex          err = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
 abort Rigid         err = patternViolation' 70 (show err)
@@ -207,7 +199,7 @@ occursCheck
   => MetaId -> Vars -> a -> TCM a
 occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
-  let ctx = if isIrrelevant (getMetaRelevance mv) then Irrel else Top
+  let ctx = if isIrrelevant (getMetaRelevance mv) then Irrel else StronglyRigid
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
   let redo m = m -- disableDestructiveUpdate m >> m
@@ -280,8 +272,8 @@ instance Occurs Term where
                   abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
                 -- is a singleton type with unique inhabitant sv
                 Right (Just sv) -> return $ sv `applyE` es
-          Lam h f     -> Lam h <$> occ (leaveTop ctx) f
-          Level l     -> Level <$> occ ctx l  -- stay in Top
+          Lam h f     -> Lam h <$> occ ctx f
+          Level l     -> Level <$> occ ctx l
           Lit l       -> return v
           DontCare v  -> if ctx == Irrel then
                            dontCare <$> occurs red ctx m xs v
@@ -291,10 +283,10 @@ instance Occurs Term where
             drel <- relOfConst d
             unless (not (unusableRelevance drel) || ctx == Irrel) $
               abort ctx $ MetaIrrelevantSolution m $ Def d []
-            Def d <$> occDef d (leaveTop ctx) es
-          Con c ci vs -> Con c ci <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
-          Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
-          Sort s      -> Sort <$> occurs red (leaveTop ctx) m (goNonStrict xs) s
+            Def d <$> occDef d ctx es
+          Con c ci vs -> Con c ci <$> occ ctx vs  -- if strongly rigid, remain so
+          Pi a b      -> uncurry Pi <$> occ ctx (a,b)
+          Sort s      -> Sort <$> occurs red ctx m (goNonStrict xs) s
           v@Shared{}  -> updateSharedTerm (occ ctx) v
           MetaV m' es -> do
               -- Check for loop
@@ -394,9 +386,7 @@ instance Occurs Level where
 
 instance Occurs PlusLevel where
   occurs red ctx m xs l@ClosedLevel{} = return l
-  occurs red ctx m xs (Plus n l) = Plus n <$> occurs red ctx' m xs l
-    where ctx' | n == 0    = ctx
-               | otherwise = leaveTop ctx  -- we leave Top only if we encounter at least one successor
+  occurs red ctx m xs (Plus n l) = Plus n <$> occurs red ctx m xs l
   metaOccurs m ClosedLevel{} = return ()
   metaOccurs m (Plus n l)    = metaOccurs m l
 
