@@ -1,0 +1,175 @@
+checking declaration
+module Agda.Primitive where
+  syntax Level ...
+  postulate Level : Set
+  {-# COMPILE GHC Level = type () #-}
+  {-# BUILTIN LEVEL Level #-}
+  syntax lzero ...
+  postulate lzero : Level
+  syntax lsuc ...
+  postulate lsuc : (ℓ : Level) → Level
+  infixl 6 _⊔_
+  syntax _⊔_ ...
+  postulate _⊔_ : (ℓ₁ ℓ₂ : Level) → Level
+  {-# BUILTIN LEVELZERO lzero #-}
+  {-# BUILTIN LEVELSUC lsuc #-}
+  {-# BUILTIN LEVELMAX _⊔_ #-}
+checking section Agda.Primitive
+adding section: Agda.Primitive 0
+    actual tele:
+checking declaration
+syntax Level ...
+postulate Level : Set
+checking declaration
+syntax Level ...
+postulate Level : Set
+checked type signature Level : Set of sort  Set₁
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+checking declaration
+{-# COMPILE GHC Level = type () #-}
+checking declaration
+{-# COMPILE GHC Level = type () #-}
+checking declaration
+{-# BUILTIN LEVEL Level #-}
+checking declaration
+{-# BUILTIN LEVEL Level #-}
+{ checkExpr
+inferred def  Level
+   :  Set
+   -->  Level
+compareTerm Set =< Set : Set₁
+Solving awake constraints. 0 remaining.
+}
+checking declaration
+syntax lzero ...
+postulate lzero : Level
+checking declaration
+syntax lzero ...
+postulate lzero : Level
+{ checkExpr
+inferred def  Level
+   :  Set
+   -->  Level
+term _0 :DirEq .#Lacking_Level_Builtins#
+term _0 :DirEq .#Lacking_Level_Builtins#
+solving _0 := .#Lacking_Level_Builtins#
+compareTerm Set =< Set : Set₁
+Solving awake constraints. 0 remaining.
+}
+checked type signature lzero : Level of sort  Set
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+checking declaration
+syntax lsuc ...
+postulate lsuc : (ℓ : Level) → Level
+checking declaration
+syntax lsuc ...
+postulate lsuc : (ℓ : Level) → Level
+{ checkExpr
+inferred def  Level
+   :  Set
+   -->  Level
+term _1 :DirEq .#Lacking_Level_Builtins#
+term _1 :DirEq .#Lacking_Level_Builtins#
+solving _1 := .#Lacking_Level_Builtins#
+compareTerm Set =< Set : Set₁
+Solving awake constraints. 0 remaining.
+}
+{ checkExpr
+inferred def  Level
+   :  Set
+   -->  Level
+term _2 ℓ :DirEq .#Lacking_Level_Builtins#
+term _2 ℓ :DirEq .#Lacking_Level_Builtins#
+solving _2 := λ ℓ → .#Lacking_Level_Builtins#
+compareTerm Set =< Set : Set₁
+Solving awake constraints. 0 remaining.
+}
+checked type signature lsuc : Level → Level of sort  Set
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+checking declaration
+infixl 6 _⊔_
+syntax _⊔_ ...
+postulate _⊔_ : (ℓ₁ ℓ₂ : Level) → Level
+checking declaration
+infixl 6 _⊔_
+syntax _⊔_ ...
+postulate _⊔_ : (ℓ₁ ℓ₂ : Level) → Level
+{ checkExpr
+inferred def  Level
+   :  Set
+   -->  Level
+term _3 :DirEq .#Lacking_Level_Builtins#
+term _3 :DirEq .#Lacking_Level_Builtins#
+solving _3 := .#Lacking_Level_Builtins#
+compareTerm Set =< Set : Set₁
+Solving awake constraints. 0 remaining.
+}
+{ checkExpr
+inferred def  Level
+   :  Set
+   -->  Level
+term _4 ℓ₁ ℓ₂ :DirEq .#Lacking_Level_Builtins#
+term _4 ℓ₁ ℓ₂ :DirEq .#Lacking_Level_Builtins#
+solving _4 := λ ℓ₁ ℓ₂ → .#Lacking_Level_Builtins#
+compareTerm Set =< Set : Set₁
+Solving awake constraints. 0 remaining.
+}
+checked type signature _⊔_ : Level → Level → Level of sort  Set
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+checking declaration
+{-# BUILTIN LEVELZERO lzero #-}
+checking declaration
+{-# BUILTIN LEVELZERO lzero #-}
+{ checkExpr
+inferred def  lzero
+   :  Level
+   -->  lzero
+coerce term      v  = lzero
+       from type t1 = Level
+       to type   t2 = Level
+compareTerm Level =< Level : Set
+Solving awake constraints. 0 remaining.
+}
+checking declaration
+{-# BUILTIN LEVELSUC lsuc #-}
+checking declaration
+{-# BUILTIN LEVELSUC lsuc #-}
+{ checkExpr
+inferred def  lsuc
+   :  Level → Level
+   -->  lsuc
+coerce term      v  = lsuc
+       from type t1 = Level → Level
+       to type   t2 = Level → Level
+compareTerm Level → Level =< Level → Level : Set
+Solving awake constraints. 0 remaining.
+}
+checking declaration
+{-# BUILTIN LEVELMAX _⊔_ #-}
+checking declaration
+{-# BUILTIN LEVELMAX _⊔_ #-}
+{ checkExpr
+inferred def  _⊔_
+   :  Level → Level → Level
+   -->  _⊔_
+coerce term      v  = _⊔_
+       from type t1 = Level → Level → Level
+       to type   t2 = Level → Level → Level
+compareTerm Level → Level → Level =< Level → Level → Level : Set
+Solving awake constraints. 0 remaining.
+}
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+Removed 0 unused definitions.
+checking declaration
+module Issue2754 where
+checking section Issue2754
+adding section: Issue2754 0
+    actual tele:
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+Removed 0 unused definitions.

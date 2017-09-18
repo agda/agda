@@ -16,6 +16,7 @@ import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
 
 #include "undefined.h"
@@ -61,6 +62,19 @@ builtinLevelKit = do
 -- | Raises an error if no level kit is available.
 requireLevels :: TCM LevelKit
 requireLevels = builtinLevelKit
+
+-- | Checks whether level kit is fully available.
+haveLevels :: TCM Bool
+haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
+    (return False)
+    (\ _bs -> return True)
+  where
+  levelBuiltins =
+    [ builtinLevel
+    , builtinLevelZero
+    , builtinLevelSuc
+    , builtinLevelMax
+    ]
 
 {-# SPECIALIZE unLevel :: Term -> TCM Term #-}
 {-# SPECIALIZE unLevel :: Term -> ReduceM Term #-}
