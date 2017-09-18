@@ -1080,7 +1080,11 @@ instance Reify Sort Expr where
 
 instance Reify Level Expr where
   reifyWhen = reifyWhenE
-  reify l = reify =<< reallyUnLevelView l
+  reify l   = ifM haveLevels (reify =<< reallyUnLevelView l) $ {-else-} do
+    -- Andreas, 2017-09-18, issue #2754
+    -- While type checking the level builtins, they are not
+    -- available for debug printing.  Thus, print some garbage instead.
+    A.Var <$> freshName_ (".#Lacking_Level_Builtins#" :: String)
 
 instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
   reify (NoAbs x v) = (,) <$> freshName_ x <*> reify v
