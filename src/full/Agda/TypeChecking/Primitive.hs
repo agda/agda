@@ -818,7 +818,8 @@ primComp = do
                mId   <- getBuiltinName' builtinId
                mPath <- getBuiltinName' builtinPath
                case ignoreSharing $ absBody t of
-                 Pi a b   -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
+                 Pi a b | nelims > 0  -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
+                        | otherwise -> fallback
 
                  s@Sort{} -> compSort fallback iz io ineg phi u a0 s
 
@@ -827,7 +828,7 @@ primComp = do
 
                  -- Path/PathP
                  d | PathType _ _ _ bA x y <- pathV (El Prop d) -> do
-                   compPathP iz ineg imax sphi u a0 l bA x y
+                   if nelims > 0 then compPathP iz ineg imax sphi u a0 l bA x y else fallback
 
                  Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do
                    maybe fallback return =<< compId sphi u a0 l bA x y
