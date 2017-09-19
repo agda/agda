@@ -496,7 +496,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       | otherwise = {-# SCC "reducePrimitive" #-} do
           let (es1,es2) = splitAt ar es
               args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
-          r <- primFunImplementation pf args1
+          r <- primFunImplementation pf args1 (length es2)
           case r of
             NoReduction args1' -> do
               let es1' = map (fmap Apply) args1'

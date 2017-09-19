@@ -379,7 +379,7 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
   t <- elInf primInterval --> elInf primInterval
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ts -> do
     case ts of
      [x] -> do
        unview <- intervalUnview'
@@ -406,7 +406,7 @@ primDepIMin' = do
   t <- runNamesT [] $
        nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        (pPi' "o" φ $ \ o -> elInf $ cl primInterval) --> elInf (cl primInterval)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
       [x,y] -> do
         sx <- reduceB' x
@@ -427,7 +427,7 @@ primDepIMin' = do
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
   t <- elInf primInterval --> elInf primInterval --> elInf primInterval
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
      [x,y] -> do
        sx <- reduceB' x
@@ -472,7 +472,7 @@ imax x y = do
 --           nPi' "q" (elInf $ cl primInterval) $ \ q ->
 --           (el' a $ bQ <@@> (bA,bB,p)) -->
 --           (el' a $ bQ <@@> (bA,bB,q))
---   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ ts -> do
+--   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 7 $ \ ts -> do
  --    app <- getPrimitiveTerm' "primPathApply"
  --    case (ts,app) of
  --      ([l,a,b,t,p,q,x],Just app) -> do
@@ -498,7 +498,7 @@ primPathAbs' = do
        nPi' "f" (elInf (cl primInterval) --> el' a bA) $ \ f ->
        el' a $ cl primPath <#> a <#> bA <@> (f <@> cl primIZero)
                                         <@> (f <@> cl primIOne)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     case ts of
      [a,bA,f] -> redReturn (unArg f)
      _ -> __IMPOSSIBLE__
@@ -512,7 +512,7 @@ primPathApply = do
            hPi' "y" (el' a bA) $ \ y ->
            (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
             --> elInf (cl primInterval) --> (el' a bA)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,a,x,y,p] -> do
         redReturn $ runNames [] $ do
@@ -531,7 +531,7 @@ primPathPApply = do
            hPi' "y" (el' a (bA <@> cl primIOne)) $ \ y ->
            (el' a $ cl primPathP <#> a <#> bA <@> x <@> y)
             --> (nPi' "i" (elInf (cl primInterval)) $ \ i -> (el' a (bA <@> i)))
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,a,x,y,p] -> do
         redReturn $ runNames [] $ do
@@ -560,7 +560,7 @@ primIdJ = do
   conidn <- getBuiltinName builtinConId
   conid  <- primConId
   -- TODO make a kit
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ ts -> do
     unview <- intervalUnview'
     let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
         imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
@@ -612,7 +612,7 @@ primIdElim' = do
   conid <- primConId
   sin <- primSubIn
   path <- primPath
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ ts -> do
     case ts of
       [a,c,bA,x,bC,f,y,p] -> do
         sp <- reduceB' p
@@ -634,7 +634,7 @@ primPFrom1 = do
            nPi' "j" (elInf $ cl primInterval) $ \ j ->
           pPi' "o" i (\ _ -> el' a (bA <@> (i `imax` j)))
           )
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,a,u,i,j] -> do
         si <- reduceB' i
@@ -661,7 +661,7 @@ primPOr = do
           ((pPi' "i1" i $ \ i1 -> el' a $ bA <..> (cl primIsOne1 <@> i <@> j <@> i1))) -->
           ((pPi' "j1" j $ \ j1 -> el' a $ bA <..> (cl primIsOne2 <@> i <@> j <@> j1))) -->
           (pPi' "o" (imax i j) $ \ o -> el' a $ bA <..> o)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ ts -> do
     case ts of
      [l,i,j,a,u,v] -> do
        si <- reduceB' i
@@ -687,7 +687,7 @@ primPartial' = do
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
         elInf (cl primInterval) --> return (sort $ Inf))
   isOne <- primIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     case ts of
       [l,a,phi] -> do
           (El s (Pi d b)) <- runNamesT [] $ do
@@ -711,7 +711,7 @@ primPartialP' = do
         lam "φ" $ \ phi ->
         lam "A" $ \ a ->
         toFinitePi <$> nPi' "p" (elInf $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
@@ -721,7 +721,7 @@ primSubOut' = do
           hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           hPi' "u" (elInf $ cl primPartial <#> a <@> bA <@> phi) $ \ u ->
           elInf (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do
         view <- intervalView'
@@ -745,7 +745,7 @@ primIdFace' = do
        hPi' "y" (el' a bA) $ \ y ->
        (el' a $ cl primId <#> a <#> bA <@> x <@> y)
        --> elInf (cl primInterval)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,bA,x,y,t] -> do
         st <- reduceB' t
@@ -764,7 +764,7 @@ primIdPath' = do
        hPi' "y" (el' a bA) $ \ y ->
        (el' a $ cl primId <#> a <#> bA <@> x <@> y)
        --> (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,bA,x,y,t] -> do
         st <- reduceB' t
@@ -784,7 +784,7 @@ primComp = do
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   one <- primItIsOne
   tempty <- primIsOneEmpty
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
     unview <- intervalUnview'
     pathV  <- pathView'
     let
@@ -1062,7 +1062,7 @@ primGlue' = do
        --> (sort . tmSort <$> lb))
   view <- intervalView'
   one <- primItIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ts ->
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 7 $ \ts ->
     case ts of
      [la,lb,a,phi,t,f,pf] -> do
        sphi <- reduceB' phi
@@ -1084,7 +1084,7 @@ prim_glue' = do
        (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f <@> pf)))
   view <- intervalView'
   one <- primItIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 9 $ \ts ->
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 9 $ \ts ->
     case ts of
       [la,lb,bA,phi,bT,f,pf,t,a] -> do
        sphi <- reduceB' phi
@@ -1107,7 +1107,7 @@ prim_unglue' = do
   view <- intervalView'
   one <- primItIsOne
   mglue <- getPrimitiveName' builtin_glue
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ts ->
     case ts of
       [la,lb,bA,phi,bT,f,pf,b] -> do
        sphi <- reduceB' phi
@@ -1127,7 +1127,7 @@ prim_unglue' = do
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
   t <- (elInf primInterval --> elInf primInterval) --> elInf primInterval
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
     case ts of
       [phi] -> do
         sphi <- reduceB' phi
@@ -1218,7 +1218,7 @@ primTrustMe = do
         Nothing -> const con
 
   -- The implementation of primTrustMe:
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (size eqTel) $ \ ts -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ (size eqTel) $ \ ts -> do
     let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 ts
     -- Andreas, 2013-07-22.
     -- Note that we cannot call the conversion checker here,
@@ -1262,7 +1262,7 @@ genPrimForce b ret = do
        hPi "b" (el primLevel) $
        hPi "A" (varS 1) $
        hPi "B" (varT 2 0 --> varS 1) b
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts ->
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ ts ->
     case ts of
       [a, b, s, t, u, f] -> do
         u <- reduceB' u
@@ -1318,19 +1318,19 @@ primForceLemma = do
 mkPrimLevelZero :: TCM PrimitiveImpl
 mkPrimLevelZero = do
   t <- primType (undefined :: Lvl)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ Max []
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ Max []
 
 mkPrimLevelSuc :: TCM PrimitiveImpl
 mkPrimLevelSuc = do
   t <- primType (id :: Lvl -> Lvl)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
     l <- levelView' $ unArg a
     redReturn $ Level $ levelSuc l
 
 mkPrimLevelMax :: TCM PrimitiveImpl
 mkPrimLevelMax = do
   t <- primType (max :: Op Lvl)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> do
     Max as <- levelView' $ unArg a
     Max bs <- levelView' $ unArg b
     redReturn $ Level $ levelMax $ as ++ bs
@@ -1341,7 +1341,7 @@ mkPrimFun1TCM mt f = do
     toA   <- fromTerm
     fromB <- toTermR
     t     <- mt
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
           redBind (toA v) (\v' -> [v']) $ \x -> do
@@ -1358,7 +1358,7 @@ mkPrimFun1 f = do
     toA   <- fromTerm
     fromB <- toTerm
     t     <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
           redBind (toA v)
@@ -1376,7 +1376,7 @@ mkPrimFun2 f = do
     toB   <- fromTerm
     fromC <- toTerm
     t     <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ts ->
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ts ->
       case ts of
         [v,w] ->
           redBind (toA v)
@@ -1400,7 +1400,7 @@ mkPrimFun4 f = do
     toD          <- fromTerm
     fromE        <- toTerm
     t <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 4 $ \ts ->
       let argFrom fromX a x =
             reduced $ notBlocked $ Arg (argInfo a) (fromX x)
       in case ts of

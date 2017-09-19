@@ -1829,9 +1829,12 @@ allReductions = [minBound..pred maxBound]
 data PrimFun = PrimFun
         { primFunName           :: QName
         , primFunArity          :: Arity
-        , primFunImplementation :: [Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)
+        , primFunImplementation :: [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
         }
     deriving (Typeable)
+
+primFun :: QName -> Arity -> ([Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)) -> PrimFun
+primFun q ar imp = PrimFun q ar (\ args _ -> imp args)
 
 defClauses :: Definition -> [Clause]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs
