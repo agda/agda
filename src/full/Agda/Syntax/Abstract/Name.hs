@@ -237,7 +237,7 @@ nextName x = x { nameConcrete = C.Name noRange $ nextSuf ps }
 ------------------------------------------------------------------------
 
 instance Eq Name where
-  (==) = (==) `on` nameId
+  (==) x y = ((==) `on` nameId) x y && ((==) `on` nameConcrete) x y
 
 instance Ord Name where
   compare = compare `on` nameId
