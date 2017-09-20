@@ -85,6 +85,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 
+import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Hash
@@ -816,7 +817,8 @@ interpret (Cmd_highlight ii rng s) = do
         Right _ -> return ()
     try :: String -> TCM a -> ExceptT String TCM a
     try err m = mkExceptT $ do
-      (Right <$> m) `catchError` \ _ -> return (Left err)
+      (mapLeft (const err) <$> freshTCM m) `catchError` \ _ -> return (Left err)
+      -- freshTCM to avoid scope checking creating new interaction points
 
 interpret (Cmd_give   force ii rng s) = give_gen force ii rng s Give
 interpret (Cmd_refine ii rng s) = give_gen WithoutForce ii rng s Refine
