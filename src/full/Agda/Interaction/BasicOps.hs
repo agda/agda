@@ -263,9 +263,13 @@ refine force ii mr e = do
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
-          return $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
-          --ToDo: The position of metaVar is not correct
-          --ToDo: The fixity of metavars is not correct -- fixed? MT
+          rescopeExpr scope $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
+
+-- | Turn an abstract expression into concrete syntax and then back into
+--   abstract. This ensures that context precedences are set correctly for
+--   abstract expressions built by hand. Used by refine above.
+rescopeExpr :: ScopeInfo -> Expr -> TCM Expr
+rescopeExpr scope = withScope_ scope . (concreteToAbstract_ <=< runAbsToCon . preserveInteractionIds . toConcrete)
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr

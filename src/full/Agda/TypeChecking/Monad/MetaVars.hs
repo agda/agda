@@ -226,7 +226,10 @@ modifyInteractionPoints f =
 registerInteractionPoint :: Bool -> Range -> Maybe Nat -> TCM InteractionId
 registerInteractionPoint preciseRange r maybeId = do
   m <- use stInteractionPoints
-  if not preciseRange then continue m else do
+  -- If we're given an interaction id we shouldn't look up by range.
+  -- This is important when doing 'refine', since all interaction points
+  -- created by the refine gets the same range.
+  if not preciseRange || isJust maybeId then continue m else do
     -- If the range does not come from a file, it is not
     -- precise, so ignore it.
     Strict.caseMaybe (rangeFile r) (continue m) $ \ _ -> do

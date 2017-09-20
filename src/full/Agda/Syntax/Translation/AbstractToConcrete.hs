@@ -19,6 +19,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , RangeAndPragma(..)
     , abstractToConcreteCtx
     , withScope
+    , preserveInteractionIds
     , AbsToCon, DontTouchMe, Env
     , noTakenNames
     ) where
@@ -78,6 +79,8 @@ data Env = Env { takenNames   :: Set C.Name
                , currentScope :: ScopeInfo
                , builtins     :: Map String A.QName
                   -- ^ Certain builtins (like `fromNat`) have special printing
+               , preserveIIds :: Bool
+                  -- ^ Preserve interaction point ids
                }
 
 makeEnv :: ScopeInfo -> TCM Env
@@ -90,6 +93,7 @@ makeEnv scope = do
     Env { takenNames   = Set.union vars defs
         , currentScope = scope
         , builtins     = Map.fromList builtinList
+        , preserveIIds = False
         }
   where
     vars  = Set.fromList $ map fst $ scopeLocals scope
@@ -97,6 +101,9 @@ makeEnv scope = do
 
 currentPrecedence :: AbsToCon PrecedenceStack
 currentPrecedence = asks $ scopePrecedence . currentScope
+
+preserveInteractionIds :: AbsToCon a -> AbsToCon a
+preserveInteractionIds = local $ \ e -> e { preserveIIds = True }
 
 withPrecedence' :: PrecedenceStack -> AbsToCon a -> AbsToCon a
 withPrecedence' ps = local $ \e ->
@@ -449,9 +456,11 @@ instance ToConcrete A.Expr C.Expr where
 
     -- Andreas, 2014-05-17  We print question marks with their
     -- interaction id, in case @metaNumber /= Nothing@
-    toConcrete (A.QuestionMark i ii)= return $
-      C.QuestionMark (getRange i) $
-        interactionId ii <$ metaNumber i
+    -- Ulf, 2017-09-20  ... or @preserveIIds == True@.
+    toConcrete (A.QuestionMark i ii) = do
+      preserve <- asks preserveIIds
+      return $ C.QuestionMark (getRange i) $
+                 interactionId ii <$ guard (preserve || isJust (metaNumber i))
 
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
