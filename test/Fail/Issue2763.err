@@ -1,0 +1,4 @@
+Issue2763.agda:15,1-19
+a != w₁ of type A
+when checking that the type ⊤ → (w : A) → G w b of the generated
+with function is well-formed

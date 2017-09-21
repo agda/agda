@@ -124,21 +124,19 @@ abstractTerm a u@Con{} b v = do
                       , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
                 return v
 
-  v <- catchError_ (checkInternal' (defaultAction { preAction = abstr }) v b) $ \ err -> do
-        reportSDoc "impossible" 10 $
-          vcat [ text "Type error in term to abstract"
-               , nest 2 $ (prettyTCM =<< getContextTelescope) <+> text "⊢"
-               , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ]
-               , nest 2 $ prettyTCM err ]
-        reportSDoc "impossible" 60 $
-          vcat [ text "Type error in term to abstract (raw)"
-               , nest 2 $ ((text . show) =<< getContextTelescope) <+> text "⊢"
-               , nest 2 $ sep [ (text . show) v <+> text ":", nest 2 $ (text . show) b ]
-               ]
-        __IMPOSSIBLE__
-  reportSDoc "tc.abstract" 50 $ sep [ text "Resulting abstraction", nest 2 $ prettyTCM v ]
+  -- #2763: This can fail if the user is with-abstracting incorrectly (for
+  -- instance, abstracting over a first component of a sigma without also
+  -- abstracting the second component). In this case we skip abstraction
+  -- altogether and let the type check of the final with-function type produce
+  -- the error message.
+  let typedAbstr = absTerm (Def hole args) <$> checkInternal' (defaultAction { preAction = abstr }) v b
+  res <- catchError_ typedAbstr $ \ err -> do
+        reportSDoc "tc.abstract.ill-typed" 40 $
+          text "Skipping typed abstraction over ill-typed term" <?> (prettyTCM v <?> (text ":" <+> prettyTCM b))
+        return v
+  reportSDoc "tc.abstract" 50 $ text "Resulting abstraction" <?> prettyTCM res
   modifySignature $ updateDefinitions $ HMap.delete hole
-  return $ absTerm (Def hole args) v
+  return res
 
 abstractTerm _ u _ v = return $ absTerm u v -- Non-constructors can use untyped abstraction
 
