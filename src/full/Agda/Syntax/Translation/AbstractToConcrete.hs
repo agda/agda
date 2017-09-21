@@ -49,7 +49,7 @@ import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Views as AV
+import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope)
@@ -1187,8 +1187,8 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
       | Just xs@(_:_) <- traverse insertedName bs =
         (,) <$> getHead hd <*> sectionArgs xs args
       where
-        LamView     bs body = AV.lamView e
-        Application hd args = AV.appView' body
+        LamView     bs body = A.lamView e
+        Application hd args = A.appView' body
 
         -- Only inserted domain-free visible lambdas come from sections.
         insertedName (A.DomainFree i x)
@@ -1213,7 +1213,7 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
             go _ _ = Nothing
 
     view e = (, (map . fmap . fmap) Just args) <$> getHead hd
-      where Application hd args = AV.appView' e
+      where Application hd args = A.appView' e
 
     getHead (Var x)              = Just (HdVar x)
     getHead (Def f)              = Just (HdDef f)

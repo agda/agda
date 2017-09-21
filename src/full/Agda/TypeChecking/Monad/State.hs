@@ -377,6 +377,10 @@ modifyPatternSyns f = stPatternSyns %= f
 getPatternSynImports :: TCM PatternSynDefns
 getPatternSynImports = use stPatternSynImports
 
+-- | Get both local and imported pattern synonyms
+getAllPatternSyns :: TCM PatternSynDefns
+getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
+
 lookupPatternSyn :: QName -> TCM PatternSynDefn
 lookupPatternSyn x = do
     s <- getPatternSyns
