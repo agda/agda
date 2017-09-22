@@ -999,8 +999,37 @@ unifyStep s (Injectivity k a d pars ixs c) = do
     -- same type for distinct constructors c1 and c2.
     NoUnify _ -> __IMPOSSIBLE__
 
-    -- TODO: we could still make progress here if not --without-K,
-    -- but I'm not sure if it's necessary.
+    -- Higher-dimensional unification has failed. If not --without-K,
+    -- we can simply ignore the higher-dimensional equations and
+    -- simplify the equation as in the non-indexed case.
+    DontKnow _ | not withoutK -> do
+      -- using the same variable names as in the case where hdu succeeds.
+      let eqTel1' = eqTel1 `abstract` raise (size eqTel1) ctel
+          rho1    = raiseS (size ctel)
+          ceq     = ConP c noConPatternInfo $ teleNamedArgs ctel
+          rho3    = consS ceq rho1
+          eqTel2' = applyPatSubst rho3 eqTel2
+          eqTel'  = eqTel1' `abstract` eqTel2'
+          rho     = liftS (size eqTel2) rho3
+
+      tellUnifyProof rho
+
+      eqTel' <- liftTCM $ reduce eqTel'
+
+      -- Compute new lhs and rhs by matching the old ones against rho
+      (lhs', rhs') <- liftTCM . reduce =<< do
+        let ps = applySubst rho $ teleNamedArgs $ eqTel s
+        (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
+        (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
+        case (lhsMatch, rhsMatch) of
+          (Match.Yes _ lhs', Match.Yes _ rhs') -> return
+            (reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') lhs',
+             reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') rhs')
+          _ -> __IMPOSSIBLE__
+
+      return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
+
+
     DontKnow _ -> let n           = eqCount s
                       Equal (Dom _ a) u v = getEquality k s
                   in return $ DontKnow [UnifyIndicesNotVars
