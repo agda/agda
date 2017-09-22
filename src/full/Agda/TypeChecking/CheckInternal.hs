@@ -74,8 +74,9 @@ checkType' t = do
     Pi a b -> do
       s1 <- checkType' $ unDom a
       s2 <- (b $>) <$> do
-        addContext (absName b, a) $ do
-          checkType' $ absBody b
+        let goInside = case b of Abs{}   -> addContext (absName b, a)
+                                 NoAbs{} -> id
+        goInside $ checkType' $ unAbs b
       return $ dLub s1 s2
     Sort s -> do
       _ <- checkSort defaultAction s

@@ -725,13 +725,12 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
   -- Check generated type directly in internal syntax.
   setCurrentRange cs
     (traceCall NoHighlighting $   -- To avoid flicker.
-      checkType withFunType)
+     checkType withFunType)
     `catchError` \err -> case err of
       TypeError s e -> do
         put s
         wt <- reify withFunType
-        enterClosure e $ do
-          traceCall (CheckWithFunctionType wt) . typeError
+        enterClosure e $ traceCall (CheckWithFunctionType wt) . typeError
       err           -> throwError err
 
   -- With display forms are closed

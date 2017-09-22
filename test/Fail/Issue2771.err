@@ -1,5 +1,5 @@
 Issue2771.agda:15,1-19
-¬ho-shr-morph ind != w₁ of type IndexL
+¬ho-shr-morph ind != w of type IndexL
 when checking that the type
 (ind : IndexL) → ⊤ → (w : IndexL) → ¬ord-morph w (pres-¬ord ind) of
 the generated with function is well-formed
