@@ -129,14 +129,13 @@ abstractTerm a u@Con{} b v = do
   -- abstracting the second component). In this case we skip abstraction
   -- altogether and let the type check of the final with-function type produce
   -- the error message.
-  let typedAbstr = absTerm (Def hole args) <$> checkInternal' (defaultAction { preAction = abstr }) v b
-  res <- catchError_ typedAbstr $ \ err -> do
+  res <- catchError_ (checkInternal' (defaultAction { preAction = abstr }) v b) $ \ err -> do
         reportSDoc "tc.abstract.ill-typed" 40 $
           text "Skipping typed abstraction over ill-typed term" <?> (prettyTCM v <?> (text ":" <+> prettyTCM b))
         return v
   reportSDoc "tc.abstract" 50 $ text "Resulting abstraction" <?> prettyTCM res
   modifySignature $ updateDefinitions $ HMap.delete hole
-  return res
+  return $ absTerm (Def hole args) res
 
 abstractTerm _ u _ v = return $ absTerm u v -- Non-constructors can use untyped abstraction
 
