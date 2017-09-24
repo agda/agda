@@ -9,6 +9,7 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings
   , tcWarningsToError
   , applyFlagsToTCWarnings
+  , verbalize
   ) where
 
 import Prelude hiding (null)
@@ -1471,9 +1472,9 @@ instance Verbalize Relevance where
       NonStrict  -> "shape-irrelevant"
       Forced{}   -> __IMPOSSIBLE__
       UnusedArg  -> __IMPOSSIBLE__
-      Sharp      -> "sharp"
-      CoShape    -> "coshape"
-      NSSharp    -> "shape-irr-sharp"
+      Sharp      -> "top"
+      CoShape    -> "flat"
+      -- NSSharp    -> "shape-irr-sharp"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

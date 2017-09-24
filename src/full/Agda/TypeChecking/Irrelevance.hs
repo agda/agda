@@ -50,10 +50,10 @@ workOnTypes cont = do
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance flattenRel) cont
-  -- where
-  --   f | experimental = irrToNonStrict
-  --     | otherwise    = nonStrictToRel
+workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance f) cont
+  where
+    f | experimental = irrToNonStrict
+      | otherwise    = nonStrictToRel
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

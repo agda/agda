@@ -119,7 +119,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     --primBridge,
-    primCoShapePi, primSharpPi, primNSSharpPi,
+    primCoShapePi, primSharpPi, -- primNSSharpPi,
     primCoGlue,prim_coglue,prim_mcoglue,
     primBridgeP,
     primB, primB0, primB1,
@@ -224,7 +224,7 @@ primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
 primCoShapePi    = getPrimitiveTerm builtinCoShapePi
 primSharpPi      = getPrimitiveTerm builtinSharpPi
-primNSSharpPi    = getPrimitiveTerm builtinNSSharpPi
+-- primNSSharpPi    = getPrimitiveTerm builtinNSSharpPi
 -- primBridge       = getBuiltin builtinBridge
 primBridgeP      = getBuiltin builtinBridgeP
 primB            = getBuiltin builtinB
@@ -361,7 +361,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   -- builtinBridge,
-  builtinCoShapePi, builtinSharpPi, builtinNSSharpPi,
+  builtinCoShapePi, builtinSharpPi, -- builtinNSSharpPi,
 
   builtinBridgeP,
   builtinB, builtinB0, builtinB1,
@@ -445,7 +445,7 @@ builtinId                            = "ID"
 --builtinBridge                        = "BRIDGE"
 builtinCoShapePi                     = "primCoShapePi"
 builtinSharpPi                       = "primSharpPi"
-builtinNSSharpPi                     = "primNSSharpPi"
+-- builtinNSSharpPi                     = "primNSSharpPi"
 builtinBridgeP                       = "BRIDGEP"
 builtinB                             = "BRIDGENAME"
 builtinB0                            = "BZERO"

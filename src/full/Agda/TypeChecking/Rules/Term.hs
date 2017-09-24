@@ -51,6 +51,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.InstanceArguments
@@ -282,7 +283,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
-    t <- modEnv lamOrPi $ isType_ e
+    t <- modEnv lamOrPi $ modEnvperRel (getRelevance info) $ isType_ e
     let info' = mapRelevance (modRel lamOrPi experimental) info
     addContext' (xs, setArgInfo info' $ defaultDom t) $
       ret $ bindsWithHidingToTel xs (setArgInfo info $ defaultDom t)
@@ -293,8 +294,11 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modRel PiNotLam xp = flattenRel
+        modRel PiNotLam xp = if xp then irrToNonStrict . nonStrictToRel else nonStrictToRel
         modRel _        _  = id
+        modEnvperRel CoShape = modifyContext (modifyContextEntries $ mapRelevance
+                                              $ inverseComposeRelevance CoShape)
+        modEnvperRel _       = id
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
 
@@ -1575,7 +1579,7 @@ inferHead e = do
       when (unusableRelevance $ getRelevance a) $
         (typeError . GenericDocError)
           =<< (fsep $
-                text "Variable" : prettyTCM x : (pwords $ "is declared " ++ show (getRelevance a) ++ ", so it cannot be used here"))
+                text "Variable" : prettyTCM x : (pwords $ "is declared " ++ verbalize (getRelevance a) ++ ", so it cannot be used here"))
       return (applyE u, unDom a)
     (A.Def x) -> inferHeadDef ProjPrefix x
     (A.Proj o (AmbQ [d])) -> inferHeadDef o d

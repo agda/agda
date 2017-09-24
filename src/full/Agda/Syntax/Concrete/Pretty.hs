@@ -98,7 +98,7 @@ instance Pretty Relevance where
   pretty Irrelevant = text "."
   pretty NonStrict  = text ".."
   pretty Sharp      = text "#"
-  pretty NSSharp    = text "÷#"
+  -- pretty NSSharp    = text "÷#"
   pretty CoShape    = text "¶"
 
 instance Pretty Induction where

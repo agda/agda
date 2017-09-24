@@ -1387,8 +1387,8 @@ primCoShapePi' = primPi' True CoShape
 primSharpPi' :: TCM PrimitiveImpl
 primSharpPi' = primPi' True Sharp
 
-primNSSharpPi' :: TCM PrimitiveImpl
-primNSSharpPi' = primPi' True NSSharp
+-- primNSSharpPi' :: TCM PrimitiveImpl
+-- primNSSharpPi' = primPi' True NSSharp
 
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
@@ -1646,10 +1646,10 @@ pPi' n phi b = toFinitePi <$> nPi' n (el $ cl (liftTCM primIsOne) <@> phi) b
 modPi :: MonadTCM tcm => Relevance -> String -> tcm Type -> tcm Type -> tcm Type
 modPi m = gpi $ setRelevance m defaultArgInfo
 
-csPi, sPi, nsPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
+csPi, sPi {-, nsPi-} :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 csPi = modPi CoShape
 sPi  = modPi Sharp
-nsPi = modPi NSSharp
+-- nsPi = modPi NSSharp
 
 modPi' :: MonadTCM tcm => Relevance -> String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 modPi' m s a b = modPi m s a (bind' s b)
@@ -1657,11 +1657,11 @@ modPi' m s a b = modPi m s a (bind' s b)
 hmodPi' :: MonadTCM tcm => Relevance -> String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 hmodPi' m s a b = gpi info s a (bind' s b) where info = setRelevance m $ setHiding Hidden defaultArgInfo
 
-csPi', sPi', nsPi', hcsPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+csPi', sPi', {-nsPi',-} hcsPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 csPi' = modPi' CoShape
 hcsPi' s a b = gpi info s a (bind' s b) where info = setHiding Hidden $ setRelevance CoShape $ defaultArgInfo
 sPi'  = modPi' Sharp
-nsPi' = modPi' NSSharp
+-- nsPi' = modPi' NSSharp
 
 
 el' :: Monad m => m Term -> m Term -> m Type
@@ -1884,10 +1884,10 @@ primitiveFunctions = Map.fromList
   , builtinPMax           |-> primPMax'
   , builtinCoShapePi      |-> primCoShapePi'
   , builtinSharpPi        |-> primSharpPi'
-  , builtinNSSharpPi      |-> primNSSharpPi'
+  -- , builtinNSSharpPi      |-> primNSSharpPi'
   , "primHCoShapePi"      |-> primPi' False CoShape
   , "primHSharpPi"        |-> primPi' False Sharp
-  , "primHNSSharpPi"      |-> primPi' False NSSharp
+  -- , "primHNSSharpPi"      |-> primPi' False NSSharp
   , builtinCoGlue         |-> primCoGlue'
   , builtin_coglue        |-> prim_coglue'
   , builtin_mcoglue       |-> prim_mcoglue'

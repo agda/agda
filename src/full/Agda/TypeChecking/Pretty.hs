@@ -246,9 +246,9 @@ instance PrettyTCM Relevance where
   prettyTCM Relevant   = empty
   prettyTCM Forced{}   = empty
   prettyTCM UnusedArg  = empty
-  prettyTCM Sharp      = text "#"
-  prettyTCM NSSharp    = text "÷#"
-  prettyTCM CoShape    = text "¶"
+  prettyTCM Sharp      = text "⊤"
+  -- prettyTCM NSSharp    = text "÷#"
+  prettyTCM CoShape    = text "♭"
 
 instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr []   c) = prettyTCM c

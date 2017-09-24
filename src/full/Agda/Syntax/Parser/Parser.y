@@ -1754,13 +1754,15 @@ polarity (i, s) =
 modality :: (Interval, String) -> Parser (Range, Relevance)
 modality (i, s) =
   case s of
-    "#"  -> ret Sharp
+    "top" -> ret Sharp
+    "⊤"  -> ret Sharp
     ".." -> ret NonStrict
     "÷"  -> ret NonStrict
     "."  -> ret Irrelevant
     "irrelevant"  -> ret Irrelevant
-    "¶"  -> ret CoShape
-    "÷#"  -> ret NSSharp
+    "flat" -> ret CoShape
+    "♭"  -> ret CoShape
+--    "÷#"  -> ret NSSharp
     "id"   -> ret Relevant
     "_"   -> ret Relevant
     ""   -> ret Relevant

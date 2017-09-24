@@ -210,7 +210,7 @@ data Relevance
                 --   equality checking but should be mined for solutions
                 --   of meta-variables with relevance 'UnusedArg'
   | Sharp     -- ^ #
-  | NSSharp   -- ^ ÷#
+  -- | NSSharp   -- ^ ÷#
   | CoShape   -- ^ ¶
     deriving (Typeable, Show, Eq)
 
@@ -223,7 +223,7 @@ allRelevances =
   , Forced Big
   , UnusedArg
   , Sharp
-  , NSSharp
+  -- , NSSharp
   ]
 
 
@@ -234,10 +234,10 @@ orderRelevance r = fromMaybe __IMPOSSIBLE__ $ lookup r $
   ,(Forced Big,2)
   ,(Forced Small,3)
   ,(UnusedArg,4)
-  ,(Sharp,5)
   ,(NonStrict,5)
-  ,(NSSharp,6)
   ,(Irrelevant,7)
+  ,(Sharp,8)
+--  ,(NSSharp,9)
   ]
 
 instance KillRange Relevance where
@@ -251,19 +251,15 @@ minRelevance r r' =
   case compare (orderRelevance r) (orderRelevance r') of
     LT -> r
     GT -> r'
-    EQ -> case (r,r') of
-            (Sharp,NonStrict) -> Relevant -- according to the ordering it should be UnusedArg, but semantically that does not work.
-            (NonStrict,Sharp) -> Relevant
-            _ -> r
+    EQ -> r
+
 maxRelevance :: Relevance -> Relevance -> Relevance -- TODO Andrea: redo
 maxRelevance r r' =
     case compare (orderRelevance r) (orderRelevance r') of
     LT -> r'
     GT -> r
-    EQ -> case (r,r') of
-            (Sharp,NonStrict) -> NSSharp
-            (NonStrict,Sharp) -> NSSharp
-            _ -> r
+    EQ -> r
+
 instance NFData Relevance where
   rnf Relevant   = ()
   rnf NonStrict  = ()
@@ -271,7 +267,7 @@ instance NFData Relevance where
   rnf (Forced a) = rnf a
   rnf UnusedArg  = ()
   rnf Sharp      = ()
-  rnf NSSharp    = ()
+--  rnf NSSharp    = ()
   rnf CoShape    = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
@@ -330,7 +326,7 @@ irrelevantOrUnused r =
     Relevant   -> False
     Forced{}   -> False
     Sharp      -> False
-    NSSharp    -> False
+--    NSSharp    -> False
     CoShape    -> False
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
@@ -354,24 +350,28 @@ asRelevant _         = False
 composeRelevance :: Relevance -> Relevance -> Relevance
 composeRelevance r r' =
   case (r, r') of
+    (Sharp,_)         -> Sharp
+    (_,Sharp)         -> Sharp
+    (Irrelevant, CoShape) -> Sharp -- no better choice than TOP
+    (CoShape, Irrelevant) -> Sharp -- no better choice than TOP
     (Irrelevant, _)   -> Irrelevant
     (_, Irrelevant)   -> Irrelevant
-    (NSSharp,CoShape) -> NonStrict
-    (NSSharp,r) | asRelevant r -> NSSharp
-    (NSSharp,Sharp)            -> NSSharp
-    (NSSharp,_)                -> Irrelevant
-    (NonStrict,Sharp)   -> NSSharp
-    (NonStrict,NSSharp) -> NSSharp
+    -- (NSSharp,CoShape) -> NonStrict
+    -- (NSSharp,r) | asRelevant r -> NSSharp
+    -- (NSSharp,Sharp)            -> NSSharp
+    -- (NSSharp,_)                -> Irrelevant
+--    (NonStrict,Sharp)   -> Sharp
+    -- (NonStrict,NSSharp) -> NSSharp
+    (NonStrict, CoShape)  -> Sharp -- no better choice than TOP
     (NonStrict, _)      -> NonStrict
-    (Sharp,CoShape)          -> CoShape
-    (Sharp,r) | asRelevant r -> Sharp
-    (Sharp,Sharp)            -> Sharp
-    (Sharp,_)                -> Irrelevant
+--    (Sharp,CoShape)          -> CoShape
+--    (Sharp,r) | asRelevant r -> Sharp
+--    (Sharp,Sharp)            -> Sharp
+--    (Sharp,_)                -> Irrelevant
     (CoShape,CoShape)          -> CoShape
     (CoShape,r) | asRelevant r -> CoShape
-    (CoShape,Sharp)            -> Sharp
-    (CoShape,NonStrict)        -> CoShape
-    (CoShape,NSSharp)          -> Sharp
+    (CoShape,NonStrict)        -> Sharp -- no better choice than TOP
+    -- (CoShape,NSSharp)          -> Sharp
     (CoShape,_)                -> __IMPOSSIBLE__
     --(_, NonStrict)  -> NonStrict
     (Forced b, Forced b') -> Forced (max b b')  -- prefer Big over Small
@@ -386,35 +386,31 @@ composeRelevance r r' =
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
 --   such that forall @x@, @y@ we have
 --   @x \`moreRelevant\` (r \`composeRelevance\` y)@
---   iff
---   @(r \`inverseComposeRelevance\` x) \`moreRelevant\` y@ (Galois connection).
+--   only if
+--   @(r \`inverseComposeRelevance\` x) \`moreRelevant\` y@ (half of a Galois connection).
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
 inverseComposeRelevance r x =
   case (r, x) of
+    (Sharp,_) -> Sharp
+    (_,Sharp) -> Sharp
     (_,CoShape) -> CoShape
+    (CoShape,_) -> Sharp    -- TOP, and no better choice than TOP
     (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
     _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
     (Forced{}, Forced{}) -> Relevant   -- same, but (==) does not ignore Big
     (UnusedArg, x)       -> x
     (Forced{}, UnusedArg) -> Relevant
     (Forced{}, x)         -> x
-    (Irrelevant, x)      -> CoShape   -- going irrelevant: every thing usable
-    (Sharp,Irrelevant)   -> NonStrict
-    (NSSharp,Irrelevant) -> NonStrict
+    (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
+    -- (NSSharp,Irrelevant) -> NonStrict
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
-    (NSSharp,Sharp)     -> Relevant
-    (NSSharp,NonStrict) -> CoShape
-    (NSSharp,NSSharp)   -> Relevant
-    (NSSharp,r) | asRelevant r -> CoShape
-                | otherwise    -> __IMPOSSIBLE__
-    (NonStrict, NSSharp) -> Sharp
-    (NonStrict, Sharp)   -> Sharp
-    (NonStrict, _)       -> CoShape   -- but @NonStrict@s become usable
-    (Sharp,r) | asRelevant r || r == Sharp -> Relevant
-    (Sharp,r) | otherwise                  -> NonStrict
-    (CoShape,r) | asRelevant r -> Sharp
-    (CoShape,Sharp)            -> Sharp
-    (CoShape,_)                -> Irrelevant
+    -- (NSSharp,Sharp)     -> Relevant
+    -- (NSSharp,NonStrict) -> CoShape
+    -- (NSSharp,NSSharp)   -> Relevant
+    -- (NSSharp,r) | asRelevant r -> CoShape
+    --             | otherwise    -> __IMPOSSIBLE__
+    -- (NonStrict, NSSharp) -> Sharp
+    (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
 
 -- | For comparing @Relevance@ ignoring @Forced@ and @UnusedArg@.
 ignoreForced :: Relevance -> Relevance
@@ -424,7 +420,7 @@ ignoreForced Relevant   = Relevant
 ignoreForced NonStrict  = NonStrict
 ignoreForced Irrelevant = Irrelevant
 ignoreForced Sharp      = Sharp
-ignoreForced NSSharp    = NSSharp
+-- ignoreForced NSSharp    = NSSharp
 ignoreForced CoShape    = CoShape
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
@@ -433,14 +429,14 @@ irrToNonStrict Irrelevant = NonStrict
 -- irrToNonStrict NonStrict  = Relevant -- TODO: this is bad if we apply irrToNonStrict several times!
 irrToNonStrict rel        = rel
 
--- -- | Applied when working on types (unless --experimental-irrelevance).
--- nonStrictToRel :: Relevance -> Relevance
--- nonStrictToRel NonStrict = Relevant
--- nonStrictToRel rel       = rel
+-- | Applied when working on types (unless --experimental-irrelevance).
+nonStrictToRel :: Relevance -> Relevance
+nonStrictToRel NonStrict = Relevant
+nonStrictToRel rel       = rel
 
--- nonStrictToIrr :: Relevance -> Relevance
--- nonStrictToIrr NonStrict = Irrelevant
--- nonStrictToIrr rel       = rel
+nonStrictToIrr :: Relevance -> Relevance
+nonStrictToIrr NonStrict = Irrelevant
+nonStrictToIrr rel       = rel
 
 flattenRel :: Relevance -> Relevance
 flattenRel CoShape     = CoShape
@@ -448,7 +444,7 @@ flattenRel Relevant    = Relevant
 flattenRel r@Forced{}  = r
 flattenRel r@UnusedArg = r
 flattenRel NonStrict   = NonStrict
-flattenRel NSSharp     = NonStrict
+-- flattenRel NSSharp     = NonStrict
 flattenRel Irrelevant  = NonStrict
 flattenRel Sharp       = Relevant
 ---------------------------------------------------------------------------
@@ -579,7 +575,7 @@ instance Show a => Show (Arg a) where
           UnusedArg    -> "k" ++ s -- constant
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
           Sharp        -> "#" ++ s
-          NSSharp      -> "÷#" ++ s
+          -- NSSharp      -> "÷#" ++ s
           CoShape      -> "¶" ++ s
         showO o s = case o of
           UserWritten -> "u" ++ s
