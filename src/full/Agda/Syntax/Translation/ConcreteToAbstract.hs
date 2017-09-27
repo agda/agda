@@ -1576,7 +1576,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
-      defn@(as, p) <- withLocalVars $ do
+      (as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
@@ -1589,8 +1589,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
          return (as, p)
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
-      modifyPatternSyns (Map.insert y defn)
-      return [A.PatternSynDef y as p]   -- only for highlighting
+      -- Expanding pattern synonyms already at definition makes it easier to
+      -- fold them back when printing (issue #2762).
+      ep <- expandPatternSynonyms p
+      modifyPatternSyns (Map.insert y (as, ep))
+      return [A.PatternSynDef y as p]   -- only for highlighting, so use unexpanded version
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym
 
