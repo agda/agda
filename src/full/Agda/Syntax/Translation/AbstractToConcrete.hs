@@ -85,10 +85,16 @@ data Env = Env { takenNames   :: Set C.Name
 
 makeEnv :: ScopeInfo -> TCM Env
 makeEnv scope = do
-  let builtin b = getBuiltin' b >>= \ case
-        Just (I.Def q _) | isNameInScope q scope -> return [(b, q)]
-        _                                        -> return []
-  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg ]
+      -- zero and suc doesn't have to be in scope for natural number literals to work
+  let noScopeCheck b = elem b [builtinZero, builtinSuc]
+      name (I.Def q _)   = Just q
+      name (I.Con q _ _) = Just (I.conName q)
+      name _             = Nothing
+      builtin b = getBuiltin' b >>= \ case
+        Just v | Just q <- name v,
+                 noScopeCheck b || isNameInScope q scope -> return [(b, q)]
+        _                                                -> return []
+  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg, builtinZero, builtinSuc ]
   return $
     Env { takenNames   = Set.union vars defs
         , currentScope = scope
@@ -1151,26 +1157,17 @@ cOpApp r x n es =
 
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverNatural e def = do
-  builtins <- stBuiltinThings <$> lift get
-  let reified = do
-        zero <- getAQName "ZERO" builtins
-        suc  <- getAQName "SUC"  builtins
-        explore zero suc 0 e
-  case reified of
-    Just n  -> return $ C.Lit $ LitNat noRange n
-    Nothing -> def
+  is <- isBuiltinFun
+  caseMaybe (recoverNatural is e) def $ return . C.Lit . LitNat noRange
+
+recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
+recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
   where
-
-    getAQName :: String -> BuiltinThings a -> Maybe A.QName
-    getAQName str bs = do
-      Builtin (I.Con hd _ _) <- Map.lookup str bs
-      return $ I.conName hd
-
-    explore :: A.QName -> A.QName -> Integer -> A.Expr -> Maybe Integer
-    explore z s k (A.App _ (A.Con (AmbQ [f])) t) | f == s =
-      let v = 1+k in v `seq` explore z s v $ namedArg t
-    explore z s k (A.Con (AmbQ [x]))             | x == z = Just k
-    explore z s k (A.Lit (LitNat _ l))                    = Just (k + l)
+    explore :: (A.QName -> Bool) -> (A.QName -> Bool) -> Integer -> A.Expr -> Maybe Integer
+    explore isZero isSuc k (A.App _ (A.Con (AmbQ [f])) t) | isSuc f =
+      (explore isZero isSuc $! k + 1) (namedArg t)
+    explore isZero isSuc k (A.Con (AmbQ [x]))             | isZero x = Just k
+    explore isZero isSuc k (A.Lit (LitNat _ l))                      = Just (k + l)
     explore _ _ _ _ = Nothing
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
