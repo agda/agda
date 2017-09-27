@@ -1653,7 +1653,7 @@ fixitiesAndPolarities = foldMap $ \ d -> case d of
 -- | (Approximately) convert a 'NiceDeclaration' back to a list of
 -- 'Declaration's.
 notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
-notSoNiceDeclarations d =
+notSoNiceDeclarations d = fixityDecl d ++
   case d of
     Axiom _ _ _ _ i rel mp x e       -> (case mp of
                                            Nothing   -> []
@@ -1681,6 +1681,32 @@ notSoNiceDeclarations d =
   where
     inst InstanceDef    ds = [InstanceB (getRange ds) ds]
     inst NotInstanceDef ds = ds
+
+    fixityDecl d = nameAndFixity >>= \ (x, f) -> infixDecl (theFixity f) x ++ syntaxDecl (theNotation f) x
+      where
+        nameAndFixity = case d of
+          Axiom _ f _ _ _ _ _ x _           -> [(x, f)]
+          NiceField _ f _ _ _ x _           -> [(x, f)]
+          PrimitiveFunction _ f _ _ x _     -> [(x, f)]
+          NiceRecSig _ f _ _ _ x _ _        -> [(x, f)]
+          NiceDataSig _ f _ _ _ x _ _       -> [(x, f)]
+          FunSig _ f _ _ _ _ _ _ x _        -> [(x, f)]
+          NicePatternSyn _ f x _ _          -> [(x, f)]
+          NiceUnquoteDecl _ fs _ _ _ _ xs _ -> zip xs fs
+          NiceUnquoteDef _ fs _ _ _ xs _    -> zip xs fs
+          NiceMutual{}      -> []
+          NiceModule{}      -> []
+          NiceModuleMacro{} -> []
+          NiceOpen{}        -> []
+          NiceImport{}      -> []
+          NicePragma{}      -> []
+          NiceFunClause{}   -> []
+          FunDef{}          -> []  -- use the fixity from the FunSig/DataSig/RecSig
+          DataDef{}         -> []
+          RecDef{}          -> []
+
+    infixDecl  f x = [Infix f [x] | notElem f [defaultFixity, noFixity]]
+    syntaxDecl n x = [Syntax x n  | not (null n) ]
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
