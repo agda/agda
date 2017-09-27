@@ -3,3 +3,6 @@ resolver: lts-9.4
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+
+extra-deps:
+- hashtables-1.2.1.1
