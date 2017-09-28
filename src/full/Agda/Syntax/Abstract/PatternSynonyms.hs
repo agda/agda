@@ -7,7 +7,7 @@ module Agda.Syntax.Abstract.PatternSynonyms
   ) where
 
 import Control.Applicative
-import Control.Monad.Writer
+import Control.Monad.Writer hiding (WriterT, execWriterT, tell)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (forM)

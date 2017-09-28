@@ -9,6 +9,7 @@ import Prelude hiding (lookup)
 import Control.Applicative
 
 import qualified Data.List as List
+import Data.Function
 
 import Agda.Utils.Tuple
 
@@ -42,6 +43,13 @@ insert k v = ((k,v) :)
 --   Otherwise, an internal error is raised.
 update :: Eq k => k -> v -> AssocList k v -> AssocList k v
 update k v = updateAt k $ const v
+
+-- | O(n).
+--   Delete a binding.
+--   The key must be in the domain of the finite map.
+--   Otherwise, an internal error is raised.
+delete :: Eq k => k -> AssocList k v -> AssocList k v
+delete k = List.deleteBy ((==) `on` fst) (k, __IMPOSSIBLE__)
 
 -- | O(n).
 --   Update the value at a key with a certain function.
