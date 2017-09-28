@@ -1135,7 +1135,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 
-data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
+data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName | HdSyn A.QName
 
 cOpApp :: Range -> C.QName -> A.Name -> [Maybe C.Expr] -> C.Expr
 cOpApp r x n es =
@@ -1206,6 +1206,7 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
     getHead (Def f)              = Just (HdDef f)
     getHead (Con (AmbQ (c : _))) = Just (HdCon c)
     getHead (Con (AmbQ []))      = __IMPOSSIBLE__
+    getHead (A.PatternSyn c)     = Just (HdSyn c)
     getHead _                    = Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
@@ -1221,6 +1222,7 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, (map . fmap . fmap) (Just . (appInfo,)) ps)
       DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, (map . fmap . fmap) (Just . (appInfo,)) ps)
+      PatternSynP _ c ps     -> Just (HdSyn c, (map . fmap . fmap) (Just . (appInfo,)) ps)
       _ -> __IMPOSSIBLE__
       -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
       -- _                      -> Nothing
@@ -1243,6 +1245,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
           | otherwise     -> doQNameHelper id        C.QName  n args'
         HdDef qn          -> doQNameHelper qnameName id      qn args'
         HdCon qn          -> doQNameHelper qnameName id      qn args'
+        HdSyn qn          -> doQNameHelper qnameName id      qn args'
     | otherwise           -> mDefault
   where
   mDefault = return Nothing
