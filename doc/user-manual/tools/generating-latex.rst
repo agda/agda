@@ -551,7 +551,8 @@ backend:
   :ref:`quickLaTeX`.
 
 ``--count-clusters``
-  Count extended grapheme clusters when generating LaTeX code.
+  Count extended grapheme clusters when generating LaTeX code. This
+  option can be given in ``OPTIONS`` pragmas.
   See :ref:`grapheme-clusters`.
 
 

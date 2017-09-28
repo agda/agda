@@ -131,9 +131,6 @@ data CommandLineOptions = Options
   , optGenerateHTML     :: Bool
   , optDependencyGraph  :: Maybe FilePath
   , optLaTeXDir         :: FilePath
-  , optCountClusters    :: Bool
-    -- ^ Count extended grapheme clusters rather than code points when
-    -- generating LaTeX.
   , optHTMLDir          :: FilePath
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
@@ -180,6 +177,9 @@ data PragmaOptions = PragmaOptions
   , optSafe                      :: Bool
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
+  , optCountClusters             :: Bool
+    -- ^ Count extended grapheme clusters rather than code points when
+    -- generating LaTeX.
   }
   deriving ( Show
            , Eq
@@ -227,7 +227,6 @@ defaultOptions = Options
   , optGenerateHTML     = False
   , optDependencyGraph  = Nothing
   , optLaTeXDir         = defaultLaTeXDir
-  , optCountClusters    = False
   , optHTMLDir          = defaultHTMLDir
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
@@ -267,6 +266,7 @@ defaultPragmaOptions = PragmaOptions
   , optSafe                      = False
   , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
   , optCompileNoMain             = False
+  , optCountClusters             = False
   }
 
 -- | The default termination depth.
@@ -411,7 +411,7 @@ latexFlag o = return $ o { optGenerateLaTeX = True }
 onlyScopeCheckingFlag :: Flag CommandLineOptions
 onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 
-countClustersFlag :: Flag CommandLineOptions
+countClustersFlag :: Flag PragmaOptions
 countClustersFlag o =
 #ifdef COUNT_CLUSTERS
   return $ o { optCountClusters = True }
@@ -590,15 +590,6 @@ standardOptions =
     , Option []     ["latex-dir"] (ReqArg latexDirFlag "DIR")
                     ("directory in which LaTeX files are placed (default: " ++
                      defaultLaTeXDir ++ ")")
-    , Option []     ["count-clusters"] (NoArg countClustersFlag)
-                    ("count extended grapheme clusters when " ++
-                     "generating LaTeX (note that this flag " ++
-#ifdef COUNT_CLUSTERS
-                     "is not enabled in all builds of Agda)"
-#else
-                     "has not been enabled in this build of Agda)"
-#endif
-                    )
     , Option []     ["html"] (NoArg htmlFlag)
                     "generate HTML files with highlighted source code"
     , Option []     ["html-dir"] (ReqArg htmlDirFlag "DIR")
@@ -707,6 +698,15 @@ pragmaOptions =
                        ++ ". Default: " ++  defaultWarningMode ++ ")")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "do not treat the requested module as the main module of a program when compiling"
+    , Option []     ["count-clusters"] (NoArg countClustersFlag)
+                    ("count extended grapheme clusters when " ++
+                     "generating LaTeX (note that this flag " ++
+#ifdef COUNT_CLUSTERS
+                     "is not enabled in all builds of Agda)"
+#else
+                     "has not been enabled in this build of Agda)"
+#endif
+                    )
     ]
 
 -- | Used for printing usage info.
