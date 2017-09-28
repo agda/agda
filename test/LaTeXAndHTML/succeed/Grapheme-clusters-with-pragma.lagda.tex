@@ -1,0 +1,25 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+% Make sure that cluster counting is activated.
+\begin{code}[hide]
+  {-# OPTIONS --count-clusters #-}
+\end{code}
+
+\begin{document}
+
+\AgdaPostulate{A} and \AgdaPostulate{B} should be aligned:
+\begin{code}
+  postulate
+    +̲+̲+̲+̲+̲+̲  A
+            B : Set
+\end{code}
+
+The two \AgdaKeyword{field} keywords should not be aligned:
+\begin{code}
+  record +̲ : Set₁ where  field C : Set
+                          field D : Set
+\end{code}
+
+\end{document}

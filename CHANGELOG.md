@@ -28,6 +28,8 @@ Syntax and LaTeX backend
 
   Instead some documents need to be compiled multiple times.
 
+* The `--count-clusters` flag can now be given in `OPTIONS` pragmas.
+
 Language
 --------
 

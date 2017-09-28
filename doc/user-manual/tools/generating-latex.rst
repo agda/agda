@@ -551,7 +551,8 @@ backend:
   :ref:`quickLaTeX`.
 
 ``--count-clusters``
-  Count extended grapheme clusters when generating LaTeX code.
+  Count extended grapheme clusters when generating LaTeX code. This
+  option can be given in ``OPTIONS`` pragmas.
   See :ref:`grapheme-clusters`.
 
 
@@ -582,7 +583,7 @@ Counting Extended Grapheme Clusters
 The alignment feature regards the string ``+̲``, containing ``+`` and a
 combining character, as having length two. However, it seems more
 reasonable to treat it as having length one, as it occupies a single
-column, if displayed "properly" using a monospace font. The new flag
+column, if displayed "properly" using a monospace font. The flag
 ``--count-clusters`` is an attempt at fixing this. When this flag is
 enabled the backend counts `"extended grapheme clusters"
 <http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_

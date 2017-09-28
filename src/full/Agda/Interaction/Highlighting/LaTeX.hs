@@ -48,8 +48,7 @@ import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Interaction.Options
-  (optGHCiInteraction, optLaTeXDir, optCountClusters)
+import qualified Agda.Interaction.Options as O
 import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
@@ -619,12 +618,12 @@ generateLaTeX i = do
 
   options <- TCM.commandLineOptions
 
-  dir <- case optGHCiInteraction options of
-    False -> return $ optLaTeXDir options
+  dir <- case O.optGHCiInteraction options of
+    False -> return $ O.optLaTeXDir options
     True  -> do
       sourceFile <- Find.findFile mod
       return $ filePath (projectRoot sourceFile mod)
-                 </> optLaTeXDir options
+                 </> O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
   (code, _, _) <- liftIO $ readProcessWithExitCode
@@ -647,7 +646,7 @@ generateLaTeX i = do
   liftIO $ do
     source <- UTF8.readTextFile inAbsPath
     latex <- E.encodeUtf8 `fmap`
-               toLaTeX (optCountClusters options)
+               toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
                        (mkAbsolute inAbsPath) source hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
