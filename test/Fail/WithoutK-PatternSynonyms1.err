@@ -6,4 +6,4 @@ problems (inferred index ≟ expected index):
 Possible reason why unification failed:
   Cannot eliminate reflexive equation x = x of type A because K has
   been disabled.
-when checking that the pattern refl has type x ≡ x
+when checking that the pattern r has type x ≡ x

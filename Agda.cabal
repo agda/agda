@@ -264,6 +264,7 @@ library
                     Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
                     Agda.Syntax.Abstract.Pattern
+                    Agda.Syntax.Abstract.PatternSynonyms
                     Agda.Syntax.Abstract.Pretty
                     Agda.Syntax.Abstract.Views
                     Agda.Syntax.Abstract
