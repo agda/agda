@@ -73,7 +73,7 @@ expandLitPattern p = traverse (traverse expand) p
 -- As a workaround, we define this function only for a = A.Exp, p = A.Pattern'
 -- and keep the type class ExpandPatternSynonyms (which would otherwise be superfluous).
 
-expandPatternSynonyms' :: A.Pattern -> TCM A.Pattern
+expandPatternSynonyms' :: forall e. A.Pattern' e -> TCM (A.Pattern' e)
 expandPatternSynonyms' = postTraverseAPatternM $ \case
 
   A.PatternSynP i x as -> setCurrentRange i $ do
@@ -81,12 +81,14 @@ expandPatternSynonyms' = postTraverseAPatternM $ \case
 
     -- Must expand arguments before instantiating otherwise pattern
     -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
-    p :: A.Pattern <- expandPatternSynonyms' (vacuous p :: A.Pattern)
+    p <- expandPatternSynonyms' (vacuous p :: A.Pattern' e)
 
     case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
       Nothing       -> typeError $ BadArgumentsToPatternSynonym x
       Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
-      Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p
+      Just (s, [])  -> do
+        let subE _ _ = __IMPOSSIBLE__   -- No dot patterns in p
+        return $ setRange (getRange i) $ A.substPattern' subE s p
 
   p -> return p
 
@@ -103,5 +105,5 @@ instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Arg a)              w
 instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Named n a)          where
 instance ExpandPatternSynonyms a => ExpandPatternSynonyms (FieldAssignment' a) where
 
-instance ExpandPatternSynonyms A.Pattern where
+instance ExpandPatternSynonyms (A.Pattern' e) where
   expandPatternSynonyms = expandPatternSynonyms'

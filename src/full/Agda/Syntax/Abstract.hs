@@ -12,7 +12,7 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude
-import Control.Arrow (first)
+import Control.Arrow (first, second)
 import Control.Applicative
 
 import Data.Foldable (Foldable)
@@ -1017,7 +1017,7 @@ patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ _ e)        = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
-patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
+patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
 patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
@@ -1029,17 +1029,20 @@ lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo n) $
                             lambdaLiftExpr ns e
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
-substPattern s p = case p of
+substPattern = substPattern' (substExpr . (map . second) patternToExpr)
+
+substPattern' :: ([(Name, Pattern' e)] -> e -> e) -> [(Name, Pattern' e)] -> Pattern' e -> Pattern' e
+substPattern' subE s p = case p of
   VarP z        -> fromMaybe p (lookup z s)
-  ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern s))) ps)
-  RecP i ps     -> RecP i (map (fmap (substPattern s)) ps)
+  ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern' subE s))) ps)
+  RecP i ps     -> RecP i (map (fmap (substPattern' subE s)) ps)
   ProjP{}       -> p
   WildP i       -> p
-  DotP i o e    -> DotP i o (substExpr (map (fmap patternToExpr) s) e)
+  DotP i o e    -> DotP i o (subE s e)
   AbsurdP i     -> p
   LitP l        -> p
   DefP{}        -> p              -- destructor pattern
-  AsP i x p     -> AsP i x (substPattern s p) -- Note: cannot substitute into as-variable
+  AsP i x p     -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
 
 class SubstExpr a where

@@ -1380,7 +1380,7 @@ checkApplication hd args e t = do
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
       (ns, p) <- lookupPatternSyn n
-      p <- setRange (getRange n) . killRange <$> expandPatternSynonyms (vacuous p)  -- expand recursive pattern synonyms
+      p <- return $ setRange (getRange n) $ killRange $ vacuous p   -- Pattern' Void -> Pattern' Expr
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.

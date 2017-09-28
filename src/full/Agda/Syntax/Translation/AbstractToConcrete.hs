@@ -39,6 +39,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
 import Data.Void
+import Data.List (sortBy)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -50,9 +51,11 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
+import Agda.Syntax.Abstract.Pattern (foldAPattern)
+import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
-import Agda.TypeChecking.Monad.State (getScope)
+import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..))
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
@@ -85,10 +88,16 @@ data Env = Env { takenNames   :: Set C.Name
 
 makeEnv :: ScopeInfo -> TCM Env
 makeEnv scope = do
-  let builtin b = getBuiltin' b >>= \ case
-        Just (I.Def q _) | isNameInScope q scope -> return [(b, q)]
-        _                                        -> return []
-  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg ]
+      -- zero and suc doesn't have to be in scope for natural number literals to work
+  let noScopeCheck b = elem b [builtinZero, builtinSuc]
+      name (I.Def q _)   = Just q
+      name (I.Con q _ _) = Just (I.conName q)
+      name _             = Nothing
+      builtin b = getBuiltin' b >>= \ case
+        Just v | Just q <- name v,
+                 noScopeCheck b || isNameInScope q scope -> return [(b, q)]
+        _                                                -> return []
+  builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg, builtinZero, builtinSuc ]
   return $
     Env { takenNames   = Set.union vars defs
         , currentScope = scope
@@ -443,16 +452,16 @@ instance ToConcrete A.Expr C.Expr where
       C.Dot (getRange x) . Ident <$> toConcrete x
     toConcrete Proj{}             = __IMPOSSIBLE__
     toConcrete (A.Macro x)        = Ident <$> toConcrete x
-    toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
+    toConcrete e@(Con (AmbQ (x:_))) = tryToRecoverPatternSyn e $ Ident <$> toConcrete x
     toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
-    toConcrete (A.Lit (LitQName r x)) = do
+    toConcrete e@(A.Lit (LitQName r x)) = tryToRecoverPatternSyn e $ do
       x <- lookupQName AmbiguousNothing x
       bracket appBrackets $ return $
         C.App r (C.Quote r) (defaultNamedArg $ C.Ident x)
-    toConcrete (A.Lit l)            = return $ C.Lit l
+    toConcrete e@(A.Lit l) = tryToRecoverPatternSyn e $ return $ C.Lit l
 
     -- Andreas, 2014-05-17  We print question marks with their
     -- interaction id, in case @metaNumber /= Nothing@
@@ -484,8 +493,9 @@ instance ToConcrete A.Expr C.Expr where
         (A.Def q, A.Lit (LitNat r n))
           | q `is` builtinFromNeg, visible e2,
             getOrigin i == Inserted -> toConcrete (A.Lit (LitNat r (-n)))
-        _ -> do
-          tryToRecoverOpApp e
+        _ ->
+          tryToRecoverPatternSyn e
+          $ tryToRecoverOpApp e
           $ tryToRecoverNatural e
           -- or fallback to App
           $ bracket (appBrackets' $ preferParenless (appParens i) && isLambda e2)
@@ -1106,11 +1116,7 @@ instance ToConcrete A.Pattern C.Pattern where
           C.Underscore{} -> return $ C.WildP $ getRange i
           _ -> return $ C.DotP (getRange i) o c
 
-      A.PatternSynP i n _ ->
-        -- Ulf, 2016-11-29: This doesn't seem right. The underscore is a list
-        -- of arguments, which we shouldn't really throw away! I guess this
-        -- case is __IMPOSSIBLE__?
-        C.IdentP <$> toConcrete n
+      A.PatternSynP i n args -> tryOp n (A.PatternSynP i n) args
 
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
@@ -1123,7 +1129,7 @@ instance ToConcrete A.Pattern C.Pattern where
       -- and apply them pointwise with C.AppP later.
       let (args1, args2) = splitAt (numHoles x) args
       let funCtx = if null args2 then id else withPrecedence FunctionCtx
-      funCtx (tryToRecoverOpAppP $ f args1) >>= \case
+      tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x
     -- Note: applyTo [] c = return c
@@ -1133,7 +1139,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 
-data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
+data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName | HdSyn A.QName
 
 cOpApp :: Range -> C.QName -> A.Name -> [Maybe C.Expr] -> C.Expr
 cOpApp r x n es =
@@ -1151,26 +1157,17 @@ cOpApp r x n es =
 
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverNatural e def = do
-  builtins <- stBuiltinThings <$> lift get
-  let reified = do
-        zero <- getAQName "ZERO" builtins
-        suc  <- getAQName "SUC"  builtins
-        explore zero suc 0 e
-  case reified of
-    Just n  -> return $ C.Lit $ LitNat noRange n
-    Nothing -> def
+  is <- isBuiltinFun
+  caseMaybe (recoverNatural is e) def $ return . C.Lit . LitNat noRange
+
+recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
+recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
   where
-
-    getAQName :: String -> BuiltinThings a -> Maybe A.QName
-    getAQName str bs = do
-      Builtin (I.Con hd _ _) <- Map.lookup str bs
-      return $ I.conName hd
-
-    explore :: A.QName -> A.QName -> Integer -> A.Expr -> Maybe Integer
-    explore z s k (A.App _ (A.Con (AmbQ [f])) t) | f == s =
-      let v = 1+k in v `seq` explore z s v $ namedArg t
-    explore z s k (A.Con (AmbQ [x]))             | x == z = Just k
-    explore z s k (A.Lit (LitNat _ l))                    = Just (k + l)
+    explore :: (A.QName -> Bool) -> (A.QName -> Bool) -> Integer -> A.Expr -> Maybe Integer
+    explore isZero isSuc k (A.App _ (A.Con (AmbQ [f])) t) | isSuc f =
+      (explore isZero isSuc $! k + 1) (namedArg t)
+    explore isZero isSuc k (A.Con (AmbQ [x]))             | isZero x = Just k
+    explore isZero isSuc k (A.Lit (LitNat _ l))                      = Just (k + l)
     explore _ _ _ _ = Nothing
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
@@ -1213,6 +1210,7 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
     getHead (Def f)              = Just (HdDef f)
     getHead (Con (AmbQ (c : _))) = Just (HdCon c)
     getHead (Con (AmbQ []))      = __IMPOSSIBLE__
+    getHead (A.PatternSyn c)     = Just (HdSyn c)
     getHead _                    = Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
@@ -1228,6 +1226,7 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, (map . fmap . fmap) (Just . (appInfo,)) ps)
       DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, (map . fmap . fmap) (Just . (appInfo,)) ps)
+      PatternSynP _ c ps     -> Just (HdSyn c, (map . fmap . fmap) (Just . (appInfo,)) ps)
       _ -> __IMPOSSIBLE__
       -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
       -- _                      -> Nothing
@@ -1250,6 +1249,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
           | otherwise     -> doQNameHelper id        C.QName  n args'
         HdDef qn          -> doQNameHelper qnameName id      qn args'
         HdCon qn          -> doQNameHelper qnameName id      qn args'
+        HdSyn qn          -> doQNameHelper qnameName id      qn args'
     | otherwise           -> mDefault
   where
   mDefault = return Nothing
@@ -1313,6 +1313,52 @@ recoverOpApp bracket isLam opApp view e = case view e of
     Just <$> do
       bracket roundFixBrackets $
         return $ opApp (getRange x) x n es
+
+-- Recovering pattern synonyms --------------------------------------------
+
+-- | Recover pattern synonyms for expressions.
+tryToRecoverPatternSyn :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
+tryToRecoverPatternSyn e fallback
+  | userWritten e = fallback
+  | litOrCon e    = recoverPatternSyn apply matchPatternSyn e fallback
+  | otherwise     = fallback
+  where
+    userWritten (A.App info _ _) = getOrigin info == UserWritten
+    userWritten _                = False  -- this means we always use pattern synonyms for nullary constructors
+
+    -- Only literals or constructors can head pattern synonym definitions
+    litOrCon e =
+      case A.appView e of
+        Application Con{}   _ -> True
+        Application A.Lit{} _ -> True
+        _                     -> False
+
+    apply c args = A.unAppView $ Application (A.PatternSyn c) args
+
+-- | Recover pattern synonyms in patterns.
+tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
+tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
+  where apply c args = PatternSynP patNoRange c args
+
+-- | General pattern synonym recovery parameterised over expression type
+recoverPatternSyn :: ToConcrete a c =>
+  (A.QName -> [NamedArg a] -> a)         -> -- applySyn
+  (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
+  a -> AbsToCon c -> AbsToCon c
+recoverPatternSyn applySyn match e fallback = do
+  psyns  <- lift getAllPatternSyns
+  let cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns, Just args <- [match psyndef e] ]
+      cmp (_, _, x) (_, _, y) = flip compare x y
+  case sortBy cmp cands of
+    (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
+    []               -> fallback
+  where
+    -- Heuristic to pick the best pattern synonym: the one that folds the most
+    -- constructors.
+    score :: Pattern' Void -> Int
+    score = getSum . foldAPattern con
+      where con ConP{} = 1
+            con _      = 0
 
 -- Some instances that are related to interaction with users -----------
 
