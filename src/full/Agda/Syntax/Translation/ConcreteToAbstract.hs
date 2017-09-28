@@ -2151,7 +2151,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r o e) = return $ A.DotP info o e
         where info = PatRange r
-    toAbstract p0@(C.EqualP r es) = A.EqualP info <$> traverse (\(t,u) -> (,) <$> toAbstract t <*> toAbstract u) es
+    toAbstract p0@(C.EqualP r es) = return $ A.EqualP info es
         where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r

@@ -12,7 +12,7 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude
-import Control.Arrow (first, second)
+import Control.Arrow (first, second, (***))
 import Control.Applicative
 
 import Data.Foldable (Foldable)
@@ -466,7 +466,7 @@ data Pattern' e
   | LitP Literal
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
-  | EqualP PatInfo [(Expr,Expr)]
+  | EqualP PatInfo [(e, e)]
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
@@ -1049,7 +1049,7 @@ substPattern' subE s p = case p of
   DefP{}        -> p              -- destructor pattern
   AsP i x p     -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
-  EqualP i es -> EqualP i (map (subE s) es)
+  EqualP i es -> EqualP i (map (subE s *** subE s) es)
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
