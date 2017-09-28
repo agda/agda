@@ -1017,7 +1017,7 @@ patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ _ e)        = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
-patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
+patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
 patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
