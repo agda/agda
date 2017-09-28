@@ -1112,11 +1112,7 @@ instance ToConcrete A.Pattern C.Pattern where
           C.Underscore{} -> return $ C.WildP $ getRange i
           _ -> return $ C.DotP (getRange i) o c
 
-      A.PatternSynP i n _ ->
-        -- Ulf, 2016-11-29: This doesn't seem right. The underscore is a list
-        -- of arguments, which we shouldn't really throw away! I guess this
-        -- case is __IMPOSSIBLE__?
-        C.IdentP <$> toConcrete n
+      A.PatternSynP i n args -> tryOp n (A.PatternSynP i n) args
 
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
