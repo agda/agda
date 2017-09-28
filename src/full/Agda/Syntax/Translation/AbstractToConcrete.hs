@@ -39,6 +39,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
 import Data.Void
+import Data.List (sortBy)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -50,9 +51,11 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
+import Agda.Syntax.Abstract.Pattern (foldAPattern)
+import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
-import Agda.TypeChecking.Monad.State (getScope)
+import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..))
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
@@ -449,16 +452,16 @@ instance ToConcrete A.Expr C.Expr where
       C.Dot (getRange x) . Ident <$> toConcrete x
     toConcrete Proj{}             = __IMPOSSIBLE__
     toConcrete (A.Macro x)        = Ident <$> toConcrete x
-    toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
+    toConcrete e@(Con (AmbQ (x:_))) = tryToRecoverPatternSyn e $ Ident <$> toConcrete x
     toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
-    toConcrete (A.Lit (LitQName r x)) = do
+    toConcrete e@(A.Lit (LitQName r x)) = tryToRecoverPatternSyn e $ do
       x <- lookupQName AmbiguousNothing x
       bracket appBrackets $ return $
         C.App r (C.Quote r) (defaultNamedArg $ C.Ident x)
-    toConcrete (A.Lit l)            = return $ C.Lit l
+    toConcrete e@(A.Lit l) = tryToRecoverPatternSyn e $ return $ C.Lit l
 
     -- Andreas, 2014-05-17  We print question marks with their
     -- interaction id, in case @metaNumber /= Nothing@
@@ -490,8 +493,9 @@ instance ToConcrete A.Expr C.Expr where
         (A.Def q, A.Lit (LitNat r n))
           | q `is` builtinFromNeg, visible e2,
             getOrigin i == Inserted -> toConcrete (A.Lit (LitNat r (-n)))
-        _ -> do
-          tryToRecoverOpApp e
+        _ ->
+          tryToRecoverPatternSyn e
+          $ tryToRecoverOpApp e
           $ tryToRecoverNatural e
           -- or fallback to App
           $ bracket (appBrackets' $ preferParenless (appParens i) && isLambda e2)
@@ -1125,7 +1129,7 @@ instance ToConcrete A.Pattern C.Pattern where
       -- and apply them pointwise with C.AppP later.
       let (args1, args2) = splitAt (numHoles x) args
       let funCtx = if null args2 then id else withPrecedence FunctionCtx
-      funCtx (tryToRecoverOpAppP $ f args1) >>= \case
+      tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x
     -- Note: applyTo [] c = return c
@@ -1309,6 +1313,52 @@ recoverOpApp bracket isLam opApp view e = case view e of
     Just <$> do
       bracket roundFixBrackets $
         return $ opApp (getRange x) x n es
+
+-- Recovering pattern synonyms --------------------------------------------
+
+-- | Recover pattern synonyms for expressions.
+tryToRecoverPatternSyn :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
+tryToRecoverPatternSyn e fallback
+  | userWritten e = fallback
+  | litOrCon e    = recoverPatternSyn apply matchPatternSyn e fallback
+  | otherwise     = fallback
+  where
+    userWritten (A.App info _ _) = getOrigin info == UserWritten
+    userWritten _                = False  -- this means we always use pattern synonyms for nullary constructors
+
+    -- Only literals or constructors can head pattern synonym definitions
+    litOrCon e =
+      case A.appView e of
+        Application Con{}   _ -> True
+        Application A.Lit{} _ -> True
+        _                     -> False
+
+    apply c args = A.unAppView $ Application (A.PatternSyn c) args
+
+-- | Recover pattern synonyms in patterns.
+tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
+tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
+  where apply c args = PatternSynP patNoRange c args
+
+-- | General pattern synonym recovery parameterised over expression type
+recoverPatternSyn :: ToConcrete a c =>
+  (A.QName -> [NamedArg a] -> a)         -> -- applySyn
+  (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
+  a -> AbsToCon c -> AbsToCon c
+recoverPatternSyn applySyn match e fallback = do
+  psyns  <- lift getAllPatternSyns
+  let cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns, Just args <- [match psyndef e] ]
+      cmp (_, _, x) (_, _, y) = flip compare x y
+  case sortBy cmp cands of
+    (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
+    []               -> fallback
+  where
+    -- Heuristic to pick the best pattern synonym: the one that folds the most
+    -- constructors.
+    score :: Pattern' Void -> Int
+    score = getSum . foldAPattern con
+      where con ConP{} = 1
+            con _      = 0
 
 -- Some instances that are related to interaction with users -----------
 
