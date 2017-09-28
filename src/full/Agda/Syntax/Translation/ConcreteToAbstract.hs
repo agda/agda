@@ -1209,9 +1209,11 @@ instance ToAbstract LetDef [A.LetBinding] where
                 genericError $ "abstract not allowed in let expressions"
               when (macro == MacroDef) $ do
                 genericError $ "Macros cannot be defined in a let expression."
-              (x', e) <- letToAbstract cl
               t <- toAbstract t
+              -- We bind the name here to make sure it's in scope for the LHS (#917).
+              -- It's unbound for the RHS in letToAbstract.
               x <- toAbstract (NewName True $ mkBoundName x fx)
+              (x', e) <- letToAbstract cl
               -- If InstanceDef set info to Instance
               let info' | instanc == InstanceDef = makeInstance info
                         | otherwise              = info
@@ -1297,9 +1299,10 @@ instance ToAbstract LetDef [A.LetBinding] where
                 C.LHSHead x args -> return (x, args)
                 C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
 
-            e <- localToAbstract args $ \args ->
-                do  rhs <- toAbstract rhs
-                    foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+            e <- localToAbstract args $ \args -> do
+                -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
+                rhs <- unbindVariable top $ toAbstract rhs
+                foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
             return (x, e)
         letToAbstract _ = notAValidLetBinding d
 

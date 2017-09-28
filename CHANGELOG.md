@@ -28,6 +28,22 @@ Syntax and LaTeX backend
 
   Instead some documents need to be compiled multiple times.
 
+Language
+--------
+
+### Syntax
+
+* Infix let declarations. [Issue [#917](https://github.com/agda/agda/issues/917)]
+
+  Let declarations can now be defined in infix (or mixfix) style. For instance:
+  ```agda
+    f : Nat → Nat
+    f n = let _!_ : Nat → Nat → Nat
+              x ! y = 2 * x + y
+          in n ! n
+  ```
+
+
 Release notes for Agda version 2.5.3
 ====================================
 

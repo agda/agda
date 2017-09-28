@@ -292,7 +292,11 @@ bindVariable
   -> C.Name  -- ^ Concrete name.
   -> A.Name  -- ^ Abstract name.
   -> ScopeM ()
-bindVariable b x y = modifyScope_ $ updateScopeLocals $ AssocList.insert x $ LocalVar y b []
+bindVariable b x y = modifyLocalVars $ AssocList.insert x $ LocalVar y b []
+
+-- | Temporarily unbind a variable. Used for non-recursive lets.
+unbindVariable :: C.Name -> ScopeM a -> ScopeM a
+unbindVariable x = bracket_ (getLocalVars <* modifyLocalVars (AssocList.delete x)) (modifyLocalVars . const)
 
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
