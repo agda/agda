@@ -1049,7 +1049,7 @@ substPattern' subE s p = case p of
   DefP{}        -> p              -- destructor pattern
   AsP i x p     -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
-  EqualP i es -> EqualP i (map (substExpr (map (fmap patternToExpr) s)) es)
+  EqualP i es -> EqualP i (map (subE s) es)
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
