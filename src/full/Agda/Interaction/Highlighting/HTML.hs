@@ -201,8 +201,8 @@ code = mconcat . map mkHtml
   annotate pos mi content = a content !! attributes
     where
     attributes = concat
-      [ [Attr.id $ stringValue $ applyWhen here anchorName $ show pos ]
-      , toList $ fmap link mDefinitionSite
+      [ [Attr.id $ stringValue $ show pos ]
+      , toList $ fmap link $ definitionSite mi
       , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
 
@@ -228,13 +228,10 @@ code = mconcat . map mkHtml
     -- Notes are not included.
     noteClasses s = []
 
-    mDefinitionSite = definitionSite mi
-    here       = maybe False defSiteHere mDefinitionSite
-    anchorName = (`fromMaybe` maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite)
-    link (DefinitionSite m pos _here aName) = href $ stringValue $
+    link (DefinitionSite m pos _ _) = href $ stringValue $
       -- If the definition site points to the top of a file,
       -- we drop the anchor part and just link to the file.
       applyUnless (pos <= 1)
         (++ "#" ++
-         Network.URI.Encode.encode (fromMaybe (show pos) aName))
+         Network.URI.Encode.encode (show pos))
         (Network.URI.Encode.encode $ modToFile m)
