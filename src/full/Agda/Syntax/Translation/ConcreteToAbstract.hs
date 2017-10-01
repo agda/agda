@@ -690,6 +690,9 @@ scopeCheckExtendedLam r cs = do
   cname <- nextlamname r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
+  verboseS "scope.extendedLambda" 60 $ do
+    forM_ cs $ \ (lhs, rhs, wh, ca) -> do
+      reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show lhs
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
