@@ -709,6 +709,9 @@ scopeCheckExtendedLam r cs = do
   cname <- nextlamname r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
+  verboseS "scope.extendedLambda" 60 $ do
+    forM_ cs $ \ (lhs, rhs, wh, ca) -> do
+      reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show lhs
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
@@ -716,6 +719,7 @@ scopeCheckExtendedLam r cs = do
   a <- aModeToDef <$> asks envAbstractMode
   let
     insertApp (C.RawAppP r es) = C.RawAppP r $ IdentP (C.QName cname) : es
+    insertApp (C.AppP p1 p2)   = (IdentP (C.QName cname) `C.AppP` defaultNamedArg p1) `C.AppP` p2  -- Case occurs in issue #2785
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__

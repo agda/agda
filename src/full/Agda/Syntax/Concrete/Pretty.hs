@@ -29,6 +29,26 @@ import Agda.Utils.String
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- Andreas, 2017-10-02, TODO: restore Show to its original purpose
+--
+-- deriving instance Show Expr
+-- deriving instance (Show a) => Show (OpApp a)
+-- deriving instance Show Declaration
+-- deriving instance Show Pattern
+-- deriving instance Show TypedBinding
+-- deriving instance Show TypedBindings
+-- deriving instance Show LamBinding
+-- deriving instance Show ModuleAssignment
+-- deriving instance (Show a, Show b) => Show (ImportDirective' a b)
+-- deriving instance (Show a, Show b) => Show (Using' a b)
+-- deriving instance (Show a, Show b) => Show (Renaming' a b)
+-- deriving instance Show Pragma
+-- deriving instance Show RHS
+-- deriving instance Show LHS
+-- deriving instance Show LHSCore
+-- deriving instance Show WhereClause
+-- deriving instance Show ModuleApplication
+
 instance Show Expr            where show = show . pretty
 instance Show Declaration     where show = show . pretty
 instance Show Pattern         where show = show . pretty
@@ -39,6 +59,10 @@ instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
                               where show = show . pretty
 instance Show Pragma          where show = show . pretty
 instance Show RHS             where show = show . pretty
+instance Show LHS where show = show . pretty
+instance Show LHSCore where show = show . pretty
+instance Show WhereClause where show = show . pretty
+instance Show ModuleApplication where show = show . pretty
 
 braces' :: Doc -> Doc
 braces' d = case render d of
@@ -250,7 +274,6 @@ instance Pretty RHS where
     pretty (RHS e)   = text "=" <+> pretty e
     pretty AbsurdRHS = empty
 
-instance Show WhereClause where show = show . pretty
 instance Pretty WhereClause where
   pretty  NoWhere = empty
   pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
@@ -262,7 +285,6 @@ instance Pretty WhereClause where
          , nest 2 (vcat $ map pretty ds)
          ]
 
-instance Show LHS where show = show . pretty
 instance Pretty LHS where
   pretty lhs = case lhs of
     LHS p ps eqs es  -> pr (pretty p) ps eqs es
@@ -278,14 +300,12 @@ instance Pretty LHS where
       pThing thing (e : es) = fsep $ (text thing <+> pretty e)
                                    : map ((text "|" <+>) . pretty) es
 
-instance Show LHSCore where show = show . pretty
 instance Pretty LHSCore where
   pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps
   pretty (LHSProj d ps lhscore ps') = sep $
     pretty d : map (parens . pretty) ps ++
     parens (pretty lhscore) : map (parens . pretty) ps'
 
-instance Show ModuleApplication where show = show . pretty
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> text "=" <+> pretty e
   pretty (RecordModuleIFS _ rec) = text "=" <+> pretty rec <+> text "{{...}}"
