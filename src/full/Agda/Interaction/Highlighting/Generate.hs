@@ -246,7 +246,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     , Fold.foldMap getNamedArg    $ universeBi decl
     ]
     where
-    bound n = nameToFile modMap file [] (A.nameConcrete n) P.noRange
+    bound (A.BindName n) = nameToFile modMap file [] (A.nameConcrete n) P.noRange
                          (\isOp -> parserBased { aspect =
                                      Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
@@ -281,7 +281,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                            A.nameBindingSite n)
 
     getVarAndField :: A.Expr -> File
-    getVarAndField (A.Var x)            = bound x
+    getVarAndField (A.Var x)            = bound $ A.BindName x
     getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
     getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
     getVarAndField _                    = mempty
@@ -309,7 +309,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getTyped A.TLet{}         = mempty
 
     getPatSynArgs :: A.Declaration -> File
-    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . Common.unArg) xs
+    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . A.BindName . Common.unArg) xs
     getPatSynArgs _                        = mempty
 
     getPattern' :: IsProjP e => A.Pattern' e -> File

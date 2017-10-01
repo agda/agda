@@ -244,7 +244,8 @@ checkTypedBindings lamOrPi (A.TypedBindings i (Arg info b)) ret =
     ret $ telFromList bs
 
 checkTypedBinding :: LamOrPi -> ArgInfo -> A.TypedBinding -> (ListTel -> TCM a) -> TCM a
-checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
+checkTypedBinding lamOrPi info (A.TBind i xs' e) ret = do
+    let xs = map (fmap A.unBind) xs'
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
@@ -273,7 +274,7 @@ checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
 checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda (Arg info (A.TBind _ xs typ)) body target = do
+checkLambda (Arg info (A.TBind _ xs' typ)) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ prettyShow xs
 
   let numbinds = length xs
@@ -282,6 +283,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
     then dontUseTargetType
     else useTargetType tel btyp
   where
+    xs = map (fmap A.unBind) xs'
     dontUseTargetType = do
       -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
@@ -866,7 +868,7 @@ checkExpr e t0 =
 
         A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda b e t
 
-        A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
+        A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info $ A.unBind x) e0) t
 
         A.Lit lit    -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr e t
@@ -1120,7 +1122,7 @@ checkOrInferMeta newMeta mt i = do
 --   by inserting an underscore for the missing type.
 domainFree :: ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure $ A.BindName x] $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo
@@ -1292,7 +1294,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCall (CheckLetBinding b) $ do
     t <- isType_ t
     v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t
-    addLetBinding info x v t ret
+    addLetBinding info (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCall (CheckLetBinding b) $ do

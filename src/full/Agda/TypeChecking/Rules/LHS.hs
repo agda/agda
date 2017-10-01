@@ -289,7 +289,7 @@ noShadowingOfConstructors mkCall eqs =
    -- Due to parameter refinement, there can be (invisible) variable patterns from module
    -- parameters that shadow constructors.
    -- Thus, only complain about user written variable that shadow constructors.
-   A.VarP x -> when (getOrigin info == UserWritten) $ do
+   A.VarP (A.BindName x) -> when (getOrigin info == UserWritten) $ do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
       , nest 2 $ text "type of variable =" <+> prettyTCM a
@@ -391,11 +391,11 @@ getLeftoverPatterns eqs = do
 
     getLeftoverPattern :: ProblemEq -> TCM LeftoverPatterns
     getLeftoverPattern (ProblemEq p v a) = case p of
-      (A.VarP x)        -> isEtaVar v (unDom a) >>= \case
+      (A.VarP (A.BindName x)) -> isEtaVar v (unDom a) >>= \case
         Just i  -> return $ patternVariable x i
         Nothing -> return $ asPattern x v a
       (A.WildP _)       -> return mempty
-      (A.AsP info x p)  -> (asPattern x v a `mappend`) <$> do
+      (A.AsP info (A.BindName x) p) -> (asPattern x v a `mappend`) <$> do
         getLeftoverPattern $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
@@ -479,7 +479,7 @@ transferOrigins ps qs = do
       _ -> return q
 
     patOrigin :: A.Pattern -> PatOrigin
-    patOrigin (A.VarP x)      = PatOVar x
+    patOrigin (A.VarP (A.BindName x)) = PatOVar x
     patOrigin A.DotP{}        = PatODot
     patOrigin A.ConP{}        = PatOCon
     patOrigin A.RecP{}        = PatORec
@@ -641,7 +641,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
   -- context telescope.
   cxt <- map (setOrigin Inserted) . reverse <$> getContext
   let tel = telFromList' prettyShow cxt
-      cps = [ unnamed . A.VarP . fst <$> argFromDom d
+      cps = [ unnamed . A.VarP . A.BindName . fst <$> argFromDom d
             | d <- cxt ]
       eqs0 = zipWith3 ProblemEq (map namedArg cps) (map var $ downFrom $ size tel) (flattenTel tel)
 

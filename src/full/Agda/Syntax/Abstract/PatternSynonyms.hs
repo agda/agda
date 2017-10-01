@@ -40,7 +40,7 @@ mergeDef (xs, p) (ys, q) = do
   let ren = zip (map unArg xs) (map unArg ys)
   (xs,) <$> merge ren p q
   where
-    merge ren p@(VarP x) (VarP y)   = p <$ guard (elem (x, y) ren)
+    merge ren p@(VarP x) (VarP y)   = p <$ guard (elem (unBind x, unBind y) ren)
     merge ren p@(LitP l) (LitP l')  = p <$ guard (l == l')
     merge ren p@(WildP _) (WildP _) = return p
     merge ren (ConP i (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
@@ -54,7 +54,7 @@ mergeDef (xs, p) (ys, q) = do
 matchPatternSyn :: PatternSynDefn -> Expr -> Maybe [Arg Expr]
 matchPatternSyn = runMatch match
   where
-    match (VarP x) e = x ==> e
+    match (VarP x) e = unBind x ==> e
     match (LitP l) (Lit l') = guard (l == l')
     match (ConP _ (AmbQ cs) ps) e = do
       Application (Con (AmbQ cs')) args <- return (appView e)
@@ -67,7 +67,7 @@ matchPatternSyn = runMatch match
 matchPatternSynP :: PatternSynDefn -> Pattern' e -> Maybe [Arg (Pattern' e)]
 matchPatternSynP = runMatch match
   where
-    match (VarP x) q = x ==> q
+    match (VarP x) q = unBind x ==> q
     match (LitP l) (LitP l') = guard (l == l')
     match (WildP _) (WildP _) = return ()
     match (ConP _ (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
@@ -85,4 +85,3 @@ runMatch :: (Pattern' Void -> e -> Match e ()) -> PatternSynDefn -> e -> Maybe [
 runMatch match (xs, pat) e = do
   sub <- execWriterT (match pat e)
   forM xs $ \ x -> (<$ x) <$> Map.lookup (unArg x) sub
-

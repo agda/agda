@@ -289,7 +289,7 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
             ts <- caseList ts0 (return []) $ \ t0 ts -> do
               equalType t0 a
               return ts
-            continue ts ps x
+            continue ts ps $ A.unBind x
 
          | visible info, notVisible info' ->
             continue ts0 ps0 =<< freshName_ (absName b)

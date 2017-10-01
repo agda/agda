@@ -67,7 +67,7 @@ pappToTerm x f ps ret = do
 patternToTerm :: A.Pattern -> (Nat -> Term -> TCM a) -> TCM a
 patternToTerm p ret =
   case p of
-    A.VarP x                        -> bindVar x $ ret 1 (Var 0 [])
+    A.VarP (A.BindName x)           -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ cs ps
       | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive []) ConOCon . map Apply) ps ret
       | otherwise                   -> ambigErr "constructor" cs

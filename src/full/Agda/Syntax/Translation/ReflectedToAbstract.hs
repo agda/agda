@@ -68,7 +68,7 @@ instance ToAbstract [Arg Term] [NamedArg Expr] where
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBindings) where
   toAbstract (Dom i x, name) = do
     dom <- toAbstract x
-    return $ TypedBindings noRange $ Arg i $ TBind noRange [pure name] dom
+    return $ TypedBindings noRange $ Arg i $ TBind noRange [pure $ BindName name] dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -105,7 +105,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (DomainFree info name) e
+      return $ A.Lam exprNoRange (DomainFree info $ BindName name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- lift $ getCurrentModule
@@ -144,11 +144,11 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
       (names, args) <- toAbstractPats args
       return (names, A.ConP (ConPatInfo ConOCon patNoRange False) (unambiguous $ killRange c) args)
     R.DotP    -> return ([], A.WildP patNoRange)
-    R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP name)
+    R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP $ BindName name)
         -- Ulf, 2016-08-09: Also bind noNames (#2129). This to make the
         -- behaviour consistent with lambda and pi.
         -- return ([], A.WildP patNoRange)
-    R.VarP s  -> withName s $ \ name -> return ([name], A.VarP name)
+    R.VarP s  -> withName s $ \ name -> return ([name], A.VarP $ BindName name)
     R.LitP l  -> return ([], A.LitP l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
     R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d)

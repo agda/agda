@@ -339,7 +339,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- instantiations from qs, so we make sure
   -- that t is the top-level type of the parent function and add patterns for
   -- the module parameters to ps before stripping.
-  let paramPat i _ = A.VarP (cxtNames !! i)
+  let paramPat i _ = A.VarP $ A.BindName (cxtNames !! i)
       ps' = zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps
   psi <- insertImplicitPatternsT ExpandLast ps' t
   reportSDoc "tc.with.strip" 10 $ vcat
@@ -446,7 +446,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         -- we can strip the dot from the with clause.
         VarP PatODot x | A.DotP _ u <- namedArg p
                        , A.Var y <- unScope u ->
-          (setNamedArg p (A.VarP y) :) <$>
+          (setNamedArg p (A.VarP (A.BindName y)) :) <$>
             recurse (var (dbPatVarIndex x))
 
         VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))

@@ -201,8 +201,8 @@ patternVars p = foldAPattern f p `appEndo` []
   -- We use difference lists @[A.Name] -> [A.Name]@ to avoid reconcatenation.
   f :: Pattern' a -> Endo [A.Name]
   f = \case
-    A.VarP x         -> Endo (x :)
-    A.AsP _ x _      -> Endo (x :)
+    A.VarP x         -> Endo (unBind x :)
+    A.AsP _ x _      -> Endo (unBind x :)
     A.LitP        {} -> mempty
     A.ConP        {} -> mempty
     A.RecP        {} -> mempty
@@ -267,7 +267,7 @@ substPattern'
   -> Pattern' e            -- ^ Input pattern.
   -> Pattern' e
 substPattern' subE s = mapAPattern $ \ p -> case p of
-  VarP x            -> fromMaybe p $ lookup x s
+  VarP (BindName x) -> fromMaybe p $ lookup x s
   DotP i e          -> DotP i $ subE e
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p

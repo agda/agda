@@ -932,7 +932,7 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree info x) = A.DomainFree info <$> toAbstract (NewName LambdaBound x)
+  toAbstract (C.DomainFree info x) = A.DomainFree info . A.BindName <$> toAbstract (NewName LambdaBound x)
   toAbstract (C.DomainFull tb)     = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBindings
@@ -948,7 +948,7 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
     xs' <- toAbstract $ map (fmap (NewName LambdaBound)) xs
-    return $ A.TBind r xs' t'
+    return $ A.TBind r (map (fmap A.BindName) xs') t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
@@ -1252,8 +1252,8 @@ instance ToAbstract LetDef [A.LetBinding] where
               -- definition. The first list element below is
               -- used to highlight the declared instance in the
               -- right way (see Issue 1618).
-              return [ A.LetDeclaredVariable (setRange (getRange x') x)
-                     , A.LetBind (LetRange $ getRange d) info' x t e
+              return [ A.LetDeclaredVariable (A.BindName (setRange (getRange x') x))
+                     , A.LetBind (LetRange $ getRange d) info' (A.BindName x) t e
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
@@ -1348,7 +1348,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.DomainFree info x) e
+                return $ A.Lam i' (A.DomainFree info $ A.BindName x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
@@ -2126,7 +2126,7 @@ resolvePatternIdentifier r x ns = do
   case px of
     VarPatName y         -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ show y ++ " with range " ++ show (getRange y)
-      return $ VarP y
+      return $ VarP $ A.BindName y
     ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) False)
                                           (AmbQ $ fmap anameName ds) []
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
@@ -2230,7 +2230,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(C.AsP r x p) = do
         x <- toAbstract (NewName PatternBound x)
         p <- toAbstract p
-        return $ A.AsP (PatRange r) x p
+        return $ A.AsP (PatRange r) (A.BindName x) p
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e)     = return $ A.DotP (PatRange r) e
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
@@ -2327,7 +2327,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.DomainFree i x : ls
+        return ( A.DomainFree i (A.BindName x) : ls
                , set (Left (Var x)) a : ns
                )
       where
