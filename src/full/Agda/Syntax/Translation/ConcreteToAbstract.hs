@@ -697,6 +697,7 @@ scopeCheckExtendedLam r cs = do
   a <- aModeToDef <$> asks envAbstractMode
   let
     insertApp (C.RawAppP r es) = C.RawAppP r $ IdentP (C.QName cname) : es
+    insertApp (C.AppP p1 p2)   = (IdentP (C.QName cname) `C.AppP` defaultNamedArg p1) `C.AppP` p2  -- Case occurs in issue #2785
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
