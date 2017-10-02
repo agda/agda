@@ -39,6 +39,17 @@ cache:
 
 matrix:
   include:
+    # (2017-10-01) GHC 8.2.2 RC1 was released.
+    - env: TEST=MAIN GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.0
+            - ghc-8.2.2
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.2.1 BUILD=CABAL CABAL_VER=2.0
       addons:
         apt:
@@ -129,8 +140,8 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  # allow_failures:
-  # - env: TEST=MAIN GHC_VER=8.2.1 BUILD=CABAL CABAL_VER=2.0
+  allow_failures:
+  - env: TEST=MAIN GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
 
 ##############################################################################
 before_install:
