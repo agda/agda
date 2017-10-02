@@ -25,6 +25,10 @@ import Agda.Utils.Except
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+instance EmbPrj A.BindName where
+  icod_ (A.BindName n) = icodeN' A.BindName n
+  value = valueN A.BindName
+
 instance EmbPrj Scope where
   icod_ (Scope a b c d e) = icodeN' Scope a b c d e
 

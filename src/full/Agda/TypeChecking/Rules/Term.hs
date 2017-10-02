@@ -253,7 +253,8 @@ checkTypedBindings lamOrPi (A.TypedBindings i (Arg info b)) ret =
     ret $ telFromList bs
 
 checkTypedBinding :: LamOrPi -> ArgInfo -> A.TypedBinding -> (ListTel -> TCM a) -> TCM a
-checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
+checkTypedBinding lamOrPi info (A.TBind i xs' e) ret = do
+    let xs = map (fmap A.unBind) xs'
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
@@ -280,7 +281,9 @@ ifPath ty fallback work = do
   if isPathType pv then work else fallback
 
 checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(Arg info (A.TBind _ xs typ)) body ty = do
+checkPath b@(Arg info (A.TBind _ xs' typ)) body ty = do
+    let xs = map (fmap A.unBind) xs'
+        [WithHiding h x] = xs
     PathType s path level typ lhs rhs <- pathView ty
     interval <- elInf primInterval
     v <- addContext' (xs, defaultDom interval) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
@@ -294,8 +297,6 @@ checkPath b@(Arg info (A.TBind _ xs typ)) body ty = do
       equalTerm (btyp iZero) lhs' (unArg lhs)
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
-  where
-    [WithHiding h x] = xs
 checkPath b body ty = __IMPOSSIBLE__
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
@@ -306,7 +307,7 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
+checkLambda b@(Arg info (A.TBind _ xs' typ)) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ prettyShow xs
   let numbinds = length xs
       possiblePath = numbinds == 1
@@ -320,6 +321,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
     then (if possiblePath then trySeeingIfPath else dontUseTargetType)
     else useTargetType tel btyp
   where
+    xs = map (fmap A.unBind) xs'
     trySeeingIfPath = do
       cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
@@ -945,7 +947,7 @@ checkExpr e t0 =
 
         A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda b e t
 
-        A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
+        A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info $ A.unBind x) e0) t
 
         A.Lit lit    -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr e t
@@ -1569,7 +1571,7 @@ checkOrInferMeta newMeta mt i = do
 --   by inserting an underscore for the missing type.
 domainFree :: ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure $ A.BindName x] $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo
@@ -2337,7 +2339,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
     v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t
-    addLetBinding info x v t ret
+    addLetBinding info (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do

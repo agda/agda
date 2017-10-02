@@ -259,7 +259,7 @@ refine force ii mr e = do
               -- reduce beta-redexes where the argument is used at most once
               smartApp i e arg =
                 case lamView $ unScope e of
-                  Just (x, e) | count x e < 2 -> mapExpr subX e
+                  Just (A.BindName x, e) | count x e < 2 -> mapExpr subX e
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
@@ -421,7 +421,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               domType <- maybe (return underscore) reify mt
               target  <- reify target
               let bs = TypedBindings noRange $ Arg ai $
-                       TBind noRange xs domType
+                       TBind noRange (map (fmap A.BindName) xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do

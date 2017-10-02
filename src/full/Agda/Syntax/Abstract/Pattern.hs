@@ -53,7 +53,7 @@ instance MapNamedArgPattern NAP where
       -- RecP: we copy the NamedArg info to the subpatterns but discard it after recursion
       RecP i fs          -> f $ setNamedArg p $ RecP i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
       -- AsP: we hand the NamedArg info to the subpattern
-      AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
+      AsP i x p0        -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
@@ -173,8 +173,8 @@ patternVars p = foldAPattern f p `appEndo` []
   -- We use difference lists @[A.Name] -> [A.Name]@ to avoid reconcatenation.
   f :: Pattern' a -> Endo [A.Name]
   f = \case
-    A.VarP x         -> Endo (x :)
-    A.AsP _ x _      -> Endo (x :)
+    A.VarP x         -> Endo (unBind x :)
+    A.AsP _ x _      -> Endo (unBind x :)
     A.LitP        {} -> mempty
     A.ConP        {} -> mempty
     A.RecP        {} -> mempty

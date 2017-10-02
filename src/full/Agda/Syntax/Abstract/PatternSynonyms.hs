@@ -25,7 +25,7 @@ import Agda.Utils.Monad
 matchPatternSyn :: PatternSynDefn -> Expr -> Maybe [Arg Expr]
 matchPatternSyn = runMatch match
   where
-    match (VarP x) e = x ==> e
+    match (VarP x) e = unBind x ==> e
     match (LitP l) (Lit l') = guard (l == l')
     match (ConP _ (AmbQ cs) ps) e = do
       Application (Con (AmbQ cs')) args <- return (appView e)
@@ -38,7 +38,7 @@ matchPatternSyn = runMatch match
 matchPatternSynP :: PatternSynDefn -> Pattern' e -> Maybe [Arg (Pattern' e)]
 matchPatternSynP = runMatch match
   where
-    match (VarP x) q = x ==> q
+    match (VarP x) q = unBind x ==> q
     match (LitP l) (LitP l') = guard (l == l')
     match (WildP _) (WildP _) = return ()
     match (ConP _ (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
@@ -56,4 +56,3 @@ runMatch :: (Pattern' Void -> e -> Match e ()) -> PatternSynDefn -> e -> Maybe [
 runMatch match (xs, pat) e = do
   sub <- execWriterT (match pat e)
   forM xs $ \ x -> (<$ x) <$> Map.lookup (unArg x) sub
-

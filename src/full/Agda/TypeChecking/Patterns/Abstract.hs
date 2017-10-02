@@ -45,7 +45,7 @@ expandLitPattern p = traverse (traverse expand) p
               info  = A.PatRange r
               cinfo = A.ConPatInfo ConOCon info
               p'    = foldr ($) zero $ List.genericReplicate n suc
-          return $ foldr (A.AsP info) p' xs
+          return $ foldr (A.AsP info) p' (map A.BindName xs)
       _ -> return p
     tooBig = typeError $ GenericError $
       "Matching on natural number literals is done by expanding " ++

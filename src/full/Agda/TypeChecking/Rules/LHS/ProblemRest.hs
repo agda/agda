@@ -36,7 +36,7 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) !dom | visible (domInfo dom) && not (isNoName x) =
+    ren (A.VarP (A.BindName x)) !dom | visible (domInfo dom) && not (isNoName x) =
       dom <&> \ (_, a) -> (nameToArgName x, a)
     ren A.AbsurdP{} !dom | visible (domInfo dom) =
       dom <&> \ (_, a) -> ("()", a)

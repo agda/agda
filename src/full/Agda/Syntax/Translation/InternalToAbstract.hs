@@ -428,7 +428,7 @@ reifyTerm expandAnonDefs0 v = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprNoRange (DomainFree info x) e
+      return $ A.Lam exprNoRange (DomainFree info $ BindName x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -447,7 +447,7 @@ reifyTerm expandAnonDefs0 v = do
       where
         mkPi b (Arg info a) = do
           (x, b) <- reify b
-          return $ A.Pi noExprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure x] a)] b
+          return $ A.Pi noExprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure $ BindName x] a)] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -891,7 +891,7 @@ instance Binder A.LHSCore where
 
 instance Binder A.Pattern where
   varsBoundIn = foldAPattern $ \case
-    A.VarP x            -> singleton x
+    A.VarP x            -> singleton $ unBind x
     A.AsP _ x _         -> empty
     A.ConP _ _ _        -> empty
     A.ProjP{}           -> empty
@@ -905,7 +905,7 @@ instance Binder A.Pattern where
     A.EqualP{}          -> empty
 
 instance Binder A.LamBinding where
-  varsBoundIn (A.DomainFree _ x) = singleton x
+  varsBoundIn (A.DomainFree _ x) = singleton $ unBind x
   varsBoundIn (A.DomainFull b)   = varsBoundIn b
 
 instance Binder TypedBindings where
@@ -916,7 +916,7 @@ instance Binder TypedBinding where
   varsBoundIn (TLet _ bs)    = varsBoundIn bs
 
 instance Binder LetBinding where
-  varsBoundIn (LetBind _ _ x _ _) = singleton x
+  varsBoundIn (LetBind _ _ x _ _) = singleton $ unBind x
   varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
   varsBoundIn LetApply{}          = empty
   varsBoundIn LetOpen{}           = empty
@@ -924,6 +924,9 @@ instance Binder LetBinding where
 
 instance Binder (WithHiding Name) where
   varsBoundIn (WithHiding _ x) = singleton x
+
+instance Binder (WithHiding BindName) where
+  varsBoundIn (WithHiding _ x) = singleton $ unBind x
 
 instance Binder a => Binder (FieldAssignment' a) where
 instance Binder a => Binder (Arg a)              where
@@ -951,14 +954,14 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
       I.VarP x -> do
         n <- liftTCM $ nameOfBV $ dbPatVarIndex x
         case dbPatVarName x of
-          "_"  -> return $ A.VarP n
+          "_"  -> return $ A.VarP $ BindName n
           -- Andreas, 2017-09-03: TODO for #2580
           -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
           -- case splitter still produces them.
-          y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP n else
+          y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP $ BindName n else
             -- Andreas, 2017-09-03, issue #2729
             -- Restore original pattern name.  AbstractToConcrete picks unique names.
-            return $ A.VarP n { nameConcrete = C.Name noRange [ C.Id y ] }
+            return $ A.VarP $ BindName $ n { nameConcrete = C.Name noRange [ C.Id y ] }
       I.DotP v -> do
         t <- liftTCM $ reify v
         -- This is only used for printing purposes, so the Origin shouldn't be
@@ -1105,7 +1108,7 @@ instance Reify I.Telescope A.Telescope where
     Arg info e <- reify arg
     (x,bs)  <- reify tel
     let r = getRange e
-    return $ TypedBindings r (Arg info (TBind r [pure x] e)) : bs
+    return $ TypedBindings r (Arg info (TBind r [pure $ BindName x] e)) : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

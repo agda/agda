@@ -334,7 +334,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- instantiations from qs, so we make sure
   -- that t is the top-level type of the parent function and add patterns for
   -- the module parameters to ps before stripping.
-  let paramPat i _ = A.VarP (cxtNames !! i)
+  let paramPat i _ = A.VarP $ A.BindName (cxtNames !! i)
       ps' = zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps
   psi <- insertImplicitPatternsT ExpandLast ps' t
   reportSDoc "tc.with.strip" 10 $ vcat
@@ -418,7 +418,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       | A.AsP _ x p <- namedArg p0 = do
         (a, _) <- mustBePi t
         let v = patternToTerm (namedArg q)
-        tell [Right $ A.NamedDot x v (unDom a)]
+        tell [Right $ A.NamedDot (A.unBind x) v (unDom a)]
         strip self t (fmap (p <$) p0 : ps) qs
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
       p <- liftTCM $ expandLitPattern p0
@@ -476,7 +476,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- insert a let for it.
           A.VarP x -> do
             (a, _) <- mustBePi t
-            tell [Right $ A.NamedDot x v (unDom a)]
+            tell [Right $ A.NamedDot (A.unBind x) v (unDom a)]
             ok p
           -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
           -- we just fold it back.  This fixes issues 665 and 824.

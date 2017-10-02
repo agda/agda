@@ -55,7 +55,7 @@ asPatterns (ArgT dom : as) (p : ps) (Apply v : vs)
     let a = unDom dom
     case namedArg p of
       A.AsP _ x p' -> do
-        tell [AsB x (unArg v) a]
+        tell [AsB (A.unBind x) (unArg v) a]
         asPatterns (ArgT dom : as) (fmap (p' <$) p : ps) (Apply v : vs)
       A.ConP _ _ ps' -> do
         (_, _, tel, as', args) <- lift $ conPattern a (unArg v)

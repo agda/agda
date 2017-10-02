@@ -168,7 +168,7 @@ updateInPatterns as ps qs = do
       DotP u     -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
-        A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
+        A.VarP x   -> return (IntMap.empty, [DPI (Just $ A.unBind x) Nothing  u a])
         p@(A.ConP _ (A.AmbQ [c]) qs) -> ifM (isNothing <$> isRecordConstructor c)
           (return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a]))
           (do
@@ -203,7 +203,7 @@ updateInPatterns as ps qs = do
               where
                 mkDPI v = case namedThing $ unArg p of
                   A.DotP _ _ e -> [DPI Nothing (Just e) v a]
-                  A.VarP x   -> [DPI (Just x) Nothing v a]
+                  A.VarP x   -> [DPI (Just $ A.unBind x) Nothing v a]
                   A.WildP _  -> [DPI Nothing  Nothing v a]
                   _        -> []
 
@@ -223,7 +223,7 @@ updateInPatterns as ps qs = do
               where
                 mkDPI v = case namedThing $ unArg p of
                   A.DotP _ _ e -> [DPI Nothing (Just e) v a]
-                  A.VarP x     -> [DPI (Just x) Nothing v a]
+                  A.VarP x     -> [DPI (Just $ A.unBind x) Nothing v a]
                   _            -> []
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
@@ -317,7 +317,7 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__ -- removed by asView
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
   noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
-  noShadowing (A.VarP x)       t = do
+  noShadowing (A.VarP (A.BindName x)) t = do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
       , nest 2 $ text "type of variable =" <+> prettyTCM t
@@ -348,7 +348,7 @@ noShadowingOfConstructors mkCall problem =
       Var   {} -> return ()
       Pi    {} -> return ()
       Sort  {} -> return ()
-      Shared p -> noShadowing (A.VarP x) $ derefPtr p
+      Shared p -> noShadowing (A.VarP (A.BindName x)) $ derefPtr p
       MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be
       -- postponed? If there is a problem, then it will be caught when
@@ -526,7 +526,7 @@ bindLHSVars (p : ps) tel0@(ExtendTel a tel) ret = do
   unless (sameHiding p a) $ typeError WrongHidingInLHS
 
   case namedArg p of
-    A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
+    A.VarP x      -> addContext (A.unBind x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
                  -- @bindDummy underscore@ does not fix issue 819, but
                  -- introduces unwanted underscores in error messages
@@ -622,7 +622,7 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
   -- context telescope.
   cxt <- reverse <$> getContext
   let tel = telFromList' prettyShow cxt
-      cps = [ unnamed . A.VarP . fst <$> setOrigin Inserted (argFromDom d)
+      cps = [ unnamed . A.VarP . A.BindName . fst <$> setOrigin Inserted (argFromDom d)
             | d <- cxt ]
   problem0 <- problemFromPats (cps ++ ps) (telePi tel a)
   -- Andreas, 2013-03-15 deactivating the following test allows

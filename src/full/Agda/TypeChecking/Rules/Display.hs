@@ -65,7 +65,7 @@ pappToTerm x f ps ret = do
 patternToTerm :: A.Pattern -> (Nat -> Term -> TCM a) -> TCM a
 patternToTerm p ret =
   case p of
-    A.VarP x               -> bindVar x $ ret 1 (Var 0 [])
+    A.VarP (A.BindName x)  -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ (AmbQ [c]) ps -> pappToTerm c (Con (ConHead c Inductive []) ConOCon) ps ret
     A.ConP _ (AmbQ cs) _   -> genericError $ "Ambiguous constructor: " ++ List.intercalate ", " (map show cs)
     A.ProjP _ _ (AmbQ [d]) -> ret 0 (Def d [])

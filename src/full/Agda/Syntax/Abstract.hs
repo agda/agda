@@ -1,8 +1,7 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE PatternSynonyms       #-}
-{-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -60,7 +59,8 @@ import Agda.Utils.Impossible
 -- reuse previous typechecking results: during that comparison two
 -- names can have the same nameId but be semantically different,
 -- e.g. in "{_ : A} -> .." vs "{r : A} -> ..".
-newtype BindName = BindName Name deriving (Show,Data,Typeable)
+newtype BindName = BindName { unBind :: Name }
+  deriving (Show,Data,Typeable,HasRange,SetRange,KillRange)
 
 instance Eq BindName where
   (BindName n) == (BindName m)
@@ -238,7 +238,7 @@ data Pragma
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
-  = LetBind' LetInfo ArgInfo BindName Expr Expr
+  = LetBind LetInfo ArgInfo BindName Expr Expr
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
@@ -247,17 +247,11 @@ data LetBinding
     -- The @ImportDirective@ is for highlighting purposes.
   | LetOpen ModuleInfo ModuleName ImportDirective
     -- ^ only for highlighting and abstractToConcrete
-  | LetDeclaredVariable' BindName
+  | LetDeclaredVariable BindName
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
   deriving (Typeable, Data, Show, Eq)
 
-{-# COMPLETE LetBind, LetPatBind, LetApply, LetOpen, LetDeclaredVariable #-}
-
-pattern LetBind :: LetInfo -> ArgInfo -> Name -> Expr -> Expr -> LetBinding
-pattern LetBind li ai n e e1 = LetBind' li ai (BindName n) e e1
-pattern LetDeclaredVariable :: Name -> LetBinding
-pattern LetDeclaredVariable n = LetDeclaredVariable' (BindName n)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -266,14 +260,10 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree' ArgInfo BindName   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
+  = DomainFree ArgInfo BindName   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
   | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Typeable, Data, Show, Eq)
 
-pattern DomainFree :: ArgInfo -> Name -> LamBinding
-pattern DomainFree i n = DomainFree' i (BindName n)
-
-{-# COMPLETE DomainFree, DomainFull #-}
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
@@ -295,19 +285,12 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind' Range [WithHiding BindName] Expr
+  = TBind Range [WithHiding BindName] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Typeable, Data, Show, Eq)
 
-
--- The following would be more efficient with coercions
-pattern TBind :: Range -> [WithHiding Name] -> Expr -> TypedBinding
-pattern TBind r hs e <- TBind' r (map (fmap (\(BindName n) -> n)) -> hs) e where
-     TBind r hs e = TBind' r (map (fmap BindName) hs) e
-
-{-# COMPLETE TBind, TLet #-}
 
 type Telescope  = [TypedBindings]
 
@@ -486,15 +469,9 @@ mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 -- * Patterns
 ---------------------------------------------------------------------------
 
-pattern VarP :: Name -> Pattern' e
-pattern VarP n = VarP' (BindName n)
-
-pattern AsP :: PatInfo -> Name -> Pattern' e -> Pattern' e
-pattern AsP i n p = AsP' i (BindName n) p
-
 -- | Parameterised over the type of dot patterns.
 data Pattern' e
-  = VarP' BindName
+  = VarP BindName
   | ConP ConPatInfo AmbiguousQName [NamedArg (Pattern' e)]
   | ProjP PatInfo ProjOrigin AmbiguousQName
     -- ^ Destructor pattern @d@.
@@ -505,7 +482,7 @@ data Pattern' e
   | WildP PatInfo
     -- ^ Underscore pattern entered by user.
     --   Or generated at type checking for implicit arguments.
-  | AsP' PatInfo BindName (Pattern' e)
+  | AsP PatInfo BindName (Pattern' e)
   | DotP PatInfo Origin e
     -- ^ Dot pattern @.e@: the Origin keeps track whether this dot pattern was
     --   written by the user or inserted by the system (e.g. while expanding
@@ -516,19 +493,6 @@ data Pattern' e
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
-
-{-# COMPLETE VarP
-  , ConP
-  , ProjP
-  , DefP
-  , WildP
-  , AsP
-  , DotP
-  , AbsurdP
-  , LitP
-  , PatternSynP
-  , RecP
-  , EqualP #-}
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
@@ -703,12 +667,12 @@ instance HasRange Declaration where
     getRange (UnquoteDef i _ _)       = getRange i
 
 instance HasRange (Pattern' e) where
-    getRange (VarP x)            = getRange x
+    getRange (VarP x)           = getRange x
     getRange (ConP i _ _)        = getRange i
     getRange (ProjP i _ _)       = getRange i
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
-    getRange (AsP i _ _)         = getRange i
+    getRange (AsP i _ _)        = getRange i
     getRange (DotP i _ _)        = getRange i
     getRange (AbsurdP i)         = getRange i
     getRange (LitP l)            = getRange l
@@ -736,20 +700,20 @@ instance HasRange RHS where
     getRange (RewriteRHS xes rhs wh)  = getRange (map snd xes, rhs, wh)
 
 instance HasRange LetBinding where
-    getRange (LetBind  i _ _ _ _     ) = getRange i
+    getRange (LetBind i _ _ _ _     ) = getRange i
     getRange (LetPatBind  i _ _      ) = getRange i
     getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _ _         ) = getRange i
-    getRange (LetDeclaredVariable x)   = getRange x
+    getRange (LetDeclaredVariable x)  = getRange x
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
-    setRange r (VarP x)             = VarP (setRange r x)
+    setRange r (VarP x)            = VarP (setRange r x)
     setRange r (ConP i ns as)       = ConP (setRange r i) ns as
     setRange r (ProjP _ o ns)       = ProjP (PatRange r) o ns
     setRange r (DefP _ ns as)       = DefP (PatRange r) ns as -- (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
-    setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
+    setRange r (AsP _ n p)         = AsP (PatRange r) (setRange r n) p
     setRange r (DotP _ o e)         = DotP (PatRange r) o e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
@@ -829,12 +793,12 @@ instance KillRange ScopeCopyInfo where
   killRange (ScopeCopyInfo a b) = killRange2 ScopeCopyInfo a b
 
 instance KillRange e => KillRange (Pattern' e) where
-  killRange (VarP x)            = killRange1 VarP x
+  killRange (VarP x)           = killRange1 VarP x
   killRange (ConP i a b)        = killRange3 ConP i a b
   killRange (ProjP i o a)       = killRange3 ProjP i o a
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
-  killRange (AsP i a b)         = killRange3 AsP i a b
+  killRange (AsP i a b)        = killRange3 AsP i a b
   killRange (DotP i o a)        = killRange3 DotP i o a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
   killRange (LitP l)            = killRange1 LitP l
@@ -868,11 +832,11 @@ instance KillRange RHS where
   killRange (RewriteRHS xes rhs wh)  = killRange3 RewriteRHS xes rhs wh
 
 instance KillRange LetBinding where
-  killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
+  killRange (LetBind   i info a b c) = killRange5 LetBind i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
   killRange (LetApply   i a b c d   ) = killRange5 LetApply i a b c d
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
-  killRange (LetDeclaredVariable x)   = killRange1 LetDeclaredVariable x
+  killRange (LetDeclaredVariable x)  = killRange1 LetDeclaredVariable x
 
 -- See Agda.Utils.GeniPlate:
 -- Does not descend into ScopeInfo and renaming maps, for instance.
@@ -995,7 +959,7 @@ instance AllNames TypedBinding where
   allNames (TLet _ lbs)  = allNames lbs
 
 instance AllNames LetBinding where
-  allNames (LetBind _ _ _ e1 e2)   = allNames e1 >< allNames e2
+  allNames (LetBind _ _ _ e1 e2)  = allNames e1 >< allNames e2
   allNames (LetPatBind _ _ e)      = allNames e
   allNames (LetApply _ _ app _ _)  = allNames app
   allNames LetOpen{}               = Seq.empty
@@ -1070,7 +1034,7 @@ mkLet i [] e = e
 mkLet i ds e = Let i ds e
 
 patternToExpr :: Pattern -> Expr
-patternToExpr (VarP x)            = Var x
+patternToExpr (VarP x)           = Var (unBind x)
 patternToExpr (ConP _ c ps)       =
   Con c `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (ProjP _ o ds)      = Proj o ds
@@ -1078,7 +1042,7 @@ patternToExpr (DefP _ (AmbQ [f]) ps) =
   Def f `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (DefP _ (AmbQ _) ps) = __IMPOSSIBLE__
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
-patternToExpr (AsP _ _ p)         = patternToExpr p
+patternToExpr (AsP _ _ p)        = patternToExpr p
 patternToExpr (DotP _ _ e)        = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
@@ -1091,7 +1055,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo n) $
+lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo $ BindName n) $
                             lambdaLiftExpr ns e
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
@@ -1099,7 +1063,7 @@ substPattern = substPattern' (substExpr . (map . second) patternToExpr)
 
 substPattern' :: ([(Name, Pattern' e)] -> e -> e) -> [(Name, Pattern' e)] -> Pattern' e -> Pattern' e
 substPattern' subE s p = case p of
-  VarP z        -> fromMaybe p (lookup z s)
+  VarP z       -> fromMaybe p (lookup (unBind z) s)
   ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern' subE s))) ps)
   RecP i ps     -> RecP i (map (fmap (substPattern' subE s)) ps)
   ProjP{}       -> p
@@ -1108,7 +1072,7 @@ substPattern' subE s p = case p of
   AbsurdP i     -> p
   LitP l        -> p
   DefP{}        -> p              -- destructor pattern
-  AsP i x p     -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
+  AsP i x p    -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
   EqualP i es -> EqualP i (map (subE s *** subE s) es)
 

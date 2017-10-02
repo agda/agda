@@ -423,6 +423,10 @@ instance ToConcrete A.Name C.Name where
   toConcrete       = lookupName
   bindToConcrete x = bindName x
 
+instance ToConcrete BindName C.Name where
+  toConcrete       = lookupName . unBind
+  bindToConcrete x = bindName (unBind x)
+
 instance ToConcrete A.QName C.QName where
   toConcrete = lookupQName AmbiguousConProjs
 
@@ -653,7 +657,7 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding [C.LamBinding] where
-    bindToConcrete (A.DomainFree info x) ret = bindToConcrete x $ ret . (:[]) . C.DomainFree info . mkBoundName_
+    bindToConcrete (A.DomainFree info x) ret = bindToConcrete (unBind x) $ ret . (:[]) . C.DomainFree info . mkBoundName_
     bindToConcrete (A.DomainFull b)      ret = bindToConcrete b $ ret . map C.DomainFull
 
 instance ToConcrete A.TypedBindings [C.TypedBindings] where
@@ -666,7 +670,7 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
         | visible b = [cb]   -- We don't care about labels for explicit args
         | otherwise = traverse (recover (unArg b)) cb
 
-      recover (A.TBind _ xs _) (C.TBind r ys e) = tbind r e (zipWith label xs ys)
+      recover (A.TBind _ xs _) (C.TBind r ys e) = tbind r e (zipWith label (map (fmap unBind) xs) ys)
       recover A.TLet{}         c@C.TLet{}       = [c]
       recover _ _ = __IMPOSSIBLE__
 
@@ -986,10 +990,10 @@ appBracketsArgs (_:_) ctx = appBrackets ctx
 newtype UserPattern a  = UserPattern a
 newtype SplitPattern a = SplitPattern a
 newtype BindingPattern = BindingPat A.Pattern
-newtype FreshName = FreshenName A.Name
+newtype FreshName = FreshenName BindName
 
 instance ToConcrete FreshName A.Name where
-  bindToConcrete (FreshenName x) ret = bindToConcrete x $ \ y -> ret x{ nameConcrete = y }
+  bindToConcrete (FreshenName (BindName x)) ret = bindToConcrete x $ \ y -> ret x { nameConcrete = y }
 
 -- Pass 1: (Issue #2729)
 -- Takes care of binding the originally user-written pattern variables, but doesn't actually
@@ -997,7 +1001,7 @@ instance ToConcrete FreshName A.Name where
 instance ToConcrete (UserPattern A.Pattern) A.Pattern where
   bindToConcrete (UserPattern p) ret =
     case p of
-      A.VarP x               -> bindName' x $ ret $ A.VarP x
+      A.VarP x               -> bindName' (unBind x) $ ret $ A.VarP x
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p
       A.AbsurdP{}            -> ret p
@@ -1013,7 +1017,7 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
       A.DefP i f args        -> bindToConcrete (map UserPattern args) $ ret . A.DefP i f
       A.PatternSynP i f args -> bindToConcrete (map UserPattern args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
-      A.AsP i x p            -> bindName' x $
+      A.AsP i x p            -> bindName' (unBind x) $
                                 bindToConcrete (UserPattern p) $ \ p ->
                                 ret (A.AsP i x p)
 
@@ -1059,7 +1063,7 @@ instance ToConcrete (SplitPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) whe
 instance ToConcrete BindingPattern A.Pattern where
   bindToConcrete (BindingPat p) ret =
     case p of
-      A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP
+      A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP . BindName
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p
       A.AbsurdP{}            -> ret p
@@ -1072,7 +1076,7 @@ instance ToConcrete BindingPattern A.Pattern where
       A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
                                 bindToConcrete (BindingPat p)  $ \ p ->
-                                ret (A.AsP i x p)
+                                ret (A.AsP i (BindName x) p)
 
 instance ToConcrete A.Pattern C.Pattern where
   bindToConcrete p ret = do
@@ -1182,7 +1186,7 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
     view e
         -- Do we have a series of inserted lambdas?
       | Just xs@(_:_) <- traverse insertedName bs =
-        (,) <$> getHead hd <*> sectionArgs xs args
+        (,) <$> getHead hd <*> sectionArgs (map unBind xs) args
       where
         LamView     bs body = A.lamView e
         Application hd args = A.appView' body
