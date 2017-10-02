@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -17,6 +19,7 @@ import Control.Applicative
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
+import Data.Function (on)
 import Data.Map (Map)
 import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
@@ -49,6 +52,25 @@ import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-- A name in a binding position: we also compare the nameConcrete
+-- when comparing the binders for equality.
+
+-- With --caching on we compare abstract syntax to determine if we can
+-- reuse previous typechecking results: during that comparison two
+-- names can have the same nameId but be semantically different,
+-- e.g. in "{_ : A} -> .." vs "{r : A} -> ..".
+newtype BindName = BindName Name deriving (Show,Data,Typeable)
+
+instance Eq BindName where
+  (BindName n) == (BindName m)
+    = ((==) `on` nameId) n m
+      && ((==) `on` nameConcrete) n m
+
+instance Ord BindName where
+  (BindName n) `compare` (BindName m)
+    = (compare `on` nameId) n m
+      `mappend` (compare `on` nameConcrete) n m
 
 type Args = [NamedArg Expr]
 
@@ -216,7 +238,7 @@ data Pragma
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
-  = LetBind LetInfo ArgInfo Name Expr Expr
+  = LetBind' LetInfo ArgInfo BindName Expr Expr
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
@@ -225,10 +247,17 @@ data LetBinding
     -- The @ImportDirective@ is for highlighting purposes.
   | LetOpen ModuleInfo ModuleName ImportDirective
     -- ^ only for highlighting and abstractToConcrete
-  | LetDeclaredVariable Name
+  | LetDeclaredVariable' BindName
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
   deriving (Typeable, Data, Show, Eq)
+
+{-# COMPLETE LetBind, LetPatBind, LetApply, LetOpen, LetDeclaredVariable #-}
+
+pattern LetBind :: LetInfo -> ArgInfo -> Name -> Expr -> Expr -> LetBinding
+pattern LetBind li ai n e e1 = LetBind' li ai (BindName n) e e1
+pattern LetDeclaredVariable :: Name -> LetBinding
+pattern LetDeclaredVariable n = LetDeclaredVariable' (BindName n)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -237,9 +266,14 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
+  = DomainFree' ArgInfo BindName   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
   | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Typeable, Data, Show, Eq)
+
+pattern DomainFree :: ArgInfo -> Name -> LamBinding
+pattern DomainFree i n = DomainFree' i (BindName n)
+
+{-# COMPLETE DomainFree, DomainFull #-}
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
@@ -261,11 +295,19 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range [WithHiding Name] Expr
+  = TBind' Range [WithHiding BindName] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Typeable, Data, Show, Eq)
+
+
+-- The following would be more efficient with coercions
+pattern TBind :: Range -> [WithHiding Name] -> Expr -> TypedBinding
+pattern TBind r hs e <- TBind' r (map (fmap (\(BindName n) -> n)) -> hs) e where
+     TBind r hs e = TBind' r (map (fmap BindName) hs) e
+
+{-# COMPLETE TBind, TLet #-}
 
 type Telescope  = [TypedBindings]
 
@@ -444,9 +486,15 @@ mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 -- * Patterns
 ---------------------------------------------------------------------------
 
+pattern VarP :: Name -> Pattern' e
+pattern VarP n = VarP' (BindName n)
+
+pattern AsP :: PatInfo -> Name -> Pattern' e -> Pattern' e
+pattern AsP i n p = AsP' i (BindName n) p
+
 -- | Parameterised over the type of dot patterns.
 data Pattern' e
-  = VarP Name
+  = VarP' BindName
   | ConP ConPatInfo AmbiguousQName [NamedArg (Pattern' e)]
   | ProjP PatInfo ProjOrigin AmbiguousQName
     -- ^ Destructor pattern @d@.
@@ -457,7 +505,7 @@ data Pattern' e
   | WildP PatInfo
     -- ^ Underscore pattern entered by user.
     --   Or generated at type checking for implicit arguments.
-  | AsP PatInfo Name (Pattern' e)
+  | AsP' PatInfo BindName (Pattern' e)
   | DotP PatInfo Origin e
     -- ^ Dot pattern @.e@: the Origin keeps track whether this dot pattern was
     --   written by the user or inserted by the system (e.g. while expanding
@@ -468,6 +516,19 @@ data Pattern' e
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
+
+{-# COMPLETE VarP
+  , ConP
+  , ProjP
+  , DefP
+  , WildP
+  , AsP
+  , DotP
+  , AbsurdP
+  , LitP
+  , PatternSynP
+  , RecP
+  , EqualP #-}
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
