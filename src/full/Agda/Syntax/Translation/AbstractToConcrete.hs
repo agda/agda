@@ -84,6 +84,7 @@ data Env = Env { takenNames   :: Set C.Name
                   -- ^ Certain builtins (like `fromNat`) have special printing
                , preserveIIds :: Bool
                   -- ^ Preserve interaction point ids
+               , foldPatternSynonyms :: Bool
                }
 
 makeEnv :: ScopeInfo -> TCM Env
@@ -103,6 +104,7 @@ makeEnv scope = do
         , currentScope = scope
         , builtins     = Map.fromList builtinList
         , preserveIIds = False
+        , foldPatternSynonyms = True
         }
   where
     vars  = Set.fromList $ map fst $ scopeLocals scope
@@ -128,6 +130,9 @@ withScope scope = local $ \e -> e { currentScope = scope }
 
 noTakenNames :: AbsToCon a -> AbsToCon a
 noTakenNames = local $ \e -> e { takenNames = Set.empty }
+
+dontFoldPatternSynonyms :: AbsToCon a -> AbsToCon a
+dontFoldPatternSynonyms = local $ \ e -> e { foldPatternSynonyms = False }
 
 -- | Bind a concrete name to an abstract in the translation environment.
 addBinding :: C.Name -> A.Name -> Env -> Env
@@ -435,12 +440,12 @@ instance ToConcrete AbstractName C.QName where
 -- | Assumes name is not 'UnknownName'.
 instance ToConcrete ResolvedName C.QName where
   toConcrete = \case
-    VarName x _         -> C.QName <$> lookupName x
-    DefinedName _ x     -> toConcrete x
-    FieldName xs        -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
-    ConstructorName xs  -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
-    PatternSynResName x -> toConcrete x
-    UnknownName         -> __IMPOSSIBLE__
+    VarName x _          -> C.QName <$> lookupName x
+    DefinedName _ x      -> toConcrete x
+    FieldName xs         -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
+    ConstructorName xs   -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
+    PatternSynResName xs -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
+    UnknownName          -> __IMPOSSIBLE__
 
 -- Expression instance ----------------------------------------------------
 
@@ -629,7 +634,8 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
        where r = getRange e
-    toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete n
+    toConcrete (A.PatternSyn (AmbQ (n:_))) = C.Ident <$> toConcrete n
+    toConcrete (A.PatternSyn (AmbQ [])) = __IMPOSSIBLE__
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg info (A.TBind _ [WithHiding h x] t)))) =
@@ -910,7 +916,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.PatternSynDef x xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete (vacuous p :: A.Pattern)
+    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> dontFoldPatternSynonyms (toConcrete (vacuous p :: A.Pattern))
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x
@@ -1116,7 +1122,8 @@ instance ToConcrete A.Pattern C.Pattern where
           C.Underscore{} -> return $ C.WildP $ getRange i
           _ -> return $ C.DotP (getRange i) o c
 
-      A.PatternSynP i n args -> tryOp n (A.PatternSynP i n) args
+      A.PatternSynP i ns@(AmbQ (n:_)) args -> tryOp n (A.PatternSynP i ns) args
+      A.PatternSynP _ (AmbQ []) _ -> __IMPOSSIBLE__
 
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
@@ -1206,12 +1213,12 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
     view e = (, (map . fmap . fmap) Just args) <$> getHead hd
       where Application hd args = A.appView' e
 
-    getHead (Var x)              = Just (HdVar x)
-    getHead (Def f)              = Just (HdDef f)
-    getHead (Con (AmbQ (c : _))) = Just (HdCon c)
-    getHead (Con (AmbQ []))      = __IMPOSSIBLE__
-    getHead (A.PatternSyn c)     = Just (HdSyn c)
-    getHead _                    = Nothing
+    getHead (Var x)                     = Just (HdVar x)
+    getHead (Def f)                     = Just (HdDef f)
+    getHead (Con (AmbQ (c : _)))        = Just (HdCon c)
+    getHead (Con (AmbQ []))             = __IMPOSSIBLE__
+    getHead (A.PatternSyn (AmbQ (c:_))) = Just (HdSyn c)
+    getHead _                           = Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
@@ -1224,9 +1231,9 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
     appInfo = defaultAppInfo_
 
     view p = case p of
-      ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, (map . fmap . fmap) (Just . (appInfo,)) ps)
-      DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, (map . fmap . fmap) (Just . (appInfo,)) ps)
-      PatternSynP _ c ps     -> Just (HdSyn c, (map . fmap . fmap) (Just . (appInfo,)) ps)
+      ConP _        (AmbQ (c:_)) ps -> Just (HdCon c, (map . fmap . fmap) (Just . (appInfo,)) ps)
+      DefP _        (AmbQ (f:_)) ps -> Just (HdDef f, (map . fmap . fmap) (Just . (appInfo,)) ps)
+      PatternSynP _ (AmbQ (c:_)) ps -> Just (HdSyn c, (map . fmap . fmap) (Just . (appInfo,)) ps)
       _ -> __IMPOSSIBLE__
       -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
       -- _                      -> Nothing
@@ -1333,12 +1340,12 @@ tryToRecoverPatternSyn e fallback
         Application A.Lit{} _ -> True
         _                     -> False
 
-    apply c args = A.unAppView $ Application (A.PatternSyn c) args
+    apply c args = A.unAppView $ Application (A.PatternSyn $ AmbQ [c]) args
 
 -- | Recover pattern synonyms in patterns.
 tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
-  where apply c args = PatternSynP patNoRange c args
+  where apply c args = PatternSynP patNoRange (AmbQ [c]) args
 
 -- | General pattern synonym recovery parameterised over expression type
 recoverPatternSyn :: ToConcrete a c =>
@@ -1346,12 +1353,14 @@ recoverPatternSyn :: ToConcrete a c =>
   (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
   a -> AbsToCon c -> AbsToCon c
 recoverPatternSyn applySyn match e fallback = do
-  psyns  <- lift getAllPatternSyns
-  let cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns, Just args <- [match psyndef e] ]
-      cmp (_, _, x) (_, _, y) = flip compare x y
-  case sortBy cmp cands of
-    (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
-    []               -> fallback
+  doFold <- asks foldPatternSynonyms
+  if not doFold then fallback else do
+    psyns  <- lift getAllPatternSyns
+    let cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns, Just args <- [match psyndef e] ]
+        cmp (_, _, x) (_, _, y) = flip compare x y
+    case sortBy cmp cands of
+      (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
+      []               -> fallback
   where
     -- Heuristic to pick the best pattern synonym: the one that folds the most
     -- constructors.

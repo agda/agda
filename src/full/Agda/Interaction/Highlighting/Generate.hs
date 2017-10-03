@@ -242,8 +242,10 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                          (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
 
-    patsyn n = nameToFileA modMap file n True $ \isOp ->
+    patsyn (I.AmbQ (n:_)) =   -- TODO: resolve overloading
+              nameToFileA modMap file n True $ \isOp ->
                   mempty { aspect = Just $ Name (Just $ Constructor Common.Inductive) isOp }
+    patsyn (I.AmbQ []) = __IMPOSSIBLE__
 
     macro n = nameToFileA modMap file n True $ \isOp ->
                   mempty { aspect = Just $ Name (Just Macro) isOp }

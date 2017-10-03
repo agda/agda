@@ -1,5 +1,10 @@
-PatternSynonymOverloaded.agda:8,1-21
-Multiple definitions of ss. Previous definition at
-PatternSynonymOverloaded.agda:7,9-11
-when scope checking the declaration
+PatternSynonymOverloaded.agda:11,6-10
+Cannot resolve overloaded pattern synonym ss, since candidates have
+different shapes:
+  pattern ss x = suc (suc x)
+    at PatternSynonymOverloaded.agda:7,9-11
   pattern ss x = suc x
+    at PatternSynonymOverloaded.agda:8,9-11
+(hint: overloaded pattern synonyms must be equal up to variable and
+constructor names)
+when checking that the clause foo (ss n) = n has type Nat → Nat

@@ -293,7 +293,7 @@ panic s = fwords $ "Panic: " ++ s
 
 nameWithBinding :: QName -> TCM Doc
 nameWithBinding q =
-  sep [ prettyTCM q, text "bound at", prettyTCM r ]
+  (prettyTCM q <+> text "bound at") <?> prettyTCM r
   where
     r = nameBindingSite $ qnameName q
 
@@ -317,6 +317,7 @@ errorString err = case err of
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
+  CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
   BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
@@ -1024,11 +1025,24 @@ instance PrettyTCM TypeError where
         isPlaceholder Placeholder{}   = True
         isPlaceholder NoPlaceholder{} = False
 
-    BadArgumentsToPatternSynonym x -> fsep $
+    BadArgumentsToPatternSynonym (AmbQ (x : _)) -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM x]
+    BadArgumentsToPatternSynonym{} -> __IMPOSSIBLE__
 
-    TooFewArgumentsToPatternSynonym x -> fsep $
+    TooFewArgumentsToPatternSynonym (AmbQ (x : _)) -> fsep $
       pwords "Too few arguments to pattern synonym " ++ [prettyTCM x]
+    TooFewArgumentsToPatternSynonym{} -> __IMPOSSIBLE__
+
+    CannotResolveAmbiguousPatternSynonym defs@((x, _) : _) -> vcat
+      [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
+               pwords "since candidates have different shapes:"
+      , nest 2 $ vcat $ map prDef defs
+      , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
+      ]
+      where
+        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> (text "at" <+> pretty r)
+          where r = nameBindingSite $ qnameName x
+    CannotResolveAmbiguousPatternSynonym{} -> __IMPOSSIBLE__
 
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."
