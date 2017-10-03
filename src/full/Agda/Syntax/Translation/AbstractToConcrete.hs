@@ -84,6 +84,7 @@ data Env = Env { takenNames   :: Set C.Name
                   -- ^ Certain builtins (like `fromNat`) have special printing
                , preserveIIds :: Bool
                   -- ^ Preserve interaction point ids
+               , foldPatternSynonyms :: Bool
                }
 
 makeEnv :: ScopeInfo -> TCM Env
@@ -103,6 +104,7 @@ makeEnv scope = do
         , currentScope = scope
         , builtins     = Map.fromList builtinList
         , preserveIIds = False
+        , foldPatternSynonyms = True
         }
   where
     vars  = Set.fromList $ map fst $ scopeLocals scope
@@ -128,6 +130,9 @@ withScope scope = local $ \e -> e { currentScope = scope }
 
 noTakenNames :: AbsToCon a -> AbsToCon a
 noTakenNames = local $ \e -> e { takenNames = Set.empty }
+
+dontFoldPatternSynonyms :: AbsToCon a -> AbsToCon a
+dontFoldPatternSynonyms = local $ \ e -> e { foldPatternSynonyms = False }
 
 -- | Bind a concrete name to an abstract in the translation environment.
 addBinding :: C.Name -> A.Name -> Env -> Env
@@ -911,7 +916,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.PatternSynDef x xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete (vacuous p :: A.Pattern)
+    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> dontFoldPatternSynonyms (toConcrete (vacuous p :: A.Pattern))
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x
@@ -1348,12 +1353,14 @@ recoverPatternSyn :: ToConcrete a c =>
   (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
   a -> AbsToCon c -> AbsToCon c
 recoverPatternSyn applySyn match e fallback = do
-  psyns  <- lift getAllPatternSyns
-  let cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns, Just args <- [match psyndef e] ]
-      cmp (_, _, x) (_, _, y) = flip compare x y
-  case sortBy cmp cands of
-    (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
-    []               -> fallback
+  doFold <- asks foldPatternSynonyms
+  if not doFold then fallback else do
+    psyns  <- lift getAllPatternSyns
+    let cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns, Just args <- [match psyndef e] ]
+        cmp (_, _, x) (_, _, y) = flip compare x y
+    case sortBy cmp cands of
+      (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
+      []               -> fallback
   where
     -- Heuristic to pick the best pattern synonym: the one that folds the most
     -- constructors.
