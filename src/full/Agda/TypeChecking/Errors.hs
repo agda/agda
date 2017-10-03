@@ -317,6 +317,7 @@ errorString err = case err of
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
+  CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
   BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
@@ -1031,6 +1032,14 @@ instance PrettyTCM TypeError where
     TooFewArgumentsToPatternSynonym (AmbQ (x : _)) -> fsep $
       pwords "Too few arguments to pattern synonym " ++ [prettyTCM x]
     TooFewArgumentsToPatternSynonym{} -> __IMPOSSIBLE__
+
+    CannotResolveAmbiguousPatternSynonym xs@((x, _) : _) -> vcat
+      [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
+               pwords "It could refer to any one of"
+      , nest 2 $ vcat $ map (nameWithBinding . fst) xs
+      , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
+      ]
+    CannotResolveAmbiguousPatternSynonym{} -> __IMPOSSIBLE__
 
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."

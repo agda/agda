@@ -2736,6 +2736,7 @@ data TypeError
     -- Pattern synonym errors
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
+        | CannotResolveAmbiguousPatternSynonym [(A.QName, A.PatternSynDefn)]
         | UnusedVariableInPatternSynonym
     -- Operator errors
         | NoParseForApplication [C.Expr]

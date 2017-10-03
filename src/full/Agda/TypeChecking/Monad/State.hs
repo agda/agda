@@ -382,8 +382,11 @@ getAllPatternSyns :: TCM PatternSynDefns
 getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
-lookupPatternSyn (AmbQ [x]) = lookupSinglePatternSyn x
-lookupPatternSyn _ = __IMPOSSIBLE__   -- overloading not yet allowed by scope checker
+lookupPatternSyn (AmbQ xs) = do
+  defs <- mapM lookupSinglePatternSyn xs
+  case zip xs defs of
+    [(_, def)] -> return def
+    ambig      -> typeError $ CannotResolveAmbiguousPatternSynonym ambig
 
 lookupSinglePatternSyn :: QName -> TCM PatternSynDefn
 lookupSinglePatternSyn x = do

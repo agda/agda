@@ -524,9 +524,7 @@ instance ToAbstract OldQName A.Expr where
       FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (map anameName ds)
       ConstructorName ds   -> return $ A.Con $ AmbQ (map anameName ds)
       UnknownName          -> notInScope x
-      PatternSynResName ds -> do
-        when (length ds > 1) $ typeError $ AmbiguousName x (map anameName ds) -- TODO: allow
-        return $ A.PatternSyn $ AmbQ (map anameName ds)
+      PatternSynResName ds -> return $ A.PatternSyn $ AmbQ (map anameName ds)
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
@@ -563,7 +561,6 @@ instance ToAbstract PatName APatName where
         return $ ConPatName ds
       Right (Right ds) -> do
         reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (map anameName ds)
-        when (length ds > 1) $ typeError $ AmbiguousName x (map anameName ds) -- TODO: allow
         return $ PatternSynPatName ds
 
 class ToQName a where
