@@ -1033,12 +1033,15 @@ instance PrettyTCM TypeError where
       pwords "Too few arguments to pattern synonym " ++ [prettyTCM x]
     TooFewArgumentsToPatternSynonym{} -> __IMPOSSIBLE__
 
-    CannotResolveAmbiguousPatternSynonym xs@((x, _) : _) -> vcat
+    CannotResolveAmbiguousPatternSynonym defs@((x, _) : _) -> vcat
       [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
-               pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map (nameWithBinding . fst) xs
-      , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
+               pwords "since candidates have different shapes:"
+      , nest 2 $ vcat $ map prDef defs
+      , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
       ]
+      where
+        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> (text "at" <+> pretty r)
+          where r = nameBindingSite $ qnameName x
     CannotResolveAmbiguousPatternSynonym{} -> __IMPOSSIBLE__
 
     UnusedVariableInPatternSynonym -> fsep $

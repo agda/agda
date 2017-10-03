@@ -1,9 +1,10 @@
 PatternSynonymOverloaded.agda:11,6-10
-Cannot resolve overloaded pattern synonym ss, It could refer to any
-one of
-  ss bound at
-    PatternSynonymOverloaded.agda:7,9-11
-  ss bound at
-    PatternSynonymOverloaded.agda:8,9-11
-(hint: Use C-c C-w (in Emacs) if you want to know why)
+Cannot resolve overloaded pattern synonym ss, since candidates have
+different shapes:
+  pattern ss x = suc (suc x)
+    at PatternSynonymOverloaded.agda:7,9-11
+  pattern ss x = suc x
+    at PatternSynonymOverloaded.agda:8,9-11
+(hint: overloaded pattern synonyms must be equal up to variable and
+constructor names)
 when checking that the clause foo (ss n) = n has type Nat → Nat
