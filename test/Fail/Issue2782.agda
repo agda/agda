@@ -18,7 +18,7 @@ module Interval where
 
   Ione : I
   Ione = Ione'
- 
+
   {--
   postulate
     Iseg : Izero ≡ Ione
@@ -29,8 +29,6 @@ module Interval where
   unquoteDecl Iseg = declarePostulate (vArg Iseg) (def (quote _≡_) (vArg (def (quote Izero) []) ∷ vArg (def (quote Ione) []) ∷ []))
 
 open Interval public
-  
+
 pf : Izero ≡ Ione
 pf = Iseg
-
-
