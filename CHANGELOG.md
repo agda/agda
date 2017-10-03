@@ -214,6 +214,15 @@ Language
   giving `-v a.b.c:10` enables printing from `debugPrint "a.b.c.d" 10 msg`. In the
   Emacs mode, debug output ends up in the `*Agda debug*` buffer.
 
+* New TC primitive: `declarePostulate`.
+
+  ```agda
+    declarePostulate : Arg Name → Type → TC ⊤
+  ```
+
+  This can be used to declare new postulates. The Visibility of the Arg must not be
+  hidden. This feature fails when executed with `--safe` flag from command-line.
+
 ### Built-ins
 
 * BUILTIN REFL is now superfluous, subsumed by BUILTIN EQUALITY

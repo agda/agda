@@ -252,6 +252,7 @@ postulate
   inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
   freshName     : String → TC Name
   declareDef    : Arg Name → Type → TC ⊤
+  declarePostulate  : Arg Name → Type → TC ⊤
   defineFun     : Name → List Clause → TC ⊤
   getType       : Name → TC Type
   getDefinition : Name → TC Definition
@@ -284,6 +285,7 @@ postulate
 {-# BUILTIN AGDATCMINCONTEXT     inContext     #-}
 {-# BUILTIN AGDATCMFRESHNAME     freshName     #-}
 {-# BUILTIN AGDATCMDECLAREDEF    declareDef    #-}
+{-# BUILTIN AGDATCMDECLAREPOSTULATE declarePostulate #-}
 {-# BUILTIN AGDATCMDEFINEFUN     defineFun     #-}
 {-# BUILTIN AGDATCMGETTYPE       getType       #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
