@@ -28,6 +28,7 @@ import Data.Void
 
 import Data.Data (Data)
 import Data.Typeable (Typeable)
+import Data.Monoid (mappend)
 
 import Agda.Syntax.Concrete.Name (NumHoles(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
