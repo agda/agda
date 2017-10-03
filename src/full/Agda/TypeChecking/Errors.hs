@@ -293,7 +293,7 @@ panic s = fwords $ "Panic: " ++ s
 
 nameWithBinding :: QName -> TCM Doc
 nameWithBinding q =
-  sep [ prettyTCM q, text "bound at", prettyTCM r ]
+  (prettyTCM q <+> text "bound at") <?> prettyTCM r
   where
     r = nameBindingSite $ qnameName q
 
