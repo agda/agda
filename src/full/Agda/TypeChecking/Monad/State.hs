@@ -29,6 +29,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
+import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 
@@ -384,9 +385,9 @@ getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
 lookupPatternSyn (AmbQ xs) = do
   defs <- mapM lookupSinglePatternSyn xs
-  case zip xs defs of
-    [(_, def)] -> return def
-    ambig      -> typeError $ CannotResolveAmbiguousPatternSynonym ambig
+  case mergePatternSynDefs defs of
+    Just def   -> return def
+    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym (zip xs defs)
 
 lookupSinglePatternSyn :: QName -> TCM PatternSynDefn
 lookupSinglePatternSyn x = do
