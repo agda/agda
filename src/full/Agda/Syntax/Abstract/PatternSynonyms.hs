@@ -40,7 +40,7 @@ mergeDef (xs, p) (ys, q) = do
   let ren = zip (map unArg xs) (map unArg ys)
   (xs,) <$> merge ren p q
   where
-    merge ren p@(VarP x) (VarP y)   = p <$ guard (elem (x, y) ren)
+    merge ren p@(VarP x) (VarP y)   = p <$ guard (elem (unBind x, unBind y) ren)
     merge ren p@(LitP l) (LitP l')  = p <$ guard (l == l')
     merge ren p@(WildP _) (WildP _) = return p
     merge ren (ConP i (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
