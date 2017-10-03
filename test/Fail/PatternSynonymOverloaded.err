@@ -1,5 +1,9 @@
-PatternSynonymOverloaded.agda:8,1-21
-Multiple definitions of ss. Previous definition at
-PatternSynonymOverloaded.agda:7,9-11
-when scope checking the declaration
-  pattern ss x = suc x
+PatternSynonymOverloaded.agda:11,1-11
+Ambiguous name ss. It could refer to any one of
+  ss bound at
+    PatternSynonymOverloaded.agda:7,9-11
+  ss bound at
+    PatternSynonymOverloaded.agda:8,9-11
+(hint: Use C-c C-w (in Emacs) if you want to know why)
+when scope checking the left-hand side foo (ss n) in the definition
+of foo

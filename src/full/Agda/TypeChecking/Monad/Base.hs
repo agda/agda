@@ -2734,8 +2734,8 @@ data TypeError
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
     -- Pattern synonym errors
-        | BadArgumentsToPatternSynonym A.QName
-        | TooFewArgumentsToPatternSynonym A.QName
+        | BadArgumentsToPatternSynonym A.AmbiguousQName
+        | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | UnusedVariableInPatternSynonym
     -- Operator errors
         | NoParseForApplication [C.Expr]

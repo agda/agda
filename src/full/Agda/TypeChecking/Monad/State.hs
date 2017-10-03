@@ -381,8 +381,12 @@ getPatternSynImports = use stPatternSynImports
 getAllPatternSyns :: TCM PatternSynDefns
 getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
-lookupPatternSyn :: QName -> TCM PatternSynDefn
-lookupPatternSyn x = do
+lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
+lookupPatternSyn (AmbQ [x]) = lookupSinglePatternSyn x
+lookupPatternSyn _ = __IMPOSSIBLE__   -- overloading not yet allowed by scope checker
+
+lookupSinglePatternSyn :: QName -> TCM PatternSynDefn
+lookupSinglePatternSyn x = do
     s <- getPatternSyns
     case Map.lookup x s of
         Just d  -> return d

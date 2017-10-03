@@ -1024,11 +1024,13 @@ instance PrettyTCM TypeError where
         isPlaceholder Placeholder{}   = True
         isPlaceholder NoPlaceholder{} = False
 
-    BadArgumentsToPatternSynonym x -> fsep $
+    BadArgumentsToPatternSynonym (AmbQ (x : _)) -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM x]
+    BadArgumentsToPatternSynonym{} -> __IMPOSSIBLE__
 
-    TooFewArgumentsToPatternSynonym x -> fsep $
+    TooFewArgumentsToPatternSynonym (AmbQ (x : _)) -> fsep $
       pwords "Too few arguments to pattern synonym " ++ [prettyTCM x]
+    TooFewArgumentsToPatternSynonym{} -> __IMPOSSIBLE__
 
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."
