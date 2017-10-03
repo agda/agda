@@ -346,6 +346,11 @@ following primitive operations::
     -- and irrelevant functions. The Visibility of the Arg must not be hidden.
     declareDef : Arg Name → Type → TC ⊤
 
+    -- Declare a new postulate of the given type. The Visibility of the Arg
+    -- must not be hidden. It fails when executed from command-line with --safe
+    -- option.
+    declarePostulate : Arg Name → Type → TC ⊤
+
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.
     defineFun : Name → List Clause → TC ⊤
@@ -383,6 +388,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
   {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
   {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
+  {-# BUILTIN AGDATCMDECLAREPOSTULATE   declarePostulate   #-}
   {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
   {-# BUILTIN AGDATCMGETTYPE            getType            #-}
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}

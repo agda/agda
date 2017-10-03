@@ -80,7 +80,7 @@ data Expr
   | Def  QName                         -- ^ Constant: axiom, function, data or record type.
   | Proj ProjOrigin AmbiguousQName     -- ^ Projection (overloaded).
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
-  | PatternSyn QName                   -- ^ Pattern synonym.
+  | PatternSyn AmbiguousQName          -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
   | Lit Literal                        -- ^ Literal.
   | QuestionMark MetaInfo InteractionId
@@ -489,7 +489,7 @@ data Pattern' e
     --   the ellipsis in a with clause).
   | AbsurdP PatInfo
   | LitP Literal
-  | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
+  | PatternSynP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
@@ -717,7 +717,7 @@ instance SetRange (Pattern' a) where
     setRange r (DotP _ o e)         = DotP (PatRange r) o e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
-    setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) (setRange r n) as
+    setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
 
@@ -1010,7 +1010,7 @@ instance NameToExpr AbstractName where
     mk DefName        x = Def x
     mk FldName        x = Proj ProjSystem $ AmbQ [x]
     mk ConName        x = Con $ AmbQ [x]
-    mk PatternSynName x = PatternSyn x
+    mk PatternSynName x = PatternSyn $ AmbQ [x]
     mk MacroName      x = Macro x
     mk QuotableName   x = App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
       where i = ExprRange r
@@ -1019,12 +1019,12 @@ instance NameToExpr AbstractName where
 -- | Assumes name is not 'UnknownName'.
 instance NameToExpr ResolvedName where
   nameExpr = \case
-    VarName x _         -> Var x
-    DefinedName _ x     -> nameExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
-    FieldName xs        -> Proj ProjSystem . AmbQ . map anameName $ xs
-    ConstructorName xs  -> Con . AmbQ . map anameName $ xs
-    PatternSynResName x -> PatternSyn $ anameName x
-    UnknownName         -> __IMPOSSIBLE__
+    VarName x _          -> Var x
+    DefinedName _ x      -> nameExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
+    FieldName xs         -> Proj ProjSystem . AmbQ . map anameName $ xs
+    ConstructorName xs   -> Con . AmbQ . map anameName $ xs
+    PatternSynResName xs -> PatternSyn . AmbQ . map anameName $ xs
+    UnknownName          -> __IMPOSSIBLE__
 
 app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App defaultAppInfo_)

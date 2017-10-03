@@ -240,8 +240,8 @@ resolveName' kinds names x = do
         ds       | all ((FldName ==) . anameKind . fst) ds ->
           return $ FieldName $ map (upd . fst) ds
 
-        [(d, a)] | anameKind d == PatternSynName ->
-          return $ PatternSynResName $ upd d
+        ds       | all ((PatternSynName ==) . anameKind . fst) ds ->
+          return $ PatternSynResName $ map (upd . fst) ds
 
         [(d, a)] ->
           return $ DefinedName a $ upd d
@@ -275,7 +275,7 @@ getNotation x ns = do
     DefinedName _ d     -> return $ notation d
     FieldName ds        -> return $ oneNotation ds
     ConstructorName ds  -> return $ oneNotation ds
-    PatternSynResName n -> return $ notation n
+    PatternSynResName n -> return $ oneNotation n
     UnknownName         -> __IMPOSSIBLE__
   where
     notation = namesToNotation x . qnameName . anameName
@@ -311,7 +311,7 @@ bindName acc kind x y = do
     VarName z _         -> clash $ A.qualify (mnameFromList []) z
     FieldName       ds  -> ambiguous FldName ds
     ConstructorName ds  -> ambiguous ConName ds
-    PatternSynResName n -> clash $ anameName n
+    PatternSynResName n -> ambiguous PatternSynName n
     UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
   modifyCurrentScope $ addNamesToScope ns x ys

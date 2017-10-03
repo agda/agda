@@ -6,3 +6,7 @@ data Nat : Set where
 
 pattern ss x = suc (suc x)
 pattern ss x = suc x
+
+foo : Nat → Nat
+foo (ss n) = n
+foo _ = zero

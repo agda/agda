@@ -1,9 +1,12 @@
+{-# LANGUAGE CPP #-}
 
--- | Matching abstract expressions against pattern synonyms for the purpose of
---   printing.
+-- | Pattern synonym utilities: folding pattern synonym definitions for
+--   printing and merging pattern synonym definitions to handle overloaded
+--   pattern synonyms.
 module Agda.Syntax.Abstract.PatternSynonyms
   ( matchPatternSyn
   , matchPatternSynP
+  , mergePatternSynDefs
   ) where
 
 import Control.Applicative
@@ -20,6 +23,32 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Views
 import Agda.Utils.Monad
+
+import Agda.Utils.Impossible
+#include "undefined.h"
+
+-- | Merge a list of pattern synonym definitions. Fails unless all definitions
+--   have the same shape (i.e. equal up to renaming of variables and constructor
+--   names).
+mergePatternSynDefs :: [PatternSynDefn] -> Maybe PatternSynDefn
+mergePatternSynDefs (def : defs) = foldM mergeDef def defs
+mergePatternSynDefs [] = __IMPOSSIBLE__
+
+mergeDef :: PatternSynDefn -> PatternSynDefn -> Maybe PatternSynDefn
+mergeDef (xs, p) (ys, q) = do
+  guard $ map getArgInfo xs == map getArgInfo ys
+  let ren = zip (map unArg xs) (map unArg ys)
+  (xs,) <$> merge ren p q
+  where
+    merge ren p@(VarP x) (VarP y)   = p <$ guard (elem (x, y) ren)
+    merge ren p@(LitP l) (LitP l')  = p <$ guard (l == l')
+    merge ren p@(WildP _) (WildP _) = return p
+    merge ren (ConP i (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
+      guard $ map getArgInfo ps == map getArgInfo qs
+      ConP i (AmbQ $ union cs cs') <$> zipWithM (mergeArg ren) ps qs
+    merge _ _ _ = empty
+
+    mergeArg ren p q = setNamedArg p <$> merge ren (namedArg p) (namedArg q)
 
 -- | Match an expression against a pattern synonym.
 matchPatternSyn :: PatternSynDefn -> Expr -> Maybe [Arg Expr]

@@ -45,6 +45,40 @@ Language
           in n ! n
   ```
 
+* Overloaded pattern synonyms. [Issue [#2787](https://github.com/agda/agda/issues/2787)]
+
+  Pattern synonyms can now be overloaded if all candidates have the same
+  *shape*. Two pattern synonym definitions have the same shape if they are
+  equal up to variable and constructor names. Shapes are checked at resolution
+  time.
+
+  For instance, the following is accepted:
+  ```agda
+    open import Agda.Builtin.Nat
+
+    data List (A : Set) : Set where
+      lnil  : List A
+      lcons : A → List A → List A
+
+    data Vec (A : Set) : Nat → Set where
+      vnil  : Vec A 0
+      vcons : ∀ {n} → A → Vec A n → Vec A (suc n)
+
+    pattern [] = lnil
+    pattern [] = vnil
+
+    pattern _∷_ x xs = lcons x xs
+    pattern _∷_ y ys = vcons y ys
+
+    lmap : ∀ {A B} → (A → B) → List A → List B
+    lmap f []       = []
+    lmap f (x ∷ xs) = f x ∷ lmap f xs
+
+    vmap : ∀ {A B n} → (A → B) → Vec A n → Vec B n
+    vmap f []       = []
+    vmap f (x ∷ xs) = f x ∷ vmap f xs
+  ```
+
 
 Release notes for Agda version 2.5.3
 ====================================
@@ -213,6 +247,15 @@ Language
   the `-v` flag at the command line, or in an `OPTIONS` pragma. For instance,
   giving `-v a.b.c:10` enables printing from `debugPrint "a.b.c.d" 10 msg`. In the
   Emacs mode, debug output ends up in the `*Agda debug*` buffer.
+
+* New TC primitive: `declarePostulate`.
+
+  ```agda
+    declarePostulate : Arg Name → Type → TC ⊤
+  ```
+
+  This can be used to declare new postulates. The Visibility of the Arg must not be
+  hidden. This feature fails when executed with `--safe` flag from command-line.
 
 ### Built-ins
 

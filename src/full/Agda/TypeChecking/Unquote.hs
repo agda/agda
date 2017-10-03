@@ -63,6 +63,7 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
+import qualified Agda.Interaction.Options.Lenses as Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -499,6 +500,7 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
+             , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v) ]
              failEval
     I.Def f [l, a, u] ->
@@ -697,6 +699,28 @@ evalTCM v = do
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a emptyFunction
+        when (isInstance i) $ addTypedInstance x a
+        primUnitUnit
+
+    tcDeclarePostulate :: Arg QName -> R.Type -> UnquoteM Term
+    tcDeclarePostulate (Arg i x) a = inOriginalContext $ do
+      clo <- commandLineOptions
+      when (Lens.getSafeMode clo) $ liftU $ typeError . GenericDocError =<<
+        text "Cannot postulate '" <+> prettyTCM x <+> text ":" <+> prettyTCM a <+> text "' with safe flag"
+      setDirty
+      let r = getRelevance i
+      when (hidden i) $ liftU $ typeError . GenericDocError =<<
+        text "Cannot declare hidden function" <+> prettyTCM x
+      tell [x]
+      liftU $ do
+        reportSDoc "tc.unquote.decl" 10 $ sep
+          [ text "declare Postulate" <+> prettyTCM x <+> text ":"
+          , nest 2 $ prettyTCM a
+          ]
+        a <- isType_ =<< toAbstract_ a
+        alreadyDefined <- isRight <$> getConstInfo' x
+        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
+        addConstant x $ defaultDefn i x a Axiom
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 

@@ -538,12 +538,12 @@ instance ToAbstract OldQName A.Expr where
     qx <- resolveName' allKindsOfNames ns x
     reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
-      VarName x' _        -> return $ A.Var x'
-      DefinedName _ d     -> return $ nameExpr d
-      FieldName     ds    -> return $ A.Proj ProjPrefix $ AmbQ (map anameName ds)
-      ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
-      UnknownName         -> notInScope x
-      PatternSynResName d -> return $ nameExpr d
+      VarName x' _         -> return $ A.Var x'
+      DefinedName _ d      -> return $ nameExpr d
+      FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (map anameName ds)
+      ConstructorName ds   -> return $ A.Con $ AmbQ (map anameName ds)
+      UnknownName          -> notInScope x
+      PatternSynResName ds -> return $ A.PatternSyn $ AmbQ (map anameName ds)
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
@@ -552,7 +552,7 @@ instance ToAbstract ResolveQName ResolvedName where
 
 data APatName = VarPatName A.Name
               | ConPatName [AbstractName]
-              | PatternSynPatName AbstractName
+              | PatternSynPatName [AbstractName]
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
@@ -578,9 +578,9 @@ instance ToAbstract PatName APatName where
       Right (Left ds) -> do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (map anameName ds)
         return $ ConPatName ds
-      Right (Right d) -> do
-        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (anameName d)
-        return $ PatternSynPatName d
+      Right (Right ds) -> do
+        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (map anameName ds)
+        return $ PatternSynPatName ds
 
 class ToQName a where
   toQName :: a -> C.QName
@@ -599,7 +599,8 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       ConstructorName []      -> __IMPOSSIBLE__
       FieldName (d:_)         -> return $ anameName d
       FieldName []            -> __IMPOSSIBLE__
-      PatternSynResName d     -> return $ anameName d
+      PatternSynResName (d:_) -> return $ anameName d
+      PatternSynResName []    -> __IMPOSSIBLE__
       VarName x _             -> typeError $ GenericError $ "Not a defined name: " ++ prettyShow x
       UnknownName             -> notInScope (toQName x)
 
@@ -1843,7 +1844,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
         ConstructorName [d] -> return . (False,) $ anameName d
         ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
         UnknownName         -> notInScope top
-        PatternSynResName d -> return . (True,) $ anameName d
+        PatternSynResName [d] -> return . (True,) $ anameName d
+        PatternSynResName ds -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
 
     lhs <- toAbstract $ LeftHandSide top lhs []
     ps  <- case lhs of
@@ -1853,7 +1855,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     -- Andreas, 2016-08-08, issue #2132
     -- Remove pattern synonyms on lhs
     (hd, ps) <- do
-      let mkP | isPatSyn =  A.PatternSynP (PatRange $ getRange lhs) hd
+      let mkP | isPatSyn =  A.PatternSynP (PatRange $ getRange lhs) (A.AmbQ [hd])
               | otherwise = A.DefP (PatRange $ getRange lhs) (A.AmbQ [hd])
       p <- expandPatternSynonyms $ mkP ps
       case p of
@@ -2085,11 +2087,10 @@ resolvePatternIdentifier r x ns = do
   px <- toAbstract (PatName x ns)
   case px of
     VarPatName y        -> return $ VarP $ A.BindName y
-    ConPatName ds       -> return $ ConP (ConPatInfo ConOCon $ PatRange r)
-                                         (AmbQ $ map anameName ds)
-                                         []
-    PatternSynPatName d -> return $ PatternSynP (PatRange r)
-                                                (anameName d) []
+    ConPatName ds        -> return $ ConP (ConPatInfo ConOCon $ PatRange r)
+                                          (AmbQ $ map anameName ds) []
+    PatternSynPatName ds -> return $ PatternSynP (PatRange r)
+                                                 (AmbQ $ map anameName ds) []
 
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 

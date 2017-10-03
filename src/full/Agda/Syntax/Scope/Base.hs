@@ -304,7 +304,7 @@ data ResolvedName
     ConstructorName [AbstractName] -- ^ @('ConName' ==) . 'anameKind'@ for all names.
 
   | -- | Name of pattern synonym.
-    PatternSynResName AbstractName -- ^ @('PatternSynName' ==) . 'anameKind'@ for name.
+    PatternSynResName [AbstractName] -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
 
   | -- | Unbound name.
     UnknownName
@@ -835,7 +835,7 @@ data AllowAmbiguousNames
       -- ^ Used for instance arguments to check whether a name is in scope,
       --   but we do not care whether is is ambiguous
   | AmbiguousConProjs
-      -- ^ Ambiguous constructors or projections.
+      -- ^ Ambiguous constructors, projections, or pattern synonyms.
   | AmbiguousNothing
   deriving (Eq)
 
@@ -877,8 +877,7 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     unambiguousName   q = amb == AmbiguousAnything
         || unique xs
         || amb == AmbiguousConProjs
-           && (all ((ConName ==) . anameKind) xs
-            || all ((FldName ==) . anameKind) xs)
+           && or [ all ((kind ==) . anameKind) xs | kind <- [ConName, FldName, PatternSynName] ]
       where xs = scopeLookup q scope
 
 recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo

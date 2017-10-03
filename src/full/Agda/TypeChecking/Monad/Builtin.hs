@@ -157,7 +157,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
-    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
@@ -319,6 +319,7 @@ primAgdaTCMExtendContext = getBuiltin builtinAgdaTCMExtendContext
 primAgdaTCMInContext     = getBuiltin builtinAgdaTCMInContext
 primAgdaTCMFreshName     = getBuiltin builtinAgdaTCMFreshName
 primAgdaTCMDeclareDef    = getBuiltin builtinAgdaTCMDeclareDef
+primAgdaTCMDeclarePostulate   = getBuiltin builtinAgdaTCMDeclarePostulate
 primAgdaTCMDefineFun     = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType            = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
@@ -377,7 +378,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
   builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
-  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
+  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
@@ -539,6 +540,7 @@ builtinAgdaTCMExtendContext = "AGDATCMEXTENDCONTEXT"
 builtinAgdaTCMInContext     = "AGDATCMINCONTEXT"
 builtinAgdaTCMFreshName     = "AGDATCMFRESHNAME"
 builtinAgdaTCMDeclareDef    = "AGDATCMDECLAREDEF"
+builtinAgdaTCMDeclarePostulate    = "AGDATCMDECLAREPOSTULATE"
 builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
 builtinAgdaTCMGetType       = "AGDATCMGETTYPE"
 builtinAgdaTCMGetDefinition = "AGDATCMGETDEFINITION"
