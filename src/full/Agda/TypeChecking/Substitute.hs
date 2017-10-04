@@ -1174,6 +1174,26 @@ instance Ord Term where
   _          `compare` MetaV{}    = GT
   DontCare{} `compare` DontCare{} = EQ
 
+-- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
+--
+-- For reasons beyond my comprehension, the following Eq instances are not employed
+-- by with-abstraction in TypeChecking.Abstract.isPrefixOf.
+-- Instead, I modified the general Eq instance for Arg to ignore the argument
+-- if irrelevant.
+
+-- -- | Ignore irrelevant arguments in equality check.
+-- --   Also ignore origin.
+-- instance {-# OVERLAPPING #-} Eq (Arg Term) where
+--   a@(Arg (ArgInfo h r _o) t) == a'@(Arg (ArgInfo h' r' _o') t') = trace ("Eq (Arg Term) on " ++ show a ++ " and " ++ show a') $
+--     h == h' && ((r == Irrelevant) || (r' == Irrelevant) || (t == t'))
+--     -- Andreas, 2017-10-04: According to Syntax.Common, equality on Arg ignores Relevance and Origin.
+
+-- instance {-# OVERLAPPING #-} Eq Args where
+--   us == vs = length us == length vs && and (zipWith (==) us vs)
+
+-- instance {-# OVERLAPPING #-} Eq Elims where
+--   us == vs = length us == length vs && and (zipWith (==) us vs)
+
 -- | Equality of binders relies on weakening
 --   which is a special case of renaming
 --   which is a special case of substitution.
