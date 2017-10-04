@@ -251,9 +251,11 @@ typeCheckMain f mode = do
       Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
-        getInterface_ =<< do
-          moduleName $ mkAbsolute $
-            libdir </> "prim" </> "Agda" </> "Primitive.agda"
+        forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
+              ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
+              ] $ \ mname ->
+          getInterface_ =<< do
+            moduleName $ mkAbsolute $ mname
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface.

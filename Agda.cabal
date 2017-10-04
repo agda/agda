@@ -69,6 +69,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/TrustMe.agda
                     lib/prim/Agda/Builtin/Unit.agda
                     lib/prim/Agda/Primitive.agda
+                    lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
                     postprocess-latex.pl
 

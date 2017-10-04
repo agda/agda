@@ -3,8 +3,8 @@
   {-# OPTIONS --cubical #-}
   module language.cubical where
 
-  open import Agda.Primitive
-  open CubicalPrimitives renaming (primIMax to _∨_;
+  open import Agda.Primitive.Cubical
+                         renaming (primIMax to _∨_;
                                    primIMin to _∧_;
                                    primINeg to ~_)
 

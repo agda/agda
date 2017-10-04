@@ -14,48 +14,6 @@ module Agda.Primitive where
   {-# BUILTIN LEVELZERO lzero #-}
   {-# BUILTIN LEVELSUC lsuc #-}
   {-# BUILTIN LEVELMAX _⊔_ #-}
-  module CubicalPrimitives where
-    {-# BUILTIN INTERVAL I #-}
-    {-# BUILTIN IZERO i0 #-}
-    {-# BUILTIN IONE i1 #-}
-    syntax primIMin ...
-    primitive primIMin : I → I → I
-    syntax primIMax ...
-    primitive primIMax : I → I → I
-    infix 30 primINeg
-    syntax primINeg ...
-    primitive primINeg : I → I
-    {-# BUILTIN ISONE IsOne #-}
-    syntax itIsOne ...
-    postulate itIsOne : IsOne i1
-    syntax IsOne1 ...
-    postulate IsOne1 : ∀ i j → IsOne i → IsOne (primIMax i j)
-    syntax IsOne2 ...
-    postulate IsOne2 : ∀ i j → IsOne j → IsOne (primIMax i j)
-    {-# BUILTIN ITISONE itIsOne #-}
-    {-# BUILTIN ISONE1 IsOne1 #-}
-    {-# BUILTIN ISONE2 IsOne2 #-}
-    {-# BUILTIN PARTIAL Partial #-}
-    {-# BUILTIN PARTIALP PartialP #-}
-    syntax isOneEmpty ...
-    postulate
-      isOneEmpty : ∀ {a} {A : Partial (Set a) i0} → PartialP i0 A
-    {-# BUILTIN ISONEEMPTY isOneEmpty #-}
-    syntax primPFrom1 ...
-    primitive
-      primPFrom1 :
-        ∀ {a} {A : I → Set a} → A i1 → ∀ i j → Partial (A (primIMax i j)) i
-    syntax primPOr ...
-    primitive
-      primPOr :
-        ∀ {a} (i j : I) {A : Partial (Set a) (primIMax i j)} →
-        PartialP i (λ z → A (IsOne1 i j z)) →
-        PartialP j (λ z → A (IsOne2 i j z)) → PartialP (primIMax i j) A
-    syntax primComp ...
-    primitive
-      primComp :
-        ∀ {a} (A : (i : I) → Set (a i)) (φ : I) →
-        (∀ i → Partial (A i) φ) → (a₁ : A i0) → A i1
 checking section Agda.Primitive
 adding section: Agda.Primitive 0
     actual tele:
@@ -204,13 +162,18 @@ coerce term      v  = _⊔_
 compareTerm Level → Level → Level =< Level → Level → Level : Set
 Solving awake constraints. 0 remaining.
 }
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+Removed 0 unused definitions.
 checking declaration
-module CubicalPrimitives where
+module Agda.Primitive.Cubical where
   {-# BUILTIN INTERVAL I #-}
   {-# BUILTIN IZERO i0 #-}
   {-# BUILTIN IONE i1 #-}
+  infixr 20 primIMin
   syntax primIMin ...
   primitive primIMin : I → I → I
+  infixr 20 primIMax
   syntax primIMax ...
   primitive primIMax : I → I → I
   infix 30 primINeg
@@ -247,51 +210,8 @@ module CubicalPrimitives where
     primComp :
       ∀ {a} (A : (i : I) → Set (a i)) (φ : I) →
       (∀ i → Partial (A i) φ) → (a₁ : A i0) → A i1
-checking declaration
-module CubicalPrimitives where
-  {-# BUILTIN INTERVAL I #-}
-  {-# BUILTIN IZERO i0 #-}
-  {-# BUILTIN IONE i1 #-}
-  syntax primIMin ...
-  primitive primIMin : I → I → I
-  syntax primIMax ...
-  primitive primIMax : I → I → I
-  infix 30 primINeg
-  syntax primINeg ...
-  primitive primINeg : I → I
-  {-# BUILTIN ISONE IsOne #-}
-  syntax itIsOne ...
-  postulate itIsOne : IsOne i1
-  syntax IsOne1 ...
-  postulate IsOne1 : ∀ i j → IsOne i → IsOne (primIMax i j)
-  syntax IsOne2 ...
-  postulate IsOne2 : ∀ i j → IsOne j → IsOne (primIMax i j)
-  {-# BUILTIN ITISONE itIsOne #-}
-  {-# BUILTIN ISONE1 IsOne1 #-}
-  {-# BUILTIN ISONE2 IsOne2 #-}
-  {-# BUILTIN PARTIAL Partial #-}
-  {-# BUILTIN PARTIALP PartialP #-}
-  syntax isOneEmpty ...
-  postulate
-    isOneEmpty : ∀ {a} {A : Partial (Set a) i0} → PartialP i0 A
-  {-# BUILTIN ISONEEMPTY isOneEmpty #-}
-  syntax primPFrom1 ...
-  primitive
-    primPFrom1 :
-      ∀ {a} {A : I → Set a} → A i1 → ∀ i j → Partial (A (primIMax i j)) i
-  syntax primPOr ...
-  primitive
-    primPOr :
-      ∀ {a} (i j : I) {A : Partial (Set a) (primIMax i j)} →
-      PartialP i (λ z → A (IsOne1 i j z)) →
-      PartialP j (λ z → A (IsOne2 i j z)) → PartialP (primIMax i j) A
-  syntax primComp ...
-  primitive
-    primComp :
-      ∀ {a} (A : (i : I) → Set (a i)) (φ : I) →
-      (∀ i → Partial (A i) φ) → (a₁ : A i0) → A i1
-checking section CubicalPrimitives
-adding section: CubicalPrimitives 0
+checking section Agda.Primitive.Cubical
+adding section: Agda.Primitive.Cubical 0
     actual tele:
 checking declaration
 {-# BUILTIN INTERVAL I #-}
@@ -306,11 +226,90 @@ checking declaration
 checking declaration
 {-# BUILTIN IONE i1 #-}
 checking declaration
+infixr 20 primIMin
 syntax primIMin ...
 primitive primIMin : I → I → I
 checking declaration
+infixr 20 primIMin
 syntax primIMin ...
 primitive primIMin : I → I → I
+{ checkExpr
+inferred def  I
+   :  Setω
+   -->  I
+coerce term      v  = I
+       from type t1 = Setω
+       to type   t2 = Set _0
+term _0 :DirEq Setω
+term _0 :DirEq Setω
+solving _0 := Setω
+compareTerm Setω =< Setω : Setω
+Solving awake constraints. 0 remaining.
+}
+{ checkExpr
+inferred def  I
+   :  Setω
+   -->  I
+coerce term      v  = I
+       from type t1 = Setω
+       to type   t2 = Set _1
+term _1 :DirEq Setω
+term _1 :DirEq Setω
+solving _1 := Setω
+compareTerm Setω =< Setω : Setω
+Solving awake constraints. 0 remaining.
+}
+{ checkExpr
+inferred def  I
+   :  Setω
+   -->  I
+coerce term      v  = I
+       from type t1 = Setω
+       to type   t2 = Set _2
+term _2 :DirEq Setω
+term _2 :DirEq Setω
+solving _2 := Setω
+compareTerm Setω =< Setω : Setω
+Solving awake constraints. 0 remaining.
+}
+compareTerm I → I → I = I → I → I : Setω
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+checking declaration
+infixr 20 primIMax
+syntax primIMax ...
+primitive primIMax : I → I → I
+checking declaration
+infixr 20 primIMax
+syntax primIMax ...
+primitive primIMax : I → I → I
+{ checkExpr
+inferred def  I
+   :  Setω
+   -->  I
+coerce term      v  = I
+       from type t1 = Setω
+       to type   t2 = Set _3
+term _3 :DirEq Setω
+term _3 :DirEq Setω
+solving _3 := Setω
+compareTerm Setω =< Setω : Setω
+Solving awake constraints. 0 remaining.
+}
+{ checkExpr
+inferred def  I
+   :  Setω
+   -->  I
+coerce term      v  = I
+       from type t1 = Setω
+       to type   t2 = Set _4
+term _4 :DirEq Setω
+term _4 :DirEq Setω
+solving _4 := Setω
+compareTerm Setω =< Setω : Setω
+Solving awake constraints. 0 remaining.
+}
 { checkExpr
 inferred def  I
    :  Setω
@@ -324,6 +323,18 @@ solving _5 := Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
+compareTerm I → I → I = I → I → I : Setω
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+Solving awake constraints. 0 remaining.
+checking declaration
+infix 30 primINeg
+syntax primINeg ...
+primitive primINeg : I → I
+checking declaration
+infix 30 primINeg
+syntax primINeg ...
+primitive primINeg : I → I
 { checkExpr
 inferred def  I
    :  Setω
@@ -347,93 +358,6 @@ coerce term      v  = I
 term _7 :DirEq Setω
 term _7 :DirEq Setω
 solving _7 := Setω
-compareTerm Setω =< Setω : Setω
-Solving awake constraints. 0 remaining.
-}
-compareTerm I → I → I = I → I → I : Setω
-Solving awake constraints. 0 remaining.
-Solving awake constraints. 0 remaining.
-Solving awake constraints. 0 remaining.
-checking declaration
-syntax primIMax ...
-primitive primIMax : I → I → I
-checking declaration
-syntax primIMax ...
-primitive primIMax : I → I → I
-{ checkExpr
-inferred def  I
-   :  Setω
-   -->  I
-coerce term      v  = I
-       from type t1 = Setω
-       to type   t2 = Set _8
-term _8 :DirEq Setω
-term _8 :DirEq Setω
-solving _8 := Setω
-compareTerm Setω =< Setω : Setω
-Solving awake constraints. 0 remaining.
-}
-{ checkExpr
-inferred def  I
-   :  Setω
-   -->  I
-coerce term      v  = I
-       from type t1 = Setω
-       to type   t2 = Set _9
-term _9 :DirEq Setω
-term _9 :DirEq Setω
-solving _9 := Setω
-compareTerm Setω =< Setω : Setω
-Solving awake constraints. 0 remaining.
-}
-{ checkExpr
-inferred def  I
-   :  Setω
-   -->  I
-coerce term      v  = I
-       from type t1 = Setω
-       to type   t2 = Set _10
-term _10 :DirEq Setω
-term _10 :DirEq Setω
-solving _10 := Setω
-compareTerm Setω =< Setω : Setω
-Solving awake constraints. 0 remaining.
-}
-compareTerm I → I → I = I → I → I : Setω
-Solving awake constraints. 0 remaining.
-Solving awake constraints. 0 remaining.
-Solving awake constraints. 0 remaining.
-checking declaration
-infix 30 primINeg
-syntax primINeg ...
-primitive primINeg : I → I
-checking declaration
-infix 30 primINeg
-syntax primINeg ...
-primitive primINeg : I → I
-{ checkExpr
-inferred def  I
-   :  Setω
-   -->  I
-coerce term      v  = I
-       from type t1 = Setω
-       to type   t2 = Set _11
-term _11 :DirEq Setω
-term _11 :DirEq Setω
-solving _11 := Setω
-compareTerm Setω =< Setω : Setω
-Solving awake constraints. 0 remaining.
-}
-{ checkExpr
-inferred def  I
-   :  Setω
-   -->  I
-coerce term      v  = I
-       from type t1 = Setω
-       to type   t2 = Set _12
-term _12 :DirEq Setω
-term _12 :DirEq Setω
-solving _12 := Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -464,10 +388,10 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne i1
        from type t1 = Setω
-       to type   t2 = Set _13
-term _13 :DirEq Setω
-term _13 :DirEq Setω
-solving _13 := Setω
+       to type   t2 = Set _8
+term _8 :DirEq Setω
+term _8 :DirEq Setω
+solving _8 := Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -490,23 +414,23 @@ inferred def  IsOne
    -->  IsOne
 { checkExpr
 coerce term      v  = i
-       from type t1 = _15
+       from type t1 = _10
        to type   t2 = I
-term _14 :DirEq Setω
-term _14 :DirEq Setω
-solving _14 := Setω
-compareTerm _15 =< I : Setω
-term _15 :DirLeq I
-term _15 :DirLeq I
-solving _15 := I
+term _9 :DirEq Setω
+term _9 :DirEq Setω
+solving _9 := Setω
+compareTerm _10 =< I : Setω
+term _10 :DirLeq I
+term _10 :DirLeq I
+solving _10 := I
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne i
        from type t1 = Setω
-       to type   t2 = Set (_18 i j)
-term _18 i j :DirEq Setω
-term _18 i j :DirEq Setω
-solving _18 := (λ i j → Setω)
+       to type   t2 = Set (_13 i j)
+term _13 i j :DirEq Setω
+term _13 i j :DirEq Setω
+solving _13 := (λ i j → Setω)
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -527,15 +451,15 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 coerce term      v  = j
-       from type t1 = (_17 i)
+       from type t1 = (_12 i)
        to type   t2 = I
-term (_16 i) :DirEq Setω
-term (_16 i) :DirEq Setω
-solving _16 := λ i → Setω
-compareTerm (_17 i) =< I : Setω
-term (_17 i) :DirLeq I
-term (_17 i) :DirLeq I
-solving _17 := λ i → I
+term (_11 i) :DirEq Setω
+term (_11 i) :DirEq Setω
+solving _11 := λ i → Setω
+compareTerm (_12 i) =< I : Setω
+term (_12 i) :DirLeq I
+term (_12 i) :DirLeq I
+solving _12 := λ i → I
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = primIMax i j
@@ -546,10 +470,10 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne (primIMax i j)
        from type t1 = Setω
-       to type   t2 = Set (_19 i j)
-term _19 i j :DirEq Setω
-term _19 i j :DirEq Setω
-solving _19 := λ i j → Setω
+       to type   t2 = Set (_14 i j)
+term _14 i j :DirEq Setω
+term _14 i j :DirEq Setω
+solving _14 := λ i j → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -574,23 +498,23 @@ inferred def  IsOne
    -->  IsOne
 { checkExpr
 coerce term      v  = j
-       from type t1 = (_23 i)
+       from type t1 = (_18 i)
        to type   t2 = I
-term (_22 i) :DirEq Setω
-term (_22 i) :DirEq Setω
-solving _22 := (λ i → Setω)
-compareTerm (_23 i) =< I : Setω
-term (_23 i) :DirLeq I
-term (_23 i) :DirLeq I
-solving _23 := (λ i → I)
+term (_17 i) :DirEq Setω
+term (_17 i) :DirEq Setω
+solving _17 := (λ i → Setω)
+compareTerm (_18 i) =< I : Setω
+term (_18 i) :DirLeq I
+term (_18 i) :DirLeq I
+solving _18 := (λ i → I)
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne j
        from type t1 = Setω
-       to type   t2 = Set (_24 i j)
-term _24 i j :DirEq Setω
-term _24 i j :DirEq Setω
-solving _24 := (λ i j → Setω)
+       to type   t2 = Set (_19 i j)
+term _19 i j :DirEq Setω
+term _19 i j :DirEq Setω
+solving _19 := (λ i j → Setω)
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -604,15 +528,15 @@ inferred def  primIMax
    -->  primIMax
 { checkExpr
 coerce term      v  = i
-       from type t1 = _21
+       from type t1 = _16
        to type   t2 = I
-term _20 :DirEq Setω
-term _20 :DirEq Setω
-solving _20 := Setω
-compareTerm _21 =< I : Setω
-term _21 :DirLeq I
-term _21 :DirLeq I
-solving _21 := I
+term _15 :DirEq Setω
+term _15 :DirEq Setω
+solving _15 := Setω
+compareTerm _16 =< I : Setω
+term _16 :DirLeq I
+term _16 :DirLeq I
+solving _16 := I
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
@@ -630,10 +554,10 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne (primIMax i j)
        from type t1 = Setω
-       to type   t2 = Set (_25 i j)
-term _25 i j :DirEq Setω
-term _25 i j :DirEq Setω
-solving _25 := λ i j → Setω
+       to type   t2 = Set (_20 i j)
+term _20 i j :DirEq Setω
+term _20 i j :DirEq Setω
+solving _20 := λ i j → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -712,27 +636,29 @@ postulate
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : Level} (A : Set a₁) → I → Setω
+   :  {a = a₁ : .Agda.Primitive.Level} (A : Set a₁) → I → Setω
    -->  Partial
 { checkExpr
 { checkExpr
 coerce term      v  = a
-       from type t1 = _27
-       to type   t2 = Level
-term _26 :DirEq lzero
-term _26 :DirEq lzero
-solving _26 := lzero
-compareTerm _27 =< Level : Set
-term _27 :DirLeq Level
-term _27 :DirLeq Level
-solving _27 := Level
+       from type t1 = _22
+       to type   t2 = .Agda.Primitive.Level
+term _21 :DirEq .Agda.Primitive.lzero
+term _21 :DirEq .Agda.Primitive.lzero
+solving _21 := .Agda.Primitive.lzero
+compareTerm _22 =< .Agda.Primitive.Level : Set
+term _22 :DirLeq .Agda.Primitive.Level
+term _22 :DirLeq .Agda.Primitive.Level
+solving _22 := .Agda.Primitive.Level
 Solving awake constraints. 0 remaining.
 }
-checking Set  a against Set _a_29
-term _a_29 :DirEq lsuc a
-term _a_29 :DirEq lsuc a
-solving _a_29 := λ {a} → lsuc a
-compareTerm Set (lsuc a) =< Set (lsuc a) : Set (lsuc (lsuc a))
+checking Set  a against Set _a_24
+term _a_24 :DirEq .Agda.Primitive.lsuc a
+term _a_24 :DirEq .Agda.Primitive.lsuc a
+solving _a_24 := λ {a} → .Agda.Primitive.lsuc a
+compareTerm
+  Set (.Agda.Primitive.lsuc a) =< Set (.Agda.Primitive.lsuc a)
+  : Set (.Agda.Primitive.lsuc (.Agda.Primitive.lsuc a))
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
@@ -744,16 +670,18 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = Partial (Set a) i0
        from type t1 = Setω
-       to type   t2 = Set _28
-term _28 :DirEq Setω
-term _28 :DirEq Setω
-solving _28 := λ {a} → Setω
+       to type   t2 = Set _23
+term _23 :DirEq Setω
+term _23 :DirEq Setω
+solving _23 := λ {a} → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  {a = a₁ : Level} (φ : I) (A₁ : .(o : IsOne φ) → Set a₁) → Setω
+   :  {a = a₁ : .Agda.Primitive.Level} (φ : I)
+      (A₁ : .(o : IsOne φ) → Set a₁) →
+      Setω
    -->  PartialP
 { checkExpr
 coerce term      v  = i0
@@ -765,28 +693,29 @@ Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = A
        from type t1 = (.(IsOne i0) → Set a)
-       to type   t2 = (.(o : IsOne i0) → Set _a_31)
+       to type   t2 = (.(o : IsOne i0) → Set _a_26)
 compareTerm
-  (.(IsOne i0) → Set a) =< (.(o : IsOne i0) → Set _a_31)
+  (.(IsOne i0) → Set a) =< (.(o : IsOne i0) → Set _a_26)
   : Setω
 compareTerm (IsOne i0) =< (IsOne i0) : Setω
-term _a_31 :DirEq a
-term _a_31 :DirEq a
-solving _a_31 := λ {a} {A} → a
-compareTerm (Set a) =< (Set a) : (Set (lsuc a))
+term _a_26 :DirEq a
+term _a_26 :DirEq a
+solving _a_26 := λ {a} {A} → a
+compareTerm (Set a) =< (Set a) : (Set (.Agda.Primitive.lsuc a))
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = PartialP i0 A
        from type t1 = Setω
-       to type   t2 = Set _30
-term _30 :DirEq Setω
-term _30 :DirEq Setω
-solving _30 := λ {a} {A} → Setω
+       to type   t2 = Set _25
+term _25 :DirEq Setω
+term _25 :DirEq Setω
+solving _25 := λ {a} {A} → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 checked type signature
-  isOneEmpty : {a : Level} {A : Partial (Set a) i0} → PartialP i0 A
+  isOneEmpty : {a : .Agda.Primitive.Level} {A : Partial (Set a) i0} →
+               PartialP i0 A
   of sort  Setω
 Solving awake constraints. 0 remaining.
 Solving awake constraints. 0 remaining.
@@ -796,32 +725,33 @@ checking declaration
 {-# BUILTIN ISONEEMPTY isOneEmpty #-}
 { checkExpr
 { checkExpr
-checking that  Level  is not an empty type of sizes
+checking that  .Agda.Primitive.Level  is not an empty type of sizes
 Solving awake constraints. 0 remaining.
 { checkExpr
 { checkExpr
 checking that  .(o : IsOne i0) →
                Set .l  is not an empty type of sizes
-in context  {.l : Level}
+in context  {.l : .Agda.Primitive.Level}
 Solving awake constraints. 0 remaining.
 { checkExpr
 inferred def  isOneEmpty
-   :  {a : Level} {A : Partial (Set a) i0} → PartialP i0 A
+   :  {a : .Agda.Primitive.Level} {A : Partial (Set a) i0} →
+      PartialP i0 A
    -->  isOneEmpty
 coerce term      v  = isOneEmpty
-       from type t1 = .(p : IsOne i0) → _A_33 p
+       from type t1 = .(p : IsOne i0) → _A_28 p
        to type   t2 = .(o : IsOne i0) → .A _
 compareTerm
-  .(p : IsOne i0) → _A_33 p =< .(o : IsOne i0) → .A _
+  .(p : IsOne i0) → _A_28 p =< .(o : IsOne i0) → .A _
   : Setω
 compareTerm IsOne i0 =< IsOne i0 : Setω
-term _a_32 :DirEq .l
-term _a_32 :DirEq .l
-solving _a_32 := λ {.l} {.A} → .l
-compareTerm _A_33 p =< .A _ : Set .l
-term _A_33 p :DirLeq .A _
-term _A_33 p :DirLeq .A _
-solving _A_33 := λ {.l} {.A} .z → .A _
+term _a_27 :DirEq .l
+term _a_27 :DirEq .l
+solving _a_27 := λ {.l} {.A} → .l
+compareTerm _A_28 p =< .A _ : Set .l
+term _A_28 p :DirLeq .A _
+term _A_28 p :DirLeq .A _
+solving _A_28 := λ {.l} {.A} .z → .A _
 Solving awake constraints. 0 remaining.
 }
 }
@@ -846,24 +776,24 @@ inferred def  I
    -->  I
 coerce term      v  = I
        from type t1 = Setω
-       to type   t2 = Set _36
-term _36 :DirEq Setω
-term _36 :DirEq Setω
-solving _36 := (λ {a} → Setω)
+       to type   t2 = Set _31
+term _31 :DirEq Setω
+term _31 :DirEq Setω
+solving _31 := (λ {a} → Setω)
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 coerce term      v  = a
-       from type t1 = _35
-       to type   t2 = Level
-term _34 :DirEq lzero
-term _34 :DirEq lzero
-solving _34 := lzero
-compareTerm _35 =< Level : Set
-term _35 :DirLeq Level
-term _35 :DirLeq Level
-solving _35 := Level
+       from type t1 = _30
+       to type   t2 = .Agda.Primitive.Level
+term _29 :DirEq .Agda.Primitive.lzero
+term _29 :DirEq .Agda.Primitive.lzero
+solving _29 := .Agda.Primitive.lzero
+compareTerm _30 =< .Agda.Primitive.Level : Set
+term _30 :DirLeq .Agda.Primitive.Level
+term _30 :DirLeq .Agda.Primitive.Level
+solving _30 := .Agda.Primitive.Level
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
@@ -874,10 +804,10 @@ coerce term      v  = i1
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-term _37 :DirEq a
-term _37 :DirEq a
-solving _37 := (λ {a} {A} → a)
-compareTerm Set a =< Set a : Set (lsuc a)
+term _32 :DirEq a
+term _32 :DirEq a
+solving _32 := (λ {a} {A} → a)
+compareTerm Set a =< Set a : Set (.Agda.Primitive.lsuc a)
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
@@ -886,7 +816,7 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : Level} (A₁ : Set a₁) → I → Setω
+   :  {a = a₁ : .Agda.Primitive.Level} (A₁ : Set a₁) → I → Setω
    -->  Partial
 { checkExpr
 { checkExpr
@@ -895,28 +825,28 @@ inferred def  primIMax
    -->  primIMax
 { checkExpr
 coerce term      v  = i
-       from type t1 = _39
+       from type t1 = _34
        to type   t2 = I
-term _38 :DirEq Setω
-term _38 :DirEq Setω
-solving _38 := (λ {a} {A} → Setω)
-compareTerm _39 =< I : Setω
-term _39 :DirLeq I
-term _39 :DirLeq I
-solving _39 := (λ {a} {A} → I)
+term _33 :DirEq Setω
+term _33 :DirEq Setω
+solving _33 := (λ {a} {A} → Setω)
+compareTerm _34 =< I : Setω
+term _34 :DirLeq I
+term _34 :DirLeq I
+solving _34 := (λ {a} {A} → I)
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 coerce term      v  = j
-       from type t1 = (_41 i)
+       from type t1 = (_36 i)
        to type   t2 = I
-term (_40 i) :DirEq Setω
-term (_40 i) :DirEq Setω
-solving _40 := λ {a} {A} i → Setω
-compareTerm (_41 i) =< I : Setω
-term (_41 i) :DirLeq I
-term (_41 i) :DirLeq I
-solving _41 := λ {a} {A} i → I
+term (_35 i) :DirEq Setω
+term (_35 i) :DirEq Setω
+solving _35 := λ {a} {A} i → Setω
+compareTerm (_36 i) =< I : Setω
+term (_36 i) :DirLeq I
+term (_36 i) :DirLeq I
+solving _36 := λ {a} {A} i → I
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = primIMax i j
@@ -925,10 +855,10 @@ coerce term      v  = primIMax i j
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-term _a_43 i j :DirEq a
-term _a_43 i j :DirEq a
-solving _a_43 := λ {a} {A} i j → a
-compareTerm Set a =< Set a : Set (lsuc a)
+term _a_38 i j :DirEq a
+term _a_38 i j :DirEq a
+solving _a_38 := λ {a} {A} i j → a
+compareTerm Set a =< Set a : Set (.Agda.Primitive.lsuc a)
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
@@ -940,21 +870,22 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = Partial (A (primIMax i j)) i
        from type t1 = Setω
-       to type   t2 = Set (_42 i j)
-term _42 i j :DirEq Setω
-term _42 i j :DirEq Setω
-solving _42 := λ {a} {A} i j → Setω
+       to type   t2 = Set (_37 i j)
+term _37 i j :DirEq Setω
+term _37 i j :DirEq Setω
+solving _37 := λ {a} {A} i j → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 compareTerm
-  {a : Level} {A : I → Set a} →
-  A i1 → (i j : I) → Partial (A (primIMax i j)) i = {a : Level}
+  {a : .Agda.Primitive.Level} {A : I → Set a} →
+  A i1 → (i j : I) → Partial (A (primIMax i j)) i = {a
+                                                     : .Agda.Primitive.Level}
                                                     {A : I → Set a} →
                                                     A i1 →
                                                     (i j : I) .(o : IsOne i) → A (primIMax i j)
   : Setω
-compareTerm Level = Level : Set
+compareTerm .Agda.Primitive.Level = .Agda.Primitive.Level : Set
 compareTerm
   {A : I → Set a} →
   A i1 → (i j : I) → Partial (A (primIMax i j)) i = {A : I → Set a} →
@@ -963,7 +894,7 @@ compareTerm
   : Setω
 compareTerm I → Set a = I → Set a : Setω
 compareTerm I = I : Setω
-compareTerm Set a = Set a : Set (lsuc a)
+compareTerm Set a = Set a : Set (.Agda.Primitive.lsuc a)
 compareTerm
   A i1 → (i j : I) → Partial (A (primIMax i j)) i = A i1 →
                                                     (i j : I) .(o : IsOne i) → A (primIMax i j)
@@ -1010,36 +941,38 @@ inferred def  I
    -->  I
 coerce term      v  = I
        from type t1 = Setω
-       to type   t2 = Set _46
-term _46 :DirEq Setω
-term _46 :DirEq Setω
-solving _46 := λ {a} → Setω
+       to type   t2 = Set _41
+term _41 :DirEq Setω
+term _41 :DirEq Setω
+solving _41 := λ {a} → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : Level} (A : Set a₁) → I → Setω
+   :  {a = a₁ : .Agda.Primitive.Level} (A : Set a₁) → I → Setω
    -->  Partial
 { checkExpr
 { checkExpr
 coerce term      v  = a
-       from type t1 = _45
-       to type   t2 = Level
-term _44 :DirEq lzero
-term _44 :DirEq lzero
-solving _44 := lzero
-compareTerm _45 =< Level : Set
-term _45 :DirLeq Level
-term _45 :DirLeq Level
-solving _45 := Level
+       from type t1 = _40
+       to type   t2 = .Agda.Primitive.Level
+term _39 :DirEq .Agda.Primitive.lzero
+term _39 :DirEq .Agda.Primitive.lzero
+solving _39 := .Agda.Primitive.lzero
+compareTerm _40 =< .Agda.Primitive.Level : Set
+term _40 :DirLeq .Agda.Primitive.Level
+term _40 :DirLeq .Agda.Primitive.Level
+solving _40 := .Agda.Primitive.Level
 Solving awake constraints. 0 remaining.
 }
-checking Set  a against Set (_a_48 i j)
-term _a_48 i j :DirEq lsuc a
-term _a_48 i j :DirEq lsuc a
-solving _a_48 := λ {a} i j → lsuc a
-compareTerm Set (lsuc a) =< Set (lsuc a) : Set (lsuc (lsuc a))
+checking Set  a against Set (_a_43 i j)
+term _a_43 i j :DirEq .Agda.Primitive.lsuc a
+term _a_43 i j :DirEq .Agda.Primitive.lsuc a
+solving _a_43 := λ {a} i j → .Agda.Primitive.lsuc a
+compareTerm
+  Set (.Agda.Primitive.lsuc a) =< Set (.Agda.Primitive.lsuc a)
+  : Set (.Agda.Primitive.lsuc (.Agda.Primitive.lsuc a))
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
@@ -1068,16 +1001,17 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = Partial (Set a) (primIMax i j)
        from type t1 = Setω
-       to type   t2 = Set (_47 i j)
-term _47 i j :DirEq Setω
-term _47 i j :DirEq Setω
-solving _47 := λ {a} i j → Setω
+       to type   t2 = Set (_42 i j)
+term _42 i j :DirEq Setω
+term _42 i j :DirEq Setω
+solving _42 := λ {a} i j → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  ({a = a₁ : Level} (φ : I) (A₁ : .(o : IsOne φ) → Set a₁) →
+   :  ({a = a₁ : .Agda.Primitive.Level} (φ : I)
+       (A₁ : .(o : IsOne φ) → Set a₁) →
        Setω)
    -->  PartialP
 { checkExpr
@@ -1089,7 +1023,7 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 checking that  IsOne i  is not an empty type of sizes
-in context  {a : Level} (i : I) (j : I)
+in context  {a : .Agda.Primitive.Level} (i : I) (j : I)
             {A : Partial (Set a) (primIMax i j)}
 Solving awake constraints. 0 remaining.
 { checkExpr
@@ -1124,25 +1058,26 @@ coerce term      v  = IsOne1 i j z
 compareTerm IsOne (primIMax i j) =< IsOne (primIMax i j) : Setω
 Solving awake constraints. 0 remaining.
 }
-term _a_50 i j :DirEq a
-term _a_50 i j :DirEq a
-solving _a_50 := λ {a} i j {A} → a
-compareTerm Set a =< Set a : Set (lsuc a)
+term _a_45 i j :DirEq a
+term _a_45 i j :DirEq a
+solving _a_45 := λ {a} i j {A} → a
+compareTerm Set a =< Set a : Set (.Agda.Primitive.lsuc a)
 Solving awake constraints. 0 remaining.
 }
 }
 coerce term      v  = PartialP i (λ .z → A _)
        from type t1 = Setω
-       to type   t2 = Set (_49 i j)
-term _49 i j :DirEq Setω
-term _49 i j :DirEq Setω
-solving _49 := (λ {a} i j {A} → Setω)
+       to type   t2 = Set (_44 i j)
+term _44 i j :DirEq Setω
+term _44 i j :DirEq Setω
+solving _44 := (λ {a} i j {A} → Setω)
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  ({a = a₁ : Level} (φ : I) (A₁ : .(o : IsOne φ) → Set a₁) →
+   :  ({a = a₁ : .Agda.Primitive.Level} (φ : I)
+       (A₁ : .(o : IsOne φ) → Set a₁) →
        Setω)
    -->  PartialP
 { checkExpr
@@ -1154,7 +1089,7 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 checking that  IsOne j  is not an empty type of sizes
-in context  {a : Level} (i : I) (j : I)
+in context  {a : .Agda.Primitive.Level} (i : I) (j : I)
             {A : Partial (Set a) (primIMax i j)}
 Solving awake constraints. 0 remaining.
 { checkExpr
@@ -1189,25 +1124,27 @@ coerce term      v  = IsOne2 i j z
 compareTerm IsOne (primIMax i j) =< IsOne (primIMax i j) : Setω
 Solving awake constraints. 0 remaining.
 }
-term _a_52 i j :DirEq a
-term _a_52 i j :DirEq a
-solving _a_52 := λ {a} i j {A} → a
-compareTerm Set a =< Set a : Set (lsuc a)
+term _a_47 i j :DirEq a
+term _a_47 i j :DirEq a
+solving _a_47 := λ {a} i j {A} → a
+compareTerm Set a =< Set a : Set (.Agda.Primitive.lsuc a)
 Solving awake constraints. 0 remaining.
 }
 }
 coerce term      v  = PartialP j (λ .z → A _)
        from type t1 = Setω
-       to type   t2 = Set (_51 i j)
-term _51 i j :DirEq Setω
-term _51 i j :DirEq Setω
-solving _51 := (λ {a} i j {A} → Setω)
+       to type   t2 = Set (_46 i j)
+term _46 i j :DirEq Setω
+term _46 i j :DirEq Setω
+solving _46 := (λ {a} i j {A} → Setω)
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  {a = a₁ : Level} (φ : I) (A₁ : .(o : IsOne φ) → Set a₁) → Setω
+   :  {a = a₁ : .Agda.Primitive.Level} (φ : I)
+      (A₁ : .(o : IsOne φ) → Set a₁) →
+      Setω
    -->  PartialP
 { checkExpr
 inferred def  primIMax
@@ -1236,38 +1173,40 @@ Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = A
        from type t1 = (.(IsOne (primIMax i j)) → Set a)
-       to type   t2 = (.(o : IsOne (primIMax i j)) → Set (_a_54 i j))
+       to type   t2 = (.(o : IsOne (primIMax i j)) → Set (_a_49 i j))
 compareTerm
   (.(IsOne (primIMax i j)) → Set a) =< (.(o : IsOne (primIMax i j)) →
-                                        Set (_a_54 i j))
+                                        Set (_a_49 i j))
   : Setω
 compareTerm (IsOne (primIMax i j)) =< (IsOne (primIMax i j)) : Setω
-term (_a_54 i j) :DirEq a
-term (_a_54 i j) :DirEq a
-solving _a_54 := λ {a} i j {A} → a
-compareTerm (Set a) =< (Set a) : (Set (lsuc a))
+term (_a_49 i j) :DirEq a
+term (_a_49 i j) :DirEq a
+solving _a_49 := λ {a} i j {A} → a
+compareTerm (Set a) =< (Set a) : (Set (.Agda.Primitive.lsuc a))
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = PartialP (primIMax i j) A
        from type t1 = Setω
-       to type   t2 = Set (_53 i j)
-term _53 i j :DirEq Setω
-term _53 i j :DirEq Setω
-solving _53 := λ {a} i j {A} → Setω
+       to type   t2 = Set (_48 i j)
+term _48 i j :DirEq Setω
+term _48 i j :DirEq Setω
+solving _48 := λ {a} i j {A} → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
 compareTerm
-  {a : Level} (i j : I) {A : Partial (Set a) (primIMax i j)} →
+  {a : .Agda.Primitive.Level} (i j : I)
+  {A : Partial (Set a) (primIMax i j)} →
   PartialP i (λ .z → A _) →
-  PartialP j (λ .z → A _) → PartialP (primIMax i j) A = {a : Level}
+  PartialP j (λ .z → A _) → PartialP (primIMax i j) A = {a
+                                                         : .Agda.Primitive.Level}
                                                         (i j : I)
                                                         {A : .(o : IsOne (primIMax i j)) → Set a} →
                                                         (.(i2 : IsOne i) → A _) →
                                                         (.(j1 : IsOne j) → A _) →
                                                         .(o : IsOne (primIMax i j)) → A _
   : Setω
-compareTerm Level = Level : Set
+compareTerm .Agda.Primitive.Level = .Agda.Primitive.Level : Set
 compareTerm
   (i j : I) {A : Partial (Set a) (primIMax i j)} →
   PartialP i (λ .z → A _) →
@@ -1302,7 +1241,7 @@ compareTerm
                                         (primIMax i j)
   : Setω
 compareTerm IsOne (primIMax i j) = IsOne (primIMax i j) : Setω
-compareTerm Set a = Set a : Set (lsuc a)
+compareTerm Set a = Set a : Set (.Agda.Primitive.lsuc a)
 compareTerm
   PartialP i (λ .z → A _) →
   PartialP j (λ .z → A _) → PartialP (primIMax i j) A = (.(i2
@@ -1355,10 +1294,10 @@ inferred def  I
    -->  I
 coerce term      v  = I
        from type t1 = Setω
-       to type   t2 = Set _57
-term _57 :DirEq Setω
-term _57 :DirEq Setω
-solving _57 := λ {a} → Setω
+       to type   t2 = Set _52
+term _52 :DirEq Setω
+term _52 :DirEq Setω
+solving _52 := λ {a} → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 0 remaining.
 }
@@ -1370,10 +1309,10 @@ inferred def  I
    -->  I
 coerce term      v  = I
        from type t1 = Setω
-       to type   t2 = Set (_60 A)
-term _60 A :DirEq Setω
-term _60 A :DirEq Setω
-solving _60 := λ {a} A → Setω
+       to type   t2 = Set (_55 A)
+term _55 A :DirEq Setω
+term _55 A :DirEq Setω
+solving _55 := λ {a} A → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 1 remaining.
 Solving awake constraints. 0 remaining.
@@ -1382,27 +1321,29 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : Level} (A₁ : Set a₁) → I → Setω
+   :  {a = a₁ : .Agda.Primitive.Level} (A₁ : Set a₁) → I → Setω
    -->  Partial
 { checkExpr
 { checkExpr
 coerce term      v  = i
-       from type t1 = (_62 A φ)
+       from type t1 = (_57 A φ)
        to type   t2 = I
-term (_61 A φ) :DirEq Setω
-term (_61 A φ) :DirEq Setω
-solving _61 := λ {a} A φ → Setω
-compareTerm (_62 A φ) =< I : Setω
-term (_62 A φ) :DirLeq I
-term (_62 A φ) :DirLeq I
-solving _62 := λ {a} A φ → I
+term (_56 A φ) :DirEq Setω
+term (_56 A φ) :DirEq Setω
+solving _56 := λ {a} A φ → Setω
+compareTerm (_57 A φ) =< I : Setω
+term (_57 A φ) :DirLeq I
+term (_57 A φ) :DirLeq I
+solving _57 := λ {a} A φ → I
 Solving awake constraints. 1 remaining.
 Solving awake constraints. 0 remaining.
 }
-term _a_64 A φ i :DirEq _59 i
-term _a_64 A φ i :DirEq _59 i
-solving _a_64 := λ {a} A φ i → _59 i
-compareTerm Set (_59 i) =< Set (_59 i) : Set (lsuc (_59 i))
+term _a_59 A φ i :DirEq _54 i
+term _a_59 A φ i :DirEq _54 i
+solving _a_59 := λ {a} A φ i → _54 i
+compareTerm
+  Set (_54 i) =< Set (_54 i)
+  : Set (.Agda.Primitive.lsuc (_54 i))
 Solving awake constraints. 1 remaining.
 Solving awake constraints. 0 remaining.
 }
@@ -1415,10 +1356,10 @@ Solving awake constraints. 0 remaining.
 }
 coerce term      v  = Partial (A i) φ
        from type t1 = Setω
-       to type   t2 = Set (_63 A φ i)
-term _63 A φ i :DirEq Setω
-term _63 A φ i :DirEq Setω
-solving _63 := λ {a} A φ i → Setω
+       to type   t2 = Set (_58 A φ i)
+term _58 A φ i :DirEq Setω
+term _58 A φ i :DirEq Setω
+solving _58 := λ {a} A φ i → Setω
 compareTerm Setω =< Setω : Setω
 Solving awake constraints. 1 remaining.
 Solving awake constraints. 0 remaining.
@@ -1431,10 +1372,12 @@ coerce term      v  = i0
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-term _65 A φ :DirEq _59 i0
-term _65 A φ :DirEq _59 i0
-solving _65 := λ {a} A φ → _59 i0
-compareTerm Set (_59 i0) =< Set (_59 i0) : Set (lsuc (_59 i0))
+term _60 A φ :DirEq _54 i0
+term _60 A φ :DirEq _54 i0
+solving _60 := λ {a} A φ → _54 i0
+compareTerm
+  Set (_54 i0) =< Set (_54 i0)
+  : Set (.Agda.Primitive.lsuc (_54 i0))
 Solving awake constraints. 1 remaining.
 Solving awake constraints. 0 remaining.
 }
@@ -1446,39 +1389,44 @@ coerce term      v  = i1
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-term _66 A φ a :DirEq _59 i1
-term _66 A φ a :DirEq _59 i1
-solving _66 := λ {a} A φ a₁ → _59 i1
-compareTerm Set (_59 i1) =< Set (_59 i1) : Set (lsuc (_59 i1))
+term _61 A φ a :DirEq _54 i1
+term _61 A φ a :DirEq _54 i1
+solving _61 := λ {a} A φ a₁ → _54 i1
+compareTerm
+  Set (_54 i1) =< Set (_54 i1)
+  : Set (.Agda.Primitive.lsuc (_54 i1))
 Solving awake constraints. 1 remaining.
 Solving awake constraints. 0 remaining.
 }
 compareTerm
-  {a : _56} (A : (i : I) → Set (_59 i)) (φ : I) →
-  ((i : I) → Partial (A i) φ) → A i0 → A i1 = {a : I → Level}
+  {a : _51} (A : (i : I) → Set (_54 i)) (φ : I) →
+  ((i : I) → Partial (A i) φ) → A i0 → A i1 = {a
+                                               : I → .Agda.Primitive.Level}
                                               (A : (i : I) → Set (a i)) (φ : I) →
                                               ((i : I) .(o : IsOne φ) → A i) → A i0 → A i1
   : Setω
-term _55 :DirEq Setω
-term _55 :DirEq Setω
-solving _55 := Setω
-compareTerm I → Level = _56 : Setω
-term _56 :DirEq I → Level
-term _56 :DirEq I → Level
-solving _56 := I → Level
+term _50 :DirEq Setω
+term _50 :DirEq Setω
+solving _50 := Setω
+compareTerm I → .Agda.Primitive.Level = _51 : Setω
+term _51 :DirEq I → .Agda.Primitive.Level
+term _51 :DirEq I → .Agda.Primitive.Level
+solving _51 := I → .Agda.Primitive.Level
 compareTerm
-  (A : (i : I) → Set (_59 i)) (φ : I) →
+  (A : (i : I) → Set (_54 i)) (φ : I) →
   ((i : I) → Partial (A i) φ) → A i0 → A i1 = (A
                                                : (i : I) → Set (a i))
                                               (φ : I) →
                                               ((i : I) .(o : IsOne φ) → A i) → A i0 → A i1
   : Setω
-compareTerm (i : I) → Set (a i) = (i : I) → Set (_59 i) : Setω
+compareTerm (i : I) → Set (a i) = (i : I) → Set (_54 i) : Setω
 compareTerm I = I : Setω
-term _59 i :DirEq a i
-term _59 i :DirEq a i
-solving _59 := λ {a} i → a i
-compareTerm Set (a i) = Set (a i) : Set (lsuc (a i))
+term _54 i :DirEq a i
+term _54 i :DirEq a i
+solving _54 := λ {a} i → a i
+compareTerm
+  Set (a i) = Set (a i)
+  : Set (.Agda.Primitive.lsuc (a i))
 compareTerm
   (φ : I) → ((i : I) → Partial (A i) φ) → A i0 → A i1 = (φ : I) →
                                                         ((i : I) .(o : IsOne φ) → A i) → A i0 → A i1
@@ -1497,7 +1445,9 @@ compareTerm I = I : Setω
 compareTerm .(o : IsOne φ) → A i = Partial (A i) φ : Setω
 compareTerm IsOne φ = IsOne φ : Setω
 compareTerm A i = A i : Set (a i)
-compareTerm A i0 → A i1 = A i0 → A i1 : Set (a i0 ⊔ a i1)
+compareTerm
+  A i0 → A i1 = A i0 → A i1
+  : Set (a i0 .Agda.Primitive.⊔ a i1)
 Solving awake constraints. 1 remaining.
 { checkExpr
 coerce term      v  = i
@@ -1507,14 +1457,12 @@ compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
 coerce term      v  = a i
-       from type t1 = Level
-       to type   t2 = Level
-compareTerm Level =< Level : Set
+       from type t1 = .Agda.Primitive.Level
+       to type   t2 = .Agda.Primitive.Level
+compareTerm .Agda.Primitive.Level =< .Agda.Primitive.Level : Set
 Solving awake constraints. 0 remaining.
 Solving awake constraints. 1 remaining.
-compareTerm a i = a i : Level
-Solving awake constraints. 0 remaining.
-Solving awake constraints. 0 remaining.
+compareTerm a i = a i : .Agda.Primitive.Level
 Solving awake constraints. 0 remaining.
 Solving awake constraints. 0 remaining.
 Solving awake constraints. 0 remaining.
