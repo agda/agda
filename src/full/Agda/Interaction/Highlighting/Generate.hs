@@ -29,7 +29,7 @@ import Data.Generics.Geniplate
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\), isPrefixOf)
-import qualified Data.Foldable as Fold (fold, foldMap)
+import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
 import Data.Void
 
@@ -213,7 +213,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
   -- All names mentioned in the syntax tree (not bound variables).
   names :: [A.AmbiguousQName]
   names =
-    (map (A.AmbQ . (:[])) $
+    (map I.unambiguous $
      filter (not . extendedLambda) $
      universeBi decl) ++
     universeBi decl
@@ -242,10 +242,9 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                          (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
 
-    patsyn (I.AmbQ (n:_)) =   -- TODO: resolve overloading
-              nameToFileA modMap file n True $ \isOp ->
+    patsyn n =               -- TODO: resolve overloading
+              nameToFileA modMap file (I.headAmbQ n) True $ \isOp ->
                   mempty { aspect = Just $ Name (Just $ Constructor Common.Inductive) isOp }
-    patsyn (I.AmbQ []) = __IMPOSSIBLE__
 
     macro n = nameToFileA modMap file n True $ \isOp ->
                   mempty { aspect = Just $ Name (Just Macro) isOp }
@@ -508,7 +507,7 @@ generateConstructorInfo modMap file kinds decl = do
         constrs = IntMap.elems m2
 
     -- Return suitable syntax highlighting information.
-    let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
+    let files = for constrs $ \ q -> generate modMap file kinds $ I.unambiguous q
     return $ Fold.fold files
 
 printSyntaxInfo :: P.Range -> TCM ()
@@ -661,9 +660,9 @@ generate :: SourceToModule
          -> A.AmbiguousQName
          -> File
 generate modMap file kinds (A.AmbQ qs) =
-  mconcat $ map (\q -> nameToFileA modMap file q include m) qs
+  Fold.foldMap (\ q -> nameToFileA modMap file q include m) qs
   where
-    ks   = map kinds qs
+    ks   = map kinds (Fold.toList qs)
     -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
     -- than doing no highlighting if there's an ambiguity between an
     -- inductive and coinductive constructor.
@@ -677,7 +676,7 @@ generate modMap file kinds (A.AmbQ qs) =
     -- concrete name, so either they are all operators, or none of
     -- them are.
     m isOp  = mempty { aspect = Just $ Name kind isOp }
-    include = allEqual (map bindingSite qs)
+    include = allEqual (map bindingSite $ Fold.toList qs)
 
 -- | Converts names to suitable 'File's.
 

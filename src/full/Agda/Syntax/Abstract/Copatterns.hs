@@ -207,8 +207,7 @@ pathToRecord pps =
 
         where
           abstractions :: (ProjEntry, Expr) -> ScopeM RecordAssign
-          abstractions (ProjEntry (AmbQ []) xs, e) = __IMPOSSIBLE__
-          abstractions (ProjEntry (AmbQ (p:_)) xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete p) <$>
+          abstractions (ProjEntry p xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete $ headAmbQ p) <$>
             foldr abstract (return e) xs
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr

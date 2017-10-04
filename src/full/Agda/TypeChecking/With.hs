@@ -44,6 +44,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
@@ -524,7 +525,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
-            cs' <- liftTCM $ do snd . partitionEithers <$> mapM getConForm cs'
+            cs' <- liftTCM $ do snd . partitionEithers <$> mapM getConForm (toList cs')
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'

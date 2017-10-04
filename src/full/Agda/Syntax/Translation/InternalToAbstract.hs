@@ -105,9 +105,9 @@ nelims e (I.Apply arg : es) = do
          | otherwise                     = A.App defaultAppInfo_ e arg
   nelims hd es
 nelims e (I.Proj o@ProjPrefix d  : es) =
-  nelims (A.App defaultAppInfo_ (A.Proj o $ AmbQ [d]) $ defaultNamedArg e) es
+  nelims (A.App defaultAppInfo_ (A.Proj o $ unambiguous d) $ defaultNamedArg e) es
 nelims e (I.Proj o d  : es) =
-  nelims (A.App defaultAppInfo_ e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
+  nelims (A.App defaultAppInfo_ e (defaultNamedArg $ A.Proj o $ unambiguous d)) es
 
 -- | Drops hidden arguments unless --show-implicit.
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
@@ -166,7 +166,7 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c ci vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
+    DCon c ci vs -> apps (A.Con (unambiguous (conName c))) =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
@@ -290,17 +290,17 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         elimToPat :: I.Elim' DisplayTerm -> TCM (NamedArg A.Pattern)
         elimToPat (I.Apply arg) = argToPat arg
-        elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
+        elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ unambiguous d
 
         termToPat :: DisplayTerm -> TCM (Named_ A.Pattern)
 
         termToPat (DTerm (I.Var n [])) = return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
         termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM argToPat vs
+           A.ConP (ConPatInfo ci patNoRange) (unambiguous (conName c)) <$> mapM argToPat vs
 
         termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange) (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
+           A.ConP (ConPatInfo ci patNoRange) (unambiguous (conName c)) <$> mapM (argToPat . fmap DTerm) vs
 
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
@@ -326,7 +326,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
             I.Con c ci vs ->
-              apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
+              apps (A.Con (unambiguous (conName c))) =<< argsToExpr vs
             I.Def f es -> do
               let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
               apps (A.Def f) =<< argsToExpr vs
@@ -387,7 +387,7 @@ reifyTerm expandAnonDefs0 v = do
           -- the number of parameters is greater (if the data decl has
           -- extra parameters) or equal (if not) to n
           when (n > np) __IMPOSSIBLE__
-          let h = A.Con (AmbQ [x])
+          let h = A.Con (unambiguous x)
           if null vs then return h else do
             es <- reify vs
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
@@ -933,10 +933,10 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         -- Crashes on -v 100.
       I.AbsurdP p -> return $ A.AbsurdP patNoRange
       I.LitP l  -> return $ A.LitP l
-      I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
+      I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps -> do
         liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
-        tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyPatterns ps
+        tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
         where
           ci = ConPatInfo origin patNoRange
           origin = fromMaybe ConOCon $ I.conPRecord cpi
@@ -948,8 +948,8 @@ tryRecPFromConP :: MonadTCM tcm => A.Pattern -> tcm A.Pattern
 tryRecPFromConP p = do
   let fallback = return p
   case p of
-    A.ConP ci (AmbQ [c]) ps -> do
-        caseMaybeM (liftTCM $ isRecordConstructor c) fallback $ \ (r, def) -> do
+    A.ConP ci c ps -> do
+        caseMaybeM (liftTCM $ isRecordConstructor $ headAmbQ c) fallback $ \ (r, def) -> do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.

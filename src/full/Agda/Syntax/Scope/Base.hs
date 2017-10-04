@@ -39,6 +39,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import qualified Agda.Utils.Map as Map
@@ -298,13 +299,13 @@ data ResolvedName
     DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
 
   | -- | Record field name.  Needs to be distinguished to parse copatterns.
-    FieldName [AbstractName]       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
+    FieldName (NonemptyList AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
 
   | -- | Data or record constructor name.
-    ConstructorName [AbstractName] -- ^ @('ConName' ==) . 'anameKind'@ for all names.
+    ConstructorName (NonemptyList AbstractName) -- ^ @('ConName' ==) . 'anameKind'@ for all names.
 
   | -- | Name of pattern synonym.
-    PatternSynResName [AbstractName] -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
+    PatternSynResName (NonemptyList AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
 
   | -- | Unbound name.
     UnknownName

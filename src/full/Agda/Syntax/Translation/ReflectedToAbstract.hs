@@ -98,7 +98,7 @@ instance ToAbstract Term Expr where
           names <- asks $ drop (size cxt) . reverse
           lift $ withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
         Just name -> toAbstract (A.Var name, es)
-    R.Con c es -> toAbstract (A.Con (AmbQ [killRange c]), es)
+    R.Con c es -> toAbstract (A.Con (unambiguous $ killRange c), es)
     R.Def f es -> do
       af <- lift $ mkDef (killRange f)
       toAbstract (af, es)
@@ -142,7 +142,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
   toAbstract pat = case pat of
     R.ConP c args -> do
       (names, args) <- toAbstractPats args
-      return (names, A.ConP (ConPatInfo ConOCon patNoRange) (AmbQ [killRange c]) args)
+      return (names, A.ConP (ConPatInfo ConOCon patNoRange) (unambiguous $ killRange c) args)
     R.DotP    -> return ([], A.WildP patNoRange)
     R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP name)
         -- Ulf, 2016-08-09: Also bind noNames (#2129). This to make the
@@ -151,7 +151,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
     R.VarP s  -> withName s $ \ name -> return ([name], A.VarP name)
     R.LitP l  -> return ([], A.LitP l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
-    R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ AmbQ [killRange d])
+    R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d)
 
 toAbstractPats :: [Arg R.Pattern] -> WithNames (Names, [NamedArg A.Pattern])
 toAbstractPats pats = case pats of

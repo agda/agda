@@ -85,6 +85,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
@@ -521,10 +522,10 @@ instance ToAbstract OldQName A.Expr where
     case qx of
       VarName x' _         -> return $ A.Var x'
       DefinedName _ d      -> return $ nameExpr d
-      FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (map anameName ds)
-      ConstructorName ds   -> return $ A.Con $ AmbQ (map anameName ds)
+      FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
+      ConstructorName ds   -> return $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> notInScope x
-      PatternSynResName ds -> return $ A.PatternSyn $ AmbQ (map anameName ds)
+      PatternSynResName ds -> return $ A.PatternSyn $ AmbQ (fmap anameName ds)
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
@@ -532,8 +533,8 @@ instance ToAbstract ResolveQName ResolvedName where
     q -> return q
 
 data APatName = VarPatName A.Name
-              | ConPatName [AbstractName]
-              | PatternSynPatName [AbstractName]
+              | ConPatName (NonemptyList AbstractName)
+              | PatternSynPatName (NonemptyList AbstractName)
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
@@ -557,10 +558,10 @@ instance ToAbstract PatName APatName where
         printLocals 10 "bound it:"
         return p
       Right (Left ds) -> do
-        reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (map anameName ds)
+        reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
         return $ ConPatName ds
       Right (Right ds) -> do
-        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (map anameName ds)
+        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
         return $ PatternSynPatName ds
 
 class ToQName a where
@@ -574,16 +575,13 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
   toAbstract (OldName x) = do
     rx <- resolveName (toQName x)
     case rx of
-      DefinedName _ d     -> return $ anameName d
+      DefinedName _ d      -> return $ anameName d
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName (d : _) -> return $ anameName d   -- We'll throw out this one, so it doesn't matter which one we pick
-      ConstructorName []      -> __IMPOSSIBLE__
-      FieldName (d:_)         -> return $ anameName d
-      FieldName []            -> __IMPOSSIBLE__
-      PatternSynResName (d:_) -> return $ anameName d
-      PatternSynResName []    -> __IMPOSSIBLE__
-      VarName x _             -> typeError $ GenericError $ "Not a defined name: " ++ prettyShow x
-      UnknownName             -> notInScope (toQName x)
+      ConstructorName ds   -> return $ anameName (headNe ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      FieldName ds         -> return $ anameName (headNe ds)
+      PatternSynResName ds -> return $ anameName (headNe ds)
+      VarName x _          -> typeError $ GenericError $ "Not a defined name: " ++ prettyShow x
+      UnknownName          -> notInScope (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
@@ -1670,9 +1668,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     case e of
       A.Def x          -> return [ A.RewritePragma x ]
-      A.Proj _ (AmbQ [x]) -> return [ A.RewritePragma x ]
+      A.Proj _ p | Just x <- getUnambiguous p -> return [ A.RewritePragma x ]
       A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
-      A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
+      A.Con c | Just x <- getUnambiguous c -> return [ A.RewritePragma x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
@@ -1690,7 +1688,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
           A.Def x -> return x
-          A.Proj _ (AmbQ [x]) -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
+          A.Proj _ c | Just x <- getUnambiguous c -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
           A.Proj _ x -> genericError $ "COMPILED on ambiguous name " ++ prettyShow x
           A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
           _       -> __IMPOSSIBLE__
@@ -1705,10 +1703,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
           A.Def x -> return x
-          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x -> genericError $
             "COMPILED_JS used on ambiguous name " ++ prettyShow x
-          A.Con (AmbQ [x]) -> return x
+          A.Con c | Just x <- getUnambiguous c -> return x
           A.Con x -> genericError $
             "COMPILED_JS used on ambiguous name " ++ prettyShow x
           _       -> __IMPOSSIBLE__
@@ -1730,9 +1728,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
     let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
     y <- case e of
           A.Def x             -> return x
-          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x          -> err "ambiguous projection"
-          A.Con (AmbQ [x])    -> return x
+          A.Con c | Just x <- getUnambiguous c -> return x
           A.Con x             -> err "ambiguous constructor"
           A.PatternSyn{}      -> err "pattern synonym"
           A.Var{}             -> err "local variable"
@@ -1743,7 +1741,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x -> genericError $
             "STATIC used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of STATIC pragma should be a function"
@@ -1752,7 +1750,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x -> genericError $
             "INJECTIVE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INJECTIVE pragma should be a defined symbol"
@@ -1761,7 +1759,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x -> genericError $
             "INLINE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INLINE pragma should be a function"
@@ -1816,15 +1814,15 @@ instance ToAbstract C.Pragma [A.Pragma] where
     (isPatSyn, hd) <- do
       qx <- resolveName' allKindsOfNames Nothing top
       case qx of
-        VarName x' _        -> return . (False,) $ A.qnameFromList [x']
-        DefinedName _ d     -> return . (False,) $ anameName d
-        FieldName     [d]    -> return . (False,) $ anameName d
-        FieldName ds         -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
-        ConstructorName [d] -> return . (False,) $ anameName d
-        ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
-        UnknownName         -> notInScope top
-        PatternSynResName [d] -> return . (True,) $ anameName d
-        PatternSynResName ds -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (map anameName ds)
+        VarName x' _                -> return . (False,) $ A.qnameFromList [x']
+        DefinedName _ d             -> return . (False,) $ anameName d
+        FieldName     (d :! [])     -> return . (False,) $ anameName d
+        FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
+        ConstructorName (d :! [])   -> return . (False,) $ anameName d
+        ConstructorName ds          -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
+        UnknownName                 -> notInScope top
+        PatternSynResName (d :! []) -> return . (True,) $ anameName d
+        PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
     lhs <- toAbstract $ LeftHandSide top lhs []
     ps  <- case lhs of
@@ -1834,12 +1832,12 @@ instance ToAbstract C.Pragma [A.Pragma] where
     -- Andreas, 2016-08-08, issue #2132
     -- Remove pattern synonyms on lhs
     (hd, ps) <- do
-      let mkP | isPatSyn =  A.PatternSynP (PatRange $ getRange lhs) (A.AmbQ [hd])
-              | otherwise = A.DefP (PatRange $ getRange lhs) (A.AmbQ [hd])
+      let mkP | isPatSyn  = A.PatternSynP (PatRange $ getRange lhs) (unambiguous hd)
+              | otherwise = A.DefP (PatRange $ getRange lhs) (unambiguous hd)
       p <- expandPatternSynonyms $ mkP ps
       case p of
-        A.DefP _ (A.AmbQ [hd]) ps -> return (hd, ps)
-        A.ConP _ (A.AmbQ [hd]) ps -> return (hd, ps)
+        A.DefP _ f ps | Just hd <- getUnambiguous f -> return (hd, ps)
+        A.ConP _ c ps | Just hd <- getUnambiguous c -> return (hd, ps)
         A.PatternSynP{} -> __IMPOSSIBLE__
         _ -> err
 
@@ -2014,8 +2012,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
           P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
         qx <- resolveName d
         ds <- case qx of
-                FieldName [] -> __IMPOSSIBLE__
-                FieldName ds -> return $ map anameName ds
+                FieldName ds -> return $ fmap anameName ds
                 UnknownName -> notInScope d
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
@@ -2055,9 +2052,9 @@ resolvePatternIdentifier r x ns = do
   case px of
     VarPatName y         -> return $ VarP y
     ConPatName ds        -> return $ ConP (ConPatInfo ConOCon $ PatRange r)
-                                          (AmbQ $ map anameName ds) []
+                                          (AmbQ $ fmap anameName ds) []
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
-                                                 (AmbQ $ map anameName ds) []
+                                                 (AmbQ $ fmap anameName ds) []
 
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
@@ -2070,10 +2067,12 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       e <- toAbstract (OldQName x Nothing)
       let quoted (A.Def x) = return x
           quoted (A.Macro x) = return x
-          quoted (A.Proj _ (AmbQ [x])) = return x
-          quoted (A.Proj _ (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ prettyShow xs
-          quoted (A.Con (AmbQ [x])) = return x
-          quoted (A.Con (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ prettyShow xs
+          quoted (A.Proj _ p)
+            | Just x <- getUnambiguous p = return x
+            | otherwise                  = genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
+          quoted (A.Con c)
+            | Just x <- getUnambiguous c = return x
+            | otherwise                  = genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
           quoted (A.ScopedExpr _ e) = quoted e
           quoted _                  = genericError $ "quote: not a defined name"
       A.LitP . LitQName (getRange x) <$> quoted e

@@ -23,6 +23,8 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Functor
+import Agda.Utils.NonemptyList
+
 import Agda.Utils.Impossible
 #include "undefined.h"
 
@@ -34,6 +36,7 @@ class NamesIn a where
 
 instance NamesIn a => NamesIn (Maybe a)              where
 instance NamesIn a => NamesIn [a]                    where
+instance NamesIn a => NamesIn (NonemptyList a)       where
 instance NamesIn a => NamesIn (Arg a)                where
 instance NamesIn a => NamesIn (Dom a)                where
 instance NamesIn a => NamesIn (Named n a)            where

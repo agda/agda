@@ -45,6 +45,7 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Size
 
@@ -475,9 +476,9 @@ bindBuiltinNat t = do
           rerange = setRange (getRange nat)
       addHaskellPragma nat "= type Integer"
       bindBuiltinInfo (BuiltinInfo builtinZero $ BuiltinDataCons tnat)
-                      (A.Con $ AmbQ [rerange zero])
+                      (A.Con $ unambiguous $ rerange zero)
       bindBuiltinInfo (BuiltinInfo builtinSuc  $ BuiltinDataCons (tnat --> tnat))
-                      (A.Con $ AmbQ [rerange suc])
+                      (A.Con $ unambiguous $ rerange suc)
     _ -> __IMPOSSIBLE__
 
 bindBuiltinUnit :: Term -> TCM ()
@@ -641,7 +642,7 @@ isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
   DefinedName _ x -> bindBuiltinName b (Def (anameName x) [])
-  FieldName [ x ] -> bindBuiltinName b (Def (anameName x) [])
+  FieldName (x :! []) -> bindBuiltinName b (Def (anameName x) [])
   _ -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
 
 -- | Bind a builtin thing to a new name.

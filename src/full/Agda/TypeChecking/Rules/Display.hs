@@ -15,6 +15,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.NonemptyList
+
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = inTopContext $ do
   pappToTerm f id ps $ \n args -> do
@@ -65,18 +67,26 @@ pappToTerm x f ps ret = do
 patternToTerm :: A.Pattern -> (Nat -> Term -> TCM a) -> TCM a
 patternToTerm p ret =
   case p of
-    A.VarP x               -> bindVar x $ ret 1 (Var 0 [])
-    A.ConP _ (AmbQ [c]) ps -> pappToTerm c (Con (ConHead c Inductive []) ConOCon) ps ret
-    A.ConP _ (AmbQ cs) _   -> genericError $ "Ambiguous constructor: " ++ List.intercalate ", " (map show cs)
-    A.ProjP _ _ (AmbQ [d]) -> ret 0 (Def d [])
-    A.ProjP _ _ (AmbQ ds)    -> genericError $ "Ambiguous projection: " ++ List.intercalate ", " (map show ds)
-    A.DefP _ (AmbQ [f]) ps -> pappToTerm f (Def f . map Apply) ps ret
-    A.DefP _ (AmbQ ds) _   -> genericError $ "Ambiguous DefP: " ++ List.intercalate ", " (map show ds)
-    A.LitP l               -> ret 0 (Lit l)
-    A.WildP _              -> bindWild $ ret 1 (Var 0 [])
-    _ -> do
+    A.VarP x                        -> bindVar x $ ret 1 (Var 0 [])
+    A.ConP _ cs ps
+      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive []) ConOCon) ps ret
+      | otherwise                   -> ambigErr "constructor" cs
+    A.ProjP _ _ ds
+      | Just d <- getUnambiguous ds -> ret 0 (Def d [])
+      | otherwise                   -> ambigErr "projection" ds
+    A.DefP _ fs ps
+      | Just f <- getUnambiguous fs -> pappToTerm f (Def f . map Apply) ps ret
+      | otherwise                   -> ambigErr "DefP" fs
+    A.LitP l                        -> ret 0 (Lit l)
+    A.WildP _                       -> bindWild $ ret 1 (Var 0 [])
+    _                               -> do
       doc <- prettyA p
       typeError $ GenericError $ "Pattern not allowed in DISPLAY pragma:\n" ++ show doc
+  where
+    ambigErr thing (AmbQ xs) =
+      genericDocError =<< do
+        text ("Ambiguous " ++ thing ++ ":") <?>
+          fsep (punctuate comma (map pshow $ toList xs))
 
 bindWild :: TCM a -> TCM a
 bindWild ret = do
@@ -91,12 +101,12 @@ exprToTerm e =
   case unScope e of
     A.Var x  -> fst <$> getVarInfo x
     A.Def f  -> pure $ Def f []
-    A.Con (AmbQ (c:_)) -> pure $ Con (ConHead c Inductive []) ConOCon [] -- Don't care too much about ambiguity here
-    A.Lit l -> pure $ Lit l
+    A.Con c  -> pure $ Con (ConHead (headAmbQ c) Inductive []) ConOCon [] -- Don't care too much about ambiguity here
+    A.Lit l  -> pure $ Lit l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
-    A.Proj _ (AmbQ (f:_)) -> pure $ Def f []   -- only for printing so we don't have to worry too much here
-    A.PatternSyn (AmbQ (f:_)) -> pure $ Def f []
+    A.Proj _ f -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here
+    A.PatternSyn f -> pure $ Def (headAmbQ f) []
     A.Macro f      -> pure $ Def f []
 
     A.WithApp{}      -> notAllowed "with application"
