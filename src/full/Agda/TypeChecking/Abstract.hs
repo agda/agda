@@ -45,6 +45,10 @@ piAbstractTerm v a b = do
     sep [ text "piAbstract" <+> sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
         , nest 2 $ text "from" <+> prettyTCM b
         , nest 2 $ text "-->" <+> prettyTCM fun ]
+  reportSDoc "tc.abstract" 70 $
+    sep [ text "piAbstract" <+> sep [ (text . show) v <+> text ":", nest 2 $ (text . show) a ]
+        , nest 2 $ text "from" <+> (text . show) b
+        , nest 2 $ text "-->" <+> (text . show) fun ]
   return fun
 
 -- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
@@ -101,6 +105,11 @@ abstractTerm a u@Con{} b v = do
         , nest 2 $ sep [ prettyTCM u <+> text ":", nest 2 $ prettyTCM a ]
         , text "over"
         , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
+  reportSDoc "tc.abstract" 70 $
+    sep [ text "Abstracting"
+        , nest 2 $ sep [ (text . show) u <+> text ":", nest 2 $ (text . show) a ]
+        , text "over"
+        , nest 2 $ sep [ (text . show) v <+> text ":", nest 2 $ (text . show) b ] ]
 
   hole <- qualify <$> currentModule <*> freshName_ "hole"
   noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a Axiom

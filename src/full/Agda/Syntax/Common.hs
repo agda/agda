@@ -525,8 +525,13 @@ instance SetRange a => SetRange (Arg a) where
 instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
-instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 _ _) x1 == Arg (ArgInfo h2 _ _) x2 = (h1, x1) == (h2, x2)
+-- | Ignores 'Relevance' and 'Origin'.
+--   Ignores content of argument if 'Irrelevant'.
+--
+instance {-# OVERLAPPABLE #-} Eq a => Eq (Arg a) where
+  Arg (ArgInfo h1 r1 _) x1 == Arg (ArgInfo h2 r2 _) x2 =
+    h1 == h2 && (r1 == Irrelevant || r2 == Irrelevant || x1 == x2)
+    -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
 
 instance Show a => Show (Arg a) where
     show (Arg (ArgInfo h r o) a) = showR r $ showO o $ showH h $ show a

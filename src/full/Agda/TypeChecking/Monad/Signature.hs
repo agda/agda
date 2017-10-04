@@ -862,7 +862,7 @@ getModuleFreeVars m = do
 --   We have to insert the module telescope of the common prefix
 --   of the current module and the module where the definition comes from.
 --   (Properly raised to the current context.)
---y
+--
 --   Example:
 --   @
 --      module M₁ Γ where
