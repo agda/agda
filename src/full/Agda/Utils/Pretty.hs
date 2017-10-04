@@ -20,6 +20,8 @@ import Data.Typeable ( Typeable )
 
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
+import Agda.Utils.NonemptyList
+
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -66,6 +68,9 @@ instance Pretty a => Pretty (Maybe a) where
 
 instance Pretty a => Pretty [a] where
   pretty = prettyList
+
+instance Pretty a => Pretty (NonemptyList a) where
+  pretty = prettyList . toList
 
 -- * 'Doc' utilities
 
