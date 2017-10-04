@@ -1175,8 +1175,8 @@ instance Ord Term where
   DontCare{} `compare` DontCare{} = EQ
 
 -- | Equality of binders relies on weakening
---   which is a specical case of renaming
---   which is a specical case of substitution.
+--   which is a special case of renaming
+--   which is a special case of substitution.
 instance (Subst t a, Eq a) => Eq (Abs a) where
   NoAbs _ a == NoAbs _ b = a == b
   Abs   _ a == Abs   _ b = a == b
