@@ -194,7 +194,8 @@ newIFSMetaCtx s t vs = do
     [ text "new ifs meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
     ]
-  i0 <- createMetaInfo
+  -- Andreas, 2017-10-04, issue #2753: no metaOccurs check for instance metas
+  i0 <- createMetaInfo' DontRunMetaOccursCheck
   let i = i0 { miNameSuggestion = s }
   TelV tel _ <- telView t
   let perm = idP (size tel)
