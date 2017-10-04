@@ -32,6 +32,7 @@ import Data.Monoid
 import Data.Typeable (Typeable)
 
 import Debug.Trace (trace)
+import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -1145,7 +1146,7 @@ instance Ord Term where
   Shared a   `compare` Shared x | a == x = EQ
   Shared a   `compare` x          = compare (derefPtr a) x
   a          `compare` Shared x   = compare a (derefPtr x)
-  Var a b    `compare` Var x y    = compare (a, b) (x, y)
+  Var a b    `compare` Var x y    = compare x a `thenCmp` compare b y -- sort de Bruijn indices down (#2765)
   Var{}      `compare` _          = LT
   _          `compare` Var{}      = GT
   Def a b    `compare` Def x y    = compare (a, b) (x, y)
