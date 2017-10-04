@@ -430,14 +430,12 @@ instance EmbPrj Hiding where
 instance EmbPrj Relevance where
   icod_ Relevant       = return 0
   icod_ Irrelevant     = return 1
-  icod_ (Forced Small) = return 2
-  icod_ (Forced Big)   = return 3
+  icod_ Forced         = return 2
   icod_ NonStrict      = return 4
 
   value 0 = return Relevant
   value 1 = return Irrelevant
-  value 2 = return (Forced Small)
-  value 3 = return (Forced Big)
+  value 2 = return Forced
   value 4 = return NonStrict
   value _ = malformed
 
