@@ -7,6 +7,7 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 
+import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -43,13 +44,12 @@ solvingProblem pid = solvingProblems (Set.singleton pid)
 solvingProblems :: Set ProblemId -> TCM a -> TCM a
 solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
   x <- local (\e -> e { envActiveProblems = pids `Set.union` envActiveProblems e }) m
-  sequence_
-    [ ifNotM (isProblemSolved pid)
+  Fold.forM_ pids $ \ pid -> do
+    ifNotM (isProblemSolved pid)
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
         reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
         wakeConstraints (return . blockedOn pid . clValue . theConstraint)
-    | pid <- Set.toList pids ]
   return x
   where
     blockedOn pid (Guarded _ pid') = pid == pid'
