@@ -1390,7 +1390,7 @@ niceDeclarations ds = do
         Axiom r f p a i rel mp x e       -> (\ i -> Axiom r f p a i rel mp x e) <$> setInstance i
         FunSig r f p a i m rel tc x e    -> (\ i -> FunSig r f p a i m rel tc x e) <$> setInstance i
         NiceUnquoteDecl r f p a i tc x e -> (\ i -> NiceUnquoteDecl r f p a i tc x e) <$> setInstance i
-        NiceMutual{}                     -> return d
+        NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mapM mkInstance ds
         NiceFunClause{}                  -> return d
         FunDef r ds f a i tc x cs        -> (\ i -> FunDef r ds f a i tc x cs) <$> setInstance i
         NiceField{}                      -> return d  -- Field instance are handled by the parser
