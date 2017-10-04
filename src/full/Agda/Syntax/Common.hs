@@ -212,26 +212,6 @@ sameHiding x y =
 -- * Relevance
 ---------------------------------------------------------------------------
 
--- | An constructor argument is big if the sort of its type is bigger than
---   the sort of the data type.  Only parameters (and maybe forced arguments)
---   are allowed to be big.
---   @
---      List : Set -> Set
---      nil  : (A : Set) -> List A
---   @
---   @A@ is big in constructor @nil@ as the sort @Set1@ of its type @Set@
---   is bigger than the sort @Set@ of the data type @List@.
-data Big = Big | Small
-  deriving (Typeable, Data, Show, Eq, Enum, Bounded)
-
-instance Ord Big where
-  Big <= Small = False
-  _   <= _     = True
-
-instance NFData Big where
-  rnf Big   = ()
-  rnf Small = ()
-
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
@@ -240,20 +220,12 @@ data Relevance
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-  | Forced Big  -- ^ The argument can be skipped during equality checking
+  | Forced      -- ^ The argument can be skipped during equality checking
                 --   because its value is already determined by the type.
-                --   If a constructor argument is big, it has to be regarded
-                --   absent, otherwise we get into paradoxes.
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Data, Show, Eq, Enum, Bounded)
 
 allRelevances :: [Relevance]
-allRelevances =
-  [ Relevant
-  , NonStrict
-  , Irrelevant
-  , Forced Small
-  , Forced Big
-  ]
+allRelevances = [minBound..maxBound]
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
@@ -265,7 +237,7 @@ instance NFData Relevance where
   rnf Relevant   = ()
   rnf NonStrict  = ()
   rnf Irrelevant = ()
-  rnf (Forced a) = rnf a
+  rnf Forced     = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and one of @setRelevance@ or @mapRelevance@.
@@ -344,9 +316,8 @@ composeRelevance r r' =
     (_, Irrelevant) -> Irrelevant
     (NonStrict, _)  -> NonStrict
     (_, NonStrict)  -> NonStrict
-    (Forced b, Forced b') -> Forced (max b b')  -- prefer Big over Small
-    (Forced b, _)     -> Forced b
-    (_, Forced b)     -> Forced b
+    (Forced, _)     -> Forced
+    (_, Forced)     -> Forced
     (Relevant, Relevant) -> Relevant
 
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
@@ -359,7 +330,6 @@ inverseComposeRelevance r x =
   case (r, x) of
     (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
     _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
-    (Forced{}, Forced{}) -> Relevant   -- same, but (==) does not ignore Big
     (Forced{}, x)          -> x
     (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
@@ -544,8 +514,7 @@ instance Show a => Show (Arg a) where
         showR r s = case r of
           Irrelevant   -> "." ++ s
           NonStrict    -> "?" ++ s
-          Forced Big   -> "!b" ++ s
-          Forced Small -> "!" ++ s
+          Forced       -> "!" ++ s
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showO o s = case o of
           UserWritten -> "u" ++ s

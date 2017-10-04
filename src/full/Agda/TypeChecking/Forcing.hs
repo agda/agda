@@ -129,8 +129,6 @@ instance ForcedVariables Term where
     _ -> []
 
 -- | @force s xs t@ marks the domains @xs@ in function type @t@ as forced.
---   Domains bigger than @s@ are marked as @'Forced' 'Big'@, others as
---   @'Forced' 'Small'@.
 --   Counting left-to-right, starting with 0.
 --   Precondition: function type is exposed.
 force :: Sort -> [Nat] -> Type -> TCM Type
@@ -140,10 +138,6 @@ force s0 xs t = loop 0 t
     loop i t | i > m = return t
     loop i t = case ignoreSharingType t of
       El s (Pi a b) -> do
-        a' <- if not (i `elem` xs) then return a else do
-          -- If the sort of the data type is >= the sort of the argument type
-          -- then the index is small, else big.
-          b <- ifM (tryConversion $ leqSort (getSort a) (raise i s0)) (return Small) (return Big)
-          return $ mapRelevance (composeRelevance $ Forced b) a
+        let a' = applyWhen (i `elem` xs) (mapRelevance $ composeRelevance Forced) a
         El s . Pi a' <$> traverse (loop $ i + 1) b
       _ -> __IMPOSSIBLE__
