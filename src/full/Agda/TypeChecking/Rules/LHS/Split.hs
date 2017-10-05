@@ -112,7 +112,7 @@ splitProblem mf (Problem ps qs tel pr) = do
         ]
       -- If the pattern is not a projection pattern, that's an error.
       -- Probably then there were too many arguments.
-      caseMaybe (maybePostfixProjP p) failure $ \ (o, AmbQ ds) -> do
+      caseMaybe (maybePostfixProjP p) failure $ \ (o, ambD@(AmbQ ds)) -> do
         -- So it is a projection pattern (d = projection name), is it?
         projs <- lift $ mapMaybeM (\ d -> fmap (d,) <$> isProjection d) (toList ds)
         when (null projs) notProjP
@@ -132,7 +132,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                 ai   = getArgInfo p
             -- Try the projection candidates.
             -- Fail hard for the last candidate.
-            msum $ mapAwareLast (tryProj o ai self fs r vs $ length ds >= 2) projs
+            msum $ mapAwareLast (tryProj o ai self fs r vs $ isAmbiguous ambD) projs
             -- -- This fails softly on all (if more than one) candidates.
             -- msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
 
