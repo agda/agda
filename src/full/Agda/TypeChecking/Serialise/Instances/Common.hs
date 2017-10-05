@@ -57,8 +57,10 @@ import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
+import Agda.Utils.NonemptyList
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Trie
+import Agda.Utils.Trie (Trie(..))
+import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Except
 
@@ -220,6 +222,10 @@ instance EmbPrj a => EmbPrj [a] where
 --   value = vcase valu where valu []      = valu0 []
 --                            valu [x, xs] = valu2 (:) x xs
 --                            valu _       = malformed
+
+instance EmbPrj a => EmbPrj (NonemptyList a) where
+  icod_ = icod_ . toList
+  value = listCaseNe malformed return <=< value
 
 instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
   icod_ m = icode (BiMap.toList m)

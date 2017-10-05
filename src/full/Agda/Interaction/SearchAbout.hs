@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.List (isInfixOf)
 import Data.Either (partitionEithers)
+import Data.Foldable (toList)
 
 import Agda.Syntax.Position (Range)
 import Agda.Syntax.Scope.Base
@@ -69,6 +70,6 @@ findMentions norm rg nm = do
       | otherwise        = Right str
 
     anames (DefinedName _ an)     = [an]
-    anames (FieldName     ans)    = ans
-    anames (ConstructorName ans)  = ans
+    anames (FieldName     ans)    = toList ans
+    anames (ConstructorName ans)  = toList ans
     anames _                      = []

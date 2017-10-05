@@ -45,6 +45,7 @@ import Agda.Utils.Geniplate
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
@@ -519,7 +520,7 @@ properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record c
 properlyMatching ProjP{} = True
 
 instance IsProjP (Pattern' a) where
-  isProjP (ProjP o d) = Just (o, AmbQ [d])
+  isProjP (ProjP o d) = Just (o, unambiguous d)
   isProjP _ = Nothing
 
 -----------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 
 module Agda.Syntax.Scope.Monad where
 
-import Prelude hiding (mapM)
+import Prelude hiding (mapM, any, all)
 import Control.Arrow (first, second, (***))
 import Control.Applicative
 import Control.Monad hiding (mapM, forM)
@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Foldable (any, all)
 import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common
@@ -42,6 +43,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null (unlessNull)
+import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -224,29 +226,27 @@ resolveName' kinds names x = do
         ys -> shadowed ys
       where
       shadowed ys =
-        typeError $ AmbiguousName x $ A.qualify_ y : map anameName ys
+        typeError $ AmbiguousName x $ A.qualify_ y :! map anameName ys
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
       let filtKind = filter $ \ y -> anameKind (fst y) `elem` kinds
       -- Consider only names in the given set of names
           filtName = filter $ \ y -> maybe True (Set.member (aName (fst y))) names
-      case filtKind $ filtName $ scopeLookup' x scope of
-        [] -> return UnknownName
-
+      caseListNe (filtKind $ filtName $ scopeLookup' x scope) (return UnknownName) $ \ case
         ds       | all ((ConName ==) . anameKind . fst) ds ->
-          return $ ConstructorName $ map (upd . fst) ds
+          return $ ConstructorName $ fmap (upd . fst) ds
 
         ds       | all ((FldName ==) . anameKind . fst) ds ->
-          return $ FieldName $ map (upd . fst) ds
+          return $ FieldName $ fmap (upd . fst) ds
 
         ds       | all ((PatternSynName ==) . anameKind . fst) ds ->
-          return $ PatternSynResName $ map (upd . fst) ds
+          return $ PatternSynResName $ fmap (upd . fst) ds
 
-        [(d, a)] ->
+        (d, a) :! [] ->
           return $ DefinedName a $ upd d
 
-        ds -> typeError $ AmbiguousName x (map (anameName . fst) ds)
+        ds -> typeError $ AmbiguousName x (fmap (anameName . fst) ds)
   where
   upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
@@ -257,10 +257,9 @@ resolveName' kinds names x = do
 resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
-  case ms of
-    [AbsModule m why] -> return $ AbsModule (m `withRangeOf` x) why
-    []                -> typeError $ NoSuchModule x
-    ms                -> typeError $ AmbiguousModule x (map amodName ms)
+  caseListNe ms (typeError $ NoSuchModule x) $ \ case
+    AbsModule m why :! [] -> return $ AbsModule (m `withRangeOf` x) why
+    ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the notation of a name. The name is assumed to be in scope.
 getNotation
@@ -280,7 +279,7 @@ getNotation x ns = do
   where
     notation = namesToNotation x . qnameName . anameName
     oneNotation ds =
-      case mergeNotations $ map notation ds of
+      case mergeNotations $ map notation $ toList ds of
         [n] -> n
         _   -> __IMPOSSIBLE__
 
@@ -319,10 +318,9 @@ bindName acc kind x y = do
     success = return [ AbsName y kind Defined ]
     clash   = typeError . ClashingDefinition (C.QName x)
 
-    ambiguous k ds@(d:_) =
-      if kind == k && all ((==k) . anameKind) ds
-      then success else clash $ anameName d
-    ambiguous k [] = __IMPOSSIBLE__
+    ambiguous k ds =
+      if kind == k && all ((== k) . anameKind) ds
+      then success else clash $ anameName (headNe ds)
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
