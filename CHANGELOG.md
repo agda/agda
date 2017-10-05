@@ -31,6 +31,8 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
+* The contents of `Data.Covec' is now polymorphic with respect to levels
+
 * Added new proofs to `Data.Nat.Properties`:
   ```agda
   +-semigroup           : Semigroup _ _

@@ -20,83 +20,85 @@ open import Relation.Binary
 
 infixr 5 _∷_
 
-data Covec (A : Set) : Coℕ → Set where
+data Covec {a} (A : Set a) : Coℕ → Set a where
   []  : Covec A zero
   _∷_ : ∀ {n} (x : A) (xs : ∞ (Covec A (♭ n))) → Covec A (suc n)
 
 ------------------------------------------------------------------------
 -- Some operations
 
-map : ∀ {A B n} → (A → B) → Covec A n → Covec B n
+map : ∀ {a b} {A : Set a} {B : Set b} {n} → (A → B) → Covec A n → Covec B n
 map f []       = []
 map f (x ∷ xs) = f x ∷ ♯ map f (♭ xs)
 
-fromVec : ∀ {A n} → Vec A n → Covec A (Coℕ.fromℕ n)
-fromVec []       = []
-fromVec (x ∷ xs) = x ∷ ♯ fromVec xs
+module _ {a} {A : Set a} where
 
-fromColist : ∀ {A} (xs : Colist A) → Covec A (Colist.length xs)
-fromColist []       = []
-fromColist (x ∷ xs) = x ∷ ♯ fromColist (♭ xs)
+ fromVec : ∀ {n} → Vec A n → Covec A (Coℕ.fromℕ n)
+ fromVec []       = []
+ fromVec (x ∷ xs) = x ∷ ♯ fromVec xs
 
-take : ∀ {A} m {n} → Covec A (m + n) → Covec A m
-take zero    xs       = []
-take (suc n) (x ∷ xs) = x ∷ ♯ take (♭ n) (♭ xs)
+ fromColist : (xs : Colist A) → Covec A (Colist.length xs)
+ fromColist []       = []
+ fromColist (x ∷ xs) = x ∷ ♯ fromColist (♭ xs)
 
-drop : ∀ {A} m {n} → Covec A (Coℕ.fromℕ m + n) → Covec A n
-drop zero    xs       = xs
-drop (suc n) (x ∷ xs) = drop n (♭ xs)
+ take : ∀ m {n} → Covec A (m + n) → Covec A m
+ take zero    xs       = []
+ take (suc n) (x ∷ xs) = x ∷ ♯ take (♭ n) (♭ xs)
 
-replicate : ∀ {A} n → A → Covec A n
-replicate zero    x = []
-replicate (suc n) x = x ∷ ♯ replicate (♭ n) x
+ drop : ∀ m {n} → Covec A (Coℕ.fromℕ m + n) → Covec A n
+ drop zero    xs       = xs
+ drop (suc n) (x ∷ xs) = drop n (♭ xs)
 
-lookup : ∀ {A n} → Cofin n → Covec A n → A
-lookup zero    (x ∷ xs) = x
-lookup (suc n) (x ∷ xs) = lookup n (♭ xs)
+ replicate : ∀ n → A → Covec A n
+ replicate zero    x = []
+ replicate (suc n) x = x ∷ ♯ replicate (♭ n) x
 
-infixr 5 _++_
+ lookup : ∀ {n} → Cofin n → Covec A n → A
+ lookup zero    (x ∷ xs) = x
+ lookup (suc n) (x ∷ xs) = lookup n (♭ xs)
 
-_++_ : ∀ {A m n} → Covec A m → Covec A n → Covec A (m + n)
-[]       ++ ys = ys
-(x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
+ infixr 5 _++_
 
-[_] : ∀ {A} → A → Covec A (suc (♯ zero))
-[ x ] = x ∷ ♯ []
+ _++_ : ∀ {m n} → Covec A m → Covec A n → Covec A (m + n)
+ []       ++ ys = ys
+ (x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
+
+ [_] : A → Covec A (suc (♯ zero))
+ [ x ] = x ∷ ♯ []
 
 ------------------------------------------------------------------------
 -- Equality and other relations
 
 -- xs ≈ ys means that xs and ys are equal.
 
-infix 4 _≈_
+ infix 4 _≈_
 
-data _≈_ {A} : ∀ {n} (xs ys : Covec A n) → Set where
-  []  : [] ≈ []
-  _∷_ : ∀ {n} x {xs ys}
-        (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → _≈_ {n = suc n} (x ∷ xs) (x ∷ ys)
+ data _≈_ : ∀ {n} (xs ys : Covec A n) → Set where
+   []  : [] ≈ []
+   _∷_ : ∀ {n} x {xs ys}
+         (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → _≈_ {n = suc n} (x ∷ xs) (x ∷ ys)
 
 -- x ∈ xs means that x is a member of xs.
 
-infix 4 _∈_
+ infix 4 _∈_
 
-data _∈_ {A} : ∀ {n} → A → Covec A n → Set where
-  here  : ∀ {n x  } {xs}                   → _∈_ {n = suc n} x (x ∷ xs)
-  there : ∀ {n x y} {xs} (x∈xs : x ∈ ♭ xs) → _∈_ {n = suc n} x (y ∷ xs)
+ data _∈_ : ∀ {n} → A → Covec A n → Set where
+   here  : ∀ {n x  } {xs}                   → _∈_ {n = suc n} x (x ∷ xs)
+   there : ∀ {n x y} {xs} (x∈xs : x ∈ ♭ xs) → _∈_ {n = suc n} x (y ∷ xs)
 
 -- xs ⊑ ys means that xs is a prefix of ys.
 
-infix 4 _⊑_
+ infix 4 _⊑_
 
-data _⊑_ {A} : ∀ {m n} → Covec A m → Covec A n → Set where
-  []  : ∀ {n} {ys : Covec A n} → [] ⊑ ys
-  _∷_ : ∀ {m n} x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) →
-        _⊑_ {m = suc m} {suc n} (x ∷ xs) (x ∷ ys)
+ data _⊑_ : ∀ {m n} → Covec A m → Covec A n → Set where
+   []  : ∀ {n} {ys : Covec A n} → [] ⊑ ys
+   _∷_ : ∀ {m n} x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) →
+         _⊑_ {m = suc m} {suc n} (x ∷ xs) (x ∷ ys)
 
 ------------------------------------------------------------------------
 -- Some proofs
 
-setoid : Set → Coℕ → Setoid _ _
+setoid : ∀ {a} → Set a → Coℕ → Setoid _ _
 setoid A n = record
   { Carrier       = Covec A n
   ; _≈_           = _≈_
@@ -107,19 +109,19 @@ setoid A n = record
     }
   }
   where
-  refl : ∀ {A n} → Reflexive (_≈_ {A} {n})
+  refl : ∀ {n} → Reflexive (_≈_ {n = n})
   refl {x = []}     = []
   refl {x = x ∷ xs} = x ∷ ♯ refl
 
-  sym : ∀ {A n} → Symmetric (_≈_ {A} {n})
+  sym : ∀ {n} → Symmetric (_≈_ {A = A} {n})
   sym []        = []
   sym (x ∷ xs≈) = x ∷ ♯ sym (♭ xs≈)
 
-  trans : ∀ {A n} → Transitive (_≈_ {A} {n})
+  trans : ∀ {n} → Transitive (_≈_ {A = A} {n})
   trans []        []         = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-poset : Set → Coℕ → Poset _ _ _
+poset : ∀ {a} → Set a → Coℕ → Poset _ _ _
 poset A n = record
   { Carrier        = Covec A n
   ; _≈_            = _≈_
@@ -134,22 +136,22 @@ poset A n = record
     }
   }
   where
-  reflexive : ∀ {A n} → _≈_ {A} {n} ⇒ _⊑_
+  reflexive : ∀ {n} → _≈_ {n = n} ⇒ _⊑_
   reflexive []        = []
   reflexive (x ∷ xs≈) = x ∷ ♯ reflexive (♭ xs≈)
 
-  trans : ∀ {A n} → Transitive (_⊑_ {A} {n})
+  trans : ∀ {n} → Transitive (_⊑_ {n = n})
   trans []        _          = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-  antisym : ∀ {A n} → Antisymmetric (_≈_ {A} {n}) _⊑_
+  antisym : ∀ {n} → Antisymmetric (_≈_ {n = n}) _⊑_
   antisym []       []        = []
   antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ ♯ antisym (♭ p₁) (♭ p₂)
 
-map-cong : ∀ {A B n} (f : A → B) → _≈_ {n = n} =[ map f ]⇒ _≈_
+map-cong : ∀ {a b} {A : Set a} {B : Set b} {n} (f : A → B) → _≈_ {n = n} =[ map f ]⇒ _≈_
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
-take-⊑ : ∀ {A} m {n} (xs : Covec A (m + n)) → take m xs ⊑ xs
+take-⊑ : ∀ {a} {A : Set a} m {n} (xs : Covec A (m + n)) → take m xs ⊑ xs
 take-⊑ zero    xs       = []
 take-⊑ (suc n) (x ∷ xs) = x ∷ ♯ take-⊑ (♭ n) (♭ xs)
