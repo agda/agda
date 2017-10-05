@@ -71,8 +71,8 @@ insertAbsurdPattern (c:s) = c : insertAbsurdPattern s
 getHeadAsHint :: A.Expr -> Maybe Hint
 getHeadAsHint (A.ScopedExpr _ e) = getHeadAsHint e
 getHeadAsHint (A.Def qname)      = Just $ Hint False qname
-getHeadAsHint (A.Proj _ qname)   = Just $ Hint False $ head $ I.unAmbQ qname
-getHeadAsHint (A.Con qname)      = Just $ Hint True  $ head $ I.unAmbQ qname
+getHeadAsHint (A.Proj _ qname)   = Just $ Hint False $ AN.headAmbQ qname
+getHeadAsHint (A.Con qname)      = Just $ Hint True  $ AN.headAmbQ qname
 getHeadAsHint _ = Nothing
 
 -- | Result type: Progress & potential Message for the user

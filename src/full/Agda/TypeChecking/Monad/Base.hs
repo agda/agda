@@ -82,6 +82,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty hiding ((<>))
@@ -2743,8 +2744,8 @@ data TypeError
         | AbstractConstructorNotInScope A.QName
         | NotInScope [C.QName]
         | NoSuchModule C.QName
-        | AmbiguousName C.QName [A.QName]
-        | AmbiguousModule C.QName [A.ModuleName]
+        | AmbiguousName C.QName (NonemptyList A.QName)
+        | AmbiguousModule C.QName (NonemptyList A.ModuleName)
         | UninstantiatedModule C.QName
         | ClashingDefinition C.QName A.QName
         | ClashingModule A.ModuleName A.ModuleName
@@ -2767,7 +2768,7 @@ data TypeError
     -- Pattern synonym errors
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
-        | CannotResolveAmbiguousPatternSynonym [(A.QName, A.PatternSynDefn)]
+        | CannotResolveAmbiguousPatternSynonym (NonemptyList (A.QName, A.PatternSynDefn))
         | UnusedVariableInPatternSynonym
     -- Operator errors
         | NoParseForApplication [C.Expr]

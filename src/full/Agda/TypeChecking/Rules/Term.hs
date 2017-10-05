@@ -88,6 +88,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.NonemptyList
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
@@ -913,12 +914,12 @@ checkExpr e t0 =
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
               quoted (A.Macro x) = return x
-              quoted (A.Proj o (AmbQ [x])) = return x
-              quoted (A.Proj o (AmbQ xs))  =
-                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow xs
-              quoted (A.Con (AmbQ [x])) = return x
-              quoted (A.Con (AmbQ xs))  =
-                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow xs
+              quoted (A.Proj o p) | Just x <- getUnambiguous p = return x
+              quoted (A.Proj o p)  =
+                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
+              quoted (A.Con c) | Just x <- getUnambiguous c = return x
+              quoted (A.Con c)  =
+                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
               quoted (A.ScopedExpr _ e) = quoted e
               quoted _                  =
                 typeError $ GenericError $ "quote: not a defined name"
@@ -1146,13 +1147,13 @@ unquoteTactic tac hole goal k = do
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-inferProjApp :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> TCM (Term, Type)
+inferProjApp :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> TCM (Term, Type)
 inferProjApp e o ds args0 = inferOrCheckProjApp e o ds args0 Nothing
 
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> Type -> TCM Term
+checkProjApp  :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> TCM Term
 checkProjApp e o ds args0 t = do
   (v, ti) <- inferOrCheckProjApp e o ds args0 (Just t)
   coerce v ti t
@@ -1167,8 +1168,8 @@ inferOrCheckProjApp
      -- ^ The whole expression which constitutes the application.
   -> ProjOrigin
      -- ^ The origin of the projection involved in this projection application.
-  -> [QName]
-     -- ^ The projection name (potentially ambiguous).  List must not be empty.
+  -> NonemptyList QName
+     -- ^ The projection name (potentially ambiguous).
   -> A.Args
      -- ^ The arguments to the projection.
   -> Maybe Type
@@ -1186,7 +1187,7 @@ inferOrCheckProjApp e o ds args mt = do
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
         "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ fromMaybe __IMPOSSIBLE__ $ headMaybe ds)
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
         ++ " because " ++ reason
       refuseNotApplied = refuse "it is not applied to a visible argument"
       refuseNoMatching = refuse "no matching candidate found"
@@ -1222,11 +1223,11 @@ inferOrCheckProjApp e o ds args mt = do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
-          case catMaybes $ for fs $ \ (Arg _ f) -> List.find (f ==) ds of
+          case catMaybes $ for fs $ \ (Arg _ f) -> List.find (f ==) (toList ds) of
             [] -> refuseNoMatching
             [d] -> do
               storeDisambiguatedName d
-              (,t) <$> checkHeadApplication e t (A.Proj o $ AmbQ [d]) args
+              (,t) <$> checkHeadApplication e t (A.Proj o $ unambiguous d) args
             _ -> __IMPOSSIBLE__
         _ -> __IMPOSSIBLE__
 
@@ -1297,7 +1298,7 @@ inferOrCheckProjApp e o ds args mt = do
               -- guard (size tel == size pars)
               return (orig, (d, (pars, (dom, u, tb))))
 
-          cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
+          cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
           case cands of
             [] -> refuseNoMatching
             [[]] -> refuseNoMatching
@@ -1354,16 +1355,21 @@ checkApplication hd args e t = do
     , nest 2 $ text $ "t    = " ++ show t
     ]
   case unScope hd of
-    A.Proj _ (AmbQ []) -> __IMPOSSIBLE__
-
     -- Subcase: unambiguous projection
-    A.Proj _ (AmbQ [_]) -> checkHeadApplication e t hd args
+    A.Proj _ p | Just _ <- getUnambiguous p -> checkHeadApplication e t hd args
 
     -- Subcase: ambiguous projection
-    A.Proj o (AmbQ ds@(_:_:_)) -> checkProjApp e o ds args t
+    A.Proj o p -> checkProjApp e o (unAmbQ p) args t
+
+    -- Subcase: unambiguous constructor
+    A.Con ambC | Just c <- getUnambiguous ambC -> do
+      -- augment c with record fields, but do not revert to original name
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+        getOrigConHead c
+      checkConstructorApplication e t con args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0@(_:_:_)) -> do
+    A.Con (AmbQ cs0) -> do
       -- First we should figure out which constructor we want.
       reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
@@ -1376,12 +1382,11 @@ checkApplication hd args e t = do
       -- since they may have different types (different parameters).
       -- See issue 279.
       -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
-      (cs, cons)  <- unzip . snd . partitionEithers <$> do
+      (cs, cons)  <- unzip . snd . partitionEithers . toList <$> do
          forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
       reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
       case cons of
-        []  -> typeError $ AbstractConstructorNotInScope $
-                 fromMaybe __IMPOSSIBLE__ $ headMaybe cs0
+        []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
         [con] -> do
           let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
           reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
@@ -1413,13 +1418,6 @@ checkApplication hd args e t = do
           case mc of
             Just c  -> checkConstructorApplication e t c args
             Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
-
-    -- Subcase: non-ambiguous constructor
-    A.Con (AmbQ [c]) -> do
-      -- augment c with record fields, but do not revert to original name
-      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
-        getOrigConHead c
-      checkConstructorApplication e t con args
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -1600,7 +1598,7 @@ inferHeadDef o x = do
 inferHead :: A.Expr -> TCM (Elims -> Term, Type)
 inferHead e = do
   case e of
-    (A.Var x) -> do -- traceCall (InferVar x) $ do
+    A.Var x -> do -- traceCall (InferVar x) $ do
       (u, a) <- getVarInfo x
       reportSDoc "tc.term.var" 20 $ hsep
         [ text "variable" , prettyTCM x
@@ -1610,10 +1608,13 @@ inferHead e = do
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
       return (applyE u, unDom a)
-    (A.Def x) -> inferHeadDef ProjPrefix x
-    (A.Proj o (AmbQ [d])) -> inferHeadDef o d
-    (A.Proj{}) -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
-    (A.Con (AmbQ [c])) -> do
+
+    A.Def x -> inferHeadDef ProjPrefix x
+
+    A.Proj o ambP | Just d <- getUnambiguous ambP -> inferHeadDef o d
+    A.Proj{} -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
+
+    A.Con ambC | Just c <- getUnambiguous ambC -> do
 
       -- Constructors are polymorphic internally.
       -- So, when building the constructor term
@@ -1632,9 +1633,9 @@ inferHead e = do
 
       -- So when applying the constructor throw away the parameters.
       return (applyE u . drop n, a)
-    (A.Con _) -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
-    (A.QuestionMark i ii) -> inferMeta (newQuestionMark ii) i
-    (A.Underscore i)   -> inferMeta (newValueMeta RunMetaOccursCheck) i
+    A.Con{} -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
+    A.QuestionMark i ii -> inferMeta (newQuestionMark ii) i
+    A.Underscore i   -> inferMeta (newValueMeta RunMetaOccursCheck) i
     e -> do
       (term, t) <- inferExpr e
       return (applyE term, t)
@@ -1731,7 +1732,7 @@ checkConstructorApplication org t c args = do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback
   where
-    fallback = checkHeadApplication org t (A.Con (AmbQ [conName c])) args
+    fallback = checkHeadApplication org t (A.Con (unambiguous $ conName c)) args
 
     -- Check if there are explicitly given hidden arguments,
     -- in which case we fall back to default type checking.
@@ -1812,11 +1813,11 @@ checkHeadApplication e t hd args = do
   pComp       <- fmap primFunName <$> getPrimitive' "primComp"
   mglue     <- getPrimitiveName' builtin_glue
   case hd of
-    A.Con (AmbQ [c]) | Just c == (nameOfSharp <$> kit) -> do
+    A.Con cs | Just c <- getUnambiguous cs, Just c == (nameOfSharp <$> kit) -> do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
       -- but the sharp we generate in the body of the wrapper is a Con.
       defaultResult
-    A.Con (AmbQ [c]) -> do
+    A.Con cs | Just c <- getUnambiguous cs -> do
       (f, t0) <- inferHead hd
       reportSDoc "tc.term.con" 5 $ vcat
         [ text "checkHeadApplication inferred" <+>
@@ -1938,7 +1939,7 @@ checkHeadApplication e t hd args = do
         abs <- aModeToDef <$> asks envAbstractMode
         let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                  PublicAccess abs noRange
-            core   = A.LHSProj { A.lhsDestructor = AmbQ [flat]
+            core   = A.LHSProj { A.lhsDestructor = unambiguous flat
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }
             clause = A.Clause (A.LHS (A.LHSRange noRange) core []) [] []
@@ -2234,7 +2235,7 @@ inferExpr' exh e = do
     ]
   if not $ defOrVar hd then fallback else traceCall (InferExpr e) $ do
     case unScope $ hd of
-      A.Proj o (AmbQ ds@(_:_:_)) -> inferProjApp e o ds args
+      A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
       _ -> do
         (f, t0) <- inferHead hd
         res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)

@@ -972,7 +972,7 @@ compareArgs es = do
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).
   projsCaller <- length <$> do
-    filterM (isCoinductiveProjection True) $ mapMaybe (fmap (head . unAmbQ . snd) . isProjP . getMasked) pats
+    filterM (isCoinductiveProjection True) $ mapMaybe (fmap (headAmbQ . snd) . isProjP . getMasked) pats
   projsCallee <- length <$> do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff

@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable (traverse)
 
 import Agda.Benchmarking
 
@@ -44,6 +45,7 @@ import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Monad (bracket_)
+import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
@@ -384,10 +386,10 @@ getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
 lookupPatternSyn (AmbQ xs) = do
-  defs <- mapM lookupSinglePatternSyn xs
+  defs <- traverse lookupSinglePatternSyn xs
   case mergePatternSynDefs defs of
     Just def   -> return def
-    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym (zip xs defs)
+    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym (zipNe xs defs)
 
 lookupSinglePatternSyn :: QName -> TCM PatternSynDefn
 lookupSinglePatternSyn x = do

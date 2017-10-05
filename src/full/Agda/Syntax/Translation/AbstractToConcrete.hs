@@ -69,6 +69,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Pretty (prettyShow)
@@ -446,23 +447,20 @@ instance ToConcrete ResolvedName C.QName where
   toConcrete = \case
     VarName x _          -> C.QName <$> lookupName x
     DefinedName _ x      -> toConcrete x
-    FieldName xs         -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
-    ConstructorName xs   -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
-    PatternSynResName xs -> toConcrete $ maybe __IMPOSSIBLE__ anameName $ headMaybe xs
+    FieldName xs         -> toConcrete (headNe xs)
+    ConstructorName xs   -> toConcrete (headNe xs)
+    PatternSynResName xs -> toConcrete (headNe xs)
     UnknownName          -> __IMPOSSIBLE__
 
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
-    toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
-    toConcrete (Def x)            = Ident <$> toConcrete x
-    toConcrete (Proj ProjPrefix (AmbQ (x:_))) = Ident <$> toConcrete x
-    toConcrete (Proj _          (AmbQ (x:_))) =
-      C.Dot (getRange x) . Ident <$> toConcrete x
-    toConcrete Proj{}             = __IMPOSSIBLE__
-    toConcrete (A.Macro x)        = Ident <$> toConcrete x
-    toConcrete e@(Con (AmbQ (x:_))) = tryToRecoverPatternSyn e $ Ident <$> toConcrete x
-    toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
+    toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
+    toConcrete (Def x)             = Ident <$> toConcrete x
+    toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
+    toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
+    toConcrete (A.Macro x)         = Ident <$> toConcrete x
+    toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ Ident <$> toConcrete (headAmbQ c)
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
@@ -638,8 +636,7 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
        where r = getRange e
-    toConcrete (A.PatternSyn (AmbQ (n:_))) = C.Ident <$> toConcrete n
-    toConcrete (A.PatternSyn (AmbQ [])) = __IMPOSSIBLE__
+    toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg info (A.TBind _ [WithHiding h x] t)))) =
@@ -972,7 +969,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.InlinePragma x -> C.InlinePragma r <$> toConcrete x
     A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
-      C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (AmbQ [f]) ps) <*> toConcrete rhs
+      C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (unambiguous f) ps) <*> toConcrete rhs
 
 -- Left hand sides --------------------------------------------------------
 
@@ -1098,15 +1095,12 @@ instance ToConcrete A.Pattern C.Pattern where
       A.WildP i ->
         return $ C.WildP (getRange i)
 
-      A.ConP i (AmbQ []) args        -> __IMPOSSIBLE__
-      A.ConP i xs@(AmbQ (x:_)) args  -> tryOp x (A.ConP i xs) args
+      A.ConP i c args  -> tryOp (headAmbQ c) (A.ConP i c) args
 
-      A.ProjP _ _ (AmbQ []) -> __IMPOSSIBLE__
-      A.ProjP i ProjPrefix xs@(AmbQ (x:_)) -> C.IdentP <$> toConcrete x
-      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) UserWritten . C.Ident <$> toConcrete x
+      A.ProjP i ProjPrefix p -> C.IdentP <$> toConcrete (headAmbQ p)
+      A.ProjP i _          p -> C.DotP noRange UserWritten . C.Ident <$> toConcrete (headAmbQ p)
 
-      A.DefP i (AmbQ []) _ -> __IMPOSSIBLE__
-      A.DefP i xs@(AmbQ (x:_)) args -> tryOp x (A.DefP i xs)  args
+      A.DefP i x args -> tryOp (headAmbQ x) (A.DefP i x)  args
 
       A.AsP i x p -> do
         (x, p) <- toConcreteCtx argumentCtx_ (x,p)
@@ -1132,8 +1126,7 @@ instance ToConcrete A.Pattern C.Pattern where
       A.EqualP i es -> do
         C.EqualP (getRange i) <$> toConcrete es
 
-      A.PatternSynP i ns@(AmbQ (n:_)) args -> tryOp n (A.PatternSynP i ns) args
-      A.PatternSynP _ (AmbQ []) _ -> __IMPOSSIBLE__
+      A.PatternSynP i n args -> tryOp (headAmbQ n) (A.PatternSynP i n) args
 
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
@@ -1181,11 +1174,11 @@ recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
 recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
   where
     explore :: (A.QName -> Bool) -> (A.QName -> Bool) -> Integer -> A.Expr -> Maybe Integer
-    explore isZero isSuc k (A.App _ (A.Con (AmbQ [f])) t) | isSuc f =
-      (explore isZero isSuc $! k + 1) (namedArg t)
-    explore isZero isSuc k (A.Con (AmbQ [x]))             | isZero x = Just k
-    explore isZero isSuc k (A.Lit (LitNat _ l))                      = Just (k + l)
-    explore _ _ _ _ = Nothing
+    explore isZero isSuc k (A.App _ (A.Con c) t) | Just f <- getUnambiguous c, isSuc f
+                                                = (explore isZero isSuc $! k + 1) (namedArg t)
+    explore isZero isSuc k (A.Con c) | Just x <- getUnambiguous c, isZero x = Just k
+    explore isZero isSuc k (A.Lit (LitNat _ l)) = Just (k + l)
+    explore _ _ _ _                             = Nothing
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNamedArg) cOpApp view e) def return
@@ -1223,12 +1216,11 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
     view e = (, (map . fmap . fmap) Just args) <$> getHead hd
       where Application hd args = A.appView' e
 
-    getHead (Var x)                     = Just (HdVar x)
-    getHead (Def f)                     = Just (HdDef f)
-    getHead (Con (AmbQ (c : _)))        = Just (HdCon c)
-    getHead (Con (AmbQ []))             = __IMPOSSIBLE__
-    getHead (A.PatternSyn (AmbQ (c:_))) = Just (HdSyn c)
-    getHead _                           = Nothing
+    getHead (Var x)          = Just (HdVar x)
+    getHead (Def f)          = Just (HdDef f)
+    getHead (Con c)          = Just (HdCon $ headAmbQ c)
+    getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
+    getHead _                = Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
@@ -1241,12 +1233,11 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
     appInfo = defaultAppInfo_
 
     view p = case p of
-      ConP _        (AmbQ (c:_)) ps -> Just (HdCon c, (map . fmap . fmap) (Just . (appInfo,)) ps)
-      DefP _        (AmbQ (f:_)) ps -> Just (HdDef f, (map . fmap . fmap) (Just . (appInfo,)) ps)
-      PatternSynP _ (AmbQ (c:_)) ps -> Just (HdSyn c, (map . fmap . fmap) (Just . (appInfo,)) ps)
-      _ -> __IMPOSSIBLE__
-      -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
-      -- _                      -> Nothing
+      ConP _        cs ps -> Just (HdCon (headAmbQ cs), (map . fmap . fmap) (Just . (appInfo,)) ps)
+      DefP _        fs ps -> Just (HdDef (headAmbQ fs), (map . fmap . fmap) (Just . (appInfo,)) ps)
+      PatternSynP _ ns ps -> Just (HdSyn (headAmbQ ns), (map . fmap . fmap) (Just . (appInfo,)) ps)
+      _                   -> Nothing
+      -- ProjP _ _ d   -> Just (HdDef (headAmbQ d), [])   -- ? Andreas, 2016-04-21
 
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
@@ -1350,12 +1341,12 @@ tryToRecoverPatternSyn e fallback
         Application A.Lit{} _ -> True
         _                     -> False
 
-    apply c args = A.unAppView $ Application (A.PatternSyn $ AmbQ [c]) args
+    apply c args = A.unAppView $ Application (A.PatternSyn $ unambiguous c) args
 
 -- | Recover pattern synonyms in patterns.
 tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
-  where apply c args = PatternSynP patNoRange (AmbQ [c]) args
+  where apply c args = PatternSynP patNoRange (unambiguous c) args
 
 -- | General pattern synonym recovery parameterised over expression type
 recoverPatternSyn :: ToConcrete a c =>

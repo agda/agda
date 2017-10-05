@@ -99,6 +99,7 @@ import GHC.Generics (Generic)
 import Agda.Utils.FileName
 import Agda.Utils.List
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
@@ -277,6 +278,11 @@ instance HasRange Bool where
 -- same file (or be empty).
 instance HasRange a => HasRange [a] where
     getRange = foldr fuseRange noRange
+
+-- | Precondition: The ranges of the list elements must point to the
+-- same file (or be empty).
+instance HasRange a => HasRange (NonemptyList a) where
+    getRange = Fold.foldr fuseRange noRange
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
@@ -484,6 +490,9 @@ instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
 instance KillRange a => KillRange [a] where
 #endif
   killRange = map killRange
+
+instance KillRange a => KillRange (NonemptyList a) where
+  killRange = fmap killRange
 
 -- | Overlaps with @KillRange [a]@.
 #if __GLASGOW_HASKELL__ >= 710

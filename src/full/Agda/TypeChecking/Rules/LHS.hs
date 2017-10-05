@@ -70,6 +70,7 @@ import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
@@ -108,9 +109,9 @@ instance IsFlexiblePattern A.Pattern where
       A.VarP{}  -> return ImplicitFlex
       A.WildP{} -> return ImplicitFlex
       A.AsP _ _ p -> maybeFlexiblePattern p
-      A.ConP _ (A.AmbQ [c]) qs
-        -> ifM (isNothing <$> isRecordConstructor c) (return OtherFlex) {-else-}
-             (maybeFlexiblePattern qs)
+      A.ConP _ cs qs | Just c <- getUnambiguous cs ->
+        ifM (isNothing <$> isRecordConstructor c) (return OtherFlex) {-else-}
+            (maybeFlexiblePattern qs)
       A.LitP{}  -> return OtherFlex
       _ -> mzero
 
@@ -169,7 +170,8 @@ updateInPatterns as ps qs = do
         A.DotP _ _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just $ A.unBind x) Nothing  u a])
-        p@(A.ConP _ (A.AmbQ [c]) qs) -> ifM (isNothing <$> isRecordConstructor c)
+        p@(A.ConP _ cs qs) | Just c <- getUnambiguous cs ->
+          ifM (isNothing <$> isRecordConstructor c)
           (return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a]))
           (do
             Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
@@ -904,7 +906,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
                       , focusType     = a
                       }
                )) p1) tryNextSplit = do
-      traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (A.AmbQ [c]) qs)
+      traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (unambiguous c) qs)
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 

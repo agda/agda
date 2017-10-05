@@ -11,7 +11,7 @@ module Agda.Syntax.Abstract.Name
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable)
+import Data.Foldable (Foldable, toList)
 import Data.Traversable (Traversable)
 import Data.Data (Data)
 import Data.Typeable (Typeable)
@@ -28,6 +28,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix
@@ -78,8 +79,25 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
-newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
+newtype AmbiguousQName = AmbQ { unAmbQ :: NonemptyList QName }
   deriving (Eq, Ord, Typeable, Data)
+
+-- | A singleton "ambiguous" name.
+unambiguous :: QName -> AmbiguousQName
+unambiguous x = AmbQ (x :! [])
+
+-- | Get the first of the ambiguous names.
+headAmbQ :: AmbiguousQName -> QName
+headAmbQ (AmbQ xs) = headNe xs
+
+-- | Is a name ambiguous.
+isAmbiguous :: AmbiguousQName -> Bool
+isAmbiguous (AmbQ (_ :! xs)) = not (null xs)
+
+-- | Get the name if unambiguous.
+getUnambiguous :: AmbiguousQName -> Maybe QName
+getUnambiguous (AmbQ (x :! [])) = Just x
+getUnambiguous _                = Nothing
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
@@ -272,7 +290,7 @@ instance NumHoles QName where
 
 -- | We can have an instance for ambiguous names as all share a common concrete name.
 instance NumHoles AmbiguousQName where
-  numHoles (AmbQ qs) = numHoles $ fromMaybe __IMPOSSIBLE__ $ headMaybe qs
+  numHoles = numHoles . headAmbQ
 
 ------------------------------------------------------------------------
 -- * Show instances (only for debug printing!)
@@ -319,7 +337,7 @@ instance Pretty QName where
   pretty = hcat . punctuate (text ".") . map pretty . qnameToList
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate (text " | ") $ map pretty qs
+  pretty (AmbQ qs) = hcat $ punctuate (text " | ") $ map pretty (toList qs)
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> text "." <> pretty b
@@ -343,8 +361,7 @@ instance HasRange QName where
 -- | The range of an @AmbiguousQName@ is the range of any of its
 --   disambiguations (they are the same concrete name).
 instance HasRange AmbiguousQName where
-  getRange (AmbQ [])    = noRange
-  getRange (AmbQ (c:_)) = getRange c
+  getRange (AmbQ (c :! _)) = getRange c
 
 -- ** SetRange
 

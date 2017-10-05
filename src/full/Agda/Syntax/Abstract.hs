@@ -48,6 +48,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
+import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 
 #include "undefined.h"
@@ -457,7 +458,7 @@ lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
 lhsCoreToPattern :: LHSCore -> Pattern
 lhsCoreToPattern lc =
   case lc of
-    LHSHead f aps -> DefP noInfo (AmbQ [f]) aps
+    LHSHead f aps -> DefP noInfo (unambiguous f) aps
     LHSProj d lhscore aps -> DefP noInfo d $
       fmap (fmap lhsCoreToPattern) lhscore : aps
   where noInfo = patNoRange -- TODO, preserve range!
@@ -1009,9 +1010,9 @@ instance NameToExpr AbstractName where
   nameExpr d = mk (anameKind d) $ anameName d
     where
     mk DefName        x = Def x
-    mk FldName        x = Proj ProjSystem $ AmbQ [x]
-    mk ConName        x = Con $ AmbQ [x]
-    mk PatternSynName x = PatternSyn $ AmbQ [x]
+    mk FldName        x = Proj ProjSystem $ unambiguous x
+    mk ConName        x = Con $ unambiguous x
+    mk PatternSynName x = PatternSyn $ unambiguous x
     mk MacroName      x = Macro x
     mk QuotableName   x = App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
       where i = ExprRange r
@@ -1022,9 +1023,9 @@ instance NameToExpr ResolvedName where
   nameExpr = \case
     VarName x _          -> Var x
     DefinedName _ x      -> nameExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
-    FieldName xs         -> Proj ProjSystem . AmbQ . map anameName $ xs
-    ConstructorName xs   -> Con . AmbQ . map anameName $ xs
-    PatternSynResName xs -> PatternSyn . AmbQ . map anameName $ xs
+    FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
+    ConstructorName xs   -> Con . AmbQ . fmap anameName $ xs
+    PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
     UnknownName          -> __IMPOSSIBLE__
 
 app :: Expr -> [NamedArg Expr] -> Expr
@@ -1039,9 +1040,8 @@ patternToExpr (VarP x)           = Var (unBind x)
 patternToExpr (ConP _ c ps)       =
   Con c `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (ProjP _ o ds)      = Proj o ds
-patternToExpr (DefP _ (AmbQ [f]) ps) =
-  Def f `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (DefP _ (AmbQ _) ps) = __IMPOSSIBLE__
+patternToExpr (DefP _ fs ps) =
+  Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)        = patternToExpr p
 patternToExpr (DotP _ _ e)        = e

@@ -40,8 +40,8 @@ expandLitPattern p = traverse (traverse expand) p
         | otherwise -> do
           Con z _ _ <- ignoreSharing <$> primZero
           Con s _ _ <- ignoreSharing <$> primSuc
-          let zero  = A.ConP cinfo (A.AmbQ [setRange r $ conName z]) []
-              suc p = A.ConP cinfo (A.AmbQ [setRange r $ conName s]) [defaultNamedArg p]
+          let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
+              suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
               info  = A.PatRange r
               cinfo = A.ConPatInfo ConOCon info
               p'    = foldr ($) zero $ List.genericReplicate n suc
