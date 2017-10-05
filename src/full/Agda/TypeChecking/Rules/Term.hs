@@ -1338,8 +1338,8 @@ checkApplication hd args e t = do
       -- since they may have different types (different parameters).
       -- See issue 279.
       -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
-      (cs, cons)  <- unzip . snd . partitionEithers . toList <$> do
-         forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
+      (cs, cons)  <- unzip . snd . partitionEithers <$> do
+         forM (toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
       reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
       case cons of
         []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
