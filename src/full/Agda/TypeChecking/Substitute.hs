@@ -288,12 +288,9 @@ instance Apply Defn where
           }
       where args' = [last args]  -- the record value
 -}
-    Datatype{ dataPars = np, dataNonLinPars = nlps, dataClause = cl
-            {-, dataArgOccurrences = occ-} } ->
+    Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args
-        , dataNonLinPars = apply nlps args
         , dataClause     = apply cl args
---        , dataArgOccurrences = List.drop (length args) occ
         }
     Record{ recPars = np, recClause = cl, recTel = tel
           {-, recArgOccurrences = occ-} } ->
@@ -581,9 +578,8 @@ instance Abstract Defn where
           d' = d { funProjection = Just $ abstract tel p }
           tel1 = telFromList $ drop (size tel - 1) $ telToList tel
 
-    Datatype{ dataPars = np, dataNonLinPars = nlps, dataClause = cl } ->
+    Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars       = np + size tel
-        , dataNonLinPars = abstract tel nlps
         , dataClause     = abstract tel cl
         }
     Record{ recPars = np, recClause = cl, recTel = tel' } ->

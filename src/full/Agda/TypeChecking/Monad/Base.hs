@@ -1518,7 +1518,6 @@ data Defn = Axiom
             }
           | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
-            , dataNonLinPars     :: Drop Permutation  -- ^ Parameters that appear in indices.
             , dataIxs            :: Nat            -- ^ Number of indices.
             , dataInduction      :: Induction      -- ^ @data@ or @codata@ (legacy).
             , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
@@ -1620,7 +1619,6 @@ instance Pretty Defn where
   pretty Datatype{..} =
     text "Datatype {" <?> vcat
       [ text "dataPars       =" <?> pshow dataPars
-      , text "dataNonLinPars =" <?> pshow dataNonLinPars
       , text "dataIxs        =" <?> pshow dataIxs
       , text "dataInduction  =" <?> pshow dataInduction
       , text "dataClause     =" <?> pretty dataClause
@@ -3239,7 +3237,7 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
-      Datatype a b c d e f g h i     -> killRange9 Datatype a b c d e f g h i
+      Datatype a b c d e f g h       -> killRange8 Datatype a b c d e f g h
       Record a b c d e f g h i j     -> killRange10 Record a b c d e f g h i j
       Constructor a b c d e f g      -> killRange7 Constructor a b c d e f g
       Primitive a b c d              -> killRange4 Primitive a b c d
