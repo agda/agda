@@ -57,6 +57,7 @@ import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
+import Agda.Syntax.Position (getRange)
 
 import Agda.Utils.FileName
 import Agda.Utils.Function
@@ -555,10 +556,10 @@ warningHighlighting w = case tcWarning w of
   UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
+  UnsolvedConstraints cs     -> constraintsHighlighting cs
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedMetaVariables{}    -> mempty
   UnsolvedInteractionMetas{} -> mempty
-  UnsolvedConstraints{}      -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> mempty
   UselessPublic{}            -> mempty
@@ -640,15 +641,27 @@ computeUnsolvedMetaWarnings = do
                    (mempty { otherAspects = [UnsolvedMeta] })
 
 -- | Generates syntax highlighting information for unsolved constraints
--- that are not connected to a meta variable.
+--   (ideally: that are not connected to a meta variable).
 
 computeUnsolvedConstraints :: TCM File
-computeUnsolvedConstraints = do
-  cs <- getAllConstraints
-  -- get ranges of emptyness constraints
-  let rs = [ r | PConstr{ theConstraint = Closure{ clValue = IsEmpty r t }} <- cs ]
-  return $ several (map (rToR . P.continuousPerLine) rs)
-                   (mempty { otherAspects = [UnsolvedConstraint] })
+computeUnsolvedConstraints = constraintsHighlighting <$> getAllConstraints
+
+constraintsHighlighting :: Constraints -> File
+constraintsHighlighting cs =
+  several (map (rToR . P.continuousPerLine) rs)
+          (mempty { otherAspects = [UnsolvedConstraint] })
+  where
+  -- get ranges of interesting unsolved constraints
+  rs = (`mapMaybe` (map theConstraint cs)) $ \case
+    Closure{ clValue = IsEmpty r t           } -> Just r
+    Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = TypeCmp{}  } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = TelCmp{}   } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = CheckSizeLtSat{} } -> Just $ getRange (envRange e)
+    _ -> Nothing
 
 -- | Generates a suitable file for a possibly ambiguous name.
 
