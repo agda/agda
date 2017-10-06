@@ -101,9 +101,6 @@ checkDataDef i name ps cs =
                   else throwError err
               return s
 
-            -- the small parameters are taken into consideration for --without-K
-            smallPars <- smallParams tel s
-
             reportSDoc "tc.data.sort" 20 $ vcat
               [ text "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
@@ -112,7 +109,6 @@ checkDataDef i name ps cs =
                 , text "sort:   " <+> prettyTCM s
                 , text "indices:" <+> text (show nofIxs)
                 , text "params:"  <+> text (show $ deepUnscope ps)
-                , text "small params:" <+> text (show smallPars)
                 ]
               ]
             let npars = size tel
@@ -120,7 +116,6 @@ checkDataDef i name ps cs =
             -- Change the datatype from an axiom to a datatype with no constructors.
             let dataDef = Datatype
                   { dataPars       = npars
-                  , dataSmallPars  = Perm npars smallPars
                   , dataNonLinPars = Drop 0 $ Perm npars []
                   , dataIxs        = nofIxs
                   , dataInduction  = Inductive
@@ -180,25 +175,6 @@ forceSort t = case ignoreSharing $ unEl t of
     equalType t (sort s)
     return s
 
-
--- | A parameter is small if its sort fits into the data sort.
---   @smallParams@ overapproximates the small parameters (in doubt: small).
-smallParams :: Telescope -> Sort -> TCM [Int]
-smallParams tel s = do
-  -- get the types of the parameters
-  let as = map (snd . unDom) $ telToList tel
-  -- get the big parameters
-  concat <$> do
-    forM (zip [0..] as) $ \ (i, a) -> do
-      -- A type is small if it is not Level or its sort is <= the data sort.
-      -- In doubt (unsolvable constraints), a type is small.
-      -- So, only if we have a solid error, the type is big.
-      localTCState $ do
-        ([] <$ do equalTerm topSort (unEl a) =<< primLevel)  -- NB: if primLevel fails, the next alternative is picked
-        <|> ([i] <$ (getSort a `leqSort` s))
-        <|> return []
-  where
-    (<|>) m1 m2 = m1 `catchError_` (const m2)
 
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
