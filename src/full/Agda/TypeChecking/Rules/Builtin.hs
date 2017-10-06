@@ -788,8 +788,6 @@ bindBuiltinNoDef b q = do
       where
         def = Datatype
               { dataPars       = 0
-              , dataSmallPars  = Perm 0 []
-              , dataNonLinPars = Drop 0 $ Perm 0 []
               , dataIxs        = 0
               , dataInduction  = Inductive
               , dataClause     = Nothing
