@@ -681,9 +681,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
           [ text "ps'    =" <+> do prettyTCMPatternList ps'
           ]
 
+-- | Introduce trailing pattern variables via 'fixTarget'?
+data FixTarget
+  = YesFixTarget
+  | NoFixTarget
+
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive False c (BlockingVar x Nothing)
+splitClauseWithAbsurd c x = split' Inductive NoFixTarget c (BlockingVar x Nothing)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -713,7 +718,7 @@ split :: Induction
       -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind sc x = fmap blendInAbsurdClause <$> split' ind True sc x
+split ind sc x = fmap blendInAbsurdClause <$> split' ind YesFixTarget sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -749,8 +754,8 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
-       -> Bool
-          -- ^ If 'True', introduce new trailing variable patterns via
+       -> FixTarget
+          -- ^ If 'YesFixTarget', introduce new trailing variable patterns via
           --   'fixTarget'.
        -> SplitClause
        -> BlockingVar
@@ -775,8 +780,10 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
     forM cons $ \ con ->
       fmap (con,) <$> do
         msc <- computeNeighbourhood delta1 n delta2 d pars ixs x tel ps mpsub con
-        if not fixtarget then return msc else do
-        Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
+        case fixtarget of
+          NoFixTarget  -> return msc
+          YesFixTarget -> Trav.forM msc $ \ sc -> do
+            lift $ snd <$> fixTarget sc{ scTarget = target }
 
   case ns of
     []  -> do
