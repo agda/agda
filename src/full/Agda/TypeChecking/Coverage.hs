@@ -282,9 +282,22 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
       xs <- splitStrategy bs tel
-      r <- altM1 (split Inductive sc) xs
+      -- Andreas, 2017-10-08, issue #2594
+      -- First, try to find split order for complete coverage.
+      -- If this fails, try to at least carry out the splitting to the end.
+      continue xs NoAllowPartialCover $ \ _err -> do
+        continue xs YesAllowPartialCover $ \ err -> do
+          typeError $ SplitError err
+  where
+    continue
+      :: [BlockingVar]
+      -> AllowPartialCover
+      -> (SplitError -> TCM CoverResult)
+      -> TCM CoverResult
+    continue xs allowPartialCover handle = do
+      r <- altM1 (split Inductive allowPartialCover sc) xs
       case r of
-        Left err -> typeError $ SplitError err
+        Left err -> handle err
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
         Right (Covering n []) ->
@@ -310,7 +323,6 @@ cover f cs sc@(SClause tel ps _ _ target) = do
               tree   = SplitAt n trees'
           return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
 
-  where
     tryIf :: Monad m => Bool -> m (Maybe a) -> m a -> m a
     tryIf True  me m = fromMaybeM m me
     tryIf False me m = m
@@ -684,9 +696,21 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
           [ text "ps'    =" <+> do prettyTCMPatternList ps'
           ]
 
+-- | Introduce trailing pattern variables via 'fixTarget'?
+data FixTarget
+  = YesFixTarget
+  | NoFixTarget
+  deriving (Show)
+
+-- | Allow partial covering for split?
+data AllowPartialCover
+  = YesAllowPartialCover  -- To try to coverage-check incomplete splits.
+  | NoAllowPartialCover   -- Default.
+  deriving (Eq, Show)
+
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive False c (BlockingVar x Nothing)
+splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x Nothing)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -695,7 +719,7 @@ splitClauseWithAbsurd c x = split' Inductive False c (BlockingVar x Nothing)
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
+splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 Nothing)
   where sc = SClause tel ps empty empty Nothing
 
 -- | @split ind splitClause x = return res@
@@ -713,10 +737,13 @@ splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
+      -> AllowPartialCover
+         -- ^ Don't fail if computed 'Covering' does not cover all constructors.
       -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind sc x = fmap blendInAbsurdClause <$> split' ind True sc x
+split ind allowPartialCover sc x =
+  fmap blendInAbsurdClause <$> split' ind allowPartialCover YesFixTarget sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -752,13 +779,16 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
-       -> Bool
-          -- ^ If 'True', introduce new trailing variable patterns via
+       -> AllowPartialCover
+          -- ^ Don't fail if computed 'Covering' does not cover all constructors.
+       -> FixTarget
+          -- ^ If 'YesFixTarget', introduce new trailing variable patterns via
           --   'fixTarget'.
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = liftTCM $ runExceptT $ do
+split' ind allowPartialCover fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) =
+ liftTCM $ runExceptT $ do
 
   debugInit tel x ps mpsub
 
@@ -778,8 +808,10 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
     forM cons $ \ con ->
       fmap (con,) <$> do
         msc <- computeNeighbourhood delta1 n delta2 d pars ixs x tel ps mpsub con
-        if not fixtarget then return msc else do
-        Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
+        case fixtarget of
+          NoFixTarget  -> return msc
+          YesFixTarget -> Trav.forM msc $ \ sc -> do
+            lift $ snd <$> fixTarget sc{ scTarget = target }
 
   case ns of
     []  -> do
@@ -801,8 +833,9 @@ split' ind fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) = 
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
   -- all the data type constructors
-
-    _ | Just pcons' <- mcons,
+  -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.
+    _ | allowPartialCover == NoAllowPartialCover,
+        Just pcons' <- mcons,
         let pcons = map conName pcons',
         let cons = (map fst ns),
         let diff = Set.fromList cons Set.\\ Set.fromList pcons,

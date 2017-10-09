@@ -1438,6 +1438,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Data definitions
     C.DataDef r f a _ x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ prettyShow x)
+        (p, ax) <- resolveName (C.QName x) >>= \case
+          DefinedName p ax -> return (p, ax)
+          _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
         -- Check for duplicate constructors
         do cs <- mapM conName cons
@@ -1448,7 +1451,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
                 typeError $ DuplicateConstructors dups
 
         pars <- toAbstract pars
-        DefinedName p ax <- resolveName (C.QName x)
         let x' = anameName ax
         -- Create the module for the qualified constructors
         checkForModuleClash x -- disallow shadowing previously defined modules
@@ -1466,13 +1468,16 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Record definitions (mucho interesting)
     C.RecDef r f a _ x ind eta cm pars fields -> do
+      printScope "scope.rec.def" 20 ("checking RecDef for " ++ prettyShow x)
+      (p, ax) <- resolveName (C.QName x) >>= \case
+        DefinedName p ax -> return (p, ax)
+        _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
         -- defined module
         checkForModuleClash x
         pars   <- toAbstract pars
-        DefinedName p ax <- resolveName (C.QName x)
         let x' = anameName ax
         -- We scope check the fields a first time when putting together
         -- the type of the constructor.

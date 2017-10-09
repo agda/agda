@@ -24,6 +24,10 @@
 --
 --   * Report basic well-formedness error,
 --     when one of the above transformation fails.
+--     When possible, errors should be deferred to the scope checking phase
+--     (ConcreteToAbstract), where we are in the TCM and can produce more
+--     informative error messages.
+
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
@@ -174,8 +178,6 @@ data DeclarationException
         | DuplicateDefinition Name
         | MissingDefinition Name
         | MissingWithClauses Name
-        | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while -- Fredrik 2012-09-20: now used, can we keep it?
-        | MissingDataSignature Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
@@ -231,8 +233,6 @@ instance HasRange DeclarationException where
   getRange (DuplicateDefinition x)              = getRange x
   getRange (MissingDefinition x)                = getRange x
   getRange (MissingWithClauses x)               = getRange x
-  getRange (MissingTypeSignature x)             = getRange x
-  getRange (MissingDataSignature x)             = getRange x
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
@@ -302,10 +302,7 @@ instance Pretty DeclarationException where
     pwords "Missing definition for" ++ [pretty x]
   pretty (MissingWithClauses x) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
-  pretty (MissingTypeSignature x) = fsep $
-    pwords "Missing type signature for left hand side" ++ [pretty x]
-  pretty (MissingDataSignature x) = fsep $
-    pwords "Missing type signature for " ++ [pretty x]
+
   pretty (WrongDefinition x k k') = fsep $ pretty x :
     pwords ("has been declared as a " ++ show k ++
       ", but is being defined as a " ++ show k')
@@ -797,7 +794,7 @@ niceDeclarations ds = do
     inferMutualBlocks (d : ds) =
       case declKind d of
         OtherDecl    -> (d :) <$> inferMutualBlocks ds
-        LoneDefs _ xs -> __IMPOSSIBLE__
+        LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSig k x  -> do
           addLoneSig x k
           ((tcs, pcs), (ds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
@@ -1078,7 +1075,7 @@ niceDeclarations ds = do
     defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
     defaultTypeSig k x t@Just{} = return t
     defaultTypeSig k x Nothing  = do
-      caseMaybeM (getSig x) (throwError $ MissingDataSignature x) $ \ k' -> do
+      caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
         unless (sameKind k k') $ throwError $ WrongDefinition x k' k
         unless (k == k') $ matchParameters x k' k
         Nothing <$ removeLoneSig x
@@ -1294,24 +1291,29 @@ niceDeclarations ds = do
     mkOldMutual r ds = do
         -- Check that there aren't any missing definitions
         checkLoneSigs loneNames
+
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
-        case filter notAllowedInMutual ds of
-          []  -> return ()
-          (NiceFunClause _ _ _ _ s_ (FunClause lhs _ _ _)):_ -> throwError $ MissingTypeSignature lhs
-          d:_ -> throwError $ NotAllowedInMutual d
+        forM_ ds $ \case
+          -- Andreas, 2013-11-23 allow postulates in mutual blocks
+          Axiom{} -> return ()
+          -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
+          -- in ConcreteToAbstract rather than here.
+          NiceFunClause{} -> return ()
+          -- Otherwise, only categorized signatures and definitions are allowed (data/record/fun)
+          d -> when (declKind d == OtherDecl) $ throwError $ NotAllowedInMutual d
+
+        -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma
         let tcs = map termCheck ds
         tc <- combineTermChecks r (tc0:tcs)
 
+        -- Compute positivity checking flag for mutual block
         pc0 <- use positivityCheckPragma
         let pc :: PositivityCheck
             pc = pc0 && all positivityCheckOldMutual ds
 
         return $ NiceMutual r tc pc $ sigs ++ other
       where
-        -- Andreas, 2013-11-23 allow postulates in mutual blocks
-        notAllowedInMutual Axiom{} = False
-        notAllowedInMutual d       = declKind d == OtherDecl
         -- Pull type signatures to the top
         (sigs, other) = List.partition isTypeSig ds
         isTypeSig Axiom{}                     = True

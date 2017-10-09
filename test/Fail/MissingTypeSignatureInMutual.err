@@ -1,2 +1,4 @@
-MissingTypeSignatureInMutual.agda:9,3-12
+MissingTypeSignatureInMutual.agda:9,3-22
 Missing type signature for left hand side pred zero
+when scope checking the declaration
+  pred zero = zero
