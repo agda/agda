@@ -357,6 +357,7 @@ unsafePragmaOptions opts =
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
+  [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
   []
 
 inputFlag :: FilePath -> Flag CommandLineOptions
@@ -491,7 +492,7 @@ rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
 
 cubicalFlag :: Flag PragmaOptions
-cubicalFlag o = return $ o { optCubical = True }
+cubicalFlag o = return $ o { optCubical = True, optWithoutK = True }
 
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
@@ -692,7 +693,7 @@ pragmaOptions =
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["cubical"] (NoArg cubicalFlag)
-                    "enable cubical features (e.g. overloads lambdas for paths)"
+                    "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
