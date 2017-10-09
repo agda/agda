@@ -30,6 +30,12 @@ Syntax and LaTeX backend
 
 * The `--count-clusters` flag can now be given in `OPTIONS` pragmas.
 
+* The `nofontsetup` option was broken, and has (hopefully) been fixed
+  [Issue [#2773](https://github.com/agda/agda/issues/2773)].
+
+  Fewer packages than before are loaded when `nofontsetup` is used,
+  see `agda.sty`.
+
 Language
 --------
 

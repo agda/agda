@@ -47,20 +47,22 @@
 % ----------------------------------------------------------------------
 % Font setup
 
+\tracinglostchars=2 % If the font is missing some symbol, then say
+                    % so in the compilation output.
+
 % XeLaTeX or LuaLaTeX
 \ifxetexorluatex
 
-    % Hack to get the amsthm package working.
-    % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
-    \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
-    \RequirePackage{fontspec}
-    \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
-    \RequirePackage{unicode-math}
-
-    \tracinglostchars=2 % If the font is missing some symbol, then say
-                        % so in the compilation output.
+    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
 
     \if@AgdaSetupFonts
+      % Hack to get the amsthm package working.
+      % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
+      \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
+      \RequirePackage{fontspec}
+      \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
+      \RequirePackage{unicode-math}
+
       \setmainfont
         [ Ligatures      = TeX
         , BoldItalicFont = xits-bolditalic.otf
@@ -78,17 +80,20 @@
       \setmathfont[range=\mathscr]{xits-math.otf}
     \fi
 
-    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
-
 % pdfLaTeX
 \else
-    \RequirePackage{ucs, amsfonts, amssymb}
-    \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
-                                % safe does.
 
+    \RequirePackage{ucs}
+    \RequirePackage[utf8x]{inputenc}
     % https://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
     \RequirePackage[T1]{fontenc}
-    \RequirePackage[utf8x]{inputenc}
+
+    \if@AgdaSetupFonts
+      \RequirePackage{amsfonts, amssymb}
+      \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
+                                  % safe does.
+    \fi
+
 \fi
 
 % ----------------------------------------------------------------------
