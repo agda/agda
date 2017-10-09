@@ -80,6 +80,12 @@ Libraries are defined in ``.agda-lib`` files with the following syntax:
 Dependencies are library names, not paths to ``.agda-lib`` files, and include
 paths are relative to the location of the library-file.
 
+Each of the three fields is optional.
+Naturally, unnamed libraries cannot be depended upon.
+But dropping the ``name`` is possible if the library file only serves to list
+include pathes and/or dependencies of the current project.
+
+
 Installing libraries
 --------------------
 
@@ -93,6 +99,9 @@ where ``VERSION`` is the Agda version (for instance ``2.5.1``). The
 ``AGDA_DIR`` defaults to ``~/.agda`` on unix-like systems and
 ``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows, and can be
 overridden by setting the ``AGDA_DIR`` environment variable.
+
+Each line of the libraries file shall be the absolute file system path to
+the root of a library.
 
 Environment variables in the paths (of the form ``$VAR`` or ``${VAR}``) are
 expanded. The location of the libraries file used can be overridden using the
@@ -134,7 +143,10 @@ Default libraries
 -----------------
 
 If you want to usually use a variety of libraries, it is simplest to list them
-all in the ``AGDA_DIR/defaults`` file.  It has format
+all in the ``AGDA_DIR/defaults`` file.
+
+Each line of the defaults file shall be the name of a library resolvable
+using the paths listed in the libraries file.  For example,
 
    .. code-block:: none
 
