@@ -168,10 +168,10 @@ library
                 , text >= 0.11.3.1 && < 1.3
                 , time >= 1.4.2 && < 1.9
                 -- In hTags the mtl library must be compiled with the
-                -- version of transformers shipped GHC. The lower
+                -- version of transformers shipped with GHC. The lower
                 -- bound is the version of transformers shipped with
                 -- GHC 7.10.3 (it is not necessary set the lower bound
-                -- to a version shipped with GHC < 7.10.3 because in
+                -- to the version shipped with GHC 7.8.4 because in
                 -- this case Agda and hTags use a different version of
                 -- mtl).
                 , transformers >= 0.4.2.0 && < 0.6
