@@ -150,7 +150,7 @@ data Expr
   | SetN Range Integer                         -- ^ ex: @Set0, Set1, ..@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
-  | Let Range [Declaration] Expr               -- ^ ex: @let Ds in e@
+  | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range Expr                   -- ^ ex: @(| e |)@
   | DoBlock Range [DoStmt]                     -- ^ ex: @do x <- m1; m2@

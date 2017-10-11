@@ -223,7 +223,7 @@ recordConstructorType fields = build <$> mapM validForLet fs
     -- Turn non-field declarations into a let binding.
     -- Smart constructor for C.Let:
     lets [] c = c
-    lets ds c = C.Let (getRange ds) ds c
+    lets ds c = C.Let (getRange ds) ds (Just c)
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -833,12 +833,13 @@ instance ToAbstract C.Expr A.Expr where
       C.Prop _   -> return $ A.Prop $ ExprRange $ getRange e
 
   -- Let
-      e0@(C.Let _ ds e) ->
+      e0@(C.Let _ ds (Just e)) ->
         ifM isInsideDotPattern (genericError $ "Let-expressions are not allowed in dot patterns") $
         localToAbstract (LetDefs ds) $ \ds' -> do
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
           return $ A.Let info ds' e
+      C.Let _ _ Nothing -> genericError "Missing body in let-expression"
 
   -- Record construction
       C.Rec r fs  -> do

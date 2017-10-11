@@ -595,7 +595,7 @@ instance ToConcrete A.Expr C.Expr where
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
              e'  <- toConcreteTop e
-             return $ C.Let (getRange i) (concat ds') e'
+             return $ C.Let (getRange i) (concat ds') (Just e')
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do
