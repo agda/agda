@@ -30,11 +30,17 @@ Syntax and LaTeX backend
 
 * The `--count-clusters` flag can now be given in `OPTIONS` pragmas.
 
-* The `nofontsetup` option was broken, and has (hopefully) been fixed
+* The `nofontsetup` option to the LaTeX package `agda` was broken, and
+  has (hopefully) been fixed
   [Issue [#2773](https://github.com/agda/agda/issues/2773)].
 
   Fewer packages than before are loaded when `nofontsetup` is used,
-  see `agda.sty`.
+  see `agda.sty` for details. Furthermore, if LuaLaTeX or XeLaTeX are
+  not used, then the font encoding is no longer changed.
+
+* The new option `noinputencodingsetup` instructs the LaTeX package
+  `agda` to not change the input encoding, and to not load the `ucs`
+  package.
 
 Language
 --------
