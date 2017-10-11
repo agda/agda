@@ -293,7 +293,16 @@ makeProjection x = -- if True then return () else do
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
     Function{funProjection = Just{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"
-    _ -> reportSLn "tc.proj.like" 30 $ "  not a function"
+    Function{funMutual = Just (_:_)} ->
+      reportSLn "tc.proj.like" 30 $ "  mutual functions can't be projections"
+    Function{funMutual = Nothing} ->
+      reportSLn "tc.proj.like" 30 $ "  mutuality check has not run yet"
+    Axiom          -> reportSLn "tc.proj.like" 30 $ "  not a function, but Axiom"
+    AbstractDefn{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but AbstractDefn"
+    Constructor{}  -> reportSLn "tc.proj.like" 30 $ "  not a function, but Constructor"
+    Datatype{}     -> reportSLn "tc.proj.like" 30 $ "  not a function, but Datatype"
+    Primitive{}    -> reportSLn "tc.proj.like" 30 $ "  not a function, but Primitive"
+    Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
     -- @validProj (d,n)@ checks whether the head @d@ of the type of the
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
