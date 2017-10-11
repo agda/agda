@@ -158,6 +158,7 @@ bindBuiltinFlat x =
                    { funClauses      = [clause]
                    , funCompiled     = Just $ cc
                    , funProjection   = Just projection
+                   , funMutual       = Just []
                    , funTerminates   = Just True
                    , funCopatternLHS = isCopatternLHS [clause]
                    }

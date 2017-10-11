@@ -661,6 +661,7 @@ bindBuiltinNoDef b q = do
         def | b == builtinSizeUniv = emptyFunction
                 { funClauses = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
                 , funCompiled = Just (CC.Done [] $ Sort sSizeUniv)
+                , funMutual    = Just []
                 , funTerminates = Just True
                 }
             | otherwise = Axiom
