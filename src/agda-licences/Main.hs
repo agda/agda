@@ -137,10 +137,9 @@ printLicenses header cabalFile = do
     (do putStrLn ""
         hrule '-'
         putStrLn "")
-    (\f -> putStr . addFinalNewline =<< readFile f)
+    (\f -> putStr . unlines . lines =<< readFile f)
   where
   hrule c = putStrLn $ replicate 72 c
-  addFinalNewline = unlines . lines
 
 -- | Perform the second action for every element in the list, and
 -- perform the first action once in between any two of the former

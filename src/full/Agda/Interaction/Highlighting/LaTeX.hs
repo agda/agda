@@ -459,10 +459,13 @@ processCode toks' = do
             spaces $ T.group $ replaceSpaces tok
         else do
           ptOpenWhenColumnZero col
-          case aspect (info tok') of
-            Nothing -> output $ Text $ escape tok
-            Just a  -> output $ Text $
-                         cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+          output $ Text $
+            case aspect (info tok') of
+              Nothing -> escape tok
+              Just a  ->
+                foldr (\c t -> cmdPrefix <+> T.pack c <+> cmdArg t)
+                      (escape tok)
+                      (cmds a)
 
     -- Non-whitespace tokens at the start of a line trigger an
     -- alignment column.
@@ -471,8 +474,8 @@ processCode toks' = do
           registerColumnZero
           output . Text . ptOpen =<< columnZero
 
-    cmd :: Aspect -> String
-    cmd a = let s = show a in case a of
+    cmds :: Aspect -> [String]
+    cmds a = let s = [show a] in case a of
       Comment           -> s
       Option            -> s
       Keyword           -> s
@@ -480,7 +483,7 @@ processCode toks' = do
       Number            -> s
       Symbol            -> s
       PrimitiveType     -> s
-      Name Nothing isOp -> cmd (Name (Just Postulate) isOp)
+      Name Nothing isOp -> cmds (Name (Just Postulate) isOp)
         -- At the time of writing the case above can be encountered in
         -- --only-scope-checking mode, for instance for the token "Size"
         -- in the following code:
@@ -489,19 +492,21 @@ processCode toks' = do
         --
         -- The choice of "Postulate" works for this example, but might
         -- be less appropriate for others.
-      Name (Just kind) _ -> case kind of
-        Bound                     -> s
-        Constructor Inductive     -> "InductiveConstructor"
-        Constructor CoInductive   -> "CoinductiveConstructor"
-        Datatype                  -> s
-        Field                     -> s
-        Function                  -> s
-        Module                    -> s
-        Postulate                 -> s
-        Primitive                 -> s
-        Record                    -> s
-        Argument                  -> s
-        Macro                     -> s
+      Name (Just kind) isOp ->
+        (\c -> if isOp then ["Operator", c] else [c]) $
+        case kind of
+          Bound                     -> s
+          Constructor Inductive     -> "InductiveConstructor"
+          Constructor CoInductive   -> "CoinductiveConstructor"
+          Datatype                  -> s
+          Field                     -> s
+          Function                  -> s
+          Module                    -> s
+          Postulate                 -> s
+          Primitive                 -> s
+          Record                    -> s
+          Argument                  -> s
+          Macro                     -> s
         where
         s = show kind
 

@@ -35,14 +35,38 @@
   \@AgdaEnableLinkstrue
 }
 
-% If the "nofontsetup" option is used, then some font packages are
-% loaded, but specific fonts are not selected.
+% If the "nofontsetup" option is used, then the package does not
+% select any fonts, and it does not change the font encoding.
 \newif\if@AgdaSetupFonts\@AgdaSetupFontstrue
 \DeclareOption{nofontsetup}{
   \@AgdaSetupFontsfalse
 }
 
+% If the "noinputencodingsetup" option is used, then the package does
+% not change the input encoding, and it does not load the `ucs`
+% package.
+\newif\if@AgdaSetupInputEncoding\@AgdaSetupInputEncodingtrue
+\DeclareOption{noinputencodingsetup}{
+  \@AgdaSetupInputEncodingfalse
+}
+
 \ProcessOptions\relax
+
+% ----------------------------------------------------------------------
+% Input encoding setup
+
+\if@AgdaSetupInputEncoding
+  \ifxetexorluatex
+
+    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
+
+  \else
+
+    \RequirePackage{ucs}
+    \RequirePackage[utf8x]{inputenc}
+
+  \fi
+\fi
 
 % ----------------------------------------------------------------------
 % Font setup
@@ -50,50 +74,44 @@
 \tracinglostchars=2 % If the font is missing some symbol, then say
                     % so in the compilation output.
 
-% XeLaTeX or LuaLaTeX
-\ifxetexorluatex
+\if@AgdaSetupFonts
+  % XeLaTeX or LuaLaTeX
+  \ifxetexorluatex
 
-    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
+    % Hack to get the amsthm package working.
+    % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
+    \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
+    \RequirePackage{fontspec}
+    \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
+    \RequirePackage{unicode-math}
 
-    \if@AgdaSetupFonts
-      % Hack to get the amsthm package working.
-      % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
-      \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
-      \RequirePackage{fontspec}
-      \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
-      \RequirePackage{unicode-math}
+    \setmainfont
+      [ Ligatures      = TeX
+      , BoldItalicFont = xits-bolditalic.otf
+      , BoldFont       = xits-bold.otf
+      , ItalicFont     = xits-italic.otf
+      ]
+      {xits-regular.otf}
 
-      \setmainfont
-        [ Ligatures      = TeX
-        , BoldItalicFont = xits-bolditalic.otf
-        , BoldFont       = xits-bold.otf
-        , ItalicFont     = xits-italic.otf
-        ]
-        {xits-regular.otf}
+    \setmathfont{xits-math.otf}
+    \setmonofont[Mapping=tex-text]{FreeMono.otf}
 
-      \setmathfont{xits-math.otf}
-      \setmonofont[Mapping=tex-text]{FreeMono.otf}
+    % Make mathcal and mathscr appear as different.
+    % https://tex.stackexchange.com/questions/120065/xetex-what-happened-to-mathcal-and-mathscr
+    \setmathfont[range={\mathcal,\mathbfcal},StylisticSet=1]{xits-math.otf}
+    \setmathfont[range=\mathscr]{xits-math.otf}
 
-      % Make mathcal and mathscr appear as different.
-      % https://tex.stackexchange.com/questions/120065/xetex-what-happened-to-mathcal-and-mathscr
-      \setmathfont[range={\mathcal,\mathbfcal},StylisticSet=1]{xits-math.otf}
-      \setmathfont[range=\mathscr]{xits-math.otf}
-    \fi
+  % pdfLaTeX
+  \else
 
-% pdfLaTeX
-\else
-
-    \RequirePackage{ucs}
-    \RequirePackage[utf8x]{inputenc}
     % https://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
     \RequirePackage[T1]{fontenc}
 
-    \if@AgdaSetupFonts
-      \RequirePackage{amsfonts, amssymb}
-      \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
-                                  % safe does.
-    \fi
+    \RequirePackage{amsfonts, amssymb}
+    \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
+                                % safe does.
 
+  \fi
 \fi
 
 % ----------------------------------------------------------------------
@@ -206,7 +224,6 @@
     \definecolor{AgdaNumber}       {HTML}{000000}
     \definecolor{AgdaSymbol}       {HTML}{000000}
     \definecolor{AgdaPrimitiveType}{HTML}{000000}
-    \definecolor{AgdaOperator}     {HTML}{000000}
 
     % NameKind colours.
     \definecolor{AgdaBound}                 {HTML}{000000}
@@ -244,7 +261,6 @@
     \definecolor{AgdaNumber}       {HTML}{000000}
     \definecolor{AgdaSymbol}       {HTML}{000000}
     \definecolor{AgdaPrimitiveType}{HTML}{0000CD}
-    \definecolor{AgdaOperator}     {HTML}{000000}
 
     % NameKind colours.
     \definecolor{AgdaBound}                 {HTML}{A020F0}
@@ -281,7 +297,6 @@
     \definecolor{AgdaNumber}       {HTML}{A020F0}
     \definecolor{AgdaSymbol}       {HTML}{404040}
     \definecolor{AgdaPrimitiveType}{HTML}{0000CD}
-    \definecolor{AgdaOperator}     {HTML}{000000}
 
     % NameKind colours.
     \definecolor{AgdaBound}                 {HTML}{000000}
@@ -329,8 +344,9 @@
     {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaSymbol}{#1}}}}
 \newcommand{\AgdaPrimitiveType}[1]
     {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPrimitiveType}{#1}}}}
-\newcommand{\AgdaOperator}    [1]
-    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaOperator}{#1}}}}
+% Note that, in code generated by the LaTeX backend, \AgdaOperator is
+% always applied to a NameKind command.
+\newcommand{\AgdaOperator}    [1]{#1}
 
 % NameKind commands.
 
