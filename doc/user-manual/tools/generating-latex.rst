@@ -566,7 +566,12 @@ The following options can be given when loading ``agda.sty`` by using
   Colour scheme similar to the colours used in Epigram1.
 
 ``nofontsetup``
-  Instructs the package not to select any fonts.
+  Instructs the package to not select any fonts, and to not change the
+  font encoding.
+
+``noinputencodingsetup``
+  Instructs the package to not change the input encoding, and to not
+  load the `ucs` package.
 
 ``references``
   Enables :ref:`inline typesetting <latex-inline-references>` of
