@@ -20,11 +20,11 @@
 \>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} SIZELT  \AgdaPostulate{Size<\_}\AgdaSpace{}%
+\AgdaKeyword{BUILTIN} SIZELT  \AgdaOperator{\AgdaPostulate{Size<\_}}\AgdaSpace{}%
 \AgdaSymbol{\#{-}\}}\<%
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} SIZESUC \AgdaPostulate{↑\_}%
+\AgdaKeyword{BUILTIN} SIZESUC \AgdaOperator{\AgdaPostulate{↑\_}}%
 \>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
@@ -49,7 +49,7 @@
 \AgdaBound{A}\<%
 \\
 %
-\>[2]\AgdaInductiveConstructor{\_∷\_}\AgdaSpace{}%
+\>[2]\AgdaOperator{\AgdaInductiveConstructor{\_∷\_}}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaSymbol{(}\AgdaBound{x}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
@@ -65,7 +65,7 @@
 %
 \\[\AgdaEmptyExtraSkip]%
 \>[0]\AgdaKeyword{record}\AgdaSpace{}%
-\AgdaRecord{\_×\_}\AgdaSpace{}%
+\AgdaOperator{\AgdaRecord{\_×\_}}\AgdaSpace{}%
 \AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
 \AgdaBound{B}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
@@ -76,7 +76,7 @@
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]%
 \>[2]\AgdaKeyword{constructor}\AgdaSpace{}%
-\AgdaInductiveConstructor{\_,\_}\<%
+\AgdaOperator{\AgdaInductiveConstructor{\_,\_}}\<%
 \\
 %
 \>[2]\AgdaKeyword{field}\<%
@@ -92,7 +92,7 @@
 \AgdaBound{B}\<%
 \\
 \>[0]\AgdaKeyword{open}\AgdaSpace{}%
-\AgdaModule{\_×\_}\<%
+\AgdaOperator{\AgdaModule{\_×\_}}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -115,7 +115,7 @@
 \>[0][@{}l@{\AgdaIndent{0}}]%
 \>[2]\AgdaKeyword{coinductive}\AgdaSymbol{;}\AgdaSpace{}%
 \AgdaKeyword{constructor}\AgdaSpace{}%
-\AgdaCoinductiveConstructor{\_∷\_}\<%
+\AgdaOperator{\AgdaCoinductiveConstructor{\_∷\_}}\<%
 \\
 %
 \>[2]\AgdaKeyword{field}\<%
@@ -131,7 +131,7 @@
 \AgdaSymbol{∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{j}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
-\AgdaPostulate{Size<}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{Size<}}\AgdaSpace{}%
 \AgdaBound{i}\AgdaSymbol{\}}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaRecord{Stream}\AgdaSpace{}%
@@ -144,7 +144,7 @@
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaFunction{\_∷ˢ\_}\AgdaSpace{}%
+\>[0]\AgdaOperator{\AgdaFunction{\_∷ˢ\_}}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaSymbol{∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{i}\AgdaSpace{}%
@@ -157,20 +157,20 @@
 \AgdaBound{A}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaRecord{Stream}\AgdaSpace{}%
-\AgdaSymbol{\{}\AgdaPostulate{↑}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaOperator{\AgdaPostulate{↑}}\AgdaSpace{}%
 \AgdaBound{i}\AgdaSymbol{\}}\AgdaSpace{}%
 \AgdaBound{A}\<%
 \\
 \>[0]\AgdaField{head}%
 \>[6]\AgdaSymbol{(}\AgdaBound{a}\AgdaSpace{}%
-\AgdaFunction{∷ˢ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∷ˢ}}\AgdaSpace{}%
 \AgdaBound{as}\AgdaSymbol{)}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
 \AgdaBound{a}\<%
 \\
 \>[0]\AgdaField{tail}%
 \>[6]\AgdaSymbol{(}\AgdaBound{a}\AgdaSpace{}%
-\AgdaFunction{∷ˢ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∷ˢ}}\AgdaSpace{}%
 \AgdaBound{as}\AgdaSymbol{)}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
 \AgdaBound{as}\<%
@@ -185,7 +185,7 @@
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaFunction{\_++ˢ\_}\AgdaSpace{}%
+\>[0]\AgdaOperator{\AgdaFunction{\_++ˢ\_}}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaSymbol{∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{i}\AgdaSpace{}%
@@ -203,21 +203,21 @@
 \AgdaBound{A}\<%
 \\
 \>[0]\AgdaInductiveConstructor{[]}%
-\>[10]\AgdaFunction{++ˢ}\AgdaSpace{}%
+\>[10]\AgdaOperator{\AgdaFunction{++ˢ}}\AgdaSpace{}%
 \AgdaBound{s}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
 \AgdaBound{s}\<%
 \\
 \>[0]\AgdaSymbol{(}\AgdaBound{a}\AgdaSpace{}%
-\AgdaInductiveConstructor{∷}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
 \AgdaBound{as}\AgdaSymbol{)}%
-\>[10]\AgdaFunction{++ˢ}\AgdaSpace{}%
+\>[10]\AgdaOperator{\AgdaFunction{++ˢ}}\AgdaSpace{}%
 \AgdaBound{s}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
 \AgdaBound{a}\AgdaSpace{}%
-\AgdaFunction{∷ˢ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∷ˢ}}\AgdaSpace{}%
 \AgdaSymbol{(}\AgdaBound{as}\AgdaSpace{}%
-\AgdaFunction{++ˢ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{++ˢ}}\AgdaSpace{}%
 \AgdaBound{s}\AgdaSymbol{)}\<%
 \\
 %
@@ -237,7 +237,7 @@
 \\
 \>[0][@{}l@{\AgdaIndent{0}}]%
 \>[2]\AgdaKeyword{constructor}\AgdaSpace{}%
-\AgdaInductiveConstructor{\_∷\_}\<%
+\AgdaOperator{\AgdaInductiveConstructor{\_∷\_}}\<%
 \\
 %
 \>[2]\AgdaKeyword{field}\<%
@@ -272,7 +272,7 @@
 \>[0]\AgdaKeyword{open}\AgdaSpace{}%
 \AgdaModule{List1}\AgdaSpace{}%
 \AgdaSymbol{(}\AgdaInductiveConstructor{trivial}\AgdaSpace{}%
-\AgdaInductiveConstructor{∷}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
 \AgdaInductiveConstructor{[]}\AgdaSymbol{)}\AgdaSpace{}%
 \AgdaKeyword{using}\AgdaSpace{}%
 \AgdaSymbol{(}head\AgdaSymbol{;} tail\AgdaSymbol{)}\AgdaSpace{}%
@@ -305,11 +305,11 @@
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaRecord{List1}\AgdaSpace{}%
 \AgdaBound{A}\AgdaSpace{}%
-\AgdaRecord{×}\AgdaSpace{}%
+\AgdaOperator{\AgdaRecord{×}}\AgdaSpace{}%
 \AgdaSymbol{(∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{j}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
-\AgdaPostulate{Size<}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{Size<}}\AgdaSpace{}%
 \AgdaBound{i}\AgdaSymbol{\}}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaBound{S}\AgdaSpace{}%
@@ -350,9 +350,9 @@
 \AgdaSymbol{=}%
 \>[26]\AgdaKeyword{let}%
 \>[31]\AgdaSymbol{((\_}\AgdaSpace{}%
-\AgdaInductiveConstructor{∷}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
 \AgdaBound{l}\AgdaSymbol{)}\AgdaSpace{}%
-\AgdaInductiveConstructor{,}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{,}}\AgdaSpace{}%
 \AgdaBound{s′}\AgdaSymbol{)}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
 \AgdaBound{step}\AgdaSpace{}%
@@ -361,7 +361,7 @@
 %
 \>[26]\AgdaKeyword{in}%
 \>[31]\AgdaBound{l}\AgdaSpace{}%
-\AgdaFunction{++ˢ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{++ˢ}}\AgdaSpace{}%
 \AgdaFunction{unfold⁺}\AgdaSpace{}%
 \AgdaBound{step}\AgdaSpace{}%
 \AgdaBound{s′}\<%
