@@ -589,6 +589,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 { funClauses        = [clause]
                 , funCompiled       = Just cc
                 , funProjection     = Just projection
+                , funMutual         = Just []  -- Projections are not mutually recursive with anything
                 , funTerminates     = Just True
                 , funCopatternLHS   = isCopatternLHS [clause]
                 })

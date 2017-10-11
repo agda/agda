@@ -201,12 +201,35 @@ getNumberOfParameters d = do
 
 -- | Precondition: Name is a data or record type.
 getConstructors :: QName -> TCM [QName]
-getConstructors d = do
-  def <- theDef <$> getConstInfo d
-  case def of
-    Datatype{dataCons = cs} -> return cs
-    Record{recConHead = h}  -> return [conName h]
-    _                       -> __IMPOSSIBLE__
+getConstructors d = fromMaybe __IMPOSSIBLE__ <$>
+  getConstructors' d
+
+-- | 'Nothing' if not data or record type name.
+getConstructors' :: QName -> TCM (Maybe [QName])
+getConstructors' d = getConstructors_ . theDef <$> getConstInfo d
+
+-- | 'Nothing' if not data or record definition.
+getConstructors_ :: Defn -> Maybe [QName]
+getConstructors_ = \case
+    Datatype{dataCons = cs} -> Just cs
+    Record{recConHead = h}  -> Just [conName h]
+    _                       -> Nothing
+
+-- | Precondition: Name is a data or record type.
+getConHeads :: QName -> TCM [ConHead]
+getConHeads d = fromMaybe __IMPOSSIBLE__ <$>
+  getConHeads' d
+
+-- | 'Nothing' if not data or record type name.
+getConHeads' :: QName -> TCM (Maybe [ConHead])
+getConHeads' d = getConHeads_ . theDef <$> getConstInfo d
+
+-- | 'Nothing' if not data or record definition.
+getConHeads_ :: Defn -> Maybe [ConHead]
+getConHeads_ = \case
+    Datatype{dataCons = cs} -> Just $ map (\ c -> ConHead c Inductive []) cs
+    Record{recConHead = h}  -> Just [h]
+    _                       -> Nothing
 
 {- UNUSED
 data DatatypeInfo = DataInfo

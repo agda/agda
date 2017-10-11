@@ -526,6 +526,7 @@ checkAbsurdLambda i h e t = do
                     }
                   ]
               , funCompiled       = Just Fail
+              , funMutual         = Just []
               , funTerminates     = Just True
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
