@@ -556,7 +556,7 @@ instance ToConcrete A.Expr C.Expr where
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 p' <- removeApp p
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
-                return (lhs{ lhsOriginalPattern = p' }, rhs, wh, ca)
+                return $ LamClause lhs{ lhsOriginalPattern = p' } rhs wh ca
               decl2clause _ = __IMPOSSIBLE__
           C.ExtendedLam (getRange i) <$> mapM decl2clause decls
     toConcrete (A.Pi _ [] e) = toConcrete e

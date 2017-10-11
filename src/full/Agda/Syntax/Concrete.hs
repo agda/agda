@@ -36,6 +36,7 @@ module Agda.Syntax.Concrete
   , AsName(..)
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
+  , LamClause(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , Pragma(..)
   , Module
@@ -140,7 +141,7 @@ data Expr
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
   | Lam Range [LamBinding] Expr                -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
   | AbsurdLam Range Hiding                     -- ^ ex: @\\ ()@
-  | ExtendedLam Range [(LHS,RHS,WhereClause,Bool)]  -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
+  | ExtendedLam Range [LamClause]              -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range Expr Expr                        -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope Expr                          -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Set Range                                  -- ^ ex: @Set@
@@ -294,6 +295,12 @@ data WhereClause' decls
     --   The 'Access' flag applies to the 'Name' (not the module contents!)
     --   and is propagated from the parent function.
   deriving (Typeable, Data, Functor, Foldable, Traversable)
+
+data LamClause = LamClause { lamLHS      :: LHS
+                           , lamRHS      :: RHS
+                           , lamWhere    :: WhereClause -- ^ always 'NoWhere' (see parser)
+                           , lamCatchAll :: Bool }
+  deriving (Typeable, Data)
 
 -- | An expression followed by a where clause.
 --   Currently only used to give better a better error message in interaction.
@@ -646,6 +653,9 @@ instance HasRange RHS where
   getRange AbsurdRHS = noRange
   getRange (RHS e)   = getRange e
 
+instance HasRange LamClause where
+  getRange (LamClause lhs rhs wh _) = getRange (lhs, rhs, wh)
+
 instance HasRange Pragma where
   getRange (OptionsPragma r _)               = r
   getRange (BuiltinPragma r _ _)             = r
@@ -799,6 +809,9 @@ instance KillRange LamBinding where
 instance KillRange LHS where
   killRange (LHS p ps r w)     = killRange4 LHS p ps r w
   killRange (Ellipsis _ p r w) = killRange3 (Ellipsis noRange) p r w
+
+instance KillRange LamClause where
+  killRange (LamClause a b c d) = killRange4 LamClause a b c d
 
 instance KillRange ModuleApplication where
   killRange (SectionApp _ t e)    = killRange2 (SectionApp noRange) t e
@@ -1028,6 +1041,9 @@ instance NFData a => NFData (WhereClause' a) where
   rnf NoWhere         = ()
   rnf (AnyWhere a)    = rnf a
   rnf (SomeWhere a b c) = rnf a `seq` rnf b `seq` rnf c
+
+instance NFData LamClause where
+  rnf (LamClause a b c d) = rnf (a, b, c, d)
 
 instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFree a b) = rnf a `seq` rnf b

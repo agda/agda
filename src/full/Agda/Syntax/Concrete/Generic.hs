@@ -190,6 +190,10 @@ instance ExprLike LHS where
      Ellipsis r ps res wes -> Ellipsis r ps (mapE res) $ mapE wes
    where mapE e = mapExpr f e
 
+instance ExprLike LamClause where
+  mapExpr f (LamClause lhs rhs wh ca) =
+    LamClause (mapExpr f lhs) (mapExpr f rhs) (mapExpr f wh) (mapExpr f ca)
+
 instance ExprLike ModuleApplication where
   mapExpr f e0 = case e0 of
      SectionApp r bs e -> SectionApp r (mapE bs) $ mapE e

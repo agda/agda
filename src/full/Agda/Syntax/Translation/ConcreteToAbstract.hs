@@ -680,7 +680,7 @@ toAbstractLam r bs e ctx = do
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
-scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause, Bool)] -> ScopeM A.Expr
+scopeCheckExtendedLam :: Range -> [C.LamClause] -> ScopeM A.Expr
 scopeCheckExtendedLam r cs = do
   whenM isInsideDotPattern $
     genericError "Extended lambdas are not allowed in dot patterns"
@@ -690,8 +690,8 @@ scopeCheckExtendedLam r cs = do
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
   verboseS "scope.extendedLambda" 60 $ do
-    forM_ cs $ \ (lhs, rhs, wh, ca) -> do
-      reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show lhs
+    forM_ cs $ \ c -> do
+      reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
@@ -704,7 +704,7 @@ scopeCheckExtendedLam r cs = do
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
     d = C.FunDef r [] noFixity' {-'-} a NotInstanceDef __IMPOSSIBLE__ cname $
-          for cs $ \ (lhs, rhs, wh, ca) -> -- wh == NoWhere, see parser for more info
+          for cs $ \ (LamClause lhs rhs wh ca) -> -- wh == NoWhere, see parser for more info
             C.Clause cname ca (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
 

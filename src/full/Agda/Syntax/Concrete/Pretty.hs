@@ -163,13 +163,7 @@ instance Pretty Expr where
             AbsurdLam _ NotHidden  -> lambda <+> text "()"
             AbsurdLam _ Instance{} -> lambda <+> text "{{}}"
             AbsurdLam _ Hidden     -> lambda <+> text "{}"
-            ExtendedLam _ pes ->
-              lambda <+> bracesAndSemicolons (map (\(x,y,z,_) -> prettyClause x y z) pes)
-                   where prettyClause lhs rhs wh = sep [ pretty lhs
-                                                       , nest 2 $ pretty' rhs
-                                                       ] $$ nest 2 (pretty wh)
-                         pretty' (RHS e)   = arrow <+> pretty e
-                         pretty' AbsurdRHS = empty
+            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
             Fun _ e1 e2 ->
                 sep [ pretty e1 <+> arrow
                     , pretty e2
@@ -217,6 +211,15 @@ instance Pretty a => Pretty (FieldAssignment' a) where
 
 instance Pretty ModuleAssignment where
   pretty (ModuleAssignment m es i) = (fsep $ pretty m : map pretty es) <+> pretty i
+
+instance Pretty LamClause where
+  pretty (LamClause lhs rhs wh _) =
+    sep [ pretty lhs
+        , nest 2 $ pretty' rhs
+        ] $$ nest 2 (pretty wh)
+    where
+      pretty' (RHS e)   = arrow <+> pretty e
+      pretty' AbsurdRHS = empty
 
 instance Pretty BoundName where
   pretty BName{ boundName = x, boundLabel = l }

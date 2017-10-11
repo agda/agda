@@ -661,7 +661,7 @@ ExtendedOrAbsurdLam
                                        Right es -> do -- it is of the form @\ { p1 ... () }@
                                                      p <- exprToLHS (RawApp (getRange es) es);
                                                      return $ ExtendedLam (fuseRange $1 es)
-                                                                     [(p [] [], AbsurdRHS, NoWhere, False)]
+                                                                     [LamClause (p [] []) AbsurdRHS NoWhere False]
                                    }
 
 Application3 :: { [Expr] }
@@ -865,38 +865,50 @@ LamBindsAbsurd
   | '{{' DoubleCloseBrace       { Left [Left (Instance NoOverlap)] }
 
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
-NonAbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
+NonAbsurdLamClause :: { LamClause }
 NonAbsurdLamClause
   : Application3PossiblyEmpty '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $1) $1) ;
-      return (p [] [], RHS $3, NoWhere, False)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = RHS $3
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = False }
         }
   | CatchallPragma Application3PossiblyEmpty '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $2) $2) ;
-      return (p [] [], RHS $4, NoWhere, True)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = RHS $4
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = True }
         }
 
-AbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
+AbsurdLamClause :: { LamClause }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
   : Application {% do
       p <- exprToLHS (RawApp (getRange $1) $1);
-      return (p [] [], AbsurdRHS, NoWhere, False)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = AbsurdRHS
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = False }
         }
   | CatchallPragma Application {% do
       p <- exprToLHS (RawApp (getRange $2) $2);
-      return (p [] [], AbsurdRHS, NoWhere, True)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = AbsurdRHS
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = True }
         }
 
-LamClause :: { (LHS,RHS,WhereClause,Bool) }
+LamClause :: { LamClause }
 LamClause
   : NonAbsurdLamClause { $1 }
   | AbsurdLamClause { $1 }
 
 -- Parses all extended lambda clauses except for a single absurd clause, which is taken care of
 -- in AbsurdLambda
-LamClauses :: { [(LHS,RHS,WhereClause,Bool)] }
+LamClauses :: { [LamClause] }
 LamClauses
    : LamClauses semi LamClause { $3 : $1 }
    | AbsurdLamClause semi LamClause { [$3, $1] }
@@ -905,7 +917,7 @@ LamClauses
 
 -- Parses all extended lambda clauses including a single absurd clause. For λ
 -- where this is not taken care of in AbsurdLambda
-LamWhereClauses :: { [(LHS,RHS,WhereClause,Bool)] }
+LamWhereClauses :: { [LamClause] }
 LamWhereClauses
    : LamWhereClauses semi LamClause { $3 : $1 }
    | LamClause { [$1] }
