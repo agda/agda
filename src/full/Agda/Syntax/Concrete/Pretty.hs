@@ -181,6 +181,7 @@ instance Pretty Expr where
                     ]
             Paren _ e -> parens $ pretty e
             IdiomBrackets _ e -> text "(|" <+> pretty e <+> text "|)"
+            DoBlock _ ss -> text "do" <+> vcat (map pretty ss)
             As _ x e  -> pretty x <> text "@" <> pretty e
             Dot _ e   -> text "." <> pretty e
             Absurd _  -> text "()"
@@ -312,6 +313,15 @@ instance Pretty LHSCore where
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> text "=" <+> pretty e
   pretty (RecordModuleIFS _ rec) = text "=" <+> pretty rec <+> text "{{...}}"
+
+instance Pretty DoStmt where
+  pretty (DoBind _ p e cs) =
+    ((pretty p <+> text "←") <?> pretty e) <?> prCs cs
+    where
+      prCs [] = empty
+      prCs cs = text "where" <?> vcat (map pretty cs)
+  pretty (DoThen e) = pretty e
+  pretty (DoLet _ ds) = text "let" <+> vcat (map pretty ds)
 
 instance Pretty Declaration where
     prettyList = vcat . map pretty

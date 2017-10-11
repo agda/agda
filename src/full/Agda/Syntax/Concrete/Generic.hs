@@ -143,6 +143,7 @@ instance ExprLike Expr where
      Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e
      Paren r e          -> f $ Paren r                $ mapE e
      IdiomBrackets r e  -> f $ IdiomBrackets r        $ mapE e
+     DoBlock r ss       -> f $ DoBlock r              $ mapE ss
      Absurd{}           -> f $ e0
      As r x e           -> f $ As r x                 $ mapE e
      Dot r e            -> f $ Dot r                  $ mapE e
@@ -193,6 +194,11 @@ instance ExprLike LHS where
 instance ExprLike LamClause where
   mapExpr f (LamClause lhs rhs wh ca) =
     LamClause (mapExpr f lhs) (mapExpr f rhs) (mapExpr f wh) (mapExpr f ca)
+
+instance ExprLike DoStmt where
+  mapExpr f (DoBind r p e cs) = DoBind r p (mapExpr f e) (mapExpr f cs)
+  mapExpr f (DoThen e)        = DoThen (mapExpr f e)
+  mapExpr f (DoLet r ds)      = DoLet r (mapExpr f ds)
 
 instance ExprLike ModuleApplication where
   mapExpr f e0 = case e0 of

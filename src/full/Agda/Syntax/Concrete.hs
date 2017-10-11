@@ -38,6 +38,7 @@ module Agda.Syntax.Concrete
   , LHS(..), Pattern(..), LHSCore(..)
   , LamClause(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
+  , DoStmt(..)
   , Pragma(..)
   , Module
   , ThingWithFixity(..)
@@ -152,6 +153,7 @@ data Expr
   | Let Range [Declaration] Expr               -- ^ ex: @let Ds in e@
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range Expr                   -- ^ ex: @(| e |)@
+  | DoBlock Range [DoStmt]                     -- ^ ex: @do x <- m1; m2@
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
@@ -190,6 +192,12 @@ data Pattern
                                            -- by the system)
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
+  deriving (Typeable, Data)
+
+data DoStmt
+  = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
+  | DoThen Expr
+  | DoLet Range [Declaration]
   deriving (Typeable, Data)
 
 -- | A lambda binding is either domain free or typed.
@@ -565,6 +573,7 @@ instance HasRange Expr where
       Let r _ _          -> r
       Paren r _          -> r
       IdiomBrackets r _  -> r
+      DoBlock r _        -> r
       As r _ _           -> r
       Dot r _            -> r
       Absurd r           -> r
@@ -655,6 +664,11 @@ instance HasRange RHS where
 
 instance HasRange LamClause where
   getRange (LamClause lhs rhs wh _) = getRange (lhs, rhs, wh)
+
+instance HasRange DoStmt where
+  getRange (DoBind r _ _ _) = r
+  getRange (DoThen e)       = getRange e
+  getRange (DoLet r _)      = r
 
 instance HasRange Pragma where
   getRange (OptionsPragma r _)               = r
@@ -789,6 +803,7 @@ instance KillRange Expr where
   killRange (Let _ d e)          = killRange2 (Let noRange) d e
   killRange (Paren _ e)          = killRange1 (Paren noRange) e
   killRange (IdiomBrackets _ e)  = killRange1 (IdiomBrackets noRange) e
+  killRange (DoBlock _ ss)       = killRange1 (DoBlock noRange) ss
   killRange (Absurd _)           = Absurd noRange
   killRange (As _ n e)           = killRange2 (As noRange) n e
   killRange (Dot _ e)            = killRange1 (Dot noRange) e
@@ -812,6 +827,11 @@ instance KillRange LHS where
 
 instance KillRange LamClause where
   killRange (LamClause a b c d) = killRange4 LamClause a b c d
+
+instance KillRange DoStmt where
+  killRange (DoBind r p e w) = killRange4 DoBind r p e w
+  killRange (DoThen e)       = killRange1 DoThen e
+  killRange (DoLet r ds)     = killRange2 DoLet r ds
 
 instance KillRange ModuleApplication where
   killRange (SectionApp _ t e)    = killRange2 (SectionApp noRange) t e
@@ -909,6 +929,7 @@ instance NFData Expr where
   rnf (Let _ a b)        = rnf a `seq` rnf b
   rnf (Paren _ a)        = rnf a
   rnf (IdiomBrackets _ a)= rnf a
+  rnf (DoBlock _ a)      = rnf a
   rnf (Absurd _)         = ()
   rnf (As _ a b)         = rnf a `seq` rnf b
   rnf (Dot _ a)          = rnf a
@@ -1055,3 +1076,8 @@ instance NFData BoundName where
 instance NFData a => NFData (RHS' a) where
   rnf AbsurdRHS = ()
   rnf (RHS a)   = rnf a
+
+instance NFData DoStmt where
+  rnf (DoBind _ p e w) = rnf (p, e, w)
+  rnf (DoThen e)       = rnf e
+  rnf (DoLet _ ds)     = rnf ds

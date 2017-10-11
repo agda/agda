@@ -859,6 +859,13 @@ instance ToAbstract C.Expr A.Expr where
       C.IdiomBrackets r e ->
         toAbstractCtx TopCtx =<< parseIdiomBrackets r e
 
+  -- Do notation
+      C.DoBlock r ss ->
+        toAbstractCtx TopCtx =<< desugarDoNotation r ss
+        where
+          desugarDoNotation :: Range -> [C.DoStmt] -> ScopeM C.Expr
+          desugarDoNotation _ _ = typeError $ NotImplemented "do-notation"
+
   -- Post-fix projections
       C.Dot r e  -> A.Dot (ExprRange r) <$> toAbstract e
 
