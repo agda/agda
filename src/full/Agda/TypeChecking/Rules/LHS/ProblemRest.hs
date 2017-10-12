@@ -20,18 +20,17 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- MOVED from LHS:
 -- | Rename the variables in a telescope using the names from a given pattern
 useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
-useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat dummy) . telToList
+useNamesFromPattern ps = telFromList . zipWithKeepRest ren (map namedArg ps) . telToList
   where
-    dummy = A.WildP __IMPOSSIBLE__
     ren (A.VarP x) (Dom info (_, a)) | visible info && not (isNoName x) =
       Dom info (nameToArgName x, a)
     -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
