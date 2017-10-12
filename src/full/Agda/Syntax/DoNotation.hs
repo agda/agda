@@ -1,3 +1,28 @@
+{-|
+    Desugaring for do-notation. Uses whatever `_>>=_` and `_>>_` happen to be
+    in scope.
+
+    Example:
+
+    ```
+      foo = do
+        x ← m₁
+        m₂
+        just y ← m₃
+          where nothing → m₄
+        let z = t
+        m₅
+    ```
+    desugars to
+    ```
+      foo =
+        m₁ >>= λ x →
+        m₂ >>
+        m₃ >>= λ where
+          just y → let z = t in m₅
+          nothing → m₄
+    ```
+ -}
 module Agda.Syntax.DoNotation (desugarDoNotation) where
 
 import Control.Applicative
@@ -22,28 +47,40 @@ desugarDoNotation r ss = do
   desugarDo qBind qThen ss
 
 desugarDo :: QName -> QName -> [DoStmt] -> ScopeM Expr
-desugarDo qBind qThen [] = genericError "Empty 'do' block"  -- IMPOSSIBLE?
+
+-- The parser doesn't generate empty 'do' blocks at the moment, but if that
+-- changes throwing the error is the right thing to do.
+desugarDo qBind qThen [] = genericError "Empty 'do' block"
+
+-- The last statement must be a DoThen
 desugarDo qBind qThen [s]
   | DoThen e <- s = return e
   | otherwise     = genericError "The last statement in a 'do' block must be an expression"
-desugarDo qBind qThen (DoThen e : ss) = do
-  e' <- desugarDo qBind qThen ss
-  return (appOp qThen e e')
+
+-- `DoThen` and `DoLet` are easy
+desugarDo qBind qThen (DoThen e   : ss) = appOp qThen e   <$> desugarDo qBind qThen ss
+desugarDo qBind qThen (DoLet r ds : ss) = Let r ds . Just <$> desugarDo qBind qThen ss
+
+-- `DoBind` requires more work since we want to generate plain lambdas when
+-- possible.
 desugarDo qBind qThen (DoBind r p e [] : ss)
-  | Just x <- singleName p = do  -- maybe non-matching
+  | Just x <- singleName p = do
+  -- In this case we have a single name in the bind pattern and no where clauses.
+  -- It could still be a pattern bind though (for instance, `refl ← pure eq`), so
+  -- to figure out which one to use we look up the name in the scope; if it's a
+  -- constructor or pattern synonym we desugar to a pattern lambda.
   res <- resolveName (QName x)
   let isMatch = case res of
         ConstructorName{}   -> True
         PatternSynResName{} -> True
         _                   -> False
-  body <- desugarDo qBind qThen ss
-  if isMatch then return $ matchingBind qBind r p e body []
-             else return $ nonMatchingBind qBind r x e body
+  rest <- desugarDo qBind qThen ss
+  if isMatch then return $ matchingBind qBind r p e rest []
+             else return $ nonMatchingBind qBind r x e rest
 desugarDo qBind qThen (DoBind r p e cs : ss) = do
-  body <- desugarDo qBind qThen ss
-  return $ matchingBind qBind r p e body cs
-desugarDo qBind qThen (DoLet r ds : ss) =
-  Let r ds . Just <$> desugarDo qBind qThen ss
+  -- If there are where clauses we have to desugar to a pattern lambda.
+  rest <- desugarDo qBind qThen ss
+  return $ matchingBind qBind r p e rest cs
 
 singleName :: Pattern -> Maybe Name
 singleName (IdentP (QName x)) = Just x
@@ -71,11 +108,10 @@ nonMatchingBind qBind r x e body =
     appOp (setRange r qBind) e $ Lam (getRange (x, body)) [bx] body
   where bx = DomainFree defaultArgInfo $ mkBoundName_ x
 
-app :: Expr -> [Expr] -> Expr
-app e es = foldl (\ e1 e2 -> App (getRange (e1, e2)) e1 (defaultNamedArg e2)) e es
-
 appOp :: QName -> Expr -> Expr -> Expr
 appOp q e1 e2 = app (Ident q) [e1, e2]
+  where
+    app e es = foldl (\ e1 e2 -> App (getRange (e1, e2)) e1 (defaultNamedArg e2)) e es
 
 ensureInScope :: QName -> ScopeM ()
 ensureInScope q = do
