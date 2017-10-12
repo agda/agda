@@ -34,9 +34,9 @@ C ⋆ X = μ (C ⋆C X)
 pattern returnP x = (inj₁ x , _)
 pattern doP c k   = (inj₂ c , k)
 
-do : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {X} →
-     ⟦ C ⟧ (C ⋆ X) ⊆ C ⋆ X
-do (c , k) = sup (doP c k)
+inn : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {X} →
+      ⟦ C ⟧ (C ⋆ X) ⊆ C ⋆ X
+inn (c , k) = sup (doP c k)
 
 rawPMonad : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} →
             RawPMonad {ℓ = ℓ} (_⋆_ C)
@@ -50,17 +50,17 @@ rawPMonad {C = C} = record
 
   _=<<_ : ∀ {X Y} → X ⊆ C ⋆ Y → C ⋆ X ⊆ C ⋆ Y
   f =<< sup (returnP x) = f x
-  f =<< sup (doP c k)   = do (c , λ r → f =<< k r)
+  f =<< sup (doP c k)   = inn (c , λ r → f =<< k r)
 
 leaf : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {X : Pred O ℓ} →
        ⟦ C ⟧ X ⊆ C ⋆ X
-leaf (c , k) = do (c , return? ∘ k)
+leaf (c , k) = inn (c , return? ∘ k)
   where
   open RawPMonad rawPMonad
 
 generic : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {o}
           (c : Command C o) →
           o ∈ C ⋆ (⋃[ r ∶ Response C c ] ｛ next C c r ｝)
-generic c = do (c , λ r → return? (r , refl))
+generic c = inn (c , λ r → return? (r , refl))
   where
   open RawPMonad rawPMonad

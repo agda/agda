@@ -41,8 +41,8 @@ C ⋆C X = const X ⊎ C
 _⋆_ : ∀ {c} → Container c → Set c → Set c
 C ⋆ X = μ (C ⋆C X)
 
-do : ∀ {c} {C : Container c} {X} → ⟦ C ⟧ (C ⋆ X) → C ⋆ X
-do (s , k) = sup (inj₂ s) k
+inn : ∀ {c} {C : Container c} {X} → ⟦ C ⟧ (C ⋆ X) → C ⋆ X
+inn (s , k) = sup (inj₂ s) k
 
 rawMonad : ∀ {c} {C : Container c} → RawMonad (_⋆_ C)
 rawMonad = record { return = return; _>>=_ = _>>=_ }
@@ -52,4 +52,4 @@ rawMonad = record { return = return; _>>=_ = _>>=_ }
 
   _>>=_ : ∀ {c} {C : Container c} {X Y} → C ⋆ X → (X → C ⋆ Y) → C ⋆ Y
   sup (inj₁ x) _ >>= k = k x
-  sup (inj₂ s) f >>= k = do (s , λ p → f p >>= k)
+  sup (inj₂ s) f >>= k = inn (s , λ p → f p >>= k)
