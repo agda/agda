@@ -36,9 +36,13 @@ useNamesFromPattern ps tel
   | size tel > length ps = __IMPOSSIBLE__
   | otherwise            = telFromList $ zipWith ren ps $ telToList tel
   where
-    ren (Arg ai (Named _ p)) dom@(Dom info (y, a)) =
+    ren (Arg ai (Named nm p)) dom@(Dom info (y, a)) =
       case p of
-        A.VarP x | visible info && not (isNoName x) ->
+        -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
+        -- However, not if the argument is named, because then the name in the telescope
+        -- is significant for implicit insertion.
+        A.VarP x | not (isNoName x)
+                 , visible info || (getOrigin ai == UserWritten && nm == Nothing) ->
           Dom info (nameToArgName x, a)
         A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
         -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"

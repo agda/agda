@@ -518,7 +518,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Andreas, 2016-12-29, issue #2363.
           -- Allow _ to stand for the corresponding parent pattern.
           A.WildP{} -> do
-            let ps' = map (updateNamedArg $ const $ A.WildP empty) qs'
+            -- Andreas, 2017-10-13, issue #2803:
+            -- Delete the name, since it can confuse insertImplicitPattern.
+            let ps' = map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
 
           A.ConP _ (A.AmbQ cs') ps' -> do
