@@ -131,20 +131,19 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpTo (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
-          as        = telToList gamma
-          (ps1,ps2) = splitAt (size as) ps
-          tel1      = telFromList $ telToList tel0 ++ as
+          n         = size gamma
+          (ps1,ps2) = splitAt n ps
+          tel1      = telFromList $ telToList tel0 ++ telToList gamma
           pr        = ProblemRest ps2 (a $> b)
           qs1       = teleNamedArgs gamma `useOriginFrom` ps
-          n         = size as
       reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
         [ text "checking lhs -- updated split problem:"
         , nest 2 $ vcat
           [ text "ps    =" <+> fsep (map prettyA ps)
           , text "a     =" <+> prettyTCM a
-          , text "xs    =" <+> text (show $ map (fst . unDom) as)
-          , text "ps1   =" <+> fsep (map prettyA ps1)
+          , text "tel   =" <+> prettyTCM tel
           , text "gamma =" <+> prettyTCM gamma
+          , text "ps1   =" <+> fsep (map prettyA ps1)
           , text "ps2   =" <+> fsep (map prettyA ps2)
           , text "b     =" <+> addContext gamma (prettyTCM b)
           ]
