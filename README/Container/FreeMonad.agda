@@ -31,12 +31,12 @@ State S = ⊤ ⟶ S ⊎ S ⟶ ⊤
   I ⟶ O = I ▷ λ _ → O
 
 get : ∀ {S} → State S ⋆ S
-get = do (inj₁ _ , return)
+get = inn (inj₁ _ , return)
   where
   open RawMonad rawMonad
 
 put : ∀ {S} → S → State S ⋆ ⊤
-put s = do (inj₂ s , return)
+put s = inn (inj₂ s , return)
   where
   open RawMonad rawMonad
 

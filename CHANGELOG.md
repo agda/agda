@@ -20,6 +20,10 @@ Non-backwards compatible changes
 
 #### Other
 
+* Renamed `Data.Container.FreeMonad.do` and
+  `Data.Container.Indexed.FreeMonad.do` to `inn` in anticipation of Agda
+  supporting proper 'do' notation.
+
 * Changed the fixity of `⋃` and `⋂` in `Relation.Unary` to make space for `_⊢_`.
 
 Deprecated features
