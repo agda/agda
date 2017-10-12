@@ -27,21 +27,23 @@ import Agda.Utils.Permutation
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Rename the variables in a telescope using the names from a given pattern
+-- | Rename the variables in a telescope using the names from a given pattern.
+--
+--   Precondition: we have at least as many patterns as entries in the telescope.
+--
 useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
-useNamesFromPattern ps = telFromList . zipWithKeepRest ren (map namedArg ps) . telToList
+useNamesFromPattern ps tel
+  | size tel > length ps = __IMPOSSIBLE__
+  | otherwise            = telFromList $ zipWith ren ps $ telToList tel
   where
-    ren (A.VarP x) (Dom info (_, a)) | visible info && not (isNoName x) =
-      Dom info (nameToArgName x, a)
-    -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
-    -- but it does not do the job, instead, it puts a lot of "_"s
-    -- instead of more sensible names into error messages.
-    -- ren A.WildP{}  (Dom info (_, a)) | visible info = Dom info ("_", a)
-    ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
-    -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
-    ren _ (Dom info (x, a)) | visible info && isNoName x =
-      Dom info (stringToArgName "x", a)
-    ren _ a = a
+    ren (Arg ai (Named _ p)) dom@(Dom info (y, a)) =
+      case p of
+        A.VarP x | visible info && not (isNoName x) ->
+          Dom info (nameToArgName x, a)
+        A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
+        -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
+        _ | visible info && isNoName y -> Dom info (stringToArgName "x", a)
+          | otherwise                  -> dom
 
 useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]
 useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
