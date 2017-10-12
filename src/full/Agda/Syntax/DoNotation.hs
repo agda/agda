@@ -43,7 +43,16 @@ desugarDoNotation :: Range -> [DoStmt] -> ScopeM Expr
 desugarDoNotation r ss = do
   let qBind = QName $ Name noRange [Hole, Id ">>=", Hole]
       qThen = QName $ Name noRange [Hole, Id ">>", Hole]
-  mapM_ ensureInScope [qBind, qThen]
+      isBind DoBind{} = True
+      isBind _        = False
+      isThen DoThen{} = True
+      isThen _        = False
+  -- Only check the operation we actually need. One could imagine to fall back
+  -- on _>>=_ if _>>_ is not in scope, but if we are desugaring to _>>_ at all
+  -- I think we should throw an error rather than silently switching to _>>=_.
+  -- / Ulf
+  mapM_ ensureInScope $ [qBind | any isBind ss] ++
+                        [qThen | any isThen $ drop 1 $ reverse ss] -- ignore the last 'DoThen'
   desugarDo qBind qThen ss
 
 desugarDo :: QName -> QName -> [DoStmt] -> ScopeM Expr
@@ -118,5 +127,5 @@ ensureInScope q = do
   r <- resolveName q
   case r of
     UnknownName -> genericError $
-      prettyShow q ++ " needs to be in scope to use do-notation"
+      prettyShow q ++ " needs to be in scope to desugar 'do' block"
     _ -> return ()
