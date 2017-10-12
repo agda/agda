@@ -13,7 +13,7 @@ open import Data.Sum
 open import Data.Product
 open import Data.List
 open import Data.List.Any
-open import Data.Container.FreeMonad using (rawMonad; do)
+open import Data.Container.FreeMonad using (rawMonad; inn)
     renaming (_⋆_ to _⋆^C_)
 open import Data.W
 open import Relation.Binary.PropositionalEquality
@@ -41,7 +41,7 @@ open import Issue854.RunCompat
 ⟦ m ⟧^con p k = sup (sh m p) (k ∘ ar m p)
 
 ⟦_⟧^op : ∀ {Σ P A} → (P , A) ∈ Σ → (⟦ P ⟧^VType → Σ ⋆^S ⟦ A ⟧^VType)
-⟦ m ⟧^op s = do (sh m s , (M.return ∘ ar m s))
+⟦ m ⟧^op s = inn (sh m s , (M.return ∘ ar m s))
   where
   module M = RawMonad rawMonad
 

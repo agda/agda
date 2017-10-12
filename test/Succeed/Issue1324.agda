@@ -81,8 +81,8 @@ C ⋆^C X = const^C X ⊎^C C
 _⋆_ : Sig → Set → Set
 C ⋆ X = μ (C ⋆^C X)
 
-do : ∀ {C X} → Alg C (C ⋆ X)
-do (p , k) = sup (inj₂ p , k)
+act : ∀ {C X} → Alg C (C ⋆ X)
+act (p , k) = sup (inj₂ p , k)
 
 record Monad (T : Set → Set) : Set₁ where
   infixl 1 _>>=_
@@ -98,10 +98,10 @@ monad {Σ} = record
   where
   _>>=_ : ∀ {X Y} → Σ ⋆ X → (X → Σ ⋆ Y) → Σ ⋆ Y
   sup (inj₁ x , _) >>= f = f x
-  sup (inj₂ p , k) >>= f = do (p , λ a → k a >>= f)
+  sup (inj₂ p , k) >>= f = act (p , λ a → k a >>= f)
 
 generic : ∀ {Σ} (p : Parameter Σ) → Σ ⋆ Arity Σ p
-generic p = do (p , return)
+generic p = act (p , return)
   where
   open Monad monad
 

@@ -14,12 +14,12 @@ infix 0 id
 id : ∀{A : Set} → A → A
 id = λ x → x
 
-syntax id  x             = do x
+syntax id  x             = act x
 syntax bind ma (λ x → f) = x ← ma , f
 
 swapM′ : ∀ {A B} → M (A × B) → M (B × A)
 swapM′ mAB =
-  do
+  act
      (a , b) ← mAB
    , return $ b , a
 
