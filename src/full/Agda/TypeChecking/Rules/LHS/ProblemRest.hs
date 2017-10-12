@@ -24,31 +24,36 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- MOVED from LHS:
--- | Rename the variables in a telescope using the names from a given pattern
+-- | Rename the variables in a telescope using the names from a given pattern.
+--
+--   Precondition: we have at least as many patterns as entries in the telescope.
+--
 useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
-useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat dummy) . telToList
+useNamesFromPattern ps tel
+  | size tel > length ps = __IMPOSSIBLE__
+  | otherwise            = telFromList $ zipWith ren ps $ telToList tel
   where
-    dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP (A.BindName x)) !dom | visible (domInfo dom) && not (isNoName x) =
-      dom <&> \ (_, a) -> (nameToArgName x, a)
-    ren A.AbsurdP{} !dom | visible (domInfo dom) =
-      dom <&> \ (_, a) -> ("()", a)
-    -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
-    -- but it does not do the job, instead, it puts a lot of "_"s
-    -- instead of more sensible names into error messages.
-    -- ren A.WildP{}  (Dom info (_, a)) | visible info = Dom info ("_", a)
-    ren A.PatternSynP{} !_ = __IMPOSSIBLE__  -- ensure there are no syns left
-    -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
-    ren _ !dom | visible (domInfo dom) && isNoName (fst (unDom dom)) =
-      dom <&> \ (_, a) -> (stringToArgName "x", a)
-    ren _ !a = a
+    ren (Arg ai (Named nm p)) dom@(Dom info finite (y, a)) =
+      case p of
+        -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
+        -- However, not if the argument is named, because then the name in the telescope
+        -- is significant for implicit insertion.
+        A.VarP (A.BindName x)
+          | not (isNoName x)
+          , visible info || (getOrigin ai == UserWritten && nm == Nothing) ->
+          Dom info finite (nameToArgName x, a)
+        A.AbsurdP{} | visible info -> Dom info finite (stringToArgName "()", a)
+        A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
+        -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
+        _ | visible info && isNoName y -> Dom info finite (stringToArgName "x", a)
+          | otherwise                  -> dom
 
 useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]
 useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
@@ -138,20 +143,19 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpToPath (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
-          as        = telToList gamma
-          (ps1,ps2) = splitAt (size as) ps
-          tel1      = telFromList $ telToList tel0 ++ as
+          n         = size gamma
+          (ps1,ps2) = splitAt n ps
+          tel1      = telFromList $ telToList tel0 ++ telToList gamma
           pr        = ProblemRest ps2 (a $> b)
           qs1       = teleNamedArgs gamma `useOriginFrom` ps
-          n         = size as
       reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
         [ text "checking lhs -- updated split problem:"
         , nest 2 $ vcat
           [ text "ps    =" <+> fsep (map prettyA ps)
           , text "a     =" <+> prettyTCM a
-          , text "xs    =" <+> text (show $ map (fst . unDom) as)
-          , text "ps1   =" <+> fsep (map prettyA ps1)
+          , text "tel   =" <+> prettyTCM tel
           , text "gamma =" <+> prettyTCM gamma
+          , text "ps1   =" <+> fsep (map prettyA ps1)
           , text "ps2   =" <+> fsep (map prettyA ps2)
           , text "b     =" <+> addContext gamma (prettyTCM b)
           ]

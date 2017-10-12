@@ -282,7 +282,8 @@ instance Occurs Term where
                            abort (strongly ctx) $ MetaIrrelevantSolution m v
           Def d es    -> do
             drel <- relOfConst d
-            unless (not (unusableRelevance drel) || ctx == Irrel) $
+            unless (not (unusableRelevance drel) || ctx == Irrel) $ do
+              reportSDoc "tc.meta.occurs" 35 $ text ("relevance of definition: " ++ show drel)
               abort ctx $ MetaIrrelevantSolution m $ Def d []
             Def d <$> occDef d ctx es
           Con c ci vs -> Con c ci <$> occ ctx vs  -- if strongly rigid, remain so
@@ -442,7 +443,8 @@ instance Occurs Sort where
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@(Proj _ f) = do
     frel <- relOfConst f
-    unless (not (unusableRelevance frel) || ctx == Irrel) $
+    unless (not (unusableRelevance frel) || ctx == Irrel) $ do
+      reportSDoc "tc.meta.occurs" 35 $ text ("relevance of projection: " ++ show frel)
       abort ctx $ MetaIrrelevantSolution m $ Def f []
     return e
   occurs red ctx m xs (Apply a) = Apply <$> occurs red ctx m xs a

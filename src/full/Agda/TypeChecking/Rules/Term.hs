@@ -2377,7 +2377,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- We create a substitution for the let-bound variables
           -- (unfortunately, we cannot refer to x in internal syntax
           -- so we have to copy v).
-          sigma = zipWith ($) fs (repeat v)
+          sigma = map ($ v) fs
           -- We apply the types of the let bound-variables to this substitution.
           -- The 0th variable in a context is the last one, so we reverse.
           -- Further, we need to lower all other de Bruijn indices by

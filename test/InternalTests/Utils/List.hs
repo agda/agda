@@ -69,6 +69,33 @@ prop_zipWith' f =
     forAll (two $ vector n) $ \(xs, ys) ->
       zipWith' f xs ys == Just (zipWith f xs ys)
 
+-- | Defining property of zipWithKeepRest
+prop_zipWithKeepRest f as bs =
+  zipWithKeepRest f as bs == zipWith f as bs ++ drop (length as) bs
+
+-- Redundant properties of zipWithKeepRest:
+
+-- | The second list does not get shorter.
+prop_zipWithKeepRest_length f as bs =
+  length (zipWithKeepRest f as bs) == length bs
+
+-- | If the first list is at least as long as the second,
+--   'zipWithKeepRest' behaves like 'zipWith'.
+prop_zipWithKeepRest_first_longer f as bs =
+  let cs = as ++ bs in
+  zipWithKeepRest f cs bs == zipWith f cs bs
+
+-- | The rest of the second list is unchanged.
+prop_zipWithKeepRest_rest_unchanged f as bs =
+  drop (length as) (zipWithKeepRest f as bs) == drop (length as) bs
+
+-- | The initial part is like in zipWith.
+prop_zipWithKeepRest_init_zipWith f as bs =
+  take (length as) (zipWithKeepRest f as bs) ==
+  take (length as) (zipWith         f as bs)
+
+
+
 prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
 

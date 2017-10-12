@@ -193,7 +193,7 @@ give force ii mr e = liftTCM $ do
      giveExpr force (Just ii) mi e
     `catchError` \ case
       -- Turn PatternErr into proper error:
-      PatternErr{} -> typeError . GenericDocError =<< do
+      PatternErr -> typeError . GenericDocError =<< do
         withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
   removeInteractionPoint ii

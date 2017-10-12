@@ -310,6 +310,19 @@ zipWith' f = loop
   loop []       (_ : _)  = Nothing
   loop (_ : _)  []       = Nothing
 
+-- | Like 'zipWith' but keep the rest of the second list as-is
+--   (in case the second list is longer).
+--
+-- @
+--   zipWithKeepRest f as bs == zipWith f as bs ++ drop (length as) bs
+-- @
+zipWithKeepRest :: (a -> b -> b) -> [a] -> [b] -> [b]
+zipWithKeepRest f = loop
+  where
+  loop []       bs       = bs
+  loop as       []       = []
+  loop (a : as) (b : bs) = f a b : loop as bs
+
 -- -- UNUSED; a better type would be
 -- -- zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], Either [a] [b])
 
