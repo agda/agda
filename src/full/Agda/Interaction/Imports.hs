@@ -298,7 +298,7 @@ getInterface' x isMain = do
     -- Preserve the pragma options unless we are checking the main
     -- interface.
     bracket_ (use stPragmaOptions)
-             (unless (includeStateChanges isMain) . setPragmaOptions) $ do
+             (unless (includeStateChanges isMain) . (stPragmaOptions .=)) $ do
      -- Forget the pragma options (locally).
      setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
 
