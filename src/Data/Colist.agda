@@ -47,15 +47,41 @@ data Colist {a} (A : Set a) : Set a where
 {-# COMPILE GHC Colist = data MAlonzo.Code.Data.Colist.AgdaColist ([] | (:)) #-}
 {-# COMPILE UHC Colist = data __LIST__ (__NIL__ | __CONS__) #-}
 
+module Colist-injective {a} {A : Set a} where
+
+ ∷-injectiveˡ : ∀ {x y : A} {xs ys} → (Colist A ∋ x ∷ xs) ≡ y ∷ ys → x ≡ y
+ ∷-injectiveˡ P.refl = P.refl
+
+ ∷-injectiveʳ : ∀ {x y : A} {xs ys} → (Colist A ∋ x ∷ xs) ≡ y ∷ ys → xs ≡ ys
+ ∷-injectiveʳ P.refl = P.refl
+
 data Any {a p} {A : Set a} (P : A → Set p) :
          Colist A → Set (a ⊔ p) where
   here  : ∀ {x xs} (px  : P x)          → Any P (x ∷ xs)
   there : ∀ {x xs} (pxs : Any P (♭ xs)) → Any P (x ∷ xs)
 
+module _  {a p} {A : Set a} {P : A → Set p} where
+
+ here-injective : ∀ {x xs p q} → (Any P (x ∷ xs) ∋ here p) ≡ here q → p ≡ q
+ here-injective P.refl = P.refl
+
+ there-injective : ∀ {x xs p q} → (Any P (x ∷ xs) ∋ there p) ≡ there q → p ≡ q
+ there-injective P.refl = P.refl
+
 data All {a p} {A : Set a} (P : A → Set p) :
          Colist A → Set (a ⊔ p) where
   []  : All P []
   _∷_ : ∀ {x xs} (px : P x) (pxs : ∞ (All P (♭ xs))) → All P (x ∷ xs)
+
+module All-injective {a p} {A : Set a} {P : A → Set p} where
+
+ ∷-injectiveˡ : ∀ {x xs} {px qx pxs qxs} →
+                (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → px ≡ qx
+ ∷-injectiveˡ P.refl = P.refl
+
+ ∷-injectiveʳ : ∀ {x xs} {px qx pxs qxs} →
+                (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → pxs ≡ qxs
+ ∷-injectiveʳ P.refl = P.refl
 
 ------------------------------------------------------------------------
 -- Some operations
@@ -468,10 +494,20 @@ data Finite {a} {A : Set a} : Colist A → Set a where
   []  : Finite []
   _∷_ : ∀ x {xs} (fin : Finite (♭ xs)) → Finite (x ∷ xs)
 
+module Finite-injective {a} {A : Set a} where
+
+ ∷-injective : ∀ {x : A} {xs p q} → (Finite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
+ ∷-injective P.refl = P.refl
+
 -- Infinite xs means that xs has infinite length.
 
 data Infinite {a} {A : Set a} : Colist A → Set a where
   _∷_ : ∀ x {xs} (inf : ∞ (Infinite (♭ xs))) → Infinite (x ∷ xs)
+
+module Infinite-injective {a} {A : Set a} where
+
+ ∷-injective : ∀ {x : A} {xs p q} → (Infinite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
+ ∷-injective P.refl = P.refl
 
 -- Colists which are not finite are infinite.
 

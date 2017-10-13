@@ -10,6 +10,7 @@ open import Function
 open import Function.Equivalence as Equiv using (_⇔_)
 open import Level
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
 
 ------------------------------------------------------------------------
 -- Transitive closure
@@ -22,6 +23,20 @@ data Plus {a ℓ} {A : Set a} (_∼_ : Rel A ℓ) : Rel A (a ⊔ ℓ) where
   [_]     : ∀ {x y} (x∼y : x ∼ y) → x [ _∼_ ]⁺ y
   _∼⁺⟨_⟩_ : ∀ x {y z} (x∼⁺y : x [ _∼_ ]⁺ y) (y∼⁺z : y [ _∼_ ]⁺ z) →
             x [ _∼_ ]⁺ z
+
+module _ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} where
+
+ []-injective : ∀ {x y p q} → (x [ _∼_ ]⁺ y ∋ [ p ]) ≡ [ q ] → p ≡ q
+ []-injective refl = refl
+
+ ∼⁺⟨⟩-injectiveˡ : ∀ {x y z} {p r : x [ _∼_ ]⁺ y} {q s} →
+                   (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → p ≡ r
+ ∼⁺⟨⟩-injectiveˡ refl = refl
+
+ ∼⁺⟨⟩-injectiveʳ : ∀ {x y z} {p r : x [ _∼_ ]⁺ y} {q s} →
+                   (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → q ≡ s
+ ∼⁺⟨⟩-injectiveʳ refl = refl
+
 
 -- "Equational" reasoning notation. Example:
 --

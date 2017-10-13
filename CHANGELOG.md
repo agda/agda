@@ -35,6 +35,133 @@ but they may be removed in some future release of the library.
 Backwards compatible changes
 ----------------------------
 
+### Added new injectivity proofs for most of `Data` definitions
+
+* In `Data.AVL`
+
+  ```agda
+  leaf-injective     : leaf p ≡ leaf q → p ≡ q
+  node-injective-key : node k₁ lk₁ ku₁ bal₁ ≡ node k₂ lk₂ ku₂ bal₂ → k₁ ≡ k₂
+  node-injectiveˡ    : node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → lk₁ ≡ lk₂
+  node-injectiveʳ    : node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → ku₁ ≡ ku₂
+  node-injective-bal : node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → bal₁ ≡ bal₂
+  ```
+
+* In `Data.Bin`
+
+  ```agda
+  less-injective : (b₁ < b₂ ∋ less lt₁) ≡ less lt₂ → lt₁ ≡ lt₂
+  ```
+
+* In `Data.Cofin`
+
+  ```agda
+  suc-injective : (Cofin (suc m) ∋ suc p) ≡ suc q → p ≡ q
+  ```
+
+* In `Data.Colist`
+
+  ```agda
+  ∷-injectiveˡ    : (Colist A ∋ x ∷ xs) ≡ y ∷ ys → x ≡ y
+  ∷-injectiveʳ    : (Colist A ∋ x ∷ xs) ≡ y ∷ ys → xs ≡ ys
+  here-injective  : (Any P (x ∷ xs) ∋ here p) ≡ here q → p ≡ q
+  there-injective : (Any P (x ∷ xs) ∋ there p) ≡ there q → p ≡ q
+  ∷-injectiveˡ    : (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → px ≡ qx
+  ∷-injectiveʳ    : (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → pxs ≡ qxs
+  ∷-injective     : (Finite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
+  ∷-injective     : (Infinite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
+  ```
+
+* In `Data.Conat`, we additionally have a new definition: `pred`.
+
+  ```agda
+  suc-injective   : (Coℕ ∋ suc m) ≡ suc n → m ≡ n
+  pred            : Coℕ → Coℕ
+  fromℕ-injective : fromℕ m ≡ fromℕ n → m ≡ n
+  suc-injective   : (suc m ≈ suc n ∋ suc p) ≡ suc q → p ≡ q
+  ```
+
+* In `Data.Covec`
+
+  ```agda
+  ∷-injectiveˡ : (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → a ≡ b
+  ∷-injectiveʳ : (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → as ≡ bs
+  ```
+
+* In `Data.List.Properties`
+
+  ```agda
+  ∷-injectiveˡ  : x ∷ xs ≡ y List.∷ ys → x ≡ y
+  ∷-injectiveʳ  : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
+  ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
+  ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
+  ```
+
+* In `Data.Maybe.Base`
+
+  ```agda
+  just-injective : (Maybe A ∋ just a) ≡ just b → a ≡ b
+  ```
+
+* In `Data.Nat.Properties`
+
+  ```agda
+  s≤s-injective     : s≤s p ≡ s≤s q → p ≡ q
+  ≤′-step-injective : ≤′-step p ≡ ≤′-step q → p ≡ q
+  ```
+
+* In `Data.Plus`
+
+  ```agda
+  []-injective    : (x [ _∼_ ]⁺ y ∋ [ p ]) ≡ [ q ] → p ≡ q
+  ∼⁺⟨⟩-injectiveˡ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → p ≡ r
+  ∼⁺⟨⟩-injectiveʳ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → q ≡ s
+  ```
+
+* In `Data.Product`
+
+  ```agda
+  ,-injectiveˡ : (a , b) ≡ (c , d) → a ≡ c
+  ,-injectiveʳ : (Σ A B ∋ (a , b)) ≡ (a , c) → b ≡ c
+  ```
+
+* In `Data.ReflexiveClosure`
+
+  ```agda
+  []-injective : (Refl _∼_ x y ∋ [ p ]) ≡ [ q ] → p ≡ q
+
+  ```
+
+* In `Data.Star.Properties`
+
+  ```agda
+  ◅-injectiveˡ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → x ≡ y
+  ◅-injectiveʳ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → xs ≡ ys
+  ```
+
+* In `Data.Sum`
+
+  ```agda
+  inj₁-injective : (A ⊎ B ∋ inj₁ x) ≡ inj₁ y → x ≡ y
+  inj₂-injective : (A ⊎ B ∋ inj₂ x) ≡ inj₂ y → x ≡ y
+  ```
+
+* In `Data.Vec.Properties`
+
+  ```agda
+  ∷-injectiveˡ : x ∷ xs ≡ y ∷ ys → x ≡ y
+  ∷-injectiveʳ : x ∷ xs ≡ y ∷ ys → xs ≡ ys
+  ```
+
+* In `Data.W`
+
+  ```agda
+  sup-injective₁ : sup x f ≡ sup y g → x ≡ y
+  sup-injective₂ : sup x f ≡ sup x g → f ≡ g
+  ```
+
+### Other
+
 * The contents of `Data.Covec' is now polymorphic with respect to levels
 
 * Added new proofs to `Data.Nat.Properties`:

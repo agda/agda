@@ -52,9 +52,19 @@ open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; refl; _≗_)
 open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
 
-∷-injective : ∀ {a n} {A : Set a} {x y : A} {xs ys : Vec A n} →
-              (x ∷ xs) ≡ (y ∷ ys) → x ≡ y × xs ≡ ys
-∷-injective refl = refl , refl
+------------------------------------------------------------------------
+-- Equality
+
+module _ {a} {A : Set a} {n} {x y : A} {xs ys : Vec A n} where
+
+ ∷-injectiveˡ : x ∷ xs ≡ y ∷ ys → x ≡ y
+ ∷-injectiveˡ refl = refl
+
+ ∷-injectiveʳ : x ∷ xs ≡ y ∷ ys → xs ≡ ys
+ ∷-injectiveʳ refl = refl
+
+ ∷-injective : (x ∷ xs) ≡ (y ∷ ys) → x ≡ y × xs ≡ ys
+ ∷-injective refl = refl , refl
 
 -- lookup is a functor morphism from Vec to Identity.
 

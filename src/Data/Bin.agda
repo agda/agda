@@ -104,6 +104,9 @@ infix 4 _<_
 data _<_ (b₁ b₂ : Bin) : Set where
   less : (lt : (Nat._<_ on toℕ) b₁ b₂) → b₁ < b₂
 
+less-injective : ∀ {b₁ b₂} {lt₁ lt₂} → (b₁ < b₂ ∋ less lt₁) ≡ less lt₂ → lt₁ ≡ lt₂
+less-injective refl = refl
+
 ------------------------------------------------------------------------
 -- Arithmetic
 

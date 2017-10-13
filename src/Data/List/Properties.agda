@@ -38,9 +38,17 @@ module List-solver {a} {A : Set a} =
 ------------------------------------------------------------------------
 -- Equality
 
-∷-injective : ∀ {a} {A : Set a} {x y : A} {xs ys} →
-              x ∷ xs ≡ y List.∷ ys → x ≡ y × xs ≡ ys
-∷-injective refl = (refl , refl)
+module _ {a} {A : Set a} {x y : A} {xs ys} where
+
+ ∷-injective : x ∷ xs ≡ y List.∷ ys → x ≡ y × xs ≡ ys
+ ∷-injective refl = (refl , refl)
+
+ ∷-injectiveˡ : x ∷ xs ≡ y List.∷ ys → x ≡ y
+ ∷-injectiveˡ refl = refl
+
+ ∷-injectiveʳ : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
+ ∷-injectiveʳ refl = refl
+
 
 ∷ʳ-injective : ∀ {a} {A : Set a} {x y : A} xs ys →
                xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
@@ -51,6 +59,14 @@ module List-solver {a} {A : Set a} =
 ∷ʳ-injective []          (_ ∷ _ ∷ _) ()
 ∷ʳ-injective (_ ∷ [])    []          ()
 ∷ʳ-injective (_ ∷ _ ∷ _) []          ()
+
+module _ {a} {A : Set a} {x y : A} (xs ys : List A) where
+
+ ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
+ ∷ʳ-injectiveˡ eq = proj₁ (∷ʳ-injective xs ys eq)
+
+ ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
+ ∷ʳ-injectiveʳ eq = proj₂ (∷ʳ-injective xs ys eq)
 
 ------------------------------------------------------------------------
 -- _++_

@@ -8,8 +8,10 @@ module Data.ReflexiveClosure where
 
 open import Data.Unit
 open import Level
+open import Function
 open import Relation.Binary
 open import Relation.Binary.Simple
+open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
 
 ------------------------------------------------------------------------
 -- Reflexive closure
@@ -17,6 +19,10 @@ open import Relation.Binary.Simple
 data Refl {a ℓ} {A : Set a} (_∼_ : Rel A ℓ) : Rel A (a ⊔ ℓ) where
   [_]  : ∀ {x y} (x∼y : x ∼ y) → Refl _∼_ x y
   refl : Reflexive (Refl _∼_)
+
+[]-injective : ∀ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} {x y p q} →
+               (Refl _∼_ x y ∋ [ p ]) ≡ [ q ] → p ≡ q
+[]-injective refl = refl
 
 -- Map.
 

@@ -17,12 +17,17 @@ data Maybe {a} (A : Set a) : Set a where
 {-# FOREIGN GHC type AgdaMaybe a b = Maybe b #-}
 {-# COMPILE GHC Maybe = data MAlonzo.Code.Data.Maybe.Base.AgdaMaybe (Just | Nothing) #-}
 
+open import Function
+open import Agda.Builtin.Equality using (_≡_ ; refl)
+
+just-injective : ∀ {a} {A : Set a} {a b} → (Maybe A ∋ just a) ≡ just b → a ≡ b
+just-injective refl = refl
+
 ------------------------------------------------------------------------
 -- Some operations
 
 open import Data.Bool.Base using (Bool; true; false; not)
 open import Data.Unit.Base using (⊤)
-open import Function
 open import Relation.Nullary
 
 boolToMaybe : Bool → Maybe ⊤

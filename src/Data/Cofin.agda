@@ -10,6 +10,8 @@ open import Coinduction
 open import Data.Conat as Conat using (Coℕ; suc; ∞ℕ)
 open import Data.Nat.Base using (ℕ; zero; suc)
 open import Data.Fin using (Fin; zero; suc)
+open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
+open import Function
 
 ------------------------------------------------------------------------
 -- The type
@@ -20,6 +22,9 @@ open import Data.Fin using (Fin; zero; suc)
 data Cofin : Coℕ → Set where
   zero : ∀ {n} → Cofin (suc n)
   suc  : ∀ {n} (i : Cofin (♭ n)) → Cofin (suc n)
+
+suc-injective : ∀ {m} {p q : Cofin (♭ m)} → (Cofin (suc m) ∋ suc p) ≡ suc q → p ≡ q
+suc-injective refl = refl
 
 ------------------------------------------------------------------------
 -- Some operations

@@ -10,7 +10,7 @@
 -- described by Conor McBride in his talk "Pivotal pragmatism".
 
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as P using (_≡_)
+open import Relation.Binary.PropositionalEquality as P using (_≡_ ; refl)
 
 module Data.AVL
   {k v ℓ}
@@ -42,6 +42,9 @@ module Extended-key where
   data Key⁺ : Set k where
     ⊥⁺ ⊤⁺ : Key⁺
     [_]   : (k : Key) → Key⁺
+
+  [_]-injective : ∀ {k l} → [ k ] ≡ [ l ] → k ≡ l
+  [_]-injective refl = refl
 
   -- An extended strict ordering relation.
 
@@ -158,6 +161,33 @@ module Indexed where
            (ku : Tree [ proj₁ k ] u hʳ)
            (bal : hˡ ∼ hʳ ⊔ h) →
            Tree l u (suc h)
+
+  leaf-injective : ∀ {l u} {p q : l <⁺ u} → (Tree l u 0 ∋ leaf p) ≡ leaf q → p ≡ q
+  leaf-injective refl = refl
+
+  node-injective-key : ∀ {hˡ hʳ h l u k₁ k₂}
+    {lk₁ : Tree l [ proj₁ k₁ ] hˡ} {lk₂ : Tree l [ proj₁ k₂ ] hˡ}
+    {ku₁ : Tree [ proj₁ k₁ ] u hʳ} {ku₂ : Tree [ proj₁ k₂ ] u hʳ}
+    {bal₁ bal₂ : hˡ ∼ hʳ ⊔ h} → node k₁ lk₁ ku₁ bal₁ ≡ node k₂ lk₂ ku₂ bal₂ → k₁ ≡ k₂
+  node-injective-key refl = refl
+
+  node-injectiveˡ : ∀ {hˡ hʳ h l u k}
+    {lk₁ : Tree l [ proj₁ k ] hˡ} {lk₂ : Tree l [ proj₁ k ] hˡ}
+    {ku₁ : Tree [ proj₁ k ] u hʳ} {ku₂ : Tree [ proj₁ k ] u hʳ}
+    {bal₁ bal₂ : hˡ ∼ hʳ ⊔ h} → node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → lk₁ ≡ lk₂
+  node-injectiveˡ refl = refl
+
+  node-injectiveʳ : ∀ {hˡ hʳ h l u k}
+    {lk₁ : Tree l [ proj₁ k ] hˡ} {lk₂ : Tree l [ proj₁ k ] hˡ}
+    {ku₁ : Tree [ proj₁ k ] u hʳ} {ku₂ : Tree [ proj₁ k ] u hʳ}
+    {bal₁ bal₂ : hˡ ∼ hʳ ⊔ h} → node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → ku₁ ≡ ku₂
+  node-injectiveʳ refl = refl
+
+  node-injective-bal : ∀ {hˡ hʳ h l u k}
+    {lk₁ : Tree l [ proj₁ k ] hˡ} {lk₂ : Tree l [ proj₁ k ] hˡ}
+    {ku₁ : Tree [ proj₁ k ] u hʳ} {ku₂ : Tree [ proj₁ k ] u hʳ}
+    {bal₁ bal₂ : hˡ ∼ hʳ ⊔ h} → node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → bal₁ ≡ bal₂
+  node-injective-bal refl = refl
 
   -- Cast operations. Logarithmic in the size of the tree, if we don't
   -- count the time needed to construct the new proofs in the leaf

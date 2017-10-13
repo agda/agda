@@ -13,6 +13,20 @@ open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; sym; cong; cong₂)
 import Relation.Binary.PreorderReasoning as PreR
 
+------------------------------------------------------------------------
+-- Equality
+
+module _ {i t} {I : Set i} {T : Rel I t} {i j k} {x y : T i j} {xs ys} where
+
+ ◅-injectiveˡ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → x ≡ y
+ ◅-injectiveˡ refl = refl
+
+ ◅-injectiveʳ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → xs ≡ ys
+ ◅-injectiveʳ refl = refl
+
+------------------------------------------------------------------------
+-- Properties about combinators
+
 ◅◅-assoc : ∀ {i t} {I : Set i} {T : Rel I t} {i j k l}
            (xs : Star T i j) (ys : Star T j k)
            (zs : Star T k l) →

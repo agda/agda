@@ -13,16 +13,25 @@ open import Data.Cofin using (Cofin; zero; suc)
 open import Data.Vec using (Vec; []; _∷_)
 open import Data.Colist as Colist using (Colist; []; _∷_)
 open import Data.Product using (_,_)
+open import Function using (_∋_)
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 ------------------------------------------------------------------------
 -- The type
 
 infixr 5 _∷_
-
 data Covec {a} (A : Set a) : Coℕ → Set a where
   []  : Covec A zero
   _∷_ : ∀ {n} (x : A) (xs : ∞ (Covec A (♭ n))) → Covec A (suc n)
+
+module _ {a} {A : Set a} where
+
+ ∷-injectiveˡ : ∀ {a b} {n} {as bs} → (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → a ≡ b
+ ∷-injectiveˡ P.refl = P.refl
+
+ ∷-injectiveʳ : ∀ {a b} {n} {as bs} → (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → as ≡ bs
+ ∷-injectiveʳ P.refl = P.refl
 
 ------------------------------------------------------------------------
 -- Some operations
