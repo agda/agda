@@ -98,9 +98,9 @@ singleName _                  = Nothing
 
 matchingBind :: QName -> Range -> Pattern -> Expr -> Expr -> [LamClause] -> Expr
 matchingBind qBind r p e body cs =
-  appOp (setRange r qBind) e
-    $ ExtendedLam (getRange (body, cs))
-    $ map addParens (mainClause : cs)
+  appOp (setRange r qBind) e          -- Set the range of the lambda to that of the
+    $ ExtendedLam (getRange cs)       -- where-clauses to make highlighting of overlapping
+    $ map addParens (mainClause : cs) -- patterns not highlight the rest of the do-block.
   where
     mainClause = LamClause { lamLHS      = LHS p [] [] []
                            , lamRHS      = RHS body
