@@ -37,7 +37,7 @@ keywords
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
   :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
   ``codata`` :ref:`coinductive <copatterns-coinductive-records>`
-  ``constructor`` ``data`` ``eta-equality`` ``field``
+  ``constructor`` ``data`` :ref:`do <do-notation>` ``eta-equality`` ``field``
   :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
   ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``let``
   :ref:`macro <macros>` ``module`` ``mutual`` ``no-eta-equality``
@@ -213,7 +213,7 @@ layout keywords:
 
 .. code-block:: none
 
-   abstract field instance let macro mutual postulate primitive private where
+   abstract do field instance let macro mutual postulate primitive private where
 
 The first token after the layout keyword decides the indentation of the block.
 Any token indented more than this is part of the previous statement, a token at

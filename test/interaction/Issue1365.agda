@@ -105,8 +105,8 @@ _⋆_ : ∀ {O} → O ▷ O → Pow O → Pow O
 Alg : ∀ {I} → Sig I → Pow I → Set
 Alg Ω X = ⟦ Ω ⟧ X ⊆ X
 
-do : ∀ {O} {Σ : O ▷ O} {X} → Alg Σ (Σ ⋆ X)
-do (p , k) = sup (inj₂ p , k)
+act : ∀ {O} {Σ : O ▷ O} {X} → Alg Σ (Σ ⋆ X)
+act (p , k) = sup (inj₂ p , k)
 
 Hom : ∀ {I J} → Sig (I × J) → Pow (I × J) → Pow I → Sig J → Pow J → Set
 Hom Ω U V Ψ W = Alg  (const^C U ⊎^C Ω)
@@ -154,7 +154,7 @@ lift : ∀ {I J} {Ω : Sig I} {U : Pow (I × J)} {V : Pow I} {Ψ : Sig J} {W : P
        Hom (Ω ⊙^C Ψ)  U V Ψ W
 lift φ (inj₁ u , _)         = φ (inj₁ u , λ ())
 lift φ (inj₂ (inj₁ p) , k)  = φ (inj₂ p , k)
-lift φ (inj₂ (inj₂ p) , k)  = λ v → do (p , λ a → k a v)
+lift φ (inj₂ (inj₂ p) , k)  = λ v → act (p , λ a → k a v)
 
 handle : ∀ {I J K} {Ω : Sig I} {Ω′ : Sig J} {Ω″ : Sig K}
          {U : Pow (J × K)} {V : Pow J} {W : Pow K} {f : I → J × K} →

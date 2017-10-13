@@ -43,10 +43,10 @@ data C2 (s : MaybeSet) : Set₁ where
   c2  : (FromJust s → IO (I1 (FromJust s))) → C2 s
 
 data IOˢ : MaybeSet → Set₁ where
-  do : {s : MaybeSet} (c : C2 s) → IOˢ s
+  act : {s : MaybeSet} (c : C2 s) → IOˢ s
 
 postulate
   bla : Set → ⊥ → IO (I1  ⊥)
 
 test : IOˢ nothing
-test = do (c2 (bla {!!}))
+test = act (c2 (bla {!!}))

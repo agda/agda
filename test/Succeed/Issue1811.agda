@@ -12,12 +12,12 @@ record IOInterface : Set₁ where
 open IOInterface
 
 data IO I A : Set where
-  do'      :  (c : Command I) (f : Response I c → IO I A)  → IO I A
+  act'     :  (c : Command I) (f : Response I c → IO I A)  → IO I A
   return   :  (a : A)                                      → IO I A
 
 -- Alias of constructor which is a function
-do :  ∀{I A} (c : Command I) (f : Response I c → IO I A) → IO I A
-do c f    =  do' c f
+act :  ∀{I A} (c : Command I) (f : Response I c → IO I A) → IO I A
+act c f    =  act' c f
 
 data C : Set where
   getLine   :  C
@@ -32,11 +32,32 @@ Command   I  =  C
 Response  I  =  R
 
 works : IO I ⊤
-works = do'  getLine        λ{ nothing → return _ ; (just line) →
-        do (putStrLn line)  λ _ →
+works = act'  getLine        λ{ nothing → return _ ; (just line) →
+        act (putStrLn line)  λ _ →
         return _            }
 
 test : IO I ⊤
-test = do  getLine         λ{ nothing → return _ ; (just line) →
-       do (putStrLn line)  λ _ →
+test = act  getLine         λ{ nothing → return _ ; (just line) →
+       act (putStrLn line)  λ _ →
        return _            }
+
+-- Test with do-notation
+
+_>>=_ : ∀ {A B} → IO I A → (A → IO I B) → IO I B
+act' c f >>= k = act' c λ x → f x >>= k
+return a >>= k = k a
+
+_>>_ : ∀ {A B} → IO I A → IO I B → IO I B
+m >> m' = m >>= λ _ → m'
+
+getLineIO : IO I (Maybe String)
+getLineIO = act' getLine return
+
+putStrLnIO : String → IO I ⊤
+putStrLnIO s = act' (putStrLn s) return
+
+works' : IO I ⊤
+works' = do
+  just line ← getLineIO where nothing → return _
+  putStrLnIO line
+  return _

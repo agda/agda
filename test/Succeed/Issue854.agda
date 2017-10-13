@@ -117,15 +117,15 @@ rec φ ⟨ s , k ⟩ = φ (s , λ p → (k p , rec φ (k p)))
 return : ∀ {C X} → X → C ⋆ X
 return x = ⟨ inj₁ x , ⊥-elim ⟩
 
-do : ∀ {C X} → ⟦ C ⟧ (C ⋆ X) → C ⋆ X
-do (s , k) = ⟨ inj₂ s , k ⟩
+act : ∀ {C X} → ⟦ C ⟧ (C ⋆ X) → C ⋆ X
+act (s , k) = ⟨ inj₂ s , k ⟩
 
 _>>=_ : ∀ {C X Y} → C ⋆ X → (X → C ⋆ Y) → C ⋆ Y
 _>>=_ {C}{X}{Y} m k = iter φ m
   where
   φ : AlgIter (C ⋆C X) (C ⋆ Y)
   φ (inj₁ x  , _)  = k x
-  φ (inj₂ s  , k)  = do (s , k)
+  φ (inj₂ s  , k)  = act (s , k)
 
 ------------------------------------------------------------------------
 
@@ -137,10 +137,10 @@ State S  =   (⊤ ↠ S)   -- get
          ⊎C  (S ↠ ⊤)   -- put
 
 get : ∀ {S} → State S ⋆ S
-get = do (inj₁ tt , return)
+get = act (inj₁ tt , return)
 
 put : ∀ {S} → S → State S ⋆ ⊤
-put s = do (inj₂ s , return)
+put s = act (inj₂ s , return)
 
 Homo : Container → Set → Set → Container → Set → Set
 Homo Σ X I Σ′ Y = AlgRec (Σ ⋆C X) (I → Σ′ ⋆ Y)
@@ -158,7 +158,7 @@ Abort : Container
 Abort = ⊤ ↠ ⊥
 
 aborting : ∀ {X} → Abort ⋆ X
-aborting = do (tt , ⊥-elim)
+aborting = act (tt , ⊥-elim)
 
 abort : ∀ {Σ X} → Pseudohomo Abort X ⊤ Σ (Maybe X)
 abort (inj₁ x  , _) _ = return (just x)  -- return
@@ -202,7 +202,7 @@ swapMorph {C}{C′}= record
 ⟪_⟫Homo : ∀ {C C′ X} → C ⇒ C′ → Homo C X ⊤ C′ X
 ⟪ m ⟫Homo (inj₁ x , _)  _ = return x
 ⟪ m ⟫Homo (inj₂ s , k)  _ =  let (s′ , k′) = ⟪ m ⟫ (s , k)
-                             in  do (s′ , λ p′ → proj₂ (k′ p′) tt)
+                             in  act (s′ , λ p′ → proj₂ (k′ p′) tt)
 
 natural : ∀ {C C′ X} → C ⇒ C′ → C ⋆ X → C′ ⋆ X
 natural f m = rec ⟪ f ⟫Homo m tt
@@ -223,7 +223,7 @@ lift : ∀ {Σ Σ′ X Y I} → Pseudohomo Σ X I Σ′ Y →
 lift φ (inj₁ x , _)          i = φ (inj₁ x , ⊥-elim) i
 lift φ (inj₂ (inj₁ s) , k)   i = φ (inj₂ s , λ p →
                                      let (w , ih) = k p in squeeze w , ih) i
-lift φ (inj₂ (inj₂ s′) , k′) i = do (s′ , λ p′ → proj₂ (k′ p′) i)
+lift φ (inj₂ (inj₂ s′) , k′) i = act (s′ , λ p′ → proj₂ (k′ p′) i)
 
 weaken : ∀ {Σ Σ′ Σ″ Σ‴ X Y I} → Homo Σ′ X I Σ″ Y →
            Σ ⇒ Σ′ → Σ″ ⇒ Σ‴ → Homo Σ X I Σ‴ Y

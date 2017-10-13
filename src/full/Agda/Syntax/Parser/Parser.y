@@ -23,6 +23,7 @@ module Agda.Syntax.Parser.Parser (
     , splitOnDots  -- only used by the internal test-suite
     ) where
 
+import Control.Applicative
 import Control.Monad
 
 import Data.Char
@@ -70,9 +71,18 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 1   -- shift/reduce for \ x y z -> foo = bar
-            -- shifting means it'll parse as \ x y z -> (foo = bar) rather than
-            -- (\ x y z -> foo) = bar
+%expect 2
+-- * shift/reduce for \ x y z -> foo = bar
+--   shifting means it'll parse as \ x y z -> (foo = bar) rather than
+--   (\ x y z -> foo) = bar
+--
+-- * Telescope let and do-notation let.
+--      Expr2 -> 'let' Declarations . LetBody
+--      TypedBindings -> '(' 'let' Declarations . ')'
+--        ')'   shift, and enter state 486
+--              (reduce using rule 189)
+--   A do-block cannot end in a 'let' so committing to TypedBindings with a
+--   shift is the right thing to do here.
 
 -- This is a trick to get rid of shift/reduce conflicts arising because we want
 -- to parse things like "m >>= \x -> k x". See the Expr rule for more
@@ -126,6 +136,7 @@ import Agda.Utils.Impossible
     'unquoteDef'              { TokKeyword KwUnquoteDef $$ }
     'using'                   { TokKeyword KwUsing $$ }
     'where'                   { TokKeyword KwWhere $$ }
+    'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
@@ -258,6 +269,7 @@ Token
     | 'unquoteDef'              { TokKeyword KwUnquoteDef $1 }
     | 'using'                   { TokKeyword KwUsing $1 }
     | 'where'                   { TokKeyword KwWhere $1 }
+    | 'do'                      { TokKeyword KwDo $1 }
     | 'with'                    { TokKeyword KwWith $1 }
 
     | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
@@ -644,11 +656,16 @@ Expr2
     : '\\' LamBindings Expr        { Lam (getRange ($1,$2,$3)) $2 $3 }
     | ExtendedOrAbsurdLam          { $1 }
     | 'forall' ForallBindings Expr        { forallPi $2 $3 }
-    | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
+    | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
+    | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
     | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) [] }
     | 'tactic' Application3 '|' WithExprs { Tactic (getRange ($1, $2, $3, $4)) (RawApp (getRange $2) $2) $4 }
+
+LetBody :: { Maybe Expr }
+LetBody : 'in' Expr   { Just $2 }
+        | {- empty -} { Nothing }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
@@ -661,7 +678,7 @@ ExtendedOrAbsurdLam
                                        Right es -> do -- it is of the form @\ { p1 ... () }@
                                                      p <- exprToLHS (RawApp (getRange es) es);
                                                      return $ ExtendedLam (fuseRange $1 es)
-                                                                     [(p [] [], AbsurdRHS, NoWhere, False)]
+                                                                     [LamClause (p [] []) AbsurdRHS NoWhere False]
                                    }
 
 Application3 :: { [Expr] }
@@ -865,38 +882,50 @@ LamBindsAbsurd
   | '{{' DoubleCloseBrace       { Left [Left (Instance NoOverlap)] }
 
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
-NonAbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
+NonAbsurdLamClause :: { LamClause }
 NonAbsurdLamClause
   : Application3PossiblyEmpty '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $1) $1) ;
-      return (p [] [], RHS $3, NoWhere, False)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = RHS $3
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = False }
         }
   | CatchallPragma Application3PossiblyEmpty '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $2) $2) ;
-      return (p [] [], RHS $4, NoWhere, True)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = RHS $4
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = True }
         }
 
-AbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
+AbsurdLamClause :: { LamClause }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
   : Application {% do
       p <- exprToLHS (RawApp (getRange $1) $1);
-      return (p [] [], AbsurdRHS, NoWhere, False)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = AbsurdRHS
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = False }
         }
   | CatchallPragma Application {% do
       p <- exprToLHS (RawApp (getRange $2) $2);
-      return (p [] [], AbsurdRHS, NoWhere, True)
+      return LamClause{ lamLHS      = p [] []
+                      , lamRHS      = AbsurdRHS
+                      , lamWhere    = NoWhere
+                      , lamCatchAll = True }
         }
 
-LamClause :: { (LHS,RHS,WhereClause,Bool) }
+LamClause :: { LamClause }
 LamClause
   : NonAbsurdLamClause { $1 }
   | AbsurdLamClause { $1 }
 
 -- Parses all extended lambda clauses except for a single absurd clause, which is taken care of
 -- in AbsurdLambda
-LamClauses :: { [(LHS,RHS,WhereClause,Bool)] }
+LamClauses :: { [LamClause] }
 LamClauses
    : LamClauses semi LamClause { $3 : $1 }
    | AbsurdLamClause semi LamClause { [$3, $1] }
@@ -905,7 +934,7 @@ LamClauses
 
 -- Parses all extended lambda clauses including a single absurd clause. For λ
 -- where this is not taken care of in AbsurdLambda
-LamWhereClauses :: { [(LHS,RHS,WhereClause,Bool)] }
+LamWhereClauses :: { [LamClause] }
 LamWhereClauses
    : LamWhereClauses semi LamClause { $3 : $1 }
    | LamClause { [$1] }
@@ -952,6 +981,22 @@ DomainFreeBindingAbsurd
     | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
     | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (makeInstance $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
 
+
+{--------------------------------------------------------------------------
+    Do-notation
+ --------------------------------------------------------------------------}
+
+DoStmts :: { [DoStmt] }
+DoStmts : DoStmt              { [$1] }
+        | DoStmt semi DoStmts { $1 : $3 }
+
+DoStmt :: { DoStmt }
+DoStmt : Expr DoWhere {% buildDoStmt $1 $2 }
+
+DoWhere :: { [LamClause] }
+DoWhere
+  : {- empty -} { [] }
+  | 'where' vopen LamWhereClauses close { reverse $3 }
 
 {--------------------------------------------------------------------------
     Modules and imports
@@ -1835,6 +1880,24 @@ addType :: LamBinding -> TypedBindings
 addType (DomainFull b)   = b
 addType (DomainFree info x) = TypedBindings r $ Arg info $ TBind r [pure x] $ Underscore r Nothing
   where r = getRange x
+
+-- | Build a do-statement
+buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+buildDoStmt (RawApp r [e]) cs = buildDoStmt e cs
+buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
+buildDoStmt (RawApp r es) cs
+  | (es1, arr : es2) <- break isLeftArrow es =
+    case filter isLeftArrow es2 of
+      arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
+      [] -> DoBind (getRange arr)
+              <$> exprToPattern (RawApp (getRange es1) es1)
+              <*> pure (RawApp (getRange es2) es2)
+              <*> pure cs
+  where
+    isLeftArrow (Ident (QName (Name _ [Id arr]))) = elem arr ["<-", "←"]
+    isLeftArrow _ = False
+buildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
+buildDoStmt e [] = return $ DoThen e
 
 mergeImportDirectives :: [ImportDirective] -> Parser ImportDirective
 mergeImportDirectives is = do
