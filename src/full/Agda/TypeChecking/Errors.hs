@@ -1501,7 +1501,7 @@ instance PrettyTCM Call where
 
     where
     hPretty :: Arg (Named_ Expr) -> TCM Doc
-    hPretty a = pretty =<< abstractToConcreteHiding a a
+    hPretty a = withContextPrecedence (ArgumentCtx PreferParen) $ pretty =<< abstractToConcreteHiding a a
 
 ---------------------------------------------------------------------------
 -- * Natural language

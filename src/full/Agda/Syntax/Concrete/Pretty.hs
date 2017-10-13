@@ -163,13 +163,7 @@ instance Pretty Expr where
             AbsurdLam _ NotHidden  -> lambda <+> text "()"
             AbsurdLam _ Instance{} -> lambda <+> text "{{}}"
             AbsurdLam _ Hidden     -> lambda <+> text "{}"
-            ExtendedLam _ pes ->
-              lambda <+> bracesAndSemicolons (map (\(x,y,z,_) -> prettyClause x y z) pes)
-                   where prettyClause lhs rhs wh = sep [ pretty lhs
-                                                       , nest 2 $ pretty' rhs
-                                                       ] $$ nest 2 (pretty wh)
-                         pretty' (RHS e)   = arrow <+> pretty e
-                         pretty' AbsurdRHS = empty
+            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
             Fun _ e1 e2 ->
                 sep [ pretty e1 <+> arrow
                     , pretty e2
@@ -181,12 +175,13 @@ instance Pretty Expr where
             Set _   -> text "Set"
             Prop _  -> text "Prop"
             SetN _ n    -> text "Set" <> text (showIndex n)
-            Let _ ds e  ->
+            Let _ ds me  ->
                 sep [ text "let" <+> vcat (map pretty ds)
-                    , text "in" <+> pretty e
+                    , maybe empty (\ e -> text "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
             IdiomBrackets _ e -> text "(|" <+> pretty e <+> text "|)"
+            DoBlock _ ss -> text "do" <+> vcat (map pretty ss)
             As _ x e  -> pretty x <> text "@" <> pretty e
             Dot _ e   -> text "." <> pretty e
             Absurd _  -> text "()"
@@ -217,6 +212,15 @@ instance Pretty a => Pretty (FieldAssignment' a) where
 
 instance Pretty ModuleAssignment where
   pretty (ModuleAssignment m es i) = (fsep $ pretty m : map pretty es) <+> pretty i
+
+instance Pretty LamClause where
+  pretty (LamClause lhs rhs wh _) =
+    sep [ pretty lhs
+        , nest 2 $ pretty' rhs
+        ] $$ nest 2 (pretty wh)
+    where
+      pretty' (RHS e)   = arrow <+> pretty e
+      pretty' AbsurdRHS = empty
 
 instance Pretty BoundName where
   pretty BName{ boundName = x, boundLabel = l }
@@ -309,6 +313,15 @@ instance Pretty LHSCore where
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> text "=" <+> pretty e
   pretty (RecordModuleIFS _ rec) = text "=" <+> pretty rec <+> text "{{...}}"
+
+instance Pretty DoStmt where
+  pretty (DoBind _ p e cs) =
+    ((pretty p <+> text "←") <?> pretty e) <?> prCs cs
+    where
+      prCs [] = empty
+      prCs cs = text "where" <?> vcat (map pretty cs)
+  pretty (DoThen e) = pretty e
+  pretty (DoLet _ ds) = text "let" <+> vcat (map pretty ds)
 
 instance Pretty Declaration where
     prettyList = vcat . map pretty

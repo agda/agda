@@ -560,7 +560,7 @@ instance ToConcrete A.Expr C.Expr where
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 p' <- removeApp p
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
-                return (lhs{ lhsOriginalPattern = p' }, rhs, wh, ca)
+                return $ LamClause lhs{ lhsOriginalPattern = p' } rhs wh ca
               decl2clause _ = __IMPOSSIBLE__
           C.ExtendedLam (getRange i) <$> mapM decl2clause decls
     toConcrete (A.Pi _ [] e) = toConcrete e
@@ -599,7 +599,7 @@ instance ToConcrete A.Expr C.Expr where
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
              e'  <- toConcreteTop e
-             return $ C.Let (getRange i) (concat ds') e'
+             return $ C.Let (getRange i) (concat ds') (Just e')
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do

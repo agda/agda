@@ -14,7 +14,7 @@ mutual
       force : {j : Size< i} → IO' j A
 
   data IO' (i : Size) (A : Set) : Set where
-    do     : (c : C) (f : R c → IO i A) → IO' i A
+    act    : (c : C) (f : R c → IO i A) → IO' i A
     return : (a : A) → IO' i A
 
 open IO
@@ -23,12 +23,12 @@ module Works where
 
   _>>=_ : ∀{i A B} (m : IO i A) (k : A → IO i B) → IO i B
   force (m >>= k) with force m
-  force (m >>= k) {j} | do c f   = do c λ x → f x >>= k
+  force (m >>= k) {j} | act c f  = act c λ x → f x >>= k
   force (m >>= k) {j} | return a = force (k a)
 
 _>>=_ : ∀{i A B} (m : IO i A) (k : A → IO i B) → IO i B
 force (m >>= k) with force m
-force (m >>= k) | do c f   = do c λ x → f x >>= k
+force (m >>= k) | act c f  = act c λ x → f x >>= k
 force (m >>= k) | return a = force (k a)
 
 -- Error WAS:

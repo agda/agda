@@ -36,6 +36,7 @@ Language Reference
    rewriting
    safe-agda
    sized-types
+   syntactic-sugar
    telescopes
    termination-checking
    universe-levels

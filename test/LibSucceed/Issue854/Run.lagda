@@ -64,7 +64,7 @@ PHOMO′ Σ Σ′ X I Σ″ Y = ⟦ Σ ⋆^CC X ⟧^C
   where
   module M = RawMonad rawMonad
 ⟪ m ⟫^⊆ (inj₂ s , k)  _ =  let (s′ , k′) = ⟪ m ⟫ (s , k)
-                           in  do (s′ , λ p′ → proj₂ (k′ p′) tt)
+                           in  inn (s′ , λ p′ → proj₂ (k′ p′) tt)
 
 embed : ∀ {Σ Σ′ X} → Σ ⇒^C Σ′ → Σ ⋆^C X → Σ′ ⋆^C X
 embed {X = X} f m = rec ⟪ f ⟫^⊆ m tt
@@ -90,7 +90,7 @@ lift : ∀ {Σ Σ′ X Y I} → PHOMO Σ X I Σ′ Y → PHOMO (Σ ⊎^C Σ′) 
 lift φ (inj₁ x , _)          i = φ (inj₁ x , ⊥-elim ∘ lower) i
 lift φ (inj₂ (inj₁ s) , k)   i = φ (inj₂ s , λ p →
                                      let (w , ih) = k p in squeeze w , ih) i
-lift φ (inj₂ (inj₂ s′) , k′) i = do (s′ , λ p′ → proj₂ (k′ p′) i)
+lift φ (inj₂ (inj₂ s′) , k′) i = inn (s′ , λ p′ → proj₂ (k′ p′) i)
 
 weaken : ∀ {Σ Σ′ Σ″ Σ‴ X Y I} → HOMO Σ′ X I Σ″ Y → Σ ⇒^C Σ′ → Σ″ ⇒^C Σ‴ →
            HOMO Σ X I Σ‴ Y

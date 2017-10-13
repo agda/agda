@@ -54,6 +54,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
+import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
 
 import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
@@ -242,7 +243,7 @@ recordConstructorType fields = build <$> mapM validForLet fs
     -- Turn non-field declarations into a let binding.
     -- Smart constructor for C.Let:
     lets [] c = c
-    lets ds c = C.Let (getRange ds) ds c
+    lets ds c = C.Let (getRange ds) ds (Just c)
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -699,7 +700,7 @@ toAbstractLam r bs e ctx = do
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
-scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause, Bool)] -> ScopeM A.Expr
+scopeCheckExtendedLam :: Range -> [C.LamClause] -> ScopeM A.Expr
 scopeCheckExtendedLam r cs = do
   whenM isInsideDotPattern $
     genericError "Extended lambdas are not allowed in dot patterns"
@@ -709,8 +710,8 @@ scopeCheckExtendedLam r cs = do
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
   verboseS "scope.extendedLambda" 60 $ do
-    forM_ cs $ \ (lhs, rhs, wh, ca) -> do
-      reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show lhs
+    forM_ cs $ \ c -> do
+      reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) DefName cname qname
 
@@ -723,7 +724,7 @@ scopeCheckExtendedLam r cs = do
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
     d = C.FunDef r [] noFixity' {-'-} a NotInstanceDef __IMPOSSIBLE__ cname $
-          for cs $ \ (lhs, rhs, wh, ca) -> -- wh == NoWhere, see parser for more info
+          for cs $ \ (LamClause lhs rhs wh ca) -> -- wh == NoWhere, see parser for more info
             C.Clause cname ca (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
 
@@ -852,12 +853,13 @@ instance ToAbstract C.Expr A.Expr where
       C.Prop _   -> return $ A.Prop $ ExprRange $ getRange e
 
   -- Let
-      e0@(C.Let _ ds e) ->
+      e0@(C.Let _ ds (Just e)) ->
         ifM isInsideDotPattern (genericError $ "Let-expressions are not allowed in dot patterns") $
         localToAbstract (LetDefs ds) $ \ds' -> do
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
           return $ A.Let info ds' e
+      C.Let _ _ Nothing -> genericError "Missing body in let-expression"
 
   -- Record construction
       C.Rec r fs  -> do
@@ -877,6 +879,10 @@ instance ToAbstract C.Expr A.Expr where
   -- Idiom brackets
       C.IdiomBrackets r e ->
         toAbstractCtx TopCtx =<< parseIdiomBrackets r e
+
+  -- Do notation
+      C.DoBlock r ss ->
+        toAbstractCtx TopCtx =<< desugarDoNotation r ss
 
   -- Post-fix projections
       C.Dot r e  -> A.Dot (ExprRange r) <$> toAbstract e

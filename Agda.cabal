@@ -278,6 +278,7 @@ library
                     Agda.Syntax.Concrete.Operators
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
+                    Agda.Syntax.DoNotation
                     Agda.Syntax.Fixity
                     Agda.Syntax.IdiomBrackets
                     Agda.Syntax.Info

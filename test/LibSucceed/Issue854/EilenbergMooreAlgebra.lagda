@@ -79,8 +79,8 @@ alg C φ ⊙-alg alg C′ φ′ = alg (C × C′) (Prod.map φ φ′ ∘ split-�
         ⟦ (Σ ×^C Σ′) ⋆^CC X × Y ⟧^C C → C
     α (inj₁ (x , y)  , _)  =  RawMonad.return rawMonad x ,
                               RawMonad.return rawMonad y
-    α (inj₂ (s , s′) , k)  =  do (s  , proj₁ ∘ k ∘ inj₁) ,
-                              do (s′ , proj₂ ∘ k ∘ inj₂)
+    α (inj₂ (s , s′) , k)  =  inn (s  , proj₁ ∘ k ∘ inj₁) ,
+                              inn (s′ , proj₂ ∘ k ∘ inj₂)
 \end{code}
 
 \begin{code}
@@ -91,4 +91,3 @@ alg C φ ⊙-alg alg C′ φ′ = alg (C × C′) (Prod.map φ φ′ ∘ split-�
 -- Which could be used to denote the function space between two
 -- computation types?!
 \end{code}
-
