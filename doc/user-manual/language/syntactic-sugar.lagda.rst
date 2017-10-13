@@ -13,24 +13,41 @@
   []       ++ ys = ys
   (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
+  concatMap : {A B : Set} → (A → List B) → List A → List B
+  concatMap f [] = []
+  concatMap f (x ∷ xs) = f x ++ concatMap f xs
+
   data Either (A B : Set) : Set where
     left : A → Either A B
     right : B → Either A B
 
+  record Applicative (F : Set → Set) : Set₁ where
+    field
+      pure  : ∀ {A} → A → F A
+      _<*>_ : ∀ {A B} → F (A → B) → F A → F B
+  open Applicative {{...}}
+
   record Monad (M : Set → Set) : Set₁ where
     field
-      pure : ∀ {A} → A → M A
       _>>=_ : ∀ {A B} → M A → (A → M B) → M B
+      overlap {{super}} : Applicative M
   open Monad {{...}}
 
   instance
+    ApplicativeList : Applicative List
+    pure  {{ApplicativeList}}       = _∷ []
+    _<*>_ {{ApplicativeList}} fs xs = concatMap (λ f → concatMap (λ x → f x ∷ []) xs) fs
+
     MonadList : Monad List
-    pure {{MonadList}} = _∷ []
-    _>>=_ {{MonadList}} []       f = []
-    _>>=_ {{MonadList}} (x ∷ xs) f = f x ++ (xs >>= f)
+    _>>=_ {{MonadList}} xs f = concatMap f xs
+
+    ApplicativeEither : ∀ {Err} → Applicative (Either Err)
+    pure  {{ApplicativeEither}} = right
+    _<*>_ {{ApplicativeEither}} (left err) _ = left err
+    _<*>_ {{ApplicativeEither}} (right f) (left err) = left err
+    _<*>_ {{ApplicativeEither}} (right f) (right x)  = right (f x)
 
     MonadEither : ∀ {Err} → Monad (Either Err)
-    pure  {{MonadEither}} = right
     _>>=_ {{MonadEither}} (left  e) f = left e
     _>>=_ {{MonadEither}} (right x) f = f x
 
@@ -250,3 +267,68 @@ function to be applied is well-typed, but does not have a function type.
 
 Idiom brackets
 ==============
+
+Idiom brackets is a notation used to make it more convenient to work with applicative
+functors, i.e. functors ``F`` equipped with two operations
+
+.. code-block:: agda
+
+  pure  : ∀ {A} → A → F A
+  _<*>_ : ∀ {A B} → F (A → B) → F A → F B
+
+As do-notation, idiom brackets desugar before scope checking, so whatever the names ``pure``
+and ``_<*>_`` are bound to gets used when desugaring the idiom brackets.
+
+The syntax for idiom brackets is
+
+.. code-block:: agda
+
+  (| e a₁ .. aₙ |)
+
+or using unicode lens brackets ``⦇`` (U+2987) and  ``⦈`` (U+2988):
+
+.. code-block:: agda
+
+  ⦇ e a₁ .. aₙ ⦈
+
+This expands to (assuming left associative ``_<*>_``)
+
+.. code-block:: agda
+
+  pure e <*> a₁ <*> .. <*> aₙ
+
+Idiom brackets work well with operators, for instance
+
+.. code-block:: agda
+
+  (| if a then b else c |)
+
+desugars to
+
+.. code-block:: agda
+
+  pure if_then_else_ <*> a <*> b <*> c
+
+Limitations:
+
+- Binding syntax and operator sections cannot appear immediately inside
+  idiom brackets.
+
+- The top-level application inside idiom brackets cannot include
+  implicit applications, so
+
+  .. code-block:: agda
+
+     (| foo {x = e} a b |)
+
+  is illegal. In case the ``e`` is pure you can write
+
+  .. code-block:: agda
+
+     (| (foo {x = e}) a b |)
+
+  which desugars to
+
+  .. code-block:: agda
+
+     pure (foo {x = e}) <*> a <*> b
