@@ -26,6 +26,7 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Position
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
@@ -465,6 +466,29 @@ defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo { argInfoHiding       = NotHidden
                           , argInfoRelevance    = Relevant
                           , argInfoOrigin       = UserWritten }
+-- Accessing through ArgInfo
+
+-- default accessors for Hiding
+
+getHidingArgInfo :: LensArgInfo a => LensGet Hiding a
+getHidingArgInfo = getHiding . getArgInfo
+
+setHidingArgInfo :: LensArgInfo a => LensSet Hiding a
+setHidingArgInfo = mapArgInfo . setHiding
+
+mapHidingArgInfo :: LensArgInfo a => LensMap Hiding a
+mapHidingArgInfo = mapArgInfo . mapHiding
+
+-- default accessors for Origin
+
+getOriginArgInfo :: LensArgInfo a => LensGet Origin a
+getOriginArgInfo = getOrigin . getArgInfo
+
+setOriginArgInfo :: LensArgInfo a => LensSet Origin a
+setOriginArgInfo = mapArgInfo . setOrigin
+
+mapOriginArgInfo :: LensArgInfo a => LensMap Origin a
+mapOriginArgInfo = mapArgInfo . mapOrigin
 
 
 ---------------------------------------------------------------------------
@@ -518,21 +542,27 @@ instance Show a => Show (Arg a) where
 instance NFData e => NFData (Arg e) where
   rnf (Arg a b) = rnf a `seq` rnf b
 
+instance LensArgInfo (Arg a) where
+  getArgInfo        = argInfo
+  setArgInfo ai arg = arg { argInfo = ai }
+  mapArgInfo f arg  = arg { argInfo = f $ argInfo arg }
+
+-- The other lenses are defined through LensArgInfo
+
 instance LensHiding (Arg e) where
-  getHiding = getHiding . argInfo
-  mapHiding = mapArgInfo . mapHiding
+  getHiding = getHidingArgInfo
+  setHiding = setHidingArgInfo
+  mapHiding = mapHidingArgInfo
 
 instance LensRelevance (Arg e) where
   getRelevance = getRelevance . argInfo
   mapRelevance = mapArgInfo . mapRelevance
 
 instance LensOrigin (Arg e) where
-  getOrigin = getOrigin . argInfo
-  mapOrigin = mapArgInfo . mapOrigin
+  getOrigin = getOriginArgInfo
+  setOrigin = setOriginArgInfo
+  mapOrigin = mapOriginArgInfo
 
-instance LensArgInfo (Arg a) where
-  getArgInfo        = argInfo
-  mapArgInfo f arg  = arg { argInfo = f $ argInfo arg }
 
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
@@ -601,21 +631,26 @@ instance Eq a => Eq (Dom a) where
 instance Show a => Show (Dom a) where
   show = show . argFromDom
 
-instance LensHiding (Dom e) where
-  getHiding = getHiding . domInfo
-  mapHiding = mapArgInfo . mapHiding
+instance LensArgInfo (Dom e) where
+  getArgInfo        = domInfo
+  setArgInfo ai dom = dom { domInfo = ai }
+  mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
 
 instance LensRelevance (Dom e) where
   getRelevance = getRelevance . domInfo
   mapRelevance = mapArgInfo . mapRelevance
+-- The other lenses are defined through LensArgInfo
 
-instance LensArgInfo (Dom e) where
-  getArgInfo = domInfo
-  mapArgInfo f arg = arg { domInfo = f $ domInfo arg }
+instance LensHiding (Dom e) where
+  getHiding = getHidingArgInfo
+  setHiding = setHidingArgInfo
+  mapHiding = mapHidingArgInfo
 
 instance LensOrigin (Dom e) where
-  getOrigin = getOrigin . getArgInfo
-  mapOrigin = mapArgInfo . mapOrigin
+  getOrigin = getOriginArgInfo
+  setOrigin = setOriginArgInfo
+  mapOrigin = mapOriginArgInfo
+
 
 argFromDom :: Dom a -> Arg a
 argFromDom (Dom i a) = Arg i a
