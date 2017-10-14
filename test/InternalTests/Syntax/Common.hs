@@ -14,6 +14,7 @@ import InternalTests.Helpers
 ------------------------------------------------------------------------------
 -- Instances
 
+instance CoArbitrary Relevance
 instance Arbitrary Relevance where
   arbitrary = elements allRelevances
 
@@ -50,6 +51,25 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
 
 ------------------------------------------------------------------------------
 -- Properties
+
+-- Quantity is a POMonoid
+
+prop_monoid_Quantity :: Property3 Quantity
+prop_monoid_Quantity = isMonoid
+
+prop_monotone_comp_Quantity :: Property4 Quantity
+prop_monotone_comp_Quantity = isMonotoneComposition
+
+-- Relevance is a LeftClosedPOMonoid
+
+prop_monoid_Relevance :: Property3 Relevance
+prop_monoid_Relevance = isMonoid
+
+prop_monotone_comp_Relevance :: Property4 Relevance
+prop_monotone_comp_Relevance = isMonotoneComposition
+
+prop_Galois_Relevance :: Prop3 Relevance
+prop_Galois_Relevance = isGaloisConnection
 
 -- ASR (2017-01-23): Commented out because 'Hiding' is *partial*
 -- monoid.

@@ -17,6 +17,8 @@ module InternalTests.Helpers
   , isRightDistributive
   , isDistributive
   , isMonoid
+  , isMonotoneComposition
+  , isGaloisConnection
   , Prop3, Property3, Property4
     -- * Generators
   , natural
@@ -36,6 +38,9 @@ import Control.Monad
 import Data.Functor
 import Data.Semigroup ( (<>), mappend, mempty, Monoid, Semigroup )
 import Test.QuickCheck
+
+import Agda.Utils.PartialOrd
+import Agda.Utils.POMonoid
 
 ------------------------------------------------------------------------
 -- QuickCheck helpers
@@ -147,6 +152,20 @@ isMonoid x y z =
   isIdentity mempty mappend x
 
 type Property4 a = a -> a -> a -> a -> Property
+
+-- | Is the semigroup operation monotone in both arguments
+--   wrt. to the associated partial ordering?
+
+isMonotoneComposition :: (Eq a, POSemigroup a) => Property4 a
+isMonotoneComposition x x' y y' =
+  related x POLE x' && related y POLE y' ==> related (x <> y) POLE (x' <> y')
+
+-- | Do the semigroup operation and the inverse composition form
+--   a Galois connection?
+
+isGaloisConnection :: (Eq a, Semigroup a, LeftClosedPOMonoid a) => Prop3 a
+isGaloisConnection p x y =
+  related (inverseCompose p x) POLE y == related x POLE (p <> y)
 
 ------------------------------------------------------------------------
 -- Generators

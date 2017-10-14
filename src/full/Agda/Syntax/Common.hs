@@ -27,6 +27,8 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.PartialOrd
+import Agda.Utils.POMonoid
 import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
@@ -296,6 +298,9 @@ instance Ord Relevance where
     -- redundant case
     (NonStrict,NonStrict) -> EQ
 
+-- | More relevant is smaller.
+instance PartialOrd Relevance where
+  comparable = comparableOrd
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
 unusableRelevance :: LensRelevance a => a -> Bool
@@ -341,6 +346,12 @@ instance Semigroup Relevance where
 instance Monoid Relevance where
   mempty  = Relevant
   mappend = (<>)
+
+instance POSemigroup Relevance where
+instance POMonoid Relevance where
+
+instance LeftClosedPOMonoid Relevance where
+  inverseCompose = inverseComposeRelevance
 
 -- | For comparing @Relevance@ ignoring @Forced@.
 ignoreForced :: Relevance -> Relevance
