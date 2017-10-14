@@ -355,7 +355,7 @@ checkDotPattern (DPI _ (Just e) v (Dom info a)) =
         , nest 2 $ text "=" <+> prettyTCM v
         , nest 2 $ text ":" <+> prettyTCM a
         ]
-  applyRelevanceToContext (argInfoRelevance info) $ do
+  applyRelevanceToContext (getRelevance info) $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
       sep [ text "equalTerm"

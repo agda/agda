@@ -335,7 +335,7 @@ instance Pretty Declaration where
                 sep [ text "field"
                     , nest 2 $ mkInst inst $ mkOverlap i $
                       prettyRelevance i $ prettyHiding i id $
-                        pretty $ TypeSig (i {argInfoRelevance = Relevant}) x e
+                        pretty $ TypeSig (setRelevance Relevant i) x e
                     ]
                 where
                   mkInst InstanceDef    d = sep [ text "instance", nest 2 d ]

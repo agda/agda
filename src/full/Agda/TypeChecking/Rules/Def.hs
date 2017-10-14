@@ -129,7 +129,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
 
 {-
   -- Infer the type of the rhs
-  (v, t) <- applyRelevanceToContext (argInfoRelevance ai) $
+  (v, t) <- applyRelevanceToContext (getRelevance ai) $
                                     inferOrCheck e (Just t')
   -- v <- coerce v t t'
 -}
@@ -233,7 +233,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo (A.clauseRHS c) $ do
-              c <- applyRelevanceToContext (argInfoRelevance ai) $ do
+              c <- applyRelevanceToContext (getRelevance ai) $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.

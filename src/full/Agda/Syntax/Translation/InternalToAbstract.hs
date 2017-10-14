@@ -641,7 +641,7 @@ instance Reify i a => Reify (Named n i) (Named n a) where
 instance (Reify i a) => Reify (Arg i) (Arg a) where
   reify (Arg info i) = Arg info <$> (flip reifyWhen i =<< condition)
     where condition = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
-              `and2M` (return (argInfoRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
+              `and2M` (return (getRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
   reifyWhen b i = traverse (reifyWhen b) i
 
 

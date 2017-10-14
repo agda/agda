@@ -126,8 +126,10 @@ quotingKit = do
       quoteRelevance NonStrict  = pure relevant
       quoteRelevance Forced{}   = pure relevant
 
+      -- TODO: quote Quanity
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h r _) = arginfo !@ quoteHiding h @@ quoteRelevance r
+      quoteArgInfo (ArgInfo h m _) =
+        arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l
