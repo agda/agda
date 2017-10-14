@@ -812,7 +812,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
         reportSDoc "tc.lhs.split" 10 $ sep
           [ text "checking lhs"
           , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
-          , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
+          , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
           ]
 
         reportSDoc "tc.lhs.split" 15 $ sep
