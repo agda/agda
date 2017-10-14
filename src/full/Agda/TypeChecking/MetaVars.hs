@@ -44,6 +44,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 
+import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -1194,13 +1195,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
     -- adding an irrelevant entry only if not present
     cons :: (Arg Nat, Term) -> Res -> Res
-    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) vars
-      | any ((i==) . unArg . fst) vars  = vars
-      | otherwise                       = a : vars
-    -- adding a relevant entry:
-    cons a@(Arg info i, t) vars = a :
-      -- filter out duplicate irrelevants
-      filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
+    cons a@(Arg ai i, t) vars
+      | isIrrelevant ai = applyUnless (any ((i==) . unArg . fst) vars) (a :) vars
+      | otherwise       = a :  -- adding a relevant entry
+          -- filter out duplicate irrelevants
+          filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
 -- UNUSED
 -- -- | Used in 'Agda.Interaction.BasicOps.giveExpr'.

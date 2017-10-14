@@ -291,13 +291,6 @@ moreRelevant r r' =
     -- remaining case
     (NonStrict,NonStrict) -> True
 
-irrelevant :: Relevance -> Bool
-irrelevant r =
-  case r of
-    Irrelevant -> True
-    NonStrict  -> False
-    Relevant   -> False
-    Forced{}   -> False
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
 unusableRelevance :: LensRelevance a => a -> Bool
