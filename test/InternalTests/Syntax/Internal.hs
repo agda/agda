@@ -30,11 +30,11 @@ instance Arbitrary (Blocked ()) where
 -- Properties
 
 -- | 'NotBlocked' is a monoid.
-prop_monoid_NotBlocked :: NotBlocked -> NotBlocked -> NotBlocked -> Bool
+prop_monoid_NotBlocked :: Property3 NotBlocked
 prop_monoid_NotBlocked = isMonoid
 
 -- | 'Blocked_' is a monoid.
-prop_monoid_Blocked_ :: Blocked_ -> Blocked_ -> Blocked_ -> Bool
+prop_monoid_Blocked_ :: Property3 Blocked_
 prop_monoid_Blocked_ = isMonoid
 
 ------------------------------------------------------------------------

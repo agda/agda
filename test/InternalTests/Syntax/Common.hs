@@ -55,12 +55,11 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
 -- monoid.
 
 -- | 'Hiding' is a monoid.
--- prop_monoid_Hiding :: Hiding -> Hiding -> Hiding -> Bool
+-- prop_monoid_Hiding :: Prop3 Hiding
 -- prop_monoid_Hiding = isMonoid
 
 -- | 'Using'' is a monoid.
-prop_monoid_Using' :: Using' Int Int -> Using' Int Int -> Using' Int Int ->
-                      Bool
+prop_monoid_Using' :: Property3 (Using' Int Int)
 prop_monoid_Using' = isMonoid
 
 ------------------------------------------------------------------------

@@ -16,8 +16,7 @@ instance Arbitrary Simplification where
 -- Properties
 
 -- | 'Simplification' is a monoid.
-prop_monoid_Simplification :: Simplification -> Simplification ->
-                              Simplification -> Bool
+prop_monoid_Simplification :: Property3 Simplification
 prop_monoid_Simplification = isMonoid
 
 ------------------------------------------------------------------------

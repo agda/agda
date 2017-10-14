@@ -58,15 +58,15 @@ prop_smallestPos f = smallestPos (decompress f) == smallestPosC f
 -- Algebraic properties
 
 -- | 'Aspects' is a monoid.
-prop_monoid_Aspects :: Aspects -> Aspects -> Aspects -> Bool
+prop_monoid_Aspects :: Property3 Aspects
 prop_monoid_Aspects = isMonoid
 
 -- | 'File' is a monoid.
-prop_monoid_File :: File -> File -> File -> Bool
+prop_monoid_File :: Property3 File
 prop_monoid_File = isMonoid
 
 -- | 'CompressedFile' is a monoid.
-prop_monoid_CompressedFile :: CompressedFile -> CompressedFile -> CompressedFile -> Bool
+prop_monoid_CompressedFile :: Property3 CompressedFile
 prop_monoid_CompressedFile = isMonoid
 
 ------------------------------------------------------------------------

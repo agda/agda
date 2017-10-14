@@ -17,6 +17,7 @@ module InternalTests.Helpers
   , isRightDistributive
   , isDistributive
   , isMonoid
+  , Prop3, Property3, Property4
     -- * Generators
   , natural
   , positive
@@ -126,19 +127,26 @@ isDistributive (*) (+) = \ x y z ->
   isLeftDistributive (*) (+) x y z &&
   isRightDistributive (*) (+) x y z
 
+-- | Property over 3 variables.
+
+type Prop3     a = a -> a -> a -> Bool
+type Property3 a = a -> a -> a -> Property
+
 -- | Does the operator satisfy the semigroup law?
 
-isSemigroup :: (Eq a, Semigroup a) => a -> a -> a -> Bool
+isSemigroup :: (Eq a, Semigroup a) => Prop3 a
 isSemigroup = isAssociative (<>)
 
 -- | Does the operator satisfy the monoid laws?
 
-isMonoid :: (Eq a, Semigroup a, Monoid a) => a -> a -> a -> Bool
+isMonoid :: (Eq a, Semigroup a, Monoid a) => Property3 a
 isMonoid x y z =
 -- ASR (2017-01-25): What if `mappend ≠ (<>)`? It isn't possible
 -- because we are using the `-Wnoncanonical-monoid-instances` flag.
-  isSemigroup x y z &&
+  isSemigroup x y z .&&.
   isIdentity mempty mappend x
+
+type Property4 a = a -> a -> a -> a -> Property
 
 ------------------------------------------------------------------------
 -- Generators
