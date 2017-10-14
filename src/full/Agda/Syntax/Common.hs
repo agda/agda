@@ -234,9 +234,6 @@ defaultRelevance = Relevant
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
 
-instance Ord Relevance where
-  (<=) = moreRelevant
-
 instance NFData Relevance where
   rnf Relevant   = ()
   rnf NonStrict  = ()
@@ -281,19 +278,23 @@ isNonStrict a = getRelevance a == NonStrict
 --  NonStrict \`moreRelevant\`
 --  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
-moreRelevant r r' =
-  case (r, r') of
+moreRelevant = (<=)
+
+-- | More relevant is smaller.
+instance Ord Relevance where
+  compare = curry $ \case
+    (r, r') | r == r' -> EQ
     -- top
-    (_, Irrelevant) -> True
-    (Irrelevant, _) -> False
+    (_, Irrelevant) -> LT
+    (Irrelevant, _) -> GT
     -- bottom
-    (Relevant, _)   -> True
-    (_, Relevant)   -> False
+    (Relevant, _) -> LT
+    (_, Relevant) -> GT
     -- second bottom
-    (Forced{}, _)   -> True
-    (_, Forced{})   -> False
-    -- remaining case
-    (NonStrict,NonStrict) -> True
+    (Forced, _)   -> LT
+    (_, Forced)   -> GT
+    -- redundant case
+    (NonStrict,NonStrict) -> EQ
 
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
