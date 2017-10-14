@@ -3,16 +3,22 @@
 
 module InternalTests.Syntax.Common ( tests ) where
 
-import Agda.Syntax.Common
+import Control.Applicative
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
+import Agda.Syntax.Common
 
 import InternalTests.Helpers
 
 ------------------------------------------------------------------------------
 -- Instances
+
+instance CoArbitrary Modality
+instance Arbitrary Modality where
+  arbitrary = liftA2 Modality arbitrary arbitrary
+
+instance CoArbitrary Quantity
+instance Arbitrary Quantity where
+  arbitrary = elements [minBound..maxBound]
 
 instance CoArbitrary Relevance
 instance Arbitrary Relevance where

@@ -433,6 +433,21 @@ instance EmbPrj Hiding where
   value 3 = return (Instance YesOverlap)
   value _ = malformed
 
+instance EmbPrj Quantity where
+  icod_ Quantity0 = return 0
+  icod_ Quantityω = return 1
+
+  value 0 = return Quantity0
+  value 1 = return Quantityω
+  value _ = malformed
+
+instance EmbPrj Modality where
+  icod_ (Modality a b) = icodeN' Modality a b
+
+  value = vcase $ \case
+    [a, b] -> valuN Modality a b
+    _ -> malformed
+
 instance EmbPrj Relevance where
   icod_ Relevant       = return 0
   icod_ Irrelevant     = return 1

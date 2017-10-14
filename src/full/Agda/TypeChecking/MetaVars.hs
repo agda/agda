@@ -1159,9 +1159,12 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
               | length fs == length vs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
-                       { argInfoHiding       = min (getHiding info) (getHiding info')
-                       , argInfoRelevance    = max (getRelevance info) (getRelevance info')
-                       , argInfoOrigin       = min (getOrigin info) (getOrigin info')
+                       { argInfoHiding   = min (getHiding info) (getHiding info')
+                       , argInfoModality = Modality
+                         { modRelevance  = max (getRelevance info) (getRelevance info')
+                         , modQuantity   = max (getQuantity  info) (getQuantity  info')
+                         }
+                       , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        }
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
