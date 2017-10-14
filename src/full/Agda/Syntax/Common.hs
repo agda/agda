@@ -223,10 +223,13 @@ data Relevance
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
   | Forced      -- ^ The argument can be skipped during equality checking
                 --   because its value is already determined by the type.
-    deriving (Typeable, Data, Show, Eq, Enum, Bounded)
+    deriving (Typeable, Data, Show, Eq, Enum, Bounded, Generic)
 
 allRelevances :: [Relevance]
 allRelevances = [minBound..maxBound]
+
+defaultRelevance :: Relevance
+defaultRelevance = Relevant
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
@@ -328,6 +331,15 @@ inverseComposeRelevance r x =
     (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
+
+-- | 'Relevance' forms a semigroup under composition.
+instance Semigroup Relevance where
+  (<>) = composeRelevance
+
+-- | 'Relevant' is the unit.
+instance Monoid Relevance where
+  mempty  = Relevant
+  mappend = (<>)
 
 -- | For comparing @Relevance@ ignoring @Forced@.
 ignoreForced :: Relevance -> Relevance
