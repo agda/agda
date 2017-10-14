@@ -1236,7 +1236,7 @@ defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
 defRelevance :: Definition -> Relevance
-defRelevance = argInfoRelevance . defArgInfo
+defRelevance = getRelevance . defArgInfo
 
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat

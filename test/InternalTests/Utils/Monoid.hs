@@ -18,7 +18,7 @@ instance Arbitrary MaxNat where
 -- Properties
 
 -- | 'MaxNat' is a monoid.
-prop_monoid_MaxNat :: MaxNat -> MaxNat -> MaxNat -> Bool
+prop_monoid_MaxNat :: Property3 MaxNat
 prop_monoid_MaxNat = isMonoid
 
 ------------------------------------------------------------------------

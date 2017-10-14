@@ -27,6 +27,10 @@ import Agda.Utils.Functor ((<&>))
 --   Mnemoic: "Lens inner outer".
 type Lens' i o = forall f. Functor f => (i -> f i) -> o -> f o
 
+type LensGet i o = o -> i
+type LensSet i o = i -> o -> o
+type LensMap i o = (i -> i) -> o -> o
+
 -- * Some simple lenses.
 
 lFst :: Lens' a (a, b)
@@ -43,11 +47,11 @@ infixl 8 ^.
 o ^. l = getConst $ l Const o
 
 -- | Set inner part @i@ of structure @o@ as designated by @Lens' i o@.
-set :: Lens' i o -> i -> o -> o
+set :: Lens' i o -> LensSet i o
 set l = over l . const
 
 -- | Modify inner part @i@ of structure @o@ using a function @i -> i@.
-over :: Lens' i o -> (i -> i) -> o -> o
+over :: Lens' i o -> LensMap i o
 over l f o = runIdentity $ l (Identity . f) o
 
 

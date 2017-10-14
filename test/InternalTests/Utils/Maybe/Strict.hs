@@ -29,7 +29,7 @@ instance CoArbitrary a => CoArbitrary (Maybe a) where
 -- Properties
 
 -- | 'Maybe a' is a monoid.
-prop_monoid_Maybe :: Maybe () -> Maybe () -> Maybe () -> Bool
+prop_monoid_Maybe :: Property3 (Maybe ())
 prop_monoid_Maybe = isMonoid
 
 ------------------------------------------------------------------------

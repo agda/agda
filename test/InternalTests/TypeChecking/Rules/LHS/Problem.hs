@@ -16,7 +16,7 @@ instance Arbitrary FlexChoice where
 -- Properties
 
 -- | 'FlexChoice' is a monoid.
-prop_monoid_FlexChoice :: FlexChoice -> FlexChoice -> FlexChoice -> Bool
+prop_monoid_FlexChoice :: Property3 FlexChoice
 prop_monoid_FlexChoice = isMonoid
 
 ------------------------------------------------------------------------

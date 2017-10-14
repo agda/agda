@@ -26,6 +26,9 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Position
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
+import Agda.Utils.PartialOrd
+import Agda.Utils.POMonoid
 import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
@@ -209,6 +212,161 @@ sameHiding x y =
     (hx, hy)                 -> hx == hy
 
 ---------------------------------------------------------------------------
+-- * Modalities
+---------------------------------------------------------------------------
+
+-- | We have a tuple of modalities, which might not be fully orthogonal.
+--   For instance, irrelevant stuff is also run-time irrelevant.
+data Modality = Modality
+  { modRelevance :: Relevance
+      -- ^ Legacy irrelevance.
+      --   See Pfenning, LiCS 2001; Abel/Vezzosi/Winterhalter, ICFP 2017.
+  , modQuantity  :: Quantity
+      -- ^ Cardinality / runtime erasure.
+      --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
+  } deriving (Typeable, Data, Eq, Ord, Show, Generic)
+
+defaultModality :: Modality
+defaultModality = Modality defaultRelevance defaultQuantity
+
+-- | Pointwise composition.
+instance Semigroup Modality where
+  Modality r q <> Modality r' q' = Modality (r <> r') (q <> q')
+
+-- | Pointwise unit.
+instance Monoid Modality where
+  mempty = Modality mempty mempty
+  mappend = (<>)
+
+-- | Dominance ordering.
+instance PartialOrd Modality where
+  comparable (Modality r q) (Modality r' q') = comparable (r, q) (r', q')
+
+instance POSemigroup Modality where
+instance POMonoid Modality where
+
+-- boilerplate instances
+
+instance KillRange Modality where
+  killRange = id
+
+instance NFData Modality where
+
+class LensModality a where
+
+  getModality :: a -> Modality
+
+  setModality :: Modality -> a -> a
+  setModality = mapModality . const
+
+  mapModality :: (Modality -> Modality) -> a -> a
+  mapModality f a = setModality (f $ getModality a) a
+
+instance LensModality Modality where
+  getModality = id
+  setModality = const
+  mapModality = id
+
+instance LensRelevance Modality where
+  getRelevance = modRelevance
+  setRelevance h m = m { modRelevance = h }
+  mapRelevance f m = m { modRelevance = f (modRelevance m) }
+
+instance LensQuantity Modality where
+  getQuantity = modQuantity
+  setQuantity h m = m { modQuantity = h }
+  mapQuantity f m = m { modQuantity = f (modQuantity m) }
+
+-- default accessors for Relevance
+
+getRelevanceMod :: LensModality a => LensGet Relevance a
+getRelevanceMod = getRelevance . getModality
+
+setRelevanceMod :: LensModality a => LensSet Relevance a
+setRelevanceMod = mapModality . setRelevance
+
+mapRelevanceMod :: LensModality a => LensMap Relevance a
+mapRelevanceMod = mapModality . mapRelevance
+
+-- default accessors for Quantity
+
+getQuantityMod :: LensModality a => LensGet Quantity a
+getQuantityMod = getQuantity . getModality
+
+setQuantityMod :: LensModality a => LensSet Quantity a
+setQuantityMod = mapModality . setQuantity
+
+mapQuantityMod :: LensModality a => LensMap Quantity a
+mapQuantityMod = mapModality . mapQuantity
+
+---------------------------------------------------------------------------
+-- * Quantities
+---------------------------------------------------------------------------
+
+-- | Quantity for linearity.
+data Quantity
+  = Quantity0  -- ^ Zero uses, erased at runtime.
+  -- TODO: | Quantity1  -- ^ Linear use (could be updated destructively).
+  -- (needs postponable constraints between quantities to compute uses).
+  | Quantityω  -- ^ Unrestricted use.
+  deriving (Typeable, Data, Show, Generic, Eq, Enum, Bounded)
+
+defaultQuantity :: Quantity
+defaultQuantity = Quantityω
+
+-- | Composition of quantities (multiplication).
+--
+-- 'Quantity0' is dominant.
+instance Semigroup Quantity where
+  Quantity0 <> _ = Quantity0
+  _ <> Quantity0 = Quantity0
+  Quantityω <> _ = Quantityω
+  -- _ <> Quantityω = Quantityω  -- redundant
+
+-- | In the absense of finite quantities besides 0, ω is the unit.
+instance Monoid Quantity where
+  mempty = Quantityω
+  mappend = (<>)
+
+-- | Note that the order is @ω ≤ 0@, more relevant is smaller.
+instance Ord Quantity where
+  compare = curry $ \case
+    (Quantityω, Quantityω) -> EQ
+    (Quantityω, Quantity0) -> LT
+    (Quantity0, Quantityω) -> GT
+    (Quantity0, Quantity0) -> EQ
+
+instance PartialOrd Quantity where
+  comparable = comparableOrd
+
+instance POSemigroup Quantity where
+instance POMonoid Quantity where
+
+-- boilerplate instances
+
+class LensQuantity a where
+
+  getQuantity :: a -> Quantity
+
+  setQuantity :: Quantity -> a -> a
+  setQuantity = mapQuantity . const
+
+  mapQuantity :: (Quantity -> Quantity) -> a -> a
+  mapQuantity f a = setQuantity (f $ getQuantity a) a
+
+instance LensQuantity Quantity where
+  getQuantity = id
+  setQuantity = const
+  mapQuantity = id
+
+instance KillRange Quantity where
+  killRange = id
+
+instance NFData Quantity where
+  rnf Quantity0 = ()
+  rnf Quantityω = ()
+
+---------------------------------------------------------------------------
 -- * Relevance
 ---------------------------------------------------------------------------
 
@@ -222,16 +380,16 @@ data Relevance
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
   | Forced      -- ^ The argument can be skipped during equality checking
                 --   because its value is already determined by the type.
-    deriving (Typeable, Data, Show, Eq, Enum, Bounded)
+    deriving (Typeable, Data, Show, Eq, Enum, Bounded, Generic)
 
 allRelevances :: [Relevance]
 allRelevances = [minBound..maxBound]
 
+defaultRelevance :: Relevance
+defaultRelevance = Relevant
+
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
-
-instance Ord Relevance where
-  (<=) = moreRelevant
 
 instance NFData Relevance where
   rnf Relevant   = ()
@@ -277,27 +435,27 @@ isNonStrict a = getRelevance a == NonStrict
 --  NonStrict \`moreRelevant\`
 --  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
-moreRelevant r r' =
-  case (r, r') of
-    -- top
-    (_, Irrelevant) -> True
-    (Irrelevant, _) -> False
-    -- bottom
-    (Relevant, _)   -> True
-    (_, Relevant)   -> False
-    -- second bottom
-    (Forced{}, _)   -> True
-    (_, Forced{})   -> False
-    -- remaining case
-    (NonStrict,NonStrict) -> True
+moreRelevant = (<=)
 
-irrelevant :: Relevance -> Bool
-irrelevant r =
-  case r of
-    Irrelevant -> True
-    NonStrict  -> False
-    Relevant   -> False
-    Forced{}   -> False
+-- | More relevant is smaller.
+instance Ord Relevance where
+  compare = curry $ \case
+    (r, r') | r == r' -> EQ
+    -- top
+    (_, Irrelevant) -> LT
+    (Irrelevant, _) -> GT
+    -- bottom
+    (Relevant, _) -> LT
+    (_, Relevant) -> GT
+    -- second bottom
+    (Forced, _)   -> LT
+    (_, Forced)   -> GT
+    -- redundant case
+    (NonStrict,NonStrict) -> EQ
+
+-- | More relevant is smaller.
+instance PartialOrd Relevance where
+  comparable = comparableOrd
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
 unusableRelevance :: LensRelevance a => a -> Bool
@@ -334,6 +492,21 @@ inverseComposeRelevance r x =
     (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
+
+-- | 'Relevance' forms a semigroup under composition.
+instance Semigroup Relevance where
+  (<>) = composeRelevance
+
+-- | 'Relevant' is the unit.
+instance Monoid Relevance where
+  mempty  = Relevant
+  mappend = (<>)
+
+instance POSemigroup Relevance where
+instance POMonoid Relevance where
+
+instance LeftClosedPOMonoid Relevance where
+  inverseCompose = inverseComposeRelevance
 
 -- | For comparing @Relevance@ ignoring @Forced@.
 ignoreForced :: Relevance -> Relevance
@@ -431,7 +604,7 @@ instance LensOrigin (WithOrigin a) where
 
 data ArgInfo = ArgInfo
   { argInfoHiding       :: Hiding
-  , argInfoRelevance    :: Relevance
+  , argInfoModality     :: Modality
   , argInfoOrigin       :: Origin
   } deriving (Typeable, Data, Eq, Ord, Show)
 
@@ -458,20 +631,69 @@ instance LensHiding ArgInfo where
   setHiding h ai = ai { argInfoHiding = h }
   mapHiding f ai = ai { argInfoHiding = f (argInfoHiding ai) }
 
-instance LensRelevance ArgInfo where
-  getRelevance = argInfoRelevance
-  setRelevance h ai = ai { argInfoRelevance = h }
-  mapRelevance f ai = ai { argInfoRelevance = f (argInfoRelevance ai) }
+instance LensModality ArgInfo where
+  getModality = argInfoModality
+  setModality m ai = ai { argInfoModality = m }
+  mapModality f ai = ai { argInfoModality = f (argInfoModality ai) }
 
 instance LensOrigin ArgInfo where
   getOrigin = argInfoOrigin
   setOrigin o ai = ai { argInfoOrigin = o }
   mapOrigin f ai = ai { argInfoOrigin = f (argInfoOrigin ai) }
 
+-- inherited instances
+
+instance LensRelevance ArgInfo where
+  getRelevance = getRelevanceMod
+  setRelevance = setRelevanceMod
+  mapRelevance = mapRelevanceMod
+
+instance LensQuantity ArgInfo where
+  getQuantity = getQuantityMod
+  setQuantity = setQuantityMod
+  mapQuantity = mapQuantityMod
+
 defaultArgInfo :: ArgInfo
-defaultArgInfo =  ArgInfo { argInfoHiding       = NotHidden
-                          , argInfoRelevance    = Relevant
-                          , argInfoOrigin       = UserWritten }
+defaultArgInfo =  ArgInfo
+  { argInfoHiding       = NotHidden
+  , argInfoModality     = defaultModality
+  , argInfoOrigin       = UserWritten
+  }
+
+-- Accessing through ArgInfo
+
+-- default accessors for Hiding
+
+getHidingArgInfo :: LensArgInfo a => LensGet Hiding a
+getHidingArgInfo = getHiding . getArgInfo
+
+setHidingArgInfo :: LensArgInfo a => LensSet Hiding a
+setHidingArgInfo = mapArgInfo . setHiding
+
+mapHidingArgInfo :: LensArgInfo a => LensMap Hiding a
+mapHidingArgInfo = mapArgInfo . mapHiding
+
+-- default accessors for Modality
+
+getModalityArgInfo :: LensArgInfo a => LensGet Modality a
+getModalityArgInfo = getModality . getArgInfo
+
+setModalityArgInfo :: LensArgInfo a => LensSet Modality a
+setModalityArgInfo = mapArgInfo . setModality
+
+mapModalityArgInfo :: LensArgInfo a => LensMap Modality a
+mapModalityArgInfo = mapArgInfo . mapModality
+
+-- default accessors for Origin
+
+getOriginArgInfo :: LensArgInfo a => LensGet Origin a
+getOriginArgInfo = getOrigin . getArgInfo
+
+setOriginArgInfo :: LensArgInfo a => LensSet Origin a
+setOriginArgInfo = mapArgInfo . setOrigin
+
+mapOriginArgInfo :: LensArgInfo a => LensMap Origin a
+mapOriginArgInfo = mapArgInfo . mapOrigin
 
 
 ---------------------------------------------------------------------------
@@ -495,16 +717,19 @@ instance SetRange a => SetRange (Arg a) where
 instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
--- | Ignores 'Relevance' and 'Origin'.
+-- | Ignores 'Quantity', 'Relevance', and 'Origin'.
 --   Ignores content of argument if 'Irrelevant'.
 --
 instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 r1 _) x1 == Arg (ArgInfo h2 r2 _) x2 =
-    h1 == h2 && (r1 == Irrelevant || r2 == Irrelevant || x1 == x2)
+  Arg (ArgInfo h1 m1 _) x1 == Arg (ArgInfo h2 m2 _) x2 =
+    h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
     -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
+    -- This is a hack, we should not use '(==)' in with-abstraction
+    -- and more generally not use it on Syntax.
+    -- Andrea: except for caching.
 
 instance Show a => Show (Arg a) where
-    show (Arg (ArgInfo h r o) a) = showR r $ showO o $ showH h $ show a
+    show (Arg (ArgInfo h (Modality r q) o) a) = showQ q $ showR r $ showO o $ showH h $ show a
       where
         showH Hidden       s = "{" ++ s ++ "}"
         showH NotHidden    s = "(" ++ s ++ ")"
@@ -516,6 +741,9 @@ instance Show a => Show (Arg a) where
           NonStrict    -> "?" ++ s
           Forced       -> "!" ++ s
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
+        showQ q s = case q of
+          Quantity0   -> "0" ++ s
+          Quantityω   -> "ω" ++ s
         showO o s = case o of
           UserWritten -> "u" ++ s
           Inserted    -> "i" ++ s
@@ -525,21 +753,39 @@ instance Show a => Show (Arg a) where
 instance NFData e => NFData (Arg e) where
   rnf (Arg a b) = rnf a `seq` rnf b
 
-instance LensHiding (Arg e) where
-  getHiding = getHiding . argInfo
-  mapHiding = mapArgInfo . mapHiding
-
-instance LensRelevance (Arg e) where
-  getRelevance = getRelevance . argInfo
-  mapRelevance = mapArgInfo . mapRelevance
-
-instance LensOrigin (Arg e) where
-  getOrigin = getOrigin . argInfo
-  mapOrigin = mapArgInfo . mapOrigin
-
 instance LensArgInfo (Arg a) where
   getArgInfo        = argInfo
+  setArgInfo ai arg = arg { argInfo = ai }
   mapArgInfo f arg  = arg { argInfo = f $ argInfo arg }
+
+-- The other lenses are defined through LensArgInfo
+
+instance LensHiding (Arg e) where
+  getHiding = getHidingArgInfo
+  setHiding = setHidingArgInfo
+  mapHiding = mapHidingArgInfo
+
+instance LensModality (Arg e) where
+  getModality = getModalityArgInfo
+  setModality = setModalityArgInfo
+  mapModality = mapModalityArgInfo
+
+instance LensOrigin (Arg e) where
+  getOrigin = getOriginArgInfo
+  setOrigin = setOriginArgInfo
+  mapOrigin = mapOriginArgInfo
+
+-- Since we have LensModality, we get relevance and quantity by default
+
+instance LensRelevance (Arg e) where
+  getRelevance = getRelevanceMod
+  setRelevance = setRelevanceMod
+  mapRelevance = mapRelevanceMod
+
+instance LensQuantity (Arg e) where
+  getQuantity = getQuantityMod
+  setQuantity = setQuantityMod
+  mapQuantity = mapQuantityMod
 
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
@@ -607,28 +853,47 @@ instance HasRange a => HasRange (Dom a) where
 instance KillRange a => KillRange (Dom a) where
   killRange (Dom info b a) = killRange3 Dom info b a
 
+-- | Ignores 'Origin' and 'Forced'.
 instance Eq a => Eq (Dom a) where
-  Dom (ArgInfo h1 r1 _) b1 x1 == Dom (ArgInfo h2 r2 _) b2 x2 =
-    (h1, ignoreForced r1, b1, x1) == (h2, ignoreForced r2, b2, x2)
+  Dom (ArgInfo h1 m1 _) b1 x1 == Dom (ArgInfo h2 m2 _) b2 x2 =
+    (h1, mapRelevance ignoreForced m1, b1, x1) == (h2, mapRelevance ignoreForced m2, b2, x2)
 
 instance Show a => Show (Dom a) where
   show = show . argFromDom
 
-instance LensHiding (Dom e) where
-  getHiding = getHiding . domInfo
-  mapHiding = mapArgInfo . mapHiding
-
-instance LensRelevance (Dom e) where
-  getRelevance = getRelevance . domInfo
-  mapRelevance = mapArgInfo . mapRelevance
-
 instance LensArgInfo (Dom e) where
-  getArgInfo = domInfo
-  mapArgInfo f arg = arg { domInfo = f $ domInfo arg }
+  getArgInfo        = domInfo
+  setArgInfo ai dom = dom { domInfo = ai }
+  mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
+
+-- The other lenses are defined through LensArgInfo
+
+instance LensHiding (Dom e) where
+  getHiding = getHidingArgInfo
+  setHiding = setHidingArgInfo
+  mapHiding = mapHidingArgInfo
+
+instance LensModality (Dom e) where
+  getModality = getModalityArgInfo
+  setModality = setModalityArgInfo
+  mapModality = mapModalityArgInfo
 
 instance LensOrigin (Dom e) where
-  getOrigin = getOrigin . getArgInfo
-  mapOrigin = mapArgInfo . mapOrigin
+  getOrigin = getOriginArgInfo
+  setOrigin = setOriginArgInfo
+  mapOrigin = mapOriginArgInfo
+
+-- Since we have LensModality, we get relevance and quantity by default
+
+instance LensRelevance (Dom e) where
+  getRelevance = getRelevanceMod
+  setRelevance = setRelevanceMod
+  mapRelevance = mapRelevanceMod
+
+instance LensQuantity (Dom e) where
+  getQuantity = getQuantityMod
+  setQuantity = setQuantityMod
+  mapQuantity = mapQuantityMod
 
 argFromDom :: Dom a -> Arg a
 argFromDom (Dom i _ a) = Arg i a

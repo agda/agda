@@ -3,17 +3,24 @@
 
 module InternalTests.Syntax.Common ( tests ) where
 
-import Agda.Syntax.Common
+import Control.Applicative
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
+import Agda.Syntax.Common
 
 import InternalTests.Helpers
 
 ------------------------------------------------------------------------------
 -- Instances
 
+instance CoArbitrary Modality
+instance Arbitrary Modality where
+  arbitrary = liftA2 Modality arbitrary arbitrary
+
+instance CoArbitrary Quantity
+instance Arbitrary Quantity where
+  arbitrary = elements [minBound..maxBound]
+
+instance CoArbitrary Relevance
 instance Arbitrary Relevance where
   arbitrary = elements allRelevances
 
@@ -51,16 +58,34 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
 ------------------------------------------------------------------------------
 -- Properties
 
+-- Quantity is a POMonoid
+
+prop_monoid_Quantity :: Property3 Quantity
+prop_monoid_Quantity = isMonoid
+
+prop_monotone_comp_Quantity :: Property4 Quantity
+prop_monotone_comp_Quantity = isMonotoneComposition
+
+-- Relevance is a LeftClosedPOMonoid
+
+prop_monoid_Relevance :: Property3 Relevance
+prop_monoid_Relevance = isMonoid
+
+prop_monotone_comp_Relevance :: Property4 Relevance
+prop_monotone_comp_Relevance = isMonotoneComposition
+
+prop_Galois_Relevance :: Prop3 Relevance
+prop_Galois_Relevance = isGaloisConnection
+
 -- ASR (2017-01-23): Commented out because 'Hiding' is *partial*
 -- monoid.
 
 -- | 'Hiding' is a monoid.
--- prop_monoid_Hiding :: Hiding -> Hiding -> Hiding -> Bool
+-- prop_monoid_Hiding :: Prop3 Hiding
 -- prop_monoid_Hiding = isMonoid
 
 -- | 'Using'' is a monoid.
-prop_monoid_Using' :: Using' Int Int -> Using' Int Int -> Using' Int Int ->
-                      Bool
+prop_monoid_Using' :: Property3 (Using' Int Int)
 prop_monoid_Using' = isMonoid
 
 ------------------------------------------------------------------------

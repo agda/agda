@@ -475,6 +475,7 @@ library
                     Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
                     Agda.Utils.Pointer
+                    Agda.Utils.POMonoid
                     Agda.Utils.Pretty
                     Agda.Utils.SemiRing
                     Agda.Utils.Singleton

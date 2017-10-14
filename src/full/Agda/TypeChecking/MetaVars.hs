@@ -45,6 +45,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 
+import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -1171,9 +1172,12 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
               | length fs == length vs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
-                       { argInfoHiding       = min (getHiding info) (getHiding info')
-                       , argInfoRelevance    = max (getRelevance info) (getRelevance info')
-                       , argInfoOrigin       = min (getOrigin info) (getOrigin info')
+                       { argInfoHiding   = min (getHiding info) (getHiding info')
+                       , argInfoModality = Modality
+                         { modRelevance  = max (getRelevance info) (getRelevance info')
+                         , modQuantity   = max (getQuantity  info) (getQuantity  info')
+                         }
+                       , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        }
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
@@ -1207,13 +1211,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
     -- adding an irrelevant entry only if not present
     cons :: (Arg Nat, Term) -> Res -> Res
-    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) vars
-      | any ((i==) . unArg . fst) vars  = vars
-      | otherwise                       = a : vars
-    -- adding a relevant entry:
-    cons a@(Arg info i, t) vars = a :
-      -- filter out duplicate irrelevants
-      filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
+    cons a@(Arg ai i, t) vars
+      | isIrrelevant ai = applyUnless (any ((i==) . unArg . fst) vars) (a :) vars
+      | otherwise       = a :  -- adding a relevant entry
+          -- filter out duplicate irrelevants
+          filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
 -- UNUSED
 -- -- | Used in 'Agda.Interaction.BasicOps.giveExpr'.

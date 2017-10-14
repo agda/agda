@@ -63,7 +63,7 @@ initialIFSCandidates t = do
           vars = [ Candidate x t ExplicitStayExplicit (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
-                 , not (unusableRelevance $ argInfoRelevance info)
+                 , not (unusableRelevance info)
                  ]
 
       -- {{}}-fields of variables are also candidates
@@ -85,7 +85,7 @@ initialIFSCandidates t = do
       let lets = [ Candidate v t ExplicitStayExplicit False
                  | (v, Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
-                 , not (unusableRelevance $ argInfoRelevance info)
+                 , not (unusableRelevance info)
                  ]
       return $ vars ++ fields ++ lets
 

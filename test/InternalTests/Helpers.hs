@@ -17,6 +17,9 @@ module InternalTests.Helpers
   , isRightDistributive
   , isDistributive
   , isMonoid
+  , isMonotoneComposition
+  , isGaloisConnection
+  , Prop3, Property3, Property4
     -- * Generators
   , natural
   , positive
@@ -35,6 +38,9 @@ import Control.Monad
 import Data.Functor
 import Data.Semigroup ( (<>), mappend, mempty, Monoid, Semigroup )
 import Test.QuickCheck
+
+import Agda.Utils.PartialOrd
+import Agda.Utils.POMonoid
 
 ------------------------------------------------------------------------
 -- QuickCheck helpers
@@ -126,19 +132,40 @@ isDistributive (*) (+) = \ x y z ->
   isLeftDistributive (*) (+) x y z &&
   isRightDistributive (*) (+) x y z
 
+-- | Property over 3 variables.
+
+type Prop3     a = a -> a -> a -> Bool
+type Property3 a = a -> a -> a -> Property
+
 -- | Does the operator satisfy the semigroup law?
 
-isSemigroup :: (Eq a, Semigroup a) => a -> a -> a -> Bool
+isSemigroup :: (Eq a, Semigroup a) => Prop3 a
 isSemigroup = isAssociative (<>)
 
 -- | Does the operator satisfy the monoid laws?
 
-isMonoid :: (Eq a, Semigroup a, Monoid a) => a -> a -> a -> Bool
+isMonoid :: (Eq a, Semigroup a, Monoid a) => Property3 a
 isMonoid x y z =
 -- ASR (2017-01-25): What if `mappend ≠ (<>)`? It isn't possible
 -- because we are using the `-Wnoncanonical-monoid-instances` flag.
-  isSemigroup x y z &&
+  isSemigroup x y z .&&.
   isIdentity mempty mappend x
+
+type Property4 a = a -> a -> a -> a -> Property
+
+-- | Is the semigroup operation monotone in both arguments
+--   wrt. to the associated partial ordering?
+
+isMonotoneComposition :: (Eq a, POSemigroup a) => Property4 a
+isMonotoneComposition x x' y y' =
+  related x POLE x' && related y POLE y' ==> related (x <> y) POLE (x' <> y')
+
+-- | Do the semigroup operation and the inverse composition form
+--   a Galois connection?
+
+isGaloisConnection :: (Eq a, Semigroup a, LeftClosedPOMonoid a) => Prop3 a
+isGaloisConnection p x y =
+  related (inverseCompose p x) POLE y == related x POLE (p <> y)
 
 ------------------------------------------------------------------------
 -- Generators

@@ -373,7 +373,7 @@ checkDotPattern (DPI _ (Just e) v (Dom{domInfo = info, unDom = a})) =
         , nest 2 $ text "=" <+> prettyTCM v
         , nest 2 $ text ":" <+> prettyTCM a
         ]
-  applyRelevanceToContext (argInfoRelevance info) $ do
+  applyRelevanceToContext (getRelevance info) $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
       sep [ text "equalTerm"
@@ -917,7 +917,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
         reportSDoc "tc.lhs.split" 10 $ sep
           [ text "checking lhs"
           , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
-          , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
+          , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
           ]
 
         reportSDoc "tc.lhs.split" 15 $ sep

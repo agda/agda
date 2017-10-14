@@ -90,8 +90,7 @@ prop_seqPO (ISet a) (ISet b) (ISet c) = related a o c
 
 -- | 'PartialOrdering' is a monoid, i.e. 'seqPO' is associative and
 -- the unit of 'seqPO' is 'POEQ'.
-prop_monoid_seqPO :: PartialOrdering -> PartialOrdering ->
-                     PartialOrdering -> Bool
+prop_monoid_seqPO :: Property3 PartialOrdering
 prop_monoid_seqPO = isMonoid
 
 -- | The zero of 'seqPO' is 'POAny'.
