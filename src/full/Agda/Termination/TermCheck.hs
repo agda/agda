@@ -408,7 +408,7 @@ termFunction name = do
 -- | To process the target type.
 typeEndsInDef :: MonadTCM tcm => Type -> tcm (Maybe QName)
 typeEndsInDef t = liftTCM $ do
-  TelV _ core <- telView t
+  TelV _ core <- telViewPath t
   case ignoreSharing $ unEl core of
     Def d vs -> return $ Just d
     _        -> return Nothing
@@ -455,10 +455,10 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 setMasks :: Type -> TerM a -> TerM a
 setMasks t cont = do
   (ds, d) <- liftTCM $ do
-    TelV tel core <- telView t
+    TelV tel core <- telViewPath t
     -- Check argument types
     ds <- forM (telToList tel) $ \ t -> do
-      TelV _ t <- telView $ snd $ unDom t
+      TelV _ t <- telViewPath $ snd $ unDom t
       d <- (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
       when d $
         reportSDoc "term.mask" 20 $ do
