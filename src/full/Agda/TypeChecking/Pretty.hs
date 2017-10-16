@@ -255,7 +255,6 @@ instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
   prettyTCM NonStrict  = text ".."
   prettyTCM Relevant   = empty
-  prettyTCM Forced{}   = empty
 
 instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr pids c)

@@ -391,7 +391,6 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               Relevant   -> id
               NonStrict  -> id
               Irrelevant -> DontCare
-              _          -> __IMPOSSIBLE__
 
         let -- Andreas, 2010-09-09: comment for existing code
             -- split the telescope into parameters (ptel) and the type or the record

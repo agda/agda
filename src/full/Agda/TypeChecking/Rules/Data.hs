@@ -198,20 +198,18 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         n <- getContextSize
         debugEndsIn t d n
         constructs n t d
-        -- check which constructor arguments are determined by the type ('forcing')
-        t' <- addForcingAnnotations t
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        arity <- t' `fitsIn` s
-        debugAdd c t'
+        arity <- t `fitsIn` s
+        debugAdd c t
 
         -- add parameters to constructor type and put into signature
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $
           addConstant c $
-            defaultDefn defaultArgInfo c (telePi tel t') $ Constructor
+            defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
               , conSrcCon = con
@@ -330,16 +328,11 @@ fitsIn t s = do
   case ignoreSharing $ unEl t of
     Pi dom b -> do
       withoutK <- optWithoutK <$> pragmaOptions
-      -- Forced constructor arguments are ignored in size-checking.
-      when (withoutK || notForced (getRelevance dom)) $ do
-        sa <- reduce $ getSort dom
-        unless (sa == SizeUniv) $ sa `leqSort` s
+      sa <- reduce $ getSort dom
+      unless (sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ do
         succ <$> fitsIn (absBody b) (raise 1 s)
     _ -> return 0 -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
-  where
-    notForced Forced{} = False
-    notForced _        = True
 
 -- | Return the parameters that share variables with the indices
 -- nonLinearParameters :: Int -> Type -> TCM [Int]

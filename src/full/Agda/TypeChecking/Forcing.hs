@@ -86,6 +86,7 @@ import Agda.Utils.Impossible
 --   Update the relevance info in the domains accordingly.
 --   Precondition: the type is of the form @Γ → D vs@ and the @vs@
 --   are in normal form.
+{-
 addForcingAnnotations :: Type -> TCM Type
 addForcingAnnotations t =
   ifM (not . optForcing <$> commandLineOptions)
@@ -113,6 +114,7 @@ addForcingAnnotations t =
     , "  t' = " ++ show t'
     ]
   return t'
+-}
 
 -- | Compute the pattern variables of a term or term-like thing.
 class ForcedVariables a where
@@ -131,6 +133,7 @@ instance ForcedVariables Term where
 -- | @force s xs t@ marks the domains @xs@ in function type @t@ as forced.
 --   Counting left-to-right, starting with 0.
 --   Precondition: function type is exposed.
+{-
 force :: Sort -> [Nat] -> Type -> TCM Type
 force s0 xs t = loop 0 t
   where
@@ -141,3 +144,4 @@ force s0 xs t = loop 0 t
         let a' = applyWhen (i `elem` xs) (mapRelevance $ composeRelevance Forced) a
         El s . Pi a' <$> traverse (loop $ i + 1) b
       _ -> __IMPOSSIBLE__
+-}

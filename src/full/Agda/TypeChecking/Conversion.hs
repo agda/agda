@@ -585,9 +585,7 @@ compareDom :: Free c
   -> TCM ()
 compareDom cmp dom1@(Dom i1 a1) dom2@(Dom i2 a2) b1 b2 errH errR cont
   | not (sameHiding dom1 dom2) = errH
-  -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-  | not $ compareRelevance cmp (ignoreForced $ getRelevance dom1)
-                               (ignoreForced $ getRelevance dom2) = errR
+  | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) = errR
   | otherwise = do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -743,12 +741,11 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
 
             -- compare arg1 and arg2
             pid <- newProblem_ $ applyRelevanceToContext r $
-                case r of
-                  Forced{}   -> return ()
-                  r | isIrrelevant r ->
-                                compareIrrelevant b (unArg arg1) (unArg arg2)
-                  _          -> compareWithPol pol (flip compareTerm b)
-                                  (unArg arg1) (unArg arg2)
+                if isIrrelevant r then
+                  compareIrrelevant b (unArg arg1) (unArg arg2)
+                else
+                  compareWithPol pol (flip compareTerm b)
+                    (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
             solved <- isProblemSolved pid
             arg <- if dependent && not solved

@@ -378,8 +378,6 @@ data Relevance
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-  | Forced      -- ^ The argument can be skipped during equality checking
-                --   because its value is already determined by the type.
     deriving (Typeable, Data, Show, Eq, Enum, Bounded, Generic)
 
 allRelevances :: [Relevance]
@@ -395,7 +393,6 @@ instance NFData Relevance where
   rnf Relevant   = ()
   rnf NonStrict  = ()
   rnf Irrelevant = ()
-  rnf Forced     = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and one of @setRelevance@ or @mapRelevance@.
@@ -417,12 +414,6 @@ instance LensRelevance Relevance where
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = getRelevance a == Relevant
 
-isRelevantOrForced :: LensRelevance a => a -> Bool
-isRelevantOrForced a = case getRelevance a of
-                 Relevant -> True
-                 Forced{} -> True
-                 _        -> False
-
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = getRelevance a == Irrelevant
 
@@ -431,7 +422,6 @@ isNonStrict a = getRelevance a == NonStrict
 
 -- | Information ordering.
 -- @Relevant  \`moreRelevant\`
---  Forced    \`moreRelevant\`
 --  NonStrict \`moreRelevant\`
 --  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
@@ -447,9 +437,6 @@ instance Ord Relevance where
     -- bottom
     (Relevant, _) -> LT
     (_, Relevant) -> GT
-    -- second bottom
-    (Forced, _)   -> LT
-    (_, Forced)   -> GT
     -- redundant case
     (NonStrict,NonStrict) -> EQ
 
@@ -462,7 +449,6 @@ unusableRelevance :: LensRelevance a => a -> Bool
 unusableRelevance a = case getRelevance a of
   Irrelevant -> True
   NonStrict  -> True
-  Forced{}   -> False -- @Forced@ has no semantic relevance
   Relevant   -> False
 
 -- | 'Relevance' composition.
@@ -474,8 +460,6 @@ composeRelevance r r' =
     (_, Irrelevant) -> Irrelevant
     (NonStrict, _)  -> NonStrict
     (_, NonStrict)  -> NonStrict
-    (Forced, _)     -> Forced
-    (_, Forced)     -> Forced
     (Relevant, Relevant) -> Relevant
 
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
@@ -488,7 +472,6 @@ inverseComposeRelevance r x =
   case (r, x) of
     (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
     _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
-    (Forced{}, x)          -> x
     (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
@@ -507,13 +490,6 @@ instance POMonoid Relevance where
 
 instance LeftClosedPOMonoid Relevance where
   inverseCompose = inverseComposeRelevance
-
--- | For comparing @Relevance@ ignoring @Forced@.
-ignoreForced :: Relevance -> Relevance
-ignoreForced Forced{}   = Relevant
-ignoreForced Relevant   = Relevant
-ignoreForced NonStrict  = NonStrict
-ignoreForced Irrelevant = Irrelevant
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrToNonStrict :: Relevance -> Relevance
@@ -739,7 +715,6 @@ instance Show a => Show (Arg a) where
         showR r s = case r of
           Irrelevant   -> "." ++ s
           NonStrict    -> "?" ++ s
-          Forced       -> "!" ++ s
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showQ q s = case q of
           Quantity0   -> "0" ++ s
@@ -847,10 +822,10 @@ instance HasRange a => HasRange (Dom a) where
 instance KillRange a => KillRange (Dom a) where
   killRange (Dom info a) = killRange2 Dom info a
 
--- | Ignores 'Origin' and 'Forced'.
+-- | Ignores 'Origin'.
 instance Eq a => Eq (Dom a) where
   Dom (ArgInfo h1 m1 _) x1 == Dom (ArgInfo h2 m2 _) x2 =
-    (h1, mapRelevance ignoreForced m1, x1) == (h2, mapRelevance ignoreForced m2, x2)
+    (h1, m1, x1) == (h2, m2, x2)
 
 instance Show a => Show (Dom a) where
   show = show . argFromDom

@@ -950,10 +950,6 @@ checkLHS f st@(LHSState problem dpi sbe) = do
             , text "es      =" <+> addContext delta1' (prettyTCM $ (fmap . fmap . fmap) patternToTerm es)
             ]
 
-          -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
-          -- Andreas 2015-01-19  ... only after unification
-          delta1' <- return $ mapRelevance ignoreForced <$> delta1'
-
           -- compute in patterns for delta1'
           let newPats  = applySubst rho0 $ teleArgs $ delta1 `abstract` gamma
               -- oldTypes are the types of the old pattern variables, but relative

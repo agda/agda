@@ -658,7 +658,7 @@ assign dir x args v = do
             return (Set.toList $ allFreeVars args, empty, empty)
           else do
             let vars  = allFreeVarsWithOcc args
-                relVL       = IntMap.keys $ IntMap.filter isRelevantOrForced vars
+                relVL       = IntMap.keys $ IntMap.filter isRelevant vars
                 nonstrictVL = IntMap.keys $ IntMap.filter isNonStrict vars
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may

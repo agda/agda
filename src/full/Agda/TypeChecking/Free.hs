@@ -228,8 +228,7 @@ instance IsVarSet FreeVars where
         Free.StronglyRigid -> strongly
       goRel r = case r of
         Relevant   -> id
-        NonStrict  -> id    -- we don't track non-strict and
-        Forced{}   -> id    -- forced in FreeVars
+        NonStrict  -> id    -- we don't track non-strict in FreeVars
         Irrelevant -> irrelevantly
 
 -- In most cases we don't care about the VarOcc.

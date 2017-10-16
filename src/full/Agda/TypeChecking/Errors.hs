@@ -709,8 +709,6 @@ instance PrettyTCM TypeError where
 
     UnequalRelevance cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
--- Andreas 2010-09-21 to reveal Forced annotations, print also uglily
---            [text $ show a, notCmp cmp, text $ show b] ++
       pwords "because one is a relevant function type and the other is an irrelevant function type"
 
     UnequalHiding a b -> fsep $
@@ -1519,7 +1517,6 @@ instance Verbalize Relevance where
       Relevant   -> "relevant"
       Irrelevant -> "irrelevant"
       NonStrict  -> "shape-irrelevant"
-      Forced{}   -> "forced"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a
