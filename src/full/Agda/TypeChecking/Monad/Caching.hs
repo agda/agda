@@ -108,10 +108,8 @@ cleanCachedLog = do
 activateLoadedFileCache :: TCM ()
 activateLoadedFileCache = do
   reportSLn "cache" 10 $ "activateLoadedFileCache"
-  b <- enableCaching
-  if not b then return ()
-     else do
-       modifyCache $ \mbLfc -> case mbLfc of
+  whenM enableCaching $ do
+      modifyCache $ \case
          Nothing                          -> Just $ LoadedFileCache [] []
          Just lfc | null (lfcCurrent lfc) -> Just lfc
          _                                -> __IMPOSSIBLE__
