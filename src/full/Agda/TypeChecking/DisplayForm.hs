@@ -52,10 +52,14 @@ displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
 --   @dt@ if successful.  First match wins.
 displayForm :: QName -> Elims -> TCM (Maybe DisplayTerm)
 displayForm q es = do
-    -- Get display forms for name q.
-    odfs  <- getDisplayForms q `catchError` \_ -> return []
+  -- Get display forms for name q.
+  odfs  <- getDisplayForms q
+  if (null odfs) then do
+    reportSLn "tc.display.top" 101 $ "no displayForm for " ++ prettyShow q
+    return Nothing
+  else do
     -- Display debug info about the @Open@s.
-    unless (null odfs) $ verboseS "tc.display.top" 100 $ do
+    verboseS "tc.display.top" 100 $ do
       n <- getContextId
       reportSLn "tc.display.top" 100 $
         "displayForm for " ++ prettyShow q ++ ": context = " ++ show n ++
@@ -69,7 +73,7 @@ displayForm q es = do
       return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, es)
-    unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
+    reportSLn "tc.display.top" 100 $ unlines
       [ "name        : " ++ prettyShow q
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show es
@@ -78,12 +82,6 @@ displayForm q es = do
       ]
     -- Return the first display form that matches.
     return $ headMaybe ms
-
---  Andreas, 2014-06-11: The following error swallowing
---  is potentially harmful, making debugging harder.
---  I removed it, and it does not cause problems on the test suite.
---  `catchError` \_ -> return Nothing
-
   where
     -- Look at the original display form, not the instantiated result when
     -- checking if it's well-scoped. Otherwise we might pick up out of scope
