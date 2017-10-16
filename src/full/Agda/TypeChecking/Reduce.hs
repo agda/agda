@@ -183,8 +183,8 @@ instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate' (t,u,v)
     return $ ValueCmp cmp t u v
-  instantiate' (ElimCmp cmp t v as bs) =
-    ElimCmp cmp <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
+  instantiate' (ElimCmp cmp fs t v as bs) =
+    ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
   instantiate' (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate' (a,b)
   instantiate' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> instantiate' (tela,telb)
@@ -644,8 +644,8 @@ instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
     return $ ValueCmp cmp t u v
-  reduce' (ElimCmp cmp t v as bs) =
-    ElimCmp cmp <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
+  reduce' (ElimCmp cmp fs t v as bs) =
+    ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
   reduce' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> reduce' (a,b)
   reduce' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce' (tela,telb)
@@ -788,8 +788,8 @@ instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
     return $ ValueCmp cmp t u v
-  simplify' (ElimCmp cmp t v as bs) =
-    ElimCmp cmp <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
+  simplify' (ElimCmp cmp fs t v as bs) =
+    ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
   simplify' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> simplify' (a,b)
   simplify' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> simplify' (tela,telb)
@@ -931,8 +931,8 @@ instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
     return $ ValueCmp cmp t u v
-  normalise' (ElimCmp cmp t v as bs) =
-    ElimCmp cmp <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
+  normalise' (ElimCmp cmp fs t v as bs) =
+    ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
   normalise' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> normalise' (a,b)
   normalise' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise' (tela,telb)
@@ -1122,8 +1122,8 @@ instance InstantiateFull Constraint where
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull' (t,u,v)
       return $ ValueCmp cmp t u v
-    ElimCmp cmp t v as bs ->
-      ElimCmp cmp <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
+    ElimCmp cmp fs t v as bs ->
+      ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
     TypeCmp cmp a b     -> uncurry (TypeCmp cmp) <$> instantiateFull' (a,b)
     TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull' (tela,telb)

@@ -28,6 +28,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
@@ -295,7 +296,7 @@ compareTerm' cmp a m n =
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
+                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
 
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
@@ -512,14 +513,14 @@ compareAtom cmp t m n =
             (Var i es, Var i' es') | i == i' -> do
                 a <- typeOfBV i
                 -- Variables are invariant in their arguments
-                compareElims [] a (var i) es es'
+                compareElims [] [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> do
                 a <- computeElimHeadType f es es'
                 -- The polarity vector of projection-like functions
                 -- does not include the parameters.
                 pol <- getPolarity' cmp f
-                compareElims pol a (Def f []) es es'
+                compareElims pol [] a (Def f []) es es'
             (Def f es, Def f' es') ->
               unlessM (bothAbsurd f f') $ do
                 trySizeUniv cmp t m n f es f' es'
@@ -528,9 +529,10 @@ compareAtom cmp t m n =
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
                     a' <- conType x t
+                    forcedArgs <- getForcedArgs $ conName x
                     -- Constructors are covariant in their arguments
                     -- (see test/succeed/CovariantConstructors).
-                    compareArgs (repeat $ polFromCmp cmp) a' (Con x ci []) xArgs yArgs
+                    compareArgs (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
@@ -683,8 +685,8 @@ antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
-compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
-compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 els02) $ do
+compareElims :: [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
+compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 a v els01 els02) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 a
@@ -695,6 +697,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
      nest 2 $ vcat
       [ text "a     =" <+> prettyTCM a
       , text "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
+      , text "fors0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 fors0)
       , text "v     =" <+> prettyTCM v
       , text "els01 =" <+> prettyTCM els01
       , text "els02 =" <+> prettyTCM els02
@@ -722,6 +725,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         , text ""
         ]
       let (pol, pols) = nextPolarity pols0
+          (for, fors) = nextIsForced fors0
       ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         case ignoreSharing . unEl $ a of
           (Pi (Dom info b) codom) -> do
@@ -741,7 +745,9 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
 
             -- compare arg1 and arg2
             pid <- newProblem_ $ applyRelevanceToContext r $
-                if isIrrelevant r then
+                if isForced for then
+                  return ()
+                else if isIrrelevant r then
                   compareIrrelevant b (unArg arg1) (unArg arg2)
                 else
                   compareWithPol pol (flip compareTerm b)
@@ -756,7 +762,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                     return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
-            compareElims pols (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+            compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associatd to the comparison
             stealConstraints pid
 
@@ -806,7 +812,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             -- The arguments following the principal argument of a projection
             -- are invariant.  (At least as long as we have no explicit polarity
             -- annotations.)
-            compareElims [] t u els1 els2
+            compareElims [] [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
               [ text $ "projection " ++ show f
@@ -869,9 +875,9 @@ polFromCmp CmpEq  = Invariant
 
 -- | Type-directed equality on argument lists
 --
-compareArgs :: [Polarity] -> Type -> Term -> Args -> Args -> TCM ()
-compareArgs pol a v args1 args2 =
-  compareElims pol a v (map Apply args1) (map Apply args2)
+compareArgs :: [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> TCM ()
+compareArgs pol for a v args1 args2 =
+  compareElims pol for a v (map Apply args1) (map Apply args2)
 
 ---------------------------------------------------------------------------
 -- * Types

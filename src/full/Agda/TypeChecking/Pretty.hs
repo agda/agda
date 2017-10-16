@@ -265,7 +265,7 @@ instance PrettyTCM ProblemConstraint where
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
         ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (text ":" <+> prettyTCMCtx TopCtx ty)
-        ElimCmp cmps t v us vs   -> prettyCmp (text "~~") us vs   <?> (text ":" <+> prettyTCMCtx TopCtx t)
+        ElimCmp cmps fs t v us vs -> prettyCmp (text "~~") us vs   <?> (text ":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         TypeCmp cmp a b          -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb

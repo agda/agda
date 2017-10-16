@@ -6,8 +6,8 @@ import Agda.TypeChecking.Monad
 
 compareTerm  :: Comparison -> Type -> Term -> Term -> TCM ()
 compareAtom  :: Comparison -> Type -> Term -> Term -> TCM ()
-compareArgs  :: [Polarity] -> Type -> Term -> Args -> Args -> TCM ()
-compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
+compareArgs  :: [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> TCM ()
+compareElims :: [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
 compareType  :: Comparison -> Type -> Type -> TCM ()
 compareTel   :: Type -> Type -> Comparison -> Telescope -> Telescope -> TCM ()
 compareSort  :: Comparison -> Sort -> Sort -> TCM ()
