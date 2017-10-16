@@ -1376,6 +1376,12 @@ instance Pretty Polarity where
     Invariant     -> "*"
     Nonvariant    -> "_"
 
+-- | Information about whether an argument is forced by the type of a function.
+data IsForced
+  = Forced
+  | NotForced
+  deriving (Typeable, Data, Show, Eq)
+
 -- | The backends are responsible for parsing their own pragmas.
 data CompilerPragma = CompilerPragma Range String
   deriving (Typeable, Data, Show, Eq)
@@ -1568,6 +1574,7 @@ data Defn = Axiom
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
+            , conForced :: [IsForced]  -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
             , conErased :: [Bool]      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)
             }
           | Primitive
@@ -1849,6 +1856,16 @@ defAbstract d = case theDef d of
     Record{recAbstr = a}      -> a
     Constructor{conAbstr = a} -> a
     Primitive{primAbstr = a}  -> a
+
+defForced :: Definition -> [IsForced]
+defForced d = case theDef d of
+    Constructor{conForced = fs} -> fs
+    Axiom{}                     -> []
+    AbstractDefn{}              -> []
+    Function{}                  -> []
+    Datatype{}                  -> []
+    Record{}                    -> []
+    Primitive{}                 -> []
 
 ---------------------------------------------------------------------------
 -- ** Injectivity
@@ -3239,7 +3256,7 @@ instance KillRange Defn where
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h       -> killRange8 Datatype a b c d e f g h
       Record a b c d e f g h i j     -> killRange10 Record a b c d e f g h i j
-      Constructor a b c d e f g      -> killRange7 Constructor a b c d e f g
+      Constructor a b c d e f g h    -> killRange8 Constructor a b c d e f g h
       Primitive a b c d              -> killRange4 Primitive a b c d
 
 instance KillRange MutualId where
@@ -3271,6 +3288,9 @@ instance KillRange DisplayForm where
   killRange (Display n es dt) = killRange3 Display n es dt
 
 instance KillRange Polarity where
+  killRange = id
+
+instance KillRange IsForced where
   killRange = id
 
 instance KillRange DisplayTerm where

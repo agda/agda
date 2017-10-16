@@ -198,6 +198,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         n <- getContextSize
         debugEndsIn t d n
         constructs n t d
+        -- compute which constructor arguments are forced
+        forcedArgs <- computeForcingAnnotations t
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
@@ -216,6 +218,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conData   = d
               , conAbstr  = Info.defAbstract i
               , conInd    = Inductive
+              , conForced = forcedArgs
               , conErased = []  -- computed during compilation to treeless
               }
 

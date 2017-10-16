@@ -182,6 +182,7 @@ instance PrettyTCM (QNamed Clause) where prettyTCM = prettyA <=< reify
 instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
 instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show
+instance PrettyTCM IsForced     where prettyTCM = text . show
 instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
 instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where

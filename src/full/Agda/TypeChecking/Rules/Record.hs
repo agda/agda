@@ -201,6 +201,7 @@ checkRecDef i name ind eta con ps contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
+              , conForced = []
               , conErased = []
               }
 

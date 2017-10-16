@@ -100,6 +100,7 @@ bindBuiltinSharp x =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
+                    , conForced = []
                     , conErased = []
                     }
                 }
