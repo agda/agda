@@ -1096,8 +1096,6 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Remove any prior syntax highlighting.
     putResponse Resp_ClearHighlighting
 
-    -- We activate the cache only when agda is used interactively
-    lift activateLoadedFileCache
 
     ok <- lift $ Imp.typeCheckMain f mode
 

@@ -158,6 +158,15 @@ Language
     vmap f (x ∷ xs) = f x ∷ vmap f xs
   ```
 
+Pragmas and options
+-------------------
+
+* The `--caching` option is now a valid pragma.
+  You can (sometimes) speed up re-typechecking in `--interaction` mode
+  by adding this option on top of your Agda file.
+  ```agda
+    {-# OPTIONS --caching #-}
+  ```
 
 Release notes for Agda version 2.5.3
 ====================================

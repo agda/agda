@@ -137,7 +137,6 @@ data CommandLineOptions = Options
   , optForcing          :: Bool
   , optPragmaOptions    :: PragmaOptions
   , optSharing          :: Bool
-  , optCaching          :: Bool
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
@@ -177,6 +176,7 @@ data PragmaOptions = PragmaOptions
   , optSafe                      :: Bool
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
+  , optCaching                   :: Bool
   , optCountClusters             :: Bool
     -- ^ Count extended grapheme clusters rather than code points when
     -- generating LaTeX.
@@ -233,7 +233,6 @@ defaultOptions = Options
   , optForcing          = True
   , optPragmaOptions    = defaultPragmaOptions
   , optSharing          = False
-  , optCaching          = False
   , optOnlyScopeChecking = False
   }
 
@@ -266,6 +265,7 @@ defaultPragmaOptions = PragmaOptions
   , optSafe                      = False
   , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
   , optCompileNoMain             = False
+  , optCaching                   = False
   , optCountClusters             = False
   }
 
@@ -375,7 +375,7 @@ safeFlag o = return $ o { optSafe = True }
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag b o = return $ o { optSharing = b }
 
-cachingFlag :: Bool -> Flag CommandLineOptions
+cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
 
 proofIrrelevanceFlag :: Flag PragmaOptions
@@ -617,10 +617,6 @@ standardOptions =
                     "enable sharing and call-by-need evaluation (experimental) (default: OFF)"
     , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
                     "disable sharing and call-by-need evaluation"
-    , Option []     ["caching"] (NoArg $ cachingFlag True)
-                    "enable caching of typechecking (experimental) (default: OFF)"
-    , Option []     ["no-caching"] (NoArg $ cachingFlag False)
-                    "disable caching of typechecking"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
     ] ++ map (fmap lift) pragmaOptions
@@ -698,6 +694,10 @@ pragmaOptions =
                        ++ ". Default: " ++  defaultWarningMode ++ ")")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "do not treat the requested module as the main module of a program when compiling"
+    , Option []     ["caching"] (NoArg $ cachingFlag True)
+                    "enable caching of typechecking (experimental) (default: OFF)"
+    , Option []     ["no-caching"] (NoArg $ cachingFlag False)
+                    "disable caching of typechecking"
     , Option []     ["count-clusters"] (NoArg countClustersFlag)
                     ("count extended grapheme clusters when " ++
                      "generating LaTeX (note that this flag " ++
