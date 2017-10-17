@@ -372,6 +372,7 @@ reifyTerm expandAnonDefs0 v = do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
+      reportSLn "reify.def" 100 $ "reifying def " ++ prettyShow x
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c ci vs -> do
       let x = conName c
