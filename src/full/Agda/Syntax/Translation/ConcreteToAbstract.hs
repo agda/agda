@@ -2154,7 +2154,9 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         where
             info = PatRange r
     -- we have to do dot patterns at the end
-    toAbstract p0@(C.DotP r o e) = return $ A.DotP info o e
+    toAbstract p0@(C.DotP r o e) = ifM (optDotPatterns <$> pragmaOptions)
+      {-then-} (return $ A.DotP info o e)
+      {-else-} (setCurrentRange r $ genericError "dot patterns are disabled.")
         where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r

@@ -63,7 +63,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
-import Agda.Interaction.Options ( optPostfixProjections )
+import Agda.Interaction.Options ( optPostfixProjections, optDotPatterns )
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
@@ -903,17 +903,17 @@ instance (Binder a, Binder b) => Binder (a, b) where
 -- | Assumes that pattern variables have been added to the context already.
 --   Picks pattern variable names from context.
 reifyPatterns :: MonadTCM tcm => [NamedArg I.DeBruijnPattern] -> tcm [NamedArg A.Pattern]
-reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
+reifyPatterns = mapM $ stripNameFromExplicit <.> traverse reifyPat
   where
     stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
       | visible a = fmap (unnamed . namedThing) a
       | otherwise = a
 
-    reifyPat :: MonadTCM tcm => I.DeBruijnPattern -> tcm A.Pattern
+    reifyPat :: MonadTCM tcm => Named_ I.DeBruijnPattern -> tcm (Named_ A.Pattern)
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
-     case p of
+     pat <- case namedThing p of
       I.VarP x -> do
         n <- liftTCM $ nameOfBV $ dbPatVarIndex x
         case dbPatVarName x of
@@ -925,13 +925,19 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
             -- Andreas, 2017-09-03, issue #2729
             -- Restore original pattern name.  AbstractToConcrete picks unique names.
             return $ A.VarP n { nameConcrete = C.Name noRange [ C.Id y ] }
-      I.DotP v -> do
-        t <- liftTCM $ reify v
-        -- This is only used for printing purposes, so the Origin shouldn't be
-        -- used after this point anyway.
-        return $ A.DotP patNoRange Inserted t
-        -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
-        -- Crashes on -v 100.
+      I.DotP v -> ifM (liftTCM $ optDotPatterns <$> pragmaOptions)
+        {-then-} (do
+          t <- liftTCM $ reify v
+          -- This is only used for printing purposes, so the Origin shouldn't be
+          -- used after this point anyway.
+          return $ A.DotP patNoRange Inserted t)
+          -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
+          -- Crashes on -v 100.
+        {-else-} (case nameOf p of
+                       Just y -> do
+                         n <- freshName_ $ rangedThing y
+                         return $ A.VarP n
+                       Nothing -> return $ A.WildP patNoRange)
       I.AbsurdP p -> return $ A.AbsurdP patNoRange
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
@@ -941,7 +947,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         where
           ci = ConPatInfo origin patNoRange
           origin = fromMaybe ConOCon $ I.conPRecord cpi
-
+     return p { namedThing = pat }
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.
 --   Otherwise, keep constructor pattern.
