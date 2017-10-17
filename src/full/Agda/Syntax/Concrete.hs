@@ -48,6 +48,7 @@ module Agda.Syntax.Concrete
   , patternNames, patternQNames
     -- * Lenses
   , mapLhsOriginalPattern
+  , mapLhsOriginalPatternM
   )
   where
 
@@ -462,6 +463,11 @@ mapLhsOriginalPattern :: (Pattern -> Pattern) -> LHS -> LHS
 mapLhsOriginalPattern f lhs@Ellipsis{}                    = lhs
 mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
   lhs { lhsOriginalPattern = f p }
+
+mapLhsOriginalPatternM :: (Functor m, Applicative m) => (Pattern -> m Pattern) -> LHS -> m LHS
+mapLhsOriginalPatternM f lhs@Ellipsis{}                    = pure $ lhs
+mapLhsOriginalPatternM f lhs@LHS{ lhsOriginalPattern = p } = f p <&> \ p' ->
+  lhs { lhsOriginalPattern = p' }
 
 {--------------------------------------------------------------------------
     Views
