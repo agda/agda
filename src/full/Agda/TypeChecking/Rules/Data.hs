@@ -204,7 +204,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        arity <- t `fitsIn` s
+        arity <- fitsIn forcedArgs t s
         debugAdd c t
 
         -- add parameters to constructor type and put into signature
@@ -316,8 +316,8 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
 --
 --   As a side effect, return the arity of the constructor.
 
-fitsIn :: Type -> Sort -> TCM Int
-fitsIn t s = do
+fitsIn :: [IsForced] -> Type -> Sort -> TCM Int
+fitsIn forceds t s = do
   reportSDoc "tc.data.fits" 10 $
     sep [ text "does" <+> prettyTCM t
         , text "of sort" <+> prettyTCM (getSort t)
@@ -331,10 +331,12 @@ fitsIn t s = do
   case ignoreSharing $ unEl t of
     Pi dom b -> do
       withoutK <- optWithoutK <$> pragmaOptions
-      sa <- reduce $ getSort dom
-      unless (sa == SizeUniv) $ sa `leqSort` s
+      let (forced,forceds') = nextIsForced forceds
+      unless (isForced forced && not withoutK) $ do
+        sa <- reduce $ getSort dom
+        unless (sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ do
-        succ <$> fitsIn (absBody b) (raise 1 s)
+        succ <$> fitsIn forceds' (absBody b) (raise 1 s)
     _ -> return 0 -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
 
 -- | Return the parameters that share variables with the indices
