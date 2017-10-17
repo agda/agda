@@ -72,9 +72,9 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Conversion
 
 import Agda.Utils.Function
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
@@ -83,36 +83,33 @@ import Agda.Utils.Impossible
 
 -- | Given the type of a constructor (excluding the parameters),
 --   decide which arguments are forced.
---   Update the relevance info in the domains accordingly.
 --   Precondition: the type is of the form @Γ → D vs@ and the @vs@
 --   are in normal form.
-addForcingAnnotations :: Type -> TCM Type
-addForcingAnnotations t =
+computeForcingAnnotations :: Type -> TCM [IsForced]
+computeForcingAnnotations t =
   ifM (not . optForcing <$> commandLineOptions)
-      (return t) $ do
+      (return []) $ do
   -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
   -- t <- normalise t
   -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
   -- Instantiation also fixes Issue 1454.
   -- Note that normalization of s0 below does not help.
   t <- instantiateFull t
-  let TelV tel (El s a) = telView' t
+  let TelV tel (El _ a) = telView' t
       vs = case ignoreSharing a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
       n  = size tel
-      indexToLevel x = n - x - 1
-  -- Note: data parameters will be negative levels.
-  let xs = filter (>=0) $ map indexToLevel $ forcedVariables vs
-  let s0 = raise (0 - size tel) s
-  t' <- force s0 xs t
+      xs = forcedVariables vs
+      forcedArgs = [ if i `elem` xs then Forced else NotForced
+                   | i <- downFrom n
+                   ]
   reportSLn "tc.force" 60 $ unlines
     [ "Forcing analysis"
-    , "  xs = " ++ show xs
-    , "  t  = " ++ show t
-    , "  t' = " ++ show t'
+    , "  xs          = " ++ show xs
+    , "  forcedArgs  = " ++ show forcedArgs
     ]
-  return t'
+  return forcedArgs
 
 -- | Compute the pattern variables of a term or term-like thing.
 class ForcedVariables a where
@@ -128,16 +125,10 @@ instance ForcedVariables Term where
     Con _ _ vs -> forcedVariables vs
     _ -> []
 
--- | @force s xs t@ marks the domains @xs@ in function type @t@ as forced.
---   Counting left-to-right, starting with 0.
---   Precondition: function type is exposed.
-force :: Sort -> [Nat] -> Type -> TCM Type
-force s0 xs t = loop 0 t
-  where
-    m = maximum (-1:xs)  -- number of domains to look at
-    loop i t | i > m = return t
-    loop i t = case ignoreSharingType t of
-      El s (Pi a b) -> do
-        let a' = applyWhen (i `elem` xs) (mapRelevance $ composeRelevance Forced) a
-        El s . Pi a' <$> traverse (loop $ i + 1) b
-      _ -> __IMPOSSIBLE__
+isForced :: IsForced -> Bool
+isForced Forced    = True
+isForced NotForced = False
+
+nextIsForced :: [IsForced] -> (IsForced, [IsForced])
+nextIsForced []     = (NotForced, [])
+nextIsForced (f:fs) = (f, fs)

@@ -70,7 +70,6 @@ applyRelevanceToContext :: Relevance -> TCM a -> TCM a
 applyRelevanceToContext rel =
   case rel of
     Relevant -> id
-    Forced{} -> id
     _        -> local $ \ e -> e
       { envContext     = modifyContextEntries      (inverseApplyRelevance rel) (envContext e)
       , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance rel) (envLetBindings e)
@@ -100,7 +99,7 @@ class UsableRelevance a where
 instance UsableRelevance Term where
   usableRel rel u = case ignoreSharing u of
     Var i vs -> do
-      irel <- ignoreForced . getRelevance <$> typeOfBV' i
+      irel <- getRelevance <$> typeOfBV' i
       let ok = irel `moreRelevant` rel
       reportSDoc "tc.irr" 50 $
         text "Variable" <+> prettyTCM (var i) <+>
@@ -108,7 +107,7 @@ instance UsableRelevance Term where
               (if ok then "" else "NOT ") ++ "more relevant than " ++ show rel)
       return ok `and2M` usableRel rel vs
     Def f vs -> do
-      frel <- ignoreForced <$> relOfConst f
+      frel <- relOfConst f
       return (frel `moreRelevant` rel) `and2M` usableRel rel vs
     Con c _ vs -> usableRel rel vs
     Lit l    -> return True
@@ -117,7 +116,7 @@ instance UsableRelevance Term where
     Sort s   -> usableRel rel s
     Level l  -> return True
     MetaV m vs -> do
-      mrel <- ignoreForced . getMetaRelevance <$> lookupMeta m
+      mrel <- getMetaRelevance <$> lookupMeta m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare _ -> return $ isIrrelevant rel
     Shared _ -> __IMPOSSIBLE__
@@ -143,7 +142,7 @@ instance UsableRelevance PlusLevel where
 instance UsableRelevance LevelAtom where
   usableRel rel l = case l of
     MetaLevel m vs -> do
-      mrel <- ignoreForced . getMetaRelevance <$> lookupMeta m
+      mrel <- getMetaRelevance <$> lookupMeta m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     NeutralLevel _ v -> usableRel rel v
     BlockedLevel _ v -> usableRel rel v
@@ -158,7 +157,7 @@ instance (UsableRelevance a, UsableRelevance b) => UsableRelevance (a,b) where
 instance UsableRelevance a => UsableRelevance (Elim' a) where
   usableRel rel (Apply a) = usableRel rel a
   usableRel rel (Proj _ p) = do
-    prel <- ignoreForced <$> relOfConst p
+    prel <- relOfConst p
     return $ prel `moreRelevant` rel
   usableRel rel (IApply x y v) = allM [x,y,v] $ usableRel rel
 

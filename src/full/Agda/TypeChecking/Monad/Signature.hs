@@ -737,6 +737,10 @@ setPolarity q pol = do
     "Setting polarity of " ++ prettyShow q ++ " to " ++ prettyShow pol ++ "."
   modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
+-- | Look up the forced arguments of a definition.
+getForcedArgs :: QName -> TCM [IsForced]
+getForcedArgs q = defForced <$> getConstInfo q
+
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do

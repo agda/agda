@@ -498,5 +498,5 @@ checkParameters dc d pars = liftTCM $ do
              ]
       -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
       t <- typeOfConst d
-      compareArgs [] t (Def d []) vs (take (length vs) pars)
+      compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__

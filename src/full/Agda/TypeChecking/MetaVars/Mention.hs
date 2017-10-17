@@ -91,7 +91,7 @@ instance MentionsMeta Constraint where
   mentionsMeta x c = case c of
     ValueCmp _ t u v    -> mm (t, u, v)
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
-    ElimCmp _ t v as bs -> mm ((t, v), (as, bs))
+    ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
     TypeCmp _ a b       -> mm (a, b)
     TelCmp a b _ u v    -> mm ((a, b), (u, v))

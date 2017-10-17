@@ -260,6 +260,14 @@ instance EmbPrj Polarity where
   value 3 = return Nonvariant
   value _ = malformed
 
+instance EmbPrj IsForced where
+  icod_ Forced    = return 0
+  icod_ NotForced = return 1
+
+  value 0 = return Forced
+  value 1 = return NotForced
+  value _ = malformed
+
 instance EmbPrj Occurrence where
   icod_ StrictPos = return 0
   icod_ Mixed     = return 1
@@ -291,7 +299,7 @@ instance EmbPrj Defn where
     icodeN 1 (\ a b -> Function a b t) a b c d e f g h i j k m
   icod_ (Datatype    a b c d e f g h)           = icodeN 2 Datatype a b c d e f g h
   icod_ (Record      a b c d e f g h i j k)     = icodeN 3 Record a b c d e f g h i j k
-  icod_ (Constructor a b c d e f g h)           = icodeN 4 Constructor a b c d e f g h
+  icod_ (Constructor a b c d e f g h i)         = icodeN 4 Constructor a b c d e f g h i
   icod_ (Primitive   a b c d)                   = icodeN 5 Primitive a b c d
   icod_ AbstractDefn{}                          = __IMPOSSIBLE__
 
@@ -300,7 +308,7 @@ instance EmbPrj Defn where
     valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b -> Function a b Nothing) a b c d e f g h i j k m
     valu [2, a, b, c, d, e, f, g, h]             = valuN Datatype a b c d e f g h
     valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valuN Record  a b c d e f g h i j k
-    valu [4, a, b, c, d, e, f, g, h]             = valuN Constructor a b c d e f g h
+    valu [4, a, b, c, d, e, f, g, h, i]          = valuN Constructor a b c d e f g h i
     valu [5, a, b, c, d]                         = valuN Primitive   a b c d
     valu _                                       = malformed
 

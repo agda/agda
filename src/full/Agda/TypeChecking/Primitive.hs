@@ -189,7 +189,6 @@ instance ToTerm ArgInfo where
           Relevant   -> rel
           Irrelevant -> irr
           NonStrict  -> rel
-          Forced{}   -> irr
       ]
 
 instance ToTerm Fixity' where

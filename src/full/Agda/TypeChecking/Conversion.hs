@@ -34,6 +34,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
@@ -301,7 +302,7 @@ compareTerm' cmp a m n =
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
+                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
 
             else (do pathview <- pathView a'
                      equalPath pathview a' m n)
@@ -553,14 +554,14 @@ compareAtom cmp t m n =
             (Var i es, Var i' es') | i == i' -> do
                 a <- typeOfBV i
                 -- Variables are invariant in their arguments
-                compareElims [] a (var i) es es'
+                compareElims [] [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> ifM (compareEtaPrims f es es') (return ()) $ do
                 a <- computeElimHeadType f es es'
                 -- The polarity vector of projection-like functions
                 -- does not include the parameters.
                 pol <- getPolarity' cmp f
-                compareElims pol a (Def f []) es es'
+                compareElims pol [] a (Def f []) es es'
             (Def f es, Def f' es') ->
               unlessM (bothAbsurd f f') $ do
                 trySizeUniv cmp t m n f es f' es'
@@ -569,9 +570,10 @@ compareAtom cmp t m n =
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
                     a' <- conType x t
+                    forcedArgs <- getForcedArgs $ conName x
                     -- Constructors are covariant in their arguments
                     -- (see test/succeed/CovariantConstructors).
-                    compareArgs (repeat $ polFromCmp cmp) a' (Con x ci []) xArgs yArgs
+                    compareArgs (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
         -- returns True in case we handled the comparison already.
@@ -597,7 +599,7 @@ compareAtom cmp t m n =
                         (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA',phi',u'])
               compareAtom cmp (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
-              compareElims [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
+              compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
         compareUnglueApp q es es' = do
@@ -614,7 +616,7 @@ compareAtom cmp t m n =
                         (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',f',pf'])
               compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
                               (unArg b) (unArg b')
-              compareElims [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
+              compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
@@ -669,9 +671,7 @@ compareDom :: Free c
   -> TCM ()
 compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDom = a2}) b1 b2 errH errR cont
   | not (sameHiding dom1 dom2) = errH
-  -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-  | not $ compareRelevance cmp (ignoreForced $ getRelevance dom1)
-                               (ignoreForced $ getRelevance dom2) = errR
+  | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) = errR
   | otherwise = do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -769,8 +769,8 @@ antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
-compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
-compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 els02) $ do
+compareElims :: [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
+compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 a v els01 els02) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 a
@@ -781,6 +781,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
      nest 2 $ vcat
       [ text "a     =" <+> prettyTCM a
       , text "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
+      , text "fors0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 fors0)
       , text "v     =" <+> prettyTCM v
       , text "els01 =" <+> prettyTCM els01
       , text "els02 =" <+> prettyTCM els02
@@ -812,7 +813,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
               -- TODO: compare (x1,x2) and (y1,y2) ?
               let r = r1 -- TODO Andrea:  do blocking
               codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
-              compareElims pols codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
+              compareElims pols [] codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
                                 (applyE v [e]) els1 els2
 
             OType{} -> patternViolation
@@ -832,6 +833,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         , text ""
         ]
       let (pol, pols) = nextPolarity pols0
+          (for, fors) = nextIsForced fors0
       ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         case ignoreSharing . unEl $ a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
@@ -851,12 +853,13 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
 
             -- compare arg1 and arg2
             pid <- newProblem_ $ applyRelevanceToContext r $
-                case r of
-                  Forced{}   -> return ()
-                  r | isIrrelevant r ->
-                                compareIrrelevant b (unArg arg1) (unArg arg2)
-                  _          -> compareWithPol pol (flip compareTerm b)
-                                  (unArg arg1) (unArg arg2)
+                if isForced for then
+                  return ()
+                else if isIrrelevant r then
+                  compareIrrelevant b (unArg arg1) (unArg arg2)
+                else
+                  compareWithPol pol (flip compareTerm b)
+                    (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
             solved <- isProblemSolved pid
             arg <- if dependent && not solved
@@ -867,7 +870,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                     return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
-            compareElims pols (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+            compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associatd to the comparison
             stealConstraints pid
 
@@ -917,7 +920,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             -- The arguments following the principal argument of a projection
             -- are invariant.  (At least as long as we have no explicit polarity
             -- annotations.)
-            compareElims [] t u els1 els2
+            compareElims [] [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
               [ text $ "projection " ++ show f
@@ -980,9 +983,9 @@ polFromCmp CmpEq  = Invariant
 
 -- | Type-directed equality on argument lists
 --
-compareArgs :: [Polarity] -> Type -> Term -> Args -> Args -> TCM ()
-compareArgs pol a v args1 args2 =
-  compareElims pol a v (map Apply args1) (map Apply args2)
+compareArgs :: [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> TCM ()
+compareArgs pol for a v args1 args2 =
+  compareElims pol for a v (map Apply args1) (map Apply args2)
 
 ---------------------------------------------------------------------------
 -- * Types

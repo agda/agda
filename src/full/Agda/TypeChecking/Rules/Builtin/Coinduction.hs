@@ -102,6 +102,7 @@ bindBuiltinSharp x =
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
                     , conComp   = Nothing
+                    , conForced = []
                     , conErased = []
                     }
                 }

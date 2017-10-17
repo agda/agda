@@ -451,13 +451,11 @@ instance EmbPrj Modality where
 instance EmbPrj Relevance where
   icod_ Relevant       = return 0
   icod_ Irrelevant     = return 1
-  icod_ Forced         = return 2
-  icod_ NonStrict      = return 4
+  icod_ NonStrict      = return 2
 
   value 0 = return Relevant
   value 1 = return Irrelevant
-  value 2 = return Forced
-  value 4 = return NonStrict
+  value 2 = return NonStrict
   value _ = malformed
 
 instance EmbPrj Origin where

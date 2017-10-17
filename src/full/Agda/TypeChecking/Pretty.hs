@@ -182,6 +182,7 @@ instance PrettyTCM (QNamed Clause) where prettyTCM = prettyA <=< reify
 instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
 instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show
+instance PrettyTCM IsForced     where prettyTCM = text . show
 instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
 instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
@@ -256,7 +257,6 @@ instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
   prettyTCM NonStrict  = text ".."
   prettyTCM Relevant   = empty
-  prettyTCM Forced{}   = empty
 
 instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr pids c)
@@ -270,7 +270,7 @@ instance PrettyTCM Constraint where
             sep [ prettyTCM p <+> text "|"
                 , prettyCmp (prettyTCM cmp) s t ]
             <?> (text ":" <+> prettyTCMCtx TopCtx ty)
-        ElimCmp cmps t v us vs   -> prettyCmp (text "~~") us vs   <?> (text ":" <+> prettyTCMCtx TopCtx t)
+        ElimCmp cmps fs t v us vs -> prettyCmp (text "~~") us vs   <?> (text ":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         TypeCmp cmp a b          -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb

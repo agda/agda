@@ -124,7 +124,6 @@ quotingKit = do
       quoteRelevance Relevant   = pure relevant
       quoteRelevance Irrelevant = pure irrelevant
       quoteRelevance NonStrict  = pure relevant
-      quoteRelevance Forced{}   = pure relevant
 
       -- TODO: quote Quanity
       quoteArgInfo :: ArgInfo -> ReduceM Term

@@ -271,17 +271,10 @@ checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 -- | @checkRelevance action term type@.
 --
 --   The @term@ 'Relevance' can be updated by the @action@.
---   Note that the relevances might not match precisedly,
---   because of the non-semantic 'Forced' relevance.
 checkRelevance :: Action -> Relevance -> Relevance -> TCM Relevance
-checkRelevance action r0 r0' = do
+checkRelevance action r r' = do
   unless (r == r') $ typeError $ RelevanceMismatch r r'
-  return $ relevanceAction action r0' r0  -- Argument order for actions: @type@ @term@
-  where
-    r  = canon r0
-    r' = canon r0'
-    canon Forced{}  = Relevant
-    canon r         = r
+  return $ relevanceAction action r' r  -- Argument order for actions: @type@ @term@
 
 -- | Infer type of a neutral term.
 infer :: Term -> TCM Type
