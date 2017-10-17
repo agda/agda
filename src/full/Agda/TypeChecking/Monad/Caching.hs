@@ -22,6 +22,8 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 
+import Agda.Interaction.Options
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
@@ -108,10 +110,10 @@ cleanCachedLog = do
 activateLoadedFileCache :: TCM ()
 activateLoadedFileCache = do
   reportSLn "cache" 10 $ "activateLoadedFileCache"
-  b <- enableCaching
-  if not b then return ()
-     else do
-       modifyCache $ \mbLfc -> case mbLfc of
+
+  whenM (optGHCiInteraction <$> commandLineOptions) $
+    whenM enableCaching $ do
+      modifyCache $ \case
          Nothing                          -> Just $ LoadedFileCache [] []
          Just lfc | null (lfcCurrent lfc) -> Just lfc
          _                                -> __IMPOSSIBLE__

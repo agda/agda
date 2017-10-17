@@ -712,6 +712,10 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     -- Type checking.
 
+    -- Now that all the options are in we can check if caching should
+    -- be on.
+    activateLoadedFileCache
+
     -- invalidate cache if pragmas change, TODO move
     cachingStarts
     opts <- use stPragmaOptions
