@@ -229,11 +229,9 @@ splitProblem mf (Problem ps qs tel pr) = do
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero
 
-    -- | In @splitP aps iqs tel@,
+    -- | In @splitP aps tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
-    --   @ips@ are the one-hole patterns of the current split state (outPats)
-    --   in one-to-one correspondence with the pattern variables
-    --   recorded in @tel@.
+    --   @tel@ records the types of @aps@.
     splitP :: [NamedArg A.Pattern]
            -> Telescope
            -> ListT TCM SplitProblem
