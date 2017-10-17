@@ -214,7 +214,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         arity <- fitsIn forcedArgs t s
         debugAdd c t
 
-        TelV fields tgt <- telView t
+        TelV fields tgt <- telView =<< instantiateFull t -- instantiateFull is needed for strengthenS later
+                                                         -- see discussion on #2809 on github.
         -- add parameters to constructor type and put into signature
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $ do
