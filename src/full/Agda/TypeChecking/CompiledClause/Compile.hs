@@ -23,13 +23,12 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty (prettyTCM, nest, sep, text)
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.List
-import Agda.Utils.Pretty (Pretty(..), prettyShow)
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -65,10 +64,8 @@ compileClauses mt cs = do
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
           map (prettyTCM . map unArg . clPats) cls
-      reportSDoc "tc.cc" 50 $ do
-        sep [ text "clauses before compilation"
-            , (nest 2 . text . show) cs
-            ]
+      reportSDoc "tc.cc" 50 $
+        text "clauses before compilation" <?> pretty cs
       let cc = compileWithSplitTree shared splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
@@ -85,8 +82,8 @@ data Cl = Cl
   , clBody :: Maybe Term
   } deriving (Show)
 
-instance Pretty Cl where
-  pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> maybe (P.text "_|_") pretty b
+instance P.Pretty Cl where
+  pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> maybe (P.text "_|_") P.pretty b
 
 type Cls = [Cl]
 
