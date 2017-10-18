@@ -747,10 +747,10 @@ interpret (Cmd_solveOne norm ii _ _) = solveInstantiatedGoals norm' (Just ii)
                   _            -> norm
 
 interpret (Cmd_infer_toplevel norm s) =
-  parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
+  parseAndDoAtToplevel (prettyA <=< B.typeInCurrent norm) Info_InferredType s
 
 interpret (Cmd_compute_toplevel cmode s) =
-  parseAndDoAtToplevel' action Info_NormalForm $ computeWrapInput cmode s
+  parseAndDoAtToplevel action Info_NormalForm $ computeWrapInput cmode s
   where
   action = allowNonTerminatingReductions
          . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
@@ -1465,7 +1465,7 @@ nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 -- as the scope), performs the given command with the expression as
 -- input, and displays the result.
 
-parseAndDoAtToplevel'
+parseAndDoAtToplevel
   :: (A.Expr -> TCM Doc)
      -- ^ The command to perform.
   -> (Doc -> DisplayInfo)
@@ -1473,15 +1473,12 @@ parseAndDoAtToplevel'
   -> String
      -- ^ The expression to parse.
   -> CommandM ()
-parseAndDoAtToplevel' cmd title s = do
+parseAndDoAtToplevel cmd title s = do
   (time, res) <- localStateCommandM $ do
     e <- lift $ runPM $ parse exprParser s
-    maybeTimed (lift $ B.atTopLevel $
-                cmd =<< concreteToAbstract_ e)
-  display_info (title $ fromMaybe empty time $$ res)
-
-parseAndDoAtToplevel :: (A.Expr -> TCM A.Expr) -> (Doc -> DisplayInfo) -> String -> CommandM ()
-parseAndDoAtToplevel cmd = parseAndDoAtToplevel' (prettyA <=< cmd)
+    maybeTimed $ lift $ B.atTopLevel $ do
+      cmd =<< concreteToAbstract_ e
+  display_info $ title $ fromMaybe empty time $$ res
 
 maybeTimed :: CommandM a -> CommandM (Maybe Doc, a)
 maybeTimed work = do
