@@ -14,6 +14,7 @@ module Agda.Syntax.Parser
     , moduleNameParser
     , exprParser
     , exprWhereParser
+    , holeContentParser
     , tokensParser
       -- * Parse errors
     , ParseError(..)
@@ -193,6 +194,15 @@ exprWhereParser :: Parser ExprWhere
 exprWhereParser = Parser
   { parser     = P.exprWhereParser
   , parseFlags = withoutComments
+  , parseLiterate = parseLiterateWithoutComments
+  }
+
+-- | Parses an expression or some other content of an interaction hole.
+
+holeContentParser :: Parser HoleContent
+holeContentParser = Parser
+  { parser        = P.holeContentParser
+  , parseFlags    = withoutComments
   , parseLiterate = parseLiterateWithoutComments
   }
 

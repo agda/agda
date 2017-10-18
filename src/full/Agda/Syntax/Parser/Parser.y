@@ -20,6 +20,7 @@ module Agda.Syntax.Parser.Parser (
     , exprParser
     , exprWhereParser
     , tokensParser
+    , holeContentParser
     , splitOnDots  -- only used by the internal test-suite
     ) where
 
@@ -67,6 +68,8 @@ import Agda.Utils.Impossible
 %name moduleParser File
 %name moduleNameParser ModuleName
 %name funclauseParser FunClause
+%name holeContentParser HoleContent
+
 %tokentype { Token }
 %monad { Parser }
 %lexer { lexer } { TokEOF }
@@ -1094,6 +1097,12 @@ RewriteEquations
   : {- empty -} { [] }
   | 'rewrite' Expr1
       { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+
+-- Parsing either an expression @e@ or a @rewrite e1 | ... | en@.
+HoleContent :: { HoleContent }
+HoleContent
+  : Expr             { HoleContentExpr    $1 }
+  | RewriteEquations { HoleContentRewrite $1 }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }

@@ -31,7 +31,7 @@ import Data.Typeable (Typeable)
 import Data.Monoid (mappend)
 
 import Agda.Syntax.Concrete.Name (NumHoles(..))
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Info
@@ -521,6 +521,12 @@ instance MaybePostfixProjP a => MaybePostfixProjP (Arg a) where
 
 instance MaybePostfixProjP a => MaybePostfixProjP (Named n a) where
   maybePostfixProjP = maybePostfixProjP . namedThing
+
+{--------------------------------------------------------------------------
+    Things we parse but are not part of the Agda file syntax
+ --------------------------------------------------------------------------}
+
+type HoleContent = C.HoleContent' Expr
 
 {--------------------------------------------------------------------------
     Instances

@@ -2292,3 +2292,13 @@ toAbstractOpApp op ns es = do
       where
       set :: a -> NamedArg b -> NamedArg a
       set x arg = fmap (fmap (const x)) arg
+
+
+{--------------------------------------------------------------------------
+    Things we parse but are not part of the Agda file syntax
+ --------------------------------------------------------------------------}
+
+-- | Content of interaction hole.
+
+instance ToAbstract C.HoleContent A.HoleContent where
+  toAbstract = mapM toAbstract

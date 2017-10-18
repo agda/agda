@@ -284,7 +284,7 @@ sharedType :: HasOptions m => Type -> m Type
 sharedType (El s v) = El s <$> shared v
 
 enableCaching :: TCM Bool
-enableCaching = optCaching <$> commandLineOptions
+enableCaching = optCaching <$> pragmaOptions
 
 showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions

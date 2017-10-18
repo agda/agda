@@ -1,5 +1,8 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFoldable     #-}
+{-# LANGUAGE DeriveTraversable  #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -42,6 +45,7 @@ module Agda.Syntax.Concrete
   , Pragma(..)
   , Module
   , ThingWithFixity(..)
+  , HoleContent, HoleContent'(..)
   , topLevelModuleName
   , spanAllowedBeforeModule
     -- * Pattern tools
@@ -456,6 +460,18 @@ spanAllowedBeforeModule = span isAllowedBeforeModule
     isAllowedBeforeModule ModuleMacro{}  = True
     isAllowedBeforeModule Open{}         = True
     isAllowedBeforeModule _              = False
+
+{--------------------------------------------------------------------------
+    Things we parse but are not part of the Agda file syntax
+ --------------------------------------------------------------------------}
+
+-- | Extended content of an interaction hole.
+data HoleContent' e
+  = HoleContentExpr    e   -- ^ @e@
+  | HoleContentRewrite [e] -- ^ @rewrite e0 | ... | en@
+  deriving (Functor, Foldable, Traversable)
+
+type HoleContent = HoleContent' Expr
 
 {--------------------------------------------------------------------------
     Lenses
