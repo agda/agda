@@ -6,10 +6,10 @@ out > CompileCatchAll.f =
 out >   λ a b →
 out >     case b of
 out >       Agda.Builtin.List.List.[] → 0
-out >       Agda.Builtin.List.List._∷_ c d →
+out >       Agda.Builtin.List.List._∷_ c _ →
 out >         case a of
 out >           Agda.Builtin.List.List.[] → c
-out >           Agda.Builtin.List.List._∷_ e f → e
+out >           Agda.Builtin.List.List._∷_ d _ → d
 out > }
 out > { compiling CompileCatchAll.main
 out > CompileCatchAll.main =

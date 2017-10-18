@@ -7,8 +7,10 @@ import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative
 import Control.Monad.Reader
 import Data.Maybe
+import qualified Data.Map as Map
 
 import Agda.Syntax.Treeless
+import Agda.Compiler.Treeless.Subst
 import Agda.Utils.Pretty
 
 data PEnv = PEnv { pPrec :: Int
@@ -24,6 +26,19 @@ withNames :: Int -> ([String] -> P a) -> P a
 withNames n k = do
   (xs, ys) <- asks $ splitAt n . pFresh
   local (\ e -> e { pFresh = ys }) (k xs)
+
+-- | Don't generate fresh names for unused variables.
+withNames' :: HasFree a => Int -> a -> ([String] -> P b) -> P b
+withNames' n tm k = withNames n' $ k . insBlanks
+  where
+    fv = freeVars tm
+    n'  = length $ filter (< n) $ Map.keys fv
+    insBlanks = go n
+      where
+        go 0 _ = []
+        go i xs0@(~(x : xs))
+          | Map.member (i - 1) fv = x   : go (i - 1) xs
+          | otherwise             = "_" : go (i - 1) xs0
 
 bindName :: String -> P a -> P a
 bindName x = local $ \ e -> e { pBound = x : pBound e }
@@ -107,7 +122,7 @@ pTerm t = case t of
     paren 9 $ (\a bs -> sep [a, nest 2 $ fsep bs])
               <$> pTerm' 9 f
               <*> mapM (pTerm' 10) es
-  TLam _ -> paren 0 $ withNames n $ \xs -> bindNames xs $
+  TLam _ -> paren 0 $ withNames' n b $ \ xs -> bindNames xs $
     (\b -> sep [ text ("λ " ++ unwords xs ++ " →")
                , nest 2 b ]) <$> pTerm' 0 b
     where
@@ -142,7 +157,7 @@ pTerm t = case t of
         pAlt' <$> ((text "_" <+> text "|" <+>) <$> pTerm' 0 g)
               <*> (pTerm' 0 b)
       pAlt (TACon c a b) =
-        withNames a $ \ xs -> bindNames xs $
+        withNames' a b $ \ xs -> bindNames xs $
         pAlt' <$> pTerm' 0 (TApp (TCon c) [TVar i | i <- reverse [0..a - 1]])
               <*> pTerm' 0 b
       pAlt' p b = sep [p <+> text "→", nest 2 b]
