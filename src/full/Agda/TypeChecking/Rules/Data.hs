@@ -214,21 +214,34 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         arity <- fitsIn forcedArgs t s
         debugAdd c t
 
-        TelV fields tgt <- telView =<< instantiateFull t -- instantiateFull is needed for strengthenS later
-                                                         -- see discussion on #2809 on github.
+        TelV fields _ <- telView t
+
+        -- We assume that the current context matches the parameters
+        -- of the datatype in an empty context (c.f. getContextSize above).
+        params <- getContextTelescope
+
         -- add parameters to constructor type and put into signature
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $ do
 
           cnames <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef) then return Nothing else do
-            cxt <- getContextTelescope
-            escapeContext (size cxt) $ do
+            inTopContext $ do
               names <- forM [0 .. size fields - 1] (\ i -> freshAbstractQName'_ (P.prettyShow (A.qnameName c) ++ "-" ++ show i))
-              let params = abstract cxt tel
-                  fsT    = fields
-                  t   = applySubst (strengthenS __IMPOSSIBLE__ (size fields)) tgt
-              defineProjections d con params names fsT t
-              comp <- defineCompData d con params names fsT t
+
+              -- nofIxs == 0 means the data type can be reconstructed
+              -- by appling the QName d to the parameters.
+              dataT <- El <$> (dataSort . theDef <$> getConstInfo d)
+                          <*> (pure $ Def d $ map Apply $ teleArgs params)
+
+              reportSDoc "tc.data.con.comp" 5 $ vcat $
+                [ text "params =" <+> pretty params
+                , text "dataT  =" <+> pretty dataT
+                , text "fields =" <+> pretty fields
+                , text "names  =" <+> pretty names
+                ]
+
+              defineProjections d con params names fields dataT
+              comp <- defineCompData d con params names fields dataT
               return $ fmap (\ x -> (x,names)) comp
 
           addConstant c $
