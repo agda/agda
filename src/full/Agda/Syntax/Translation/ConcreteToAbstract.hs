@@ -1138,8 +1138,12 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                   -- Check if the insideDecls end in a single module which has the same
                   -- name as the file.  In this case, it is highly likely that the user
                   -- put some non-allowed declarations before the top-level module in error.
+                  -- Andreas, 2017-10-19, issue #2808
+                  -- Widen this check to:
+                  -- If the first module of the insideDecls has the same name as the file,
+                  -- report an error.
                   case flip span insideDecls $ \case { C.Module{} -> False; _ -> True } of
-                    (ds0, [ C.Module _ m1 _ _ ])
+                    (ds0, (C.Module _ m1 _ _ : _))
                        | C.toTopLevelModuleName m1 == expectedMName
                          -- If the anonymous module comes from the user,
                          -- the range cannot be the beginningOfFile.
