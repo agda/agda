@@ -47,11 +47,9 @@ compileClauses ::
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
-  let unBruijn cs = [ Cl (map (fmap (fmap dbPatVarName . namedThing)) $ namedClausePats c)
-                         (compiledClauseBody c) | c <- cs ]
   shared <- sharedFun
   case mt of
-    Nothing -> compile shared . unBruijn <$> normaliseProjP cs
+    Nothing -> compile shared . map unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -59,7 +57,8 @@ compileClauses mt cs = do
       -- Throw away the unreachable clauses (#2723).
       let notUnreachable = (Just True /=) . clauseUnreachable
       cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
-      let cls = unBruijn cs
+
+      let cls = map unBruijn cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
@@ -86,6 +85,14 @@ instance P.Pretty Cl where
   pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> maybe (P.text "_|_") P.pretty b
 
 type Cls = [Cl]
+
+-- | Strip down a clause. Don't forget to apply the substitution to the dot
+--   patterns!
+unBruijn :: Clause -> Cl
+unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) $ namedClausePats c)
+                (applySubst sub $ clauseBody c)
+  where
+    sub = renamingR $ fromMaybe __IMPOSSIBLE__ (clausePerm c)
 
 compileWithSplitTree :: (Term -> Term) -> SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree shared t cs = case t of
