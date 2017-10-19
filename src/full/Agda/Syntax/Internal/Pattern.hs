@@ -300,3 +300,26 @@ instance PatternLike a (Pattern' a) where
 instance PatternLike a b => PatternLike a [b]         where
 instance PatternLike a b => PatternLike a (Arg b)     where
 instance PatternLike a b => PatternLike a (Named x b) where
+
+-- Counting pattern variables ---------------------------------------------
+
+class CountPatternVars a where
+  countPatternVars :: a -> Int
+
+  default countPatternVars :: (Foldable f, CountPatternVars b, f b ~ a) =>
+                              a -> Int
+  countPatternVars = getSum . foldMap (Sum . countPatternVars)
+
+instance CountPatternVars a => CountPatternVars [a] where
+instance CountPatternVars a => CountPatternVars (Arg a) where
+instance CountPatternVars a => CountPatternVars (Named x a) where
+
+instance CountPatternVars (Pattern' x) where
+  countPatternVars p =
+    case p of
+      VarP{}      -> 1
+      ConP _ _ ps -> countPatternVars ps
+      DotP{}      -> 1   -- dot patterns are treated as variables in the clauses
+      AbsurdP p   -> countPatternVars p
+      _           -> 0
+

@@ -305,13 +305,7 @@ expandCatchAlls single n cs =
         -- The following pattern match cannot fail (by construction of @ps@).
         (ps0, _:ps1) = splitAt n ps
 
-        n' = countVars ps1
-        countVars = sum . map (count . unArg)
-        count VarP{}        = 1
-        count (ConP _ _ ps) = countVars $ map (fmap namedThing) ps
-        count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
-        count (AbsurdP p)   = count p
-        count _             = 0
+        n' = countPatternVars ps1
 
 -- | Make sure (by eta-expansion) that clause has arity at least @n@
 --   where @n@ is also the length of the provided list.
