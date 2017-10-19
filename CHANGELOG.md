@@ -158,6 +158,30 @@ Language
     vmap f (x ∷ xs) = f x ∷ vmap f xs
   ```
 
+* If the file has no top-level module header, the first module
+  cannot have the same name as the file.
+  [Issues [#2808](https://github.com/agda/agda/issues/2808)
+   and [#1077](https://github.com/agda/agda/issues/1077)]
+
+  This means that the following file `File.agda` is rejected:
+  ```agda
+    -- no module header
+    postulate A : Set
+    module File where -- inner module with the same name as the file
+  ```
+  Agda reports `Illegal declarations(s) before top-level module`
+  at the `postulate`.
+  This is to avoid confusing scope errors in similar situations.
+
+  If a top-level module header is inserted manuall, the file is accepted:
+
+  ```agda
+    module _ where    -- user written module header
+    postulate A : Set
+    module File where -- inner module with the same name as the file, ok
+  ```
+
+
 Pragmas and options
 -------------------
 
