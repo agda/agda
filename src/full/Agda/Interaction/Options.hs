@@ -172,6 +172,7 @@ data PragmaOptions = PragmaOptions
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
+  , optDotPatterns               :: Bool  -- ^ Are dot patterns in use?
   , optInstanceSearchDepth       :: Int
   , optSafe                      :: Bool
   , optWarningMode               :: WarningMode
@@ -261,6 +262,7 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optRewriting                 = False
   , optPostfixProjections        = False
+  , optDotPatterns               = True
   , optInstanceSearchDepth       = 500
   , optSafe                      = False
   , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
@@ -491,6 +493,12 @@ rewritingFlag o = return $ o { optRewriting = True }
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
+dotPatternsFlag :: Flag PragmaOptions
+dotPatternsFlag o = return $ o { optDotPatterns = True }
+
+noDotPatternsFlag :: Flag PragmaOptions
+noDotPatternsFlag o = return $ o { optDotPatterns = False }
+
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -684,6 +692,10 @@ pragmaOptions =
                     "enable declaration and use of REWRITE rules"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
+    , Option []     ["dot-patterns"] (NoArg dotPatternsFlag)
+                    "enable the use of dot patterns (default)"
+    , Option []     ["no-dot-patterns"] (NoArg noDotPatternsFlag)
+                    "disable the use of dot patterns"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["safe"] (NoArg safeFlag)
