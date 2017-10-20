@@ -4,13 +4,17 @@ module Agda.TypeChecking.CompiledClause.Compile where
 
 import Prelude hiding (null)
 
+import Control.Arrow (first, second)
+import Control.Applicative
 import Control.Monad
 
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
-import Data.List (nubBy)
+import Data.List (nubBy, findIndex)
 import Data.Function
+import qualified Data.IntSet as IntSet
+import Data.Traversable (traverse)
 
 import Debug.Trace
 
@@ -24,6 +28,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Forcing
+import Agda.TypeChecking.Free
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -59,6 +65,8 @@ compileClauses mt cs = do
       cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
 
       let cls = map unBruijn cs
+      -- Forcing translation is disabled for now.
+      -- cls <- mapM forcingTransformation cls
 
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
@@ -323,3 +331,92 @@ ensureNPatterns n ais0 cl@(Cl ps b)
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
+
+-----------------------------------------------------------------------------
+-- * Forcing
+-----------------------------------------------------------------------------
+
+-- | Rewrite clauses that are using forced arguments to get the value from the
+--   appropriate dot pattern.
+forcingTransformation :: Cl -> TCM Cl
+forcingTransformation c@(Cl ps b) = do
+  let xs = forcedVars ps
+  fs <- forcedVars ps
+  let fvs        = allFreeVars b
+      usedForced = [ i | (i, Forced) <- zip [0..] (reverse fs), IntSet.member i fvs ]
+  if null usedForced then return c else do
+    let c' = unforce (head usedForced) (length fs) c
+    reportSDoc "tc.cc.force" 30 $ text "Forcing transformation" <?> vcat
+      [ text "clause:"           <?> pretty c
+      , text "forced vars:"      <?> pshow fs
+      , text "used forced vars:" <?> pshow usedForced
+      , text "result:"           <?> pretty c' ]
+    forcingTransformation c'
+    -- Termination argument:
+    --   each unforce reduces the number of constructors under dot patterns by
+    --   one, or maintains the number of constructors and reduces the number of
+    --   dot patterns by one.
+
+-- | Transform the use of a single forced variable. Second argument is total
+--   number of bound variables.
+unforce :: Int -> Int -> Cl -> Cl
+unforce i n (Cl ps b) = Cl (applySubst sub $ (map . fmap) namedThing ps')
+                           (applySubst sub b)
+  where
+    unname = (map . fmap) namedThing
+    doname = (map . fmap) unnamed
+
+    (ps', sub) = undot (n - 1) ((map . fmap) unnamed ps)
+
+    undot :: Int -> [NamedArg Pattern] -> ([NamedArg Pattern], Substitution)
+    undot _ []       = __IMPOSSIBLE__ -- undotting failed!
+    undot j (p : ps) =
+      case namedArg p of
+        DotP v | Just (q, sub) <- mkPat j v -> (fmap (q <$) p : ps, sub)
+        ConP c ci qs -> (fmap (ConP c ci qs' <$) p : ps', sub)
+          where
+            (qps', sub) = undot j (qs ++ ps)
+            (qs', ps')  = splitAt (length qs) qps'
+        _ -> first (p :) (undot (j - countPatternVars (unname [p])) ps)
+
+    -- Can we turn the term into a pattern binding 'i'?
+    -- j is the deBruijn index of the current position. Returns
+    -- the pattern and a substitution mapping i to the corresponding
+    -- variable in the returned pattern.
+    mkPat :: Int -> Term -> Maybe (Pattern, Substitution)
+    mkPat j v =
+      case v of
+        Var i' [] | i == i' ->
+          -- Γ, j, Δ, i, Θ ⊢ i[inplaceS Θ j] = j
+          Just (VarP "z", inplaceS i (Var j []))  -- it was already a var so context doesn't change
+        Con c co vs -> do
+          let mps = (map . traverse) (mkPat j) vs
+          k <- findIndex isJust mps
+          let (vs1, _ : vs2) = splitAt k vs
+              Just (Arg i (p, sub)) = mps !! k
+              -- Here we're adding |vs1| and |vs2| new bound variables (or dot
+              -- patterns rather), so we have to do some weakening.
+              -- Γ,         p,     Δ ⊢ sub  : Γ, j, Δ
+              -- Γ, con vs1 p vs2, Δ ⊢ sub' : Γ, j, Δ
+              n1 = length vs1
+              n2 = length vs2
+              np = countPatternVars [defaultArg p]
+              sub' = liftS (j + n2 + np) (wkS n1 idS) `composeS` liftS j (wkS n2 idS) `composeS` sub
+              ci = ConPatternInfo (Just co) Nothing
+          return (ConP c ci $ doname $ (map . fmap) DotP vs1 ++ [Arg i p] ++ (map . fmap) DotP vs2, sub')
+        _ -> Nothing
+
+forcedVars :: [Arg Pattern] -> TCM [IsForced]
+forcedVars ps = concat <$> mapM (forced NotForced . unArg) ps
+  where
+    forced :: IsForced -> Pattern -> TCM [IsForced]
+    forced f p =
+      case p of
+        VarP x  -> return [f]
+        DotP{}  -> return [f]
+        ConP c _ args -> do
+          fs <- defForced <$> getConstInfo (conName c)
+          concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
+        AbsurdP{} -> return []  -- IMPOSSIBLE?
+        LitP{}    -> return []
+        ProjP{}   -> return []
