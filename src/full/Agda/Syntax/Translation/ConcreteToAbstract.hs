@@ -41,7 +41,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Pattern ( patternVars )
+import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
 import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -140,12 +140,6 @@ annotateExpr m = do
   e <- m
   s <- getScope
   return $ ScopedExpr s e
-
--- | Make sure that each variable occurs only once.
-checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
-checkPatternLinearity ps = do
-  unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ ys -> do
-    typeError $ RepeatedVariablesInPattern ys
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -1272,7 +1266,8 @@ instance ToAbstract LetDef [A.LetBinding] where
           Right p -> do
             rhs <- toAbstract rhs
             p   <- toAbstract p
-            checkPatternLinearity [p]
+            checkPatternLinearity p $ \ys ->
+              typeError $ RepeatedVariablesInPattern ys
             p   <- toAbstract p
             return [ A.LetPatBind (LetRange r) p rhs ]
           -- It's not a record pattern, so it should be a prefix left-hand side
@@ -1622,7 +1617,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
-         checkPatternLinearity [p]
+         checkPatternLinearity p $ \ys ->
+           typeError $ RepeatedVariablesInPattern ys
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
@@ -2030,7 +2026,6 @@ instance ToAbstract LeftHandSide A.LHS where
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
         wps  <- toAbstract =<< mapM parsePattern wps
-        checkPatternLinearity $ lhsCoreAllPatterns lhscore ++ wps
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore

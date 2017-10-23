@@ -8,6 +8,8 @@
 
 module Agda.Syntax.Abstract.Pattern where
 
+import Prelude hiding (null)
+
 import Control.Monad ((>=>))
 import Control.Applicative (Applicative)
 
@@ -18,7 +20,11 @@ import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
+
+import Agda.Utils.List
+import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -207,3 +213,10 @@ containsAsPattern = containsAPattern $ \case
     A.PatternSynP{} -> __IMPOSSIBLE__
     A.AsP{}         -> True
     _               -> False
+
+-- | Check if any user-written pattern variables occur more than once,
+--   and throw the given error if they do.
+checkPatternLinearity :: (Monad m, APatternLike a p)
+                      => p -> ([C.Name] -> m ()) -> m ()
+checkPatternLinearity ps err =
+  unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ys -> err ys
