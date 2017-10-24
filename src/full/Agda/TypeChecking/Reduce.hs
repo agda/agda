@@ -1003,7 +1003,7 @@ instance Normalise a => Normalise (Pattern' a) where
     VarP x       -> VarP <$> normalise' x
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
-    DotP v       -> DotP <$> normalise' v
+    DotP o v     -> DotP o <$> normalise' v
     AbsurdP x    -> AbsurdP <$> normalise' x
     ProjP{}      -> return p
 
@@ -1119,7 +1119,7 @@ instance InstantiateFull DBPatVar where
 
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (VarP x)       = VarP <$> instantiateFull' x
-    instantiateFull' (DotP t)       = DotP <$> instantiateFull' t
+    instantiateFull' (DotP o t)     = DotP o <$> instantiateFull' t
     instantiateFull' (AbsurdP p)    = AbsurdP <$> instantiateFull' p
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l

@@ -325,7 +325,7 @@ instance Conversion TOM I.Clause (Maybe ([Pat O], MExp O)) where
 instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
   convert p = case Cm.unArg p of
     I.VarP n    -> return $ PatVar (show n)
-    I.DotP _    -> return $ PatVar "_"
+    I.DotP _ _  -> return $ PatVar "_"
       -- because Agda includes these when referring to variables in the body
     I.AbsurdP{} -> return $ PatVar I.absurdPatternName
     I.ConP con _ pats -> do
@@ -583,7 +583,7 @@ constructPats cmap mainm clause = do
         cc <- liftIO $ readIORef c2
         let Just npar = fst $ cdorigin cc
         return (ns', HI hid (CSPatConApp c2 (replicate npar (HI Hidden CSOmittedArg) ++ ps')))
-       I.DotP t -> do
+       I.DotP _ t -> do
         (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
        I.AbsurdP{} -> return ((hid, Id I.absurdPatternName) : ns, HI hid (CSPatVar $ length ns))
@@ -646,7 +646,7 @@ frommyClause (ids, pats, mrhs) = do
         return (I.ConP con I.noConPatternInfo ps')
        CSPatExp e -> do
         e' <- convert e {- renm e -} -- renaming before adding to clause below
-        return (I.DotP e')
+        return (I.DotP Cm.Inserted e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
       return $ Cm.Arg (icnvh hid) $ Cm.unnamed p'   -- TODO: recover names

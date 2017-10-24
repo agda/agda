@@ -358,7 +358,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
       VarP x
        | n == 0    -> case p' of -- this is the main split
            VarP  _      -> __IMPOSSIBLE__
-           DotP  _      -> __IMPOSSIBLE__
+           DotP  _ _    -> __IMPOSSIBLE__
            AbsurdP _    -> __IMPOSSIBLE__
            ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
            LitP  _      -> __IMPOSSIBLE__
@@ -366,7 +366,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
        | otherwise ->
            updateNamedArg (\ _ -> p') p : gatherEtaSplits (n-1) sc ps
         where p' = lookupS (scSubst sc) $ dbPatVarIndex x
-      DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
+      DotP  _ _    -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       AbsurdP _    -> p : gatherEtaSplits (n-1) sc ps
       ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
@@ -376,7 +376,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     addEtaSplits k []     t = t
     addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _       -> addEtaSplits (k+1) ps t
-      DotP  _       -> addEtaSplits (k+1) ps t
+      DotP  _ _     -> addEtaSplits (k+1) ps t
       AbsurdP _     -> addEtaSplits (k+1) ps t
       ConP c cpi qs -> SplitAt (p $> k) [(conName c , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__

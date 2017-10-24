@@ -4,13 +4,17 @@ module Agda.TypeChecking.CompiledClause.Compile where
 
 import Prelude hiding (null)
 
+import Control.Arrow (first, second)
+import Control.Applicative
 import Control.Monad
 
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
-import Data.List (nubBy)
+import Data.List (nubBy, findIndex)
 import Data.Function
+import qualified Data.IntSet as IntSet
+import Data.Traversable (traverse)
 
 import Debug.Trace
 
@@ -23,13 +27,14 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty (prettyTCM, nest, sep, text, vcat)
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Forcing
+import Agda.TypeChecking.Free
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.List
-import Agda.Utils.Pretty (Pretty(..), prettyShow)
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -48,11 +53,9 @@ compileClauses ::
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
-  let unBruijn cs = [ Cl (map (fmap (fmap dbPatVarName . namedThing)) $ namedClausePats c)
-                         (compiledClauseBody c) | c <- cs ]
   shared <- sharedFun
   case mt of
-    Nothing -> compile shared . unBruijn <$> normaliseProjP cs
+    Nothing -> compile shared . map unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -65,15 +68,16 @@ compileClauses mt cs = do
       -- Throw away the unreachable clauses (#2723).
       let notUnreachable = (Just True /=) . clauseUnreachable
       cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
-      let cls = unBruijn cs
+
+      let cls = map unBruijn cs
+      -- Forcing translation is disabled for now.
+      -- cls <- mapM forcingTransformation cls
 
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
           map (prettyTCM . map unArg . clPats) cls
-      reportSDoc "tc.cc" 50 $ do
-        sep [ text "clauses before compilation"
-            , (nest 2 . text . show) cs
-            ]
+      reportSDoc "tc.cc" 50 $
+        text "clauses before compilation" <?> pretty cs
       let cc = compileWithSplitTree shared splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
@@ -90,10 +94,18 @@ data Cl = Cl
   , clBody :: Maybe Term
   } deriving (Show)
 
-instance Pretty Cl where
-  pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> maybe (P.text "_|_") pretty b
+instance P.Pretty Cl where
+  pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> maybe (P.text "_|_") P.pretty b
 
 type Cls = [Cl]
+
+-- | Strip down a clause. Don't forget to apply the substitution to the dot
+--   patterns!
+unBruijn :: Clause -> Cl
+unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) $ namedClausePats c)
+                (applySubst sub $ clauseBody c)
+  where
+    sub = renamingR $ fromMaybe __IMPOSSIBLE__ (clausePerm c)
 
 compileWithSplitTree :: (Term -> Term) -> SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree shared t cs = case t of
@@ -135,7 +147,7 @@ compile shared cs = case nextSplit cs of
     -- If there are more than one clauses, take the first one.
     c = headWithDefault __IMPOSSIBLE__ cs
     name (VarP x) = x
-    name (DotP _) = underscore
+    name (DotP _ _) = underscore
     name AbsurdP{} = absurdPatternName
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
@@ -308,13 +320,7 @@ expandCatchAlls single n cs =
         -- The following pattern match cannot fail (by construction of @ps@).
         (ps0, _:ps1) = splitAt n ps
 
-        n' = countVars ps1
-        countVars = sum . map (count . unArg)
-        count VarP{}        = 1
-        count (ConP _ _ ps) = countVars $ map (fmap namedThing) ps
-        count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
-        count (AbsurdP p)   = count p
-        count _             = 0
+        n' = countPatternVars ps1
 
 -- | Make sure (by eta-expansion) that clause has arity at least @n@
 --   where @n@ is also the length of the provided list.
@@ -332,3 +338,92 @@ ensureNPatterns n ais0 cl@(Cl ps b)
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
+
+-----------------------------------------------------------------------------
+-- * Forcing
+-----------------------------------------------------------------------------
+
+-- | Rewrite clauses that are using forced arguments to get the value from the
+--   appropriate dot pattern.
+forcingTransformation :: Cl -> TCM Cl
+forcingTransformation c@(Cl ps b) = do
+  let xs = forcedVars ps
+  fs <- forcedVars ps
+  let fvs        = allFreeVars b
+      usedForced = [ i | (i, Forced) <- zip [0..] (reverse fs), IntSet.member i fvs ]
+  if null usedForced then return c else do
+    let c' = unforce (head usedForced) (length fs) c
+    reportSDoc "tc.cc.force" 30 $ text "Forcing transformation" <?> vcat
+      [ text "clause:"           <?> pretty c
+      , text "forced vars:"      <?> pshow fs
+      , text "used forced vars:" <?> pshow usedForced
+      , text "result:"           <?> pretty c' ]
+    forcingTransformation c'
+    -- Termination argument:
+    --   each unforce reduces the number of constructors under dot patterns by
+    --   one, or maintains the number of constructors and reduces the number of
+    --   dot patterns by one.
+
+-- | Transform the use of a single forced variable. Second argument is total
+--   number of bound variables.
+unforce :: Int -> Int -> Cl -> Cl
+unforce i n (Cl ps b) = Cl (applySubst sub $ (map . fmap) namedThing ps')
+                           (applySubst sub b)
+  where
+    unname = (map . fmap) namedThing
+    doname = (map . fmap) unnamed
+
+    (ps', sub) = undot (n - 1) ((map . fmap) unnamed ps)
+
+    undot :: Int -> [NamedArg Pattern] -> ([NamedArg Pattern], Substitution)
+    undot _ []       = __IMPOSSIBLE__ -- undotting failed!
+    undot j (p : ps) =
+      case namedArg p of
+        DotP _ v | Just (q, sub) <- mkPat j v -> (fmap (q <$) p : ps, sub)
+        ConP c ci qs -> (fmap (ConP c ci qs' <$) p : ps', sub)
+          where
+            (qps', sub) = undot j (qs ++ ps)
+            (qs', ps')  = splitAt (length qs) qps'
+        _ -> first (p :) (undot (j - countPatternVars (unname [p])) ps)
+
+    -- Can we turn the term into a pattern binding 'i'?
+    -- j is the deBruijn index of the current position. Returns
+    -- the pattern and a substitution mapping i to the corresponding
+    -- variable in the returned pattern.
+    mkPat :: Int -> Term -> Maybe (Pattern, Substitution)
+    mkPat j v =
+      case v of
+        Var i' [] | i == i' ->
+          -- Γ, j, Δ, i, Θ ⊢ i[inplaceS Θ j] = j
+          Just (VarP "z", inplaceS i (Var j []))  -- it was already a var so context doesn't change
+        Con c co vs -> do
+          let mps = (map . traverse) (mkPat j) vs
+          k <- findIndex isJust mps
+          let (vs1, _ : vs2) = splitAt k vs
+              Just (Arg i (p, sub)) = mps !! k
+              -- Here we're adding |vs1| and |vs2| new bound variables (or dot
+              -- patterns rather), so we have to do some weakening.
+              -- Γ,         p,     Δ ⊢ sub  : Γ, j, Δ
+              -- Γ, con vs1 p vs2, Δ ⊢ sub' : Γ, j, Δ
+              n1 = length vs1
+              n2 = length vs2
+              np = countPatternVars [defaultArg p]
+              sub' = liftS (j + n2 + np) (wkS n1 idS) `composeS` liftS j (wkS n2 idS) `composeS` sub
+              ci = ConPatternInfo (Just co) False Nothing
+          return (ConP c ci $ doname $ (map . fmap) (DotP Inserted) vs1 ++ [Arg i p] ++ (map . fmap) (DotP Inserted) vs2, sub')
+        _ -> Nothing
+
+forcedVars :: [Arg Pattern] -> TCM [IsForced]
+forcedVars ps = concat <$> mapM (forced NotForced . unArg) ps
+  where
+    forced :: IsForced -> Pattern -> TCM [IsForced]
+    forced f p =
+      case p of
+        VarP x  -> return [f]
+        DotP{}  -> return [f]
+        ConP c _ args -> do
+          fs <- defForced <$> getConstInfo (conName c)
+          concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
+        AbsurdP{} -> return []  -- IMPOSSIBLE?
+        LitP{}    -> return []
+        ProjP{}   -> return []

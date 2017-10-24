@@ -2,14 +2,14 @@ EXECUTED_PROGRAM
 
 ret > ExitSuccess
 out > IdentitySmashing.vecToList =
-out >   λ a b c d →
-out >     case d of
+out >   λ a _ _ b →
+out >     case b of
 out >       IdentitySmashing.Vec.[] → IdentitySmashing.List.[]
-out >       IdentitySmashing.Vec._∷_ e f g →
-out >         IdentitySmashing.List._∷_ f (IdentitySmashing.vecToList a _ _ g)
-out > IdentitySmashing.wk = λ a b → b
-out > IdentitySmashing.wkN = λ a b c → c
-out > IdentitySmashing.wkN′ = λ a b c → c
-out > IdentitySmashing.vecPlusZero = λ a b c d → d
+out >       IdentitySmashing.Vec._∷_ _ c d →
+out >         IdentitySmashing.List._∷_ c (IdentitySmashing.vecToList a _ _ d)
+out > IdentitySmashing.wk = λ _ a → a
+out > IdentitySmashing.wkN = λ _ _ a → a
+out > IdentitySmashing.wkN′ = λ _ _ a → a
+out > IdentitySmashing.vecPlusZero = λ _ _ _ a → a
 out > IdentitySmashing.main = Common.IO.return () _ _
 out >

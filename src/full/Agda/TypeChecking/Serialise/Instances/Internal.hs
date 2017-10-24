@@ -383,7 +383,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a    ) = icodeN' VarP a
   icod_ (ConP a b c) = icodeN 1 ConP a b c
   icod_ (LitP a    ) = icodeN 2 LitP a
-  icod_ (DotP a    ) = icodeN 3 DotP a
+  icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
   icod_ (AbsurdP a ) = icodeN 5 AbsurdP a
 
@@ -391,7 +391,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
     valu [a]       = valuN VarP a
     valu [1, a, b, c] = valuN ConP a b c
     valu [2, a]    = valuN LitP a
-    valu [3, a]    = valuN DotP a
+    valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
     valu [5, a]    = valuN AbsurdP a
     valu _         = malformed

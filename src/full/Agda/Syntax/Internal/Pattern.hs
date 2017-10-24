@@ -101,7 +101,7 @@ instance LabelPatVars Pattern DeBruijnPattern Int where
     case p of
       VarP x       -> do i <- next
                          return $ VarP (DBPatVar x i)
-      DotP t       -> DotP t <$ next
+      DotP o t     -> DotP o t <$ next
       AbsurdP p    -> AbsurdP <$> labelPatVars p
       ConP c mt ps -> ConP c mt <$> labelPatVars ps
       LitP l       -> return $ LitP l
@@ -153,7 +153,7 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP x)      = [Just $ dbPatVarIndex x]
     getIndices (ConP c _ ps) = concatMap (getIndices . namedThing . unArg) ps
-    getIndices (DotP _)      = [Nothing | countDots]
+    getIndices (DotP _ _)    = [Nothing | countDots]
     getIndices (AbsurdP p)   = getIndices p
     getIndices (LitP _)      = []
     getIndices ProjP{}       = []
@@ -175,7 +175,7 @@ patternToElim (Arg ai (VarP x)) = Apply $ Arg ai $ var $ dbPatVarIndex x
 patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
       map (argFromElim . patternToElim . fmap namedThing) ps
   where ci = fromConPatternInfo cpi
-patternToElim (Arg ai (DotP t)     ) = Apply $ Arg ai t
+patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
 patternToElim (Arg ai (AbsurdP p))   = patternToElim $ Arg ai p
 patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest
@@ -207,7 +207,7 @@ instance MapNamedArg Pattern' where
     case namedArg np of
       VarP  x     -> updateNamedArg VarP $ f $ setNamedArg np x
       AbsurdP p   -> updateNamedArg AbsurdP $ mapNamedArg f $ setNamedArg np p
-      DotP  t     -> setNamedArg np $ DotP t     -- just Haskell type conversion
+      DotP  o t   -> setNamedArg np $ DotP o t   -- just Haskell type conversion
       LitP  l     -> setNamedArg np $ LitP l     -- ditto
       ProjP o q   -> setNamedArg np $ ProjP o q  -- ditto
       ConP c i ps -> setNamedArg np $ ConP c i $ map (mapNamedArg f) ps
@@ -283,7 +283,7 @@ instance PatternLike a (Pattern' a) where
     VarP _      -> mempty
     AbsurdP _   -> mempty
     LitP _      -> mempty
-    DotP _      -> mempty
+    DotP _ _    -> mempty
     ProjP _ _   -> mempty
 
   traversePatternM pre post = pre >=> recurse >=> post
@@ -292,7 +292,7 @@ instance PatternLike a (Pattern' a) where
       ConP c ci ps -> ConP c ci <$> traversePatternM pre post ps
       VarP  _      -> return p
       LitP  _      -> return p
-      DotP  _      -> return p
+      DotP  _ _    -> return p
       AbsurdP _    -> return p
       ProjP _ _    -> return p
 
@@ -301,3 +301,26 @@ instance PatternLike a (Pattern' a) where
 instance PatternLike a b => PatternLike a [b]         where
 instance PatternLike a b => PatternLike a (Arg b)     where
 instance PatternLike a b => PatternLike a (Named x b) where
+
+-- Counting pattern variables ---------------------------------------------
+
+class CountPatternVars a where
+  countPatternVars :: a -> Int
+
+  default countPatternVars :: (Foldable f, CountPatternVars b, f b ~ a) =>
+                              a -> Int
+  countPatternVars = getSum . foldMap (Sum . countPatternVars)
+
+instance CountPatternVars a => CountPatternVars [a] where
+instance CountPatternVars a => CountPatternVars (Arg a) where
+instance CountPatternVars a => CountPatternVars (Named x a) where
+
+instance CountPatternVars (Pattern' x) where
+  countPatternVars p =
+    case p of
+      VarP{}      -> 1
+      ConP _ _ ps -> countPatternVars ps
+      DotP{}      -> 1   -- dot patterns are treated as variables in the clauses
+      AbsurdP p   -> countPatternVars p
+      _           -> 0
+

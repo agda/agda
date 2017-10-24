@@ -29,6 +29,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
@@ -166,29 +167,46 @@ updateInPatterns as ps qs = do
       -- Case: the unifier did not instantiate the variable
       VarP x     -> return (IntMap.singleton (dbPatVarIndex x) p, [])
       -- Case: the unifier did instantiate the variable
-      DotP u     -> case snd $ asView $ namedThing (unArg p) of
+      DotP o u   -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just $ A.unBind x) Nothing  u a])
-        p@(A.ConP _ cs qs) | Just c <- getUnambiguous cs ->
-          ifM (isNothing <$> isRecordConstructor c)
-          (return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a]))
-          (do
-            Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
-            let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-            (ftel, us) <- etaExpandRecord r vs u
+        p@(A.ConP _ cs qs) | Just c <- getUnambiguous cs -> do
+          -- If the user wrote a constructor pattern, the computed dot pattern
+          -- better have the same constructor as its head.
+          mus <- do
+            isrec <- isRecordConstructor c
+            case isrec of
+              -- don't fail for record constructor, since we can always eta-expand
+              Just _ -> do
+                Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
+                let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                Just <$> etaExpandRecord r vs u
+              Nothing -> do
+                u <- reduce u
+                case ignoreSharing u of
+                  Con c' _ us | c == conName c' -> do
+                    TelV tel _ <- telView $ unDom a
+                    return $ Just (tel, us)
+                  _ -> return Nothing
+          case mus of
+            Just (ftel, us) -> do
+              qs <- insertImplicitPatterns ExpandLast qs ftel
+              reportSDoc "tc.lhs.imp" 20 $
+                text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs)
 
-            qs <- insertImplicitPatterns ExpandLast qs ftel
-            reportSDoc "tc.lhs.imp" 20 $
-              text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs)
+              let instTel EmptyTel _                   = []
+                  instTel (ExtendTel arg tel) (u : us) = arg : instTel (absApp tel u) us
+                  instTel ExtendTel{} []               = __IMPOSSIBLE__
+                  bs0 = instTel ftel (map unArg us)
+                  -- Andreas, 2012-09-19 propagate relevance info to dot patterns
+                  bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
+              updates bs qs (map (DotP o . unArg) us `withArgsFrom` teleArgNames ftel)
+            -- If the dot pattern is not a constructor pattern or is headed
+            -- by a different constructor, turn it into a dot pattern
+            -- instantiation (giving a nice error message later).
+            Nothing -> return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a])
 
-            let instTel EmptyTel _                   = []
-                instTel (ExtendTel arg tel) (u : us) = arg : instTel (absApp tel u) us
-                instTel ExtendTel{} []               = __IMPOSSIBLE__
-                bs0 = instTel ftel (map unArg us)
-                -- Andreas, 2012-09-19 propagate relevance info to dot patterns
-                bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
-            updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel))
         p@A.ConP{} -> return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a])
         p@A.LitP{} -> return (IntMap.empty, [DPI Nothing (Just $ A.patternToExpr p) u a])
         A.AsP         _ _ _ -> __IMPOSSIBLE__
@@ -650,6 +668,16 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
     LHSState problem@(Problem pxs qs delta rest) dpi psplit sbe
       <- checkLHS f $ LHSState problem0 [] [] []
 
+    -- check linearity of the pattern,
+    -- we only care about user-written variables here.
+    let eraseInserted p
+          | getOrigin p == Inserted = (fmap . fmap) (const $ A.WildP patNoRange) p
+          | otherwise               = p
+        userpxs = A.mapNamedArgPattern eraseInserted pxs
+
+    A.checkPatternLinearity userpxs $ \ys ->
+      typeError $ RepeatedVariablesInPattern ys
+
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
     addContext delta $ do
@@ -816,7 +844,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
           mkConP _          = __IMPOSSIBLE__
           rho0 = fmap mkConP sigma
 
-          rho    = liftS (size delta2) $ consS (DotP itisone) rho0
+          rho    = liftS (size delta2) $ consS (DotP Inserted itisone) rho0
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
           -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]

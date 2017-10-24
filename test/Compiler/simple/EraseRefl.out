@@ -2,13 +2,13 @@ EXECUTED_PROGRAM
 
 ret > ExitSuccess
 out > EraseRefl.decEq₂ =
-out >   λ a b c d e f g h i j k l m n o →
-out >     case n of
-out >       EraseRefl.Dec.yes p →
-out >         case o of
-out >           EraseRefl.Dec.yes q → EraseRefl.Dec.yes _
-out >           EraseRefl.Dec.no q → EraseRefl.Dec.no _
-out >       EraseRefl.Dec.no p → EraseRefl.Dec.no _
+out >   λ _ _ _ _ _ _ _ _ _ _ _ _ _ a b →
+out >     case a of
+out >       EraseRefl.Dec.yes _ →
+out >         case b of
+out >           EraseRefl.Dec.yes _ → EraseRefl.Dec.yes _
+out >           EraseRefl.Dec.no _ → EraseRefl.Dec.no _
+out >       EraseRefl.Dec.no _ → EraseRefl.Dec.no _
 out > EraseRefl.main = Common.IO.putStrLn ""
 out >
 out >
