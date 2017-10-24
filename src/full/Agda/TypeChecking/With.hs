@@ -464,7 +464,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         AbsurdP p -> __IMPOSSIBLE__
 
-        DotP v  -> case namedArg p of
+        DotP o v  -> case namedArg p of
           A.DotP r o e  -> do
             (a, _) <- mustBePi t
             tell [Left $ A.StrippedDot e v (unDom a)]
@@ -761,7 +761,7 @@ patsToElims = map $ toElim . fmap namedThing
     toTerm p = case p of
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP x      -> DTerm  $ var $ dbPatVarIndex x
-      DotP t      -> DDot   $ t
+      DotP o t    -> DDot   $ t
       AbsurdP p   -> toTerm p
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l

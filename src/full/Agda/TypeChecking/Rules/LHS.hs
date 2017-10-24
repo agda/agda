@@ -165,7 +165,7 @@ updateInPatterns as ps qs = do
       -- Case: the unifier did not instantiate the variable
       VarP x     -> return (IntMap.singleton (dbPatVarIndex x) p, [])
       -- Case: the unifier did instantiate the variable
-      DotP u     -> case snd $ asView $ namedThing (unArg p) of
+      DotP o u   -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
@@ -199,7 +199,7 @@ updateInPatterns as ps qs = do
                   bs0 = instTel ftel (map unArg us)
                   -- Andreas, 2012-09-19 propagate relevance info to dot patterns
                   bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
-              updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel)
+              updates bs qs (map (DotP o . unArg) us `withArgsFrom` teleArgNames ftel)
             -- If the dot pattern is not a constructor pattern or is headed
             -- by a different constructor, turn it into a dot pattern
             -- instantiation (giving a nice error message later).

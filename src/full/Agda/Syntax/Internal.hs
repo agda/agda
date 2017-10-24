@@ -420,7 +420,7 @@ nameToPatVarName = nameToArgName
 data Pattern' x
   = VarP x
     -- ^ @x@
-  | DotP Term
+  | DotP Origin Term
     -- ^ @.t@
   | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
     -- ^ @c ps@
@@ -497,7 +497,7 @@ class PatternVars a b | b -> a where
 instance PatternVars a (Arg (Pattern' a)) where
   -- patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
   patternVars (Arg i (VarP x)     ) = [Arg i $ Left x]
-  patternVars (Arg i (DotP t)     ) = [Arg i $ Right t]
+  patternVars (Arg i (DotP _ t)   ) = [Arg i $ Right t]
   patternVars (Arg i (AbsurdP p)  ) = patternVars (Arg i p)
   patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
   patternVars (Arg _ (LitP _)     ) = []
@@ -1149,7 +1149,7 @@ instance KillRange a => KillRange (Pattern' a) where
   killRange p =
     case p of
       VarP x           -> killRange1 VarP x
-      DotP v           -> killRange1 DotP v
+      DotP o v         -> killRange2 DotP o v
       AbsurdP p        -> killRange1 AbsurdP p
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
@@ -1297,7 +1297,7 @@ instance Pretty DBPatVar where
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP x)      = prettyPrec n x
-  prettyPrec _ (DotP t)      = text "." P.<> prettyPrec 10 t
+  prettyPrec _ (DotP _o t)   = text "." P.<> prettyPrec 10 t
   prettyPrec _ (AbsurdP _)   = text absurdPatternName
   prettyPrec n (ConP c i nps)= mparens (n > 0) $
     pretty (conName c) <+> fsep (map pretty ps)

@@ -140,7 +140,7 @@ compile shared cs = case nextSplit cs of
     -- If there are more than one clauses, take the first one.
     c = headWithDefault __IMPOSSIBLE__ cs
     name (VarP x) = x
-    name (DotP _) = underscore
+    name (DotP _ _) = underscore
     name AbsurdP{} = absurdPatternName
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
@@ -372,7 +372,7 @@ unforce i n (Cl ps b) = Cl (applySubst sub $ (map . fmap) namedThing ps')
     undot _ []       = __IMPOSSIBLE__ -- undotting failed!
     undot j (p : ps) =
       case namedArg p of
-        DotP v | Just (q, sub) <- mkPat j v -> (fmap (q <$) p : ps, sub)
+        DotP _ v | Just (q, sub) <- mkPat j v -> (fmap (q <$) p : ps, sub)
         ConP c ci qs -> (fmap (ConP c ci qs' <$) p : ps', sub)
           where
             (qps', sub) = undot j (qs ++ ps)
@@ -403,7 +403,7 @@ unforce i n (Cl ps b) = Cl (applySubst sub $ (map . fmap) namedThing ps')
               np = countPatternVars [defaultArg p]
               sub' = liftS (j + n2 + np) (wkS n1 idS) `composeS` liftS j (wkS n2 idS) `composeS` sub
               ci = ConPatternInfo (Just co) Nothing
-          return (ConP c ci $ doname $ (map . fmap) DotP vs1 ++ [Arg i p] ++ (map . fmap) DotP vs2, sub')
+          return (ConP c ci $ doname $ (map . fmap) (DotP Inserted) vs1 ++ [Arg i p] ++ (map . fmap) (DotP Inserted) vs2, sub')
         _ -> Nothing
 
 forcedVars :: [Arg Pattern] -> TCM [IsForced]

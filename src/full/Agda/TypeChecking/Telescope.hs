@@ -217,10 +217,11 @@ instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
   -> Int       -- ^ Γ ⊢ var k : A
   -> Term      -- ^ Γ ⊢ u : A
+  -> Origin    -- ^ Where does the solution come from?
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
             Permutation)         -- Γ  ⊢ flipP ρ : Γ'
-instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
+instantiateTelescope tel k u o = guard ok $> (tel', sigma, rho)
   where
     names = teleNames tel
     ts0   = flattenTel tel
@@ -242,7 +243,7 @@ instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
     rho   = reverseP perm  -- works on de Bruijn levels
 
     u1    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u1 : A'
-    us    = map (\i -> fromMaybe (DotP u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
+    us    = map (\i -> fromMaybe (DotP o u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0

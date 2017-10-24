@@ -925,11 +925,11 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
             -- Andreas, 2017-09-03, issue #2729
             -- Restore original pattern name.  AbstractToConcrete picks unique names.
             return $ A.VarP n { nameConcrete = C.Name noRange [ C.Id y ] }
-      I.DotP v -> do
+      I.DotP o v -> do
         t <- liftTCM $ reify v
         -- This is only used for printing purposes, so the Origin shouldn't be
         -- used after this point anyway.
-        return $ A.DotP patNoRange Inserted t
+        return $ A.DotP patNoRange o t
         -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
         -- Crashes on -v 100.
       I.AbsurdP p -> return $ A.AbsurdP patNoRange

@@ -363,8 +363,11 @@ addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v
 
 -- | Instantiate the k'th variable with the given value.
 --   Returns Nothing if there is a cycle.
-solveVar :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-solveVar k u s = case instantiateTelescope (varTel s) k u of
+solveVar :: Int    -- ^ Index @k@
+         -> Term   -- ^ Solution @u@
+         -> Origin -- ^ Does the solution come from something the user has written?
+         -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
+solveVar k u o s = case instantiateTelescope (varTel s) k u o of
   Nothing -> Nothing
   Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
       { varTel   = tel'
@@ -406,12 +409,12 @@ solveEq k u s = (,sigma) $ s
   where
     u'    = raise k u
     n     = eqCount s
-    sigma = liftS (n-k-1) $ consS (DotP u') idS
+    sigma = liftS (n-k-1) $ consS (DotP Inserted u') idS
 
 -- | Simplify the k'th equation with the given value (which can depend on other
 --   equation variables). Returns Nothing if there is a cycle.
 simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
+simplifyEq k u s = case instantiateTelescope (eqTel s) k u Inserted of
   Nothing -> Nothing
   Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
     { varTel   = varTel s
@@ -435,7 +438,7 @@ data UnifyStep
   | Solution
     { solutionAt         :: Int
     , solutionType       :: Dom Type
-    , solutionVar        :: Int
+    , solutionVar        :: FlexibleVar Int
     , solutionTerm       :: Term
     }
   | Injectivity
@@ -675,10 +678,10 @@ basicUnifyStrategy k s = do
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
        let choice = chooseFlex fi fj
-           firstTryLeft  = msum [ return (Solution k (Dom info ha) i v)
-                                , return (Solution k (Dom info ha) j u)]
-           firstTryRight = msum [ return (Solution k (Dom info ha) j u)
-                                , return (Solution k (Dom info ha) i v)]
+           firstTryLeft  = msum [ return (Solution k (Dom info ha) fi v)
+                                , return (Solution k (Dom info ha) fj u)]
+           firstTryRight = msum [ return (Solution k (Dom info ha) fj u)
+                                , return (Solution k (Dom info ha) fi v)]
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fi = " <+> text (show fi)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "fj = " <+> text (show fj)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ text "chooseFlex: " <+> text (show choice)
@@ -688,9 +691,9 @@ basicUnifyStrategy k s = do
          ExpandBoth   -> mzero -- This should be taken care of by etaExpandEquationStrategy
          ChooseEither -> firstTryRight
     (Just i, _)
-     | Just _ <- findFlexible i flex -> return $ Solution k (Dom info ha) i v
+     | Just fi <- findFlexible i flex -> return $ Solution k (Dom info ha) fi v
     (_, Just j)
-     | Just _ <- findFlexible j flex -> return $ Solution k (Dom info ha) j u
+     | Just fj <- findFlexible j flex -> return $ Solution k (Dom info ha) fj u
     _ -> mzero
   where
     flex = flexVars s
@@ -910,7 +913,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
 
 unifyStep s Solution{ solutionAt   = k
                     , solutionType = Dom info a
-                    , solutionVar  = i
+                    , solutionVar  = fi@FlexibleVar{ flexVar = i }
                     , solutionTerm = u } = do
   let m = varCount s
 
@@ -933,6 +936,7 @@ unifyStep s Solution{ solutionAt   = k
   let eqrel  = getRelevance info
       varrel = getRelevance info'
       rel    = if NonStrict `moreRelevant` eqrel then varrel else Relevant
+      o      = flexVarToOrigin fi
   reportSDoc "tc.lhs.unify" 65 $ text $ "Equation relevance: " ++ show eqrel
   reportSDoc "tc.lhs.unify" 65 $ text $ "Variable relevance: " ++ show varrel
   reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show rel ++ " position."
@@ -940,7 +944,7 @@ unifyStep s Solution{ solutionAt   = k
   reportSDoc "tc.lhs.unify" 45 $ text "Relevance ok: " <+> prettyTCM usable
   case equalTypes of
     Just err -> return $ DontKnow []
-    Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u s)
+    Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u o s)
       (return $ DontKnow [UnifyRecursiveEq (varTel s) a i u])
       (\(s',sub) -> do
         tellUnifySubst sub
@@ -949,12 +953,12 @@ unifyStep s Solution{ solutionAt   = k
         Unifies <$> liftTCM (reduce s''))
     Nothing -> return $ DontKnow []
   where
-    trySolveVar i u s = case solveVar i u s of
+    trySolveVar i u o s = case solveVar i u o s of
       Just x  -> return $ Just x
       Nothing -> do
         u <- liftTCM $ normalise u
         s <- liftTCM $ normaliseVarTel s
-        return $ solveVar i u s
+        return $ solveVar i u o s
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions

@@ -337,11 +337,11 @@ instance Apply Clause where
         -- We then have to create a substitution from the old telescope to the
         -- new telescope that we can apply to dot patterns and the clause body.
         rhoP :: PatternSubstitution
-        rhoP = mkSub DotP n rps rargs
-        rho  = mkSub id   n rps rargs
+        rhoP = mkSub (DotP Inserted) n rps rargs
+        rho  = mkSub id              n rps rargs
 
         substP :: Nat -> Term -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
-        substP i v = subst i (DotP v)
+        substP i v = subst i (DotP Inserted v)
 
         -- Building the substitution from the old telescope to the new. The
         -- interesting case is when we have a variable pattern:
@@ -738,7 +738,7 @@ instance Subst Term ConPatternInfo where
 instance Subst Term Pattern where
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
-    DotP t       -> DotP $ applySubst rho t
+    DotP o t     -> DotP o $ applySubst rho t
     VarP s       -> p
     AbsurdP p    -> AbsurdP $ applySubst rho p
     LitP l       -> p
@@ -913,7 +913,7 @@ instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
     VarP x       -> useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x
-    DotP u       -> DotP $ applyPatSubst rho u
+    DotP o u     -> DotP o $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     AbsurdP p    -> AbsurdP $ applySubst rho p
     LitP x       -> p
