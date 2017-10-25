@@ -678,6 +678,16 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
     A.checkPatternLinearity userpxs $ \ys ->
       typeError $ RepeatedVariablesInPattern ys
 
+    -- check linearity of the pattern,
+    -- we only care about user-written variables here.
+    let eraseInserted p
+          | getOrigin p == Inserted = (fmap . fmap) (const $ A.WildP patNoRange) p
+          | otherwise               = p
+        userpxs = A.mapNamedArgPattern eraseInserted pxs
+
+    A.checkPatternLinearity userpxs $ \ys ->
+      typeError $ RepeatedVariablesInPattern ys
+
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
     addContext delta $ do
