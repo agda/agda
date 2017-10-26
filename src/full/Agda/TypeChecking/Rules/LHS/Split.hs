@@ -264,6 +264,10 @@ splitProblem mf (Problem ps qs tel pr) = do
           keepGoing = consSplitProblem p x dom <$> do
             underAbstraction dom xtel $ \ tel -> splitP ps tel
 
+      -- Tell when splitting is blocked by something
+      let blockedOnMeta m = lift $ tell $ blocked m ()
+          blockedOn nb    = lift $ tell $ NotBlocked nb ()
+
       p <- liftTCM $ expandLitPattern p
       case snd $ asView $ namedArg p of
 
@@ -296,10 +300,10 @@ splitProblem mf (Problem ps qs tel pr) = do
           res <- liftTCM $ tryRecordType a
           case res of
             -- Subcase: blocked
-            Left (Blocked m a') -> keepGoing
+            Left (Blocked m a') -> blockedOnMeta m >> keepGoing
 
             -- Subcase: not a record type or blocked on variable.
-            Left (NotBlocked nb a') -> keepGoing  -- If not record type, error will be given later.
+            Left (NotBlocked nb a') -> blockedOn nb >> keepGoing  -- If not record type, error will be given later.
               -- typeError . GenericDocError =<< do
               --   lift $ text "Record pattern at non-record type " <+> prettyTCM a'
 
@@ -340,7 +344,7 @@ splitProblem mf (Problem ps qs tel pr) = do
 
         -- Case: constructor pattern.
         p@(A.ConP ci ambC args) -> do
-          let tryInstantiate a'
+          let tryInstantiate m a'
                 | Just c <- getUnambiguous ambC = do
                   liftTCM $ reportSDoc "tc.lhs.split" 30 $
                     text "split ConP: type is blocked"
@@ -352,13 +356,14 @@ splitProblem mf (Problem ps qs tel pr) = do
                     vs     <- newArgsMeta dt
                     Sort s <- ignoreSharing . unEl <$> reduce (piApply dt vs)
                     tryConversion $ equalType a' (El s $ Def d $ map Apply vs)
-                  if ok then tryAgain else keepGoing
+                  if ok then tryAgain else blockedOnMeta m >> keepGoing
                 | otherwise = do
                   liftTCM $ reportSDoc "tc.lhs.split" 30 $
                     text "split ConP: type is blocked and constructor is ambiguous"
+                  blockedOnMeta m
                   keepGoing
           -- ifBlockedType reduces the type
-          ifBlockedType a (const tryInstantiate) $ \ nb a' -> do
+          ifBlockedType a tryInstantiate $ \ nb a' -> do
             liftTCM $ reportSDoc "tc.lhs.split" 30 $ text "split ConP: type is " <+> prettyTCM a'
             case ignoreSharing $ unEl a' of
 
@@ -441,7 +446,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                         , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.
-              _   -> keepGoing
+              _   -> blockedOn nb >> keepGoing
 
         -- Case: neither literal nor constructor pattern.
         _ -> keepGoing
