@@ -374,7 +374,7 @@ blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) 
 --
 --   Auxiliary function to create a postponed type checking problem.
 unblockedTester :: Type -> TCM Bool
-unblockedTester t = ifBlockedType t (\ m t -> return False) (\ t -> return True)
+unblockedTester t = ifBlockedType t (\ m t -> return False) (\ _ t -> return True)
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).
@@ -483,7 +483,7 @@ etaExpandMeta kinds m = whenM (asks envAssignMetas `and2M` isEtaExpandable kinds
     -- eta expand now, we have to postpone this.  Once @x@ is
     -- instantiated, we can continue eta-expanding m.  This is realized
     -- by adding @m@ to the listeners of @x@.
-    ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ t -> case ignoreSharing t of
+    ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ _ t -> case ignoreSharing t of
       lvl@(Def r es) ->
         ifM (isEtaRecord r) {- then -} (do
           let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es

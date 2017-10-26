@@ -139,7 +139,7 @@ isDef f tm = do
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = do
   b <- liftU $ ifBlocked t (\ m _ -> pure $ Left  m)
-                           (\ t   -> pure $ Right t)
+                           (\ _ t -> pure $ Right t)
   case b of
     Left m  -> do s <- gets snd; throwError $ BlockedOnMeta s m
     Right t -> return t

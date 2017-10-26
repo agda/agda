@@ -422,7 +422,7 @@ insertHiddenLambdas
 insertHiddenLambdas h target postpone ret = do
   -- If the target type is blocked, we postpone,
   -- because we do not know if a hidden lambda needs to be inserted.
-  ifBlockedType target postpone $ \ t0 -> do
+  ifBlockedType target postpone $ \ _ t0 -> do
     let t = ignoreSharing <$> t0
     case unEl t of
 
@@ -446,7 +446,7 @@ insertHiddenLambdas h target postpone ret = do
 checkAbsurdLambda :: A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
 checkAbsurdLambda i h e t = do
   t <- instantiateFull t
-  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t' -> do
+  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ _ t' -> do
     case ignoreSharing $ unEl t' of
       Pi dom@(Dom info' a) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
@@ -502,7 +502,7 @@ checkExtendedLambda i di qname cs e t = do
    -- fix the type of the extended lambda auxiliary function
    solveSizeConstraints DontDefaultToInfty
    t <- instantiateFull t
-   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t -> do
+   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
      rel <- asks envRelevance
      let info = setRelevance rel defaultArgInfo
@@ -602,7 +602,7 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
       mx <- localState $ do
         put s
         enterClosure cl $ \ _ -> do
-          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ -> return Nothing
+          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ _ -> return Nothing
       caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     TypeError s cl@Closure{ clValue = SplitError (UnificationStuck c tel us vs _) } -> do
       mx <- localState $ do
@@ -650,7 +650,7 @@ checkRecordExpression mfs e t = do
     [ text "checking record expression"
     , prettyA e
     ]
-  ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ t -> do
+  ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
   case ignoreSharing $ unEl t of
     -- Case: We know the type of the record already.
     Def r es  -> do
@@ -1004,7 +1004,7 @@ checkExpr e t0 =
         -- We do not want to insert a hidden lambda if A is
         -- possibly empty type of sizes, as this will produce an error.
         reduce a >>= isSizeType >>= \case
-          Just (BoundedLt u) -> ifBlocked u (\ _ _ -> fallback) $ \ v -> do
+          Just (BoundedLt u) -> ifBlocked u (\ _ _ -> fallback) $ \ _ v -> do
             ifM (checkSizeNeverZero v) proceed fallback
           _ -> proceed
 
@@ -1174,9 +1174,9 @@ inferOrCheckProjApp e o ds args mt = do
       -- If we have the type, we can try to get the type of the principal argument.
       -- It is the first visible argument.
       TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
-      ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ core -> do
+      ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
       ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
-      ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ ta -> do
+      ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
@@ -1198,7 +1198,7 @@ inferOrCheckProjApp e o ds args mt = do
       -- ta should be a record type (after introducing the hidden args in v0)
       (vargs, ta) <- implicitArgs (-1) (not . visible) ta
       let v = v0 `apply` vargs
-      ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ ta -> do
+      ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
 
           -- try to project it with all of the possible projections
@@ -1361,7 +1361,7 @@ checkApplication hd args e t = do
                 addContext tel $ do
                  reportSDoc "tc.check.term.con" 40 $ nest 2 $
                    text "target type: " <+> prettyTCM t1
-                 ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
+                 ifBlockedType t1 (\ m t -> return Nothing) $ \ _ t' ->
                    caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                      case [ c | (d', c) <- dcs, d == d' ] of
                        [c] -> do
@@ -2007,7 +2007,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
           xs        = catMaybes mxs
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlockedType t (\ m t -> throwError (us, args0, t)) $ \ t0' -> do
+      ifBlockedType t (\ m t -> throwError (us, args0, t)) $ \ _ t0' -> do
 
         -- What can go wrong?
 

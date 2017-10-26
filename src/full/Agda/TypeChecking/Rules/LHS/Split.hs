@@ -358,7 +358,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                     text "split ConP: type is blocked and constructor is ambiguous"
                   keepGoing
           -- ifBlockedType reduces the type
-          ifBlockedType a (const tryInstantiate) $ \ a' -> do
+          ifBlockedType a (const tryInstantiate) $ \ nb a' -> do
             liftTCM $ reportSDoc "tc.lhs.split" 30 $ text "split ConP: type is " <+> prettyTCM a'
             case ignoreSharing $ unEl a' of
 

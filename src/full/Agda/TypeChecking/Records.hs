@@ -184,7 +184,7 @@ isRecordType t = either (const Nothing) Just <$> tryRecordType t
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
 tryRecordType :: Type -> TCM (Either (Maybe Type) (QName, Args, Defn))
-tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
+tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ _ t -> do
   let no = return $ Left $ Just t
   case ignoreSharing $ unEl t of
     Def r es -> do
@@ -691,7 +691,7 @@ isSingletonTypeModuloRelevance t = liftTCM $ do
 isSingletonType' :: Bool -> Type -> TCM (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
-    ifBlockedType t (\ m _ -> return $ Left m) $ \ t -> do
+    ifBlockedType t (\ m _ -> return $ Left m) $ \ _ t -> do
       res <- isRecordType t
       case res of
         Just (r, ps, def) | recEtaEquality def -> do

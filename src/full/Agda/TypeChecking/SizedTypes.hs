@@ -58,7 +58,7 @@ checkSizeLtSat t = do
         addConstraint $ CheckSizeLtSat t
   let ok :: TCM ()
       ok = reportSLn "tc.size.lt" 20 $ "- succeeded: not an empty type of sizes"
-  ifBlocked t (const postpone) $ \ t -> do
+  ifBlocked t (const postpone) $ \ _ t -> do
     reportSLn "tc.size.lt" 20 $ "- type is not blocked"
     caseMaybeM (isSizeType t) ok $ \ b -> do
       reportSLn "tc.size.lt" 20 $ " - type is a size type"
@@ -66,7 +66,7 @@ checkSizeLtSat t = do
         BoundedNo -> ok
         BoundedLt b -> do
           reportSDoc "tc.size.lt" 20 $ text " - type is SIZELT" <+> prettyTCM b
-          ifBlocked b (\ _ _ -> postpone t) $ \ b -> do
+          ifBlocked b (\ _ _ -> postpone t) $ \ _ b -> do
             reportSLn "tc.size.lt" 20 $ " - size bound is not blocked"
             catchConstraint (CheckSizeLtSat t) $ do
               unlessM (checkSizeNeverZero b) $ do
@@ -151,11 +151,11 @@ checkSizeVarNeverZero i = do
         perhaps = tell (Any True) >> cont
     -- If we encounter a blocked type in the context, we cannot
     -- give a definite answer.
-    ifBlockedType t (\ _ _ -> perhaps) $ \ t -> do
+    ifBlockedType t (\ _ _ -> perhaps) $ \ _ t -> do
       caseMaybeM (liftTCM $ isSizeType t) cont $ \ b -> do
         case b of
           BoundedNo -> cont
-          BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ u -> do
+          BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ _ u -> do
             reportSLn "tc.size" 60 $ "minSizeVal upper bound u = " ++ show u
             v <- liftTCM $ deepSizeView u
             case v of

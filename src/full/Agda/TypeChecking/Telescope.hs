@@ -361,7 +361,7 @@ data OutputTypeName
 getOutputTypeName :: Type -> TCM OutputTypeName
 getOutputTypeName t = do
   TelV tel t' <- telView t
-  ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ v ->
+  ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ _ v ->
     case ignoreSharing v of
       -- Possible base types:
       Def n _  -> return $ OutputTypeName n
