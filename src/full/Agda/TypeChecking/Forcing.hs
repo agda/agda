@@ -61,7 +61,7 @@ module Agda.TypeChecking.Forcing where
 import Prelude hiding (elem, maximum)
 
 import Control.Applicative
-import Data.Foldable
+import Data.Foldable hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
 
@@ -109,7 +109,7 @@ computeForcingAnnotations t =
       -- type with a relevance below (i.e. more relevant) than the one of the
       -- constructor argument. Otherwise we can't actually get the value from
       -- the type.
-      isForced m i = any (\ (m', j) -> i == j && m' <= m) xs
+      isForced m i = any (\ (m', j) -> i == j && related m' POLE m) xs
       forcedArgs =
         [ if isForced m i then Forced else NotForced
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
