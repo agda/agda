@@ -61,7 +61,7 @@ module Agda.TypeChecking.Forcing where
 import Prelude hiding (elem, maximum)
 
 import Control.Applicative
-import Data.Foldable
+import Data.Foldable hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
 
