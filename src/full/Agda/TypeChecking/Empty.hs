@@ -56,10 +56,10 @@ isEmptyType r t = caseEitherM (loop t) failure return
     case mr of
 
       -- If t is blocked or a meta, we cannot decide emptiness now.  Postpone.
-      Left Nothing -> return $ Left DontKnow
+      Left (Blocked m t) -> return $ Left DontKnow
 
       -- If t is not a record type, try to split
-      Left (Just t) -> do
+      Left (NotBlocked nb t) -> do
         -- from the current context xs:ts, create a pattern list
         -- xs _ : ts t and try to split on _ (the last variable)
         tel0 <- getContextTelescope

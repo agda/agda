@@ -183,9 +183,9 @@ isRecordType t = either (const Nothing) Just <$> tryRecordType t
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: Type -> TCM (Either (Maybe Type) (QName, Args, Defn))
-tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ _ t -> do
-  let no = return $ Left $ Just t
+tryRecordType :: Type -> TCM (Either (Blocked Type) (QName, Args, Defn))
+tryRecordType t = ifBlockedType t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
+  let no = return $ Left $ NotBlocked nb t
   case ignoreSharing $ unEl t of
     Def r es -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es

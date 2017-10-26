@@ -296,10 +296,10 @@ splitProblem mf (Problem ps qs tel pr) = do
           res <- liftTCM $ tryRecordType a
           case res of
             -- Subcase: blocked
-            Left Nothing -> keepGoing
+            Left (Blocked m a') -> keepGoing
 
             -- Subcase: not a record type or blocked on variable.
-            Left (Just a') -> keepGoing  -- If not record type, error will be given later.
+            Left (NotBlocked nb a') -> keepGoing  -- If not record type, error will be given later.
               -- typeError . GenericDocError =<< do
               --   lift $ text "Record pattern at non-record type " <+> prettyTCM a'
 
