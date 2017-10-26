@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP               #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-| A constructor argument is forced if it appears as pattern variable
 in an index of the target.
@@ -62,6 +63,7 @@ import Prelude hiding (elem, maximum)
 import Control.Applicative
 import Data.Foldable
 import Data.Traversable
+import Data.Semigroup hiding (Arg)
 
 import Agda.Interaction.Options
 
@@ -74,6 +76,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Function
+import Agda.Utils.PartialOrd
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -101,9 +105,15 @@ computeForcingAnnotations t =
         _        -> __IMPOSSIBLE__
       n  = size tel
       xs = forcedVariables vs
-      forcedArgs = [ if i `elem` xs then Forced else NotForced
-                   | i <- downFrom n
-                   ]
+      -- #2819: We can only mark an argument as forced if it appears in the
+      -- type with a relevance below (i.e. more relevant) than the one of the
+      -- constructor argument. Otherwise we can't actually get the value from
+      -- the type.
+      isForced m i = any (\ (m', j) -> i == j && m' <= m) xs
+      forcedArgs =
+        [ if isForced m i then Forced else NotForced
+        | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
+        ]
   reportSLn "tc.force" 60 $ unlines
     [ "Forcing analysis"
     , "  xs          = " ++ show xs
@@ -113,15 +123,26 @@ computeForcingAnnotations t =
 
 -- | Compute the pattern variables of a term or term-like thing.
 class ForcedVariables a where
-  forcedVariables :: a -> [Nat]
+  forcedVariables :: a -> [(Modality, Nat)]
 
-instance (ForcedVariables a, Foldable t) => ForcedVariables (t a) where
+  default forcedVariables :: (ForcedVariables b, Foldable t, a ~ t b) => a -> [(Modality, Nat)]
   forcedVariables = foldMap forcedVariables
+
+instance ForcedVariables a => ForcedVariables [a] where
+
+-- Note the 'a' does not include the 'Arg' in 'Apply'.
+instance ForcedVariables a => ForcedVariables (Elim' a) where
+  forcedVariables (Apply x) = forcedVariables x
+  forcedVariables Proj{} = []
+
+instance ForcedVariables a => ForcedVariables (Arg a) where
+  forcedVariables x = [ (m <> m', i) | (m', i) <- forcedVariables (unArg x) ]
+    where m = getModality x
 
 -- | Assumes that the term is in normal form.
 instance ForcedVariables Term where
   forcedVariables t = case ignoreSharing t of
-    Var i [] -> [i]
+    Var i [] -> [(mempty, i)]
     Con _ _ vs -> forcedVariables vs
     _ -> []
 
