@@ -66,7 +66,7 @@ workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapReleva
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
 --   may be used, so they are awoken before type checking the argument.
-applyRelevanceToContext :: Relevance -> TCM a -> TCM a
+applyRelevanceToContext :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContext rel =
   case rel of
     Relevant -> id

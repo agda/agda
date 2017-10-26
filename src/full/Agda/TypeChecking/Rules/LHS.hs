@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                  #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Rules.LHS where
 
@@ -11,6 +12,7 @@ import Control.Arrow (first, second, (***))
 import Control.Monad hiding (mapM, forM, sequence)
 import Control.Monad.State hiding (mapM, forM, sequence)
 import Control.Monad.Reader hiding (mapM, forM, sequence)
+import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
 
 import Data.Function (on)
@@ -649,8 +651,8 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem pxs qs delta rest) dpi sbe
-      <- checkLHS f $ LHSState problem0 [] []
+    (LHSState problem@(Problem pxs qs delta rest) dpi sbe, block)
+      <- runWriterT $ checkLHS f $ LHSState problem0 [] []
 
     -- check linearity of the pattern,
     -- we only care about user-written variables here.
@@ -739,12 +741,13 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
-  :: Maybe QName       -- ^ The name of the definition we are checking.
-  -> LHSState          -- ^ The current state.
-  -> TCM LHSState      -- ^ The final state after all splitting is completed
+  :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadDebug tcm)
+  => Maybe QName     -- ^ The name of the definition we are checking.
+  -> LHSState        -- ^ The current state.
+  -> tcm LHSState    -- ^ The final state after all splitting is completed
 checkLHS f st@(LHSState problem dpi sbe) = do
 
-  problem <- insertImplicitProblem problem
+  problem <- liftTCM $ insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
   -- since we might insert eta expanded record patterns.
   if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
@@ -755,13 +758,13 @@ checkLHS f st@(LHSState problem dpi sbe) = do
 
     foldListT trySplit nothingToSplit $ splitProblem f problem
   where
-    nothingToSplit :: TCM LHSState
+    nothingToSplit :: tcm LHSState
     nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
-      nothingToSplitError problem
+      liftTCM $ nothingToSplitError problem
 
     -- Split problem rest (projection pattern, does not fail as there is no call to unifier)
-    trySplit :: SplitProblem -> TCM LHSState -> TCM LHSState
+    trySplit :: SplitProblem -> tcm LHSState -> tcm LHSState
     trySplit (SplitRest projPat o projType) _ = do
 
       -- Compute the new problem
@@ -772,7 +775,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' dpi sbe)
+      st' <- liftTCM $ updateProblemRest (LHSState problem' dpi sbe)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
@@ -800,7 +803,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
       let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
           delta'   = abstract delta1 delta2
           problem' = Problem ps' ip' delta' rest'
-      st' <- updateProblemRest (LHSState problem' dpi' sbe')
+      st' <- liftTCM $ updateProblemRest (LHSState problem' dpi' sbe')
       checkLHS f st'
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
@@ -860,7 +863,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
             ]
           ]
 
-        c <- either
+        c <- liftTCM $ either
                (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c))
                (return . (`withRangeOf` c))
                =<< getConForm c
@@ -876,7 +879,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
 
         -- It will end in an application of the datatype
         (gamma', ca, d', us) <- do
-          TelV gamma' ca@(El _ def) <- telView a
+          TelV gamma' ca@(El _ def) <- liftTCM $ telView a
           let Def d' es = ignoreSharing def
               Just us   = allApplyElims es
           return (gamma', ca, d', us)
@@ -893,7 +896,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
         gamma' <- return $ mapRelevance updRel <$> gamma'
 
         -- Insert implicit patterns
-        qs' <- insertImplicitPatterns ExpandLast qs gamma'
+        qs' <- liftTCM $ insertImplicitPatterns ExpandLast qs gamma'
         reportSDoc "tc.lhs.imp" 20 $
           text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs')
 
@@ -907,7 +910,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
         reportSDoc "tc.lhs.split" 30 $ text "  da = " <+> prettyTCM da
 
         -- Compute the flexible variables
-        flex <- flexiblePatterns (problemInPat p0 ++ qs')
+        flex <- liftTCM $ flexiblePatterns (problemInPat p0 ++ qs')
         reportSDoc "tc.lhs.split" 30 $ text "computed flexible variables"
 
         -- Compute the constructor indices by dropping the parameters
@@ -956,7 +959,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
         -- from Δ' = Δ₁';Δ₂ρ₃
         --        Δ' ⊢ ρ : Δ₁(x : D vs ws)Δ₂
 
-        res <- unifyIndices
+        res <- liftTCM $ unifyIndices
                  (delta1 `abstract` gamma)
                  flex
                  (raise (size gamma) da)
@@ -991,7 +994,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
               -- to the *new* telescope delta1'. These are needed to compute the
               -- correct types of new dot pattern instantiations.
               oldTypes = applyPatSubst rho0 $ flattenTel $ delta1 `abstract` gamma
-          (p0',newDpi) <- addContext delta1' $ updateInPatterns
+          (p0',newDpi) <- liftTCM $ addContext delta1' $ updateInPatterns
                             oldTypes
                             (problemInPat p0 ++ qs')
                             newPats
@@ -1073,7 +1076,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
           st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi' sbe')
-            <- updateProblemRest $ LHSState problem' dpi' sbe'
+            <- liftTCM $ updateProblemRest $ LHSState problem' dpi' sbe'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"

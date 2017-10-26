@@ -9,6 +9,7 @@ import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List
@@ -698,6 +699,10 @@ instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ExceptT err m) where
+  getConstInfo' = lift . getConstInfo'
+  getRewriteRulesFor = lift . getRewriteRulesFor
+
+instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m) where
   getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
