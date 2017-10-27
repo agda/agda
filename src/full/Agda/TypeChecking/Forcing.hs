@@ -133,7 +133,8 @@ instance ForcedVariables a => ForcedVariables [a] where
 -- Note the 'a' does not include the 'Arg' in 'Apply'.
 instance ForcedVariables a => ForcedVariables (Elim' a) where
   forcedVariables (Apply x) = forcedVariables x
-  forcedVariables Proj{} = []
+  forcedVariables IApply{}  = []  -- No forced variables in path applications
+  forcedVariables Proj{}    = []
 
 instance ForcedVariables a => ForcedVariables (Arg a) where
   forcedVariables x = [ (m <> m', i) | (m', i) <- forcedVariables (unArg x) ]
