@@ -809,10 +809,6 @@ instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
             bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
                 return $ FunClause (C.LHS p wps eqs with) rhs' wh' catchall : wcs
-          C.Ellipsis {} -> __IMPOSSIBLE__
-          -- TODO: Is the case above impossible? Previously there was
-          -- no code for it, but GHC 7's completeness checker spotted
-          -- that the case was not covered.
 
 instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do

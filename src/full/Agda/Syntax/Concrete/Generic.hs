@@ -156,6 +156,7 @@ instance ExprLike Expr where
      Unquote{}          -> f $ e0
      DontCare e         -> f $ DontCare               $ mapE e
      Equal{}            -> f $ e0
+     Ellipsis{}         -> f $ e0
    where mapE e = mapExpr f e
 
 instance ExprLike FieldAssignment where
@@ -188,7 +189,6 @@ instance ExprLike TypedBindings where
 instance ExprLike LHS where
   mapExpr f e0 = case e0 of
      LHS    ps wps res wes -> LHS    ps wps (mapE res) $ mapE wes
-     Ellipsis r ps res wes -> Ellipsis r ps (mapE res) $ mapE wes
    where mapE e = mapExpr f e
 
 instance ExprLike LamClause where
