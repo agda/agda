@@ -202,6 +202,7 @@ instance Pretty Expr where
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> text "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> text "=" <+> pretty b
+            Ellipsis _  -> text "..."
 
 instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty = either pretty pretty
@@ -291,7 +292,6 @@ instance Pretty WhereClause where
 instance Pretty LHS where
   pretty lhs = case lhs of
     LHS p ps eqs es  -> pr (pretty p) ps eqs es
-    Ellipsis _ ps eqs es -> pr (text "...") ps eqs es
     where
       pr d ps eqs es =
         sep [ d
@@ -559,6 +559,7 @@ instance Pretty Pattern where
             LitP l          -> pretty l
             QuoteP _        -> text "quote"
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
+            EllipsisP _     -> text "..."
 
 prettyOpApp :: forall a .
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]

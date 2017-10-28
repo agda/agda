@@ -41,6 +41,7 @@ import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -74,7 +75,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 2
+%expect 6
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -727,6 +728,7 @@ Expr3NoCurly
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
+    | '...'                             { Ellipsis (getRange $1) }
 
 Expr3 :: { Expr }
 Expr3
@@ -1076,15 +1078,6 @@ CommaImportNames1
 LHS :: { LHS }
 LHS : Expr1 RewriteEquations WithExpressions
         {% exprToLHS $1 >>= \p -> return (p $2 $3) }
-    | '...' WithPats RewriteEquations WithExpressions
-        { Ellipsis (getRange ($1,$2,$3,$4)) $2 $3 $4 }
-
-WithPats :: { [Pattern] }
-WithPats : {- empty -}  { [] }
-         | '|' Application3 WithPats
-                {% exprToPattern (RawApp (getRange $2) $2) >>= \p ->
-                   return (p : $3)
-                }
 
 WithExpressions :: { [Expr] }
 WithExpressions
@@ -2034,6 +2027,7 @@ exprToPattern e = do
         Quote r                 -> return $ QuoteP r
         Rec r es | Just fs <- mapM maybeLeft es -> do
           RecP r <$> T.mapM (T.mapM exprToPattern) fs
+        Ellipsis r              -> return $ EllipsisP r
         _                       -> failure
 
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
@@ -2100,7 +2094,7 @@ funClauseOrTypeSigs lhs mrhs wh = do
     JustRHS rhs   -> return [FunClause lhs rhs wh False]
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
-        Ellipsis{}      -> parseError "The ellipsis ... cannot have a type signature"
+        LHS p _ _ _ | isEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
         LHS _ _ _ (_:_) -> parseError "Illegal: with in type signature"
         LHS _ _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
         LHS _ (_:_) _ _ -> parseError "Illegal: with patterns in type signature"

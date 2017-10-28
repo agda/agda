@@ -892,6 +892,7 @@ instance ToAbstract C.Expr A.Expr where
   -- Impossible things
       C.ETel _  -> __IMPOSSIBLE__
       C.Equal{} -> genericError "Parse error: unexpected '='"
+      C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
 
   -- Quoting
       C.QuoteGoal _ x e -> do
@@ -911,6 +912,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
+
 
 instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
   toAbstract (C.ModuleAssignment m es i)
@@ -1296,6 +1298,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.RawAppP{}            = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
+              definedName C.EllipsisP{}          = __IMPOSSIBLE__
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
@@ -1890,7 +1893,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-  toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message
   toAbstract (C.Clause top catchall lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars <- getLocalVars
@@ -2140,6 +2142,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
+    toAbstract (EllipsisP _)   = __IMPOSSIBLE__
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"

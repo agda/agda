@@ -540,6 +540,7 @@ parsePat prs p = case p of
     QuoteP _         -> return p
     IdentP _         -> return p
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
+    EllipsisP _      -> fail "bad ellipsis"
 
 
 {- Implement parsing of copattern left hand sides, e.g.

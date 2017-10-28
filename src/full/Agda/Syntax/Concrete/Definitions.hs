@@ -65,6 +65,7 @@ import Data.Data (Data)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Common hiding (TerminationCheck())
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
@@ -1149,14 +1150,14 @@ niceDeclarations ds = do
 
     expandEllipsis :: [Declaration] -> [Declaration]
     expandEllipsis [] = []
-    expandEllipsis (d@(FunClause Ellipsis{} _ _ _) : ds) =
-      d : expandEllipsis ds
-    expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _ _) : ds) =
-      d : expand (wipe p) (map wipe ps) ds
+    expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _ _) : ds)
+      | isEllipsis p = d : expandEllipsis ds
+      | otherwise    = d : expand (wipe p) (map wipe ps) ds
       where
         expand _ _ [] = []
         expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
-        expand p ps (FunClause (Ellipsis r ps' eqs es) rhs wh ca : ds) =
+        expand p ps (FunClause (LHS p0 ps' eqs es) rhs wh ca : ds)
+          | isEllipsis p0, let r = getRange p0 =
           FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh ca
             : expand p (applyUnless (null es) (++ (map wipe ps')) ps) ds
                        -- If we have with-expressions (es /= []) then the following
@@ -1194,6 +1195,7 @@ niceDeclarations ds = do
       DotP r _ e -> DotP r Inserted e
       LitP{} -> p
       RecP r fs -> RecP r (map (fmap setInserted) fs)
+      EllipsisP{} -> p
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
@@ -1202,6 +1204,8 @@ niceDeclarations ds = do
     mkClauses x (Pragma (CatchallPragma r) : cs) False = do
       when (null cs) $ throwError $ InvalidCatchallPragma r
       mkClauses x cs True
+    mkClauses x (FunClause lhs rhs wh ca : cs) catchall | isEllipsis lhs =
+      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
     mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh ca : cs) catchall =
       (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False
     mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh ca : cs) catchall = do
@@ -1215,25 +1219,21 @@ niceDeclarations ds = do
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
-        subClauses (c@(FunClause (LHS _ ps' _ _) _ _ _) : cs)
-         | length ps' >= length ps + length es = mapFst (c:) (subClauses cs)
+        subClauses (c@(FunClause (LHS p0 ps' _ _) _ _ _) : cs)
+         | isEllipsis p0 ||
+           length ps' >= length ps + length es = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
-        subClauses (c@(FunClause (Ellipsis _ ps' _ _) _ _ _) : cs)
-         = mapFst (c:) (subClauses cs)
         subClauses (c@(Pragma (CatchallPragma r)) : cs) = case subClauses cs of
           ([], cs') -> ([], c:cs')
           (cs, cs') -> (c:cs, cs')
         subClauses [] = ([],[])
         subClauses _  = __IMPOSSIBLE__
-    mkClauses x (FunClause lhs@Ellipsis{} rhs wh ca : cs) catchall =
-      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
     mkClauses _ _ _ = __IMPOSSIBLE__
 
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
-    couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _ _) = True
-    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _ _) =
+    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _ _) = isEllipsis p ||
       let
       pns        = patternNames p
       xStrings   = nameStringParts x
@@ -1258,20 +1258,6 @@ niceDeclarations ds = do
         -- not a notation, not first id: give up
         _ -> False -- trace ("couldBe not (case default)") $ False
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
-
-    -- ASR (27 May 2014). Commented out unused code.
-    -- @isFunClauseOf@ is for non-mutual blocks where clauses must follow the
-    -- type sig immediately
-    -- isFunClauseOf :: Name -> Declaration -> Bool
-    -- isFunClauseOf x (FunClause Ellipsis{} _ _) = True
-    -- isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
-    --  -- p is the whole left hand side, excluding "with" patterns and clauses
-    --   case removeSingletonRawAppP p of
-    --     IdentP (QName q)    -> x == q  -- lhs is just an identifier
-    --     _                   -> True
-    --         -- more complicated lhss must come with type signatures, so we just assume
-    --         -- it's part of the current definition
-    -- isFunClauseOf _ _ = False
 
     isSingleIdentifierP :: Pattern -> Maybe Name
     isSingleIdentifierP p = case removeSingletonRawAppP p of

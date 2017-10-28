@@ -172,6 +172,7 @@ data Expr
   | Unquote Range                              -- ^ ex: @unquote@, should be applied to a term of type @Term@
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
+  | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
   deriving (Typeable, Data)
 
 -- | Concrete patterns. No literals in patterns at the moment.
@@ -198,6 +199,7 @@ data Pattern
                                            -- by the system)
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
+  | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
   deriving (Typeable, Data)
 
 data DoStmt
@@ -273,8 +275,6 @@ data LHS
         , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
         }
     -- ^ original pattern, with-patterns, rewrite equations and with-expressions
-  | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
-    -- ^ new with-patterns, rewrite equations and with-expressions
   deriving (Typeable, Data)
 
 type RewriteEqn = Expr
@@ -477,12 +477,10 @@ type HoleContent = HoleContent' Expr
  --------------------------------------------------------------------------}
 
 mapLhsOriginalPattern :: (Pattern -> Pattern) -> LHS -> LHS
-mapLhsOriginalPattern f lhs@Ellipsis{}                    = lhs
 mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
   lhs { lhsOriginalPattern = f p }
 
 mapLhsOriginalPatternM :: (Functor m, Applicative m) => (Pattern -> m Pattern) -> LHS -> m LHS
-mapLhsOriginalPatternM f lhs@Ellipsis{}                    = pure $ lhs
 mapLhsOriginalPatternM f lhs@LHS{ lhsOriginalPattern = p } = f p <&> \ p' ->
   lhs { lhsOriginalPattern = p' }
 
@@ -528,6 +526,7 @@ patternQNames p =
     QuoteP _               -> []
     InstanceP _ (namedPat) -> patternQNames (namedThing namedPat)
     RecP _ fs              -> concatMap (patternQNames . (^. exprFieldA)) fs
+    EllipsisP _            -> []
 
 -- | Get all the identifiers in a pattern in left-to-right order.
 patternNames :: Pattern -> [Name]
@@ -613,6 +612,7 @@ instance HasRange Expr where
       Tactic r _ _       -> r
       DontCare{}         -> noRange
       Equal r _ _        -> r
+      Ellipsis r         -> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -675,7 +675,6 @@ instance HasRange Declaration where
 
 instance HasRange LHS where
   getRange (LHS p ps eqns ws) = fuseRange p (fuseRange ps (eqns ++ ws))
-  getRange (Ellipsis r _ _ _) = r
 
 instance HasRange LHSCore where
   getRange (LHSHead f ps)              = fuseRange f ps
@@ -738,6 +737,7 @@ instance HasRange Pattern where
   getRange (InstanceP r _)    = r
   getRange (DotP r _ _)       = r
   getRange (RecP r _)         = r
+  getRange (EllipsisP r)      = r
 
 -- SetRange instances
 ------------------------------------------------------------------------
@@ -760,6 +760,7 @@ instance SetRange Pattern where
   setRange r (InstanceP _ p)    = InstanceP r p
   setRange r (DotP _ o e)       = DotP r o e
   setRange r (RecP _ fs)        = RecP r fs
+  setRange r (EllipsisP _)      = EllipsisP r
 
 -- KillRange instances
 ------------------------------------------------------------------------
@@ -839,6 +840,7 @@ instance KillRange Expr where
   killRange (Tactic _ t es)      = killRange2 (Tactic noRange) t es
   killRange (DontCare e)         = killRange1 DontCare e
   killRange (Equal _ x y)        = Equal noRange x y
+  killRange (Ellipsis _)         = Ellipsis noRange
 
 instance KillRange LamBinding where
   killRange (DomainFree i b) = killRange2 DomainFree i b
@@ -846,7 +848,6 @@ instance KillRange LamBinding where
 
 instance KillRange LHS where
   killRange (LHS p ps r w)     = killRange4 LHS p ps r w
-  killRange (Ellipsis _ p r w) = killRange3 (Ellipsis noRange) p r w
 
 instance KillRange LamClause where
   killRange (LamClause a b c d) = killRange4 LamClause a b c d
@@ -879,6 +880,7 @@ instance KillRange Pattern where
   killRange (LitP l)          = killRange1 LitP l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
+  killRange (EllipsisP _)     = EllipsisP noRange
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
@@ -965,6 +967,7 @@ instance NFData Expr where
   rnf (Unquote _)        = ()
   rnf (DontCare a)       = rnf a
   rnf (Equal _ a b)      = rnf a `seq` rnf b
+  rnf (Ellipsis _)       = ()
 
 -- | Ranges are not forced.
 
@@ -983,6 +986,7 @@ instance NFData Pattern where
   rnf (DotP _ a b) = rnf a `seq` rnf b
   rnf (LitP a) = rnf a
   rnf (RecP _ a) = rnf a
+  rnf (EllipsisP _) = ()
 
 -- | Ranges are not forced.
 
@@ -1073,7 +1077,6 @@ instance NFData a => NFData (OpApp a) where
 
 instance NFData LHS where
   rnf (LHS a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
-  rnf (Ellipsis _ a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (FieldAssignment' a) where
   rnf (FieldAssignment a b) = rnf a `seq` rnf b

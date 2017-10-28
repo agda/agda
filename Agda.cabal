@@ -275,6 +275,7 @@ library
                     Agda.Syntax.Concrete.Operators.Parser
                     Agda.Syntax.Concrete.Operators.Parser.Monad
                     Agda.Syntax.Concrete.Operators
+                    Agda.Syntax.Concrete.Pattern
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
                     Agda.Syntax.DoNotation
