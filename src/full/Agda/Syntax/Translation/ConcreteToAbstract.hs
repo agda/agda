@@ -40,6 +40,7 @@ import Data.Void
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
+import Agda.Syntax.Concrete.Pattern ( mapLhsOriginalPatternM )
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
 import Agda.Syntax.Abstract.Pretty

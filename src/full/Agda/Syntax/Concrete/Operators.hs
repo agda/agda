@@ -39,6 +39,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
+import Agda.Syntax.Concrete.Pattern
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
