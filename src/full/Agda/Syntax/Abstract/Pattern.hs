@@ -10,13 +10,15 @@ module Agda.Syntax.Abstract.Pattern where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***))
+import Control.Arrow ((***), second)
 import Control.Monad ((>=>))
+import Control.Monad.Identity
 import Control.Applicative (Applicative, liftA2)
 
 import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable, traverse)
 import Data.Functor
+import Data.Maybe
 import Data.Monoid
 
 import Agda.Syntax.Common
@@ -132,6 +134,11 @@ postTraverseAPatternM :: (APatternLike a b, Monad m
     -> b -> m b
 postTraverseAPatternM post p = traverseAPatternM return post p
 
+-- | Map pattern(s) with a modification after the recursive descent.
+
+mapAPattern :: APatternLike a p => (Pattern' a -> Pattern' a) -> p -> p
+mapAPattern f = runIdentity . postTraverseAPatternM (Identity . f)
+
 -- Interesting instance:
 
 instance APatternLike a (Pattern' a) where
@@ -245,3 +252,38 @@ checkPatternLinearity :: (Monad m, APatternLike a p)
                       => p -> ([C.Name] -> m ()) -> m ()
 checkPatternLinearity ps err =
   unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ys -> err ys
+
+
+-- * Specific traversals
+
+
+-- | Pattern substitution.
+--
+-- For the embedded expression, the given pattern substitution is turned into
+-- an expression substitution.
+
+substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
+substPattern s = substPattern' (substExpr $ map (second patternToExpr) s) s
+
+-- | Pattern substitution, parametrized by substitution function for embedded expressions.
+
+substPattern'
+  :: (e -> e)              -- ^ Substitution function for expressions.
+  -> [(Name, Pattern' e)]  -- ^ (Parallel) substitution.
+  -> Pattern' e            -- ^ Input pattern.
+  -> Pattern' e
+substPattern' subE s = mapAPattern $ \ p -> case p of
+  VarP x            -> fromMaybe p $ lookup (A.unBind x) s
+  DotP i o e        -> DotP i o $ subE e
+  EqualP i es       -> EqualP i $ map (subE *** subE) es
+  -- No action on the other patterns (besides the recursion):
+  ConP _ _ _        -> p
+  RecP _ _          -> p
+  ProjP _ _ _       -> p
+  WildP _           -> p
+  AbsurdP _         -> p
+  LitP _            -> p
+  DefP _ _ _        -> p
+  AsP _ _ _         -> p -- Note: cannot substitute into as-variable
+  PatternSynP _ _ _ -> p
+  WithAppP _ _ _    -> p
