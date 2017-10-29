@@ -1179,25 +1179,27 @@ niceDeclarations ds = do
     wipe :: Pattern -> Pattern
     wipe = killRange . setInserted
 
-    -- Set origin of all dot patterns inside the given pattern to 'Inserted'.
+    -- Set origin of all patterns inside the given pattern to 'Inserted'.
     setInserted :: Pattern -> Pattern
-    setInserted p = case p of
-      IdentP{} -> p
-      QuoteP{} -> p
-      AppP p q -> AppP (setInserted p) (fmap (fmap setInserted) q)
-      RawAppP r ps -> RawAppP r (map setInserted ps)
-      OpAppP r c ns ps -> OpAppP r c ns (map (fmap $ fmap setInserted) ps)
-      HiddenP r p -> HiddenP r (fmap setInserted p)
-      InstanceP r p -> InstanceP r (fmap setInserted p)
-      ParenP r p -> ParenP r (setInserted p)
-      WildP{} -> p
-      AbsurdP{} -> p
-      AsP r n p -> AsP r n (setInserted p)
-      DotP r _ e -> DotP r Inserted e
-      LitP{} -> p
-      RecP r fs -> RecP r (map (fmap setInserted) fs)
-      EllipsisP{} -> p
-      WithAppP r p ps -> WithAppP r (setInserted p) (map setInserted ps)
+    setInserted = mapCPattern $ \ p -> case p of
+      -- Currently only DotP has an origin:
+      DotP r _ e     -> DotP r Inserted e
+      -- Hence, the other patterns remain unchanged:
+      IdentP _       -> p
+      QuoteP _       -> p
+      AppP _ _       -> p
+      RawAppP _ _    -> p
+      OpAppP _ _ _ _ -> p
+      HiddenP _ _    -> p
+      InstanceP _ _  -> p
+      ParenP _ _     -> p
+      WildP _        -> p
+      AbsurdP _      -> p
+      AsP _ _ _      -> p
+      LitP _         -> p
+      RecP _ _       -> p
+      EllipsisP _    -> p
+      WithAppP _ _ _ -> p
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
