@@ -1014,8 +1014,7 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
       A.AsP i x p            -> bindName' x $
                                 bindToConcrete (UserPattern p) $ \ p ->
                                 ret (A.AsP i x p)
-      A.WithAppP i p ps      -> bindToConcrete (UserPattern p, map UserPattern ps) $
-        ret . uncurry (A.WithAppP i)
+      A.WithAppP i p         -> bindToConcrete (UserPattern p) $ ret . A.WithAppP i
 
 instance ToConcrete (UserPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) where
   bindToConcrete (UserPattern np) ret =
@@ -1044,8 +1043,7 @@ instance ToConcrete (SplitPattern A.Pattern) A.Pattern where
       A.RecP i args          -> bindToConcrete ((map . fmap) SplitPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (SplitPattern p)  $ \ p ->
                                 ret (A.AsP i x p)
-      A.WithAppP i p ps      -> bindToConcrete (SplitPattern p, map SplitPattern ps) $
-        ret . uncurry (A.WithAppP i)
+      A.WithAppP i p         -> bindToConcrete (SplitPattern p) $ ret . A.WithAppP i
 
 instance ToConcrete (SplitPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) where
   bindToConcrete (SplitPattern np) ret =
@@ -1073,8 +1071,7 @@ instance ToConcrete BindingPattern A.Pattern where
       A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
                                 bindToConcrete (BindingPat p)  $ \ p ->
                                 ret (A.AsP i x p)
-      A.WithAppP i p ps      -> bindToConcrete (BindingPat p, map BindingPat ps) $
-        ret . uncurry (A.WithAppP i)
+      A.WithAppP i p         -> bindToConcrete (BindingPat p) $ ret . A.WithAppP i
 
 instance ToConcrete A.Pattern C.Pattern where
   bindToConcrete p ret = do
@@ -1123,7 +1120,7 @@ instance ToConcrete A.Pattern C.Pattern where
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
 
-      A.WithAppP i p ps -> uncurry (C.WithAppP $ getRange i) <$> toConcrete (p, ps)
+      A.WithAppP i p -> C.WithAppP (getRange i) <$> toConcrete p
 
     where
     tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern

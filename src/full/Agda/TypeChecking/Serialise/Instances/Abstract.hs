@@ -120,7 +120,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
   icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
   icod_ (A.RecP p a)          = icodeN 10 (A.RecP p) a
-  icod_ (A.WithAppP i a b)    = icodeN 11 (A.WithAppP i) a b
+  icod_ (A.WithAppP i a)      = icodeN 11 (A.WithAppP i) a
 
   value = vcase valu where
     valu [0, a]       = valuN A.VarP a
@@ -134,7 +134,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [8, a, b]    = valuN (A.ProjP i) a b
     valu [9, a, b]    = valuN (A.PatternSynP i) a b
     valu [10, a]      = valuN (A.RecP i) a
-    valu [11, a, b]   = valuN (A.WithAppP i) a b
+    valu [11, a]      = valuN (A.WithAppP i) a
     valu _            = malformed
 
     i = patNoRange

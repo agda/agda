@@ -1203,7 +1203,7 @@ niceDeclarations ds = do
       LitP _         -> p
       RecP _ _       -> p
       EllipsisP _    -> p
-      WithAppP _ _ _ -> p
+      WithAppP _ _   -> p
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]

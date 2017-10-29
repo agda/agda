@@ -193,7 +193,7 @@ data Pattern
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
-  | WithAppP Range Pattern [Pattern]       -- ^ @p | p1 | ... | pn@, for with-patterns.
+  | WithAppP Range Pattern                 -- ^ @| p@, for with-patterns.
   deriving Data
 
 data DoStmt
@@ -697,7 +697,7 @@ instance HasRange Pattern where
   getRange (DotP r _ _)       = r
   getRange (RecP r _)         = r
   getRange (EllipsisP r)      = r
-  getRange (WithAppP r _ _)   = r
+  getRange (WithAppP r _)     = r
 
 -- SetRange instances
 ------------------------------------------------------------------------
@@ -721,7 +721,7 @@ instance SetRange Pattern where
   setRange r (DotP _ o e)       = DotP r o e
   setRange r (RecP _ fs)        = RecP r fs
   setRange r (EllipsisP _)      = EllipsisP r
-  setRange r (WithAppP _ p ps)  = WithAppP r p ps
+  setRange r (WithAppP _ p)     = WithAppP r p
 
 -- KillRange instances
 ------------------------------------------------------------------------
@@ -842,7 +842,7 @@ instance KillRange Pattern where
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
   killRange (EllipsisP _)     = EllipsisP noRange
-  killRange (WithAppP _ p ps) = killRange2 (WithAppP noRange) p ps
+  killRange (WithAppP _ p)    = killRange1 (WithAppP noRange) p
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
@@ -949,7 +949,7 @@ instance NFData Pattern where
   rnf (LitP a) = rnf a
   rnf (RecP _ a) = rnf a
   rnf (EllipsisP _) = ()
-  rnf (WithAppP _ a b) = rnf a `seq` rnf b
+  rnf (WithAppP _ a) = rnf a
 
 -- | Ranges are not forced.
 

@@ -2147,10 +2147,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(C.DotP r o e)   = return $ A.DotP (PatRange r) o e
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
     toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
-    toAbstract (C.WithAppP r p ps) =
-      liftA2 (A.WithAppP $ PatRange r)
-        (toAbstract p)
-        (mapM toAbstract ps)
+    toAbstract (C.WithAppP r p)    = A.WithAppP (PatRange r) <$> toAbstract p
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.

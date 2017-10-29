@@ -215,7 +215,7 @@ updateInPatterns as ps qs = do
         A.DefP        _ _ _ -> __IMPOSSIBLE__
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-        A.WithAppP    _ _ _ -> __IMPOSSIBLE__
+        A.WithAppP    _ _   -> __IMPOSSIBLE__
       -- Case: the unifier eta-expanded the variable
       ConP _c _cpi qs -> do
         Def r es <- ignoreSharing <$> reduce (unEl $ unDom a)
@@ -252,7 +252,7 @@ updateInPatterns as ps qs = do
       A.LitP _            -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _          -> __IMPOSSIBLE__
-      A.WithAppP _ _ _    -> __IMPOSSIBLE__
+      A.WithAppP _ _      -> __IMPOSSIBLE__
       where
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi o (Arg fi f) = Arg fi $ unnamed $
@@ -459,7 +459,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.DefP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _   -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-      A.WithAppP    _ _ _ -> __IMPOSSIBLE__
+      A.WithAppP    _ _   -> __IMPOSSIBLE__
 
     gatherImplicitDotVars :: DotPatternInst -> TCM [(Int,Projectns)]
     gatherImplicitDotVars (DPI _ (Just _) _ _) = return [] -- Not implicit

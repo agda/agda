@@ -62,10 +62,8 @@ instance MapNamedArgPattern NAP where
       RecP i fs          -> f $ setNamedArg p $ RecP i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
       -- AsP: we hand the NamedArg info to the subpattern
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
-      -- WithAppP: like RecP
-      WithAppP i p0 ps   -> f $ setNamedArg p $ uncurry (WithAppP i) $
-        namedArg *** map namedArg $
-          mapNamedArgPattern f (setNamedArg p p0, map (setNamedArg p) ps)
+      -- WithAppP: like AsP
+      WithAppP i p0      -> f $ updateNamedArg (WithAppP i) $ mapNamedArgPattern f $ setNamedArg p p0
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
@@ -140,7 +138,7 @@ instance APatternLike a (Pattern' a) where
       DefP _ _ ps        -> foldrAPattern f ps
       RecP _ ps          -> foldrAPattern f ps
       PatternSynP _ _ ps -> foldrAPattern f ps
-      WithAppP _ p ps    -> foldrAPattern f (p, ps)
+      WithAppP _ p       -> foldrAPattern f p
       VarP _             -> mempty
       ProjP _ _ _        -> mempty
       WildP _            -> mempty
@@ -164,7 +162,7 @@ instance APatternLike a (Pattern' a) where
       A.AsP         i x  p  -> A.AsP         i x  <$> traverseAPatternM pre post p
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
-      A.WithAppP    i p  ps -> uncurry (A.WithAppP i) <$> traverseAPatternM pre post (p, ps)
+      A.WithAppP    i p     -> A.WithAppP    i    <$> traverseAPatternM pre post p
 
 -- The following instances need UndecidableInstances
 -- for the FunctionalDependency (since injectivity is not taken into account).
@@ -206,7 +204,7 @@ patternVars p = foldAPattern f p `appEndo` []
     A.DotP        {} -> mempty
     A.AbsurdP     {} -> mempty
     A.PatternSynP {} -> mempty
-    A.WithAppP _ _ _ -> mempty
+    A.WithAppP _ _   -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
 
@@ -273,4 +271,4 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   DefP _ _ _        -> p
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p
-  WithAppP _ _ _    -> p
+  WithAppP _ _      -> p
