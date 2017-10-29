@@ -1039,24 +1039,6 @@ lambdaLiftExpr []     e = e
 lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo n) $
                             lambdaLiftExpr ns e
 
-substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
-substPattern = substPattern' (substExpr . (map . second) patternToExpr)
-
--- TODO: express this by a generic traversal.
-substPattern' :: ([(Name, Pattern' e)] -> e -> e) -> [(Name, Pattern' e)] -> Pattern' e -> Pattern' e
-substPattern' subE s p = case p of
-  VarP z        -> fromMaybe p (lookup z s)
-  ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern' subE s))) ps)
-  RecP i ps     -> RecP i (map (fmap (substPattern' subE s)) ps)
-  ProjP{}       -> p
-  WildP i       -> p
-  DotP i o e    -> DotP i o (subE s e)
-  AbsurdP i     -> p
-  LitP l        -> p
-  DefP{}        -> p              -- destructor pattern
-  AsP i x p     -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
-  PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
-  WithAppP i p ps -> WithAppP i (substPattern' subE s p) (map (substPattern' subE s) ps)
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
