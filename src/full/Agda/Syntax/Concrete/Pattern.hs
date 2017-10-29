@@ -4,6 +4,7 @@
 
 module Agda.Syntax.Concrete.Pattern where
 
+import Control.Applicative
 import Data.Foldable (Foldable, foldMap)
 import Data.Monoid
 
