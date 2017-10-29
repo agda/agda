@@ -48,11 +48,6 @@ module Agda.Syntax.Concrete
   , HoleContent, HoleContent'(..)
   , topLevelModuleName
   , spanAllowedBeforeModule
-    -- * Pattern tools
-  , patternNames, patternQNames
-    -- * Lenses
-  , mapLhsOriginalPattern
-  , mapLhsOriginalPatternM
   )
   where
 
@@ -474,18 +469,6 @@ data HoleContent' e
 type HoleContent = HoleContent' Expr
 
 {--------------------------------------------------------------------------
-    Lenses
- --------------------------------------------------------------------------}
-
-mapLhsOriginalPattern :: (Pattern -> Pattern) -> LHS -> LHS
-mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
-  lhs { lhsOriginalPattern = f p }
-
-mapLhsOriginalPatternM :: (Functor m, Applicative m) => (Pattern -> m Pattern) -> LHS -> m LHS
-mapLhsOriginalPatternM f lhs@LHS{ lhsOriginalPattern = p } = f p <&> \ p' ->
-  lhs { lhsOriginalPattern = p' }
-
-{--------------------------------------------------------------------------
     Views
  --------------------------------------------------------------------------}
 
@@ -504,35 +487,6 @@ appView e =
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
-
-{--------------------------------------------------------------------------
-    Patterns
- --------------------------------------------------------------------------}
-
--- | Get all the identifiers in a pattern in left-to-right order.
-patternQNames :: Pattern -> [QName]
-patternQNames p =
-  case p of
-    IdentP x               -> [x]
-    AppP p p'              -> concatMap patternQNames [p, namedArg p']
-    RawAppP _ ps           -> concatMap patternQNames  ps
-    OpAppP _ x _ ps        -> x : concatMap (patternQNames . namedArg) ps
-    HiddenP _ (namedPat)   -> patternQNames (namedThing namedPat)
-    ParenP _ p             -> patternQNames p
-    WildP _                -> []
-    AbsurdP _              -> []
-    AsP _ x p              -> patternQNames p
-    DotP{}                 -> []
-    LitP _                 -> []
-    QuoteP _               -> []
-    InstanceP _ (namedPat) -> patternQNames (namedThing namedPat)
-    RecP _ fs              -> concatMap (patternQNames . (^. exprFieldA)) fs
-    EqualP{}               -> [] -- Andrea: cargo culted from DotP
-    EllipsisP _            -> []
-
--- | Get all the identifiers in a pattern in left-to-right order.
-patternNames :: Pattern -> [Name]
-patternNames = map unqualify . patternQNames
 
 {--------------------------------------------------------------------------
     Instances
