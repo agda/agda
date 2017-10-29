@@ -150,7 +150,7 @@ TAGS :
 	@echo "======================================================================"
 	$(MAKE) -C $(FULL_SRC_DIR) TAGS
 
-## Testing ###########################################################
+## Testing ################################################################
 
 .PHONY : quick
 quick : install-O0-bin quicktest
@@ -351,7 +351,7 @@ check-whitespace : build-fix-agda-whitespace
 build-fix-agda-whitespace :
 	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
 
-## size-solver standalone program ############################################
+## size-solver standalone program #########################################
 
 # NB. It is necessary to install the Agda library (i.e run `make install-bin`)
 # before installing the `size-solver` program.
@@ -369,7 +369,7 @@ test-size-solver : install-size-solver
 	@echo "======================================================================"
 	$(MAKE) -C src/size-solver test
 
-## agda-bisect standalone program ############################################
+## agda-bisect standalone program #########################################
 
 .PHONY : install-agda-bisect
 install-agda-bisect :
@@ -378,7 +378,7 @@ install-agda-bisect :
 	@echo "======================================================================"
 	cd src/agda-bisect && $(CABAL_CMD) install
 
-########################################################################
+###########################################################################
 # HPC
 
 .PHONY: hpc-build
@@ -409,7 +409,20 @@ agda-loc :
 loc :
 	make -C src/full loc
 
-##############################################################################
+###########################################################################
+# Module dependency graph
+
+mod-dep : module-dependency-graph.pdf
+mod-dot : module-dependency-graph.dot
+
+module-dependency-graph.pdf : %.pdf : %.dot
+	dot -Tpdf $< > $@
+
+module-dependency-graph.dot : Agda.cabal Makefile
+	graphmod --no-cluster --prune-edges > $@
+
+
+###########################################################################
 # HLint
 
 hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
@@ -418,7 +431,7 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 	      --report=hlint-report.html \
 	      $(FULL_SRC_DIR)/Agda
 
-########################################################################
+###########################################################################
 # Debug
 
 debug :
