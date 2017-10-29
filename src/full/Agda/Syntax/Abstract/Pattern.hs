@@ -10,8 +10,9 @@ module Agda.Syntax.Abstract.Pattern where
 
 import Prelude hiding (null)
 
+import Control.Arrow ((***))
 import Control.Monad ((>=>))
-import Control.Applicative (Applicative)
+import Control.Applicative (Applicative, liftA2)
 
 import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable, traverse)
@@ -59,11 +60,18 @@ instance MapNamedArgPattern NAP where
       -- RecP: we copy the NamedArg info to the subpatterns but discard it after recursion
       RecP i fs          -> f $ setNamedArg p $ RecP i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
       -- AsP: we hand the NamedArg info to the subpattern
-      AsP i x p0        -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
+      AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
+      -- WithAppP: like RecP
+      WithAppP i p0 ps   -> f $ setNamedArg p $ uncurry (WithAppP i) $
+        namedArg *** map namedArg $
+          mapNamedArgPattern f (setNamedArg p p0, map (setNamedArg p) ps)
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
 instance MapNamedArgPattern a => MapNamedArgPattern (Maybe a)            where
+
+instance (MapNamedArgPattern a, MapNamedArgPattern b) => MapNamedArgPattern (a,b) where
+  mapNamedArgPattern f (a, b) = (mapNamedArgPattern f a, mapNamedArgPattern f b)
 
 -- | Generic pattern traversal.
 
@@ -134,6 +142,7 @@ instance APatternLike a (Pattern' a) where
       DefP _ _ ps        -> foldrAPattern f ps
       RecP _ ps          -> foldrAPattern f ps
       PatternSynP _ _ ps -> foldrAPattern f ps
+      WithAppP _ p ps    -> foldrAPattern f (p, ps)
       VarP _             -> mempty
       ProjP _ _ _        -> mempty
       WildP _            -> mempty
@@ -159,6 +168,7 @@ instance APatternLike a (Pattern' a) where
       A.AsP         i x  p  -> A.AsP         i x  <$> traverseAPatternM pre post p
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
+      A.WithAppP    i p  ps -> uncurry (A.WithAppP i) <$> traverseAPatternM pre post (p, ps)
 
 -- The following instances need UndecidableInstances
 -- for the FunctionalDependency (since injectivity is not taken into account).
@@ -168,6 +178,16 @@ instance APatternLike a b => APatternLike a (Named n b)          where
 instance APatternLike a b => APatternLike a [b]                  where
 instance APatternLike a b => APatternLike a (Maybe b)            where
 instance APatternLike a b => APatternLike a (FieldAssignment' b) where
+
+instance (APatternLike a b, APatternLike a c) => APatternLike a (b,c) where
+  foldrAPattern f (p, p') =
+    foldrAPattern f p `mappend` foldrAPattern f p'
+
+  traverseAPatternM pre post (p, p') =
+    liftA2 (,)
+      (traverseAPatternM pre post p)
+      (traverseAPatternM pre post p')
+
 
 -- * Specific folds
 
@@ -191,6 +211,7 @@ patternVars p = foldAPattern f p `appEndo` []
     A.AbsurdP     {} -> mempty
     A.EqualP      {} -> mempty
     A.PatternSynP {} -> mempty
+    A.WithAppP _ _ _ -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
 

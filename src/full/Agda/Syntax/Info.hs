@@ -226,7 +226,7 @@ instance KillRange LHSInfo where
 -- | For a general pattern we remember the source code position.
 newtype PatInfo
   = PatRange Range
-  deriving (Typeable, Data, Eq, Null, Show, HasRange, KillRange)
+  deriving (Typeable, Data, Eq, Null, Show, SetRange, HasRange, KillRange)
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo

@@ -1179,6 +1179,7 @@ niceDeclarations ds = do
     wipe :: Pattern -> Pattern
     wipe = killRange . setInserted
 
+    -- Set origin of all dot patterns inside the given pattern to 'Inserted'.
     setInserted :: Pattern -> Pattern
     setInserted p = case p of
       IdentP{} -> p
@@ -1197,6 +1198,7 @@ niceDeclarations ds = do
       LitP{} -> p
       RecP r fs -> RecP r (map (fmap setInserted) fs)
       EllipsisP{} -> p
+      WithAppP r p ps -> WithAppP r (setInserted p) (map setInserted ps)
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]

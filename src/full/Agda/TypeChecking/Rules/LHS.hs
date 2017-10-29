@@ -216,6 +216,7 @@ updateInPatterns as ps qs = do
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
         A.EqualP{}          -> __IMPOSSIBLE__
+        A.WithAppP    _ _ _ -> __IMPOSSIBLE__
       ConP c cpi [] -> do
         let
             dpi :: [DotPatternInst]
@@ -265,6 +266,7 @@ updateInPatterns as ps qs = do
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _          -> __IMPOSSIBLE__
       A.EqualP{}          -> __IMPOSSIBLE__
+      A.WithAppP _ _ _    -> __IMPOSSIBLE__
       where
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi o (Arg fi f) = Arg fi $ unnamed $
@@ -307,6 +309,7 @@ problemAllVariables problem =
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
     isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
     isSolved A.EqualP{}      = False -- __IMPOSSIBLE__
+    isSolved A.WithAppP{}    = __IMPOSSIBLE__
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
@@ -323,28 +326,30 @@ noShadowingOfConstructors mkCall problem =
     let pat = map (snd . asView . namedArg) $
                   problemInPat problem
         tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
-    zipWithM_ noShadowing pat tel -- TODO: does not work for flexible arity and projection patterns
+    zipWithM_ noShadowing tel pat
     return ()
   where
-  noShadowing (A.WildP     {}) t = return ()
-  noShadowing (A.AbsurdP   {}) t = return ()
-  noShadowing (A.ConP      {}) t = return ()  -- only happens for eta expanded record patterns
-  noShadowing (A.RecP      {}) t = return ()  -- record pattern
-  noShadowing (A.ProjP     {}) t = return ()  -- projection pattern
-  noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
-  noShadowing (A.DotP      {}) t = return ()
-  noShadowing (A.EqualP    {}) t = return ()
-  noShadowing (A.AsP       {}) t = __IMPOSSIBLE__ -- removed by asView
-  noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
-  noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
-  noShadowing (A.VarP (A.BindName x)) t = do
+  noShadowing t = \case
+   A.WildP       {} -> return ()
+   A.AbsurdP     {} -> return ()
+   A.ConP        {} -> return ()  -- only happens for eta expanded record patterns
+   A.RecP        {} -> return ()  -- record pattern
+   A.ProjP       {} -> return ()  -- projection pattern
+   A.DotP        {} -> return ()
+   A.EqualP      {} -> return ()
+   A.DefP        {} -> __IMPOSSIBLE__
+   A.AsP         {} -> __IMPOSSIBLE__ -- removed by asView
+   A.LitP        {} -> __IMPOSSIBLE__
+   A.PatternSynP {} -> __IMPOSSIBLE__
+   A.WithAppP    {} -> __IMPOSSIBLE__
+   A.VarP (A.BindName x) -> do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
       , nest 2 $ text "type of variable =" <+> prettyTCM t
       ]
     reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ text "t =" <+> pretty t
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Def t _ -> do
         d <- theDef <$> getConstInfo t
         case d of
@@ -368,7 +373,6 @@ noShadowingOfConstructors mkCall problem =
       Var   {} -> return ()
       Pi    {} -> return ()
       Sort  {} -> return ()
-      Shared p -> noShadowing (A.VarP (A.BindName x)) $ derefPtr p
       MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be
       -- postponed? If there is a problem, then it will be caught when
@@ -379,6 +383,7 @@ noShadowingOfConstructors mkCall problem =
       Lit   {} -> __IMPOSSIBLE__
       Level {} -> __IMPOSSIBLE__
       Con   {} -> __IMPOSSIBLE__
+      Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
 
 -- | Check that a dot pattern matches it's instantiation.
@@ -472,6 +477,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.RecP _ _   -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.EqualP{}   -> __IMPOSSIBLE__
+      A.WithAppP    _ _ _ -> __IMPOSSIBLE__
 
     gatherImplicitDotVars :: DotPatternInst -> TCM [(Int,Projectns)]
     gatherImplicitDotVars (DPI _ (Just _) _ _) = return [] -- Not implicit
@@ -563,6 +569,7 @@ bindLHSVars (p : ps) tel0@(ExtendTel a tel) ret = do
     A.LitP{}        -> __IMPOSSIBLE__
     A.PatternSynP{} -> __IMPOSSIBLE__
     A.EqualP{}      -> __IMPOSSIBLE__
+    A.WithAppP{}    -> __IMPOSSIBLE__
     where
       bindDummy s = do
         x <- if isUnderscore s then freshNoName_ else unshadowName =<< freshName_ ("." ++ argNameToString s)
