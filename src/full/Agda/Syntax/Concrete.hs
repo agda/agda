@@ -195,6 +195,7 @@ data Pattern
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
+  | WithAppP Range Pattern [Pattern]       -- ^ @p | p1 | ... | pn@, for with-patterns.
   deriving (Typeable, Data)
 
 data DoStmt
@@ -693,6 +694,7 @@ instance HasRange Pattern where
   getRange (DotP r _ _)       = r
   getRange (RecP r _)         = r
   getRange (EllipsisP r)      = r
+  getRange (WithAppP r _ _)   = r
 
 -- SetRange instances
 ------------------------------------------------------------------------
@@ -716,6 +718,7 @@ instance SetRange Pattern where
   setRange r (DotP _ o e)       = DotP r o e
   setRange r (RecP _ fs)        = RecP r fs
   setRange r (EllipsisP _)      = EllipsisP r
+  setRange r (WithAppP _ p ps)  = WithAppP r p ps
 
 -- KillRange instances
 ------------------------------------------------------------------------
@@ -822,7 +825,7 @@ instance KillRange e => KillRange (OpApp e) where
 
 instance KillRange Pattern where
   killRange (IdentP q)        = killRange1 IdentP q
-  killRange (AppP p n)        = killRange2 AppP p n
+  killRange (AppP p ps)       = killRange2 AppP p ps
   killRange (RawAppP _ p)     = killRange1 (RawAppP noRange) p
   killRange (OpAppP _ n ns p) = killRange3 (OpAppP noRange) n ns p
   killRange (HiddenP _ n)     = killRange1 (HiddenP noRange) n
@@ -836,6 +839,7 @@ instance KillRange Pattern where
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
   killRange (EllipsisP _)     = EllipsisP noRange
+  killRange (WithAppP _ p ps) = killRange2 (WithAppP noRange) p ps
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
@@ -942,6 +946,7 @@ instance NFData Pattern where
   rnf (LitP a) = rnf a
   rnf (RecP _ a) = rnf a
   rnf (EllipsisP _) = ()
+  rnf (WithAppP _ a b) = rnf a `seq` rnf b
 
 -- | Ranges are not forced.
 

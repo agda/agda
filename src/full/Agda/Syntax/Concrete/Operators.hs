@@ -542,6 +542,10 @@ parsePat prs p = case p of
     IdentP _         -> return p
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
     EllipsisP _      -> fail "bad ellipsis"
+    WithAppP r p ps  -> fullParen' <$> do
+      liftA2 (WithAppP r)
+        (parsePat prs p)
+        (traverse (parsePat prs) ps)
 
 
 {- Implement parsing of copattern left hand sides, e.g.

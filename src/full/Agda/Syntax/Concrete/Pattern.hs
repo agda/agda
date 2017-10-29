@@ -68,6 +68,7 @@ instance CPatternLike Pattern where
     case p0 of
       -- Recursive cases:
       AppP p ps       -> foldrCPattern f (p, ps)
+      WithAppP _ p ps -> foldrCPattern f (p, ps)
       RawAppP _ ps    -> foldrCPattern f ps
       OpAppP _ _ _ ps -> foldrCPattern f ps
       HiddenP _ ps    -> foldrCPattern f ps
@@ -114,6 +115,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     OpAppP _ x _ _ -> Endo (x :)
     AsP _ x _      -> mempty  -- x must be a bound name, can't be a constructor!
     AppP _ _       -> mempty
+    WithAppP _ _ _ -> mempty
     RawAppP _ _    -> mempty
     HiddenP _ _    -> mempty
     ParenP _ _     -> mempty

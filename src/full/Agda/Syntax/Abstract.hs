@@ -467,6 +467,7 @@ data Pattern' e
   | LitP Literal
   | PatternSynP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
+  | WithAppP PatInfo (Pattern' e) [Pattern' e] -- ^ @p | p1 | ... | pn@, for with-patterns.
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
@@ -659,6 +660,7 @@ instance HasRange (Pattern' e) where
     getRange (LitP l)            = getRange l
     getRange (PatternSynP i _ _) = getRange i
     getRange (RecP i _)          = getRange i
+    getRange (WithAppP i _ _)    = getRange i
 
 instance HasRange SpineLHS where
     getRange (SpineLHS i _ _ _)  = getRange i
@@ -699,6 +701,7 @@ instance SetRange (Pattern' a) where
     setRange r (LitP l)             = LitP (setRange r l)
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
     setRange r (RecP i as)          = RecP (PatRange r) as
+    setRange r (WithAppP i p ps)    = WithAppP (setRange r i) p ps
 
 instance KillRange LamBinding where
   killRange (DomainFree info x) = killRange1 (DomainFree info) x
@@ -783,6 +786,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (LitP l)            = killRange1 LitP l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
   killRange (RecP i as)         = killRange2 RecP i as
+  killRange (WithAppP i p ps)   = killRange3 WithAppP i p ps
 
 instance KillRange SpineLHS where
   killRange (SpineLHS i a b c)  = killRange4 SpineLHS i a b c
@@ -1025,6 +1029,7 @@ patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could thi
 patternToExpr (LitP l)            = Lit l
 patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
 patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
+patternToExpr (WithAppP r p ps)   = WithApp exprNoRange (patternToExpr p) (map patternToExpr ps)
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
@@ -1037,6 +1042,7 @@ lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo n) $
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
 substPattern = substPattern' (substExpr . (map . second) patternToExpr)
 
+-- TODO: express this by a generic traversal.
 substPattern' :: ([(Name, Pattern' e)] -> e -> e) -> [(Name, Pattern' e)] -> Pattern' e -> Pattern' e
 substPattern' subE s p = case p of
   VarP z        -> fromMaybe p (lookup z s)
@@ -1050,6 +1056,7 @@ substPattern' subE s p = case p of
   DefP{}        -> p              -- destructor pattern
   AsP i x p     -> AsP i x (substPattern' subE s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
+  WithAppP i p ps -> WithAppP i (substPattern' subE s p) (map (substPattern' subE s) ps)
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a

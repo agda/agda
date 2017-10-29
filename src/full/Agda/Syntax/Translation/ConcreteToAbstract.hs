@@ -1296,6 +1296,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.QuoteP{}             = Nothing
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
+              definedName C.WithAppP{}           = Nothing
               definedName C.RawAppP{}            = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
@@ -2153,16 +2154,15 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(C.AsP r x p) = do
         x <- toAbstract (NewName False x)
         p <- toAbstract p
-        return $ A.AsP info x p
-        where
-            info = PatRange r
+        return $ A.AsP (PatRange r) x p
     -- we have to do dot patterns at the end
-    toAbstract p0@(C.DotP r o e) = return $ A.DotP info o e
-        where info = PatRange r
-    toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
-        where info = PatRange r
-    toAbstract (C.RecP r fs) = A.RecP (PatRange r) <$>
-      mapM (traverse toAbstract) fs
+    toAbstract p0@(C.DotP r o e)   = return $ A.DotP (PatRange r) o e
+    toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
+    toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
+    toAbstract (C.WithAppP r p ps) =
+      liftA2 (A.WithAppP $ PatRange r)
+        (toAbstract p)
+        (mapM toAbstract ps)
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.

@@ -543,8 +543,7 @@ instance Pretty e => Pretty (Named_ e) where
 
 instance Pretty Pattern where
     prettyList = fsep . map pretty
-    pretty p =
-        case p of
+    pretty = \case
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty ps
@@ -560,6 +559,7 @@ instance Pretty Pattern where
             QuoteP _        -> text "quote"
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
             EllipsisP _     -> text "..."
+            WithAppP _ p ps -> fsep $ pretty p : map ((text "|" <+>) . pretty) ps
 
 prettyOpApp :: forall a .
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
