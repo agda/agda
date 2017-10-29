@@ -259,18 +259,18 @@ checkPatternLinearity ps err =
 -- an expression substitution.
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
-substPattern = substPattern' $ substExpr . (map . second) patternToExpr
+substPattern s = substPattern' (substExpr $ map (second patternToExpr) s) s
 
 -- | Pattern substitution, parametrized by substitution function for embedded expressions.
 
 substPattern'
-  :: ([(Name, Pattern' e)] -> e -> e)  -- ^ Substitution function for expressions.
-  -> [(Name, Pattern' e)]              -- ^ (Parallel) substitution.
-  -> Pattern' e                        -- ^ Input pattern.
+  :: (e -> e)              -- ^ Substitution function for expressions.
+  -> [(Name, Pattern' e)]  -- ^ (Parallel) substitution.
+  -> Pattern' e            -- ^ Input pattern.
   -> Pattern' e
 substPattern' subE s = mapAPattern $ \ p -> case p of
   VarP x            -> fromMaybe p $ lookup x s
-  DotP i o e        -> DotP i o $ subE s e
+  DotP i o e        -> DotP i o $ subE e
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
   RecP _ _          -> p

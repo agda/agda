@@ -87,7 +87,7 @@ expandPatternSynonyms' = postTraverseAPatternM $ \case
       Nothing       -> typeError $ BadArgumentsToPatternSynonym x
       Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
       Just (s, [])  -> do
-        let subE _ _ = __IMPOSSIBLE__   -- No dot patterns in p
+        let subE _ = __IMPOSSIBLE__   -- No dot patterns in p
         return $ setRange (getRange i) $ substPattern' subE s p
 
   p -> return p
