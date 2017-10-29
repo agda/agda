@@ -91,7 +91,7 @@ instance CPatternLike Pattern where
       InstanceP _ ps  -> foldrCPattern f ps
       ParenP _ p      -> foldrCPattern f p
       AsP _ _ p       -> foldrCPattern f p
-      WithAppP _ p    -> foldrCPattern f p
+      WithP _ p       -> foldrCPattern f p
       RecP _ ps       -> foldrCPattern f ps
       -- Nonrecursive cases:
       IdentP _        -> mempty
@@ -106,15 +106,15 @@ instance CPatternLike Pattern where
     where
     recurse p0 = case p0 of
       -- Recursive cases:
-      AppP        p ps    -> uncurry AppP         <$> traverseCPatternM pre post (p, ps)
-      RawAppP   r ps      -> RawAppP r            <$> traverseCPatternM pre post ps
-      OpAppP    r x xs ps -> OpAppP r x xs        <$> traverseCPatternM pre post ps
-      HiddenP   r p       -> HiddenP r            <$> traverseCPatternM pre post p
-      InstanceP r p       -> InstanceP r          <$> traverseCPatternM pre post p
-      ParenP    r p       -> ParenP r             <$> traverseCPatternM pre post p
-      AsP       r x p     -> AsP r x              <$> traverseCPatternM pre post p
-      WithAppP  r p       -> WithAppP r           <$> traverseCPatternM pre post p
-      RecP      r ps      -> RecP r               <$> traverseCPatternM pre post ps
+      AppP        p ps    -> uncurry AppP  <$> traverseCPatternM pre post (p, ps)
+      RawAppP   r ps      -> RawAppP r     <$> traverseCPatternM pre post ps
+      OpAppP    r x xs ps -> OpAppP r x xs <$> traverseCPatternM pre post ps
+      HiddenP   r p       -> HiddenP r     <$> traverseCPatternM pre post p
+      InstanceP r p       -> InstanceP r   <$> traverseCPatternM pre post p
+      ParenP    r p       -> ParenP r      <$> traverseCPatternM pre post p
+      AsP       r x p     -> AsP r x       <$> traverseCPatternM pre post p
+      WithP     r p       -> WithP r       <$> traverseCPatternM pre post p
+      RecP      r ps      -> RecP r        <$> traverseCPatternM pre post ps
       -- Nonrecursive cases:
       IdentP _        -> return p0
       WildP _         -> return p0
@@ -180,7 +180,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     OpAppP _ x _ _ -> Endo (x :)
     AsP _ x _      -> mempty  -- x must be a bound name, can't be a constructor!
     AppP _ _       -> mempty
-    WithAppP _ _   -> mempty
+    WithP _ _      -> mempty
     RawAppP _ _    -> mempty
     HiddenP _ _    -> mempty
     ParenP _ _     -> mempty

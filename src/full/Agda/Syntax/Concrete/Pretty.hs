@@ -559,7 +559,7 @@ instance Pretty Pattern where
             QuoteP _        -> text "quote"
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
             EllipsisP _     -> text "..."
-            WithAppP _ p    -> text "|" <+> pretty p
+            WithP _ p       -> text "|" <+> pretty p
 
 prettyOpApp :: forall a .
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]

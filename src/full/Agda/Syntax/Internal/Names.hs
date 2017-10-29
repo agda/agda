@@ -185,7 +185,7 @@ instance NamesIn (A.Pattern' a) where
     A.PatternSynP _ c args -> namesIn (c, args)
     A.RecP _ fs            -> namesIn fs
     A.DotP{}               -> __IMPOSSIBLE__    -- Dot patterns are not allowed in pattern synonyms
-    A.WithAppP _ p         -> namesIn p
+    A.WithP _ p            -> namesIn p
 
 instance NamesIn AmbiguousQName where
   namesIn (AmbQ cs) = namesIn cs

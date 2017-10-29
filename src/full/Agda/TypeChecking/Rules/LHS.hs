@@ -215,7 +215,7 @@ updateInPatterns as ps qs = do
         A.DefP        _ _ _ -> __IMPOSSIBLE__
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-        A.WithAppP    _ _   -> __IMPOSSIBLE__
+        A.WithP       _ _   -> __IMPOSSIBLE__
       -- Case: the unifier eta-expanded the variable
       ConP _c _cpi qs -> do
         Def r es <- ignoreSharing <$> reduce (unEl $ unDom a)
@@ -252,7 +252,7 @@ updateInPatterns as ps qs = do
       A.LitP _            -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _          -> __IMPOSSIBLE__
-      A.WithAppP _ _      -> __IMPOSSIBLE__
+      A.WithP _ _         -> __IMPOSSIBLE__
       where
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi o (Arg fi f) = Arg fi $ unnamed $
@@ -294,7 +294,7 @@ problemAllVariables problem =
     isSolved A.DefP{}        = __IMPOSSIBLE__
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
     isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
-    isSolved A.WithAppP{}    = __IMPOSSIBLE__
+    isSolved A.WithP{}       = __IMPOSSIBLE__
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
@@ -324,7 +324,7 @@ noShadowingOfConstructors mkCall st =
    A.AsP         {} -> __IMPOSSIBLE__ -- removed by asView
    A.LitP        {} -> __IMPOSSIBLE__
    A.PatternSynP {} -> __IMPOSSIBLE__
-   A.WithAppP    {} -> __IMPOSSIBLE__
+   A.WithP       {} -> __IMPOSSIBLE__
    A.VarP x -> do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
@@ -459,7 +459,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.DefP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _   -> __IMPOSSIBLE__
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
-      A.WithAppP    _ _   -> __IMPOSSIBLE__
+      A.WithP       _ _   -> __IMPOSSIBLE__
 
     gatherImplicitDotVars :: DotPatternInst -> TCM [(Int,Projectns)]
     gatherImplicitDotVars (DPI _ (Just _) _ _) = return [] -- Not implicit
@@ -550,7 +550,7 @@ bindLHSVars (p : ps) tel0@(ExtendTel a tel) ret = do
     A.DefP{}        -> __IMPOSSIBLE__
     A.LitP{}        -> __IMPOSSIBLE__
     A.PatternSynP{} -> __IMPOSSIBLE__
-    A.WithAppP{}    -> __IMPOSSIBLE__
+    A.WithP{}       -> __IMPOSSIBLE__
     where
       bindDummy s = do
         x <- if isUnderscore s then freshNoName_ else unshadowName =<< freshName_ ("." ++ argNameToString s)

@@ -728,7 +728,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             A.AsP i x p   -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
             A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
-            A.WithAppP i p -> A.WithAppP i $ stripPat p -- TODO #2822: right?
+            A.WithP i p   -> A.WithP i $ stripPat p -- TODO #2822: right?
 
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
@@ -869,7 +869,7 @@ instance Binder A.Pattern where
     A.LitP{}            -> empty
     A.PatternSynP _ _ _ -> empty
     A.RecP _ _          -> empty
-    A.WithAppP _ _      -> empty
+    A.WithP _ _         -> empty
 
 instance Binder A.LamBinding where
   varsBoundIn (A.DomainFree _ x) = singleton x
