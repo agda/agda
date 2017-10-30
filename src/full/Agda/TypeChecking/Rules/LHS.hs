@@ -270,7 +270,7 @@ updateInPatterns as ps qs = do
 --   That is, if the patterns are all variables,
 --   and there is no 'problemRest'.
 isSolvedProblem :: Problem -> Bool
-isSolvedProblem problem = null (restPats $ problemRest problem) &&
+isSolvedProblem problem = null (problemRestPats problem) &&
   problemAllVariables problem
 
 -- | Check if a problem consists only of variable patterns.
@@ -278,7 +278,7 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
 problemAllVariables :: Problem -> Bool
 problemAllVariables problem =
     all (isSolved . snd . asView . namedArg) $
-      restPats (problemRest problem) ++ problemInPat problem
+      problemRestPats problem ++ problemInPat problem
   where
     -- need further splitting:
     isSolved A.ConP{}        = False
@@ -305,12 +305,11 @@ problemAllVariables problem =
 
 noShadowingOfConstructors
   :: Call -- ^ Trace, e.g., @CheckPatternShadowing clause@
-  -> Problem -> TCM ()
-noShadowingOfConstructors mkCall problem =
+  -> LHSState -> TCM ()
+noShadowingOfConstructors mkCall st =
   traceCall mkCall $ do
-    let pat = map (snd . asView . namedArg) $
-                  problemInPat problem
-        tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
+    let pat = map (snd . asView . namedArg) $ problemInPat $ lhsProblem st
+        tel = map (unEl . snd . unDom) $ telToList $ lhsTel st
     zipWithM_ noShadowing tel pat
     return ()
   where
@@ -630,7 +629,7 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
   let tel = telFromList' prettyShow cxt
       cps = [ unnamed . A.VarP . fst <$> setOrigin Inserted (argFromDom d)
             | d <- cxt ]
-  problem0 <- problemFromPats (cps ++ ps) (telePi tel a)
+  st0 <- initLHSState (cps ++ ps) (telePi tel a)
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
@@ -651,8 +650,8 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
 
   -- doing the splits:
   inTopContext $ do
-    (LHSState problem@(Problem pxs qs delta rest) dpi sbe, block)
-      <- runWriterT $ checkLHS f $ LHSState problem0 [] []
+    (st@(LHSState delta qs problem@(Problem pxs rps) b' dpi sbe), block)
+      <- runWriterT $ checkLHS f st0
 
     -- check linearity of the pattern,
     -- we only care about user-written variables here.
@@ -664,10 +663,10 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
     A.checkPatternLinearity userpxs $ \ys ->
       typeError $ RepeatedVariablesInPattern ys
 
-    unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
+    unless (null rps) $ typeError $ TooManyArgumentsInLHS a
 
     addContext delta $ do
-      noShadowingOfConstructors c problem
+      noShadowingOfConstructors c st
       noPatternMatchingOnCodata qs
 
     -- f is Nothing when checking let pattern-bindings. In that case there can
@@ -686,7 +685,6 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
              ]
            ]
 
-    let b' = restType rest
     bindLHSVars (filter (isNothing . isProjP) pxs) delta $ do
       let -- Find the variable patterns that have been refined
           refinedParams = [ AsB x v (unDom a) | DPI (Just x) _ v a <- dpi ]
@@ -745,9 +743,9 @@ checkLHS
   => Maybe QName     -- ^ The name of the definition we are checking.
   -> LHSState        -- ^ The current state.
   -> tcm LHSState    -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem dpi sbe) = do
+checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
 
-  problem <- liftTCM $ insertImplicitProblem problem
+  problem <- liftTCM $ insertImplicitProblem tel problem
   -- Note: inserting implicits no longer preserve solvedness,
   -- since we might insert eta expanded record patterns.
   if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
@@ -756,12 +754,12 @@ checkLHS f st@(LHSState problem dpi sbe) = do
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
 
-    foldListT trySplit nothingToSplit $ splitProblem problem
+    foldListT trySplit nothingToSplit $ splitProblem $ st { lhsProblem = problem }
   where
     nothingToSplit :: tcm LHSState
     nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
-      liftTCM $ nothingToSplitError problem
+      liftTCM $ nothingToSplitError st
 
     -- Split problem rest (projection pattern, does not fail as there is no call to unifier)
     trySplit :: SplitProblem -> tcm LHSState -> tcm LHSState
@@ -770,18 +768,15 @@ checkLHS f st@(LHSState problem dpi sbe) = do
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
       f' <- ifJust f return $ typeError $ GenericError "Cannot use copatterns in a let binding"
-      let self = Def f' $ patternsToElims $ problemOutPat problem
-      restType' <- projType `piApply1` self
+      let self = Def f' $ patternsToElims ip
+      target' <- (projPat $>) <$> projType `piApply1` self
 
       -- Compute the new problem
-      let Problem ps1 ip delta (ProblemRest (p:ps2) b) = problem
-          -- ps'      = ps1 ++ [p]
-          ps'      = ps1 -- drop the projection pattern (already splitted)
-          rest     = ProblemRest ps2 (projPat $> restType')
+      let Problem ps1 (_:ps2) = problem -- drop the projection pattern (already splitted)
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
-          problem' = Problem ps' ip' delta rest
+          problem' = Problem ps1 ps2
       -- Jump the trampolin
-      st' <- liftTCM $ updateProblemRest (LHSState problem' dpi sbe)
+      st' <- liftTCM $ updateProblemRest (LHSState tel ip' problem' target' dpi sbe)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
@@ -792,8 +787,8 @@ checkLHS f st@(LHSState problem dpi sbe) = do
     trySplit (Split p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
 
       -- substitute the literal in p1 and dpi
-      let delta1 = problemTel p0
-          delta2 = absApp (fmap problemTel p1) (Lit lit)
+      let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+          delta2 = absApp adelta2 (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
           -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
@@ -803,18 +798,17 @@ checkLHS f st@(LHSState problem dpi sbe) = do
           dpi'     = applyPatSubst rho dpi
           sbe'     = map (second $ applyPatSubst rho) sbe
           ip'      = applySubst rho ip
-          rest'    = applyPatSubst rho (problemRest problem)
+          target'  = applyPatSubst rho target
 
       -- Compute the new problem
-      let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
+      let ps'      = problemInPat p0 ++ problemInPat p1
           delta'   = abstract delta1 delta2
-          problem' = Problem ps' ip' delta' rest'
-      st' <- liftTCM $ updateProblemRest (LHSState problem' dpi' sbe')
+          problem' = Problem ps' $ problemRestPats problem
+      st' <- liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' dpi' sbe')
       checkLHS f st'
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
     trySplit (Split p0 (Arg info (AbsurdFocus pi i a)) p1) _ = do
-      let tel = problemTel problem
       reportSDoc "tc.lhs.split.absurd" 10 $ sep
         [ text "splitting on absurd pattern"
         , nest 2 $ text "tel  =" <+> prettyTCM tel
@@ -823,11 +817,11 @@ checkLHS f st@(LHSState problem dpi sbe) = do
         ]
       let rho = liftS i $ consS (AbsurdP $ VarP $ DBPatVar absurdPatternName 0) $ raiseS 1
       checkLHS f $ st
-            { lhsProblem = problem
-              { problemInPat  = (problemInPat p0) ++
+            { lhsOutPat  = applySubst rho ip
+            , lhsProblem = problem
+              { problemInPat  = problemInPat p0 ++
                                 [Arg info $ unnamed $ A.WildP pi] ++
-                                problemInPat (absBody p1)
-              , problemOutPat = applySubst rho $ problemOutPat problem
+                                problemInPat p1
               }
             , lhsShouldBeEmptyTypes = (getRange pi , a) : lhsShouldBeEmptyTypes st
             }
@@ -845,17 +839,17 @@ checkLHS f st@(LHSState problem dpi sbe) = do
                       , focusType     = a
                       }
                )) p1) tryNextSplit = do
+      let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+          delta2 = absBody adelta2
+      let typeOfSplitVar = Arg info a
       traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (unambiguous c) qs)
-                                       (problemTel p0)
+                                       delta1
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
-        let delta1 = problemTel p0
-            delta2 = problemTel $ absBody p1
-        let typeOfSplitVar = Arg info a
 
         reportSDoc "tc.lhs.split" 10 $ sep
           [ text "checking lhs"
-          , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
+          , nest 2 $ text "tel =" <+> prettyTCM tel
           , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
           ]
 
@@ -1051,7 +1045,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
             ]
 
           -- compute new in patterns
-          let ps'  = p0' ++ problemInPat (absBody p1)
+          let ps'  = p0' ++ problemInPat p1
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
@@ -1070,19 +1064,19 @@ checkLHS f st@(LHSState problem dpi sbe) = do
 
           -- Apply the substitution
           let ip'      = applySubst rho ip
-              rest'    = applyPatSubst rho (problemRest problem)
+              target'  = applyPatSubst rho target
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "ip' =" <+> pretty ip ]
 
           -- Construct the new problem
-          let problem' = Problem ps' ip' delta' rest'
+          let problem' = Problem ps' $ problemRestPats problem
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi' sbe')
-            <- liftTCM $ updateProblemRest $ LHSState problem' dpi' sbe'
+          st'@(LHSState delta' ip' problem'@(Problem ps' rps') target' dpi' sbe')
+            <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target' dpi' sbe'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"

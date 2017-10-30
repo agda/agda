@@ -80,9 +80,9 @@ import Agda.Utils.Impossible
 --   Implicit patterns should have been inserted.
 
 splitProblem :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, MonadDebug tcm)
-  => Problem  -- ^ The current state of the lhs patterns.
+  => LHSState  -- ^ The current state of the lhs patterns.
   -> ListT tcm SplitProblem
-splitProblem (Problem ps qs tel pr) = do
+splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
   do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
     reportSDoc "tc.lhs.split" 30 $ sep
@@ -98,8 +98,8 @@ splitProblem (Problem ps qs tel pr) = do
   splitP ps tel
   where
     -- Result splitting
-    splitRest :: ProblemRest -> ListT tcm SplitProblem
-    splitRest (ProblemRest (p : ps) b) = do
+    splitRest :: [NamedArg A.Pattern] -> Arg Type -> ListT tcm SplitProblem
+    splitRest (p : ps) b = do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "pattern         p =" <+> prettyA p
@@ -221,7 +221,7 @@ splitProblem (Problem ps qs tel pr) = do
             liftTCM $ SplitRest (Arg ai' d0) o <$> dType `piApplyM` vs
 
     -- if there are no more patterns left in the problem rest, there is nothing to split:
-    splitRest _ = mzero
+    splitRest _ _ = mzero
 
     -- | In @splitP aps tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
@@ -231,7 +231,7 @@ splitProblem (Problem ps qs tel pr) = do
            -> ListT tcm SplitProblem
 
     -- no more patterns?  pull them from the rest
-    splitP []           _                      = splitRest pr
+    splitP []           _                      = splitRest pr b
     -- patterns but no more types? that's an error
     splitP (_:_)        EmptyTel               = __IMPOSSIBLE__
     -- (we can never have an ExtendTel without Abs)
@@ -253,7 +253,7 @@ splitProblem (Problem ps qs tel pr) = do
       let -- 1. Redo this argument (after meta instantiation).
           tryAgain = splitP ps0 tel0
           -- 2. Try to split on next argument.
-          keepGoing = consSplitProblem p x dom <$> do
+          keepGoing = consSplitProblem p <$> do
             underAbstraction dom xtel $ \ tel -> splitP ps tel
 
       -- Tell when splitting is blocked by something
@@ -265,7 +265,7 @@ splitProblem (Problem ps qs tel pr) = do
 
         -- Case: projection pattern.  That's an error.
         A.ProjP{} -> typeError $
-          CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
+          CannotEliminateWithPattern p (telePi tel0 $ unArg b)
 
         -- Case: literal pattern.
         p@(A.LitP lit)  -> do
@@ -283,7 +283,7 @@ splitProblem (Problem ps qs tel pr) = do
             {- else -} return Split
               { splitLPats   = empty
               , splitFocus   = Arg ai $ LitFocus lit qs a
-              , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+              , splitRPats   = Problem ps __IMPOSSIBLE__
               }
               `mplus` keepGoing
 
@@ -321,7 +321,7 @@ splitProblem (Problem ps qs tel pr) = do
               (return Split
                 { splitLPats   = empty
                 , splitFocus   = Arg ai $ Focus c ConORec args (getRange p) qs d pars ixs a
-                , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                , splitRPats   = Problem ps __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
         -- Case: absurd pattern.
@@ -331,7 +331,7 @@ splitProblem (Problem ps qs tel pr) = do
           (return Split
             { splitLPats = empty
             , splitFocus = Arg ai $ AbsurdFocus info i $ raise (i+1) a
-            , splitRPats = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+            , splitRPats = Problem ps __IMPOSSIBLE__
             }) `mplus` keepGoing
 
         -- Case: constructor pattern.
@@ -435,7 +435,7 @@ splitProblem (Problem ps qs tel pr) = do
                       (return Split
                         { splitLPats   = empty
                         , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
-                        , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                        , splitRPats   = Problem ps __IMPOSSIBLE__
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.
               _   -> blockedOn nb >> keepGoing

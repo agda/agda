@@ -159,54 +159,27 @@ instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
         firstChoice (ChooseEither : xs) = firstChoice xs
         firstChoice (x            : _ ) = x
 
-
--- | State of typechecking a LHS; input to 'split'.
---   [Ulf Norell's PhD, page. 35]
---
---   In @Problem ps p delta@,
---   @ps@ are the user patterns of supposed type @delta@.
---   @p@ is the pattern resulting from the splitting.
-data Problem' p = Problem
-  { problemInPat  :: [NamedArg A.Pattern]  -- ^ User patterns.
-  , problemOutPat :: p                       -- ^ Patterns after splitting.
-  , problemTel    :: Telescope               -- ^ Type of in patterns.
-  , problemRest   :: ProblemRest             -- ^ Patterns that cannot be typed yet.
-  }
-  deriving Show
-
--- | The de Bruijn indices in the pattern refer to positions
---   in the list of abstract patterns in the problem, counted
---   from the back.
-type Problem     = Problem' [NamedArg DeBruijnPattern]
-type ProblemPart = Problem' ()
-
--- | User patterns that could not be given a type yet.
---
---   Example:
---   @
---      f : (b : Bool) -> if b then Nat else Nat -> Nat
---      f true          = zero
---      f false zero    = zero
---      f false (suc n) = n
---   @
---   In this sitation, for clause 2, we construct an initial problem
---   @
---      problemInPat = [false]
---      problemTel   = (b : Bool)
---      problemRest.restPats = [zero]
---      problemRest.restType = if b then Nat else Nat -> Nat
---   @
---   As we instantiate @b@ to @false@, the 'restType' reduces to
---   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
-
-data ProblemRest = ProblemRest
-  { restPats :: [NamedArg A.Pattern]
+data Problem = Problem
+  { problemInPat    :: [NamedArg A.Pattern]
+    -- ^ User patterns.
+  , problemRestPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
-  , restType :: Arg Type
-    -- ^ Type eliminated by 'restPats'.
-    --   Can be 'Irrelevant' to indicate that we came by
-    --   an irrelevant projection and, hence, the rhs must
-    --   be type-checked in irrelevant mode.
+    --   Example:
+    --   @
+    --      f : (b : Bool) -> if b then Nat else Nat -> Nat
+    --      f true          = zero
+    --      f false zero    = zero
+    --      f false (suc n) = n
+    --   @
+    --   In this sitation, for clause 2, we construct an initial problem
+    --   @
+    --      problemInPat = [false]
+    --      problemTel   = (b : Bool)
+    --      problemRest.restPats = [zero]
+    --      problemRest.restType = if b then Nat else Nat -> Nat
+    --   @
+    --   As we instantiate @b@ to @false@, the 'restType' reduces to
+    --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
   }
   deriving Show
 
@@ -234,12 +207,12 @@ data SplitProblem
 
   = -- | Split on constructor pattern.
     Split
-      { splitLPats   :: ProblemPart
+      { splitLPats   :: Problem
         -- ^ The typed user patterns left of the split position.
         --   Invariant: @'problemRest' == empty@.
       , splitFocus   :: Arg Focus
         -- ^ How to split the variable at the split position.
-      , splitRPats   :: Abs ProblemPart
+      , splitRPats   :: Problem
         -- ^ The typed user patterns right of the split position.
       }
 
@@ -251,18 +224,15 @@ data SplitProblem
       , splitProjType   :: Type
       }
 
--- | Put a typed pattern on the very left of a @SplitProblem@.
+-- | Put a pattern on the very left of a @SplitProblem@.
 consSplitProblem
-  :: NamedArg A.Pattern -- ^ @p@ A pattern.
-  -> ArgName              -- ^ @x@ The name of the argument (from its type).
-  -> Dom Type           -- ^ @t@ Its type.
+  :: NamedArg A.Pattern   -- ^ @p@ A pattern.
   -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
   -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
-consSplitProblem p x dom s@SplitRest{}              = s
-consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
+consSplitProblem p s@SplitRest{}              = s
+consSplitProblem p s@Split{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
   where
-  consProblem' (Problem ps () tel pr) =
-    Problem (p:ps) () (ExtendTel dom $ Abs x tel) pr
+  consProblem' (Problem ps pr) = Problem (p:ps) pr
 
 -- | Instantiations of a dot pattern with a term.
 --   `Maybe e` if the user wrote a dot pattern .e
@@ -276,18 +246,24 @@ data DotPatternInst = DPI
 data AsBinding      = AsB Name Term Type
 
 -- | State worked on during the main loop of checking a lhs.
+--   [Ulf Norell's PhD, page. 35]
 data LHSState = LHSState
-  { lhsProblem :: Problem
+  { lhsTel     :: Telescope
+    -- ^ Type of pattern variables.
+  , lhsOutPat  :: [NamedArg DeBruijnPattern]
+    -- ^ Patterns after splitting.
+    --   The de Bruijn indices refer to positions in the list of abstract
+    --   patterns in the problem, counted from the back.
+  , lhsProblem :: Problem
+    -- ^ User patterns of supposed type @delta@.
+  , lhsTarget  :: Arg Type
+    -- ^ Type eliminated by 'problemRestPats' in the problem.
+    --   Can be 'Irrelevant' to indicate that we came by
+    --   an irrelevant projection and, hence, the rhs must
+    --   be type-checked in irrelevant mode.
   , lhsDPI     :: [DotPatternInst]
   , lhsShouldBeEmptyTypes :: [(Range,Type)]
   }
-
-instance Subst Term ProblemRest where
-  applySubst rho p = p { restType = applySubst rho $ restType p }
-
-instance Subst Term (Problem' p) where
-  applySubst rho p = p { problemTel  = applySubst rho $ problemTel p
-                       , problemRest = applySubst rho $ problemRest p }
 
 instance Subst Term DotPatternInst where
   applySubst rho (DPI x e v a) = uncurry (DPI x e) $ applySubst rho (v,a)
@@ -318,10 +294,6 @@ instance PP.Pretty AsBinding where
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
 
-instance Null ProblemRest where
-  null  = null . restPats
-  empty = ProblemRest { restPats = [], restType = defaultArg typeDontCare }
-
-instance Null a => Null (Problem' a) where
-  null p = null (problemInPat p) && null (problemRest p)
-  empty  = Problem empty empty empty empty
+instance Null Problem where
+  null p = null (problemInPat p) && null (problemRestPats p)
+  empty  = Problem empty empty

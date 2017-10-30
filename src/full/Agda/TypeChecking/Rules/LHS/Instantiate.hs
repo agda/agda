@@ -159,11 +159,11 @@ instantiateTel s tel = liftTCM $ do
             rho i []            = raiseS i
 
 -- | Produce a nice error message when splitting failed
-nothingToSplitError :: Problem -> TCM a
-nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
+nothingToSplitError :: LHSState -> TCM a
+nothingToSplitError (LHSState tel _ (Problem ps rps) _ _ _) = splitError ps tel
   where
     splitError []       EmptyTel    = do
-      if null $ restPats pr then __IMPOSSIBLE__ else do
+      if null rps then __IMPOSSIBLE__ else do
         typeError $ GenericError $ "Arguments left we cannot split on. TODO: better error message"
     splitError (_:_)    EmptyTel    = __IMPOSSIBLE__
     splitError []       ExtendTel{} = __IMPOSSIBLE__

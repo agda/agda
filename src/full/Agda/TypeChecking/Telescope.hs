@@ -99,6 +99,18 @@ tele2NamedArgs tel0 tel =
   l  = telToList tel
   l0 = telToList tel0
 
+-- | Split the telescope at the specified position.
+splitTelescopeAt :: Int -> Telescope -> (Telescope,Telescope)
+splitTelescopeAt n tel
+  | n <= 0    = (EmptyTel, tel)
+  | otherwise = splitTelescopeAt' n tel
+    where
+      splitTelescopeAt' _ EmptyTel          = (EmptyTel,EmptyTel)
+      splitTelescopeAt' 1 (ExtendTel a tel) = (ExtendTel a (tel $> EmptyTel), absBody tel)
+      splitTelescopeAt' m (ExtendTel a tel) = (ExtendTel a (tel $> tel'), tel'')
+        where
+          (tel', tel'') = splitTelescopeAt (m - 1) $ absBody tel
+
 -- | Permute telescope: permutes or drops the types in the telescope according
 --   to the given permutation. Assumes that the permutation preserves the
 --   dependencies in the telescope.
