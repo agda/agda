@@ -248,7 +248,7 @@ data SplitProblem
       { splitProjection :: Arg QName
         -- ^ The projection could be belonging to an irrelevant record field.
       , splitProjOrigin :: ProjOrigin
-      , splitRestType   :: Type
+      , splitProjType   :: Type
       }
 
 -- | Put a typed pattern on the very left of a @SplitProblem@.

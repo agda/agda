@@ -756,7 +756,7 @@ checkLHS f st@(LHSState problem dpi sbe) = do
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
 
-    foldListT trySplit nothingToSplit $ splitProblem f problem
+    foldListT trySplit nothingToSplit $ splitProblem problem
   where
     nothingToSplit :: tcm LHSState
     nothingToSplit = do
@@ -767,11 +767,17 @@ checkLHS f st@(LHSState problem dpi sbe) = do
     trySplit :: SplitProblem -> tcm LHSState -> tcm LHSState
     trySplit (SplitRest projPat o projType) _ = do
 
+      -- Compute the new rest type by applying the projection type to 'self'.
+      -- Note: we cannot be in a let binding.
+      f' <- ifJust f return $ typeError $ GenericError "Cannot use copatterns in a let binding"
+      let self = Def f' $ patternsToElims $ problemOutPat problem
+      restType' <- projType `piApply1` self
+
       -- Compute the new problem
       let Problem ps1 ip delta (ProblemRest (p:ps2) b) = problem
           -- ps'      = ps1 ++ [p]
           ps'      = ps1 -- drop the projection pattern (already splitted)
-          rest     = ProblemRest ps2 (projPat $> projType)
+          rest     = ProblemRest ps2 (projPat $> restType')
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin

@@ -80,13 +80,11 @@ import Agda.Utils.Impossible
 --   Implicit patterns should have been inserted.
 
 splitProblem :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, MonadDebug tcm)
-  => Maybe QName -- ^ The definition we are checking at the moment.
-  -> Problem  -- ^ The current state of the lhs patterns.
+  => Problem  -- ^ The current state of the lhs patterns.
   -> ListT tcm SplitProblem
-splitProblem mf (Problem ps qs tel pr) = do
+splitProblem (Problem ps qs tel pr) = do
   do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
-      ++ maybe "" ((" for definition " ++) . prettyShow) mf
     reportSDoc "tc.lhs.split" 30 $ sep
       [ nest 2 $ text "ps   =" <+> sep (map (P.parens <.> prettyA) ps)
       , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . namedArg) qs)
@@ -101,7 +99,7 @@ splitProblem mf (Problem ps qs tel pr) = do
   where
     -- Result splitting
     splitRest :: ProblemRest -> ListT tcm SplitProblem
-    splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
+    splitRest (ProblemRest (p : ps) b) = do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "pattern         p =" <+> prettyA p
@@ -125,16 +123,12 @@ splitProblem mf (Problem ps qs tel pr) = do
               , text   "applied to parameters vs = " <+> prettyTCM vs
               , text $ "and have fields       fs = " ++ prettyShow fs
               ]
-            -- The record "self" is the definition f applied to the patterns
-            let es = patternsToElims qs
-            -- Note: the module parameters are already part of qs
-            let self = defaultArg $ Def f [] `applyE` es
-                ai   = getArgInfo p
+            let ai   = getArgInfo p
             -- Try the projection candidates.
             -- Fail hard for the last candidate.
-            msum $ mapAwareLast (tryProj o ai self fs r vs $ isAmbiguous ambD) projs
+            msum $ mapAwareLast (tryProj o ai fs r vs $ isAmbiguous ambD) projs
             -- -- This fails softly on all (if more than one) candidates.
-            -- msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
+            -- msum $ map (tryProj o ai fs r vs (length projs >= 2)) projs
 
           _ -> __IMPOSSIBLE__
       where
@@ -163,7 +157,6 @@ splitProblem mf (Problem ps qs tel pr) = do
       tryProj
         :: ProjOrigin           -- ^ Origin of projection pattern.
         -> ArgInfo              -- ^ ArgInfo of projection pattern.
-        -> Arg Term             -- ^ Self: value we are eliminating.
         -> [Arg QName]          -- ^ Fields of record type under consideration.
         -> QName                -- ^ Name of record type we are eliminating.
         -> Args                 -- ^ Parameters of record type we are eliminating.
@@ -171,7 +164,7 @@ splitProblem mf (Problem ps qs tel pr) = do
         -> Bool                 -- ^ More than 1 candidates?  If yes, fail softly.
         -> (QName, Projection)  -- ^ Current candidate.
         -> ListT tcm SplitProblem
-      tryProj o ai self fs r vs amb soft (d0, proj) = do
+      tryProj o ai fs r vs amb soft (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections we fail @soft@ly and just try the next one.
         let ambErr err = if soft then mzero else err
@@ -222,11 +215,10 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- Get the type of projection d applied to "self"
             dType <- liftTCM $ defType <$> getConstInfo d  -- full type!
             liftTCM $ reportSDoc "tc.lhs.split" 20 $ sep
-              [ text "we are              self = " <+> prettyTCM (unArg self)
-              , text "being projected by dType = " <+> prettyTCM dType
+              [ text "we are being projected by dType = " <+> prettyTCM dType
               ]
             -- This should succeed, as we have the correctly disambiguated.
-            liftTCM $ SplitRest (Arg ai' d0) o <$> dType `piApplyM` (vs ++ [self])
+            liftTCM $ SplitRest (Arg ai' d0) o <$> dType `piApplyM` vs
 
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero
