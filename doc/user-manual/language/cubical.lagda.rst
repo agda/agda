@@ -58,7 +58,7 @@ ends of the interval, ``i0`` and ``i1``::
   b = i1
 
 Elements of the interval form a `De Morgan algebra <https://en.wikipedia.org/wiki/De_Morgan_algebra>`_,
-with minimum (``∧``), minimum (``∨``) and negation (``~``).
+with minimum (``∧``), maximum (``∨``) and negation (``~``).
 
 ..
   ::
