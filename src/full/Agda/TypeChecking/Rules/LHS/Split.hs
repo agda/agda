@@ -280,7 +280,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
           -- Succeed if the split type is (already) equal to the type of the literal.
           ifNotM (liftTCM $ tryConversion $ equalType a =<< litType lit)
             {- then -} keepGoing $
-            {- else -} return Split
+            {- else -} return SplitArg
               { splitLPats   = empty
               , splitFocus   = Arg ai $ LitFocus lit qs a
               , splitRPats   = Problem ps __IMPOSSIBLE__
@@ -318,9 +318,9 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
               -- (from missingExplicits). Omitted implicit or instance fields
               -- are still left out and inserted later by computeNeighborhood.
               args <- liftTCM $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
-              (return Split
+              (return SplitArg
                 { splitLPats   = empty
-                , splitFocus   = Arg ai $ Focus c ConORec args (getRange p) qs d pars ixs a
+                , splitFocus   = Arg ai $ ConFocus c ConORec args (getRange p) qs d pars ixs a
                 , splitRPats   = Problem ps __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
@@ -328,7 +328,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
         p@(A.AbsurdP info) -> do
           liftTCM $ reportSDoc "tc.lhs.split.absurd" 30 $ text "split AbsurdP: type is " <+> prettyTCM a
           let i = size tel
-          (return Split
+          (return SplitArg
             { splitLPats = empty
             , splitFocus = Arg ai $ AbsurdFocus info i $ raise (i+1) a
             , splitRPats = Problem ps __IMPOSSIBLE__
@@ -432,9 +432,9 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
                       -- Do this also for constructors which were originally ambiguous.
                       checkConstructorParameters c d pars
 
-                      (return Split
+                      (return SplitArg
                         { splitLPats   = empty
-                        , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
+                        , splitFocus   = Arg ai $ ConFocus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
                         , splitRPats   = Problem ps __IMPOSSIBLE__
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.

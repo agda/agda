@@ -184,7 +184,7 @@ data Problem = Problem
   deriving Show
 
 data Focus
-  = Focus
+  = ConFocus
     { focusCon      :: QName
     , focusPatOrigin:: ConOrigin -- ^ Do we come from an implicit or record pattern?
     , focusConArgs  :: [NamedArg A.Pattern]
@@ -206,7 +206,7 @@ data Focus
 data SplitProblem
 
   = -- | Split on constructor pattern.
-    Split
+    SplitArg
       { splitLPats   :: Problem
         -- ^ The typed user patterns left of the split position.
         --   Invariant: @'problemRest' == empty@.
@@ -230,7 +230,7 @@ consSplitProblem
   -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
   -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
 consSplitProblem p s@SplitRest{}              = s
-consSplitProblem p s@Split{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
+consSplitProblem p s@SplitArg{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
   where
   consProblem' (Problem ps pr) = Problem (p:ps) pr
 

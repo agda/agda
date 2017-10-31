@@ -784,7 +784,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
 
-    trySplit (Split p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
+    trySplit (SplitArg p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
 
       -- substitute the literal in p1 and dpi
       let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
@@ -808,7 +808,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
       checkLHS f st'
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
-    trySplit (Split p0 (Arg info (AbsurdFocus pi i a)) p1) _ = do
+    trySplit (SplitArg p0 (Arg info (AbsurdFocus pi i a)) p1) _ = do
       reportSDoc "tc.lhs.split.absurd" 10 $ sep
         [ text "splitting on absurd pattern"
         , nest 2 $ text "tel  =" <+> prettyTCM tel
@@ -827,8 +827,9 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
             }
 
     -- Split on constructor pattern (unifier might fail)
-    trySplit (Split p0 (Arg info
-               (Focus { focusCon      = c
+    trySplit (SplitArg p0 (Arg info
+               (ConFocus
+                      { focusCon      = c
                       , focusPatOrigin= porigin
                       , focusConArgs  = qs
                       , focusRange    = r
