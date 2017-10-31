@@ -39,6 +39,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Position (Range)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free as Free
@@ -956,6 +957,9 @@ instance Subst DeBruijnPattern DeBruijnPattern where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
       useName n (VarP x) | isUnderscore (dbPatVarName x) = debruijnNamedVar n (dbPatVarIndex x)
       useName _ x = x
+
+instance Subst Term Range where
+  applySubst _ = id
 
 ---------------------------------------------------------------------------
 -- * Projections

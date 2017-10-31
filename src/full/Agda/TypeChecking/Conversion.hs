@@ -151,7 +151,7 @@ compareTerm cmp a u v = do
           unlessSubtyping cont =
               if cmp == CmpEq then cont else do
                 -- Andreas, 2014-04-12 do not short cut if type is blocked.
-                ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
+                ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ _ a -> do
                   -- do not short circuit size comparison!
                   caseMaybeM (isSizeType a) cont (\ _ -> fallback)
 
@@ -404,7 +404,7 @@ etaInequal cmp t m n = do
           ]
         patternViolation
   -- if type is not blocked, then we would have tried eta already
-  flip (ifBlockedType t) (\ _ -> inequal) $ \ _ _ -> do
+  flip (ifBlockedType t) (\ _ _ -> inequal) $ \ _ _ -> do
     -- type is blocked
     case (m, n) of
       (Con{}, _) -> dontKnow
@@ -620,7 +620,7 @@ compareAtom cmp t m n =
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
-        conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
+        conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ _ t -> do
           let impossible = do
                 reportSDoc "impossible" 10 $
                   text "expected data/record type, found " <+> prettyTCM t
@@ -803,7 +803,7 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
     (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
-      ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+      ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
           va <- pathView a
           case va of
             PathType s path l bA x y -> do
@@ -834,7 +834,7 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
         ]
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
-      ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+      ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
         case ignoreSharing . unEl $ a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
             mlvl <- tryMaybe primLevel
@@ -912,7 +912,7 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
-      | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+      | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
           Just (_, u, t) -> do
@@ -1074,7 +1074,7 @@ coerce v t1 t2 = blockTerm t2 $ do
   -- If n  > 0 and b2 is not blocked, it is safe to
   -- insert n many hidden args
   if n <= 0 then fallback else do
-    ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
+    ifBlockedType b2 (\ _ _ -> fallback) $ \ _ _ -> do
       (args, t1') <- implicitArgs n notVisible t1
       coerceSize leqType (v `apply` args) t1' t2
   where
@@ -1578,7 +1578,7 @@ forallFaceMaps t kb k = do
     iz <- primIZero
     return (\b -> if b then io else iz)
   forM as $ \ (ms,ts) -> do
-   ifBlockeds ts (kb ms) $ \ _ -> do
+   ifBlockeds ts (kb ms) $ \ _ _ -> do
     let xs = map (id -*- boolToI) $ Map.toAscList ms
     cxt <- asks envContext
     (cxt',sigma) <- substContextN cxt xs

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Rules.LHS.Split
   ( splitProblem
@@ -9,6 +10,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
 import Control.Monad.Trans.Maybe
+import Control.Monad.Writer
 
 import Data.Either
 import Data.Maybe (fromMaybe)
@@ -79,14 +81,12 @@ import Agda.Utils.Impossible
 --
 --   Implicit patterns should have been inserted.
 
-splitProblem ::
-  Maybe QName -- ^ The definition we are checking at the moment.
-  -> Problem  -- ^ The current state of the lhs patterns.
-  -> ListT TCM SplitProblem
-splitProblem mf (Problem ps qs tel pr) = do
-  lift $ do
+splitProblem :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, MonadDebug tcm)
+  => LHSState  -- ^ The current state of the lhs patterns.
+  -> ListT tcm SplitProblem
+splitProblem (LHSState tel qs (Problem ps pr dpi sbe) b psplit) = do
+  do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
-      ++ maybe "" ((" for definition " ++) . prettyShow) mf
     reportSDoc "tc.lhs.split" 30 $ sep
       [ nest 2 $ text "ps   =" <+> sep (map (P.parens <.> prettyA) ps)
       , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . namedArg) qs)
@@ -100,52 +100,48 @@ splitProblem mf (Problem ps qs tel pr) = do
   splitP ps tel
   where
     -- Result splitting
-    splitRest :: ProblemRest -> ListT TCM SplitProblem
-    splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
-      lift $ reportSDoc "tc.lhs.split" 20 $ sep
+    splitRest :: [NamedArg A.Pattern] -> Arg Type -> ListT tcm SplitProblem
+    splitRest (p : ps) b = do
+      reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "pattern         p =" <+> prettyA p
         , nest 2 $ text "eliminates type b =" <+> prettyTCM b
         ]
-      lift $ reportSDoc "tc.lhs.split" 80 $ sep
+      reportSDoc "tc.lhs.split" 80 $ sep
         [ nest 2 $ text $ "pattern (raw)   p = " ++ show p
         ]
       -- If the pattern is not a projection pattern, that's an error.
       -- Probably then there were too many arguments.
       caseMaybe (maybePostfixProjP p) failure $ \ (o, ambD@(AmbQ ds)) -> do
         -- So it is a projection pattern (d = projection name), is it?
-        projs <- lift $ mapMaybeM (\ d -> fmap (d,) <$> isProjection d) (toList ds)
+        projs <- liftTCM $ mapMaybeM (\ d -> fmap (d,) <$> isProjection d) (toList ds)
         when (null projs) notProjP
         -- If the target is not a record type, that's an error.
         -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-        caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
+        caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
           Record{ recFields = fs } -> do
-            lift $ reportSDoc "tc.lhs.split" 20 $ sep
+            reportSDoc "tc.lhs.split" 20 $ sep
               [ text $ "we are of record type r  = " ++ prettyShow r
               , text   "applied to parameters vs = " <+> prettyTCM vs
               , text $ "and have fields       fs = " ++ prettyShow fs
               ]
-            -- The record "self" is the definition f applied to the patterns
-            let es = patternsToElims qs
-            -- Note: the module parameters are already part of qs
-            let self = defaultArg $ Def f [] `applyE` es
-                ai   = getArgInfo p
+            let ai   = getArgInfo p
             -- Try the projection candidates.
             -- Fail hard for the last candidate.
-            msum $ mapAwareLast (tryProj o ai self fs r vs $ isAmbiguous ambD) projs
+            msum $ mapAwareLast (tryProj o ai fs r vs $ isAmbiguous ambD) projs
             -- -- This fails softly on all (if more than one) candidates.
-            -- msum $ map (tryProj o ai self fs r vs (length projs >= 2)) projs
+            -- msum $ map (tryProj o ai fs r vs (length projs >= 2)) projs
 
           _ -> __IMPOSSIBLE__
       where
-      failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
-      notProjP  = lift $ typeError $ NotAProjectionPattern p
+      failure   = liftTCM $ typeError $ CannotEliminateWithPattern p $ unArg b
+      notProjP  = liftTCM $ typeError $ NotAProjectionPattern p
       notRecord = failure -- lift $ typeError $ ShouldBeRecordType $ unArg b
-      wrongHiding :: MonadTCM tcm => QName -> tcm a
+      wrongHiding :: MonadTCM tcm' => QName -> tcm' a
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
       -- Issue #2423: error which reports the disambiguation
-      wrongProj :: MonadTCM tcm => QName -> Bool -> tcm a
+      wrongProj :: MonadTCM tcm' => QName -> Bool -> tcm' a
       wrongProj d amb = typeError . GenericDocError =<< do
         liftTCM $ sep
           [ text "Cannot eliminate type "
@@ -163,15 +159,14 @@ splitProblem mf (Problem ps qs tel pr) = do
       tryProj
         :: ProjOrigin           -- ^ Origin of projection pattern.
         -> ArgInfo              -- ^ ArgInfo of projection pattern.
-        -> Arg Term             -- ^ Self: value we are eliminating.
         -> [Arg QName]          -- ^ Fields of record type under consideration.
         -> QName                -- ^ Name of record type we are eliminating.
         -> Args                 -- ^ Parameters of record type we are eliminating.
         -> Bool                 -- ^ Did we start out with an ambiguous projection in the beginning?
         -> Bool                 -- ^ More than 1 candidates?  If yes, fail softly.
         -> (QName, Projection)  -- ^ Current candidate.
-        -> ListT TCM SplitProblem
-      tryProj o ai self fs r vs amb soft (d0, proj) = do
+        -> ListT tcm SplitProblem
+      tryProj o ai fs r vs amb soft (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections we fail @soft@ly and just try the next one.
         let ambErr err = if soft then mzero else err
@@ -189,10 +184,10 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
             when (null lams) $ ambErr notProjP
-            lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
+            liftTCM $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-            lift $ reportSDoc "tc.lhs.split" 20 $ sep
+            liftTCM $ reportSDoc "tc.lhs.split" 20 $ sep
               [ text $ "proj                  d0 = " ++ prettyShow d0
               , text $ "original proj         d  = " ++ prettyShow d
               ]
@@ -217,29 +212,28 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- For highlighting, we remember which name we disambiguated to.
             -- This is safe here (fingers crossed) as we won't decide on a
             -- different projection even if we backtrack and come here again.
-            lift $ storeDisambiguatedName d0
+            liftTCM $ storeDisambiguatedName d0
 
             -- Get the type of projection d applied to "self"
-            dType <- lift $ defType <$> getConstInfo d  -- full type!
-            lift $ reportSDoc "tc.lhs.split" 20 $ sep
-              [ text "we are              self = " <+> prettyTCM (unArg self)
-              , text "being projected by dType = " <+> prettyTCM dType
+            dType <- liftTCM $ defType <$> getConstInfo d  -- full type!
+            liftTCM $ reportSDoc "tc.lhs.split" 20 $ sep
+              [ text "we are being projected by dType = " <+> prettyTCM dType
               ]
             -- This should succeed, as we have the correctly disambiguated.
-            lift $ SplitRest (Arg ai' d0) o <$> dType `piApplyM` (vs ++ [self])
+            liftTCM $ SplitRest (Arg ai' d0) o <$> dType `piApplyM` vs
 
     -- if there are no more patterns left in the problem rest, there is nothing to split:
-    splitRest _ = mzero
+    splitRest _ _ = mzero
 
     -- | In @splitP aps tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
     --   @tel@ records the types of @aps@.
     splitP :: [NamedArg A.Pattern]
            -> Telescope
-           -> ListT TCM SplitProblem
+           -> ListT tcm SplitProblem
 
     -- no more patterns?  pull them from the rest
-    splitP []           _                      = splitRest pr
+    splitP []           _                      = splitRest pr b
     -- patterns but no more types? that's an error
     splitP (_:_)        EmptyTel               = __IMPOSSIBLE__
     -- (we can never have an ExtendTel without Abs)
@@ -253,14 +247,14 @@ splitProblem mf (Problem ps qs tel pr) = do
         , nest 2 $ text "tel0 =" <+> prettyTCM tel0
         ]
 
-      let keepGoing = consSplitProblem p x dom <$> do
+      let keepGoing = consSplitProblem p <$> do
             underAbstraction dom xtel $ \ tel -> splitP ps tel
 
       case namedArg p of
-        A.EqualP _ ts -> return Split
+        A.EqualP _ ts -> return SplitArg
                          { splitLPats   = empty
                          , splitFocus   = Arg ai $ PartialFocus ts qs a
-                         , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                         , splitRPats   = ps
                          } `mplus` keepGoing
         _             -> keepGoing
 
@@ -280,15 +274,19 @@ splitProblem mf (Problem ps qs tel pr) = do
       let -- 1. Redo this argument (after meta instantiation).
           tryAgain = splitP ps0 tel0
           -- 2. Try to split on next argument.
-          keepGoing = consSplitProblem p x dom <$> do
+          keepGoing = consSplitProblem p <$> do
             underAbstraction dom xtel $ \ tel -> splitP ps tel
 
-      p <- lift $ expandLitPattern p
+      -- Tell when splitting is blocked by something
+      let blockedOnMeta m = lift $ tell $ blocked m ()
+          blockedOn nb    = lift $ tell $ NotBlocked nb ()
+
+      p <- liftTCM $ expandLitPattern p
       case snd $ asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
         A.ProjP{} -> typeError $
-          CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
+          CannotEliminateWithPattern p (telePi tel0 $ unArg b)
 
         -- Case: literal pattern.
         p@(A.LitP lit)  -> do
@@ -301,24 +299,24 @@ splitProblem mf (Problem ps qs tel pr) = do
             typeError $ SplitOnIrrelevant p dom
 
           -- Succeed if the split type is (already) equal to the type of the literal.
-          ifNotM (lift $ tryConversion $ equalType a =<< litType lit)
+          ifNotM (liftTCM $ tryConversion $ equalType a =<< litType lit)
             {- then -} keepGoing $
-            {- else -} return Split
+            {- else -} return SplitArg
               { splitLPats   = empty
-              , splitFocus   = Arg ai $ LitFocus lit qs a
-              , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+              , splitFocus   = Arg ai $ LitFocus lit
+              , splitRPats   = ps
               }
               `mplus` keepGoing
 
         -- Case: record pattern
         p@(A.RecP _patInfo fs) -> do
-          res <- lift $ tryRecordType a
+          res <- liftTCM $ tryRecordType a
           case res of
             -- Subcase: blocked
-            Left Nothing -> keepGoing
+            Left (Blocked m a') -> blockedOnMeta m >> keepGoing
 
             -- Subcase: not a record type or blocked on variable.
-            Left (Just a') -> keepGoing  -- If not record type, error will be given later.
+            Left (NotBlocked nb a') -> blockedOn nb >> keepGoing  -- If not record type, error will be given later.
               -- typeError . GenericDocError =<< do
               --   lift $ text "Record pattern at non-record type " <+> prettyTCM a'
 
@@ -326,7 +324,7 @@ splitProblem mf (Problem ps qs tel pr) = do
             Right (d, vs, def) -> do
               let np = recPars def
               let (pars, ixs) = splitAt np vs
-              lift $ reportSDoc "tc.lhs.split" 10 $ vcat
+              liftTCM $ reportSDoc "tc.lhs.split" 10 $ vcat
                 [ sep [ text "splitting on"
                       , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
                       ]
@@ -340,46 +338,46 @@ splitProblem mf (Problem ps qs tel pr) = do
               -- In es omitted explicit fields are replaced by underscores
               -- (from missingExplicits). Omitted implicit or instance fields
               -- are still left out and inserted later by computeNeighborhood.
-              args <- lift $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
-              (return Split
+              args <- liftTCM $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
+              (return SplitArg
                 { splitLPats   = empty
-                , splitFocus   = Arg ai $ Focus c ConORec args (getRange p) qs d pars ixs a
-                , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                , splitFocus   = Arg ai $ ConFocus c ConORec args (getRange p) d pars ixs
+                , splitRPats   = ps
                 }) `mplus` keepGoing
 
         -- Case: absurd pattern.
         p@(A.AbsurdP info) -> do
-          lift $ reportSDoc "tc.lhs.split.absurd" 30 $ text "split AbsurdP: type is " <+> prettyTCM a
-          let i = size tel
-          (return Split
+          liftTCM $ reportSDoc "tc.lhs.split.absurd" 30 $ text "split AbsurdP: type is " <+> prettyTCM a
+          (return SplitArg
             { splitLPats = empty
-            , splitFocus = Arg ai $ AbsurdFocus info i $ raise (i+1) a
-            , splitRPats = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+            , splitFocus = Arg ai $ AbsurdFocus info
+            , splitRPats = ps
             }) `mplus` keepGoing
 
         -- Case: constructor pattern.
         p@(A.ConP ci ambC args) -> do
-          let tryInstantiate a'
+          let tryInstantiate m a'
                 | Just c <- getUnambiguous ambC = do
-                  lift $ reportSDoc "tc.lhs.split" 30 $
+                  liftTCM $ reportSDoc "tc.lhs.split" 30 $
                     text "split ConP: type is blocked"
                     -- Type is blocked by a meta and constructor is unambiguous,
                     -- in this case try to instantiate the meta.
-                  ok <- lift $ do
+                  ok <- liftTCM $ do
                     Constructor{ conData = d } <- theDef <$> getConstInfo c
                     dt     <- defType <$> getConstInfo d
                     vs     <- newArgsMeta dt
                     Sort s <- ignoreSharing . unEl <$> reduce (piApply dt vs)
                     tryConversion $ equalType a' (El s $ Def d $ map Apply vs)
-                  if ok then tryAgain else keepGoing
+                  if ok then tryAgain else blockedOnMeta m >> keepGoing
                 | otherwise = do
-                  lift $ reportSDoc "tc.lhs.split" 30 $
+                  liftTCM $ reportSDoc "tc.lhs.split" 30 $
                     text "split ConP: type is blocked and constructor is ambiguous"
+                  blockedOnMeta m
                   keepGoing
           -- ifBlockedType reduces the type
-          ifBlockedType a (const tryInstantiate) $ \ a' -> do
+          ifBlockedType a tryInstantiate $ \ nb a' -> do
             mi <- liftTCM $ getBuiltinName' builtinInterval
-            lift $ reportSDoc "tc.lhs.split" 30 $ text "split ConP: type is " <+> prettyTCM a'
+            liftTCM $ reportSDoc "tc.lhs.split" 30 $ text "split ConP: type is " <+> prettyTCM a'
             case ignoreSharing $ unEl a' of
               Def d [] | Just d == mi -> typeError $ GenericError "can't split on the Interval directly"
               -- Subcase: split type is a Def.
@@ -394,7 +392,7 @@ splitProblem mf (Problem ps qs tel pr) = do
 
                 -- We cannot split on (shape-)irrelevant non-records.
                 -- Andreas, 2011-10-04 unless allowed by option
-                lift $ reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show ai
+                liftTCM $ reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show ai
                 unless (defIsRecord def) $
                   when (unusableRelevance $ getRelevance ai) $
                   unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
@@ -412,7 +410,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                     let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                     traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
                       -- Check that we construct something in the right datatype
-                      c <- lift $ do
+                      c <- liftTCM $ do
                           -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
                           (cs1, cs') <- unzip . snd . partitionEithers . toList <$> do
                             forM (unAmbQ ambC) $ \ c -> mapRight ((c,) . conName) <$> getConHead c
@@ -433,7 +431,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                               typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs3
 
                       let (pars, ixs) = splitAt np vs
-                      lift $ reportSDoc "tc.lhs.split" 10 $ vcat
+                      liftTCM $ reportSDoc "tc.lhs.split" 10 $ vcat
                         [ sep [ text "splitting on"
                               , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
                               ]
@@ -455,13 +453,13 @@ splitProblem mf (Problem ps qs tel pr) = do
                       -- Do this also for constructors which were originally ambiguous.
                       checkConstructorParameters c d pars
 
-                      (return Split
+                      (return SplitArg
                         { splitLPats   = empty
-                        , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
-                        , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                        , splitFocus   = Arg ai $ ConFocus c (A.patOrigin ci) args (getRange p) d pars ixs
+                        , splitRPats   = ps
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.
-              _   -> keepGoing
+              _   -> blockedOn nb >> keepGoing
 
         -- Case: neither literal nor constructor pattern.
         _ -> keepGoing

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                  #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Rules.LHS where
 
@@ -11,6 +12,7 @@ import Control.Arrow (first, second, (***))
 import Control.Monad hiding (mapM, forM, sequence)
 import Control.Monad.State hiding (mapM, forM, sequence)
 import Control.Monad.Reader hiding (mapM, forM, sequence)
+import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
 
 import Data.Function (on)
@@ -284,7 +286,7 @@ updateInPatterns as ps qs = do
 --   That is, if the patterns are all variables,
 --   and there is no 'problemRest'.
 isSolvedProblem :: Problem -> Bool
-isSolvedProblem problem = null (restPats $ problemRest problem) &&
+isSolvedProblem problem = null (problemRestPats problem) &&
   problemAllVariables problem
 
 -- | Check if a problem consists only of variable patterns.
@@ -292,7 +294,7 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
 problemAllVariables :: Problem -> Bool
 problemAllVariables problem =
     all (isSolved . snd . asView . namedArg) $
-      restPats (problemRest problem) ++ problemInPat problem
+      problemRestPats problem ++ problemInPat problem
   where
     -- need further splitting:
     isSolved A.ConP{}        = False
@@ -320,12 +322,11 @@ problemAllVariables problem =
 
 noShadowingOfConstructors
   :: Call -- ^ Trace, e.g., @CheckPatternShadowing clause@
-  -> Problem -> TCM ()
-noShadowingOfConstructors mkCall problem =
+  -> LHSState -> TCM ()
+noShadowingOfConstructors mkCall st =
   traceCall mkCall $ do
-    let pat = map (snd . asView . namedArg) $
-                  problemInPat problem
-        tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
+    let pat = map (snd . asView . namedArg) $ problemInPat $ lhsProblem st
+        tel = map (unEl . snd . unDom) $ telToList $ lhsTel st
     zipWithM_ noShadowing tel pat
     return ()
   where
@@ -651,7 +652,7 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
   let tel = telFromList' prettyShow cxt
       cps = [ unnamed . A.VarP . A.BindName . fst <$> setOrigin Inserted (argFromDom d)
             | d <- cxt ]
-  problem0 <- problemFromPats (cps ++ ps) (telePi tel a)
+  st0 <- initLHSState (cps ++ ps) (telePi tel a)
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
@@ -672,8 +673,8 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem pxs qs delta rest) dpi psplit sbe
-      <- checkLHS f $ LHSState problem0 [] [] []
+    (st@(LHSState delta qs problem@(Problem pxs rps dpi sbe) b' psplit), block)
+      <- runWriterT $ checkLHS f st0
 
     -- check linearity of the pattern,
     -- we only care about user-written variables here.
@@ -685,20 +686,10 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
     A.checkPatternLinearity userpxs $ \ys ->
       typeError $ RepeatedVariablesInPattern ys
 
-    -- check linearity of the pattern,
-    -- we only care about user-written variables here.
-    let eraseInserted p
-          | getOrigin p == Inserted = (fmap . fmap) (const $ A.WildP patNoRange) p
-          | otherwise               = p
-        userpxs = A.mapNamedArgPattern eraseInserted pxs
-
-    A.checkPatternLinearity userpxs $ \ys ->
-      typeError $ RepeatedVariablesInPattern ys
-
-    unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
+    unless (null rps) $ typeError $ TooManyArgumentsInLHS a
 
     addContext delta $ do
-      noShadowingOfConstructors c problem
+      noShadowingOfConstructors c st
       noPatternMatchingOnCodata qs
 
     -- f is Nothing when checking let pattern-bindings. In that case there can
@@ -717,7 +708,6 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
              ]
            ]
 
-    let b' = restType rest
     bindLHSVars (filter (isNothing . isProjP) pxs) delta $ do
       let -- Find the variable patterns that have been refined
           refinedParams = [ AsB x v (unDom a) | DPI (Just x) _ v a <- dpi ]
@@ -772,12 +762,13 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
-  :: Maybe QName       -- ^ The name of the definition we are checking.
-  -> LHSState          -- ^ The current state.
-  -> TCM LHSState      -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem dpi psplit sbe) = do
+  :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadDebug tcm)
+  => Maybe QName     -- ^ The name of the definition we are checking.
+  -> LHSState        -- ^ The current state.
+  -> tcm LHSState    -- ^ The final state after all splitting is completed
+checkLHS f st@(LHSState tel ip problem target psplit) = do
 
-  problem <- insertImplicitProblem problem
+  problem <- liftTCM $ insertImplicitProblem tel problem
   -- Note: inserting implicits no longer preserve solvedness,
   -- since we might insert eta expanded record patterns.
   if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
@@ -786,36 +777,40 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
 
-    foldListT trySplit nothingToSplit $ splitProblem f problem
+    foldListT trySplit nothingToSplit $ splitProblem $ st { lhsProblem = problem }
   where
-    nothingToSplit :: TCM LHSState
+    nothingToSplit :: tcm LHSState
     nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
-      nothingToSplitError problem
+      liftTCM $ nothingToSplitError st
 
     -- Split problem rest (projection pattern, does not fail as there is no call to unifier)
-    trySplit :: SplitProblem -> TCM LHSState -> TCM LHSState
+    trySplit :: SplitProblem -> tcm LHSState -> tcm LHSState
     trySplit (SplitRest projPat o projType) _ = do
 
+      -- Compute the new rest type by applying the projection type to 'self'.
+      -- Note: we cannot be in a let binding.
+      f' <- ifJust f return $ typeError $ GenericError "Cannot use copatterns in a let binding"
+      let self = Def f' $ patternsToElims ip
+      target' <- (projPat $>) <$> projType `piApply1` self
+
       -- Compute the new problem
-      let Problem ps1 ip delta (ProblemRest (p:ps2) b) = problem
-          -- ps'      = ps1 ++ [p]
-          ps'      = ps1 -- drop the projection pattern (already splitted)
-          rest     = ProblemRest ps2 (projPat $> projType)
+      let Problem ps1 (_:ps2) dpi sbe = problem -- drop the projection pattern (already splitted)
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
-          problem' = Problem ps' ip' delta rest
+          problem' = Problem ps1 ps2 dpi sbe
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' dpi psplit sbe)
+      st' <- liftTCM $ updateProblemRest (LHSState tel ip' problem' target' psplit)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
 
-    trySplit (Split p0 (Arg ai (PartialFocus ts ip a)) p1) ret = do
+    trySplit (SplitArg p0 (Arg ai (PartialFocus ts ip a)) p1) ret = do
+      let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size p0) tel
       tel <- getContextTelescope
       reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
-      tInterval <- elInf primInterval
-      (gamma,sigma) <- bindLHSVars (problemInPat p0) (problemTel p0) $ do
+      tInterval <- liftTCM $ elInf primInterval
+      (gamma,sigma) <- liftTCM $ bindLHSVars p0 delta1 $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
                  t <- checkExpr t tInterval
@@ -842,16 +837,15 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
            [(gamma,sigma)] -> return (gamma,sigma)
            []              -> typeError $ GenericError $ "The face constraint is unsatisfiable."
            _               -> typeError $ GenericError $ "Cannot have disjunctions in a face constraint."
-      itisone <- primItIsOne
+      itisone <- liftTCM primItIsOne
       -- substitute the literal in p1 and dpi
       reportSDoc "tc.lhs.faces" 10 $ text $ show sigma
 
-      let delta1 = problemTel p0
-          oix = size (problemTel $ unAbs p1) -- de brujin index of IsOne
+      let oix = size p1 -- de brujin index of IsOne
           Just o_n = flip findIndex ip (\ x -> case namedThing (unArg x) of
                                            VarP x -> dbPatVarIndex x == oix
                                            _      -> False)
-          delta2' = absApp (fmap problemTel p1) itisone
+          delta2' = absApp adelta2 itisone
           delta2 = applySubst sigma delta2'
           mkConP (Con c _ [])
              = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
@@ -868,17 +862,16 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
           ip'      = applySubst rho ip
-          rest'    = applyPatSubst rho (problemRest problem)
+          target'  = applyPatSubst rho target
 
-      (p0',newDpi) <- do
-         let delta1 = problemTel p0
+      (p0',newDpi) <- liftTCM $ do
          addContext gamma $ updateInPatterns
                             (applyPatSubst rho0 $ flattenTel delta1)
-                            (problemInPat p0)
+                            p0
                             (applySubst rho0 $ teleArgs delta1)
-      let dpi' = applyPatSubst rho dpi ++ newDpi
-          sbe' = map (second $ applyPatSubst rho) sbe
-          ps' = p0' ++ problemInPat (absBody p1)
+      let dpi' = applyPatSubst rho (problemDPI problem) ++ newDpi
+          sbe' = applyPatSubst rho $ problemShouldBeEmptyTypes problem
+          ps' = p0' ++ p1
 
       reportSDoc "tc.lhs.split.problem" 10 $ sep
         [ text "ip  = " <+> (text . show) ip
@@ -888,80 +881,80 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
       -- Compute the new problem
       let
           delta'   = abstract gamma delta2
-          problem' = Problem ps' ip' delta' rest'
+          problem' = Problem ps' (problemRestPats problem) dpi' sbe'
       reportSDoc "tc.lhs.split.partial" 20 $ text (show problem')
-      st' <- updateProblemRest (LHSState problem' dpi' (psplit ++ [Just o_n]) sbe')
+      st' <- liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
       checkLHS f st'
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
 
-    trySplit (Split p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
+    trySplit (SplitArg p0 (Arg _ (LitFocus lit)) p1) _ = do
 
       -- substitute the literal in p1 and dpi
-      let delta1 = problemTel p0
-          delta2 = absApp (fmap problemTel p1) (Lit lit)
+      let (delta1, ExtendTel (Dom _ _ a) adelta2) = splitTelescopeAt (size p0) tel
+          delta2 = absApp adelta2 (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
           -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
-          dpi'     = applyPatSubst rho dpi
-          sbe'     = map (second $ applyPatSubst rho) sbe
+          dpi'     = applyPatSubst rho $ problemDPI problem
+          sbe'     = applyPatSubst rho $ problemShouldBeEmptyTypes problem
           ip'      = applySubst rho ip
-          rest'    = applyPatSubst rho (problemRest problem)
+          target'  = applyPatSubst rho target
 
       -- Compute the new problem
-      let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
+      let ps'      = p0 ++ p1
           delta'   = abstract delta1 delta2
-          problem' = Problem ps' ip' delta' rest'
-      st' <- updateProblemRest (LHSState problem' dpi' psplit sbe')
+          problem' = Problem ps' (problemRestPats problem) dpi' sbe'
+      st' <- liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' psplit)
       checkLHS f st'
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
-    trySplit (Split p0 (Arg info (AbsurdFocus pi i a)) p1) _ = do
-      let tel = problemTel problem
+    trySplit (SplitArg p0 (Arg info (AbsurdFocus pi)) p1) _ = do
+
+      let i = size p1
+          (delta1, ExtendTel (Dom _ _ a0) adelta2) = splitTelescopeAt (size p0) tel
+          a = raise (i+1) a0
       reportSDoc "tc.lhs.split.absurd" 10 $ sep
         [ text "splitting on absurd pattern"
         , nest 2 $ text "tel  =" <+> prettyTCM tel
         , nest 2 $ text "var  =" <+> addContext tel (prettyTCM $ var i)
-        , nest 2 $ text "type =" <+> addContext tel (prettyTCM a)
+        , nest 2 $ text "type =" <+> addContext delta1 (prettyTCM a)
         ]
       let rho = liftS i $ consS (AbsurdP $ VarP $ DBPatVar absurdPatternName 0) $ raiseS 1
       checkLHS f $ st
-            { lhsProblem = problem
-              { problemInPat  = (problemInPat p0) ++
-                                [Arg info $ unnamed $ A.WildP pi] ++
-                                problemInPat (absBody p1)
-              , problemOutPat = applySubst rho $ problemOutPat problem
+            { lhsOutPat  = applySubst rho ip
+            , lhsProblem = problem
+              { problemInPat  = p0 ++ [Arg info $ unnamed $ A.WildP pi] ++ p1
+              , problemShouldBeEmptyTypes = (getRange pi , a) : problemShouldBeEmptyTypes problem
               }
-            , lhsShouldBeEmptyTypes = (getRange pi , a) : lhsShouldBeEmptyTypes st
             }
 
     -- Split on constructor pattern (unifier might fail)
-    trySplit (Split p0 (Arg info
-               (Focus { focusCon      = c
+    trySplit (SplitArg p0 (Arg info
+               (ConFocus
+                      { focusCon      = c
                       , focusPatOrigin= porigin
                       , focusConArgs  = qs
                       , focusRange    = r
-                      , focusOutPat   = ip
                       , focusDatatype = d
                       , focusParams   = vs
                       , focusIndices  = ws
-                      , focusType     = a
                       }
                )) p1) tryNextSplit = do
+      let (delta1, ExtendTel (Dom _ _ a) adelta2) = splitTelescopeAt (size p0) tel
+          delta2 = absBody adelta2
+      let typeOfSplitVar = Arg info a
       traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (unambiguous c) qs)
-                                       (problemTel p0)
+                                       delta1
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
-        let delta1 = problemTel p0
-            delta2 = problemTel $ absBody p1
-        let typeOfSplitVar = Arg info a
 
         reportSDoc "tc.lhs.split" 10 $ sep
           [ text "checking lhs"
-          , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
+          , nest 2 $ text "tel =" <+> prettyTCM tel
           , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
           ]
 
@@ -975,7 +968,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
             ]
           ]
 
-        c <- either
+        c <- liftTCM $ either
                (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c))
                (return . (`withRangeOf` c))
                =<< getConForm c
@@ -991,7 +984,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
 
         -- It will end in an application of the datatype
         (gamma', ca, d', us) <- do
-          TelV gamma' ca@(El _ def) <- telView a
+          TelV gamma' ca@(El _ def) <- liftTCM $ telView a
           let Def d' es = ignoreSharing def
               Just us   = allApplyElims es
           return (gamma', ca, d', us)
@@ -1008,7 +1001,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
         gamma' <- return $ mapRelevance updRel <$> gamma'
 
         -- Insert implicit patterns
-        qs' <- insertImplicitPatterns ExpandLast qs gamma'
+        qs' <- liftTCM $ insertImplicitPatterns ExpandLast qs gamma'
         reportSDoc "tc.lhs.imp" 20 $
           text "insertImplicitPatternsT returned" <+> fsep (map prettyA qs')
 
@@ -1022,7 +1015,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
         reportSDoc "tc.lhs.split" 30 $ text "  da = " <+> prettyTCM da
 
         -- Compute the flexible variables
-        flex <- flexiblePatterns (problemInPat p0 ++ qs')
+        flex <- liftTCM $ flexiblePatterns (p0 ++ qs')
         reportSDoc "tc.lhs.split" 30 $ text "computed flexible variables"
 
         -- Compute the constructor indices by dropping the parameters
@@ -1071,7 +1064,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
         -- from Δ' = Δ₁';Δ₂ρ₃
         --        Δ' ⊢ ρ : Δ₁(x : D vs ws)Δ₂
 
-        res <- unifyIndices
+        res <- liftTCM $ unifyIndices
                  (delta1 `abstract` gamma)
                  flex
                  (raise (size gamma) da)
@@ -1106,9 +1099,9 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
               -- to the *new* telescope delta1'. These are needed to compute the
               -- correct types of new dot pattern instantiations.
               oldTypes = applyPatSubst rho0 $ flattenTel $ delta1 `abstract` gamma
-          (p0',newDpi) <- addContext delta1' $ updateInPatterns
+          (p0',newDpi) <- liftTCM $ addContext delta1' $ updateInPatterns
                             oldTypes
-                            (problemInPat p0 ++ qs')
+                            (p0 ++ qs')
                             newPats
 
           reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
@@ -1157,7 +1150,7 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
             ]
 
           -- compute new in patterns
-          let ps'  = p0' ++ problemInPat (absBody p1)
+          let ps'  = p0' ++ p1
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
@@ -1165,8 +1158,9 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
               ]
 
           -- The final dpis are the new ones plus the old ones substituted by ρ
-          let dpi' = applyPatSubst rho dpi ++ raise (size delta2') newDpi
-              sbe' = map (second $ applyPatSubst rho) sbe
+          let dpi' = applyPatSubst rho (problemDPI problem)
+                     ++ raise (size delta2') newDpi
+              sbe' = applyPatSubst rho $ problemShouldBeEmptyTypes problem
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
@@ -1176,19 +1170,19 @@ checkLHS f st@(LHSState problem dpi psplit sbe) = do
 
           -- Apply the substitution
           let ip'      = applySubst rho ip
-              rest'    = applyPatSubst rho (problemRest problem)
+              target'  = applyPatSubst rho target
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "ip' =" <+> pretty ip ]
 
           -- Construct the new problem
-          let problem' = Problem ps' ip' delta' rest'
+          let problem' = Problem ps' (problemRestPats problem) dpi' sbe'
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st'@(LHSState problem'@(Problem ps' ip' delta' rest') dpi' psplit sbe')
-            <- updateProblemRest $ LHSState problem' dpi' psplit sbe'
+          st'@(LHSState delta' ip' problem'@(Problem ps' rps' dpi' sbe') target' psplit)
+            <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target' psplit
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"

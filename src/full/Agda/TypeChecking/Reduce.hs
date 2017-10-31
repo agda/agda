@@ -222,18 +222,18 @@ instance Instantiate EqualityView where
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
-ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (Term -> tcm a) -> tcm a
+ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (NotBlocked -> Term -> tcm a) -> tcm a
 ifBlocked t blocked unblocked = do
   t <- liftTCM $ reduceB t
   case ignoreSharing <$> t of
     Blocked m _              -> blocked m (ignoreBlocking t)
     NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
-    NotBlocked{}             -> unblocked (ignoreBlocking t)
+    NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
 
 -- | Case on whether a type is blocked on a meta (or is a meta).
-ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (Type -> tcm a) -> tcm a
+ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (NotBlocked -> Type -> tcm a) -> tcm a
 ifBlockedType (El s t) blocked unblocked =
-  ifBlocked t (\ m v -> blocked m $ El s v) (\ v -> unblocked $ El s v)
+  ifBlocked t (\ m v -> blocked m $ El s v) (\ nb v -> unblocked nb $ El s v)
 
 class Reduce t where
     reduce'  :: t -> ReduceM t
