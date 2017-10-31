@@ -125,7 +125,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem ps0 ps dpi sbe) a) = do
                        { problemInPat    = ps0 ++ ps1
                        , problemRestPats = ps2
                        , problemDPI      = applyPatSubst tau dpi
-                       , problemShouldBeEmptyTypes = map (second $ applyPatSubst tau) sbe
+                       , problemShouldBeEmptyTypes = applyPatSubst tau sbe
                        }
         , lhsTarget  = a $> b
         }

@@ -796,8 +796,7 @@ checkLHS f st@(LHSState tel ip problem target) = do
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
           dpi'     = applyPatSubst rho $ problemDPI problem
-          sbe'     = map (second $ applyPatSubst rho) $
-                       problemShouldBeEmptyTypes problem
+          sbe'     = applyPatSubst rho $ problemShouldBeEmptyTypes problem
           ip'      = applySubst rho ip
           target'  = applyPatSubst rho target
 
@@ -1057,8 +1056,7 @@ checkLHS f st@(LHSState tel ip problem target) = do
           -- The final dpis are the new ones plus the old ones substituted by ρ
           let dpi' = applyPatSubst rho (problemDPI problem)
                      ++ raise (size delta2') newDpi
-              sbe' = map (second $ applyPatSubst rho) $
-                       problemShouldBeEmptyTypes problem
+              sbe' = applyPatSubst rho $ problemShouldBeEmptyTypes problem
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
