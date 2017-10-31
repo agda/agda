@@ -787,7 +787,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
     trySplit (SplitArg p0 (Arg _ (LitFocus lit)) p1) _ = do
 
       -- substitute the literal in p1 and dpi
-      let (delta1, ExtendTel (Dom _ a) adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+      let (delta1, ExtendTel (Dom _ a) adelta2) = splitTelescopeAt (size p0) tel
           delta2 = absApp adelta2 (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
@@ -801,7 +801,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
           target'  = applyPatSubst rho target
 
       -- Compute the new problem
-      let ps'      = problemInPat p0 ++ problemInPat p1
+      let ps'      = p0 ++ p1
           delta'   = abstract delta1 delta2
           problem' = Problem ps' $ problemRestPats problem
       st' <- liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' dpi' sbe')
@@ -809,8 +809,9 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
     trySplit (SplitArg p0 (Arg info (AbsurdFocus pi)) p1) _ = do
-      let i = size $ problemInPat p1
-          (delta1, ExtendTel (Dom _ a0) adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+
+      let i = size p1
+          (delta1, ExtendTel (Dom _ a0) adelta2) = splitTelescopeAt (size p0) tel
           a = raise (i+1) a0
       reportSDoc "tc.lhs.split.absurd" 10 $ sep
         [ text "splitting on absurd pattern"
@@ -822,9 +823,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
       checkLHS f $ st
             { lhsOutPat  = applySubst rho ip
             , lhsProblem = problem
-              { problemInPat  = problemInPat p0 ++
-                                [Arg info $ unnamed $ A.WildP pi] ++
-                                problemInPat p1
+              { problemInPat  = p0 ++ [Arg info $ unnamed $ A.WildP pi] ++ p1
               }
             , lhsShouldBeEmptyTypes = (getRange pi , a) : lhsShouldBeEmptyTypes st
             }
@@ -841,7 +840,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
                       , focusIndices  = ws
                       }
                )) p1) tryNextSplit = do
-      let (delta1, ExtendTel (Dom _ a) adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+      let (delta1, ExtendTel (Dom _ a) adelta2) = splitTelescopeAt (size p0) tel
           delta2 = absBody adelta2
       let typeOfSplitVar = Arg info a
       traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (unambiguous c) qs)
@@ -912,7 +911,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
         reportSDoc "tc.lhs.split" 30 $ text "  da = " <+> prettyTCM da
 
         -- Compute the flexible variables
-        flex <- liftTCM $ flexiblePatterns (problemInPat p0 ++ qs')
+        flex <- liftTCM $ flexiblePatterns (p0 ++ qs')
         reportSDoc "tc.lhs.split" 30 $ text "computed flexible variables"
 
         -- Compute the constructor indices by dropping the parameters
@@ -998,7 +997,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
               oldTypes = applyPatSubst rho0 $ flattenTel $ delta1 `abstract` gamma
           (p0',newDpi) <- liftTCM $ addContext delta1' $ updateInPatterns
                             oldTypes
-                            (problemInPat p0 ++ qs')
+                            (p0 ++ qs')
                             newPats
 
           reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
@@ -1047,7 +1046,7 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
             ]
 
           -- compute new in patterns
-          let ps'  = p0' ++ problemInPat p1
+          let ps'  = p0' ++ p1
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat

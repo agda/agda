@@ -201,12 +201,12 @@ data SplitProblem
 
   = -- | Split on constructor pattern.
     SplitArg
-      { splitLPats   :: Problem
+      { splitLPats   :: [NamedArg A.Pattern]
         -- ^ The typed user patterns left of the split position.
         --   Invariant: @'problemRest' == empty@.
       , splitFocus   :: Arg Focus
         -- ^ How to split the variable at the split position.
-      , splitRPats   :: Problem
+      , splitRPats   :: [NamedArg A.Pattern]
         -- ^ The typed user patterns right of the split position.
       }
 
@@ -223,10 +223,8 @@ consSplitProblem
   :: NamedArg A.Pattern   -- ^ @p@ A pattern.
   -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
   -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
-consSplitProblem p s@SplitRest{}              = s
-consSplitProblem p s@SplitArg{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
-  where
-  consProblem' (Problem ps pr) = Problem (p:ps) pr
+consSplitProblem p s@SplitRest{}                 = s
+consSplitProblem p s@SplitArg{ splitLPats = ps } = s{ splitLPats = (p:ps) }
 
 -- | Instantiations of a dot pattern with a term.
 --   `Maybe e` if the user wrote a dot pattern .e

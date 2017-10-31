@@ -283,7 +283,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
             {- else -} return SplitArg
               { splitLPats   = empty
               , splitFocus   = Arg ai $ LitFocus lit
-              , splitRPats   = Problem ps __IMPOSSIBLE__
+              , splitRPats   = ps
               }
               `mplus` keepGoing
 
@@ -321,17 +321,16 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
               (return SplitArg
                 { splitLPats   = empty
                 , splitFocus   = Arg ai $ ConFocus c ConORec args (getRange p) d pars ixs
-                , splitRPats   = Problem ps __IMPOSSIBLE__
+                , splitRPats   = ps
                 }) `mplus` keepGoing
 
         -- Case: absurd pattern.
         p@(A.AbsurdP info) -> do
           liftTCM $ reportSDoc "tc.lhs.split.absurd" 30 $ text "split AbsurdP: type is " <+> prettyTCM a
-          let i = size tel
           (return SplitArg
             { splitLPats = empty
             , splitFocus = Arg ai $ AbsurdFocus info
-            , splitRPats = Problem ps __IMPOSSIBLE__
+            , splitRPats = ps
             }) `mplus` keepGoing
 
         -- Case: constructor pattern.
@@ -435,7 +434,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
                       (return SplitArg
                         { splitLPats   = empty
                         , splitFocus   = Arg ai $ ConFocus c (A.patOrigin ci) args (getRange p) d pars ixs
-                        , splitRPats   = Problem ps __IMPOSSIBLE__
+                        , splitRPats   = ps
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.
               _   -> blockedOn nb >> keepGoing
