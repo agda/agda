@@ -784,10 +784,10 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
 
-    trySplit (SplitArg p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
+    trySplit (SplitArg p0 (Arg _ (LitFocus lit)) p1) _ = do
 
       -- substitute the literal in p1 and dpi
-      let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+      let (delta1, ExtendTel (Dom _ a) adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
           delta2 = absApp adelta2 (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
           -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
@@ -808,12 +808,15 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
       checkLHS f st'
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
-    trySplit (SplitArg p0 (Arg info (AbsurdFocus pi i a)) p1) _ = do
+    trySplit (SplitArg p0 (Arg info (AbsurdFocus pi)) p1) _ = do
+      let i = size $ problemInPat p1
+          (delta1, ExtendTel (Dom _ a0) adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+          a = raise (i+1) a0
       reportSDoc "tc.lhs.split.absurd" 10 $ sep
         [ text "splitting on absurd pattern"
         , nest 2 $ text "tel  =" <+> prettyTCM tel
         , nest 2 $ text "var  =" <+> addContext tel (prettyTCM $ var i)
-        , nest 2 $ text "type =" <+> addContext tel (prettyTCM a)
+        , nest 2 $ text "type =" <+> addContext delta1 (prettyTCM a)
         ]
       let rho = liftS i $ consS (AbsurdP $ VarP $ DBPatVar absurdPatternName 0) $ raiseS 1
       checkLHS f $ st
@@ -833,14 +836,12 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
                       , focusPatOrigin= porigin
                       , focusConArgs  = qs
                       , focusRange    = r
-                      , focusOutPat   = ip
                       , focusDatatype = d
                       , focusParams   = vs
                       , focusIndices  = ws
-                      , focusType     = a
                       }
                )) p1) tryNextSplit = do
-      let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
+      let (delta1, ExtendTel (Dom _ a) adelta2) = splitTelescopeAt (size $ problemInPat p0) tel
           delta2 = absBody adelta2
       let typeOfSplitVar = Arg info a
       traceCall (CheckPattern (A.ConP (ConPatInfo porigin $ PatRange r) (unambiguous c) qs)

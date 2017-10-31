@@ -189,18 +189,12 @@ data Focus
     , focusPatOrigin:: ConOrigin -- ^ Do we come from an implicit or record pattern?
     , focusConArgs  :: [NamedArg A.Pattern]
     , focusRange    :: Range
-    , focusOutPat   :: [NamedArg DeBruijnPattern]
     , focusDatatype :: QName
     , focusParams   :: [Arg Term]
     , focusIndices  :: [Arg Term]
-    , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
     }
-  | LitFocus Literal [NamedArg DeBruijnPattern] Type
-  | AbsurdFocus
-    { absurdFocusRange :: PatInfo
-    , absurdFocusVar   :: Int
-    , absurdFocusType  :: Type
-    }
+  | LitFocus Literal
+  | AbsurdFocus PatInfo
 
 -- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem

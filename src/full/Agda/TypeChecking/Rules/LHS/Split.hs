@@ -282,7 +282,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
             {- then -} keepGoing $
             {- else -} return SplitArg
               { splitLPats   = empty
-              , splitFocus   = Arg ai $ LitFocus lit qs a
+              , splitFocus   = Arg ai $ LitFocus lit
               , splitRPats   = Problem ps __IMPOSSIBLE__
               }
               `mplus` keepGoing
@@ -320,7 +320,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
               args <- liftTCM $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
               (return SplitArg
                 { splitLPats   = empty
-                , splitFocus   = Arg ai $ ConFocus c ConORec args (getRange p) qs d pars ixs a
+                , splitFocus   = Arg ai $ ConFocus c ConORec args (getRange p) d pars ixs
                 , splitRPats   = Problem ps __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
@@ -330,7 +330,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
           let i = size tel
           (return SplitArg
             { splitLPats = empty
-            , splitFocus = Arg ai $ AbsurdFocus info i $ raise (i+1) a
+            , splitFocus = Arg ai $ AbsurdFocus info
             , splitRPats = Problem ps __IMPOSSIBLE__
             }) `mplus` keepGoing
 
@@ -434,7 +434,7 @@ splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
 
                       (return SplitArg
                         { splitLPats   = empty
-                        , splitFocus   = Arg ai $ ConFocus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
+                        , splitFocus   = Arg ai $ ConFocus c (A.patOrigin ci) args (getRange p) d pars ixs
                         , splitRPats   = Problem ps __IMPOSSIBLE__
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.
