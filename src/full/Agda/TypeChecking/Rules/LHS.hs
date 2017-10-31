@@ -650,7 +650,7 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
 
   -- doing the splits:
   inTopContext $ do
-    (st@(LHSState delta qs problem@(Problem pxs rps) b' dpi sbe), block)
+    (st@(LHSState delta qs problem@(Problem pxs rps dpi sbe) b'), block)
       <- runWriterT $ checkLHS f st0
 
     -- check linearity of the pattern,
@@ -743,7 +743,7 @@ checkLHS
   => Maybe QName     -- ^ The name of the definition we are checking.
   -> LHSState        -- ^ The current state.
   -> tcm LHSState    -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
+checkLHS f st@(LHSState tel ip problem target) = do
 
   problem <- liftTCM $ insertImplicitProblem tel problem
   -- Note: inserting implicits no longer preserve solvedness,
@@ -772,11 +772,11 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
       target' <- (projPat $>) <$> projType `piApply1` self
 
       -- Compute the new problem
-      let Problem ps1 (_:ps2) = problem -- drop the projection pattern (already splitted)
+      let Problem ps1 (_:ps2) dpi sbe = problem -- drop the projection pattern (already splitted)
           ip'      = ip ++ [fmap (Named Nothing . ProjP o) projPat]
-          problem' = Problem ps1 ps2
+          problem' = Problem ps1 ps2 dpi sbe
       -- Jump the trampolin
-      st' <- liftTCM $ updateProblemRest (LHSState tel ip' problem' target' dpi sbe)
+      st' <- liftTCM $ updateProblemRest (LHSState tel ip' problem' target')
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
@@ -795,16 +795,17 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
-          dpi'     = applyPatSubst rho dpi
-          sbe'     = map (second $ applyPatSubst rho) sbe
+          dpi'     = applyPatSubst rho $ problemDPI problem
+          sbe'     = map (second $ applyPatSubst rho) $
+                       problemShouldBeEmptyTypes problem
           ip'      = applySubst rho ip
           target'  = applyPatSubst rho target
 
       -- Compute the new problem
       let ps'      = p0 ++ p1
           delta'   = abstract delta1 delta2
-          problem' = Problem ps' $ problemRestPats problem
-      st' <- liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' dpi' sbe')
+          problem' = Problem ps' (problemRestPats problem) dpi' sbe'
+      st' <- liftTCM $ updateProblemRest (LHSState delta' ip' problem' target')
       checkLHS f st'
 
     -- Split on absurd pattern (adding type to list of types that should be empty)
@@ -824,8 +825,8 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
             { lhsOutPat  = applySubst rho ip
             , lhsProblem = problem
               { problemInPat  = p0 ++ [Arg info $ unnamed $ A.WildP pi] ++ p1
+              , problemShouldBeEmptyTypes = (getRange pi , a) : problemShouldBeEmptyTypes problem
               }
-            , lhsShouldBeEmptyTypes = (getRange pi , a) : lhsShouldBeEmptyTypes st
             }
 
     -- Split on constructor pattern (unifier might fail)
@@ -1054,8 +1055,10 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
               ]
 
           -- The final dpis are the new ones plus the old ones substituted by ρ
-          let dpi' = applyPatSubst rho dpi ++ raise (size delta2') newDpi
-              sbe' = map (second $ applyPatSubst rho) sbe
+          let dpi' = applyPatSubst rho (problemDPI problem)
+                     ++ raise (size delta2') newDpi
+              sbe' = map (second $ applyPatSubst rho) $
+                       problemShouldBeEmptyTypes problem
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
@@ -1072,12 +1075,12 @@ checkLHS f st@(LHSState tel ip problem target dpi sbe) = do
               [ text "ip' =" <+> pretty ip ]
 
           -- Construct the new problem
-          let problem' = Problem ps' $ problemRestPats problem
+          let problem' = Problem ps' (problemRestPats problem) dpi' sbe'
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st'@(LHSState delta' ip' problem'@(Problem ps' rps') target' dpi' sbe')
-            <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target' dpi' sbe'
+          st'@(LHSState delta' ip' problem'@(Problem ps' rps' dpi' sbe') target')
+            <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"

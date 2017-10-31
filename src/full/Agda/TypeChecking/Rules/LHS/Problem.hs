@@ -180,6 +180,8 @@ data Problem = Problem
     --   @
     --   As we instantiate @b@ to @false@, the 'restType' reduces to
     --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
+  , problemDPI                :: [DotPatternInst]
+  , problemShouldBeEmptyTypes :: [(Range,Type)]
   }
   deriving Show
 
@@ -234,7 +236,7 @@ data DotPatternInst = DPI
   , dotPatternUserExpr :: Maybe A.Expr
   , dotPatternInst     :: Term
   , dotPatternType     :: Dom Type
-  }
+  } deriving (Show)
 data AsBinding      = AsB Name Term Type
 
 -- | State worked on during the main loop of checking a lhs.
@@ -253,8 +255,6 @@ data LHSState = LHSState
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
     --   be type-checked in irrelevant mode.
-  , lhsDPI     :: [DotPatternInst]
-  , lhsShouldBeEmptyTypes :: [(Range,Type)]
   }
 
 instance Subst Term DotPatternInst where
@@ -287,5 +287,8 @@ instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
 
 instance Null Problem where
-  null p = null (problemInPat p) && null (problemRestPats p)
-  empty  = Problem empty empty
+  null p = null (problemInPat p)
+           && null (problemRestPats p)
+           && null (problemDPI p)
+           && null (problemShouldBeEmptyTypes p)
+  empty  = Problem empty empty empty empty

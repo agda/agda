@@ -54,7 +54,7 @@ useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
 
 -- | Are there any untyped user patterns left?
 noProblemRest :: Problem -> Bool
-noProblemRest (Problem _ rp) = null rp
+noProblemRest (Problem _ rp _ _) = null rp
 
 -- | Construct an initial 'LHSState' from user patterns.
 --   Example:
@@ -74,10 +74,8 @@ noProblemRest (Problem _ rp) = null rp
 --   @
 --      lhsTel        = [A : Set, m : Maybe A]
 --      lhsOutPat     = ["A", "m"]
---      lhsProblem    = Problem ["_", "just a"] []
+--      lhsProblem    = Problem ["_", "just a"] [] [] []
 --      lhsTarget     = "Case m Bool (Maybe A -> Bool)"
---      lhsDPI        = []
---      lhsShouldBeEmptyTypes = []
 --   @
 initLHSState
   :: [NamedArg A.Pattern] -- ^ The user patterns.
@@ -89,14 +87,14 @@ initLHSState ps0 a = do
   let ps = (`mapNamedArgPattern` ps0) $ \case
         p | A.WildP{} <- namedArg p -> setOrigin Inserted p
         p -> p
-      problem = Problem [] ps
+      problem = Problem [] ps [] []
 
-  updateProblemRest $ LHSState EmptyTel [] problem (defaultArg a) [] []
+  updateProblemRest $ LHSState EmptyTel [] problem (defaultArg a)
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest :: LHSState -> TCM LHSState
-updateProblemRest st@(LHSState tel0 qs0 p@(Problem ps0 ps) a dpi sbe) = do
+updateProblemRest st@(LHSState tel0 qs0 p@(Problem ps0 ps dpi sbe) a) = do
       ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
       reportSDoc "tc.lhs.imp" 20 $
         text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
@@ -123,8 +121,11 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem ps0 ps) a dpi sbe) = do
       return $ LHSState
         { lhsTel     = tel1
         , lhsOutPat  = applySubst (raiseS n) qs0 ++ qs1
-        , lhsProblem = Problem (ps0 ++ ps1) ps2
+        , lhsProblem = Problem
+                       { problemInPat    = ps0 ++ ps1
+                       , problemRestPats = ps2
+                       , problemDPI      = applyPatSubst tau dpi
+                       , problemShouldBeEmptyTypes = map (second $ applyPatSubst tau) sbe
+                       }
         , lhsTarget  = a $> b
-        , lhsDPI     = applyPatSubst tau (lhsDPI st)
-        , lhsShouldBeEmptyTypes = map (second $ applyPatSubst tau) (lhsShouldBeEmptyTypes st)
         }

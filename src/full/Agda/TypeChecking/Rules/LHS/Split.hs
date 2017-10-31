@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 splitProblem :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, MonadDebug tcm)
   => LHSState  -- ^ The current state of the lhs patterns.
   -> ListT tcm SplitProblem
-splitProblem (LHSState tel qs (Problem ps pr) b dpi sbe) = do
+splitProblem (LHSState tel qs (Problem ps pr dpi sbe) b) = do
   do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
     reportSDoc "tc.lhs.split" 30 $ sep

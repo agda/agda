@@ -160,7 +160,7 @@ instantiateTel s tel = liftTCM $ do
 
 -- | Produce a nice error message when splitting failed
 nothingToSplitError :: LHSState -> TCM a
-nothingToSplitError (LHSState tel _ (Problem ps rps) _ _ _) = splitError ps tel
+nothingToSplitError (LHSState tel _ (Problem ps rps _ _) _) = splitError ps tel
   where
     splitError []       EmptyTel    = do
       if null rps then __IMPOSSIBLE__ else do
