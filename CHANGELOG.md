@@ -8,6 +8,8 @@ Important changes since 0.14:
 Non-backwards compatible changes
 --------------------------------
 
+* Removed support for GHC 7.8.4.
+
 #### Overhaul of `Algebra.Morphism`
 
 * Currently `Algebra.Morphism` only gives an example of a `Ring` homomorphism which
