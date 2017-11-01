@@ -1,0 +1,4 @@
+Issue2824EqualityParametrized.agda:9,3-31
+The BUILTIN pragma cannot appear inside a bound context (for
+instance, in a parameterised module or as a local declaration)
+when checking the pragma BUILTIN EQUALITY _≡_

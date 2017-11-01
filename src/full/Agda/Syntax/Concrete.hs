@@ -452,6 +452,7 @@ spanAllowedBeforeModule :: [Declaration] -> ([Declaration], [Declaration])
 spanAllowedBeforeModule = span isAllowedBeforeModule
   where
     isAllowedBeforeModule (Pragma OptionsPragma{}) = True
+    isAllowedBeforeModule (Pragma BuiltinPragma{}) = True
     isAllowedBeforeModule (Private _ _ ds) = all isAllowedBeforeModule ds
     isAllowedBeforeModule Import{}       = True
     isAllowedBeforeModule ModuleMacro{}  = True

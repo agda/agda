@@ -1,0 +1,4 @@
+Issue2824BuiltinDefinedInParametrizedModule.agda:10,3-30
+The BUILTIN pragma cannot appear inside a bound context (for
+instance, in a parameterised module or as a local declaration)
+when checking the pragma BUILTIN NATURAL Nat
