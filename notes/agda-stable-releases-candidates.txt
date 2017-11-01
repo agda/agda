@@ -37,6 +37,14 @@ the following procedure can be followed:
 
 * Update the README.md, if necessary.
 
+* Update the list of contributors if necessary.
+
+  Note: This is duplicated in the following locations:
+
+  - Agda.cabal
+  - doc/user-manual/license.rst
+  - doc/user-manual/conf.py
+
 * Update the LICENSE file, if necessary.
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
