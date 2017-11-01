@@ -30,7 +30,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as PP
 
-type Substitution   = [Maybe Term]
 type FlexibleVars   = [FlexibleVar Nat]
 
 -- | When we encounter a flexible variable in the unifier, where did it come from?
