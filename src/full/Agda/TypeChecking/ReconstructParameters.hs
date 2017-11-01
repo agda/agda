@@ -7,7 +7,6 @@
 
 module Agda.TypeChecking.ReconstructParameters where
 
-import Control.Applicative
 import Data.Traversable
 
 import Agda.Syntax.Common

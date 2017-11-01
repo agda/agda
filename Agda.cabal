@@ -32,15 +32,13 @@ description:
   Note that the Agda package does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.8.4
-                    GHC == 7.10.3
+tested-with:        GHC == 7.10.3
                     GHC == 8.0.2
                     GHC == 8.2.1
 
 extra-source-files: CHANGELOG.md
                     README.md
                     src/full/undefined.h
-                    stack-7.8.4.yaml
                     stack-7.10.3.yaml
                     stack-8.0.2.yaml
 
@@ -114,23 +112,23 @@ library
     build-depends:  text-icu == 0.7.*
 
   if os(windows)
-    build-depends:  Win32 >= 2.2 && < 2.6
+    build-depends:  Win32 >= 2.3.1.0 && < 2.6
 
-  build-depends:  array >= 0.5.0.0 && < 0.6
+  build-depends:  array >= 0.5.1.0 && < 0.6
                 , async >= 2.0.2 && < 2.2
-                , base >= 4.7.0.2 && < 4.11
-                , binary >= 0.7.2.1 && < 0.9
+                , base >= 4.8.0.0 && < 4.11
+                , binary >= 0.7.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
-                , bytestring >= 0.10.4.0 && < 0.11
-                , containers >= 0.5.5.1 && < 0.6
+                , bytestring >= 0.10.6.0 && < 0.11
+                , containers >= 0.5.6.2 && < 0.6
                 , data-hash >= 0.2.0.0 && < 0.3
-                , deepseq >= 1.3.0.2 && < 1.5
-                , directory >= 1.2.0.1 && < 1.4
+                , deepseq >= 1.4.1.1 && < 1.5
+                , directory >= 1.2.2.0 && < 1.4
                 , EdisonCore >= 1.3.1.1 && < 1.3.2
                 , edit-distance >= 0.2.1.2 && < 0.3
                 , equivalence >= 0.3.2 && < 0.4
-                , filepath >= 1.3.0.1 && < 1.5
+                , filepath >= 1.4.0.0 && < 1.5
                 , geniplate-mirror >= 0.6.0.6 && < 0.8
                 , gitrev >= 1.2 && < 2.0
                 -- hashable 1.2.0.10 makes library-test 10x
@@ -142,11 +140,8 @@ library
                 -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
-
-                -- hashtables 1.2.2.0 is not compatible with GHC 7.8.4
-                -- (see Issue #2745).
-                , hashtables >= 1.2.0.2 && < 1.2.2
-                , haskeline >= 0.7.1.3 && < 0.8
+                , hashtables >= 1.2.0.2 && < 1.3
+                , haskeline >= 0.7.2.1 && < 0.8
                 , ieee754 >= 0.7.8 && < 0.9
                 , monadplus >= 1.4 && < 1.5
                 -- mtl-2.1 contains a severe bug.
@@ -156,16 +151,14 @@ library
                 , murmur-hash >= 0.1 && < 0.2
                 , uri-encode >= 1.5.0.4 && < 1.6
                 , parallel >= 3.2.0.4 && < 3.3
-                -- pretty 1.1.1.2 and 1.1.1.3 do not follow the
-                -- package versioning policy.
-                , pretty >= 1.1.1.1 && < 1.1.1.2 || >= 1.1.2 && < 1.2
-                , process >= 1.2.0.0 && < 1.7
+                , pretty >= 1.1.2.0 && < 1.2
+                , process >= 1.2.3.0 && < 1.7
                 , regex-tdfa >= 1.2.2 && < 1.3
                 , stm >= 2.4.4 && < 2.5
                 , strict >= 0.3.2 && < 0.4
-                , template-haskell >= 2.9.0.0 && < 2.13
+                , template-haskell >= 2.10.0.0 && < 2.13
                 , text >= 0.11.3.1 && < 1.3
-                , time >= 1.4.2 && < 1.9
+                , time >= 1.5.0.1 && < 1.9
                 -- In hTags the mtl library must be compiled with the
                 -- version of transformers shipped with GHC. The lower
                 -- bound is the version of transformers shipped with
@@ -175,9 +168,6 @@ library
                 -- mtl).
                 , transformers >= 0.4.2.0 && < 0.6
                 , unordered-containers >= 0.2.5.0 && < 0.3
-
-  if impl(ghc < 7.10)
-    build-depends: void >= 0.5.4 && < 0.9
 
   -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
   if impl(ghc < 7.10.3)
@@ -503,8 +493,9 @@ library
   if impl(ghc >= 8.0)
     ghc-options: -Wunrecognised-warning-flags
 
-  if impl(ghc >= 7.8)
+  if impl(ghc >= 7.10)
     ghc-options: -fwarn-deprecated-flags
+                 -fwarn-deriving-typeable
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
@@ -522,27 +513,16 @@ library
                  -fwarn-overflowed-literals
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
+                 -fwarn-unticked-promoted-constructors
                  -fwarn-unused-do-bind
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
 
-  if impl(ghc >= 7.10)
-     ghc-options: -fwarn-unticked-promoted-constructors
-                  -- Enable after removing the support for GHC 7.8.
-                  -- -fwarn-deriving-typeable
-
-  -- This option is deprected in GHC 7.10.1.
-  if impl(ghc >= 7.8) && impl(ghc < 7.10)
-    ghc-options: -fwarn-amp
-
   -- These options will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.8) && impl(ghc < 8.0)
-    ghc-options: -fwarn-duplicate-constraints
-                 -fwarn-pointless-pragmas
-
-  -- This option will be deprected in GHC 8.0.1.
   if impl(ghc >= 7.10) && impl(ghc < 8.0)
     ghc-options: -fwarn-context-quantification
+                 -fwarn-duplicate-constraints
+                 -fwarn-pointless-pragmas
 
   if impl(ghc >= 8.0)
     ghc-options: -Wmissing-pattern-synonym-signatures
@@ -595,7 +575,7 @@ executable agda
 
                   -- Nothing is used from the following package,
                   -- except for the prelude.
-                , base >= 4.7.0.2 && < 6
+                , base >= 4.8.0.0 && < 6
   default-language: Haskell2010
   if impl(ghc >= 7)
     -- If someone installs Agda with the setuid bit set, then the
@@ -609,10 +589,10 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.7.0.2 && < 4.11
-                  , directory >= 1.2.1.0 && < 1.4
-                  , filepath >= 1.3.0.2 && < 1.5
-                  , process >= 1.2.0.0 && < 1.7
+  build-depends:    base >= 4.8.0.0 && < 4.11
+                  , directory >= 1.2.2.0 && < 1.4
+                  , filepath >= 1.4.0.0 && < 1.5
+                  , process >= 1.2.3.0 && < 1.7
   default-language: Haskell2010
 
 -- Cabal testsuite integration has some serious bugs, but we
@@ -639,14 +619,14 @@ test-suite agda-tests
                     , Utils
 
   build-depends:  Agda
-                , array >= 0.5.0.0 && < 0.6
-                , base >= 4.7.0.2 && < 4.11
-                , bytestring >= 0.10.4.0 && < 0.11
-                , containers >= 0.5.5.1 && < 0.6
-                , directory >= 1.2.1.0 && < 1.4
-                , filepath >= 1.3.0.2 && < 1.5
+                , array >= 0.5.1.0 && < 0.6
+                , base >= 4.8.0.0 && < 4.11
+                , bytestring >= 0.10.6.0 && < 0.11
+                , containers >= 0.5.6.2 && < 0.6
+                , directory >= 1.2.2.0 && < 1.4
+                , filepath >= 1.4.0.0 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
-                , process >= 1.2.0.0 && < 1.7
+                , process >= 1.2.3.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
                 , regex-tdfa >= 1.2.0 && < 1.3
                 , regex-tdfa-text >= 1.0.0.3 && < 1.1
@@ -733,10 +713,10 @@ test-suite internal-tests
                 , InternalTests.Utils.Warshall
 
   build-depends:  Agda
-                , array >= 0.5.0.0 && < 0.6
-                , base >= 4.7.0.2 && < 4.11
-                , containers >= 0.5.5.1 && < 0.6
-                , filepath >= 1.3.0.2 && < 1.5
+                , array >= 0.5.1.0 && < 0.6
+                , base >= 4.8.0.0 && < 4.11
+                , containers >= 0.5.6.2 && < 0.6
+                , filepath >= 1.4.0.0 && < 1.5
                 , mtl >= 2.2.1 && < 2.3
                 , QuickCheck >= 2.10.0.1 && < 2.11
                 , text >= 0.11.3.1 && < 1.3
@@ -778,8 +758,9 @@ test-suite internal-tests
   if impl(ghc >= 8.0)
     ghc-options: -Wunrecognised-warning-flags
 
-  if impl(ghc >= 7.8)
+  if impl(ghc >= 7.10)
     ghc-options: -fwarn-deprecated-flags
+                 -fwarn-deriving-typeable
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
@@ -797,27 +778,16 @@ test-suite internal-tests
                  -fwarn-overflowed-literals
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
+                 -fwarn-unticked-promoted-constructors
                  -fwarn-unused-do-bind
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
 
-  if impl(ghc >= 7.10)
-     ghc-options: -fwarn-unticked-promoted-constructors
-                  -- Enable after removing the support for GHC 7.8.
-                  -- -fwarn-deriving-typeable
-
-  -- This option is deprected in GHC 7.10.1.
-  if impl(ghc >= 7.8) && impl(ghc < 7.10)
-    ghc-options: -fwarn-amp
-
   -- These options will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.8) && impl(ghc < 8.0)
-    ghc-options: -fwarn-duplicate-constraints
-                 -fwarn-pointless-pragmas
-
-  -- This option will be deprected in GHC 8.0.1.
   if impl(ghc >= 7.10) && impl(ghc < 8.0)
     ghc-options: -fwarn-context-quantification
+                 -fwarn-duplicate-constraints
+                 -fwarn-pointless-pragmas
 
   if impl(ghc >= 8.0)
     ghc-options: -Wmissing-pattern-synonym-signatures

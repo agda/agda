@@ -18,7 +18,6 @@ import qualified Data.Set as Set
 import Data.Traversable
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -44,14 +43,14 @@ data Fixity' = Fixity'
       -- ^ Range of the name in the fixity declaration
       --   (used for correct highlighting, see issue #2140).
     }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 instance Eq Fixity' where
   Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
 
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
-  deriving (Functor, Foldable, Traversable, Typeable, Data, Show)
+  deriving (Functor, Foldable, Traversable, Data, Show)
 
 -- | All the notation information related to a name.
 data NewNotation = NewNotation
@@ -68,7 +67,7 @@ data NewNotation = NewNotation
   , notaIsOperator :: Bool
     -- ^ True if the notation comes from an operator (rather than a
     -- syntax declaration).
-  } deriving (Typeable, Show)
+  } deriving Show
 
 -- | If an operator has no specific notation, then it is computed from
 -- its name.
@@ -218,12 +217,12 @@ data PrecedenceLevel
     -- ^ No fixity declared.
   | Related !Integer
     -- ^ Fixity level declared as the @Integer@.
-  deriving (Eq, Ord, Show, Typeable, Data)
+  deriving (Eq, Ord, Show, Data)
 
 -- | Associativity.
 
 data Associativity = NonAssoc | LeftAssoc | RightAssoc
-   deriving (Eq, Ord, Show, Typeable, Data)
+   deriving (Eq, Ord, Show, Data)
 
 -- | Fixity of operators.
 
@@ -233,7 +232,7 @@ data Fixity = Fixity
   , fixityLevel :: !PrecedenceLevel
   , fixityAssoc :: !Associativity
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 instance Eq Fixity where
   f1 == f2 = compare f1 f2 == EQ
@@ -251,7 +250,7 @@ defaultFixity = Fixity noRange (Related 20) NonAssoc
 
 -- | Do we prefer parens around lambda arguments or not?
 data ParenPreference = PreferParen | PreferParenless
-  deriving (Eq, Ord, Show, Typeable, Data)
+  deriving (Eq, Ord, Show, Data)
 
 preferParen :: ParenPreference -> Bool
 preferParen p = PreferParen == p
@@ -266,7 +265,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
                 | LeftOperandCtx Fixity | RightOperandCtx Fixity ParenPreference
                 | FunctionCtx | ArgumentCtx ParenPreference | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
-    deriving (Show, Typeable, Data, Eq)
+    deriving (Show, Data, Eq)
 
 instance Pretty Precedence where
   pretty = text . show

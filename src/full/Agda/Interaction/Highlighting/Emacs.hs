@@ -16,7 +16,6 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
-import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.Reader
 import Data.Char

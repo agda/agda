@@ -3,7 +3,6 @@
 
 module Agda.TypeChecking.Records where
 
--- import Control.Applicative
 import Control.Monad
 
 import Data.Function

@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
-import Control.Applicative
 import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map

@@ -2,8 +2,6 @@
 
 module Agda.Utils.Tuple where
 
-import Control.Applicative
-
 import Data.Foldable
 import Data.Traversable
 

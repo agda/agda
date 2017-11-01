@@ -2,7 +2,7 @@
 module Agda.Compiler.Treeless.Identity
   ( detectIdentityFunctions ) where
 
-import Control.Applicative
+import Control.Applicative ( Alternative((<|>), empty) )
 import Data.Foldable (foldMap)
 import Data.Semigroup
 import Data.List.NonEmpty (NonEmpty(..))

@@ -14,7 +14,6 @@ import Control.DeepSeq
 import Data.Foldable (Foldable, toList)
 import Data.Traversable (Traversable)
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
 import Data.Hashable (Hashable(..))
@@ -44,7 +43,7 @@ data Name = Name { nameId          :: !NameId
                  , nameBindingSite :: Range
                  , nameFixity      :: Fixity'
                  }
-    deriving (Typeable, Data)
+    deriving Data
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -55,28 +54,28 @@ data Name = Name { nameId          :: !NameId
 data QName = QName { qnameModule :: ModuleName
                    , qnameName   :: Name
                    }
-    deriving (Typeable, Data)
+    deriving Data
 
 -- | Something preceeded by a qualified name.
 data QNamed a = QNamed
   { qname  :: QName
   , qnamed :: a
   }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Functor, Foldable, Traversable)
 
 -- | A module name is just a qualified name.
 --
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Typeable, Data)
+  deriving (Eq, Ord, Data)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: NonemptyList QName }
-  deriving (Eq, Ord, Typeable, Data)
+  deriving (Eq, Ord, Data)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName

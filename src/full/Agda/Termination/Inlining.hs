@@ -45,7 +45,6 @@ module Agda.Termination.Inlining
   , isWithFunction
   , expandWithFunctionCall ) where
 
-import Control.Applicative
 import Control.Monad.State
 
 import qualified Data.List as List

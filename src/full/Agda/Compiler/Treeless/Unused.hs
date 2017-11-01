@@ -5,7 +5,6 @@ module Agda.Compiler.Treeless.Unused
   ) where
 
 import Control.Arrow (first)
-import Control.Applicative
 import qualified Data.Set as Set
 import Data.Maybe
 

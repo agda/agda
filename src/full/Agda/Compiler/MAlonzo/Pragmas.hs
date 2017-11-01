@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.MAlonzo.Pragmas where
 
-import Control.Applicative
 import Control.Monad
 import Data.Maybe
 import Data.Char

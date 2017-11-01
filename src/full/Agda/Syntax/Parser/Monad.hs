@@ -34,11 +34,9 @@ module Agda.Syntax.Parser.Monad
 import Control.Exception (catch)
 import Data.Int
 
-import Data.Typeable ( Typeable )
 import Data.Data (Data)
 
 import Control.Monad.State
-import Control.Applicative
 
 import Agda.Syntax.Position
 
@@ -127,7 +125,6 @@ data ParseError =
   { errPath      :: !AbsolutePath
   , errIOError   :: IOError
   }
-  deriving (Typeable)
 
 -- | Warnings for parsing
 data ParseWarning =
@@ -135,7 +132,7 @@ data ParseWarning =
   OverlappingTokensWarning
   { warnRange    :: !(Range' SrcFile)
                     -- ^ The range of the bigger overlapping token
-  } deriving (Typeable, Data)
+  } deriving Data
 
 -- | The result of parsing something.
 data ParseResult a  = ParseOk ParseState a

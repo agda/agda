@@ -4,7 +4,6 @@
 -}
 module Agda.TypeChecking.Implicit where
 
-import Control.Applicative
 import Control.Monad
 
 import Agda.Syntax.Common

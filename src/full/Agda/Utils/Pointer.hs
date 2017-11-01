@@ -8,7 +8,6 @@ module Agda.Utils.Pointer
   , updatePtr, updatePtrM
   ) where
 
-import Control.Applicative
 import Control.DeepSeq
 import Control.Concurrent.MVar
 import Data.Foldable
@@ -26,7 +25,7 @@ import Agda.Utils.Impossible
 
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
-  deriving (Typeable, Data)
+  deriving Data
 
 -- cheating because you shouldn't be digging this far anyway
 instance Typeable a => Data (IORef a) where

@@ -6,7 +6,6 @@ module Agda.TypeChecking.Reduce where
 
 import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
-import Control.Applicative
 
 import qualified Data.List as List
 import Data.Maybe

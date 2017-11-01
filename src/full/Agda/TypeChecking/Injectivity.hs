@@ -4,7 +4,6 @@ module Agda.TypeChecking.Injectivity where
 
 import Prelude hiding (mapM)
 
-import Control.Applicative
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
 

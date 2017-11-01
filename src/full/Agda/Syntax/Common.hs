@@ -7,7 +7,6 @@
 -}
 module Agda.Syntax.Common where
 
-import Control.Applicative
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
@@ -18,7 +17,6 @@ import qualified Data.Strict.Maybe as Strict
 import Data.Semigroup hiding (Arg)
 import Data.Traversable
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 import Data.Word
 
 import GHC.Generics (Generic)
@@ -40,7 +38,7 @@ import Agda.Utils.Impossible
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 instance KillRange Delayed where
   killRange = id
@@ -50,7 +48,7 @@ instance KillRange Delayed where
 ---------------------------------------------------------------------------
 
 data Induction = Inductive | CoInductive
-  deriving (Typeable, Data, Eq, Ord)
+  deriving (Data, Eq, Ord)
 
 instance Show Induction where
   show Inductive   = "inductive"
@@ -71,10 +69,10 @@ instance NFData Induction where
 ---------------------------------------------------------------------------
 
 data Overlappable = YesOverlap | NoOverlap
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 data Hiding  = Hidden | Instance Overlappable | NotHidden
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 -- | Just for the 'Hiding' instance. Should never combine different
 --   overlapping.
@@ -117,7 +115,7 @@ data WithHiding a = WithHiding
   { whHiding :: !Hiding
   , whThing  :: a
   }
-  deriving (Typeable, Data, Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Data, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration WithHiding where
   traverseF f (WithHiding h a) = WithHiding h <$> f a
@@ -224,7 +222,7 @@ data Modality = Modality
   , modQuantity  :: Quantity
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
-  } deriving (Typeable, Data, Eq, Ord, Show, Generic)
+  } deriving (Data, Eq, Ord, Show, Generic)
 
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity
@@ -309,7 +307,7 @@ data Quantity
   -- TODO: | Quantity1  -- ^ Linear use (could be updated destructively).
   -- (needs postponable constraints between quantities to compute uses).
   | Quantityω  -- ^ Unrestricted use.
-  deriving (Typeable, Data, Show, Generic, Eq, Enum, Bounded)
+  deriving (Data, Show, Generic, Eq, Enum, Bounded)
 
 defaultQuantity :: Quantity
 defaultQuantity = Quantityω
@@ -378,7 +376,7 @@ data Relevance
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-    deriving (Typeable, Data, Show, Eq, Enum, Bounded, Generic)
+    deriving (Data, Show, Eq, Enum, Bounded, Generic)
 
 allRelevances :: [Relevance]
 allRelevances = [minBound..maxBound]
@@ -516,7 +514,7 @@ data Origin
   | Inserted     -- ^ E.g. inserted hidden arguments.
   | Reflected    -- ^ Produced by the reflection machinery.
   | CaseSplit    -- ^ Produced by an interactive case split.
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 instance KillRange Origin where
   killRange = id
@@ -532,7 +530,7 @@ data WithOrigin a = WithOrigin
   { woOrigin :: !Origin
   , woThing  :: a
   }
-  deriving (Typeable, Data, Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Data, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration WithOrigin where
   traverseF f (WithOrigin h a) = WithOrigin h <$> f a
@@ -582,7 +580,7 @@ data ArgInfo = ArgInfo
   { argInfoHiding       :: Hiding
   , argInfoModality     :: Modality
   , argInfoOrigin       :: Origin
-  } deriving (Typeable, Data, Eq, Ord, Show)
+  } deriving (Data, Eq, Ord, Show)
 
 instance KillRange ArgInfo where
   killRange (ArgInfo h r o) = killRange3 ArgInfo h r o
@@ -679,7 +677,7 @@ mapOriginArgInfo = mapArgInfo . mapOrigin
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Data, Typeable, Ord, Functor, Foldable, Traversable)
+  } deriving (Data, Ord, Functor, Foldable, Traversable)
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -811,7 +809,7 @@ instance Underscore Doc where
 data Dom e = Dom
   { domInfo   :: ArgInfo
   , unDom     :: e
-  } deriving (Typeable, Data, Ord, Functor, Foldable, Traversable)
+  } deriving (Data, Ord, Functor, Foldable, Traversable)
 
 instance Decoration Dom where
   traverseF f (Dom ai a) = Dom ai <$> f a
@@ -882,7 +880,7 @@ data Named name a =
     Named { nameOf     :: Maybe name
           , namedThing :: a
           }
-    deriving (Eq, Ord, Typeable, Data, Functor, Foldable, Traversable)
+    deriving (Eq, Ord, Data, Functor, Foldable, Traversable)
 
 -- | Standard naming.
 type Named_ = Named RString
@@ -940,7 +938,7 @@ data Ranged a = Ranged
   { rangeOf     :: Range
   , rangedThing :: a
   }
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 -- | Thing with no range info.
 unranged :: a -> Ranged a
@@ -995,7 +993,7 @@ data ConOrigin
   | ConOCon     -- ^ User wrote a constructor (pattern).
   | ConORec     -- ^ User wrote a record (pattern).
   | ConOSplit   -- ^ Generated by interactive case splitting.
-  deriving (Typeable, Data, Show, Eq, Ord, Enum, Bounded)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded)
 
 instance KillRange ConOrigin where
   killRange = id
@@ -1010,13 +1008,13 @@ data ProjOrigin
   = ProjPrefix    -- ^ User wrote a prefix projection.
   | ProjPostfix   -- ^ User wrote a postfix projection.
   | ProjSystem    -- ^ Projection was generated by the system.
-  deriving (Typeable, Data, Show, Eq, Ord, Enum, Bounded)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded)
 
 instance KillRange ProjOrigin where
   killRange = id
 
 data DataOrRecord = IsData | IsRecord
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Data, Eq, Ord, Show)
 
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.
@@ -1025,7 +1023,7 @@ data DataOrRecord = IsData | IsRecord
 -- | Functions can be defined in both infix and prefix style. See
 --   'Agda.Syntax.Concrete.LHS'.
 data IsInfix = InfixDef | PrefixDef
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Data, Show, Eq, Ord)
 
 -- | Access modifier.
 data Access
@@ -1035,7 +1033,7 @@ data Access
   | PublicAccess
   | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
                              --   Used for qualified constructors.
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Data, Show, Eq, Ord)
 
 instance Pretty Access where
   pretty = text . \case
@@ -1054,14 +1052,14 @@ instance KillRange Access where
 
 -- | Abstract or concrete
 data IsAbstract = AbstractDef | ConcreteDef
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Data, Show, Eq, Ord)
 
 instance KillRange IsAbstract where
   killRange = id
 
 -- | Is this definition eligible for instance search?
 data IsInstance = InstanceDef | NotInstanceDef
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Data, Show, Eq, Ord)
 
 instance KillRange IsInstance where
   killRange = id
@@ -1075,7 +1073,7 @@ instance NFData IsInstance where
 
 -- | Is this a macro definition?
 data IsMacro = MacroDef | NotMacroDef
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 instance KillRange IsMacro where killRange = id
 instance HasRange  IsMacro where getRange _ = noRange
@@ -1090,7 +1088,7 @@ type Arity  = Nat
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !Word64
-    deriving (Eq, Ord, Typeable, Data, Generic)
+    deriving (Eq, Ord, Data, Generic)
 
 instance KillRange NameId where
   killRange = id
@@ -1118,7 +1116,7 @@ instance Hashable NameId where
 -- | A meta variable identifier is just a natural number.
 --
 newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Data)
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Data)
 
 instance Pretty MetaId where
   pretty (MetaId n) = text $ "_" ++ show n
@@ -1148,7 +1146,7 @@ data PositionInName
     -- @foo_bar@.
   | End
     -- ^ The following underscore is at the end of the name: @foo_@.
-  deriving (Show, Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Data)
 
 -- | Placeholders are used to represent the underscores in a section.
 
@@ -1157,7 +1155,7 @@ data MaybePlaceholder e
   | NoPlaceholder !(Strict.Maybe PositionInName) e
     -- ^ The second argument is used only (but not always) for name
     -- parts other than underscores.
-  deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable, Show)
+  deriving (Data, Eq, Ord, Functor, Foldable, Traversable, Show)
 
 -- | An abbreviation: @noPlaceholder = 'NoPlaceholder'
 -- 'Strict.Nothing'@.
@@ -1189,9 +1187,6 @@ newtype InteractionId = InteractionId { interactionId :: Nat }
              , Real
              , Enum
              , Data
-#if __GLASGOW_HASKELL__ <= 708
-             , Typeable
-#endif
              )
 
 instance Show InteractionId where
@@ -1212,10 +1207,10 @@ data ImportDirective' a b = ImportDirective
   , impRenaming    :: [Renaming' a b]
   , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
-  deriving (Typeable, Data, Eq)
+  deriving (Data, Eq)
 
 data Using' a b = UseEverything | Using [ImportedName' a b]
-  deriving (Typeable, Data, Eq)
+  deriving (Data, Eq)
 
 instance Semigroup (Using' a b) where
   UseEverything <> u             = u
@@ -1238,7 +1233,7 @@ isDefaultImportDir _                                             = False
 data ImportedName' a b
   = ImportedModule  b
   | ImportedName    a
-  deriving (Typeable, Data, Eq, Ord)
+  deriving (Data, Eq, Ord)
 
 setImportedName :: ImportedName' a a -> a -> ImportedName' a a
 setImportedName (ImportedName   x) y = ImportedName   y
@@ -1256,7 +1251,7 @@ data Renaming' a b = Renaming
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Typeable, Data, Eq)
+  deriving (Data, Eq)
 
 -- ** HasRange instances
 
@@ -1327,7 +1322,7 @@ data TerminationCheck m
     -- ^ Treat as terminating (unsafe).  Same effect as 'NoTerminationCheck'.
   | TerminationMeasure Range m
     -- ^ Skip termination checking but use measure instead.
-    deriving (Typeable, Data, Show, Eq, Functor)
+    deriving (Data, Show, Eq, Functor)
 
 instance KillRange m => KillRange (TerminationCheck m) where
   killRange (TerminationMeasure _ m) = TerminationMeasure noRange (killRange m)

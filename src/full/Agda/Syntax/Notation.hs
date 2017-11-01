@@ -14,7 +14,6 @@
 
 module Agda.Syntax.Notation where
 
-import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
 
@@ -22,7 +21,6 @@ import qualified Data.List as List
 import Data.Maybe
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -59,7 +57,7 @@ data GenPart
   | WildHole !Int
     -- ^ An underscore in binding position.
   | IdPart RawName
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 instance KillRange GenPart where
   killRange p = case p of

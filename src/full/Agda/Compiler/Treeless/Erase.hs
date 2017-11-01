@@ -3,7 +3,6 @@
 module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where
 
 import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)

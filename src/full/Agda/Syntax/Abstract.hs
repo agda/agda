@@ -13,7 +13,6 @@ module Agda.Syntax.Abstract
 
 import Prelude
 import Control.Arrow (first, second)
-import Control.Applicative
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -25,7 +24,6 @@ import Data.Traversable
 import Data.Void
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete.Name (NumHoles(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA, HoleContent'(..))
@@ -94,7 +92,7 @@ data Expr
   | Tactic ExprInfo Expr [NamedArg Expr] [NamedArg Expr]
                                        -- ^ @tactic e x1 .. xn | y1 | .. | yn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- | Record field assignment @f = e@.
 type Assign  = FieldAssignment' Expr
@@ -107,7 +105,7 @@ data Axiom
   = FunSig    -- ^ A function signature.
   | NoFunSig  -- ^ Not a function signature, i.e., a postulate (in user input)
               --   or another (e.g. data/record) type signature (internally).
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Data, Eq, Ord, Show)
 
 -- | Renaming (generic).
 type Ren a = [(a, a)]
@@ -115,7 +113,7 @@ type Ren a = [(a, a)]
 data ScopeCopyInfo = ScopeCopyInfo
   { renModules :: Ren ModuleName
   , renNames   :: Ren QName }
-  deriving (Eq, Show, Typeable, Data)
+  deriving (Eq, Show, Data)
 
 initCopyInfo :: ScopeCopyInfo
 initCopyInfo = ScopeCopyInfo
@@ -161,7 +159,7 @@ data Declaration
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
@@ -187,7 +185,7 @@ data ModuleApplication
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
     | RecordModuleIFS ModuleName
       -- ^ @M {{...}}@
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 data Pragma
   = OptionsPragma [String]
@@ -213,7 +211,7 @@ data Pragma
   | InjectivePragma QName
   | InlinePragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
@@ -229,7 +227,7 @@ data LetBinding
   | LetDeclaredVariable Name
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -240,12 +238,12 @@ type Field          = TypeSignature
 data LamBinding
   = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
   | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
             -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -266,15 +264,15 @@ data TypedBinding
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 type Telescope  = [TypedBindings]
 
 data NamedDotPattern = NamedDot Name I.Term I.Type
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 data StrippedDotPattern = StrippedDot Expr I.Term I.Type
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- These are not relevant for caching purposes
 instance Eq NamedDotPattern    where _ == _ = True
@@ -295,7 +293,7 @@ data Clause' lhs = Clause
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
-  } deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
+  } deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
@@ -321,7 +319,7 @@ data RHS
       -- ^ The where clauses are attached to the @RewriteRHS@ by
       ---  the scope checker (instead of to the clause).
     }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
@@ -339,7 +337,7 @@ data SpineLHS = SpineLHS
   , spLhsPats     :: [NamedArg Pattern]  -- ^ Function parameters (patterns).
   , spLhsWithPats :: [Pattern]           -- ^ @with@ patterns (after @|@).
   }
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 
 instance Eq LHS where
@@ -352,7 +350,7 @@ data LHS = LHS
   , lhsCore     :: LHSCore               -- ^ Copatterns.
   , lhsWithPats :: [Pattern]             -- ^ @with@ patterns (after @|@).
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- | The lhs minus @with@-patterns in projection-application view.
 --   Parameterised over the type @e@ of dot patterns.
@@ -369,7 +367,7 @@ data LHSCore' e
              , lhsPatsRight  :: [NamedArg (Pattern' e)]
                -- ^ Further applied to patterns.
              }
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
+  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type LHSCore = LHSCore' Expr
 
@@ -468,7 +466,7 @@ data Pattern' e
   | PatternSynP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | WithAppP PatInfo (Pattern' e) [Pattern' e] -- ^ @p | p1 | ... | pn@, for with-patterns.
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable, Eq)
+  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]

@@ -1,10 +1,6 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
 -}
@@ -25,7 +21,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding (mapM, null)
-import Control.Applicative
+import Control.Applicative ( liftA2 )
 import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
@@ -466,11 +462,7 @@ instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
         where
             flatten (x,(y,z)) = (x,y,z)
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} ToAbstract c a => ToAbstract [c] [a] where
-#else
-instance ToAbstract c a => ToAbstract [c] [a] where
-#endif
   toAbstract = mapM toAbstract
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2) =>
@@ -1193,11 +1185,7 @@ niceDecls ds = do
     Left e   -> throwError $ Exception (getRange e) $ pretty e
     Right ds -> return ds
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
-#else
-instance ToAbstract [C.Declaration] [A.Declaration] where
-#endif
   toAbstract ds = do
     -- When --safe is active the termination checker (Issue 586) and
     -- positivity checker (Issue 1614) may not be switched off, and

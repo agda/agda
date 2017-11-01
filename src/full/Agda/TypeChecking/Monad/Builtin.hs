@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Monad.Builtin where
 
-import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 

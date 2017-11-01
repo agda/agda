@@ -64,7 +64,6 @@ The differences are the following:
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce ) where
 
-import Control.Applicative
 import Control.Monad.Reader
 
 import Data.Map (Map)

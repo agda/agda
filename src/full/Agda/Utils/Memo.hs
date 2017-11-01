@@ -2,7 +2,6 @@
 
 module Agda.Utils.Memo where
 
-import Control.Applicative
 import Control.Monad.State
 import System.IO.Unsafe
 import Data.IORef
@@ -15,13 +14,7 @@ import Agda.Utils.Lens
 -- Simple memoisation in a state monad
 
 -- | Simple, non-reentrant memoisation.
-memo
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Functor m, MonadState s m)
-#else
-  :: MonadState s m
-#endif
-  => Lens' (Maybe a) s -> m a -> m a
+memo :: MonadState s m => Lens' (Maybe a) s -> m a -> m a
 memo tbl compute = do
   mv <- use tbl
   case mv of
@@ -32,13 +25,7 @@ memo tbl compute = do
 
 -- | Recursive memoisation, second argument is the value you get
 --   on recursive calls.
-memoRec
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Functor m, MonadState s m)
-#else
-  :: MonadState s m
-#endif
-  => Lens' (Maybe a) s -> a -> m a -> m a
+memoRec :: MonadState s m => Lens' (Maybe a) s -> a -> m a -> m a
 memoRec tbl ih compute = do
   mv <- use tbl
   case mv of

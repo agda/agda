@@ -4,10 +4,8 @@ module Agda.Utils.NonemptyList
   ( module Agda.Utils.NonemptyList
   , toList ) where
 
-import Control.Applicative
 import Control.Monad
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 import Data.Foldable (Foldable, toList)
 import Data.Traversable (Traversable)
 import Data.Semigroup
@@ -15,7 +13,7 @@ import qualified Data.List as List
 
 infixr 5 :!
 data NonemptyList a = (:!) { headNe :: a, tailNe :: [a] }
-  deriving (Eq, Ord, Functor, Foldable, Traversable, Typeable, Data)
+  deriving (Eq, Ord, Functor, Foldable, Traversable, Data)
 
 instance Semigroup (NonemptyList a) where
   (x :! xs) <> (y :! ys) = x :! xs ++ y : ys

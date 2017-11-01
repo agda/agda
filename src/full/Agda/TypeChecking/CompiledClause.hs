@@ -18,7 +18,6 @@ import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable, traverse)
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -33,7 +32,7 @@ import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }
-  deriving (Typeable, Data, Functor, Foldable, Traversable, Show)
+  deriving (Data, Functor, Foldable, Traversable, Show)
 
 -- | Branches in a case tree.
 
@@ -49,7 +48,7 @@ data Case c = Branches
   , catchAllBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
   }
-  deriving (Typeable, Data, Functor, Foldable, Traversable, Show)
+  deriving (Data, Functor, Foldable, Traversable, Show)
 
 -- | Case tree with bodies.
 
@@ -66,7 +65,7 @@ data CompiledClauses' a
     --   still reduce.
   | Fail
     -- ^ Absurd case.
-  deriving (Typeable, Data, Functor, Traversable, Foldable, Show)
+  deriving (Data, Functor, Traversable, Foldable, Show)
 
 type CompiledClauses = CompiledClauses' Term
 

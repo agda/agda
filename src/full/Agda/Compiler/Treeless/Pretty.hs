@@ -4,7 +4,6 @@
 module Agda.Compiler.Treeless.Pretty () where
 
 import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative
 import Control.Monad.Reader
 import Data.Maybe
 import qualified Data.Map as Map

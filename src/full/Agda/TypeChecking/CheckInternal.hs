@@ -18,7 +18,6 @@ module Agda.TypeChecking.CheckInternal
   ) where
 
 import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative
 import Control.Monad
 
 import Agda.Syntax.Common

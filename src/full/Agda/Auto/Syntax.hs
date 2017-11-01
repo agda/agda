@@ -5,10 +5,6 @@ module Agda.Auto.Syntax where
 import Data.IORef
 import qualified Data.Set as Set
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
-
 import Agda.Syntax.Common (Hiding)
 import Agda.Auto.NarrowingSearch
 

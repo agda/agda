@@ -18,8 +18,6 @@ module Agda.Termination.RecCheck
     )
  where
 
-import Control.Applicative
-
 import Data.Graph
 
 import Data.List (nub)

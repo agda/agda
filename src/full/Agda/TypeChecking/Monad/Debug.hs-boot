@@ -1,6 +1,5 @@
 module Agda.TypeChecking.Monad.Debug where
 
-import Control.Applicative
 import Control.Monad.IO.Class (MonadIO)
 
 import Agda.TypeChecking.Monad.Base

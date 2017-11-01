@@ -5,7 +5,6 @@
 
 module Agda.Compiler.MAlonzo.HaskellTypes where
 
-import Control.Applicative
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common

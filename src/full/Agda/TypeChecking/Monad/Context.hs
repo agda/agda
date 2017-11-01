@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP               #-}
-
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Context where
 
-import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -177,11 +172,7 @@ addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
 --   user-provided, but already type checked, telescope to the context.
 newtype KeepNames a = KeepNames a
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
-#else
-instance AddContext a => AddContext [a] where
-#endif
   addContext = flip (foldr addContext)
   contextSize = sum . map contextSize
 
@@ -228,11 +219,7 @@ instance AddContext Name where
   addContext x = addContext (x, dummyDom)
   contextSize _ = 1
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} AddContext String where
-#else
-instance AddContext String where
-#endif
   addContext s = addContext (s, dummyDom)
   contextSize _ = 1
 
@@ -342,13 +329,7 @@ nameOfBV n = fst . unDom <$> lookupBV n
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Applicative m, MonadReader TCEnv m)
-#else
-  :: MonadReader TCEnv m
-#endif
-  => Name -> m (Term, Dom Type)
+getVarInfo :: MonadReader TCEnv m => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asks envLetBindings

@@ -8,7 +8,6 @@ module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (mapM, any, all)
 import Control.Arrow (first, second, (***))
-import Control.Applicative
 import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)

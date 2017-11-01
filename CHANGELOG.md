@@ -1,6 +1,11 @@
 Release notes for Agda version 2.5.4
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Removed support for GHC 7.8.4.
+
 Syntax and LaTeX backend
 ------------------------
 
