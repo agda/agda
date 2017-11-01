@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin
@@ -44,6 +45,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -734,7 +736,24 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> ResolvedName -> TCM ()
 bindBuiltin b x = do
-  unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
+  unlessM ((0 ==) <$> getContextSize) $ do
+    -- Andreas, 2017-11-01, issue #2824
+    -- Only raise an error if the name for the builtin is defined in a parametrized module.
+    let failure = typeError $ BuiltinInParameterisedModule b
+    -- Get the non-empty list of AbstractName for x
+    xs <- case x of
+      VarName{}            -> failure
+      DefinedName _ x      -> return $ x :! []
+      FieldName xs         -> return xs
+      ConstructorName xs   -> return xs
+      PatternSynResName xs -> failure
+      UnknownName          -> failure
+    -- For ambiguous names, we check all of their definitions:
+    unlessM (allM xs $ ((0 ==) . size) <.> lookupSection . qnameModule . anameName) $
+      failure
+  -- Since the name was define in a parameter-free context, we can switch to the empty context.
+  -- (And we should!)
+  inTopContext $ do
   if | b == builtinRefl  -> warning $ OldBuiltin b builtinEquality
      | b == builtinZero  -> nowNat b
      | b == builtinSuc   -> nowNat b
@@ -757,9 +776,12 @@ bindUntypedBuiltin b = \case
   _ -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
 
 -- | Bind a builtin thing to a new name.
+--
+-- Since their type is closed, it does not matter whether we are in a
+-- parameterized module when we declare them.
+-- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
-bindBuiltinNoDef b q = do
-  unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
+bindBuiltinNoDef b q = inTopContext $ do
   case lookup b $ map (\ (BuiltinInfo b i) -> (b, i)) coreBuiltins of
     Just (BuiltinPostulate rel mt) -> do
       t <- mt

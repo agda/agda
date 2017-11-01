@@ -197,6 +197,27 @@ Pragmas and options
     {-# OPTIONS --caching #-}
   ```
 
+* BUILTIN pragmas can now appear before the top-level module header
+  and in parametrized modules.
+  [Issue [#2824](https://github.com/agda/agda/issues/2824)]
+  ```agda
+    {-# OPTIONS --rewriting #-}
+    open import Agda.Builtin.Equality
+    {-# BUILTIN REWRITE _≡_ #-}  -- here
+    module TopLevel (A : Set) where
+    {-# BUILTIN REWRITE _≡_ #-}  -- or here
+  ```
+  Note that the following is still illegal:
+  ```agda
+    module _ {a} {A : Set a} where
+      data _≡_ (x : A) : A → Set a where
+        refl : x ≡ x
+      {-# BUILTIN EQUALITY _≡_ #-}
+  ```
+  We cannot bind a built-in which depends on module parameters whose
+  scope we are still in.
+
+
 Release notes for Agda version 2.5.3
 ====================================
 
