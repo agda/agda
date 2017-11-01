@@ -1,4 +1,7 @@
 -- 2012-03-08 Andreas
+
+{-# OPTIONS --warning=error #-}
+
 module NoTerminationCheck2 where
 
 {-# NON_TERMINATING #-}

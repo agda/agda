@@ -182,18 +182,14 @@ data DeclarationException
         | DeclarationPanic String
         | WrongContentBlock KindOfBlock Range
         | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
-        | InvalidTerminationCheckPragma Range
         | InvalidMeasureMutual Range
           -- ^ In a mutual block, all or none need a MEASURE pragma.
           --   Range is of mutual block.
         | PragmaNoTerminationCheck Range
           -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
           --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
-        | InvalidCatchallPragma Range
         | UnquoteDefRequiresSignature [Name]
         | BadMacroDef NiceDeclaration
-        | InvalidNoPositivityCheckPragma Range
-
     deriving (Data, Show)
 
 -- | Non-fatal errors encountered in the Nicifier
@@ -210,6 +206,15 @@ data DeclarationWarning
   | EmptyInstance Range   -- ^ Empty @instance@  block
   | EmptyMacro Range      -- ^ Empty @macro@     block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
+  | InvalidTerminationCheckPragma Range
+      -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
+      --   that does not apply to any function.
+  | InvalidNoPositivityCheckPragma Range
+      -- ^ A {-# NO_POSITIVITY_CHECK #-} pragma
+      --   that does not apply to any data or record type.
+  | InvalidCatchallPragma Range
+      -- ^ A {-# CATCHALL #-} pragma
+      --   that does not precede a function clause.
   deriving (Data, Show)
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
@@ -236,13 +241,10 @@ instance HasRange DeclarationException where
   getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
-  getRange (InvalidTerminationCheckPragma r)    = r
   getRange (InvalidMeasureMutual r)             = r
   getRange (PragmaNoTerminationCheck r)         = r
-  getRange (InvalidCatchallPragma r)            = r
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
-  getRange (InvalidNoPositivityCheckPragma r)   = r
 
 instance HasRange DeclarationWarning where
   getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
@@ -257,6 +259,9 @@ instance HasRange DeclarationWarning where
   getRange (EmptyInstance r)                    = r
   getRange (EmptyMacro r)                       = r
   getRange (EmptyPostulate r)                   = r
+  getRange (InvalidTerminationCheckPragma r)    = r
+  getRange (InvalidNoPositivityCheckPragma r)   = r
+  getRange (InvalidCatchallPragma r)            = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _ _ _)         = r
@@ -319,12 +324,8 @@ instance Pretty DeclarationException where
       _ -> "Unexpected declaration"
   pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
-  pretty (InvalidTerminationCheckPragma _) = fsep $
-    pwords "Termination checking pragmas can only precede a mutual block or a function definition."
   pretty (InvalidMeasureMutual _) = fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
-  pretty (InvalidCatchallPragma _) = fsep $
-    pwords "The CATCHALL pragma can only preceed a function clause."
   pretty (UnquoteDefRequiresSignature xs) = fsep $
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
@@ -335,8 +336,6 @@ instance Pretty DeclarationException where
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
   pretty (DeclarationPanic s) = text s
-  pretty (InvalidNoPositivityCheckPragma _) = fsep $
-    pwords "No positivity checking pragmas can only precede a mutual block or a data/record definition."
 
 instance Pretty DeclarationWarning where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
@@ -357,6 +356,12 @@ instance Pretty DeclarationWarning where
   pretty (EmptyInstance  _) = fsep $ pwords "Empty instance block."
   pretty (EmptyMacro     _) = fsep $ pwords "Empty macro block."
   pretty (EmptyPostulate _) = fsep $ pwords "Empty postulate block."
+  pretty (InvalidTerminationCheckPragma _) = fsep $
+    pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
+  pretty (InvalidNoPositivityCheckPragma _) = fsep $
+    pwords "No positivity checking pragmas can only precede a data/record definition or a mutual block (that contains a data/record definition)."
+  pretty (InvalidCatchallPragma _) = fsep $
+    pwords "The CATCHALL pragma can only precede a function clause."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -996,8 +1001,9 @@ niceDeclarations ds = do
     nicePragma (TerminationCheckPragma r (TerminationMeasure _ x)) ds =
       if canHaveTerminationMeasure ds then
         withTerminationCheckPragma (TerminationMeasure r x) $ nice1 ds
-      else
-        throwError $ InvalidTerminationCheckPragma r
+      else do
+        niceWarning $ InvalidTerminationCheckPragma r
+        nice1 ds
 
     nicePragma (TerminationCheckPragma r NoTerminationCheck) ds =
       throwError $ PragmaNoTerminationCheck r
@@ -1005,20 +1011,23 @@ niceDeclarations ds = do
     nicePragma (TerminationCheckPragma r tc) ds =
       if canHaveTerminationCheckPragma ds then
         withTerminationCheckPragma tc $ nice1 ds
-      else
-        throwError $ InvalidTerminationCheckPragma r
+      else do
+        niceWarning $ InvalidTerminationCheckPragma r
+        nice1 ds
 
     nicePragma (CatchallPragma r) ds =
       if canHaveCatchallPragma ds then
         withCatchallPragma True $ nice1 ds
-      else
-        throwError $ InvalidCatchallPragma r
+      else do
+        niceWarning $ InvalidCatchallPragma r
+        nice1 ds
 
     nicePragma (NoPositivityCheckPragma r) ds =
       if canHaveNoPositivityCheckPragma ds then
         withPositivityCheckPragma False $ nice1 ds
-      else
-        throwError $ InvalidNoPositivityCheckPragma r
+      else do
+        niceWarning $ InvalidNoPositivityCheckPragma r
+        nice1 ds
 
     nicePragma (PolarityPragma{}) ds = return ([], ds)
 
@@ -1034,7 +1043,7 @@ niceDeclarations ds = do
     canHaveTerminationCheckPragma :: [Declaration] -> Bool
     canHaveTerminationCheckPragma []     = False
     canHaveTerminationCheckPragma (d:ds) = case d of
-      Mutual{}      -> True
+      Mutual _ ds   -> any (canHaveTerminationCheckPragma . singleton) ds
       TypeSig{}     -> True
       FunClause{}   -> True
       UnquoteDecl{} -> True
@@ -1051,7 +1060,7 @@ niceDeclarations ds = do
     canHaveNoPositivityCheckPragma :: [Declaration] -> Bool
     canHaveNoPositivityCheckPragma []     = False
     canHaveNoPositivityCheckPragma (d:ds) = case d of
-      Mutual{}                    -> True
+      Mutual _ ds                 -> any (canHaveNoPositivityCheckPragma . singleton) ds
       (Data _ Inductive _ _ _ _)  -> True
       (DataSig _ Inductive _ _ _) -> True
       Record{}                    -> True
@@ -1200,9 +1209,11 @@ niceDeclarations ds = do
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
-    mkClauses x (Pragma (CatchallPragma r) : cs) True  = throwError $ InvalidCatchallPragma r
+    mkClauses x (Pragma (CatchallPragma r) : cs) True  = do
+      niceWarning $ InvalidCatchallPragma r
+      mkClauses x cs True
     mkClauses x (Pragma (CatchallPragma r) : cs) False = do
-      when (null cs) $ throwError $ InvalidCatchallPragma r
+      when (null cs) $ niceWarning $ InvalidCatchallPragma r
       mkClauses x cs True
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall | isEllipsis lhs =
       (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.

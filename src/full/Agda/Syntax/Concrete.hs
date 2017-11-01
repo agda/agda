@@ -411,13 +411,18 @@ data Pragma
   | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
   | ImpossiblePragma          Range
+    -- ^ Throws an internal error in the scope checker.
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
   | TerminationCheckPragma    Range (TerminationCheck Name)
+    -- ^ Applies to the following function (and all that are mutually recursive with it)
+    --   or to the functions in the following mutual block.
   | CatchallPragma            Range
+    -- ^ Applies to the following function clause.
   | DisplayPragma             Range Pattern Expr
   | NoPositivityCheckPragma   Range
+    -- ^ Applies to the following data/record type or mutual block.
   | PolarityPragma            Range Name [Occurrence]
   deriving Data
 
