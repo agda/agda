@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Monad.Debug where
 
-import Control.Applicative
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader
 import Control.Monad.State

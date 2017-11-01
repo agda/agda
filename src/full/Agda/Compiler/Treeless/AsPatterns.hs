@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.AsPatterns (recoverAsPatterns) where
 
-import Control.Applicative
 import Control.Monad.Reader
 import Data.Monoid
 

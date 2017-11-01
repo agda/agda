@@ -93,11 +93,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 
-#if MIN_VERSION_base(4,8,0)
 import qualified Agda.Utils.List as List hiding ( uncons )
-#else
-import qualified Agda.Utils.List as List
-#endif
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

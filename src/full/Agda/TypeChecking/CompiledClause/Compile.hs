@@ -5,7 +5,6 @@ module Agda.TypeChecking.CompiledClause.Compile where
 import Prelude hiding (null)
 
 import Control.Arrow (first, second)
-import Control.Applicative
 import Control.Monad
 
 import Data.Maybe

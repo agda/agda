@@ -4,7 +4,6 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
-import Control.Applicative
 import Control.Monad.Reader
 
 import Data.Traversable as Trav hiding (mapM)

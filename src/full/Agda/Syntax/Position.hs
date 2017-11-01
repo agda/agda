@@ -4,10 +4,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
@@ -89,7 +85,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable)
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Void
@@ -129,7 +124,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-  deriving (Data, Typeable, Functor, Foldable, Traversable, Generic)
+  deriving (Data, Functor, Foldable, Traversable, Generic)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -153,7 +148,7 @@ type PositionWithoutFile = Position' ()
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-  deriving (Data, Typeable, Eq, Ord, Functor, Foldable, Traversable, Generic)
+  deriving (Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
@@ -198,7 +193,7 @@ data Range' a
   = NoRange
   | Range !a (Seq IntervalWithoutFile)
   deriving
-    (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+    (Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
 
@@ -484,36 +479,20 @@ instance KillRange Int where
 instance KillRange Integer where
   killRange = id
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
-#else
-instance KillRange a => KillRange [a] where
-#endif
   killRange = map killRange
 
 instance KillRange a => KillRange (NonemptyList a) where
   killRange = fmap killRange
 
 -- | Overlaps with @KillRange [a]@.
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} KillRange String where
-#else
-instance KillRange String where
-#endif
   killRange = id
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map k a) where
-#else
-instance KillRange a => KillRange (Map k a) where
-#endif
   killRange = fmap killRange
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} (Ord a, KillRange a) => KillRange (Set a) where
-#else
-instance (Ord a, KillRange a) => KillRange (Set a) where
-#endif
   killRange = Set.map killRange
 
 instance (KillRange a, KillRange b) => KillRange (a, b) where

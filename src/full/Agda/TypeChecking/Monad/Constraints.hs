@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Arrow ((&&&))
-import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 

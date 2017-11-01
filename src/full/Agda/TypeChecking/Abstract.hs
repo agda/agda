@@ -4,7 +4,6 @@
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
 
-import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Function

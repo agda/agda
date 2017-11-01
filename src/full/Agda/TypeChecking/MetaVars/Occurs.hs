@@ -16,7 +16,6 @@
 
 module Agda.TypeChecking.MetaVars.Occurs where
 
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 

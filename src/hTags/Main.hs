@@ -4,7 +4,6 @@
 module Main where
 
 import Control.Arrow ((&&&))
-import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans

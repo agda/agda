@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.CompiledClause.Match where
 
-import Control.Applicative
 import Control.Monad.Reader (asks)
 
 import qualified Data.List as List

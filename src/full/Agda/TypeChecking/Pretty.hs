@@ -8,10 +8,6 @@
 {-# OPTIONS_GHC -Wno-semigroup    #-}
 #endif
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 module Agda.TypeChecking.Pretty where
 
 import Prelude hiding (null)
@@ -228,11 +224,7 @@ instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where
   prettyTCM m = text "Map" <> braces (sep $ punctuate comma
     [ hang (prettyTCM k <+> text "=") 2 (prettyTCM v) | (k, v) <- Map.toList m ])
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} PrettyTCM ArgName where
-#else
-instance PrettyTCM ArgName where
-#endif
   prettyTCM = text . P.prettyShow
 
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where

@@ -11,7 +11,6 @@ module Agda.TypeChecking.RecordPatterns
   , recordPatternToProjections
   ) where
 
-import Control.Applicative
 import Control.Arrow (first, second)
 import Control.Monad.Fix
 import Control.Monad.Reader

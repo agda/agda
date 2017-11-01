@@ -4,7 +4,6 @@ module Agda.Syntax.Abstract.Copatterns (translateCopatternClauses) where
 
 import Prelude hiding (mapM)
 
-import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 

@@ -3,7 +3,6 @@
 module Agda.Utils.Map where
 
 import Prelude hiding (map, lookup, mapM)
-import Control.Applicative
 import Data.Map as Map
 import Data.Traversable
 
@@ -18,13 +17,7 @@ import Agda.Utils.Impossible
 data EitherOrBoth a b = L a | B a b | R b
 
 -- | Not very efficient (goes via a list), but it'll do.
-unionWithM
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Ord k, Functor m, Monad m)
-#else
-  :: (Ord k, Monad m)
-#endif
-  => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
+unionWithM :: (Ord k, Monad m) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
 unionWithM f m1 m2 = fromList <$> mapM combine (toList m)
     where
         m = unionWith both (map L m1) (map R m2)

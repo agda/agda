@@ -5,7 +5,6 @@
 module Agda.Main where
 
 import Control.Monad.State
-import Control.Applicative
 
 import Data.Maybe
 

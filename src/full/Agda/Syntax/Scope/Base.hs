@@ -22,7 +22,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 
-import Data.Typeable (Typeable)
 import Data.Data (Data)
 
 import Agda.Benchmarking
@@ -58,7 +57,7 @@ data Scope = Scope
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecord
       }
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Data, Eq, Show)
 
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
@@ -68,7 +67,7 @@ data NameSpaceId
   | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
                      --   but not exported when opening the module.
                      --   Used for qualified constructors.
-  deriving (Typeable, Data, Eq, Bounded, Enum, Show)
+  deriving (Data, Eq, Bounded, Enum, Show)
 
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
@@ -106,7 +105,7 @@ data ScopeInfo = ScopeInfo
       , scopeInverseModule :: Map A.ModuleName [C.QName]
       , scopeInScope       :: InScopeSet
       }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 l1 p1 _ _ _ == ScopeInfo c2 m2 l2 p2 _ _ _ =
@@ -127,7 +126,7 @@ data LocalVar = LocalVar
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 instance Eq LocalVar where
   (==) = (==) `on` localVar
@@ -180,7 +179,7 @@ data NameSpace = NameSpace
         -- ^ Maps concrete module names to a list of abstract module names.
       , nsInScope :: InScopeSet
       }
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Data, Eq, Show)
 
 type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName
@@ -228,7 +227,7 @@ data KindOfName
   | PatternSynName -- ^ Name of a pattern synonym.
   | MacroName      -- ^ Name of a macro
   | QuotableName   -- ^ A name that can only be quoted.
-  deriving (Eq, Show, Typeable, Data, Enum, Bounded)
+  deriving (Eq, Show, Data, Enum, Bounded)
 
 -- | A list containing all name kinds.
 allKindsOfNames :: [KindOfName]
@@ -245,7 +244,7 @@ data WhyInScope
     -- ^ Imported from another module.
   | Applied C.QName WhyInScope
     -- ^ Imported by a module application.
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
 data AbstractName = AbsName
@@ -256,7 +255,7 @@ data AbstractName = AbsName
   , anameLineage :: WhyInScope
     -- ^ Explanation where this name came from.
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule
@@ -265,7 +264,7 @@ data AbstractModule = AbsModule
   , amodLineage :: WhyInScope
     -- ^ Explanation where this name came from.
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 instance Eq AbstractName where
   (==) = (==) `on` anameName
@@ -309,7 +308,7 @@ data ResolvedName
 
   | -- | Unbound name.
     UnknownName
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 instance Pretty ResolvedName where
   pretty = \case

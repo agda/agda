@@ -23,7 +23,6 @@
 --
 module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment, LineNumber ) where
 
-import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Data.Char

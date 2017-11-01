@@ -12,7 +12,6 @@ We do this in a finite map, assigning consecutive numbers to nodes.
 -}
 module Agda.Utils.Warshall where
 
-import Control.Applicative
 import Control.Monad.State
 
 import Data.Maybe

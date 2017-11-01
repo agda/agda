@@ -1,6 +1,5 @@
 module Agda.TypeChecking.Monad.Options where
 
-import Control.Applicative
 import Control.Monad.Trans
 
 import Agda.Interaction.Options

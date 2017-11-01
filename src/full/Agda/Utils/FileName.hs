@@ -13,7 +13,6 @@ module Agda.Utils.FileName
   , rootPath
   ) where
 
-import Control.Applicative
 import System.Directory
 import System.FilePath
 
@@ -27,7 +26,6 @@ import qualified Data.Text as Text
 import Data.Function
 import Data.Hashable (Hashable)
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -41,7 +39,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
-  deriving (Eq, Ord, Typeable, Data, Hashable)
+  deriving (Eq, Ord, Data, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath

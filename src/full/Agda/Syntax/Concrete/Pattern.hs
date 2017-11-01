@@ -5,7 +5,7 @@
 
 module Agda.Syntax.Concrete.Pattern where
 
-import Control.Applicative
+import Control.Applicative ( liftA2 )
 import Control.Monad.Identity
 
 import Data.Foldable    (Foldable, foldMap)
@@ -68,23 +68,17 @@ class CPatternLike p where
   foldrCPattern = foldMap . foldrCPattern
 
   -- | Traverse pattern.
-  traverseCPatternM :: (Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m, Functor m
-#endif
-    ) => (Pattern -> m Pattern)  -- ^ @pre@: Modification before recursion.
-      -> (Pattern -> m Pattern)  -- ^ @post@: Modification after recursion.
-      -> p -> m p
+  traverseCPatternM
+    :: Monad m => (Pattern -> m Pattern)  -- ^ @pre@: Modification before recursion.
+    -> (Pattern -> m Pattern)  -- ^ @post@: Modification after recursion.
+    -> p -> m p
 
-  default traverseCPatternM :: (Traversable f, CPatternLike q, f q ~ p, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m, Functor m
-#endif
-    ) => (Pattern -> m Pattern)
-      -> (Pattern -> m Pattern)
-      -> p -> m p
+  default traverseCPatternM
+    :: (Traversable f, CPatternLike q, f q ~ p, Monad m)
+    => (Pattern -> m Pattern)
+    -> (Pattern -> m Pattern)
+    -> p -> m p
   traverseCPatternM pre post = traverse $ traverseCPatternM pre post
-
 
 instance CPatternLike Pattern where
   foldrCPattern f p0 = f p0 $
@@ -154,22 +148,18 @@ foldCPattern f = foldrCPattern $ \ p m -> f p `mappend` m
 
 -- | Traverse pattern(s) with a modification before the recursive descent.
 
-preTraverseCPatternM :: (CPatternLike p, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m, Functor m
-#endif
-  ) => (Pattern -> m Pattern)  -- ^ @pre@: Modification before recursion.
-    -> p -> m p
+preTraverseCPatternM
+  :: (CPatternLike p, Monad m)
+  => (Pattern -> m Pattern)  -- ^ @pre@: Modification before recursion.
+  -> p -> m p
 preTraverseCPatternM pre p = traverseCPatternM pre return p
 
 -- | Traverse pattern(s) with a modification after the recursive descent.
 
-postTraverseCPatternM :: (CPatternLike p, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m, Functor m
-#endif
-  ) => (Pattern -> m Pattern)  -- ^ @post@: Modification after recursion.
-    -> p -> m p
+postTraverseCPatternM
+  :: (CPatternLike p, Monad m)
+  => (Pattern -> m Pattern)  -- ^ @post@: Modification after recursion.
+  -> p -> m p
 postTraverseCPatternM post p = traverseCPatternM return post p
 
 -- | Map pattern(s) with a modification after the recursive descent.

@@ -6,7 +6,6 @@
 module Agda.TypeChecking.DisplayForm where
 
 import Prelude hiding (all)
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe

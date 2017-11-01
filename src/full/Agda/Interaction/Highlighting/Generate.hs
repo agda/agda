@@ -21,7 +21,6 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Reader
-import Control.Applicative
 import Control.Arrow (second)
 
 import Data.Monoid

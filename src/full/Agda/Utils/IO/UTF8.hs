@@ -10,7 +10,6 @@ module Agda.Utils.IO.UTF8
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy.IO as T
 import qualified System.IO as IO
-import Control.Applicative
 
 -- | Converts many character sequences which may be interpreted as
 -- line or paragraph separators into '\n'.

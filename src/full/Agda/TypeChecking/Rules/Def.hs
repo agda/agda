@@ -5,7 +5,6 @@ module Agda.TypeChecking.Rules.Def where
 
 import Prelude hiding (mapM)
 import Control.Arrow ((***),first,second)
-import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Reader hiding (forM, mapM)
 

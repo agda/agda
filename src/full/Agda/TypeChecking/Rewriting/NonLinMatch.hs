@@ -30,10 +30,6 @@ import Control.Monad.State
 import Debug.Trace
 import System.IO.Unsafe
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Foldable ( foldMap )
-#endif
-
 import Data.Maybe
 import Data.Traversable (Traversable,traverse)
 import Data.IntMap (IntMap)

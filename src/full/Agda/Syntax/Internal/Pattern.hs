@@ -2,13 +2,8 @@
 {-# LANGUAGE TypeFamilies           #-}  -- because of type equality ~
 {-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Applicative
 import Control.Monad.State
 
 import Data.Maybe
@@ -52,11 +47,7 @@ class FunArity a where
 
 -- | Get the number of initial 'Apply' patterns.
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} IsProjP p => FunArity [p] where
-#else
-instance IsProjP p => FunArity [p] where
-#endif
   funArity = length . takeWhile (isNothing . isProjP)
 
 -- | Get the number of initial 'Apply' patterns in a clause.
@@ -64,11 +55,7 @@ instance FunArity Clause where
   funArity = funArity . namedClausePats
 
 -- | Get the number of common initial 'Apply' patterns in a list of clauses.
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} FunArity [Clause] where
-#else
-instance FunArity [Clause] where
-#endif
   funArity []  = 0
   funArity cls = minimum $ map funArity cls
 
@@ -232,21 +219,18 @@ class PatternLike a b where
   foldrPattern = foldMap . foldrPattern
 
   -- | Traverse pattern.
-  traversePatternM :: (Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m, Functor m
-#endif
-    ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
-      -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
-      -> b -> m b
+  traversePatternM
+    :: Monad m
+    => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+    -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+    -> b -> m b
 
-  default traversePatternM :: (Traversable f, PatternLike a p, f p ~ b, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m, Functor m
-#endif
-    ) => (Pattern' a -> m (Pattern' a))
-      -> (Pattern' a -> m (Pattern' a))
-      -> b -> m b
+  default traversePatternM
+    :: (Traversable f, PatternLike a p, f p ~ b, Monad m)
+    => (Pattern' a -> m (Pattern' a))
+    -> (Pattern' a -> m (Pattern' a))
+    -> b -> m b
+
   traversePatternM pre post = traverse $ traversePatternM pre post
 
 -- | Compute from each subpattern a value and collect them all in a monoid.
@@ -256,22 +240,17 @@ foldPattern f = foldrPattern $ \ p m -> f p `mappend` m
 
 -- | Traverse pattern(s) with a modification before the recursive descent.
 
-preTraversePatternM :: (PatternLike a b, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m, Functor m
-#endif
-  ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
-    -> b -> m b
+preTraversePatternM
+  :: (PatternLike a b, Monad m)
+  => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+  -> b -> m b
 preTraversePatternM pre = traversePatternM pre return
 
 -- | Traverse pattern(s) with a modification after the recursive descent.
 
-postTraversePatternM :: (PatternLike a b, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m, Functor m
-#endif
-  ) => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
-    -> b -> m b
+postTraversePatternM :: (PatternLike a b, Monad m)
+                     => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+                     -> b -> m b
 postTraversePatternM = traversePatternM return
 
 -- This is where the action is:

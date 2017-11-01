@@ -1,8 +1,6 @@
 
 module Agda.TypeChecking.Empty (isEmptyType) where
 
-import Control.Applicative
-import Control.Monad
 import Control.Monad.Except
 
 import Data.Semigroup

@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative
 import Control.Monad.State (StateT(..), evalStateT, get, gets, put, modify)
 import Control.Monad.Reader (ReaderT(..), ask, asks)
 import Control.Monad.Writer (WriterT(..), execWriterT, runWriterT, tell)

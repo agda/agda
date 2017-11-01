@@ -7,7 +7,6 @@ import Prelude hiding (mapM, sequence)
 
 import Data.Maybe
 
-import Control.Applicative
 import Control.Arrow (first, second, (***))
 import Control.Monad hiding (mapM, forM, sequence)
 import Control.Monad.State hiding (mapM, forM, sequence)

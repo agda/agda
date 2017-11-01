@@ -6,7 +6,6 @@
 module Agda.TypeChecking.Monad.State where
 
 import Control.Arrow (first)
-import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.Reader (asks)
 import Control.Monad.State (put, get, gets, modify, modify')

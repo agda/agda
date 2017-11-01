@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
 
 -- | Generic traversal and reduce for concrete syntax,
 --   in the style of "Agda.Syntax.Internal.Generic".
@@ -6,8 +6,6 @@
 --   However, here we use the terminology of 'Data.Traversable'.
 
 module Agda.Syntax.Concrete.Generic where
-
-import Control.Applicative
 
 import Data.Traversable
 import Data.Monoid
@@ -28,13 +26,7 @@ class ExprLike a where
   mapExpr :: (Expr -> Expr) -> a -> a
   -- ^ This corresponds to 'map'.
 
-  traverseExpr
-#if __GLASGOW_HASKELL__ <= 708
-    :: (Applicative m, Monad m)
-#else
-    :: Monad m
-#endif
-    => (Expr -> m Expr) -> a -> m a
+  traverseExpr :: Monad m => (Expr -> m Expr) -> a -> m a
   -- ^ This corresponds to 'mapM'.
 
   foldExpr :: Monoid m => (Expr -> m) -> a -> m

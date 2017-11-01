@@ -4,7 +4,6 @@
 
 module Agda.TypeChecking.Serialise.Instances.Abstract where
 
-import Control.Applicative
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 

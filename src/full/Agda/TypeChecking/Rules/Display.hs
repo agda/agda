@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
-import Control.Applicative
 import Data.Maybe
 import qualified Data.List as List
 

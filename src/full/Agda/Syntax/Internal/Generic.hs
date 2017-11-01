@@ -5,7 +5,6 @@
 
 module Agda.Syntax.Internal.Generic where
 
-import Control.Applicative
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable
@@ -21,17 +20,11 @@ class TermLike a where
 
   -- | Generic traversal with post-traversal action.
   --   Ignores sorts.
-  traverseTermM :: (Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m
-#endif
-    ) => (Term -> m Term) -> a -> m a
+  traverseTermM :: Monad m => (Term -> m Term) -> a -> m a
 
-  default traverseTermM :: (Monad m, Traversable f, TermLike b, f b ~ a
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m
-#endif
-    ) => (Term -> m Term) -> a -> m a
+  default traverseTermM :: (Monad m, Traversable f, TermLike b, f b ~ a)
+                        => (Term -> m Term) -> a -> m a
+
   traverseTermM = traverse . traverseTermM
 
   -- | Generic fold, ignoring sorts.
@@ -161,9 +154,5 @@ instance TermLike EqualityView where
     EqualityType s eq l t a b -> foldTerm f (l ++ [t, a, b])
 
 -- | Put it in a monad to make it possible to do strictly.
-copyTerm :: (TermLike a, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m
-#endif
-  ) => a -> m a
+copyTerm :: (TermLike a, Monad m) => a -> m a
 copyTerm = traverseTermM return

@@ -3,10 +3,6 @@
 
 module Agda.Auto.CaseSplit where
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>), pure )
-#endif
-
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (findIndex, union)

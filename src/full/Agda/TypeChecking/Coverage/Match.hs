@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Coverage.Match where
 
-import Control.Applicative
 import Control.Monad.State
 
 import qualified Data.List as List

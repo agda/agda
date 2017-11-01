@@ -15,7 +15,6 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position (KillRange(..))
 import Agda.Utils.Functor
@@ -38,7 +37,7 @@ import Agda.Utils.Impossible
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
 data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
-  deriving (Eq, Typeable, Data)
+  deriving (Eq, Data)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
@@ -223,7 +222,7 @@ data Drop a = Drop
   { dropN    :: Int  -- ^ Non-negative number of things to drop.
   , dropFrom :: a    -- ^ Where to drop from.
   }
-  deriving (Eq, Ord, Show, Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
 
 instance KillRange a => KillRange (Drop a) where
   killRange = fmap killRange

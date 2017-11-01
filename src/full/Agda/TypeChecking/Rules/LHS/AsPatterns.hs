@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Rules.LHS.AsPatterns
   ( recoverAsPatterns ) where
 
-import Control.Applicative
+import Control.Applicative ()
 import Control.Monad.Writer hiding ((<>))
 import qualified Data.Foldable as Fold
 

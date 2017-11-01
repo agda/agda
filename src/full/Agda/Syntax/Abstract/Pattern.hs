@@ -92,21 +92,17 @@ class APatternLike a p | p -> a where
   foldrAPattern = foldMap . foldrAPattern
 
   -- | Traverse pattern.
-  traverseAPatternM :: (Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m, Functor m
-#endif
-    ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
-      -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
-      -> p -> m p
+  traverseAPatternM
+    :: Monad m
+    => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+    -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+    -> p -> m p
 
-  default traverseAPatternM :: (Traversable f, APatternLike a q, f q ~ p, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-    , Applicative m, Functor m
-#endif
-    ) => (Pattern' a -> m (Pattern' a))
-      -> (Pattern' a -> m (Pattern' a))
-      -> p -> m p
+  default traverseAPatternM
+    :: (Traversable f, APatternLike a q, f q ~ p, Monad m)
+    => (Pattern' a -> m (Pattern' a))
+    -> (Pattern' a -> m (Pattern' a))
+    -> p -> m p
   traverseAPatternM pre post = traverse $ traverseAPatternM pre post
 
 -- | Compute from each subpattern a value and collect them all in a monoid.
@@ -116,22 +112,18 @@ foldAPattern f = foldrAPattern $ \ p m -> f p `mappend` m
 
 -- | Traverse pattern(s) with a modification before the recursive descent.
 
-preTraverseAPatternM :: (APatternLike a b, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m, Functor m
-#endif
-  ) => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
-    -> b -> m b
+preTraverseAPatternM
+  :: (APatternLike a b, Monad m )
+  => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
+  -> b -> m b
 preTraverseAPatternM pre p = traverseAPatternM pre return p
 
 -- | Traverse pattern(s) with a modification after the recursive descent.
 
-postTraverseAPatternM :: (APatternLike a b, Monad m
-#if __GLASGOW_HASKELL__ <= 708
-  , Applicative m, Functor m
-#endif
-  ) => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
-    -> b -> m b
+postTraverseAPatternM
+  :: (APatternLike a b, Monad m)
+  => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+  -> b -> m b
 postTraverseAPatternM post p = traverseAPatternM return post p
 
 -- | Map pattern(s) with a modification after the recursive descent.

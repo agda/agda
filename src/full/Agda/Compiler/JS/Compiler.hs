@@ -3,7 +3,6 @@
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
-import Control.Applicative
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.Trans
 import Data.Char ( isSpace )

@@ -4,7 +4,6 @@
 
 module Agda.Interaction.Highlighting.Dot where
 
-import Control.Applicative
 import Control.Monad.State
 
 import qualified Data.Map as M

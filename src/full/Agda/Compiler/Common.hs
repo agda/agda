@@ -3,11 +3,6 @@
 
 module Agda.Compiler.Common where
 
-
-#if __GLASGOW_HASKELL__ <= 708
-import Prelude hiding (foldl, mapM_, mapM, sequence, concat)
-#endif
-
 import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map

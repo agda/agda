@@ -6,8 +6,6 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
-import Control.Applicative
-
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common

@@ -4,7 +4,7 @@
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
-import Control.Applicative
+import Control.Applicative ( Alternative((<|>), many) )
 
 import Data.Either
 import Data.Hashable

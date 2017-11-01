@@ -5,7 +5,7 @@
 
 module Agda.Syntax.Abstract.Views where
 
-import Control.Applicative
+import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
 
@@ -119,13 +119,7 @@ class ExprLike a where
   foldExpr :: Monoid m => (Expr -> m) -> a -> m
   foldExpr f = getConst . recurseExpr (\ pre post -> Const (f pre) <* post)
 
-  traverseExpr
-#if __GLASGOW_HASKELL__ <= 708
-    :: (Applicative m, Monad m)
-#else
-    :: Monad m
-#endif
-    => (Expr -> m Expr) -> a -> m a
+  traverseExpr :: (Applicative m, Monad m) => (Expr -> m Expr) -> a -> m a
   traverseExpr f = recurseExpr (\ pre post -> f =<< post)
 
   mapExpr :: (Expr -> Expr) -> (a -> a)

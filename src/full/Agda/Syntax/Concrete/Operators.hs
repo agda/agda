@@ -17,9 +17,9 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
+import Control.Applicative ( Alternative((<|>)), liftA2 )
 import Control.Arrow ((***), (&&&), first, second)
 import Control.DeepSeq
-import Control.Applicative
 import Control.Monad
 
 import Data.Either (partitionEithers)

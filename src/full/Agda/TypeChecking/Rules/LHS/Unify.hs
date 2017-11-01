@@ -122,7 +122,6 @@ import qualified Data.Map as Map
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 
-import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
 import qualified Data.Traversable as Trav
@@ -184,7 +183,7 @@ data UnificationResult' a
   = Unifies  a                    -- ^ Unification succeeded.
   | NoUnify  NegativeUnification  -- ^ Terms are not unifiable.
   | DontKnow [UnificationFailure] -- ^ Some other error happened, unification got stuck.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 -- | Unify indices.
 --

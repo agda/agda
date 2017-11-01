@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Level where
 
-import Control.Applicative
 import Data.Maybe
 import qualified Data.List as List
 import Data.Traversable (Traversable,traverse)

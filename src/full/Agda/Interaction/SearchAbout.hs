@@ -1,6 +1,5 @@
 module Agda.Interaction.SearchAbout (findMentions) where
 
-import Control.Applicative
 import Control.Monad
 
 import qualified Data.Map as Map

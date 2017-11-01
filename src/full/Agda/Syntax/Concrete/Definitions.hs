@@ -48,10 +48,6 @@ import Control.Arrow ((***), first, second)
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Foldable ( foldMap )
-#endif
-
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -62,7 +58,6 @@ import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Pattern
@@ -151,7 +146,7 @@ data NiceDeclaration
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
   | NiceUnquoteDecl Range [Fixity'] Access IsAbstract IsInstance TerminationCheck [Name] Expr
   | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
 
@@ -169,7 +164,7 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
-    deriving (Typeable, Data, Show)
+    deriving (Data, Show)
 
 -- | The exception type.
 data DeclarationException
@@ -199,7 +194,7 @@ data DeclarationException
         | BadMacroDef NiceDeclaration
         | InvalidNoPositivityCheckPragma Range
 
-    deriving (Typeable, Data, Show)
+    deriving (Data, Show)
 
 -- | Non-fatal errors encountered in the Nicifier
 data DeclarationWarning
@@ -215,7 +210,7 @@ data DeclarationWarning
   | EmptyInstance Range   -- ^ Empty @instance@  block
   | EmptyMacro Range      -- ^ Empty @macro@     block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -224,7 +219,7 @@ data KindOfBlock
   | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Data, Eq, Ord, Show)
 
 
 instance HasRange DeclarationException where
@@ -402,7 +397,7 @@ data DataRecOrFun
     -- ^ Name of a record type with parameters.
   | FunName  TerminationCheck
     -- ^ Name of a function.
-  deriving (Typeable, Data)
+  deriving Data
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where

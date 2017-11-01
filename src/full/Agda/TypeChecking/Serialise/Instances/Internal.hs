@@ -4,7 +4,6 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
-import Control.Applicative
 import Control.Monad.State.Strict
 
 import Agda.Syntax.Internal as I

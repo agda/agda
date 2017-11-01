@@ -5,10 +5,6 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
     , module Agda.Syntax.Abstract.Name
@@ -30,7 +26,6 @@ import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Sum(..))
 
 import Data.Traversable
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -72,7 +67,7 @@ data ConHead = ConHead
                               --   Empty list for data constructors.
                               --   'Arg' is not needed here since it
                               --   is stored in the constructor args.
-  } deriving (Typeable, Data, Show)
+  } deriving (Data, Show)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -123,7 +118,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
           | Shared !(Ptr Term)
             -- ^ Explicit sharing
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 type ConInfo = ConOrigin
 
@@ -133,7 +128,7 @@ data Elim' a
   = Apply (Arg a)         -- ^ Application.
   | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
   | IApply a a a -- ^ IApply x y r, x and y are the endpoints
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
@@ -172,7 +167,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -181,7 +176,7 @@ instance Decoration Abs where
 -- | Types are terms with a sort annotation.
 --
 data Type' a = El { _getSort :: Sort, unEl :: a }
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Type = Type' Term
 
@@ -208,7 +203,7 @@ instance LensSort a => LensSort (Abs a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
 
@@ -224,19 +219,19 @@ data Sort
     --   If the free variable occurs in the second sort,
     --   the whole thing should reduce to Inf,
     --   otherwise it's the normal lub.
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
 --   each of which is a number or an atom plus a number.
 --
 --   The empty maximum is the canonical representation for level 0.
 newtype Level = Max [PlusLevel]
-  deriving (Show, Typeable, Data)
+  deriving (Show, Data)
 
 data PlusLevel
   = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
   | Plus Integer LevelAtom  -- ^ @n + ℓ@.
-  deriving (Show, Typeable, Data)
+  deriving (Show, Data)
 
 -- | An atomic term of type @Level@.
 data LevelAtom
@@ -248,7 +243,7 @@ data LevelAtom
     -- ^ A neutral term of type @Level@.
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
-  deriving (Show, Typeable, Data)
+  deriving (Show, Data)
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -273,7 +268,7 @@ data NotBlocked
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Typeable, Data)
+  deriving (Show, Data)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -297,8 +292,8 @@ instance Monoid NotBlocked where
 data Blocked t
   = Blocked    { theBlockingMeta :: MetaId    , ignoreBlocking :: t }
   | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
-  -- deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
+  -- deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 -- | Blocking by a meta is dominant.
 instance Applicative Blocked where
@@ -398,7 +393,7 @@ data Clause = Clause
       --   @Just False@ means clause is not unreachable.
       --   @Just True@ means clause is unreachable.
     }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -437,7 +432,7 @@ data Pattern' x
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -449,7 +444,7 @@ varP = VarP
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: Int
-  } deriving (Typeable, Data, Show)
+  } deriving (Data, Show)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -483,7 +478,7 @@ data ConPatternInfo = ConPatternInfo
     --   Needed e.g. for with-clause stripping.
 
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo Nothing False Nothing
@@ -589,9 +584,6 @@ data Substitution' a
            , Foldable
            , Traversable
            , Data
-#if __GLASGOW_HASKELL__ <= 708
-           , Typeable
-#endif
            )
 
 type Substitution = Substitution' Term
@@ -692,13 +684,7 @@ shared_ v@(Con _ _ []) = v -- Issue 1691: sharing (zero : Nat) destroys construc
 shared_ v            = Shared (newPtr v)
 
 -- | Typically m would be TCM and f would be Blocked.
-updateSharedFM
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Applicative m, Monad m, Traversable f)
-#else
-  :: (Monad m, Traversable f)
-#endif
-  => (Term -> m (f Term)) -> Term -> m (f Term)
+updateSharedFM  :: (Monad m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
 updateSharedFM f v0@(Shared p) = do
   fv <- f (derefPtr p)
   flip traverse fv $ \v ->
@@ -1076,11 +1062,7 @@ class TermSize a where
 
   tsize :: a -> Sum Int
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} (Foldable t, TermSize a) => TermSize (t a) where
-#else
-instance (Foldable t, TermSize a) => TermSize (t a) where
-#endif
   tsize = foldMap tsize
 
 instance TermSize Term where

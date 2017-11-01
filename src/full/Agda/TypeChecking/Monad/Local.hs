@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Monad.Local where
 
-import Control.Applicative
 import Control.Monad
 import Data.Monoid
 

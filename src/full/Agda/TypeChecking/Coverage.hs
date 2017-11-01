@@ -21,10 +21,6 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Trans ( lift )
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative hiding (empty)
-#endif
-
 import Data.Either (lefts)
 import qualified Data.List as List
 import Data.Monoid (Any(..))

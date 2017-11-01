@@ -2,10 +2,6 @@
 {-# LANGUAGE IncoherentInstances       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Agda-specific benchmarking structure.

@@ -2,7 +2,6 @@
 -- | Converts case matches on literals to if cascades with equality comparisons.
 module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
-import Control.Applicative
 import Data.Maybe
 
 import Agda.Syntax.Abstract.Name (QName)

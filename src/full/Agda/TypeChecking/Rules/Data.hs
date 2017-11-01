@@ -3,7 +3,6 @@
 
 module Agda.TypeChecking.Rules.Data where
 
-import Control.Applicative
 import Control.Monad
 
 import Data.List (genericTake)

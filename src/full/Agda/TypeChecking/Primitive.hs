@@ -13,7 +13,6 @@
 module Agda.TypeChecking.Primitive where
 
 import Control.Monad
-import Control.Applicative
 import Control.Monad.Reader (asks)
 
 import Data.Char
