@@ -10,7 +10,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Control.Monad.Writer hiding (msum, forM)
 
 import Data.Either
 import Data.Maybe (fromMaybe)
