@@ -57,6 +57,7 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -247,6 +248,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
     , nest 2 $ text (show d)
     ]
   pragma <- getHaskellPragma q
+  mbool  <- getBuiltinName builtinBool
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
@@ -289,6 +291,18 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                  emptyBinds]
           ]
+
+      -- Compiling Bool
+      Datatype{} | Just q == mbool -> do
+        _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
+        let d = unqhname "d" q
+        Just true  <- getBuiltinName builtinTrue
+        Just false <- getBuiltinName builtinFalse
+        cs <- mapM compiledcondecl [false, true]
+        return $ [ compiledTypeSynonym q "Bool" 0
+                 , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                 cs
+
       Function{} | Just q == (nameOfFlat <$> kit) -> do
         let flat = unqhname "d" q
             x    = ihname "x" 0
