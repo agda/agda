@@ -4,7 +4,6 @@ module Agda.Utils.NonemptyList
   ( module Agda.Utils.NonemptyList
   , toList ) where
 
-import Control.Applicative
 import Control.Monad
 import Data.Data (Data)
 import Data.Foldable (Foldable, toList)

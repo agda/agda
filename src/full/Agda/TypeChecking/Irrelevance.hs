@@ -6,7 +6,6 @@
 module Agda.TypeChecking.Irrelevance where
 
 import Control.Arrow (first, second)
-import Control.Applicative
 import Control.Monad.Reader
 
 import qualified Data.Map as Map

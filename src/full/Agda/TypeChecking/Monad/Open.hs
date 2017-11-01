@@ -7,7 +7,6 @@ module Agda.TypeChecking.Monad.Open
         , tryOpen
         ) where
 
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 import qualified Data.List as List

@@ -18,7 +18,6 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Applicative
 import Data.Function
 import Data.Functor
 import qualified Data.List as List

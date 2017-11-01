@@ -37,7 +37,6 @@ import Data.Int
 import Data.Data (Data)
 
 import Control.Monad.State
-import Control.Applicative
 
 import Agda.Syntax.Position
 

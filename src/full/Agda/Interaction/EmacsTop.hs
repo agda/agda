@@ -3,7 +3,6 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     ) where
-import Control.Applicative
 import Control.Monad.State
 
 import Data.Char

@@ -3,7 +3,6 @@
 
 module Agda.Compiler.Treeless.Subst where
 
-import Control.Applicative
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, All(..), Any(..))

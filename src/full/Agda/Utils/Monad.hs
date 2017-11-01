@@ -12,7 +12,6 @@ import Prelude             hiding (concat)
 import Control.Monad       hiding (mapM, forM)
 import Control.Monad.State
 import Control.Monad.Writer
-import Control.Applicative
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe

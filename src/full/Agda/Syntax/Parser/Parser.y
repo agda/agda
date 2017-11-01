@@ -24,7 +24,6 @@ module Agda.Syntax.Parser.Parser (
     , splitOnDots  -- only used by the internal test-suite
     ) where
 
-import Control.Applicative
 import Control.Monad
 
 import Data.Char

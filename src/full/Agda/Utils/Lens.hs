@@ -9,7 +9,7 @@ module Agda.Utils.Lens
   , (<&>) -- reexported from Agda.Utils.Functor
   ) where
 
-import Control.Applicative
+import Control.Applicative ( Const(Const), getConst )
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer

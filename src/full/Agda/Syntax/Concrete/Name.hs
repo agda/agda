@@ -9,7 +9,6 @@
 module Agda.Syntax.Concrete.Name where
 
 import Control.DeepSeq
-import Control.Applicative
 
 import Data.ByteString.Char8 (ByteString)
 import Data.Function

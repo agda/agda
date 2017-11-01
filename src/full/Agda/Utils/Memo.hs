@@ -2,7 +2,6 @@
 
 module Agda.Utils.Memo where
 
-import Control.Applicative
 import Control.Monad.State
 import System.IO.Unsafe
 import Data.IORef

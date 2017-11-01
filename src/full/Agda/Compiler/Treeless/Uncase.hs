@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
-import Control.Applicative
 import Data.Monoid
 
 import Agda.Syntax.Treeless

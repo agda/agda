@@ -13,7 +13,6 @@ module Agda.Syntax.Abstract
 
 import Prelude
 import Control.Arrow (first, second)
-import Control.Applicative
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold

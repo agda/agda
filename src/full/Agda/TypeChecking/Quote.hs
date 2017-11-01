@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Quote where
 
-import Control.Applicative
 import Control.Arrow ((&&&))
 import Control.Monad
 import Control.Monad.State (runState, get, put)

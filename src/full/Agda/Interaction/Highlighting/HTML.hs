@@ -16,7 +16,6 @@ module Agda.Interaction.Highlighting.HTML
   ) where
 
 import Prelude hiding ((!!), concatMap)
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 

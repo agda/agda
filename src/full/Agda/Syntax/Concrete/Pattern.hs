@@ -5,7 +5,7 @@
 
 module Agda.Syntax.Concrete.Pattern where
 
-import Control.Applicative
+import Control.Applicative ( liftA2 )
 import Control.Monad.Identity
 
 import Data.Foldable    (Foldable, foldMap)

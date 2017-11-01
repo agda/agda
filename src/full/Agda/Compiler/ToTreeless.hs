@@ -5,7 +5,6 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
-import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe

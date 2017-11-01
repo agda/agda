@@ -4,7 +4,6 @@ module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (mapM)
 
-import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.State  hiding (mapM)
 

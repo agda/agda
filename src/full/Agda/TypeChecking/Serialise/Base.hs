@@ -6,7 +6,6 @@
 
 module Agda.TypeChecking.Serialise.Base where
 
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)

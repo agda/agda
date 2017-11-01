@@ -22,7 +22,6 @@ module Agda.Syntax.Translation.InternalToAbstract
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
-import Control.Applicative hiding (empty)
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 

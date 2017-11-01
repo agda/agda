@@ -4,7 +4,6 @@
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Applicative
 import Control.Monad.State
 
 import Data.Maybe

@@ -5,7 +5,6 @@
 
 module Agda.Syntax.Internal.Generic where
 
-import Control.Applicative
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable

@@ -30,7 +30,7 @@ module Agda.Utils.Parser.MemoisedCPS
   , ParserWithGrammar
   ) where
 
-import Control.Applicative
+import Control.Applicative ( Alternative((<|>), empty, many, some) )
 import Control.Monad (ap, liftM2)
 import Control.Monad.State.Strict (State, evalState, runState, get, put, modify')
 

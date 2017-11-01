@@ -28,7 +28,6 @@ module Agda.Interaction.Library
   ) where
 
 import Control.Arrow (first, second)
-import Control.Applicative
 import Control.Exception
 import Control.Monad.Writer
 import Data.Char

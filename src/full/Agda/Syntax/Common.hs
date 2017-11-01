@@ -7,7 +7,6 @@
 -}
 module Agda.Syntax.Common where
 
-import Control.Applicative
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)

@@ -25,7 +25,6 @@
  -}
 module Agda.Syntax.DoNotation (desugarDoNotation) where
 
-import Control.Applicative
 import Control.Monad
 
 import Agda.Syntax.Common

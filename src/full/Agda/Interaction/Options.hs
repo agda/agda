@@ -29,7 +29,6 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Applicative
 import Control.Monad            ( (>=>), when )
 import Control.Monad.Trans
 

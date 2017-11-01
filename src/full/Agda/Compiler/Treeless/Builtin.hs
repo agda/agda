@@ -17,8 +17,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
-import Control.Applicative
-
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Position

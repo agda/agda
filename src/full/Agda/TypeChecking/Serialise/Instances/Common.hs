@@ -7,7 +7,6 @@ module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
 import Prelude hiding (mapM)
 
-import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.State.Strict (gets, modify)
 import Control.Exception

@@ -12,7 +12,6 @@ module Agda.TypeChecking.Positivity.Occurrence
   , productOfEdgesInBoundedWalk
   ) where
 
-import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
 

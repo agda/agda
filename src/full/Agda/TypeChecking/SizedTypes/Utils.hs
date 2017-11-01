@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.SizedTypes.Utils where
 
-import Control.Applicative
 import Data.IORef
 import qualified Debug.Trace as Debug
 import System.IO.Unsafe

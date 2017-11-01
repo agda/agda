@@ -6,8 +6,6 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
-import Control.Applicative
-
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 

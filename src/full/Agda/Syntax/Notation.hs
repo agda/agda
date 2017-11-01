@@ -14,7 +14,6 @@
 
 module Agda.Syntax.Notation where
 
-import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
 

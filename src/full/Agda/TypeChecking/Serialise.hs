@@ -22,7 +22,6 @@ module Agda.TypeChecking.Serialise
   )
   where
 
-import Control.Applicative
 import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E

@@ -13,7 +13,6 @@ module Agda.Utils.Update
   , Updater2(..)
   ) where
 
-import Control.Applicative
 import Control.Monad.Identity
 import Control.Monad.Trans
 import Control.Monad.Writer.Strict

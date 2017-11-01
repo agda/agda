@@ -3,7 +3,6 @@
 module Agda.Utils.Map where
 
 import Prelude hiding (map, lookup, mapM)
-import Control.Applicative
 import Data.Map as Map
 import Data.Traversable
 

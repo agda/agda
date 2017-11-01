@@ -3,7 +3,6 @@
 module Agda.Interaction.CommandLine where
 
 import Control.Monad.Reader
-import Control.Applicative
 
 import qualified Data.List as List
 import Data.Maybe

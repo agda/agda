@@ -8,7 +8,6 @@ module Agda.Utils.Pointer
   , updatePtr, updatePtrM
   ) where
 
-import Control.Applicative
 import Control.DeepSeq
 import Control.Concurrent.MVar
 import Data.Foldable

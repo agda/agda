@@ -6,8 +6,6 @@ module Agda.Utils.AssocList where
 
 import Prelude hiding (lookup)
 
-import Control.Applicative
-
 import qualified Data.List as List
 import Data.Function
 

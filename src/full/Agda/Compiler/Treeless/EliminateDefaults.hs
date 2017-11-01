@@ -3,7 +3,6 @@
 -- constructors. Literal cases are preserved as-is.
 module Agda.Compiler.Treeless.EliminateDefaults where
 
-import Control.Applicative
 import Control.Monad
 import qualified Data.List as List
 import Data.Maybe

@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Monad.Sharing where
 
-import Control.Applicative
 import Control.Monad.Reader
 import qualified Data.List as List
 import Data.Function

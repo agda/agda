@@ -13,7 +13,6 @@ module Agda.Utils.FileName
   , rootPath
   ) where
 
-import Control.Applicative
 import System.Directory
 import System.FilePath
 

@@ -21,7 +21,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding (mapM, null)
-import Control.Applicative
+import Control.Applicative ( liftA2 )
 import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)

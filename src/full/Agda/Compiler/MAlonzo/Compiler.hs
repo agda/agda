@@ -2,7 +2,6 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 

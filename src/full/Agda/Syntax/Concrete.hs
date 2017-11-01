@@ -53,7 +53,6 @@ module Agda.Syntax.Concrete
 
 import Prelude hiding (null)
 
-import Control.Applicative
 import Control.DeepSeq
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
