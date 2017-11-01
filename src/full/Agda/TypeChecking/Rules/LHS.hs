@@ -57,7 +57,7 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.AsPatterns
-import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
+import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Split

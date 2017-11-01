@@ -155,7 +155,7 @@ import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
 
-import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
+import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
