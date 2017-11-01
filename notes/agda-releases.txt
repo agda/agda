@@ -47,12 +47,6 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-  Note: the list of contributors is duplicated in the following locations:
-
-  - Agda.cabal
-  - doc/user-manual/license.rst
-  - doc/user-manual/conf.py
-
 * Update the version numbers to $VERSION in $FILES.
 
 * Obtain and install the standard library branch related to the Agda
