@@ -148,7 +148,8 @@ ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 --- Module compilation ---
 
-type GHCModuleEnv = Maybe CoinductionKit
+data GHCModuleEnv = GHCModuleEnv
+  { coindKit :: Maybe CoinductionKit }
 
 ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv IsMain)
 ghcPreModule _ m ifile = ifM uptodate noComp yesComp
@@ -164,7 +165,7 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       out <- outFile_
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
-      Recompile <$> coinductionKit
+      Recompile <$> (GHCModuleEnv <$> coinductionKit)
 
 ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
 ghcPostModule _ _ _ _ defs = do
@@ -230,16 +231,17 @@ imports = (hsImps ++) <$> imps where
 --   flat x = x
 -- @
 
-definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
+definition :: GHCModuleEnv -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition kit Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
+definition env Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
   reportSDoc "compile.ghc.definition" 10 $
     text "Not compiling" <+> prettyTCM q <> text "."
   return []
-definition kit Defn{defName = q, defType = ty, theDef = d} = do
+definition env Defn{defName = q, defType = ty, theDef = d} = do
+  let kit  = coindKit env
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ text "Compiling" <+> prettyTCM q <> text ":"
     , nest 2 $ text (show d)
