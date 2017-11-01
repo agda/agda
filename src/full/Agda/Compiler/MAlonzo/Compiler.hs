@@ -249,6 +249,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
     ]
   pragma <- getHaskellPragma q
   mbool  <- getBuiltinName builtinBool
+  mlist  <- getBuiltinName builtinList
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
@@ -301,6 +302,21 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         cs <- mapM compiledcondecl [false, true]
         return $ [ compiledTypeSynonym q "Bool" 0
                  , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                 cs
+
+      -- Compiling List
+      Datatype{ dataPars = np } | Just q == mlist -> do
+        _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
+        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
+          fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
+        let d = unqhname "d" q
+            t = unqhname "T" q
+        Just nil  <- getBuiltinName builtinNil
+        Just cons <- getBuiltinName builtinCons
+        let vars f n = map (f . ihname "a") [0 .. n - 1]
+        cs <- mapM compiledcondecl [nil, cons]
+        return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
+                 , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                  cs
 
       Function{} | Just q == (nameOfFlat <$> kit) -> do
