@@ -19,6 +19,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
+import Agda.TypeChecking.Monad (TCM)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
@@ -159,7 +160,7 @@ instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
         firstChoice (ChooseEither : xs) = firstChoice xs
         firstChoice (x            : _ ) = x
 
-data Problem = Problem
+data Problem a = Problem
   { problemInPat    :: [NamedArg A.Pattern]
     -- ^ User patterns.
   , problemRestPats :: [NamedArg A.Pattern]
@@ -182,6 +183,7 @@ data Problem = Problem
     --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
   , problemDPI                :: [DotPatternInst]
   , problemShouldBeEmptyTypes :: [(Range,Type)]
+  , problemCont               :: LHSState a -> TCM a
   }
   deriving Show
 
@@ -241,14 +243,14 @@ data AsBinding      = AsB Name Term Type
 
 -- | State worked on during the main loop of checking a lhs.
 --   [Ulf Norell's PhD, page. 35]
-data LHSState = LHSState
+data LHSState a = LHSState
   { lhsTel     :: Telescope
     -- ^ Type of pattern variables.
   , lhsOutPat  :: [NamedArg DeBruijnPattern]
     -- ^ Patterns after splitting.
     --   The de Bruijn indices refer to positions in the list of abstract
     --   patterns in the problem, counted from the back.
-  , lhsProblem :: Problem
+  , lhsProblem :: Problem a
     -- ^ User patterns of supposed type @delta@.
   , lhsTarget  :: Arg Type
     -- ^ Type eliminated by 'problemRestPats' in the problem.
@@ -285,10 +287,3 @@ instance PP.Pretty AsBinding where
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
-
-instance Null Problem where
-  null p = null (problemInPat p)
-           && null (problemRestPats p)
-           && null (problemDPI p)
-           && null (problemShouldBeEmptyTypes p)
-  empty  = Problem empty empty empty empty

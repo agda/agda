@@ -34,8 +34,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 -- | Insert implicit patterns in a problem.
-insertImplicitProblem :: Telescope -> Problem -> TCM Problem
-insertImplicitProblem tel (Problem ps pr dpi sbe) = do
+insertImplicitProblem :: Telescope -> Problem a -> TCM (Problem a)
+insertImplicitProblem tel (Problem ps pr dpi sbe ret) = do
   reportSDoc "tc.lhs.imp" 15 $
     sep [ text "insertImplicits"
         , nest 2 $ text "ps  = " <+> do brackets $ fsep $ punctuate comma $ map prettyA ps
@@ -46,7 +46,7 @@ insertImplicitProblem tel (Problem ps pr dpi sbe) = do
     sep [ text "insertImplicits finished"
         , nest 2 $ text "ps'  = " <+> do brackets $ fsep $ punctuate comma $ map prettyA ps'
         ]
-  return $ Problem ps' pr dpi sbe
+  return $ Problem ps' pr dpi sbe ret
 
 -- | Eta-expand implicit pattern if of record type.
 expandImplicitPattern :: Type -> NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
