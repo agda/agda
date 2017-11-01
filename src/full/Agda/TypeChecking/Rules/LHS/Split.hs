@@ -79,10 +79,10 @@ import Agda.Utils.Impossible
 --
 --   Implicit patterns should have been inserted.
 
-splitProblem :: forall tcm. (MonadTCM tcm, MonadWriter Blocked_ tcm, MonadDebug tcm)
-  => LHSState  -- ^ The current state of the lhs patterns.
+splitProblem :: forall tcm b. (MonadTCM tcm, MonadWriter Blocked_ tcm, MonadDebug tcm)
+  => LHSState b  -- ^ The current state of the lhs patterns.
   -> ListT tcm SplitProblem
-splitProblem (LHSState tel qs (Problem ps pr dpi sbe) b) = do
+splitProblem (LHSState tel qs (Problem ps pr _ _ _) b) = do
   do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
     reportSDoc "tc.lhs.split" 30 $ sep
