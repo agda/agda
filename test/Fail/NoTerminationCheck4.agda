@@ -1,4 +1,7 @@
 -- 2012-03-08 Andreas
+
+{-# OPTIONS --warning=error #-}
+
 module NoTerminationCheck4 where
 
 data Bool : Set where
