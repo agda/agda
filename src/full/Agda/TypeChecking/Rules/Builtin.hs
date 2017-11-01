@@ -458,6 +458,15 @@ bindAndSetHaskellCode b hs t = do
 bindBuiltinBool :: Term -> TCM ()
 bindBuiltinBool = bindAndSetHaskellCode builtinBool "= type Bool"
 
+-- | Check that we're not trying to bind true and false to the same
+-- constructor.
+checkBuiltinBool :: TCM ()
+checkBuiltinBool = do
+  true  <- getBuiltin' builtinTrue
+  false <- getBuiltin' builtinFalse
+  when (true == false) $
+    genericError "Cannot bind TRUE and FALSE to the same constructor"
+
 bindBuiltinInt :: Term -> TCM ()
 bindBuiltinInt = bindAndSetHaskellCode builtinInteger "= type Integer"
 
@@ -572,7 +581,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let v@(Con h _ []) = name v0
             c = conName h
+
         bindBuiltinName s v
+
+        when (s `elem` [builtinFalse, builtinTrue]) checkBuiltinBool
 
       BuiltinPrim pfname axioms -> do
         case e of

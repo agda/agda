@@ -1,0 +1,3 @@
+CompileBuiltinListWarning.agda:7,1-44
+Ignoring GHC pragma for builtin lists; they always compile to
+Haskell lists.

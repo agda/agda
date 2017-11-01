@@ -11,9 +11,6 @@ data List {a} (A : Set a) : Set a where
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
 
-{-# FOREIGN GHC type AgdaList a b = [b] #-}
-
-{-# COMPILE GHC List = data AgdaList ([] | (:)) #-}
 {-# COMPILE UHC List = data __LIST__ (__NIL__ | __CONS__) #-}
 {-# COMPILE JS  List = function(x,v) {
   if (x.length < 1) { return v["[]"](); } else { return v["_∷_"](x[0], x.slice(1)); }
