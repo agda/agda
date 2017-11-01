@@ -142,9 +142,13 @@ getHaskellConstructor c = do
   cDef  <- theDef <$> getConstInfo c
   true  <- getBuiltinName builtinTrue
   false <- getBuiltinName builtinFalse
+  nil   <- getBuiltinName builtinNil
+  cons  <- getBuiltinName builtinCons
   case cDef of
     _ | Just c == true  -> return $ Just "True"
       | Just c == false -> return $ Just "False"
+      | Just c == nil   -> return $ Just "[]"
+      | Just c == cons  -> return $ Just "(:)"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of

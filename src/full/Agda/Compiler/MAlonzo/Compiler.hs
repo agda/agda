@@ -52,6 +52,7 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -143,7 +144,8 @@ ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 --- Module compilation ---
 
-type GHCModuleEnv = Maybe CoinductionKit
+data GHCModuleEnv = GHCModuleEnv
+  { coindKit :: Maybe CoinductionKit }
 
 ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv IsMain)
 ghcPreModule _ m ifile = ifM uptodate noComp yesComp
@@ -159,7 +161,7 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       out <- outFile_
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
-      Recompile <$> coinductionKit
+      Recompile <$> (GHCModuleEnv <$> coinductionKit)
 
 ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
 ghcPostModule _ _ _ _ defs = do
@@ -225,21 +227,24 @@ imports = (hsImps ++) <$> imps where
 --   flat x = x
 -- @
 
-definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
+definition :: GHCModuleEnv -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition kit Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
+definition env Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
   reportSDoc "compile.ghc.definition" 10 $
     text "Not compiling" <+> prettyTCM q <> text "."
   return []
-definition kit Defn{defName = q, defType = ty, theDef = d} = do
+definition env Defn{defName = q, defType = ty, theDef = d} = do
+  let kit  = coindKit env
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ text "Compiling" <+> prettyTCM q <> text ":"
     , nest 2 $ text (show d)
     ]
   pragma <- getHaskellPragma q
+  mbool  <- getBuiltinName builtinBool
+  mlist  <- getBuiltinName builtinList
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
 
@@ -282,6 +287,33 @@ definition kit Defn{defName = q, defType = ty, theDef = d} = do
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                  emptyBinds]
           ]
+
+      -- Compiling Bool
+      Datatype{} | Just q == mbool -> do
+        _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
+        let d = unqhname "d" q
+        Just true  <- getBuiltinName builtinTrue
+        Just false <- getBuiltinName builtinFalse
+        cs <- mapM compiledcondecl [false, true]
+        return $ [ compiledTypeSynonym q "Bool" 0
+                 , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                 cs
+
+      -- Compiling List
+      Datatype{ dataPars = np } | Just q == mlist -> do
+        _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
+        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
+          fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
+        let d = unqhname "d" q
+            t = unqhname "T" q
+        Just nil  <- getBuiltinName builtinNil
+        Just cons <- getBuiltinName builtinCons
+        let vars f n = map (f . ihname "a") [0 .. n - 1]
+        cs <- mapM compiledcondecl [nil, cons]
+        return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
+                 , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                 cs
+
       Function{} | Just q == (nameOfFlat <$> kit) -> do
         let flat = unqhname "d" q
             x    = ihname "x" 0

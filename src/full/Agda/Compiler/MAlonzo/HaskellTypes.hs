@@ -67,6 +67,7 @@ notAHaskellType a = typeError . GenericDocError =<< do
 getHsType :: QName -> TCM HaskellType
 getHsType x = do
   d <- getHaskellPragma x
+  list <- getBuiltinName builtinList
   let namedType = do
         -- For these builtin types, the type name (xhqn ...) refers to the
         -- generated, but unused, datatype and not the primitive type.
@@ -78,10 +79,11 @@ getHsType x = do
             | Just x == bool           -> return "Bool"
             | otherwise                -> prettyShow <$> xhqn "T" x
   setCurrentRange d $ case d of
-    Just HsDefn{} -> return hsUnit
-    Just HsType{} -> namedType
-    Just HsData{} -> namedType
-    _             -> notAHaskellType (El Prop $ Def x [])
+    _ | Just x == list -> prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    Just HsDefn{}      -> return hsUnit
+    Just HsType{}      -> namedType
+    Just HsData{}      -> namedType
+    _                  -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i

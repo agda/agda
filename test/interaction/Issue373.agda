@@ -19,7 +19,6 @@ data List (A : Set) : Set where
 {-# BUILTIN LIST List #-}
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
-{-# COMPILE GHC List = data [] ([] | (:)) #-}
 
 postulate
   String : Set
