@@ -4,8 +4,7 @@ cabal-version:   >= 1.10
 build-type:      Simple
 description:     Helper programs.
 license:         MIT
-tested-with:     GHC == 7.8.4
-                 GHC == 7.10.3
+tested-with:     GHC == 7.10.3
                  GHC == 8.0.2
                  GHC == 8.2.2
 
@@ -15,7 +14,7 @@ executable GenerateEverything
   default-language: Haskell2010
   build-depends:      base >= 4.8.0.0 && < 4.12
                     , filemanip >= 0.3.6.2 && < 0.4
-                    , filepath >= 1.3.0.2 && < 1.5
+                    , filepath >= 1.4.0.0 && < 1.5
 
 executable AllNonAsciiChars
   hs-source-dirs:   .
