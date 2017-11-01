@@ -1,0 +1,3 @@
+BuiltinTrueFalseDistinct.agda:7,1-27
+Cannot bind TRUE and FALSE to the same constructor
+when checking the pragma BUILTIN FALSE true
