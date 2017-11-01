@@ -975,7 +975,7 @@ instance Show MetaInstantiation where
 --
 --   Higher value means higher priority to be instantiated.
 newtype MetaPriority = MetaPriority Int
-    deriving (Eq , Ord , Show) 
+    deriving (Eq , Ord , Show)
 
 data RunMetaOccursCheck
   = RunMetaOccursCheck
