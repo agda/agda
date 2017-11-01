@@ -253,7 +253,7 @@ splitProblem (LHSState tel qs (Problem ps pr dpi sbe) b psplit) = do
       case namedArg p of
         A.EqualP _ ts -> return SplitArg
                          { splitLPats   = empty
-                         , splitFocus   = Arg ai $ PartialFocus ts qs a
+                         , splitFocus   = Arg ai $ PartialFocus ts
                          , splitRPats   = ps
                          } `mplus` keepGoing
         _             -> keepGoing

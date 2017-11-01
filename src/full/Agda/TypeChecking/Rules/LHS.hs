@@ -804,8 +804,8 @@ checkLHS f st@(LHSState tel ip problem target psplit) = do
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
 
-    trySplit (SplitArg p0 (Arg ai (PartialFocus ts ip a)) p1) ret = do
-      let (delta1, ExtendTel _ adelta2) = splitTelescopeAt (size p0) tel
+    trySplit (SplitArg p0 (Arg ai (PartialFocus ts)) p1) ret = do
+      let (delta1, ExtendTel a adelta2) = splitTelescopeAt (size p0) tel
       tel <- getContextTelescope
       reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
       tInterval <- liftTCM $ elInf primInterval
@@ -822,7 +822,7 @@ checkLHS f st@(LHSState tel ip problem target psplit) = do
                    _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
          phi <- case ts of
                    [] -> do
-                     a <- ignoreSharing <$> reduce (unEl a)
+                     a <- ignoreSharing <$> reduce (unEl $ unDom a)
                      misone <- getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | Just q == misone -> return (unArg phi)
@@ -855,11 +855,6 @@ checkLHS f st@(LHSState tel ip problem target psplit) = do
           rho0 = fmap mkConP sigma
 
           rho    = liftS (size delta2) $ consS (DotP Inserted itisone) rho0
-          -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
-          -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
-          -- rho    = [ var i | i <- [0..size delta2 - 1] ]
-          --       ++ [ raise (size delta2) $ Lit lit ]
-          --       ++ [ var i | i <- [size delta2 ..] ]
           ip'      = applySubst rho ip
           target'  = applyPatSubst rho target
 

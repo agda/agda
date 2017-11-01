@@ -195,7 +195,7 @@ data Focus
     , focusParams   :: [Arg Term]
     , focusIndices  :: [Arg Term]
     }
-  | PartialFocus [(A.Expr,A.Expr)] [NamedArg DeBruijnPattern] Type
+  | PartialFocus [(A.Expr,A.Expr)] -- [(φ₁ = b1),..,(φn = bn)]
   | LitFocus Literal
   | AbsurdFocus PatInfo
 
