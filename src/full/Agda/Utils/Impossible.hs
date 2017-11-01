@@ -7,7 +7,6 @@
 module Agda.Utils.Impossible where
 
 import Control.Exception as E
-import Data.Typeable ( Typeable )
 
 -- | \"Impossible\" errors, annotated with a file name and a line
 -- number corresponding to the source code location of the error.
@@ -21,8 +20,6 @@ data Impossible
     -- ^ @Impossible@ with a different error message.
     --   Used when we reach a program point which can in principle
     --   be reached, but not for a certain run.
-
-  deriving Typeable
 
 instance Show Impossible where
   show (Impossible file line) = unlines

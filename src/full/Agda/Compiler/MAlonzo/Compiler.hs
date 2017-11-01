@@ -2,10 +2,6 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-#if __GLASGOW_HASKELL__ <= 708
-import Prelude hiding (foldl, mapM_, mapM, sequence, concat)
-#endif
-
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)

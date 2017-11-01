@@ -12,7 +12,6 @@ module Agda.Syntax.Info where
 import Prelude hiding (null)
 
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
@@ -34,7 +33,7 @@ data MetaInfo = MetaInfo
   , metaNumber         :: Maybe MetaId
   , metaNameSuggestion :: String
   }
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 emptyMetaInfo :: MetaInfo
 emptyMetaInfo = MetaInfo
@@ -55,7 +54,7 @@ instance KillRange MetaInfo where
  --------------------------------------------------------------------------}
 
 newtype ExprInfo = ExprRange Range
-  deriving (Typeable, Data, Show, Eq, Null)
+  deriving (Data, Show, Eq, Null)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
@@ -75,7 +74,7 @@ data AppInfo = AppInfo { appRange  :: Range
                        , appOrigin :: Origin
                        , appParens :: ParenPreference -- ^ Do we prefer a appbda argument with or without parens?
                        }
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 -- | Default is system inserted and prefer parens.
 defaultAppInfo :: Range -> AppInfo
@@ -110,7 +109,7 @@ data ModuleInfo = ModuleInfo
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
-  deriving (Typeable, Data, Eq)
+  deriving (Data, Eq)
 
 deriving instance Show ModuleInfo
 
@@ -128,7 +127,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Data, Show, Eq, Null)
+  deriving (Data, Show, Eq, Null)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -148,7 +147,7 @@ data DefInfo = DefInfo
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
   }
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
 mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef NotMacroDef (DeclInfo x r)
@@ -174,7 +173,7 @@ data DeclInfo = DeclInfo
   { declName  :: Name
   , declRange :: Range
   }
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 instance HasRange DeclInfo where
   getRange = declRange
@@ -194,7 +193,7 @@ data MutualInfo = MutualInfo
   , mutualPositivityCheck :: PositivityCheck
   , mutualRange           :: Range
   }
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Data, Show, Eq)
 
 -- | Default value for 'MutualInfo'.
 instance Null MutualInfo where
@@ -211,7 +210,7 @@ instance KillRange MutualInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Data, Show, Eq, Null)
+  deriving (Data, Show, Eq, Null)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -226,7 +225,7 @@ instance KillRange LHSInfo where
 -- | For a general pattern we remember the source code position.
 newtype PatInfo
   = PatRange Range
-  deriving (Typeable, Data, Eq, Null, Show, SetRange, HasRange, KillRange)
+  deriving (Data, Eq, Null, Show, SetRange, HasRange, KillRange)
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo
@@ -239,7 +238,7 @@ data ConPatInfo = ConPatInfo
     ---  Or from a user written constructor or record pattern?
   , patInfo     :: PatInfo
   }
-  deriving (Typeable, Data, Eq)
+  deriving (Data, Eq)
 
 instance Show ConPatInfo where
   show (ConPatInfo po i) = applyWhen (po == ConOSystem) ("implicit " ++) $ show i

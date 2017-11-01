@@ -28,13 +28,7 @@ class ExprLike a where
   mapExpr :: (Expr -> Expr) -> a -> a
   -- ^ This corresponds to 'map'.
 
-  traverseExpr
-#if __GLASGOW_HASKELL__ <= 708
-    :: (Applicative m, Monad m)
-#else
-    :: Monad m
-#endif
-    => (Expr -> m Expr) -> a -> m a
+  traverseExpr :: Monad m => (Expr -> m Expr) -> a -> m a
   -- ^ This corresponds to 'mapM'.
 
   foldExpr :: Monoid m => (Expr -> m) -> a -> m

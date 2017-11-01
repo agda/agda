@@ -74,24 +74,12 @@ l %= f = modify $ over l f
 
 infix 4 %==
 -- | Modify a part of the state monadically.
-(%==)
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Functor m, MonadState o m)
-#else
-  :: MonadState o m
-#endif
-  => Lens' i o -> (i -> m i) -> m ()
+(%==) :: MonadState o m => Lens' i o -> (i -> m i) -> m ()
 l %== f = put =<< l f =<< get
 
 infix 4 %%=
 -- | Modify a part of the state monadically, and return some result.
-(%%=)
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Functor m, MonadState o m)
-#else
-  :: MonadState o m
-#endif
-  => Lens' i o -> (i -> m (i, r)) -> m r
+(%%=) :: MonadState o m => Lens' i o -> (i -> m (i, r)) -> m r
 l %%= f = do
   o <- get
   (o', r) <- runWriterT $ l (WriterT . f) o

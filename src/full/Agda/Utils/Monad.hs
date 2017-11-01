@@ -124,23 +124,11 @@ forM' = flip mapM'
 -- Lists and monads -------------------------------------------------------
 
 -- | A monadic version of @'mapMaybe' :: (a -> Maybe b) -> [a] -> [b]@.
-mapMaybeM
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Functor m, Monad m)
-#else
-  :: Monad m
-#endif
-  => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
 -- | The @for@ version of 'mapMaybeM'.
-forMaybeM
-#if __GLASGOW_HASKELL__ <= 708
-  :: (Functor m, Monad m)
-#else
-  :: Monad m
-#endif
-  => [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.

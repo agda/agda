@@ -15,14 +15,12 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Tuple
-import Data.Typeable ( Typeable )
 
 -- | Finite bijective map from @a@ to @b@.  There, and back again.
 data BiMap a b = BiMap
   { biMapThere :: Map a b
   , biMapBack  :: Map b a
   }
-  deriving (Typeable)
 
 -- | Lookup. O(log n).
 lookup :: Ord a => a -> BiMap a b -> Maybe b

@@ -61,7 +61,6 @@ import Data.List hiding (null)
 import Data.Set (Set)
 import Data.Monoid
 
-import Data.Typeable (Typeable)
 import Data.Data (Data)
 
 import Agda.Syntax.Position
@@ -86,14 +85,14 @@ data OpApp e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
 
 data FieldAssignment' a = FieldAssignment { _nameFieldA :: Name, _exprFieldA :: a }
-  deriving (Typeable, Data, Functor, Foldable, Traversable, Show, Eq)
+  deriving (Data, Functor, Foldable, Traversable, Show, Eq)
 
 type FieldAssignment = FieldAssignment' Expr
 
@@ -102,7 +101,7 @@ data ModuleAssignment  = ModuleAssignment
                            , _exprModA      :: [Expr]
                            , _importDirModA :: ImportDirective
                            }
-  deriving (Typeable, Data)
+  deriving Data
 type RecordAssignment  = Either FieldAssignment ModuleAssignment
 type RecordAssignments = [RecordAssignment]
 
@@ -168,7 +167,7 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
-  deriving (Typeable, Data)
+  deriving Data
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
@@ -196,20 +195,20 @@ data Pattern
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
   | WithAppP Range Pattern [Pattern]       -- ^ @p | p1 | ... | pn@, for with-patterns.
-  deriving (Typeable, Data)
+  deriving Data
 
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
   | DoThen Expr
   | DoLet Range [Declaration]
-  deriving (Typeable, Data)
+  deriving Data
 
 -- | A lambda binding is either domain free or typed.
 type LamBinding = LamBinding' TypedBindings
 data LamBinding' a
   = DomainFree ArgInfo BoundName  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
   | DomainFull a                  -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
@@ -222,14 +221,14 @@ type TypedBindings = TypedBindings' TypedBinding
 
 data TypedBindings' a = TypedBindings Range (Arg a)
      -- ^ . @(xs : e)@ or @{xs : e}@ or something like @(x {y} _ : e)@.
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 data BoundName = BName
   { boundName   :: Name
   , boundLabel  :: Name    -- ^ for implicit function types the label matters and can't be alpha-renamed
   , bnameFixity :: Fixity'
   }
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Data, Eq, Show)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
@@ -244,7 +243,7 @@ type TypedBinding = TypedBinding' Expr
 data TypedBinding' e
   = TBind Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
   | TLet  Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
@@ -271,7 +270,7 @@ data LHS
         , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
         }
     -- ^ original pattern, with-patterns, rewrite equations and with-expressions
-  deriving (Typeable, Data)
+  deriving Data
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
@@ -287,13 +286,12 @@ data LHSCore
              , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
              , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
              }
-  deriving (Typeable)
 
 type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.
   | RHS e
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 
 type WhereClause = WhereClause' [Declaration]
@@ -304,13 +302,13 @@ data WhereClause' decls
     -- ^ Named where: @module M where@.
     --   The 'Access' flag applies to the 'Name' (not the module contents!)
     --   and is propagated from the parent function.
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable)
 
 data LamClause = LamClause { lamLHS      :: LHS
                            , lamRHS      :: RHS
                            , lamWhere    :: WhereClause -- ^ always 'NoWhere' (see parser)
                            , lamCatchAll :: Bool }
-  deriving (Typeable, Data)
+  deriving Data
 
 -- | An expression followed by a where clause.
 --   Currently only used to give better a better error message in interaction.
@@ -331,7 +329,7 @@ data AsName = AsName
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Typeable, Data, Show)
+  deriving (Data, Show)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -377,17 +375,17 @@ data Declaration
   | UnquoteDecl Range [Name] Expr
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
-  deriving (Typeable, Data)
+  deriving Data
 
 data ModuleApplication
   = SectionApp Range [TypedBindings] Expr
     -- ^ @tel. M args@
   | RecordModuleIFS Range QName
     -- ^ @M {{...}}@
-  deriving (Typeable, Data)
+  deriving Data
 
 data OpenShortHand = DoOpen | DontOpen
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Data, Eq, Show)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -421,7 +419,7 @@ data Pragma
   | DisplayPragma             Range Pattern Expr
   | NoPositivityCheckPragma   Range
   | PolarityPragma            Range Name [Occurrence]
-  deriving (Typeable, Data)
+  deriving Data
 
 ---------------------------------------------------------------------------
 

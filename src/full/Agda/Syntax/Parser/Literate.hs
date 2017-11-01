@@ -26,10 +26,6 @@ import Data.List (isPrefixOf)
 import Agda.Syntax.Position
 import Text.Regex.TDFA
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>),(<*>))
-#endif
-
 #include "undefined.h"
 import Agda.Utils.Impossible
 

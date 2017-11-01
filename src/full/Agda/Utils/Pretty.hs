@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE DeriveDataTypeable #-}
-#endif
-
 {-| Pretty printing functions.
 -}
 module Agda.Utils.Pretty
@@ -13,10 +9,6 @@ module Agda.Utils.Pretty
 
 import Data.Int ( Int32 )
 import Data.Data (Data(..))
-
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Typeable ( Typeable )
-#endif
 
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
@@ -108,11 +100,6 @@ align max rows =
 -- | Handles strings with newlines properly (preserving indentation)
 multiLineText :: String -> Doc
 multiLineText = vcat . map text . lines
-
-
-#if __GLASGOW_HASKELL__ <= 708
-deriving instance Typeable Doc
-#endif
 
 -- cheating because you shouldn't be digging this far anyway
 instance Data Doc where

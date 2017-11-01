@@ -205,19 +205,12 @@ instance TagName name => HasTags (ConDecl name) where
 #if MIN_VERSION_ghc(8,0,0)
   tags (ConDeclGADT cns _ _)    = concatMap tagsLN cns
   tags (ConDeclH98 cn _ _ cd _) = tagsLN cn ++ tags cd
-#elif MIN_VERSION_ghc(7,10,0)
-  tags d = concatMap tagsLN (con_names d) ++ tags (con_details d)
 #else
-  tags d = tagsLN (con_name d) ++ tags (con_details d)
+  tags d = concatMap tagsLN (con_names d) ++ tags (con_details d)
 #endif
 
 instance TagName name => HasTags (ConDeclField name) where
-  tags (ConDeclField x _ _) =
-#if MIN_VERSION_ghc(7,10,0)
-     concatMap tagsLN x
-#else
-     tagsLN x
-#endif
+  tags (ConDeclField x _ _) = concatMap tagsLN x
 
 -- Dummy instance.
 instance HasTags (HsType name) where
@@ -232,11 +225,7 @@ instance TagName name => HasTags (HsBind name) where
 #if MIN_VERSION_ghc(8,0,0)
     AbsBindsSig { abs_sig_bind = bs } -> tags bs
 #endif
-#if MIN_VERSION_ghc(7,10,0)
     PatSynBind (PSB { psb_id = x })   -> tagsLN x
-#else
-    PatSynBind { patsyn_id = x }      -> tagsLN x
-#endif
 
 instance TagName name => HasTags (Pat name) where
   tags p = case p of
@@ -290,10 +279,8 @@ instance TagName name => HasTags (Sig name) where
   tags d = case d of
 #if MIN_VERSION_ghc(8,0,0)
     TypeSig x _         -> concatMap tagsLN x
-#elif MIN_VERSION_ghc(7,10,0)
-    TypeSig x _ _       -> concatMap tagsLN x
 #else
-    TypeSig x _         -> concatMap tagsLN x
+    TypeSig x _ _       -> concatMap tagsLN x
 #endif
 #if MIN_VERSION_ghc(8,2,0)
     PatSynSig x _       -> concatMap tagsLN x

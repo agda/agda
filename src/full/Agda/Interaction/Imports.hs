@@ -14,11 +14,6 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Foldable ( Foldable )
-import Data.Traversable ( Traversable, traverse )
-#endif
-
 import Data.Function (on)
 import qualified Data.Map as Map
 import qualified Data.List as List

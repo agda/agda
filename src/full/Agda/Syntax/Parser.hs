@@ -31,7 +31,6 @@ import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.List as List
-import Data.Typeable ( Typeable )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)
@@ -52,13 +51,6 @@ import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
-
-
-
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>), Applicative)
-#endif
 
 #include "undefined.h"
 import Agda.Utils.Impossible

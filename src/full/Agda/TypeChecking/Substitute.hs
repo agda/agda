@@ -2,10 +2,6 @@
 {-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | This module contains the definition of hereditary substitution
@@ -29,7 +25,6 @@ import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
 import Data.Monoid
-import Data.Typeable (Typeable)
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
@@ -202,26 +197,14 @@ instance Apply RewriteRule where
        , rewType    = applyNLPatSubst sub (rewType r)
        }
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
-#else
-instance Apply [Occ.Occurrence] where
-#endif
   apply occ args = List.drop (length args) occ
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Apply [Polarity] where
-#else
-instance Apply [Polarity] where
-#endif
   apply pol args = List.drop (length args) pol
 
 -- | Make sure we only drop variable patterns.
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
-#else
-instance Apply [NamedArg (Pattern' a)] where
-#endif
   apply ps args = loop (length args) ps
     where
     loop 0 ps = ps
@@ -438,11 +421,7 @@ instance Apply DisplayTerm where
   applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
   applyE (DWithApp v ws es') es = DWithApp v ws $ es' ++ es
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
-#else
-instance Apply t => Apply [t] where
-#endif
   apply  ts args = map (`apply` args) ts
   applyE ts es   = map (`applyE` es) ts
 
@@ -530,19 +509,11 @@ instance Abstract RewriteRule where
   abstract tel (RewriteRule q gamma f ps rhs t) =
     RewriteRule q (abstract tel gamma) f ps rhs t
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
-#else
-instance Abstract [Occ.Occurrence] where
-#endif
   abstract tel []  = []
   abstract tel occ = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Abstract [Polarity] where
-#else
-instance Abstract [Polarity] where
-#endif
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
 
@@ -633,11 +604,7 @@ instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
   abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
-#else
-instance Abstract t => Abstract [t] where
-#endif
   abstract tel = map (abstract tel)
 
 instance Abstract t => Abstract (Maybe t) where
@@ -726,11 +693,7 @@ instance Subst Term LevelAtom where
 instance Subst Term Name where
   applySubst rho = id
 
-#if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Subst Term String where
-#else
-instance Subst Term String where
-#endif
   applySubst rho = id
 
 instance Subst Term ConPatternInfo where
@@ -959,7 +922,7 @@ projDropParsApply (Projection prop d r _ lams) o args =
 
 type TelView = TelV Type
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
-  deriving (Typeable, Show, Functor)
+  deriving (Show, Functor)
 
 deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
 deriving instance (Subst t a, Ord a) => Ord (TelV a)

@@ -15,7 +15,6 @@ import Control.Arrow (first, second)
 
 import Data.Map (Map)
 import Data.Data (Data)
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -24,7 +23,7 @@ import Agda.Syntax.Abstract.Name
 data Compiled = Compiled
   { cTreeless :: TTerm
   , cArgUsage :: [Bool] }
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 type Args = [TTerm]
 
@@ -54,7 +53,7 @@ data TTerm = TVar Int
            | TErased
            | TError TError
            -- ^ A runtime error, something bad has happened.
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 -- | Compiler-related primitives. This are NOT the same thing as primitives
 -- in Agda's surface or internal syntax!
@@ -81,7 +80,7 @@ data TPrim
   | PEqQ
   | PIf
   | PSeq
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 isPrimEq :: TPrim -> Bool
 isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ]
@@ -156,7 +155,7 @@ data CaseType
   | CTString
   | CTFloat
   | CTQName
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 data TAlt
   = TACon    { aCon  :: QName, aArity :: Int, aBody :: TTerm }
@@ -166,7 +165,7 @@ data TAlt
   | TAGuard  { aGuard :: TTerm, aBody :: TTerm }
   -- ^ Binds no variables
   | TALit    { aLit :: Literal,   aBody:: TTerm }
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 data TError
   = TUnreachable
@@ -174,7 +173,7 @@ data TError
   -- Runtime behaviour of unreachable code is undefined, but preferably
   -- the program will exit with an error message. The compiler is free
   -- to assume that this code is unreachable and to remove it.
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord)
 
 
 class Unreachable a where

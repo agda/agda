@@ -21,10 +21,6 @@ import Prelude hiding (null)
 import Control.Monad.Reader
 import Control.Monad.State
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Foldable (foldMap)
-#endif
-
 import Data.Function
 import Data.List (nub, sortBy, intersperse, isInfixOf)
 import Data.Maybe

@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE DeriveDataTypeable #-}
-#endif
-
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , IgnoreFlags(..)
@@ -40,10 +36,6 @@ import Control.Monad.Trans
 import Data.Either
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
-
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Typeable            ( Typeable )
-#endif
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
@@ -90,11 +82,7 @@ data IgnoreFlags = IgnoreFlags | RespectFlags
 -- Potentially turn harmless warnings into nothing, or errors
 -- (does not apply to non-fatal errors)
 data WarningMode = LeaveAlone | TurnIntoErrors | IgnoreAllWarnings
-  deriving (Show, Eq
-#if __GLASGOW_HASKELL__ <= 708
-           , Typeable
-#endif
-           )
+  deriving (Show, Eq)
 
 warningModes :: [ (String, WarningMode) ]
 warningModes =
@@ -181,12 +169,7 @@ data PragmaOptions = PragmaOptions
     -- ^ Count extended grapheme clusters rather than code points when
     -- generating LaTeX.
   }
-  deriving ( Show
-           , Eq
-#if __GLASGOW_HASKELL__ <= 708
-           , Typeable
-#endif
-           )
+  deriving (Show, Eq)
 
 -- | The options from an @OPTIONS@ pragma.
 --

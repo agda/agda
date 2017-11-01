@@ -1,9 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE DeriveGeneric #-}
-#endif
+{-# LANGUAGE DeriveGeneric      #-}
 
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -39,12 +36,9 @@ import           Data.Data           (Data (..))
 import           Data.Semigroup      (Semigroup, Monoid, (<>), mempty, mappend)
 import           Data.Foldable       (Foldable (..))
 import           Data.Traversable    (Traversable (..))
-import           Data.Typeable       (Typeable)
 import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
                                       fromMaybe, isJust, isNothing, maybe)
-#if __GLASGOW_HASKELL__ >= 708
 import           GHC.Generics        (Generic (..))
-#endif
 
 import Agda.Utils.Null
 
@@ -57,11 +51,7 @@ toLazy Nothing  = Lazy.Nothing
 toLazy (Just x) = Lazy.Just x
 
 deriving instance Data a => Data (Maybe a)
-deriving instance Typeable Maybe
-
-#if __GLASGOW_HASKELL__ >= 708
 deriving instance Generic  (Maybe a)
-#endif
 
 instance Null (Maybe a) where
   empty = Nothing

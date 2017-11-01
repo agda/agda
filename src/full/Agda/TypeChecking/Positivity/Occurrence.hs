@@ -24,7 +24,6 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -51,7 +50,7 @@ data OccursWhere
   | Known Range (Seq Where)
     -- ^ The elements of the sequence, from left to right, explain how
     -- to get to the occurrence.
-  deriving (Show, Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Data)
 
 -- | One part of the description of an occurrence.
 data Where
@@ -65,7 +64,7 @@ data Where
   | InClause Nat     -- ^ in the nth clause of a defined function
   | Matched          -- ^ matched against in a clause of a defined function
   | InDefOf QName    -- ^ in the definition of a constant
-  deriving (Show, Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Data)
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
@@ -78,7 +77,7 @@ data Occurrence
   | StrictPos -- ^ Strictly positive occurrence.
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
   | Unused    --  ^ No occurrence.
-  deriving (Typeable, Data, Show, Eq, Ord, Enum, Bounded)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded)
 
 -- * Pretty instances
 

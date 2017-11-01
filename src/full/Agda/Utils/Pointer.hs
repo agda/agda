@@ -26,7 +26,7 @@ import Agda.Utils.Impossible
 
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
-  deriving (Typeable, Data)
+  deriving Data
 
 -- cheating because you shouldn't be digging this far anyway
 instance Typeable a => Data (IORef a) where
