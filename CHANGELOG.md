@@ -217,6 +217,27 @@ Pragmas and options
   We cannot bind a built-in which depends on module parameters whose
   scope we are still in.
 
+* Builtin `NIL` and `CONS` have been merged with `LIST`.
+
+  When binding the `LIST` builtin, `NIL` and `CONS` are bound to
+  the appropriate constructors automatically. This means that instead
+  of writing
+
+  ```agda
+  {-# BUILTIN LIST List #-}
+  {-# BUILTIN NIL  []   #-}
+  {-# BUILTIN CONS _∷_  #-}
+  ```
+
+  you just write
+
+  ```agda
+  {-# BUILTIN LIST List #-}
+  ```
+
+  Attempting to bind `NIL` or `CONS` results in a warning and has otherwise no
+  effect.
+
 
 Compiler backends
 -----------------
