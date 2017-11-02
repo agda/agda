@@ -241,7 +241,7 @@ unforce x (p : ps) =
           (mvs1, (_, Just p) : mvs2) <- return $ break (isJust . snd) (zip vs mps)
           let vs1 = map fst mvs1
               vs2 = map fst mvs2
-              ci = ConPatternInfo (Just co) Nothing
+              ci = (toConPatternInfo co) { conPLazy = True }
               dots = (map . fmap) (DotP Inserted)
           return (ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2)
         _ -> Nothing

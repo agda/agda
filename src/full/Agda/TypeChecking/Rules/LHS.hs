@@ -1023,7 +1023,9 @@ checkLHS f st@(LHSState tel ip problem target) = do
           let storedPatternType = applyPatSubst rho1 typeOfSplitVar
           -- Also remember if we are a record pattern and from an implicit pattern.
           isRec <- isRecord d
-          let cpi = ConPatternInfo (isRec $> porigin) (Just storedPatternType)
+          let cpi = ConPatternInfo { conPRecord = isRec $> porigin
+                                   , conPType   = Just storedPatternType
+                                   , conPLazy   = False }
 
           -- compute final context and permutation
           let crho2   = ConP c cpi $ applySubst rho2 $

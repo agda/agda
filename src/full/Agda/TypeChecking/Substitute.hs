@@ -696,7 +696,7 @@ instance {-# OVERLAPPING #-} Subst Term String where
   applySubst rho = id
 
 instance Subst Term ConPatternInfo where
-  applySubst rho (ConPatternInfo mr mt) = ConPatternInfo mr $ applySubst rho mt
+  applySubst rho i = i{ conPType = applySubst rho $ conPType i }
 
 instance Subst Term Pattern where
   applySubst rho p = case p of

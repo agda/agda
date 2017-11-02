@@ -363,7 +363,7 @@ instance EmbPrj I.Clause where
   value = valueN Clause
 
 instance EmbPrj I.ConPatternInfo where
-  icod_ (ConPatternInfo a b) = icodeN' ConPatternInfo a b
+  icod_ (ConPatternInfo a b c) = icodeN' ConPatternInfo a b c
 
   value = valueN ConPatternInfo
 

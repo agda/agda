@@ -126,7 +126,8 @@ bindBuiltinFlat x =
                    ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
                    EmptyTel
         infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
-        cpi      = ConPatternInfo Nothing $ Just $ defaultArg infA
+        cpi      = noConPatternInfo { conPType = Just $ defaultArg infA
+                                    , conPLazy = True }
     let clause   = Clause
           { clauseLHSRange  = noRange
           , clauseFullRange = noRange

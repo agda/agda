@@ -399,7 +399,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
             telList = telToList tel
             (_ptel,[rt]) = splitAt (size tel - 1) telList
             cpo    = if hasNamedCon then ConOCon else ConORec
-            cpi    = ConPatternInfo (Just cpo) (Just $ argFromDom $ fmap snd rt)
+            cpi    = ConPatternInfo { conPRecord = Just cpo
+                                    , conPType   = Just $ argFromDom $ fmap snd rt
+                                    , conPLazy   = True }
             conp   = defaultArg $ ConP con cpi $
                      [ Arg ai' $ unnamed $ varP "x" | Dom ai' _ <- telToList ftel ]
             body   = Just $ bodyMod $ var (size ftel2)
