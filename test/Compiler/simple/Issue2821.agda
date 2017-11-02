@@ -16,8 +16,6 @@ data List {a} (A : Set a) : Set a where
   []  : List A
 
 {-# BUILTIN LIST List #-}
-{-# BUILTIN NIL  [] #-}
-{-# BUILTIN CONS _∷_ #-}
 
 postulate
   String : Set

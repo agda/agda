@@ -47,31 +47,18 @@ and uses the :ref:`foreign-function-interface`:
 
   module HelloWorld where
 
+  open import Agda.Builtin.IO
+  open import Agda.Builtin.Unit
+  open import Agda.Builtin.String
+
+  postulate
+    putStrLn : String → IO ⊤
+
   {-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
+  {-# COMPILE GHC putStrLn = Text.putStrLn #-}
 
-  data Unit : Set where
-    unit : Unit
-
-  {-# COMPILE GHC Unit = data () (()) #-}
-
-  postulate
-    String : Set
-
-  {-# BUILTIN STRING String #-}
-
-  postulate
-    IO : Set → Set
-
-  {-# BUILTIN IO IO #-}
-  {-# COMPILE GHC IO = type IO #-}
-
-  postulate
-    putStr : String → IO Unit
-
-  {-# COMPILE GHC putStr = Text.putStr #-}
-
-  main : IO Unit
-  main = putStr "Hello, World!"
+  main : IO ⊤
+  main = putStrLn "Hello, World!"
 
 After compiling the example
 
@@ -154,4 +141,3 @@ predicate used for well-founded recursion::
 The erasure means that equality proofs will (mostly) be erased, and never
 looked at, and functions defined by well-founded recursion will ignore the
 accessibility proof.
-

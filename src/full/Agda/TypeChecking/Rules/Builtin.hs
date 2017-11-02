@@ -14,7 +14,8 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Reader (ask)
 import Control.Monad.State (get)
-import Data.List (find)
+import Data.List (find, sortBy)
+import Data.Function (on)
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
@@ -63,6 +64,9 @@ import Agda.Utils.Impossible
 
 builtinPostulate :: TCM Type -> BuiltinDescriptor
 builtinPostulate = BuiltinPostulate Relevant
+
+findBuiltinInfo :: String -> Maybe BuiltinInfo
+findBuiltinInfo b = find ((b ==) . builtinName) coreBuiltins
 
 coreBuiltins :: [BuiltinInfo]
 coreBuiltins =
@@ -573,23 +577,32 @@ bindBuiltinInt = bindAndSetHaskellCode builtinInteger "= type Integer"
 
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
-  nat <- fromMaybe __IMPOSSIBLE__ <$> getDef t
-  def <- theDef <$> getConstInfo nat
-  case def of
-    Datatype { dataCons = [c1, c2] } -> do
-      bindBuiltinName builtinNat t
-      let getArity c = arity <$> (normalise . defType =<< getConstInfo c)
-      [a1, a2] <- mapM getArity [c1, c2]
-      let (zero, suc) | a2 > a1   = (c1, c2)
-                      | otherwise = (c2, c1)
-          tnat = el primNat
-          rerange = setRange (getRange nat)
-      addHaskellPragma nat "= type Integer"
-      bindBuiltinInfo (BuiltinInfo builtinZero $ BuiltinDataCons tnat)
-                      (A.Con $ unambiguous $ rerange zero)
-      bindBuiltinInfo (BuiltinInfo builtinSuc  $ BuiltinDataCons (tnat --> tnat))
-                      (A.Con $ unambiguous $ rerange suc)
-    _ -> __IMPOSSIBLE__
+  bindBuiltinData builtinNat t
+  name <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  addHaskellPragma name "= type Integer"
+
+-- | Only use for datatypes with distinct arities of constructors.
+--   Binds the constructors together with the datatype.
+bindBuiltinData :: String -> Term -> TCM ()
+bindBuiltinData s t = do
+  bindBuiltinName s t
+  name <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  Datatype{ dataCons = cs } <- theDef <$> getConstInfo name
+  let getArity c = do
+        Constructor{ conArity = a } <- theDef <$> getConstInfo c
+        return a
+      getBuiltinArity (BuiltinDataCons t) = arity <$> t
+      getBuiltinArity _ = __IMPOSSIBLE__
+      sortByM f xs = map fst . sortBy (compare `on` snd) . zip xs <$> mapM f xs
+  -- Order constructurs by arity
+  cs <- sortByM getArity cs
+  -- Do the same for the builtins
+  let bcis = fromMaybe __IMPOSSIBLE__ $ do
+        BuiltinData _ bcs <- builtinDesc <$> findBuiltinInfo s
+        mapM findBuiltinInfo bcs
+  bcis <- sortByM (getBuiltinArity . builtinDesc) bcis
+  unless (length cs == length bcis) __IMPOSSIBLE__  -- we already checked this
+  zipWithM_ (\ c bci -> bindBuiltinInfo bci (A.Con $ unambiguous $ setRange (getRange name) c)) cs bcis
 
 bindBuiltinUnit :: Term -> TCM ()
 bindBuiltinUnit t = do
@@ -665,6 +678,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
            | s == builtinNat      -> bindBuiltinNat      v
            | s == builtinInteger  -> bindBuiltinInt      v
            | s == builtinUnit     -> bindBuiltinUnit     v
+           | s == builtinList     -> bindBuiltinData s   v
            | otherwise            -> bindBuiltinName s   v
 
       BuiltinDataCons t -> do
@@ -755,16 +769,18 @@ bindBuiltin b x = do
   -- (And we should!)
   inTopContext $ do
   if | b == builtinRefl  -> warning $ OldBuiltin b builtinEquality
-     | b == builtinZero  -> nowNat b
-     | b == builtinSuc   -> nowNat b
+     | b == builtinZero  -> now builtinNat b
+     | b == builtinSuc   -> now builtinNat b
+     | b == builtinNil   -> now builtinList b
+     | b == builtinCons  -> now builtinList b
      | b == builtinInf   -> bindBuiltinInf x
      | b == builtinSharp -> bindBuiltinSharp x
      | b == builtinFlat  -> bindBuiltinFlat x
      | b == builtinEquality -> bindBuiltinEquality x
-     | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i (A.nameExpr x)
+     | Just i <- findBuiltinInfo b -> bindBuiltinInfo i (A.nameExpr x)
      | otherwise -> typeError $ NoSuchBuiltinName b
   where
-    nowNat b = warning $ OldBuiltin b builtinNat
+    now new b = warning $ OldBuiltin b new
 
 isUntypedBuiltin :: String -> Bool
 isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
@@ -782,7 +798,7 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
-  case lookup b $ map (\ (BuiltinInfo b i) -> (b, i)) coreBuiltins of
+  case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
       t <- mt
       addConstant q $ defaultDefn (setRelevance rel defaultArgInfo) q t def

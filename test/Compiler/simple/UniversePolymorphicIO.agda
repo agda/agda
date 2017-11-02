@@ -38,7 +38,5 @@ data List A : Set where
   _∷_ : A → List A → List A
 
 {-# BUILTIN LIST List #-}
-{-# BUILTIN NIL [] #-}
-{-# BUILTIN CONS _∷_ #-}
 
 main = putStrLn "ok" >>= λ _ → return lzero
