@@ -2215,13 +2215,13 @@ checkLetBindings = foldr (.) id . map checkLetBinding
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
 checkLetBinding b@(A.LetBind i info x t e) ret =
-  traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+  traceCall (CheckLetBinding b) $ do
     t <- isType_ t
     v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t
     addLetBinding info x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
-  traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+  traceCall (CheckLetBinding b) $ do
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
