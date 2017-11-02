@@ -110,8 +110,10 @@ computeForcingAnnotations t =
       -- #2819: We can only mark an argument as forced if it appears in the
       -- type with a relevance below (i.e. more relevant) than the one of the
       -- constructor argument. Otherwise we can't actually get the value from
-      -- the type.
-      isForced m i = any (\ (m', j) -> i == j && related m' POLE m) xs
+      -- the type. Also the argument shouldn't be irrelevant, since it that
+      -- case it isn't really forced.
+      isForced m i = getRelevance m /= Irrelevant &&
+                     any (\ (m', j) -> i == j && related m' POLE m) xs
       forcedArgs =
         [ if isForced m i then Forced else NotForced
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
