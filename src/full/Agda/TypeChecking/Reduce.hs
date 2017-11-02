@@ -1234,11 +1234,12 @@ instance InstantiateFull a => InstantiateFull (WithArity a) where
   instantiateFull' (WithArity n a) = WithArity n <$> instantiateFull' a
 
 instance InstantiateFull a => InstantiateFull (Case a) where
-  instantiateFull' (Branches cop cs ls m) =
+  instantiateFull' (Branches cop cs ls m lz) =
     Branches cop
       <$> instantiateFull' cs
       <*> instantiateFull' ls
       <*> instantiateFull' m
+      <*> pure lz
 
 instance InstantiateFull CompiledClauses where
   instantiateFull' Fail        = return Fail

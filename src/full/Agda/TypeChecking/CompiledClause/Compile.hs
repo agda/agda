@@ -119,9 +119,7 @@ compileWithSplitTree shared t cs = case t of
                            , conBranches = cons
                            , litBranches = lits
                            , catchAllBranch = catchAll }
-      = Branches
-          { projPatterns   = cop
-          , conBranches    = updCons cons
+      = br{ conBranches    = updCons cons
           , litBranches    = compile shared <$> lits
           , catchAllBranch = compile shared <$> catchAll
           }

@@ -13,9 +13,10 @@ import Prelude hiding (null)
 
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
-import Data.Foldable (Foldable, foldMap)
-import Data.Traversable (Traversable, traverse)
+import Data.Semigroup hiding (Arg(..))
+import Data.Foldable hiding (null)
+import Data.Traversable
+import Data.Maybe
 
 import Data.Data (Data)
 
@@ -47,6 +48,9 @@ data Case c = Branches
     -- ^ Map from literal to case subtree.
   , catchAllBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
+  , lazyMatch :: Bool
+    -- ^ Lazy pattern match. Requires single (non-copattern) branch with no lit
+    --   branches and no catch-all.
   }
   deriving (Data, Functor, Foldable, Traversable, Show)
 
@@ -70,16 +74,27 @@ data CompiledClauses' a
 type CompiledClauses = CompiledClauses' Term
 
 litCase :: Literal -> c -> Case c
-litCase l x = Branches False Map.empty (Map.singleton l x) Nothing
+litCase l x = Branches False Map.empty (Map.singleton l x) Nothing False
 
 conCase :: QName -> WithArity c -> Case c
-conCase c x = Branches False (Map.singleton c x) Map.empty Nothing
+conCase c x = Branches False (Map.singleton c x) Map.empty Nothing False
 
 projCase :: QName -> c -> Case c
-projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing
+projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing False
 
 catchAll :: c -> Case c
-catchAll x = Branches False Map.empty Map.empty (Just x)
+catchAll x = Branches False Map.empty Map.empty (Just x) False
+
+-- | Check that the requirements on lazy matching (single inductive case) are
+--   met, and set lazy to False otherwise.
+checkLazyMatch :: Case c -> Case c
+checkLazyMatch b = b { lazyMatch = lazyMatch b && requirements }
+  where
+    requirements = and
+      [ null (catchAllBranch b)
+      , Map.size (conBranches b) <= 1
+      , null (litBranches b)
+      , not $ projPatterns b ]
 
 -- | Check whether a case tree has a catch-all clause.
 hasCatchAll :: CompiledClauses -> Bool
@@ -100,19 +115,20 @@ instance (Semigroup c, Monoid c) => Monoid (WithArity c) where
   mappend = (<>)
 
 instance Semigroup m => Semigroup (Case m) where
-  Branches cop  cs  ls  m <> Branches cop' cs' ls' m' =
+  Branches cop  cs  ls  m lazy <> Branches cop' cs' ls' m' lazy' = checkLazyMatch $
     Branches (cop || cop') -- for @projCase <> mempty@
              (Map.unionWith (<>) cs cs')
              (Map.unionWith (<>) ls ls')
              (m <> m')
+             (lazy && lazy')
 
 instance (Semigroup m, Monoid m) => Monoid (Case m) where
   mempty  = empty
   mappend = (<>)
 
 instance Null (Case m) where
-  empty = Branches False Map.empty Map.empty Nothing
-  null (Branches _cop cs ls mcatch) = null cs && null ls && null mcatch
+  empty = Branches False Map.empty Map.empty Nothing True
+  null (Branches _cop cs ls mcatch _lazy) = null cs && null ls && null mcatch
 
 -- * Pretty instances.
 
@@ -120,10 +136,11 @@ instance Pretty a => Pretty (WithArity a) where
   pretty = pretty . content
 
 instance Pretty a => Pretty (Case a) where
-  prettyPrec p (Branches _cop cs ls m) =
-    mparens (p > 0) $ vcat $
-      prettyMap cs ++ prettyMap ls ++ prC m
+  prettyPrec p (Branches _cop cs ls m lazy) =
+    mparens (p > 0) $ prLazy lazy <> vcat (prettyMap cs ++ prettyMap ls ++ prC m)
     where
+      prLazy True  = text "~"
+      prLazy False = empty
       prC Nothing = []
       prC (Just x) = [text "_ ->" <+> pretty x]
 
@@ -150,10 +167,11 @@ instance KillRange c => KillRange (WithArity c) where
   killRange = fmap killRange
 
 instance KillRange c => KillRange (Case c) where
-  killRange (Branches cop con lit all) = Branches cop
+  killRange (Branches cop con lit all lazy) = Branches cop
     (killRangeMap con)
     (killRangeMap lit)
     (killRange all)
+    lazy
 
 instance KillRange CompiledClauses where
   killRange (Case i br) = killRange2 Case i br

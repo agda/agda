@@ -397,10 +397,10 @@ instance Apply a => Apply (WithArity a) where
   applyE (WithArity n a) es   = WithArity n $ applyE a es
 
 instance Apply a => Apply (Case a) where
-  apply (Branches cop cs ls m) args =
-    Branches cop (apply cs args) (apply ls args) (apply m args)
-  applyE (Branches cop cs ls m) es =
-    Branches cop (applyE cs es) (applyE ls es) (applyE m es)
+  apply (Branches cop cs ls m lz) args =
+    Branches cop (apply cs args) (apply ls args) (apply m args) lz
+  applyE (Branches cop cs ls m lz) es =
+    Branches cop (applyE cs es) (applyE ls es) (applyE m es) lz
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
@@ -587,8 +587,8 @@ instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a
 
 instance Abstract a => Abstract (Case a) where
-  abstract tel (Branches cop cs ls m) =
-    Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m)
+  abstract tel (Branches cop cs ls m lz) =
+    Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m) lz
 
 telVars :: Int -> Telescope -> [Arg DeBruijnPattern]
 telVars m = map (fmap namedThing) . (namedTelVars m)

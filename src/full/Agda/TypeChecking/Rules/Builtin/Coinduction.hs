@@ -139,11 +139,7 @@ bindBuiltinFlat x =
           , clauseCatchall  = False
           , clauseUnreachable = Just False
           }
-        cc = Case (defaultArg 0) $ Branches False
-                               (Map.singleton sharp
-                                 $ WithArity 1 $ Done [defaultArg "x"] $ var 0)
-                               Map.empty
-                               Nothing
+        cc = Case (defaultArg 0) $ conCase sharp $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection
           { projProper   = Just inf
           , projOrig     = flat
