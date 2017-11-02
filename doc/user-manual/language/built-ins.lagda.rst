@@ -79,7 +79,7 @@ Booleans
 
   module Agda.Builtin.Bool where
 
-Built-in booleans are bound using the ``BOOLEAN``, ``TRUE`` and ``FALSE`` built-ins::
+Built-in booleans are bound using the ``BOOL``, ``TRUE`` and ``FALSE`` built-ins::
 
   data Bool : Set where
     false true : Bool
@@ -92,8 +92,9 @@ separately. The reason for this is that Agda cannot tell which constructor
 should correspond to true and which to false, since you are free to name them
 whatever you like.
 
-The only effect of binding the boolean type is that you can then use primitive
-functions returning booleans, such as built-in ``NATEQUALS``.
+The effect of binding the boolean type is that you can then use primitive
+functions returning booleans, such as built-in ``NATEQUALS``, and letting the
+:ref:`GHC backend <ghc-backend>` know to compile the type to Haskell `Bool`.
 
 ..
   ::
@@ -330,9 +331,10 @@ Built-in lists are bound using the ``LIST``, ``NIL`` and ``CONS`` built-ins::
 Even though Agda could easily tell which constructor is ``NIL`` and which is
 ``CONS`` you still have to bind them separately.
 
-As with booleans, the only effect of binding the ``LIST`` built-in is to let
+As with booleans, the effect of binding the ``LIST`` built-in is to let
 you use primitive functions working with lists, such as ``primStringToList``
-and ``primStringFromList``.
+and ``primStringFromList``, and letting the :ref:`GHC backend <ghc-backend>`
+know to compile the List type to Haskell lists.
 
 ..
   ::

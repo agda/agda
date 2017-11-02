@@ -218,6 +218,15 @@ Pragmas and options
   scope we are still in.
 
 
+Compiler backends
+-----------------
+
+* The GHC backend now automatically compiles BUILTIN LIST to Haskell lists.
+
+  This means that it's no longer necessary to give a COMPILE GHC pragma for the
+  builtin list type. Indeed, doing so has no effect on the compilation and
+  results in a warning.
+
 Release notes for Agda version 2.5.3
 ====================================
 
