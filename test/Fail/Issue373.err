@@ -1,0 +1,4 @@
+Issue373.agda:10,1-48
+Conflicting GHC pragmas for Issue373.Nat at
+  - Issue373.agda:7,1-28
+  - Issue373.agda:10,1-48
