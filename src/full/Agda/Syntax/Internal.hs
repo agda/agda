@@ -440,7 +440,7 @@ varP = VarP
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: Int
-  } deriving (Data, Show)
+  } deriving (Data, Show, Eq)
 
 type DeBruijnPattern = Pattern' DBPatVar
 

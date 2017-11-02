@@ -4,13 +4,14 @@
 
 module Agda.Syntax.Internal.Pattern where
 
+import Control.Arrow (first, second)
 import Control.Monad.State
 
 import Data.Maybe
 import Data.Monoid
 import qualified Data.List as List
-import Data.Foldable (Foldable, foldMap)
-import Data.Traversable (Traversable, traverse)
+import Data.Foldable
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (IsProjP(..))
@@ -301,4 +302,34 @@ instance CountPatternVars (Pattern' x) where
       DotP{}      -> 1   -- dot patterns are treated as variables in the clauses
       AbsurdP p   -> countPatternVars p
       _           -> 0
+
+-- Computing modalities of pattern variables ------------------------------
+
+class PatternVarModalities p x | p -> x where
+  -- | Get the list of pattern variables annotated with modalities.
+  patternVarModalities :: p -> [(x, Modality)]
+
+instance PatternVarModalities a x => PatternVarModalities [a] x where
+  patternVarModalities = foldMap patternVarModalities
+
+instance PatternVarModalities a x => PatternVarModalities (Named s a) x where
+  patternVarModalities = foldMap patternVarModalities
+
+instance PatternVarModalities a x => PatternVarModalities (Arg a) x where
+  patternVarModalities arg = map (second (m <>)) (patternVarModalities $ unArg arg)
+    where m = getModality arg
+
+instance PatternVarModalities a x => PatternVarModalities (Elim' a) x where
+  patternVarModalities (Apply x) = patternVarModalities x -- Note: x :: Arg a
+  patternVarModalities Proj{}    = []
+
+instance PatternVarModalities (Pattern' x) x where
+  patternVarModalities p =
+    case p of
+      VarP x      -> [(x, defaultModality)]
+      ConP _ _ ps -> patternVarModalities ps
+      DotP{}      -> []
+      AbsurdP{}   -> []
+      LitP{}      -> []
+      ProjP{}     -> []
 
