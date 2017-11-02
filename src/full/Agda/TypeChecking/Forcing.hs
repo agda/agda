@@ -165,19 +165,21 @@ nextIsForced (f:fs) = (f, fs)
 
 -- | Move bindings for forced variables to non-forced positions.
 forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
-forcingTranslation ps = do
-  xs <- forcedPatternVars ps
-  reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
-    [ text "patterns:" <?> pretty ps
-    , text "forced:" <?> pretty xs ]
-  case xs of
-    []    -> return ps
-    x : _ -> forcingTranslation $ unforce x ps
-    -- Termination argument:
-    --   each unforce reduces the number of constructors under dot patterns by
-    --   one, or maintains the number of constructors and reduces the number of
-    --   dot patterns by one. NOTE: no longer true, since we turn the old
-    --   binding into a dot pattern!
+forcingTranslation = go 1000
+  where
+    go 0 _ = __IMPOSSIBLE__
+    go n ps = do
+      xs <- forcedPatternVars ps
+      reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
+        [ text "patterns:" <?> pretty ps
+        , text "forced:" <?> pretty xs ]
+      case xs of
+        []    -> return ps
+        x : _ -> go (n - 1) $ unforce x ps
+          -- This should terminate, but it's not obvious that you couldn't have
+          -- a situation where you move a forced argument between two different
+          -- forced positions indefinitely. Cap it to 1000 iterations to guard
+          -- against this case.
 
 -- | Applies the forcing translation in order to update modalities of forced
 --   arguments in the telescope. This is used before checking a right-hand side
