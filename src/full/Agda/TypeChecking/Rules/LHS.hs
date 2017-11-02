@@ -8,16 +8,16 @@ import Prelude hiding (mapM, sequence)
 import Data.Maybe
 
 import Control.Arrow (first, second, (***))
-import Control.Monad hiding (mapM, forM, sequence)
-import Control.Monad.State hiding (mapM, forM, sequence)
-import Control.Monad.Reader hiding (mapM, forM, sequence)
+import Control.Monad
+import Control.Monad.State
+import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
 
 import Data.Function (on)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List (delete, sortBy, stripPrefix)
+import Data.List (delete, sortBy, stripPrefix, (\\))
 import Data.Monoid
 import Data.Traversable
 import Data.Map (Map)
@@ -46,6 +46,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.Empty
+import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -651,6 +652,11 @@ checkLeftHandSide c f ps a withSub' strippedDots = Bench.billToCPS [Bench.Typing
   inTopContext $ do
     (st@(LHSState delta qs problem@(Problem pxs rps dpi sbe) b'), block)
       <- runWriterT $ checkLHS f st0
+
+    -- Update modalities of delta to match the modalities of the variables
+    -- after the forcing translation. We can't perform the forcing translation
+    -- yet, since that would mess with with-clause stripping.
+    delta <- forceTranslateTelescope delta qs
 
     -- check linearity of the pattern,
     -- we only care about user-written variables here.

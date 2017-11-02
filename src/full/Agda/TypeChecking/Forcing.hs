@@ -58,18 +58,19 @@ conversion checking as it is forced by equality (II).
 
 module Agda.TypeChecking.Forcing where
 
-import Prelude
-
+import Control.Arrow (first, second)
 import Control.Monad
 import Data.Foldable hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
 import Data.Maybe
+import Data.List ((\\))
 
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
@@ -177,6 +178,28 @@ forcingTranslation ps = do
     --   one, or maintains the number of constructors and reduces the number of
     --   dot patterns by one. NOTE: no longer true, since we turn the old
     --   binding into a dot pattern!
+
+-- | Applies the forcing translation in order to update modalities of forced
+--   arguments in the telescope. This is used before checking a right-hand side
+--   in order to make sure all uses of forced arguments agree with the
+--   relevance of the position where the variable will ultimately be bound.
+--   Precondition: the telescope types the bound variables of the patterns.
+forceTranslateTelescope :: Telescope -> [NamedArg DeBruijnPattern] -> TCM Telescope
+forceTranslateTelescope delta qs = do
+  qs' <- forcingTranslation qs
+  let xms  = patternVarModalities qs
+      xms' = patternVarModalities qs'
+      old  = xms \\ xms'
+      new  = xms' \\ xms
+  if null new then return delta else do
+      reportSLn "tc.force" 40 $ "Updating modalities of forced arguments\n" ++
+                                "  from: " ++ show old ++ "\n" ++
+                                "  to:   " ++ show new
+      let mods    = map (first dbPatVarIndex) new
+          ms      = reverse [ lookup i mods | i <- [0..size delta - 1] ]
+          delta'  = telFromList $ zipWith (maybe id setModality) ms $ telToList delta
+      reportSDoc "tc.force" 60 $ nest 2 $ text "delta' =" <?> prettyTCM delta'
+      return delta'
 
 unforce :: DBPatVar -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
 unforce x [] = __IMPOSSIBLE__   -- unforcing cannot fail
