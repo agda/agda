@@ -58,11 +58,13 @@ conversion checking as it is forced by equality (II).
 
 module Agda.TypeChecking.Forcing where
 
-import Prelude hiding (elem, maximum)
+import Prelude
 
+import Control.Monad
 import Data.Foldable hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
+import Data.Maybe
 
 import Agda.Interaction.Options
 
@@ -73,6 +75,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty hiding ((<>))
 
 import Agda.Utils.Function
 import Agda.Utils.PartialOrd
@@ -152,3 +155,84 @@ isForced NotForced = False
 nextIsForced :: [IsForced] -> (IsForced, [IsForced])
 nextIsForced []     = (NotForced, [])
 nextIsForced (f:fs) = (f, fs)
+
+-----------------------------------------------------------------------------
+-- * Forcing translation
+-----------------------------------------------------------------------------
+
+-- | Move bindings for forced variables to non-forced positions.
+forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
+forcingTranslation ps = do
+  xs <- forcedPatternVars ps
+  reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
+    [ text "patterns:" <?> pretty ps
+    , text "forced:" <?> pretty xs ]
+  case xs of
+    []    -> return ps
+    x : _ -> forcingTranslation $ unforce x ps
+    -- Termination argument:
+    --   each unforce reduces the number of constructors under dot patterns by
+    --   one, or maintains the number of constructors and reduces the number of
+    --   dot patterns by one. NOTE: no longer true, since we turn the old
+    --   binding into a dot pattern!
+
+unforce :: DBPatVar -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+unforce x [] = __IMPOSSIBLE__   -- unforcing cannot fail
+unforce x (p : ps) =
+  case namedArg p of
+    VarP y -> fmap (mkDot x (VarP y) <$) p : unforce x ps
+    DotP _ v | Just q <- mkPat x v -> (fmap (q <$) p : (fmap . fmap . fmap) (mkDot x) ps)
+    DotP{} -> p : unforce x ps
+    ConP c i qs -> fmap (ConP c i qs' <$) p : ps'
+      where
+        qps        = unforce x (qs ++ ps)
+        (qs', ps') = splitAt (length qs) qps
+    AbsurdP q -> (fmap . fmap) AbsurdP q' : ps'
+      where q' : ps' = unforce x (fmap (q <$) p : ps)
+    LitP{} -> p : unforce x ps
+    ProjP{} -> p : unforce x ps
+  where
+    -- Turn the binding of x into a dot pattern
+    mkDot :: DBPatVar -> DeBruijnPattern -> DeBruijnPattern
+    mkDot x p = case p of
+      VarP y | dbPatVarIndex x == dbPatVarIndex y
+                      -> DotP Inserted (Var (dbPatVarIndex y) [])
+      VarP{}          -> p
+      DotP{}          -> p
+      ConP c i ps     -> ConP c i $ (fmap . fmap . fmap) (mkDot x) ps
+      AbsurdP p       -> AbsurdP (mkDot x p)
+      LitP{}          -> p
+      ProjP{}         -> p
+
+    -- Try to turn a term in a dot pattern into a binding of x
+    mkPat :: DBPatVar -> Term -> Maybe DeBruijnPattern
+    mkPat x v =
+      case v of
+        Var i [] | i == dbPatVarIndex x -> Just (VarP x)
+        Con c co vs -> do
+          let mps = (map . traverse) (mkPat x) vs
+          (mvs1, (_, Just p) : mvs2) <- return $ break (isJust . snd) (zip vs mps)
+          let vs1 = map fst mvs1
+              vs2 = map fst mvs2
+              ci = ConPatternInfo (Just co) Nothing
+              dots = (map . fmap) (DotP Inserted)
+          return (ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2)
+        _ -> Nothing
+      where
+        doname = (map . fmap) unnamed
+
+forcedPatternVars :: [NamedArg (Pattern' x)] -> TCM [x]
+forcedPatternVars ps = concat <$> mapM (forced NotForced . namedArg) ps
+  where
+    forced :: IsForced -> Pattern' x -> TCM [x]
+    forced f p =
+      case p of
+        VarP x  -> return [x | f == Forced]
+        DotP{}  -> return []
+        ConP c _ args -> do
+          fs <- defForced <$> getConstInfo (conName c)
+          concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
+        AbsurdP{} -> return []
+        LitP{}    -> return []
+        ProjP{}   -> return []
+
