@@ -180,7 +180,7 @@ fastCompiledClauses z s cc =
     Case (Arg _ n) bs -> FCase n (fastCase z s bs)
 
 fastCase :: Maybe ConHead -> Maybe ConHead -> Case CompiledClauses -> FastCase FastCompiledClauses
-fastCase z s (Branches proj con lit wild fT) =
+fastCase z s (Branches proj con lit wild fT _) =
   FBranches
     { fprojPatterns   = proj
     , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses z s . content) con

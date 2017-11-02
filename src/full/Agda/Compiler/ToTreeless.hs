@@ -172,14 +172,14 @@ casetree cc = do
       -- if some arguments are not used in the body.
       v <- lift (putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v)
       substTerm v
-    CC.Case _ (CC.Branches True _ _ Just{} _) -> __IMPOSSIBLE__
+    CC.Case _ (CC.Branches True _ _ Just{} _ _) -> __IMPOSSIBLE__
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
       -- lift $ do
       --   typeError . GenericDocError =<< do
       --     text "Not yet implemented: compilation of copattern matching with catch-all clause"
-    CC.Case (Arg _ n) (CC.Branches True conBrs _ Nothing _) -> lambdasUpTo n $ do
+    CC.Case (Arg _ n) (CC.Branches True conBrs _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
-    CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll _) -> lambdasUpTo (n + 1) $ do
+    CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
         fromCatchAll
@@ -197,7 +197,7 @@ casetree cc = do
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
           def <- fromCatchAll
-          C.TCase x caseTy def <$> do
+          C.TCase x caseTy def <$> do -- TODO: lazy match
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)
@@ -213,12 +213,12 @@ commonArity cc =
     [] -> 0
     as -> minimum as
   where
-    arities cxt (Case (Arg _ x) (Branches False cons lits def _)) =
+    arities cxt (Case (Arg _ x) (Branches False cons lits def _ _)) =
       concatMap (wArities cxt') (Map.elems cons) ++
       concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
       concat [ arities cxt' c | Just c <- [def] ] -- ??
       where cxt' = max (x + 1) cxt
-    arities cxt (Case _ (Branches True _ _ _ _)) = [cxt]
+    arities cxt (Case _ Branches{projPatterns = True}) = [cxt]
     arities cxt (Done xs _) = [max cxt (length xs)]
     arities _   Fail        = []
 

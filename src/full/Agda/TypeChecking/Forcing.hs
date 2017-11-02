@@ -58,21 +58,25 @@ conversion checking as it is forced by equality (II).
 
 module Agda.TypeChecking.Forcing where
 
-import Prelude hiding (elem, maximum)
-
+import Control.Arrow (first, second)
+import Control.Monad
 import Data.Foldable hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
+import Data.Maybe
+import Data.List ((\\))
 
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty hiding ((<>))
 
 import Agda.Utils.Function
 import Agda.Utils.PartialOrd
@@ -107,8 +111,10 @@ computeForcingAnnotations t =
       -- #2819: We can only mark an argument as forced if it appears in the
       -- type with a relevance below (i.e. more relevant) than the one of the
       -- constructor argument. Otherwise we can't actually get the value from
-      -- the type.
-      isForced m i = any (\ (m', j) -> i == j && related m' POLE m) xs
+      -- the type. Also the argument shouldn't be irrelevant, since it that
+      -- case it isn't really forced.
+      isForced m i = getRelevance m /= Irrelevant &&
+                     any (\ (m', j) -> i == j && related m' POLE m) xs
       forcedArgs =
         [ if isForced m i then Forced else NotForced
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
@@ -153,3 +159,108 @@ isForced NotForced = False
 nextIsForced :: [IsForced] -> (IsForced, [IsForced])
 nextIsForced []     = (NotForced, [])
 nextIsForced (f:fs) = (f, fs)
+
+-----------------------------------------------------------------------------
+-- * Forcing translation
+-----------------------------------------------------------------------------
+
+-- | Move bindings for forced variables to non-forced positions.
+forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
+forcingTranslation = go 1000
+  where
+    go 0 _ = __IMPOSSIBLE__
+    go n ps = do
+      xs <- forcedPatternVars ps
+      reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
+        [ text "patterns:" <?> pretty ps
+        , text "forced:" <?> pretty xs ]
+      case xs of
+        []    -> return ps
+        x : _ -> go (n - 1) $ unforce x ps
+          -- This should terminate, but it's not obvious that you couldn't have
+          -- a situation where you move a forced argument between two different
+          -- forced positions indefinitely. Cap it to 1000 iterations to guard
+          -- against this case.
+
+-- | Applies the forcing translation in order to update modalities of forced
+--   arguments in the telescope. This is used before checking a right-hand side
+--   in order to make sure all uses of forced arguments agree with the
+--   relevance of the position where the variable will ultimately be bound.
+--   Precondition: the telescope types the bound variables of the patterns.
+forceTranslateTelescope :: Telescope -> [NamedArg DeBruijnPattern] -> TCM Telescope
+forceTranslateTelescope delta qs = do
+  qs' <- forcingTranslation qs
+  let xms  = patternVarModalities qs
+      xms' = patternVarModalities qs'
+      old  = xms \\ xms'
+      new  = xms' \\ xms
+  if null new then return delta else do
+      reportSLn "tc.force" 40 $ "Updating modalities of forced arguments\n" ++
+                                "  from: " ++ show old ++ "\n" ++
+                                "  to:   " ++ show new
+      let mods    = map (first dbPatVarIndex) new
+          ms      = reverse [ lookup i mods | i <- [0..size delta - 1] ]
+          delta'  = telFromList $ zipWith (maybe id setModality) ms $ telToList delta
+      reportSDoc "tc.force" 60 $ nest 2 $ text "delta' =" <?> prettyTCM delta'
+      return delta'
+
+unforce :: DBPatVar -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+unforce x [] = __IMPOSSIBLE__   -- unforcing cannot fail
+unforce x (p : ps) =
+  case namedArg p of
+    VarP y -> fmap (mkDot x (VarP y) <$) p : unforce x ps
+    DotP _ v | Just q <- mkPat x v -> (fmap (q <$) p : (fmap . fmap . fmap) (mkDot x) ps)
+    DotP{} -> p : unforce x ps
+    ConP c i qs -> fmap (ConP c i qs' <$) p : ps'
+      where
+        qps        = unforce x (qs ++ ps)
+        (qs', ps') = splitAt (length qs) qps
+    AbsurdP q -> (fmap . fmap) AbsurdP q' : ps'
+      where q' : ps' = unforce x (fmap (q <$) p : ps)
+    LitP{} -> p : unforce x ps
+    ProjP{} -> p : unforce x ps
+  where
+    -- Turn the binding of x into a dot pattern
+    mkDot :: DBPatVar -> DeBruijnPattern -> DeBruijnPattern
+    mkDot x p = case p of
+      VarP y | dbPatVarIndex x == dbPatVarIndex y
+                      -> DotP Inserted (Var (dbPatVarIndex y) [])
+      VarP{}          -> p
+      DotP{}          -> p
+      ConP c i ps     -> ConP c i $ (fmap . fmap . fmap) (mkDot x) ps
+      AbsurdP p       -> AbsurdP (mkDot x p)
+      LitP{}          -> p
+      ProjP{}         -> p
+
+    -- Try to turn a term in a dot pattern into a binding of x
+    mkPat :: DBPatVar -> Term -> Maybe DeBruijnPattern
+    mkPat x v =
+      case v of
+        Var i [] | i == dbPatVarIndex x -> Just (VarP x)
+        Con c co vs -> do
+          let mps = (map . traverse) (mkPat x) vs
+          (mvs1, (_, Just p) : mvs2) <- return $ break (isJust . snd) (zip vs mps)
+          let vs1 = map fst mvs1
+              vs2 = map fst mvs2
+              ci = (toConPatternInfo co) { conPLazy = True }
+              dots = (map . fmap) (DotP Inserted)
+          return (ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2)
+        _ -> Nothing
+      where
+        doname = (map . fmap) unnamed
+
+forcedPatternVars :: [NamedArg (Pattern' x)] -> TCM [x]
+forcedPatternVars ps = concat <$> mapM (forced NotForced . namedArg) ps
+  where
+    forced :: IsForced -> Pattern' x -> TCM [x]
+    forced f p =
+      case p of
+        VarP x  -> return [x | f == Forced]
+        DotP{}  -> return []
+        ConP c _ args -> do
+          fs <- defForced <$> getConstInfo (conName c)
+          concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
+        AbsurdP{} -> return []
+        LitP{}    -> return []
+        ProjP{}   -> return []
+

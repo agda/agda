@@ -992,7 +992,7 @@ instance Normalise Char where
   normalise' = return
 
 instance Normalise ConPatternInfo where
-  normalise' (ConPatternInfo mr b mt) = ConPatternInfo mr b <$> normalise' mt
+  normalise' i = normalise' (conPType i) <&> \ t -> i { conPType = t }
 
 instance Normalise DBPatVar where
   normalise' = return
@@ -1111,7 +1111,7 @@ instance InstantiateFull Int where
     instantiateFull' = return
 
 instance InstantiateFull ConPatternInfo where
-  instantiateFull' (ConPatternInfo mr b mt) = ConPatternInfo mr b <$> instantiateFull' mt
+    instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
 
 instance InstantiateFull DBPatVar where
     instantiateFull' = return
@@ -1287,12 +1287,13 @@ instance InstantiateFull a => InstantiateFull (WithArity a) where
   instantiateFull' (WithArity n a) = WithArity n <$> instantiateFull' a
 
 instance InstantiateFull a => InstantiateFull (Case a) where
-  instantiateFull' (Branches cop cs ls m b) =
+  instantiateFull' (Branches cop cs ls m b lz) =
     Branches cop
       <$> instantiateFull' cs
       <*> instantiateFull' ls
       <*> instantiateFull' m
       <*> pure b
+      <*> pure lz
 
 instance InstantiateFull CompiledClauses where
   instantiateFull' Fail        = return Fail

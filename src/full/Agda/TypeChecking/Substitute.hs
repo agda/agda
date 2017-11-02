@@ -422,10 +422,10 @@ instance Apply a => Apply (WithArity a) where
   applyE (WithArity n a) es   = WithArity n $ applyE a es
 
 instance Apply a => Apply (Case a) where
-  apply (Branches cop cs ls m b) args =
-    Branches cop (apply cs args) (apply ls args) (apply m args) b
-  applyE (Branches cop cs ls m b) es =
-    Branches cop (applyE cs es) (applyE ls es) (applyE m es) b
+  apply (Branches cop cs ls m b lz) args =
+    Branches cop (apply cs args) (apply ls args) (apply m args) b lz
+  applyE (Branches cop cs ls m b lz) es =
+    Branches cop (applyE cs es) (applyE ls es) (applyE m es) b lz
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
@@ -619,8 +619,8 @@ instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a
 
 instance Abstract a => Abstract (Case a) where
-  abstract tel (Branches cop cs ls m b) =
-    Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m) b
+  abstract tel (Branches cop cs ls m b lz) =
+    Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m) b lz
 
 telVars :: Int -> Telescope -> [Arg DeBruijnPattern]
 telVars m = map (fmap namedThing) . (namedTelVars m)
@@ -728,7 +728,7 @@ instance {-# OVERLAPPING #-} Subst Term String where
   applySubst rho = id
 
 instance Subst Term ConPatternInfo where
-  applySubst rho (ConPatternInfo mr b mt) = ConPatternInfo mr b $ applySubst rho mt
+  applySubst rho i = i{ conPType = applySubst rho $ conPType i }
 
 instance Subst Term Pattern where
   applySubst rho p = case p of

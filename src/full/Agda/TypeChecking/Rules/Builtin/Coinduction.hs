@@ -128,7 +128,8 @@ bindBuiltinFlat x =
                    ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
                    EmptyTel
         infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
-        cpi      = ConPatternInfo Nothing False $ Just $ defaultArg infA
+        cpi      = noConPatternInfo { conPType = Just $ defaultArg infA
+                                    , conPLazy = True }
     let clause   = Clause
           { clauseLHSRange  = noRange
           , clauseFullRange = noRange
@@ -140,12 +141,7 @@ bindBuiltinFlat x =
           , clauseCatchall  = False
           , clauseUnreachable = Just False
           }
-        cc = Case (defaultArg 0) $ Branches False
-                               (Map.singleton sharp
-                                 $ WithArity 1 $ Done [defaultArg "x"] $ var 0)
-                               Map.empty
-                               Nothing
-                               (Just False)
+        cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection
           { projProper   = Just inf
           , projOrig     = flat

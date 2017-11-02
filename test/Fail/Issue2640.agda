@@ -3,7 +3,7 @@
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 
-data D : (b : Bool) → Set where
+data D : ..(b : Bool) → Set where
   c : (b : Bool) → D b
 
 test : ..(a : Bool) → D a → Bool

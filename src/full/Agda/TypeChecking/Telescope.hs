@@ -290,6 +290,7 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     cpi         = noConPatternInfo
       { conPRecord = Just ConOSystem
       , conPType   = Just $ snd <$> argFromDom a
+      , conPLazy   = True
       }
     cargs       = map (setOrigin Inserted) $ teleNamedArgs delta
     cdelta      = ConP c cpi cargs                    -- Γ₁Δ ⊢ c Δ : D pars

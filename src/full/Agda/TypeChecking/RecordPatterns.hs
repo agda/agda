@@ -146,7 +146,8 @@ translateCompiledClauses cc = do
                        , conBranches    = conMap
                        , litBranches    = litMap
                        , fallThrough    = fT
-                       , catchAllBranch = catchAll } = do
+                       , catchAllBranch = catchAll
+                       , lazyMatch      = lazy } = do
 
       -- recurse on and compute variable status of catch-all clause
       (xssa, catchAll) <- unzipMaybe <$> Trav.mapM loop catchAll
@@ -197,7 +198,8 @@ translateCompiledClauses cc = do
                   , conBranches = conMap
                   , litBranches = litMap
                   , fallThrough = fT
-                  , catchAllBranch = catchAll })
+                  , catchAllBranch = catchAll
+                  , lazyMatch = lazy })
 
         -- case: translated away one record pattern
         [cc] -> do
@@ -269,17 +271,13 @@ replaceByProjections (Arg ai i) projs cc =
         Fail -> Fail
 
       loops :: Int -> Case CompiledClauses -> Case CompiledClauses
-      loops i Branches{ projPatterns   = cop
-                      , conBranches    = conMap
-                      , litBranches    = litMap
-                      , fallThrough    = fT
-                      , catchAllBranch = catchAll } =
-        Branches{ projPatterns   = cop
-                , conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
-                , litBranches    = fmap (loop (i - 1)) litMap
-                , fallThrough    = fT
-                , catchAllBranch = fmap (loop i) catchAll
-                }
+      loops i bs@Branches{ conBranches    = conMap
+                         , litBranches    = litMap
+                         , catchAllBranch = catchAll } =
+        bs{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
+          , litBranches    = fmap (loop (i - 1)) litMap
+          , catchAllBranch = fmap (loop i) catchAll
+          }
   in  loop i cc
 
 -- | Check if a split is on a record constructor, and return the projections
