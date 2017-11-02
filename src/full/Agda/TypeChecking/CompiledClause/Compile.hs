@@ -65,8 +65,9 @@ compileClauses mt cs = do
 
       -- Apply forcing translation. This only shuffles the deBruijn variables
       -- so doesn't affect the right hand side.
-      cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
-                     | c@Clause{ namedClausePats = ps } <- cs ]
+      -- Disabled for now.
+      -- cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
+      --                | c@Clause{ namedClausePats = ps } <- cs ]
 
       let cls = map unBruijn cs
 
