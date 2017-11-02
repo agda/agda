@@ -137,7 +137,7 @@ instance Pretty a => Pretty (WithArity a) where
 
 instance Pretty a => Pretty (Case a) where
   prettyPrec p (Branches _cop cs ls m lazy) =
-    mparens (p > 0) $ prLazy lazy <> vcat (prettyMap cs ++ prettyMap ls ++ prC m)
+    mparens (p > 0) $ prLazy lazy <+> vcat (prettyMap cs ++ prettyMap ls ++ prC m)
     where
       prLazy True  = text "~"
       prLazy False = empty
