@@ -156,7 +156,7 @@ nextSplit (Cl ps _ : _) = headMaybe $ catMaybes $
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just $ isJust $ conPRecord cpi
+properSplit (ConP _ cpi _) = Just $ Just ConORec == conPRecord cpi
 properSplit LitP{}  = Just False
 properSplit ProjP{} = Just False
 properSplit VarP{}  = Nothing
@@ -184,8 +184,8 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
 splitC :: Int -> Cl -> Case Cl
 splitC n (Cl ps b) = caseMaybe mp fallback $ \case
   ProjP _ d   -> projCase d $ Cl (ps0 ++ ps1) b
-  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) $
-                   Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b
+  ConP c i qs -> (conCase (conName c) $ WithArity (length qs) $
+                   Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
   LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback
