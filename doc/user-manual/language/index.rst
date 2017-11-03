@@ -37,6 +37,7 @@ Language Reference
    safe-agda
    sized-types
    syntactic-sugar
+   syntax-declarations
    telescopes
    termination-checking
    universe-levels
