@@ -56,7 +56,7 @@ instance HasEllipsis LHS where
 class IsWithP p where
   isWithP :: p -> Maybe p
 
-  default isWithP :: (IsWithP p, Decoration f, f p ~ q) => q -> Maybe q
+  default isWithP :: (IsWithP q, Decoration f, f q ~ p) => p -> Maybe p
   isWithP = traverseF isWithP
 
 instance IsWithP Pattern where
