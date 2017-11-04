@@ -321,6 +321,7 @@ data RHS
     }
   deriving (Data, Show)
 
+-- | Ignore 'rhsConcrete' when comparing 'RHS's.
 instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
   AbsurdRHS        == AbsurdRHS           = True
@@ -334,110 +335,51 @@ instance Eq RHS where
 data SpineLHS = SpineLHS
   { spLhsInfo     :: LHSInfo             -- ^ Range.
   , spLhsDefName  :: QName               -- ^ Name of function we are defining.
-  , spLhsPats     :: [NamedArg Pattern]  -- ^ Function parameters (patterns).
-  , spLhsWithPats :: [Pattern]           -- ^ @with@ patterns (after @|@).
+  , spLhsPats     :: [NamedArg Pattern]  -- ^ Elimination by pattern, projections, with-patterns.
   }
   deriving (Data, Show, Eq)
 
-
+-- | Ignore 'Range' when comparing 'LHS's.
 instance Eq LHS where
-  (LHS _ core wps) == (LHS _ core' wps') = core == core' && wps == wps'
+  LHS _ core == LHS _ core' = core == core'
 
 -- | The lhs of a clause in focused (projection-application) view (outside-in).
 --   Projection patters are represented as 'LHSProj's.
 data LHS = LHS
   { lhsInfo     :: LHSInfo               -- ^ Range.
   , lhsCore     :: LHSCore               -- ^ Copatterns.
-  , lhsWithPats :: [Pattern]             -- ^ @with@ patterns (after @|@).
   }
   deriving (Data, Show)
 
--- | The lhs minus @with@-patterns in projection-application view.
+-- | The lhs in projection-application and with-pattern view.
 --   Parameterised over the type @e@ of dot patterns.
 data LHSCore' e
     -- | The head applied to ordinary patterns.
-  = LHSHead  { lhsDefName  :: QName                    -- ^ Head @f@.
-             , lhsPats     :: [NamedArg (Pattern' e)]  -- ^ Applied to patterns @ps@.
+  = LHSHead  { lhsDefName  :: QName
+                 -- ^ Head @f@.
+             , lhsPats     :: [NamedArg (Pattern' e)]
+                 -- ^ Applied to patterns @ps@.
              }
-    -- | Projection
+    -- | Projection.
   | LHSProj  { lhsDestructor :: AmbiguousQName
-               -- ^ Record projection identifier.
+                 -- ^ Record projection identifier.
              , lhsFocus      :: NamedArg (LHSCore' e)
-               -- ^ Main branch.
-             , lhsPatsRight  :: [NamedArg (Pattern' e)]
-               -- ^ Further applied to patterns.
+                 -- ^ Main argument of projection.
+             , lhsPats       :: [NamedArg (Pattern' e)]
+                 -- ^ Further applied to patterns.
+             }
+    -- | With patterns.
+  | LHSWith  { lhsHead         :: LHSCore' e
+                 -- ^ E.g. the 'LHSHead'.
+             , lhsWithPatterns :: [Pattern' e]
+                 -- ^ Applied to with patterns @| p1 | ... | pn@.
+                 --   These patterns are not prefixed with @WithP@!
+             , lhsPats         :: [NamedArg (Pattern' e)]
+                 -- ^ Further applied to patterns.
              }
   deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type LHSCore = LHSCore' Expr
-
--- | Convert a focused lhs to spine view and back.
-class LHSToSpine a b where
-  lhsToSpine :: a -> b
-  spineToLhs :: b -> a
-
--- | Clause instance.
-instance LHSToSpine Clause SpineClause where
-  lhsToSpine = fmap lhsToSpine
-  spineToLhs = fmap spineToLhs
-
--- | List instance (for clauses).
-instance LHSToSpine a b => LHSToSpine [a] [b] where
-  lhsToSpine = map lhsToSpine
-  spineToLhs = map spineToLhs
-
--- | LHS instance.
-instance LHSToSpine LHS SpineLHS where
-  lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
-    where QNamed f ps = lhsCoreToSpine core
-  spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
-
-lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
-lhsCoreToSpine (LHSHead f ps) = QNamed f ps
-lhsCoreToSpine (LHSProj d h ps) = (++ (p : ps)) <$> lhsCoreToSpine (namedArg h)
-  where p = updateNamedArg (const $ ProjP patNoRange ProjPrefix d) h
-
-spineToLhsCore :: IsProjP e => QNamed [NamedArg (Pattern' e)] -> LHSCore' e
-spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
-
--- | Add applicative patterns (non-projection patterns) to the right.
-lhsCoreApp :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
-lhsCoreApp (LHSHead f ps)   ps' = LHSHead f   $ ps ++ ps'
-lhsCoreApp (LHSProj d h ps) ps' = LHSProj d h $ ps ++ ps'
-
--- | Add projection and applicative patterns to the right.
-lhsCoreAddSpine :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
-lhsCoreAddSpine core ps = case ps2 of
-    [] -> lhsCoreApp core ps
-    p@(Arg info (Named n (ProjP i o d))) : ps2' | let nh = numHoles d->
-      -- Andreas, 2016-06-13
-      -- If the projection was written prefix by the user
-      -- or it is fully applied an operator
-      -- we turn it to prefix projection form.
-      (if o == ProjPrefix || nh > 0 && nh <= 1 + length ps2' then
-        LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
-      else lhsCoreApp core $ ps1 ++ [p])
-        `lhsCoreAddSpine` ps2'
-    _ -> __IMPOSSIBLE__
-  where
-    (ps1, ps2) = break (isJust . isProjP) ps
-
--- | Used for checking pattern linearity.
-lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
-lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
-
--- | Used in AbstractToConcrete.
-lhsCoreToPattern :: LHSCore -> Pattern
-lhsCoreToPattern lc =
-  case lc of
-    LHSHead f aps -> DefP noInfo (unambiguous f) aps
-    LHSProj d lhscore aps -> DefP noInfo d $
-      fmap (fmap lhsCoreToPattern) lhscore : aps
-  where noInfo = patNoRange -- TODO, preserve range!
-
-mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
-mapLHSHead f (LHSHead x ps)   = f x ps
-mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 
 ---------------------------------------------------------------------------
 -- * Patterns
@@ -446,10 +388,10 @@ mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 -- | Parameterised over the type of dot patterns.
 data Pattern' e
   = VarP Name
-  | ConP ConPatInfo AmbiguousQName [NamedArg (Pattern' e)]
+  | ConP ConPatInfo AmbiguousQName (NAPs e)
   | ProjP PatInfo ProjOrigin AmbiguousQName
     -- ^ Destructor pattern @d@.
-  | DefP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
+  | DefP PatInfo AmbiguousQName (NAPs e)
     -- ^ Defined pattern: function definition @f ps@.
     --   It is also abused to convert destructor patterns into concrete syntax
     --   thus, we put AmbiguousQName here as well.
@@ -463,11 +405,12 @@ data Pattern' e
     --   the ellipsis in a with clause).
   | AbsurdP PatInfo
   | LitP Literal
-  | PatternSynP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
+  | PatternSynP PatInfo AmbiguousQName (NAPs e)
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
   deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
+type NAPs e   = [NamedArg (Pattern' e)]
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
 
@@ -661,14 +604,15 @@ instance HasRange (Pattern' e) where
     getRange (WithP i _)         = getRange i
 
 instance HasRange SpineLHS where
-    getRange (SpineLHS i _ _ _)  = getRange i
+    getRange (SpineLHS i _ _)  = getRange i
 
 instance HasRange LHS where
-    getRange (LHS i _ _)   = getRange i
+    getRange (LHS i _)   = getRange i
 
 instance HasRange (LHSCore' e) where
-    getRange (LHSHead f ps) = fuseRange f ps
+    getRange (LHSHead f ps)         = fuseRange f ps
     getRange (LHSProj d lhscore ps) = d `fuseRange` lhscore `fuseRange` ps
+    getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs _ _ rhs ds catchall) = getRange (lhs, rhs, ds)
@@ -787,14 +731,15 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (WithP i p)         = killRange2 WithP i p
 
 instance KillRange SpineLHS where
-  killRange (SpineLHS i a b c)  = killRange4 SpineLHS i a b c
+  killRange (SpineLHS i a b)  = killRange3 SpineLHS i a b
 
 instance KillRange LHS where
-  killRange (LHS i a b)   = killRange3 LHS i a b
+  killRange (LHS i a)   = killRange2 LHS i a
 
 instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSHead a b)   = killRange2 LHSHead a b
   killRange (LHSProj a b c) = killRange3 LHSProj a b c
+  killRange (LHSWith a b c) = killRange3 LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
   killRange (Clause lhs dots sdots rhs ds catchall) = killRange6 Clause lhs dots sdots rhs ds catchall

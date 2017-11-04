@@ -421,6 +421,7 @@ library
                     Agda.TypeChecking.Unquote
                     Agda.TypeChecking.Warnings
                     Agda.TypeChecking.With
+                    Agda.Utils.AffineHole
                     Agda.Utils.AssocList
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark

@@ -51,7 +51,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
-import Agda.Syntax.Abstract.Pattern (foldAPattern)
+import Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
@@ -698,14 +698,14 @@ instance ToConcrete LetBinding [C.Declaration] where
         do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (isInstance info) $
                [ C.TypeSig info x t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
+               , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [])
                              e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -799,12 +799,11 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
 
 instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
   toConcrete (A.Clause lhs _ _ rhs wh catchall) =
-      bindToConcrete lhs $ \lhs ->
-        case lhs of
-          C.LHS p wps _ _ -> do
-            bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
+      bindToConcrete lhs $ \case
+          C.LHS p _ _ -> do
+            bindToConcrete (AsWhereDecls wh) $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p wps eqs with) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
 
 instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do
@@ -969,10 +968,9 @@ instance ToConcrete A.SpineLHS C.LHS where
   bindToConcrete lhs = bindToConcrete (A.spineToLhs lhs :: A.LHS)
 
 instance ToConcrete A.LHS C.LHS where
-    bindToConcrete (A.LHS i lhscore wps) ret = do
-      bindToConcreteCtx TopCtx lhscore $ \lhs ->
-        bindToConcreteCtx TopCtx wps $ \wps ->
-          ret $ C.LHS lhs wps [] []
+    bindToConcrete (A.LHS i lhscore) ret = do
+      bindToConcreteCtx TopCtx lhscore $ \ lhs ->
+          ret $ C.LHS lhs [] []
 
 instance ToConcrete A.LHSCore C.Pattern where
   bindToConcrete = bindToConcrete . lhsCoreToPattern
@@ -1120,7 +1118,7 @@ instance ToConcrete A.Pattern C.Pattern where
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
 
-      A.WithP i p -> C.WithP (getRange i) <$> toConcrete p
+      A.WithP i p -> C.WithP (getRange i) <$> toConcreteCtx WithArgCtx p
 
     where
     tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern

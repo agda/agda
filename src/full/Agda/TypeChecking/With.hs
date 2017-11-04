@@ -15,9 +15,11 @@ import Data.Monoid
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Pattern (IsWithP(..))
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Info
 import Agda.Syntax.Position
@@ -195,7 +197,6 @@ withArguments vs as = concat $ for (zip vs as) $ \case
   (v, OtherType a) -> [v]
   (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
 
-
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
   :: [Name]               -- ^ Names of the module parameters of the parent function.
@@ -214,9 +215,13 @@ buildWithFunction
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
-    buildWithClause (A.Clause (A.SpineLHS i _ ps wps) inheritedDots inhStrippedDots rhs wh catchall) = do
-      let (wps0, wps1) = splitAt n wps
-          ps0          = map defaultNamedArg wps0
+    buildWithClause (A.Clause (A.SpineLHS i _ allPs) inheritedDots inhStrippedDots rhs wh catchall) = do
+      let (ps, wps)    = splitOffTrailingWithPatterns allPs
+          (wps0, wps1) = splitAt n wps
+          ps0          = map (updateNamedArg fromWithP) wps0
+            where
+            fromWithP (A.WithP _ p) = p
+            fromWithP _ = __IMPOSSIBLE__
       reportSDoc "tc.with" 50 $ text "inheritedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
                                                                | A.NamedDot x v a <- inheritedDots ]
       rhs <- buildRHS rhs
@@ -225,8 +230,10 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
                                   vcat [ prettyTCM e <+> text "==" <+> prettyTCM v <+> (text ":" <+> prettyTCM t)
                                        | A.StrippedDot e v t <- strippedDots ]
       let (ps1, ps2) = splitAt n1 ps'
-      let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) (inheritedDots ++ namedDots)
-                                                                        (inhStrippedDots ++ strippedDots) rhs wh catchall
+      let result = A.Clause (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
+                     (inheritedDots ++ namedDots)
+                     (inhStrippedDots ++ strippedDots)
+                     rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
         ]

@@ -14,6 +14,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A hiding (Apply)
+import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
@@ -164,11 +165,11 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
   toAbstract (QNamed name (R.Clause pats rhs)) = do
     (names, pats) <- toAbstractPats pats
     rhs           <- local (names++) $ toAbstract rhs
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
+    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
     return $ A.Clause lhs [] [] (RHS rhs Nothing) [] False
   toAbstract (QNamed name (R.AbsurdClause pats)) = do
     (_, pats) <- toAbstractPats pats
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
+    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
     return $ A.Clause lhs [] [] AbsurdRHS [] False
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where

@@ -39,7 +39,10 @@ instance Monoid ErrorNonEmpty where
 
 -- | Check whether a type is empty.
 --   This check may be postponed as emptiness constraint.
-isEmptyType :: Range -> Type -> TCM ()
+isEmptyType
+  :: Range   -- ^ Range of the absurd pattern.
+  -> Type    -- ^ Type that should be empty (empty data type or iterated product of such).
+  -> TCM ()
 isEmptyType r t = caseEitherM (loop t) failure return
   where
   failure DontKnow          = addConstraint $ IsEmpty r t

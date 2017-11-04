@@ -101,14 +101,14 @@ matchingBind qBind r p e body cs =
     $ ExtendedLam (getRange cs)       -- where-clauses to make highlighting of overlapping
     $ map addParens (mainClause : cs) -- patterns not highlight the rest of the do-block.
   where
-    mainClause = LamClause { lamLHS      = LHS p [] [] []
+    mainClause = LamClause { lamLHS      = LHS p [] []
                            , lamRHS      = RHS body
                            , lamWhere    = NoWhere
                            , lamCatchAll = False }
 
     -- Add parens to left-hand sides: there can only be one pattern in these clauses.
     addParens c = c { lamLHS = addP (lamLHS c) }
-      where addP (LHS p wp rw we) = LHS (RawAppP noRange [ParenP noRange p]) wp rw we
+      where addP (LHS p rw we) = LHS (RawAppP noRange [ParenP noRange p]) rw we
 
 nonMatchingBind :: QName -> Range -> Name -> Expr -> Expr -> Expr
 nonMatchingBind qBind r x e body =

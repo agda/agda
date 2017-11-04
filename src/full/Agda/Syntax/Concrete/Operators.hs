@@ -637,7 +637,7 @@ classifyPattern conf p =
     -- case @f ps@
     Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
       guard $ all validPat ps
-      return $ Right (x, LHSHead x ps)
+      return $ Right (x, lhsCoreAddSpine (LHSHead x []) ps)
 
     -- case @d ps@
     Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
@@ -648,7 +648,7 @@ classifyPattern conf p =
       guard $ all (isLeft . namedArg) ps3
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
-      return $ Right (f, LHSProj x ps' lhs ps'')
+      return $ Right (f, lhsCoreAddSpine (LHSProj x ps' lhs []) ps'')
 
     -- case: ordinary pattern
     _ -> do
@@ -692,6 +692,7 @@ parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 validConPattern :: [QName] -> Pattern -> Bool
 validConPattern cons p = case appView p of
+    [WithP _ p]   -> validConPattern cons p
     [_]           -> True
     IdentP x : ps -> elem x cons && all (validConPattern cons) ps
     [QuoteP _, _] -> True

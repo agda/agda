@@ -970,10 +970,11 @@ interpret (Cmd_make_case ii rng s) = do
     -- Drops pattern added to extended lambda functions when lambda lifting them
     extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause
     extlam_dropLLifted Nothing _ x = x
-    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{} _) _ _ _ _ _) = __IMPOSSIBLE__
-    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden cl@A.Clause{ A.clauseLHS = A.LHS info (A.LHSHead name nps) ps }
+    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{}) _ _ _ _ _) = __IMPOSSIBLE__
+    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSWith{}) _ _ _ _ _) = __IMPOSSIBLE__
+    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden cl@A.Clause{ A.clauseLHS = A.LHS info (A.LHSHead name nps) }
       = let n = if hidden then h + nh else nh
-        in cl{ A.clauseLHS = A.LHS info (A.LHSHead name (drop n nps)) ps }
+        in cl{ A.clauseLHS = A.LHS info (A.LHSHead name (drop n nps)) }
 
 interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
   liftLocalState $ do
