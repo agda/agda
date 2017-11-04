@@ -180,7 +180,7 @@ instance ExprLike TypedBindings where
 
 instance ExprLike LHS where
   mapExpr f e0 = case e0 of
-     LHS    ps wps res wes -> LHS    ps wps (mapE res) $ mapE wes
+     LHS ps res wes -> LHS ps (mapE res) $ mapE wes
    where mapE e = mapExpr f e
 
 instance ExprLike LamClause where

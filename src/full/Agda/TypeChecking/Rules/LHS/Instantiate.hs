@@ -186,4 +186,4 @@ nothingToSplitError (LHSState tel _ (Problem ps rps _ _) _ _) = splitError ps te
           A.DefP{}        -> __IMPOSSIBLE__
           A.AsP{}         -> __IMPOSSIBLE__
           A.PatternSynP{} -> __IMPOSSIBLE__
-          A.WithAppP{}    -> __IMPOSSIBLE__
+          A.WithP{}       -> __IMPOSSIBLE__

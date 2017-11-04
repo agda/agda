@@ -136,8 +136,8 @@ translateCopatternClauses cs = if all noCopats cs then return (NotDelayed, cs) e
     map (mapSnd $ sortBy (compare `on` thePath)) cps
   return $ map (\ (c, e) -> c { clauseRHS = RHS e Nothing }) ces  -- TODO: preserve C.Expr
   where
-    noCopats Clause{ clauseLHS = LHS _ LHSHead{} _ } = True
-    noCopats _                                       = False
+    noCopats Clause{ clauseLHS = LHS _ LHSHead{} } = True
+    noCopats _                                     = False
 
 -- | A sequence of decisions @b@ leading to a head @a@.
 data Path a b = Path
@@ -178,13 +178,14 @@ groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses re
     rhsExpr _       = __IMPOSSIBLE__
 
 clauseToPath :: Clause -> ScopeM (ProjPath Clause)
-clauseToPath (Clause (LHS i lhs wps) dots sdots (RHS e c) [] catchall) =
-  fmap (\ lhs -> Clause (LHS i lhs wps) dots sdots (RHS e c) [] catchall) <$> lhsToPath [] lhs
+clauseToPath (Clause (LHS i lhs) dots sdots (RHS e c) [] catchall) =
+  fmap (\ lhs -> Clause (LHS i lhs) dots sdots (RHS e c) [] catchall) <$> lhsToPath [] lhs
 clauseToPath (Clause lhs _ _ (RHS e _) (_:_) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
 clauseToPath (Clause lhs _ _ _ wheredecls _) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
 
 lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
-lhsToPath acc lhs@LHSHead{}         = return $ Path acc lhs
+lhsToPath acc lhs@LHSHead{}      = return $ Path acc lhs
+lhsToPath acc (LHSWith h wps ps) = __IMPOSSIBLE__  -- TODO!
 lhsToPath acc (LHSProj f lhs ps) = do
     let xs = fromMaybe __IMPOSSIBLE__ $ mapM (T.mapM (T.mapM fromVarP)) ps
     lhsToPath (ProjEntry f xs : acc) $ namedArg lhs
@@ -339,7 +340,7 @@ instance Rename RHS where
       RewriteRHS nes r ds   -> RewriteRHS (rename rho nes) (rename rho r) (rename rho ds)
 
 instance Rename LHS where
-  rename rho (LHS i core ps) = LHS i (rename rho core) (rename rho ps)
+  rename rho (LHS i core) = LHS i (rename rho core)
 
 instance Rename LHSCore where
   rename rho = fmap (rename rho) -- only rename in dot patterns
@@ -398,10 +399,12 @@ instance Alpha (LHSCore' e) where
   alpha' (LHSHead f ps) (LHSHead f' ps') = guard (f == f') >> alpha' ps ps'
   alpha' (LHSProj d lhs ps) (LHSProj d' lhs' ps') =
      guard (d == d') >> alpha' lhs lhs' >> alpha' ps ps'
+  alpha' (LHSWith h wps ps) (LHSWith h' wps' ps') =
+     alpha' h h' >> alpha' wps wps' >> alpha' ps ps'
   alpha' _ _ = fail "not alpha equivalent"
 
 instance Alpha LHS where
-  alpha' (LHS _ core wps) (LHS _ core' wps') = alpha' core core' >> alpha' wps wps'
+  alpha' (LHS _ core) (LHS _ core') = alpha' core core'
 
 instance Alpha a => Alpha (Arg a) where
   alpha' a a' = alpha' (unArg a) (unArg a')

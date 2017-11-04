@@ -21,7 +21,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding (mapM, null)
-import Control.Applicative ( liftA2 )
+import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
@@ -36,7 +36,7 @@ import Data.Void
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
-import Agda.Syntax.Concrete.Pattern ( mapLhsOriginalPatternM )
+import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
 import Agda.Syntax.Abstract.Pretty
@@ -156,7 +156,7 @@ noDotorEqPattern err = dot
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
-      A.WithAppP i p ps      -> liftA2 (A.WithAppP i) (dot p) (mapM dot ps)
+      A.WithP i p            -> A.WithP i <$> dot p
 
 -- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -197,7 +197,7 @@ recordConstructorType fields = build <$> mapM validForLet fs
         C.NiceMutual _ _ _
           [ C.FunSig _ _ _ _ _instanc macro _info _ _ _
           , C.FunDef _ _ _ abstract _ _ _
-             [ C.Clause _top _catchall (C.LHS _p [] [] []) (C.RHS _rhs) NoWhere [] ]
+             [ C.Clause _top _catchall (C.LHS _p [] []) (C.RHS _rhs) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef ->
           -- TODO: this is still too generous, we also need to check that _p
           -- is only variable patterns.
@@ -1268,7 +1268,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere ca) -> do
+      NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] []) (C.RHS rhs) NoWhere ca) -> do
         mp  <- setCurrentRange p $
                  (Right <$> parsePattern p)
                    `catchError`
@@ -1305,7 +1305,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.QuoteP{}             = Nothing
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
-              definedName C.WithAppP{}           = Nothing
+              definedName C.WithP{}              = Nothing
               definedName C.RawAppP{}            = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
@@ -1333,7 +1333,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
+        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
 {-
             p    <- parseLHS top p
             localToAbstract (snd $ lhsArgs p) $ \args ->
@@ -1343,6 +1343,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               case res of
                 C.LHSHead x args -> return (x, args)
                 C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
+                C.LHSWith{} -> genericError $ "with-patterns not allowed in let bindings"
 
             e <- localToAbstract args $ \args -> do
                 -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
@@ -1873,9 +1874,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
         PatternSynResName (d :! []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs []
+    lhs <- toAbstract $ LeftHandSide top lhs
     ps  <- case lhs of
-             A.LHS _ (A.LHSHead _ ps) [] -> return ps
+             A.LHS _ (A.LHSHead _ ps) -> return ps
              _ -> err
 
     -- Andreas, 2016-08-08, issue #2132
@@ -1905,11 +1906,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-  toAbstract (C.Clause top catchall lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars <- getLocalVars
     let wcs' = for wcs $ \ c -> setLocalVars vars $> c
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p wps
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
     printLocals 10 "after lhs:"
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
@@ -2023,30 +2024,27 @@ instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern [C.Pattern]
+data LeftHandSide = LeftHandSide C.QName C.Pattern
 
 instance ToAbstract LeftHandSide A.LHS where
-    toAbstract (LeftHandSide top lhs wps) =
+    toAbstract (LeftHandSide top lhs) =
       traceCall (ScopeCheckLHS top lhs) $ do
         lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but --no-copatterns option
         unlessM (optCopatterns <$> pragmaOptions) $
-          case lhscore of
-            C.LHSProj{} -> typeError $ NeedOptionCopatterns
-            C.LHSHead{} -> return ()
+          when (hasCopatterns lhscore) $
+            typeError $ NeedOptionCopatterns
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
-        wps  <- toAbstract =<< mapM parsePattern wps
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
-        wps     <- toAbstract wps
         printLocals 10 "checked dots:"
-        return $ A.LHS (LHSRange $ getRange (lhs, wps)) lhscore wps
+        return $ A.LHS (LHSRange $ getRange lhs) lhscore
 
 -- Merges adjacent EqualP patterns into one: typecheking expects only one pattern for each domain in the telescope.
 mergeEqualPs :: [NamedArg (Pattern' e)] -> [NamedArg (Pattern' e)]
@@ -2063,10 +2061,11 @@ mergeEqualPs = go Nothing
 -- does not check pattern linearity
 instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
     toAbstract (C.LHSHead x ps) = do
-        x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
-        args <- toAbstract ps
-        return $ A.LHSHead x (mergeEqualPs args)
-    toAbstract c@(C.LHSProj d ps1 l ps2) = do
+        x <- withLocalVars $ do
+          setLocalVars []
+          toAbstract (OldName x)
+        A.LHSHead x . mergeEqualPs <$> toAbstract ps
+    toAbstract (C.LHSProj d ps1 l ps2) = do
         unless (null ps1) $ typeError $ GenericDocError $
           P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
         qx <- resolveName d
@@ -2077,6 +2076,11 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                   "head of copattern needs to be a field identifier, but "
                   ++ prettyShow d ++ " isn't one"
         A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs <$> toAbstract ps2)
+    toAbstract (C.LHSWith core wps ps) = do
+      liftA3 A.LHSWith
+        (toAbstract core)
+        (toAbstract wps)
+        (toAbstract ps)
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
@@ -2096,6 +2100,7 @@ instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where
 instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
     toAbstract (A.LHSHead f ps)         = A.LHSHead f <$> mapM toAbstract ps
     toAbstract (A.LHSProj d lhscore ps) = A.LHSProj d <$> mapM toAbstract lhscore <*> mapM toAbstract ps
+    toAbstract (A.LHSWith core wps ps)  = liftA3 A.LHSWith (toAbstract core) (toAbstract wps) (toAbstract ps)
 
 -- Patterns are done in two phases. First everything but the dot patterns, and
 -- then the dot patterns. This is because dot patterns can refer to variables
@@ -2182,10 +2187,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(C.EqualP r es)  = return $ A.EqualP (PatRange r) es
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
     toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
-    toAbstract (C.WithAppP r p ps) =
-      liftA2 (A.WithAppP $ PatRange r)
-        (toAbstract p)
-        (mapM toAbstract ps)
+    toAbstract (C.WithP r p)       = A.WithP (PatRange r) <$> toAbstract p
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.

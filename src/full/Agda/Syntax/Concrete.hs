@@ -194,7 +194,7 @@ data Pattern
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
-  | WithAppP Range Pattern [Pattern]       -- ^ @p | p1 | ... | pn@, for with-patterns.
+  | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
   deriving Data
 
 data DoStmt
@@ -263,28 +263,30 @@ countTelVars tel =
 
    We use fixity information to see which name is actually defined.
 -}
-data LHS
-  = LHS { lhsOriginalPattern :: Pattern       -- ^ @f ps@
-        , lhsWithPattern     :: [Pattern]     -- ^ @| p@ (many)
-        , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @rewrite e@ (many)
-        , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
-        }
-    -- ^ original pattern, with-patterns, rewrite equations and with-expressions
+data LHS = LHS
+  { lhsOriginalPattern :: Pattern       -- ^ e.g. @f ps | wps@
+  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @rewrite e@ (many)
+  , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
+  } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving Data
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
 
--- | Processed (scope-checked) intermediate form of the core @f ps@ of 'LHS'.
+-- | Processed (operator-parsed) intermediate form of the core @f ps@ of 'LHS'.
 --   Corresponds to 'lhsOriginalPattern'.
 data LHSCore
-  = LHSHead  { lhsDefName  :: QName               -- ^ @f@
-             , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
+  = LHSHead  { lhsDefName      :: QName               -- ^ @f@
+             , lhsPats         :: [NamedArg Pattern]  -- ^ @ps@
              }
-  | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
-             , lhsPatsLeft   :: [NamedArg Pattern]  -- ^ side patterns
-             , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
-             , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
+  | LHSProj  { lhsDestructor   :: QName               -- ^ Record projection.
+             , lhsPatsLeft     :: [NamedArg Pattern]  -- ^ Patterns for record indices (currently none).
+             , lhsFocus        :: NamedArg LHSCore    -- ^ Main argument.
+             , lhsPats         :: [NamedArg Pattern]  -- ^ More application patterns.
+             }
+  | LHSWith  { lhsHead         :: LHSCore
+             , lhsWithPatterns :: [Pattern]          -- ^ Non-empty; at least one @(| p)@.
+             , lhsPats         :: [NamedArg Pattern] -- ^ More application patterns.
              }
 
 type RHS = RHS' Expr
@@ -634,11 +636,12 @@ instance HasRange Declaration where
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
-  getRange (LHS p ps eqns ws) = fuseRange p (fuseRange ps (eqns ++ ws))
+  getRange (LHS p eqns ws) = fuseRange p (eqns ++ ws)
 
 instance HasRange LHSCore where
   getRange (LHSHead f ps)              = fuseRange f ps
   getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
+  getRange (LHSWith f wps ps)          = f `fuseRange` wps `fuseRange` ps
 
 instance HasRange RHS where
   getRange AbsurdRHS = noRange
@@ -699,7 +702,7 @@ instance HasRange Pattern where
   getRange (RecP r _)         = r
   getRange (EqualP r _)       = r
   getRange (EllipsisP r)      = r
-  getRange (WithAppP r _ _)   = r
+  getRange (WithP r _)        = r
 
 -- SetRange instances
 ------------------------------------------------------------------------
@@ -724,7 +727,7 @@ instance SetRange Pattern where
   setRange r (RecP _ fs)        = RecP r fs
   setRange r (EqualP _ es)      = EqualP r es
   setRange r (EllipsisP _)      = EllipsisP r
-  setRange r (WithAppP _ p ps)  = WithAppP r p ps
+  setRange r (WithP _ p)        = WithP r p
 
 -- KillRange instances
 ------------------------------------------------------------------------
@@ -811,7 +814,7 @@ instance KillRange LamBinding where
   killRange (DomainFull t)   = killRange1 DomainFull t
 
 instance KillRange LHS where
-  killRange (LHS p ps r w)     = killRange4 LHS p ps r w
+  killRange (LHS p r w)     = killRange3 LHS p r w
 
 instance KillRange LamClause where
   killRange (LamClause a b c d) = killRange4 LamClause a b c d
@@ -846,7 +849,7 @@ instance KillRange Pattern where
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
   killRange (EqualP _ es)     = killRange1 (EqualP noRange) es
   killRange (EllipsisP _)     = EllipsisP noRange
-  killRange (WithAppP _ p ps) = killRange2 (WithAppP noRange) p ps
+  killRange (WithP _ p)       = killRange1 (WithP noRange) p
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
@@ -954,7 +957,7 @@ instance NFData Pattern where
   rnf (RecP _ a) = rnf a
   rnf (EqualP _ es) = rnf es
   rnf (EllipsisP _) = ()
-  rnf (WithAppP _ a b) = rnf a `seq` rnf b
+  rnf (WithP _ a) = rnf a
 
 -- | Ranges are not forced.
 
@@ -1044,7 +1047,7 @@ instance NFData a => NFData (OpApp a) where
 -- | Ranges are not forced.
 
 instance NFData LHS where
-  rnf (LHS a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (LHS a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (FieldAssignment' a) where
   rnf (FieldAssignment a b) = rnf a `seq` rnf b

@@ -291,11 +291,10 @@ instance Pretty WhereClause where
 
 instance Pretty LHS where
   pretty lhs = case lhs of
-    LHS p ps eqs es  -> pr (pretty p) ps eqs es
+    LHS p eqs es  -> pr (pretty p) eqs es
     where
-      pr d ps eqs es =
+      pr d eqs es =
         sep [ d
-            , nest 2 $ fsep $ map ((text "|" <+>) . pretty) ps
             , nest 2 $ pThing "rewrite" eqs
             , nest 2 $ pThing "with" es
             ]
@@ -308,6 +307,10 @@ instance Pretty LHSCore where
   pretty (LHSProj d ps lhscore ps') = sep $
     pretty d : map (parens . pretty) ps ++
     parens (pretty lhscore) : map (parens . pretty) ps'
+  pretty (LHSWith h wps ps) = if null ps then doc else
+      sep $ parens doc : map (parens . pretty) ps
+    where
+    doc = sep $ pretty h : map ((text "|" <+>) . pretty) wps
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> text "=" <+> pretty e
@@ -560,7 +563,7 @@ instance Pretty Pattern where
             RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, text "=", pretty e2]) | (e1,e2) <- es ]
             EllipsisP _     -> text "..."
-            WithAppP _ p ps -> fsep $ pretty p : map ((text "|" <+>) . pretty) ps
+            WithP _ p       -> text "|" <+> pretty p
 
 prettyOpApp :: forall a .
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]

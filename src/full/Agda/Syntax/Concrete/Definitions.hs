@@ -70,6 +70,7 @@ import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.AffineHole
 import Agda.Utils.Except ( MonadError(throwError,catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -170,6 +171,7 @@ data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
 data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
         | MultiplePolarityPragmas [Name]
+        | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
         | MissingDefinition Name
@@ -230,6 +232,7 @@ data KindOfBlock
 instance HasRange DeclarationException where
   getRange (MultipleFixityDecls xs)             = getRange (fst $ head xs)
   getRange (MultiplePolarityPragmas xs)         = getRange (head xs)
+  getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
   getRange (MissingDefinition x)                = getRange x
@@ -295,6 +298,8 @@ instance Pretty DeclarationException where
         f (x, fs) = pretty x Pretty.<> text ": " <+> fsep (map pretty fs)
   pretty (MultiplePolarityPragmas xs) = fsep $
     pwords "Multiple polarity pragmas for" ++ map pretty xs
+  pretty (MultipleEllipses p) = fsep $
+    pwords "Multiple ellipses in left-hand side" ++ [pretty p]
   pretty (InvalidName x) = fsep $
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
@@ -764,7 +769,7 @@ niceDeclarations ds = do
     declaredNames d = case d of
       TypeSig _ x _        -> [x]
       Field _ x _          -> [x]
-      FunClause (LHS p [] [] []) _ _ _
+      FunClause (LHS p [] []) _ _ _
         | IdentP (QName x) <- removeSingletonRawAppP p
                            -> [x]
       FunClause{}          -> []
@@ -881,7 +886,7 @@ niceDeclarations ds = do
             [] -> case lhs of
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
-              LHS p [] [] [] | Just x <- isSingleIdentifierP p -> do
+              LHS p [] [] | Just x <- isSingleIdentifierP p -> do
                 d  <- mkFunDef defaultArgInfo termCheck x Nothing [d] -- fun def without type signature is relevant
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
@@ -893,7 +898,8 @@ niceDeclarations ds = do
             -- case: clauses match exactly one of the sigs
             [(x,(fits,rest))] -> do
                removeLoneSig x
-               cs  <- mkClauses x (expandEllipsis fits) False
+               ds  <- expandEllipsis fits
+               cs  <- mkClauses x ds False
                fx  <- getFixity x
                return ([FunDef (getRange fits) fits fx ConcreteDef NotInstanceDef termCheck x cs] , rest)
 
@@ -1140,7 +1146,8 @@ niceDeclarations ds = do
 
     -- Create a function definition.
     mkFunDef info termCheck x mt ds0 = do
-      cs <- mkClauses x (expandEllipsis ds0) False
+      ds <- expandEllipsis ds0
+      cs <- mkClauses x ds False
       f  <- getFixity x
       return [ FunSig (fuseRange x t) f PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t
              , FunDef (getRange ds0) ds0 f ConcreteDef NotInstanceDef termCheck x cs ]
@@ -1152,32 +1159,38 @@ niceDeclarations ds = do
     underscore r = Underscore r Nothing
 
 
-    expandEllipsis :: [Declaration] -> [Declaration]
-    expandEllipsis [] = []
-    expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _ _) : ds)
-      | isEllipsis p = d : expandEllipsis ds
-      | otherwise    = d : expand (wipe p) (map wipe ps) ds
+    expandEllipsis :: [Declaration] -> Nice [Declaration]
+    expandEllipsis [] = return []
+    expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
+      | hasEllipsis p = (d :) <$> expandEllipsis ds
+      | otherwise     = (d :) <$> expand (wipe p) ds
       where
-        expand _ _ [] = []
-        expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
-        expand p ps (FunClause (LHS p0 ps' eqs es) rhs wh ca : ds)
-          | isEllipsis p0, let r = getRange p0 =
-          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh ca
-            : expand p (applyUnless (null es) (++ (map wipe ps')) ps) ds
-                       -- If we have with-expressions (es /= []) then the following
-                       -- ellipses also get the additional with patterns ps'
-        -- We can have ellipses after a fun clause.
-        -- They refer to the last clause that introduced new with-expressions.
-        expand p ps (d@(FunClause (LHS _ _ _ []) _ _ _) : ds) =
-          d : expand p ps ds
-        -- Same here: If we have new with-expressions, the next ellipses will
-        -- refer to us.
-        expand _ _ (d@(FunClause (LHS p' ps' _ (_ : _)) _ _ _) : ds) =
-          d : expand (wipe p') (map wipe ps') ds
-          -- Andreas, Jesper, 2017-05-13, issue #2578
-          -- Need to update the range also on the next with-patterns.
-        expand _ _ (_ : ds) = __IMPOSSIBLE__
-    expandEllipsis (_ : ds) = __IMPOSSIBLE__
+        expand :: Pattern -> [Declaration] -> Nice [Declaration]
+        expand _ [] = return []
+        expand p (d : ds) = do
+          case d of
+            Pragma (CatchallPragma _) -> do
+                  (d :) <$> expand p ds
+            FunClause (LHS p0 eqs es) rhs wh ca -> do
+              case hasEllipsis' p0 of
+                ManyHoles -> throwError $ MultipleEllipses p0
+                OneHole cxt -> do
+                  -- Replace the ellipsis by @p@.
+                  let p1 = cxt p
+                  let d' = FunClause (LHS p1 eqs es) rhs wh ca
+                  -- If we have with-expressions (es /= []) then the following
+                  -- ellipses also get the additional patterns in p0.
+                  (d' :) <$> expand (if null es then p else wipe p1) ds
+                ZeroHoles _ -> do
+                  -- We can have ellipses after a fun clause without.
+                  -- They refer to the last clause that introduced new with-expressions.
+                  -- Same here: If we have new with-expressions, the next ellipses will
+                  -- refer to us.
+                  -- Andreas, Jesper, 2017-05-13, issue #2578
+                  -- Need to update the range also on the next with-patterns.
+                  (d :) <$> expand (if null es then p else wipe p0) ds
+            _ -> __IMPOSSIBLE__
+    expandEllipsis _ = __IMPOSSIBLE__
 
     -- Before copying a pattern, remove traces to its origin.
     wipe :: Pattern -> Pattern
@@ -1204,7 +1217,7 @@ niceDeclarations ds = do
       LitP _         -> p
       RecP _ _       -> p
       EllipsisP _    -> p
-      WithAppP _ _ _ -> p
+      WithP _ _      -> p
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
@@ -1215,24 +1228,27 @@ niceDeclarations ds = do
     mkClauses x (Pragma (CatchallPragma r) : cs) False = do
       when (null cs) $ niceWarning $ InvalidCatchallPragma r
       mkClauses x cs True
-    mkClauses x (FunClause lhs rhs wh ca : cs) catchall | isEllipsis lhs =
+
+    mkClauses x (FunClause lhs rhs wh ca : cs) catchall
+      | null (lhsWithExpr lhs) || hasEllipsis lhs  =
       (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
-    mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh ca : cs) catchall =
-      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False
-    mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh ca : cs) catchall = do
-      when (null with) $ throwError $ MissingWithClauses x
-      wcs <- mkClauses x with False
+
+    mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
+      when (null withClauses) $ throwError $ MissingWithClauses x
+      wcs <- mkClauses x withClauses False
       (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
       where
-        (with, cs') = subClauses cs
+        (withClauses, cs') = subClauses cs
 
         -- A clause is a subclause if the number of with-patterns is
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
+        numWith = numberOfWithPatterns p + length es where LHS p _ es = lhs
+
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
-        subClauses (c@(FunClause (LHS p0 ps' _ _) _ _ _) : cs)
+        subClauses (c@(FunClause (LHS p0 _ _) _ _ _) : cs)
          | isEllipsis p0 ||
-           length ps' >= length ps + length es = mapFst (c:) (subClauses cs)
+           numberOfWithPatterns p0 >= numWith = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
         subClauses (c@(Pragma (CatchallPragma r)) : cs) = case subClauses cs of
           ([], cs') -> ([], c:cs')
@@ -1244,7 +1260,7 @@ niceDeclarations ds = do
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
-    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _ _) = isEllipsis p ||
+    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _) _ _ _) = hasEllipsis p ||
       let
       pns        = patternNames p
       xStrings   = nameStringParts x

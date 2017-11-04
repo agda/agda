@@ -543,10 +543,7 @@ parsePat prs p = case p of
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
     EqualP{}         -> return p -- Andrea: cargo culted from DotP
     EllipsisP _      -> fail "bad ellipsis"
-    WithAppP r p ps  -> fullParen' <$> do
-      liftA2 (WithAppP r)
-        (parsePat prs p)
-        (traverse (parsePat prs) ps)
+    WithP r p        -> WithP r <$> parsePat prs p
 
 
 {- Implement parsing of copattern left hand sides, e.g.
@@ -641,7 +638,7 @@ classifyPattern conf p =
     -- case @f ps@
     Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
       guard $ all validPat ps
-      return $ Right (x, LHSHead x ps)
+      return $ Right (x, lhsCoreAddSpine (LHSHead x []) ps)
 
     -- case @d ps@
     Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
@@ -652,7 +649,7 @@ classifyPattern conf p =
       guard $ all (isLeft . namedArg) ps3
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
-      return $ Right (f, LHSProj x ps' lhs ps'')
+      return $ Right (f, lhsCoreAddSpine (LHSProj x ps' lhs []) ps'')
 
     -- case: ordinary pattern
     _ -> do
@@ -696,6 +693,7 @@ parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 validConPattern :: [QName] -> Pattern -> Bool
 validConPattern cons p = case appView p of
+    [WithP _ p]   -> validConPattern cons p
     [_]           -> True
     IdentP x : ps -> elem x cons && all (validConPattern cons) ps
     [QuoteP _, _] -> True

@@ -3,7 +3,7 @@
 
 module Agda.TypeChecking.Rules.Def where
 
-import Prelude hiding (mapM)
+import Prelude hiding (mapM, null)
 import Control.Arrow ((***),first,second)
 import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Reader hiding (forM, mapM)
@@ -11,14 +11,14 @@ import Control.Monad.Reader hiding (forM, mapM)
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable
+import Data.Traversable (Traversable, traverse, forM, mapM)
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract.Pattern ( containsAbsurdPattern )
+import Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
@@ -63,6 +63,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe ( whenNothing )
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
@@ -118,7 +119,7 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) _ _ (A.RHS e mc) [] _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ _ (A.RHS e mc) [] _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -377,13 +378,23 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
 useTerPragma def = return def
 
 
--- | Insert some patterns in the in with-clauses LHS of the given RHS
+-- | Insert some with-patterns into the with-clauses LHS of the given RHS.
+-- (Used for @rewrite@.)
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
-insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
-    where insertToClause (A.Clause (A.LHS i lhscore ps) dots sdots rhs ds catchall)
-              = A.Clause (A.LHS i lhscore (pats ++ ps)) dots sdots (insertPatterns pats rhs) ds catchall
-insertPatterns pats (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (insertPatterns pats rhs) wh
-insertPatterns pats rhs = rhs
+insertPatterns pats = \case
+  A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
+    \ (A.Clause (A.LHS info core)                              dots sdots rhs                       ds catchall) ->
+       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) dots sdots (insertPatterns pats rhs) ds catchall
+  A.RewriteRHS qes rhs wh -> A.RewriteRHS qes (insertPatterns pats rhs) wh
+  rhs@A.AbsurdRHS -> rhs
+  rhs@A.RHS{}     -> rhs
+
+-- | Insert with-patterns before the trailing with patterns.
+-- If there are none, append the with-patterns.
+insertPatternsLHSCore :: [A.Pattern] -> A.LHSCore -> A.LHSCore
+insertPatternsLHSCore pats = \case
+  A.LHSWith core wps [] -> A.LHSWith core (pats ++ wps) []
+  core                  -> A.LHSWith core pats []
 
 -- | Parameters for creating a @with@-function.
 data WithFunctionProblem
@@ -574,10 +585,10 @@ checkClause
   -> A.SpineClause -- ^ Clause.
   -> TCM (Clause,[Int])    -- ^ Type-checked clause and whether we performed a partial split
 
-checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots strippedDots rhs0 wh catchall) = do
+checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) namedDots strippedDots rhs0 wh catchall) = do
     reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
-    unless (null withPats) $
-      typeError $ UnexpectedWithPatterns withPats
+    unlessNull (trailingWithPatterns aps) $ \ withPats -> do
+      typeError $ UnexpectedWithPatterns $ map namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       cxtNames <- reverse . map (fst . unDom) <$> getContext
@@ -778,9 +789,13 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb _) rhs0 = handleR
               | otherwise = (A.RewriteRHS qes rhs' wh, [])
             -- Andreas, 2014-03-05 kill range of copied patterns
             -- since they really do not have a source location.
-            cs       = [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats) [] [] rhs'' outerWhere False]
-
-        checkWithRHS x qname t lhsResult [withExpr] [withType] cs
+            cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
+                   [] [] rhs'' outerWhere False
+        reportSDoc "tc.rewrite" 60 $ vcat
+          [ text "rewrite"
+          , text "  rhs' = " <> (text . show) rhs'
+          ]
+        checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
 
       -- Case: @with@
       A.WithRHS aux es cs -> do

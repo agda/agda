@@ -21,11 +21,15 @@ import Data.Functor
 import Data.Maybe
 import Data.Monoid
 
+import Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Abstract as A
+import Agda.Syntax.Concrete.Pattern (IsWithP(..))
+import Agda.Syntax.Info
+import Agda.Syntax.Position
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 
@@ -33,6 +37,7 @@ import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 -- * Generic traversals
+------------------------------------------------------------------------
 
 type NAP = NamedArg Pattern
 
@@ -63,10 +68,8 @@ instance MapNamedArgPattern NAP where
       RecP i fs          -> f $ setNamedArg p $ RecP i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
       -- AsP: we hand the NamedArg info to the subpattern
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
-      -- WithAppP: like RecP
-      WithAppP i p0 ps   -> f $ setNamedArg p $ uncurry (WithAppP i) $
-        namedArg *** map namedArg $
-          mapNamedArgPattern f (setNamedArg p p0, map (setNamedArg p) ps)
+      -- WithP: like AsP
+      WithP i p0         -> f $ updateNamedArg (WithP i) $ mapNamedArgPattern f $ setNamedArg p p0
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
@@ -141,7 +144,7 @@ instance APatternLike a (Pattern' a) where
       DefP _ _ ps        -> foldrAPattern f ps
       RecP _ ps          -> foldrAPattern f ps
       PatternSynP _ _ ps -> foldrAPattern f ps
-      WithAppP _ p ps    -> foldrAPattern f (p, ps)
+      WithP _ p          -> foldrAPattern f p
       VarP _             -> mempty
       ProjP _ _ _        -> mempty
       WildP _            -> mempty
@@ -167,7 +170,7 @@ instance APatternLike a (Pattern' a) where
       A.AsP         i x  p  -> A.AsP         i x  <$> traverseAPatternM pre post p
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
-      A.WithAppP    i p  ps -> uncurry (A.WithAppP i) <$> traverseAPatternM pre post (p, ps)
+      A.WithP       i p     -> A.WithP       i    <$> traverseAPatternM pre post p
 
 -- The following instances need UndecidableInstances
 -- for the FunctionalDependency (since injectivity is not taken into account).
@@ -189,6 +192,7 @@ instance (APatternLike a b, APatternLike a c) => APatternLike a (b,c) where
 
 
 -- * Specific folds
+------------------------------------------------------------------------
 
 -- | Collect pattern variables in left-to-right textual order.
 
@@ -210,7 +214,7 @@ patternVars p = foldAPattern f p `appEndo` []
     A.AbsurdP     {} -> mempty
     A.EqualP      {} -> mempty
     A.PatternSynP {} -> mempty
-    A.WithAppP _ _ _ -> mempty
+    A.WithP _ _      -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
 
@@ -247,7 +251,7 @@ checkPatternLinearity ps err =
 
 
 -- * Specific traversals
-
+------------------------------------------------------------------------
 
 -- | Pattern substitution.
 --
@@ -278,4 +282,148 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   DefP _ _ _        -> p
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p
-  WithAppP _ _ _    -> p
+  WithP _ _         -> p
+
+
+-- * Other pattern utilities
+------------------------------------------------------------------------
+
+-- | Check for with-pattern.
+instance IsWithP (Pattern' e) where
+  isWithP = \case
+    WithP _ p -> Just p
+    _ -> Nothing
+
+-- | Split patterns into (patterns, trailing with-patterns).
+splitOffTrailingWithPatterns :: A.Patterns -> (A.Patterns, A.Patterns)
+splitOffTrailingWithPatterns ps = (reverse rps, reverse rwps)
+  where
+  (rwps, rps) = span (isJust . isWithP) $ reverse ps
+
+-- | Get the tail of with-patterns of a pattern spine.
+trailingWithPatterns :: Patterns -> Patterns
+trailingWithPatterns = snd . splitOffTrailingWithPatterns
+
+-- | The next patterns are ...
+--
+-- (This view discards 'PatInfo'.)
+data LHSPatternView e
+  = LHSAppP  (NAPs e)
+      -- ^ Application patterns (non-empty list).
+  | LHSProjP ProjOrigin AmbiguousQName (NamedArg (Pattern' e))
+      -- ^ A projection pattern.  Is also stored unmodified here.
+  | LHSWithP [Pattern' e]
+      -- ^ With patterns (non-empty list).
+      --   These patterns are not prefixed with 'WithP'.
+  deriving (Show)
+
+-- | Construct the 'LHSPatternView' of the given list (if not empty).
+--
+-- Return the view and the remaining patterns.
+
+lhsPatternView :: IsProjP e => NAPs e -> Maybe (LHSPatternView e, NAPs e)
+lhsPatternView [] = Nothing
+lhsPatternView (p0 : ps) =
+  case namedArg p0 of
+    ProjP _i o d -> Just (LHSProjP o d p0, ps)
+    -- If the next pattern is a with-pattern, collect more with-patterns
+    WithP _i p   -> Just (LHSWithP (p : map namedArg ps1), ps2)
+      where
+      (ps1, ps2) = spanJust isWithP ps
+    -- If the next pattern is an application pattern, collect more of these
+    _ -> Just (LHSAppP (p0 : ps1), ps2)
+      where
+      (ps1, ps2) = span (\ p -> isNothing (isProjP p) && isNothing (isWithP p)) ps
+
+-- * Left-hand-side manipulation
+------------------------------------------------------------------------
+
+-- | Convert a focused lhs to spine view and back.
+class LHSToSpine a b where
+  lhsToSpine :: a -> b
+  spineToLhs :: b -> a
+
+-- | Clause instance.
+instance LHSToSpine Clause SpineClause where
+  lhsToSpine = fmap lhsToSpine
+  spineToLhs = fmap spineToLhs
+
+-- | List instance (for clauses).
+instance LHSToSpine a b => LHSToSpine [a] [b] where
+  lhsToSpine = map lhsToSpine
+  spineToLhs = map spineToLhs
+
+-- | LHS instance.
+instance LHSToSpine LHS SpineLHS where
+  lhsToSpine (LHS i core) = SpineLHS i f ps
+    where QNamed f ps = lhsCoreToSpine core
+  spineToLhs (SpineLHS i f ps) = LHS i (spineToLhsCore $ QNamed f ps)
+
+lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
+lhsCoreToSpine = \case
+  LHSHead f ps     -> QNamed f ps
+  LHSProj d h ps   -> lhsCoreToSpine (namedArg h) <&> (++ (p : ps))
+    where p = updateNamedArg (const $ ProjP empty ProjPrefix d) h
+  LHSWith h wps ps -> lhsCoreToSpine h <&> (++ map (defaultNamedArg . mkWithP) wps ++ ps)
+    where mkWithP p = WithP (PatRange $ getRange p) p
+
+spineToLhsCore :: IsProjP e => QNamed [NamedArg (Pattern' e)] -> LHSCore' e
+spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
+
+-- | Add applicative patterns (non-projection / non-with patterns) to the right.
+lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreApp core ps = core { lhsPats = lhsPats core ++ ps }
+
+-- | Add with-patterns to the right.
+lhsCoreWith :: LHSCore' e -> [Pattern' e] -> LHSCore' e
+lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps ++ wps') []
+lhsCoreWith core                  wps' = LHSWith core wps' []
+
+lhsCoreAddChunk :: IsProjP e => LHSCore' e -> LHSPatternView e -> LHSCore' e
+lhsCoreAddChunk core = \case
+  LHSAppP ps               -> lhsCoreApp core ps
+  LHSWithP wps             -> lhsCoreWith core wps
+  LHSProjP ProjPrefix d np -> LHSProj d (setNamedArg np core) []  -- Prefix projection pattern.
+  LHSProjP _          _ np -> lhsCoreApp core [np]       -- Postfix projection pattern.
+
+-- | Add projection, with, and applicative patterns to the right.
+lhsCoreAddSpine :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreAddSpine core ps =
+  -- Recurse on lhsPatternView until no patterns left.
+  case lhsPatternView ps of
+    Nothing       -> core
+    Just (v, ps') -> lhsCoreAddChunk core chunk `lhsCoreAddSpine` ps'
+      where
+      -- Andreas, 2016-06-13
+      -- If the projection was written prefix by the user
+      -- or it is a fully applied operator
+      -- we turn it to prefix projection form.
+      chunk = case v of
+        LHSProjP ProjPrefix _ _
+          -> v
+        LHSProjP _ d np | let nh = C.numHoles d, nh > 0, nh <= 1 + length ps'
+          -> LHSProjP ProjPrefix d np
+        _ -> v
+
+-- | Used for checking pattern linearity.
+lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
+lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
+
+-- | Used in ''Agda.Syntax.Translation.AbstractToConcrete''.
+--   Returns a 'DefP'.
+lhsCoreToPattern :: LHSCore -> Pattern
+lhsCoreToPattern lc =
+  case lc of
+    LHSHead f aps         -> DefP noInfo (unambiguous f) aps
+    LHSProj d lhscore aps -> DefP noInfo d $
+      fmap (fmap lhsCoreToPattern) lhscore : aps
+    LHSWith h wps aps     -> case lhsCoreToPattern h of
+      DefP r q ps         -> DefP r q $ ps ++ map (\ p -> defaultNamedArg $ WithP (PatRange $ getRange p) p) wps ++ aps
+      _ -> __IMPOSSIBLE__
+  where noInfo = empty -- TODO, preserve range!
+
+mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
+mapLHSHead f = \case
+  LHSHead x ps     -> f x ps
+  LHSProj d h ps   -> LHSProj d (fmap (fmap (mapLHSHead f)) h) ps
+  LHSWith h wps ps -> LHSWith (mapLHSHead f h) wps ps
