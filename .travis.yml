@@ -167,12 +167,7 @@ install:
        travis_retry cabal update &&
        sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
-       if [[ $CABAL_VER = "1.18" ]]; then
-          travis_retry cabal fetch cabal-install &&
-          cabal install cabal-install;
-       fi &&
        export PATH=$HOME/.cabal/bin:$PATH &&
-       cabal --version &&
        travis_retry cabal update &&
        travis_retry cabal fetch alex happy cpphs-1.20.8 &&
        cabal install alex happy cpphs-1.20.8 &&
