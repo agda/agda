@@ -31,7 +31,7 @@ elements of some type ``A`` as follows,
         hd : A
         tl : Stream A
 
-As opossed to inductive record types, we have to introduce the keyword
+As opposed to inductive record types, we have to introduce the keyword
 ``coinductive`` before defining the fields that constitute the record.
 
 It is interesting to note that is not neccessary to give an explicit
