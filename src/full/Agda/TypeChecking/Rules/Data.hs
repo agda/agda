@@ -22,6 +22,7 @@ import Agda.Syntax.Fixity
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.MetaVars
@@ -600,6 +601,7 @@ fitsIn forceds t s = do
 constructs :: Int -> Type -> QName -> TCM ()
 constructs nofPars t q = constrT 0 t
     where
+        -- The number n counts the proper (non-parameter) constructor arguments.
         constrT :: Nat -> Type -> TCM ()
         constrT n t = do
             t <- reduce t
@@ -614,9 +616,19 @@ constructs nofPars t q = constrT 0 t
                   checkParams n pars
                 MetaV{} -> do
                   def <- getConstInfo q
-                  xs <- newArgsMeta $ defType def
-                  let t' = El (dataSort $ theDef def) $ Def q $ map Apply xs
-                  equalType t t'
+                  -- Analyse the type of q (name of the data type)
+                  let td = defType def
+                  TelV tel core <- telView td
+                  -- Construct the parameter arguments
+                  -- The parameters are @n + nofPars - 1 .. n@
+                  let us = zipWith (\ arg x -> var x <$ arg ) (telToArgs tel) $
+                             take nofPars $ downFrom (nofPars + n)
+                  -- The indices are fresh metas
+                  xs <- newArgsMeta =<< piApplyM td us
+                  let t' = El (dataSort $ theDef def) $ Def q $ map Apply $ us ++ xs
+                  -- Andreas, 2017-11-07, issue #2840
+                  -- We should not postpone here, otherwise we might upset the positivity checker.
+                  noConstraints $ equalType t t'
                   constrT n t'
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
