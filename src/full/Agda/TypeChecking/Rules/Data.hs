@@ -364,7 +364,9 @@ constructs nofPars t q = constrT 0 t
                   def <- getConstInfo q
                   xs <- newArgsMeta $ defType def
                   let t' = El (dataSort $ theDef def) $ Def q $ map Apply xs
-                  equalType t t'
+                  -- Andreas, 2017-11-07, issue #2840
+                  -- We should not postpone here, otherwise we might upset the positivity checker.
+                  noConstraints $ equalType t t'
                   constrT n t'
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
