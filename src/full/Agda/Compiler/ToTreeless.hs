@@ -51,6 +51,11 @@ import Agda.Utils.Impossible
 prettyPure :: P.Pretty a => a -> TCM Doc
 prettyPure = return . P.pretty
 
+getCompiledClauses :: QName -> TCM CC.CompiledClauses
+getCompiledClauses q = do
+  Just cc <- defCompiled <$> getConstInfo q
+  return cc
+
 -- | Converts compiled clauses to treeless syntax.
 --
 -- Note: Do not use any of the concrete names in the returned
@@ -63,7 +68,7 @@ toTreeless q = ifM (alwaysInline q) (pure Nothing) $ Just <$> toTreeless' q
 toTreeless' :: QName -> TCM C.TTerm
 toTreeless' q =
   flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ prettyShow q) $ do
-    Just cc <- defCompiled <$> getConstInfo q
+    cc <- getCompiledClauses q
     unlessM (alwaysInline q) $ setTreeless q (C.TDef q)
       -- so recursive inlining doesn't loop, but not for always inlined
       -- functions, since that would risk inlining to fail.
