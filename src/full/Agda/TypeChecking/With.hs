@@ -257,42 +257,40 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
     permuteNamedDots (A.Clause lhs dots sdots rhs wh catchall) =
       A.Clause lhs (applySubst withSub dots) (applySubst withSub sdots) rhs wh catchall
 
+
+-- The arguments of @stripWithClausePatterns@ are documented
+-- at its type signature.
+-- The following is duplicate information, but may help reading the examples below.
+--
+-- [@Δ@]   context bound by lhs of original function.
+-- [@f@]   name of @with@-function.
+-- [@t@]   type of the original function.
+-- [@qs@]  internal patterns for original function.
+-- [@np@]  number of module parameters in @qs@
+-- [@π@]   permutation taking @vars(qs)@ to @support(Δ)@.
+-- [@ps@]  patterns in with clause (eliminating type @t@).
+-- [@ps'@] patterns for with function (presumably of type @Δ@).
+
 {-| @stripWithClausePatterns cxtNames parent f t Δ qs np π ps = ps'@
-
-[@Δ@]   context bound by lhs of original function.
-
-[@f@]   name of @with@-function.
-
-[@t@]   type of the original function.
-
-[@qs@]  internal patterns for original function.
-
-[@np@]  number of module parameters in @qs@
-
-[@π@]   permutation taking @vars(qs)@ to @support(Δ)@.
-
-[@ps@]  patterns in with clause (eliminating type @t@).
-
-[@ps'@] patterns for with function (presumably of type @Δ@).
 
 Example:
 
 @
-record Stream (A : Set) : Set where
-  coinductive
-  constructor delay
-  field       force : A × Stream A
+  record Stream (A : Set) : Set where
+    coinductive
+    constructor delay
+    field       force : A × Stream A
 
-record SEq (s t : Stream A) : Set where
-  coinductive
-  field
-    ~force : let a , as = force s
-                 b , bs = force t
-             in  a ≡ b × SEq as bs
+  record SEq (s t : Stream A) : Set where
+    coinductive
+    field
+      ~force : let a , as = force s
+                   b , bs = force t
+               in  a ≡ b × SEq as bs
 
-test : (s : Nat × Stream Nat) (t : Stream Nat) → SEq (delay s) t → SEq t (delay s)
-~force (test (a     , as) t p) with force t
-~force (test (suc n , as) t p) | b , bs = {!!}
+  test : (s : Nat × Stream Nat) (t : Stream Nat) → SEq (delay s) t → SEq t (delay s)
+  ~force (test (a     , as) t p) with force t
+  ~force (test (suc n , as) t p) | b , bs = {!!}
 @
 
 With function:
@@ -314,24 +312,24 @@ Resulting with-function clause is:
   f t (b , bs) (suc n) as t p
 @
 
-Note: stripWithClausePatterns factors @ps@ through @qs@, thus
+Note: stripWithClausePatterns factors __@ps@__ through __@qs@__, thus
 
 @
   ps = qs[ps']
 @
 
 where @[..]@ is to be understood as substitution.
-The projection patterns have vanished from @ps'@ (as they are already in @qs@).
+The projection patterns have vanished from __@ps'@__ (as they are already in __@qs@__).
 -}
 
 stripWithClausePatterns
-  :: [Name]                   -- ^ Names of the module parameters of the parent function
-  -> QName                    -- ^ Name of the parent function.
-  -> QName                    -- ^ Name of with-function.
+  :: [Name]                   -- ^ __@cxtNames@__ names of the module parameters of the parent function
+  -> QName                    -- ^ __@parent@__ name of the parent function.
+  -> QName                    -- ^ __@f@__   name of with-function.
   -> Type                     -- ^ __@t@__   top-level type of the original function.
   -> Telescope                -- ^ __@Δ@__   context of patterns of parent function.
   -> [NamedArg DeBruijnPattern] -- ^ __@qs@__  internal patterns for original function.
-  -> Nat                      -- ^ __@npars@__ number of module parameters is @qs@.
+  -> Nat                      -- ^ __@npars@__ number of module parameters in @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
   -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
   -> TCM ([A.NamedDotPattern], [A.StrippedDotPattern], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
