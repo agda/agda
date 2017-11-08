@@ -39,6 +39,26 @@ import qualified Agda.Utils.Pretty as P
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPatternTranslation
+  deriving (Eq)
+
+compileClauses' :: RunRecordPatternTranslation -> [Clause] -> TCM CompiledClauses
+compileClauses' recpat cs = do
+  -- Apply forcing translation. This only shuffles the deBruijn variables
+  -- so doesn't affect the right hand side.
+  cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
+                 | c@Clause{ namedClausePats = ps } <- cs ]
+
+  -- Throw away the unreachable clauses (#2723).
+  let notUnreachable = (Just True /=) . clauseUnreachable
+  cs <- map unBruijn <$> normaliseProjP (filter notUnreachable cs)
+
+  let translate | recpat == RunRecordPatternTranslation = translateCompiledClauses
+                | otherwise                             = return
+
+  sh <- sharedFun
+  translate $ compile sh cs
+
 -- | Process function clauses into case tree.
 --   This involves:
 --   1. Coverage checking, generating a split tree.
@@ -62,12 +82,6 @@ compileClauses mt cs = do
       -- Throw away the unreachable clauses (#2723).
       let notUnreachable = (Just True /=) . clauseUnreachable
       cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
-
-      -- Apply forcing translation. This only shuffles the deBruijn variables
-      -- so doesn't affect the right hand side.
-      -- Disabled for now.
-      -- cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
-      --                | c@Clause{ namedClausePats = ps } <- cs ]
 
       let cls = map unBruijn cs
 
@@ -130,6 +144,7 @@ compileWithSplitTree shared t cs = case t of
          -- When the split tree is finished, we continue with @compile@.
 
 compile :: (Term -> Term) -> Cls -> CompiledClauses
+compile _      [] = Fail
 compile shared cs = case nextSplit cs of
   Just (isRecP, n)-> Case n $ fmap (compile shared) $ splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
