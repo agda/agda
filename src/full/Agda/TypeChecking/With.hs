@@ -365,22 +365,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
     ]
-  -- Andreas, 2014-03-05 Issue 142:
-  -- In some cases, permute throws away some dot patterns of ps'
-  -- which are then never checked.
-  if True then return (namedDots, strippedDots, psp) else do
-    -- Andreas, 2014-03-05 Disabled the fix for issue 142, the following is dead code:
-    forM_ (permute (droppedP perm) ps') $ \ p -> setCurrentRange p $ do
-      reportSDoc "tc.with.strip" 10 $ text "warning: dropped pattern " <+> prettyA p
-      reportSDoc "tc.with.strip" 60 $ text $ show p
-      case namedArg p of
-        A.DotP info o e -> case unScope e of
-          A.Underscore{} -> return ()
-          e | o == UserWritten -> typeError $ GenericError $
-            "This inaccessible pattern is never checked, so only _ allowed here"
-          _ -> return ()
-        _ -> return ()
-    return (namedDots, strippedDots, psp)
+  return (namedDots, strippedDots, psp)
   where
 
     strip
