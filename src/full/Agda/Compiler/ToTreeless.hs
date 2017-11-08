@@ -13,14 +13,15 @@ import qualified Data.Map as Map
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal (QName)
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Treeless as C
-import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import qualified Agda.TypeChecking.CompiledClause as CC
+import qualified Agda.TypeChecking.CompiledClause.Compile as CC
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.Treeless.Builtin
 import Agda.Compiler.Treeless.Simplify
@@ -51,10 +52,16 @@ import Agda.Utils.Impossible
 prettyPure :: P.Pretty a => a -> TCM Doc
 prettyPure = return . P.pretty
 
+-- | Recompile clauses with forcing translation turned on.
 getCompiledClauses :: QName -> TCM CC.CompiledClauses
 getCompiledClauses q = do
-  Just cc <- defCompiled <$> getConstInfo q
-  return cc
+  def <- getConstInfo q
+  let cs = defClauses def
+      isProj | Function{ funProjection = proj } <- theDef def = isJust (projProper =<< proj)
+             | otherwise = False
+      translate | isProj    = CC.DontRunRecordPatternTranslation
+                | otherwise = CC.RunRecordPatternTranslation
+  CC.compileClauses' translate cs
 
 -- | Converts compiled clauses to treeless syntax.
 --
