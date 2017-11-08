@@ -194,7 +194,7 @@ casetree cc = do
     CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll lazy) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
-        fromCatchAll
+        updateCatchAll catchAll fromCatchAll
       else do
         caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
               ((c:_), []) -> do
