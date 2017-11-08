@@ -178,7 +178,7 @@ Language
   at the `postulate`.
   This is to avoid confusing scope errors in similar situations.
 
-  If a top-level module header is inserted manuall, the file is accepted:
+  If a top-level module header is inserted manually, the file is accepted:
 
   ```agda
     module _ where    -- user written module header
