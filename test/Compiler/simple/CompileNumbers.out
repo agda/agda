@@ -8,15 +8,12 @@ out >       "neg" → 0 - b
 out >       _ → b
 out > CompileNumbers.match-on-lit₂ =
 out >   λ a b →
-out >     case b of
-out >       _ | b >= 1 →
-out >         case a of
-out >           "neg" → 0 - b
-out >           _ → b
-out >       _ | b >= 0 → b
-out >       _ | b < 0 →
-out >         case a of
-out >           "neg" → 0 - b
+out >     case a of
+out >       "neg" →
+out >         case b of
+out >           _ | b >= 1 → 0 - b
+out >           _ | b >= 0 → b
+out >           _ | b < 0 → 0 - b
 out >           _ → b
 out >       _ → b
 out > CompileNumbers.nested-match =

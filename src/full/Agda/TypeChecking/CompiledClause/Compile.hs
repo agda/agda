@@ -4,6 +4,7 @@ module Agda.TypeChecking.CompiledClause.Compile where
 
 import Prelude hiding (null)
 
+import Control.Applicative
 import Control.Arrow (first, second)
 import Control.Monad
 
@@ -163,16 +164,22 @@ compile shared cs = case nextSplit cs of
     name ProjP{} = __IMPOSSIBLE__
 
 -- | Get the index of the next argument we need to split on.
---   This the number of the first pattern that does a match in the first clause.
+--   This the number of the first pattern that does a (non-lazy) match in the first clause.
+--   Or if there's only a single clause with no non-lazy matches, the first lazy match.
 nextSplit :: Cls -> Maybe (Bool, Arg Int)
-nextSplit []            = __IMPOSSIBLE__
-nextSplit (Cl ps _ : _) = headMaybe $ catMaybes $
-  zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p) ps [0..]
+nextSplit []             = __IMPOSSIBLE__
+nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> guard (null cs) *> findSplit (const True) ps
+  where
+    nonLazy (ConP _ cpi _) = not $ conPLazy cpi
+    nonLazy _              = True
+
+    findSplit okPat ps = headMaybe (catMaybes $
+      zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p <* guard (okPat p)) ps [0..])
 
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just $ Just ConORec == conPRecord cpi
+properSplit (ConP _ cpi _) = Just (Just ConORec == conPRecord cpi)
 properSplit LitP{}  = Just False
 properSplit ProjP{} = Just False
 properSplit VarP{}  = Nothing
