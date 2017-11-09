@@ -704,6 +704,7 @@ test-suite internal-tests
                 , InternalTests.Utils.Favorites
                 , InternalTests.Utils.FileName
                 , InternalTests.Utils.Graph.AdjacencyMap.Unidirectional
+                , InternalTests.Utils.IntSet
                 , InternalTests.Utils.List
                 , InternalTests.Utils.ListT
                 , InternalTests.Utils.Monoid
