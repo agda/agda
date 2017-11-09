@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where
 
@@ -7,6 +8,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Semigroup
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -21,7 +23,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
 
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
@@ -33,6 +35,8 @@ import Agda.Utils.Memo
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.IntSet.Infinite (IntSet)
+import qualified Agda.Utils.IntSet.Infinite as IntSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -100,8 +104,9 @@ eraseTerms q = runE . eraseTop q
                    _             -> erase $ subst 0 TErased b
             else tLet e <$> erase b
         TCase x t d bs -> do
-          d  <- ifM (isComplete t bs) (pure tUnreachable) (erase d)
-          bs <- mapM eraseAlt bs
+          (d, bs) <- pruneUnreachable x t d bs
+          d       <- erase d
+          bs      <- mapM eraseAlt bs
           tCase x t d bs
 
         TUnit          -> pure t
@@ -150,11 +155,47 @@ eraseTerms q = runE . eraseTop q
 
 -- | Doesn't have any type information (other than the name of the data type),
 --   so we can't do better than checking if all constructors are present.
-isComplete :: CaseType -> [TAlt] -> E Bool
-isComplete (CTData d) bs = do
-  cs <- lift $ getConstructors d
-  return $ length cs == length [ b | b@TACon{} <- bs ]
-isComplete _ _ = pure False
+pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
+pruneUnreachable _ (CTData q) d bs = do
+  cs <- lift $ getConstructors q
+  let complete =length cs == length [ b | b@TACon{} <- bs ]
+  let d' | complete  = tUnreachable
+         | otherwise = d
+  return (d', bs)
+pruneUnreachable x CTNat d bs = return $ pruneIntCase x d bs (IntSet.below 0)
+pruneUnreachable x CTInt d bs = return $ pruneIntCase x d bs IntSet.empty
+pruneUnreachable _ _ d bs = pure (d, bs)
+
+-- These are the guards we generate for Int/Nat pattern matching
+pattern Below :: Range -> Int -> Integer -> TTerm
+pattern Below r x n = TApp (TPrim PLt)  [TVar x, TLit (LitNat r n)]
+
+pattern Above :: Range -> Int -> Integer -> TTerm
+pattern Above r x n = TApp (TPrim PGeq) [TVar x, TLit (LitNat r n)]
+
+-- | Strip unreachable clauses (replace by tUnreachable for the default).
+--   Fourth argument is the set of ints covered so far.
+pruneIntCase :: Int -> TTerm -> [TAlt] -> IntSet -> (TTerm, [TAlt])
+pruneIntCase x d bs cover = go bs cover
+  where
+    go [] cover
+      | cover == IntSet.full = (tUnreachable, [])
+      | otherwise            = (d, [])
+    go (b : bs) cover =
+      case b of
+        TAGuard (Below _ y n) _ | x == y -> rec (IntSet.below n)
+        TAGuard (Above _ y n) _ | x == y -> rec (IntSet.above n)
+        TALit (LitNat _ n) _             -> rec (IntSet.singleton n)
+        _                                -> second (b :) $ go bs cover
+      where
+        rec this = second addAlt $ go bs cover'
+          where
+            this'  = IntSet.difference this cover
+            cover' = this' <> cover
+            addAlt = case IntSet.toFiniteList this' of
+                       Just []  -> id                                     -- unreachable case
+                       Just [n] -> (TALit (LitNat noRange n) (aBody b) :) -- possibly refined case
+                       _        -> (b :)                                  -- unchanged case
 
 data TypeInfo = Empty | Erasable | NotErasable
   deriving (Eq, Show)
@@ -250,3 +291,4 @@ getTypeInfo t0 = do
             I.Function{ funClauses = cs } ->
               sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El Prop) . clauseBody) cs
             _ -> return NotErasable
+
