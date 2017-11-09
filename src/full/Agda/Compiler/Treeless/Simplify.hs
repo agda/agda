@@ -81,12 +81,9 @@ simplify FunctionKit{..} = simpl
   where
     simpl = rewrite' >=> unchainCase >=> \ t -> case t of
 
-      TDef{}         -> pure t
-      TPrim{}        -> pure t
-
-      TVar x  -> do
-        v <- lookupVar x
-        pure $ if isAtomic v then v else t
+      TDef{}  -> pure t
+      TPrim{} -> pure t
+      TVar{}  -> pure t
 
       TApp (TDef f) [TLit (LitNat _ 0), m, n, m']
         -- div/mod are equivalent to quot/rem on natural numbers.
