@@ -23,7 +23,7 @@ detectIdentityFunctions q t =
       return $ mkTLam n $ TVar k
 
 -- If isIdentity f t = Just (n, k) then
--- f = t is equivalent to f = λ xₙ₋₁ .. x₀ → xk
+-- f = t is equivalent to f = λ xn₋₁ .. x₀ → xk
 isIdentity :: QName -> TTerm -> Maybe (Int, Int)
 isIdentity q t =
   trivialIdentity q t <|> recursiveIdentity q t

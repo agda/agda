@@ -44,7 +44,10 @@ computeUnused q t used = do
 
       TApp f ts -> Set.unions <$> mapM go (f : ts)
       TLam b    -> underBinder <$> go b
-      TLet e b  -> Set.union <$> go e <*> (underBinder <$> go b)
+      TLet e b  -> do
+        uses <- go b
+        if | Set.member 0 uses -> Set.union (underBinder uses) <$> go e
+           | otherwise         -> pure (underBinder uses)
       TCase x _ d bs -> Set.insert x . Set.unions <$> ((:) <$> go d <*> mapM goAlt bs)
       TUnit{}   -> pure Set.empty
       TSort{}   -> pure Set.empty
