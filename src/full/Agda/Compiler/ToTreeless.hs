@@ -15,6 +15,7 @@ import Data.Traversable (traverse)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Treeless as C
+import Agda.Syntax.Treeless (TTerm)
 import Agda.Syntax.Literal
 import qualified Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
@@ -97,25 +98,7 @@ ccToTreeless q cc = do
   reportSDoc "treeless.convert" (30 + v) $ text "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc
   reportSDoc "treeless.opt.converted" (30 + v) $ text "-- converted" $$ pbody body
-  body <- simplifyTTerm body
-  reportSDoc "treeless.opt.simpl" (35 + v) $ text "-- after first simplification"  $$ pbody body
-  body <- translateBuiltins body
-  reportSDoc "treeless.opt.builtin" (30 + v) $ text "-- after builtin translation" $$ pbody body
-  body <- simplifyTTerm body
-  reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after second simplification"  $$ pbody body
-  body <- eraseTerms q body
-  reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
-  body <- caseToSeq body
-  reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
-  body <- recoverAsPatterns body
-  reportSDoc "treeless.opt.aspat" (30 + v) $ text "-- after @-pattern recovery"  $$ pbody body
-  body <- detectIdentityFunctions q body
-  reportSDoc "treeless.opt.id" (30 + v) $ text "-- after identity function detection"  $$ pbody body
-  body <- simplifyTTerm body
-  reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after third simplification"  $$ pbody body
-  _ <- usedArguments q body  -- Just to compute unused arguments for erasure pass
-  body <- eraseTerms q body
-  reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after second erasure"  $$ pbody body
+  body <- runPipeline q (compilerPipeline v q) body
   used <- usedArguments q body
   when (any not used) $
     reportSDoc "treeless.opt.unused" (30 + v) $
@@ -125,6 +108,63 @@ ccToTreeless q cc = do
   setTreeless q body
   setCompiledArgUse q used
   return body
+
+data Pipeline = FixedPoint Int Pipeline
+              | Sequential [Pipeline]
+              | SinglePass CompilerPass
+
+data CompilerPass = CompilerPass
+  { passTag       :: String
+  , passVerbosity :: Int
+  , passName      :: String
+  , passCode      :: TTerm -> TCM TTerm
+  }
+
+compilerPass :: String -> Int -> String -> (TTerm -> TCM TTerm) -> Pipeline
+compilerPass tag v name code = SinglePass (CompilerPass tag v name code)
+
+compilerPipeline :: Int -> QName -> Pipeline
+compilerPipeline v q =
+  Sequential
+    [ compilerPass "simpl"   (35 + v) "simplification"      simplifyTTerm
+    , compilerPass "builtin" (30 + v) "builtin translation" translateBuiltins
+    , FixedPoint 5 $ Sequential
+      [ compilerPass "simpl"  (30 + v) "simplification"                simplifyTTerm
+      , compilerPass "erase"  (30 + v) "erasure" $                     eraseTerms q
+      , compilerPass "uncase" (30 + v) "uncase"                        caseToSeq
+      , compilerPass "aspat"  (30 + v) "@-pattern recovery"            recoverAsPatterns
+      ]
+    , compilerPass "id" (30 + v) "identity function detection" $ detectIdentityFunctions q
+    ]
+
+runPipeline :: QName -> Pipeline -> TTerm -> TCM TTerm
+runPipeline q pipeline t = case pipeline of
+  SinglePass p   -> runCompilerPass q p t
+  Sequential ps  -> foldM (flip $ runPipeline q) t ps
+  FixedPoint n p -> runFixedPoint n q p t
+
+runCompilerPass :: QName -> CompilerPass -> TTerm -> TCM TTerm
+runCompilerPass q p t = do
+  t' <- passCode p t
+  let dbg f   = reportSDoc ("treeless.opt." ++ passTag p) (passVerbosity p) $ f $ text ("-- " ++ passName p)
+      pbody b = sep [ text (prettyShow q) <+> text "=", nest 2 $ prettyPure b ]
+  dbg $ if | t == t'   -> (<+> text "(No effect)")
+           | otherwise -> ($$ pbody t')
+  return t'
+
+runFixedPoint :: Int -> QName -> Pipeline -> TTerm -> TCM TTerm
+runFixedPoint n q pipeline = go 1
+  where
+    go i t | i > n = do
+      reportSLn "treeless.opt.loop" 20 $ "++ Optimisation loop reached maximum iterations (" ++ show n ++ ")"
+      return t
+    go i t = do
+      reportSLn "treeless.opt.loop" 30 $ "++ Optimisation loop iteration " ++ show i
+      t' <- runPipeline q pipeline t
+      if | t == t'   -> do
+            reportSLn "treeless.opt.loop" 30 $ "++ Optimisation loop terminating after " ++ show i ++ " iterations"
+            return t'
+         | otherwise -> go (i + 1) t'
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do

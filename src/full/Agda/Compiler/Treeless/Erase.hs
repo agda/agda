@@ -27,6 +27,7 @@ import Agda.TypeChecking.Pretty hiding ((<>))
 
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
+import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -62,7 +63,7 @@ computeErasedConstructorArgs d = do
   runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> TTerm -> TCM TTerm
-eraseTerms q = runE . eraseTop q
+eraseTerms q t = usedArguments q t *> runE (eraseTop q t)
   where
     eraseTop q t = do
       (_, h) <- getFunInfo q
