@@ -190,6 +190,7 @@ simplify FunctionKit{..} = simpl
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
+    simplPrim' (TApp (TPrim PSeq) [u, v]) | u == v = v
     simplPrim' (TApp (TPrim PLt) [u, v])
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
