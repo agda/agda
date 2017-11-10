@@ -1,0 +1,5 @@
+InvalidNamePartInstance.agda:1,19-19
+InvalidNamePartInstance.agda:1,19: in the name _⦃_, the part ⦃ is not valid because it is used for instance arguments
+→<ERROR>
+ Set
+...

@@ -1,5 +1,5 @@
 Invalid-name-part.agda:2,7-7
-Invalid-name-part.agda:2,7: in the name _→_, the part → is not valid
+Invalid-name-part.agda:2,7: in the name _→_, the part → is not valid because it is the function arrow
 :<ERROR>
  Set
 ...

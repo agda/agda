@@ -1,0 +1,5 @@
+InvalidNamePartLiteral.agda:1,19-19
+InvalidNamePartLiteral.agda:1,19: in the name _0_, the part 0 is not valid because it is a literal
+→<ERROR>
+ Set
+...
