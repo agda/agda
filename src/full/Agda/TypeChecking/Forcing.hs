@@ -221,7 +221,7 @@ unforce q (p : ps) =
   where
     -- Turn a match on q into a dot pattern
     mkDot :: DeBruijnPattern -> DeBruijnPattern -> DeBruijnPattern
-    mkDot q p | patternToTerm p == patternToTerm q = DotP Inserted $ patternToTerm p
+    mkDot q p | p =:= q = DotP Inserted $ patternToTerm p
     mkDot q p = case p of
       VarP{}          -> p
       DotP{}          -> p
@@ -229,6 +229,8 @@ unforce q (p : ps) =
       AbsurdP p       -> AbsurdP (mkDot q p)
       LitP{}          -> p
       ProjP{}         -> p
+
+    p =:= q = patternToElim (defaultArg p) == patternToElim (defaultArg q)
 
     -- Try to turn a term in a dot pattern into a pattern matching q
     mkPat :: DeBruijnPattern -> Term -> Maybe DeBruijnPattern
