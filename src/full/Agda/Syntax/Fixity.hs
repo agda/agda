@@ -248,7 +248,8 @@ noFixity = Fixity noRange Unrelated NonAssoc
 defaultFixity :: Fixity
 defaultFixity = Fixity noRange (Related 20) NonAssoc
 
--- | Do we prefer parens around lambda arguments or not?
+-- | Do we prefer parens around arguments like @λ x → x@ or not?
+--   See 'lamBrackets'.
 data ParenPreference = PreferParen | PreferParenless
   deriving (Eq, Ord, Show, Data)
 
