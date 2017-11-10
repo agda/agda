@@ -150,7 +150,6 @@ library
                 , mtl >= 2.2.1 && < 2.3
                 , murmur-hash >= 0.1 && < 0.2
                 , uri-encode >= 1.5.0.4 && < 1.6
-                , parallel >= 3.2.0.4 && < 3.3
                 , pretty >= 1.1.2.0 && < 1.2
                 , process >= 1.2.3.0 && < 1.7
                 , regex-tdfa >= 1.2.2 && < 1.3
