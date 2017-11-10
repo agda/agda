@@ -574,8 +574,11 @@ order for the change to take effect."
   ("lbag" . ("⟅"))
   ("rbag" . ("⟆"))
 
-  ("(|" . ("⦇"))
+  ("(|" . ("⦇"))  ;; Idiom brackets
   ("|)" . ("⦈"))
+
+  ("((" . ("⦅"))  ;; Banana brackets
+  ("))" . ("⦆"))
 
   ;; Primes.
 

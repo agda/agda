@@ -238,6 +238,13 @@ Pragmas and options
   Attempting to bind `NIL` or `CONS` results in a warning and has otherwise no
   effect.
 
+Emacs mode
+----------
+
+* Banana brackets have been added to the Agda input method.
+
+   \((   #x2985  LEFT WHITE PARENTHESIS
+   \))   #x2986  RIGHT WHITE PARENTHESIS
 
 Compiler backends
 -----------------
@@ -247,6 +254,8 @@ Compiler backends
   This means that it's no longer necessary to give a COMPILE GHC pragma for the
   builtin list type. Indeed, doing so has no effect on the compilation and
   results in a warning.
+
+
 
 Release notes for Agda version 2.5.3
 ====================================
