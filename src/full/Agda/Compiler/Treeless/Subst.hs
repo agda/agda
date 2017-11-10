@@ -130,6 +130,6 @@ instance HasFree TAlt where
 -- | Strenghtening.
 tryStrengthen :: (HasFree a, Subst t a) => Int -> a -> Maybe a
 tryStrengthen n t =
-  case Map.lookupMin (freeVars t) of
-    Just (i, _) | i < n -> Nothing
+  case Map.minViewWithKey (freeVars t) of
+    Just ((i, _), _) | i < n -> Nothing
     _ -> Just $ applySubst (strengthenS __IMPOSSIBLE__ n) t

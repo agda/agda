@@ -331,9 +331,13 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
 
+        -- Clause compilation runs the coverage checker, which might add
+        -- some extra clauses.
+        cs <- defClauses <$> getConstInfo name
+
         reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ text "compiled clauses of" <+> prettyTCM name
-              , nest 2 $ text (show cc)
+              , nest 2 $ pretty cc
               ]
 
         -- The macro tag might be on the type signature
