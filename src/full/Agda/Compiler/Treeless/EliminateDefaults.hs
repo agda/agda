@@ -28,7 +28,7 @@ eliminateCaseDefaults = tr
   where
     tr :: TTerm -> TCM TTerm
     tr t = case t of
-      TCase sc ct@(CTData qn) def alts | not (isUnreachable def) -> do
+      TCase sc ct@CaseInfo{caseType = CTData qn} def alts | not (isUnreachable def) -> do
         dtCons <- defConstructors . theDef <$> getConstInfo qn
         let missingCons = dtCons List.\\ map aCon alts
         def <- tr def

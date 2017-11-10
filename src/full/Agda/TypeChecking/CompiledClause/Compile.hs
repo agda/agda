@@ -4,6 +4,7 @@ module Agda.TypeChecking.CompiledClause.Compile where
 
 import Prelude hiding (null)
 
+import Control.Applicative
 import Control.Arrow (first, second)
 import Control.Monad
 
@@ -39,6 +40,26 @@ import qualified Agda.Utils.Pretty as P
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPatternTranslation
+  deriving (Eq)
+
+compileClauses' :: RunRecordPatternTranslation -> [Clause] -> TCM CompiledClauses
+compileClauses' recpat cs = do
+  -- Apply forcing translation. This only shuffles the deBruijn variables
+  -- so doesn't affect the right hand side.
+  cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
+                 | c@Clause{ namedClausePats = ps } <- cs ]
+
+  -- Throw away the unreachable clauses (#2723).
+  let notUnreachable = (Just True /=) . clauseUnreachable
+  cs <- map unBruijn <$> normaliseProjP (filter notUnreachable cs)
+
+  let translate | recpat == RunRecordPatternTranslation = translateCompiledClauses
+                | otherwise                             = return
+
+  sh <- sharedFun
+  translate $ compile sh cs
+
 -- | Process function clauses into case tree.
 --   This involves:
 --   1. Coverage checking, generating a split tree.
@@ -67,12 +88,6 @@ compileClauses mt cs = do
       -- Throw away the unreachable clauses (#2723).
       let notUnreachable = (Just True /=) . clauseUnreachable
       cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
-
-      -- Apply forcing translation. This only shuffles the deBruijn variables
-      -- so doesn't affect the right hand side.
-      -- Disabled for now.
-      -- cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
-      --                | c@Clause{ namedClausePats = ps } <- cs ]
 
       let cls = map unBruijn cs
 
@@ -137,6 +152,7 @@ compileWithSplitTree shared t cs = case t of
          -- When the split tree is finished, we continue with @compile@.
 
 compile :: (Term -> Term) -> Cls -> CompiledClauses
+compile _      [] = Fail
 compile shared cs = case nextSplit cs of
   Just (isRecP, n)-> Case n $ fmap (compile shared) $ splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
@@ -155,16 +171,29 @@ compile shared cs = case nextSplit cs of
     name ProjP{} = __IMPOSSIBLE__
 
 -- | Get the index of the next argument we need to split on.
---   This the number of the first pattern that does a match in the first clause.
+--   This the number of the first pattern that does a (non-lazy) match in the first clause.
+--   Or the first lazy match where all clauses agree on the constructor, if there are no
+--   non-lazy matches.
 nextSplit :: Cls -> Maybe (Bool, Arg Int)
-nextSplit []            = __IMPOSSIBLE__
-nextSplit (Cl ps _ : _) = headMaybe $ catMaybes $
-  zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p) ps [0..]
+nextSplit []             = __IMPOSSIBLE__
+nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
+  where
+    nonLazy _ (ConP _ cpi _) = not $ conPLazy cpi
+    nonLazy _ _              = True
+
+    findSplit okPat ps = headMaybe (catMaybes $
+      zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p <* guard (okPat n p)) ps [0..])
+
+    allAgree i (ConP c _ _) = all ((== Just (conName c)) . getCon . map unArg . drop i . clPats) cs
+    allAgree _ _            = False
+
+    getCon (ConP c _ _ : _) = Just $ conName c
+    getCon _                = Nothing
 
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just $ Just ConORec == conPRecord cpi
+properSplit (ConP _ cpi _) = Just (Just ConORec == conPRecord cpi)
 properSplit LitP{}  = Just False
 properSplit ProjP{} = Just False
 properSplit VarP{}  = Nothing

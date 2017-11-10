@@ -11,5 +11,5 @@ out >   Common.IO.printNat
 out >     (let a = 4 in
 out >      case a of
 out >        0 → 0
-out >        _ → InlineRecursive.f 3)
+out >        _ → let b = 3 in InlineRecursive.f b)
 out > 0

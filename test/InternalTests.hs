@@ -44,6 +44,7 @@ import InternalTests.Utils.Either                             as UtilEith     ( 
 import InternalTests.Utils.Favorites                          as UtilFav      ( tests )
 import InternalTests.Utils.FileName                           as UtilFile     ( tests )
 import InternalTests.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
+import InternalTests.Utils.IntSet                             as UtilIntSet   ( tests )
 import InternalTests.Utils.List                               as UtilList     ( tests )
 import InternalTests.Utils.ListT                              as UtilListT    ( tests )
 import InternalTests.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
@@ -62,6 +63,7 @@ runAllTests = runTests "QuickCheck test suite:"
   , Irrel.tests
   , SizedTypes.tests
   , UtilFav.tests
+  , UtilIntSet.tests
   , UtilListT.tests
   , UtilPerm.tests
   , UtilPOrd.tests

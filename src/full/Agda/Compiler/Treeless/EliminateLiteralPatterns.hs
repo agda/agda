@@ -35,7 +35,7 @@ transform kit = tr
   where
     tr :: TTerm -> TTerm
     tr t = case t of
-      TCase sc t def alts | t `elem` [CTChar, CTString, CTQName, CTNat, CTInt, CTFloat] ->
+      TCase sc t def alts | caseType t `elem` [CTChar, CTString, CTQName, CTNat, CTInt, CTFloat] ->
         foldr litAlt (tr def) alts
         where
           litAlt :: TAlt -> TTerm -> TTerm
@@ -45,7 +45,7 @@ transform kit = tr
               (tr body)
               cont
           litAlt _ _ = __IMPOSSIBLE__
-      TCase sc t@(CTData dt) def alts -> TCase sc t (tr def) (map trAlt alts)
+      TCase sc t@CaseInfo{caseType = CTData dt} def alts -> TCase sc t (tr def) (map trAlt alts)
         where
           trAlt a = case a of
             TAGuard g b -> TAGuard (tr g) (tr b)

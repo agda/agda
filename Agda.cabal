@@ -445,6 +445,7 @@ library
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
                     Agda.Utils.IndexedList
+                    Agda.Utils.IntSet.Infinite
                     Agda.Utils.IO
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
@@ -705,6 +706,7 @@ test-suite internal-tests
                 , InternalTests.Utils.Favorites
                 , InternalTests.Utils.FileName
                 , InternalTests.Utils.Graph.AdjacencyMap.Unidirectional
+                , InternalTests.Utils.IntSet
                 , InternalTests.Utils.List
                 , InternalTests.Utils.ListT
                 , InternalTests.Utils.Monoid

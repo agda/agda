@@ -805,7 +805,7 @@ writeModule :: HS.Module -> TCM ()
 writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- outFile m
-  liftIO $ UTF8.writeFile out $ prettyPrint $
+  liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     HS.Module m (p : ps) imp ds
   where
   p = HS.LanguagePragma $ List.map HS.Ident $

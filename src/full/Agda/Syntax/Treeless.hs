@@ -43,7 +43,7 @@ data TTerm = TVar Int
            -- MUST only be evaluated if it is used inside the body.
            -- Sharing may happen, but is optional.
            -- It is also perfectly valid to just inline the bound term in the body.
-           | TCase Int CaseType TTerm [TAlt]
+           | TCase Int CaseInfo TTerm [TAlt]
            -- ^ Case scrutinee (always variable), case type, default value, alternatives
            -- First, all TACon alternatives are tried; then all TAGuard alternatives
            -- in top to bottom order.
@@ -155,6 +155,11 @@ data CaseType
   | CTString
   | CTFloat
   | CTQName
+  deriving (Data, Show, Eq, Ord)
+
+data CaseInfo = CaseInfo
+  { caseLazy :: Bool
+  , caseType :: CaseType }
   deriving (Data, Show, Eq, Ord)
 
 data TAlt
