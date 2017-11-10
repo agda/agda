@@ -165,16 +165,23 @@ compile shared cs = case nextSplit cs of
 
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a (non-lazy) match in the first clause.
---   Or if there's only a single clause with no non-lazy matches, the first lazy match.
+--   Or the first lazy match where all clauses agree on the constructor, if there are no
+--   non-lazy matches.
 nextSplit :: Cls -> Maybe (Bool, Arg Int)
 nextSplit []             = __IMPOSSIBLE__
-nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> guard (null cs) *> findSplit (const True) ps
+nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
   where
-    nonLazy (ConP _ cpi _) = not $ conPLazy cpi
-    nonLazy _              = True
+    nonLazy _ (ConP _ cpi _) = not $ conPLazy cpi
+    nonLazy _ _              = True
 
     findSplit okPat ps = headMaybe (catMaybes $
-      zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p <* guard (okPat p)) ps [0..])
+      zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p <* guard (okPat n p)) ps [0..])
+
+    allAgree i (ConP c _ _) = all ((== Just (conName c)) . getCon . map unArg . drop i . clPats) cs
+    allAgree _ _            = False
+
+    getCon (ConP c _ _ : _) = Just $ conName c
+    getCon _                = Nothing
 
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern?

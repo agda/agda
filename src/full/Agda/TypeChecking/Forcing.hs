@@ -169,13 +169,13 @@ forcingTranslation = go 1000
   where
     go 0 _ = __IMPOSSIBLE__
     go n ps = do
-      xs <- forcedPatternVars ps
+      qs <- forcedPatterns ps
       reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
         [ text "patterns:" <?> pretty ps
-        , text "forced:" <?> pretty xs ]
-      case xs of
+        , text "forced:" <?> pretty qs ]
+      case qs of
         []    -> return ps
-        x : _ -> go (n - 1) $ unforce x ps
+        q : _ -> go (n - 1) $ unforce q ps
           -- This should terminate, but it's not obvious that you couldn't have
           -- a situation where you move a forced argument between two different
           -- forced positions indefinitely. Cap it to 1000 iterations to guard
@@ -203,41 +203,40 @@ forceTranslateTelescope delta qs = do
       reportSDoc "tc.force" 60 $ nest 2 $ text "delta' =" <?> prettyTCM delta'
       return delta'
 
-unforce :: DBPatVar -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
-unforce x [] = __IMPOSSIBLE__   -- unforcing cannot fail
-unforce x (p : ps) =
+unforce :: DeBruijnPattern -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+unforce q [] = __IMPOSSIBLE__   -- unforcing cannot fail
+unforce q (p : ps) =
   case namedArg p of
-    VarP y -> fmap (mkDot x (VarP y) <$) p : unforce x ps
-    DotP _ v | Just q <- mkPat x v -> (fmap (q <$) p : (fmap . fmap . fmap) (mkDot x) ps)
-    DotP{} -> p : unforce x ps
+    VarP y -> fmap (mkDot q (VarP y) <$) p : unforce q ps
+    DotP _ v | Just q' <- mkPat q v -> (fmap (q' <$) p : (fmap . fmap . fmap) (mkDot q) ps)
+    DotP{} -> p : unforce q ps
     ConP c i qs -> fmap (ConP c i qs' <$) p : ps'
       where
-        qps        = unforce x (qs ++ ps)
+        qps        = unforce q (qs ++ ps)
         (qs', ps') = splitAt (length qs) qps
-    AbsurdP q -> (fmap . fmap) AbsurdP q' : ps'
-      where q' : ps' = unforce x (fmap (q <$) p : ps)
-    LitP{} -> p : unforce x ps
-    ProjP{} -> p : unforce x ps
+    AbsurdP p1 -> (fmap . fmap) AbsurdP p1' : ps'
+      where p1' : ps' = unforce q (fmap (p1 <$) p : ps)
+    LitP{} -> p : unforce q ps
+    ProjP{} -> p : unforce q ps
   where
-    -- Turn the binding of x into a dot pattern
-    mkDot :: DBPatVar -> DeBruijnPattern -> DeBruijnPattern
-    mkDot x p = case p of
-      VarP y | dbPatVarIndex x == dbPatVarIndex y
-                      -> DotP Inserted (Var (dbPatVarIndex y) [])
+    -- Turn a match on q into a dot pattern
+    mkDot :: DeBruijnPattern -> DeBruijnPattern -> DeBruijnPattern
+    mkDot q p | patternToTerm p == patternToTerm q = DotP Inserted $ patternToTerm p
+    mkDot q p = case p of
       VarP{}          -> p
       DotP{}          -> p
-      ConP c i ps     -> ConP c i $ (fmap . fmap . fmap) (mkDot x) ps
-      AbsurdP p       -> AbsurdP (mkDot x p)
+      ConP c i ps     -> ConP c i $ (fmap . fmap . fmap) (mkDot q) ps
+      AbsurdP p       -> AbsurdP (mkDot q p)
       LitP{}          -> p
       ProjP{}         -> p
 
-    -- Try to turn a term in a dot pattern into a binding of x
-    mkPat :: DBPatVar -> Term -> Maybe DeBruijnPattern
-    mkPat x v =
+    -- Try to turn a term in a dot pattern into a pattern matching q
+    mkPat :: DeBruijnPattern -> Term -> Maybe DeBruijnPattern
+    mkPat q v | patternToTerm q == v = Just q
+    mkPat q v =
       case v of
-        Var i [] | i == dbPatVarIndex x -> Just (VarP x)
         Con c co vs -> do
-          let mps = (map . traverse) (mkPat x) vs
+          let mps = (map . traverse) (mkPat q) vs
           (mvs1, (_, Just p) : mvs2) <- return $ break (isJust . snd) (zip vs mps)
           let vs1 = map fst mvs1
               vs2 = map fst mvs2
@@ -248,17 +247,19 @@ unforce x (p : ps) =
       where
         doname = (map . fmap) unnamed
 
-forcedPatternVars :: [NamedArg (Pattern' x)] -> TCM [x]
-forcedPatternVars ps = concat <$> mapM (forced NotForced . namedArg) ps
+forcedPatterns :: [NamedArg (Pattern' x)] -> TCM [Pattern' x]
+forcedPatterns ps = concat <$> mapM (forced NotForced . namedArg) ps
   where
-    forced :: IsForced -> Pattern' x -> TCM [x]
+    forced :: IsForced -> Pattern' x -> TCM [Pattern' x]
     forced f p =
       case p of
-        VarP x  -> return [x | f == Forced]
+        VarP{}  -> return [p | f == Forced]
         DotP{}  -> return []
-        ConP c _ args -> do
-          fs <- defForced <$> getConstInfo (conName c)
-          concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
+        ConP c _ args
+          | f == Forced -> return [p]
+          | otherwise   -> do
+            fs <- defForced <$> getConstInfo (conName c)
+            concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
         AbsurdP{} -> return []
         LitP{}    -> return []
         ProjP{}   -> return []
