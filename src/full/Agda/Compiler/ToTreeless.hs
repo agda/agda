@@ -62,6 +62,7 @@ getCompiledClauses q = do
              | otherwise = False
       translate | isProj    = CC.DontRunRecordPatternTranslation
                 | otherwise = CC.RunRecordPatternTranslation
+  reportSDoc "treeless.convert" 40 $ text "-- before clause compiler" $$ (pretty q <+> text "=") <?> vcat (map pretty cs)
   CC.compileClauses' translate cs
 
 -- | Converts compiled clauses to treeless syntax.
