@@ -135,8 +135,10 @@ data ParseWarning =
   } deriving Data
 
 -- | The result of parsing something.
-data ParseResult a  = ParseOk ParseState a
-                    | ParseFailed ParseError
+data ParseResult a
+  = ParseOk ParseState a
+  | ParseFailed ParseError
+  deriving Show
 
 {--------------------------------------------------------------------------
     Instances

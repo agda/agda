@@ -1,4 +1,4 @@
 Invalid-name-part2.agda:3,1-1
-Invalid-name-part2.agda:3,1: in the name →, the part → is not valid
+Invalid-name-part2.agda:3,1: in the name →, the part → is not valid because it is the function arrow
 <EOF><ERROR>
 ...

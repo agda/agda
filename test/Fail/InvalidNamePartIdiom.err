@@ -1,0 +1,5 @@
+InvalidNamePartIdiom.agda:1,19-19
+InvalidNamePartIdiom.agda:1,19: in the name _⦇_, the part ⦇ is not valid because it is an idiom bracket
+→<ERROR>
+ Set
+...

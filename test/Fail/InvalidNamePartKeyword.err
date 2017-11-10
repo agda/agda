@@ -1,0 +1,5 @@
+InvalidNamePartKeyword.agda:1,21-21
+InvalidNamePartKeyword.agda:1,21: in the name _let_, the part let is not valid because it is a keyword
+→<ERROR>
+ Set
+...

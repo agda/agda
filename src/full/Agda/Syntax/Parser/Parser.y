@@ -1808,9 +1808,48 @@ mkName (i, s) = do
         isValidId Hole   = return ()
         isValidId (Id y) = do
           let x = rawNameToString y
+              err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
           case parse defaultParseFlags [0] (lexer return) x of
             ParseOk _ (TokId _) -> return ()
-            _                   -> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
+            ParseFailed{} -> fail err
+            ParseOk _ t   -> fail . ((err ++ " because it is ") ++) $ case t of
+              TokId{}       -> __IMPOSSIBLE__
+              TokQId{}      -> __IMPOSSIBLE__ -- "qualified"
+              TokKeyword{}  -> "a keyword"
+              TokLiteral{}  -> "a literal"
+              TokSymbol s _ -> case s of
+                SymDot               -> __IMPOSSIBLE__ -- "reserved"
+                SymSemi              -> __IMPOSSIBLE__ -- "used to separate declarations"
+                SymVirtualSemi       -> __IMPOSSIBLE__
+                SymBar               -> "used for with-arguments"
+                SymColon             -> "part of declaration syntax"
+                SymArrow             -> "the function arrow"
+                SymEqual             -> "part of declaration syntax"
+                SymLambda            -> "used for lambda-abstraction"
+                SymUnderscore        -> __IMPOSSIBLE__
+                SymQuestionMark      -> "a meta variable"
+                SymAs                -> __IMPOSSIBLE__ -- "used for as-patterns"
+                SymOpenParen         -> __IMPOSSIBLE__ -- "used to parenthesize expressions"
+                SymCloseParen        -> __IMPOSSIBLE__ -- "used to parenthesize expressions"
+                SymOpenIdiomBracket  -> "an idiom bracket"
+                SymCloseIdiomBracket -> "an idiom bracket"
+                SymDoubleOpenBrace   -> "used for instance arguments"
+                SymDoubleCloseBrace  -> "used for instance arguments"
+                SymOpenBrace         -> __IMPOSSIBLE__ -- "used for hidden arguments"
+                SymCloseBrace        -> __IMPOSSIBLE__ -- "used for hidden arguments"
+                SymOpenVirtualBrace  -> __IMPOSSIBLE__
+                SymCloseVirtualBrace -> __IMPOSSIBLE__
+                SymOpenPragma        -> __IMPOSSIBLE__ -- "used for pragmas"
+                SymClosePragma       -> __IMPOSSIBLE__ -- "used for pragmas"
+                SymEllipsis          -> __IMPOSSIBLE__ -- "used for function clauses"
+                SymDotDot            -> __IMPOSSIBLE__ -- "a modality"
+                SymEndComment        -> __IMPOSSIBLE__ -- "the end-of-comment brace"
+              TokString{}   -> __IMPOSSIBLE__
+              TokSetN{}     -> "a type universe"
+              TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
+              TokComment{}  -> __IMPOSSIBLE__
+              TokDummy{}    -> __IMPOSSIBLE__
+              TokEOF{}      -> __IMPOSSIBLE__
 
         -- we know that there are no two Ids in a row
         alternating (Hole : Hole : _) = False

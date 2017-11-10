@@ -1,0 +1,5 @@
+InvalidNamePartEquals.agda:1,19-19
+InvalidNamePartEquals.agda:1,19: in the name _=_, the part = is not valid because it is part of declaration syntax
+→<ERROR>
+ Set
+...
