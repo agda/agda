@@ -105,7 +105,7 @@ eraseTerms q t = usedArguments q t *> runE (eraseTop q t)
                    _             -> erase $ subst 0 TErased b
             else tLet e <$> erase b
         TCase x t d bs -> do
-          (d, bs) <- pruneUnreachable x t d bs
+          (d, bs) <- pruneUnreachable x (caseType t) d bs
           d       <- erase d
           bs      <- mapM eraseAlt bs
           tCase x t d bs

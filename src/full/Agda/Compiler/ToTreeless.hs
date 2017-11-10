@@ -250,7 +250,8 @@ casetree cc = do
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
           def <- fromCatchAll
-          C.TCase x caseTy def <$> do -- TODO: lazy match
+          let caseInfo = C.CaseInfo { caseType = caseTy, caseLazy = lazy }
+          C.TCase x caseInfo def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)

@@ -279,7 +279,7 @@ simplify FunctionKit{..} = simpl
     tLet e (TVar 0) = e
     tLet e b        = TLet e b
 
-    tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
+    tCase :: Int -> CaseInfo -> TTerm -> [TAlt] -> S TTerm
     tCase x t d [] = pure d
     tCase x t d bs
       | isUnreachable d =
@@ -306,11 +306,11 @@ simplify FunctionKit{..} = simpl
         overlapped _              _              = False
 
     -- | Drop unreachable cases for Nat and Int cases.
-    pruneLitCases :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
-    pruneLitCases x CTNat d bs =
+    pruneLitCases :: Int -> CaseInfo -> TTerm -> [TAlt] -> S TTerm
+    pruneLitCases x t d bs | CTNat == caseType t =
       case complete bs [] Nothing of
-        Just bs' -> tCase x CTNat tUnreachable bs'
-        Nothing  -> return $ TCase x CTNat d bs
+        Just bs' -> tCase x t tUnreachable bs'
+        Nothing  -> return $ TCase x t d bs
       where
         complete bs small (Just upper)
           | null $ [0..upper - 1] List.\\ small = Just []
@@ -319,8 +319,10 @@ simplify FunctionKit{..} = simpl
         complete (b@(TAGuard (TApp (TPrim PGeq) [TVar y, TLit (LitNat _ j)]) _) : bs) small upper | x == y =
           (b :) <$> complete bs small (Just $ maybe j (min j) upper)
         complete _ _ _ = Nothing
-    pruneLitCases x CTInt d bs = return $ TCase x CTInt d bs -- TODO
-    pruneLitCases x t d bs = return $ TCase x t d bs
+
+    pruneLitCases x t d bs
+      | CTInt == caseType t = return $ TCase x t d bs -- TODO
+      | otherwise           = return $ TCase x t d bs
 
     tCase' x t d [] = return d
     tCase' x t d bs = pruneLitCases x t d bs

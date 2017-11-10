@@ -383,7 +383,7 @@ compileTerm' kit t = go t
       T.TCon q -> do
         d <- getConstInfo q
         qname q
-      T.TCase sc (T.CTData dt) def alts -> do
+      T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse compileAlt alts
         let obj = Object $ Map.fromList alts'
