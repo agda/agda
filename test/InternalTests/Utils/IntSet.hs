@@ -1,7 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-{-# OPTIONS_GHC -Wno-orphans -Wno-partial-type-signatures #-}
+{-# OPTIONS_GHC -fno-warn-orphans -fno-warn-partial-type-signatures #-}
 
 module InternalTests.Utils.IntSet (tests) where
 
