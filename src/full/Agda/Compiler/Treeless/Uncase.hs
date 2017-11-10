@@ -36,21 +36,26 @@ uncase t = case t of
     uncaseAlt (TAGuard g b) = TAGuard (uncase g) (uncase b)
 
     doCase x t d bs
-      | fv > 0               = fallback   -- can't do it for constructors with arguments
-      | all (equalTo x u) bs = tApp (TPrim PSeq) [TVar x, u]
+      | Just u <- mu,
+        all (equalTo x u) bs = maybeSeq u
       | otherwise            = fallback
       where
+        maybeSeq u | caseLazy t = u
+                   | otherwise  = tApp (TPrim PSeq) [TVar x, u]
         fallback = TCase x t d bs
-        (fv, u)
+        (fv, mu)
           | isUnreachable d =
             case last bs of
-              TACon _ a b -> (a, b)
-              TALit l b   -> (0, b)
-              TAGuard _ b -> (0, b)
-          | otherwise = (0, d)
+              TACon _ a b -> (a, tryStrengthen a b)
+              TALit l b   -> (0, Just b)
+              TAGuard _ b -> (0, Just b)
+          | otherwise = (0, Just d)
 
     equalTo :: Int -> TTerm -> TAlt -> Bool
-    equalTo x t (TACon c a b) = a == 0 && equalTerms (subst x (TCon c) t) (subst x (TCon c) b)
+    equalTo x t (TACon c a b)
+      | Just b' <- tryStrengthen a b = equalTerms (subst x v t) (subst x v b')
+      | otherwise                    = False
+      where v = mkTApp (TCon c) (replicate a TErased)
     equalTo x t (TALit l b)   = equalTerms (subst x (TLit l) t) (subst x (TLit l) b)
     equalTo x t (TAGuard _ b) = equalTerms t b
 
