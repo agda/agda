@@ -228,21 +228,23 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
     getInfo q = do
       (rs, t) <- do
         (tel, t) <- lift $ typeWithoutParams q
-        is <- mapM (getTypeInfo . snd . dget) tel
-        used <- lift $ (++ repeat True) <$> getCompiledArgUse q
-        return (zipWith3 (mkR . getRelevance) tel used is, t)
+        is     <- mapM (getTypeInfo . snd . dget) tel
+        used   <- lift $ (++ repeat True) <$> getCompiledArgUse q
+        forced <- lift $ (++ repeat NotForced) <$> getForcedArgs q
+        return (zipWith3 (uncurry . mkR . getRelevance) tel (zip forced used) is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
       lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ prettyShow q ++ ": " ++ show rs ++ " -> " ++ show h
       lift $ setErasedConArgs q $ map erasableR rs
       return (rs, h)
 
     -- Treat empty, erasable, or unused arguments as NonStrict (and thus erasable)
-    mkR :: Relevance -> Bool -> TypeInfo -> Relevance
-    mkR Irrelevant _ _  = Irrelevant
-    mkR _ False _       = NonStrict
-    mkR r _ NotErasable = r
-    mkR _ _ Empty       = NonStrict
-    mkR _ _ Erasable    = NonStrict
+    mkR :: Relevance -> IsForced -> Bool -> TypeInfo -> Relevance
+    mkR Irrelevant _ _ _  = Irrelevant
+    mkR _ _ False _       = NonStrict
+    mkR _ Forced _ _      = NonStrict
+    mkR r _ _ NotErasable = r
+    mkR _ _ _ Empty       = NonStrict
+    mkR _ _ _ Erasable    = NonStrict
 
 telListView :: Type -> TCM (ListTel, Type)
 telListView t = do
