@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -11,6 +12,9 @@ import Data.Maybe
 import Agda.Syntax.Treeless
 import Agda.Syntax.Internal (Substitution'(..))
 import Agda.TypeChecking.Substitute
+
+import Agda.Utils.Impossible
+#include "undefined.h"
 
 instance DeBruijn TTerm where
   deBruijnVar = TVar
@@ -122,3 +126,10 @@ instance HasFree TAlt where
     TACon _ i b -> freeVars (Binder i b)
     TALit _ b   -> freeVars b
     TAGuard g b -> freeVars (g, b)
+
+-- | Strenghtening.
+tryStrengthen :: (HasFree a, Subst t a) => Int -> a -> Maybe a
+tryStrengthen n t =
+  case Map.lookupMin (freeVars t) of
+    Just (i, _) | i < n -> Nothing
+    _ -> Just $ applySubst (strengthenS __IMPOSSIBLE__ n) t
