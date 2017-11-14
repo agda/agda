@@ -1141,9 +1141,9 @@ prim_glue' = do
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
-       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
-       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hmodPi' Top "A" (sort . tmSort <$> la) $ \ a ->
+       hmodPi' Top "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Top "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <..> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (pPi' "o" φ $ \ o -> el' lb (t <..> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
@@ -1163,9 +1163,9 @@ prim_coglue' = do
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
-       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
-       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hmodPi' Top "A" (sort . tmSort <$> la) $ \ a ->
+       hmodPi' Top "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Top "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' la a --> el' lb (t <..> o)) $ \ f ->
        (el' la a --> el' lb (cl primCoGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)))
   view <- propView'
@@ -1186,12 +1186,12 @@ prim_mcoglue' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "lc" (el $ cl primLevel) $ \ lc ->
-       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ bA ->
-       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
+       hmodPi' Top "A" (sort . tmSort <$> la) $ \ bA ->
+       hmodPi' Top "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Top "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ bT ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' la bA --> el' lb (bT <..> o)) $ \ f ->
        let gg = el' lb (cl primCoGlue <#> la <#> lb <@> bA <@> φ <@> bT <@> f) in
-       hmodPi' Sharp "C" (gg --> (sort . tmSort <$> lc)) $ \ bC ->
+       hmodPi' Top "C" (gg --> (sort . tmSort <$> lc)) $ \ bC ->
        nPi' "c0" (nPi' "a" (el' la bA) $ \ a -> el' lc (bC <@> (cl prim_coglue <#> la <#> lb <#> bA <#> φ <#> bT <#> f <@> a))) $ \ c0 ->
        nPi' "c" (pPi' "o" φ $ \ o -> nPi' "t" (el' lb (bT <..> o)) $ \ t -> el' lc (bC <@> t)) $ \ c ->
        nPi' "b" gg $ \ b ->
@@ -1220,9 +1220,9 @@ prim_unglue' = do
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
-       hmodPi' Sharp "A" (sort . tmSort <$> la) $ \ a ->
-       hmodPi' Sharp "φ" (el $ cl primProp) $ \ φ ->
-       hmodPi' Sharp "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hmodPi' Top "A" (sort . tmSort <$> la) $ \ a ->
+       hmodPi' Top "φ" (el $ cl primProp) $ \ φ ->
+       hmodPi' Top "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hcsPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <..> o) --> el' la a) $ \ f ->
        -- hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f)) --> el' la a)
@@ -1385,7 +1385,7 @@ primCoShapePi' :: TCM PrimitiveImpl
 primCoShapePi' = primPi' True CoShape
 
 primSharpPi' :: TCM PrimitiveImpl
-primSharpPi' = primPi' True Sharp
+primSharpPi' = primPi' True Top
 
 -- primNSSharpPi' :: TCM PrimitiveImpl
 -- primNSSharpPi' = primPi' True NSSharp
@@ -1648,7 +1648,7 @@ modPi m = gpi $ setRelevance m defaultArgInfo
 
 csPi, sPi {-, nsPi-} :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 csPi = modPi CoShape
-sPi  = modPi Sharp
+sPi  = modPi Top
 -- nsPi = modPi NSSharp
 
 modPi' :: MonadTCM tcm => Relevance -> String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
@@ -1660,7 +1660,7 @@ hmodPi' m s a b = gpi info s a (bind' s b) where info = setRelevance m $ setHidi
 csPi', sPi', {-nsPi',-} hcsPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 csPi' = modPi' CoShape
 hcsPi' s a b = gpi info s a (bind' s b) where info = setHiding Hidden $ setRelevance CoShape $ defaultArgInfo
-sPi'  = modPi' Sharp
+sPi'  = modPi' Top
 -- nsPi' = modPi' NSSharp
 
 
@@ -1886,7 +1886,7 @@ primitiveFunctions = Map.fromList
   , builtinSharpPi        |-> primSharpPi'
   -- , builtinNSSharpPi      |-> primNSSharpPi'
   , "primHCoShapePi"      |-> primPi' False CoShape
-  , "primHSharpPi"        |-> primPi' False Sharp
+  , "primHSharpPi"        |-> primPi' False Top
   -- , "primHNSSharpPi"      |-> primPi' False NSSharp
   , builtinCoGlue         |-> primCoGlue'
   , builtin_coglue        |-> prim_coglue'

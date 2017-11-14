@@ -176,7 +176,7 @@ erasableR Irrelevant = True
 erasableR UnusedArg  = True
 erasableR CoShape    = False
 -- Andrea: these might be true but let's be safe.
-erasableR Sharp      = False
+erasableR Top      = False
 --erasableR NSSharp    = False
 
 erasable :: TypeInfo -> Bool

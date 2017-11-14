@@ -432,7 +432,7 @@ instance EmbPrj Relevance where
   icod_ (Forced Big)   = return 3
   icod_ NonStrict      = return 4
   icod_ UnusedArg      = return 5
-  icod_ Sharp          = return 6
+  icod_ Top          = return 6
   -- icod_ NSSharp        = return 7
   icod_ CoShape        = return 8
 
@@ -442,7 +442,7 @@ instance EmbPrj Relevance where
   value 3 = return (Forced Big)
   value 4 = return NonStrict
   value 5 = return UnusedArg
-  value 6 = return Sharp
+  value 6 = return Top
   -- value 7 = return NSSharp
   value 8 = return CoShape
   value _ = malformed

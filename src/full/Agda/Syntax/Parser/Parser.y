@@ -1754,8 +1754,8 @@ polarity (i, s) =
 modality :: (Interval, String) -> Parser (Range, Relevance)
 modality (i, s) =
   case s of
-    "top" -> ret Sharp
-    "⊤"  -> ret Sharp
+    "top" -> ret Top
+    "⊤"  -> ret Top
     ".." -> ret NonStrict
     "÷"  -> ret NonStrict
     "."  -> ret Irrelevant

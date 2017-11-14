@@ -1472,7 +1472,7 @@ instance Verbalize Relevance where
       NonStrict  -> "shape-irrelevant"
       Forced{}   -> __IMPOSSIBLE__
       UnusedArg  -> __IMPOSSIBLE__
-      Sharp      -> "top"
+      Top      -> "top"
       CoShape    -> "flat"
       -- NSSharp    -> "shape-irr-sharp"
 

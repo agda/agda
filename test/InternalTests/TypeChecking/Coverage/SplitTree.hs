@@ -1,6 +1,7 @@
 
 module InternalTests.TypeChecking.Coverage.SplitTree () where
 
+import Agda.Syntax.Common
 import Agda.TypeChecking.Coverage.SplitTree
 
 import Test.QuickCheck

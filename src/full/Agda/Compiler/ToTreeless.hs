@@ -375,5 +375,5 @@ substArg x | erasable x = return C.TErased
         UnusedArg  -> True
         Forced{}   -> False -- TODO: would like this to be True
         Relevant   -> False
-        -- Andrea TODO: Sharp and NSSharp could be erasable?
+        -- Andrea TODO: Top and NSSharp could be erasable?
         _          -> False

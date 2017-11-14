@@ -246,7 +246,7 @@ instance PrettyTCM Relevance where
   prettyTCM Relevant   = empty
   prettyTCM Forced{}   = empty
   prettyTCM UnusedArg  = empty
-  prettyTCM Sharp      = text "⊤"
+  prettyTCM Top      = text "⊤"
   -- prettyTCM NSSharp    = text "÷#"
   prettyTCM CoShape    = text "♭"
 

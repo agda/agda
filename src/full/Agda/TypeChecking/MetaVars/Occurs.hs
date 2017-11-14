@@ -30,7 +30,7 @@ import Data.Traversable (traverse)
 
 import qualified Agda.Benchmarking as Bench
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Top)
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
 
