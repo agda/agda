@@ -452,7 +452,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         VarP x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
-        AbsurdP p -> __IMPOSSIBLE__
+        AbsurdP (VarP x) -> case namedArg p of
+          A.AbsurdP _info -> (p :) <$> recurse (var (dbPatVarIndex x))
+          A.WildP _info   -> (p :) <$> recurse (var (dbPatVarIndex x))
+          _ -> mismatch
+
+        AbsurdP q -> do
+          reportSDoc "impossible" 10 $ text "AbsurdP" <+> prettyTCM q
+          __IMPOSSIBLE__
 
         DotP o v  -> case namedArg p of
           A.DotP r o e  -> do
