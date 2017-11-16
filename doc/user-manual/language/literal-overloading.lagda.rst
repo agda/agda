@@ -7,6 +7,9 @@
   open import Agda.Builtin.Bool
   open import Agda.Builtin.String
 
+  data   ⊥ : Set where
+  record ⊤ : Set where
+
   data Fin : Nat → Set where
     zero : ∀ {n} → Fin (suc n)
     suc  : ∀ {n} → Fin n → Fin (suc n)
@@ -65,32 +68,36 @@ the ``Number`` class with an additional constraint::
 
   {-# BUILTIN FROMNAT fromNat #-}
 
-This is the definition used in ``Agda.Builtin.FromNat``. A ``Number`` instance
-for ``Fin n`` can then be defined as follows::
-
-  data IsTrue : Bool → Set where
-    itis : IsTrue true
+This is the definition used in ``Agda.Builtin.FromNat``.
+A ``Number`` instance for ``Nat`` is simply this::
 
   instance
-    indeed : IsTrue true
-    indeed = itis
+    NumNat : Number Nat
+    NumNat .Number.Constraint _ = ⊤
+    NumNat .Number.fromNat    m = m
 
-  _<?_ : Nat → Nat → Bool
-  zero <? zero = false
-  zero <? suc y = true
-  suc x <? zero = false
-  suc x <? suc y = x <? y
+A ``Number`` instance for ``Fin n`` can be defined as follows::
 
-  natToFin : ∀ {n} (m : Nat) {{_ : IsTrue (m <? n)}} → Fin n
-  natToFin {zero} zero {{()}}
-  natToFin {zero} (suc m) {{()}}
-  natToFin {suc n} zero {{itis}} = zero
-  natToFin {suc n} (suc m) {{t}} = suc (natToFin m)
+  _≤_ : (m n : Nat) → Set
+  zero  ≤ n     = ⊤
+  suc m ≤ zero  = ⊥
+  suc m ≤ suc n = m ≤ n
+
+  fromN≤ : ∀ m n → m ≤ n → Fin (suc n)
+  fromN≤ zero    _       _  = zero
+  fromN≤ (suc _) zero    ()
+  fromN≤ (suc m) (suc n) p  = suc (fromN≤ m n p)
 
   instance
-    NumFin : ∀ {n} → Number (Fin n)
-    Number.Constraint (NumFin {n}) k = IsTrue (k <? n)
-    Number.fromNat    NumFin       k = natToFin k
+    NumFin : ∀ {n} → Number (Fin (suc n))
+    NumFin {n} .Number.Constraint m         = m ≤ n
+    NumFin {n} .Number.fromNat    m {{m≤n}} = fromN≤ m n m≤n
+
+  test : Fin 5
+  test = 3
+
+It is important that the constraint for literals is trivial.  Here,
+``3 ≤ 5`` evaluates to ``⊤`` whose inhabitant is found by unification.
 
 .. _agda-prelude: https://github.com/UlfNorell/agda-prelude
 
@@ -131,7 +138,9 @@ bound string literals map to :ref:`built-in strings <built-in-string>`. From
   {-# BUILTIN FROMSTRING fromString #-}
 
 
-Other types
------------
+Restrictions
+------------
 
 Currently only integer and string literals can be overloaded.
+
+Overloading does not work in patterns yet.
