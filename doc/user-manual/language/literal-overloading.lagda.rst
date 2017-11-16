@@ -39,10 +39,7 @@ Note that the desugaring happens before :ref:`implicit argument
 <implicit-arguments>` are inserted so ``fromNat`` can have any number of
 implicit or :ref:`instance arguments <instance-arguments>`. This can be
 exploited to support overloaded literals by defining a :ref:`type class
-<instance-arguments>` containing ``fromNat``:
-
-..
-  ::
+<instance-arguments>` containing ``fromNat``::
 
   module number-simple where
 
@@ -98,6 +95,22 @@ A ``Number`` instance for ``Fin n`` can be defined as follows::
 
 It is important that the constraint for literals is trivial.  Here,
 ``3 ≤ 5`` evaluates to ``⊤`` whose inhabitant is found by unification.
+
+Using predefined function from the standard library and instance ``NumNat``,
+the ``NumFin`` instance can be simply:
+
+.. code-block:: agda
+
+  open import Data.Fin using (Fin; #_)
+  open import Data.Nat using (suc; _≤?_)
+  open import Relation.Nullary.Decidable using (True)
+
+  instance
+    NumFin : ∀ {n} → Number (Fin n)
+    NumFin {n} .Number.Constraint m         = True (suc m ≤? n)
+    NumFin {n} .Number.fromNat    m {{m<n}} = #_ m {m<n = m<n}
+
+
 
 .. _agda-prelude: https://github.com/UlfNorell/agda-prelude
 
