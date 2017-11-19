@@ -21,6 +21,7 @@ import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "undefined.h"
@@ -93,6 +94,10 @@ haveSizedTypes = do
     Def _ [] <- ignoreSharing <$> primSizeSuc
     optSizedTypes <$> pragmaOptions
   `catchError` \_ -> return False
+
+-- | Test whether the SIZELT builtin is defined.
+haveSizeLt :: TCM Bool
+haveSizeLt = isJust <$> getBuiltinDefName builtinSizeLt
 
 -- | Add polarity info to a SIZE builtin.
 builtinSizeHook :: String -> QName -> Type -> TCM ()
