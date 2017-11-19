@@ -725,13 +725,9 @@ checking declaration
 {-# BUILTIN ISONEEMPTY isOneEmpty #-}
 { checkExpr
 { checkExpr
-checking that  .Agda.Primitive.Level  is not an empty type of sizes
 Solving awake constraints. 0 remaining.
 { checkExpr
 { checkExpr
-checking that  .(o : IsOne i0) →
-               Set .l  is not an empty type of sizes
-in context  {.l : .Agda.Primitive.Level}
 Solving awake constraints. 0 remaining.
 { checkExpr
 inferred def  isOneEmpty
@@ -1022,9 +1018,6 @@ compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
-checking that  IsOne i  is not an empty type of sizes
-in context  {a : .Agda.Primitive.Level} (i : I) (j : I)
-            {A : Partial (Set a) (primIMax i j)}
 Solving awake constraints. 0 remaining.
 { checkExpr
 { checkExpr
@@ -1088,9 +1081,6 @@ compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
 { checkExpr
-checking that  IsOne j  is not an empty type of sizes
-in context  {a : .Agda.Primitive.Level} (i : I) (j : I)
-            {A : Partial (Set a) (primIMax i j)}
 Solving awake constraints. 0 remaining.
 { checkExpr
 { checkExpr

@@ -42,7 +42,7 @@ import Agda.Utils.Impossible
 
 -- | Check whether a type is either not a SIZELT or a SIZELT that is non-empty.
 checkSizeLtSat :: Term -> TCM ()
-checkSizeLtSat t = do
+checkSizeLtSat t = whenM haveSizeLt $ do
   reportSDoc "tc.size" 10 $ do
     tel <- getContextTelescope
     sep

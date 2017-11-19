@@ -7,5 +7,5 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-give-action 1 "λ _ → ?")
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Set ?2 : Set ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Is not empty type of sizes: ?0 " nil)
+(agda2-info-action "*All Goals*" "?0 : Set ?2 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0 2)))
