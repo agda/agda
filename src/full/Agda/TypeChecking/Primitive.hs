@@ -871,6 +871,10 @@ primComp = do
 
   compData l ps sc sphi u a0 = do
     tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+    constrForm <- do
+      mz <- getBuiltin' builtinZero
+      ms <- getBuiltin' builtinSuc
+      return $ \ t -> fromMaybe t (constructorForm' mz ms t)
     su  <- reduceB' u
     sa0 <- reduceB' a0
     view   <- intervalView'
@@ -888,11 +892,11 @@ primComp = do
                                                             <#> (ilam "o" $ \ _ -> c <@> i)
                    _     -> su
         sameConHead h u = allComponents unview phi u $ \ t ->
-          case ignoreSharing t of
+          case ignoreSharing $ constrForm t of
             Con h' _ _ -> h == h'
             _        -> False
 
-    case ignoreSharing a0 of
+    case ignoreSharing $ constrForm a0 of
       Con h _ args -> do
         ifM (not <$> sameConHead h u) noRed $ do
           Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
