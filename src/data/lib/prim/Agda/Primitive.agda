@@ -31,17 +31,17 @@ postulate
 {-# BUILTIN LEVELSUC  lsuc  #-}
 {-# BUILTIN LEVELMAX  _⊔_   #-}
 
-{-# BUILTIN INTERVAL I    #-} -- I : Setω
+-- {-# BUILTIN INTERVAL I    #-} -- I : Setω
 
-{-# BUILTIN IZERO    i0   #-}
-{-# BUILTIN IONE     i1   #-}
+-- {-# BUILTIN IZERO    i0   #-}
+-- {-# BUILTIN IONE     i1   #-}
 
-infix 30 primINeg
+-- infix 30 primINeg
 
-primitive
-    primIMin : I → I → I
-    primIMax : I → I → I
-    primINeg : I → I
+-- primitive
+--     primIMin : I → I → I
+--     primIMax : I → I → I
+--     primINeg : I → I
 
 -- {-# BUILTIN ISONE        IsOne #-} -- IsOne : I → Setω
 
