@@ -1,0 +1,34 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > { compiling Word.NumWord
+out > Word.NumWord =
+out >   Agda.Builtin.FromNat.recCon-NOT-PRINTED
+out >     _ (λ a _ → Agda.Builtin.Word.primWord64FromNat a)
+out > }
+out > { compiling Word.natOp
+out > Word.natOp =
+out >   λ a b c →
+out >     Agda.Builtin.Word.primWord64FromNat
+out >       (a (Agda.Builtin.Word.toNat b) (Agda.Builtin.Word.toNat c))
+out > }
+out > { compiling Word.addWord
+out > Word.addWord =
+out >   λ a b →
+out >     Agda.Builtin.Word.primWord64FromNat
+out >       (Agda.Builtin.Word.toNat a + Agda.Builtin.Word.toNat b)
+out > }
+out > { compiling Word.test
+out > Word.test =
+out >   Word.addWord
+out >     (Agda.Builtin.Word.primWord64FromNat 9223372036854775908)
+out >     (Agda.Builtin.Word.primWord64FromNat 9223372036854775809)
+out > }
+out > { compiling Word.prf
+out > Word.prf = _
+out > }
+out > { compiling Word.main
+out > Word.main = Word.putStrLn (Word.showWord Word.test)
+out > }
+out > 101
+out >

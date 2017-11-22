@@ -203,6 +203,28 @@ properties
 
 .. _built-in-integer:
 
+Machine words
+-------------
+
+.. code-block:: agda
+
+  module Agda.Builtin.Word
+
+Agda supports built-in 64-bit machine words, bound with the ``WORD64`` built-in::
+
+  postulate Word64 : Set
+  {-# BUILTIN WORD64 Word64 #-}
+
+Machine words can be converted to and from natural numbers using the following primitives::
+
+  primitive
+    primWord64ToNat   : Word64 → Nat
+    primWord64FromNat : Nat → Word64
+
+Converting to a natural number is the trivial embedding, and converting from a natural number
+gives you the remainder modulo :math:`2^{64}`. The proofs of these theorems are not primitive,
+but can be defined in a library using :ref:`primTrustMe`.
+
 Integers
 --------
 
@@ -448,6 +470,8 @@ Other variants of the identity type are also accepted as built-in:
     refl : (x : A) → x ≡ x
 
 The type of ``primTrustMe`` has to match the flavor of identity type.
+
+.. _primtrustme:
 
 primTrustMe
 ~~~~~~~~~~~

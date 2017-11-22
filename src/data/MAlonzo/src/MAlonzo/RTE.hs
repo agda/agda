@@ -2,6 +2,7 @@ module MAlonzo.RTE where
 
 import Unsafe.Coerce
 import GHC.Prim
+import qualified Data.Word
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 
 -- Special version of coerce that plays well with rules.
@@ -93,3 +94,14 @@ ltNumFloat :: Double -> Double -> Bool
 ltNumFloat x y = case compareFloat x y of
                 LT -> True
                 _  -> False
+
+-- Words --
+
+type Word64 = Data.Word.Word64
+
+word64ToNat :: Word64 -> Integer
+word64ToNat = fromIntegral
+
+word64FromNat :: Integer -> Word64
+word64FromNat = fromIntegral
+

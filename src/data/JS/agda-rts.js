@@ -189,3 +189,9 @@ exports.primQNameLess = function(x) {
 exports.primQNameFixity = function(x) {
   return x["fixity"];
 };
+
+// Words
+var twoTo64 = exports.primIntegerFromString("18446744073709551616");
+
+exports.primWord64ToNat = function(x) { return x; };
+exports.primWord64FromNat = function(x) { return x.remainder(twoTo64); };

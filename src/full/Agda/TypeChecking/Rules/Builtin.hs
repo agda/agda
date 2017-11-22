@@ -74,7 +74,7 @@ coreBuiltins =
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
   , (builtinUnit               |-> BuiltinData tset [builtinUnitUnit])  -- actually record, but they are treated the same
-  , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
+  , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
                                                      builtinAgdaLitQName, builtinAgdaLitMeta])
   , (builtinAgdaPattern        |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
@@ -86,6 +86,7 @@ coreBuiltins =
   , (builtinAgdaPatProj        |-> BuiltinDataCons (tqname --> tpat))
   , (builtinAgdaPatAbsurd      |-> BuiltinDataCons tpat)
   , (builtinLevel              |-> builtinPostulate tset)
+  , (builtinWord64             |-> builtinPostulate tset)
   , (builtinInteger            |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
   , (builtinIntegerPos         |-> BuiltinDataCons (tnat --> tinteger))
   , (builtinIntegerNegSuc      |-> BuiltinDataCons (tnat --> tinteger))
@@ -156,6 +157,7 @@ coreBuiltins =
   , (builtinAgdaTermMeta         |-> BuiltinDataCons (tmeta --> targs --> tterm))
   , (builtinAgdaTermUnsupported|-> BuiltinDataCons tterm)
   , (builtinAgdaLitNat    |-> BuiltinDataCons (tnat --> tliteral))
+  , (builtinAgdaLitWord64 |-> BuiltinDataCons (tword64 --> tliteral))
   , (builtinAgdaLitFloat  |-> BuiltinDataCons (tfloat --> tliteral))
   , (builtinAgdaLitChar   |-> BuiltinDataCons (tchar --> tliteral))
   , (builtinAgdaLitString |-> BuiltinDataCons (tstring --> tliteral))
@@ -262,6 +264,7 @@ coreBuiltins =
         terrorpart = el primAgdaErrorPart
         tnat       = el primNat
         tint       = el primInteger
+        tword64    = el primWord64
         tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
@@ -637,6 +640,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                 when (s == builtinChar)   $ addHaskellPragma q "= type Char"
                 when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
                 when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
+                when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
                 bindBuiltinName s v
               _        -> err
           _ -> err

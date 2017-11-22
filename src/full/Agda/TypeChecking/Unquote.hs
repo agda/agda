@@ -14,6 +14,7 @@ import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Word
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -232,6 +233,13 @@ instance Unquote Integer where
     case ignoreSharing t of
       Lit (LitNat _ n) -> return n
       _ -> throwError $ NonCanonical "integer" t
+
+instance Unquote Word64 where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case ignoreSharing t of
+      Lit (LitWord64 _ n) -> return n
+      _ -> throwError $ NonCanonical "word64" t
 
 instance Unquote Double where
   unquote t = do

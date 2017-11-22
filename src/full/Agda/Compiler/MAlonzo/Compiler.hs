@@ -645,6 +645,7 @@ literal l = case l of
 
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitNat    _ x -> HS.Int    x
+                    LitWord64 _ x -> HS.Int    (fromIntegral x)
                     LitFloat  _ x -> HS.Frac   (toRational x)
                     LitChar   _ x -> HS.Char   x
                     LitQName  _ x -> __IMPOSSIBLE__

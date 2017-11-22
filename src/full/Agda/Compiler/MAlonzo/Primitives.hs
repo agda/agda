@@ -148,6 +148,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primNatEquality"  |-> relNat "(==)"
   , "primNatLess"      |-> relNat "(<)"
 
+  -- Machine word functions
+  , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
+  , "primWord64FromNat" |-> return "MAlonzo.RTE.word64FromNat"
+
   -- Floating point functions
   , "primNatToFloat"        |-> return "(fromIntegral :: Integer -> Double)"
   , "primFloatPlus"         |-> return "((+)          :: Double -> Double -> Double)"

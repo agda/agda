@@ -6,6 +6,7 @@ module InternalTests.TypeChecking.Generators where
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.List as List (sort, nub)
+import Data.Word
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -241,9 +242,13 @@ instance GenC Double where
 instance GenC Integer where
   genC _ = arbitrary
 
+instance GenC Word64 where
+  genC _ = arbitrary
+
 instance GenC Literal where
   genC conf = oneof (concat $ zipWith gen useLits
               [ uncurry LitNat    <$> genC conf
+              , uncurry LitWord64 <$> genC conf
               , uncurry LitFloat  <$> genC conf
               , uncurry LitString <$> genC conf
               , uncurry LitChar   <$> genC conf
@@ -400,6 +405,7 @@ instance ShrinkC Literal Literal where
   shrinkC _ (LitNat _ 0) = []
   shrinkC conf l         = LitNat noRange 0 : case l of
       LitNat    r n -> LitNat    r <$> shrink n
+      LitWord64 r n -> LitWord64 r <$> shrink n
       LitString r s -> LitString r <$> shrinkC conf s
       LitChar   r c -> LitChar   r <$> shrinkC conf c
       LitFloat  r x -> LitFloat  r <$> shrink x

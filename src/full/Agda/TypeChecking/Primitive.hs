@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Traversable (traverse)
 import Data.Monoid (mempty)
+import Data.Word
 
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 
@@ -103,6 +104,7 @@ instance PrimTerm a => PrimType a where
 
 class    PrimTerm a       where primTerm :: a -> TCM Term
 instance PrimTerm Integer where primTerm _ = primInteger
+instance PrimTerm Word64  where primTerm _ = primWord64
 instance PrimTerm Bool    where primTerm _ = primBool
 instance PrimTerm Char    where primTerm _ = primChar
 instance PrimTerm Double  where primTerm _ = primFloat
@@ -130,6 +132,7 @@ class ToTerm a where
   toTermR = (pure .) <$> toTerm
 
 instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
+instance ToTerm Word64  where toTerm = return $ Lit . LitWord64 noRange
 instance ToTerm Lvl     where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
@@ -264,6 +267,11 @@ instance FromTerm Nat where
   fromTerm = fromLiteral $ \l -> case l of
     LitNat _ n -> Just $ fromInteger n
     _          -> Nothing
+
+instance FromTerm Word64 where
+  fromTerm = fromLiteral $ \ case
+    LitWord64 _ n -> Just n
+    _             -> Nothing
 
 instance FromTerm Lvl where
   fromTerm = fromReducedTerm $ \l -> case l of
@@ -728,6 +736,10 @@ primitiveFunctions = Map.fromList
       in mkPrimFun4 aux
   , "primNatEquality"     |-> mkPrimFun2 ((==) :: Rel Nat)
   , "primNatLess"         |-> mkPrimFun2 ((<)  :: Rel Nat)
+
+  -- Machine words
+  , "primWord64ToNat"     |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)
+  , "primWord64FromNat"   |-> mkPrimFun1 (fromIntegral :: Nat -> Word64)
 
   -- Level functions
   , "primLevelZero"       |-> mkPrimLevelZero

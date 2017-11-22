@@ -73,6 +73,7 @@ has the following shape::
 
   data Literal : Set where
     nat    : (n : Nat)    → Literal
+    word64 : (n : Word64) → Literal
     float  : (x : Float)  → Literal
     char   : (c : Char)   → Literal
     string : (s : String) → Literal
@@ -81,6 +82,7 @@ has the following shape::
 
   {-# BUILTIN AGDALITERAL   Literal #-}
   {-# BUILTIN AGDALITNAT    nat     #-}
+  {-# BUILTIN AGDALITWORD64 word64  #-}
   {-# BUILTIN AGDALITFLOAT  float   #-}
   {-# BUILTIN AGDALITCHAR   char    #-}
   {-# BUILTIN AGDALITSTRING string  #-}
