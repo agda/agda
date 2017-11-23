@@ -3,11 +3,11 @@ Add support for a new version of GHC (in the stable branch)
 
 Let's suppose the new version of GHC is X.Y.Z.
 
-* Install the tools in the `build-tools` field(s) of Agda.cabal.
-
 * Update Cabal index:
 
   `cabal update`
+
+* Install the tools in the `build-tools` field(s) of Agda.cabal.
 
 * Install Agda dependencies:
 
