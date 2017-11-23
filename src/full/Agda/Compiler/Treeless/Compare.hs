@@ -52,4 +52,13 @@ applyPrim PEqS _ _ = Nothing
 applyPrim PEqQ _ _ = Nothing
 applyPrim PIf  _ _ = Nothing
 applyPrim PSeq _ _ = Nothing
+applyPrim PAdd64 _ _ = Nothing
+applyPrim PSub64 _ _ = Nothing
+applyPrim PMul64 _ _ = Nothing
+applyPrim PQuot64 _ _ = Nothing
+applyPrim PRem64 _ _ = Nothing
+applyPrim PLt64  _ _ = Nothing
+applyPrim PEq64 _ _ = Nothing
+applyPrim PITo64 _ _ = Nothing
+applyPrim P64ToI _ _ = Nothing
 

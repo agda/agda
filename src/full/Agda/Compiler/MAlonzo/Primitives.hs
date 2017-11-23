@@ -72,6 +72,15 @@ treelessPrimName p =
     PGeq  -> "geqInt"
     PLt   -> "ltInt"
     PEqI  -> "eqInt"
+    PQuot64 -> "quot64"
+    PRem64  -> "rem64"
+    PSub64  -> "sub64"
+    PAdd64  -> "add64"
+    PMul64  -> "mul64"
+    PLt64   -> "lt64"
+    PEq64  -> "eq64"
+    PITo64 -> "word64FromNat"
+    P64ToI -> "word64ToNat"
     PEqF  -> "eqFloat"
     -- MAlonzo uses literal patterns, so we don't need equality for the other primitive types
     PEqC  -> __IMPOSSIBLE__

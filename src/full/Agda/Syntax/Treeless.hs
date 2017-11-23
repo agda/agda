@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 -- | The treeless syntax is intended to be used as input for the compiler backends.
 -- It is more low-level than Internal syntax and is not used for type checking.
@@ -15,6 +16,7 @@ import Control.Arrow (first, second)
 
 import Data.Map (Map)
 import Data.Data (Data)
+import Data.Word
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -66,24 +68,25 @@ data TTerm = TVar Int
 -- Q    | QName
 -- S    | String
 data TPrim
-  = PAdd
-  | PSub
-  | PMul
-  | PQuot
-  | PRem
+  = PAdd | PAdd64
+  | PSub | PSub64
+  | PMul | PMul64
+  | PQuot | PQuot64
+  | PRem  | PRem64
   | PGeq
-  | PLt
-  | PEqI
+  | PLt   | PLt64
+  | PEqI  | PEq64
   | PEqF
   | PEqS
   | PEqC
   | PEqQ
   | PIf
   | PSeq
+  | PITo64 | P64ToI
   deriving (Data, Show, Eq, Ord)
 
 isPrimEq :: TPrim -> Bool
-isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ]
+isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ, PEq64]
 
 mkTApp :: TTerm -> Args -> TTerm
 mkTApp x           [] = x
@@ -120,6 +123,10 @@ intView :: TTerm -> Maybe Integer
 intView (TLit (LitNat _ x)) = Just x
 intView _ = Nothing
 
+word64View :: TTerm -> Maybe Word64
+word64View (TLit (LitWord64 _ x)) = Just x
+word64View _ = Nothing
+
 tPlusK :: Integer -> TTerm -> TTerm
 tPlusK 0 n = n
 tPlusK k n | k < 0 = tOp PSub n (tInt (-k))
@@ -139,7 +146,13 @@ negPlusKView (TApp (TPrim PSub) [k, n]) | Just k <- intView k = Just (-k, n)
 negPlusKView _ = Nothing
 
 tOp :: TPrim -> TTerm -> TTerm -> TTerm
-tOp op a b = TApp (TPrim op) [a, b]
+tOp op a b = TPOp op a b
+
+pattern TPOp :: TPrim -> TTerm -> TTerm -> TTerm
+pattern TPOp op a b = TApp (TPrim op) [a, b]
+
+pattern TPFn :: TPrim -> TTerm -> TTerm
+pattern TPFn op a = TApp (TPrim op) [a]
 
 tUnreachable :: TTerm
 tUnreachable = TError TUnreachable

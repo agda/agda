@@ -413,7 +413,8 @@ compilePrim p =
     T.PEqI -> binOp "agdaRTS.uprimIntegerEqual"
     T.PEqF -> binOp "agdaRTS.uprimFloatEquality"
     T.PEqQ -> binOp "agdaRTS.uprimQNameEquality"
-    p | T.isPrimEq p -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
+    T.PEqS -> primEq
+    T.PEqC -> primEq
     T.PGeq -> binOp "agdaRTS.uprimIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.uprimIntegerLessThan"
     T.PAdd -> binOp "agdaRTS.uprimIntegerPlus"
@@ -421,9 +422,19 @@ compilePrim p =
     T.PMul -> binOp "agdaRTS.uprimIntegerMultiply"
     T.PRem -> binOp "agdaRTS.uprimIntegerRem"
     T.PQuot -> binOp "agdaRTS.uprimIntegerQuot"
+    T.PAdd64 -> binOp "agdaRTS.uprimWord64Plus"
+    T.PSub64 -> binOp "agdaRTS.uprimWord64Minus"
+    T.PMul64 -> binOp "agdaRTS.uprimWord64Multiply"
+    T.PRem64 -> binOp "agdaRTS.uprimIntegerRem"     -- -|
+    T.PQuot64 -> binOp "agdaRTS.uprimIntegerQuot"   --  > These can use the integer functions
+    T.PEq64 -> binOp "agdaRTS.uprimIntegerEqual"    --  |
+    T.PLt64 -> binOp "agdaRTS.uprimIntegerLessThan" -- -|
+    T.PITo64 -> unOp "agdaRTS.primWord64FromNat"
+    T.P64ToI -> unOp "agdaRTS.primWord64ToNat"
     T.PSeq -> binOp "agdaRTS.primSeq"
-    _ -> __IMPOSSIBLE__
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
+        unOp js  = curriedLambda 1 $ apply (PlainJS js) [local 0]
+        primEq   = curriedLambda 2 $ BinOp (local 1) "===" (local 0)
 
 
 compileAlt :: T.TAlt -> TCM (MemberId, Exp)

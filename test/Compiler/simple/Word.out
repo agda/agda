@@ -1,34 +1,46 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > { compiling Word.NumWord
 out > Word.NumWord =
-out >   Agda.Builtin.FromNat.recCon-NOT-PRINTED
-out >     _ (λ a _ → Agda.Builtin.Word.primWord64FromNat a)
-out > }
-out > { compiling Word.natOp
-out > Word.natOp =
-out >   λ a b c →
-out >     Agda.Builtin.Word.primWord64FromNat
-out >       (a (Agda.Builtin.Word.toNat b) (Agda.Builtin.Word.toNat c))
-out > }
-out > { compiling Word.addWord
-out > Word.addWord =
+out >   Agda.Builtin.FromNat.recCon-NOT-PRINTED _ (λ a _ → toWord64 a)
+out > Word.NumNat = Agda.Builtin.FromNat.recCon-NOT-PRINTED _ (λ a _ → a)
+out > Word.natOp = λ a b c → toWord64 (a (fromWord64 b) (fromWord64 c))
+out > Word._^_ =
 out >   λ a b →
-out >     Agda.Builtin.Word.primWord64FromNat
-out >       (Agda.Builtin.Word.toNat a + Agda.Builtin.Word.toNat b)
-out > }
-out > { compiling Word.test
+out >     case b of
+out >       0 → 1
+out >       _ → let c = b - 1 in a * Word._^_ a c
+out > Word.2⁶⁴ = Word._^_ 2 64
+out > Word.addWord = λ a b → a +64 b
+out > Word.subWord = λ a b → a -64 b
+out > Word.mulWord = λ a b → a *64 b
+out > Word.NonZero = _
+out > Word.div = λ a b _ → quot a b
+out > Word.mod = λ a b _ → rem a b
+out > Word.NonZeroWord = _
+out > Word.divWord = λ a b _ → quot64 a b
+out > Word.modWord = λ a b _ → rem64 a b
+out > Word.eqWord = λ a b → a ==64 b
+out > Word.ltWord = λ a b → a <64 b
+out > Word.2^63 =
+out >   let a = 1
+out >       b =
+out >         let c = 0 -64 1
+out >             d = 2 in
+out >         quot64 c d in
+out >   a +64 b
 out > Word.test =
-out >   Word.addWord
-out >     (Agda.Builtin.Word.primWord64FromNat 9223372036854775908)
-out >     (Agda.Builtin.Word.primWord64FromNat 9223372036854775809)
-out > }
-out > { compiling Word.prf
+out >   let a =
+out >         let c = Word.2^63
+out >             d = 100 in
+out >         c +64 d
+out >       b =
+out >         let c = Word.2^63
+out >             d = 1 in
+out >         c +64 d in
+out >   a +64 b
 out > Word.prf = _
-out > }
-out > { compiling Word.main
+out > Word.prf' = _
 out > Word.main = Word.putStrLn (Word.showWord Word.test)
-out > }
 out > 101
 out >

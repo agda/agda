@@ -195,3 +195,13 @@ var twoTo64 = exports.primIntegerFromString("18446744073709551616");
 
 exports.primWord64ToNat = function(x) { return x; };
 exports.primWord64FromNat = function(x) { return x.remainder(twoTo64); };
+
+exports.uprimWord64Plus = function(x,y) {
+  return x.add(y).remainder(twoTo64);
+};
+exports.uprimWord64Minus = function(x,y) {
+  return x.add(twoTo64).subtract(y).remainder(twoTo64);
+};
+exports.uprimWord64Multiply = function(x,y) {
+  return x.multiply(y).remainder(twoTo64);
+};

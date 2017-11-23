@@ -225,6 +225,22 @@ Converting to a natural number is the trivial embedding, and converting from a n
 gives you the remainder modulo :math:`2^{64}`. The proofs of these theorems are not primitive,
 but can be defined in a library using :ref:`primTrustMe`.
 
+
+Basic arithmetic operations can be defined on ``Word64`` by converting to
+natural numbers, peforming the corresponding operation, and then converting
+back. The compiler will optimise these to use 64-bit arithmetic. For
+instance::
+
+  addWord : Word64 → Word64 → Word64
+  addWord a b = primWord64FromNat (primWord64ToNat a + primWord64ToNat b)
+
+  subWord : Word64 → Word64 → Word64
+  subWord a b = primWord64FromNat ((primWord64ToNat a + 18446744073709551616) - primWord64ToNat b)
+
+These compile to primitive addition and subtraction on 64-bit words, which in the
+:ref:`GHC backend<ghc-backend>` map to operations on Haskell 64-bit words
+(``Data.Word.Word64``).
+
 Integers
 --------
 
