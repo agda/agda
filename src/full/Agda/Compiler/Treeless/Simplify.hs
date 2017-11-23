@@ -99,19 +99,6 @@ simplify FunctionKit{..} = simpl
           opTo64 op = lookup op [(PAdd, PAdd64), (PSub, PSub64), (PMul, PMul64),
                                  (PQuot, PQuot64), (PRem, PRem64)]
 
-      -- (fromWord a == fromWord b) = (a ==64 b)
-      TPOp op (TPFn P64ToI a) (TPFn P64ToI b)
-        | Just op64 <- opTo64 op -> simpl $ tOp op64 a b
-        where
-          opTo64 op = lookup op [(PEqI, PEq64), (PLt, PLt64)]
-
-      -- toWord/fromWord k == fromIntegral k
-      TPFn PITo64 (TLit (LitNat r n))    -> pure $ TLit (LitWord64 r (fromIntegral n))
-      TPFn P64ToI (TLit (LitWord64 r n)) -> pure $ TLit (LitNat r (fromIntegral n))
-
-      -- toWord (fromWord a) == a
-      TPFn PITo64 (TPFn P64ToI a) -> simpl a
-
       TApp (TPrim _) _ -> pure t  -- taken care of by rewrite'
 
       TApp f es -> do
@@ -220,6 +207,10 @@ simplify FunctionKit{..} = simpl
       | Just (PAdd, k, v) <- constArithView v,
         TApp (TPrim P64ToI) [u] <- u,
         k >= 2^64, Just trueCon <- true = TCon trueCon
+      | Just k <- intView u
+      , Just j <- intView v
+      , Just trueCon <- true
+      , Just falseCon <- false = if k < j then TCon trueCon else TCon falseCon
     simplPrim' (TApp (TPrim op) [u, v])
       | elem op [PGeq, PLt, PEqI]
       , Just (PAdd, k, u) <- constArithView u
@@ -251,6 +242,20 @@ simplify FunctionKit{..} = simpl
     simplPrim' (TApp (TPrim PRem) [u, v])
       | Just u <- negView u  = simplArith $ tOp PSub (tInt 0) (tOp PRem u (unNeg v))
       | Just v <- negView v  = tOp PRem u v
+
+      -- (fromWord a == fromWord b) = (a ==64 b)
+    simplPrim' (TPOp op (TPFn P64ToI a) (TPFn P64ToI b))
+        | Just op64 <- opTo64 op = tOp op64 a b
+        where
+          opTo64 op = lookup op [(PEqI, PEq64), (PLt, PLt64)]
+
+      -- toWord/fromWord k == fromIntegral k
+    simplPrim' (TPFn PITo64 (TLit (LitNat r n)))    = TLit (LitWord64 r (fromIntegral n))
+    simplPrim' (TPFn P64ToI (TLit (LitWord64 r n))) = TLit (LitNat r    (fromIntegral n))
+
+      -- toWord (fromWord a) == a
+    simplPrim' (TPFn PITo64 (TPFn P64ToI a)) = a
+
     simplPrim' (TApp f@(TPrim op) [u, v]) = simplArith $ TApp f [simplPrim' u, simplPrim' v]
     simplPrim' u = u
 
@@ -265,8 +270,11 @@ simplify FunctionKit{..} = simpl
     betterThan u v = operations u <= operations v
       where
         operations (TApp (TPrim _) [a, b]) = 1 + operations a + operations b
+        operations (TApp (TPrim _) [a])    = 1 + operations a
         operations TVar{}                  = 0
         operations TLit{}                  = 0
+        operations TCon{}                  = 0
+        operations TDef{}                  = 0
         operations _                       = 1000
 
     rewrite' t = rewrite =<< simplPrim t
