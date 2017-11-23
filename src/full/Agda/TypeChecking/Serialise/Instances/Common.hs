@@ -478,6 +478,7 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icod_ (LitChar   a b)   = icodeN 3 LitChar a b
   icod_ (LitQName  a b)   = icodeN 5 LitQName a b
   icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
+  icod_ (LitWord64 a b)   = icodeN 7 LitWord64 a b
 
   value = vcase valu where
     valu [a, b]       = valuN LitNat    a b
@@ -486,6 +487,7 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
     valu [3, a, b]    = valuN LitChar   a b
     valu [5, a, b]    = valuN LitQName  a b
     valu [6, a, b, c] = valuN LitMeta   a b c
+    valu [7, a, b]    = valuN LitWord64 a b
     valu _            = malformed
 
 instance EmbPrj IsAbstract where

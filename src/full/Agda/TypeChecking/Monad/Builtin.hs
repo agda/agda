@@ -36,6 +36,7 @@ litType l = case l of
     _ <- primZero
     when (n > 0) $ void $ primSuc
     el <$> primNat
+  LitWord64 _ _ -> el <$> primWord64
   LitFloat _ _  -> el <$> primFloat
   LitChar _ _   -> el <$> primChar
   LitString _ _ -> el <$> primString
@@ -127,6 +128,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primCompGlue, primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
+    -- Machine words
+    primWord64,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
@@ -143,7 +146,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAssoc, primAssocLeft, primAssocRight, primAssocNon,
     primPrecedence, primPrecRelated, primPrecUnrelated,
     primFixity, primFixityFixity,
-    primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
+    primAgdaLiteral, primAgdaLitNat, primAgdaLitWord64, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -216,6 +219,7 @@ primNatDivSucAux = getBuiltin builtinNatDivSucAux
 primNatModSucAux = getBuiltin builtinNatModSucAux
 primNatEquality  = getBuiltin builtinNatEquals
 primNatLess      = getBuiltin builtinNatLess
+primWord64       = getBuiltin builtinWord64
 primSizeUniv     = getBuiltin builtinSizeUniv
 primSize         = getBuiltin builtinSize
 primSizeLt       = getBuiltin builtinSizeLt
@@ -279,6 +283,7 @@ primAgdaErrorPartTerm   = getBuiltin builtinAgdaErrorPartTerm
 primAgdaErrorPartName   = getBuiltin builtinAgdaErrorPartName
 primAgdaLiteral   = getBuiltin builtinAgdaLiteral
 primAgdaLitNat    = getBuiltin builtinAgdaLitNat
+primAgdaLitWord64 = getBuiltin builtinAgdaLitWord64
 primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
 primAgdaLitChar   = getBuiltin builtinAgdaLitChar
 primAgdaLitString = getBuiltin builtinAgdaLitString
@@ -332,6 +337,7 @@ primAgdaTCMDebugPrint         = getBuiltin builtinAgdaTCMDebugPrint
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
+  builtinWord64,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
@@ -361,7 +367,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
-  builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
+  builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
@@ -393,6 +399,7 @@ builtinNatDivSucAux                  = "NATDIVSUCAUX"
 builtinNatModSucAux                  = "NATMODSUCAUX"
 builtinNatEquals                     = "NATEQUALS"
 builtinNatLess                       = "NATLESS"
+builtinWord64                        = "WORD64"
 builtinInteger                       = "INTEGER"
 builtinIntegerPos                    = "INTEGERPOS"
 builtinIntegerNegSuc                 = "INTEGERNEGSUC"
@@ -500,6 +507,7 @@ builtinAgdaErrorPartTerm             = "AGDAERRORPARTTERM"
 builtinAgdaErrorPartName             = "AGDAERRORPARTNAME"
 builtinAgdaLiteral                   = "AGDALITERAL"
 builtinAgdaLitNat                    = "AGDALITNAT"
+builtinAgdaLitWord64                 = "AGDALITWORD64"
 builtinAgdaLitFloat                  = "AGDALITFLOAT"
 builtinAgdaLitChar                   = "AGDALITCHAR"
 builtinAgdaLitString                 = "AGDALITSTRING"

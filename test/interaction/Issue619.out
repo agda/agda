@@ -10,6 +10,8 @@
 (agda2-info-action "*Type-checking*" " Finished Agda.Builtin.Bool. " t)
 (agda2-info-action "*Type-checking*" " Checking Agda.Builtin.Nat (agda-default-include-path/Agda/Builtin/Nat.agda). " t)
 (agda2-info-action "*Type-checking*" " Finished Agda.Builtin.Nat. " t)
+(agda2-info-action "*Type-checking*" " Checking Agda.Builtin.Word (agda-default-include-path/Agda/Builtin/Word.agda). " t)
+(agda2-info-action "*Type-checking*" " Finished Agda.Builtin.Word. " t)
 (agda2-info-action "*Type-checking*" " Checking Agda.Builtin.List (agda-default-include-path/Agda/Builtin/List.agda). " t)
 (agda2-info-action "*Type-checking*" " Finished Agda.Builtin.List. " t)
 (agda2-info-action "*Type-checking*" " Checking Agda.Builtin.String (agda-default-include-path/Agda/Builtin/String.agda). " t)

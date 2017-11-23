@@ -75,6 +75,7 @@ quotingKit = do
   meta            <- primAgdaTermMeta
   lit             <- primAgdaTermLit
   litNat          <- primAgdaLitNat
+  litWord64       <- primAgdaLitNat
   litFloat        <- primAgdaLitFloat
   litChar         <- primAgdaLitChar
   litString       <- primAgdaLitString
@@ -131,6 +132,7 @@ quotingKit = do
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l
+      quoteLit l@LitWord64{} = litWord64 !@! Lit l
       quoteLit l@LitFloat{}  = litFloat  !@! Lit l
       quoteLit l@LitChar{}   = litChar   !@! Lit l
       quoteLit l@LitString{} = litString !@! Lit l

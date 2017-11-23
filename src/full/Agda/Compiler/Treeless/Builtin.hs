@@ -45,6 +45,8 @@ data BuiltinKit = BuiltinKit
   , isLess   :: QName -> Bool
   , isEqual  :: QName -> Bool
   , isForce  :: QName -> Bool
+  , isWord64FromNat :: QName -> Bool
+  , isWord64ToNat   :: QName -> Bool
   }
 
 builtinKit :: TCM BuiltinKit
@@ -58,6 +60,8 @@ builtinKit =
              <*> isB def builtinNatLess
              <*> isB def builtinNatEquals
              <*> isP pf  "primForce"
+             <*> isP pf  "primWord64FromNat"
+             <*> isP pf  "primWord64ToNat"
   where
     con (I.Con c _ _) = pure $ I.conName c
     con _           = Nothing
@@ -89,6 +93,8 @@ transform BuiltinKit{..} = tr
              | isTimes f  -> TPrim PMul
              | isLess f   -> TPrim PLt
              | isEqual f  -> TPrim PEqI
+             | isWord64ToNat f   -> TPrim P64ToI
+             | isWord64FromNat f -> TPrim PITo64
         -- Note: Don't do this for builtinNatMinus! PSub is integer minus and
         --       builtin minus is monus. The simplifier will do it if it can see
         --       that it won't underflow.

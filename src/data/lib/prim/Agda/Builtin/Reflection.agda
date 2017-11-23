@@ -5,6 +5,7 @@ module Agda.Builtin.Reflection where
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
+open import Agda.Builtin.Word
 open import Agda.Builtin.List
 open import Agda.Builtin.String
 open import Agda.Builtin.Char
@@ -120,6 +121,7 @@ data Abs (A : Set) : Set where
 
 data Literal : Set where
   nat    : (n : Nat)    → Literal
+  word64 : (n : Word64) → Literal
   float  : (x : Float)  → Literal
   char   : (c : Char)   → Literal
   string : (s : String) → Literal
@@ -128,6 +130,7 @@ data Literal : Set where
 
 {-# BUILTIN AGDALITERAL   Literal #-}
 {-# BUILTIN AGDALITNAT    nat     #-}
+{-# BUILTIN AGDALITWORD64 word64  #-}
 {-# BUILTIN AGDALITFLOAT  float   #-}
 {-# BUILTIN AGDALITCHAR   char    #-}
 {-# BUILTIN AGDALITSTRING string  #-}

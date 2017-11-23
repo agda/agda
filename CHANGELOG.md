@@ -186,6 +186,39 @@ Language
     module File where -- inner module with the same name as the file, ok
   ```
 
+### Builtins
+
+* Added support for built-in 64-bit machine words.
+
+  These are defined in `Agda.Builtin.Word` and come with two primitive
+  operations to convert to and from natural numbers.
+
+  ```agda
+    Word64 : Set
+    primWord64ToNat   : Word64 → Nat
+    primWord64FromNat : Nat → Word64
+  ```
+
+  Converting to a natural number is the trivial embedding, and converting from a natural number
+  gives you the remainder modulo 2^64. The proofs of these theorems are not
+  primitive, but can be defined in a library using `primTrustMe`.
+
+  Basic arithmetic operations can be defined on `Word64` by converting to
+  natural numbers, peforming the corresponding operation, and then converting
+  back. The compiler will optimise these to use 64-bit arithmetic. For
+  instance,
+
+  ```agda
+    addWord : Word64 → Word64 → Word64
+    addWord a b = primWord64FromNat (primWord64ToNat a + primWord64ToNat b)
+
+    subWord : Word64 → Word64 → Word64
+    subWord a b = primWord64FromNat (primWord64ToNat a + 18446744073709551616 - primWord64ToNat b)
+  ```
+
+  These compiles (in the GHC backend) to addition and subtraction on
+  `Data.Word.Word64`.
+
 
 Pragmas and options
 -------------------

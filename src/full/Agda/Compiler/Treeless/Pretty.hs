@@ -73,12 +73,22 @@ opName PRem = "rem"
 opName PGeq = ">="
 opName PLt  = "<"
 opName PEqI = "==I"
+opName PAdd64 = "+64"
+opName PSub64 = "-64"
+opName PMul64 = "*64"
+opName PQuot64 = "quot64"
+opName PRem64 = "rem64"
+opName PLt64  = "<64"
+opName PEq64 = "==64"
 opName PEqF = "==F"
 opName PEqS = "==S"
 opName PEqC = "==C"
 opName PEqQ = "==Q"
 opName PIf  = "if_then_else_"
 opName PSeq = "seq"
+opName PITo64 = "toWord64"
+opName P64ToI = "fromWord64"
+
 
 isInfix :: TPrim -> Maybe (Int, Int, Int)
 isInfix op =
@@ -88,6 +98,10 @@ isInfix op =
     PSub -> l 6
     PGeq -> non 4
     PLt  -> non 4
+    PMul64 -> l 7
+    PAdd64 -> l 6
+    PSub64 -> l 6
+    PLt64  -> non 4
     p | isPrimEq p -> non 4
     _    -> Nothing
   where

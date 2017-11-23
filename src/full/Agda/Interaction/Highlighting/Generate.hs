@@ -382,6 +382,7 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (P.getRange i)
   tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (P.getRange i)
   tokenToCFile (T.TokLiteral (L.LitNat    r _)) = aToF Number r
+  tokenToCFile (T.TokLiteral (L.LitWord64 r _)) = aToF Number r
   tokenToCFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
   tokenToCFile (T.TokLiteral (L.LitString r _)) = aToF String r
   tokenToCFile (T.TokLiteral (L.LitChar   r _)) = aToF String r

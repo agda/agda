@@ -195,7 +195,11 @@ imports = (hsImps ++) <$> imps where
   unqualRTE = HS.ImportDecl mazRTE False $ Just $
               (False, [ HS.IVar $ HS.Ident x
                       | x <- [mazCoerceName, mazErasedName] ++
-                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF] ])
+                             map treelessPrimName rtePrims ])
+
+  rtePrims = [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF,
+              T.PAdd64, T.PSub64, T.PMul64, T.PQuot64, T.PRem64, T.PLt64, T.PEq64,
+              T.PITo64, T.P64ToI]
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -619,6 +623,7 @@ alt sc a = do
 literal :: Literal -> HS.Exp
 literal l = case l of
   LitNat    _ _   -> typed "Integer"
+  LitWord64 _ _   -> typed "MAlonzo.RTE.Word64"
   LitFloat  _ x   -> floatExp x "Double"
   LitQName  _ x   -> litqname x
   LitString _ s   -> litString s
@@ -645,6 +650,7 @@ literal l = case l of
 
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitNat    _ x -> HS.Int    x
+                    LitWord64 _ x -> HS.Int    (fromIntegral x)
                     LitFloat  _ x -> HS.Frac   (toRational x)
                     LitChar   _ x -> HS.Char   x
                     LitQName  _ x -> __IMPOSSIBLE__
