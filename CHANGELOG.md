@@ -164,6 +164,8 @@ Backwards compatible changes
 
 ### Other
 
+* Added support for GHC 8.2.2.
+
 * The contents of `Data.Covec' is now polymorphic with respect to levels
 
 * Added new proofs to `Data.Nat.Properties`:

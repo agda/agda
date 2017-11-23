@@ -6,7 +6,7 @@ description:     Helper programs.
 license:         MIT
 tested-with:     GHC == 7.10.3
                  GHC == 8.0.2
-                 GHC == 8.2.1
+                 GHC == 8.2.2
 
 executable GenerateEverything
   hs-source-dirs:   .
