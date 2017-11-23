@@ -8,8 +8,6 @@ Important changes since 0.14:
 Non-backwards compatible changes
 --------------------------------
 
-* Removed support for GHC 7.8.4.
-
 #### Overhaul of `Algebra.Morphism`
 
 * Currently `Algebra.Morphism` only gives an example of a `Ring` homomorphism which
@@ -21,6 +19,8 @@ Non-backwards compatible changes
   requirements for its additive abelian group and multiplicative monoid.
 
 #### Other
+
+* Removed support for GHC 7.8.4.
 
 * Renamed `Data.Container.FreeMonad.do` and
   `Data.Container.Indexed.FreeMonad.do` to `inn` in anticipation of Agda
