@@ -1,7 +1,6 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue835 (Issue835.agda). " t)
 (agda2-status-action "")
 (agda2-info-action "*All Errors*" "Failed to solve the following constraints: Is empty: x ≡ y [ at Issue835.agda:12,3-5 ] " nil)
 ((last . 1) . (agda2-goals-action '()))

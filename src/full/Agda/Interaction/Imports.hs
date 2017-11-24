@@ -570,7 +570,9 @@ chaseMsg
 chaseMsg kind x file = do
   indentation <- (`replicate` ' ') <$> asks envModuleNestingLevel
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
-  reportSLn "import.chase" 1 $ concat $
+      vLvl | kind == "Checking" = 1
+           | otherwise          = 2
+  reportSLn "import.chase" vLvl $ concat $
     [ indentation, kind, " ", prettyShow x, maybeFile ]
 
 

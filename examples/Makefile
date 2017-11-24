@@ -165,7 +165,7 @@ relocatable-interfaces : relocatable/originals/*.agda
 	@cp -pR relocatable/originals relocatable/copies
 	@echo "" >> relocatable/copies/B.agda
 				# Type checking succeeds...
-	@$(agda) -irelocatable/copies relocatable/copies/C.agda > relocatable/copies/output
+	@$(agda) -v2 -irelocatable/copies relocatable/copies/C.agda > relocatable/copies/output
 	@cat relocatable/copies/output
 				# ...and skips one of the modules (A).
 	@[ `grep "^ *Loading" relocatable/copies/output | wc -l` = 1 ]

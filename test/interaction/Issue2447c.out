@@ -3,7 +3,6 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2447c (Issue2447c.agda). " t)
 (agda2-info-action "*Type-checking*" " Checking Issue2447.M (Issue2447/M.agda). " t)
-(agda2-info-action "*Type-checking*" " Finished Issue2447.M. " t)
 (agda2-info-action "*Type-checking*" " Checking Issue2447.Parse-error (Issue2447/Parse-error.agda). " t)
 (agda2-info-action "*Error*" "Issue2447/Parse-error.agda:1,1-6 The right-hand side can only be omitted if there is an absurd pattern, () or {}, in the left-hand side. when checking that the clause wrong has type _1" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2447/Parse-error.agda" . 1)))

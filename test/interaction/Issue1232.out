@@ -1,18 +1,11 @@
 Checking Issue1232.All (Issue1232/All.agda).
 Checking Issue1232.Fin (Issue1232/Fin.agda).
-Finished Issue1232.Fin.
 Checking Issue1232.List (Issue1232/List.agda).
 Checking Issue1232.Nat (Issue1232/Nat.agda).
-Finished Issue1232.Nat.
-Finished Issue1232.List.
-Finished Issue1232.All.
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue1232 (Issue1232.agda). " t)
-(agda2-info-action "*Type-checking*" " Loading  Issue1232.Nat (Issue1232/Nat.agdai). " t)
-(agda2-info-action "*Type-checking*" " Loading  Issue1232.List (Issue1232/List.agdai). " t)
-(agda2-info-action "*Type-checking*" "Finished Issue1232. " t)
 (agda2-status-action "Checked")
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
@@ -20,7 +13,6 @@ Finished Issue1232.All.
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue1232 (Issue1232.agda). " t)
-(agda2-info-action "*Type-checking*" "Finished Issue1232. " t)
 (agda2-status-action "Checked")
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))

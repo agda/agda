@@ -4,7 +4,6 @@
 (agda2-info-action "*Type-checking*" "Checking Issue2447b (Issue2447b.agda). " t)
 (agda2-info-action "*Type-checking*" " Checking Issue2447.Type-error (Issue2447/Type-error.agda). " t)
 (agda2-info-action "*Type-checking*" " Checking Issue2447.M (Issue2447/M.agda). " t)
-(agda2-info-action "*Type-checking*" " Finished Issue2447.M. " t)
 (agda2-info-action "*Error*" "Issue2447/Type-error.agda:6,12-15 Set₁ != Set when checking that the expression Set has type Set" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2447/Type-error.agda" . 82)))
 (agda2-highlight-load-and-delete-action)
