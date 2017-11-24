@@ -13,7 +13,8 @@ printB false = putStrLn "false"
 _/_   = primFloatDiv
 _==_  = primFloatEquality
 _=N=_ = primFloatNumericalEquality
-_<_   = primFloatNumericalLess
+_<N_  = primFloatNumericalLess
+_<_   = primFloatLess
 
 NaN : Float
 NaN = 0.0 / 0.0
@@ -85,6 +86,19 @@ main =
   putStr "-NaN < NaN  = " ,, printB (-NaN < NaN) ,,
   putStr "NaN  < -5.0 = " ,, printB (NaN < -5.0) ,,
   putStr "-5.0 < NaN  = " ,, printB (-5.0 < NaN) ,,
+
+  putStr "NaN  <N -Inf = " ,, printB (NaN <N -Inf) ,,
+  putStr "-Inf <N NaN  = " ,, printB (-Inf <N NaN) ,,
+  putStr "0.0  <N -0.0 = " ,, printB (0.0 <N -0.0) ,,
+  putStr "-0.0 <N 0.0  = " ,, printB (-0.0 <N 0.0) ,,
+
+  -- Issue #2208.
+  putStr "NaN  <N NaN  = " ,, printB (NaN <N NaN) ,,
+  putStr "-NaN <N -NaN = " ,, printB (-NaN <N -NaN) ,,
+  putStr "NaN  <N -NaN = " ,, printB (NaN <N -NaN) ,,
+  putStr "-NaN <N NaN  = " ,, printB (-NaN <N NaN) ,,
+  putStr "NaN  <N -5.0 = " ,, printB (NaN <N -5.0) ,,
+  putStr "-5.0 <N NaN  = " ,, printB (-5.0 <N NaN) ,,
 
   putStr "e                   = " ,, print (primExp 1.0) ,,
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,

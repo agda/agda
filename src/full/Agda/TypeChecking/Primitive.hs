@@ -757,8 +757,9 @@ primitiveFunctions = Map.fromList
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
   , "primFloatEquality"   |-> mkPrimFun2 (floatEq         :: Rel Double)
+  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
   , "primFloatNumericalEquality" |-> mkPrimFun2 ((==)     :: Rel Double)
-  , "primFloatNumericalLess"     |-> mkPrimFun2 (floatLt  :: Rel Double)
+  , "primFloatNumericalLess"     |-> mkPrimFun2 ((<)      :: Rel Double)
   , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
   , "primRound"           |-> mkPrimFun1 (round           :: Double -> Integer)
   , "primFloor"           |-> mkPrimFun1 (floor           :: Double -> Integer)
@@ -831,8 +832,9 @@ floatLt x y =
       | isNaN x && isNaN y         = EQ
       | isNaN x                    = LT
       | isNaN y                    = GT
-      | otherwise                  = compare x y
-    isNegInf z = z < 0 && isInfinite z
+      | otherwise                  = compare (x, isNegZero y) (y, isNegZero x)
+    isNegInf  z = z < 0 && isInfinite z
+    isNegZero z = identicalIEEE z (-0.0)
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =

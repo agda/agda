@@ -221,6 +221,14 @@ Language
   These compiles (in the GHC backend) to addition and subtraction on
   `Data.Word.Word64`.
 
+* New primitive primFloatLess and changed semantics of primFloatNumericalLess.
+
+  `primFloatNumericalLess` now uses standard IEEE `<`, so for instance
+  `NaN < x = x < NaN = false`.
+
+  On the other hand `primFloatLess` provides a total order on `Float`, with
+  `-Inf < NaN < -1.0 < -0.0 < 0.0 < 1.0 < Inf`.
+
 
 Pragmas and options
 -------------------

@@ -3,6 +3,8 @@
   {-# OPTIONS --rewriting #-}
   module language.built-ins where
 
+  open import Agda.Builtin.Equality public
+
   data Maybe (A : Set) : Set where
     just : A → Maybe A
     nothing : Maybe A
@@ -302,6 +304,7 @@ primitive functions are available (with suitable bindings for
     primFloatNegate            : Float → Float
     primFloatDiv               : Float → Float → Float
     primFloatEquality          : Float → Float → Bool
+    primFloatLess              : Float → Float → Bool
     primFloatNumericalEquality : Float → Float → Bool
     primFloatNumericalLess     : Float → Float → Bool
     primRound                  : Float → Int
@@ -318,34 +321,63 @@ primitive functions are available (with suitable bindings for
     primATan2                  : Float → Float → Float
     primShowFloat              : Float → String
 
+..
+  ::
+
+  private
+    NaN : Float
+    NaN = primFloatDiv 0.0 0.0
+
+    Inf : Float
+    Inf = primFloatDiv 1.0 0.0
+
+    -Inf : Float
+    -Inf = primFloatNegate Inf
+
+    _&&_ : Bool → Bool → Bool
+    false && _ = false
+    true  && x = x
+
+    not : Bool → Bool
+    not false = true
+    not true  = false
+
 The ``primFloatEquality`` primitive is intended to be used for decidable
 propositional equality. To enable proof carrying comparisons while preserving
-consisteny, the following laws apply:
+consistency, the following laws apply::
 
-- ``primFloatEquality NaN NaN`` returns ``true``.
-- ``primFloatEquality NaN (primFloatNegate NaN)`` returns ``true``.
-- ``primFloatEquality 0.0 -0.0`` returns ``false``.
+  nan=nan : primFloatEquality NaN NaN ≡ true
+  nan=nan = refl
 
+  nan=-nan : primFloatEquality NaN (primFloatNegate NaN) ≡ true
+  nan=-nan = refl
+
+  neg0≠0 : primFloatEquality 0.0 -0.0 ≡ false
+  neg0≠0 = refl
+
+Correspondingly, the ``primFloatLess`` can be used to provide a decidable total order,
+given by the following laws::
+
+  _[<]_ : Float → Float → Set
+  x [<] y = primFloatLess x y && not (primFloatLess y x) ≡ true
+
+  -inf<nan : -Inf [<]  NaN
+  nan<neg  :  NaN [<] -1.0
+  neg<neg0 : -1.0 [<] -0.0
+  neg0<0   : -0.0 [<]  0.0
+  0<pos    :  0.0 [<]  1.0
+  pos<Inf  :  1.0 [<]  Inf
+
+  -inf<nan = refl
+  nan<neg  = refl
+  neg<neg0 = refl
+  neg0<0   = refl
+  0<pos    = refl
+  pos<Inf  = refl
 
 For numerical comparisons, use the ``primFloatNumericalEquality`` and
 ``primFloatNumericalLess`` primitives. These are implemented by the
-corresponding Haskell functions with the following behaviour and
-exceptions:
-
-- ``primFloatNumericalEquality 0.0 -0.0`` returns ``true``.
-- ``primFloatNumericalEquality NaN NaN`` returns ``false``.
-- ``primFloatNumericalLess NaN NaN`` returns ``false``.
-- ``primFloatNumericalLess (primFloatNegate NaN) (primFloatNegate NaN)`` returns ``false``.
-- ``primFloatNumericalLess NaN (primFloatNegate NaN)`` returns ``false``.
-- ``primFloatNumericalLess (primFloatNegate NaN) NaN`` returns ``false``.
-- ``primFloatNumericalLess`` sorts ``NaN`` below everything but negative infinity.
-- ``primFloatNumericalLess -0.0 0.0`` returns ``false``.
-
-.. warning::
-
-   Do not use ``primFloatNumericalEquality`` to establish decidable
-   propositional equality. Doing so makes Agda inconsistent, see
-   Issue `#2169 <https://github.com/agda/agda/issues/2169>`_.
+corresponding IEEE functions.
 
 .. _built-in-list:
 
@@ -468,7 +500,9 @@ Equality
 
   module Agda.Builtin.Equality
 
-The identity type can be bound to the built-in ``EQUALITY`` as follows::
+The identity type can be bound to the built-in ``EQUALITY`` as follows
+
+.. code-block:: agda
 
   infix 4 _≡_
   data _≡_ {a} {A : Set a} (x : A) : A → Set a where

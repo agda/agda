@@ -76,11 +76,17 @@ exports.primFloatNumericalEquality = function(x) {
   };
 };
 
+exports.primFloatNumericalLess = function(x) {
+  return function(y) {
+    return x < y;
+  };
+};
+
 exports.uprimFloatEquality = function(x, y) {
   return Object.is(x,y);
 };
 
-exports.primFloatNumericalLess = function(x) {
+exports.primFloatLess = function(x) {
   return function(y) {
     if(x == Number.NEGATIVE_INFINITY) {
       return y != Number.NEGATIVE_INFINITY;
@@ -91,7 +97,7 @@ exports.primFloatNumericalLess = function(x) {
     } else if(isNaN(y)) {
       return false;
     } else {
-      return x<y;
+      return x < y || Object.is(x, -0.0) && Object.is(y, 0.0);
     }
   };
 };

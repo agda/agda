@@ -12,6 +12,7 @@ postulate Float : Set
 
 primitive
   primFloatEquality : Float → Float → Bool
+  primFloatLess     : Float → Float → Bool
   primFloatNumericalEquality : Float → Float → Bool
   primFloatNumericalLess     : Float → Float → Bool
   primNatToFloat    : Nat → Float
