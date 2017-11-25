@@ -58,7 +58,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | $(AGDA_BIN) -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
+         | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
     elif test -f $*.hs; \
     then /usr/bin/env runhaskell ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
@@ -71,7 +71,7 @@ run_test=if test -f $*.in; \
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Issue2217    = rm -f Issue2217/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
-setup_Auto = $(AGDA_BIN) Auto/Prelude.agda
+setup_Auto = $(AGDA_BIN) -v0 Auto/Prelude.agda
 setup_Auto-BasicLogic = $(setup_Auto)
 setup_Auto-DataConstruction = $(setup_Auto)
 setup_Auto-EqualityReasoning = $(setup_Auto)

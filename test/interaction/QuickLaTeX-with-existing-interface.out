@@ -1,6 +1,4 @@
 Checking QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.lagda).
-Finished QuickLaTeX-with-existing-interface.
-Loading QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.agdai).
 \begin{code}%
 \>[0]\AgdaKeyword{record}\AgdaSpace{}%
 \AgdaRecord{Σ}\AgdaSpace{}%

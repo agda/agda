@@ -62,6 +62,9 @@ eqFloat x y = identicalIEEE x y || (isNaN x && isNaN y)
 eqNumFloat :: Double -> Double -> Bool
 eqNumFloat = (==)
 
+ltNumFloat :: Double -> Double -> Bool
+ltNumFloat = (<)
+
 negativeZero :: Double
 negativeZero = -0.0
 
@@ -86,12 +89,13 @@ compareFloat x y
   | isNaN x && isNaN y         = EQ
   | isNaN x                    = LT
   | isNaN y                    = GT
-  | otherwise                  = compare x y
+  | otherwise                  = compare (x, isNegZero y) (y, isNegZero x)
   where
-    isNegInf z = z < 0 && isInfinite z
+    isNegInf  z = z < 0 && isInfinite z
+    isNegZero z = identicalIEEE z negativeZero
 
-ltNumFloat :: Double -> Double -> Bool
-ltNumFloat x y = case compareFloat x y of
+ltFloat :: Double -> Double -> Bool
+ltFloat x y = case compareFloat x y of
                 LT -> True
                 _  -> False
 

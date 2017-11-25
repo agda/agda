@@ -3,7 +3,6 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2447 (Issue2447.agda). " t)
 (agda2-info-action "*Type-checking*" " Checking Issue2447.M (Issue2447/M.agda). " t)
-(agda2-info-action "*Type-checking*" " Finished Issue2447.M. " t)
 (agda2-info-action "*Error*" "Issue2447.agda:4,12-15 Set₁ != Set when checking that the expression Set has type Set" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2447.agda" . 47)))
 (agda2-highlight-load-and-delete-action)

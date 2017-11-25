@@ -1,7 +1,6 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue2472 (Issue2472.agda). " t)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Level " nil)
 ((last . 1) . (agda2-goals-action '(0)))

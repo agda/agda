@@ -1,13 +1,9 @@
 Checking Issue2063.Instance (Issue2063/Instance.agda).
 Checking Issue2063.Class (Issue2063/Class.agda).
-Finished Issue2063.Class.
-Finished Issue2063.Instance.
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2063.Bug (Issue2063/Bug.agda). " t)
-(agda2-info-action "*Type-checking*" " Loading  Issue2063.Class (Issue2063/Class.agdai). " t)
-(agda2-info-action "*Type-checking*" "Finished Issue2063.Bug. " t)
 (agda2-status-action "Checked")
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
@@ -15,8 +11,6 @@ Finished Issue2063.Instance.
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2063.Bug (Issue2063/Bug.agda). " t)
-(agda2-info-action "*Type-checking*" " Loading  Issue2063.Instance (Issue2063/Instance.agdai). " t)
-(agda2-info-action "*Type-checking*" "Finished Issue2063.Bug. " t)
 (agda2-status-action "Checked")
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))

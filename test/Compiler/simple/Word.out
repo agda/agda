@@ -30,14 +30,8 @@ out >             d = 2 in
 out >         quot64 c d in
 out >   a +64 b
 out > Word.test =
-out >   let a =
-out >         let c = Word.2^63
-out >             d = 100 in
-out >         c +64 d
-out >       b =
-out >         let c = Word.2^63
-out >             d = 1 in
-out >         c +64 d in
+out >   let a = Word.2^63 +64 100
+out >       b = Word.2^63 +64 1 in
 out >   a +64 b
 out > Word.prf = _
 out > Word.prf' = _

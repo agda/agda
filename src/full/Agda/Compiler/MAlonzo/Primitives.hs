@@ -171,9 +171,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   -- ASR (2016-09-14). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  , "primFloatEquality"     |-> return "MAlonzo.RTE.eqFloat"
+  , "primFloatEquality"          |-> return "MAlonzo.RTE.eqFloat"
+  , "primFloatLess"              |-> return "MAlonzo.RTE.ltFloat"
   , "primFloatNumericalEquality" |-> return "MAlonzo.RTE.eqNumFloat"
-  , "primFloatNumericalLess" |-> return "MAlonzo.RTE.ltNumFloat"
+  , "primFloatNumericalLess"     |-> return "MAlonzo.RTE.ltNumFloat"
   , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
   , "primRound"             |-> return "(round :: Double -> Integer)"
   , "primFloor"             |-> return "(floor :: Double -> Integer)"
