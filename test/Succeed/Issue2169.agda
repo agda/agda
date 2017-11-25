@@ -11,10 +11,10 @@ defNegZero ()
 primEqNegZero : primFloatEquality -0.0 0.0 ≡ false
 primEqNegZero = refl
 
-primLtNegZero₁ : primFloatNumericalLess 0.0 -0.0 ≡ false
+primLtNegZero₁ : primFloatLess 0.0 -0.0 ≡ false
 primLtNegZero₁ = refl
 
-primLtNegZero₂ : primFloatNumericalLess -0.0 0.0 ≡ true
+primLtNegZero₂ : primFloatLess -0.0 0.0 ≡ true
 primLtNegZero₂ = refl
 
 primShowNegZero : primShowFloat -0.0 ≡ "-0.0"
