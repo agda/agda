@@ -17,7 +17,6 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue2728-2 (Issue2728-2.agda). " t)
-(agda2-info-action "*Type-checking*" "Finished Issue2728-2. " t)
 (agda2-status-action "Checked")
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
