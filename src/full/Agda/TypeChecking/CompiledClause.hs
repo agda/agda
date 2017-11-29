@@ -150,16 +150,14 @@ prettyMap m = [ sep [ pretty k <+> text "->"
               | (k, v) <- Map.toList m ]
 
 instance Pretty CompiledClauses where
-  pretty (Done hs t) = text ("done" ++ show hs) <+> pretty t
+  pretty (Done hs t) = text ("done" ++ show hs) <?> pretty t
   pretty Fail        = text "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ text "record"
         , nest 2 $ pretty bs
         ]
   pretty (Case n bs) =
-    sep [ text ("case " ++ prettyShow n ++ " of")
-        , nest 2 $ pretty bs
-        ]
+    text ("case " ++ prettyShow n ++ " of") <?> pretty bs
 
 -- * KillRange instances.
 
