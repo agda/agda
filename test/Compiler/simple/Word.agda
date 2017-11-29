@@ -9,6 +9,7 @@ open import Agda.Builtin.Unit
 open import Agda.Builtin.IO
 open import Agda.Builtin.FromNat
 open import Agda.Builtin.String
+open import Agda.Builtin.Strict
 
 instance
   NumWord : Number Word64
@@ -112,3 +113,11 @@ prf' = refl
 
 main : IO ⊤
 main = putStrLn (showWord test)
+
+-- Some checks for treeless optimisations
+
+ltDouble : Word64 → Word64 → Bool
+ltDouble x y = ltWord (mulWord 2 x) y
+
+lt4x : Word64 → Word64 → Bool
+lt4x x y = primForce (mulWord 2 x) ltDouble y

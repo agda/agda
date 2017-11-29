@@ -110,7 +110,15 @@ simplify FunctionKit{..} = simpl
       TCon{}         -> pure t
       TLet e b       -> do
         e <- simpl e
-        tLet e <$> underLet e (simpl b)
+        case e of
+          TPFn P64ToI a -> do
+            -- Inline calls to P64ToI since these trigger optimisations.
+            -- Ideally, the optimisations would trigger anyway, but at the
+            -- moment they only do if inlining the entire let looks like a
+            -- good idea.
+            let rho = inplaceS 0 (TPFn P64ToI (TVar 0))
+            tLet a <$> underLet a (simpl (applySubst rho b))
+          _ -> tLet e <$> underLet e (simpl b)
 
       TCase x t d bs -> do
         v <- lookupVar x
@@ -199,7 +207,10 @@ simplify FunctionKit{..} = simpl
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
-    simplPrim' (TApp (TPrim PSeq) [u, v]) | u == v = v
+    simplPrim' (TApp (TPrim PSeq) (u : v : vs))
+      | u == v             = mkTApp v vs
+      | TApp TCon{} _ <- u = mkTApp v vs
+      | TApp TLit{} _ <- u = mkTApp v vs
     simplPrim' (TApp (TPrim PLt) [u, v])
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
@@ -270,12 +281,17 @@ simplify FunctionKit{..} = simpl
     betterThan u v = operations u <= operations v
       where
         operations (TApp (TPrim _) [a, b]) = 1 + operations a + operations b
+        operations (TApp (TPrim PSeq) (a : _))
+          | notVar a                       = 1000000  -- only seq on variables!
         operations (TApp (TPrim _) [a])    = 1 + operations a
         operations TVar{}                  = 0
         operations TLit{}                  = 0
         operations TCon{}                  = 0
         operations TDef{}                  = 0
         operations _                       = 1000
+
+        notVar TVar{} = False
+        notVar _      = True
 
     rewrite' t = rewrite =<< simplPrim t
 

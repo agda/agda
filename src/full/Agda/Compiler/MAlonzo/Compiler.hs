@@ -508,14 +508,27 @@ checkCover q ty n cs hsCons = do
 closedTerm :: T.TTerm -> TCM HS.Exp
 closedTerm v = hsCast <$> term v `runReaderT` initCCEnv
 
+-- Translate case on bool to if
+mkIf :: T.TTerm -> CC T.TTerm
+mkIf t@(TCase e _ d [TACon c1 0 b1, TACon c2 0 b2]) | T.isUnreachable d = do
+  mTrue  <- lift $ getBuiltinName builtinTrue
+  mFalse <- lift $ getBuiltinName builtinFalse
+  let isTrue  c = Just c == mTrue
+      isFalse c = Just c == mFalse
+  if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TVar e) b1 b2
+     | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TVar e) b2 b1
+     | otherwise             -> return t
+mkIf t = return t
+
 -- | Extract Agda term to Haskell expression.
 --   Erased arguments are extracted as @()@.
 --   Types are extracted as @()@.
 term :: T.TTerm -> CC HS.Exp
-term tm0 = case tm0 of
+term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TVar i -> do
     x <- lookupIndex i <$> asks ccCxt
     return $ hsVarUQ x
+  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c <*> term x <*> term y
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
     isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
