@@ -110,7 +110,15 @@ simplify FunctionKit{..} = simpl
       TCon{}         -> pure t
       TLet e b       -> do
         e <- simpl e
-        tLet e <$> underLet e (simpl b)
+        case e of
+          TPFn P64ToI a -> do
+            -- Inline calls to P64ToI since these trigger optimisations.
+            -- Ideally, the optimisations would trigger anyway, but at the
+            -- moment they only do if inlining the entire let looks like a
+            -- good idea.
+            let rho = inplaceS 0 (TPFn P64ToI (TVar 0))
+            tLet a <$> underLet a (simpl (applySubst rho b))
+          _ -> tLet e <$> underLet e (simpl b)
 
       TCase x t d bs -> do
         v <- lookupVar x
