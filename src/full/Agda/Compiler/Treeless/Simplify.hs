@@ -199,7 +199,10 @@ simplify FunctionKit{..} = simpl
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
-    simplPrim' (TApp (TPrim PSeq) [u, v]) | u == v = v
+    simplPrim' (TApp (TPrim PSeq) (u : v : vs))
+      | u == v             = mkTApp v vs
+      | TApp TCon{} _ <- u = mkTApp v vs
+      | TApp TLit{} _ <- u = mkTApp v vs
     simplPrim' (TApp (TPrim PLt) [u, v])
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
@@ -270,12 +273,17 @@ simplify FunctionKit{..} = simpl
     betterThan u v = operations u <= operations v
       where
         operations (TApp (TPrim _) [a, b]) = 1 + operations a + operations b
+        operations (TApp (TPrim PSeq) (a : _))
+          | notVar a                       = 1000000  -- only seq on variables!
         operations (TApp (TPrim _) [a])    = 1 + operations a
         operations TVar{}                  = 0
         operations TLit{}                  = 0
         operations TCon{}                  = 0
         operations TDef{}                  = 0
         operations _                       = 1000
+
+        notVar TVar{} = False
+        notVar _      = True
 
     rewrite' t = rewrite =<< simplPrim t
 
