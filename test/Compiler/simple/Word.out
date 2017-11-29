@@ -36,5 +36,7 @@ out >   a +64 b
 out > Word.prf = _
 out > Word.prf' = _
 out > Word.main = Word.putStrLn (Word.showWord Word.test)
+out > Word.ltDouble = λ a b → let c = 2 *64 a in c <64 b
+out > Word.lt4x = λ a _ → let b = 2 *64 a in seq b (Word.ltDouble b) b
 out > 101
 out >
