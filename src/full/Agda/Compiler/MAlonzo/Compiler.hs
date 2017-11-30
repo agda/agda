@@ -612,7 +612,12 @@ alt sc a = do
     T.TACon {T.aCon = c} -> do
       intros (T.aArity a) $ \ xs -> do
         erased <- lift $ getErasedConArgs c
-        hConNm <- lift $ conhqn c
+        nil  <- lift $ getBuiltinName builtinNil
+        cons <- lift $ getBuiltinName builtinCons
+        hConNm <-
+          if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
+             | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
+             | otherwise      -> lift $ conhqn c
         mkAlt (HS.PApp hConNm $ map HS.PVar [ x | (x, False) <- zip xs erased ])
     T.TAGuard g b -> do
       g <- term g

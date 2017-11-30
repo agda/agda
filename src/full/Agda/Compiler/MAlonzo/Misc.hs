@@ -81,10 +81,7 @@ hsName s = HS.UnQual (HS.Ident s)
 
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> TCM HS.QName
-conhqn q = do
-    cq  <- canonicalName q
-    def <- getConstInfo cq
-    xhqn "C" cq
+conhqn q = xhqn "C" =<< canonicalName q
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName
