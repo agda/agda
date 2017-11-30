@@ -182,7 +182,7 @@ hsTypeApproximation t = do
       tyCon  = HS.TyCon . HS.UnQual . HS.Ident
       rteCon = HS.TyCon . HS.Qual mazRTE . HS.Ident
   let go t = do
-        t <- reduce t
+        t <- unSpine <$> reduce t
         case t of
           Pi a b -> HS.TyFun <$> go (unEl $ unDom a) <*> go (unEl $ unAbs b)
           Def q els
@@ -193,8 +193,15 @@ hsTypeApproximation t = do
             | q `is` nat  -> return $ tyCon "Integer"
             | q `is` word -> return $ rteCon "Word64"
             | otherwise -> do
-              def <- theDef <$> getConstInfo q
-              return mazAnyType
+                let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
+                foldl HS.TyApp <$> (HS.FakeType <$> getHsType q) <*> mapM (go . unArg) args
+              `catchError` \ _ -> do -- Not a Haskell type
+                def <- theDef <$> getConstInfo q
+                let isData | Datatype{} <- def = True
+                           | Record{}   <- def = True
+                           | otherwise         = False
+                if isData then HS.TyCon <$> xhqn "T" q
+                          else return mazAnyType
           Sort{} -> return $ HS.FakeType "()"
           _ -> return mazAnyType
   go (unEl t)
