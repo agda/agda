@@ -127,7 +127,10 @@ instance Pretty HS.Type where
           sep [ prettyPrec 5 a <+> text "->", prettyPrec 4 b ]
       HS.TyCon c -> pretty c
       HS.TyVar x -> pretty x
+      HS.TyApp (HS.TyCon (HS.UnQual (HS.Ident "[]"))) t ->
+        brackets $ pretty t
       t@HS.TyApp{} ->
+        mparens (pr > 9) $
           sep [ prettyPrec 9 f
               , nest 2 $ fsep $ map (prettyPrec 10) ts ]
         where
