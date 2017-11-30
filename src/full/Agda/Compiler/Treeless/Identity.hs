@@ -84,6 +84,7 @@ trivialIdentity q t =
         TCase _ _ d bs     -> sconcat (go k d :| map (goAlt k) bs)
         TApp (TDef f) args
           | f == q         -> IdIn [ y | (TVar x, y) <- zip (reverse args) [0..], y + k == x ]
+        TCoerce v          -> go k v
         TApp{}             -> notId
         TLam{}             -> notId
         TLit{}             -> notId

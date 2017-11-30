@@ -60,6 +60,7 @@ recover t =
     TCon{} -> tApp t []   -- need to recover nullary constructors as well (to make deep @-patterns work)
     TLet v b -> TLet <$> recover v <*> underBinds 1 (recover b)
     TCase x ct d bs -> TCase x ct <$> recover d <*> mapM (recoverAlt x) bs
+    TCoerce t -> TCoerce <$> recover t
     TLit{}    -> pure t
     TVar{}    -> pure t
     TPrim{}   -> pure t

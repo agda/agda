@@ -598,6 +598,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
+  T.TCoerce e -> hsCoerce <$> term e
   T.TErased  -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError

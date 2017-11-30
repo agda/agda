@@ -41,6 +41,7 @@ instance Subst TTerm TTerm where
           TVar j  -> TCase j t (applySubst rho d) (applySubst rho bs)
           e       -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
             where rho' = wkS 1 rho
+      TCoerce e -> TCoerce (applySubst rho e)
     where
       tApp (TPrim PSeq) [TErased, b] = b
       tApp f ts = TApp f ts
@@ -120,6 +121,7 @@ instance HasFree TTerm where
     TLam b         -> underLambda <$> freeVars (Binder 1 b)
     TLet e b       -> freeVars (e, Binder 1 b)
     TCase i _ d bs -> freeVars (i, (d, bs))
+    TCoerce t      -> freeVars t
 
 instance HasFree TAlt where
   freeVars a = case a of

@@ -114,6 +114,7 @@ eraseTerms q t = usedArguments q t *> runE (eraseTop q t)
         TSort          -> pure t
         TErased        -> pure t
         TError{}       -> pure t
+        TCoerce e      -> TCoerce <$> erase e
 
     tLam TErased = TErased
     tLam t       = TLam t
