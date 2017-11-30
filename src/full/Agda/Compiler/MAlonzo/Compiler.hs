@@ -194,7 +194,7 @@ imports = (hsImps ++) <$> imps where
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl mazRTE False $ Just $
               (False, [ HS.IVar $ HS.Ident x
-                      | x <- [mazCoerceName, mazErasedName] ++
+                      | x <- [mazCoerceName, mazErasedName, mazAnyTypeName] ++
                              map treelessPrimName rtePrims ])
 
   rtePrims = [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF,
@@ -343,12 +343,12 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++
+        return $ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__) ++
                  [compiledTypeSynonym q ty np] ++ cds ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         computeErasedConstructorArgs q
-        (ars, cds) <- unzip <$> mapM condecl cs
-        return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
+        cds <- mapM condecl cs
+        return $ tvaldecl q (dataInduction d) (np + ni) cds cl
       Constructor{} -> return []
       Record{ recPars = np, recClause = cl, recConHead = con }
         | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
@@ -356,15 +356,14 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q np cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++
+        return $ tvaldecl q Inductive np [] (Just __IMPOSSIBLE__) ++
                  [compiledTypeSynonym q ty np] ++ cds ++ ccscov
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         computeErasedConstructorArgs q
         let c = conName con
-        let noFields = length flds
         let ar = I.arity ty
-        cd <- snd <$> condecl c
-        return $ tvaldecl q Inductive noFields ar [cd] cl
+        cd <- condecl c
+        return $ tvaldecl q Inductive ar [cd] cl
       AbstractDefn{} -> __IMPOSSIBLE__
   where
   function :: Maybe HaskellPragma -> TCM [HS.Decl] -> TCM [HS.Decl]
@@ -377,7 +376,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
+            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCast $ hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
       _ -> return ccls
 
@@ -386,6 +385,10 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
 
     used <- getCompiledArgUse q
     let dostrip = any not used
+
+    -- Compute the type approximation
+    (argTypes, resType) <- hsTelApproximation . defType =<< getConstInfo q
+    let argTypesS = [ t | (t, True) <- zip argTypes (used ++ repeat True) ]
 
     e <- if dostrip then closedTerm (stripUnusedArguments used treeless)
                     else closedTerm treeless
@@ -400,16 +403,18 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
             [c,  e] | c == mazCoerce -> e
             _                        -> e
 
-        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
+        tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
+        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs $ hsCast b) emptyBinds]
+        tyfunbind f ts t ps b = [tydecl f ts t, funbind f ps b]
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
-    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
+    let b0 = hsCast $ foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
 
     return $ if dostrip
-      then [ funbind (dname q) ps0 b0
-           , funbind (duname q) ps b ]
-      else [ funbind (dname q) ps b ]
+      then tyfunbind (dname q) argTypes resType ps0 b0 ++
+           tyfunbind (duname q) argTypesS resType ps b
+      else tyfunbind (dname q) argTypes resType ps b
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match dn ps rhs emptyBinds] : fbs@(_:_)) =
@@ -528,7 +533,9 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TVar i -> do
     x <- lookupIndex i <$> asks ccCxt
     return $ hsVarUQ x
-  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c <*> term x <*> term y
+  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> (hsCast <$> term c)
+                                            <*> (hsCast <$> term x)
+                                            <*> (hsCast <$> term y)
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
     isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
@@ -589,7 +596,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TErased  -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
-  where apps =  foldM (\ h a -> HS.App h <$> term a)
+  where apps =  foldM (\ h a -> HS.App h . hsCast <$> term a)
         etaExpand n t =
           foldr (const T.TLam)
                 (T.mkTApp (raise n t) [T.TVar i | i <- [n - 1, n - 2..0]])
@@ -620,7 +627,7 @@ alt sc a = do
   where
     mkGuarded eq lit b = do
       b  <- term b
-      sc <- term (T.TVar sc)
+      sc <- hsCast <$> term (T.TVar sc)
       let guard =
             HS.Var (HS.UnQual (HS.Ident eq)) `HS.App`
               sc `HS.App` lit
@@ -712,16 +719,13 @@ erasedArity q = do
   erased  <- length . filter id <$> getErasedConArgs q
   return (ar - erased)
 
-condecl :: QName -> TCM (Nat, HS.ConDecl)
+condecl :: QName -> TCM HS.ConDecl
 condecl q = do
-  (ar, np) <- conArityAndPars q
-  erased   <- length . filter id <$> getErasedConArgs q
-  let ar' = ar - erased
-  return $ (ar' + np, cdecl q ar')
-
-cdecl :: QName -> Nat -> HS.ConDecl
-cdecl q n = HS.ConDecl (unqhname "C" q)
-            [ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
+  def <- getConstInfo q
+  let Constructor{ conPars = np, conErased = erased } = theDef def
+  (argTypes0, _) <- hsTelApproximation (defType def)
+  let argTypes = [ t | (t, False) <- zip (drop np argTypes0) (erased ++ repeat False) ]
+  return $ HS.ConDecl (unqhname "C" q) argTypes
 
 compiledcondecl :: QName -> TCM HS.Decl
 compiledcondecl q = do
@@ -740,14 +744,13 @@ compiledTypeSynonym q hsT arity =
 tvaldecl :: QName
          -> Induction
             -- ^ Is the type inductive or coinductive?
-         -> Nat -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
-tvaldecl q ind ntv npar cds cl =
+         -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
+tvaldecl q ind npar cds cl =
   HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
-  maybe [HS.DataDecl kind tn tvs cds []]
+  maybe [HS.DataDecl kind tn [] cds []]
         (const []) cl
   where
   (tn, vn) = (unqhname "T" q, unqhname "d" q)
-  tvs = [ HS.UnkindedVar $ ihname "a" i | i <- [0 .. ntv  - 1]]
   pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
 
   -- Inductive data types consisting of a single constructor with a
@@ -800,9 +803,7 @@ hsCastApp e =
     f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es
     _ -> e
 
--- No coercion for literal integers
 hsCoerce :: HS.Exp -> HS.Exp
-hsCoerce e@(HS.ExpTypeSig (HS.Lit (HS.Int{})) _) = e
 hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
 hsCoerce (HS.Let bs e) = HS.Let bs $ hsCoerce e
 hsCoerce e =

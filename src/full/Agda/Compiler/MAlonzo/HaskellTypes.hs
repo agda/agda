@@ -16,11 +16,13 @@ import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 
+import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Pretty (prettyShow)
 
@@ -166,3 +168,17 @@ checkConstructorCount d cs hsCons
   where
     n  = length cs
     hn = length hsCons
+
+-- Type approximations ----------------------------------------------------
+
+hsTypeApproximation :: Type -> TCM HS.Type
+hsTypeApproximation t = do
+  t <- reduce t
+  case unEl t of
+    _ -> return mazAnyType
+
+hsTelApproximation :: Type -> TCM ([HS.Type], HS.Type)
+hsTelApproximation t = do
+  TelV tel res <- telView t
+  let args = map (snd . unDom) (telToList tel)
+  (,) <$> mapM hsTypeApproximation args <*> hsTypeApproximation res

@@ -1,12 +1,20 @@
+{-# LANGUAGE CPP #-}
 module MAlonzo.RTE where
 
 import Unsafe.Coerce
-import GHC.Prim
+#if __GLASGOW_HASKELL__ >= 802
+import qualified GHC.Exts as GHC (Any)
+#else
+import qualified GHC.Prim as GHC (Any)
+#endif
 import qualified Data.Word
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 
+type AgdaAny = GHC.Any
+
 -- Special version of coerce that plays well with rules.
 {-# INLINE [1] coe #-}
+coe :: a -> b
 coe = unsafeCoerce
 {-# RULES "coerce-id" forall (x :: a) . coe x = x #-}
 

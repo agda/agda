@@ -164,6 +164,9 @@ mazCoerceName = "coe"
 mazErasedName :: String
 mazErasedName = "erased"
 
+mazAnyTypeName :: String
+mazAnyTypeName = "AgdaAny"
+
 mazCoerce :: HS.Exp
 -- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
 -- mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident mazCoerceName
@@ -181,6 +184,9 @@ mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"
 
 rtmUnreachableError :: HS.Exp
 rtmUnreachableError = mazUnreachableError
+
+mazAnyType :: HS.Type
+mazAnyType = HS.TyCon (hsName mazAnyTypeName)
 
 mazRTE :: HS.ModuleName
 mazRTE = HS.ModuleName "MAlonzo.RTE"
