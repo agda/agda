@@ -173,9 +173,31 @@ checkConstructorCount d cs hsCons
 
 hsTypeApproximation :: Type -> TCM HS.Type
 hsTypeApproximation t = do
-  t <- reduce t
-  case unEl t of
-    _ -> return mazAnyType
+  list <- getBuiltinName builtinList
+  bool <- getBuiltinName builtinBool
+  int  <- getBuiltinName builtinInteger
+  nat  <- getBuiltinName builtinNat
+  word <- getBuiltinName builtinWord64
+  let is q b = Just q == b
+      tyCon  = HS.TyCon . HS.UnQual . HS.Ident
+      rteCon = HS.TyCon . HS.Qual mazRTE . HS.Ident
+  let go t = do
+        t <- reduce t
+        case t of
+          Pi a b -> HS.TyFun <$> go (unEl $ unDom a) <*> go (unEl $ unAbs b)
+          Def q els
+            | q `is` list, Apply t <- last ([Proj ProjSystem __IMPOSSIBLE__] ++ els)
+                        -> HS.TyApp (tyCon "[]") <$> go (unArg t)
+            | q `is` bool -> return $ tyCon "Bool"
+            | q `is` int  -> return $ tyCon "Integer"
+            | q `is` nat  -> return $ tyCon "Integer"
+            | q `is` word -> return $ rteCon "Word64"
+            | otherwise -> do
+              def <- theDef <$> getConstInfo q
+              return mazAnyType
+          Sort{} -> return $ HS.FakeType "()"
+          _ -> return mazAnyType
+  go (unEl t)
 
 hsTelApproximation :: Type -> TCM ([HS.Type], HS.Type)
 hsTelApproximation t = do
