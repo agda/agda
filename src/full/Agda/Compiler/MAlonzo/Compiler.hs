@@ -26,6 +26,7 @@ import System.FilePath hiding (normalise)
 
 import Agda.Compiler.CallCompiler
 import Agda.Compiler.Common
+import Agda.Compiler.MAlonzo.Coerce
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
@@ -376,7 +377,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCast $ hsVarUQ $ dname q)) emptyBinds]
+            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
       _ -> return ccls
 
@@ -399,22 +400,17 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
                     else closedTerm treeless
     let (ps, b) = lamView e
         lamView e =
-          case stripTopCoerce e of
+          case e of
             HS.Lambda ps b -> (ps, b)
-            b                -> ([], b)
-        stripTopCoerce (HS.Lambda ps b) = HS.Lambda ps $ stripTopCoerce b
-        stripTopCoerce e =
-          case hsAppView e of
-            [c,  e] | c == mazCoerce -> e
-            _                        -> e
+            b              -> ([], b)
 
         tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
-        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs $ hsCast b) emptyBinds]
+        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
         tyfunbind f ts t ps b = [tydecl f ts t, funbind f ps b]
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
-    let b0 = hsCast $ foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
+    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
 
     return $ if dostrip
       then tyfunbind (dname q) argTypes resType ps0 b0 ++
@@ -516,7 +512,9 @@ checkCover q ty n cs hsCons = do
          ]
 
 closedTerm :: T.TTerm -> TCM HS.Exp
-closedTerm v = hsCast <$> term v `runReaderT` initCCEnv
+closedTerm v = do
+  v <- addCoercions v
+  term v `runReaderT` initCCEnv
 
 -- Translate case on bool to if
 mkIf :: T.TTerm -> CC T.TTerm
@@ -538,9 +536,9 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TVar i -> do
     x <- lookupIndex i <$> asks ccCxt
     return $ hsVarUQ x
-  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> (hsCast <$> term c)
-                                            <*> (hsCast <$> term x)
-                                            <*> (hsCast <$> term y)
+  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c
+                                            <*> term x
+                                            <*> term y
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
     isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
@@ -581,7 +579,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
     t1' <- term t1
     intros 1 $ \[x] -> do
       t2' <- term t2
-      return $ hsLet x (hsCast t1') t2'
+      return $ hsLet x t1' t2'
 
   T.TCase sc ct def alts -> do
     sc' <- term (T.TVar sc)
@@ -589,7 +587,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
     def' <- term def
     let defAlt = HS.Alt HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
 
-    return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
+    return $ HS.Case (hsCoerce sc') (alts' ++ [defAlt])
 
   T.TLit l -> return $ literal l
   T.TDef q -> do
@@ -602,12 +600,14 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TErased  -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
-  where apps =  foldM (\ h a -> HS.App h . hsCast <$> term a)
+  where apps =  foldM (\ h a -> HS.App h <$> term a)
         etaExpand n t =
           foldr (const T.TLam)
                 (T.mkTApp (raise n t) [T.TVar i | i <- [n - 1, n - 2..0]])
                 (replicate n ())
 
+hsCoerce :: HS.Exp -> HS.Exp
+hsCoerce t = HS.App mazCoerce t
 
 compilePrim :: T.TPrim -> HS.Exp
 compilePrim s = HS.Var $ hsName $ treelessPrimName s
@@ -638,7 +638,7 @@ alt sc a = do
   where
     mkGuarded eq lit b = do
       b  <- term b
-      sc <- hsCast <$> term (T.TVar sc)
+      sc <- term (T.TVar sc)
       let guard =
             HS.Var (HS.UnQual (HS.Ident eq)) `HS.App`
               sc `HS.App` lit
@@ -649,7 +649,7 @@ alt sc a = do
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
+        return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
 
 literal :: Literal -> HS.Exp
 literal l = case l of
@@ -773,54 +773,6 @@ tvaldecl q ind npar cds cl =
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
 infodecl q ds = fakeD (unqhname "name" q) (show $ prettyShow q) : ds
-
---------------------------------------------------
--- Inserting unsafeCoerce
---------------------------------------------------
-
-hsCast :: HS.Exp -> HS.Exp
-{-
-hsCast = addcast . go where
-  addcast [e@(HS.Var(HS.UnQual(HS.Ident(c:ns))))] | c == 'v' && all isDigit ns = e
-  addcast es = foldl HS.App mazCoerce es
-  -- this need to be extended if you generate other kinds of exps.
-  go (HS.App e1 e2    ) = go e1 ++ [hsCast e2]
-  go (HS.Lambda _ ps e) = [ HS.Lambda ps (hsCast e) ]
-  go e = [e]
--}
-
--- TODO: what's the specification for hsCast, hsCast' and hsCoerce???
-hsCast e = hsCoerce (hsCast' e)
-
-hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.InfixApp e1 op e2) = hsCoerce $ HS.InfixApp (hsCast' e1) op (hsCast' e2)
-hsCast' (HS.Lambda ps e)       = HS.Lambda ps $ hsCast' e
-hsCast' (HS.Let bs e)          = HS.Let bs $ hsCast' e
-hsCast' (HS.Case sc alts)      = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
-hsCast' e =
-  case hsAppView e of
-    f : es -> foldl HS.App (hsCoerce f) (map hsCastApp es)
-    _      -> __IMPOSSIBLE__
-
--- We still have to coerce function applications in arguments to coerced
--- functions.
-hsCastApp :: HS.Exp -> HS.Exp
-hsCastApp (HS.Lambda ps b) = HS.Lambda ps (hsCastApp b)
-hsCastApp (HS.Let bs e) = HS.Let bs $ hsCastApp e
-hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
-hsCastApp (HS.InfixApp e1 op e2) = HS.InfixApp (hsCastApp e1) op (hsCastApp e2)
-hsCastApp e =
-  case hsAppView e of
-    f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es
-    _ -> e
-
-hsCoerce :: HS.Exp -> HS.Exp
-hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
-hsCoerce (HS.Let bs e) = HS.Let bs $ hsCoerce e
-hsCoerce e =
-  case hsAppView e of
-    c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
-    _ -> mazCoerce `HS.App` e
 
 --------------------------------------------------
 -- Writing out a haskell module
