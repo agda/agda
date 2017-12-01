@@ -523,8 +523,8 @@ mkIf t@(TCase e _ d [TACon c1 0 b1, TACon c2 0 b2]) | T.isUnreachable d = do
   mFalse <- lift $ getBuiltinName builtinFalse
   let isTrue  c = Just c == mTrue
       isFalse c = Just c == mFalse
-  if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TVar e) b1 b2
-     | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TVar e) b2 b1
+  if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TCoerce $ TVar e) b1 b2
+     | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TCoerce $ TVar e) b2 b1
      | otherwise             -> return t
 mkIf t = return t
 
@@ -539,7 +539,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c
                                             <*> term x
                                             <*> term y
-  T.TApp (T.TDef f) ts -> do
+  T.TApp t ts | Just (coe, f) <- coerceView t -> do
     used <- lift $ getCompiledArgUse f
     isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
     let given   = length ts
@@ -547,12 +547,15 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
         missing = drop given used
     if not isCompiled && any not used
       then if any not missing then term (etaExpand (needed - given) tm0) else do
-        f <- lift $ HS.Var <$> xhqn "du" f  -- used stripped function
+        f <- lift $ coe . HS.Var <$> xhqn "du" f  -- used stripped function
         f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
       else do
         t' <- term (T.TDef f)
-        t' `apps` ts
-  T.TApp (T.TCon c) ts -> do
+        coe t' `apps` ts
+    where coerceView (T.TCoerce (T.TDef f)) = Just (hsCoerce, f)
+          coerceView (T.TDef f)             = Just (id, f)
+          coerceView _                      = Nothing
+  T.TApp (T.TCon c) ts -> do  -- Note that constructors are never coerced
     kit <- lift coinductionKit
     if Just c == (nameOfSharp <$> kit)
       then do
