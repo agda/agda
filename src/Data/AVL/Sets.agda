@@ -24,8 +24,9 @@ open import Level
 -- The set type. (Note that Set is a reserved word.)
 
 private
-  open module S = AVL (const ⊤) isStrictTotalOrder
-    public using () renaming (Tree to ⟨Set⟩)
+  open module S = AVL isStrictTotalOrder
+    public using () renaming (Tree to ⟨Set⟩')
+  ⟨Set⟩ = ⟨Set⟩' (const ⊤)
 
 -- Repackaged functions.
 

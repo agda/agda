@@ -18,6 +18,17 @@ Non-backwards compatible changes
   it possible to define the proof requirement for e.g. a ring in terms of the proof
   requirements for its additive abelian group and multiplicative monoid.
 
+#### Overhaul of `Data.AVL`
+
+* Splitting out `Data.AVL.Key` and `Data.AVL.Height` which should not depend
+  on the type of `Value` the tree will contain.
+
+* Putting `Indexed` into its own core module ̀`Data.AVL.Indexed` following the
+  example of e.g. `Category.Monad.Indexed` or `Data.Container.Indexed`
+
+* Giving ̀ map` a polymorphic type: it is now possible to change the type of
+  values contained in a tree when mapping over it.
+
 #### Other
 
 * Removed support for GHC 7.8.4.
