@@ -27,11 +27,14 @@ module Agda.Interaction.Options
     , inputFlag
     , standardOptions
     , getOptSimple
+    , UnicodeOrAscii(..)
+    , unicodeOrAscii
     ) where
 
 import Control.Monad            ( (>=>), when )
 import Control.Monad.Trans
 
+import Data.IORef
 import Data.Either
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
@@ -64,6 +67,8 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
+
+import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- | This should probably go somewhere else.
 isLiterate :: FilePath -> Bool
@@ -135,6 +140,7 @@ data CommandLineOptions = Options
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
+  , optUseUnicode                :: Bool
   , optVerbose                   :: Verbosity
   , optProofIrrelevance          :: Bool
   , optAllowUnsolved             :: Bool
@@ -223,6 +229,7 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
+  , optUseUnicode                = True
   , optVerbose                   = defaultVerbosity
   , optProofIrrelevance          = False
   , optExperimentalIrrelevance   = False
@@ -383,6 +390,11 @@ showImplicitFlag o = return $ o { optShowImplicit = True }
 
 showIrrelevantFlag :: Flag PragmaOptions
 showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
+
+asciiOnlyFlag :: Flag PragmaOptions
+asciiOnlyFlag o = do
+  lift $ writeIORef unicodeOrAscii AsciiOnly
+  return $ o { optUseUnicode = False }
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
@@ -620,6 +632,8 @@ pragmaOptions =
                     "show implicit arguments when printing"
     , Option []     ["show-irrelevant"] (NoArg showIrrelevantFlag)
                     "show irrelevant arguments when printing"
+    , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
+                    "don't use unicode characters when printing terms"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
     -- , Option []          ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
@@ -810,3 +824,14 @@ defaultLibDir = do
   ifM (doesDirectoryExist libdir)
       (return libdir)
       (error $ "The lib directory " ++ libdir ++ " does not exist")
+
+------------------------------------------------------------------------
+-- Some IORefs to access option values in pure code
+
+-- | In `Agda.Syntax.Concrete.Pretty` we want to know whether we are
+-- allowed to insert unicode characters or not.
+data UnicodeOrAscii = UnicodeOk | AsciiOnly
+
+{-# NOINLINE unicodeOrAscii #-}
+unicodeOrAscii :: IORef UnicodeOrAscii
+unicodeOrAscii = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
