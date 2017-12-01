@@ -523,8 +523,8 @@ mkIf t@(TCase e _ d [TACon c1 0 b1, TACon c2 0 b2]) | T.isUnreachable d = do
   mFalse <- lift $ getBuiltinName builtinFalse
   let isTrue  c = Just c == mTrue
       isFalse c = Just c == mFalse
-  if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TVar e) b1 b2
-     | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TVar e) b2 b1
+  if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TCoerce $ TVar e) b1 b2
+     | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TCoerce $ TVar e) b2 b1
      | otherwise             -> return t
 mkIf t = return t
 
