@@ -70,4 +70,3 @@ funArity (TCon q)  = length . filter not <$> getErasedConArgs q
 funArity (TPrim _) = return 3 -- max arity of any primitive
 funArity _         = return 0
 
-
