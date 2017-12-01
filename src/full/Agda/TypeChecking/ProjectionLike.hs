@@ -251,8 +251,9 @@ makeProjection x = -- if True then return () else do
         ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
           {- else -}
           case lastMaybe (filter (checkOccurs cls . snd) ps0) of
-            Nothing -> reportSLn "tc.proj.like" 50 $
-              "  occurs check failed\n    clauses = " ++ show cls
+            Nothing -> reportSDoc "tc.proj.like" 50 $ nest 2 $ vcat
+              [ text "occurs check failed"
+              , nest 2 $ text "clauses =" <?> vcat (map pretty cls) ]
             Just (d, n) -> do
               -- Yes, we are projection-like!
               reportSDoc "tc.proj.like" 10 $ sep
