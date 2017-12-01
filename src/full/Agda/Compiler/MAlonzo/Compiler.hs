@@ -539,7 +539,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c
                                             <*> term x
                                             <*> term y
-  T.TApp (T.TDef f) ts -> do
+  T.TApp t ts | Just (coe, f) <- coerceView t -> do
     used <- lift $ getCompiledArgUse f
     isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
     let given   = length ts
@@ -547,12 +547,15 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
         missing = drop given used
     if not isCompiled && any not used
       then if any not missing then term (etaExpand (needed - given) tm0) else do
-        f <- lift $ HS.Var <$> xhqn "du" f  -- used stripped function
+        f <- lift $ coe . HS.Var <$> xhqn "du" f  -- used stripped function
         f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
       else do
         t' <- term (T.TDef f)
-        t' `apps` ts
-  T.TApp (T.TCon c) ts -> do
+        coe t' `apps` ts
+    where coerceView (T.TCoerce (T.TDef f)) = Just (hsCoerce, f)
+          coerceView (T.TDef f)             = Just (id, f)
+          coerceView _                      = Nothing
+  T.TApp (T.TCon c) ts -> do  -- Note that constructors are never coerced
     kit <- lift coinductionKit
     if Just c == (nameOfSharp <$> kit)
       then do
