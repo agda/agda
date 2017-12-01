@@ -8,6 +8,7 @@ module Agda.Syntax.Concrete.Pretty where
 
 import Prelude hiding (null)
 
+import Data.IORef
 import Data.Functor
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
@@ -20,6 +21,8 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Interaction.Options (UnicodeOrAscii(..), unicodeOrAscii)
+
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Null
@@ -28,6 +31,8 @@ import Agda.Utils.String
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- Andreas, 2017-10-02, TODO: restore Show to its original purpose
 --
@@ -64,6 +69,34 @@ instance Show LHSCore where show = show . pretty
 instance Show WhereClause where show = show . pretty
 instance Show ModuleApplication where show = show . pretty
 
+
+-- | Picking the appropriate set of special characters depending on
+-- whether we are allowed to use unicode or have to limit ourselves
+-- to ascii.
+
+data SpecialCharacters = SpecialCharacters
+  { _dbraces :: Doc -> Doc
+  , _lambda  :: Doc
+  , _arrow   :: Doc
+  , _forallQ :: Doc
+  }
+
+{-# NOINLINE specialCharacters #-}
+specialCharacters :: SpecialCharacters
+specialCharacters =
+  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
+  case opt of
+    UnicodeOk -> SpecialCharacters { _dbraces = ((text "\x2983" <>) . (<> text "\x2984"))
+                                   , _lambda  = text "\x03bb"
+                                   , _arrow   = text "\x2192"
+                                   , _forallQ = text "\x2200"
+                                   }
+    AsciiOnly -> SpecialCharacters { _dbraces = braces . braces'
+                                   , _lambda  = text "\\"
+                                   , _arrow   = text "->"
+                                   , _forallQ = text "forall"
+                                   }
+
 braces' :: Doc -> Doc
 braces' d = case render d of
   -- Add space to avoid starting a comment
@@ -72,7 +105,11 @@ braces' d = case render d of
 
 -- double braces...
 dbraces :: Doc -> Doc
-dbraces = braces . braces'
+dbraces = _dbraces specialCharacters
+
+
+forallQ :: Doc
+forallQ = _forallQ specialCharacters
 
 -- Lays out a list of documents [d₁, d₂, …] in the following way:
 -- @
@@ -89,8 +126,8 @@ bracesAndSemicolons (d : ds) =
   sep ([text "{" <+> d] ++ map (text ";" <+>) ds ++ [text "}"])
 
 arrow, lambda :: Doc
-arrow  = text "\x2192"
-lambda = text "\x03bb"
+arrow  = _arrow specialCharacters
+lambda = _lambda specialCharacters
 
 -- | @prettyHiding info visible doc@ puts the correct braces
 --   around @doc@ according to info @info@ and returns
@@ -246,7 +283,7 @@ newtype Tel = Tel Telescope
 
 instance Pretty Tel where
     pretty (Tel tel)
-      | any isMeta tel = text "∀" <+> fsep (map pretty tel)
+      | any isMeta tel = forallQ <+> fsep (map pretty tel)
       | otherwise      = fsep (map pretty tel)
       where
         isMeta (TypedBindings _ (Arg _ (TBind _ _ (Underscore _ Nothing)))) = True
