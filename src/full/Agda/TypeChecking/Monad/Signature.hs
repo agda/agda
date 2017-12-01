@@ -40,6 +40,7 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Local
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
+import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
@@ -487,13 +488,17 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , clauseFullRange = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
-                        , clauseBody      = Just $ case oldDef of
+                        , clauseBody      = Just $ dropArgs pars $ case oldDef of
                             Function{funProjection = Just p} -> projDropParsApply p ProjSystem ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
                         , clauseUnreachable = Just False -- definitely not unreachable
                         }
+              where
+                -- The number of remaining parameters. We need to drop the
+                -- lambdas corresponding to these from the clause body above.
+                pars = max 0 $ maybe 0 (pred . projIndex) proj
 
     {- Example
 

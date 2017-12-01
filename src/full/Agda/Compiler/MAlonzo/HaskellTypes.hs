@@ -5,6 +5,7 @@
 
 module Agda.Compiler.MAlonzo.HaskellTypes where
 
+import Control.Monad (zipWithM)
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
@@ -16,11 +17,13 @@ import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 
+import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Pretty (prettyShow)
 
@@ -166,3 +169,60 @@ checkConstructorCount d cs hsCons
   where
     n  = length cs
     hn = length hsCons
+
+-- Type approximations ----------------------------------------------------
+
+data PolyApprox = PolyApprox | NoPolyApprox
+  deriving (Eq)
+
+hsTypeApproximation :: PolyApprox -> Int -> Type -> TCM HS.Type
+hsTypeApproximation poly fv t = do
+  list <- getBuiltinName builtinList
+  bool <- getBuiltinName builtinBool
+  int  <- getBuiltinName builtinInteger
+  nat  <- getBuiltinName builtinNat
+  word <- getBuiltinName builtinWord64
+  let is q b = Just q == b
+      tyCon  = HS.TyCon . HS.UnQual . HS.Ident
+      rteCon = HS.TyCon . HS.Qual mazRTE . HS.Ident
+      tyVar n i = HS.TyVar $ HS.Ident $ "a" ++ show (n - i)
+  let go n t = do
+        t <- unSpine <$> reduce t
+        case t of
+          Var i _ | poly == PolyApprox -> return $ tyVar n i
+          Pi a b -> HS.TyFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
+            where k = case b of Abs{} -> 1; NoAbs{} -> 0
+          Def q els
+            | q `is` list, Apply t <- last ([Proj ProjSystem __IMPOSSIBLE__] ++ els)
+                        -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
+            | q `is` bool -> return $ tyCon "Bool"
+            | q `is` int  -> return $ tyCon "Integer"
+            | q `is` nat  -> return $ tyCon "Integer"
+            | q `is` word -> return $ rteCon "Word64"
+            | otherwise -> do
+                let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
+                foldl HS.TyApp <$> (HS.FakeType <$> getHsType q) <*> mapM (go n . unArg) args
+              `catchError` \ _ -> do -- Not a Haskell type
+                def <- theDef <$> getConstInfo q
+                let isData | Datatype{} <- def = True
+                           | Record{}   <- def = True
+                           | otherwise         = False
+                if isData then HS.TyCon <$> xhqn "T" q
+                          else return mazAnyType
+          Sort{} -> return $ HS.FakeType "()"
+          _ -> return mazAnyType
+  go fv (unEl t)
+
+-- Approximating polymorphic types is not actually a good idea unless we
+-- actually keep track of type applications in recursive functions, and
+-- generate parameterised datatypes. Otherwise we'll just coerce all type
+-- variables to `Any` at the first `unsafeCoerce`.
+hsTelApproximation :: Type -> TCM ([HS.Type], HS.Type)
+hsTelApproximation = hsTelApproximation' NoPolyApprox
+
+hsTelApproximation' :: PolyApprox -> Type -> TCM ([HS.Type], HS.Type)
+hsTelApproximation' poly t = do
+  TelV tel res <- telView t
+  let args = map (snd . unDom) (telToList tel)
+  (,) <$> zipWithM (hsTypeApproximation poly) [0..] args <*> hsTypeApproximation poly (length args) res
+

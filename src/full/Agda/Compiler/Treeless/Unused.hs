@@ -53,6 +53,7 @@ computeUnused q t used = do
       TSort{}   -> pure Set.empty
       TErased{} -> pure Set.empty
       TError{}  -> pure Set.empty
+      TCoerce t -> go t
 
     goAlt (TALit _   b) = go b
     goAlt (TAGuard g b) = Set.union <$> go g <*> go b

@@ -30,6 +30,7 @@ uncase t = case t of
   TSort{}   -> t
   TErased{} -> t
   TError{}  -> t
+  TCoerce t -> TCoerce (uncase t)
   where
     uncaseAlt (TACon c a b) = TACon c a $ uncase b
     uncaseAlt (TALit l b)   = TALit l $ uncase b

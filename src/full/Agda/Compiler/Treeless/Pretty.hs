@@ -179,3 +179,4 @@ pTerm t = case t of
   TSort -> pure $ text "Set"
   TErased -> pure $ text "_"
   TError err -> paren 9 $ pure $ text "error" <+> text (show (show err))
+  TCoerce t -> paren 9 $ (text "coe" <+>) <$> pTerm' 10 t

@@ -26,6 +26,7 @@ import System.FilePath hiding (normalise)
 
 import Agda.Compiler.CallCompiler
 import Agda.Compiler.Common
+import Agda.Compiler.MAlonzo.Coerce
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
@@ -194,7 +195,7 @@ imports = (hsImps ++) <$> imps where
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl mazRTE False $ Just $
               (False, [ HS.IVar $ HS.Ident x
-                      | x <- [mazCoerceName, mazErasedName] ++
+                      | x <- [mazCoerceName, mazErasedName, mazAnyTypeName] ++
                              map treelessPrimName rtePrims ])
 
   rtePrims = [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF,
@@ -343,12 +344,12 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++
+        return $ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__) ++
                  [compiledTypeSynonym q ty np] ++ cds ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         computeErasedConstructorArgs q
-        (ars, cds) <- unzip <$> mapM condecl cs
-        return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
+        cds <- mapM condecl cs
+        return $ tvaldecl q (dataInduction d) (np + ni) cds cl
       Constructor{} -> return []
       Record{ recPars = np, recClause = cl, recConHead = con }
         | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
@@ -356,15 +357,14 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q np cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q Inductive 0 np [] (Just __IMPOSSIBLE__) ++
+        return $ tvaldecl q Inductive np [] (Just __IMPOSSIBLE__) ++
                  [compiledTypeSynonym q ty np] ++ cds ++ ccscov
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         computeErasedConstructorArgs q
         let c = conName con
-        let noFields = length flds
         let ar = I.arity ty
-        cd <- snd <$> condecl c
-        return $ tvaldecl q Inductive noFields ar [cd] cl
+        cd <- condecl c
+        return $ tvaldecl q Inductive ar [cd] cl
       AbstractDefn{} -> __IMPOSSIBLE__
   where
   function :: Maybe HaskellPragma -> TCM [HS.Decl] -> TCM [HS.Decl]
@@ -377,7 +377,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
+            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCoerce $ hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
       _ -> return ccls
 
@@ -387,29 +387,35 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
     used <- getCompiledArgUse q
     let dostrip = any not used
 
+    -- Compute the type approximation
+    def <- getConstInfo q
+    (argTypes0, resType) <- hsTelApproximation $ defType def
+    let pars = case theDef def of
+                 Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
+                 _ -> 0
+        argTypes  = drop pars argTypes0
+        argTypesS = [ t | (t, True) <- zip argTypes (used ++ repeat True) ]
+
     e <- if dostrip then closedTerm (stripUnusedArguments used treeless)
                     else closedTerm treeless
     let (ps, b) = lamView e
         lamView e =
-          case stripTopCoerce e of
+          case e of
             HS.Lambda ps b -> (ps, b)
-            b                -> ([], b)
-        stripTopCoerce (HS.Lambda ps b) = HS.Lambda ps $ stripTopCoerce b
-        stripTopCoerce e =
-          case hsAppView e of
-            [c,  e] | c == mazCoerce -> e
-            _                        -> e
+            b              -> ([], b)
 
+        tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
         funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
+        tyfunbind f ts t ps b = [tydecl f ts t, funbind f ps b]
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
     let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
 
     return $ if dostrip
-      then [ funbind (dname q) ps0 b0
-           , funbind (duname q) ps b ]
-      else [ funbind (dname q) ps b ]
+      then tyfunbind (dname q) argTypes resType ps0 b0 ++
+           tyfunbind (duname q) argTypesS resType ps b
+      else tyfunbind (dname q) argTypes resType ps b
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match dn ps rhs emptyBinds] : fbs@(_:_)) =
@@ -506,7 +512,9 @@ checkCover q ty n cs hsCons = do
          ]
 
 closedTerm :: T.TTerm -> TCM HS.Exp
-closedTerm v = hsCast <$> term v `runReaderT` initCCEnv
+closedTerm v = do
+  v <- addCoercions v
+  term v `runReaderT` initCCEnv
 
 -- Translate case on bool to if
 mkIf :: T.TTerm -> CC T.TTerm
@@ -528,7 +536,9 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TVar i -> do
     x <- lookupIndex i <$> asks ccCxt
     return $ hsVarUQ x
-  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c <*> term x <*> term y
+  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c
+                                            <*> term x
+                                            <*> term y
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
     isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
@@ -569,7 +579,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
     t1' <- term t1
     intros 1 $ \[x] -> do
       t2' <- term t2
-      return $ hsLet x (hsCast t1') t2'
+      return $ hsLet x t1' t2'
 
   T.TCase sc ct def alts -> do
     sc' <- term (T.TVar sc)
@@ -577,7 +587,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
     def' <- term def
     let defAlt = HS.Alt HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
 
-    return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
+    return $ HS.Case (hsCoerce sc') (alts' ++ [defAlt])
 
   T.TLit l -> return $ literal l
   T.TDef q -> do
@@ -586,6 +596,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
+  T.TCoerce e -> hsCoerce <$> term e
   T.TErased  -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
@@ -595,6 +606,8 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
                 (T.mkTApp (raise n t) [T.TVar i | i <- [n - 1, n - 2..0]])
                 (replicate n ())
 
+hsCoerce :: HS.Exp -> HS.Exp
+hsCoerce t = HS.App mazCoerce t
 
 compilePrim :: T.TPrim -> HS.Exp
 compilePrim s = HS.Var $ hsName $ treelessPrimName s
@@ -605,7 +618,12 @@ alt sc a = do
     T.TACon {T.aCon = c} -> do
       intros (T.aArity a) $ \ xs -> do
         erased <- lift $ getErasedConArgs c
-        hConNm <- lift $ conhqn c
+        nil  <- lift $ getBuiltinName builtinNil
+        cons <- lift $ getBuiltinName builtinCons
+        hConNm <-
+          if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
+             | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
+             | otherwise      -> lift $ conhqn c
         mkAlt (HS.PApp hConNm $ map HS.PVar [ x | (x, False) <- zip xs erased ])
     T.TAGuard g b -> do
       g <- term g
@@ -631,7 +649,7 @@ alt sc a = do
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
+        return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
 
 literal :: Literal -> HS.Exp
 literal l = case l of
@@ -712,16 +730,13 @@ erasedArity q = do
   erased  <- length . filter id <$> getErasedConArgs q
   return (ar - erased)
 
-condecl :: QName -> TCM (Nat, HS.ConDecl)
+condecl :: QName -> TCM HS.ConDecl
 condecl q = do
-  (ar, np) <- conArityAndPars q
-  erased   <- length . filter id <$> getErasedConArgs q
-  let ar' = ar - erased
-  return $ (ar' + np, cdecl q ar')
-
-cdecl :: QName -> Nat -> HS.ConDecl
-cdecl q n = HS.ConDecl (unqhname "C" q)
-            [ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
+  def <- getConstInfo q
+  let Constructor{ conPars = np, conErased = erased } = theDef def
+  (argTypes0, _) <- hsTelApproximation (defType def)
+  let argTypes = [ t | (t, False) <- zip (drop np argTypes0) (erased ++ repeat False) ]
+  return $ HS.ConDecl (unqhname "C" q) argTypes
 
 compiledcondecl :: QName -> TCM HS.Decl
 compiledcondecl q = do
@@ -740,14 +755,13 @@ compiledTypeSynonym q hsT arity =
 tvaldecl :: QName
          -> Induction
             -- ^ Is the type inductive or coinductive?
-         -> Nat -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
-tvaldecl q ind ntv npar cds cl =
+         -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
+tvaldecl q ind npar cds cl =
   HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
-  maybe [HS.DataDecl kind tn tvs cds []]
+  maybe [HS.DataDecl kind tn [] cds []]
         (const []) cl
   where
   (tn, vn) = (unqhname "T" q, unqhname "d" q)
-  tvs = [ HS.UnkindedVar $ ihname "a" i | i <- [0 .. ntv  - 1]]
   pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
 
   -- Inductive data types consisting of a single constructor with a
@@ -759,56 +773,6 @@ tvaldecl q ind ntv npar cds cl =
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
 infodecl q ds = fakeD (unqhname "name" q) (show $ prettyShow q) : ds
-
---------------------------------------------------
--- Inserting unsafeCoerce
---------------------------------------------------
-
-hsCast :: HS.Exp -> HS.Exp
-{-
-hsCast = addcast . go where
-  addcast [e@(HS.Var(HS.UnQual(HS.Ident(c:ns))))] | c == 'v' && all isDigit ns = e
-  addcast es = foldl HS.App mazCoerce es
-  -- this need to be extended if you generate other kinds of exps.
-  go (HS.App e1 e2    ) = go e1 ++ [hsCast e2]
-  go (HS.Lambda _ ps e) = [ HS.Lambda ps (hsCast e) ]
-  go e = [e]
--}
-
--- TODO: what's the specification for hsCast, hsCast' and hsCoerce???
-hsCast e = hsCoerce (hsCast' e)
-
-hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.InfixApp e1 op e2) = hsCoerce $ HS.InfixApp (hsCast' e1) op (hsCast' e2)
-hsCast' (HS.Lambda ps e)       = HS.Lambda ps $ hsCast' e
-hsCast' (HS.Let bs e)          = HS.Let bs $ hsCast' e
-hsCast' (HS.Case sc alts)      = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
-hsCast' e =
-  case hsAppView e of
-    f : es -> foldl HS.App (hsCoerce f) (map hsCastApp es)
-    _      -> __IMPOSSIBLE__
-
--- We still have to coerce function applications in arguments to coerced
--- functions.
-hsCastApp :: HS.Exp -> HS.Exp
-hsCastApp (HS.Lambda ps b) = HS.Lambda ps (hsCastApp b)
-hsCastApp (HS.Let bs e) = HS.Let bs $ hsCastApp e
-hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
-hsCastApp (HS.InfixApp e1 op e2) = HS.InfixApp (hsCastApp e1) op (hsCastApp e2)
-hsCastApp e =
-  case hsAppView e of
-    f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es
-    _ -> e
-
--- No coercion for literal integers
-hsCoerce :: HS.Exp -> HS.Exp
-hsCoerce e@(HS.ExpTypeSig (HS.Lit (HS.Int{})) _) = e
-hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
-hsCoerce (HS.Let bs e) = HS.Let bs $ hsCoerce e
-hsCoerce e =
-  case hsAppView e of
-    c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
-    _ -> mazCoerce `HS.App` e
 
 --------------------------------------------------
 -- Writing out a haskell module

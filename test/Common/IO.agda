@@ -28,7 +28,6 @@ postulate
   }; }; }; }
 #-}
 
-
 {-# FOREIGN GHC import qualified Data.Text.IO #-}
 
 postulate

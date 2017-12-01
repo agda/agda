@@ -53,6 +53,7 @@ data TTerm = TVar Int
            | TUnit -- used for levels right now
            | TSort
            | TErased
+           | TCoerce TTerm  -- ^ Used by the GHC backend
            | TError TError
            -- ^ A runtime error, something bad has happened.
   deriving (Data, Show, Eq, Ord)

@@ -81,10 +81,7 @@ hsName s = HS.UnQual (HS.Ident s)
 
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> TCM HS.QName
-conhqn q = do
-    cq  <- canonicalName q
-    def <- getConstInfo cq
-    xhqn "C" cq
+conhqn q = xhqn "C" =<< canonicalName q
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName
@@ -164,6 +161,9 @@ mazCoerceName = "coe"
 mazErasedName :: String
 mazErasedName = "erased"
 
+mazAnyTypeName :: String
+mazAnyTypeName = "AgdaAny"
+
 mazCoerce :: HS.Exp
 -- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
 -- mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident mazCoerceName
@@ -181,6 +181,9 @@ mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"
 
 rtmUnreachableError :: HS.Exp
 rtmUnreachableError = mazUnreachableError
+
+mazAnyType :: HS.Type
+mazAnyType = HS.TyCon (hsName mazAnyTypeName)
 
 mazRTE :: HS.ModuleName
 mazRTE = HS.ModuleName "MAlonzo.RTE"

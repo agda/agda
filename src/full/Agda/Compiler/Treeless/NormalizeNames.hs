@@ -36,6 +36,7 @@ normalizeNames = tr
       TApp a bs               -> TApp <$> tr a <*> mapM tr bs
       TLet e b                -> TLet <$> tr e <*> tr b
       TCase sc t def alts     -> TCase sc t <$> tr def <*> mapM trAlt alts
+      TCoerce a               -> TCoerce <$> tr a
       where
         done :: TCM TTerm
         done = return t

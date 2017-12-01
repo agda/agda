@@ -101,6 +101,8 @@ simplify FunctionKit{..} = simpl
 
       TApp (TPrim _) _ -> pure t  -- taken care of by rewrite'
 
+      TCoerce t -> TCoerce <$> simpl t
+
       TApp f es -> do
         f  <- simpl f
         es <- traverse simpl es

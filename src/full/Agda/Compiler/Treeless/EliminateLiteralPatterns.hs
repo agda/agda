@@ -63,6 +63,7 @@ transform kit = tr
       TErased{} -> t
       TError{}  -> t
 
+      TCoerce a               -> TCoerce (tr a)
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
