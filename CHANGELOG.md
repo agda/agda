@@ -162,6 +162,10 @@ Backwards compatible changes
   sup-injective₂ : sup x f ≡ sup x g → f ≡ g
   ```
 
+* New module `Data.Word`
+
+  Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
+
 ### Other
 
 * Added support for GHC 8.2.2.
