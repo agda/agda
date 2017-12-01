@@ -308,12 +308,12 @@ noShadowingOfConstructors
   -> LHSState -> TCM ()
 noShadowingOfConstructors mkCall st =
   traceCall mkCall $ do
-    let pat = map (snd . asView . namedArg) $ problemInPat $ lhsProblem st
+    let pat = map (updateNamedArg (snd . asView)) $ problemInPat $ lhsProblem st
         tel = map (unEl . snd . unDom) $ telToList $ lhsTel st
     zipWithM_ noShadowing tel pat
     return ()
   where
-  noShadowing t = \case
+  noShadowing t p = case namedArg p of
    A.WildP       {} -> return ()
    A.AbsurdP     {} -> return ()
    A.ConP        {} -> return ()  -- only happens for eta expanded record patterns
@@ -325,10 +325,15 @@ noShadowingOfConstructors mkCall st =
    A.LitP        {} -> __IMPOSSIBLE__
    A.PatternSynP {} -> __IMPOSSIBLE__
    A.WithP       {} -> __IMPOSSIBLE__
-   A.VarP x -> do
+   -- Andreas, 2017-12-01, issue #2859.
+   -- Due to parameter refinement, there can be (invisible) variable patterns from module
+   -- parameters that shadow constructors.
+   -- Thus, only complain about user written variable that shadow constructors.
+   A.VarP x -> when (getOrigin p == UserWritten) $ do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
       , nest 2 $ text "type of variable =" <+> prettyTCM t
+      , nest 2 $ text "position of variable =" <+> (text . show) (getRange x)
       ]
     reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ text "t =" <+> pretty t
     t <- reduce t
