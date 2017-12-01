@@ -5,7 +5,7 @@ module Agda.TypeChecking.DropArgs where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.TypeChecking.CompiledClause
@@ -51,15 +51,13 @@ instance DropArgs Clause where
 instance DropArgs FunctionInverse where
   dropArgs n finv = fmap (dropArgs n) finv
 
-{- UNUSED, but don't remove (Andreas, 2012-10-08)
--- | Use for dropping initial lambdas in compiled clause bodies.
+-- | Use for dropping initial lambdas in clause bodies.
 --   NOTE: does not reduce term, need lambdas to be present.
 instance DropArgs Term where
   dropArgs 0 v = v
   dropArgs n v = case ignoreSharing v of
     Lam h b -> dropArgs (n - 1) (absBody b)
     _       -> __IMPOSSIBLE__
--}
 
 -- | To drop the first @n@ arguments in a compiled clause,
 --   we reduce the split argument indices by @n@ and
