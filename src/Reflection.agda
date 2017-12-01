@@ -14,6 +14,7 @@ open import Data.Nat.Show renaming (show to showNat)
 open import Data.Float using (Float) renaming (_≟_ to _≟f_; show to showFloat)
 open import Data.Char using (Char) renaming (_≟_ to _≟c_; show to showChar)
 open import Data.String using (String) renaming (_≟_ to _≟s_; show to showString)
+open import Data.Word using (Word64) renaming (_≟_ to _≟w_; toℕ to wordToℕ)
 open import Data.Product
 open import Function
 open import Relation.Binary
@@ -105,7 +106,7 @@ open Builtin public using (Abs; abs)
 
 -- Literals.
 
-open Builtin public using (Literal; nat; float; char; string; name; meta)
+open Builtin public using (Literal; nat; word64; float; char; string; name; meta)
 
 -- Patterns.
 
@@ -136,6 +137,7 @@ open Builtin public
 
 showLiteral : Literal → String
 showLiteral (nat x)    = showNat x
+showLiteral (word64 x) = showNat (wordToℕ x)
 showLiteral (float x)  = showFloat x
 showLiteral (char x)   = showChar x
 showLiteral (string x) = showString x
@@ -269,6 +271,9 @@ private
   nat₁ : ∀ {x y} → nat x ≡ nat y → x ≡ y
   nat₁ refl = refl
 
+  word64₁ : ∀ {x y} → word64 x ≡ word64 y → x ≡ y
+  word64₁ refl = refl
+
   float₁ : ∀ {x y} → float x ≡ float y → x ≡ y
   float₁ refl = refl
 
@@ -323,36 +328,49 @@ arg-info v r ≟-Arg-info arg-info v′ r′ =
 
 _≟-Lit_ : Decidable (_≡_ {A = Literal})
 nat x ≟-Lit nat x₁ = Dec.map′ (cong nat) nat₁ (x ≟-ℕ x₁)
+nat x ≟-Lit word64 x₁ = no (λ ())
 nat x ≟-Lit float x₁ = no (λ ())
 nat x ≟-Lit char x₁ = no (λ ())
 nat x ≟-Lit string x₁ = no (λ ())
 nat x ≟-Lit name x₁ = no (λ ())
 nat x ≟-Lit meta x₁ = no (λ ())
+word64 x ≟-Lit word64 x₁ = Dec.map′ (cong word64) word64₁ (x ≟w x₁)
+word64 x ≟-Lit nat x₁ = no (λ ())
+word64 x ≟-Lit float x₁ = no (λ ())
+word64 x ≟-Lit char x₁ = no (λ ())
+word64 x ≟-Lit string x₁ = no (λ ())
+word64 x ≟-Lit name x₁ = no (λ ())
+word64 x ≟-Lit meta x₁ = no (λ ())
 float x ≟-Lit nat x₁ = no (λ ())
+float x ≟-Lit word64 x₁ = no (λ ())
 float x ≟-Lit float x₁ = Dec.map′ (cong float) float₁ (x ≟f x₁)
 float x ≟-Lit char x₁ = no (λ ())
 float x ≟-Lit string x₁ = no (λ ())
 float x ≟-Lit name x₁ = no (λ ())
 float x ≟-Lit meta x₁ = no (λ ())
 char x ≟-Lit nat x₁ = no (λ ())
+char x ≟-Lit word64 x₁ = no (λ ())
 char x ≟-Lit float x₁ = no (λ ())
 char x ≟-Lit char x₁ = Dec.map′ (cong char) char₁ (x ≟c x₁)
 char x ≟-Lit string x₁ = no (λ ())
 char x ≟-Lit name x₁ = no (λ ())
 char x ≟-Lit meta x₁ = no (λ ())
 string x ≟-Lit nat x₁ = no (λ ())
+string x ≟-Lit word64 x₁ = no (λ ())
 string x ≟-Lit float x₁ = no (λ ())
 string x ≟-Lit char x₁ = no (λ ())
 string x ≟-Lit string x₁ = Dec.map′ (cong string) string₁ (x ≟s x₁)
 string x ≟-Lit name x₁ = no (λ ())
 string x ≟-Lit meta x₁ = no (λ ())
 name x ≟-Lit nat x₁ = no (λ ())
+name x ≟-Lit word64 x₁ = no (λ ())
 name x ≟-Lit float x₁ = no (λ ())
 name x ≟-Lit char x₁ = no (λ ())
 name x ≟-Lit string x₁ = no (λ ())
 name x ≟-Lit name x₁ = Dec.map′ (cong name) name₁ (x ≟-Name x₁)
 name x ≟-Lit meta x₁ = no (λ ())
 meta x ≟-Lit nat x₁ = no (λ ())
+meta x ≟-Lit word64 x₁ = no (λ ())
 meta x ≟-Lit float x₁ = no (λ ())
 meta x ≟-Lit char x₁ = no (λ ())
 meta x ≟-Lit string x₁ = no (λ ())

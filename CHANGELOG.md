@@ -314,10 +314,13 @@ Backwards compatible changes
 
 * Added support for GHC 8.2.2.
 
-* Added new module `Data.Table`. A `Table` is a fixed-length collection of objects
-  similar to a `Vec` from `Data.Vec`, but implemented as a function `Fin n → A`.
-  This prioritises ease of lookup as opposed to `Vec` which prioritises the ease
-  of adding and removing elements.
+* New module `Data.Word` for new builtin type `Agda.Builtin.Word.Word64`.
+
+* New modules `Data.Table`, `Data.Table.Base`,
+  `Data.Table.Relation.Equality` and `Data.Table.Properties`. A `Table` is a
+  fixed-length collection of objects similar to a `Vec` from `Data.Vec`, but
+  implemented as a function `Fin n → A`. This prioritises ease of lookup as opposed
+  to `Vec` which prioritises the ease of adding and removing elements.
 
 * The contents of the following modules are now more polymorphic with respect to levels:
   ```agda
