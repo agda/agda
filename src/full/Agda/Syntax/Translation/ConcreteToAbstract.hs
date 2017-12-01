@@ -2112,9 +2112,12 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
 resolvePatternIdentifier ::
   Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
 resolvePatternIdentifier r x ns = do
+  reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ show x ++ " at source position " ++ show r
   px <- toAbstract (PatName x ns)
   case px of
-    VarPatName y        -> return $ VarP $ A.BindName y
+    VarPatName y         -> do
+      reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ show y ++ " with range " ++ show (getRange y)
+      return $ VarP $ A.BindName y
     ConPatName ds        -> return $ ConP (ConPatInfo ConOCon $ PatRange r)
                                           (AmbQ $ fmap anameName ds) []
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
