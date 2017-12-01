@@ -298,6 +298,11 @@ Compiler backends
   builtin list type. Indeed, doing so has no effect on the compilation and
   results in a warning.
 
+* The GHC backend performance improvements.
+
+  Generated Haskell code now contains approximate type signatures, which lets
+  GHC get rid of many of the `unsafeCoerce`s. This leads to performance
+  improvements of up to 50% of compiled code.
 
 
 Release notes for Agda version 2.5.3
