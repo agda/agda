@@ -377,7 +377,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
             tsig = HS.TypeSig [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
+            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCoerce $ hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
       _ -> return ccls
 
