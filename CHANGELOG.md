@@ -161,16 +161,16 @@ Backwards compatible changes
   sup-injective₁ : sup x f ≡ sup y g → x ≡ y
   sup-injective₂ : sup x f ≡ sup x g → f ≡ g
   ```
-
-* New module `Data.Word`
-
-  Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
-
+  
 ### Other
 
 * Added support for GHC 8.2.2.
 
-* The contents of `Data.Covec' is now polymorphic with respect to levels
+* New module `Data.Word`
+
+  Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
+  
+* The contents of `Data.Covec` is now polymorphic with respect to levels
 
 * Added new proofs to `Data.Nat.Properties`:
   ```agda
@@ -187,6 +187,13 @@ Backwards compatible changes
   ^-monoid-morphism     : (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
 
   m∸n+n≡m               : n ≤ m → (m ∸ n) + n ≡ m
+  ```
+
+* Added new functions to `Data.W`:
+  ```agda
+  map       : (f : A → C) → ∀[ D ∘ f ⇒ B ] → W A B → W C D
+  induction : (∀ a {f} (hf : ∀ (b : B a) → P (f b)) → (w : W A B) → P w
+  foldr     : (∀ a → (B a → P) → P) → W A B → P
   ```
 
 * Added new combinators to `Relation.Unary`:

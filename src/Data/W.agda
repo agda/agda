@@ -35,6 +35,28 @@ tail : ∀ {a b} {A : Set a} {B : A → Set b} →
        (x : W A B) → B (head x) → W A B
 tail (sup x f) = f
 
+-- map
+
+module _ {a b c d} {A : Set a} {B : A → Set b} {C : Set c} {D : C → Set d}
+         (A⇒C : A → C) (D⇒B : ∀[ D ∘ A⇒C ⇒ B ]) where
+
+ map : W A B → W C D
+ map (sup x f) = sup (A⇒C x) $ λ d → map (f (D⇒B x d))
+
+-- induction
+
+module _ {a b p} {A : Set a} {B : A → Set b} {P : W A B → Set p}
+         (alg : ∀ a {f} (hf : ∀ (b : B a) → P (f b)) → P (sup a f)) where
+
+ induction : (w : W A B) → P w
+ induction (sup a f) = alg a $ λ b → induction (f b)
+
+module _ {a b p} {A : Set a} {B : A → Set b} {P : Set p}
+         (alg : ∀ a → (B a → P) → P) where
+
+ foldr : W A B → P
+ foldr = induction (λ a → alg a)
+
 -- If B is always inhabited, then W A B is empty.
 
 inhabited⇒empty : ∀ {a b} {A : Set a} {B : A → Set b} →
