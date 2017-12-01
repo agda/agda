@@ -15,7 +15,7 @@ open import Data.List.Base using (List; foldr; foldl)
 open import Data.Nat
 open import Data.Product
 open import Data.Vec using (Vec; _∷_; _[_]=_)
-import Relation.Binary.Vec.Pointwise as Pointwise
+import Data.Vec.Relation.Pointwise as Pointwise
 open import Relation.Nullary
 
 ------------------------------------------------------------------------

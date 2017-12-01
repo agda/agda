@@ -15,7 +15,7 @@ open import Function
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary
-open import Relation.Binary.List.StrictLex as StrictLex
+open import Data.List.Relation.StrictLex as StrictLex
 import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe

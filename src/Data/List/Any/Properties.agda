@@ -18,25 +18,25 @@ open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Membership.Propositional
+open import Data.List.Relation.Pointwise
+  using ([]; _∷_) renaming (Rel to ListRel)
 open import Data.Nat using (zero; suc; _<_; z≤n; s≤s)
 open import Data.Product as Prod
   using (_×_; _,_; ∃; ∃₂; proj₁; proj₂; uncurry′)
+open import Data.Product.Relation.Pointwise
+import Data.Product.Relation.SigmaPointwise as Σ
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
+open import Data.Sum.Relation.General
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Function.Related as Related using (Related)
 open import Relation.Binary
-open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect)
 open import Relation.Unary
   using (Pred; _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
-import Relation.Binary.Sigma.Pointwise as Σ
-open import Relation.Binary.Sum
-open import Relation.Binary.List.Pointwise
-  using ([]; _∷_) renaming (Rel to ListRel)
 
 open Related.EquationalReasoning
 private

@@ -14,11 +14,11 @@ open import Function.Related as Related hiding (_∼[_]_)
 open import Data.List.Base as List using (List; []; _∷_)
 open import Data.List.Any using (Any; map)
 import Data.List.Any.Membership as Membership
+open import Data.List.Relation.Pointwise as ListEq using ([]; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_; uncurry′; proj₂)
 open import Relation.Nullary
 open import Relation.Binary hiding (Decidable)
 import Relation.Binary.InducedPreorders as Ind
-open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_)
 

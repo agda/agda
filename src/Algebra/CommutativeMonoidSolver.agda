@@ -18,10 +18,10 @@ open import Data.Vec using (Vec; []; _∷_; lookup; replicate)
 
 open import Function using (_∘_)
 
-import Relation.Binary.EqReasoning   as EqReasoning
-import Relation.Binary.Reflection    as Reflection
-import Relation.Binary.Vec.Pointwise as Pointwise
-import Relation.Nullary.Decidable    as Dec
+import Relation.Binary.EqReasoning  as EqReasoning
+import Relation.Binary.Reflection   as Reflection
+import Relation.Nullary.Decidable   as Dec
+import Data.Vec.Relation.Pointwise as Pointwise
 
 open import Relation.Binary.PropositionalEquality as P using (_≡_; decSetoid)
 open import Relation.Nullary using (Dec)

@@ -15,7 +15,9 @@ open import Algebra.Structures
 open import Data.Empty
 open import Data.Nat as Nat using (zero; suc)
 open import Data.Product as Prod hiding (swap)
+open import Data.Product.Relation.Pointwise
 open import Data.Sum as Sum
+open import Data.Sum.Relation.General
 open import Data.Unit
 open import Level hiding (zero; suc)
 open import Function
@@ -24,9 +26,7 @@ open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Function.Related as Related
 open import Relation.Binary
-open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
-open import Relation.Binary.Sum
 open import Relation.Nullary hiding (module Dec)
 open import Relation.Nullary.Decidable as Dec using (True)
 

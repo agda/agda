@@ -11,6 +11,7 @@ module Algebra.Monoid-solver {m₁ m₂} (M : Monoid m₁ m₂) where
 open import Data.Fin
 import Data.Fin.Properties as Fin
 open import Data.List.Base
+import Data.List.Relation.Pointwise as Pointwise
 open import Data.Maybe as Maybe
   using (Maybe; decToMaybe; From-just; from-just)
 open import Data.Nat.Base using (ℕ)
@@ -18,7 +19,6 @@ open import Data.Product
 open import Data.Vec using (Vec; lookup)
 open import Function using (_∘_; _$_)
 import Relation.Binary.EqReasoning
-import Relation.Binary.List.Pointwise as Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 import Relation.Binary.Reflection
 open import Relation.Nullary

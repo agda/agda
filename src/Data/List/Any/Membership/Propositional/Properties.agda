@@ -29,12 +29,12 @@ import Data.List.Any.Membership.Properties as Membershipₚ
 open import Data.Nat as Nat
 open import Data.Nat.Properties
 open import Data.Product as Prod
+import Data.Product.Relation.SigmaPointwise as Σ
 open import Data.Sum as Sum
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; _≗_)
 import Relation.Binary.Properties.DecTotalOrder as DTOProperties
-import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Unary using (_⟨×⟩_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation

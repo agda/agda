@@ -18,7 +18,6 @@ open import Data.Product using (uncurry; _,_; _×_)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
   using (_≡_; _≢_; refl; sym)
-open import Relation.Binary.List.StrictLex
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 

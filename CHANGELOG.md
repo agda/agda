@@ -45,6 +45,21 @@ Deprecated features
 Deprecated features still exist and therefore existing code should still work
 but they may be removed in some future release of the library.
 
+* Relations over data have been moved from the `Relation` subtree to the `Data`
+  subtree. The full list of moves is as follows:
+  - `Relation.Binary.List.Pointwise`       ↦ `Data.List.Relation.Pointwise`
+  - `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.StrictLex`
+  - `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.NonStrictLex`
+  - `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.SigmaPointwise`
+  - `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.General`
+  - `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise`
+  - `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.StrictLex`
+  - `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.NonStrictLex`
+  - `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise`
+  The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
+  re-exports the contents of files' new location in `Data.X.Relation` but may be removed in some
+  future release.
+
 Backwards compatible changes
 ----------------------------
 

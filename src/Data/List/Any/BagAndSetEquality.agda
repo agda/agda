@@ -18,6 +18,7 @@ open import Data.List.Any.Properties
 open import Data.List.Any.Membership.Propositional
 open import Data.Product
 open import Data.Sum
+open import Data.Sum.Relation.General
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 import Function.Equivalence as FE
@@ -28,7 +29,6 @@ open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_)
-open import Relation.Binary.Sum
 open import Relation.Nullary
 
 open import Data.List.Any.Membership.Propositional.Properties

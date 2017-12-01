@@ -18,14 +18,14 @@ open import Category.Monad
 open import Category.Monad.Identity
 open import Data.Fin using (Fin)
 open import Data.Nat
-open import Data.Vec as Vec using (Vec)
 open import Data.Product using (_,_; proj₁; proj₂)
+open import Data.Vec as Vec using (Vec)
 import Data.Vec.Properties as VecProp
+open import Data.Vec.Relation.Pointwise as PW
+  using (Pointwise; module Pointwise; ext)
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≗_)
 import Relation.Binary.Reflection as Reflection
-open import Relation.Binary.Vec.Pointwise as PW
-  using (Pointwise; module Pointwise; ext)
 
 -- Expressions made up of variables and the operations of a boolean
 -- algebra.
