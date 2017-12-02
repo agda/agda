@@ -1,14 +1,9 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module LibSucceed.Tests where
 
 import qualified Data.Text as T
 import Data.List (isInfixOf)
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
-#endif
 
 import System.Exit
 import System.FilePath

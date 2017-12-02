@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.Utils.FileName ( tests ) where
 
 import Agda.Utils.FileName
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import qualified Data.Text as Text
 

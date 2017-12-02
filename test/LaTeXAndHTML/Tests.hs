@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module LaTeXAndHTML.Tests where
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
-#endif
 
 import Control.Monad
 import Data.Char

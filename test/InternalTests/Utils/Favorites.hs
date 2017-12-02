@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.Favorites ( tests ) where
@@ -7,10 +6,6 @@ import Agda.Utils.Favorites
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Singleton
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import InternalTests.Utils.PartialOrd ( ISet(ISet) )
 

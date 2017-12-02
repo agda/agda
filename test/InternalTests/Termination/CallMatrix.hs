@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
 
@@ -10,10 +9,6 @@ module InternalTests.Termination.CallMatrix
 import Agda.Termination.CallMatrix
 import Agda.Termination.CutOff
 import Agda.Termination.SparseMatrix ( Size )
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 
 import InternalTests.Helpers
 import InternalTests.Termination.Order ()

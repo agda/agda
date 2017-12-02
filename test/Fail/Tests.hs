@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -15,12 +14,7 @@ import System.Exit
 import System.Directory
 import qualified Data.ByteString as BS
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
-#endif
-
 import Utils
-
 
 testDir :: FilePath
 testDir = "test" </> "Fail"

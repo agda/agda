@@ -5,9 +5,6 @@ module InternalTests.Interaction.Highlighting.Precise ( tests ) where
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 import Control.Monad
 
 import qualified Data.IntMap as IntMap

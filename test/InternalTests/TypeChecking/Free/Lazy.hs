@@ -1,13 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.TypeChecking.Free.Lazy () where
 
 import Agda.TypeChecking.Free.Lazy
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative
-import Data.Semigroup ( mempty )
-#endif
 
 import InternalTests.Syntax.Common ()
 

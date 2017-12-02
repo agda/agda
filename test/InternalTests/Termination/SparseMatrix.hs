@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.Termination.SparseMatrix
   ( matrix
@@ -10,10 +9,6 @@ import qualified Agda.Termination.Semiring as Semiring
 import Agda.Termination.SparseMatrix
 import Agda.Utils.Functor
 import Agda.Utils.Tuple
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<*>) )
-#endif
 
 import Data.Array
 import Data.Function

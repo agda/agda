@@ -21,10 +21,6 @@ import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Impossible
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
-
 import Control.Monad
 
 import qualified Data.Foldable as Fold

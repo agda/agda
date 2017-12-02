@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
@@ -17,10 +16,6 @@ import qualified UserManual.Tests as USERMANUAL
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
 import Test.Tasty.Silver.Filter (RegexFilter)
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
-#endif
 
 import System.Exit
 

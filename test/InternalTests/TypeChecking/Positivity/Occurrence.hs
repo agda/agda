@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.TypeChecking.Positivity.Occurrence ( tests ) where
@@ -6,10 +5,6 @@ module InternalTests.TypeChecking.Positivity.Occurrence ( tests ) where
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.SemiRing
 import Agda.Utils.List ( uniqOn )
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 
 import Data.Either
 import qualified Data.Map.Strict as Map

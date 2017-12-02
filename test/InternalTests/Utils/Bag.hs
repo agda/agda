@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.Bag ( tests ) where
 
 import Agda.Utils.Bag
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import Data.Functor.Identity
 import qualified Data.List as List

@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.Trie ( tests ) where
 
 import Agda.Utils.Trie
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import Data.Function ( on )
 import Data.List ( nubBy, sortBy, isPrefixOf, inits )
