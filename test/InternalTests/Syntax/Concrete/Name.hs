@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.Syntax.Concrete.Name () where
 
 import Agda.Syntax.Concrete.Name
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 
 import Data.List
 

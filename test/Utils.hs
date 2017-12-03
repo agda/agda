@@ -190,10 +190,3 @@ cleanOutput inp = do
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd
-
-hasGHCJobsFlag :: Bool
-#if __GLASGOW_HASKELL__ >= 708
-hasGHCJobsFlag = True
-#else
-hasGHCJobsFlag = False
-#endif

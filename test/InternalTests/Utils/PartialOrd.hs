@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell            #-}
 
@@ -8,10 +7,6 @@ module InternalTests.Utils.PartialOrd
   ) where
 
 import Agda.Utils.PartialOrd
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import Data.List
 import Data.Set (Set)

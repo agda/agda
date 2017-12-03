@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.Maybe.Strict ( tests ) where
 
 import Agda.Utils.Maybe.Strict
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import Data.Semigroup ()
 

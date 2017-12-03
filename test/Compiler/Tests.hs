@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
@@ -21,14 +20,6 @@ import System.FilePath
 import System.Environment
 import System.Exit
 import System.Process.Text as PT
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
-#endif
-#if __GLASGOW_HASKELL__ <= 706
-import Control.Monad ( void )
-import System.SetEnv (setEnv)
-#endif
 
 import Control.Monad (forM)
 import Data.Maybe
@@ -232,7 +223,7 @@ cleanUpOptions = filter clean
   where
     clean :: String -> Bool
     clean "--no-ignore-interfaces"         = False
-    clean o | isPrefixOf "--ghc-flag=-j" o = hasGHCJobsFlag
+    clean o | isPrefixOf "--ghc-flag=-j" o = True
     clean _                                = True
 
 -- gets the generated executable path

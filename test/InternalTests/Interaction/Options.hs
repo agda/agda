@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.Interaction.Options ( tests ) where
 
 import Agda.Interaction.Options
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import Data.List
 

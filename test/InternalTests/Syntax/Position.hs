@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP            #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Syntax.Position ( tests ) where
@@ -8,10 +7,6 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.List ( distinct )
 import Agda.Utils.Null ( null )
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import Control.Monad
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP            #-}
 {-# LANGUAGE ImplicitParams #-}
 
 module InternalTests.Termination.CallGraph ( tests ) where
@@ -6,10 +5,6 @@ module InternalTests.Termination.CallGraph ( tests ) where
 import Agda.Termination.CallGraph
 import Agda.Termination.CutOff
 import Agda.Termination.SparseMatrix
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>) )
-#endif
 
 import qualified Data.List as List
 

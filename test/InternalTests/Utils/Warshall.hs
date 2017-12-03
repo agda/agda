@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.Utils.Warshall ( tests ) where
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Utils.Warshall
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 
 import Data.List
 import qualified Data.Map as Map

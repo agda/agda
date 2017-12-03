@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.TypeChecking.SizedTypes.WarshallSolver () where
 
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 
 import InternalTests.TypeChecking.SizedTypes.Syntax ()
 

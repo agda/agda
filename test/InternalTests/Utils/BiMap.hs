@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.BiMap ( tests ) where
 
 import Agda.Utils.BiMap
-
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$>), (<*>) )
-#endif
 
 import qualified Data.List as List
 import qualified Data.Map as Map
