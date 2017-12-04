@@ -1,0 +1,4 @@
+Issue2862record.agda:14,3-17
+Definition in different module than its type signature
+when scope checking the declaration
+  record R where

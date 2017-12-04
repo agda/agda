@@ -1,0 +1,5 @@
+Issue2862fun.agda:12,3-6
+Multiple definitions of val. Previous definition at
+Issue2862fun.agda:9,1-4
+when scope checking the declaration
+  val : _
