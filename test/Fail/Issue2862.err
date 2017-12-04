@@ -1,0 +1,5 @@
+Issue2862.agda:13,3-14,13
+Definition in different module than its type signature
+when scope checking the declaration
+  data N where
+    zero : N
