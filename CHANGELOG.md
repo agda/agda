@@ -187,7 +187,7 @@ Backwards compatible changes
   sup-injective₁ : sup x f ≡ sup y g → x ≡ y
   sup-injective₂ : sup x f ≡ sup x g → f ≡ g
   ```
-  
+
 ### Other
 
 * Added support for GHC 8.2.2.
@@ -195,7 +195,7 @@ Backwards compatible changes
 * New module `Data.Word`
 
   Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
-  
+
 * The contents of `Data.Covec` is now polymorphic with respect to levels
 
 * Added new proofs to `Data.Nat.Properties`:
