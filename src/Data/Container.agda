@@ -8,7 +8,7 @@ module Data.Container where
 
 open import Data.M
 open import Data.Product as Prod hiding (map)
-open import Data.W
+open import Data.W hiding (map)
 open import Function renaming (id to ⟨id⟩; _∘_ to _⟨∘⟩_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
