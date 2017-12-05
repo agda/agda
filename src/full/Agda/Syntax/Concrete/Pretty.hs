@@ -21,7 +21,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Interaction.Options (UnicodeOrAscii(..), unicodeOrAscii)
+import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -86,7 +86,7 @@ specialCharacters :: SpecialCharacters
 specialCharacters =
   let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
   case opt of
-    UnicodeOk -> SpecialCharacters { _dbraces = ((text "\x2983" <>) . (<> text "\x2984"))
+    UnicodeOk -> SpecialCharacters { _dbraces = ((text "\x2983 " <>) . (<> text " \x2984"))
                                    , _lambda  = text "\x03bb"
                                    , _arrow   = text "\x2192"
                                    , _forallQ = text "\x2200"
@@ -107,7 +107,7 @@ braces' d = case render d of
 dbraces :: Doc -> Doc
 dbraces = _dbraces specialCharacters
 
-
+-- forall quantifier
 forallQ :: Doc
 forallQ = _forallQ specialCharacters
 

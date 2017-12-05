@@ -4,8 +4,11 @@ import Data.Char
 import qualified Data.List as List
 
 import Numeric
-
 import Agda.Utils.List
+
+import Data.IORef
+import Agda.Interaction.Options.IORefs (unicodeOrAscii, UnicodeOrAscii(..))
+import qualified System.IO.Unsafe as UNSAFE
 
 -- | 'quote' adds double quotes around the string, replaces newline
 -- characters with @\n@, and escapes double quotes and backslashes
@@ -43,11 +46,14 @@ delimiter s = concat [ replicate 4 '\x2014'
 
 
 -- | Shows a non-negative integer using the characters ₀-₉ instead of
--- 0-9.
+-- 0-9 unless the user explicitly asked us to not use any unicode characters.
 
 showIndex :: (Show i, Integral i) => i -> String
 showIndex n =
-  showIntAtBase 10 (\i -> toEnum (i + fromEnum '\x2080')) n ""
+  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
+  case opt of
+    UnicodeOk -> showIntAtBase 10 (\i -> toEnum (i + fromEnum '\x2080')) n ""
+    AsciiOnly -> show n
 
 -- | Adds a final newline if there is not already one.
 

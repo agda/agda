@@ -9,21 +9,34 @@ import Agda.Utils.Function
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+import Data.IORef
+import qualified System.IO.Unsafe as UNSAFE
+import Agda.Interaction.Options.IORefs
+
 ------------------------------------------------------------------------
 -- Subscript digits
+
+-- | Are we allowed to use unicode supscript characters?
+subscriptAllowed :: UnicodeOrAscii
+subscriptAllowed = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii)
 
 -- | Is the character one of the subscripts @'₀'@-@'₉'@?
 
 isSubscriptDigit :: Char -> Bool
-isSubscriptDigit c = '₀' <= c && c <= '₉'
+isSubscriptDigit c = case subscriptAllowed of
+  UnicodeOk -> '₀' <= c && c <= '₉'
+  AsciiOnly -> '0' <= c && c <= '9'
 
--- | Converts @'0'@-@'9'@ to @'₀'@-@'₉'@.
+-- | Converts @'0'@-@'9'@ to @'₀'@-@'₉'@ unless the user doesn't want us
+-- to use unicode characters
 --
 -- Precondition: The digit needs to be in range.
 
 toSubscriptDigit :: Char -> Char
 toSubscriptDigit d
-  | isDigit d = toEnum (fromEnum '₀' + (fromEnum d - fromEnum '0'))
+  | isDigit d = case subscriptAllowed of
+      UnicodeOk -> toEnum (fromEnum '₀' + (fromEnum d - fromEnum '0'))
+      AsciiOnly -> d
   | otherwise = __IMPOSSIBLE__
 
 -- | Converts @'₀'@-@'₉'@ to @'0'@-@'9'@.
@@ -32,8 +45,9 @@ toSubscriptDigit d
 
 fromSubscriptDigit :: Char -> Char
 fromSubscriptDigit d
-  | isSubscriptDigit d =
-      toEnum (fromEnum '0' + (fromEnum d - fromEnum '₀'))
+  | isSubscriptDigit d = case subscriptAllowed of
+      UnicodeOk -> toEnum (fromEnum '0' + (fromEnum d - fromEnum '₀'))
+      AsciiOnly -> d
   | otherwise          = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
