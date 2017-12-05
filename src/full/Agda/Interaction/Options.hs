@@ -27,8 +27,6 @@ module Agda.Interaction.Options
     , inputFlag
     , standardOptions
     , getOptSimple
-    , UnicodeOrAscii(..)
-    , unicodeOrAscii
     ) where
 
 import Control.Monad            ( (>=>), when )
@@ -49,6 +47,7 @@ import Text.EditDistance
 import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
+import Agda.Interaction.Options.IORefs
 
 import Agda.Utils.Except
   ( ExceptT
@@ -816,14 +815,3 @@ defaultLibDir = do
   ifM (doesDirectoryExist libdir)
       (return libdir)
       (error $ "The lib directory " ++ libdir ++ " does not exist")
-
-------------------------------------------------------------------------
--- Some IORefs to access option values in pure code
-
--- | In `Agda.Syntax.Concrete.Pretty` we want to know whether we are
--- allowed to insert unicode characters or not.
-data UnicodeOrAscii = UnicodeOk | AsciiOnly
-
-{-# NOINLINE unicodeOrAscii #-}
-unicodeOrAscii :: IORef UnicodeOrAscii
-unicodeOrAscii = UNSAFE.unsafePerformIO $ newIORef UnicodeOk

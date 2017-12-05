@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
   Resolve instance argument
-    _8 : (n₁ : Nat) ⦃.x .y : NonZero n₁⦄ → NonZero n₁
+    _8 : (n₁ : Nat) ⦃ .x .y : NonZero n₁ ⦄ → NonZero n₁
   Candidates
     .y : NonZero n
     .x : NonZero n

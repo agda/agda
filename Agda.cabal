@@ -250,6 +250,7 @@ library
                     Agda.Interaction.Library.Base
                     Agda.Interaction.Library.Parse
                     Agda.Interaction.Options
+                    Agda.Interaction.Options.IORefs
                     Agda.Interaction.Options.Lenses
                     Agda.Main
                     Agda.Syntax.Abstract.Copatterns
