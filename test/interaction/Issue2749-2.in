@@ -4,3 +4,4 @@ top_command (showImplicitArgs True)
 goal_command 1 cmd_make_case ""
 top_command (showImplicitArgs False)
 goal_command 2 cmd_make_case "b₁"
+goal_command 3 (cmd_solveOne AsIs) ""

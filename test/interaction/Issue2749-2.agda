@@ -14,3 +14,9 @@ data B : Set where
 -- testing unicode suffixes
 left : B → B
 left b₁ = {!!}
+
+open import Agda.Builtin.Equality
+
+-- testing ascii only forall
+allq : (∀ m n → m ≡ n) ≡ {!!}
+allq = refl
