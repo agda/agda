@@ -124,6 +124,8 @@ Printing and debugging
 
 :samp:`--show-irrelevant`                                              Show irrelevant arguments when printing
 
+:samp:`--no-unicode`                                                   Don't use unicode characters to print terms
+
 :samp:`--verbose={N}`                               :samp:`-v={N}`     Set verbosity level to :samp:`{N}`
 ==================================================  =================  ===========================================
 

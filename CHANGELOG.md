@@ -281,6 +281,12 @@ Pragmas and options
   Attempting to bind `NIL` or `CONS` results in a warning and has otherwise no
   effect.
 
+* The `--no-unicode` pragma prevents Agda from introducing unicode characters
+  when pretty printing a term. Lambda, Arrows and Forall quantifiers are all
+  replaced by their ascii only version. Instead of resorting to subscript
+  suffixes, Agda uses ascii digit characters.
+
+
 Emacs mode
 ----------
 
