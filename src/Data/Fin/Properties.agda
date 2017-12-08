@@ -10,11 +10,11 @@ module Data.Fin.Properties where
 open import Algebra
 open import Data.Empty using (⊥-elim)
 open import Data.Fin
-open import Data.Nat as N using (ℕ; zero; suc; s≤s; z≤n; _∸_) renaming
+open import Data.Nat as ℕ using (ℕ; zero; suc; s≤s; z≤n; _∸_) renaming
   (_≤_ to _ℕ≤_
   ; _<_ to _ℕ<_
   ; _+_ to _ℕ+_)
-import Data.Nat.Properties as N
+import Data.Nat.Properties as ℕₚ
 open import Data.Product
 open import Function
 open import Function.Equality as FunS using (_⟨$⟩_)
@@ -29,7 +29,7 @@ open import Category.Functor
 open import Category.Applicative
 
 ------------------------------------------------------------------------
--- Equality properties
+-- Properties of _≡_
 
 infix 4 _≟_
 
@@ -84,13 +84,13 @@ toℕ-injective {suc n} {zero}  {zero}  eq = refl
 toℕ-injective {suc n} {zero}  {suc j} ()
 toℕ-injective {suc n} {suc i} {zero}  ()
 toℕ-injective {suc n} {suc i} {suc j} eq =
-  cong suc (toℕ-injective (cong N.pred eq))
+  cong suc (toℕ-injective (cong ℕ.pred eq))
 
 bounded : ∀ {n} (i : Fin n) → toℕ i ℕ< n
 bounded zero    = s≤s z≤n
 bounded (suc i) = s≤s (bounded i)
 
-prop-toℕ-≤ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
+prop-toℕ-≤ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ ℕ.pred n
 prop-toℕ-≤ zero                 = z≤n
 prop-toℕ-≤ (suc {n = zero}  ())
 prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
@@ -99,8 +99,8 @@ prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
 -- however, with a different reduction behavior.
 -- If no one needs the reduction behavior of prop-toℕ-≤,
 -- it can be removed in favor of prop-toℕ-≤′.
-prop-toℕ-≤′ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
-prop-toℕ-≤′ i = N.<⇒≤pred (bounded i)
+prop-toℕ-≤′ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ ℕ.pred n
+prop-toℕ-≤′ i = ℕₚ.<⇒≤pred (bounded i)
 
 fromℕ≤-toℕ : ∀ {m} (i : Fin m) (i<m : toℕ i ℕ< m) → fromℕ≤ i<m ≡ i
 fromℕ≤-toℕ zero    (s≤s z≤n)       = refl
@@ -111,38 +111,35 @@ toℕ-fromℕ≤ (s≤s z≤n)       = refl
 toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
 
 -- fromℕ is a special case of fromℕ≤.
-fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ N.≤-refl
+fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕₚ.≤-refl
 fromℕ-def zero    = refl
 fromℕ-def (suc n) = cong suc (fromℕ-def n)
 
 -- fromℕ≤ and fromℕ≤″ give the same result.
-
 fromℕ≤≡fromℕ≤″ :
-  ∀ {m n} (m<n : m N.< n) (m<″n : m N.<″ n) →
+  ∀ {m n} (m<n : m ℕ< n) (m<″n : m ℕ.<″ n) →
   fromℕ≤ m<n ≡ fromℕ≤″ m m<″n
-fromℕ≤≡fromℕ≤″ (s≤s z≤n)       (N.less-than-or-equal refl) = refl
-fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
-  cong suc (fromℕ≤≡fromℕ≤″ (s≤s m<n) (N.less-than-or-equal refl))
+fromℕ≤≡fromℕ≤″ (s≤s z≤n)       (ℕ.less-than-or-equal refl) = refl
+fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (ℕ.less-than-or-equal refl) =
+  cong suc (fromℕ≤≡fromℕ≤″ (s≤s m<n) (ℕ.less-than-or-equal refl))
 
 ------------------------------------------------------------------------
--- Ordering properties
-
--- _≤_ ordering
+-- Properties of _≤_
 
 ≤-reflexive : ∀ {n} → _≡_ ⇒ (_≤_ {n})
-≤-reflexive refl = N.≤-refl
+≤-reflexive refl = ℕₚ.≤-refl
 
 ≤-refl : ∀ {n} → Reflexive (_≤_ {n})
 ≤-refl = ≤-reflexive refl
 
 ≤-trans : ∀ {n} → Transitive (_≤_ {n})
-≤-trans = N.≤-trans
+≤-trans = ℕₚ.≤-trans
 
 ≤-antisym : ∀ {n} → Antisymmetric _≡_ (_≤_ {n})
-≤-antisym x≤y y≤x = toℕ-injective (N.≤-antisym x≤y y≤x)
+≤-antisym x≤y y≤x = toℕ-injective (ℕₚ.≤-antisym x≤y y≤x)
 
 ≤-total : ∀ {n} → Total (_≤_ {n})
-≤-total x y = N.≤-total (toℕ x) (toℕ y)
+≤-total x y = ℕₚ.≤-total (toℕ x) (toℕ y)
 
 ≤-isPreorder : ∀ {n} → IsPreorder _≡_ (_≤_ {n})
 ≤-isPreorder = record
@@ -163,32 +160,46 @@ fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
   ; total          = ≤-total
   }
 
--- _<_ ordering
+≤-isDecTotalOrder : ∀ {n} → IsDecTotalOrder _≡_ (_≤_ {n})
+≤-isDecTotalOrder = record
+  { isTotalOrder = ≤-isTotalOrder
+  ; _≟_          = _≟_
+  ; _≤?_         = _≤?_
+  }
+
+------------------------------------------------------------------------
+-- Properties of _<_
+
+<-irrefl : ∀ {n} → Irreflexive _≡_ (_<_ {n})
+<-irrefl refl = ℕₚ.<-irrefl refl
+
+<-asym : ∀ {n} → Asymmetric (_<_ {n})
+<-asym = ℕₚ.<-asym
 
 <-trans : ∀ {n} → Transitive (_<_ {n})
-<-trans = N.<-trans
+<-trans = ℕₚ.<-trans
 
-cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
-cmp zero    zero    = tri≈ (λ())     refl  (λ())
-cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
-cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
-cmp (suc i) (suc j) with cmp i j
-... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ suc-injective) (¬gt ∘ N.≤-pred)
-... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ suc-injective) (s≤s gt)
-... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
+<-cmp : ∀ {n} → Trichotomous _≡_ (_<_ {n})
+<-cmp zero    zero    = tri≈ (λ())     refl  (λ())
+<-cmp zero    (suc j) = tri< (s≤s z≤n) (λ()) (λ())
+<-cmp (suc i) zero    = tri> (λ())     (λ()) (s≤s z≤n)
+<-cmp (suc i) (suc j) with <-cmp i j
+... | tri<  lt ¬eq ¬gt = tri< (s≤s lt)         (¬eq ∘ suc-injective) (¬gt ∘ ℕ.≤-pred)
+... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ ℕ.≤-pred) (¬eq ∘ suc-injective) (s≤s gt)
+... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ ℕ.≤-pred) (cong suc eq)    (¬gt ∘ ℕ.≤-pred)
 
 _<?_ : ∀ {n} → Decidable (_<_ {n})
-m <? n = suc (toℕ m) N.≤? toℕ n
+m <? n = suc (toℕ m) ℕ.≤? toℕ n
 
 <-isStrictTotalOrder : ∀ {n} → IsStrictTotalOrder _≡_ (_<_ {n})
 <-isStrictTotalOrder = record
   { isEquivalence = P.isEquivalence
   ; trans         = <-trans
-  ; compare       = cmp
+  ; compare       = <-cmp
   }
 
-strictTotalOrder : ℕ → StrictTotalOrder _ _ _
-strictTotalOrder n = record
+<-strictTotalOrder : ℕ → StrictTotalOrder _ _ _
+<-strictTotalOrder n = record
   { Carrier            = Fin n
   ; _≈_                = _≡_
   ; _<_                = _<_
@@ -200,13 +211,13 @@ strictTotalOrder n = record
 
 -- Lemma:  n - i ≤ n.
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
-nℕ-ℕi≤n n       zero     = N.≤-refl
+nℕ-ℕi≤n n       zero     = ℕₚ.≤-refl
 nℕ-ℕi≤n zero    (suc ())
 nℕ-ℕi≤n (suc n) (suc i)  = begin
   n ℕ-ℕ i  ≤⟨ nℕ-ℕi≤n n i ⟩
-  n        ≤⟨ N.n≤1+n n ⟩
+  n        ≤⟨ ℕₚ.n≤1+n n ⟩
   suc n    ∎
-  where open N.≤-Reasoning
+  where open ℕₚ.≤-Reasoning
 
 inject-lemma : ∀ {n} {i : Fin n} (j : Fin′ i) →
                toℕ (inject j) ≡ toℕ j
@@ -224,22 +235,22 @@ inject₁-lemma (suc i) = cong suc (inject₁-lemma i)
 
 inject≤-lemma : ∀ {m n} (i : Fin m) (le : m ℕ≤ n) →
                 toℕ (inject≤ i le) ≡ toℕ i
-inject≤-lemma zero    (N.s≤s le) = refl
-inject≤-lemma (suc i) (N.s≤s le) = cong suc (inject≤-lemma i le)
+inject≤-lemma zero    (s≤s le) = refl
+inject≤-lemma (suc i) (s≤s le) = cong suc (inject≤-lemma i le)
 
 -- Lemma:  inject≤ i n≤n ≡ i.
 inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
 inject≤-refl zero    (s≤s _  ) = refl
 inject≤-refl (suc i) (s≤s n≤n) = cong suc (inject≤-refl i n≤n)
 
-≺⇒<′ : _≺_ ⇒ N._<′_
-≺⇒<′ (n ≻toℕ i) = N.≤⇒≤′ (bounded i)
+≺⇒<′ : _≺_ ⇒ ℕ._<′_
+≺⇒<′ (n ≻toℕ i) = ℕₚ.≤⇒≤′ (bounded i)
 
-<′⇒≺ : N._<′_ ⇒ _≺_
-<′⇒≺ {n} N.≤′-refl    = subst (λ i → i ≺ suc n) (to-from n)
+<′⇒≺ : ℕ._<′_ ⇒ _≺_
+<′⇒≺ {n} ℕ.≤′-refl    = subst (λ i → i ≺ suc n) (to-from n)
                               (suc n ≻toℕ fromℕ n)
-<′⇒≺ (N.≤′-step m≤′n) with <′⇒≺ m≤′n
-<′⇒≺ (N.≤′-step m≤′n) | n ≻toℕ i =
+<′⇒≺ (ℕ.≤′-step m≤′n) with <′⇒≺ m≤′n
+<′⇒≺ (ℕ.≤′-step m≤′n) | n ≻toℕ i =
   subst (λ i → i ≺ suc n) (inject₁-lemma i) (suc n ≻toℕ (inject₁ i))
 
 toℕ-raise : ∀ {m} n (i : Fin m) → toℕ (raise n i) ≡ n ℕ+ toℕ i
@@ -251,14 +262,14 @@ toℕ-raise (suc n) i = cong suc (toℕ-raise n i)
 
 infixl 6 _+′_
 
-_+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
-i +′ j = inject≤ (i + j) (N.+-mono-≤ (prop-toℕ-≤ i) N.≤-refl)
+_+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (ℕ.pred m ℕ+ n)
+i +′ j = inject≤ (i + j) (ℕₚ.+-mono-≤ (prop-toℕ-≤ i) ℕₚ.≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 
 reverse : ∀ {n} → Fin n → Fin n
 reverse {zero}  ()
-reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
+reverse {suc n} i  = inject≤ (n ℕ- i) (ℕₚ.n∸m≤n (toℕ i) (suc n))
 
 reverse-prop : ∀ {n} → (i : Fin n) → toℕ (reverse i) ≡ n ∸ suc (toℕ i)
 reverse-prop {zero} ()
@@ -274,41 +285,14 @@ reverse-prop {suc n} i = begin
   toℕ‿ℕ- zero    (suc ())
   toℕ‿ℕ- (suc n) (suc i)  = toℕ‿ℕ- n i
 
-reverse-involutive : ∀ {n} → Involutive _≡_ reverse
-reverse-involutive {n} i = toℕ-injective (begin
-  toℕ (reverse (reverse i))  ≡⟨ reverse-prop _ ⟩
-  n ∸ suc (toℕ (reverse i))  ≡⟨ eq ⟩
-  toℕ i                      ∎)
-  where
-  open P.≡-Reasoning
-
-  lem₁ : ∀ m n → (m ℕ+ n) ∸ (m ℕ+ n ∸ m) ≡ m
-  lem₁ m n = begin
-    m ℕ+ n ∸ (m ℕ+ n ∸ m) ≡⟨ cong (λ ξ → m ℕ+ n ∸ (ξ ∸ m)) (N.+-comm m n) ⟩
-    m ℕ+ n ∸ (n ℕ+ m ∸ m) ≡⟨ cong (λ ξ → m ℕ+ n ∸ ξ) (N.m+n∸n≡m n m) ⟩
-    m ℕ+ n ∸ n            ≡⟨ N.m+n∸n≡m m n ⟩
-    m                     ∎
-
-  lem₂ : ∀ n → (i : Fin n) → n ∸ suc (n ∸ suc (toℕ i)) ≡ toℕ i
-  lem₂ zero    ()
-  lem₂ (suc n) i  = begin
-    n ∸ (n ∸ toℕ i)                     ≡⟨ cong (λ ξ → ξ ∸ (ξ ∸ toℕ i)) i+j≡k ⟩
-    (toℕ i ℕ+ j) ∸ (toℕ i ℕ+ j ∸ toℕ i) ≡⟨ lem₁ (toℕ i) j ⟩
-    toℕ i                               ∎
-    where
-    decompose-n : ∃ λ j → n ≡ toℕ i ℕ+ j
-    decompose-n = n ∸ toℕ i , P.sym (N.m+n∸m≡n (prop-toℕ-≤ i))
-
-    j     = proj₁ decompose-n
-    i+j≡k = proj₂ decompose-n
-
-  eq : n ∸ suc (toℕ (reverse i)) ≡ toℕ i
-  eq = begin
-    n ∸ suc (toℕ (reverse i)) ≡⟨ cong (λ ξ → n ∸ suc ξ) (reverse-prop i) ⟩
-    n ∸ suc (n ∸ suc (toℕ i)) ≡⟨ lem₂ n i ⟩
-    toℕ i                     ∎
-
--- Lemma: reverse {suc n} (suc i) ≡ reverse n i  (in ℕ).
+reverse-involutive : ∀ {n} → Involutive _≡_ (reverse {n})
+reverse-involutive {zero}  ()
+reverse-involutive {suc n} i = toℕ-injective (begin
+  toℕ (reverse (reverse i)) ≡⟨ reverse-prop (reverse i) ⟩
+  n ∸ (toℕ (reverse i))     ≡⟨ P.cong (n ∸_) (reverse-prop i) ⟩
+  n ∸ (n ∸ (toℕ i))         ≡⟨ ℕₚ.m∸[m∸n]≡n (ℕ.≤-pred (bounded i)) ⟩
+  toℕ i                     ∎)
+  where open P.≡-Reasoning
 
 reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
 reverse-suc {n}{i} = begin
@@ -391,3 +375,12 @@ punchInᵢ≢i : ∀ {m} i (j : Fin m) → punchIn i j ≢ i
 punchInᵢ≢i zero    _    ()
 punchInᵢ≢i (suc i) zero ()
 punchInᵢ≢i (suc i) (suc j) = punchInᵢ≢i i j ∘ suc-injective
+
+------------------------------------------------------------------------
+-- DEPRECATED NAMES
+------------------------------------------------------------------------
+-- Please use the new names as continuing support for the old names is
+-- not guaranteed.
+
+--cmp              = <-cmp
+--strictTotalOrder = <-strictTotalOrder

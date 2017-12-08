@@ -117,7 +117,7 @@ as 1# ≟ bs 1# with as ≟ₑ bs
   tri< (∷ʳ-mono-< lt)  (<⇒≢ (∷ʳ-mono-< lt)) (<-asym (∷ʳ-mono-< lt))
 ... | tri> ¬lt ¬eq  gt =
   tri> (<-asym (∷ʳ-mono-< gt)) (<⇒≢ (∷ʳ-mono-< gt) ∘ sym) (∷ʳ-mono-< gt)
-... | tri≈ ¬lt refl ¬gt with 𝔽ₚ.cmp a b
+... | tri≈ ¬lt refl ¬gt with 𝔽ₚ.<-cmp a b
 ...   | tri≈ ¬lt′ refl ¬gt′ =
   tri≈ (<-irrefl refl) refl (<-irrefl refl)
 ...   | tri<  lt′ ¬eq  ¬gt′ =

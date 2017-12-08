@@ -888,6 +888,13 @@ m+n∸m≡n {m} {n} m≤n = begin
 m∸n+n≡m : ∀ {m n} → n ≤ m → (m ∸ n) + n ≡ m
 m∸n+n≡m {m} {n} n≤m = trans (sym (+-∸-comm n n≤m)) (m+n∸n≡m m n)
 
+m∸[m∸n]≡n : ∀ {m n} → n ≤ m → m ∸ (m ∸ n) ≡ n
+m∸[m∸n]≡n {m}     {_}     z≤n       = n∸n≡0 m
+m∸[m∸n]≡n {suc m} {suc n} (s≤s n≤m) = begin
+  suc m ∸ (m ∸ n)   ≡⟨ +-∸-assoc 1 (n∸m≤n n m) ⟩
+  suc (m ∸ (m ∸ n)) ≡⟨ cong suc (m∸[m∸n]≡n n≤m) ⟩
+  suc n             ∎
+
 m⊓n+n∸m≡n : ∀ m n → (m ⊓ n) + (n ∸ m) ≡ n
 m⊓n+n∸m≡n zero    n       = refl
 m⊓n+n∸m≡n (suc m) zero    = refl

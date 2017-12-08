@@ -60,6 +60,12 @@ but they may be removed in some future release of the library.
   re-exports the contents of files' new location in `Data.X.Relation` but may be removed in some
   future release.
 
+* The following renaming has occured in `Data.Fin.Properties`:
+  ```agda
+  <-cmp              ↦ <-cmp
+  <-strictTotalOrder ↦ <-strictTotalOrder
+  ```
+
 Backwards compatible changes
 ----------------------------
 
@@ -198,6 +204,14 @@ Backwards compatible changes
 
 * The contents of `Data.Covec` is now polymorphic with respect to levels
 
+* Added new proofs to `Data.Fin.Properties`
+  ```agda
+  ≤-isDecTotalOrder : ∀ {n} → IsDecTotalOrder _≡_ (_≤_ {n})
+
+  <-asym : ∀ {n} → Asymmetric (_<_ {n})
+  <-irrefl : ∀ {n} → Irreflexive _≡_ (_<_ {n})
+  ```
+
 * Added new proofs to `Data.Nat.Properties`:
   ```agda
   +-semigroup           : Semigroup _ _
@@ -212,7 +226,8 @@ Backwards compatible changes
   ^-semigroup-morphism  : (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
   ^-monoid-morphism     : (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
 
-  m∸n+n≡m               : n ≤ m → (m ∸ n) + n ≡ m
+  m∸n+n≡m              : n ≤ m → (m ∸ n) + n ≡ m
+  m∸[m∸n]≡n            : n ≤ m → m ∸ (m ∸ n) ≡ n
   ```
 
 * Added new functions to `Data.W`:
