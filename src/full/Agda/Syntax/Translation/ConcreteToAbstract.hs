@@ -536,25 +536,28 @@ instance ToAbstract PatName APatName where
     rx <- resolveName' [ConName, PatternSynName] ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
-    z  <- case (rx, x) of
+    case (rx, x) of
       -- TODO: warn about shadowing
-      (VarName y _,     C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
-      (FieldName d,     C.QName x)                          -> return $ Left x
-      (DefinedName _ d, C.QName x) | DefName == anameKind d -> return $ Left x
-      (UnknownName,     C.QName x)                          -> return $ Left x
-      (ConstructorName ds, _)                               -> return $ Right (Left ds)
-      (PatternSynResName d, _)                              -> return $ Right (Right d)
+      (VarName y _,     C.QName x)                          -> noBindPatVar y
+      (FieldName d,     C.QName x)                          -> bindPatVar x
+      (DefinedName _ d, C.QName x) | DefName == anameKind d -> bindPatVar x
+      (UnknownName,     C.QName x)                          -> bindPatVar x
+      (ConstructorName ds, _)                               -> patCon ds
+      (PatternSynResName d, _)                              -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
-    case z of
-      Left x  -> do
+    where
+      bindPatVar x = do
         reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
         p <- VarPatName <$> toAbstract (NewName False x)
         printLocals 10 "bound it:"
         return p
-      Right (Left ds) -> do
+      noBindPatVar y = do
+        reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow y ++ " (already bound)"
+        return $ VarPatName y
+      patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
         return $ ConPatName ds
-      Right (Right ds) -> do
+      patSyn ds = do
         reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
         return $ PatternSynPatName ds
 
@@ -1262,7 +1265,7 @@ instance ToAbstract LetDef [A.LetBinding] where
         case mp of
           Right p -> do
             rhs <- toAbstract rhs
-            p   <- toAbstract p
+            p   <- shadowLocalVars $ toAbstract p
             checkPatternLinearity p $ \ys ->
               typeError $ RepeatedVariablesInPattern ys
             p   <- toAbstract p
@@ -2045,7 +2048,7 @@ instance ToAbstract LeftHandSide A.LHS where
           when (hasCopatterns lhscore) $
             typeError $ NeedOptionCopatterns
         -- scope check patterns except for dot patterns
-        lhscore <- toAbstract lhscore
+        lhscore <- shadowLocalVars $ toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
         printLocals 10 "checked pattern:"
         -- scope check dot patterns

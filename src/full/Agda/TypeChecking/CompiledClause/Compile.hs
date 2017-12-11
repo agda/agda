@@ -156,7 +156,7 @@ compile shared cs = case nextSplit cs of
   where
     -- If there are more than one clauses, take the first one.
     c = headWithDefault __IMPOSSIBLE__ cs
-    name (VarP x) = x
+    name (VarP _ x) = x
     name (DotP _ _) = underscore
     name AbsurdP{} = absurdPatternName
     name ConP{}  = __IMPOSSIBLE__
@@ -186,7 +186,7 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just (Just ConORec == conPRecord cpi)
+properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi)
 properSplit LitP{}  = Just False
 properSplit ProjP{} = Just False
 properSplit VarP{}  = Nothing
@@ -331,7 +331,7 @@ expandCatchAlls single n cs =
             ci       = fromConPatternInfo mt
             m        = length qs'
             -- replace all direct subpatterns of q by _
-            conPArgs = map (fmap ($> VarP "_")) qs'
+            conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
         LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
@@ -356,9 +356,8 @@ ensureNPatterns n ais0 cl@(Cl ps b)
   ais  = drop k ais0
   -- m = Number of arguments to add
   m    = n - k
-  ps'  = for ais $ \ ai -> Arg ai $ VarP "_"
+  ps'  = for ais $ \ ai -> Arg ai $ varP "_"
   args = zipWith (\ i ai -> Arg ai $ var i) (downFrom m) ais
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
-

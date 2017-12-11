@@ -26,8 +26,11 @@ pattern false = inj₂ tt
 x : Maybe ⊥
 x = nothing
 
+_∋_ : ∀ {ℓ} → (A : Set ℓ) (a : A) → A
+A ∋ a = a
+
 A : Set₁
-A with false
+A with Bool ∋ false
 A | true = Set
 A | false with x | x
 ... | nothing | nothing = Set

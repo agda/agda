@@ -225,7 +225,7 @@ unforce :: DeBruijnPattern -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPa
 unforce q [] = __IMPOSSIBLE__   -- unforcing cannot fail
 unforce q (p : ps) =
   case namedArg p of
-    VarP y -> fmap (mkDot q (VarP y) <$) p : unforce q ps
+    VarP o y -> fmap (mkDot q (VarP o y) <$) p : unforce q ps
     DotP _ v | Just q' <- mkPat q v -> (fmap (q' <$) p : (fmap . fmap . fmap) (mkDot q) ps)
     DotP{} -> p : unforce q ps
     ConP c i qs -> fmap (ConP c i qs' <$) p : ps'
@@ -239,7 +239,7 @@ unforce q (p : ps) =
   where
     -- Turn a match on q into a dot pattern
     mkDot :: DeBruijnPattern -> DeBruijnPattern -> DeBruijnPattern
-    mkDot q p | p =:= q = DotP Inserted $ patternToTerm p
+    mkDot q p | p =:= q = dotP $ patternToTerm p
     mkDot q p = case p of
       VarP{}          -> p
       DotP{}          -> p
@@ -261,7 +261,7 @@ unforce q (p : ps) =
           let vs1 = map fst mvs1
               vs2 = map fst mvs2
               ci = (toConPatternInfo co) { conPLazy = True }
-              dots = (map . fmap) (DotP Inserted)
+              dots = (map . fmap) dotP
           return (ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2)
         _ -> Nothing
       where
@@ -283,4 +283,3 @@ forcedPatterns ps = concat <$> mapM (forced NotForced . namedArg) ps
         AbsurdP{} -> return []
         LitP{}    -> return []
         ProjP{}   -> return []
-

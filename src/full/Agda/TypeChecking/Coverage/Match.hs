@@ -66,7 +66,7 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
 -- | Convert the root of a term into a pattern constructor, if possible.
 buildPattern :: Term -> Maybe DeBruijnPattern
 buildPattern (Con c ci args) = Just $
-  ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . DotP Inserted) args
+  ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . dotP) args
 buildPattern (Var i [])     = Just $ deBruijnVar i
 buildPattern (Shared p)     = buildPattern (derefPtr p)
 buildPattern _              = Nothing
@@ -304,7 +304,7 @@ matchPat mlit (LitP l) q = mlit l q
 matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
 matchPat _    ProjP{} _ = __IMPOSSIBLE__
 matchPat mlit p@(ConP c _ ps) q = case q of
-  VarP x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
+  VarP _ x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
   ConP c' i qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No

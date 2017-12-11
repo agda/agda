@@ -531,12 +531,12 @@ instance TermToPattern Term DeBruijnPattern where
     Def s [Apply arg] -> do
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
-       else return $ DotP Inserted t
+       else return $ dotP t
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
-    Var i []    -> VarP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
+    Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
     Lit l       -> return $ LitP l
-    t           -> return $ DotP Inserted t
+    t           -> return $ dotP t
 
 
 -- | Masks all non-data/record type patterns if --without-K.
@@ -1097,7 +1097,7 @@ offsetFromConstructor c = maybe 1 (const 0) <$> do
 subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
 subPatterns = foldPattern $ \case
   ConP _ _ ps -> map namedArg ps
-  VarP _      -> mempty
+  VarP _ _    -> mempty
   LitP _      -> mempty
   DotP _ _    -> mempty
   AbsurdP _   -> mempty
@@ -1232,7 +1232,7 @@ subTerm t p = if equal t p then Order.le else properSubTerm t p
       and $ (conName c == conName c')
           : (length ts == length ps)
           : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps
-    equal (Var i []) (VarP x) = i == dbPatVarIndex x
+    equal (Var i []) (VarP _ x) = i == dbPatVarIndex x
     equal (Lit l)    (LitP l') = l == l'
     -- Terms.
     -- Checking for identity here is very fragile.
@@ -1288,7 +1288,7 @@ compareVar i (Masked m p) = do
     LitP{}    -> no
     DotP{}   -> no
     AbsurdP{} -> no
-    VarP x    -> compareVarVar i (Masked m x)
+    VarP _ x  -> compareVarVar i (Masked m x)
 
     ConP s _ [p] | Just (conName s) == suc ->
       setUsability True . decrease 1 <$> compareVar i (notMasked $ namedArg p)
@@ -1318,4 +1318,4 @@ compareVarVar i (Masked m x@(DBPatVar _ j))
       res <- isBounded i
       case res of
         BoundedNo  -> return Order.unknown
-        BoundedLt v -> setUsability u . decrease 1 <$> compareTerm' v (Masked m $ VarP x)
+        BoundedLt v -> setUsability u . decrease 1 <$> compareTerm' v (Masked m $ varP x)

@@ -164,7 +164,7 @@ quotingKit = do
 
       quotePat :: DeBruijnPattern -> ReduceM Term
       quotePat (AbsurdP x)       = pure absurdP
-      quotePat (VarP x)          = varP !@! quoteString (dbPatVarName x)
+      quotePat (VarP o x)        = varP !@! quoteString (dbPatVarName x)
       quotePat (DotP _ _)        = pure dotP
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP l)          = litP !@ quoteLit l

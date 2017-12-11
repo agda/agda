@@ -13,3 +13,6 @@ test f = bla where
   f bla = Set
 -- not a copattern, since f not a field name
 
+-- 2017-12-0 Jesper: actually this situation is unambiguous:
+-- the type of the function determines whether the user intends
+-- to use a variable or a projection.

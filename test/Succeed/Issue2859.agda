@@ -27,3 +27,7 @@ module M (c : D) where
 -- Expected error:
 -- The pattern variable c has the same name as the constructor c
 -- when checking the clause test c = c
+
+-- Jesper, 2017-12-11: on the left-hand side, c is now interpreted as a
+-- constructor even if it happens to be shadowed by a pattern variable,
+-- so there is no more cause for confusion.

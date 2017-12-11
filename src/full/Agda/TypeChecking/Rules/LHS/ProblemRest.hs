@@ -3,11 +3,13 @@
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
 import Control.Arrow (first, second)
+import Control.Monad
 
 import Data.Functor ((<$))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract.Pattern
 import qualified Agda.Syntax.Abstract as A
 
@@ -54,7 +56,7 @@ useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
 
 -- | Are there any untyped user patterns left?
 noProblemRest :: Problem a -> Bool
-noProblemRest (Problem _ rp _ _ _) = null rp
+noProblemRest (Problem _ rp _) = null rp
 
 -- | Construct an initial 'LHSState' from user patterns.
 --   Example:
@@ -78,56 +80,59 @@ noProblemRest (Problem _ rp _ _ _) = null rp
 --      lhsTarget     = "Case m Bool (Maybe A -> Bool)"
 --   @
 initLHSState
-  :: [NamedArg A.Pattern] -- ^ The user patterns.
-  -> Type                 -- ^ The type the user patterns eliminate.
+  :: [NamedArg A.Pattern]  -- ^ The user patterns.
+  -> Type                  -- ^ The type the user patterns eliminate.
   -> (LHSState a -> TCM a) -- ^ Continuation for when checking the patterns is complete.
-  -> TCM (LHSState a)     -- ^ The initial LHS state constructed from the user patterns.
-initLHSState ps0 a ret = do
-  -- Andreas, 2017-01-18, issue #819: We set all A.WildP origins to Inserted
-  -- in order to guide the pattern printer to discard variable names it made up.
-  let ps = (`mapNamedArgPattern` ps0) $ \case
-        p | A.WildP{} <- namedArg p -> setOrigin Inserted p
-        p -> p
-      problem = Problem [] ps [] [] ret
+  -> TCM (LHSState a)      -- ^ The initial LHS state constructed from the user patterns.
+initLHSState ps a ret = do
+  let problem = Problem [] ps ret
 
   updateProblemRest $ LHSState EmptyTel [] problem (defaultArg a)
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest :: LHSState a -> TCM (LHSState a)
-updateProblemRest st@(LHSState tel0 qs0 p@(Problem ps0 ps dpi sbe ret) a) = do
-      ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
-      reportSDoc "tc.lhs.imp" 20 $
-        text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
-      -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
-      TelV tel b   <- telViewUpTo (length ps) $ unArg a
-      let gamma     = useNamesFromPattern ps tel
-          n         = size gamma
-          (ps1,ps2) = splitAt n ps
-          tel1      = telFromList $ telToList tel0 ++ telToList gamma
-          qs1       = teleNamedArgs gamma `useOriginFrom` ps
-          tau       = raiseS n
-      reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
-        [ text "checking lhs -- updated split problem:"
-        , nest 2 $ vcat
-          [ text "ps    =" <+> fsep (map prettyA ps)
-          , text "a     =" <+> prettyTCM a
-          , text "tel   =" <+> prettyTCM tel
-          , text "gamma =" <+> prettyTCM gamma
-          , text "ps1   =" <+> fsep (map prettyA ps1)
-          , text "ps2   =" <+> fsep (map prettyA ps2)
-          , text "b     =" <+> addContext gamma (prettyTCM b)
-          ]
-        ]
-      return $ LHSState
-        { lhsTel     = tel1
-        , lhsOutPat  = applySubst (raiseS n) qs0 ++ qs1
-        , lhsProblem = Problem
-                       { problemInPat    = ps0 ++ ps1
-                       , problemRestPats = ps2
-                       , problemDPI      = applyPatSubst tau dpi
-                       , problemShouldBeEmptyTypes = applyPatSubst tau sbe
-                       , problemCont     = ret
-                       }
-        , lhsTarget  = a $> b
-        }
+updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a) = do
+  ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
+  reportSDoc "tc.lhs.imp" 20 $
+    text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
+  -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
+  TelV gamma b <- telViewUpTo (length ps) $ unArg a
+  forM_ (zip ps (telToList gamma)) $ \(p, a) ->
+    unless (sameHiding p a) $ typeError WrongHidingInLHS
+  let tel1      = useNamesFromPattern ps gamma
+      n         = size tel1
+      (ps1,ps2) = splitAt n ps
+      tel       = telFromList $ telToList tel0 ++ telToList tel1
+      qs1       = teleNamedArgs tel1
+      newEqs    = zipWith3 ProblemEq
+                    (map namedArg ps1)
+                    (map (patternToTerm . namedArg) qs1)
+                    (flattenTel tel1 `useOriginFrom` ps1)
+      tau       = raiseS n
+  reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
+    [ text "checking lhs -- updated split problem:"
+    , nest 2 $ vcat
+      [ text "ps    =" <+> fsep (map prettyA ps)
+      , text "a     =" <+> prettyTCM a
+      , text "tel1  =" <+> prettyTCM tel1
+      , text "ps1   =" <+> fsep (map prettyA ps1)
+      , text "ps2   =" <+> fsep (map prettyA ps2)
+      , text "b     =" <+> addContext tel1 (prettyTCM b)
+      ]
+    ]
+  reportSDoc "tc.lhs.problem" 60 $ addContext tel0 $ vcat
+    [ nest 2 $ vcat
+      [ text "qs1    =" <+> fsep (map pretty qs1)
+      ]
+    ]
+  return $ LHSState
+    { lhsTel     = tel
+    , lhsOutPat  = applySubst tau qs0 ++ qs1
+    , lhsProblem = Problem
+                   { problemEqs      = applyPatSubst tau oldEqs ++ newEqs
+                   , problemRestPats = ps2
+                   , problemCont     = ret
+                   }
+    , lhsTarget  = a $> b
+    }

@@ -412,7 +412,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         tell [Right $ A.NamedDot x v (unDom a)]
         strip self t (fmap (p <$) p0 : ps) qs
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
-      p <- liftTCM $ expandLitPattern p0
+      p <- liftTCM $ (traverse . traverse) expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ text "strip"
         , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
@@ -450,9 +450,17 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        VarP x  -> (p :) <$> recurse (var (dbPatVarIndex x))
+        -- If a variable pattern in the parent clause was written as a dot
+        -- pattern by the user both in the parent clause and the with clause,
+        -- we can strip the dot from the with clause.
+        VarP PatODot x | A.DotP _ _ u <- namedArg p
+                       , A.Var y <- unScope u ->
+          (setNamedArg p (A.VarP y) :) <$>
+            recurse (var (dbPatVarIndex x))
 
-        AbsurdP (VarP x) -> case namedArg p of
+        VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
+
+        AbsurdP (VarP _ x) -> case namedArg p of
           A.AbsurdP _info -> (p :) <$> recurse (var (dbPatVarIndex x))
           A.WildP _info   -> (p :) <$> recurse (var (dbPatVarIndex x))
           _ -> mismatch
@@ -465,7 +473,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           A.DotP r o e  -> do
             (a, _) <- mustBePi t
             tell [Left $ A.StrippedDot e v (unDom a)]
-            ok p
+            okFlex p
           A.WildP _     -> ok p
           -- Ulf, 2016-05-30: dot patterns are no longer mandatory so a parent
           -- dot pattern can appear as a variable in the child clause. Indeed
@@ -508,9 +516,11 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Andreas, 2015-07-07 Issue 1606.
           -- Agda sometimes changes a record of dot patterns into a dot pattern,
           -- so the user should be allowed to do likewise.
-          A.DotP{} -> ifNotM (liftTCM $ isFlexiblePattern q') mismatch $ {-else-} do
-            maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
-              liftTCM $ expandImplicitPattern' (unDom a) $ makeImplicitP p
+          -- Jesper, 2017-11-16. This is now also allowed for data constructors.
+          A.DotP r o e -> do
+            tell [Left $ A.StrippedDot e (patternToTerm q') (unDom a)]
+            let ps' = map (unnamed (A.WildP empty) <$) qs'
+            stripConP d us b c ConOCon qs' ps'
 
           -- Andreas, 2016-12-29, issue #2363.
           -- Allow _ to stand for the corresponding parent pattern.
@@ -757,7 +767,9 @@ patsToElims = map $ toElim . fmap namedThing
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP x      -> DTerm  $ var $ dbPatVarIndex x
+      VarP PatODot x -> DDot  $ var $ dbPatVarIndex x
+      VarP o x      -> DTerm  $ var $ dbPatVarIndex x
+      DotP PatOVar{} t@(Var i []) -> DTerm t
       DotP o t    -> DDot   $ t
       AbsurdP p   -> toTerm p
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps

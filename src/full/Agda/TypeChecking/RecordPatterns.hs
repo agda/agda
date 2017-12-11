@@ -698,7 +698,7 @@ removeTree tree = do
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern p@(ConP c ci ps)
   -- Andreas, 2015-05-28 only translate implicit record patterns
-  | Just ConOSystem <- conPRecord ci = do
+  | Just PatOSystem <- conPRecord ci = do
       r <- recordTree p
       case r of
         Left  r -> r
@@ -735,7 +735,7 @@ recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 -- Andreas, 2015-05-28 only translate implicit record patterns
-recordTree (ConP c ci ps) | Just ConOSystem <- conPRecord ci = do
+recordTree (ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of

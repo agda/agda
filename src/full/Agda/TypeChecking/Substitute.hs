@@ -320,11 +320,11 @@ instance Apply Clause where
         -- We then have to create a substitution from the old telescope to the
         -- new telescope that we can apply to dot patterns and the clause body.
         rhoP :: PatternSubstitution
-        rhoP = mkSub (DotP Inserted) n rps rargs
-        rho  = mkSub id              n rps rargs
+        rhoP = mkSub dotP n rps rargs
+        rho  = mkSub id   n rps rargs
 
         substP :: Nat -> Term -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
-        substP i v = subst i (DotP Inserted v)
+        substP i v = subst i (dotP v)
 
         -- Building the substitution from the old telescope to the new. The
         -- interesting case is when we have a variable pattern:
@@ -341,7 +341,7 @@ instance Apply Clause where
         mkSub _ _ [] [] = idS
         mkSub tm n (p : ps) (v : vs) =
           case namedArg p of
-            VarP (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
+            VarP _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
             AbsurdP p' -> mkSub tm n (setNamedArg p p' : ps) (v : vs)
@@ -363,7 +363,7 @@ instance Apply Clause where
         newTel n tel [] [] = tel
         newTel n tel (p : ps) (v : vs) =
           case namedArg p of
-            VarP (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
+            VarP _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
             AbsurdP{}           -> __IMPOSSIBLE__
             ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
@@ -702,7 +702,7 @@ instance Subst Term Pattern where
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DotP o t     -> DotP o $ applySubst rho t
-    VarP s       -> p
+    VarP o s     -> p
     AbsurdP p    -> AbsurdP $ applySubst rho p
     LitP l       -> p
     ProjP{}      -> p
@@ -862,9 +862,9 @@ instance Subst Term EqualityView where
     (applySubst rho b)
 
 instance DeBruijn DeBruijnPattern where
-  debruijnNamedVar n i  = VarP $ DBPatVar n i
-  deBruijnView (VarP x) = Just $ dbPatVarIndex x
-  deBruijnView _        = Nothing
+  debruijnNamedVar n i    = varP $ DBPatVar n i
+  deBruijnView (VarP _ x) = Just $ dbPatVarIndex x
+  deBruijnView _          = Nothing
 
 fromPatternSubstitution :: PatternSubstitution -> Substitution
 fromPatternSubstitution = fmap patternToTerm
@@ -875,7 +875,7 @@ applyPatSubst = applySubst . fromPatternSubstitution
 instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP x       -> useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x
+    VarP o x     -> useOrigin o $ useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x
     DotP o u     -> DotP o $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     AbsurdP p    -> AbsurdP $ applySubst rho p
@@ -883,8 +883,17 @@ instance Subst DeBruijnPattern DeBruijnPattern where
     ProjP{}      -> p
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
-      useName n (VarP x) | isUnderscore (dbPatVarName x) = debruijnNamedVar n (dbPatVarIndex x)
+      useName n (VarP o x) | isUnderscore (dbPatVarName x) = debruijnNamedVar n (dbPatVarIndex x)
       useName _ x = x
+
+      useOrigin :: PatOrigin -> DeBruijnPattern -> DeBruijnPattern
+      useOrigin o (VarP _ x) = VarP o x
+      useOrigin o (DotP _ u) = DotP o u
+      -- don't overwrite PatOSplit origin
+      useOrigin o p@(ConP c (ConPatternInfo (Just PatOSplit) _ _) ps) = p
+      useOrigin o (ConP c (ConPatternInfo (Just _) b l) ps)
+        = ConP c (ConPatternInfo (Just o) b l) ps
+      useOrigin _ x = x
 
 instance Subst Term Range where
   applySubst _ = id

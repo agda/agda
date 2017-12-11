@@ -30,23 +30,23 @@ import Agda.Utils.Impossible
 
 -- | Expand literal integer pattern into suc/zero constructor patterns.
 --
-expandLitPattern :: NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
-expandLitPattern p = traverse (traverse expand) p
+expandLitPattern :: A.Pattern -> TCM A.Pattern
+expandLitPattern p = case asView p of
+  (xs, A.LitP (LitNat r n))
+    | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
+    | n > 20    -> tooBig
+    | otherwise -> do
+      Con z _ _ <- ignoreSharing <$> primZero
+      Con s _ _ <- ignoreSharing <$> primSuc
+      let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
+          suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
+          info  = A.PatRange r
+          cinfo = A.ConPatInfo ConOCon info
+          p'    = foldr ($) zero $ List.genericReplicate n suc
+      return $ foldr (A.AsP info) p' xs
+  _ -> return p
+
   where
-    expand p = case asView p of
-      (xs, A.LitP (LitNat r n))
-        | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
-        | n > 20    -> tooBig
-        | otherwise -> do
-          Con z _ _ <- ignoreSharing <$> primZero
-          Con s _ _ <- ignoreSharing <$> primSuc
-          let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
-              suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
-              info  = A.PatRange r
-              cinfo = A.ConPatInfo ConOCon info
-              p'    = foldr ($) zero $ List.genericReplicate n suc
-          return $ foldr (A.AsP info) p' xs
-      _ -> return p
     tooBig = typeError $ GenericError $
       "Matching on natural number literals is done by expanding " ++
       "the literal to the corresponding constructor pattern, so " ++

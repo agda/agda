@@ -33,21 +33,6 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Insert implicit patterns in a problem.
-insertImplicitProblem :: Telescope -> Problem a -> TCM (Problem a)
-insertImplicitProblem tel (Problem ps pr dpi sbe ret) = do
-  reportSDoc "tc.lhs.imp" 15 $
-    sep [ text "insertImplicits"
-        , nest 2 $ text "ps  = " <+> do brackets $ fsep $ punctuate comma $ map prettyA ps
-        , nest 2 $ text "tel = " <+> prettyTCM tel
-        ]
-  ps' <- insertImplicitPatterns ExpandLast ps tel
-  reportSDoc "tc.lhs.imp" 15 $
-    sep [ text "insertImplicits finished"
-        , nest 2 $ text "ps'  = " <+> do brackets $ fsep $ punctuate comma $ map prettyA ps'
-        ]
-  return $ Problem ps' pr dpi sbe ret
-
 -- | Eta-expand implicit pattern if of record type.
 expandImplicitPattern :: Type -> NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
 expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a p
@@ -115,12 +100,12 @@ insertImplicitPatternsT DontExpandLast [] a = insertImplicitSizeLtPatterns a
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a
   reportSDoc "tc.lhs.imp" 20 $
-    sep [ text "insertImplicitPatternsT"
-        , nest 2 $ text "ps  = " <+> do
-            brackets $ fsep $ punctuate comma $ map prettyA ps
-        , nest 2 $ text "tel = " <+> prettyTCM tel
-        , nest 2 $ text "b   = " <+> addContext tel (prettyTCM b)
-        ]
+    vcat [ text "insertImplicitPatternsT"
+         , nest 2 $ text "ps  = " <+> do
+             brackets $ fsep $ punctuate comma $ map prettyA ps
+         , nest 2 $ text "tel = " <+> prettyTCM tel
+         , nest 2 $ text "b   = " <+> addContext tel (prettyTCM b)
+         ]
   case ps of
     [] -> insImp dummy tel
     p : ps -> do
