@@ -710,9 +710,6 @@ stripImplicits ps = do
         where
           stripArgs _ [] = []
           stripArgs fixedPos (a : as)
-            -- Andreas, 2017-01-18, issue #819: preserves _ when splitting:
-            -- An Inserted visible variable comes form a WildP and is restored as such.
-            | visible a, getOrigin a == Inserted, varOrDot (namedArg a) = goWild
             -- A hidden non-UserWritten variable is removed if not needed for
             -- correct position of the following hidden arguments.
             | canStrip a =
@@ -939,33 +936,56 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      case p of
-      I.VarP x -> do
-        n <- liftTCM $ nameOfBV $ dbPatVarIndex x
-        case dbPatVarName x of
-          "_"  -> return $ A.VarP n
-          -- Andreas, 2017-09-03: TODO for #2580
-          -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
-          -- case splitter still produces them.
-          y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP n else
-            -- Andreas, 2017-09-03, issue #2729
-            -- Restore original pattern name.  AbstractToConcrete picks unique names.
-            return $ A.VarP n { nameConcrete = C.Name noRange [ C.Id y ] }
-      I.DotP o v -> do
-        t <- liftTCM $ reify v
-        -- This is only used for printing purposes, so the Origin shouldn't be
-        -- used after this point anyway.
-        return $ A.DotP patNoRange o t
-        -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
-        -- Crashes on -v 100.
+      I.VarP PatODot x -> reifyDotP $ var $ dbPatVarIndex x
+      I.VarP PatOWild _ -> return $ A.WildP patNoRange
+      I.VarP _ x -> reifyVarP x
+      I.DotP PatOWild _ -> return $ A.WildP patNoRange
+      -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
+      I.DotP (PatOVar x) v@(I.Var i []) -> do
+        x' <- nameOfBV i
+        if nameConcrete x == nameConcrete x' then
+          return $ A.VarP x'
+        else
+          reifyDotP v
+      I.DotP o v -> reifyDotP v
       I.AbsurdP p -> return $ A.AbsurdP patNoRange
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
-      I.ConP c cpi ps -> do
-        liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
-        tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
-        where
-          ci = ConPatInfo origin patNoRange
-          origin = fromMaybe ConOCon $ I.conPRecord cpi
+      I.ConP c cpi ps
+       | conPRecord cpi == Just PatOWild -> return $ A.WildP patNoRange
+       | otherwise -> reifyConP c cpi ps
+
+    reifyVarP :: MonadTCM tcm => DBPatVar -> tcm A.Pattern
+    reifyVarP x = do
+      n <- liftTCM $ nameOfBV $ dbPatVarIndex x
+      case dbPatVarName x of
+        "_"  -> return $ A.VarP n
+        -- Andreas, 2017-09-03: TODO for #2580
+        -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
+        -- case splitter still produces them.
+        y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP n else
+          -- Andreas, 2017-09-03, issue #2729
+          -- Restore original pattern name.  AbstractToConcrete picks unique names.
+          return $ A.VarP n { nameConcrete = C.Name noRange [ C.Id y ] }
+
+    reifyDotP :: MonadTCM tcm => Term -> tcm A.Pattern
+    reifyDotP v = do
+      t <- liftTCM $ reify v
+      -- This is only used for printing purposes, so the Origin shouldn't be
+      -- used after this point anyway.
+      return $ A.DotP patNoRange UserWritten t
+      -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
+      -- Crashes on -v 100.
+
+    reifyConP :: MonadTCM tcm
+              => ConHead -> ConPatternInfo -> [NamedArg DeBruijnPattern]
+              -> tcm A.Pattern
+    reifyConP c cpi ps = do
+      tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
+      where
+        ci = ConPatInfo origin patNoRange
+        origin = fromConPatternInfo cpi
+
 
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.

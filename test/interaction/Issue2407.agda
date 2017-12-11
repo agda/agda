@@ -15,4 +15,4 @@ split : ∀ i (j : Size< ↑ i) → D i j → Set
 split i j x = {!x!}  -- split on x
 
 -- Expected: splitting on x succeeds with
---   split i .k (c j₁ k x x₁) = {!!}
+--   split i .k (c j k x x₁) = {!!}

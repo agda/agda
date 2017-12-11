@@ -404,9 +404,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) namedDots strippedDots rh
       cxtNames <- reverse . map (fst . unDom) <$> getContext
       when (not $ null namedDots) $ reportSDoc "tc.lhs.top" 50 $
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
-      -- Not really an as-pattern, but this does the right thing.
-      bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedDots $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
+      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub namedDots strippedDots $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 

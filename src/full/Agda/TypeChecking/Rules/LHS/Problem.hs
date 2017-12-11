@@ -160,8 +160,26 @@ instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
         firstChoice (ChooseEither : xs) = firstChoice xs
         firstChoice (x            : _ ) = x
 
+-- | A user pattern together with an internal term that it should be equal to
+--   after splitting is complete.
+--   Special cases:
+--    * User pattern is a variable but internal term isn't:
+--      this will be turned into an as pattern.
+--    * User pattern is a dot pattern:
+--      this pattern won't trigger any splitting but will be checked
+--      for equality after all splitting is complete and as patterns have
+--      been bound.
+--    * User pattern is an absurd pattern:
+--      emptiness of the type will be checked after splitting is complete.
+data ProblemEq = ProblemEq
+  { problemInPat :: A.Pattern
+  , problemInst  :: Term
+  , problemType  :: Dom Type
+  } deriving (Show)
+
+-- | The user patterns we still have to split on.
 data Problem a = Problem
-  { problemInPat    :: [NamedArg A.Pattern]
+  { problemEqs      :: [ProblemEq]
     -- ^ User patterns.
   , problemRestPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
@@ -174,72 +192,33 @@ data Problem a = Problem
     --   @
     --   In this sitation, for clause 2, we construct an initial problem
     --   @
-    --      problemInPat = [false]
-    --      problemTel   = (b : Bool)
-    --      problemRest.restPats = [zero]
-    --      problemRest.restType = if b then Nat else Nat -> Nat
+    --      problemEqs      = [false = b]
+    --      problemRestPats = [zero]
     --   @
-    --   As we instantiate @b@ to @false@, the 'restType' reduces to
-    --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
-  , problemDPI                :: [DotPatternInst]
-  , problemShouldBeEmptyTypes :: [(Range,Type)]
-  , problemCont               :: LHSState a -> TCM a
+    --   As we instantiate @b@ to @false@, the 'targetType' reduces to
+    --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemEqs@.
+  , problemCont     :: LHSState a -> TCM a
   }
   deriving Show
 
+problemInPats :: Problem a -> [A.Pattern]
+problemInPats = map problemInPat . problemEqs
+
 data Focus
-  = ConFocus
-    { focusCon      :: QName
-    , focusPatOrigin:: ConOrigin -- ^ Do we come from an implicit or record pattern?
-    , focusConArgs  :: [NamedArg A.Pattern]
-    , focusRange    :: Range
-    , focusDatatype :: QName
-    , focusParams   :: [Arg Term]
-    , focusIndices  :: [Arg Term]
-    }
+  = ConFocus (Maybe AmbiguousQName)  -- ^ @Just ambC@ for a (possibly ambiguous) name,
+                                     --   or @Nothing@ for a record pattern
   | LitFocus Literal
-  | AbsurdFocus PatInfo
 
 -- | Result of 'splitProblem':  Determines position for the next split.
-data SplitProblem
+data SplitPosition
+  = -- | Split on argument type.
+    SplitArg Term Type A.Pattern Focus
+  | -- | Split on target type.
+    SplitRest Hiding ProjOrigin AmbiguousQName
 
-  = -- | Split on constructor pattern.
-    SplitArg
-      { splitLPats   :: [NamedArg A.Pattern]
-        -- ^ The typed user patterns left of the split position.
-        --   Invariant: @'problemRest' == empty@.
-      , splitFocus   :: Arg Focus
-        -- ^ How to split the variable at the split position.
-      , splitRPats   :: [NamedArg A.Pattern]
-        -- ^ The typed user patterns right of the split position.
-      }
-
-  | -- | Split on projection pattern.
-    SplitRest
-      { splitProjection :: Arg QName
-        -- ^ The projection could be belonging to an irrelevant record field.
-      , splitProjOrigin :: ProjOrigin
-      , splitProjType   :: Type
-      }
-
--- | Put a pattern on the very left of a @SplitProblem@.
-consSplitProblem
-  :: NamedArg A.Pattern   -- ^ @p@ A pattern.
-  -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
-  -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
-consSplitProblem p s@SplitRest{}                 = s
-consSplitProblem p s@SplitArg{ splitLPats = ps } = s{ splitLPats = (p:ps) }
-
--- | Instantiations of a dot pattern with a term.
---   `Maybe e` if the user wrote a dot pattern .e
---   `Nothing` if this is an instantiation of an implicit argument or a name.
-data DotPatternInst = DPI
-  { dotPatternName     :: Maybe A.Name
-  , dotPatternUserExpr :: Maybe A.Expr
-  , dotPatternInst     :: Term
-  , dotPatternType     :: Dom Type
-  } deriving (Show)
-data AsBinding      = AsB Name Term Type
+data AsBinding = AsB Name Term Type
+data DotPattern = Dot A.Expr Term (Dom Type)
+data AbsurdPattern = Absurd Range Type
 
 -- | State worked on during the main loop of checking a lhs.
 --   [Ulf Norell's PhD, page. 35]
@@ -259,26 +238,43 @@ data LHSState a = LHSState
     --   be type-checked in irrelevant mode.
   }
 
-instance Subst Term DotPatternInst where
-  applySubst rho (DPI x e v a) = uncurry (DPI x e) $ applySubst rho (v,a)
+instance Subst Term ProblemEq where
+  applySubst rho (ProblemEq p v a) = uncurry (ProblemEq p) $ applySubst rho (v,a)
+
+instance Subst Term (Problem a) where
+  applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
 
 instance Subst Term AsBinding where
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
-instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI mx me v a) = sep
-    [ x <+> text "=" <+> text "." P.<> prettyA e
+instance Subst Term DotPattern where
+  applySubst rho (Dot e v a) = uncurry (Dot e) $ applySubst rho (v, a)
+
+instance Subst Term AbsurdPattern where
+  applySubst rho (Absurd r a) = Absurd r $ applySubst rho a
+
+instance PrettyTCM ProblemEq where
+  prettyTCM (ProblemEq p v a) = sep
+    [ prettyA p <+> text "="
     , nest 2 $ prettyTCM v <+> text ":"
     , nest 2 $ prettyTCM a
     ]
-    where x = maybe (text "_") prettyA mx
-          e = fromMaybe underscore me
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =
     sep [ prettyTCM x P.<> text "@" P.<> parens (prettyTCM v)
         , nest 2 $ text ":" <+> prettyTCM a
         ]
+
+instance PrettyTCM DotPattern where
+  prettyTCM (Dot e v a) = sep
+    [ prettyA e <+> text "="
+    , nest 2 $ prettyTCM v <+> text ":"
+    , nest 2 $ prettyTCM a
+    ]
+
+instance PrettyTCM AbsurdPattern where
+  prettyTCM (Absurd r a) = text "() :" <+> prettyTCM a
 
 instance PP.Pretty AsBinding where
   pretty (AsB x v a) =

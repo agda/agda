@@ -1,4 +1,0 @@
-CopatternWithoutFieldName.agda:13,3-8
-head of copattern needs to be a field identifier, but f isn't one
-when scope checking the left-hand side f bla in the definition of
-bla

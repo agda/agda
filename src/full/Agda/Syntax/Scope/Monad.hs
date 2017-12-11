@@ -167,6 +167,16 @@ setLocalVars vars = modifyLocalVars $ const vars
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
+-- | Run a computation without any local vars, then add the old
+--   local vars back in the end.
+shadowLocalVars :: ScopeM a -> ScopeM a
+shadowLocalVars f = do
+  oldVars <- getLocalVars
+  setLocalVars []
+  result <- f
+  modifyLocalVars (++oldVars)
+  return result
+
 -- * Names
 
 -- | Create a fresh abstract name from a concrete name.

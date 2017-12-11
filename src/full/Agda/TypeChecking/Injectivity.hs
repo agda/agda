@@ -259,7 +259,7 @@ useInjectivity cmp a u v = do
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
     metaPat (DotP _ v)       = dotP v
-    metaPat (VarP _)         = nextMeta
+    metaPat (VarP _ _)       = nextMeta
     metaPat (AbsurdP p)      = metaPat p
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) <$> metaArgs args
     metaPat (LitP l)         = return $ Lit l
