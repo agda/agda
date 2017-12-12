@@ -1,3 +1,0 @@
-DeadCodePatSyn.agda:8,3-13
-Cannot split on argument of non-datatype _1
-when checking that the pattern not-hidden has type _1
