@@ -246,7 +246,6 @@ problemAllVariables problem =
     -- need further splitting:
     isSolved A.ConP{}        = False
     isSolved A.LitP{}        = False
-    isSolved A.ProjP{}       = False
     isSolved A.RecP{}        = False  -- record pattern
     -- solved:
     isSolved A.VarP{}        = True
@@ -254,6 +253,7 @@ problemAllVariables problem =
     isSolved A.DotP{}        = True
     isSolved A.AbsurdP{}     = True
     -- impossible:
+    isSolved A.ProjP{}       = __IMPOSSIBLE__
     isSolved A.DefP{}        = __IMPOSSIBLE__
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
     isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
@@ -776,13 +776,13 @@ splitStrategy = filter shouldSplit
       A.LitP{}    -> True
       A.RecP{}    -> True
       A.ConP{}    -> True
-      A.ProjP{}   -> True
 
       A.VarP{}    -> False
       A.WildP{}   -> False
       A.DotP{}    -> False
       A.AbsurdP{} -> False
 
+      A.ProjP{}       -> __IMPOSSIBLE__
       A.DefP{}        -> __IMPOSSIBLE__
       A.AsP{}         -> __IMPOSSIBLE__
       A.PatternSynP{} -> __IMPOSSIBLE__
@@ -854,13 +854,12 @@ checkLHS mf st@(LHSState tel ip problem target) = do
         (A.LitP l)        -> splitLit delta1 dom adelta2 l
         p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
         p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
-        A.ProjP{}         -> addContext delta1 $ hardTypeError $
-          CannotEliminateWithPattern (defaultNamedArg p) (telePi tel' $ unArg target)
 
         A.VarP{}        -> __IMPOSSIBLE__
         A.WildP{}       -> __IMPOSSIBLE__
         A.DotP{}        -> __IMPOSSIBLE__
         A.AbsurdP{}     -> __IMPOSSIBLE__
+        A.ProjP{}       -> __IMPOSSIBLE__
         A.DefP{}        -> __IMPOSSIBLE__
         A.AsP{}         -> __IMPOSSIBLE__
         A.PatternSynP{} -> __IMPOSSIBLE__
@@ -883,7 +882,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
         addContext tel $ softTypeError $ CannotEliminateWithPattern p (unArg target)
 
       (projName, projType) <- suspendErrors $
-        disambiguateProjection (getHiding p) ambProjName target
+        addContext tel $ disambiguateProjection (getHiding p) ambProjName target
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
