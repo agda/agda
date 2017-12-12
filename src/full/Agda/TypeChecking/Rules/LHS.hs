@@ -20,7 +20,7 @@ import Control.Monad
 import Control.Monad.Plus (mfold)
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 
 import Data.Either (partitionEithers)
@@ -29,8 +29,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List (delete, sortBy, stripPrefix, (\\))
 import qualified Data.List as List
-import Data.Monoid
 import Data.Traversable
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -63,7 +63,7 @@ import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Patterns.Abstract
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
@@ -364,14 +364,17 @@ data LeftoverPatterns = LeftoverPatterns
   , absurdPatterns   :: [AbsurdPattern]
   }
 
-instance Monoid LeftoverPatterns where
-  mempty        = LeftoverPatterns empty [] [] []
-  x `mappend` y = LeftoverPatterns
+instance Semigroup LeftoverPatterns where
+  x <> y = LeftoverPatterns
     { patternVariables = IntMap.unionWith (++) (patternVariables x) (patternVariables y)
     , asPatterns       = asPatterns x ++ asPatterns y
     , dotPatterns      = dotPatterns x ++ dotPatterns y
     , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
     }
+
+instance Monoid LeftoverPatterns where
+  mempty  = LeftoverPatterns empty [] [] []
+  mappend = (<>)
 
 -- | Classify remaining patterns after splitting is complete into pattern
 --   variables, as patterns, dot patterns, and absurd patterns.
