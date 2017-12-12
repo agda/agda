@@ -6,6 +6,7 @@ import Control.Arrow (first, second)
 import Control.Monad
 
 import Data.Functor ((<$))
+import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -97,7 +98,8 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a) = do
   reportSDoc "tc.lhs.imp" 20 $
     text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
   -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
-  TelV gamma b <- telViewUpTo (length ps) $ unArg a
+  let m = length $ takeWhile (isNothing . isProjP) ps
+  TelV gamma b <- telViewUpTo m $ unArg a
   forM_ (zip ps (telToList gamma)) $ \(p, a) ->
     unless (sameHiding p a) $ typeError WrongHidingInLHS
   let tel1      = useNamesFromPattern ps gamma
