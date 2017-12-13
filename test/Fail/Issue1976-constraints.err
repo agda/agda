@@ -1,3 +1,7 @@
-Issue1976-constraints.agda:29,3-15
-A != B of type Set
-when checking that the clause F test = Set has type M.R B
+Failed to solve the following constraints:
+  [21] _4 = B : Set
+  [14] _2 = B : Set
+Unsolved metas at the following locations:
+  Issue1976-constraints.agda:16,10-11
+  Issue1976-constraints.agda:24,10-11
+  Issue1976-constraints.agda:30,10-11
