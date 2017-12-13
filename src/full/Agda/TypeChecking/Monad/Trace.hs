@@ -110,11 +110,12 @@ traceCall mkCall m = do
   isNoHighlighting NoHighlighting{} = True
   isNoHighlighting _                = False
 
-getCurrentRange :: TCM Range
+getCurrentRange :: (MonadTCM tcm, MonadDebug tcm) => tcm Range
 getCurrentRange = asks envRange
 
 -- | Sets the current range (for error messages etc.) to the range
 --   of the given object, if it has a range (i.e., its range is not 'noRange').
-setCurrentRange :: HasRange x => x -> TCM a -> TCM a
+setCurrentRange :: (MonadTCM tcm, MonadDebug tcm, HasRange x)
+                => x -> tcm a -> tcm a
 setCurrentRange x = applyUnless (null r) $ traceCall $ SetRange r
   where r = getRange x

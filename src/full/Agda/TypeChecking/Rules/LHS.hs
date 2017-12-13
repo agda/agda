@@ -30,7 +30,8 @@ import qualified Data.IntMap as IntMap
 import Data.List (delete, sortBy, stripPrefix, (\\))
 import qualified Data.List as List
 import Data.Traversable
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
+import Data.Semigroup (Semigroup, Monoid, mempty, mappend)
+import qualified Data.Semigroup as Semigroup
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -63,7 +64,7 @@ import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Patterns.Abstract
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
@@ -79,6 +80,7 @@ import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Either
 import Agda.Utils.Except (MonadError(..), ExceptT, runExceptT)
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -374,7 +376,7 @@ instance Semigroup LeftoverPatterns where
 
 instance Monoid LeftoverPatterns where
   mempty  = LeftoverPatterns empty [] [] []
-  mappend = (<>)
+  mappend = (Semigroup.<>)
 
 -- | Classify remaining patterns after splitting is complete into pattern
 --   variables, as patterns, dot patterns, and absurd patterns.
@@ -867,7 +869,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
 
 
     splitRest :: NamedArg A.Pattern -> ExceptT TCErr tcm (LHSState a)
-    splitRest p = do
+    splitRest p = setCurrentRange p $ do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "projection pattern =" <+> prettyA p
@@ -1236,7 +1238,7 @@ getRecordConstructor d pars a = do
 
 -- | Disambiguate a projection based on the record type it is supposed to be
 --   projecting from. Returns the unambiguous projection name and its type.
---   Precondition: type should be a record type.
+--   Throws an error if the type is not a record type.
 disambiguateProjection
   :: Hiding         -- ^ Hiding info of the projection's principal argument.
   -> AmbiguousQName -- ^ Name of the projection to be disambiguated.
@@ -1255,15 +1257,39 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- Try the projection candidates.
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
-      disambiguations <- mapM (runExceptT . tryProj fs r vs) ds
+      -- First, we try to find a disambiguation that doesn't produce
+      -- any new constraints.
+      disambiguations <- mapM (runExceptT . tryProj False fs r vs) ds
       case partitionEithers $ toList disambiguations of
-        (errs , disamb:_) -> return disamb
-        ([]   , []      ) -> __IMPOSSIBLE__
-        (err:_, []      ) -> throwError err
-
+        (_ , (d,a):_) -> do
+          -- From here, we have the correctly disambiguated projection.
+          -- For highlighting, we remember which name we disambiguated to.
+          -- This is safe here (fingers crossed) as we won't decide on a
+          -- different projection even if we backtrack and come here again.
+          liftTCM $ storeDisambiguatedName d
+          return (d,a)
+        (_ , []     ) -> do
+          -- If this fails, we try again with constraints, but we require
+          -- the solution to be unique.
+          disambiguations <- mapM (runExceptT . tryProj True fs r vs) ds
+          case partitionEithers $ toList disambiguations of
+            ([]   , []      ) -> __IMPOSSIBLE__
+            (err:_, []      ) -> throwError err
+            (errs , [(d,a)]) -> do
+              liftTCM $ storeDisambiguatedName d
+              return (d,a)
+            (errs , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
+              [ text "Ambiguous projection " <> prettyTCM (qnameName d) <> text "."
+              , text "It could refer to any of"
+              , nest 2 $ vcat $ map showDisamb disambs
+              ]
     _ -> __IMPOSSIBLE__
 
   where
+    showDisamb (d,_) =
+      let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule d
+      in  (pretty =<< dropTopLevelModule d) <+> text "(introduced at " <> prettyTCM r <> text ")"
+
     notRecord = wrongProj $ headNe ds
 
     wrongProj :: (MonadTCM m, MonadError TCErr m) => QName -> m a
@@ -1284,12 +1310,13 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         [ text "Wrong hiding used for projection " , prettyTCM d ]
 
     tryProj
-      :: [Arg QName]          -- ^ Fields of record type under consideration.
+      :: Bool                 -- ^ Are we allowed to create new constraints?
+      -> [Arg QName]          -- ^ Fields of record type under consideration.
       -> QName                -- ^ Name of record type we are eliminating.
       -> Args                 -- ^ Parameters of record type we are eliminating.
       -> QName                -- ^ Candidate projection.
       -> ExceptT TCErr TCM (QName, Arg Type)
-    tryProj fs r vs d0 = isProjection d0 >>= \case
+    tryProj constraintsOk fs r vs d0 = isProjection d0 >>= \case
       -- Not a projection
       Nothing -> wrongProj d0
       Just proj -> do
@@ -1322,22 +1349,14 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         unless (sameHiding h ai) $ wrongHiding d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
-        -- We need to catch errors here in case there are other possible disambiguations.
-        suspendErrors $ noConstraints $ checkParameters qr r vs
-
-        -- From here, we have the correctly disambiguated projection.
-
-        -- For highlighting, we remember which name we disambiguated to.
-        -- This is safe here (fingers crossed) as we won't decide on a
-        -- different projection even if we backtrack and come here again.
-        liftTCM $ storeDisambiguatedName d0
+        suspendErrors $ applyUnless constraintsOk noConstraints $
+          checkParameters qr r vs
 
         -- Get the type of projection d applied to "self"
         dType <- liftTCM $ defType <$> getConstInfo d  -- full type!
         reportSDoc "tc.lhs.split" 20 $ sep
           [ text "we are being projected by dType = " <+> prettyTCM dType
           ]
-        -- This should succeed, as we have the correctly disambiguated.
         projType <- liftTCM $ dType `piApplyM` vs
         return (d0 , Arg ai projType)
 
@@ -1356,13 +1375,33 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
     def@Record{}   -> return $ [conName $ recConHead def]
     _              -> __IMPOSSIBLE__
 
-  disambiguations <- mapM (runExceptT . tryCon cons d pars) cs -- TODO: be more lazy
+  disambiguations <- mapM (runExceptT . tryCon False cons d pars) cs -- TODO: be more lazy
   case partitionEithers $ toList disambiguations of
-    (errs , disamb:_) -> return disamb
-    ([]   , []      ) -> __IMPOSSIBLE__
-    (err:_, []      ) -> throwError err
+    (_ , (c0,c,a):_) -> do
+      -- If constructor pattern was ambiguous,
+      -- remember our choice for highlighting info.
+      when (isAmbiguous ambC) $ liftTCM $ storeDisambiguatedName c0
+      return (c,a)
+    (_ , []     ) -> do
+      disambiguations <- mapM (runExceptT . tryCon True cons d pars) cs
+      case partitionEithers $ toList disambiguations of
+        ([]   , []        ) -> __IMPOSSIBLE__
+        (err:_, []        ) -> throwError err
+        (errs , [(c0,c,a)]) -> do
+          when (isAmbiguous ambC) $ liftTCM $ storeDisambiguatedName c0
+          return (c,a)
+
+        (errs , disambs@((c0,c,a):_)) -> typeError . GenericDocError =<< vcat
+          [ text "Ambiguous constructor " <> prettyTCM (qnameName $ conName c) <> text "."
+          , text "It could refer to any of"
+          , nest 2 $ vcat $ map showDisamb disambs
+          ]
 
   where
+    showDisamb (c0,_,_) =
+      let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule c0
+      in  (pretty =<< dropTopLevelModule c0) <+> text "(introduced at " <> prettyTCM r <> text ")"
+
     abstractConstructor c = softTypeError $
       AbstractConstructorNotInScope c
 
@@ -1370,12 +1409,13 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       ConstructorPatternInWrongDatatype c d
 
     tryCon
-      :: [QName]     -- ^ Constructors of data type under consideration.
+      :: Bool        -- ^ Are we allowed to create new constraints?
+      -> [QName]     -- ^ Constructors of data type under consideration.
       -> QName       -- ^ Name of data/record type we are eliminating.
       -> Args        -- ^ Parameters of data/record type we are eliminating.
       -> QName       -- ^ Candidate constructor.
-      -> ExceptT TCErr TCM (ConHead, Type)
-    tryCon cons d pars c = getConstInfo' c >>= \case
+      -> ExceptT TCErr TCM (QName, ConHead, Type)
+    tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
       Left (SigUnknown err) -> __IMPOSSIBLE__
       Left SigAbstract -> abstractConstructor c
       Right def -> do
@@ -1394,16 +1434,13 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- but the extra check here is non-invasive to the existing code.
         -- Andreas, 2016-12-31 fixing issue #1975
         -- Do this also for constructors which were originally ambiguous.
-        suspendErrors $ noConstraints $ checkConstructorParameters c d pars
-
-        -- If constructor pattern was ambiguous,
-        -- remember our choice for highlighting info.
-        when (isAmbiguous ambC) $ liftTCM $ storeDisambiguatedName c
+        suspendErrors $ applyUnless constraintsOk noConstraints $
+          checkConstructorParameters c d pars
 
         -- Get the type from the original constructor
         cType <- (`piApply` pars) . defType <$> getConInfo con
 
-        return (con, cType)
+        return (c, con, cType)
 
 
 

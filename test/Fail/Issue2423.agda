@@ -27,6 +27,6 @@ test s .f = s .f
 -- Cannot eliminate type S with pattern .f (did you supply too many arguments?)
 
 -- NOW:
--- Cannot eliminate type  S  with projection  R.f
+-- Cannot eliminate type  S  with projection  S._.f
 
 -- Shows the chosen disambiguation in error message.

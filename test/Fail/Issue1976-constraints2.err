@@ -1,4 +1,4 @@
-Issue1976-constraints2.agda:22,3-15
 Failed to solve the following constraints:
-  [6, 7] _0 = B : Set
-when checking that the clause F test = Set has type M.R B
+  [6] _0 = B : Set
+Unsolved metas at the following locations:
+  Issue1976-constraints2.agda:16,10-11

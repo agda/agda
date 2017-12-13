@@ -14,7 +14,7 @@ module M (_ : Set) where
 
 module ShouldFail where
   open M _
-  open M A
+  open M _
 
   test : M.R B
   F test = Set
