@@ -256,7 +256,8 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     -- Scope check the telescope (introduces bindings!).
     tel' <- toAbstract tel
     -- Scope check the old module name and the module args.
-    (m1, args') <- toAbstract (OldModuleName m, args)
+    m1    <- toAbstract $ OldModuleName m
+    args' <- toAbstractCtx (ArgumentCtx PreferParen) args
     -- Drop constructors (OnlyQualified) if there are arguments. The record constructor
     -- isn't properly in the record module, so copying it will lead to badness.
     let noRecConstr | null args = id
