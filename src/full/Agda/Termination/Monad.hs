@@ -521,7 +521,6 @@ instance UsableSizeVars DeBruijnPattern where
     ConP c _ _ -> conUseSizeLt $ conName c
     LitP{}     -> none
     DotP{}     -> none
-    AbsurdP{}  -> none
     ProjP{}    -> none
     where none _ = return mempty
 
@@ -539,7 +538,6 @@ instance UsableSizeVars (Masked DeBruijnPattern) where
     ConP c _ _ -> if m then none else conUseSizeLt $ conName c
     LitP{}     -> none
     DotP{}     -> none
-    AbsurdP{}  -> none
     ProjP{}    -> none
     where none _ = return mempty
 

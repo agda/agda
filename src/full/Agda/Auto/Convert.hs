@@ -326,7 +326,6 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
     I.VarP _ n  -> return $ PatVar (show n)
     I.DotP _ _  -> return $ PatVar "_"
       -- because Agda includes these when referring to variables in the body
-    I.AbsurdP{} -> return $ PatVar I.absurdPatternName
     I.ConP con _ pats -> do
       let n = I.conName con
       c     <- getConst True n TMAll
@@ -582,7 +581,6 @@ constructPats cmap mainm clause = do
        I.DotP _ t -> do
         (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
-       I.AbsurdP{} -> return ((hid, Id I.absurdPatternName) : ns, HI hid (CSPatVar $ length ns))
        I.ProjP{} -> copatternsNotImplemented
        I.LitP{} -> literalsNotImplemented
  (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)

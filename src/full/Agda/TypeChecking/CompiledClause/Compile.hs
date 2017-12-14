@@ -158,7 +158,6 @@ compile shared cs = case nextSplit cs of
     c = headWithDefault __IMPOSSIBLE__ cs
     name (VarP _ x) = x
     name (DotP _ _) = underscore
-    name AbsurdP{} = absurdPatternName
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
     name ProjP{} = __IMPOSSIBLE__
@@ -190,7 +189,6 @@ properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi)
 properSplit LitP{}  = Just False
 properSplit ProjP{} = Just False
 properSplit VarP{}  = Nothing
-properSplit AbsurdP{} = Nothing -- for purposes of compilation
 properSplit DotP{}  = Nothing
 
 -- | Is this a variable pattern?
@@ -199,7 +197,6 @@ properSplit DotP{}  = Nothing
 isVar :: Pattern' a -> Bool
 isVar VarP{}  = True
 isVar DotP{}  = True
-isVar AbsurdP{} = True
 isVar ConP{}  = False
 isVar LitP{}  = False
 isVar ProjP{} = False
@@ -219,7 +216,6 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
   LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback
-  AbsurdP{}   -> fallback
   where
     (ps0, rest) = splitAt n ps
     mp          = unArg <$> headMaybe rest

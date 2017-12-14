@@ -142,7 +142,6 @@ instance IsFlexiblePattern (I.Pattern' a) where
         | Just _          <- conPRecord i -> maybeFlexiblePattern ps
         | otherwise -> mzero
       I.VarP{}  -> mzero
-      I.AbsurdP{} -> mzero
       I.LitP{}  -> mzero
       I.ProjP{} -> mzero
 
@@ -456,8 +455,6 @@ transferOrigins ps qs = do
 
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
     transfer p q = case (snd (asView p) , q) of
-
-      (A.AbsurdP pi , q) -> return $ AbsurdP q
 
       (A.ConP pi _ ps , ConP c (ConPatternInfo mo mb l) qs) -> do
         let cpi = ConPatternInfo (mo $> PatOCon) mb l
@@ -1131,7 +1128,6 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
   where
   check (VarP {})   = return ()
   check (DotP {})   = return ()
-  check (AbsurdP{}) = return ()
   check (ProjP{})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP con _ ps) = do

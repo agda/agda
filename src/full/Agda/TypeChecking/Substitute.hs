@@ -213,7 +213,6 @@ instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
       in  case namedArg p of
             VarP{}  -> recurse
             DotP{}  -> __IMPOSSIBLE__
-            AbsurdP{} -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ConP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
@@ -344,7 +343,6 @@ instance Apply Clause where
             VarP _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
-            AbsurdP p' -> mkSub tm n (setNamedArg p p' : ps) (v : vs)
             ConP c _ ps' -> mkSub tm n (ps' ++ ps) (projections c v ++ vs)
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
@@ -365,7 +363,6 @@ instance Apply Clause where
           case namedArg p of
             VarP _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
-            AbsurdP{}           -> __IMPOSSIBLE__
             ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
             LitP{}              -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
@@ -703,7 +700,6 @@ instance Subst Term Pattern where
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DotP o t     -> DotP o $ applySubst rho t
     VarP o s     -> p
-    AbsurdP p    -> AbsurdP $ applySubst rho p
     LitP l       -> p
     ProjP{}      -> p
 
@@ -862,9 +858,10 @@ instance Subst Term EqualityView where
     (applySubst rho b)
 
 instance DeBruijn DeBruijnPattern where
-  debruijnNamedVar n i    = varP $ DBPatVar n i
-  deBruijnView (VarP _ x) = Just $ dbPatVarIndex x
-  deBruijnView _          = Nothing
+  debruijnNamedVar n i             = varP $ DBPatVar n i
+  -- deBruijnView returns Nothing, to prevent consS and the like
+  -- from dropping the names and origins when building a substitution.
+  deBruijnView _                   = Nothing
 
 fromPatternSubstitution :: PatternSubstitution -> Substitution
 fromPatternSubstitution = fmap patternToTerm
@@ -878,7 +875,6 @@ instance Subst DeBruijnPattern DeBruijnPattern where
     VarP o x     -> useOrigin o $ useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x
     DotP o u     -> DotP o $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
-    AbsurdP p    -> AbsurdP $ applySubst rho p
     LitP x       -> p
     ProjP{}      -> p
     where
@@ -887,13 +883,18 @@ instance Subst DeBruijnPattern DeBruijnPattern where
       useName _ x = x
 
       useOrigin :: PatOrigin -> DeBruijnPattern -> DeBruijnPattern
-      useOrigin o (VarP _ x) = VarP o x
-      useOrigin o (DotP _ u) = DotP o u
-      -- don't overwrite PatOSplit origin
-      useOrigin o p@(ConP c (ConPatternInfo (Just PatOSplit) _ _) ps) = p
-      useOrigin o (ConP c (ConPatternInfo (Just _) b l) ps)
-        = ConP c (ConPatternInfo (Just o) b l) ps
-      useOrigin _ x = x
+      useOrigin o p = case patternOrigin p of
+        Nothing         -> p
+        Just PatOSplit  -> p
+        Just PatOAbsurd -> p
+        Just _          -> case p of
+          (VarP _ x) -> VarP o x
+          (DotP _ u) -> DotP o u
+          (ConP c (ConPatternInfo (Just _) b l) ps)
+            -> ConP c (ConPatternInfo (Just o) b l) ps
+          ConP{}  -> __IMPOSSIBLE__
+          LitP{}  -> __IMPOSSIBLE__
+          ProjP{} -> __IMPOSSIBLE__
 
 instance Subst Term Range where
   applySubst _ = id

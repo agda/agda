@@ -434,10 +434,6 @@ data Pattern' x
   | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
     -- ^ @c ps@
     --   The subpatterns do not contain any projection copatterns.
-  | AbsurdP (Pattern' x)
-    -- ^ @()@
-    --   The argument is to keep track of the original pattern
-    --   (before the absurd match).
   | LitP Literal
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
@@ -529,7 +525,6 @@ instance PatternVars a (Arg (Pattern' a)) where
   -- patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
   patternVars (Arg i (VarP _ x)   ) = [Arg i $ Left x]
   patternVars (Arg i (DotP _ t)   ) = [Arg i $ Right t]
-  patternVars (Arg i (AbsurdP p)  ) = patternVars (Arg i p)
   patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
   patternVars (Arg _ (LitP _)     ) = []
   patternVars (Arg _ ProjP{}      ) = []
@@ -540,11 +535,21 @@ instance PatternVars a (NamedArg (Pattern' a)) where
 instance PatternVars a b => PatternVars a [b] where
   patternVars = concatMap patternVars
 
+
+-- | Retrieve the origin of a pattern
+patternOrigin :: Pattern' x -> Maybe PatOrigin
+patternOrigin (VarP o _) = Just o
+patternOrigin (DotP o _) = Just o
+patternOrigin LitP{}     = Nothing
+patternOrigin (ConP _ ci _) = conPRecord ci
+patternOrigin ProjP{}    = Nothing
+
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: DeBruijnPattern -> Bool
+properlyMatching p
+  | patternOrigin p == Just PatOAbsurd = True
 properlyMatching VarP{} = False
 properlyMatching DotP{} = False
-properlyMatching AbsurdP{} = True
 properlyMatching LitP{} = True
 properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
@@ -1171,7 +1176,6 @@ instance KillRange a => KillRange (Pattern' a) where
     case p of
       VarP o x         -> killRange2 VarP o x
       DotP o v         -> killRange2 DotP o v
-      AbsurdP p        -> killRange1 AbsurdP p
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
       ProjP o q        -> killRange1 (ProjP o) q
@@ -1319,7 +1323,6 @@ instance Pretty DBPatVar where
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
   prettyPrec _ (DotP _o t)   = text "." P.<> prettyPrec 10 t
-  prettyPrec _ (AbsurdP _)   = text absurdPatternName
   prettyPrec n (ConP c i nps)= mparens (n > 0) $
     pretty (conName c) <+> fsep (map pretty ps)
     where ps = map (fmap namedThing) nps

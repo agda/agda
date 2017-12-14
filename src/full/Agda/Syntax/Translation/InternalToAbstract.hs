@@ -938,8 +938,10 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
      case p of
       I.VarP PatODot x -> reifyDotP $ var $ dbPatVarIndex x
       I.VarP PatOWild _ -> return $ A.WildP patNoRange
+      I.VarP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
       I.VarP _ x -> reifyVarP x
       I.DotP PatOWild _ -> return $ A.WildP patNoRange
+      I.DotP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
       -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
       I.DotP (PatOVar x) v@(I.Var i []) -> do
         x' <- nameOfBV i
@@ -948,12 +950,12 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         else
           reifyDotP v
       I.DotP o v -> reifyDotP v
-      I.AbsurdP p -> return $ A.AbsurdP patNoRange
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
-      I.ConP c cpi ps
-       | conPRecord cpi == Just PatOWild -> return $ A.WildP patNoRange
-       | otherwise -> reifyConP c cpi ps
+      I.ConP c cpi ps -> case conPRecord cpi of
+        Just PatOWild   -> return $ A.WildP patNoRange
+        Just PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _               -> reifyConP c cpi ps
 
     reifyVarP :: MonadTCM tcm => DBPatVar -> tcm A.Pattern
     reifyVarP x = do
