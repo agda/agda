@@ -260,7 +260,6 @@ useInjectivity cmp a u v = do
 
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
-    metaPat (AbsurdP p)      = metaPat p
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) <$> metaArgs args
     metaPat (LitP l)         = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__

@@ -90,7 +90,6 @@ instance LabelPatVars Pattern DeBruijnPattern Int where
       VarP o x     -> do i <- next
                          return $ VarP o (DBPatVar x i)
       DotP o t     -> DotP o t <$ next
-      AbsurdP p    -> AbsurdP <$> labelPatVars p
       ConP c mt ps -> ConP c mt <$> labelPatVars ps
       LitP l       -> return $ LitP l
       ProjP o q    -> return $ ProjP o q
@@ -142,7 +141,6 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
     getIndices (VarP _ x)    = [Just $ dbPatVarIndex x]
     getIndices (ConP c _ ps) = concatMap (getIndices . namedThing . unArg) ps
     getIndices (DotP _ _)    = [Nothing | countDots]
-    getIndices (AbsurdP p)   = getIndices p
     getIndices (LitP _)      = []
     getIndices ProjP{}       = []
 
@@ -164,7 +162,6 @@ patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
       map (argFromElim . patternToElim . fmap namedThing) ps
   where ci = fromConPatternInfo cpi
 patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
-patternToElim (Arg ai (AbsurdP p))   = patternToElim $ Arg ai p
 patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest
 
@@ -198,7 +195,6 @@ instance MapNamedArgPattern a (NamedArg (Pattern' a)) where
   mapNamedArgPattern f np =
     case namedArg np of
       VarP o x    -> f np
-      AbsurdP p   -> f $ updateNamedArg AbsurdP $ mapNamedArgPattern f $ setNamedArg np p
       DotP  o t   -> f np
       LitP  l     -> f np
       ProjP o q   -> f np
@@ -267,7 +263,6 @@ instance PatternLike a (Pattern' a) where
   foldrPattern f p = f p $ case p of
     ConP _ _ ps -> foldrPattern f ps
     VarP _ _    -> mempty
-    AbsurdP _   -> mempty
     LitP _      -> mempty
     DotP _ _    -> mempty
     ProjP _ _   -> mempty
@@ -279,7 +274,6 @@ instance PatternLike a (Pattern' a) where
       VarP  _ _    -> return p
       LitP  _      -> return p
       DotP  _ _    -> return p
-      AbsurdP _    -> return p
       ProjP _ _    -> return p
 
 -- Boilerplate instances:
@@ -307,7 +301,6 @@ instance CountPatternVars (Pattern' x) where
       VarP{}      -> 1
       ConP _ _ ps -> countPatternVars ps
       DotP{}      -> 1   -- dot patterns are treated as variables in the clauses
-      AbsurdP p   -> countPatternVars p
       _           -> 0
 
 -- Computing modalities of pattern variables ------------------------------
@@ -336,6 +329,5 @@ instance PatternVarModalities (Pattern' x) x where
       VarP _ x    -> [(x, defaultModality)]
       ConP _ _ ps -> patternVarModalities ps
       DotP{}      -> []
-      AbsurdP{}   -> []
       LitP{}      -> []
       ProjP{}     -> []

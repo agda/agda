@@ -163,7 +163,8 @@ quotingKit = do
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
 
       quotePat :: DeBruijnPattern -> ReduceM Term
-      quotePat (AbsurdP x)       = pure absurdP
+      quotePat p
+       | patternOrigin p == Just PatOAbsurd = pure absurdP
       quotePat (VarP o x)        = varP !@! quoteString (dbPatVarName x)
       quotePat (DotP _ _)        = pure dotP
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps

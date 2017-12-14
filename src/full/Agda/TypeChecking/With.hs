@@ -460,15 +460,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
-        AbsurdP (VarP _ x) -> case namedArg p of
-          A.AbsurdP _info -> (p :) <$> recurse (var (dbPatVarIndex x))
-          A.WildP _info   -> (p :) <$> recurse (var (dbPatVarIndex x))
-          _ -> mismatch
-
-        AbsurdP q -> do
-          reportSDoc "impossible" 10 $ text "AbsurdP" <+> prettyTCM q
-          __IMPOSSIBLE__
-
         DotP o v  -> case namedArg p of
           A.DotP r o e  -> do
             (a, _) <- mustBePi t
@@ -771,6 +762,5 @@ patsToElims = map $ toElim . fmap namedThing
       VarP o x      -> DTerm  $ var $ dbPatVarIndex x
       DotP PatOVar{} t@(Var i []) -> DTerm t
       DotP o t    -> DDot   $ t
-      AbsurdP p   -> toTerm p
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l

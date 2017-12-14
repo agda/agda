@@ -378,7 +378,6 @@ instance PrettyTCM DBPatVar where
 instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (VarP _ x)    = prettyTCM x
   prettyTCM (DotP _ t)    = text ".(" <> prettyTCM t <> text ")"
-  prettyTCM (AbsurdP _)   = text absurdPatternName
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where

@@ -1263,7 +1263,6 @@ instance PrettyTCM TypeError where
     prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
     prettyPat _ (I.VarP _ _) = text "_"
     prettyPat _ (I.DotP _ _) = text "._"
-    prettyPat _ (I.AbsurdP _) = text absurdPatternName
     prettyPat n (I.ConP c _ args) =
       mpar n args $
         prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
