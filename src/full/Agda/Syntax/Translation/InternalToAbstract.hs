@@ -774,20 +774,16 @@ instance (BlankVars a, BlankVars b) => BlankVars (Either a b) where
   blank bound (Left x)  = Left $ blank bound x
   blank bound (Right y) = Right $ blank bound y
 
-instance BlankVars A.NamedDotPattern where
-  blank bound = id
-
-instance BlankVars A.StrippedDotPattern where
+instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause lhs namedDots strippedDots rhs [] ca) =
+  blank bound (A.Clause lhs strippedPats rhs [] ca) =
     let bound' = varsBoundIn lhs `Set.union` bound
     in  A.Clause (blank bound' lhs)
-                 (blank bound' namedDots)
-                 (blank bound' strippedDots)
+                 (blank bound' strippedPats)
                  (blank bound' rhs) [] ca
-  blank bound (A.Clause lhs namedDots strippedDots rhs (_:_) ca) = __IMPOSSIBLE__
+  blank bound (A.Clause lhs strippedPats rhs (_:_) ca) = __IMPOSSIBLE__
 
 instance BlankVars A.LHS where
   blank bound (A.LHS i core) = A.LHS i $ blank bound core
@@ -1020,7 +1016,7 @@ instance Reify NamedClause A.Clause where
     rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
        RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) [] [] rhs [] (I.clauseCatchall cl)
+    let result = A.Clause (spineToLhs lhs) [] rhs [] (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where

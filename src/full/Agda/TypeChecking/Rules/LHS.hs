@@ -565,21 +565,6 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
--- | We transform the pattern variables removed by with stripping
---   into additional problem equations, so they may either be used
---   to choose variable names or be transformed into as patterns.
-namedDotsToProblemEqs :: [A.NamedDotPattern] -> [ProblemEq]
-namedDotsToProblemEqs = map namedDotToEq
-  where
-    namedDotToEq (A.NamedDot n u a) = ProblemEq (A.VarP n) u (defaultDom a)
-
--- | Similarly for dot patterns removed by with stripping
-strippedDotsToProblemEqs :: [A.StrippedDotPattern] -> [ProblemEq]
-strippedDotsToProblemEqs = map strippedDotToEq
-  where
-    strippedDotToEq (A.StrippedDot e u a) =
-      ProblemEq (A.DotP patNoRange e) u (defaultDom a)
-
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
   { lhsParameters   :: Nat
@@ -629,14 +614,13 @@ checkLeftHandSide :: forall a.
      -- ^ The expected type @a = Γ → b@.
   -> Maybe Substitution
      -- ^ Module parameter substitution from with-abstraction.
-  -> [A.NamedDotPattern]
-     -- ^ Variable patterns that have been stripped away by with-desugaring.
-  -> [A.StrippedDotPattern]
-     -- ^ Dot patterns that have been stripped away by with-desugaring.
+  -> [ProblemEq]
+     -- ^ Patterns that have been stripped away by with-desugaring.
+     -- ^ These should not contain any proper matches.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a withSub' namedDots strippedDots = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
+checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
 
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
@@ -692,9 +676,7 @@ checkLeftHandSide c f ps a withSub' namedDots strippedDots = Bench.billToCPS [Be
             -- from the parent, so we add them here. Doing this before checking
             -- linearity allows us to get rid of any variables that got
             -- duplicated by with stripping.
-            eqs1 = namedDotsToProblemEqs $ applySubst paramSub namedDots
-            eqs2 = strippedDotsToProblemEqs $ applySubst paramSub strippedDots
-            eqs = eqs0 ++ eqs1 ++ eqs2
+            eqs = eqs0 ++ applySubst paramSub strippedPats
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 

@@ -703,6 +703,11 @@ instance Subst Term Pattern where
     LitP l       -> p
     ProjP{}      -> p
 
+instance Subst Term A.ProblemEq where
+  applySubst rho (A.ProblemEq p v a) =
+    uncurry (A.ProblemEq p) $ applySubst rho (v,a)
+
+
 instance DeBruijn NLPat where
   deBruijnVar i = PVar i []
   deBruijnView p = case p of
@@ -797,12 +802,6 @@ instance Subst Term Constraint where
 
 instance Subst Term ModuleParameters where
   applySubst rho mp = mp { mpSubstitution = applySubst rho $ mpSubstitution mp }
-
-instance Subst Term A.NamedDotPattern where
-  applySubst rho (A.NamedDot x v a) = A.NamedDot x (applySubst rho v) (applySubst rho a)
-
-instance Subst Term A.StrippedDotPattern where
-  applySubst rho (A.StrippedDot e v a) = A.StrippedDot e (applySubst rho v) (applySubst rho a)
 
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of

@@ -553,8 +553,8 @@ modifyAbstractExpr = f
   f e = e
 
 modifyAbstractClause :: A.Clause -> A.Clause
-modifyAbstractClause (A.Clause lhs dots sdots (A.RHS e mc) decls catchall) =
-  A.Clause lhs dots sdots (A.RHS (modifyAbstractExpr e) mc) decls catchall
+modifyAbstractClause (A.Clause lhs spats (A.RHS e mc) decls catchall) =
+  A.Clause lhs spats (A.RHS (modifyAbstractExpr e) mc) decls catchall
 modifyAbstractClause cl = cl
 
 -- ---------------------------------
