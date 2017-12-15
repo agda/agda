@@ -868,7 +868,6 @@ unifyStep s Solution{ solutionAt   = k
   let eqrel  = getRelevance info
       varrel = getRelevance info'
       rel    = if NonStrict `moreRelevant` eqrel then varrel else Relevant
-      o      = flexVarToOrigin fi
   reportSDoc "tc.lhs.unify" 65 $ text $ "Equation relevance: " ++ show eqrel
   reportSDoc "tc.lhs.unify" 65 $ text $ "Variable relevance: " ++ show varrel
   reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show rel ++ " position."

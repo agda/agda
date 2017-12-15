@@ -533,7 +533,7 @@ parsePat prs p = case p of
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> parsePat prs p
-    DotP r o e       -> return $ DotP r o e
+    DotP r e         -> return $ DotP r e
     ParenP r p       -> fullParen' <$> parsePat prs p
     WildP _          -> return p
     AbsurdP _        -> return p

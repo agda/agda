@@ -453,7 +453,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         -- If a variable pattern in the parent clause was written as a dot
         -- pattern by the user both in the parent clause and the with clause,
         -- we can strip the dot from the with clause.
-        VarP PatODot x | A.DotP _ _ u <- namedArg p
+        VarP PatODot x | A.DotP _ u <- namedArg p
                        , A.Var y <- unScope u ->
           (setNamedArg p (A.VarP y) :) <$>
             recurse (var (dbPatVarIndex x))
@@ -461,7 +461,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
         DotP o v  -> case namedArg p of
-          A.DotP r o e  -> do
+          A.DotP r e  -> do
             (a, _) <- mustBePi t
             tell [Left $ A.StrippedDot e v (unDom a)]
             okFlex p
@@ -508,7 +508,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Agda sometimes changes a record of dot patterns into a dot pattern,
           -- so the user should be allowed to do likewise.
           -- Jesper, 2017-11-16. This is now also allowed for data constructors.
-          A.DotP r o e -> do
+          A.DotP r e -> do
             tell [Left $ A.StrippedDot e (patternToTerm q') (unDom a)]
             let ps' = map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'

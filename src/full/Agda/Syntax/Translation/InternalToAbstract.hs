@@ -330,14 +330,8 @@ reifyDisplayFormP f ps wps = do
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
-        -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
-        -- so here we give __IMPOSSIBLE__. This is only used for printing purposes, the origin
-        -- should not be used anyway after this point.
-        -- Andreas, 2017-02-14: This crashes with -v 100.
-        -- termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
-        -- termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
-        termToPat (DDot v)             = unnamed . A.DotP patNoRange Inserted <$> termToExpr v
-        termToPat v                    = unnamed . A.DotP patNoRange Inserted <$> reify v
+        termToPat (DDot v)             = unnamed . A.DotP patNoRange <$> termToExpr v
+        termToPat v                    = unnamed . A.DotP patNoRange <$> reify v
 
         len = length ps
 
@@ -740,7 +734,7 @@ stripImplicits ps = do
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
             A.ProjP{}     -> p
             A.DefP _ _ _  -> p
-            A.DotP _ _ e  -> p
+            A.DotP _ e    -> p
             A.WildP _     -> p
             A.AbsurdP _   -> p
             A.LitP _      -> p
@@ -973,11 +967,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyDotP :: MonadTCM tcm => Term -> tcm A.Pattern
     reifyDotP v = do
       t <- liftTCM $ reify v
-      -- This is only used for printing purposes, so the Origin shouldn't be
-      -- used after this point anyway.
-      return $ A.DotP patNoRange UserWritten t
-      -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
-      -- Crashes on -v 100.
+      return $ A.DotP patNoRange t
 
     reifyConP :: MonadTCM tcm
               => ConHead -> ConPatternInfo -> [NamedArg DeBruijnPattern]

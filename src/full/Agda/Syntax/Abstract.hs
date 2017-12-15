@@ -399,10 +399,8 @@ data Pattern' e
     -- ^ Underscore pattern entered by user.
     --   Or generated at type checking for implicit arguments.
   | AsP PatInfo Name (Pattern' e)
-  | DotP PatInfo Origin e
-    -- ^ Dot pattern @.e@: the Origin keeps track whether this dot pattern was
-    --   written by the user or inserted by the system (e.g. while expanding
-    --   the ellipsis in a with clause).
+  | DotP PatInfo e
+    -- ^ Dot pattern @.e@
   | AbsurdP PatInfo
   | LitP Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
@@ -427,7 +425,7 @@ class MaybePostfixProjP a where
   maybePostfixProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP e => MaybePostfixProjP (Pattern' e) where
-  maybePostfixProjP (DotP _ _ e)  = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
+  maybePostfixProjP (DotP _ e)    = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
   maybePostfixProjP (ProjP _ o d) = Just (o, d)
   maybePostfixProjP _ = Nothing
 
@@ -596,7 +594,7 @@ instance HasRange (Pattern' e) where
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
     getRange (AsP i _ _)         = getRange i
-    getRange (DotP i _ _)        = getRange i
+    getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
     getRange (LitP l)            = getRange l
     getRange (PatternSynP i _ _) = getRange i
@@ -638,7 +636,7 @@ instance SetRange (Pattern' a) where
     setRange r (DefP _ ns as)       = DefP (PatRange r) ns as -- (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
-    setRange r (DotP _ o e)         = DotP (PatRange r) o e
+    setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
@@ -723,7 +721,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
   killRange (AsP i a b)         = killRange3 AsP i a b
-  killRange (DotP i o a)        = killRange3 DotP i o a
+  killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
   killRange (LitP l)            = killRange1 LitP l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
@@ -967,7 +965,7 @@ patternToExpr (DefP _ fs ps) =
   Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)         = patternToExpr p
-patternToExpr (DotP _ _ e)        = e
+patternToExpr (DotP _ e)          = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
 patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps

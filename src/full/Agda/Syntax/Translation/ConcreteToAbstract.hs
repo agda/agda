@@ -2185,7 +2185,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract p
         return $ A.AsP (PatRange r) x p
     -- we have to do dot patterns at the end
-    toAbstract p0@(C.DotP r o e)   = return $ A.DotP (PatRange r) o e
+    toAbstract p0@(C.DotP r e)     = return $ A.DotP (PatRange r) e
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
     toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
     toAbstract (C.WithP r p)       = A.WithP (PatRange r) <$> toAbstract p

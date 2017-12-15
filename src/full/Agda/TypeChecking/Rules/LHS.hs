@@ -396,7 +396,7 @@ getLeftoverPatterns = mconcat <.> mapM getLeftoverPattern
       (A.WildP _)       -> return mempty
       (A.AsP info x p)  -> (asPattern x v a `mappend`) <$> do
         getLeftoverPattern $ ProblemEq p v a
-      (A.DotP info o e) -> return $ dotPattern e v a
+      (A.DotP info e)   -> return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
 
       A.ConP{}        -> __IMPOSSIBLE__
@@ -578,7 +578,7 @@ strippedDotsToProblemEqs :: [A.StrippedDotPattern] -> [ProblemEq]
 strippedDotsToProblemEqs = map strippedDotToEq
   where
     strippedDotToEq (A.StrippedDot e u a) =
-      ProblemEq (A.DotP patNoRange UserWritten e) u (defaultDom a)
+      ProblemEq (A.DotP patNoRange e) u (defaultDom a)
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
