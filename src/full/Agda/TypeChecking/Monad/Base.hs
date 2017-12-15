@@ -2603,7 +2603,6 @@ data TypeError
         | IlltypedPattern A.Pattern Type
         | IllformedProjectionPattern A.Pattern
         | CannotEliminateWithPattern (NamedArg A.Pattern) Type
-        | TooManyArgumentsInLHS Type
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
