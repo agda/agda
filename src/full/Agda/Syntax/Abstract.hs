@@ -268,28 +268,34 @@ data TypedBinding
 
 type Telescope  = [TypedBindings]
 
-data NamedDotPattern = NamedDot Name I.Term I.Type
-  deriving (Data, Show)
-
-data StrippedDotPattern = StrippedDot Expr I.Term I.Type
-  deriving (Data, Show)
+-- | A user pattern together with an internal term that it should be equal to
+--   after splitting is complete.
+--   Special cases:
+--    * User pattern is a variable but internal term isn't:
+--      this will be turned into an as pattern.
+--    * User pattern is a dot pattern:
+--      this pattern won't trigger any splitting but will be checked
+--      for equality after all splitting is complete and as patterns have
+--      been bound.
+--    * User pattern is an absurd pattern:
+--      emptiness of the type will be checked after splitting is complete.
+data ProblemEq = ProblemEq
+  { problemInPat :: Pattern
+  , problemInst  :: I.Term
+  , problemType  :: Dom I.Type
+  } deriving (Data, Show)
 
 -- These are not relevant for caching purposes
-instance Eq NamedDotPattern    where _ == _ = True
-instance Eq StrippedDotPattern where _ == _ = True
+instance Eq ProblemEq where _ == _ = True
 
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
   { clauseLHS        :: lhs
-  , clauseNamedDots  :: [NamedDotPattern]
-      -- ^ Only in with-clauses where we inherit some already checked dot patterns from the parent.
+  , clauseStrippedPats :: [ProblemEq]
+      -- ^ Only in with-clauses where we inherit some already checked patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
-  , clauseStrippedDots :: [StrippedDotPattern]
-      -- ^ In with-clauses where a dot pattern from the parent clause is
-      --   repeated in the with-clause. In this case it's not actually part of
-      --   the clause, but it still needs to be checked (Issue 142).
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
@@ -613,7 +619,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs _ _ rhs ds catchall) = getRange (lhs, rhs, ds)
+    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
@@ -740,13 +746,10 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSWith a b c) = killRange3 LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs dots sdots rhs ds catchall) = killRange6 Clause lhs dots sdots rhs ds catchall
+  killRange (Clause lhs spats rhs ds catchall) = killRange5 Clause lhs spats rhs ds catchall
 
-instance KillRange NamedDotPattern where
-  killRange (NamedDot a b c) = killRange3 NamedDot a b c
-
-instance KillRange StrippedDotPattern where
-  killRange (StrippedDot a b c) = killRange3 StrippedDot a b c
+instance KillRange ProblemEq where
+  killRange (ProblemEq p v a) = killRange3 ProblemEq p v a
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS

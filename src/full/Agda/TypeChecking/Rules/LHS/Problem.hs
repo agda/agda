@@ -1,6 +1,12 @@
 -- {-# LANGUAGE CPP #-}
 
-module Agda.TypeChecking.Rules.LHS.Problem where
+module Agda.TypeChecking.Rules.LHS.Problem
+       ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
+       , FlexChoice(..) , ChooseFlex(..)
+       , ProblemEq(..) , Problem(..) , problemInPats
+       , AsBinding(..) , DotPattern(..) , AbsurdPattern(..)
+       , LHSState(..)
+       ) where
 
 import Prelude hiding (null)
 
@@ -17,6 +23,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad (TCM)
@@ -151,23 +158,6 @@ instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
         firstChoice (ChooseEither : xs) = firstChoice xs
         firstChoice (x            : _ ) = x
 
--- | A user pattern together with an internal term that it should be equal to
---   after splitting is complete.
---   Special cases:
---    * User pattern is a variable but internal term isn't:
---      this will be turned into an as pattern.
---    * User pattern is a dot pattern:
---      this pattern won't trigger any splitting but will be checked
---      for equality after all splitting is complete and as patterns have
---      been bound.
---    * User pattern is an absurd pattern:
---      emptiness of the type will be checked after splitting is complete.
-data ProblemEq = ProblemEq
-  { problemInPat :: A.Pattern
-  , problemInst  :: Term
-  , problemType  :: Dom Type
-  } deriving (Show)
-
 -- | The user patterns we still have to split on.
 data Problem a = Problem
   { problemEqs      :: [ProblemEq]
@@ -228,9 +218,6 @@ data LHSState a = LHSState
     --   an irrelevant projection and, hence, the rhs must
     --   be type-checked in irrelevant mode.
   }
-
-instance Subst Term ProblemEq where
-  applySubst rho (ProblemEq p v a) = uncurry (ProblemEq p) $ applySubst rho (v,a)
 
 instance Subst Term (Problem a) where
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont

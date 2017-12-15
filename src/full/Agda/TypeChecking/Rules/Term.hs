@@ -1036,7 +1036,7 @@ checkExpr e t0 =
       A.QuestionMark{}        -> True
       _                       -> False
 
-    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _ _) = notVisible a
+    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
     hiddenLHS _ = False
 
     -- Things with are definitely introductions,
@@ -1839,7 +1839,7 @@ checkHeadApplication e t hd args = do
             core   = A.LHSProj { A.lhsDestructor = unambiguous flat
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPats       = [] }
-            clause = A.Clause (A.LHS empty core) [] []
+            clause = A.Clause (A.LHS empty core) []
                               (A.RHS arg Nothing)
                               [] False
 
@@ -2241,7 +2241,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] [] $ \ (LHSResult _ delta0 ps _t _ asb) -> bindAsPatterns asb $ do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _t _ asb) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope

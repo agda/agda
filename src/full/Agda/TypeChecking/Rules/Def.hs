@@ -121,7 +121,7 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ _ (A.RHS e mc) [] _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) [] _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -353,8 +353,8 @@ useTerPragma def = return def
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)                              dots sdots rhs                       ds catchall) ->
-       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) dots sdots (insertPatterns pats rhs) ds catchall
+    \ (A.Clause (A.LHS info core)                              spats rhs                       ds catchall) ->
+       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
   A.RewriteRHS qes rhs wh -> A.RewriteRHS qes (insertPatterns pats rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
@@ -395,16 +395,16 @@ checkClause
   -> A.SpineClause -- ^ Clause.
   -> TCM Clause    -- ^ Type-checked clause.
 
-checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) namedDots strippedDots rhs0 wh catchall) = do
+checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
     reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       cxtNames <- reverse . map (fst . unDom) <$> getContext
-      when (not $ null namedDots) $ reportSDoc "tc.lhs.top" 50 $
-        text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
-      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub namedDots strippedDots $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
+      when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
+        text "strippedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
+      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -429,8 +429,8 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) namedDots strippedDots rh
             updateRHS (A.WithRHS q es cs)       = A.WithRHS q es (map updateClause cs)
             updateRHS (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (updateRHS rhs) wh
 
-            updateClause (A.Clause f dots sdots rhs wh ca) =
-              A.Clause f (applySubst patSubst dots) (applySubst patSubst sdots) (updateRHS rhs) wh ca
+            updateClause (A.Clause f spats rhs wh ca) =
+              A.Clause f (applySubst patSubst spats) (updateRHS rhs) wh ca
 
         (body, with) <- bindAsPatterns asb $ checkWhere wh $ checkRHS i x aps t' lhsResult rhs
 
@@ -593,7 +593,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
             -- Andreas, 2014-03-05 kill range of copied patterns
             -- since they really do not have a source location.
             cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                   [] [] rhs'' outerWhere False
+                   [] rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
           [ text "rewrite"
           , text "  rhs' = " <> (text . show) rhs'
