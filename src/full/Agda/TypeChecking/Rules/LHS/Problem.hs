@@ -76,15 +76,6 @@ allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
   where
     makeFlex i d = FlexibleVar (getHiding d) (getOrigin d) ImplicitFlex (Just i) i
 
--- ^ Used to determine the origin of dot patterns in internal syntax.
---   Note that this is NOT the same as the flexOrigin.
-flexVarToOrigin :: FlexibleVar a -> Origin
-flexVarToOrigin f = case flexKind f of
-  DotFlex      -> UserWritten
-  RecordFlex _ -> Inserted
-  ImplicitFlex -> Inserted
-  OtherFlex    -> Inserted
-
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
 

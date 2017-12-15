@@ -149,7 +149,7 @@ instance APatternLike a (Pattern' a) where
       VarP _             -> mempty
       ProjP _ _ _        -> mempty
       WildP _            -> mempty
-      DotP _ _ _         -> mempty
+      DotP _ _           -> mempty
       AbsurdP _          -> mempty
       LitP _             -> mempty
 
@@ -268,7 +268,7 @@ substPattern'
   -> Pattern' e
 substPattern' subE s = mapAPattern $ \ p -> case p of
   VarP x            -> fromMaybe p $ lookup x s
-  DotP i o e        -> DotP i o $ subE e
+  DotP i e          -> DotP i $ subE e
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
   RecP _ _          -> p
