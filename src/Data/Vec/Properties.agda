@@ -29,7 +29,7 @@ module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where
 
   private module SS = Setoid S
   open SS using () renaming (Carrier to A)
-  import Data.Vec.Equality as VecEq
+  import Data.Vec.Relation.Equality as VecEq
   open VecEq.Equality S
 
   replicate-lemma : ∀ {m} n x (xs : Vec A m) →

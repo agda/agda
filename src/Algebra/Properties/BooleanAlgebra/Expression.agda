@@ -21,7 +21,7 @@ open import Data.Nat
 open import Data.Product using (_,_; proj₁; proj₂)
 open import Data.Vec as Vec using (Vec)
 import Data.Vec.Properties as VecProp
-open import Data.Vec.Relation.Pointwise as PW
+open import Data.Vec.Relation.ExtensionalPointwise as PW
   using (Pointwise; module Pointwise; ext)
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≗_)

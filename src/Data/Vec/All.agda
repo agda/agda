@@ -67,25 +67,12 @@ zipWith _⊕_ {xs = []}     {[]}     []         []         = []
 zipWith _⊕_ {xs = x ∷ xs} {y ∷ ys} (px ∷ pxs) (qy ∷ qys) =
   px ⊕ qy ∷ zipWith _⊕_ pxs qys
 
-
 ------------------------------------------------------------------------
--- All₂ P xs ys means that every pointwise pair in xs ys satisfy P.
+-- All₂ is DEPRECATED. Please use Data.Vec.Relation.InductivePointwise
+-- directly.
 
-data All₂ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) :
-          ∀ {n} → Vec A n → Vec B n → Set (a ⊔ b ⊔ p) where
-    []  : All₂ P [] []
-    _∷_ : ∀ {n x y} {xs : Vec A n} {ys : Vec B n} →
-            P x y → All₂ P xs ys → All₂ P (x ∷ xs) (y ∷ ys)
-
-lookup₂ : ∀ {a b p} {A : Set a} {B : Set b} {P : A → B → Set p} {k}
-            {xs : Vec A k} {ys : Vec B k} →
-            ∀ i → All₂ P xs ys → P (Vec.lookup i xs) (Vec.lookup i ys)
-lookup₂ zero    (pxy ∷ _)    = pxy
-lookup₂ (suc i) (_   ∷ pxys) = lookup₂ i pxys
-
-map₂ : ∀ {a b p q} {A : Set a} {B : Set b}
-         {P : A → B → Set p} {Q : A → B → Set q} →
-         (∀ {x y} → P x y → Q x y) →
-         ∀ {k xs ys} → All₂ P {k} xs ys → All₂ Q {k} xs ys
-map₂ g [] = []
-map₂ g (pxy ∷ pxys) = g pxy  ∷ map₂ g pxys
+open import Data.Vec.Relation.InductivePointwise using () renaming
+  ( Pointwise to All₂
+  ; lookup    to lookup₂
+  ; map       to map₂
+  ) public

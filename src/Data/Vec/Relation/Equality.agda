@@ -4,7 +4,7 @@
 -- Semi-heterogeneous vector equality
 ------------------------------------------------------------------------
 
-module Data.Vec.Equality where
+module Data.Vec.Relation.Equality where
 
 open import Data.Vec
 open import Data.Nat.Base using (suc)
