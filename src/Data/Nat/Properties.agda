@@ -35,12 +35,6 @@ open ≡-Reasoning
 suc-injective : ∀ {m n} → suc m ≡ suc n → m ≡ n
 suc-injective refl = refl
 
-s≤s-injective : ∀ {m n} {p q : m ≤ n} → s≤s p ≡ s≤s q → p ≡ q
-s≤s-injective refl = refl
-
-≤′-step-injective : ∀ {m n} {p q : m ≤′ n} → ≤′-step p ≡ ≤′-step q → p ≡ q
-≤′-step-injective refl = refl
-
 ≡-isDecEquivalence : IsDecEquivalence (_≡_ {A = ℕ})
 ≡-isDecEquivalence = record
   { isEquivalence = isEquivalence
@@ -123,6 +117,13 @@ s≤s-injective refl = refl
   }
 
 -- Other properties of _≤_
+s≤s-injective : ∀ {m n} {p q : m ≤ n} → s≤s p ≡ s≤s q → p ≡ q
+s≤s-injective refl = refl
+
+≤-irrelevance : IrrelevantRel _≤_
+≤-irrelevance z≤n        z≤n        = refl
+≤-irrelevance (s≤s m≤n₁) (s≤s m≤n₂) = cong s≤s (≤-irrelevance m≤n₁ m≤n₂)
+
 ≤-step : ∀ {m n} → m ≤ n → m ≤ 1 + n
 ≤-step z≤n       = z≤n
 ≤-step (s≤s m≤n) = s≤s (≤-step m≤n)
@@ -189,6 +190,9 @@ x <? y = suc x ≤? y
   }
 
 -- Other properties of _<_
+<-irrelevance : IrrelevantRel _<_
+<-irrelevance = ≤-irrelevance
+
 <⇒≤pred : ∀ {m n} → m < n → m ≤ pred n
 <⇒≤pred (s≤s le) = le
 
@@ -244,6 +248,9 @@ s≤′s (≤′-step m≤′n) = ≤′-step (s≤′s m≤′n)
 ≤⇒≤′ : _≤_ ⇒ _≤′_
 ≤⇒≤′ z≤n       = z≤′n
 ≤⇒≤′ (s≤s m≤n) = s≤′s (≤⇒≤′ m≤n)
+
+≤′-step-injective : ∀ {m n} {p q : m ≤′ n} → ≤′-step p ≡ ≤′-step q → p ≡ q
+≤′-step-injective refl = refl
 
 ------------------------------------------------------------------------
 -- Properties of _≤″_

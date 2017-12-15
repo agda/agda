@@ -26,14 +26,6 @@ record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
 
 open Σ public
 
-module _ {a b} {A : Set a} {B : A → Set b} where
-
- ,-injectiveˡ : ∀ {a c} {b : B a} {d : B c} → (a , b) ≡ (c , d) → a ≡ c
- ,-injectiveˡ refl = refl
-
- ,-injectiveʳ : ∀ {a} {b c : B a} → (Σ A B ∋ (a , b)) ≡ (a , c) → b ≡ c
- ,-injectiveʳ refl = refl
-
 -- The syntax declaration below is attached to Σ-syntax, to make it
 -- easy to import Σ without the special syntax.
 

@@ -71,8 +71,8 @@ map-cong {ℓ} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x
     { to         = P.→-to-⟶ (λ x≡f₁y → P.trans x≡f₁y (        f₁≗f₂ y))
     ; from       = P.→-to-⟶ (λ x≡f₂y → P.trans x≡f₂y (P.sym $ f₁≗f₂ y))
     ; inverse-of = record
-      { left-inverse-of  = λ _ → P.proof-irrelevance _ _
-      ; right-inverse-of = λ _ → P.proof-irrelevance _ _
+      { left-inverse-of  = λ _ → P.≡-irrelevance _ _
+      ; right-inverse-of = λ _ → P.≡-irrelevance _ _
       }
     }
 

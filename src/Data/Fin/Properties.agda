@@ -160,6 +160,9 @@ fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (ℕ.less-than-or-equal refl) =
   ; total          = ≤-total
   }
 
+≤-irrelevance : ∀ {n} → P.IrrelevantRel (_≤_ {n})
+≤-irrelevance = ℕₚ.≤-irrelevance
+
 ≤-isDecTotalOrder : ∀ {n} → IsDecTotalOrder _≡_ (_≤_ {n})
 ≤-isDecTotalOrder = record
   { isTotalOrder = ≤-isTotalOrder
@@ -205,6 +208,9 @@ m <? n = suc (toℕ m) ℕ.≤? toℕ n
   ; _<_                = _<_
   ; isStrictTotalOrder = <-isStrictTotalOrder
   }
+
+<-irrelevance : ∀ {n} → P.IrrelevantRel (_<_ {n})
+<-irrelevance = ℕₚ.<-irrelevance
 
 ------------------------------------------------------------------------
 -- Injection properties

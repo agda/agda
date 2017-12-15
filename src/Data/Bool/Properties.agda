@@ -321,9 +321,9 @@ T-∨ {true}  {b₂}    = equivalence inj₁ (const _)
 T-∨ {false} {true}  = equivalence inj₂ (const _)
 T-∨ {false} {false} = equivalence inj₁ [ id , id ]
 
-proof-irrelevance : ∀ {b} (p q : T b) → p ≡ q
-proof-irrelevance {true}  _  _  = refl
-proof-irrelevance {false} () ()
+T-irrelevance : IrrelevantPred T
+T-irrelevance {true}  _  _  = refl
+T-irrelevance {false} () ()
 
 push-function-into-if :
   ∀ {a b} {A : Set a} {B : Set b} (f : A → B) x {y z} →
@@ -369,3 +369,5 @@ commutativeSemiring-∧-∨   = ∧-∨-commutativeSemiring
 isBooleanAlgebra           = ∨-∧-isBooleanAlgebra
 booleanAlgebra             = ∨-∧-booleanAlgebra
 commutativeRing-xor-∧     = xor-∧-commutativeRing
+
+proof-irrelevance = T-irrelevance

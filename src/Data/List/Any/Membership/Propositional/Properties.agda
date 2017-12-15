@@ -123,9 +123,9 @@ filter-∈ p (y ∷ xs) (there pxs) px≡true with p y
     { to         = P.→-to-⟶ (uncurry $ P.cong₂ _,_)
     ; from       = P.→-to-⟶ < P.cong proj₁ , P.cong proj₂ >
     ; inverse-of = record
-      { left-inverse-of  = λ _ → P.cong₂ _,_ (P.proof-irrelevance _ _)
-                                             (P.proof-irrelevance _ _)
-      ; right-inverse-of = λ _ → P.proof-irrelevance _ _
+      { left-inverse-of  = λ _ → P.cong₂ _,_ (P.≡-irrelevance _ _)
+                                             (P.≡-irrelevance _ _)
+      ; right-inverse-of = λ _ → P.≡-irrelevance _ _
       }
     }
 

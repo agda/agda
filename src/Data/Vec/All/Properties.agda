@@ -12,9 +12,18 @@ open import Data.Product as Prod using (_×_; _,_; uncurry; uncurry′)
 open import Data.Vec.All as All using (All; All₂; []; _∷_)
 open import Function
 open import Function.Inverse using (_↔_)
-open import Relation.Unary using () renaming (_⊆_ to _⋐_)
+open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
 open import Relation.Binary using (REL; Trans)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
+
+-- If P is an irrelevant predicate then All P is also irrelevant
+
+All-irrelevance : ∀ {a p} {A : Set a} {P : Pred A p} →
+                  P.IrrelevantPred P →
+                  ∀ {n} → P.IrrelevantPred (All P {n})
+All-irrelevance irr []           []             = P.refl
+All-irrelevance irr (px₁ ∷ pxs₁) (px₂ ∷ pxs₂) =
+  P.cong₂ _∷_ (irr px₁ px₂) (All-irrelevance irr pxs₁ pxs₂)
 
 -- Functions can be shifted between the predicate and the vector.
 

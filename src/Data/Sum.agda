@@ -24,14 +24,6 @@ data _⊎_ {a b} (A : Set a) (B : Set b) : Set (a ⊔ b) where
 {-# FOREIGN GHC type AgdaEither a b c d = Either c d #-}
 {-# COMPILE GHC _⊎_ = data MAlonzo.Code.Data.Sum.AgdaEither (Left | Right) #-}
 
-module _ {a b} {A : Set a} {B : Set b} where
-
- inj₁-injective : ∀ {x y} → (A ⊎ B ∋ inj₁ x) ≡ inj₁ y → x ≡ y
- inj₁-injective refl = refl
-
- inj₂-injective : ∀ {x y} → (A ⊎ B ∋ inj₂ x) ≡ inj₂ y → x ≡ y
- inj₂-injective refl = refl
-
 ------------------------------------------------------------------------
 -- Functions
 

@@ -26,14 +26,19 @@ open import Relation.Nullary
 open import Relation.Unary
   using (Decidable; Universal) renaming (_⊆_ to _⋐_)
 
-------------------------------------------------------------------------
--- When P is universal All P holds
+------------------------------------------------------------------------ Basic properties of All
 
 module _ {a p} {A : Set a} {P : A → Set p} where
 
+  -- When P is universal All P holds
   All-universal : Universal P → ∀ xs → All P xs
   All-universal u [] = []
   All-universal u (x ∷ xs) = u x ∷ All-universal u xs
+
+  All-irrelevance : P.IrrelevantPred P → P.IrrelevantPred (All P)
+  All-irrelevance irr []           []           = P.refl
+  All-irrelevance irr (px₁ ∷ pxs₁) (px₂ ∷ pxs₂) =
+    P.cong₂ _∷_ (irr px₁ px₂) (All-irrelevance irr pxs₁ pxs₂)
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any, All and negation.

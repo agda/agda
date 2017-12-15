@@ -11,6 +11,7 @@ open import Function.Equality using (Π; _⟶_; ≡-setoid)
 open import Data.Product
 open import Data.Unit.NonEta
 open import Level
+open import Relation.Unary using (Pred)
 open import Relation.Binary
 import Relation.Binary.Indexed as I
 open import Relation.Binary.Consequences
@@ -39,9 +40,6 @@ cong-app refl x = refl
 cong₂ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
         (f : A → B → C) {x y u v} → x ≡ y → u ≡ v → f x u ≡ f y v
 cong₂ f refl refl = refl
-
-proof-irrelevance : ∀ {a} {A : Set a} {x y : A} (p q : x ≡ y) → p ≡ q
-proof-irrelevance refl refl = refl
 
 setoid : ∀ {a} → Set a → Setoid _ _
 setoid A = record
@@ -232,3 +230,27 @@ extensionality-for-lower-levels a₂ b₂ ext f≡g =
   (∀ x → B₁ x ≡ B₂ x) → (∀ x → B₁ x) ≡ (∀ x → B₂ x)
 ∀-extensionality ext B₁ B₂ B₁≡B₂ with ext B₁≡B₂
 ∀-extensionality ext B .B  B₁≡B₂ | refl = refl
+
+------------------------------------------------------------------------
+-- Proof irrelevance
+
+isPropositional : ∀ {a} → Set a → Set a
+isPropositional A = (a b : A) → a ≡ b
+
+IrrelevantPred : ∀ {a ℓ} {A : Set a} → Pred A ℓ → Set (ℓ ⊔ a)
+IrrelevantPred P = ∀ {x} → isPropositional (P x)
+
+IrrelevantRel : ∀ {a b ℓ} {A : Set a} {B : Set b} →
+                REL A B ℓ → Set (ℓ ⊔ a ⊔ b)
+IrrelevantRel _~_ = ∀ {x y} → isPropositional (x ~ y)
+
+≡-irrelevance : ∀ {a} {A : Set a} → IrrelevantRel (_≡_ {A = A})
+≡-irrelevance refl refl = refl
+
+------------------------------------------------------------------------
+-- DEPRECATED NAMES
+------------------------------------------------------------------------
+-- Please use the new names as continuing support for the old names is
+-- not guaranteed.
+
+proof-irrelevance = ≡-irrelevance

@@ -16,6 +16,7 @@ import Data.Product.Relation.SigmaPointwise as Σ
 open import Data.Sum
 open import Function
 open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence using (equivalence)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Function.Related as Related using (Related)
 open import Function.Related.TypeIsomorphisms
@@ -188,8 +189,8 @@ map-cong {c = c} {C} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs
     { to         = P.→-to-⟶ (λ x≡f₁y → P.trans x≡f₁y (        f₁≗f₂ y))
     ; from       = P.→-to-⟶ (λ x≡f₂y → P.trans x≡f₂y (P.sym $ f₁≗f₂ y))
     ; inverse-of = record
-      { left-inverse-of  = λ _ → P.proof-irrelevance _ _
-      ; right-inverse-of = λ _ → P.proof-irrelevance _ _
+      { left-inverse-of  = λ _ → P.≡-irrelevance _ _
+      ; right-inverse-of = λ _ → P.≡-irrelevance _ _
       }
     }
 

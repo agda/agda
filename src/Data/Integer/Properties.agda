@@ -740,6 +740,11 @@ module ≤-Reasoning = POR ≤-poset renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
 n≤1+n : ∀ n → n ≤ (+ 1) + n
 n≤1+n n = ≤-step ≤-refl
 
+≤-irrelevance : IrrelevantRel _≤_
+≤-irrelevance -≤+       -≤+         = refl
+≤-irrelevance (-≤- n≤m₁) (-≤- n≤m₂) = cong -≤- (ℕₚ.≤-irrelevance n≤m₁ n≤m₂)
+≤-irrelevance (+≤+ n≤m₁) (+≤+ n≤m₂) = cong +≤+ (ℕₚ.≤-irrelevance n≤m₁ n≤m₂)
+
 ------------------------------------------------------------------------
 -- Properties _<_
 
@@ -827,3 +832,6 @@ n≮n { -[1+ suc n ]} (-≤- n<n) =  contradiction n<n ℕₚ.1+n≰n
 ≰→> { -[1+ m ]}     { -[1+ suc n ]} m≰n with m ℕ≤? n
 ... | yes m≤n  = -≤- m≤n
 ... | no  m≰n' = contradiction (-≤- (ℕₚ.≰⇒> m≰n')) m≰n
+
+<-irrelevance : IrrelevantRel _<_
+<-irrelevance = ≤-irrelevance
