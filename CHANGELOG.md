@@ -39,6 +39,9 @@ Non-backwards compatible changes
 
 * Changed the fixity of `⋃` and `⋂` in `Relation.Unary` to make space for `_⊢_`.
 
+* Moved `Data.Vec.Equality` to `Data.Vec.Relation.Equality` (see "Deprecated
+  features" section for explanation)
+
 Deprecated features
 -------------------
 
@@ -55,7 +58,8 @@ but they may be removed in some future release of the library.
   - `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise`
   - `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.StrictLex`
   - `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.NonStrictLex`
-  - `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise`
+  - `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.InductivePointwise`
+                                           ↦ `Data.Vec.Relation.ExtensionalPointwise`
 
   This move aims to increase the navigability of the library as 1) there is evidence that many
   people were not aware of the existence of the modules in their old location, 2) it keeps all
@@ -65,6 +69,8 @@ but they may be removed in some future release of the library.
   The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
   re-exports the contents of files' new location in `Data.X.Relation` but may be removed in some
   future release.
+
+* `Data.Vec.All.All₂` has been deprecated as it duplicates existing functionality in `Data.Vec.Relation.InductivePointwise`
 
 * The following renaming has occurred in `Data.Bool.Properties` to improve consistency across the library:
   ```agda
@@ -121,6 +127,10 @@ Backwards compatible changes
   Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
 
 * The contents of `Data.Covec` is now polymorphic with respect to levels
+
+* The contents of `Data.Vec.Relation.InductivePointwise` is now more polymorphic with respect to levels
+
+* The contents of `Data.Vec.Relation.ExtensionalPointwise` is now more polymorphic with respect to levels
 
 * Added new proofs to `Data.AVL`:
   ```agda
@@ -298,6 +308,38 @@ Backwards compatible changes
 * Added new proofs to `Data.Vec.All.Properties`
   ```agda
   All-irrelevance : IrrelevantPred P → ∀ {n} → IrrelevantPred (All P {n})
+  ```
+
+* Added new proofs to `Data.Vec.Relation.ExtensionalPointwise`:
+  ```agda
+  symmetric              : Symmetric _~_ → Symmetric (Pointwise _~_)
+  transitive             : Transitive _~_ → Transitive (Pointwise _~_)
+  isDecEquivalence       : IsDecEquivalence _~_ → IsDecEquivalence (Pointwise _~_)
+  extensional⇒inductive : Pointwise _~_ xs ys → IPointwise _~_ xs ys
+  inductive⇒extensional : IPointwise _~_ xs ys → Pointwise _~_ xs ys
+
+  ≡⇒Pointwise-≡       : Pointwise _≡_ xs ys → xs ≡ ys
+  Pointwise-≡⇒≡       : xs ≡ ys → Pointwise _≡_ xs ys
+  ```
+
+* Added new proofs to `Data.Vec.Relation.InductivePointwise`:
+  ```agda
+  ++⁺               : Pointwise P xs → Pointwise P ys → Pointwise P (xs ++ ys)
+  ++⁻ˡ               : Pointwise P (xs ++ ys) → Pointwise P xs
+  ++⁻ʳ               : Pointwise P (xs ++ ys) → Pointwise P ys
+  ++⁻               : Pointwise P (xs ++ ys) → Pointwise P xs × Pointwise P ys
+
+  concat⁺           : Pointwise (Pointwise P) xss → Pointwise P (concat xss)
+  concat⁻           : Pointwise P (concat xss) → Pointwise (Pointwise P) xss
+
+  lookup           : Pointwise _~_ xs ys → ∀ i → lookup i xs ~ lookup i ys
+
+  symmetric        : Symmetric _~_ → Symmetric (Pointwise _~_)
+  transitive       : Transitive _~_ → Transitive (Pointwise _~_)
+  isDecEquivalence : IsDecEquivalence _~_ → IsDecEquivalence (Pointwise _~_)
+
+  ≡⇒Pointwise-≡ : Pointwise _≡_ xs ys → xs ≡ ys
+  Pointwise-≡⇒≡ : xs ≡ ys → Pointwise _≡_ xs ys
   ```
 
 * Added new functions and proofs to `Data.W`:

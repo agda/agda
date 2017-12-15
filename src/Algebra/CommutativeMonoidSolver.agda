@@ -21,7 +21,7 @@ open import Function using (_∘_)
 import Relation.Binary.EqReasoning  as EqReasoning
 import Relation.Binary.Reflection   as Reflection
 import Relation.Nullary.Decidable   as Dec
-import Data.Vec.Relation.Pointwise as Pointwise
+import Data.Vec.Relation.InductivePointwise as Pointwise
 
 open import Relation.Binary.PropositionalEquality as P using (_≡_; decSetoid)
 open import Relation.Nullary using (Dec)

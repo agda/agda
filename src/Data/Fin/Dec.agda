@@ -10,7 +10,7 @@ open import Function
 import Data.Bool as Bool
 open import Data.Nat.Base hiding (_<_)
 open import Data.Vec hiding (_∈_)
-open import Data.Vec.Equality as VecEq
+open import Data.Vec.Relation.Equality as VecEq
   using () renaming (module PropositionalEquality to PropVecEq)
 open import Data.Fin
 open import Data.Fin.Subset
