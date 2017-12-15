@@ -388,5 +388,5 @@ punchInᵢ≢i (suc i) (suc j) = punchInᵢ≢i i j ∘ suc-injective
 -- Please use the new names as continuing support for the old names is
 -- not guaranteed.
 
---cmp              = <-cmp
---strictTotalOrder = <-strictTotalOrder
+cmp              = <-cmp
+strictTotalOrder = <-strictTotalOrder

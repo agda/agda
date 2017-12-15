@@ -69,8 +69,8 @@ but they may be removed in some future release of the library.
 
 * The following renaming has occured in `Data.Fin.Properties`:
   ```agda
-  <-cmp              ↦ <-cmp
-  <-strictTotalOrder ↦ <-strictTotalOrder
+  cmp              ↦ <-cmp
+  strictTotalOrder ↦ <-strictTotalOrder
   ```
 
 * The following renaming has occurred in `Data.Bool.Properties` to improve consistency across the library:
