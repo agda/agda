@@ -406,7 +406,6 @@ errorString err = case err of
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
-  TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
@@ -586,10 +585,6 @@ instance PrettyTCM TypeError where
          else
            pwords "with pattern" ++ prettyA p :
            pwords "(did you supply too many arguments?)"
-
-    TooManyArgumentsInLHS a -> fsep $
-      pwords "Left hand side gives too many arguments to a function of type"
-      ++ [prettyTCM a]
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++

@@ -647,7 +647,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
   let finalChecks :: LHSState a -> TCM a
       finalChecks (LHSState delta qs0 (Problem eqs0 rps _) b) = do
 
-        unless (null rps) $ typeError $ TooManyArgumentsInLHS a
+        unless (null rps) __IMPOSSIBLE__
 
         -- Update modalities of delta to match the modalities of the variables
         -- after the forcing translation. We can't perform the forcing translation
@@ -739,9 +739,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
             ret lhsResult
 
   st0 <- initLHSState (cps ++ ps) (telePi tel a) finalChecks
-  -- Andreas, 2013-03-15 deactivating the following test allows
-  -- flexible arity
-  -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
 
   -- doing the splits:
   (result, block) <- inTopContext $ runWriterT $ checkLHS f st0
