@@ -56,22 +56,15 @@ but they may be removed in some future release of the library.
   - `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.StrictLex`
   - `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.NonStrictLex`
   - `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise`
+
+  This move aims to increase the navigability of the library as 1) there is evidence that many
+  people were not aware of the existence of the modules in their old location, 2) it keeps all
+  the definitions about particular data types in the same directory and 3) provides a location
+  to reason about how operations on the data types affects the relations over them.
+
   The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
   re-exports the contents of files' new location in `Data.X.Relation` but may be removed in some
   future release.
-
-* The following proofs of irrelevance have been renamed:
-  ```agda
-  Data.Bool.Properties                  : proof-irrelevance     ↦ T-irrelevance
-  Data.Vec.Properties                   : proof-irrelevance-[]= ↦ []=-irrelevance
-  Relation.Binary.PropositionalEquality : proof-irrelevance     ↦ ≡-irrelevance
-  ```
-
-* The following renaming has occured in `Data.Fin.Properties`:
-  ```agda
-  cmp              ↦ <-cmp
-  strictTotalOrder ↦ <-strictTotalOrder
-  ```
 
 * The following renaming has occurred in `Data.Bool.Properties` to improve consistency across the library:
   ```agda
@@ -81,32 +74,55 @@ but they may be removed in some future release of the library.
   ∨-∧-distˡ   ↦ ∨-distribˡ-∧
   ∨-∧-distʳ   ↦ ∨-distribʳ-∧
   ∨-∧-distrib ↦ ∨-distrib-∧
-  ∨-∧-abs    ↦ ∨-abs-∧
-  ∧-∨-abs    ↦ ∧-abs-∨
+  ∨-∧-abs     ↦ ∨-abs-∧
+  ∧-∨-abs     ↦ ∧-abs-∨
 
   not-∧-inverseˡ ↦ ∧-inverseˡ
   not-∧-inverseʳ ↦ ∧-inverseʳ
-  not-∧-inverse ↦ ∧-inverse
+  not-∧-inverse  ↦ ∧-inverse
   not-∨-inverseˡ ↦ ∨-inverseˡ
   not-∨-inverseʳ ↦ ∨-inverseʳ
-  not-∨-inverse ↦ ∨-inverse
+  not-∨-inverse  ↦ ∨-inverse
 
   isCommutativeSemiring-∨-∧ ↦ ∨-∧-isCommutativeSemiring
   commutativeSemiring-∨-∧   ↦  ∨-∧-commutativeSemiring
   isCommutativeSemiring-∧-∨ ↦ ∧-∨-isCommutativeSemiring
   commutativeSemiring-∧-∨   ↦ ∧-∨-commutativeSemiring
-  isBooleanAlgebra           ↦ ∨-∧-isBooleanAlgebra
-  booleanAlgebra             ↦ ∨-∧-booleanAlgebra
+  isBooleanAlgebra          ↦ ∨-∧-isBooleanAlgebra
+  booleanAlgebra            ↦ ∨-∧-booleanAlgebra
   commutativeRing-xor-∧     ↦ xor-∧-commutativeRing
+
+  proof-irrelevance          ↦ T-irrelevance
   ```agda
+
+* The following renaming has occurred in `Data.Fin.Properties` to improve consistency across the library:
+  ```agda
+  cmp              ↦ <-cmp
+  strictTotalOrder ↦ <-strictTotalOrder
+  ```
+
+* The following renaming has occurred in `Data.Vec.Properties` to improve consistency across the library:
+  ```agda
+  proof-irrelevance-[]= ↦ []=-irrelevance
+  ```
+
+* The following renaming has occurred in `Relation.Binary.PropositionalEquality` to improve consistency across the library:
+  ```agda
+  proof-irrelevance     ↦ ≡-irrelevance
+  ```
 
 Backwards compatible changes
 ----------------------------
 
-### Added new injectivity proofs for most of `Data` definitions
+* Added support for GHC 8.2.2.
 
-* In `Data.AVL`
+* New modules `Data.Word`
 
+  Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
+
+* The contents of `Data.Covec` is now polymorphic with respect to levels
+
+* Added new proofs to `Data.AVL`:
   ```agda
   leaf-injective     : leaf p ≡ leaf q → p ≡ q
   node-injective-key : node k₁ lk₁ ku₁ bal₁ ≡ node k₂ lk₂ ku₂ bal₂ → k₁ ≡ k₂
@@ -115,128 +131,10 @@ Backwards compatible changes
   node-injective-bal : node k lk₁ ku₁ bal₁ ≡ node k lk₂ ku₂ bal₂ → bal₁ ≡ bal₂
   ```
 
-* In `Data.Bin`
-
+* Added new proofs to `Data.Bin`:
   ```agda
   less-injective : (b₁ < b₂ ∋ less lt₁) ≡ less lt₂ → lt₁ ≡ lt₂
   ```
-
-* In `Data.Cofin`
-
-  ```agda
-  suc-injective : (Cofin (suc m) ∋ suc p) ≡ suc q → p ≡ q
-  ```
-
-* In `Data.Colist`
-
-  ```agda
-  ∷-injectiveˡ    : (Colist A ∋ x ∷ xs) ≡ y ∷ ys → x ≡ y
-  ∷-injectiveʳ    : (Colist A ∋ x ∷ xs) ≡ y ∷ ys → xs ≡ ys
-  here-injective  : (Any P (x ∷ xs) ∋ here p) ≡ here q → p ≡ q
-  there-injective : (Any P (x ∷ xs) ∋ there p) ≡ there q → p ≡ q
-  ∷-injectiveˡ    : (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → px ≡ qx
-  ∷-injectiveʳ    : (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → pxs ≡ qxs
-  ∷-injective     : (Finite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
-  ∷-injective     : (Infinite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
-  ```
-
-* In `Data.Conat`, we additionally have a new definition: `pred`.
-
-  ```agda
-  suc-injective   : (Coℕ ∋ suc m) ≡ suc n → m ≡ n
-  pred            : Coℕ → Coℕ
-  fromℕ-injective : fromℕ m ≡ fromℕ n → m ≡ n
-  suc-injective   : (suc m ≈ suc n ∋ suc p) ≡ suc q → p ≡ q
-  ```
-
-* In `Data.Covec`
-
-  ```agda
-  ∷-injectiveˡ : (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → a ≡ b
-  ∷-injectiveʳ : (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → as ≡ bs
-  ```
-
-* In `Data.List.Properties`
-
-  ```agda
-  ∷-injectiveˡ  : x ∷ xs ≡ y List.∷ ys → x ≡ y
-  ∷-injectiveʳ  : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
-  ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
-  ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
-  ```
-
-* In `Data.Maybe.Base`
-
-  ```agda
-  just-injective : (Maybe A ∋ just a) ≡ just b → a ≡ b
-  ```
-
-* In `Data.Nat.Properties`
-
-  ```agda
-  s≤s-injective     : s≤s p ≡ s≤s q → p ≡ q
-  ≤′-step-injective : ≤′-step p ≡ ≤′-step q → p ≡ q
-  ```
-
-* In `Data.Plus`
-
-  ```agda
-  []-injective    : (x [ _∼_ ]⁺ y ∋ [ p ]) ≡ [ q ] → p ≡ q
-  ∼⁺⟨⟩-injectiveˡ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → p ≡ r
-  ∼⁺⟨⟩-injectiveʳ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → q ≡ s
-  ```
-
-* In `Data.Product.Properties`
-
-  ```agda
-  ,-injectiveˡ : (a , b) ≡ (c , d) → a ≡ c
-  ,-injectiveʳ : (Σ A B ∋ (a , b)) ≡ (a , c) → b ≡ c
-  ```
-
-* In `Data.ReflexiveClosure`
-
-  ```agda
-  []-injective : (Refl _∼_ x y ∋ [ p ]) ≡ [ q ] → p ≡ q
-
-  ```
-
-* In `Data.Star.Properties`
-
-  ```agda
-  ◅-injectiveˡ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → x ≡ y
-  ◅-injectiveʳ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → xs ≡ ys
-  ```
-
-* In `Data.Sum.Properties`
-
-  ```agda
-  inj₁-injective : (A ⊎ B ∋ inj₁ x) ≡ inj₁ y → x ≡ y
-  inj₂-injective : (A ⊎ B ∋ inj₂ x) ≡ inj₂ y → x ≡ y
-  ```
-
-* In `Data.Vec.Properties`
-
-  ```agda
-  ∷-injectiveˡ : x ∷ xs ≡ y ∷ ys → x ≡ y
-  ∷-injectiveʳ : x ∷ xs ≡ y ∷ ys → xs ≡ ys
-  ```
-
-* In `Data.W`
-
-  ```agda
-  sup-injective₁ : sup x f ≡ sup y g → x ≡ y
-  sup-injective₂ : sup x f ≡ sup x g → f ≡ g
-  ```
-
-### Other
-
-* Added support for GHC 8.2.2.
-
-* New module `Data.Word`
-
-  Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
-
-* The contents of `Data.Covec` is now polymorphic with respect to levels
 
 * Added new proofs to `Data.Bool.Properties`:
   ```agda
@@ -266,14 +164,46 @@ Backwards compatible changes
   ∨-∧-isDistributiveLattice : IsDistributiveLattice _≡_ _∨_ _∧_
   ```
 
+* Added new proofs to `Data.Cofin`:
+  ```agda
+  suc-injective : (Cofin (suc m) ∋ suc p) ≡ suc q → p ≡ q
+  ```
+
+* Added new proofs to `Data.Colist`:
+  ```agda
+  ∷-injectiveˡ    : (Colist A ∋ x ∷ xs) ≡ y ∷ ys → x ≡ y
+  ∷-injectiveʳ    : (Colist A ∋ x ∷ xs) ≡ y ∷ ys → xs ≡ ys
+  here-injective  : (Any P (x ∷ xs) ∋ here p) ≡ here q → p ≡ q
+  there-injective : (Any P (x ∷ xs) ∋ there p) ≡ there q → p ≡ q
+  ∷-injectiveˡ    : (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → px ≡ qx
+  ∷-injectiveʳ    : (All P (x ∷ xs) ∋ px ∷ pxs) ≡ qx ∷ qxs → pxs ≡ qxs
+  ∷-injective     : (Finite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
+  ∷-injective     : (Infinite (x ∷ xs) ∋ x ∷ p) ≡ x ∷ q → p ≡ q
+  ```
+
+* Added new operations and proofs to `Data.Conat`:
+  ```agda
+  pred            : Coℕ → Coℕ
+
+  suc-injective   : (Coℕ ∋ suc m) ≡ suc n → m ≡ n
+  fromℕ-injective : fromℕ m ≡ fromℕ n → m ≡ n
+  suc-injective   : (suc m ≈ suc n ∋ suc p) ≡ suc q → p ≡ q
+  ```
+
+* Added new proofs to `Data.Covec`:
+  ```agda
+  ∷-injectiveˡ : (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → a ≡ b
+  ∷-injectiveʳ : (Covec A (suc n) ∋ a ∷ as) ≡ b ∷ bs → as ≡ bs
+  ```
+
 * Added new proofs to `Data.Fin.Properties`:
   ```agda
   ≤-isDecTotalOrder : ∀ {n} → IsDecTotalOrder _≡_ (_≤_ {n})
-  ≤-irrelevance : ∀ {n} → IrrelevantRel (_≤_ {n})
+  ≤-irrelevance     : ∀ {n} → IrrelevantRel (_≤_ {n})
 
-  <-asym : ∀ {n} → Asymmetric (_<_ {n})
-  <-irrefl : ∀ {n} → Irreflexive _≡_ (_<_ {n})
-  <-irrelevance : ∀ {n} → IrrelevantRel (_<_ {n})
+  <-asym            : ∀ {n} → Asymmetric (_<_ {n})
+  <-irrefl          : ∀ {n} → Irreflexive _≡_ (_<_ {n})
+  <-irrelevance     : ∀ {n} → IrrelevantRel (_<_ {n})
   ```
 
 * Added new proofs to `Data.Integer.Properties`:
@@ -282,9 +212,22 @@ Backwards compatible changes
   <-irrelevance : IrrelevantRel _<_
   ```
 
+* Added new proofs to `Data.List.Properties`:
+  ```agda
+  ∷-injectiveˡ  : x ∷ xs ≡ y List.∷ ys → x ≡ y
+  ∷-injectiveʳ  : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
+  ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
+  ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
+  ```
+
 * Added new proofs to `Data.List.All.Properties`:
   ```agda
   All-irrelevance : IrrelevantPred P → IrrelevantPred (All P)
+  ```
+
+* Added new proofs to `Data.Maybe.Base`:
+  ```agda
+  just-injective : (Maybe A ∋ just a) ≡ just b → a ≡ b
   ```
 
 * Added new proofs to `Data.Nat.Properties`:
@@ -304,8 +247,24 @@ Backwards compatible changes
   ^-semigroup-morphism  : (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
   ^-monoid-morphism     : (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
 
-  m∸n+n≡m              : n ≤ m → (m ∸ n) + n ≡ m
-  m∸[m∸n]≡n            : n ≤ m → m ∸ (m ∸ n) ≡ n
+  m∸n+n≡m               : n ≤ m → (m ∸ n) + n ≡ m
+  m∸[m∸n]≡n             : n ≤ m → m ∸ (m ∸ n) ≡ n
+
+  s≤s-injective         : s≤s p ≡ s≤s q → p ≡ q
+  ≤′-step-injective     : ≤′-step p ≡ ≤′-step q → p ≡ q
+  ```
+
+* Added new proofs to `Data.Plus`:
+  ```agda
+  []-injective    : (x [ _∼_ ]⁺ y ∋ [ p ]) ≡ [ q ] → p ≡ q
+  ∼⁺⟨⟩-injectiveˡ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → p ≡ r
+  ∼⁺⟨⟩-injectiveʳ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → q ≡ s
+  ```
+
+* Added new proofs to `Data.Product.Properties`:
+  ```agda
+  ,-injectiveˡ : (a , b) ≡ (c , d) → a ≡ c
+  ,-injectiveʳ : (Σ A B ∋ (a , b)) ≡ (a , c) → b ≡ c
   ```
 
 * Added new proofs to `Data.Rational.Properties`:
@@ -313,16 +272,42 @@ Backwards compatible changes
   ≤-irrelevance : IrrelevantRel _≤_
   ```
 
-* Added new functions to `Data.W`:
+* Added new proofs to `Data.ReflexiveClosure`:
   ```agda
-  map       : (f : A → C) → ∀[ D ∘ f ⇒ B ] → W A B → W C D
-  induction : (∀ a {f} (hf : ∀ (b : B a) → P (f b)) → (w : W A B) → P w
-  foldr     : (∀ a → (B a → P) → P) → W A B → P
+  []-injective : (Refl _∼_ x y ∋ [ p ]) ≡ [ q ] → p ≡ q
+  ```
+
+* Added new proofs to `Data.Star.Properties`:
+  ```agda
+  ◅-injectiveˡ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → x ≡ y
+  ◅-injectiveʳ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → xs ≡ ys
+  ```
+
+* Added new proofs to `Data.Sum.Properties`:
+  ```agda
+  inj₁-injective : (A ⊎ B ∋ inj₁ x) ≡ inj₁ y → x ≡ y
+  inj₂-injective : (A ⊎ B ∋ inj₂ x) ≡ inj₂ y → x ≡ y
+  ```
+
+* Added new proofs to `Data.Vec.Properties`:
+  ```agda
+  ∷-injectiveˡ : x ∷ xs ≡ y ∷ ys → x ≡ y
+  ∷-injectiveʳ : x ∷ xs ≡ y ∷ ys → xs ≡ ys
   ```
 
 * Added new proofs to `Data.Vec.All.Properties`
   ```agda
   All-irrelevance : IrrelevantPred P → ∀ {n} → IrrelevantPred (All P {n})
+  ```
+
+* Added new functions and proofs to `Data.W`:
+  ```agda
+  map       : (f : A → C) → ∀[ D ∘ f ⇒ B ] → W A B → W C D
+  induction : (∀ a {f} (hf : ∀ (b : B a) → P (f b)) → (w : W A B) → P w
+  foldr     : (∀ a → (B a → P) → P) → W A B → P
+
+  sup-injective₁ : sup x f ≡ sup y g → x ≡ y
+  sup-injective₂ : sup x f ≡ sup x g → f ≡ g
   ```
 
 * Added new properties to `Relation.Binary.PropositionalEquality`
