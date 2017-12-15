@@ -66,6 +66,33 @@ but they may be removed in some future release of the library.
   <-strictTotalOrder ↦ <-strictTotalOrder
   ```
 
+* The following renaming has occurred in `Data.Bool.Properties` to improve consistency across the library:
+  ```agda
+  ∧-∨-distˡ   ↦ ∧-distribˡ-∨
+  ∧-∨-distʳ   ↦ ∧-distribʳ-∨
+  distrib-∧-∨ ↦ ∧-distrib-∨
+  ∨-∧-distˡ   ↦ ∨-distribˡ-∧
+  ∨-∧-distʳ   ↦ ∨-distribʳ-∧
+  ∨-∧-distrib ↦ ∨-distrib-∧
+  ∨-∧-abs    ↦ ∨-abs-∧
+  ∧-∨-abs    ↦ ∧-abs-∨
+
+  not-∧-inverseˡ ↦ ∧-inverseˡ
+  not-∧-inverseʳ ↦ ∧-inverseʳ
+  not-∧-inverse ↦ ∧-inverse
+  not-∨-inverseˡ ↦ ∨-inverseˡ
+  not-∨-inverseʳ ↦ ∨-inverseʳ
+  not-∨-inverse ↦ ∨-inverse
+
+  isCommutativeSemiring-∨-∧ ↦ ∨-∧-isCommutativeSemiring
+  commutativeSemiring-∨-∧   ↦  ∨-∧-commutativeSemiring
+  isCommutativeSemiring-∧-∨ ↦ ∧-∨-isCommutativeSemiring
+  commutativeSemiring-∧-∨   ↦ ∧-∨-commutativeSemiring
+  isBooleanAlgebra           ↦ ∨-∧-isBooleanAlgebra
+  booleanAlgebra             ↦ ∨-∧-booleanAlgebra
+  commutativeRing-xor-∧     ↦ xor-∧-commutativeRing
+  ```agda
+
 Backwards compatible changes
 ----------------------------
 
@@ -204,7 +231,35 @@ Backwards compatible changes
 
 * The contents of `Data.Covec` is now polymorphic with respect to levels
 
-* Added new proofs to `Data.Fin.Properties`
+* Added new proofs to `Data.Bool.Properties`:
+  ```agda
+  ∨-identityˡ           : LeftIdentity false _∨_
+  ∨-identityʳ           : RightIdentity false _∨_
+  ∨-identity            : Identity false _∨_
+  ∨-zeroˡ               : LeftZero true _∨_
+  ∨-zeroʳ               : RightZero true _∨_
+  ∨-zero                : Zero true _∨_
+  ∨-idem                : Idempotent _∨_
+  ∨-sel                 : Selective _∨_
+  ∨-isSemigroup         : IsSemigroup _≡_ _∨_
+  ∨-isCommutativeMonoid : IsCommutativeMonoid _≡_ _∨_ false
+
+  ∧-identityˡ           : LeftIdentity true _∧_
+  ∧-identityʳ           : RightIdentity true _∧_
+  ∧-identity            : Identity true _∧_
+  ∧-zeroˡ               : LeftZero false _∧_
+  ∧-zeroʳ               : RightZero false _∧_
+  ∧-zero                : Zero false _∧_
+  ∧-idem                : Idempotent _∧_
+  ∧-sel                 : Selective _∧_
+  ∧-isSemigroup         : IsSemigroup _≡_ _∧_
+  ∧-isCommutativeMonoid : IsCommutativeMonoid _≡_ _∧_ true
+
+  ∨-∧-isLattice             : IsLattice _≡_ _∨_ _∧_
+  ∨-∧-isDistributiveLattice : IsDistributiveLattice _≡_ _∨_ _∧_
+  ```
+
+* Added new proofs to `Data.Fin.Properties`:
   ```agda
   ≤-isDecTotalOrder : ∀ {n} → IsDecTotalOrder _≡_ (_≤_ {n})
 

@@ -9,7 +9,7 @@ module Data.Fin.Subset where
 open import Algebra
 import Algebra.Properties.BooleanAlgebra as BoolAlgProp
 import Algebra.Properties.BooleanAlgebra.Expression as BAExpr
-import Data.Bool.Properties as BoolProp
+open import Data.Bool.Properties using (∨-∧-booleanAlgebra)
 open import Data.Fin
 open import Data.List.Base using (List; foldr; foldl)
 open import Data.Nat
@@ -60,7 +60,7 @@ p₁ ⊈ p₂ = ¬ (p₁ ⊆ p₂)
 booleanAlgebra : ℕ → BooleanAlgebra _ _
 booleanAlgebra n =
   BoolAlgProp.replace-equality
-    (BAExpr.lift BoolProp.booleanAlgebra n)
+    (BAExpr.lift ∨-∧-booleanAlgebra n)
     Pointwise.Pointwise-≡
 
 private
