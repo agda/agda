@@ -317,6 +317,15 @@ Backwards compatible changes
   IrrelevantRel _~_ = ∀ {x y} → isPropositional (x ~ y)
   ```
 
+* Added new proofs to `Relation.Binary.StrictToNonStrict`:
+  ```agda
+  isPreorder₁     : IsPreorder _≈_ _<_ → IsPreorder _≈_ _≤_
+  isPreorder₂     : IsStrictPartialOrder _≈_ _<_ → IsPreorder _≈_ _≤_
+  isPartialOrder  : IsStrictPartialOrder _≈_ _<_ → IsPartialOrder _≈_ _≤_
+  isTotalOrder    : IsStrictTotalOrder _≈_ _<_ → IsTotalOrder _≈_ _≤_
+  isDecTotalOrder : IsStrictTotalOrder _≈_ _<_ → IsDecTotalOrder _≈_ _≤_
+  ```
+
 * Added new combinators to `Relation.Unary`:
   ```agda
   ∀[_] : Pred A ℓ → Set _
