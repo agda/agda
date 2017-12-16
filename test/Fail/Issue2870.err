@@ -1,0 +1,6 @@
+Issue2870.agda:5,3-3
+Issue2870.agda:5,3: Lexical error (unprintable character):
+beforeHyphen<ERROR>
+­afterHyphen : Set
+
+-- Expecte...
