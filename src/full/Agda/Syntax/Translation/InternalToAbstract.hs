@@ -105,10 +105,25 @@ nelims e (I.Apply arg : es) = do
   let hd | notVisible arg && dontShowImp = e
          | otherwise                     = A.App defaultAppInfo_ e arg
   nelims hd es
-nelims e (I.Proj o@ProjPrefix d  : es) =
-  nelims (A.App defaultAppInfo_ (A.Proj o $ unambiguous d) $ defaultNamedArg e) es
-nelims e (I.Proj o d  : es) =
+nelims e (I.Proj ProjPrefix d : es)             = nelimsProjPrefix e d es
+nelims e (I.Proj o          d : es) | isSelf e  = nelimsProjPrefix e d es
+                                    | otherwise =
   nelims (A.App defaultAppInfo_ e (defaultNamedArg $ A.Proj o $ unambiguous d)) es
+
+nelimsProjPrefix :: Expr -> QName -> [I.Elim' (Named_ Expr)] -> TCM Expr
+nelimsProjPrefix e d es =
+  nelims (A.App defaultAppInfo_ (A.Proj ProjPrefix $ unambiguous d) $ defaultNamedArg e) es
+
+-- | If we are inside a record definition, the record value (self)
+--   is a variable with name "".
+--   In this case, we need to use a prefix-projection.  (Issue #2868.)
+--   Prefix projections magically print correctly since the thing
+--   we are projecting from has a null name, so vanishes in the visible world.
+--   We love hacks, don't we?  Sigh.
+isSelf :: Expr -> Bool
+isSelf = \case
+  A.Var x -> null $ prettyShow x
+  _ -> False
 
 -- | Drops hidden arguments unless --show-implicit.
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
