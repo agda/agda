@@ -227,7 +227,23 @@ makeCase hole rng s = withInteractionId hole $ do
     scs <- if newPats then return [sc] else postProjInExtLam $ do
       res <- splitResult f sc
       case res of
-        Nothing  -> typeError $ GenericError $ "Cannot split on result here"
+
+        Nothing  -> do
+          -- Andreas, 2017-12-16, issue #2871
+          -- If there is nothing to split, introduce trailing hidden arguments.
+
+          -- Get trailing hidden pattern variables
+          let trailingPatVars :: [NamedArg DBPatVar]
+              trailingPatVars = takeWhileJust isVarP $ reverse ps
+              isVarP (Arg ai (Named n (VarP x))) = Just $ Arg ai $ Named n x
+              isVarP _ = Nothing
+          -- If all are already coming from the user, there is really nothing todo!
+          when (all ((UserWritten ==) . getOrigin) trailingPatVars) $ do
+            typeError $ GenericError $ "Cannot split on result here"
+          -- Otherwise, we make these user-written
+          let xs = map (dbPatVarIndex . namedArg) trailingPatVars
+          return [makePatternVarsVisible xs sc]
+
         Just cov -> ifNotM (optCopatterns <$> pragmaOptions) failNoCop $ {-else-} do
           -- Andreas, 2016-05-03: do not introduce function arguments after projection.
           -- This is sometimes annoying and can anyway be done by another C-c C-c.

@@ -295,6 +295,24 @@ Emacs mode
    \((   #x2985  LEFT WHITE PARENTHESIS
    \))   #x2986  RIGHT WHITE PARENTHESIS
 
+* Result splitting will introduce the trailing hidden arguments,
+  if there is nothing else todo
+  [Issue [#2871](https://github.com/agda/agda/issues/2871)].
+  Example:
+  ```agda
+    data Fun (A : Set) : Set where
+      mkFun : (A → A) → Fun A
+
+    test : {A : Set} → Fun A
+    test = ?
+
+  ```
+  Splitting on the result here (`C-c C-c RET`) will append
+  `{A}` to the left hand side.
+  ```agda
+    test {A} = ?
+  ```
+
 Compiler backends
 -----------------
 
