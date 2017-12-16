@@ -256,13 +256,21 @@ refine force ii mr e = do
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
-          rescopeExpr scope $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
+          return $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
 
--- | Turn an abstract expression into concrete syntax and then back into
---   abstract. This ensures that context precedences are set correctly for
---   abstract expressions built by hand. Used by refine above.
-rescopeExpr :: ScopeInfo -> Expr -> TCM Expr
-rescopeExpr scope = withScope_ scope . (concreteToAbstract_ <=< runAbsToCon . preserveInteractionIds . toConcrete)
+-- Andreas, 2017-12-16:
+-- Ulf, your attempt to fix #737 introduced regression #2873.
+-- Going through concrete syntax does some arbitrary disambiguation
+-- of constructors, which subsequently makes refine fail.
+-- I am not convinced of the printing-parsing shortcut to address problems.
+-- (Unless you prove the roundtrip property.)
+--
+--           rescopeExpr scope $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
+-- -- | Turn an abstract expression into concrete syntax and then back into
+-- --   abstract. This ensures that context precedences are set correctly for
+-- --   abstract expressions built by hand. Used by refine above.
+-- rescopeExpr :: ScopeInfo -> Expr -> TCM Expr
+-- rescopeExpr scope = withScope_ scope . (concreteToAbstract_ <=< runAbsToCon . preserveInteractionIds . toConcrete)
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr
