@@ -82,7 +82,7 @@ postToken (TokId (r, s))
   | set == "Set" && all isSub n = TokSetN (r, readSubscript n)
   where
     (set, n)      = splitAt 3 s
-    isSub c       = c `elem` ['\x2080'..'\x2089']
+    isSub c       = '\x2080' <= c && c <= '\x2089'
     readSubscript = read . map (\c -> toEnum (fromEnum c - 0x2080 + fromEnum '0'))
 postToken t = t
 
