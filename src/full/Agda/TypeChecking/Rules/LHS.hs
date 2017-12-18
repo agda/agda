@@ -625,10 +625,11 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
   -- context telescope.
-  cxt <- reverse <$> getContext
+  cxt <- map (setOrigin Inserted) . reverse <$> getContext
   let tel = telFromList' prettyShow cxt
-      cps = [ unnamed . A.VarP . fst <$> setOrigin Inserted (argFromDom d)
+      cps = [ unnamed . A.VarP . fst <$> argFromDom d
             | d <- cxt ]
+      eqs0 = zipWith3 ProblemEq (map namedArg cps) (map var $ downFrom $ size tel) (flattenTel tel)
 
   -- We need to grab all let-bindings here (while we still have the old
   -- context). They will be rebound below once we have the new context set up.
@@ -738,7 +739,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
             -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
             ret lhsResult
 
-  st0 <- initLHSState (cps ++ ps) (telePi tel a) finalChecks
+  st0 <- initLHSState tel eqs0 ps a finalChecks
 
   -- doing the splits:
   (result, block) <- inTopContext $ runWriterT $ checkLHS f st0
