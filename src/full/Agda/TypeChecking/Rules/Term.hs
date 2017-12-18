@@ -2236,7 +2236,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"
       , nest 2 $ vcat
-        [ text "p (A) =" <+> text (show p) -- prettyTCM p
+        [ text "p (A) =" <+> prettyA p
         , text "t     =" <+> prettyTCM t
         ]
       ]
@@ -2247,8 +2247,8 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- Also strip the context variables from the telescope
           delta = telFromList $ drop fvs $ telToList delta0
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-        [ text "p (I) =" <+> text (show p)
-        , text "delta =" <+> text (show delta)
+        [ text "p (I) =" <+> prettyTCM p
+        , text "delta =" <+> prettyTCM delta
         ]
       -- We translate it into a list of projections.
       fs <- recordPatternToProjections p
@@ -2276,7 +2276,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
                            $ locally eLetBindings (fmap subLetBind) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
-          , text "binds =" <+> text (show binds) -- prettyTCM binds
+          , text "binds =" <+> prettyTCM binds
           ]
 {- WE CANNOT USE THIS BINDING
        -- We add a first let-binding for the value of e.
@@ -2285,7 +2285,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
  -}
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-          [ text "fdelta =" <+> text (show fdelta)
+          [ text "fdelta =" <+> addContext delta (prettyTCM fdelta)
           ]
         let tsl  = applySubst sub fdelta
         -- We get a list of types

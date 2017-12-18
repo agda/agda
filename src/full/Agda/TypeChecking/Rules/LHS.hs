@@ -381,7 +381,9 @@ instance Monoid LeftoverPatterns where
 --   variables, as patterns, dot patterns, and absurd patterns.
 --   Precondition: there are no more constructor patterns.
 getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
-getLeftoverPatterns = mconcat <.> mapM getLeftoverPattern
+getLeftoverPatterns eqs = do
+  reportSDoc "tc.lhs.top" 30 $ text "classifying leftover patterns"
+  mconcat <$> mapM getLeftoverPattern eqs
   where
     patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] []
     asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] []
@@ -510,7 +512,9 @@ transferOrigins ps qs = do
 --   to the same internal variable (or term) in all positions.
 --   Returns the list of patterns with the duplicate user patterns removed.
 checkPatternLinearity :: [ProblemEq] -> TCM [ProblemEq]
-checkPatternLinearity eqs = check Map.empty eqs
+checkPatternLinearity eqs = do
+  reportSDoc "tc.lhs.top" 30 $ text "Checking linearity of pattern variables"
+  check Map.empty eqs
   where
     check _ [] = return []
     check vars (eq@(ProblemEq p u a) : eqs) = case p of
@@ -1111,6 +1115,8 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
   check (ProjP{})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP con _ ps) = do
+    reportSDoc "tc.lhs.top" 40 $
+      text "checking whether" <+> prettyTCM con <+> text "is a coinductive constructor"
     TelV _ t <- telView' . defType <$> do getConstInfo $ conName con
     c <- isCoinductive t
     case c of
