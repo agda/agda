@@ -173,6 +173,6 @@ instance EmbPrj Precedence where
     valu _         = malformed
 
 instance EmbPrj ScopeInfo where
-  icod_ (ScopeInfo a b c d e f g) = icodeN' (\ a b c d -> ScopeInfo a b c d e f g) a b c d
+  icod_ (ScopeInfo a b c d e f g h) = icodeN' (\ a b c d e -> ScopeInfo a b c d e f g h) a b c d e
 
-  value = valueN (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty)
+  value = valueN (\ a b c d e -> ScopeInfo a b c d e Map.empty Map.empty Set.empty)

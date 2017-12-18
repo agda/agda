@@ -62,6 +62,15 @@ isDatatypeModule :: A.ModuleName -> ScopeM (Maybe DataOrRecord)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m . scopeModules <$> getScope
 
+
+-- Debugging
+
+printLocals :: Int -> String -> ScopeM ()
+printLocals v s = verboseS "scope.top" v $ do
+  locals <- getLocalVars
+  reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
+
+
 -- * General operations
 
 getCurrentModule :: ScopeM A.ModuleName
@@ -167,15 +176,20 @@ setLocalVars vars = modifyLocalVars $ const vars
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
--- | Run a computation without any local vars, then add the old
---   local vars back in the end.
-shadowLocalVars :: ScopeM a -> ScopeM a
-shadowLocalVars f = do
-  oldVars <- getLocalVars
-  setLocalVars []
-  result <- f
-  modifyLocalVars (++oldVars)
-  return result
+getVarsToBind :: ScopeM LocalVars
+getVarsToBind = scopeVarsToBind <$> getScope
+
+addVarToBind :: C.Name -> LocalVar -> ScopeM ()
+addVarToBind x y = modifyScope_ $ updateVarsToBind $ AssocList.insert x y
+
+-- | After collecting some variable names in the scopeVarsToBind,
+--   bind them all simultaneously.
+bindVarsToBind :: ScopeM ()
+bindVarsToBind = do
+  vars <- getVarsToBind
+  modifyLocalVars (vars++)
+  printLocals 10 "bound variables:"
+  modifyScope_ $ setVarsToBind []
 
 -- * Names
 

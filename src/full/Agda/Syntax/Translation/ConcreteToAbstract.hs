@@ -80,6 +80,8 @@ import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 
+import Agda.Utils.AssocList (AssocList)
+import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
@@ -116,13 +118,6 @@ nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
 
 notAValidLetBinding :: NiceDeclaration -> ScopeM a
 notAValidLetBinding d = typeError $ NotAValidLetBinding d
-
--- Debugging
-
-printLocals :: Int -> String -> ScopeM ()
-printLocals v s = verboseS "scope.top" v $ do
-  locals <- getLocalVars
-  reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
 {--------------------------------------------------------------------------
     Helpers
@@ -537,8 +532,7 @@ instance ToAbstract PatName APatName where
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
     case (rx, x) of
-      -- TODO: warn about shadowing
-      (VarName y _,     C.QName x)                          -> noBindPatVar y
+      (VarName y _,     C.QName x)                          -> bindPatVar x
       (FieldName d,     C.QName x)                          -> bindPatVar x
       (DefinedName _ d, C.QName x) | DefName == anameKind d -> bindPatVar x
       (UnknownName,     C.QName x)                          -> bindPatVar x
@@ -548,11 +542,10 @@ instance ToAbstract PatName APatName where
     where
       bindPatVar x = do
         reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
-        p <- VarPatName <$> toAbstract (NewName False x)
-        printLocals 10 "bound it:"
-        return p
-      noBindPatVar y = do
-        reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow y ++ " (already bound)"
+        y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
+          Just (LocalVar y _ _) -> return $ setRange (getRange x) y
+          Nothing -> freshAbstractName_ x
+        addVarToBind x $ LocalVar y False []
         return $ VarPatName y
       patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
@@ -1265,9 +1258,10 @@ instance ToAbstract LetDef [A.LetBinding] where
         case mp of
           Right p -> do
             rhs <- toAbstract rhs
-            p   <- shadowLocalVars $ toAbstract p
+            p   <- toAbstract p
             checkPatternLinearity p $ \ys ->
               typeError $ RepeatedVariablesInPattern ys
+            bindVarsToBind
             p   <- toAbstract p
             return [ A.LetPatBind (LetRange r) p rhs ]
           -- It's not a record pattern, so it should be a prefix left-hand side
@@ -1334,6 +1328,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 C.LHSWith{} -> genericError $ "with-patterns not allowed in let bindings"
 
             e <- localToAbstract args $ \args -> do
+                bindVarsToBind
                 -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
                 rhs <- unbindVariable top $ toAbstract rhs
                 foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
@@ -1629,6 +1624,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity p $ \ys ->
            typeError $ RepeatedVariablesInPattern ys
+         bindVarsToBind
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
@@ -2048,7 +2044,8 @@ instance ToAbstract LeftHandSide A.LHS where
           when (hasCopatterns lhscore) $
             typeError $ NeedOptionCopatterns
         -- scope check patterns except for dot patterns
-        lhscore <- shadowLocalVars $ toAbstract lhscore
+        lhscore <- toAbstract lhscore
+        bindVarsToBind
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
         printLocals 10 "checked pattern:"
         -- scope check dot patterns

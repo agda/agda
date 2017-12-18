@@ -103,6 +103,7 @@ updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
 data ScopeInfo = ScopeInfo
       { scopeCurrent       :: A.ModuleName
       , scopeModules       :: Map A.ModuleName Scope
+      , scopeVarsToBind    :: LocalVars
       , scopeLocals        :: LocalVars
       , scopePrecedence    :: PrecedenceStack
       , scopeInverseName   :: Map A.QName [C.QName]
@@ -112,8 +113,8 @@ data ScopeInfo = ScopeInfo
   deriving (Data, Show)
 
 instance Eq ScopeInfo where
-  ScopeInfo c1 m1 l1 p1 _ _ _ == ScopeInfo c2 m2 l2 p2 _ _ _ =
-    c1 == c2 && m1 == m2 && l1 == l2 && p1 == p2
+  ScopeInfo c1 m1 v1 l1 p1 _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ =
+    c1 == c2 && m1 == m2 && v1 == v2 && l1 == l2 && p1 == p2
 
 -- | Local variables.
 type LocalVars = AssocList C.Name LocalVar
@@ -156,6 +157,13 @@ notShadowedLocal _ = Nothing
 -- | Get all locals that are not shadowed __by imports__.
 notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
 notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
+
+-- | Lens for 'scopeVarsToBind'.
+updateVarsToBind :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
+updateVarsToBind f sc = sc { scopeVarsToBind = f (scopeVarsToBind sc) }
+
+setVarsToBind :: LocalVars -> ScopeInfo -> ScopeInfo
+setVarsToBind vars = updateVarsToBind (const vars)
 
 -- | Lens for 'scopeLocals'.
 updateScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
@@ -388,6 +396,7 @@ emptyScopeInfo :: ScopeInfo
 emptyScopeInfo = ScopeInfo
   { scopeCurrent       = noModuleName
   , scopeModules       = Map.singleton noModuleName emptyScope
+  , scopeVarsToBind    = []
   , scopeLocals        = []
   , scopePrecedence    = []
   , scopeInverseName   = Map.empty
@@ -1008,10 +1017,11 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods locals ctx _ _ _) = vcat $
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _) = vcat $
     [ text "ScopeInfo"
     , text "  current = " <> pretty this
     ] ++
+    (if null toBind then [] else [ text "  toBind  = " <> pretty locals ]) ++
     (if null locals then [] else [ text "  locals  = " <> pretty locals ]) ++
     [ text "  context = " <> pretty ctx
     , text "  modules"
