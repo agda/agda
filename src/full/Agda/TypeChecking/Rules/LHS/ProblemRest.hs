@@ -81,14 +81,17 @@ noProblemRest (Problem _ rp _) = null rp
 --      lhsTarget     = "Case m Bool (Maybe A -> Bool)"
 --   @
 initLHSState
-  :: [NamedArg A.Pattern]  -- ^ The user patterns.
-  -> Type                  -- ^ The type the user patterns eliminate.
+  :: Telescope             -- ^ The initial telescope @delta@ of parameters.
+  -> [ProblemEq]           -- ^ The problem equations inherited from the parent clause (living in @delta@).
+  -> [NamedArg A.Pattern]  -- ^ The user patterns.
+  -> Type                  -- ^ The type the user patterns eliminate (living in @delta@).
   -> (LHSState a -> TCM a) -- ^ Continuation for when checking the patterns is complete.
   -> TCM (LHSState a)      -- ^ The initial LHS state constructed from the user patterns.
-initLHSState ps a ret = do
-  let problem = Problem [] ps ret
+initLHSState delta eqs ps a ret = do
+  let problem = Problem eqs ps ret
+      qs0     = teleNamedArgs delta
 
-  updateProblemRest $ LHSState EmptyTel [] problem (defaultArg a)
+  updateProblemRest $ LHSState delta qs0 problem (defaultArg a)
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
