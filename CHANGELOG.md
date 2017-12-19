@@ -132,6 +132,8 @@ Backwards compatible changes
 
 * The contents of `Data.Vec.Relation.ExtensionalPointwise` is now more polymorphic with respect to levels
 
+* Added new proof to `asymmetric : Asymmetric _<_` to the `IsStrictPartialOrder` record.
+
 * Added new proofs to `Data.AVL`:
   ```agda
   leaf-injective     : leaf p ≡ leaf q → p ≡ q

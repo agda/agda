@@ -207,6 +207,10 @@ record IsStrictPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
 
   module Eq = IsEquivalence isEquivalence
 
+  asymmetric : Asymmetric _<_
+  asymmetric {x} {y} =
+    trans∧irr⟶asym Eq.refl trans irrefl {x = x} {y = y}
+
 record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _<_
   field
@@ -216,10 +220,6 @@ record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) 
     isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
 
   open IsStrictPartialOrder isStrictPartialOrder public
-
-  asymmetric : Asymmetric _<_
-  asymmetric {x} {y} =
-    trans∧irr⟶asym Eq.refl trans irrefl {x = x} {y = y}
 
 ------------------------------------------------------------------------
 -- Decidable strict partial orders
