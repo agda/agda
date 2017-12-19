@@ -69,6 +69,14 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.2.2
+          sources:
+            - hvr-ghc
+
     - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
       addons:
         apt:
@@ -250,9 +258,9 @@ install:
 # `enable-cluster-counting` off.
 
 # Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
-# and the `debug` flag [Issue #2070]
+# and the `debug` flag [Issue #2070].
 
-# N.B. that this test is not include in the Makefile tests.
+# N.B. that these tests are not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
