@@ -250,9 +250,9 @@ install:
 # `enable-cluster-counting` off.
 
 # Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
-# and the `debug` flag [Issue #2070]
+# and the `debug` flag [Issue #2070].
 
-# N.B. that this test is not include in the Makefile tests.
+# N.B. that these tests are not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
