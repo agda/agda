@@ -14,4 +14,4 @@
 
 module Relation.Binary.List.StrictLex where
 
-open import Data.List.Relation.StrictLex
+open import Data.List.Relation.StrictLex public
