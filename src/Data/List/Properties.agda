@@ -24,7 +24,8 @@ open import Algebra.FunctionProperties
 import Relation.Binary.EqReasoning as EqR
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; _≗_; refl)
-open import Relation.Nullary using (yes; no)
+open import Relation.Nullary using (¬_; yes; no)
+open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Relation.Unary using (Decidable)
 
@@ -284,50 +285,54 @@ span-defn p (x ∷ xs) with p x
 ... | false = refl
 
 ------------------------------------------------------------------------
--- Filtering
+-- mapMaybe
 
-partition-defn : ∀ {a} {A : Set a} (p : A → Bool) →
-                 partition p ≗ < filter p , filter (not ∘ p) >
-partition-defn p []       = refl
-partition-defn p (x ∷ xs) with p x
-...  | true  = P.cong (Prod.map (x ∷_) id) (partition-defn p xs)
-...  | false = P.cong (Prod.map id (x ∷_)) (partition-defn p xs)
+mapMaybe-just : ∀ {a} {A : Set a} (xs : List A) → mapMaybe just xs ≡ xs
+mapMaybe-just []       = refl
+mapMaybe-just (x ∷ xs) = P.cong (x ∷_) (mapMaybe-just xs)
 
-gfilter-just : ∀ {a} {A : Set a} (xs : List A) → gfilter just xs ≡ xs
-gfilter-just []       = refl
-gfilter-just (x ∷ xs) = P.cong (x ∷_) (gfilter-just xs)
+mapMaybe-nothing : ∀ {a} {A : Set a} (xs : List A) →
+                  mapMaybe {B = A} (λ _ → nothing) xs ≡ []
+mapMaybe-nothing []       = refl
+mapMaybe-nothing (x ∷ xs) = mapMaybe-nothing xs
 
-gfilter-nothing : ∀ {a} {A : Set a} (xs : List A) →
-                  gfilter {B = A} (λ _ → nothing) xs ≡ []
-gfilter-nothing []       = refl
-gfilter-nothing (x ∷ xs) = gfilter-nothing xs
+mapMaybe-concatMap : ∀ {a b} {A : Set a} {B : Set b} (f : A → Maybe B) →
+                    mapMaybe f ≗ concatMap (fromMaybe ∘ f)
+mapMaybe-concatMap f [] = refl
+mapMaybe-concatMap f (x ∷ xs) with f x
+... | just y  = P.cong (y ∷_) (mapMaybe-concatMap f xs)
+... | nothing = mapMaybe-concatMap f xs
 
-gfilter-concatMap : ∀ {a b} {A : Set a} {B : Set b} (f : A → Maybe B) →
-                    gfilter f ≗ concatMap (fromMaybe ∘ f)
-gfilter-concatMap f [] = refl
-gfilter-concatMap f (x ∷ xs) with f x
-... | just y  = P.cong (y ∷_) (gfilter-concatMap f xs)
-... | nothing = gfilter-concatMap f xs
+length-mapMaybe : ∀ {a b} {A : Set a} {B : Set b} (p : A → Maybe B) xs →
+                 length (mapMaybe p xs) ≤ length xs
+length-mapMaybe p []       = z≤n
+length-mapMaybe p (x ∷ xs) with p x
+... | just y  = s≤s (length-mapMaybe p xs)
+... | nothing = ≤-step (length-mapMaybe p xs)
 
-length-gfilter : ∀ {a b} {A : Set a} {B : Set b} (p : A → Maybe B) xs →
-                 length (gfilter p xs) ≤ length xs
-length-gfilter p []       = z≤n
-length-gfilter p (x ∷ xs) with p x
-... | just y  = s≤s (length-gfilter p xs)
-... | nothing = ≤-step (length-gfilter p xs)
+------------------------------------------------------------------------
+-- filter
 
-filter-filters : ∀ {a p} {A : Set a} →
-                 (P : A → Set p) (dec : Decidable P) (xs : List A) →
-                 All P (filter (⌊_⌋ ∘ dec) xs)
-filter-filters P dec []       = []
-filter-filters P dec (x ∷ xs) with dec x
-... | yes px = px ∷ filter-filters P dec xs
-... | no ¬px = filter-filters P dec xs
+filter-all : ∀ {a p} {A : Set a} {P : A → Set p} (P? : Decidable P)
+                {xs} → All P xs → filter P? xs ≡ xs
+filter-all P? {[]}     [] = refl
+filter-all P? {x ∷ xs} (px ∷ pxs) with P? x
+... | no  ¬px = contradiction px ¬px
+... | yes _   = P.cong (x ∷_) (filter-all P? pxs)
 
-length-filter : ∀ {a} {A : Set a} (p : A → Bool) xs →
-                length (filter p xs) ≤ length xs
-length-filter p xs =
-  length-gfilter (λ x → if p x then just x else nothing) xs
+filter-none : ∀ {a p} {A : Set a} {P : A → Set p} (P? : Decidable P)
+                 {xs} → All (¬_ ∘ P) xs → filter P? xs ≡ []
+filter-none P? {[]} [] = refl
+filter-none P? {x ∷ xs} (¬px ∷ ¬pxs) with P? x
+... | no  _  = filter-none P? ¬pxs
+... | yes px = contradiction px ¬px
+
+length-filter : ∀ {a p} {A : Set a} {P : A → Set p} (P? : Decidable P)
+                 xs → length (filter P? xs) ≤ length xs
+length-filter P? [] = z≤n
+length-filter P? (x ∷ xs) with P? x
+... | no  _ = ≤-step (length-filter P? xs)
+... | yes _ = s≤s (length-filter P? xs)
 
 ------------------------------------------------------------------------
 -- Inits, tails, and scanr
@@ -605,3 +610,34 @@ module Applicative where
     (pam fs (λ f → f x))             ≡⟨ P.sym $ Monad.left-identity (λ f → f x) (pam fs) ⟩
     (return (λ f → f x) >>= pam fs)  ≡⟨ refl ⟩
     return (λ f → f x) ⊛ fs          ∎
+
+------------------------------------------------------------------------
+-- DEPRECATED
+------------------------------------------------------------------------
+-- Please use `filter` and `partition` instead of `boolFilter` and
+-- `boolPartition`
+
+boolFilter-filters : ∀ {a p} {A : Set a} →
+                 (P : A → Set p) (dec : Decidable P) (xs : List A) →
+                 All P (boolFilter (⌊_⌋ ∘ dec) xs)
+boolFilter-filters P dec []       = []
+boolFilter-filters P dec (x ∷ xs) with dec x
+... | yes px = px ∷ boolFilter-filters P dec xs
+... | no ¬px = boolFilter-filters P dec xs
+
+length-boolFilter : ∀ {a} {A : Set a} (p : A → Bool) xs →
+                length (boolFilter p xs) ≤ length xs
+length-boolFilter p xs =
+  length-mapMaybe (λ x → if p x then just x else nothing) xs
+
+boolPartition-defn : ∀ {a} {A : Set a} (p : A → Bool) →
+                 boolPartition p ≗ < boolFilter p , boolFilter (not ∘ p) >
+boolPartition-defn p []       = refl
+boolPartition-defn p (x ∷ xs) with p x
+...  | true  = P.cong (Prod.map (x ∷_) id) (boolPartition-defn p xs)
+...  | false = P.cong (Prod.map id (x ∷_)) (boolPartition-defn p xs)
+
+gfilter-just      = mapMaybe-just
+gfilter-nothing   = mapMaybe-nothing
+gfilter-concatMap = mapMaybe-concatMap
+length-gfilter    = length-mapMaybe

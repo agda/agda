@@ -191,7 +191,7 @@ flatten-split p (x ∷ xs)
 
 wordsBy : ∀ {a} {A : Set a} → (A → Bool) → List A → List (List⁺ A)
 wordsBy p =
-  List.gfilter Sum.[ const nothing , just ∘′ map proj₁ ] ∘ split p
+  List.mapMaybe Sum.[ const nothing , just ∘′ map proj₁ ] ∘ split p
 
 ------------------------------------------------------------------------
 -- Examples

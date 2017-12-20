@@ -238,7 +238,7 @@ private
   nats = List.downFrom testLimit
 
   nats⁺ : List ℕ
-  nats⁺ = filter (λ n → ⌊ 1 Nat.≤? n ⌋) nats
+  nats⁺ = filter (1 Nat.≤?_) nats
 
   natPairs : List (ℕ × ℕ)
   natPairs = List.zip nats (reverse nats)

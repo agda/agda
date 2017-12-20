@@ -31,11 +31,11 @@ open import Data.Nat.Properties
 open import Data.Product as Prod
 import Data.Product.Relation.SigmaPointwise as Σ
 open import Data.Sum as Sum
-open import Relation.Binary
+open import Relation.Binary hiding (Decidable)
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; _≗_)
 import Relation.Binary.Properties.DecTotalOrder as DTOProperties
-open import Relation.Unary using (_⟨×⟩_)
+open import Relation.Unary using (_⟨×⟩_; Decidable)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 
@@ -79,13 +79,15 @@ concat-∈↔ {a} {x = x} {xss} =
 ------------------------------------------------------------------------
 -- filter
 
-filter-∈ : ∀ {a} {A : Set a} (p : A → Bool) (xs : List A) {x} →
-           x ∈ xs → p x ≡ true → x ∈ filter p xs
-filter-∈ p []       ()          _
-filter-∈ p (x ∷ xs) (here refl) px≡true rewrite px≡true = here refl
-filter-∈ p (y ∷ xs) (there pxs) px≡true with p y
-... | true  = there (filter-∈ p xs pxs px≡true)
-... | false =        filter-∈ p xs pxs px≡true
+filter-∈ : ∀ {a p} {A : Set a} {P : A → Set p} (P? : Decidable P) →
+           ∀ {x xs} → x ∈ xs → P x → x ∈ filter P? xs
+filter-∈ P? {xs = []}      ()          _
+filter-∈ P? {xs = x ∷ xs} (here refl) Px with P? x
+... | yes _  = here refl
+... | no ¬Px = contradiction Px ¬Px
+filter-∈ P? {xs = y ∷ xs} (there x∈xs) Px with P? y
+... | yes _ = there (filter-∈ P? x∈xs Px)
+... | no  _ = filter-∈ P? x∈xs Px
 
 ------------------------------------------------------------------------
 -- Other monad functions
@@ -209,12 +211,12 @@ map-with-∈-mono {f = f} {g = g} xs⊆ys f≈g {x} =
 
 -- Other properties.
 
-filter-⊆ : ∀ {a} {A : Set a} (p : A → Bool) →
-           (xs : List A) → filter p xs ⊆ xs
+filter-⊆ : ∀ {a p} {A : Set a} {P : A → Set p} (P? : Decidable P) →
+             ∀ xs → filter P? xs ⊆ xs
 filter-⊆ _ []       = λ ()
-filter-⊆ p (x ∷ xs) with p x | filter-⊆ p xs
-... | false | hyp = there ∘ hyp
-... | true  | hyp =
+filter-⊆ P? (x ∷ xs) with P? x | filter-⊆ P? xs
+... | no  _ | hyp = there ∘ hyp
+... | yes _ | hyp =
   λ { (here  eq)      → here eq
     ; (there ∈filter) → there (hyp ∈filter)
     }
@@ -284,3 +286,26 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
       { to        = →-to-⟶ {B = P.setoid A} f
       ; injective = injective′
       }
+
+------------------------------------------------------------------------
+-- DEPRECATED
+------------------------------------------------------------------------
+-- Please use `filter` instead of `boolFilter`
+
+boolFilter-∈ : ∀ {a} {A : Set a} (p : A → Bool) (xs : List A) {x} →
+           x ∈ xs → p x ≡ true → x ∈ boolFilter p xs
+boolFilter-∈ p []       ()          _
+boolFilter-∈ p (x ∷ xs) (here refl) px≡true rewrite px≡true = here refl
+boolFilter-∈ p (y ∷ xs) (there pxs) px≡true with p y
+... | true  = there (boolFilter-∈ p xs pxs px≡true)
+... | false =        boolFilter-∈ p xs pxs px≡true
+
+boolFilter-⊆ : ∀ {a} {A : Set a} (p : A → Bool) →
+           (xs : List A) → boolFilter p xs ⊆ xs
+boolFilter-⊆ _ []       = λ ()
+boolFilter-⊆ p (x ∷ xs) with p x | boolFilter-⊆ p xs
+... | false | hyp = there ∘ hyp
+... | true  | hyp =
+  λ { (here  eq)      → here eq
+    ; (there ∈boolFilter) → there (hyp ∈boolFilter)
+    }

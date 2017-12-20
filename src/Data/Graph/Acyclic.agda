@@ -218,7 +218,7 @@ private
 preds : ∀ {E N n} → Graph N E n → (i : Fin n) → List (Fin′ i × E)
 preds g       zero    = []
 preds (c & g) (suc i) =
-  List._++_ (List.gfilter (p i) $ successors c)
+  List._++_ (List.mapMaybe (p i) $ successors c)
             (List.map (Prod.map suc id) $ preds g i)
   where
   p : ∀ {E : Set} {n} (i : Fin n) → E × Fin n → Maybe (Fin′ (suc i) × E)
