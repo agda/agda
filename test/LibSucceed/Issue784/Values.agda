@@ -4,7 +4,7 @@ open import Data.Bool using (Bool; true; false; not)
 open import Data.String public using (String; _≟_)
 
 open import Function public
-open import Data.List using (List; []; _∷_; _++_; [_]; filter) renaming (map to mapL)
+open import Data.List using (List; []; _∷_; _++_; [_]; boolFilter) renaming (map to mapL)
 open import Data.List.Any public using (Any; here; there) renaming (map to mapA; any to anyA)
 open import Data.Product public using (Σ; Σ-syntax; proj₁; proj₂; _,_; _×_) renaming (map to mapΣ)
 open import Data.Unit public using (⊤)
@@ -99,18 +99,18 @@ _∪_ = _++_
 infixl 6 _∩_
 
 _∩_ : Names → Names → Names
-x ∩ y = filter (_∋!_ y) x
+x ∩ y = boolFilter (_∋!_ y) x
 
 infixl 6 _∖_ _∖∖_
 
 _∖_ : Names → Names → Names
-_∖_ x y = filter (not ∘ _∋!_ y) x
+_∖_ x y = boolFilter (not ∘ _∋!_ y) x
 
 _∖∖_ : ∀ {ℓ} {A : Set ℓ} → List (Named A) → Names → List (Named A)
-_∖∖_ l n = filter (not ∘ _∋!_ n ∘ proj₁) l
+_∖∖_ l n = boolFilter (not ∘ _∋!_ n ∘ proj₁) l
 
 filter-∈ : ∀ {ℓ} {A : Set ℓ} → List (Named A) → Names → List (Named A)
-filter-∈ l n = filter (_∋!_ n ∘ proj₁) l
+filter-∈ l n = boolFilter (_∋!_ n ∘ proj₁) l
 
 infixr 5 _∷_
 
