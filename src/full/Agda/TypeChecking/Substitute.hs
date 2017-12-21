@@ -19,7 +19,13 @@ module Agda.TypeChecking.Substitute
   ) where
 
 import Data.Function
+
+#if MIN_VERSION_base(4,11,0)
+import Data.Functor hiding ((<&>))
+#else
 import Data.Functor
+#endif
+
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe

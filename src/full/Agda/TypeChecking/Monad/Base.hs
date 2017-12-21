@@ -23,9 +23,10 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
+import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
+import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Data (Data, toConstr)
 import Data.Foldable (Foldable)
 import Data.Traversable

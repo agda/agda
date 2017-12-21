@@ -62,7 +62,12 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   )
   where
 
-import Prelude hiding (lookup, unzip, null)
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ( (<>), lookup, null, unzip )
+#else
+import Prelude hiding ( lookup, null, unzip )
+#endif
+
 
 import Control.Applicative hiding (empty)
 import Control.Monad

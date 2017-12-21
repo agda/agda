@@ -6,6 +6,10 @@
 
 module Agda.Compiler.MAlonzo.Pretty where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Data.Generics.Geniplate
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Text.PrettyPrint (empty)

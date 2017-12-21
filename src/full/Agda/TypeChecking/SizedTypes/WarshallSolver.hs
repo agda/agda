@@ -3,7 +3,11 @@
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
-import Prelude hiding (null, truncate)
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ( (<>), null, truncate )
+#else
+import Prelude hiding ( null, truncate )
+#endif
 
 import Control.Applicative hiding (Const, empty)
 import Control.Monad

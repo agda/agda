@@ -9,7 +9,8 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
 import Data.Maybe
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
+import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Traversable
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors

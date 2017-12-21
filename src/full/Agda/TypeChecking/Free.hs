@@ -39,7 +39,8 @@ import Prelude hiding (null)
 import Control.Monad.Reader
 
 import Data.Maybe
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat, Any(..), All(..))
+import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 import Data.IntMap (IntMap)

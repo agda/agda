@@ -18,7 +18,8 @@ import Control.Monad.State
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
-import Data.Semigroup (Semigroup(..), Monoid(..))
+import Data.Monoid ( Monoid(..) )
+import Data.Semigroup ( Semigroup(..) )
 
 import Agda.Interaction.Options
 

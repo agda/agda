@@ -8,6 +8,10 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
