@@ -31,6 +31,10 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Control.Exception (catch)
 import Data.Int
 

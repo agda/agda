@@ -7,7 +7,8 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Data.Foldable ( Foldable )
 import Data.Maybe ( fromMaybe )
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
+import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+import Data.Semigroup ( Semigroup, (<>) )
 import Data.Traversable
 
 import Agda.Syntax.Common

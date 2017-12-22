@@ -16,8 +16,15 @@ import Control.Monad.Identity
 import Control.Applicative (Applicative, liftA2)
 
 import Data.Foldable (Foldable, foldMap)
-import Data.Traversable (Traversable, traverse)
+
+#if MIN_VERSION_base(4,11,0)
+import Data.Functor hiding ((<&>))
+#else
 import Data.Functor
+#endif
+
+import Data.Traversable (Traversable, traverse)
+
 import Data.Maybe
 import Data.Monoid
 

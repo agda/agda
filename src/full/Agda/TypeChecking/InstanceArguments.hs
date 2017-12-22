@@ -3,6 +3,10 @@
 
 module Agda.TypeChecking.InstanceArguments where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State

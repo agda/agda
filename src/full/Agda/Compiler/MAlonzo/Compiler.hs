@@ -2,6 +2,10 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 

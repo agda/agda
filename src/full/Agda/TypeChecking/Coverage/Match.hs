@@ -6,7 +6,8 @@ import Control.Monad.State
 
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, isJust)
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat, Any(..))
+import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Abstract (IsProjP(..))

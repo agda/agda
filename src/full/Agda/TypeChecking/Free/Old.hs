@@ -40,7 +40,8 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.Foldable (foldMap)
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
+import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+import Data.Semigroup ( Semigroup, (<>) )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

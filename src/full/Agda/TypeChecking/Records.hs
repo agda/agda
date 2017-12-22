@@ -3,6 +3,10 @@
 
 module Agda.TypeChecking.Records where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Control.Monad
 
 import Data.Function

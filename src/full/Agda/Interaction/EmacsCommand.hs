@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | Code for instructing Emacs to do things
@@ -13,6 +14,10 @@ module Agda.Interaction.EmacsCommand
   , clearWarning
   , displayRunningInfo
   ) where
+
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
 
 import qualified Data.List as List
 

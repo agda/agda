@@ -22,7 +22,8 @@ import Data.Foldable ( Foldable, foldMap )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Sum(..))
+import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Semigroup ( Semigroup, (<>), Sum(..) )
 
 import Data.Traversable
 import Data.Data (Data)

@@ -33,7 +33,8 @@ import Control.Monad.Reader
 
 import Data.Foldable (foldMap)
 import Data.IntMap (IntMap)
-import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
+import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 
 import Agda.Syntax.Common
