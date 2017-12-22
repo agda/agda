@@ -20,12 +20,7 @@ module Agda.Compiler.Backend
 import Control.Monad.State
 
 import qualified Data.List as List
-
-#if MIN_VERSION_base(4,11,0)
-import Data.Functor hiding ((<&>))
-#else
 import Data.Functor
-#endif
 
 import Data.Map (Map)
 import qualified Data.Map as Map
