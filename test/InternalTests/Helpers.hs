@@ -36,7 +36,8 @@ module InternalTests.Helpers
 
 import Control.Monad
 import Data.Functor
-import Data.Semigroup ( (<>), mappend, mempty, Monoid, Semigroup )
+import Data.Monoid ( mappend, mempty, Monoid )
+import Data.Semigroup ( (<>), Semigroup )
 import Test.QuickCheck
 
 import Agda.Utils.PartialOrd
