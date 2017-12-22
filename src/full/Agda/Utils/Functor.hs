@@ -4,7 +4,11 @@
 
 module Agda.Utils.Functor
   ( module Agda.Utils.Functor
-  , (<$>), ($>), -- from Data.Functor
+  , (<$>)  -- from Data.Functor
+  , ($>)   -- from Data.Functor
+#if MIN_VERSION_base(4,11,0)
+  , (<&>)  -- from Data.Functor
+#endif
   )
   where
 
@@ -26,11 +30,13 @@ infixr 9 <.>
 for :: Functor m => m a -> (a -> b) -> m b
 for = flip fmap
 
-infix 4 <&>
+#if !MIN_VERSION_base(4,11,0)
+infixl 1 <&>
 
 -- | Infix version of 'for'.
 (<&>) :: Functor m => m a -> (a -> b) -> m b
 (<&>) = for
+#endif
 
 -- | A decoration is a functor that is traversable into any functor.
 --
