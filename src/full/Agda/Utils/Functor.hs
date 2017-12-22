@@ -26,11 +26,11 @@ infixr 9 <.>
 for :: Functor m => m a -> (a -> b) -> m b
 for = flip fmap
 
--- infix 4 <&>
+infix 4 <&>
 
--- -- | Infix version of 'for'.
--- (<&>) :: Functor m => m a -> (a -> b) -> m b
--- (<&>) = for
+-- | Infix version of 'for'.
+(<&>) :: Functor m => m a -> (a -> b) -> m b
+(<&>) = for
 
 -- | A decoration is a functor that is traversable into any functor.
 --
