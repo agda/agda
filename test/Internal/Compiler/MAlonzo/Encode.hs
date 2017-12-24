@@ -76,5 +76,5 @@ return [] -- KEEP!
 
 tests :: IO Bool
 tests = do
-  putStrLn "Internal.Interaction.Highlighting.Precise"
+  putStrLn "Internal.Compiler.MAlonzo.Encode"
   $quickCheckAll

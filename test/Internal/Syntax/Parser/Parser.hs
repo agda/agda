@@ -29,5 +29,5 @@ return [] -- KEEP!
 
 tests :: IO Bool
 tests = do
-  putStrLn "Internal.Interaction.Highlighting.Precise"
+  putStrLn "Internal.Syntax.Parser.Parser"
   $quickCheckAll
