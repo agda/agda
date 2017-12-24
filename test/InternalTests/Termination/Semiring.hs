@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Termination.Semiring
   ( semiringInvariant
@@ -42,11 +43,16 @@ prop_boolSemiring :: Bool -> Bool -> Bool -> Bool
 prop_boolSemiring = semiringInvariant boolSemiring
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'quickCheckAll'.
 
 tests :: IO Bool
-tests = runTests "InternalTests.Termination.Semiring"
-  [ quickCheck' prop_integerSemiring
-  , quickCheck' prop_intSemiring
-  , quickCheck' prop_boolSemiring
-  ]
+tests = do
+  putStrLn "InternalTests.Termination.Semiring"
+  $quickCheckAll

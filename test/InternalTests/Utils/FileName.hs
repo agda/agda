@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.FileName ( tests ) where
 
@@ -26,8 +27,8 @@ instance CoArbitrary AbsolutePath where
 -- | The paths have to be absolute, valid and normalised, without
 -- trailing path separators.
 
-absolutePathInvariant :: AbsolutePath -> Bool
-absolutePathInvariant x =
+prop_absolutePathInvariant :: AbsolutePath -> Bool
+prop_absolutePathInvariant x =
   isAbsolute f &&
   isValid f &&
   f == normalise f &&
@@ -37,14 +38,19 @@ absolutePathInvariant x =
 prop_mkAbsolute :: FilePath -> Property
 prop_mkAbsolute f =
   let path = rootPath ++ f
-  in  isValid path ==> absolutePathInvariant $ mkAbsolute $ path
-
+  in  isValid path ==> prop_absolutePathInvariant $ mkAbsolute $ path
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'quickCheckAll'.
 
 tests :: IO Bool
-tests = runTests "InternalTests.Utils.FileName"
-  [ quickCheck' absolutePathInvariant
-  , quickCheck' prop_mkAbsolute
-  ]
+tests = do
+  putStrLn "InternalTests.Utils.FileName"
+  $quickCheckAll

@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Interaction.Highlighting.Precise ( tests ) where
 
@@ -13,6 +14,28 @@ import InternalTests.Helpers
 import InternalTests.Interaction.Highlighting.Range ()
 import InternalTests.Syntax.Common ()
 import InternalTests.Syntax.Concrete.Name ()
+
+------------------------------------------------------------------------
+-- 'compressedFileInvariant'
+
+prop_compressedFileInvariant1 :: CompressedFile -> Bool
+prop_compressedFileInvariant1 = compressedFileInvariant
+
+prop_compressedFileInvariant2 :: CompressedFile -> Bool
+prop_compressedFileInvariant2 = all compressedFileInvariant . shrink
+
+prop_compressedFileInvariant3 :: Ranges -> Aspects -> Bool
+prop_compressedFileInvariant3 r m = compressedFileInvariant $ singletonC r m
+
+prop_compressedFileInvariant4 :: [Ranges] -> Aspects -> Bool
+prop_compressedFileInvariant4 rs m = compressedFileInvariant $ severalC rs m
+
+prop_compressedFileInvariant5 :: CompressedFile -> CompressedFile -> Bool
+prop_compressedFileInvariant5 f1 f2 = compressedFileInvariant $ mergeC f1 f2
+
+prop_compressedFileInvariant6 :: Int -> CompressedFile -> Bool
+prop_compressedFileInvariant6 i f =
+  all compressedFileInvariant $ (\(f1, f2) -> [f1, f2]) $ splitAtC i f
 
 ------------------------------------------------------------------------
 -- Compressed files
@@ -188,27 +211,16 @@ instance Arbitrary CompressedFile where
   shrink (CompressedFile f) = CompressedFile <$> shrink f
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
 
--- | All the properties.
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'quickCheckAll'.
 
 tests :: IO Bool
-tests = runTests "InternalTests.Interaction.Highlighting.Precise"
-  [ quickCheck' compressedFileInvariant
-  , quickCheck' (all compressedFileInvariant . shrink)
-  , quickCheck' (\r m -> compressedFileInvariant $ singletonC r m)
-  , quickCheck' (\rs m -> compressedFileInvariant $ severalC rs m)
-  , quickCheck' (\f1 f2 -> compressedFileInvariant $ mergeC f1 f2)
-  , quickCheck' (\i f -> all compressedFileInvariant $
-                         (\(f1, f2) -> [f1, f2]) $
-                         splitAtC i f)
-  , quickCheck' prop_compress
-  , quickCheck' prop_singleton
-  , quickCheck' prop_several
-  , quickCheck' prop_merge
-  , quickCheck' prop_splitAtC
-  , quickCheck' prop_smallestPos
-  , quickCheck' prop_monoid_Aspects
-  , quickCheck' prop_monoid_File
-  , quickCheck' prop_monoid_CompressedFile
-  ]
+tests = do
+  putStrLn "InternalTests.Interaction.Highlighting.Precise"
+  $quickCheckAll

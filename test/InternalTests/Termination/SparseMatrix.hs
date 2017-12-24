@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Termination.SparseMatrix
   ( matrix
@@ -255,8 +256,8 @@ interAssocWith' f l l' = [ (i, f a b) | (i,a) <- l, (j,b) <- l', i == j ]
 
 -- | Efficient implementation of 'interAssocWith' matches its specification.
 
-prop_interAssocWith_correct :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_interAssocWith_correct xs ys =
+no_tested_prop_interAssocWith_correct :: [(Int,Int)] -> [(Int,Int)] -> Bool
+no_tested_prop_interAssocWith_correct xs ys =
   interAssocWith (*) l l' == interAssocWith' (*) l l'
   where
     l  = List.sortBy (compare `on` fst) xs
@@ -265,8 +266,8 @@ prop_interAssocWith_correct xs ys =
 interAssocWith2 :: Ord i => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
 interAssocWith2 f = zipAssocWith (const []) (const []) (const Nothing) (const Nothing) (\ a -> Just . f a)
 
-prop_interAssocWith_correct2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_interAssocWith_correct2 xs ys =
+no_tested_prop_interAssocWith_correct2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
+no_tested_prop_interAssocWith_correct2 xs ys =
   interAssocWith (*) xs ys == interAssocWith2 (*) xs ys
   where
     l  = List.sortBy (compare `on` fst) xs
@@ -288,25 +289,16 @@ prop_mul sz =
   where mult = mul Semiring.intSemiring
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'quickCheckAll'.
 
 tests :: IO Bool
-tests = runTests "InternalTests.Termination.SparseMatrix"
-  [ quickCheck' prop_transpose
-  , quickCheck' prop_Arbitrary_Size
-  , quickCheck' prop_Arbitrary_Matrix
-  , quickCheck' prop_Arbitrary_MIx
-  , quickCheck' prop_fromIndexList
-  , quickCheck' prop_matrix
-  , quickCheck' prop_size
-  , quickCheck' prop_toSparseRows
-  , quickCheck' prop_fromLists_toLists
-  , quickCheck' prop_isSingleton
-  , quickCheck' prop_zipMatrices_correct
-  , quickCheck' prop_add
-  , quickCheck' prop_add_correct
-  , quickCheck' prop_mul
-  , quickCheck' prop_diagonal
-  , quickCheck' prop_addColumn
-  , quickCheck' prop_addRow
-  ]
+tests = do
+  putStrLn "InternalTests.Termination.SparseMatrix"
+  $quickCheckAll
