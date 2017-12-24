@@ -1,3 +1,4 @@
+{- ASR (2017-12-24), not used.
 
 module InternalTests.Interaction.Highlighting.Emacs ( tests ) where
 
@@ -8,7 +9,4 @@ import InternalTests.Helpers
 
 -- TODO: One could check that the show functions are invertible.
 
--- | All the properties.
-
-tests :: IO Bool
-tests = runTests "InternalTests.Interaction.Highlighting.Emacs" []
+-}

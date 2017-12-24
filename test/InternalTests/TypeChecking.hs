@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP             #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.TypeChecking ( tests ) where
 
@@ -69,30 +70,35 @@ prop_splitTelescopePermScope conf =
   in  forAllShrink (genC conf') (shrinkC conf') $ \t ->
       isWellScoped conf2 (applySubst (renamingR $ invertP __IMPOSSIBLE__ perm) (t :: Term))
 
-{-
--- | The permutation generated when splitting a telescope correctly translates
---   between the old and the new telescope.
-prop_splitTelescopePermInv :: TermConfiguration -> Property
-prop_splitTelescopePermInv conf =
-      forAll (wellScopedTel conf)               $ \tel ->
-      forAll (listOfElements [0..size tel - 1]) $ \vs ->
-  let SplitTel tel1 tel2 perm = splitTelescope (Set.fromList vs) tel
-      tel' = telFromList (telToList tel1 ++ telToList tel2)
-      conf1 = extendWithTelConf tel  conf
-      conf2 = extendWithTelConf tel' conf
-  in  forAll (wellScopedTerm conf1) $ \t1 ->
-      forAll (wellScopedTerm conf2) $ \t2 ->
-  let t1' = rename (invertP __IMPOSSIBLE__ perm) $ rename perm t1
-      t2' = rename perm $ rename (invertP __IMPOSSIBLE__ perm) t2
-  in  t1 == t1' && t2 == t2'
--}
+
+-- -- | The permutation generated when splitting a telescope correctly translates
+-- --   between the old and the new telescope.
+-- prop_splitTelescopePermInv :: TermConfiguration -> Property
+-- prop_splitTelescopePermInv conf =
+--       forAll (wellScopedTel conf)               $ \tel ->
+--       forAll (listOfElements [0..size tel - 1]) $ \vs ->
+--   let SplitTel tel1 tel2 perm = splitTelescope (Set.fromList vs) tel
+--       tel' = telFromList (telToList tel1 ++ telToList tel2)
+--       conf1 = extendWithTelConf tel  conf
+--       conf2 = extendWithTelConf tel' conf
+--   in  forAll (wellScopedTerm conf1) $ \t1 ->
+--       forAll (wellScopedTerm conf2) $ \t2 ->
+--   let t1' = rename (invertP __IMPOSSIBLE__ perm) $ rename perm t1
+--       t2' = rename perm $ rename (invertP __IMPOSSIBLE__ perm) t2
+--   in  t1 == t1' && t2 == t2'
+
+
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'quickCheckAll'.
 
 tests :: IO Bool
-tests = runTests "InternalTests.TypeChecking"
-  [ quickCheck' prop_telToListInv
-  , quickCheck' prop_flattenTelScope
-  , quickCheck' prop_flattenTelInv
-  , quickCheck' prop_reorderTelStable
-  , quickCheck' prop_splitTelescopeScope
-  , quickCheck' prop_splitTelescopePermScope
-  ]
+tests = do
+  putStrLn "InternalTests.TypeChecking"
+  $quickCheckAll

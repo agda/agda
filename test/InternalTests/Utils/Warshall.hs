@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module InternalTests.Utils.Warshall ( tests ) where
 
@@ -45,8 +46,8 @@ edges g = do
   return (i, j, e)
 
 -- | Check that no edges get longer when completing a graph.
-prop_smaller :: Nat -> Property
-prop_smaller n' =
+no_tested_prop_smaller :: Nat -> Property
+no_tested_prop_smaller n' =
   forAll (genGraph_ n) $ \g ->
   let g' = warshallG g in
   and [ lookupEdge i j g' =< e
@@ -80,8 +81,8 @@ genPath n i j g = do
     addPath i ((j, v):es) g = newEdge i j v $ addPath j es g
 
 -- | Check that all transitive edges are added.
-prop_path :: Nat -> Property
-prop_path n' =
+no_tested_prop_path :: Nat -> Property
+no_tested_prop_path n' =
   forAll (genGraph_ n) $ \g ->
   forAll (two $ choose (0, n - 1)) $ \(i, j) ->
   forAll (genPath n i j g) $ \g' ->
@@ -95,8 +96,8 @@ mapNodes f = Map.map f' . Map.mapKeys f
     f' es = [ (f n, e) | (n,e) <- es ]
 
 -- | Check that no edges are added between components.
-prop_disjoint :: Nat -> Property
-prop_disjoint n' =
+no_tested_prop_disjoint :: Nat -> Property
+no_tested_prop_disjoint n' =
   forAll (two $ genGraph_ n) $ \(g1, g2) ->
   let g  = Map.union (mapNodes Left g1) (mapNodes Right g2)
       g' = warshallG g
@@ -108,8 +109,8 @@ prop_disjoint n' =
     isLeft = either (const True) (const False)
     isRight = not . isLeft
 
-prop_stable :: Nat -> Property
-prop_stable n' =
+no_tested_prop_stable :: Nat -> Property
+no_tested_prop_stable n' =
   forAll (genGraph_ n) $ \g ->
   let g' = warshallG g in
   g' =~= warshallG g'
@@ -117,5 +118,18 @@ prop_stable n' =
     n = abs (div n' 2)
     g =~= g' = sort (edges g) == sort (edges g')
 
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'quickCheckAll'.
+
 tests :: IO Bool
-tests = runTests "InternalTests.Utils.Warshall" []
+tests = do
+  putStrLn "InternalTests.Utils.Warshall"
+  $quickCheckAll
+

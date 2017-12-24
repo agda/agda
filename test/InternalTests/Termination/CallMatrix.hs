@@ -43,9 +43,7 @@ instance CoArbitrary cinfo => CoArbitrary (CallMatrixAug cinfo) where
 ------------------------------------------------------------------------
 
 tests :: IO Bool
-tests = runTests "InternalTests.Termination.CallMatrix"
-  [
-  ]
+tests = runTests "InternalTests.Termination.CallMatrix" []
   where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!
 
 
