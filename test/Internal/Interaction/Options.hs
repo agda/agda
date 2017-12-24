@@ -1,0 +1,31 @@
+
+module Internal.Interaction.Options ( tests ) where
+
+import Agda.Interaction.Options
+
+import Data.List
+
+import Internal.Helpers
+
+prop_defaultOptions :: IO Bool
+prop_defaultOptions =
+  either (const False) (const True) <$> runOptM (checkOpts defaultOptions)
+
+-- | The default pragma options should be considered safe.
+
+defaultPragmaOptionsSafe :: IO Bool
+defaultPragmaOptionsSafe
+    | null unsafe = return True
+    | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
+                                        ++ intercalate ", " unsafe
+                       return False
+  where unsafe = unsafePragmaOptions defaultPragmaOptions
+
+------------------------------------------------------------------------
+-- All tests
+
+tests :: IO Bool
+tests = runTests "Internal.Interaction.Options"
+  [ prop_defaultOptions
+  , defaultPragmaOptionsSafe
+  ]
