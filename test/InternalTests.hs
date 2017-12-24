@@ -11,8 +11,6 @@ import InternalTests.Helpers
 import Agda.Utils.Monad ( ifM )
 
 import InternalTests.Compiler.MAlonzo.Encode                  as CompEnco     ( tests )
-import InternalTests.Interaction.Highlighting.Emacs           as InteEmac     ( tests )
-import InternalTests.Interaction.Highlighting.Generate        as InteGene     ( tests )
 import InternalTests.Interaction.Highlighting.Precise         as IntePrec     ( tests )
 import InternalTests.Interaction.Highlighting.Range           as InteRang     ( tests )
 import InternalTests.Interaction.Library                      as Library      ( tests )
@@ -25,8 +23,8 @@ import InternalTests.Termination.CallGraph                    as TermCall     ( 
 import InternalTests.Termination.CallMatrix                   as TermCM       ( tests )
 import InternalTests.Termination.Order                        as TermOrd      ( tests )
 import InternalTests.Termination.Semiring                     as TermRing     ( tests )
-import InternalTests.Termination.Termination                  as TermTerm     ( tests )
 import InternalTests.Termination.SparseMatrix                 as TermSparse   ( tests )
+import InternalTests.Termination.Termination                  as TermTerm     ( tests )
 import InternalTests.TypeChecking                             as TypeChck     ( tests )
 import InternalTests.TypeChecking.Free                        as Free         ( tests )
 import InternalTests.TypeChecking.Generators                  as Generators   ( tests )
@@ -55,25 +53,16 @@ import InternalTests.Utils.Three                              as UtilThree    ( 
 import InternalTests.Utils.Trie                               as UtilTrie     ( tests )
 import InternalTests.Utils.Warshall                           as UtilWarsh    ( tests )
 
+-- Keep this list ordered by the importation order, please!
 runAllTests :: IO Bool
 runAllTests = runTests "QuickCheck test suite:"
-  [ UtilThree.tests
-  , Library.tests
-  , Free.tests
-  , Irrel.tests
-  , SizedTypes.tests
-  , UtilFav.tests
-  , UtilIntSet.tests
-  , UtilListT.tests
-  , UtilPerm.tests
-  , UtilPOrd.tests
-  , CompEnco.tests
-  , InteEmac.tests
-  , InteGene.tests
+  [ CompEnco.tests
   , IntePrec.tests
   , InteRang.tests
+  , Library.tests
   , InteOpti.tests
-  , Substitute.tests
+  , SyntCommon.tests
+  , SyntInternal.tests
   , SyntPars.tests
   , SyntPosi.tests
   , TermCall.tests
@@ -82,25 +71,33 @@ runAllTests = runTests "QuickCheck test suite:"
   , TermRing.tests
   , TermSparse.tests
   , TermTerm.tests
+  , TypeChck.tests
+  , Free.tests
+  , Generators.tests
+  , Irrel.tests
+  , MBase.tests
   , Positivity.tests
   , Occurrence.tests
-  , TypeChck.tests
+  , LHSProblem.tests
+  , SizedTypes.tests
+  , Substitute.tests
   , UtilBag.tests
   , UtilBiMap.tests
   , UtilClust.tests
   , UtilEith.tests
+  , UtilFav.tests
   , UtilFile.tests
   , UtilGraphUni.tests
+  , UtilIntSet.tests
   , UtilList.tests
+  , UtilListT.tests
+  , UtilMaybeS.tests
+  , UtilMonoid.tests
+  , UtilPOrd.tests
+  , UtilPerm.tests
+  , UtilThree.tests
   , UtilTrie.tests
   , UtilWarsh.tests
-  , Generators.tests
-  , UtilMonoid.tests
-  , LHSProblem.tests
-  , MBase.tests
-  , SyntInternal.tests
-  , SyntCommon.tests
-  , UtilMaybeS.tests
   ]
 
 main :: IO ()

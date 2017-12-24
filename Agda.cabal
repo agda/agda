@@ -669,8 +669,6 @@ test-suite internal-tests
 
   other-modules:  InternalTests.Compiler.MAlonzo.Encode
                 , InternalTests.Helpers
-                , InternalTests.Interaction.Highlighting.Emacs
-                , InternalTests.Interaction.Highlighting.Generate
                 , InternalTests.Interaction.Highlighting.Precise
                 , InternalTests.Interaction.Highlighting.Range
                 , InternalTests.Interaction.Library

@@ -159,12 +159,3 @@ tests :: IO Bool
 tests = do
   putStrLn "InternalTests.Utils.PartialOrd"
   $quickCheckAll
-
--- tests' :: IO Bool
--- tests' = runTests "InternalTests.Utils.PartialOrd"
---   [ quickCheck' prop_comparable_related
---   , quickCheck' prop_oppPO
---   , quickCheck' prop_seqPO
---   , quickCheck' prop_assoc_seqPO
---   , quickCheck' prop_related_pair
---   ]

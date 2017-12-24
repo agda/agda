@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module InternalTests.Interaction.Highlighting.Precise ( tests ) where
 
