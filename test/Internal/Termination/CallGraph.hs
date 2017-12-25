@@ -46,6 +46,10 @@ callGraph = do
 ------------------------------------------------------------------------
 -- All tests
 
+-- (ASR 2017-12-25) Since some properties use implicit parameters we
+-- could not use 'quickCheckAll' for collecting all the tests (see
+-- https://github.com/nick8325/quickcheck/issues/193 ).
+
 tests :: IO Bool
 tests = runTests "Internal.Termination.CallGraph" []
   -- [ quickCheck' prop_complete
