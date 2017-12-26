@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module Internal.TypeChecking.Substitute where
 
@@ -339,22 +340,18 @@ prop_parallelS gamma delta =
   forAllShrink (mapM (genTm gamma) (map snd $ contextVars delta)) (traverse shrink) $ \ vs ->
   checkSub gamma (parallelS vs) (gamma <> delta)
 
-qc :: Testable p => p -> IO Bool
-qc p = quickCheckWith' stdArgs{maxSuccess = 500} p
+qc :: Testable p => p -> IO Result
+qc p = quickCheckWithResult stdArgs{maxSuccess = 500} p
 
+------------------------------------------------------------------------------
+-- All test
+
+-- Template Haskell hack to make the following $forAllProperties work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'forAllProperties'.
 tests :: IO Bool
-tests = runTests "Internal.TypeChecking.Substitute"
-  [ qc prop_genTm
-  , qc prop_genSub
-  , qc prop_wkS
-  , qc prop_liftS
-  , qc prop_consS
-  , qc prop_singletonS
-  , qc prop_inplaceS
-  , qc prop_dropS
-  , qc prop_splitS
-  , qc prop_composeS_type
-  , qc prop_composeS
-  , qc prop_prependS
-  , qc prop_parallelS ]
-
+tests = do
+  putStrLn "Internal.TypeChecking.Substitute"
+  $forAllProperties qc
