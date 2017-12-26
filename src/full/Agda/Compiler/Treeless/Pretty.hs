@@ -139,18 +139,14 @@ pTerm t = case t of
     (\b -> sep [ text ("λ " ++ unwords xs ++ " →")
                , nest 2 b ]) <$> pTerm' 0 b
     where
-      (n, b) = lamV t
-      lamV (TLam b) = first succ $ lamV b
-      lamV t        = (0, t)
+      (n, b) = tLamView t
   TLet{} -> paren 0 $ withNames (length es) $ \ xs ->
     (\ (binds, b) -> sep [ text "let" <+> vcat [ sep [ text x <+> text "="
                                                      , nest 2 e ] | (x, e) <- binds ]
                               <+> text "in", b ])
       <$> pLets (zip xs es) b
     where
-      (es, b) = letV t
-      letV (TLet e b) = first (e :) $ letV b
-      letV t          = ([], t)
+      (es, b) = tLetView t
 
       pLets [] b = ([],) <$> pTerm' 0 b
       pLets ((x, e) : bs) b = do
