@@ -403,6 +403,11 @@ Backwards compatible changes
   filter⁺₂     : All Q xs → All Q (filter P? xs)
   ```
 
+* Added new combinator to ` Relation.Binary.PropositionalEquality.TrustMe`:
+  ```agda
+  postulate[_↦_] : (t : A) → B t → (x : A) → B x
+  ```
+
 Version 0.14
 ============
 
