@@ -24,57 +24,8 @@ Documentation
 * [User manual](http://agda.readthedocs.io)
 * [CHANGELOG](https://github.com/agda/agda/blob/master/CHANGELOG.md)
 
-Prerequisites
--------------
-
-You need recent versions of the following programs:
-
-* GHC:           http://www.haskell.org/ghc/
-* cabal-install: http://www.haskell.org/cabal/
-* Alex:          http://www.haskell.org/alex/
-* Happy:         http://www.haskell.org/happy/
-* cpphs:         http://projects.haskell.org/cpphs/
-* GNU Emacs:     http://www.gnu.org/software/emacs/
-
-You should also make sure that programs installed by cabal-install are
-on your shell's search path.
-
-For instructions on installing a suitable version of Emacs under
-Windows, see [below](#installing-emacs-under-windows).
-
-Non-Windows users need to ensure that the development files for the C
-libraries zlib and ncurses are installed (see http://zlib.net and
-http://www.gnu.org/software/ncurses/). Your package manager may be
-able to install these files for you. For instance, on Debian or Ubuntu
-it should suffice to run
-
-    apt-get install zlib1g-dev libncurses5-dev
-
-as root to get the correct files installed.
-
-Optionally one can also install the [ICU](http://site.icu-project.org)
-library, which is used to implement the `--count-clusters` flag. Under
-Debian or Ubuntu it may suffice to install `libicu-dev`. Once the ICU
-library is installed one can hopefully enable the `--count-clusters`
-flag by giving the `-fenable-cluster-counting` flag to `cabal
-install`. Note that `make install` by default enables
-`-fenable-cluster-counting`.
-
-### Note on GHC's CPP language extension
-
-Recent versions of Clang's preprocessor don't work well with Haskell.
-In order to get some dependencies to build, you may need to set up Cabal
-to have GHC use cpphs by default. You can do this by adding
-
-    program-default-options
-      ghc-options: -pgmPcpphs -optP--cpp
-
-to your .cabal/config file. (You must be using cabal >= 1.18. Note
-that some packages may not compile with this option set.)
-
-You don't need to set this option to install *Agda* from the current
-development source; Agda.cabal now uses cpphs.
-
+[Prerequisites](http://agda.readthedocs.io/en/latest/getting-started/prerequisites.html)
+---------------
 
 Installing Agda
 ---------------
