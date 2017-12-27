@@ -9,3 +9,4 @@ Getting Started
 
    prerequisites
    installation
+   emacs-mode

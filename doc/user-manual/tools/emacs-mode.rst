@@ -8,6 +8,38 @@ Emacs Mode
    This is a stub.
 
 
+Configuration
+=============
+
+If you want to you can customise the Emacs mode. Just start Emacs and
+type the following:
+
+.. code-block:: emacs
+
+  M-x load-library RET agda2-mode RET
+  M-x customize-group RET agda2 RET
+
+If you want some specific settings for the Emacs mode you can add them
+to ``agda2-mode-hook``. For instance, if you do not want to use the
+Agda input method (for writing various symbols like ∀≥ℕ→π⟦⟧) you can
+add the following to your *.emacs*:
+
+.. code-block:: emacs
+
+  (add-hook 'agda2-mode-hook
+            '(lambda ()
+              ; If you do not want to use any input method:
+              (deactivate-input-method)
+              ; (In some versions of Emacs you should use
+              ; inactivate-input-method instead of
+              ; deactivate-input-method.)
+
+Note that, on some systems, the Emacs mode changes the default font of
+the current frame in order to enable many Unicode symbols to be
+displayed. This only works if the right fonts are available, though.
+If you want to turn off this feature, then you should customise the
+``agda2-fontset-name`` variable.
+
 Keybindings
 ===========
 

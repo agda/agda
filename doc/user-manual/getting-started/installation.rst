@@ -4,6 +4,19 @@
 Installation
 ************
 
+There are several ways to install Agda:
+
+* Using a :ref:`binary package <prebuilt-packages>` prepared for your
+  platform
+
+* Using a :ref:`released source <installation-from-hackage>` package
+  from `Hackage <https://hackage.haskell.org/>`_
+
+.. _prebuilt-packages:
+
+Prebuilt packages and system-specific instructions
+==================================================
+
 Arch Linux
 ----------
 
@@ -95,3 +108,39 @@ By default, the standard library is installed in ``/usr/local/lib/agda/``.  To u
 It is also possible to install ``--without-stdlib``, ``--without-ghc``, or from ``--HEAD``.  Note this will require building Agda from source.
 
 For more information, refer to the `Homebrew documentation <http://git.io/brew-docs>`_.
+
+.. _installation-from-hackage:
+
+Installation from Hackage
+=========================
+
+Install the :ref:`prerequisites <prerequisites>` and then run the
+following commands:
+
+.. code-block:: bash
+
+  cabal update
+  cabal install Agda
+  agda-mode setup
+
+The last command tries to set up Emacs for use with Agda via the
+:ref:`Emacs mode <emacs-mode>`. As an alternative you can copy the
+following text to your *.emacs* file:
+
+.. code-block:: emacs
+
+  (load-file (let ((coding-system-for-read 'utf-8))
+                  (shell-command-to-string "agda-mode locate")))
+
+It is also possible (but not necessary) to compile the Emacs mode's
+files:
+
+.. code-block:: bash
+
+  agda-mode compile
+
+This can, in some cases, give a noticeable speedup.
+
+**Warning**: If you reinstall the Agda mode without recompiling the
+Emacs Lisp files, then Emacs may continue using the old, compiled
+files.
