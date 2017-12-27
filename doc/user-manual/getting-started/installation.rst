@@ -4,6 +4,15 @@
 Installation
 ************
 
+Arch Linux
+----------
+
+The following prebuilt packages are available:
+
+* `Agda <https://www.archlinux.org/packages/community/x86_64/agda/>`_
+
+* `Agda standard library <https://www.archlinux.org/packages/community/x86_64/agda-stdlib/>`_
+
 Debian / Ubuntu
 ---------------
 
@@ -21,6 +30,25 @@ The standard library is available in Debian testing/unstable and Ubuntu from Luc
 
   apt-get install agda-stdlib
 
+More information:
+
+* `Agda (Debian) <https://tracker.debian.org/pkg/agda>`_
+
+* `Agda standard library (Debian) <https://tracker.debian.org/pkg/agda-stdlib>`_
+
+* `Agda (Ubuntu) <https://launchpad.net/ubuntu/+source/agda|Agda>`_
+
+* `Agda standard library (Ubuntu) <https://launchpad.net/ubuntu/+source/agda-stdlib>`_
+
+Reporting bugs:
+
+Please report any bugs to Debian, using:
+
+.. code-block:: bash
+
+  reportbug -B debian agda
+  reportbug -B debian agda-stdlib
+
 Fedora
 ------
 
@@ -31,6 +59,14 @@ Agda is packaged in Fedora (since before Fedora 18).
   yum install Agda
 
 will pull in emacs-agda-mode and ghc-Agda-devel.
+
+FreBSD
+------
+
+Packages are available from `FreshPorts
+<https://www.freebsd.org/cgi/ports.cgi?query=agda&stype=all>`_ for
+Agda and Agda standard library.
+
 
 NixOS
 -----
