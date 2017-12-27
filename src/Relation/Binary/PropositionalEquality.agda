@@ -8,13 +8,10 @@ module Relation.Binary.PropositionalEquality where
 
 open import Function
 open import Function.Equality using (Π; _⟶_; ≡-setoid)
-open import Data.Product
-open import Data.Unit.NonEta
 open import Level
 open import Relation.Unary using (Pred)
 open import Relation.Binary
 import Relation.Binary.Indexed as I
-open import Relation.Binary.Consequences
 open import Relation.Binary.HeterogeneousEquality.Core as H using (_≅_)
 
 -- Some of the definitions can be found in the following modules:
@@ -97,63 +94,10 @@ _≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 →-to-⟶ = :→-to-Π
 
 ------------------------------------------------------------------------
--- The old inspect idiom
+-- Inspect
 
--- The old inspect idiom has been deprecated, and may be removed in
--- the future. Use inspect on steroids instead.
-
-module Deprecated-inspect where
-
-  -- The inspect idiom can be used when you want to pattern match on
-  -- the result r of some expression e, and you also need to
-  -- "remember" that r ≡ e.
-
-  -- The inspect idiom has a problem: sometimes you can only pattern
-  -- match on the p part of p with-≡ eq if you also pattern match on
-  -- the eq part, and then you no longer have access to the equality.
-  -- Inspect on steroids solves this problem.
-
-  data Inspect {a} {A : Set a} (x : A) : Set a where
-    _with-≡_ : (y : A) (eq : x ≡ y) → Inspect x
-
-  inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
-  inspect x = x with-≡ refl
-
-  -- Example usage:
-
-  -- f x y with inspect (g x)
-  -- f x y | c z with-≡ eq = ...
-
-------------------------------------------------------------------------
--- The old inspect on steroids
-
--- The old inspect on steroids idiom has been deprecated, and may be
--- removed in the future. Use simplified inspect on steroids instead.
-
-module Deprecated-inspect-on-steroids where
-
-  -- Inspect on steroids can be used when you want to pattern match on
-  -- the result r of some expression e, and you also need to "remember"
-  -- that r ≡ e.
-
-  data Reveal_is_ {a} {A : Set a} (x : Hidden A) (y : A) : Set a where
-    [_] : (eq : reveal x ≡ y) → Reveal x is y
-
-  inspect : ∀ {a b} {A : Set a} {B : A → Set b}
-            (f : (x : A) → B x) (x : A) → Reveal (hide f x) is (f x)
-  inspect f x = [ refl ]
-
-  -- Example usage:
-
-  -- f x y with g x | inspect g x
-  -- f x y | c z | [ eq ] = ...
-
-------------------------------------------------------------------------
--- Simplified inspect on steroids
-
--- Simplified inspect on steroids can be used when you want to pattern
--- match on the result r of some expression e, and you also need to
--- "remember" that r ≡ e.
+-- Inspect can be used when you want to pattern match on the result r
+-- of some expression e, and you also need to "remember" that r ≡ e.
 
 record Reveal_·_is_ {a b} {A : Set a} {B : A → Set b}
                     (f : (x : A) → B x) (x : A) (y : B x) :
