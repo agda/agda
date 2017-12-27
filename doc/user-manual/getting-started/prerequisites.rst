@@ -1,0 +1,47 @@
+.. _prerequisites:
+
+*************
+Prerequisites
+*************
+
+You need recent versions of the following programs:
+
+* GHC:           http://www.haskell.org/ghc/
+* cabal-install: http://www.haskell.org/cabal/
+* Alex:          http://www.haskell.org/alex/
+* Happy:         http://www.haskell.org/happy/
+* cpphs:         http://projects.haskell.org/cpphs/
+* GNU Emacs:     http://www.gnu.org/software/emacs/
+
+You should also make sure that programs installed by *cabal-install*
+are on your shell's search path.
+
+For instructions on installing a suitable version of Emacs under
+Windows, see :ref:`emacs-under-windows`.
+
+Non-Windows users need to ensure that the development files for the C
+libraries *zlib** and *ncurses** are installed (see http://zlib.net
+and http://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+.. code-block:: bash
+
+  apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
+Optionally one can also install the `ICU
+<http://site.icu-project.org>`_ library, which is used to implement
+the ``--count-clusters`` flag. Under Debian or Ubuntu it may suffice
+to install *libicu-dev*. Once the ICU library is installed one can
+hopefully enable the ``--count-clusters`` flag by giving the
+``-fenable-cluster-counting`` flag to *cabal install*.
+
+.. _emacs-under-windows:
+
+Installing Emacs under Windows
+==============================
+
+A precompiled version of Emacs 24.3, with the necessary mathematical
+fonts, is available at http://homepage.cs.uiowa.edu/~astump/agda/ .

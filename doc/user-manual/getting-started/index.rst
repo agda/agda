@@ -7,4 +7,5 @@ Getting Started
 .. toctree::
    :maxdepth: 2
 
+   prerequisites
    installation
