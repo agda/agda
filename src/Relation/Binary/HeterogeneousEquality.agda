@@ -93,9 +93,25 @@ cong₂ f refl refl = refl
 resp₂ : ∀ {a ℓ} {A : Set a} (∼ : Rel A ℓ) → ∼ Respects₂ (λ x y → x ≅ y)
 resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
-proof-irrelevance : ∀ {ℓ} {A B : Set ℓ} {x : A} {y : B}
-                    (p q : x ≅ y) → p ≡ q
-proof-irrelevance refl refl = refl
+------------------------------------------------------------------------
+-- (Heterogeneous) Proof irrelevance
+
+≅-irrelevance : ∀ {ℓ} {A B : Set ℓ} → P.IrrelevantRel ((A → B → Set ℓ) ∋ λ a → a ≅_)
+≅-irrelevance refl refl = refl
+
+module _ {ℓ} {A₁ A₂ A₃ A₄ : Set ℓ} {a₁ : A₁} {a₂ : A₂} {a₃ : A₃} {a₄ : A₄} where
+
+ ≅-heterogeneous-irrelevance : (p : a₁ ≅ a₂) (q : a₃ ≅ a₄) → a₂ ≅ a₃ → p ≅ q
+ ≅-heterogeneous-irrelevance refl refl refl = refl
+
+ ≅-heterogeneous-irrelevanceˡ : (p : a₁ ≅ a₂) (q : a₃ ≅ a₄) → a₁ ≅ a₃ → p ≅ q
+ ≅-heterogeneous-irrelevanceˡ refl refl refl = refl
+
+ ≅-heterogeneous-irrelevanceʳ : (p : a₁ ≅ a₂) (q : a₃ ≅ a₄) → a₂ ≅ a₄ → p ≅ q
+ ≅-heterogeneous-irrelevanceʳ refl refl refl = refl
+
+------------------------------------------------------------------------
+-- Structures
 
 isEquivalence : ∀ {a} {A : Set a} →
                 IsEquivalence {A = A} (λ x y → x ≅ y)
@@ -247,3 +263,12 @@ inspect f x = [ refl ]
 
 -- f x y with g x | inspect g x
 -- f x y | c z | [ eq ] = ...
+
+
+------------------------------------------------------------------------
+-- DEPRECATED NAMES
+------------------------------------------------------------------------
+-- Please use the new names as continuing support for the old names is
+-- not guaranteed.
+
+proof-irrelevance = ≅-irrelevance
