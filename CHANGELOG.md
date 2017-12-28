@@ -73,6 +73,10 @@ but they may be removed in some future release of the library.
   the definitions about particular data types in the same directory and 3) provides a location
   to reason about how operations on the data types affects the relations over them.
 
+  Some shared content has been moved out of `Data.List.Relation.StrictLex` and `Data.List.Relation.NonStrictLex` into `Data.List.Relation.Lex.Core`
+
+  The contents of `Relation.Binary.Vec.Pointwise` has been split into `Data.Vec.Relation.InductivePointwise` and `Data.Vec.Relation.ExtensionalPointwise`.
+
   The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
   re-exports the contents of files' new location in `Data.X.Relation` but may be removed in some
   future release.
@@ -148,11 +152,14 @@ Backwards compatible changes
 
   Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
 
-* The contents of `Data.Covec` is now polymorphic with respect to levels
-
-* The contents of `Data.Vec.Relation.InductivePointwise` is now more polymorphic with respect to levels
-
-* The contents of `Data.Vec.Relation.ExtensionalPointwise` is now more polymorphic with respect to levels
+* The contents of the following modules are now more polymorphic with respect to levels:
+  ```agda
+  Data.Covec
+  Data.List.Relation.StrictLex
+  Data.List.Relation.NonStrictLex
+  Data.Vec.Relation.InductivePointwise
+  Data.Vec.Relation.ExtensionalPointwise
+  ```
 
 * Added new proof to `asymmetric : Asymmetric _<_` to the `IsStrictPartialOrder` record.
 
@@ -257,6 +264,28 @@ Backwards compatible changes
 * Added new proofs to `Data.List.All.Properties`:
   ```agda
   All-irrelevance : IrrelevantPred P → IrrelevantPred (All P)
+  ```
+
+* Added new proofs to `Data.List.Relation.NonStrictLex`:
+  ```agda
+  <-antisymmetric : Symmetric _≈_ → Antisymmetric _≈_ _≼_ → Antisymmetric _≋_ _<_
+  <-transitive    : IsPartialOrder _≈_ _≼_ → Transitive _<_
+  <-resp₂         : IsEquivalence _≈_ → _≼_ Respects₂ _≈_ → _<_ Respects₂ _≋_
+
+  ≤-antisymmetric : Symmetric _≈_ → Antisymmetric _≈_ _≼_ → Antisymmetric _≋_ _≤_
+  ≤-transitive    : IsPartialOrder _≈_ _≼_ → Transitive _≤_
+  ≤-resp₂         : IsEquivalence _≈_ → _≼_ Respects₂ _≈_ → _≤_ Respects₂ _≋_
+  ```
+
+* Added new proofs to `Data.List.Relation.StrictLex`:
+  ```agda
+  <-antisymmetric : Symmetric _≈_ → Irreflexive _≈_ _≺_ →  Asymmetric _≺_ → Antisymmetric _≋_ _<_
+  <-transitive    : IsEquivalence _≈_ → _≺_ Respects₂ _≈_ → Transitive _≺_ → Transitive _<_
+  <-respects₂     : IsEquivalence _≈_ → _≺_ Respects₂ _≈_ → _<_ Respects₂ _≋_
+
+  ≤-antisymmetric : Symmetric _≈_ → Irreflexive _≈_ _≺_ →  Asymmetric _≺_ → Antisymmetric _≋_ _≤_
+  ≤-transitive    : IsEquivalence _≈_ → _≺_ Respects₂ _≈_ → Transitive _≺_ → Transitive _≤_
+  ≤-respects₂     : IsEquivalence _≈_ → _≺_ Respects₂ _≈_ → _≤_ Respects₂ _≋_
   ```
 
 * Added new proofs to `Data.Maybe.Base`:

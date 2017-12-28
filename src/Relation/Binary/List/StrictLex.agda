@@ -14,4 +14,6 @@
 
 module Relation.Binary.List.StrictLex where
 
+open import Data.List.Relation.Lex.Core public
 open import Data.List.Relation.StrictLex public
+  hiding (base; halt; this; next; ¬≤-this; ¬≤-next)
