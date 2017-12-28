@@ -304,7 +304,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Agda.tex', u'Agda Documentation', u'The Agda Team', 'manual'),
+    (master_doc, 'Agda.tex', u'Agda User Manual', u'The Agda Team', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

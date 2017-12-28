@@ -108,15 +108,17 @@ setup-emacs-mode : install-bin
 	@echo
 	$(AGDA_MODE) setup
 
-## Making and testing the documentation ######################################
+## Making and testing the Haddock documentation ##############################
 
 .PHONY : haddock
 haddock :
 	$(CABAL_CMD) configure $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
 
-.PHONY : doc-html
-doc-html :
+## Making the user manual ####################################################
+
+.PHONY : user-manual-html
+user-manual-html :
 	@echo "======================================================================"
 	@echo "===================== User Manual (html) ============================="
 	@echo "======================================================================"
@@ -125,8 +127,8 @@ doc-html :
 # Requires a recent version of the inputenc package (e.g. it fails in
 # Travis using the version avaliable in Ubuntu Trusty). Tested with
 # inputenc 2015/03/17 v1.2.
-.PHONY : doc-pdf
-doc-pdf :
+.PHONY : user-manual-pdf
+user-manual-pdf :
 	@echo "======================================================================"
 	@echo "====================== User Manual (pdf) ============================="
 	@echo "======================================================================"
