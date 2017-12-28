@@ -49,6 +49,10 @@ Non-backwards compatible changes
 * Moved `Data.Vec.Equality` to `Data.Vec.Relation.Equality` (see "Deprecated
   features" section for explanation)
 
+* Changed Data.Nat.Divisibility's `_|_` from data to record. As a consequence,
+  the two parameters are not implicit arguments of the constructor anymore (but
+  such values can be destructed using a let-binding rather than a with-clause).
+
 Deprecated features
 -------------------
 
