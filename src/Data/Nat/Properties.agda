@@ -11,6 +11,7 @@ module Data.Nat.Properties where
 
 open import Relation.Binary
 open import Function
+open import Function.Injection using (_↣_)
 open import Algebra
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
@@ -19,6 +20,7 @@ open import Data.Nat as Nat
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
+open import Relation.Nullary.Decidable using (via-injection)
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality
 open import Algebra.FunctionProperties (_≡_ {A = ℕ})
@@ -986,6 +988,15 @@ im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
 ⌊n/2⌋≤′n : ∀ n → ⌊ n /2⌋ ≤′ n
 ⌊n/2⌋≤′n zero    = ≤′-refl
 ⌊n/2⌋≤′n (suc n) = ≤′-step (⌈n/2⌉≤′n n)
+
+------------------------------------------------------------------------
+-- Other properties
+
+-- If there is an injection from a type to ℕ, then the type has
+-- decidable equality.
+
+eq? : ∀ {a} {A : Set a} → A ↣ ℕ → Decidable {A = A} _≡_
+eq? inj = via-injection inj _≟_
 
 ------------------------------------------------------------------------
 -- Modules for reasoning about natural number relations

@@ -53,6 +53,8 @@ Non-backwards compatible changes
   the two parameters are not implicit arguments of the constructor anymore (but
   such values can be destructed using a let-binding rather than a with-clause).
 
+* Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
+
 Deprecated features
 -------------------
 
