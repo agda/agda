@@ -126,7 +126,7 @@ doc-pdf :
 	@echo "======================================================================"
 	@echo "====================== User Manual (pdf) ============================="
 	@echo "======================================================================"
-	$(MAKE) -C doc/user-manual latexpdf
+	$(MAKE) -C doc/user-manual PDFLATEX='latexmk -xelatex' latexpdf
 
 ## Making the full language ###############################################
 
