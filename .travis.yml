@@ -2,7 +2,6 @@ language: c
 branches:
   only:
   - master
-  - quotients
 
 sudo: false
 
