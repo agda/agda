@@ -122,6 +122,9 @@ doc-html :
 	@echo "======================================================================"
 	$(MAKE) -C doc/user-manual html
 
+# Requires a recent version of the inputenc package (e.g. it fails in
+# Travis using the version avaliable in Ubuntu Trusty). Tested with
+# inputenc 2015/03/17 v1.2.
 .PHONY : doc-pdf
 doc-pdf :
 	@echo "======================================================================"

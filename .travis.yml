@@ -19,10 +19,11 @@ cache:
 # The LaTeX/HTML test-suite requires:
 # * `kpsewhich` (included in texlive-binaries)
 
-# The test of the documentation, i.e. `make-doc-html` and
-# `make-user-pdf`, requires:
+# The test of the documentation, i.e. `make doc-html` and
+# `make user-pdf`, require:
 #  * ecrm1000 fonts (included in texlive-fonts-recommended)
 #  * latex (included in texlive-latex-base)
+#  * latexmk
 #  * lm fonts (include in lmodern)
 #  * utf8x.def (included in texlive-latex-extra)
 #  * dvipng (included in dvipng)
