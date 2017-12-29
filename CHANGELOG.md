@@ -8,6 +8,8 @@ Installation and infrastructure
 
 * Removed support for GHC 7.8.4.
 
+* Included user manual in PDF format in `doc/user-manual.pdf`.
+
 Syntax and LaTeX backend
 ------------------------
 
