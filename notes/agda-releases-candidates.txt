@@ -66,6 +66,10 @@ following procedure can be followed:
 * Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
   Agda.cabal.
 
+* Update the user manual:
+
+    make user-manual-pdf
+
 * Build source distributions:
 
     cabal configure
