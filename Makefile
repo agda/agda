@@ -124,15 +124,12 @@ user-manual-html :
 	@echo "======================================================================"
 	$(MAKE) -C doc/user-manual html
 
-# Requires a recent version of the inputenc package (e.g. it fails in
-# Travis using the version avaliable in Ubuntu Trusty). Tested with
-# inputenc 2015/03/17 v1.2c.
 .PHONY : user-manual-pdf
 user-manual-pdf :
 	@echo "======================================================================"
 	@echo "====================== User Manual (pdf) ============================="
 	@echo "======================================================================"
-	$(MAKE) -C doc/user-manual PDFLATEX='latexmk -xelatex' latexpdf
+	$(MAKE) -C doc/user-manual PDFLATEX='latexmk -xelatex -latexoption=-interaction=nonstopmode -latexoption=-halt-on-error' latexpdf
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 ## Making the full language ###############################################
