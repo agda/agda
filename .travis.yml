@@ -105,7 +105,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=DOC BUILD=NOTHING
+    - env: TEST=USER_MANUAL BUILD=NOTHING
       language: python
       python: "3.4"
       addons:
@@ -224,7 +224,7 @@ install:
 # Note that the `--user` option put the Sphinx binaries in
 # `$HOME/.local/bin`.
 
-  - if [[ $TEST = "DOC" ]]; then
+  - if [[ $TEST = "USER_MANUAL" ]]; then
        pip install -r doc/user-manual/requirements.txt &&
        export PATH=$HOME/.local/bin:$PATH;
     fi
@@ -367,7 +367,7 @@ script:
 ##############################################################################
 # Making the user manual
 
-  - if [[ $TEST = "DOC" ]]; then
+  - if [[ $TEST = "USER_MANUAL" ]]; then
        sphinx-build --version &&
        make user-manual-html;
     fi
