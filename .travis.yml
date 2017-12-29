@@ -19,16 +19,6 @@ cache:
 # The LaTeX/HTML test-suite requires:
 # * `kpsewhich` (included in texlive-binaries)
 
-# Making the user manual, i.e. `make user-manual-html` and
-# `make user-manual-pdf`, require:
-#  * ecrm1000 fonts (included in texlive-fonts-recommended)
-#  * latex (included in texlive-latex-base)
-#  * latexmk
-#  * lm fonts (include in lmodern)
-#  * utf8x.def (included in texlive-latex-extra)
-#  * dvipng (included in dvipng)
-#  * xelatex (included in texlive-xetex)
-
 ##############################################################################
 # Tests
 
@@ -108,15 +98,6 @@ matrix:
     - env: TEST=USER_MANUAL BUILD=NOTHING
       language: python
       python: "3.4"
-      addons:
-        apt:
-          packages:
-            - dvipng
-            - lmodern
-            - texlive-fonts-recommended
-            - texlive-latex-base
-            - texlive-latex-extra
-            - texlive-xetex
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
@@ -226,7 +207,30 @@ install:
 
   - if [[ $TEST = "USER_MANUAL" ]]; then
        pip install -r doc/user-manual/requirements.txt &&
-       export PATH=$HOME/.local/bin:$PATH;
+       export PATH=$HOME/.local/bin:$PATH &&
+       echo "*** sphinx-build ***" &&
+       sphinx-build --version ;
+    fi
+
+##############################################################################
+# Installing TeX Live and LaTeX packages (required by the user manual)
+
+# A *recent* version of TeX Live is required for making the user
+# manual. The installation of TeX Live was based on the instructions
+# used by Travis when the build environment is `language : r`.
+
+  - if [[ $TEST = "USER_MANUAL" ]]; then
+       travis_retry curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz &&
+       tar xzf /tmp/texlive.tar.gz -C ~ &&
+       export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
+       tlmgr update --self &&
+       tlmgr install anyfontsize capt-of cmap dejavu dvipng fncychap latexmk needspace &&
+       echo "*** pdfLaTeX version ***" &&
+       pdflatex --version &&
+       echo "*** Latexmk version ***" &&
+       latexmk --version &&
+       echo "*** XeLaTeX version ***" &&
+       xelatex --version ;
     fi
 
 ##############################################################################
@@ -368,8 +372,8 @@ script:
 # Making the user manual
 
   - if [[ $TEST = "USER_MANUAL" ]]; then
-       sphinx-build --version &&
-       make user-manual-html;
+       make user-manual-html &&
+       make user-manual-pdf ;
     fi
 
 ##############################################################################
