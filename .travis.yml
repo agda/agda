@@ -19,8 +19,8 @@ cache:
 # The LaTeX/HTML test-suite requires:
 # * `kpsewhich` (included in texlive-binaries)
 
-# The test of the documentation, i.e. `make doc-html` and
-# `make user-pdf`, require:
+# Making the user manual, i.e. `make user-manual-html` and
+# `make user-manual-pdf`, require:
 #  * ecrm1000 fonts (included in texlive-fonts-recommended)
 #  * latex (included in texlive-latex-base)
 #  * latexmk
@@ -219,7 +219,7 @@ install:
 ##############################################################################
 # Installing Sphinx
 
-# Required for testing the documentation.
+# Required for making the user manual.
 
 # Note that the `--user` option put the Sphinx binaries in
 # `$HOME/.local/bin`.
@@ -365,11 +365,11 @@ script:
     fi
 
 ##############################################################################
-# Testing the documentation
+# Making the user manual
 
   - if [[ $TEST = "DOC" ]]; then
        sphinx-build --version &&
-       make doc-html;
+       make user-manual-html;
     fi
 
 ##############################################################################
