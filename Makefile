@@ -133,6 +133,7 @@ user-manual-pdf :
 	@echo "====================== User Manual (pdf) ============================="
 	@echo "======================================================================"
 	$(MAKE) -C doc/user-manual PDFLATEX='latexmk -xelatex' latexpdf
+	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 ## Making the full language ###############################################
 

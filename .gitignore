@@ -23,6 +23,7 @@ config.status
 configure
 dist/
 dist-*/
+doc/user-manual.pdf
 examples/compiler/main
 hlint-report.html
 test/**/MAlonzo
