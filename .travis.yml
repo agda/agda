@@ -128,6 +128,7 @@ install:
   - echo $SHELL
 
   # Node is pre-installed.
+  - echo "*** Node version ***" &&
   - node --version
 
   # The container environment reports a wrong number of cores. We use
@@ -138,9 +139,13 @@ install:
   # required in Agda.cabal [Issue #2315].
 
   - if [[ $BUILD = "CABAL" ]]; then
+       echo "*** Cabal version ***" &&
        cabal --version &&
+       echo "*** GHC version ***" &&
        ghc --version &&
+       echo "*** Haddock version ***" &&
        haddock --version &&
+       echo "*** Emacs version ***" &&
        emacs --version &&
        export PARALLEL_TESTS=2 &&
        travis_retry cabal update &&
@@ -150,16 +155,23 @@ install:
        travis_retry cabal update &&
        travis_retry cabal fetch alex happy cpphs-1.20.8 &&
        cabal install alex happy cpphs-1.20.8 &&
+       echo "*** Alex version ***" &&
        alex --version &&
+       echo "*** Happy version ***" &&
        happy --version &&
-       cpphs --version;
+       echo "*** cpphs version ***" &&
+       cpphs --version ;
     fi
 
   - if [[ $BUILD = "STACK" ]]; then
+       echo "*** GHC version ***" &&
        ghc --version &&
+       echo "*** Haddock version ***" &&
        haddock --version &&
+       echo "*** Emacs version ***" &&
        emacs --version &&
-       stack --version;
+       echo "*** Stack version ***" &&
+       stack --version ;
     fi
 
 ##############################################################################
@@ -208,7 +220,7 @@ install:
   - if [[ $TEST = "USER_MANUAL" ]]; then
        pip install -r doc/user-manual/requirements.txt &&
        export PATH=$HOME/.local/bin:$PATH &&
-       echo "*** sphinx-build ***" &&
+       echo "*** sphinx-build version ***" &&
        sphinx-build --version ;
     fi
 
@@ -246,7 +258,8 @@ install:
        tar xJf ${NODE_TARBALL} &&
        export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
        cd $AGDA_HOME &&
-       node --version;
+       echo "*** Node version ***" &&
+       node --version ;
     fi
 
 ##############################################################################
