@@ -128,7 +128,7 @@ install:
   - echo $SHELL
 
   # Node is pre-installed.
-  - echo "*** Node version ***" &&
+  - echo "*** Node version ***"
   - node --version
 
   # The container environment reports a wrong number of cores. We use
