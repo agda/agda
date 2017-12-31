@@ -12,7 +12,7 @@ executable GenerateEverything
   hs-source-dirs:   .
   main-is:          GenerateEverything.hs
   default-language: Haskell2010
-  build-depends:      base >= 4.8.0.0 && < 4.11
+  build-depends:      base >= 4.8.0.0 && < 4.12
                     , filemanip >= 0.3.6.2 && < 0.4
                     , filepath >= 1.4.0.0 && < 1.5
 
@@ -20,5 +20,5 @@ executable AllNonAsciiChars
   hs-source-dirs:   .
   main-is:          AllNonAsciiChars.hs
   default-language: Haskell2010
-  build-depends:      base >= 4.8.0.0 && < 4.11
+  build-depends:      base >= 4.8.0.0 && < 4.12
                     , filemanip >= 0.3.6.2 && < 0.4
