@@ -744,6 +744,12 @@ assign dir x args v = do
           m <- getContextSize
           assignMeta' m x t (length args) ids v
   where
+    -- | Try to remove meta arguments from lhs that mention variables not occurring on rhs.
+    attemptPruning
+      :: MetaId  -- ^ Meta-variable (lhs)
+      -> Args    -- ^ Meta arguments (lhs)
+      -> FVs     -- ^ Variables occuring on the rhs
+      -> TCM a
     attemptPruning x args fvs = do
       -- non-linear lhs: we cannot solve, but prune
       killResult <- prune x args $ Set.toList fvs

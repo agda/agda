@@ -77,8 +77,7 @@ getHsType x = do
         nat  <- getBuiltinName builtinNat
         int  <- getBuiltinName builtinInteger
         bool <- getBuiltinName builtinBool
-        case () of
-          _ | Just x `elem` [nat, int] -> return "Integer"
+        if  | Just x `elem` [nat, int] -> return "Integer"
             | Just x == bool           -> return "Bool"
             | otherwise                -> prettyShow <$> xhqn "T" x
   setCurrentRange d $ case d of
@@ -225,4 +224,3 @@ hsTelApproximation' poly t = do
   TelV tel res <- telView t
   let args = map (snd . unDom) (telToList tel)
   (,) <$> zipWithM (hsTypeApproximation poly) [0..] args <*> hsTypeApproximation poly (length args) res
-
