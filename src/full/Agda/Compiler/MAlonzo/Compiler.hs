@@ -452,24 +452,24 @@ constructorCoverageCode q np cs hsTy hsCons = do
 -- | Environment for naming of local variables.
 --   Invariant: @reverse ccCxt ++ ccNameSupply@
 data CCEnv = CCEnv
-  { ccNameSupply :: NameSupply  -- ^ Supply of fresh names
-  , ccCxt        :: CCContext   -- ^ Names currently in scope
+  { _ccNameSupply :: NameSupply  -- ^ Supply of fresh names
+  , _ccContext    :: CCContext   -- ^ Names currently in scope
   }
 
 type NameSupply = [HS.Name]
 type CCContext  = [HS.Name]
 
-mapNameSupply :: (NameSupply -> NameSupply) -> CCEnv -> CCEnv
-mapNameSupply f e = e { ccNameSupply = f (ccNameSupply e) }
+ccNameSupply :: Lens' NameSupply CCEnv
+ccNameSupply f e =  (\ ns' -> e { _ccNameSupply = ns' }) <$> f (_ccNameSupply e)
 
-mapContext :: (CCContext -> CCContext) -> CCEnv -> CCEnv
-mapContext f e = e { ccCxt = f (ccCxt e) }
+ccContext :: Lens' CCContext CCEnv
+ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 
 -- | Initial environment for expression generation.
 initCCEnv :: CCEnv
 initCCEnv = CCEnv
-  { ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
-  , ccCxt        = []
+  { _ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+  , _ccContext    = []
   }
 
 -- | Term variables are de Bruijn indices.
@@ -481,13 +481,13 @@ type CC = ReaderT CCEnv TCM
 freshNames :: Int -> ([HS.Name] -> CC a) -> CC a
 freshNames n _ | n < 0 = __IMPOSSIBLE__
 freshNames n cont = do
-  (xs, rest) <- splitAt n <$> asks ccNameSupply
-  local (mapNameSupply (const rest)) $ cont xs
+  (xs, rest) <- splitAt n <$> view ccNameSupply
+  local (over ccNameSupply (const rest)) $ cont xs
 
 -- | Introduce n variables into the context.
 intros :: Int -> ([HS.Name] -> CC a) -> CC a
 intros n cont = freshNames n $ \xs ->
-  local (mapContext (reverse xs ++)) $ cont xs
+  local (over ccContext (reverse xs ++)) $ cont xs
 
 checkConstructorType :: QName -> HaskellCode -> TCM [HS.Decl]
 checkConstructorType q hs = do
@@ -538,7 +538,7 @@ mkIf t = return t
 term :: T.TTerm -> CC HS.Exp
 term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
   T.TVar i -> do
-    x <- lookupIndex i <$> asks ccCxt
+    x <- lookupIndex i <$> view ccContext
     return $ hsVarUQ x
   T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c
                                             <*> term x
@@ -579,7 +579,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
     t' <- term t
     t' `apps` ts
   T.TLam at -> do
-    (nm:_) <- asks ccNameSupply
+    (nm:_) <- view ccNameSupply
     intros 1 $ \ [x] ->
       hsLambda [HS.PVar x] <$> term at
   T.TLet t1 t2 -> do
