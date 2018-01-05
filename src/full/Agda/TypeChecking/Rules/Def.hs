@@ -355,7 +355,7 @@ insertPatterns pats = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
     \ (A.Clause (A.LHS info core)                              spats rhs                       ds catchall) ->
        A.Clause (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
-  A.RewriteRHS qes rhs wh -> A.RewriteRHS qes (insertPatterns pats rhs) wh
+  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (insertPatterns pats rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
 
@@ -427,7 +427,8 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
             updateRHS rhs@A.RHS{}               = rhs
             updateRHS rhs@A.AbsurdRHS{}         = rhs
             updateRHS (A.WithRHS q es cs)       = A.WithRHS q es (map updateClause cs)
-            updateRHS (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (updateRHS rhs) wh
+            updateRHS (A.RewriteRHS qes spats rhs wh) =
+              A.RewriteRHS qes (applySubst patSubst spats) (updateRHS rhs) wh
 
             updateClause (A.Clause f spats rhs wh ca) =
               A.Clause f (applySubst patSubst spats) (updateRHS rhs) wh ca
@@ -509,8 +510,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
-      A.RewriteRHS [] rhs wh -> checkWhere wh $ handleRHS rhs
-      A.RewriteRHS ((qname,eq):qes) rhs wh -> do
+      A.RewriteRHS [] strippedPats rhs wh -> checkWhere wh $ handleRHS rhs
+      A.RewriteRHS ((qname,eq):qes) strippedPats rhs wh -> do
 
         -- Action for skipping this rewrite.
         -- We do not want to create unsolved metas in case of
@@ -527,7 +528,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
              -- 3. and a large overall number of ?s.
              let sameIP = (==) `on` (^.stInteractionPoints)
              when (sameIP st st') $ put st
-             handleRHS $ A.RewriteRHS qes rhs wh
+             handleRHS $ A.RewriteRHS qes strippedPats rhs wh
 
         -- Get value and type of rewrite-expression.
 
@@ -589,11 +590,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
         let rhs'     = insertPatterns pats rhs
             (rhs'', outerWhere) -- the where clauses should go on the inner-most with
               | null qes  = (rhs', wh)
-              | otherwise = (A.RewriteRHS qes rhs' wh, [])
+              | otherwise = (A.RewriteRHS qes strippedPats rhs' wh, [])
             -- Andreas, 2014-03-05 kill range of copied patterns
             -- since they really do not have a source location.
             cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                   [] rhs'' outerWhere False
+                   strippedPats rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
           [ text "rewrite"
           , text "  rhs' = " <> (text . show) rhs'

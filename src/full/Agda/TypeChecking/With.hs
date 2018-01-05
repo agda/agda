@@ -225,11 +225,11 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
             fromWithP _ = __IMPOSSIBLE__
       reportSDoc "tc.with" 50 $ text "inheritedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
                                                                | A.ProblemEq p v a <- inheritedPats ]
-      rhs <- buildRHS rhs
       (strippedPats, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
       reportSDoc "tc.with" 50 $ hang (text "strippedPats:") 2 $
                                   vcat [ prettyA p <+> text "==" <+> prettyTCM v <+> (text ":" <+> prettyTCM t)
                                        | A.ProblemEq p v t <- strippedPats ]
+      rhs <- buildRHS strippedPats rhs
       let (ps1, ps2) = splitAt n1 ps'
       let result = A.Clause (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
                      (inheritedPats ++ strippedPats)
@@ -239,11 +239,12 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
         ]
       return result
 
-    buildRHS rhs@A.RHS{}                 = return rhs
-    buildRHS rhs@A.AbsurdRHS             = return rhs
-    buildRHS (A.WithRHS q es cs)         = A.WithRHS q es <$>
+    buildRHS _ rhs@A.RHS{}                 = return rhs
+    buildRHS _ rhs@A.AbsurdRHS             = return rhs
+    buildRHS _ (A.WithRHS q es cs)         = A.WithRHS q es <$>
       mapM ((A.spineToLhs . permuteNamedDots) <.> buildWithClause . A.lhsToSpine) cs
-    buildRHS (A.RewriteRHS qes rhs wh) = flip (A.RewriteRHS qes) wh <$> buildRHS rhs
+    buildRHS strippedPats1 (A.RewriteRHS qes strippedPats2 rhs wh) =
+      flip (A.RewriteRHS qes (applySubst withSub $ strippedPats1 ++ strippedPats2)) wh <$> buildRHS [] rhs
 
     -- The stripped patterns computed by buildWithClause lives in the context
     -- of the top with-clause (of the current call to buildWithFunction). When

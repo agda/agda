@@ -773,7 +773,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       es <- toConcrete es
       cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
-    toConcrete (A.RewriteRHS xeqs rhs wh) = do
+    toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
       wh <- declsToConcrete wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')

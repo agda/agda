@@ -329,7 +329,7 @@ instance ExprLike RHS where
       RHS e c                 -> RHS <$> rec e <*> pure c
       AbsurdRHS{}             -> pure rhs
       WithRHS x es cs         -> WithRHS x <$> rec es <*> rec cs
-      RewriteRHS xes rhs ds   -> RewriteRHS <$> rec xes <*> rec rhs <*> rec ds
+      RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
     where rec e = recurseExpr f e
 
 instance ExprLike ModuleApplication where

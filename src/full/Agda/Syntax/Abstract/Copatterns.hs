@@ -331,7 +331,7 @@ instance Rename RHS where
       RHS e c               -> RHS (rename rho e) c
       AbsurdRHS             -> e
       WithRHS n es cs       -> WithRHS n (rename rho es) (rename rho cs)
-      RewriteRHS nes r ds   -> RewriteRHS (rename rho nes) (rename rho r) (rename rho ds)
+      RewriteRHS nes spats r ds -> RewriteRHS (rename rho nes) (rename rho spats) (rename rho r) (rename rho ds)
 
 instance Rename LHS where
   rename rho (LHS i core) = LHS i (rename rho core)
