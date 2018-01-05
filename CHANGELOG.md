@@ -91,14 +91,14 @@ but they may be removed in some future release of the library.
 
 * The following renaming has occurred in `Data.Bool.Properties` to improve consistency across the library:
   ```agda
-  ∧-∨-distˡ   ↦ ∧-distribˡ-∨
-  ∧-∨-distʳ   ↦ ∧-distribʳ-∨
-  distrib-∧-∨ ↦ ∧-distrib-∨
-  ∨-∧-distˡ   ↦ ∨-distribˡ-∧
-  ∨-∧-distʳ   ↦ ∨-distribʳ-∧
-  ∨-∧-distrib ↦ ∨-distrib-∧
-  ∨-∧-abs     ↦ ∨-abs-∧
-  ∧-∨-abs     ↦ ∧-abs-∨
+  ∧-∨-distˡ      ↦ ∧-distribˡ-∨
+  ∧-∨-distʳ      ↦ ∧-distribʳ-∨
+  distrib-∧-∨    ↦ ∧-distrib-∨
+  ∨-∧-distˡ      ↦ ∨-distribˡ-∧
+  ∨-∧-distʳ      ↦ ∨-distribʳ-∧
+  ∨-∧-distrib    ↦ ∨-distrib-∧
+  ∨-∧-abs        ↦ ∨-abs-∧
+  ∧-∨-abs        ↦ ∧-abs-∨
 
   not-∧-inverseˡ ↦ ∧-inverseˡ
   not-∧-inverseʳ ↦ ∧-inverseʳ
@@ -115,8 +115,8 @@ but they may be removed in some future release of the library.
   booleanAlgebra            ↦ ∨-∧-booleanAlgebra
   commutativeRing-xor-∧     ↦ xor-∧-commutativeRing
 
-  proof-irrelevance          ↦ T-irrelevance
-  ```agda
+  proof-irrelevance         ↦ T-irrelevance
+  ```
 
 * The following renaming has occurred in `Data.Fin.Properties` to improve consistency across the library:
   ```agda
@@ -154,7 +154,7 @@ Backwards compatible changes
 
 * Added support for GHC 8.2.2.
 
-* New modules `Data.Word`
+* New module `Data.Word`
 
   Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
 
@@ -265,11 +265,15 @@ Backwards compatible changes
   ∷-injectiveʳ  : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
   ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
   ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
+  filter-all    : All P xs → dfilter P? xs ≡ xs
+  filter-none   : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
   ```
 
 * Added new proofs to `Data.List.All.Properties`:
   ```agda
   All-irrelevance : IrrelevantPred P → IrrelevantPred (All P)
+  filter⁺₁        : All P (filter P? xs)
+  filter⁺₂        : All Q xs → All Q (filter P? xs)
   ```
 
 * Added new proofs to `Data.List.Relation.NonStrictLex`:
@@ -371,9 +375,9 @@ Backwards compatible changes
 
 * Added new proofs to `Data.Vec.Relation.ExtensionalPointwise`:
   ```agda
-  symmetric              : Symmetric _~_ → Symmetric (Pointwise _~_)
-  transitive             : Transitive _~_ → Transitive (Pointwise _~_)
-  isDecEquivalence       : IsDecEquivalence _~_ → IsDecEquivalence (Pointwise _~_)
+  symmetric             : Symmetric _~_ → Symmetric (Pointwise _~_)
+  transitive            : Transitive _~_ → Transitive (Pointwise _~_)
+  isDecEquivalence      : IsDecEquivalence _~_ → IsDecEquivalence (Pointwise _~_)
   extensional⇒inductive : Pointwise _~_ xs ys → IPointwise _~_ xs ys
   inductive⇒extensional : IPointwise _~_ xs ys → Pointwise _~_ xs ys
 
@@ -383,13 +387,13 @@ Backwards compatible changes
 
 * Added new proofs to `Data.Vec.Relation.InductivePointwise`:
   ```agda
-  ++⁺               : Pointwise P xs → Pointwise P ys → Pointwise P (xs ++ ys)
-  ++⁻ˡ               : Pointwise P (xs ++ ys) → Pointwise P xs
-  ++⁻ʳ               : Pointwise P (xs ++ ys) → Pointwise P ys
-  ++⁻               : Pointwise P (xs ++ ys) → Pointwise P xs × Pointwise P ys
+  ++⁺              : Pointwise P xs → Pointwise P ys → Pointwise P (xs ++ ys)
+  ++⁻ˡ             : Pointwise P (xs ++ ys) → Pointwise P xs
+  ++⁻ʳ             : Pointwise P (xs ++ ys) → Pointwise P ys
+  ++⁻              : Pointwise P (xs ++ ys) → Pointwise P xs × Pointwise P ys
 
-  concat⁺           : Pointwise (Pointwise P) xss → Pointwise P (concat xss)
-  concat⁻           : Pointwise P (concat xss) → Pointwise (Pointwise P) xss
+  concat⁺          : Pointwise (Pointwise P) xss → Pointwise P (concat xss)
+  concat⁻          : Pointwise P (concat xss) → Pointwise (Pointwise P) xss
 
   lookup           : Pointwise _~_ xs ys → ∀ i → lookup i xs ~ lookup i ys
 
@@ -397,15 +401,15 @@ Backwards compatible changes
   transitive       : Transitive _~_ → Transitive (Pointwise _~_)
   isDecEquivalence : IsDecEquivalence _~_ → IsDecEquivalence (Pointwise _~_)
 
-  ≡⇒Pointwise-≡ : Pointwise _≡_ xs ys → xs ≡ ys
-  Pointwise-≡⇒≡ : xs ≡ ys → Pointwise _≡_ xs ys
+  ≡⇒Pointwise-≡    : Pointwise _≡_ xs ys → xs ≡ ys
+  Pointwise-≡⇒≡    : xs ≡ ys → Pointwise _≡_ xs ys
   ```
 
 * Added new functions and proofs to `Data.W`:
   ```agda
-  map       : (f : A → C) → ∀[ D ∘ f ⇒ B ] → W A B → W C D
-  induction : (∀ a {f} (hf : ∀ (b : B a) → P (f b)) → (w : W A B) → P w
-  foldr     : (∀ a → (B a → P) → P) → W A B → P
+  map            : (f : A → C) → ∀[ D ∘ f ⇒ B ] → W A B → W C D
+  induction      : (∀ a {f} (hf : ∀ (b : B a) → P (f b)) → (w : W A B) → P w
+  foldr          : (∀ a → (B a → P) → P) → W A B → P
 
   sup-injective₁ : sup x f ≡ sup y g → x ≡ y
   sup-injective₂ : sup x f ≡ sup x g → f ≡ g
@@ -418,6 +422,11 @@ Backwards compatible changes
   IrrelevantRel _~_ = ∀ {x y} → isPropositional (x ~ y)
   ```
 
+* Added new combinator to ` Relation.Binary.PropositionalEquality.TrustMe`:
+  ```agda
+  postulate[_↦_] : (t : A) → B t → (x : A) → B x
+  ```
+
 * Added new proofs to `Relation.Binary.StrictToNonStrict`:
   ```agda
   isPreorder₁     : IsPreorder _≈_ _<_ → IsPreorder _≈_ _≤_
@@ -427,11 +436,10 @@ Backwards compatible changes
   isDecTotalOrder : IsStrictTotalOrder _≈_ _<_ → IsDecTotalOrder _≈_ _≤_
   ```
 
-* Added new combinators and relations to `Relation.Unary`:
+* Added new syntax and relations to `Relation.Unary`:
   ```agda
-  ∀[_] : Pred A ℓ → Set _
-  _⊢_  : (A → B) → Pred B ℓ → Pred A ℓ
-  
+  syntax Universal P = ∀[ P ]
+
   P ⊈  Q = ¬ (P ⊆ Q)
   P ⊉  Q = ¬ (P ⊇ Q)
   P ⊂  Q = P ⊆ Q × Q ⊈ P
@@ -444,23 +452,8 @@ Backwards compatible changes
   P ⊃′ Q = Q ⊂′ P
   P ⊄′ Q = ¬ (P ⊂′ Q)
   P ⊅′ Q = ¬ (P ⊃′ Q)
-  ```
 
-* Added new proofs to `Data.List.All`:
-  ```agda
-  filter-all    : All P xs → dfilter P? xs ≡ xs
-  filter-none   : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
-  ```
-
-* Added proofs to `Data.List.All.Properties`
-  ```agda
-  filter⁺₁     : All P (filter P? xs)
-  filter⁺₂     : All Q xs → All Q (filter P? xs)
-  ```
-
-* Added new combinator to ` Relation.Binary.PropositionalEquality.TrustMe`:
-  ```agda
-  postulate[_↦_] : (t : A) → B t → (x : A) → B x
+  f ⊢ P = λ x → P (f x)
   ```
 
 Version 0.14
