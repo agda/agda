@@ -132,12 +132,12 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a) = do
       ]
     ]
   return $ LHSState
-    { lhsTel     = tel
-    , lhsOutPat  = applySubst tau qs0 ++ qs1
-    , lhsProblem = Problem
-                   { problemEqs      = applyPatSubst tau oldEqs ++ newEqs
-                   , problemRestPats = ps2
-                   , problemCont     = ret
+    { _lhsTel     = tel
+    , _lhsOutPat  = applySubst tau qs0 ++ qs1
+    , _lhsProblem = Problem
+                   { _problemEqs      = applyPatSubst tau oldEqs ++ newEqs
+                   , _problemRestPats = ps2
+                   , _problemCont     = ret
                    }
-    , lhsTarget  = a $> b
+    , _lhsTarget  = a $> b
     }

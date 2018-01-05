@@ -3,9 +3,10 @@
 module Agda.TypeChecking.Rules.LHS.Problem
        ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
        , FlexChoice(..) , ChooseFlex(..)
-       , ProblemEq(..) , Problem(..) , problemInPats
+       , ProblemEq(..) , Problem(..) , problemEqs
+       , problemRestPats, problemCont, problemInPats
        , AsBinding(..) , DotPattern(..) , AbsurdPattern(..)
-       , LHSState(..)
+       , LHSState(..) , lhsTel , lhsOutPat , lhsProblem , lhsTarget
        ) where
 
 import Prelude hiding (null)
@@ -32,6 +33,7 @@ import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty hiding ((<>))
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -160,9 +162,9 @@ instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
 
 -- | The user patterns we still have to split on.
 data Problem a = Problem
-  { problemEqs      :: [ProblemEq]
+  { _problemEqs      :: [ProblemEq]
     -- ^ User patterns.
-  , problemRestPats :: [NamedArg A.Pattern]
+  , _problemRestPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
     --   Example:
     --   @
@@ -178,12 +180,21 @@ data Problem a = Problem
     --   @
     --   As we instantiate @b@ to @false@, the 'targetType' reduces to
     --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemEqs@.
-  , problemCont     :: LHSState a -> TCM a
+  , _problemCont     :: LHSState a -> TCM a
   }
   deriving Show
 
+problemEqs :: Lens' [ProblemEq] (Problem a)
+problemEqs f p = f (_problemEqs p) <&> \x -> p {_problemEqs = x}
+
+problemRestPats :: Lens' [NamedArg A.Pattern] (Problem a)
+problemRestPats f p = f (_problemRestPats p) <&> \x -> p {_problemRestPats = x}
+
+problemCont :: Lens' (LHSState a -> TCM a) (Problem a)
+problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
+
 problemInPats :: Problem a -> [A.Pattern]
-problemInPats = map problemInPat . problemEqs
+problemInPats = map problemInPat . (^. problemEqs)
 
 data Focus
   = ConFocus (Maybe AmbiguousQName)  -- ^ @Just ambC@ for a (possibly ambiguous) name,
@@ -204,20 +215,32 @@ data AbsurdPattern = Absurd Range Type
 -- | State worked on during the main loop of checking a lhs.
 --   [Ulf Norell's PhD, page. 35]
 data LHSState a = LHSState
-  { lhsTel     :: Telescope
+  { _lhsTel     :: Telescope
     -- ^ Type of pattern variables.
-  , lhsOutPat  :: [NamedArg DeBruijnPattern]
+  , _lhsOutPat  :: [NamedArg DeBruijnPattern]
     -- ^ Patterns after splitting.
     --   The de Bruijn indices refer to positions in the list of abstract
     --   patterns in the problem, counted from the back.
-  , lhsProblem :: Problem a
+  , _lhsProblem :: Problem a
     -- ^ User patterns of supposed type @delta@.
-  , lhsTarget  :: Arg Type
+  , _lhsTarget  :: Arg Type
     -- ^ Type eliminated by 'problemRestPats' in the problem.
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
     --   be type-checked in irrelevant mode.
   }
+
+lhsTel :: Lens' Telescope (LHSState a)
+lhsTel f p = f (_lhsTel p) <&> \x -> p {_lhsTel = x}
+
+lhsOutPat :: Lens' [NamedArg DeBruijnPattern] (LHSState a)
+lhsOutPat f p = f (_lhsOutPat p) <&> \x -> p {_lhsOutPat = x}
+
+lhsProblem :: Lens' (Problem a) (LHSState a)
+lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
+
+lhsTarget :: Lens' (Arg Type) (LHSState a)
+lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
 
 instance Subst Term (Problem a) where
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont

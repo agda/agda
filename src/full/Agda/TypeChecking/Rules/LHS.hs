@@ -82,6 +82,7 @@ import Agda.Utils.Either
 import Agda.Utils.Except (MonadError(..), ExceptT, runExceptT)
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
@@ -234,7 +235,7 @@ updateProblemEqs eqs = do
 --   That is, if the patterns are all variables,
 --   and there is no 'problemRest'.
 isSolvedProblem :: Problem a -> Bool
-isSolvedProblem problem = null (problemRestPats problem) &&
+isSolvedProblem problem = null (problem ^. problemRestPats) &&
   problemAllVariables problem
 
 -- | Check if a problem consists only of variable patterns.
@@ -242,7 +243,7 @@ isSolvedProblem problem = null (problemRestPats problem) &&
 problemAllVariables :: Problem a -> Bool
 problemAllVariables problem =
     all (isSolved . snd . asView) $
-      map namedArg (problemRestPats problem) ++ problemInPats problem
+      map namedArg (problem ^. problemRestPats) ++ problemInPats problem
   where
     -- need further splitting:
     isSolved A.ConP{}        = False
@@ -780,19 +781,19 @@ checkLHS
   -> tcm a
 checkLHS mf st@(LHSState tel ip problem target) = do
   if isSolvedProblem problem then
-    liftTCM $ problemCont problem st
+    liftTCM $ (problem ^. problemCont) st
   else do
     unlessM (optPatternMatching <$> gets getPragmaOptions) $
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
 
-    let splitsToTry = splitStrategy $ problemEqs problem
+    let splitsToTry = splitStrategy $ problem ^. problemEqs
 
     foldr trySplit trySplitRest splitsToTry >>= \case
       Right st' -> do
         -- If the new target type is irrelevant, we need to continue in irr. cxt.
         -- (see Issue 939).
-        let rel = getRelevance $ lhsTarget st'
+        let rel = getRelevance $ st' ^. lhsTarget
         applyRelevanceToContext rel $ checkLHS mf st'
 
       -- If no split works, give error from first split.
@@ -812,7 +813,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
 
     -- If there are any remaining user patterns, try to split on them
     trySplitRest :: tcm (Either [TCErr] (LHSState a))
-    trySplitRest = case problemRestPats problem of
+    trySplitRest = case problem ^. problemRestPats of
       []    -> return $ Left []
       (p:_) -> left singleton <$> runExceptT (splitRest p)
 
@@ -878,7 +879,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
       let projP    = target' $> Named Nothing (ProjP orig projName)
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
-          problem' = problem { problemRestPats = tail (problemRestPats problem) }
+          problem' = over problemRestPats tail problem
       liftTCM $ updateProblemRest (LHSState tel ip' problem' target')
 
 
@@ -896,7 +897,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]
-          eqs'     = applyPatSubst rho $ problemEqs problem
+          eqs'     = applyPatSubst rho $ problem ^. problemEqs
           ip'      = applySubst rho ip
           target'  = applyPatSubst rho target
 
@@ -910,7 +911,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
 
       -- Compute the new state
       eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
-      let problem' = problem { problemEqs = eqs' }
+      let problem' = set problemEqs eqs' problem
       liftTCM $ updateProblemRest (LHSState delta' ip' problem' target')
 
 
@@ -1083,10 +1084,10 @@ checkLHS mf st@(LHSState tel ip problem target) = do
               target'  = applyPatSubst rho target
 
           -- Update the problem equations
-          let eqs' = applyPatSubst rho $ problemEqs problem
+          let eqs' = applyPatSubst rho $ problem ^. problemEqs
           eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
 
-          let problem' = problem { problemEqs = eqs' }
+          let problem' = set problemEqs eqs' problem
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
@@ -1095,9 +1096,9 @@ checkLHS mf st@(LHSState tel ip problem target) = do
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"
             , nest 2 $ vcat
-              [ text "delta'  =" <+> prettyTCM (lhsTel st')
-              , text "eqs'    =" <+> addContext (lhsTel st') (prettyTCM $ problemEqs $ lhsProblem st')
-              , text "ip'     =" <+> addContext (lhsTel st') (pretty $ lhsOutPat st')
+              [ text "delta'  =" <+> prettyTCM (st' ^. lhsTel)
+              , text "eqs'    =" <+> addContext (st' ^. lhsTel) (prettyTCM $ st' ^. lhsProblem ^. problemEqs)
+              , text "ip'     =" <+> addContext (st' ^. lhsTel) (pretty $ st' ^. lhsOutPat)
               ]
             ]
           return st'
