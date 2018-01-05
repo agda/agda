@@ -651,7 +651,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
   oldLets <- sequence [ (x,) <$> openLet b | (x, b) <- oldLets ]
 
   let finalChecks :: LHSState a -> TCM a
-      finalChecks (LHSState delta qs0 (Problem eqs0 rps _) b) = do
+      finalChecks (LHSState delta qs0 (Problem eqs rps _) b) = do
 
         unless (null rps) __IMPOSSIBLE__
 
@@ -661,7 +661,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         delta <- forceTranslateTelescope delta qs0
 
         addContext delta $ do
-          noShadowingOfConstructors c eqs0
+          noShadowingOfConstructors c eqs
           noPatternMatchingOnCodata qs0
 
         -- Compute substitution from the out patterns @qs0@
@@ -677,12 +677,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
             withSub = fromMaybe (wkS (numPats - length cxt) idS) withSub'
             patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
             paramSub = composeS patSub withSub
-
-            -- If this is a with clause, we may have inherited some equations
-            -- from the parent, so we add them here. Doing this before checking
-            -- linearity allows us to get rid of any variables that got
-            -- duplicated by with stripping.
-            eqs = eqs0 ++ applySubst paramSub strippedPats
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
@@ -746,8 +740,14 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
   st0 <- initLHSState tel eqs0 ps a finalChecks
 
+  -- after we have introduced variables, we can add the patterns stripped by
+  -- with-desugaring to the state.
+  let withSub = fromMaybe __IMPOSSIBLE__ withSub'
+  withEqs <- updateProblemEqs $ applySubst withSub strippedPats
+  let st = over (lhsProblem . problemEqs) (++ withEqs) st0
+
   -- doing the splits:
-  (result, block) <- inTopContext $ runWriterT $ checkLHS f st0
+  (result, block) <- inTopContext $ runWriterT $ checkLHS f st
   return result
 
 -- | Determine in which order the splits should be tried by
