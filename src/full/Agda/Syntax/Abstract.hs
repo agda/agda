@@ -319,6 +319,9 @@ data RHS
     { rewriteExprs      :: [(QName, Expr)]
       -- ^ The 'QName's are the names of the generated with functions,
       --   one for each 'Expr'.
+    , rewriteStrippedPats :: [ProblemEq]
+      -- ^ The patterns stripped by with-desugaring. These are only present
+      --   if this rewrite follows a with.
     , rewriteRHS        :: RHS
       -- ^ The RHS should not be another @RewriteRHS@.
     , rewriteWhereDecls :: [Declaration]
@@ -332,7 +335,7 @@ instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
   AbsurdRHS        == AbsurdRHS           = True
   WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
-  RewriteRHS a b c == RewriteRHS a' b' c' = and [ a == a', b == b', c == c' ]
+  RewriteRHS a b c d == RewriteRHS a' b' c' d' = and [ a == a', b == b', c == c' , d == d' ]
   _                == _                   = False
 
 -- | The lhs of a clause in spine view (inside-out).
@@ -625,7 +628,7 @@ instance HasRange RHS where
     getRange AbsurdRHS                = noRange
     getRange (RHS e _)                = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes rhs wh)  = getRange (map snd xes, rhs, wh)
+    getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
@@ -755,7 +758,7 @@ instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
   killRange (RHS e c)                = killRange2 RHS e c
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
-  killRange (RewriteRHS xes rhs wh)  = killRange3 RewriteRHS xes rhs wh
+  killRange (RewriteRHS xes spats rhs wh) = killRange4 RewriteRHS xes spats rhs wh
 
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
@@ -838,7 +841,7 @@ instance AllNames RHS where
   allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
 
 instance AllNames Expr where
   allNames Var{}                   = Seq.empty
