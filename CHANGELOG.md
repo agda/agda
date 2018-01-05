@@ -427,10 +427,23 @@ Backwards compatible changes
   isDecTotalOrder : IsStrictTotalOrder _≈_ _<_ → IsDecTotalOrder _≈_ _≤_
   ```
 
-* Added new combinators to `Relation.Unary`:
+* Added new combinators and relations to `Relation.Unary`:
   ```agda
   ∀[_] : Pred A ℓ → Set _
   _⊢_  : (A → B) → Pred B ℓ → Pred A ℓ
+  
+  P ⊈  Q = ¬ (P ⊆ Q)
+  P ⊉  Q = ¬ (P ⊇ Q)
+  P ⊂  Q = P ⊆ Q × Q ⊈ P
+  P ⊃  Q = Q ⊂ P
+  P ⊄  Q = ¬ (P ⊂ Q)
+  P ⊅  Q = ¬ (P ⊃ Q)
+  P ⊈′ Q = ¬ (P ⊆′ Q)
+  P ⊉′ Q = ¬ (P ⊇′ Q)
+  P ⊂′ Q = P ⊆′ Q × Q ⊈′ P
+  P ⊃′ Q = Q ⊂′ P
+  P ⊄′ Q = ¬ (P ⊂′ Q)
+  P ⊅′ Q = ¬ (P ⊃′ Q)
   ```
 
 * Added new proofs to `Data.List.All`:

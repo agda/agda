@@ -56,6 +56,7 @@ module _ {a} {A : Set a} -- The universe of discourse.
   ｛_｝ : A → Pred A a
   ｛ x ｝ = _≡_ x
 
+  ----------------------------------------------------------------------
   -- The universe, i.e. the subset containing all elements in A.
 
   U : Pred A zero
@@ -73,6 +74,7 @@ module _ {a} {A : Set a} -- The universe of discourse.
   U-Universal : Universal U
   U-Universal = λ _ → _
 
+  ----------------------------------------------------------------------
   -- Set complement.
 
   ∁ : ∀ {ℓ} → Pred A ℓ → Pred A ℓ
@@ -84,21 +86,64 @@ module _ {a} {A : Set a} -- The universe of discourse.
   ∁U-Empty : Empty (∁ U)
   ∁U-Empty = λ x x∈∁U → x∈∁U _
 
-  -- P ⊆ Q means that P is a subset of Q. _⊆′_ is a variant of _⊆_.
+  ----------------------------------------------------------------------
+  -- Subsets
 
-  infix 4 _⊆_ _⊇_ _⊆′_ _⊇′_
+  infix 4 _⊆_ _⊇_ _⊈_ _⊉_ _⊂_ _⊃_ _⊄_ _⊅_
 
   _⊆_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   P ⊆ Q = ∀ {x} → x ∈ P → x ∈ Q
 
+  _⊇_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊇ Q = Q ⊆ P
+
+  _⊈_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊈ Q = ¬ (P ⊆ Q)
+
+  _⊉_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊉ Q = ¬ (P ⊇ Q)
+
+  _⊂_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊂ Q = P ⊆ Q × Q ⊈ P
+
+  _⊃_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊃ Q = Q ⊂ P
+
+  _⊄_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊄ Q = ¬ (P ⊂ Q)
+
+  _⊅_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊅ Q = ¬ (P ⊃ Q)
+
+  -- Dashed variants of _⊆_ for when 'x' can't be inferred from 'x ∈ P'.
+
+  infix 4 _⊆′_ _⊇′_ _⊈′_ _⊉′_ _⊂′_ _⊃′_ _⊄′_ _⊅′_
+
   _⊆′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   P ⊆′ Q = ∀ x → x ∈ P → x ∈ Q
 
-  _⊇_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
-  Q ⊇ P = P ⊆ Q
-
   _⊇′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   Q ⊇′ P = P ⊆′ Q
+
+  _⊈′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊈′ Q = ¬ (P ⊆′ Q)
+
+  _⊉′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊉′ Q = ¬ (P ⊇′ Q)
+
+  _⊂′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊂′ Q = P ⊆′ Q × Q ⊈′ P
+
+  _⊃′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊃′ Q = Q ⊂′ P
+
+  _⊄′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊄′ Q = ¬ (P ⊂′ Q)
+
+  _⊅′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
+  P ⊅′ Q = ¬ (P ⊃′ Q)
+
+  -- Properties of subset
 
   ∅-⊆ : ∀ {ℓ} → (P : Pred A ℓ) → ∅ ⊆ P
   ∅-⊆ P ()
@@ -106,12 +151,16 @@ module _ {a} {A : Set a} -- The universe of discourse.
   ⊆-U : ∀ {ℓ} → (P : Pred A ℓ) → P ⊆ U
   ⊆-U P _ = _
 
+  ----------------------------------------------------------------------
   -- Positive version of non-disjointness, dual to inclusion.
 
   infix 4 _≬_
 
   _≬_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   P ≬ Q = ∃ λ x → x ∈ P × x ∈ Q
+
+  ----------------------------------------------------------------------
+  -- Operations on sets
 
   -- Set union.
 
