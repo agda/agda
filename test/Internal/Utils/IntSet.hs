@@ -73,6 +73,6 @@ return [] -- KEEP!
 
 tests :: IO Bool
 tests = do
-  putStrLn "Internal.Utils.Bag"
+  putStrLn "Internal.Utils.IntSet"
   $quickCheckAll
 

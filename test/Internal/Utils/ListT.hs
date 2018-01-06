@@ -44,5 +44,5 @@ return [] -- KEEP!
 -- | All tests as collected by 'quickCheckAll'.
 tests :: IO Bool
 tests = do
-  putStrLn "Internal.Utils.Permutation"
+  putStrLn "Internal.Utils.ListT"
   $quickCheckAll
