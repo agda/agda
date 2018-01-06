@@ -68,7 +68,7 @@ Naming conventions
 
 ### Preconditions and postconditions
 
-    - Preconditions should only be included in names of results if "important" (mostly judgement call). 
+    - Preconditions should only be included in names of results if "important" (mostly judgement call).
     - Preconditions of results should be prepended to a description of the result by using the symbol `⇒` in names (e.g. `asym⇒antisym`)
     - Preconditions and postconditions should be combined using the symbols `∨` and `∧` (e.g. `i*j≡0⇒i≡0∨j≡0`)
     - Try to avoid the need for bracketing but if necessary use square brackets (e.g. `[m∸n]⊓[n∸m]≡0`)
