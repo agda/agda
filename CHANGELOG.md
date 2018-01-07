@@ -140,6 +140,15 @@ but they may be removed in some future release of the library.
   ≤-steps  ↦ ≤-stepsˡ
   ```
 
+* The following renaming has occurred in `Data.Sign.Properties` to improve consistency across the library:
+  ```agda
+  opposite-not-equal ↦ s≢opposite[s]
+  opposite-cong      ↦ opposite-injective
+  cancel-*-left      ↦ *-cancelˡ-≡
+  cancel-*-right     ↦ *-cancelʳ-≡
+  *-cancellative     ↦ *-cancel-≡
+  ```
+
 * The following renaming has occurred in `Data.Vec.Properties` to improve consistency across the library:
   ```agda
   proof-irrelevance-[]= ↦ []=-irrelevance
@@ -376,6 +385,14 @@ Backwards compatible changes
 * Added new proofs to `Data.ReflexiveClosure`:
   ```agda
   []-injective : (Refl _∼_ x y ∋ [ p ]) ≡ [ q ] → p ≡ q
+  ```
+
+* Added new proofs to `Data.Sign`:
+  ```agda
+  *-isSemigroup : IsSemigroup _≡_ _*_
+  *-semigroup   : Semigroup _ _
+  *-isMonoid    : IsMonoid _≡_ _*_ +
+  *-monoid      : Monoid _ _
   ```
 
 * Added new proofs to `Data.Star.Properties`:
