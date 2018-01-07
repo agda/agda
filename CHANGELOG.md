@@ -55,6 +55,8 @@ Non-backwards compatible changes
 
 * Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
 
+* The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` have been renamed `+-mono-<-≤` and `= +-mono-≤-<` respectively. The actual proofs of left and right monotonicity of `_+_` now use the original two names.
+
 Deprecated features
 -------------------
 
@@ -128,9 +130,15 @@ but they may be removed in some future release of the library.
   been deprecated in favour of the new `filter` and `partition` and the following
   renaming has occured in `Data.List.Base`:
   ```agda
-  gfilter   ↦  mapMaybe
+  gfilter ↦  mapMaybe
   ```
   bringing it into line with the equivalent function in Haskell.
+
+* The following renaming has occurred in `Data.Nat.Properties` to improve consistency across the library:
+  ```agda
+  ¬i+1+j≤i ↦ i+1+j≰i
+  ≤-steps  ↦ ≤-stepsˡ
+  ```
 
 * The following renaming has occurred in `Data.Vec.Properties` to improve consistency across the library:
   ```agda
@@ -305,21 +313,40 @@ Backwards compatible changes
 
 * Added new proofs to `Data.Nat.Properties`:
   ```agda
+  ≤⇒≯                   : _≤_ ⇒ _≯_
+  n≮n                   : ∀ n → n ≮ n
+  ≤-stepsʳ              : ∀ m ≤ n → m ≤ n + o
   ≤-irrelevance         : IrrelevantRel _≤_
   <-irrelevance         : IrrelevantRel _<_
 
+  +-monoˡ-≤             : ∀ n → (_+ n) Preserves _≤_ ⟶ _≤_
+  +-monoʳ-≤             : ∀ n → (n +_) Preserves _≤_ ⟶ _≤_
+  +-monoˡ-<             : ∀ n → (_+ n) Preserves _<_ ⟶ _<_
+  +-monoʳ-<             : ∀ n → (n +_) Preserves _<_ ⟶ _<_
   +-semigroup           : Semigroup _ _
   +-0-monoid            : Monoid _ _
   +-0-commutativeMonoid : CommutativeMonoid _ _
 
+  *-monoˡ-≤             : ∀ n → (_* n) Preserves _≤_ ⟶ _≤_
+  *-monoʳ-≤             : ∀ n → (n *_) Preserves _≤_ ⟶ _≤_
   *-semigroup           : Semigroup _ _
   *-1-monoid            : Monoid _ _
   *-1-commutativeMonoid : CommutativeMonoid _ _
   *-+-semiring          : Semiring _ _
 
+  ^-identityʳ           : RightIdentity 1 _^_
+  ^-zeroˡ               : LeftZero 1 _^_
   ^-semigroup-morphism  : (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
   ^-monoid-morphism     : (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
 
+  m≤n⇒m⊓n≡m             : m ≤ n → m ⊓ n ≡ m
+  m≤n⇒n⊓m≡m             : m ≤ n → n ⊓ m ≡ m
+  m≤n⇒n⊔m≡n             : m ≤ n → n ⊔ m ≡ n
+  m≤n⇒m⊔n≡n             : m ≤ n → m ⊔ n ≡ n
+  ⊔-monoˡ-≤             : ∀ n → (_⊔ n) Preserves _≤_ ⟶ _≤_
+  ⊔-monoʳ-≤             : ∀ n → (n ⊔_) Preserves _≤_ ⟶ _≤_
+  ⊓-monoˡ-≤             : ∀ n → (_⊓ n) Preserves _≤_ ⟶ _≤_
+  ⊓-monoʳ-≤             : ∀ n → (n ⊓_) Preserves _≤_ ⟶ _≤_
   m∸n+n≡m               : n ≤ m → (m ∸ n) + n ≡ m
   m∸[m∸n]≡n             : n ≤ m → m ∸ (m ∸ n) ≡ n
 
