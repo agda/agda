@@ -154,7 +154,7 @@ install:
        export PATH=$HOME/.cabal/bin:$PATH &&
        travis_retry cabal update &&
        travis_retry cabal fetch alex happy cpphs-1.20.8 &&
-       cabal install alex happy cpphs-1.20.8 &&
+       cabal install -v0 alex happy cpphs-1.20.8 &&
        echo "*** Alex version ***" &&
        alex --version &&
        echo "*** Happy version ***" &&
@@ -188,7 +188,7 @@ install:
 # options to `cabal install` set up in the `Makefile`.
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        travis_retry cabal fetch `cabal install --dependencies-only --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
-       make CABAL_OPTS='--only-dependencies --force-reinstalls' install-bin;
+       make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
     fi
@@ -199,7 +199,7 @@ install:
   - export BUILD_DIR=$HOME/dist
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v2 install-bin;
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin;
     fi
 
 ##############################################################################
@@ -295,11 +295,11 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR succeed;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR fail;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR fail;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -315,7 +315,7 @@ script:
 # golden files.
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -331,7 +331,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR user-manual-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR user-manual-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -346,11 +346,11 @@ script:
 # with the `compiler-test`.
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test;
+       make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR lib-succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR lib-succeed;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -362,7 +362,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       cabal install shelltestrunner &&
+       cabal install -v0 shelltestrunner &&
        make test-size-solver;
     fi
 
