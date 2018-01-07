@@ -171,6 +171,7 @@ Backwards compatible changes
   Data.Covec
   Data.List.Relation.StrictLex
   Data.List.Relation.NonStrictLex
+  Data.Vec.Properties
   Data.Vec.Relation.InductivePointwise
   Data.Vec.Relation.ExtensionalPointwise
   ```
@@ -391,8 +392,13 @@ Backwards compatible changes
 
 * Added new proofs to `Data.Vec.Properties`:
   ```agda
-  ∷-injectiveˡ : x ∷ xs ≡ y ∷ ys → x ≡ y
-  ∷-injectiveʳ : x ∷ xs ≡ y ∷ ys → xs ≡ ys
+  ∷-injectiveˡ     : x ∷ xs ≡ y ∷ ys → x ≡ y
+  ∷-injectiveʳ     : x ∷ xs ≡ y ∷ ys → xs ≡ ys
+
+  []=⇒lookup       : xs [ i ]= x → lookup i xs ≡ x
+  lookup⇒[]=       : lookup i xs ≡ x → xs [ i ]= x
+  lookup-replicate : lookup i (replicate x) ≡ x
+  lookup-⊛         : lookup i (fs ⊛ xs) ≡ (lookup i fs $ lookup i xs)
   ```
 
 * Added new proofs to `Data.Vec.All.Properties`
