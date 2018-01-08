@@ -264,3 +264,8 @@ P \\ Q = (P ~ // Q ~) ~
 
 Decidable : ∀ {a ℓ} {A : Set a} (P : Pred A ℓ) → Set _
 Decidable P = ∀ x → Dec (P x)
+
+∁? : ∀ {a ℓ} {A : Set a} {P : Pred A ℓ} → Decidable P → Decidable (∁ P)
+∁? P? x with P? x
+... | yes Px = no (λ ¬¬Px → ¬¬Px Px)
+... | no ¬Px = yes ¬Px

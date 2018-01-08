@@ -24,39 +24,23 @@ open import Agda.Builtin.List public
   using (List; []; _∷_)
 
 ------------------------------------------------------------------------
--- Some operations
-
--- * Basic functions
-
-infixr 5 _++_
-
-[_] : ∀ {a} {A : Set a} → A → List A
-[ x ] = x ∷ []
-
-_++_ : ∀ {a} {A : Set a} → List A → List A → List A
-[]       ++ ys = ys
-(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
-
--- Snoc.
-
-infixl 5 _∷ʳ_
-
-_∷ʳ_ : ∀ {a} {A : Set a} → List A → A → List A
-xs ∷ʳ x = xs ++ [ x ]
-
-null : ∀ {a} {A : Set a} → List A → Bool
-null []       = true
-null (x ∷ xs) = false
-
--- * List transformations
+-- Operations for transforming lists
 
 map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
 map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
-replicate : ∀ {a} {A : Set a} → (n : ℕ) → A → List A
-replicate zero    x = []
-replicate (suc n) x = x ∷ replicate n x
+mapMaybe : ∀ {a b} {A : Set a} {B : Set b} → (A → Maybe B) → List A → List B
+mapMaybe p []       = []
+mapMaybe p (x ∷ xs) with p x
+... | just y  = y ∷ mapMaybe p xs
+... | nothing =     mapMaybe p xs
+
+infixr 5 _++_
+
+_++_ : ∀ {a} {A : Set a} → List A → List A → List A
+[]       ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
 zipWith : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
           → (A → B → C) → List A → List B → List C
@@ -68,10 +52,11 @@ zip = zipWith (_,_)
 
 intersperse : ∀ {a} {A : Set a} → A → List A → List A
 intersperse x []           = []
-intersperse x (y ∷ [])     = [ y ]
+intersperse x (y ∷ [])     = y ∷ []
 intersperse x (y ∷ z ∷ zs) = y ∷ x ∷ intersperse x (z ∷ zs)
 
--- * Reducing lists (folds)
+------------------------------------------------------------------------
+-- Operations for reducing lists
 
 foldr : ∀ {a b} {A : Set a} {B : Set b} → (A → B → B) → B → List A → B
 foldr c n []       = n
@@ -81,14 +66,16 @@ foldl : ∀ {a b} {A : Set a} {B : Set b} → (A → B → A) → A → List B �
 foldl c n []       = n
 foldl c n (x ∷ xs) = foldl c (c n x) xs
 
--- ** Special folds
-
 concat : ∀ {a} {A : Set a} → List (List A) → List A
 concat = foldr _++_ []
 
 concatMap : ∀ {a b} {A : Set a} {B : Set b} →
             (A → List B) → List A → List B
 concatMap f = concat ∘ map f
+
+null : ∀ {a} {A : Set a} → List A → Bool
+null []       = true
+null (x ∷ xs) = false
 
 and : List Bool → Bool
 and = foldr _∧_ true
@@ -111,12 +98,17 @@ product = foldr _*_ 1
 length : ∀ {a} {A : Set a} → List A → ℕ
 length = foldr (λ _ → suc) 0
 
-reverse : ∀ {a} {A : Set a} → List A → List A
-reverse = foldl (λ rev x → x ∷ rev) []
+------------------------------------------------------------------------
+-- Operations for constructing lists
 
--- * Building lists
+[_] : ∀ {a} {A : Set a} → A → List A
+[ x ] = x ∷ []
 
--- ** Scans
+replicate : ∀ {a} {A : Set a} → (n : ℕ) → A → List A
+replicate zero    x = []
+replicate (suc n) x = x ∷ replicate n x
+
+-- Scans
 
 scanr : ∀ {a b} {A : Set a} {B : Set b} →
         (A → B → B) → B → List A → List B
@@ -130,9 +122,32 @@ scanl : ∀ {a b} {A : Set a} {B : Set b} →
 scanl f e []       = e ∷ []
 scanl f e (x ∷ xs) = e ∷ scanl f (f e x) xs
 
--- ** Unfolding
+-- Tabulation
 
--- Unfold. Uses a measure (a natural number) to ensure termination.
+applyUpTo : ∀ {a} {A : Set a} → (ℕ → A) → ℕ → List A
+applyUpTo f zero    = []
+applyUpTo f (suc n) = f zero ∷ applyUpTo (f ∘ suc) n
+
+applyDownFrom : ∀ {a} {A : Set a} → (ℕ → A) → ℕ → List A
+applyDownFrom f zero = []
+applyDownFrom f (suc n) = f n ∷ applyDownFrom f n
+
+tabulate : ∀ {a n} {A : Set a} (f : Fin n → A) → List A
+tabulate {_} {zero}  f = []
+tabulate {_} {suc n} f = f fzero ∷ tabulate (f ∘ fsuc)
+
+-- Numerical
+
+upTo : ℕ → List ℕ
+upTo = applyUpTo id
+
+downFrom : ℕ → List ℕ
+downFrom = applyDownFrom id
+
+allFin : ∀ n → List (Fin n)
+allFin n = tabulate id
+
+-- Other
 
 unfold : ∀ {a b} {A : Set a} (B : ℕ → Set b)
          (f : ∀ {n} → B (suc n) → Maybe (A × B n)) →
@@ -142,46 +157,12 @@ unfold B f {n = suc n} s with f s
 ... | nothing       = []
 ... | just (x , s') = x ∷ unfold B f s'
 
--- applyUpTo 3 = f0 ∷ f1 ∷ f2 ∷ [].
-
-applyUpTo : ∀ {a} {A : Set a} → (ℕ → A) → ℕ → List A
-applyUpTo f zero    = []
-applyUpTo f (suc n) = f zero ∷ applyUpTo (f ∘ suc) n
-
--- upTo 3 = 0 ∷ 1 ∷ 2 ∷ [].
-
-upTo : ℕ → List ℕ
-upTo = applyUpTo id
-
--- applyDownFrom 3 = f2 ∷ f1 ∷ f0 ∷ [].
-
-applyDownFrom : ∀ {a} {A : Set a} → (ℕ → A) → ℕ → List A
-applyDownFrom f zero = []
-applyDownFrom f (suc n) = f n ∷ applyDownFrom f n
-
--- downFrom 3 = 2 ∷ 1 ∷ 0 ∷ [].
-
-downFrom : ℕ → List ℕ
-downFrom = applyDownFrom id
-
--- tabulate f = f 0 ∷ f 1 ∷ ... ∷ f n ∷ []
-
-tabulate : ∀ {a n} {A : Set a} (f : Fin n → A) → List A
-tabulate {_} {zero}  f = []
-tabulate {_} {suc n} f = f fzero ∷ tabulate (f ∘ fsuc)
-
-allFin : ∀ n → List (Fin n)
-allFin n = tabulate id
-
--- ** Conversions
-
 fromMaybe : ∀ {a} {A : Set a} → Maybe A → List A
 fromMaybe (just x) = [ x ]
 fromMaybe nothing  = []
 
--- * Sublists
-
--- ** Extracting sublists
+------------------------------------------------------------------------
+-- Operations for deconstructing lists
 
 take : ∀ {a} {A : Set a} → ℕ → List A → List A
 take zero    xs       = []
@@ -214,7 +195,7 @@ dropWhile p (x ∷ xs) with p x
 span : ∀ {a} {A : Set a} → (A → Bool) → List A → (List A × List A)
 span p []       = ([] , [])
 span p (x ∷ xs) with p x
-... | true  = Prod.map (_∷_ x) id (span p xs)
+... | true  = Prod.map (x ∷_) id (span p xs)
 ... | false = ([] , x ∷ xs)
 
 break : ∀ {a} {A : Set a} → (A → Bool) → List A → (List A × List A)
@@ -222,32 +203,11 @@ break p = span (not ∘ p)
 
 inits : ∀ {a} {A : Set a} → List A → List (List A)
 inits []       = [] ∷ []
-inits (x ∷ xs) = [] ∷ map (_∷_ x) (inits xs)
+inits (x ∷ xs) = [] ∷ map (x ∷_) (inits xs)
 
 tails : ∀ {a} {A : Set a} → List A → List (List A)
 tails []       = [] ∷ []
 tails (x ∷ xs) = (x ∷ xs) ∷ tails xs
-
-infixl 5 _∷ʳ'_
-
-data InitLast {a} {A : Set a} : List A → Set a where
-  []    : InitLast []
-  _∷ʳ'_ : (xs : List A) (x : A) → InitLast (xs ∷ʳ x)
-
-initLast : ∀ {a} {A : Set a} (xs : List A) → InitLast xs
-initLast []               = []
-initLast (x ∷ xs)         with initLast xs
-initLast (x ∷ .[])        | []       = [] ∷ʳ' x
-initLast (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
-
-mapMaybe : ∀ {a b} {A : Set a} {B : Set b} →
-          (A → Maybe B) → List A → List B
-mapMaybe p []       = []
-mapMaybe p (x ∷ xs) with p x
-... | just y  = y ∷ mapMaybe p xs
-... | nothing =     mapMaybe p xs
-
--- * Searching lists
 
 filter : ∀ {a p} {A : Set a} {P : A → Set p} →
          Decidable P → List A → List A
@@ -262,6 +222,33 @@ partition P? []       = ([] , [])
 partition P? (x ∷ xs) with P? x | partition P? xs
 ... | yes _ | (ys , zs) = (x ∷ ys , zs)
 ... | no  _ | (ys , zs) = (ys , x ∷ zs)
+
+------------------------------------------------------------------------
+-- Operations for reversing lists
+
+reverse : ∀ {a} {A : Set a} → List A → List A
+reverse = foldl (λ rev x → x ∷ rev) []
+
+-- Snoc.
+
+infixl 5 _∷ʳ_
+
+_∷ʳ_ : ∀ {a} {A : Set a} → List A → A → List A
+xs ∷ʳ x = xs ++ [ x ]
+
+-- Backwards initialisation
+
+infixl 5 _∷ʳ'_
+
+data InitLast {a} {A : Set a} : List A → Set a where
+  []    : InitLast []
+  _∷ʳ'_ : (xs : List A) (x : A) → InitLast (xs ∷ʳ x)
+
+initLast : ∀ {a} {A : Set a} (xs : List A) → InitLast xs
+initLast []               = []
+initLast (x ∷ xs)         with initLast xs
+initLast (x ∷ .[])        | []       = [] ∷ʳ' x
+initLast (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
 
 ------------------------------------------------------------------------
 -- DEPRECATED
