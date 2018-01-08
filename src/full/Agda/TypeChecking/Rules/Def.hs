@@ -404,7 +404,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
       cxtNames <- reverse . map (fst . unDom) <$> getContext
       when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         text "strippedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
-      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
+      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -489,9 +489,8 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                               -- Note: the as-bindings are already bound (in checkClause)
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb) rhs0 = handleRHS rhs0
   where
-  absurdPat = containsAbsurdPattern aps
   handleRHS rhs =
     case rhs of
 
@@ -635,7 +634,7 @@ checkWithRHS
   -> [A.Clause]              -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
-checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
+checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
         let withArgs = withArguments vs0 as
             perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
