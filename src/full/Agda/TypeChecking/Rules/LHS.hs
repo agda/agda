@@ -580,6 +580,8 @@ data LHSResult = LHSResult
     -- Corresponds to 'clauseTel'.
   , lhsPatterns     :: [NamedArg DeBruijnPattern]
     -- ^ The patterns in internal syntax.
+  , lhsHasAbsurd    :: Bool
+    -- ^ Whether the LHS has at least one absurd pattern.
   , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
     -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
@@ -595,9 +597,10 @@ data LHSResult = LHSResult
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult n tel ps t sub as) = LHSResult n
+  instantiateFull' (LHSResult n tel ps abs t sub as) = LHSResult n
     <$> instantiateFull' tel
     <*> instantiateFull' ps
+    <*> instantiateFull' abs
     <*> instantiateFull' t
     <*> instantiateFull' sub
     <*> instantiateFull' as
@@ -693,7 +696,9 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
         qs <- transferOrigins (cps ++ ps) $ applySubst ren qs0
 
-        let lhsResult = LHSResult (length cxt) delta qs b patSub asb
+        let hasAbsurd = not . null $ absurds
+
+        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb
             newLets = [ AsB x (applySubst paramSub v) (applySubst paramSub $ unDom a) | (x, (v, a)) <- oldLets ]
 
         -- Debug output
