@@ -173,7 +173,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides zero eq) = r≢zero $ begin
   0          ∎
   where open PropEq.≡-Reasoning
 nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
-  ¬i+1+j≤i m $ begin
+  i+1+j≰i m $ begin
     m + suc (q * suc m) ≡⟨ +-suc m (q * suc m) ⟩
     suc (m + q * suc m) ≡⟨ sym eq ⟩
     1 * toℕ r           ≡⟨ *-identityˡ (toℕ r) ⟩

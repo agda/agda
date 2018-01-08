@@ -55,6 +55,8 @@ Non-backwards compatible changes
 
 * Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
 
+* The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` have been renamed `+-mono-<-≤` and `= +-mono-≤-<` respectively. The actual proofs of left and right monotonicity of `_+_` now use the original two names.
+
 Deprecated features
 -------------------
 
@@ -128,7 +130,7 @@ but they may be removed in some future release of the library.
   been deprecated in favour of the new `filter` and `partition` and the following
   renaming has occured in `Data.List.Base`:
   ```agda
-  gfilter   ↦  mapMaybe
+  gfilter ↦  mapMaybe
   ```
   bringing it into line with the equivalent function in Haskell.
 
@@ -136,6 +138,21 @@ but they may be removed in some future release of the library.
   ```agda
   right-identity-unique ↦ ++-identityʳ-unique
   left-identity-unique  ↦ ++-identityˡ-unique
+  ```
+
+* The following renaming has occurred in `Data.Nat.Properties` to improve consistency across the library:
+  ```agda
+  ¬i+1+j≤i ↦ i+1+j≰i
+  ≤-steps  ↦ ≤-stepsˡ
+  ```
+
+* The following renaming has occurred in `Data.Sign.Properties` to improve consistency across the library:
+  ```agda
+  opposite-not-equal ↦ s≢opposite[s]
+  opposite-cong      ↦ opposite-injective
+  cancel-*-left      ↦ *-cancelˡ-≡
+  cancel-*-right     ↦ *-cancelʳ-≡
+  *-cancellative     ↦ *-cancel-≡
   ```
 
 * The following renaming has occurred in `Data.Vec.Properties` to improve consistency across the library:
@@ -169,6 +186,7 @@ Backwards compatible changes
   Data.Covec
   Data.List.Relation.StrictLex
   Data.List.Relation.NonStrictLex
+  Data.Vec.Properties
   Data.Vec.Relation.InductivePointwise
   Data.Vec.Relation.ExtensionalPointwise
   ```
@@ -316,21 +334,40 @@ Backwards compatible changes
 
 * Added new proofs to `Data.Nat.Properties`:
   ```agda
+  ≤⇒≯                   : _≤_ ⇒ _≯_
+  n≮n                   : ∀ n → n ≮ n
+  ≤-stepsʳ              : ∀ m ≤ n → m ≤ n + o
   ≤-irrelevance         : IrrelevantRel _≤_
   <-irrelevance         : IrrelevantRel _<_
 
+  +-monoˡ-≤             : ∀ n → (_+ n) Preserves _≤_ ⟶ _≤_
+  +-monoʳ-≤             : ∀ n → (n +_) Preserves _≤_ ⟶ _≤_
+  +-monoˡ-<             : ∀ n → (_+ n) Preserves _<_ ⟶ _<_
+  +-monoʳ-<             : ∀ n → (n +_) Preserves _<_ ⟶ _<_
   +-semigroup           : Semigroup _ _
   +-0-monoid            : Monoid _ _
   +-0-commutativeMonoid : CommutativeMonoid _ _
 
+  *-monoˡ-≤             : ∀ n → (_* n) Preserves _≤_ ⟶ _≤_
+  *-monoʳ-≤             : ∀ n → (n *_) Preserves _≤_ ⟶ _≤_
   *-semigroup           : Semigroup _ _
   *-1-monoid            : Monoid _ _
   *-1-commutativeMonoid : CommutativeMonoid _ _
   *-+-semiring          : Semiring _ _
 
+  ^-identityʳ           : RightIdentity 1 _^_
+  ^-zeroˡ               : LeftZero 1 _^_
   ^-semigroup-morphism  : (x ^_) Is +-semigroup -Semigroup⟶ *-semigroup
   ^-monoid-morphism     : (x ^_) Is +-0-monoid -Monoid⟶ *-1-monoid
 
+  m≤n⇒m⊓n≡m             : m ≤ n → m ⊓ n ≡ m
+  m≤n⇒n⊓m≡m             : m ≤ n → n ⊓ m ≡ m
+  m≤n⇒n⊔m≡n             : m ≤ n → n ⊔ m ≡ n
+  m≤n⇒m⊔n≡n             : m ≤ n → m ⊔ n ≡ n
+  ⊔-monoˡ-≤             : ∀ n → (_⊔ n) Preserves _≤_ ⟶ _≤_
+  ⊔-monoʳ-≤             : ∀ n → (n ⊔_) Preserves _≤_ ⟶ _≤_
+  ⊓-monoˡ-≤             : ∀ n → (_⊓ n) Preserves _≤_ ⟶ _≤_
+  ⊓-monoʳ-≤             : ∀ n → (n ⊓_) Preserves _≤_ ⟶ _≤_
   m∸n+n≡m               : n ≤ m → (m ∸ n) + n ≡ m
   m∸[m∸n]≡n             : n ≤ m → m ∸ (m ∸ n) ≡ n
 
@@ -361,6 +398,14 @@ Backwards compatible changes
   []-injective : (Refl _∼_ x y ∋ [ p ]) ≡ [ q ] → p ≡ q
   ```
 
+* Added new proofs to `Data.Sign`:
+  ```agda
+  *-isSemigroup : IsSemigroup _≡_ _*_
+  *-semigroup   : Semigroup _ _
+  *-isMonoid    : IsMonoid _≡_ _*_ +
+  *-monoid      : Monoid _ _
+  ```
+
 * Added new proofs to `Data.Star.Properties`:
   ```agda
   ◅-injectiveˡ : (Star T i k ∋ x ◅ xs) ≡ y ◅ ys → x ≡ y
@@ -375,8 +420,13 @@ Backwards compatible changes
 
 * Added new proofs to `Data.Vec.Properties`:
   ```agda
-  ∷-injectiveˡ : x ∷ xs ≡ y ∷ ys → x ≡ y
-  ∷-injectiveʳ : x ∷ xs ≡ y ∷ ys → xs ≡ ys
+  ∷-injectiveˡ     : x ∷ xs ≡ y ∷ ys → x ≡ y
+  ∷-injectiveʳ     : x ∷ xs ≡ y ∷ ys → xs ≡ ys
+
+  []=⇒lookup       : xs [ i ]= x → lookup i xs ≡ x
+  lookup⇒[]=       : lookup i xs ≡ x → xs [ i ]= x
+  lookup-replicate : lookup i (replicate x) ≡ x
+  lookup-⊛         : lookup i (fs ⊛ xs) ≡ (lookup i fs $ lookup i xs)
   ```
 
 * Added new proofs to `Data.Vec.All.Properties`
