@@ -39,6 +39,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   ```bash
   make install-size-solver
+  cabal install shelltestrunner
   make test-size-solver
   ```
 
