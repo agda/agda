@@ -40,7 +40,6 @@ import Agda.TypeChecking.Rules.Term
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Rules.LHS (isFlexiblePattern)
 import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
 
 import Agda.Utils.Functor
@@ -420,13 +419,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         , nest 2 $ text "self=" <+> prettyTCM self
         , nest 2 $ text "t   =" <+> prettyTCM t
         ]
-      let failDotPat :: Monoid w => WriterT w TCM a
-          failDotPat = do
-            d <- liftTCM $ prettyA p
-            typeError $ GenericError $
-                "Inaccessible (dotted) patterns from the parent clause must " ++
-                "also be inaccessible in the with clause, when checking the " ++
-                "pattern " ++ show d ++ ","
       case namedArg q of
         ProjP o d -> case A.maybePostfixProjP p of
           Just (o', AmbQ ds) -> do
@@ -459,37 +451,10 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
-        DotP o v  -> case namedArg p of
-          A.DotP r e  -> do
-            (a, _) <- mustBePi t
-            tell [ProblemEq (A.DotP r e) v a]
-            okFlex p
-          A.WildP _     -> ok p
-          -- Ulf, 2016-05-30: dot patterns are no longer mandatory so a parent
-          -- dot pattern can appear as a variable in the child clause. Indeed
-          -- this happens if you use a variable in the parent and '...' in the
-          -- child. In this case we need to remember the the binding, so we can
-          -- insert a let for it.
-          A.VarP x -> do
-            (a, _) <- mustBePi t
-            tell [A.ProblemEq (A.VarP x) v a]
-            ok p
-          -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
-          -- we just fold it back.  This fixes issues 665 and 824.
-          A.ConP ci _ _ | patOrigin ci == ConOSystem -> okFlex p
-          -- Andreas, 2015-07-07 issue 1606: Same for flexible record patterns.
-          -- Agda might have replaced a record of dot patterns (A.ConP) by a dot pattern (I.DotP).
-          p'@A.ConP{} -> ifM (liftTCM $ isFlexiblePattern p') (okFlex p) {-else-} failDotPat
-
-          p@(A.PatternSynP pi' c' [ps']) -> do
-             reportSDoc "impossible" 10 $
-               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
-             __IMPOSSIBLE__
-
-          _ -> failDotPat
-          where
-            okFlex = ok . makeImplicitP
-            ok p   = (p :) <$> recurse v
+        DotP o v  -> do
+          (a, _) <- mustBePi t
+          tell [ProblemEq (namedArg p) v a]
+          (makeImplicitP p :) <$> recurse v
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
