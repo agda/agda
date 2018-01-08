@@ -11,9 +11,9 @@ tested-with: GHC == 7.10.3
 executable agda-bisect
   main-is:          Bisect.hs
   build-depends:      ansi-wl-pprint >= 0.6.7.3 && < 0.7
-                    , base >= 4.8.2.0 && < 4.11
+                    , base >= 4.8.2.0 && < 4.12
                     , directory >= 1.2.2.0 && < 1.4
-                    , optparse-applicative == 0.13.*
+                    , optparse-applicative >= 0.13 && < 0.15
                     , process >= 1.2.3.0 && < 1.7
                     , time >= 1.5.0.1 && < 1.9
                     , unix >= 2.7.0.1 && < 2.8
