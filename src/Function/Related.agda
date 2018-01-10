@@ -46,12 +46,14 @@ open _↢_ public
 -- from Simon Thompson and Bengt Nordström. /NAD
 
 data Kind : Set where
-  implication reverse-implication
-    equivalence
-    injection reverse-injection
-    left-inverse surjection
-    bijection
-    : Kind
+  implication         : Kind
+  reverse-implication : Kind
+  equivalence         : Kind
+  injection           : Kind
+  reverse-injection   : Kind
+  left-inverse        : Kind
+  surjection          : Kind
+  bijection           : Kind
 
 -- Interpretation of the codes above. The code "bijection" is
 -- interpreted as Inverse rather than Bijection; the two types are
@@ -98,7 +100,8 @@ Related k A B = A ∼[ k ] B
 -- Kinds whose interpretation is symmetric.
 
 data Symmetric-kind : Set where
-  equivalence bijection : Symmetric-kind
+  equivalence : Symmetric-kind
+  bijection   : Symmetric-kind
 
 -- Forgetful map.
 
@@ -112,8 +115,12 @@ data Symmetric-kind : Set where
 -- forward direction".
 
 data Forward-kind : Set where
-  implication equivalence injection
-    left-inverse surjection bijection : Forward-kind
+  implication  : Forward-kind
+  equivalence  : Forward-kind
+  injection    : Forward-kind
+  left-inverse : Forward-kind
+  surjection   : Forward-kind
+  bijection    : Forward-kind
 
 -- Forgetful map.
 
@@ -138,8 +145,12 @@ data Forward-kind : Set where
 -- Kinds whose interpretation include a function which "goes backwards".
 
 data Backward-kind : Set where
-  reverse-implication equivalence reverse-injection
-    left-inverse surjection bijection : Backward-kind
+  reverse-implication : Backward-kind
+  equivalence         : Backward-kind
+  reverse-injection   : Backward-kind
+  left-inverse        : Backward-kind
+  surjection          : Backward-kind
+  bijection           : Backward-kind
 
 -- Forgetful map.
 
@@ -165,7 +176,10 @@ data Backward-kind : Set where
 -- directions.
 
 data Equivalence-kind : Set where
-    equivalence left-inverse surjection bijection : Equivalence-kind
+    equivalence  : Equivalence-kind
+    left-inverse : Equivalence-kind
+    surjection   : Equivalence-kind
+    bijection    : Equivalence-kind
 
 -- Forgetful map.
 

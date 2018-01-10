@@ -47,8 +47,7 @@ respects _ _ sym resp ∼ = resp (sym ∼)
 
 respects₂ : ∀ {a ℓ₁ ℓ₂} {A : Set a} (∼₁ : Rel A ℓ₁) (∼₂ : Rel A ℓ₂) →
             Symmetric ∼₂ → ∼₁ Respects₂ ∼₂ → flip ∼₁ Respects₂ flip ∼₂
-respects₂ _ _ sym (resp₁ , resp₂) =
-  ((λ {_} {_} {_} ∼ → resp₂ (sym ∼)) , λ {_} {_} {_} ∼ → resp₁ (sym ∼))
+respects₂ _ _ sym (resp₁ , resp₂) = (resp₂ ∘ sym , resp₁ ∘ sym)
 
 decidable : ∀ {a b ℓ} {A : Set a} {B : Set b} (∼ : REL A B ℓ) →
             Decidable ∼ → Decidable (flip ∼)

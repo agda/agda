@@ -34,13 +34,11 @@ x < y = (x ≤ y) × ¬ (x ≈ y)
 -- (if the original relations have certain other properties)
 
 irrefl : Irreflexive _≈_ _<_
-irrefl x≈y x<y = proj₂ x<y x≈y
+irrefl x≈y (_ , x≉y) = x≉y x≈y
 
 trans : IsPartialOrder _≈_ _≤_ → Transitive _<_
-trans po = λ x<y y<z →
-  ( PO.trans (proj₁ x<y) (proj₁ y<z)
-  , λ x≈z → proj₂ x<y $ lemma (proj₁ x<y) (proj₁ y<z) x≈z
-  )
+trans po (x≤y , x≉y) (y≤z , y≉z) =
+  (PO.trans x≤y y≤z , x≉y ∘ lemma x≤y y≤z)
   where
   module PO = IsPartialOrder po
 
@@ -49,8 +47,7 @@ trans po = λ x<y y<z →
     PO.antisym x≤y $ PO.trans y≤z (PO.reflexive $ PO.Eq.sym x≈z)
 
 antisym⟶asym : Antisymmetric _≈_ _≤_ → Asymmetric _<_
-antisym⟶asym antisym (x≤y , ¬x≈y) (y≤x , ¬y≈x) =
-  ¬x≈y (antisym x≤y y≤x)
+antisym⟶asym antisym (x≤y , x≉y) (y≤x , _) = x≉y (antisym x≤y y≤x)
 
 <-resp-≈ : IsEquivalence _≈_ → _≤_ Respects₂ _≈_ → _<_ Respects₂ _≈_
 <-resp-≈ eq ≤-resp-≈ =
