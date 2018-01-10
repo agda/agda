@@ -13,6 +13,7 @@ import Prelude hiding (log)
 import Data.Char
 import Data.Maybe
 import Data.Function
+import Data.Foldable (toList)
 import Control.Monad.RWS.Strict
 import Control.Arrow (second)
 import System.Directory
@@ -459,12 +460,12 @@ processCode toks' = do
         else do
           ptOpenWhenColumnZero col
           output $ Text $
-            case aspect (info tok') of
-              Nothing -> escape tok
-              Just a  ->
-                foldr (\c t -> cmdPrefix <+> T.pack c <+> cmdArg t)
-                      (escape tok)
-                      (cmds a)
+            -- we return the escaped token wrapped in commands corresponding
+            -- to its aspect (if any) and other aspects (e.g. error, unsolved meta)
+            foldr (\c t -> cmdPrefix <+> T.pack c <+> cmdArg t)
+                  (escape tok)
+                  $ concatMap fromAspect (toList $ aspect $ info tok')
+                    ++ map fromOtherAspect (otherAspects $ info tok')
 
     -- Non-whitespace tokens at the start of a line trigger an
     -- alignment column.
@@ -473,8 +474,13 @@ processCode toks' = do
           registerColumnZero
           output . Text . ptOpen =<< columnZero
 
-    cmds :: Aspect -> [String]
-    cmds a = let s = [show a] in case a of
+    -- Translation from OtherAspect to command strings. So far it happens
+    -- to correspond to @show@ but it does not have to (cf. fromAspect)
+    fromOtherAspect :: OtherAspect -> String
+    fromOtherAspect = show
+
+    fromAspect :: Aspect -> [String]
+    fromAspect a = let s = [show a] in case a of
       Comment           -> s
       Option            -> s
       Keyword           -> s
@@ -482,7 +488,7 @@ processCode toks' = do
       Number            -> s
       Symbol            -> s
       PrimitiveType     -> s
-      Name Nothing isOp -> cmds (Name (Just Postulate) isOp)
+      Name Nothing isOp -> fromAspect (Name (Just Postulate) isOp)
         -- At the time of writing the case above can be encountered in
         -- --only-scope-checking mode, for instance for the token "Size"
         -- in the following code:
