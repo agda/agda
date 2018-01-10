@@ -223,6 +223,8 @@ updateProblemEqs eqs = do
 
       Lit l | A.LitP l' <- p , l == l' -> return []
 
+      _ | A.WildP{} <- p -> return []
+
       _ -> return [eq]
 
     instTel :: Telescope -> [Term] -> [Dom Type]
