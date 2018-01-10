@@ -175,14 +175,14 @@ updateInPatterns as ps qs = do
           -- If the user wrote a constructor pattern, the computed dot pattern
           -- better have the same constructor as its head.
           mus <- do
-            isrec <- isRecordConstructor c
+            isrec <- isEtaCon c
             case isrec of
-              -- don't fail for record constructor, since we can always eta-expand
-              Just _ -> do
+              -- don't fail for (eta) record constructor, since we can always eta-expand
+              True -> do
                 Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
                 let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                 Just <$> etaExpandRecord r vs u
-              Nothing -> do
+              False -> do
                 u <- reduce u
                 case ignoreSharing u of
                   Con c' _ us | c == conName c' -> do
