@@ -203,6 +203,24 @@ forceTranslateTelescope delta qs = do
       reportSDoc "tc.force" 60 $ nest 2 $ text "delta' =" <?> prettyTCM delta'
       return delta'
 
+-- | Move the bindings in a forced pattern to non-forced positions.
+--   Takes a list of top-level patterns `ps` (second argument) and a pattern to
+--   "unforce" `q` (first argument). The first argument should appear somewhere
+--   (possibly deep) inside the second argument. The result is a new list of
+--   top-level patterns where `q` has been turned into a dot pattern, and the
+--   binding sites of variables previously bound in `q` have been moved by
+--   turning dot patterns into proper patterns.
+--
+--   Preconditions:
+--    - `q` must appear in a forced position in `ps`. This ensures that we can
+--      find alternative binding sites for its variables.
+--    - `q` must bind at least one variable. This ensures that there is a
+--      unique occurrence of `q` in `ps`.
+--
+--   For instance (with patterns prettified to ease readability):
+--
+--    unforce n [.(suc n), cons n x xs] = [suc n, cons .n x xs]
+--
 unforce :: DeBruijnPattern -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
 unforce q [] = __IMPOSSIBLE__   -- unforcing cannot fail
 unforce q (p : ps) =
