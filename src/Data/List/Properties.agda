@@ -10,9 +10,9 @@
 module Data.List.Properties where
 
 open import Algebra
+open import Algebra.Structures
 open import Algebra.FunctionProperties
 import Algebra.Monoid-solver
-open import Category.Monad
 open import Data.Bool.Base using (Bool; false; true; not; if_then_else_)
 open import Data.List as List
 open import Data.List.All using (All; []; _∷_)
@@ -28,13 +28,6 @@ open import Relation.Nullary using (¬_; yes; no)
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Relation.Unary using (Decidable; ∁; ∁?)
-
-private
-  open module LMP {ℓ} = RawMonadPlus (List.monadPlus {ℓ = ℓ})
-  module LM {a} {A : Set a} = Monoid (List.monoid A)
-
-module List-solver {a} {A : Set a} =
-  Algebra.Monoid-solver (monoid A) renaming (id to nil)
 
 ------------------------------------------------------------------------
 -- _∷_
@@ -122,14 +115,18 @@ module _ {a b} {A : Set a} {B : Set b} (f : A → Maybe B) where
 
 module _ {a} {A : Set a} where
 
-  ++-identityˡ : LeftIdentity (_≡_ {A = List A}) [] _++_
+  ++-assoc : Associative {A = List A} _≡_ _++_
+  ++-assoc []       ys zs = refl
+  ++-assoc (x ∷ xs) ys zs = P.cong (x ∷_) (++-assoc xs ys zs)
+
+  ++-identityˡ : LeftIdentity {A = List A} _≡_ [] _++_
   ++-identityˡ xs = refl
 
-  ++-identityʳ : RightIdentity (_≡_ {A = List A}) [] _++_
+  ++-identityʳ : RightIdentity {A = List A} _≡_ [] _++_
   ++-identityʳ []       = refl
   ++-identityʳ (x ∷ xs) = P.cong (x ∷_) (++-identityʳ xs)
 
-  ++-identity : Identity (_≡_ {A = List A}) [] _++_
+  ++-identity : Identity {A = List A} _≡_ [] _++_
   ++-identity = ++-identityˡ , ++-identityʳ
 
   ++-identityʳ-unique : ∀ (xs : List A) {ys} → xs ≡ xs ++ ys → ys ≡ []
@@ -143,7 +140,7 @@ module _ {a} {A : Set a} where
   ++-identityˡ-unique {xs = x ∷ xs} (y ∷ ys) eq
     with ++-identityˡ-unique (ys ++ [ x ]) (begin
          xs                  ≡⟨ proj₂ (∷-injective eq) ⟩
-         ys ++ x ∷ xs        ≡⟨ P.sym (LM.assoc ys [ x ] xs) ⟩
+         ys ++ x ∷ xs        ≡⟨ P.sym (++-assoc ys [ x ] xs) ⟩
          (ys ++ [ x ]) ++ xs ∎)
     where open P.≡-Reasoning
   ++-identityˡ-unique {xs = x ∷ xs} (y ∷ []   ) eq | ()
@@ -152,6 +149,36 @@ module _ {a} {A : Set a} where
   length-++ : ∀ (xs : List A) {ys} → length (xs ++ ys) ≡ length xs + length ys
   length-++ []       = refl
   length-++ (x ∷ xs) = P.cong suc (length-++ xs)
+
+  ++-isSemigroup : IsSemigroup {A = List A} _≡_ _++_
+  ++-isSemigroup = record
+    { isEquivalence = P.isEquivalence
+    ; assoc         = ++-assoc
+    ; ∙-cong        = P.cong₂ _++_
+    }
+
+  ++-isMonoid : IsMonoid {A = List A} _≡_ _++_ []
+  ++-isMonoid = record
+    { isSemigroup = ++-isSemigroup
+    ; identity    = ++-identity
+    }
+
+++-semigroup : ∀ {a} (A : Set a) → Semigroup _ _
+++-semigroup A = record
+  { Carrier  = List A
+  ; _≈_      = _≡_
+  ; _∙_      = _++_
+  ; isSemigroup = ++-isSemigroup
+  }
+
+++-monoid : ∀ {a} (A : Set a) → Monoid _ _
+++-monoid A = record
+  { Carrier  = List A
+  ; _≈_      = _≡_
+  ; _∙_      = _++_
+  ; ε        = []
+  ; isMonoid = ++-isMonoid
+  }
 
 ------------------------------------------------------------------------
 -- foldr
@@ -391,17 +418,17 @@ module _ {a} {A : Set a} where
     helper xs []       = refl
     helper xs (y ∷ ys) = begin
       foldl (flip _∷_) (y ∷ xs) ys  ≡⟨ helper (y ∷ xs) ys ⟩
-      reverse ys ++ y ∷ xs          ≡⟨ P.sym $ LM.assoc (reverse ys) _ _ ⟩
+      reverse ys ++ y ∷ xs          ≡⟨ P.sym (++-assoc (reverse ys) _ _) ⟩
       (reverse ys ∷ʳ y) ++ xs       ≡⟨ P.sym $ P.cong (_++ xs) (unfold-reverse y ys) ⟩
       reverse (y ∷ ys) ++ xs        ∎
 
   reverse-++-commute : (xs ys : List A) →
                        reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
-  reverse-++-commute []       ys = P.sym (proj₂ LM.identity _)
+  reverse-++-commute []       ys = P.sym (++-identityʳ _)
   reverse-++-commute (x ∷ xs) ys = begin
     reverse (x ∷ xs ++ ys)               ≡⟨ unfold-reverse x (xs ++ ys) ⟩
     reverse (xs ++ ys) ++ [ x ]          ≡⟨ P.cong (_++ [ x ]) (reverse-++-commute xs ys) ⟩
-    (reverse ys ++ reverse xs) ++ [ x ]  ≡⟨ LM.assoc (reverse ys) _ _ ⟩
+    (reverse ys ++ reverse xs) ++ [ x ]  ≡⟨ ++-assoc (reverse ys) _ _ ⟩
     reverse ys ++ (reverse xs ++ [ x ])  ≡⟨ P.sym $ P.cong (reverse ys ++_) (unfold-reverse x xs) ⟩
     reverse ys ++ reverse (x ∷ xs)       ∎
     where open P.≡-Reasoning
@@ -480,170 +507,11 @@ module _ {a} {A : Set a} where
   ∷ʳ-injectiveʳ xs ys eq = proj₂ (∷ʳ-injective xs ys eq)
 
 ------------------------------------------------------------------------
--- The list monad.
+-- Modules for reasoning about propositional equality of lists
 
-module Monad where
-
-  left-identity : ∀ {ℓ} {A B : Set ℓ} (x : A) (f : A → List B) →
-                  (return x >>= f) ≡ f x
-  left-identity x f = proj₂ LM.identity (f x)
-
-  right-identity : ∀ {a} {A : Set a} (xs : List A) →
-                   (xs >>= return) ≡ xs
-  right-identity []       = refl
-  right-identity (x ∷ xs) = P.cong (x ∷_) (right-identity xs)
-
-  left-zero : ∀ {ℓ} {A B : Set ℓ} (f : A → List B) → (∅ >>= f) ≡ ∅
-  left-zero f = refl
-
-  right-zero : ∀ {ℓ} {A B : Set ℓ} (xs : List A) →
-               (xs >>= const ∅) ≡ ∅ {A = B}
-  right-zero []       = refl
-  right-zero (x ∷ xs) = right-zero xs
-
-  private
-
-    not-left-distributive :
-      let xs = true ∷ false ∷ []; f = return; g = return in
-      (xs >>= λ x → f x ∣ g x) ≢ ((xs >>= f) ∣ (xs >>= g))
-    not-left-distributive ()
-
-  right-distributive : ∀ {ℓ} {A B : Set ℓ}
-                       (xs ys : List A) (f : A → List B) →
-                       (xs ∣ ys >>= f) ≡ ((xs >>= f) ∣ (ys >>= f))
-  right-distributive []       ys f = refl
-  right-distributive (x ∷ xs) ys f = begin
-    f x ∣ (xs ∣ ys >>= f)              ≡⟨ P.cong (f x ∣_) $ right-distributive xs ys f ⟩
-    f x ∣ ((xs >>= f) ∣ (ys >>= f))    ≡⟨ P.sym $ LM.assoc (f x) _ _ ⟩
-    ((f x ∣ (xs >>= f)) ∣ (ys >>= f))  ∎
-    where open P.≡-Reasoning
-
-  associative : ∀ {ℓ} {A B C : Set ℓ}
-                (xs : List A) (f : A → List B) (g : B → List C) →
-                (xs >>= λ x → f x >>= g) ≡ (xs >>= f >>= g)
-  associative []       f g = refl
-  associative (x ∷ xs) f g = begin
-    (f x >>= g) ∣ (xs >>= λ x → f x >>= g)  ≡⟨ P.cong ((f x >>= g) ∣_) $ associative xs f g ⟩
-    (f x >>= g) ∣ (xs >>= f >>= g)          ≡⟨ P.sym $ right-distributive (f x) (xs >>= f) g ⟩
-    (f x ∣ (xs >>= f) >>= g)                ∎
-    where open P.≡-Reasoning
-
-  cong : ∀ {ℓ} {A B : Set ℓ} {xs₁ xs₂} {f₁ f₂ : A → List B} →
-         xs₁ ≡ xs₂ → f₁ ≗ f₂ → (xs₁ >>= f₁) ≡ (xs₂ >>= f₂)
-  cong {xs₁ = xs} refl f₁≗f₂ = P.cong concat (map-cong f₁≗f₂ xs)
-
-------------------------------------------------------------------------
--- The applicative functor derived from the list monad.
-
--- Note that these proofs (almost) show that RawIMonad.rawIApplicative
--- is correctly defined. The proofs can be reused if proof components
--- are ever added to RawIMonad and RawIApplicative.
-
-module Applicative where
-
-  open P.≡-Reasoning
-
-  private
-
-    -- A variant of flip map.
-
-    pam : ∀ {ℓ} {A B : Set ℓ} → List A → (A → B) → List B
-    pam xs f = xs >>= return ∘ f
-
-  -- ∅ is a left zero for _⊛_.
-
-  left-zero : ∀ {ℓ} {A B : Set ℓ} (xs : List A) → (∅ ⊛ xs) ≡ ∅ {A = B}
-  left-zero xs = begin
-    ∅ ⊛ xs          ≡⟨ refl ⟩
-    (∅ >>= pam xs)  ≡⟨ Monad.left-zero (pam xs) ⟩
-    ∅               ∎
-
-  -- ∅ is a right zero for _⊛_.
-
-  right-zero : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) → (fs ⊛ ∅) ≡ ∅
-  right-zero {ℓ} fs = begin
-    fs ⊛ ∅            ≡⟨ refl ⟩
-    (fs >>= pam ∅)    ≡⟨ (Monad.cong (refl {x = fs}) λ f →
-                          Monad.left-zero (return ∘ f)) ⟩
-    (fs >>= λ _ → ∅)  ≡⟨ Monad.right-zero fs ⟩
-    ∅                 ∎
-
-  -- _⊛_ distributes over _∣_ from the right.
-
-  right-distributive : ∀ {ℓ} {A B : Set ℓ} (fs₁ fs₂ : List (A → B)) xs →
-                       ((fs₁ ∣ fs₂) ⊛ xs) ≡ (fs₁ ⊛ xs ∣ fs₂ ⊛ xs)
-  right-distributive fs₁ fs₂ xs = begin
-    (fs₁ ∣ fs₂) ⊛ xs                     ≡⟨ refl ⟩
-    (fs₁ ∣ fs₂ >>= pam xs)               ≡⟨ Monad.right-distributive fs₁ fs₂ (pam xs) ⟩
-    (fs₁ >>= pam xs) ∣ (fs₂ >>= pam xs)  ≡⟨ refl ⟩
-    (fs₁ ⊛ xs ∣ fs₂ ⊛ xs)                ∎
-
-  -- _⊛_ does not distribute over _∣_ from the left.
-
-  private
-
-    not-left-distributive :
-      let fs = id ∷ id ∷ []; xs₁ = true ∷ []; xs₂ = true ∷ false ∷ [] in
-      (fs ⊛ (xs₁ ∣ xs₂)) ≢ (fs ⊛ xs₁ ∣ fs ⊛ xs₂)
-    not-left-distributive ()
-
-  -- Applicative functor laws.
-
-  identity : ∀ {a} {A : Set a} (xs : List A) → (return id ⊛ xs) ≡ xs
-  identity xs = begin
-    return id ⊛ xs          ≡⟨⟩
-    (return id >>= pam xs)  ≡⟨ Monad.left-identity id (pam xs) ⟩
-    (xs >>= return)         ≡⟨ Monad.right-identity xs ⟩
-    xs                      ∎
-
-  private
-
-    pam-lemma : ∀ {ℓ} {A B C : Set ℓ}
-                (xs : List A) (f : A → B) (fs : B → List C) →
-                (pam xs f >>= fs) ≡ (xs >>= λ x → fs (f x))
-    pam-lemma xs f fs = begin
-      (pam xs f >>= fs)                   ≡⟨ P.sym $ Monad.associative xs (return ∘ f) fs ⟩
-      (xs >>= λ x → return (f x) >>= fs)  ≡⟨ Monad.cong (refl {x = xs}) (λ x → Monad.left-identity (f x) fs) ⟩
-      (xs >>= λ x → fs (f x))             ∎
-
-  composition : ∀ {ℓ} {A B C : Set ℓ}
-                (fs : List (B → C)) (gs : List (A → B)) xs →
-                (return _∘′_ ⊛ fs ⊛ gs ⊛ xs) ≡ (fs ⊛ (gs ⊛ xs))
-  composition {ℓ} fs gs xs = begin
-    return _∘′_ ⊛ fs ⊛ gs ⊛ xs                      ≡⟨⟩
-    (return _∘′_ >>= pam fs >>= pam gs >>= pam xs)  ≡⟨ Monad.cong (Monad.cong (Monad.left-identity _∘′_ (pam fs))
-                                                                              (λ f → refl {x = pam gs f}))
-                                                                  (λ fg → refl {x = pam xs fg}) ⟩
-    (pam fs _∘′_ >>= pam gs >>= pam xs)             ≡⟨ Monad.cong (pam-lemma fs _∘′_ (pam gs)) (λ _ → refl) ⟩
-    ((fs >>= λ f → pam gs (f ∘′_)) >>= pam xs)     ≡⟨ P.sym $ Monad.associative fs (λ f → pam gs (_∘′_ f)) (pam xs) ⟩
-    (fs >>= λ f → pam gs (f ∘′_) >>= pam xs)       ≡⟨ (Monad.cong (refl {x = fs}) λ f →
-                                                        pam-lemma gs (f ∘′_) (pam xs)) ⟩
-    (fs >>= λ f → gs >>= λ g → pam xs (f ∘′ g))     ≡⟨ (Monad.cong (refl {x = fs}) λ f →
-                                                        Monad.cong (refl {x = gs}) λ g →
-                                                        P.sym $ pam-lemma xs g (return ∘ f)) ⟩
-    (fs >>= λ f → gs >>= λ g → pam (pam xs g) f)    ≡⟨ (Monad.cong (refl {x = fs}) λ f →
-                                                        Monad.associative gs (pam xs) (return ∘ f)) ⟩
-    (fs >>= pam (gs >>= pam xs))                    ≡⟨⟩
-    fs ⊛ (gs ⊛ xs)                                  ∎
-
-  homomorphism : ∀ {ℓ} {A B : Set ℓ} (f : A → B) x →
-                 (return f ⊛ return x) ≡ return (f x)
-  homomorphism f x = begin
-    return f ⊛ return x            ≡⟨⟩
-    (return f >>= pam (return x))  ≡⟨ Monad.left-identity f (pam (return x)) ⟩
-    pam (return x) f               ≡⟨ Monad.left-identity x (return ∘ f) ⟩
-    return (f x)                   ∎
-
-  interchange : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {x} →
-                (fs ⊛ return x) ≡ (return (λ f → f x) ⊛ fs)
-  interchange fs {x} = begin
-    fs ⊛ return x                    ≡⟨⟩
-    (fs >>= pam (return x))          ≡⟨ (Monad.cong (refl {x = fs}) λ f →
-                                         Monad.left-identity x (return ∘ f)) ⟩
-    (fs >>= λ f → return (f x))      ≡⟨⟩
-    (pam fs (λ f → f x))             ≡⟨ P.sym $ Monad.left-identity (λ f → f x) (pam fs) ⟩
-    (return (λ f → f x) >>= pam fs)  ≡⟨⟩
-    return (λ f → f x) ⊛ fs          ∎
+-- A module for automatically solving propositional equivalences
+module List-solver {a} {A : Set a} =
+  Algebra.Monoid-solver (++-monoid A) renaming (id to nil)
 
 ------------------------------------------------------------------------
 -- DEPRECATED

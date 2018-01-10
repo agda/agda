@@ -20,7 +20,8 @@ open import Data.Fin using (Fin)
 open import Data.Nat
 open import Data.Product using (_,_; proj₁; proj₂)
 open import Data.Vec as Vec using (Vec)
-import Data.Vec.Properties as VecProp
+import Data.Vec.Categorical as VecCat
+open import Data.Vec.Properties using (lookup-map)
 open import Data.Vec.Relation.ExtensionalPointwise as PW
   using (Pointwise; module Pointwise; ext)
 open import Function
@@ -75,7 +76,7 @@ module Naturality
 
   natural : ∀ {n} (e : Expr n) → op ∘ ⟦ e ⟧₁ ≗ ⟦ e ⟧₂ ∘ Vec.map op
   natural (var x) ρ = begin
-    op (Vec.lookup x ρ)                                            ≡⟨ P.sym $ VecProp.lookup-map x op ρ ⟩
+    op (Vec.lookup x ρ)                                            ≡⟨ P.sym $ lookup-map x op ρ ⟩
     Vec.lookup x (Vec.map op ρ)                                    ∎
   natural (e₁ or e₂) ρ = begin
     op (pure₁ _∨_ ⊛₁ ⟦ e₁ ⟧₁ ρ ⊛₁ ⟦ e₂ ⟧₁ ρ)                       ≡⟨ op-⊛ _ _ ⟩
@@ -166,18 +167,18 @@ lift n = record
     }
   }
   where
-  open RawApplicative Vec.applicative
+  open RawApplicative VecCat.applicative
     using (pure; zipWith) renaming (_<$>_ to map)
 
   ⟦_⟧Id : ∀ {n} → Expr n → Vec Carrier n → Carrier
   ⟦_⟧Id = Semantics.⟦_⟧ (RawMonad.rawIApplicative IdentityMonad)
 
   ⟦_⟧Vec : ∀ {m n} → Expr n → Vec (Vec Carrier m) n → Vec Carrier m
-  ⟦_⟧Vec = Semantics.⟦_⟧ Vec.applicative
+  ⟦_⟧Vec = Semantics.⟦_⟧ VecCat.applicative
 
   open module R {n} (i : Fin n) =
     Reflection setoid var
       (λ e ρ → Vec.lookup i (⟦ e ⟧Vec ρ))
       (λ e ρ → ⟦ e ⟧Id (Vec.map (Vec.lookup i) ρ))
       (λ e ρ → sym $ reflexive $
-                 Naturality.natural (VecProp.lookup-morphism i) e ρ)
+                 Naturality.natural (VecCat.lookup-morphism i) e ρ)

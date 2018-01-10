@@ -8,6 +8,7 @@ module Data.List.NonEmpty.Properties where
 
 open import Category.Monad
 open import Data.List as List using (List; []; _∷_; _++_)
+open import Data.List.Categorical using () renaming (monad to listMonad)
 open import Data.List.NonEmpty as List⁺
 open import Data.List.Properties
 open import Function
@@ -16,7 +17,7 @@ open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 private
   open module LMo {a} =
-         RawMonad {f = a} List.monad
+         RawMonad {f = a} listMonad
            using () renaming (_>>=_ to _⋆>>=_)
   open module L⁺Mo {a} =
          RawMonad {f = a} List⁺.monad

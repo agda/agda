@@ -12,6 +12,7 @@ open import Algebra
 open import Algebra.FunctionProperties
 open import Category.Monad
 open import Data.List as List
+open import Data.List.Categorical using (monad; module MonadProperties)
 import Data.List.Properties as LP
 open import Data.List.Any as Any using (Any); open Any.Any
 open import Data.List.Any.Properties
@@ -36,8 +37,9 @@ private
   module Eq  {k a} {A : Set a} = Setoid ([ k ]-Equality A)
   module Ord {k a} {A : Set a} = Preorder ([ k ]-Order A)
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
-  open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
-  module ListMonoid {a} {A : Set a} = Monoid (List.monoid A)
+  module ListMonoid {a} {A : Set a} = Monoid (LP.++-monoid A)
+  open module ListMonad {ℓ} = RawMonad (monad {ℓ = ℓ})
+  module MP = MonadProperties
 
 ------------------------------------------------------------------------
 -- Congruence lemmas
@@ -200,8 +202,8 @@ empty-unique {xs = _ ∷ _} ∷∼[] with ⇒→ ∷∼[] (here P.refl)
   (fs ⊛ (xs₁ ++ xs₂)) ∼[ bag ] (fs ⊛ xs₁) ++ (fs ⊛ xs₂)
 ⊛-left-distributive {B = B} fs xs₁ xs₂ = begin
   fs ⊛ (xs₁ ++ xs₂)                         ≡⟨ P.refl ⟩
-  (fs >>= λ f → xs₁ ++ xs₂ >>= return ∘ f)  ≡⟨ (LP.Monad.cong (P.refl {x = fs}) λ f →
-                                                LP.Monad.right-distributive xs₁ xs₂ (return ∘ f)) ⟩
+  (fs >>= λ f → xs₁ ++ xs₂ >>= return ∘ f)  ≡⟨ (MP.cong (P.refl {x = fs}) λ f →
+                                                MP.right-distributive xs₁ xs₂ (return ∘ f)) ⟩
   (fs >>= λ f → (xs₁ >>= return ∘ f) ++
                 (xs₂ >>= return ∘ f))       ≈⟨ >>=-left-distributive fs ⟩
 

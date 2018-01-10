@@ -6,8 +6,6 @@
 
 module Data.Vec where
 
-open import Category.Functor
-open import Category.Applicative
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.List.Base as List using (List)
@@ -246,17 +244,3 @@ init .(ys ∷ʳ y) | (ys , y , refl) = ys
 last : ∀ {a n} {A : Set a} → Vec A (1 + n) → A
 last xs         with initLast xs
 last .(ys ∷ʳ y) | (ys , y , refl) = y
-
-------------------------------------------------------------------------
--- A functorial view of vectors
-
-applicative : ∀ {a n} → RawApplicative (λ (A : Set a) → Vec A n)
-applicative = record
-  { pure = replicate
-  ; _⊛_  = _⊛_
-  }
-
-functor :  ∀ {a n} → RawFunctor (λ (A : Set a) → Vec A n)
-functor = record
-  { _<$>_ = map
-  }

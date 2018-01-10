@@ -16,6 +16,7 @@ open import Data.Bool.Properties
 open import Data.Empty using (⊥)
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 open import Data.List as List
+open import Data.List.Categorical using (monad)
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Membership.Propositional
 open import Data.List.Relation.Pointwise
@@ -40,7 +41,7 @@ open import Relation.Unary
 
 open Related.EquationalReasoning
 private
-  open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
+  open module ListMonad {ℓ} = RawMonad (monad {ℓ = ℓ})
 
 ------------------------------------------------------------------------
 -- If a predicate P respects the underlying equality then Any P

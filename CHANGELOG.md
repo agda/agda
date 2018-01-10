@@ -50,6 +50,22 @@ Non-backwards compatible changes
   Unfortunately backwards compatability cannot be retained by re-exporting the `Pointwise`
   definitions from `Data.Vec.All` due to dependancy cycles.
 
+#### Overhaul of categorical interpretations of List and Vec
+
+* New modules `Data.List.Categorical` and `Data.Vec.Categorical` have been added
+  for the categorical interpretations of `List` and `Vec`.
+
+  The following have been moved to `Data.List.Categorical`:
+
+  - The module `Monad` from `Data.List.Properties` (renamed to `MonadProperties`)
+  - The module `Applicative` from `Data.List.Properties`
+  - `monad`, `monadZero`, `monadPlus` and monadic operators from `Data.List`
+
+  The following has been moved to `Data.Vec.Categorical`:
+
+  - `applicative` and `functor` from `Data.Vec`
+  - `lookup-morphism` and `lookup-functor-morphism` from `Data.Vec.Properties`
+
 #### Overhaul of `Algebra.Morphism`
 
 * Currently `Algebra.Morphism` only gives an example of a `Ring` homomorphism which
@@ -96,9 +112,11 @@ Non-backwards compatible changes
 
 * Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
 
-* The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` have been renamed
-  `+-mono-<-≤` and `= +-mono-≤-<` respectively. The original two names are now used
-  for actual proofs of left and right monotonicity of `_+_`.
+* The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` in `Data.Nat.Properties`
+  have been renamed `+-mono-<-≤` and `= +-mono-≤-<` respectively. The original
+  names are now used for proofs of left and right monotonicity of `_+_`.
+
+* Moved the proof `monoid` from `Data.List` to `++-monoid` in `Data.List.Properties`.
 
 Deprecated features
 -------------------
@@ -305,12 +323,17 @@ Backwards compatible changes
   ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
   ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
 
-  ++-identityˡ  : LeftIdentity _≡_ [] _++_
-  ++-identityʳ  : RightIdentity _≡_ [] _++_
-  ++-identity   : Identity _≡_ [] _++_
+  ++-assoc       : Associative {A = List A} _≡_ _++_
+  ++-identityˡ   : LeftIdentity _≡_ [] _++_
+  ++-identityʳ   : RightIdentity _≡_ [] _++_
+  ++-identity    : Identity _≡_ [] _++_
+  ++-isSemigroup : IsSemigroup {A = List A} _≡_ _++_
+  ++-isMonoid    : IsMonoid {A = List A} _≡_ _++_ []
+  ++-semigroup   : ∀ {a} (A : Set a) → Semigroup _ _
+  ++-monoid      : ∀ {a} (A : Set a) → Monoid _ _
 
-  filter-all    : All P xs → dfilter P? xs ≡ xs
-  filter-none   : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
+  filter-all     : All P xs → dfilter P? xs ≡ xs
+  filter-none    : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
   ```
 
 * Added new proofs to `Data.List.All.Properties`:

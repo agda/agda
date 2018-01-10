@@ -6,11 +6,6 @@
 
 module Data.Vec.Properties where
 
-open import Category.Applicative.Indexed
-import Category.Functor as Fun
-open import Category.Functor.Identity using (IdentityFunctor)
-open import Category.Monad
-open import Category.Monad.Identity
 open import Data.Empty using (⊥-elim)
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Properties using (_+′_)
@@ -486,30 +481,6 @@ map-lookup-allFin {n = n} xs = begin
   tabulate (λ x → lookup x xs)       ≡⟨ tabulate∘lookup xs ⟩
   xs                                 ∎
   where open P.≡-Reasoning
-
-------------------------------------------------------------------------
--- A functorial properties of vectors
-
--- lookup is a functor morphism from Vec to Identity.
-
-lookup-functor-morphism : ∀ {a n} (i : Fin n) →
-                          Fun.Morphism (functor {a = a} {n = n})
-                            IdentityFunctor
-lookup-functor-morphism i = record
-  { op = lookup i
-  ; op-<$> = lookup-map i
-  }
-
--- lookup is an applicative functor morphism.
-
-lookup-morphism : ∀ {a n} (i : Fin n) →
-                  Morphism (applicative {a = a})
-                    (RawMonad.rawIApplicative IdentityMonad)
-lookup-morphism i = record
-  { op      = lookup i
-  ; op-pure = lookup-replicate i
-  ; op-⊛    = lookup-⊛ i
-  }
 
 ------------------------------------------------------------------------
 -- Properties of _∈_
