@@ -18,7 +18,7 @@ Further, Agda 2 has received contributions by, amongst others, Stevan
 Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
 James Chapman, Dominique Devriese, Péter Diviánszki, Olle Fredriksson,
 Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik
-Jansson, Alan Jeffrey, Wolfram Kahl, Pepijn Kokke, Fredrik Lindblad,
+Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad,
 Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin,
 Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto
 Takeyama.  The full list of contributors is available at

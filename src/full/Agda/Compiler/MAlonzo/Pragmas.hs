@@ -26,11 +26,16 @@ import Agda.Compiler.Common
 import Agda.Utils.Impossible
 #include "undefined.h"
 
+-- | GHC backend translation pragmas.
 data HaskellPragma
-      = HsDefn Range HaskellCode
-      | HsType Range HaskellType
-      | HsData Range HaskellType [HaskellCode]
-      | HsExport Range HaskellCode
+  = HsDefn Range HaskellCode
+      --  ^ @COMPILE GHC x = <code>@
+  | HsType Range HaskellType
+      --  ^ @COMPILE GHC X = type <type>@
+  | HsData Range HaskellType [HaskellCode]
+      -- ^ @COMPILE GHC X = data D (c₁ | ... | cₙ)
+  | HsExport Range HaskellCode
+      -- ^ @COMPILE GHC x as f@
   deriving (Show, Eq)
 
 instance HasRange HaskellPragma where
