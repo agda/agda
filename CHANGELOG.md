@@ -8,6 +8,48 @@ Important changes since 0.14:
 Non-backwards compatible changes
 --------------------------------
 
+#### Overhaul of how relations over data are organised
+
+* Relations over data have been moved from the `Relation` subtree to the `Data`
+  subtree. In general the files have been moved from `Relation.Binary.X` to
+  `Data.X.Relation`. The full list of moves is as follows:
+  ```
+  `Relation.Binary.List.Pointwise`       ↦ `Data.List.Relation.Pointwise`
+  `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.StrictLex`
+  `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.NonStrictLex`
+  `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.SigmaPointwise`
+  `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.General`
+  `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise`
+  `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.StrictLex`
+  `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.NonStrictLex`
+  `Relation.Binary.Vec.Pointwise`        ↦ SPECIAL: See notes below
+  ```
+
+  This move aims to increase the ease of use of the library as:
+        1) it keeps all the definitions about particular data types in the same directory
+        2) it provides a location to reason about how operations on the data types affects the
+        relations over them (e.g. how `Pointwise` is affected by `map`)
+        3) there is anecdotal evidence that many people were not aware of the existence
+        of the modules in their old location. The new location should be far more discoverable.
+
+  The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
+  re-export the contents of files' new location in `Data.X.Relation` but may be removed in some
+  future release.
+
+* Some shared content has been moved out of `Data.List.Relation.StrictLex` and
+  `Data.List.Relation.NonStrictLex` into `Data.List.Relation.Lex.Core`. The public interface
+  should not have changed as the content is publically re-exported by both files.
+
+* The contents of `Relation.Binary.Vec.Pointwise` has been split into
+  `Data.Vec.Relation.InductivePointwise` and `Data.Vec.Relation.ExtensionalPointwise`.
+
+* Moved `Data.Vec.Equality` to `Data.Vec.Relation.Equality`.
+
+* The datatype `All₂` has been removed from `Data.Vec.All`, along with associated proofs
+  as it duplicates existing functionality in `Data.Vec.Relation.InductivePointwise`.
+  Unfortunately backwards compatability cannot be retained by re-exporting the `Pointwise`
+  definitions from `Data.Vec.All` due to dependancy cycles.
+
 #### Overhaul of `Algebra.Morphism`
 
 * Currently `Algebra.Morphism` only gives an example of a `Ring` homomorphism which
@@ -20,34 +62,33 @@ Non-backwards compatible changes
 
 #### Overhaul of `Data.AVL`
 
-* Splitting out `Data.AVL.Key` and `Data.AVL.Height` which should not depend
-  on the type of `Value` the tree will contain.
+* `Data.AVL.Key` and `Data.AVL.Height` have been split out of `Data.AVL`
+  therefore ensuring they are independent on the type of `Value` the tree will contain.
 
-* Putting `Indexed` into its own core module ̀`Data.AVL.Indexed` following the
-  example of e.g. `Category.Monad.Indexed` or `Data.Container.Indexed`
+* `Indexed` has been put into its own core module ̀`Data.AVL.Indexed` following the
+  example of `Category.Monad.Indexed` and `Data.Container.Indexed`.
 
-* Giving ̀ map` a polymorphic type: it is now possible to change the type of
-  values contained in a tree when mapping over it.
+* The changes above allow ̀map` to have a polymorphic type and so it is now possible
+  to change the type of values contained in a tree when mapping over it.
 
 #### Other
 
 * Removed support for GHC 7.8.4.
 
-* Renamed `Data.Container.FreeMonad.do` and
-  `Data.Container.Indexed.FreeMonad.do` to `inn` in anticipation of Agda
-  supporting proper 'do' notation.
+* Renamed `Data.Container.FreeMonad.do` and `Data.Container.Indexed.FreeMonad.do`
+  to `inn` as Agda 2.5.4 now supports proper 'do' notation.
 
 * Changed the fixity of `⋃` and `⋂` in `Relation.Unary` to make space for `_⊢_`.
 
-* The functions `filter` and `partition` in `Data.List.Base` have been renamed
-  `boolFilter` and `boolPartition`, and have been replaced by new functions
-  `filter` and `partition` which use decidable predicates instead of boolean-valued
-  functions.  The former encouraged poor programming style in a dependantly-typed
-  language such as Agda. Proofs for `filter` and `partition` have also been
-  updated and renamed accordingly.
+* The functions `filter` and `partition` in `Data.List.Base` now use decidable
+  predicates instead of boolean-valued functions. The latter encouraged
+  poor programming style in a dependantly-typed language such as Agda.
+  Proofs have been updated and renamed accordingly.
 
-* Moved `Data.Vec.Equality` to `Data.Vec.Relation.Equality` (see "Deprecated
-  features" section for explanation)
+  The old boolean versions still exist as `boolFilter` and `boolPartition` for
+  backwards compatibility reasons, but are deprecated and may be removed in some
+  future release. The old versions can be implemented via the new versions
+  with the predicate `λ v → f v ≡ true`.
 
 * Changed Data.Nat.Divisibility's `_|_` from data to record. As a consequence,
   the two parameters are not implicit arguments of the constructor anymore (but
@@ -55,41 +96,15 @@ Non-backwards compatible changes
 
 * Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
 
-* The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` have been renamed `+-mono-<-≤` and `= +-mono-≤-<` respectively. The actual proofs of left and right monotonicity of `_+_` now use the original two names.
+* The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` have been renamed
+  `+-mono-<-≤` and `= +-mono-≤-<` respectively. The original two names are now used
+  for actual proofs of left and right monotonicity of `_+_`.
 
 Deprecated features
 -------------------
 
 Deprecated features still exist and therefore existing code should still work
 but they may be removed in some future release of the library.
-
-* Relations over data have been moved from the `Relation` subtree to the `Data`
-  subtree. The full list of moves is as follows:
-  - `Relation.Binary.List.Pointwise`       ↦ `Data.List.Relation.Pointwise`
-  - `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.StrictLex`
-  - `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.NonStrictLex`
-  - `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.SigmaPointwise`
-  - `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.General`
-  - `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise`
-  - `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.StrictLex`
-  - `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.NonStrictLex`
-  - `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.InductivePointwise`
-                                           ↦ `Data.Vec.Relation.ExtensionalPointwise`
-
-  This move aims to increase the navigability of the library as 1) there is evidence that many
-  people were not aware of the existence of the modules in their old location, 2) it keeps all
-  the definitions about particular data types in the same directory and 3) provides a location
-  to reason about how operations on the data types affects the relations over them.
-
-  Some shared content has been moved out of `Data.List.Relation.StrictLex` and `Data.List.Relation.NonStrictLex` into `Data.List.Relation.Lex.Core`
-
-  The contents of `Relation.Binary.Vec.Pointwise` has been split into `Data.Vec.Relation.InductivePointwise` and `Data.Vec.Relation.ExtensionalPointwise`.
-
-  The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
-  re-exports the contents of files' new location in `Data.X.Relation` but may be removed in some
-  future release.
-
-* `Data.Vec.All.All₂` has been deprecated as it duplicates existing functionality in `Data.Vec.Relation.InductivePointwise`
 
 * The following renaming has occurred in `Data.Bool.Properties` to improve consistency across the library:
   ```agda

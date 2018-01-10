@@ -66,13 +66,3 @@ zipWith : ∀ {a b c p q r} {A : Set a} {B : Set b} {C : Set c} {_⊕_ : A → B
 zipWith _⊕_ {xs = []}     {[]}     []         []         = []
 zipWith _⊕_ {xs = x ∷ xs} {y ∷ ys} (px ∷ pxs) (qy ∷ qys) =
   px ⊕ qy ∷ zipWith _⊕_ pxs qys
-
-------------------------------------------------------------------------
--- All₂ is DEPRECATED. Please use Data.Vec.Relation.InductivePointwise
--- directly.
-
-open import Data.Vec.Relation.InductivePointwise using () renaming
-  ( Pointwise to All₂
-  ; lookup    to lookup₂
-  ; map       to map₂
-  ) public

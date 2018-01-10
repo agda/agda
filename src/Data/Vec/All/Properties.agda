@@ -9,7 +9,7 @@ module Data.Vec.All.Properties where
 open import Data.Vec as Vec using (Vec; []; _∷_; zip; concat; _++_)
 open import Data.Vec.Properties using (map-id; lookup-zip)
 open import Data.Product as Prod using (_×_; _,_; uncurry; uncurry′)
-open import Data.Vec.All as All using (All; All₂; []; _∷_)
+open import Data.Vec.All as All using (All; []; _∷_)
 open import Function
 open import Function.Inverse using (_↔_)
 open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
@@ -109,18 +109,3 @@ module _ {a m p} {A : Set a} {P : A → Set p} where
                   All P (concat xss) → All (All P) xss
   All-concat⁻ [] [] = []
   All-concat⁻ (xs ∷ xss) pxss = All-++ˡ⁻ xs pxss ∷ All-concat⁻ xss (All-++ʳ⁻ xs pxss)
-
-------------------------------------------------------------------------
--- All₂ is DEPRECATED. Please use Data.Vec.Relation.InductivePointwise
--- directly.
-
-open import Data.Vec.Relation.InductivePointwise using () renaming
-  ( gmap   to All₂-map
-  ; trans  to comp
-  ; ++⁺    to All₂-++
-  ; ++ˡ⁻    to All₂-++ˡ⁻
-  ; ++ʳ⁻    to All₂-++ʳ⁺
-  ; ++⁻     to All₂-++⁻
-  ; concat⁺ to All₂-concat⁺
-  ; concat⁻ to All₂-concat⁻
-  ) public
