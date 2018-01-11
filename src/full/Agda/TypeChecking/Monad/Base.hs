@@ -2924,9 +2924,12 @@ instance MonadError TCErr (TCMT IO) where
     oldState <- liftIO (readIORef r)
     unTCM m r e `E.catch` \err -> do
       -- Reset the state, but do not forget changes to the persistent
-      -- component. Not for pattern violations.
+      -- component. Not for pattern violations (except the module parameter substitions).
       case err of
-        PatternErr -> return ()
+        PatternErr -> liftIO $ do
+          newState <- readIORef r
+          writeIORef r $ set stModuleParameters (oldState ^. stModuleParameters) newState
+          return ()
         _          ->
           liftIO $ do
             newState <- readIORef r
