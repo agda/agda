@@ -2061,7 +2061,7 @@ ifTopLevelAndHighlightingLevelIs l =
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
-data ModuleParameters = ModuleParams
+newtype ModuleParameters = ModuleParams
   { mpSubstitution :: Substitution
       -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context @envContext@.
   } deriving (Data, Show)
