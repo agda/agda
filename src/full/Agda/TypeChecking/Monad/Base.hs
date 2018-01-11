@@ -2161,6 +2161,7 @@ data TCEnv =
           , envInstanceDepth :: !Int
                 -- ^ Until we get a termination checker for instance search (#1743) we
                 --   limit the search depth to ensure termination.
+          , envIsDebugPrinting :: Bool
           }
     deriving Data
 
@@ -2206,6 +2207,7 @@ initEnv = TCEnv { envContext             = []
                 , envInsideDotPattern       = False
                 , envUnquoteFlags           = defaultUnquoteFlags
                 , envInstanceDepth          = 0
+                , envIsDebugPrinting        = False
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
