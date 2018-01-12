@@ -43,4 +43,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.BiMap" $allProperties
+tests = testProperties "Internal.Utils.BiMap" $allProperties

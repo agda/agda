@@ -103,4 +103,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Syntax.Common" $allProperties
+tests = testProperties "Internal.Syntax.Common" $allProperties

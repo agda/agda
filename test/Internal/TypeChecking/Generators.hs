@@ -578,4 +578,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.TypeChecking.Generators" $allProperties
+tests = testProperties "Internal.TypeChecking.Generators" $allProperties

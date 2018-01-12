@@ -225,4 +225,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Interaction.Highlighting.Precise" $allProperties
+tests = testProperties "Internal.Interaction.Highlighting.Precise" $allProperties

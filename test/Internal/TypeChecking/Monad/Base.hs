@@ -34,4 +34,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.TypeChecking.Monad.Base" $allProperties
+tests = testProperties "Internal.TypeChecking.Monad.Base" $allProperties

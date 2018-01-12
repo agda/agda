@@ -303,5 +303,5 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Termination.SparseMatrix" $allProperties
+tests = testProperties "Internal.Termination.SparseMatrix" $allProperties
 

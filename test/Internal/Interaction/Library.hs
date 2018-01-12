@@ -69,4 +69,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Interaction.Library" $allProperties
+tests = testProperties "Internal.Interaction.Library" $allProperties

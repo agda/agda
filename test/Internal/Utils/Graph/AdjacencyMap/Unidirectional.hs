@@ -358,7 +358,7 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.Graph.AdjacencyMap.Unidirectional" $allProperties
+tests = testProperties "Internal.Utils.Graph.AdjacencyMap.Unidirectional" $allProperties
 
 -- Abbreviations for testing in interpreter
 

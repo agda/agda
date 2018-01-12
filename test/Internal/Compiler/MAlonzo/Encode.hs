@@ -79,4 +79,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Compiler.MAlonzo.Encode" $allProperties
+tests = testProperties "Internal.Compiler.MAlonzo.Encode" $allProperties

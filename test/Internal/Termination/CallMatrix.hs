@@ -53,7 +53,7 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Termination.CallMatrix" $allProperties
+tests = testProperties "Internal.Termination.CallMatrix" $allProperties
 
 -- RETIRED:  LONG OUTDATED call matrix invariant
 

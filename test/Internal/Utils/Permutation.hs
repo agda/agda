@@ -131,4 +131,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.Permutation" $allProperties
+tests = testProperties "Internal.Utils.Permutation" $allProperties

@@ -148,4 +148,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.TypeChecking.SizedTypes" $allProperties
+tests = testProperties "Internal.TypeChecking.SizedTypes" $allProperties

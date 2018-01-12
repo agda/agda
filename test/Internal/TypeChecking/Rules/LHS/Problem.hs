@@ -34,4 +34,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.TypeChecking.Rules.LHS.Problem" $allProperties
+tests = testProperties "Internal.TypeChecking.Rules.LHS.Problem" $allProperties
