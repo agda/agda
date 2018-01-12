@@ -162,14 +162,18 @@ prop_boundToEverySome2 =
        (\w -> not (foldr1 otimes w <= bound)))
 
 ------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
 
--- Template Haskell hack to make the following $quickCheckAll work
--- under GHC 7.8.
-return []
+-- Template Haskell hack to make the following $allProperties work
+-- under ghc-7.8.
+return [] -- KEEP!
 
--- | Tests.
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
 
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.TypeChecking.Positivity.Occurrence"
-  $quickCheckAll
+tests :: TestTree
+tests = quickCheck2Tasty "Internal.TypeChecking.Positivity.Occurrence" $allProperties

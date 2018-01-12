@@ -16,9 +16,13 @@ prop_allRight xs =
       Nothing
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
 
-tests :: IO Bool
-tests = runTests "Internal.Utils.Either"
-  [ quickCheck' (prop_allRight :: [Either Integer Bool] -> Bool)
+-- (ASR 2018-01-06) Since the property has a type signature we cannot
+-- use 'allProperties' for collecting it.
+
+tests :: TestTree
+tests = testGroup "Internal.Utils.Either"
+  [ testProperty "prop_allRight" (prop_allRight :: [Either Integer Bool] -> Bool)
   ]
