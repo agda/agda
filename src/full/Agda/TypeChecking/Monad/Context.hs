@@ -78,12 +78,22 @@ escapeContext n = modifyContext $ drop n
 -- | Add a new checkpoint. Do not use directly!
 checkpoint :: MonadTCM tcm => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
+  old     <- view eCurrentCheckpoint
+  oldMods <- use  stModuleCheckpoints
   chkpt <- fresh
-  flip local k $ \ env -> env
+  x <- flip local k $ \ env -> env
     { envCurrentCheckpoint = chkpt
     , envCheckpoints       = Map.insert chkpt IdS $
                               fmap (applySubst sub) (envCheckpoints env)
     }
+  newMods <- use stModuleCheckpoints
+  -- Set the checkpoint for introduced modules to the old checkpoint when the
+  -- new one goes out of scope. #2897: This isn't actually sound for modules
+  -- created under refined parent parameters, but as long as those modules
+  -- aren't named we shouldn't look at the checkpoint. The right thing to do
+  -- would be to not store these modules in the checkpoint map, but todo..
+  stModuleCheckpoints .= Map.union oldMods (old <$ Map.difference newMods oldMods)
+  return x
 
 -- | Update the context. Requires a substitution from the old context to the
 --   new.

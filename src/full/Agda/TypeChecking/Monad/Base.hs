@@ -166,6 +166,9 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
+  , stPostModuleCheckpoints   :: !(Map ModuleName CheckpointId)
+    -- ^ For each module remember the checkpoint corresponding to the orignal
+    --   context of the module parameters.
   , stPostModuleParameters    :: !ModuleParamDict
     -- ^ TODO: can these be moved into the @TCEnv@?
   , stPostImportsDisplayForms :: !DisplayForms
@@ -295,6 +298,7 @@ initPostScopeState = PostScopeState
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
+  , stPostModuleCheckpoints    = Map.empty
   , stPostModuleParameters     = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = Nothing
@@ -437,7 +441,12 @@ stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
 
-stModuleParameters :: Lens' (ModuleParamDict) TCState
+stModuleCheckpoints :: Lens' (Map ModuleName CheckpointId) TCState
+stModuleCheckpoints f s =
+  f (stPostModuleCheckpoints (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleCheckpoints = x}}
+
+stModuleParameters :: Lens' ModuleParamDict TCState
 stModuleParameters f s =
   f (stPostModuleParameters (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleParameters = x}}
