@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Internal.TypeChecking.Substitute where
+module Internal.TypeChecking.Substitute ( tests ) where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
@@ -9,12 +9,13 @@ import Data.Maybe
 import Data.Monoid hiding ((<>))
 import Data.Semigroup
 import Data.Traversable (traverse)
-import Test.QuickCheck
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 
-import Internal.Helpers (runTests, quickCheckWith')
+import Internal.Helpers
+import Test.Tasty ( localOption )
+import Test.Tasty.QuickCheck ( QuickCheckTests(QuickCheckTests) )
 
 -- Contexts, types and terms ----------------------------------------------
 
@@ -340,18 +341,20 @@ prop_parallelS gamma delta =
   forAllShrink (mapM (genTm gamma) (map snd $ contextVars delta)) (traverse shrink) $ \ vs ->
   checkSub gamma (parallelS vs) (gamma <> delta)
 
-qc :: Testable p => p -> IO Result
-qc p = quickCheckWithResult stdArgs{maxSuccess = 500} p
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
 
-------------------------------------------------------------------------------
--- All test
-
--- Template Haskell hack to make the following $forAllProperties work
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
--- | All tests as collected by 'forAllProperties'.
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.TypeChecking.Substitute"
-  $forAllProperties qc
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = localOption (QuickCheckTests 500) $
+  testAllProperties "Internal.TypeChecking.Substitute" $allProperties

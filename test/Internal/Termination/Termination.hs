@@ -188,20 +188,21 @@ prop_terminates_example7 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example7 = isRight $ terminates example7
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
 
--- (ASR 2017-12-25) Since some properties use implicit parameters we
--- cannot use 'quickCheckAll' for collecting all the tests (see
+-- (ASR 2018-01-06) Since some properties use implicit parameters we
+-- cannot use 'allProperties' for collecting all the tests (see
 -- https://github.com/nick8325/quickcheck/issues/193 ).
 
-tests :: IO Bool
-tests = runTests "Internal.Termination.Termination"
-  [ quickCheck' prop_terminates_example1
-  , quickCheck' prop_terminates_example2
-  , quickCheck' prop_terminates_example3
-  , quickCheck' prop_terminates_example4
-  , quickCheck' prop_terminates_example5
-  , quickCheck' prop_terminates_example6
-  , quickCheck' prop_terminates_example7
+tests :: TestTree
+tests = testGroup "Internal.Termination.Termination"
+  [ testProperty "prop_terminates_example1" prop_terminates_example1
+  , testProperty "prop_terminates_example2" prop_terminates_example2
+  , testProperty "prop_terminates_example3" prop_terminates_example3
+  , testProperty "prop_terminates_example4" prop_terminates_example4
+  , testProperty "prop_terminates_example5" prop_terminates_example5
+  , testProperty "prop_terminates_example6" prop_terminates_example6
+  , testProperty "prop_terminates_example7" prop_terminates_example7
   ]
   where ?cutoff = CutOff 0 -- all these examples are with just lt,le,unknown

@@ -169,9 +169,7 @@ internal-tests :
 	@echo "======================================================================"
 	@echo "======================== Internal test suite ========================="
 	@echo "======================================================================"
-#	$(AGDA_BIN) --test +RTS -M1g
-	$(CABAL_CMD) configure $(CABAL_CONFIGURE_OPTS)
-	$(CABAL_CMD) test internal-tests --builddir=$(BUILD_DIR) -j$(PARALLEL_TESTS)
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal
 
 .PHONY : succeed
 succeed :
