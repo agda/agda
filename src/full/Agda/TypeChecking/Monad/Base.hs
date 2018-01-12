@@ -184,6 +184,7 @@ data PostScopeState = PostScopeState
   , stPostFreshMutualId       :: !MutualId
   , stPostFreshCtxId          :: !CtxId
   , stPostFreshProblemId      :: !ProblemId
+  , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   }
@@ -306,6 +307,7 @@ initPostScopeState = PostScopeState
   , stPostFreshMutualId        = 0
   , stPostFreshCtxId           = 0
   , stPostFreshProblemId       = 1
+  , stPostFreshCheckpointId    = 0
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
   }
@@ -505,6 +507,11 @@ stFreshProblemId f s =
   f (stPostFreshProblemId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshProblemId = x}}
 
+stFreshCheckpointId :: Lens' CheckpointId TCState
+stFreshCheckpointId f s =
+  f (stPostFreshCheckpointId (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshCheckpointId = x}}
+
 stFreshInt :: Lens' Int TCState
 stFreshInt f s =
   f (stPostFreshInt (stPostScopeState s)) <&>
@@ -573,6 +580,18 @@ instance Pretty ProblemId where
 
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
+
+newtype CheckpointId = CheckpointId Int
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+instance Show CheckpointId where
+  show (CheckpointId n) = show n
+
+instance Pretty CheckpointId where
+  pretty (CheckpointId n) = pretty n
+
+instance HasFresh CheckpointId where
+  freshLens = stFreshCheckpointId
 
 freshName :: MonadState TCState m => Range -> String -> m Name
 freshName r s = do
