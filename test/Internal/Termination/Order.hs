@@ -51,15 +51,16 @@ prop_orderSemiring :: (?cutoff :: CutOff) => Order -> Order -> Order -> Bool
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
 
--- (ASR 2017-12-25) Since some properties use implicit parameters we
--- cannot use 'quickCheckAll' for collecting all the tests (see
+-- (ASR 2018-01-06) Since some properties use implicit parameters we
+-- cannot use 'allProperties' for collecting all the tests (see
 -- https://github.com/nick8325/quickcheck/issues/193 ).
 
-tests :: IO Bool
-tests = runTests "Internal.Termination.Order"
-  [ quickCheck' prop_decr
-  , quickCheck' prop_orderSemiring
+tests :: TestTree
+tests = testGroup "Internal.Termination.Order"
+  [ testProperty "prop_decr" prop_decr
+  , testProperty "prop_orderSemiring" prop_orderSemiring
   ]
   where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!

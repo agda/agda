@@ -6,9 +6,8 @@ import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 import Agda.TypeChecking.SizedTypes.Utils
 
+import Internal.Helpers
 import Internal.TypeChecking.SizedTypes.WarshallSolver ()
-
-import Test.QuickCheck
 
 ------------------------------------------------------------------------------
 
@@ -138,12 +137,15 @@ prop_Dioid_Label x y z = propDioid_Gen x y z
 -- * All tests
 ------------------------------------------------------------------------
 
--- Template Haskell hack to make the following $quickCheckAll work
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
--- | Runs all tests starting with "prop_" in this file.
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.TypeChecking.SizedTypes"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = quickCheck2Tasty "Internal.TypeChecking.SizedTypes" $allProperties

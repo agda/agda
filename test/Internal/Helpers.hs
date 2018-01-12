@@ -1,9 +1,12 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | Some functions and generators suitable for writing QuickCheck
 -- properties.
 
 module Internal.Helpers
   ( -- * QuickCheck helpers
     quickCheck'
+  , quickCheck2Tasty
   , quickCheckWith'
     -- * QuickCheck module
   , module Test.QuickCheck
@@ -29,6 +32,10 @@ module Internal.Helpers
   , elementsUnlessEmpty
   , two
   , three
+    -- * Tasty framework functions
+  , testGroup
+  , testProperty
+  , TestTree
     -- * Test driver.
   , runTests
   )
@@ -39,6 +46,8 @@ import Data.Functor
 import Data.Monoid ( mappend, mempty, Monoid )
 import Data.Semigroup ( (<>), Semigroup )
 import Test.QuickCheck
+import Test.Tasty ( testGroup, TestName, TestTree )
+import Test.Tasty.QuickCheck ( testProperty )
 
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
@@ -55,6 +64,20 @@ quickCheck' p = fmap isSuccess $ quickCheckResult p
 
 quickCheckWith' :: Testable prop => Args -> prop -> IO Bool
 quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
+
+-- | Translate QuickCheck properties into the Tasty framework. To be
+-- used with 'QuickCheck.allProperties'. E.g.
+--
+-- @
+-- tests :: TestTree
+-- tests = quickCheck2Tasty \"Foo\" $allProperties
+-- @
+
+quickCheck2Tasty :: TestName -> [(String, Property)] -> TestTree
+quickCheck2Tasty name xs = testGroup name $ map helper xs
+  where
+  helper :: (String, Property) -> TestTree
+  helper (n, p) = testProperty n p
 
 ------------------------------------------------------------------------
 -- Algebraic properties
