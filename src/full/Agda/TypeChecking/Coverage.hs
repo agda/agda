@@ -98,6 +98,7 @@ data SplitClause = SClause
   , scModuleParameterSub :: ModuleParamDict
     -- ^ We need to keep track of the module parameter substitutions for the
     -- clause for the purpose of inferring missing instance clauses.
+  , scCheckpoints :: Map CheckpointId Substitution
   , scTarget :: Maybe (Arg Type)
     -- ^ The type of the rhs, living in context 'scTel'.
     --   This invariant is broken before calls to 'fixTarget';
@@ -125,6 +126,7 @@ clauseToSplitClause cl = SClause
   , scPats   = namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
   , scModuleParameterSub = Map.empty
+  , scCheckpoints = Map.empty
   , scTarget = clauseType cl
   }
 
@@ -149,8 +151,12 @@ coverageCheck f t cs = do
       -- number of arguments that aren't module parameters.
   fv           <- getDefFreeVars f
   moduleParams <- raise (n - fv) <$> use stModuleParameters
+
+  -- TODO: does this make sense? Why are we weakening by n - fv?
+  checkpoints <- applySubst (raiseS (n - fv)) <$> view eCheckpoints
+
       -- construct the initial split clause
-  let sc = SClause gamma xs idS moduleParams $ Just $ defaultArg a
+  let sc = SClause gamma xs idS moduleParams checkpoints $ Just $ defaultArg a
 
   reportSDoc "tc.cover.top" 10 $ do
     let prCl cl = addContext (clauseTel cl) $
@@ -230,7 +236,7 @@ data CoverResult = CoverResult
 --
 cover :: QName -> [Clause] -> SplitClause ->
          TCM CoverResult
-cover f cs sc@(SClause tel ps _ _ target) = do
+cover f cs sc@(SClause tel ps _ _ _ target) = do
   reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
@@ -386,9 +392,11 @@ inferMissingClause
   -> SplitClause
        -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
    -> TCM ()
-inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
+inferMissingClause f (SClause tel ps _ mpsub cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
-  cl <- addContext tel $ withModuleParameters mpsub $ do
+  cl <- addContext tel $ withModuleParameters mpsub
+        $ locally eCheckpoints (const cps)
+        $ checkpoint IdS $ do    -- introduce a fresh checkpoint
     (_x, rhs) <- case getHiding t of
                   Instance{} -> newIFSMeta "" (unArg t)
                   Hidden     -> __IMPOSSIBLE__
@@ -403,7 +411,7 @@ inferMissingClause f (SClause tel ps _ mpsub (Just t)) = setCurrentRange f $ do
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     }
   addClauses f [cl]  -- Important: add at the end.
-inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+inferMissingClause _ (SClause _ _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
 splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
@@ -459,7 +467,7 @@ isDatatype ind at = do
 --   if target becomes a function type.
 --   Returns the domains of the function type (if any).
 fixTarget :: SplitClause -> TCM (Telescope, SplitClause)
-fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scModuleParameterSub = mpsub, scTarget = target } =
+fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scModuleParameterSub = mpsub, scCheckpoints = cps, scTarget = target } =
   caseMaybe target (return (empty, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
@@ -495,6 +503,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scModuleParam
           , scSubst  = wkS n $ sigma -- Should be wkS instead of liftS since
                                      -- variables are only added to new tel.
           , scModuleParameterSub = applySubst (raiseS n) mpsub
+          , scCheckpoints        = applySubst (raiseS n) cps
           , scTarget = newTarget
           }
     -- Separate debug printing to find cause of crash (Issue 1374)
@@ -552,9 +561,10 @@ computeNeighbourhood
   -> Telescope                    -- ^ Telescope for the patterns.
   -> [NamedArg DeBruijnPattern]   -- ^ Patterns before doing the split.
   -> ModuleParamDict              -- ^ Current module parameter substitution.
+  -> Map CheckpointId Substitution -- ^ Current checkpoints
   -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe SplitClause)   -- ^ New split clause if successful.
-computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
+computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub cps c = do
 
   -- Get the type of the datatype
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
@@ -636,8 +646,9 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
       debugPlugged delta' ps'
 
       let mpsub' = applySubst (fromPatternSubstitution rho) mpsub
+          cps'   = applySubst (fromPatternSubstitution rho) cps
 
-      return $ Just $ SClause delta' ps' rho mpsub' Nothing -- target fixed later
+      return $ Just $ SClause delta' ps' rho mpsub' cps' Nothing -- target fixed later
 
   where
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
@@ -711,7 +722,7 @@ splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 Nothing)
-  where sc = SClause tel ps empty empty Nothing
+  where sc = SClause tel ps empty empty empty Nothing
 
 -- | @split ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
@@ -778,7 +789,7 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind allowPartialCover fixtarget sc@(SClause tel ps _ mpsub target) (BlockingVar x mcons) =
+split' ind allowPartialCover fixtarget sc@(SClause tel ps _ mpsub cps target) (BlockingVar x mcons) =
  liftTCM $ runExceptT $ do
 
   debugInit tel x ps mpsub
@@ -798,7 +809,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ mpsub target) (Block
   ns <- catMaybes <$> do
     forM cons $ \ con ->
       fmap (con,) <$> do
-        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x tel ps mpsub con
+        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x tel ps mpsub cps con
         case fixtarget of
           NoFixTarget  -> return msc
           YesFixTarget -> Trav.forM msc $ \ sc -> do
@@ -813,6 +824,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ mpsub target) (Block
                , scPats = ps'
                , scSubst              = __IMPOSSIBLE__ -- not used
                , scModuleParameterSub = __IMPOSSIBLE__ -- not used
+               , scCheckpoints        = __IMPOSSIBLE__ -- not used
                , scTarget             = Nothing
                }
 
@@ -874,7 +886,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ mpsub target) (Block
 --   otherwise @res == Nothing@.
 --   Note that the empty set of split clauses is returned if the record has no fields.
 splitResult :: QName -> SplitClause -> TCM (Maybe Covering)
-splitResult f sc@(SClause tel ps _ _ target) = do
+splitResult f sc@(SClause tel ps _ _ _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
     [ text "splitting result:"
     , nest 2 $ text "f      =" <+> prettyTCM f
@@ -923,13 +935,14 @@ splitResult f sc@(SClause tel ps _ _ target) = do
 
 -- | For debugging only.
 instance PrettyTCM SplitClause where
-  prettyTCM (SClause tel pats sigma mpsub target) = sep
+  prettyTCM (SClause tel pats sigma mpsub cps target) = sep
     [ text "SplitClause"
     , nest 2 $ vcat
       [ text "tel          =" <+> prettyTCM tel
       , text "pats         =" <+> sep (map (prettyTCM . namedArg) pats)
       , text "subst        =" <+> (text . show) sigma
       , text "mpsub        =" <+> prettyTCM mpsub
+      , text "checkpoints  =" <+> prettyTCM cps
       , text "target       =" <+> do
           caseMaybe target empty $ \ t -> do
             addContext tel $ prettyTCM t

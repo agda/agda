@@ -101,7 +101,7 @@ updateContext :: MonadTCM tcm => Substitution -> (Context -> Context) -> tcm a -
 updateContext sub f = modifyContext f . checkpoint sub
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
-checkpointSubstitution :: (MonadTCM tcm, MonadDebug tcm) => CheckpointId -> tcm Substitution
+checkpointSubstitution :: (HasOptions tcm, MonadReader TCEnv tcm, MonadDebug tcm) => CheckpointId -> tcm Substitution
 checkpointSubstitution chkpt =
   caseMaybeM (view (eCheckpoints . key chkpt))
     (do chkpts <- view eCheckpoints
@@ -165,12 +165,10 @@ weakenModuleParameters n = updateModuleParameters (raiseS n)
 --   This is ok for instance if we are outside module @m@
 --   (in which case we have to supply all module parameters to any
 --   symbol defined within @m@ we want to refer).
-getModuleParameterSub :: (Functor m, ReadTCState m) => ModuleName -> m Substitution
+getModuleParameterSub :: (HasOptions m, MonadReader TCEnv m, ReadTCState m, MonadDebug m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
-  r <- (^. stModuleParameters) <$> getTCState
-  case Map.lookup m r of
-    Nothing -> return IdS
-    Just mp -> return $ mpSubstitution mp
+  mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
+  maybe (return IdS) checkpointSubstitution mcp
 
 
 -- * Adding to the context
