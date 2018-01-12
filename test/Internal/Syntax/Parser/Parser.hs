@@ -32,4 +32,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Syntax.Parser.Parser" $allProperties
+tests = testProperties "Internal.Syntax.Parser.Parser" $allProperties

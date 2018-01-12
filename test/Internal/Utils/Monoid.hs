@@ -36,4 +36,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.Monoid" $allProperties
+tests = testProperties "Internal.Utils.Monoid" $allProperties

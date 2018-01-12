@@ -103,4 +103,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.TypeChecking" $allProperties
+tests = testProperties "Internal.TypeChecking" $allProperties

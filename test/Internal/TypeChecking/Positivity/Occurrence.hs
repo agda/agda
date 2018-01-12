@@ -176,4 +176,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.TypeChecking.Positivity.Occurrence" $allProperties
+tests = testProperties "Internal.TypeChecking.Positivity.Occurrence" $allProperties

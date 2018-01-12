@@ -52,4 +52,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.ListT" $allProperties
+tests = testProperties "Internal.Utils.ListT" $allProperties

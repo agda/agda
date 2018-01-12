@@ -357,4 +357,4 @@ return [] -- KEEP!
 
 tests :: TestTree
 tests = localOption (QuickCheckTests 500) $
-  testAllProperties "Internal.TypeChecking.Substitute" $allProperties
+  testProperties "Internal.TypeChecking.Substitute" $allProperties

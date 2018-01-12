@@ -156,4 +156,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.PartialOrd" $allProperties
+tests = testProperties "Internal.Utils.PartialOrd" $allProperties

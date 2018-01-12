@@ -106,4 +106,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Utils.Cluster" $allProperties
+tests = testProperties "Internal.Utils.Cluster" $allProperties

@@ -57,4 +57,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Termination.Semiring" $allProperties
+tests = testProperties "Internal.Termination.Semiring" $allProperties

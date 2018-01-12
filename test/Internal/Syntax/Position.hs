@@ -237,4 +237,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testAllProperties "Internal.Syntax.Position" $allProperties
+tests = testProperties "Internal.Syntax.Position" $allProperties
