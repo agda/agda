@@ -25,8 +25,13 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
+
+import Agda.Utils.Impossible
+#include "undefined.h"
 
 -- * Modifying the context
 
@@ -67,6 +72,32 @@ inTopContext cont = do
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
+
+-- * Manipulating checkpoints --
+
+-- | Add a new checkpoint. Do not use directly!
+checkpoint :: MonadTCM tcm => Substitution -> tcm a -> tcm a
+checkpoint sub k = do
+  chkpt <- fresh
+  flip local k $ \ env -> env
+    { envCurrentCheckpoint = chkpt
+    , envCheckpoints       = Map.insert chkpt IdS $
+                              fmap (applySubst sub) (envCheckpoints env)
+    }
+
+-- | Update the context. Requires a substitution from the old context to the
+--   new.
+updateContext :: MonadTCM tcm => Substitution -> (Context -> Context) -> tcm a -> tcm a
+updateContext sub f = modifyContext f . checkpoint sub
+
+-- | Get the substitution from the context at a given checkpoint to the current context.
+checkpointSubstitution :: (MonadTCM tcm, MonadDebug tcm) => CheckpointId -> tcm Substitution
+checkpointSubstitution chkpt =
+  caseMaybeM (view (eCheckpoints . key chkpt))
+    (do chkpts <- view eCheckpoints
+        reportSLn "impossible" 10 $ "Bad checkpoint " ++ show chkpt ++ "\n" ++ prettyShow (Map.toList chkpts)
+        __IMPOSSIBLE__) return
+
 
 -- * Manipulating module parameters --
 
@@ -143,7 +174,7 @@ getModuleParameterSub m = do
 addCtx :: MonadTCM tcm => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
   ce <- mkContextEntry $ (x,) <$> a
-  modifyContext (ce :) ret
+  updateContext (raiseS 1) (ce :) ret
       -- let-bindings keep track of own their context
 
 -- | Pick a concrete name that doesn't shadow anything in the context.

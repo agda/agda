@@ -2181,6 +2181,12 @@ data TCEnv =
                 -- ^ Until we get a termination checker for instance search (#1743) we
                 --   limit the search depth to ensure termination.
           , envIsDebugPrinting :: Bool
+          , envCurrentCheckpoint :: CheckpointId
+                -- ^ Checkpoints track the evolution of the context as we go
+                -- under binders or refine it by pattern matching.
+          , envCheckpoints :: Map CheckpointId Substitution
+                -- ^ Keeps the substitution from each previous checkpoint to
+                --   the current context.
           }
     deriving Data
 
@@ -2227,6 +2233,8 @@ initEnv = TCEnv { envContext             = []
                 , envUnquoteFlags           = defaultUnquoteFlags
                 , envInstanceDepth          = 0
                 , envIsDebugPrinting        = False
+                , envCurrentCheckpoint      = 0
+                , envCheckpoints            = Map.singleton 0 IdS
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2341,6 +2349,12 @@ eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
 
 eInstanceDepth :: Lens' Int TCEnv
 eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
+
+eCurrentCheckpoint :: Lens' CheckpointId TCEnv
+eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentCheckpoint = x }
+
+eCheckpoints :: Lens' (Map CheckpointId Substitution) TCEnv
+eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
