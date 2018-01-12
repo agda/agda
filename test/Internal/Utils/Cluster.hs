@@ -7,8 +7,7 @@ import Agda.Utils.Cluster
 import Data.Char
 import Data.List
 
-import Test.QuickCheck
-import Test.QuickCheck.Function
+import Internal.Helpers
 
 ------------------------------------------------------------------------
 -- * Properties
@@ -96,11 +95,15 @@ prop_test1 = test1 == [["anabel"],["bond","babel"],["furz"],["hurz"],["kurz"]]
 -- * All tests
 ------------------------------------------------------------------------
 
--- Template Haskell hack to make the following $quickCheckAll work
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.Utils.Cluster"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testAllProperties "Internal.Utils.Cluster" $allProperties

@@ -10,11 +10,11 @@ import Control.Applicative
 
 import Data.Functor.Identity
 
-import Test.QuickCheck
-
 import Text.Show.Functions
 
 import Agda.Utils.ListT
+
+import Internal.Helpers
 
 ------------------------------------------------------------------------------
 -- * Identity monad instance of ListT (simply lists)
@@ -37,12 +37,19 @@ prop_idiom fs xs = toList (fromList fs <*> fromList xs) == (fs <*> xs)
 
 prop_concatMap f xs = toList (fromList . f =<< fromList xs) == (f =<< xs)
 
--- Template Haskell hack to make the following $quickCheckAll work
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
--- | All tests as collected by 'quickCheckAll'.
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.Utils.ListT"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testAllProperties "Internal.Utils.ListT" $allProperties
