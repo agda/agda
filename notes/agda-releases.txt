@@ -104,15 +104,12 @@ followed:
     cd $BASE
     git tag -a v$VERSION -m "Agda $VERSION release"
 
-* Upload the Cabal package:
+* Upload the tarball and the documentation (tested with
+  cabal-install >= 2.0.0.0):
 
     cd $BASE
-    cabal upload dist/Agda-$VERSION.tar.gz
-
-* Is the documentation missing on Hackage (see #1940)? You can use the
-  `neil` program for uploading the documentation:
-
-    neil doc --username=YourHackageUsername
+    cabal upload --publish dist/Agda-$VERSION.tar.gz
+    cabal upload --publish -d dist/Agda-$VERSION.tar.gz
 
 * Restore the Cabal tests-suites `agda-tests` and `internal-tests`
   from Agda.cabal.
