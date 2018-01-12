@@ -545,26 +545,24 @@ checkPatternLinearity eqs = do
 
       where continue = (eq:) <$> check vars eqs
 
--- | Bind the variables in a left hand side, making up hidden (dotted) names
+-- | Construct the context for a left hand side, making up hidden (dotted) names
 --   for unnamed variables.
-bindLHSVars :: [Maybe A.Name] -> Telescope -> TCM a -> TCM a
-bindLHSVars []        tel@ExtendTel{}  _   = do
-  reportSDoc "impossible" 10 $
-    text "bindLHSVars: no patterns left, but tel =" <+> prettyTCM tel
-  __IMPOSSIBLE__
-bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
-bindLHSVars []        EmptyTel         ret = ret
-bindLHSVars (x : xs) tel0@(ExtendTel a tel) ret = do
-  case x of
-    Just x  -> addContext (x, a) $ bindLHSVars xs (absBody tel) ret
-    Nothing -> bindDummy (absName tel)
-               -- @bindDummy underscore@ does not fix issue 819, but
-               -- introduces unwanted underscores in error messages
-               -- (Andreas, 2015-05-28)
+computeLHSContext :: [Maybe A.Name] -> Telescope -> TCM Context
+computeLHSContext = go []
   where
-    bindDummy s = do
-      x <- if isUnderscore s then freshNoName_ else unshadowName =<< freshName_ ("." ++ argNameToString s)
-      addContext (x, a) $ bindLHSVars xs (absBody tel) ret
+    go cxt []        tel@ExtendTel{} = do
+      reportSDoc "impossible" 10 $
+        text "computeLHSContext: no patterns left, but tel =" <+> prettyTCM tel
+      __IMPOSSIBLE__
+    go cxt (_ : _)   EmptyTel = __IMPOSSIBLE__
+    go cxt []        EmptyTel = return cxt
+    go cxt (x : xs) tel0@(ExtendTel a tel) = do
+        name <- maybe (dummyName $ absName tel) return x
+        e    <- mkContextEntry ((name,) <$> a)
+        go (e : cxt) xs (absBody tel)
+
+    dummyName s = if isUnderscore s then freshNoName_
+                  else unshadowName =<< freshName_ ("." ++ argNameToString s)
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
@@ -728,18 +726,18 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
         reportSDoc "tc.lhs.top" 50 $ text "new let-bindings:" <+> (brackets $ fsep $ punctuate comma $ map prettyTCM newLets)
 
-        bindLHSVars vars delta $ do
+        newCxt <- computeLHSContext vars delta
+
+        updateContext paramSub (const newCxt)
+          $ updateModuleParameters paramSub
+          $ applyRelevanceToContext (getRelevance b) $ do
 
           reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> (pretty =<< getContextTelescope)
           reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> pretty b
 
-          bindAsPatterns newLets $
-
-            -- At this point we need to update the module parameters for all
-            -- parent modules.
-            applyRelevanceToContext (getRelevance b) $ updateModuleParameters paramSub $ do
+          bindAsPatterns newLets $ do
             bindAsPatterns asb $ do
 
               -- Check dot patterns
