@@ -74,7 +74,7 @@ quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
 --
 -- @
 -- tests :: TestTree
--- tests = testQuickCheckAllProperties \"Foo\" $allProperties
+-- tests = testAllProperties \"Foo\" $allProperties
 -- @
 
 testAllProperties :: TestName -> [(String, Property)] -> TestTree
