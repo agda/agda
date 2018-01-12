@@ -936,13 +936,13 @@ checkLHS mf st@(LHSState tel ip problem target) = do
     splitCon delta1 dom@(Dom info a) adelta2 focusPat ambC = do
       let delta2 = absBody adelta2
 
-      reportSDoc "tc.lhs.split" 10 $ sep
+      reportSDoc "tc.lhs.split" 10 $ vcat
         [ text "checking lhs"
         , nest 2 $ text "tel =" <+> prettyTCM tel
         , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
         ]
 
-      reportSDoc "tc.lhs.split" 15 $ sep
+      reportSDoc "tc.lhs.split" 15 $ vcat
         [ text "split problem"
         , nest 2 $ vcat
           [ text "delta1 = " <+> prettyTCM delta1
