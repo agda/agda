@@ -9,7 +9,7 @@ CABAL_CMD=cabal
 install-bin :
 	$(CABAL_CMD) install
 
-# Tested with shelltestrunner 1.3.5.
+# Tested with shelltestrunner 1.9.
 .PHONY : test
 test :
 	shelltest --color --precise test/succeed.test
