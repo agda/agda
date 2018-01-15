@@ -195,7 +195,7 @@ updateProblemEqs eqs = do
             (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
-            unless (conName c == conName c') __IMPOSSIBLE__
+            unless (conName c == conName c') {-'-} __IMPOSSIBLE__
 
             -- Insert implicit patterns
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -960,7 +960,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
       let Def d' es' = ignoreSharing ctarget
           cixs = drop (size pars) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
 
-      unless (d == d') __IMPOSSIBLE__
+      unless (d == d') {-'-} __IMPOSSIBLE__
 
       -- Get names for the constructor arguments from the user patterns
       gamma <- liftTCM $ case focusPat of
