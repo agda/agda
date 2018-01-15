@@ -40,6 +40,9 @@ Non-backwards compatible changes
   `Data.List.Relation.NonStrictLex` into `Data.List.Relation.Lex.Core`. The public interface
   should not have changed as the content is publically re-exported by both files.
 
+* New conversion functions have been added to `Data.Vec.Relation.InductivePointwise` to 
+  handle the degenerate case when one of the two vectors is not used.
+
 * The contents of `Relation.Binary.Vec.Pointwise` has been split into
   `Data.Vec.Relation.InductivePointwise` and `Data.Vec.Relation.ExtensionalPointwise`.
 

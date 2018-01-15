@@ -170,3 +170,27 @@ module _ {a} {A : Set a} where
   Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
                 Pointwise _≡_ xs ys ⇔ xs ≡ ys
   Pointwise-≡ = equivalence ≡⇒Pointwise-≡ Pointwise-≡⇒≡
+
+-- Degenerate cases where one side is ignored
+module _ {a b ℓ} {A : Set a} {B : Set b} where
+  open import Data.Vec.All
+
+  Pointwiseˡ⇒All : ∀ {P : A → Set ℓ} {n} {xs : Vec A n} {ys : Vec B n} →
+                   Pointwise (λ x y → P x) xs ys → All P xs
+  Pointwiseˡ⇒All []       = []
+  Pointwiseˡ⇒All (p ∷ ps) = p ∷ Pointwiseˡ⇒All ps
+
+  Pointwiseʳ⇒All : ∀ {P : B → Set ℓ} {n} {xs : Vec A n} {ys : Vec B n} →
+                   Pointwise (λ x y → P y) xs ys → All P ys
+  Pointwiseʳ⇒All []       = []
+  Pointwiseʳ⇒All (p ∷ ps) = p ∷ Pointwiseʳ⇒All ps
+
+  All⇒Pointwiseˡ : ∀ {P : A → Set ℓ} {n} {xs : Vec A n} {ys : Vec B n} →
+                   All P xs → Pointwise (λ x y → P x) xs ys
+  All⇒Pointwiseˡ {ys = []}    []       = []
+  All⇒Pointwiseˡ {ys = _ ∷ _} (p ∷ ps) = p ∷ All⇒Pointwiseˡ ps
+
+  All⇒Pointwiseʳ : ∀ {P : B → Set ℓ} {n} {xs : Vec A n} {ys : Vec B n} →
+                   All P ys → Pointwise (λ x y → P y) xs ys
+  All⇒Pointwiseʳ {xs = []}    []       = []
+  All⇒Pointwiseʳ {xs = _ ∷ _} (p ∷ ps) = p ∷ All⇒Pointwiseʳ ps
