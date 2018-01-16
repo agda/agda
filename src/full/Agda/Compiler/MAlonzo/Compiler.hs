@@ -298,6 +298,17 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                  emptyBinds]
           ]
+      Function{} | Just q == (nameOfFlat <$> kit) -> do
+        let flat = unqhname "d" q
+            x    = ihname "x" 0
+        return $
+          [ HS.TypeSig [flat] $ fakeType $
+              "forall a. a -> a"
+          , HS.FunBind [HS.Match flat
+                                 [HS.PVar x]
+                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
+                                 emptyBinds]
+          ]
 
       -- Compiling Bool
       Datatype{} | Just q == mbool -> do
@@ -324,18 +335,6 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
                  , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                  cs
-
-      Function{} | Just q == (nameOfFlat <$> kit) -> do
-        let flat = unqhname "d" q
-            x    = ihname "x" 0
-        return $
-          [ HS.TypeSig [flat] $ fakeType $
-              "forall a. a -> a"
-          , HS.FunBind [HS.Match flat
-                                 [HS.PVar x]
-                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 emptyBinds]
-          ]
 
       Axiom{} -> do
         ar <- typeArity ty
