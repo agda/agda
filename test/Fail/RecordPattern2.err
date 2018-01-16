@@ -1,4 +1,3 @@
-RecordPattern2.agda:10,1-23
+RecordPattern2.agda:10,6-19
 The record type R does not have the fields g
-when checking that the clause test record { g = a } = a has type
-R → A
+when checking that the pattern record { g = a } has type R

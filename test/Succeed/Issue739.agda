@@ -63,7 +63,7 @@ works‴ =
   ▻ (λ _ → ⊤)
   ▻ Id _ const-⊤
   where
-  const-⊤ : _ → _
+  const-⊤ : Σ _ _ → _
   const-⊤ (_ , _) = ⊤
 
 -- Type-checks:

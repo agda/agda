@@ -121,7 +121,7 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ _ (A.RHS e mc) [] _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) [] _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -353,9 +353,9 @@ useTerPragma def = return def
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)                              dots sdots rhs                       ds catchall) ->
-       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) dots sdots (insertPatterns pats rhs) ds catchall
-  A.RewriteRHS qes rhs wh -> A.RewriteRHS qes (insertPatterns pats rhs) wh
+    \ (A.Clause (A.LHS info core)                              spats rhs                       ds catchall) ->
+       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
+  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (insertPatterns pats rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
 
@@ -395,18 +395,16 @@ checkClause
   -> A.SpineClause -- ^ Clause.
   -> TCM Clause    -- ^ Type-checked clause.
 
-checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) namedDots strippedDots rhs0 wh catchall) = do
+checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
     reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       cxtNames <- reverse . map (fst . unDom) <$> getContext
-      when (not $ null namedDots) $ reportSDoc "tc.lhs.top" 50 $
-        text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
-      -- Not really an as-pattern, but this does the right thing.
-      bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedDots $ \ lhsResult@(LHSResult npars delta ps trhs patSubst asb) -> do
+      when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
+        text "strippedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
+      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -429,10 +427,11 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) namedDots strippedDots rh
             updateRHS rhs@A.RHS{}               = rhs
             updateRHS rhs@A.AbsurdRHS{}         = rhs
             updateRHS (A.WithRHS q es cs)       = A.WithRHS q es (map updateClause cs)
-            updateRHS (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (updateRHS rhs) wh
+            updateRHS (A.RewriteRHS qes spats rhs wh) =
+              A.RewriteRHS qes (applySubst patSubst spats) (updateRHS rhs) wh
 
-            updateClause (A.Clause f dots sdots rhs wh ca) =
-              A.Clause f (applySubst patSubst dots) (applySubst patSubst sdots) (updateRHS rhs) wh ca
+            updateClause (A.Clause f spats rhs wh ca) =
+              A.Clause f (applySubst patSubst spats) (updateRHS rhs) wh ca
 
         (body, with) <- bindAsPatterns asb $ checkWhere wh $ checkRHS i x aps t' lhsResult rhs
 
@@ -490,9 +489,8 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                               -- Note: the as-bindings are already bound (in checkClause)
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb) rhs0 = handleRHS rhs0
   where
-  absurdPat = containsAbsurdPattern aps
   handleRHS rhs =
     case rhs of
 
@@ -511,8 +509,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
-      A.RewriteRHS [] rhs wh -> checkWhere wh $ handleRHS rhs
-      A.RewriteRHS ((qname,eq):qes) rhs wh -> do
+      A.RewriteRHS [] strippedPats rhs wh -> checkWhere wh $ handleRHS rhs
+      A.RewriteRHS ((qname,eq):qes) strippedPats rhs wh -> do
 
         -- Action for skipping this rewrite.
         -- We do not want to create unsolved metas in case of
@@ -529,7 +527,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
              -- 3. and a large overall number of ?s.
              let sameIP = (==) `on` (^.stInteractionPoints)
              when (sameIP st st') $ put st
-             handleRHS $ A.RewriteRHS qes rhs wh
+             handleRHS $ A.RewriteRHS qes strippedPats rhs wh
 
         -- Get value and type of rewrite-expression.
 
@@ -591,11 +589,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs _ _asb) rhs0 = handleRHS
         let rhs'     = insertPatterns pats rhs
             (rhs'', outerWhere) -- the where clauses should go on the inner-most with
               | null qes  = (rhs', wh)
-              | otherwise = (A.RewriteRHS qes rhs' wh, [])
+              | otherwise = (A.RewriteRHS qes strippedPats rhs' wh, [])
             -- Andreas, 2014-03-05 kill range of copied patterns
             -- since they really do not have a source location.
             cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
-                   [] [] rhs'' outerWhere False
+                   strippedPats rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
           [ text "rewrite"
           , text "  rhs' = " <> (text . show) rhs'
@@ -636,7 +634,7 @@ checkWithRHS
   -> [A.Clause]              -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
-checkWithRHS x aux t (LHSResult npars delta ps trhs _ _asb) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
+checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
         let withArgs = withArguments vs0 as
             perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)

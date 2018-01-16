@@ -1,4 +1,4 @@
-Issue142.agda:13,1-33
+Issue142.agda:13,7-12
 n + n != n of type Nat
-when checking that the clause .Issue142.with-26 .n (i n) = ? has
-type (n : Nat) → Sing n → Nat
+when checking that the given dot pattern n + n matches the inferred
+value n

@@ -17,7 +17,7 @@ open Eq {{...}}
 data Σ (A : Set) (B : A → Set) : Set where
   _,_ : (x : A) → B x → Σ A B
 
-eqNat : ∀ n m → Maybe (n ≡ m)
+eqNat : (n m : Nat) → Maybe (n ≡ m)
 eqNat zero zero = just refl
 eqNat zero (suc m) = nothing
 eqNat (suc n) zero = nothing

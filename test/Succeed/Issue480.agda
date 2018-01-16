@@ -7,7 +7,7 @@ module Simple where
   data Q : Set where
     a : Q
 
-  f : _ → Q
+  f : Q → Q
   f a = a
 
   postulate helper : ∀ {T : Set} → (T → T) → Q
@@ -20,7 +20,7 @@ module Simple where
 
   -- Same as test₂ and test₁, but stuck together.
   test₃ : Q
-  test₃ = helper λ { a → a } -- this says "Type mismatch when checking that the pattern a has type _45"
+  test₃ = helper {Q} λ { a → a } -- this says "Type mismatch when checking that the pattern a has type _45"
 
 module Ambiguous where
 

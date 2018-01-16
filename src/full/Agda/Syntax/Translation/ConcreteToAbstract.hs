@@ -80,6 +80,8 @@ import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 
+import Agda.Utils.AssocList (AssocList)
+import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
@@ -116,13 +118,6 @@ nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
 
 notAValidLetBinding :: NiceDeclaration -> ScopeM a
 notAValidLetBinding d = typeError $ NotAValidLetBinding d
-
--- Debugging
-
-printLocals :: Int -> String -> ScopeM ()
-printLocals v s = verboseS "scope.top" v $ do
-  locals <- getLocalVars
-  reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
 {--------------------------------------------------------------------------
     Helpers
@@ -536,25 +531,26 @@ instance ToAbstract PatName APatName where
     rx <- resolveName' [ConName, PatternSynName] ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
-    z  <- case (rx, x) of
-      -- TODO: warn about shadowing
-      (VarName y _,     C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
-      (FieldName d,     C.QName x)                          -> return $ Left x
-      (DefinedName _ d, C.QName x) | DefName == anameKind d -> return $ Left x
-      (UnknownName,     C.QName x)                          -> return $ Left x
-      (ConstructorName ds, _)                               -> return $ Right (Left ds)
-      (PatternSynResName d, _)                              -> return $ Right (Right d)
+    case (rx, x) of
+      (VarName y _,     C.QName x)                          -> bindPatVar x
+      (FieldName d,     C.QName x)                          -> bindPatVar x
+      (DefinedName _ d, C.QName x) | DefName == anameKind d -> bindPatVar x
+      (UnknownName,     C.QName x)                          -> bindPatVar x
+      (ConstructorName ds, _)                               -> patCon ds
+      (PatternSynResName d, _)                              -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
-    case z of
-      Left x  -> do
+    where
+      bindPatVar x = do
         reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
-        p <- VarPatName <$> toAbstract (NewName False x)
-        printLocals 10 "bound it:"
-        return p
-      Right (Left ds) -> do
+        y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
+          Just (LocalVar y _ _) -> return $ setRange (getRange x) y
+          Nothing -> freshAbstractName_ x
+        addVarToBind x $ LocalVar y False []
+        return $ VarPatName y
+      patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
         return $ ConPatName ds
-      Right (Right ds) -> do
+      patSyn ds = do
         reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
         return $ PatternSynPatName ds
 
@@ -1265,6 +1261,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             p   <- toAbstract p
             checkPatternLinearity p $ \ys ->
               typeError $ RepeatedVariablesInPattern ys
+            bindVarsToBind
             p   <- toAbstract p
             return [ A.LetPatBind (LetRange r) p rhs ]
           -- It's not a record pattern, so it should be a prefix left-hand side
@@ -1331,6 +1328,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 C.LHSWith{} -> genericError $ "with-patterns not allowed in let bindings"
 
             e <- localToAbstract args $ \args -> do
+                bindVarsToBind
                 -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
                 rhs <- unbindVariable top $ toAbstract rhs
                 foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
@@ -1626,6 +1624,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity p $ \ys ->
            typeError $ RepeatedVariablesInPattern ys
+         bindVarsToBind
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
@@ -1937,7 +1936,7 @@ instance ToAbstract C.Clause A.Clause where
     if not (null eqs)
       then do
         rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
-        return $ A.Clause lhs' [] [] rhs [] catchall
+        return $ A.Clause lhs' [] rhs [] catchall
       else do
         -- ASR (16 November 2015) Issue 1137: We ban termination
         -- pragmas inside `where` clause.
@@ -1948,7 +1947,7 @@ instance ToAbstract C.Clause A.Clause where
         (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
                       toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
         rhs <- toAbstract rhs
-        return $ A.Clause lhs' [] [] rhs ds catchall
+        return $ A.Clause lhs' [] rhs ds catchall
 
 whereToAbstract :: Range -> Maybe (C.Name, Access) -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
 whereToAbstract _ _      []   inner = (,[]) <$> inner
@@ -2005,7 +2004,7 @@ instance ToAbstract AbstractRHS A.RHS where
   toAbstract (RewriteRHS' eqs rhs wh) = do
     auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
     rhs  <- toAbstract rhs
-    return $ RewriteRHS (zip auxs eqs) rhs wh
+    return $ RewriteRHS (zip auxs eqs) [] rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
@@ -2046,6 +2045,7 @@ instance ToAbstract LeftHandSide A.LHS where
             typeError $ NeedOptionCopatterns
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
+        bindVarsToBind
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
@@ -2182,7 +2182,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract p
         return $ A.AsP (PatRange r) x p
     -- we have to do dot patterns at the end
-    toAbstract p0@(C.DotP r o e)   = return $ A.DotP (PatRange r) o e
+    toAbstract p0@(C.DotP r e)     = return $ A.DotP (PatRange r) e
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
     toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
     toAbstract (C.WithP r p)       = A.WithP (PatRange r) <$> toAbstract p

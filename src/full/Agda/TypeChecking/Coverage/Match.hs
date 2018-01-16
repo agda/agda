@@ -66,7 +66,7 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
 -- | Convert the root of a term into a pattern constructor, if possible.
 buildPattern :: Term -> Maybe DeBruijnPattern
 buildPattern (Con c ci args) = Just $
-  ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . DotP Inserted) args
+  ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . dotP) args
 buildPattern (Var i [])     = Just $ deBruijnVar i
 buildPattern (Shared p)     = buildPattern (derefPtr p)
 buildPattern _              = Nothing
@@ -76,7 +76,6 @@ isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
   VarP{}      -> return True
   DotP{}      -> return True
-  AbsurdP{}   -> return True
   ConP c i ps -> andM $ (isEtaCon $ conName c)
                       : (map (isTrivialPattern . namedArg) ps)
   LitP{}      -> return False
@@ -169,7 +168,6 @@ yesMatchLit l q@VarP{} = Yes ([q], [l])
 yesMatchLit l (DotP o t) = maybe No (yesMatchLit l) $ buildPattern t
 yesMatchLit _ ConP{}   = No
 yesMatchLit _ ProjP{}  = No
-yesMatchLit _ AbsurdP{} = __IMPOSSIBLE__
 yesMatchLit _ LitP{}   = __IMPOSSIBLE__
 
 -- | Check if a clause could match given generously chosen literals
@@ -295,7 +293,6 @@ matchPat
 
 matchPat _    VarP{}   q = Yes ([q],[])
 matchPat _    DotP{}   q = mempty
-matchPat _    AbsurdP{} q = mempty
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
 -- Not checking for trivial patterns should be safe here, as dot patterns are
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
@@ -304,11 +301,10 @@ matchPat mlit (LitP l) q = mlit l q
 matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
 matchPat _    ProjP{} _ = __IMPOSSIBLE__
 matchPat mlit p@(ConP c _ ps) q = case q of
-  VarP x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
+  VarP _ x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
   ConP c' i qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
   DotP o t  -> maybe No (matchPat mlit p) $ buildPattern t
-  AbsurdP{} -> __IMPOSSIBLE__  -- excluded by typing
   LitP _  -> __IMPOSSIBLE__  -- split clause has no literal patterns
   ProjP{} -> __IMPOSSIBLE__  -- excluded by typing

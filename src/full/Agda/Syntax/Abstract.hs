@@ -268,28 +268,34 @@ data TypedBinding
 
 type Telescope  = [TypedBindings]
 
-data NamedDotPattern = NamedDot Name I.Term I.Type
-  deriving (Data, Show)
-
-data StrippedDotPattern = StrippedDot Expr I.Term I.Type
-  deriving (Data, Show)
+-- | A user pattern together with an internal term that it should be equal to
+--   after splitting is complete.
+--   Special cases:
+--    * User pattern is a variable but internal term isn't:
+--      this will be turned into an as pattern.
+--    * User pattern is a dot pattern:
+--      this pattern won't trigger any splitting but will be checked
+--      for equality after all splitting is complete and as patterns have
+--      been bound.
+--    * User pattern is an absurd pattern:
+--      emptiness of the type will be checked after splitting is complete.
+data ProblemEq = ProblemEq
+  { problemInPat :: Pattern
+  , problemInst  :: I.Term
+  , problemType  :: Dom I.Type
+  } deriving (Data, Show)
 
 -- These are not relevant for caching purposes
-instance Eq NamedDotPattern    where _ == _ = True
-instance Eq StrippedDotPattern where _ == _ = True
+instance Eq ProblemEq where _ == _ = True
 
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
   { clauseLHS        :: lhs
-  , clauseNamedDots  :: [NamedDotPattern]
-      -- ^ Only in with-clauses where we inherit some already checked dot patterns from the parent.
+  , clauseStrippedPats :: [ProblemEq]
+      -- ^ Only in with-clauses where we inherit some already checked patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
-  , clauseStrippedDots :: [StrippedDotPattern]
-      -- ^ In with-clauses where a dot pattern from the parent clause is
-      --   repeated in the with-clause. In this case it's not actually part of
-      --   the clause, but it still needs to be checked (Issue 142).
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
@@ -313,6 +319,9 @@ data RHS
     { rewriteExprs      :: [(QName, Expr)]
       -- ^ The 'QName's are the names of the generated with functions,
       --   one for each 'Expr'.
+    , rewriteStrippedPats :: [ProblemEq]
+      -- ^ The patterns stripped by with-desugaring. These are only present
+      --   if this rewrite follows a with.
     , rewriteRHS        :: RHS
       -- ^ The RHS should not be another @RewriteRHS@.
     , rewriteWhereDecls :: [Declaration]
@@ -326,7 +335,7 @@ instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
   AbsurdRHS        == AbsurdRHS           = True
   WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
-  RewriteRHS a b c == RewriteRHS a' b' c' = and [ a == a', b == b', c == c' ]
+  RewriteRHS a b c d == RewriteRHS a' b' c' d' = and [ a == a', b == b', c == c' , d == d' ]
   _                == _                   = False
 
 -- | The lhs of a clause in spine view (inside-out).
@@ -399,10 +408,8 @@ data Pattern' e
     -- ^ Underscore pattern entered by user.
     --   Or generated at type checking for implicit arguments.
   | AsP PatInfo Name (Pattern' e)
-  | DotP PatInfo Origin e
-    -- ^ Dot pattern @.e@: the Origin keeps track whether this dot pattern was
-    --   written by the user or inserted by the system (e.g. while expanding
-    --   the ellipsis in a with clause).
+  | DotP PatInfo e
+    -- ^ Dot pattern @.e@
   | AbsurdP PatInfo
   | LitP Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
@@ -427,7 +434,7 @@ class MaybePostfixProjP a where
   maybePostfixProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP e => MaybePostfixProjP (Pattern' e) where
-  maybePostfixProjP (DotP _ _ e)  = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
+  maybePostfixProjP (DotP _ e)    = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
   maybePostfixProjP (ProjP _ o d) = Just (o, d)
   maybePostfixProjP _ = Nothing
 
@@ -596,7 +603,7 @@ instance HasRange (Pattern' e) where
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
     getRange (AsP i _ _)         = getRange i
-    getRange (DotP i _ _)        = getRange i
+    getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
     getRange (LitP l)            = getRange l
     getRange (PatternSynP i _ _) = getRange i
@@ -615,13 +622,13 @@ instance HasRange (LHSCore' e) where
     getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs _ _ rhs ds catchall) = getRange (lhs, rhs, ds)
+    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
     getRange (RHS e _)                = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes rhs wh)  = getRange (map snd xes, rhs, wh)
+    getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
@@ -638,7 +645,7 @@ instance SetRange (Pattern' a) where
     setRange r (DefP _ ns as)       = DefP (PatRange r) ns as -- (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
-    setRange r (DotP _ o e)         = DotP (PatRange r) o e
+    setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
@@ -723,7 +730,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
   killRange (AsP i a b)         = killRange3 AsP i a b
-  killRange (DotP i o a)        = killRange3 DotP i o a
+  killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
   killRange (LitP l)            = killRange1 LitP l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
@@ -742,19 +749,16 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSWith a b c) = killRange3 LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs dots sdots rhs ds catchall) = killRange6 Clause lhs dots sdots rhs ds catchall
+  killRange (Clause lhs spats rhs ds catchall) = killRange5 Clause lhs spats rhs ds catchall
 
-instance KillRange NamedDotPattern where
-  killRange (NamedDot a b c) = killRange3 NamedDot a b c
-
-instance KillRange StrippedDotPattern where
-  killRange (StrippedDot a b c) = killRange3 StrippedDot a b c
+instance KillRange ProblemEq where
+  killRange (ProblemEq p v a) = killRange3 ProblemEq p v a
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
   killRange (RHS e c)                = killRange2 RHS e c
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
-  killRange (RewriteRHS xes rhs wh)  = killRange3 RewriteRHS xes rhs wh
+  killRange (RewriteRHS xes spats rhs wh) = killRange4 RewriteRHS xes spats rhs wh
 
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
@@ -837,7 +841,7 @@ instance AllNames RHS where
   allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
 
 instance AllNames Expr where
   allNames Var{}                   = Seq.empty
@@ -967,7 +971,7 @@ patternToExpr (DefP _ fs ps) =
   Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)         = patternToExpr p
-patternToExpr (DotP _ _ e)        = e
+patternToExpr (DotP _ e)          = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
 patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps

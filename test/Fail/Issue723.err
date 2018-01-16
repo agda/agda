@@ -5,7 +5,7 @@ Failed to solve the following constraints:
     create Bool : Default Set
     create zero : Default ℕ
     create defNat : Default (Default ℕ)
-    λ {ℓ} {A} → create (λ x → x) :
+    λ {_} {_} → create (λ x → x) :
       ({ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A))
   Resolve instance argument _r_49 : Default _A_48
   Candidates
@@ -13,7 +13,7 @@ Failed to solve the following constraints:
     create Bool : Default Set
     create zero : Default ℕ
     create defNat : Default (Default ℕ)
-    λ {ℓ} {A} → create (λ x → x) :
+    λ {_} {_} → create (λ x → x) :
       {ℓ : Common.Level.Level} {A : Set ℓ} → Default (A → A)
   _50 := (_ : _A_48) [5] :? ℕ
   _44 := (_ : _A_42) [id ℕ 5] :? ℕ

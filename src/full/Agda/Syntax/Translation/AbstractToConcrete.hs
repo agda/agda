@@ -773,7 +773,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       es <- toConcrete es
       cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
-    toConcrete (A.RewriteRHS xeqs rhs wh) = do
+    toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
       wh <- declsToConcrete wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
@@ -798,7 +798,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr d) = head <$> toConcrete d
 
 instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
-  toConcrete (A.Clause lhs _ _ rhs wh catchall) =
+  toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
           C.LHS p _ _ -> do
             bindToConcrete (AsWhereDecls wh) $ \ wh' -> do
@@ -1088,7 +1088,7 @@ instance ToConcrete A.Pattern C.Pattern where
       A.ConP i c args  -> tryOp (headAmbQ c) (A.ConP i c) args
 
       A.ProjP i ProjPrefix p -> C.IdentP <$> toConcrete (headAmbQ p)
-      A.ProjP i _          p -> C.DotP noRange UserWritten . C.Ident <$> toConcrete (headAmbQ p)
+      A.ProjP i _          p -> C.DotP noRange . C.Ident <$> toConcrete (headAmbQ p)
 
       A.DefP i x args -> tryOp (headAmbQ x) (A.DefP i x)  args
 
@@ -1105,13 +1105,13 @@ instance ToConcrete A.Pattern C.Pattern where
       A.LitP l ->
         return $ C.LitP l
 
-      A.DotP i o e -> do
+      A.DotP i e -> do
         c <- toConcreteCtx DotPatternCtx e
         case c of
           -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
           -- following the fusing of WildP and ImplicitP.
           C.Underscore{} -> return $ C.WildP $ getRange i
-          _ -> return $ C.DotP (getRange i) o c
+          _ -> return $ C.DotP (getRange i) c
 
       A.PatternSynP i n args -> tryOp (headAmbQ n) (A.PatternSynP i n) args
 

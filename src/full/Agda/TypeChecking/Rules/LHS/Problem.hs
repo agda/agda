@@ -1,6 +1,13 @@
 -- {-# LANGUAGE CPP #-}
 
-module Agda.TypeChecking.Rules.LHS.Problem where
+module Agda.TypeChecking.Rules.LHS.Problem
+       ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
+       , FlexChoice(..) , ChooseFlex(..)
+       , ProblemEq(..) , Problem(..) , problemEqs
+       , problemRestPats, problemCont, problemInPats
+       , AsBinding(..) , DotPattern(..) , AbsurdPattern(..)
+       , LHSState(..) , lhsTel , lhsOutPat , lhsProblem , lhsTarget
+       ) where
 
 import Prelude hiding (null)
 
@@ -17,20 +24,22 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
+import Agda.TypeChecking.Monad (TCM)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty hiding ((<>))
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as PP
 
-type Substitution   = [Maybe Term]
 type FlexibleVars   = [FlexibleVar Nat]
 
 -- | When we encounter a flexible variable in the unifier, where did it come from?
@@ -75,15 +84,6 @@ allFlexVars :: Telescope -> FlexibleVars
 allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
   where
     makeFlex i d = FlexibleVar (getHiding d) (getOrigin d) ImplicitFlex (Just i) i
-
--- ^ Used to determine the origin of dot patterns in internal syntax.
---   Note that this is NOT the same as the flexOrigin.
-flexVarToOrigin :: FlexibleVar a -> Origin
-flexVarToOrigin f = case flexKind f of
-  DotFlex      -> UserWritten
-  RecordFlex _ -> Inserted
-  ImplicitFlex -> Inserted
-  OtherFlex    -> Inserted
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -160,10 +160,11 @@ instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
         firstChoice (ChooseEither : xs) = firstChoice xs
         firstChoice (x            : _ ) = x
 
-data Problem = Problem
-  { problemInPat    :: [NamedArg A.Pattern]
+-- | The user patterns we still have to split on.
+data Problem a = Problem
+  { _problemEqs      :: [ProblemEq]
     -- ^ User patterns.
-  , problemRestPats :: [NamedArg A.Pattern]
+  , _problemRestPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
     --   Example:
     --   @
@@ -174,110 +175,107 @@ data Problem = Problem
     --   @
     --   In this sitation, for clause 2, we construct an initial problem
     --   @
-    --      problemInPat = [false]
-    --      problemTel   = (b : Bool)
-    --      problemRest.restPats = [zero]
-    --      problemRest.restType = if b then Nat else Nat -> Nat
+    --      problemEqs      = [false = b]
+    --      problemRestPats = [zero]
     --   @
-    --   As we instantiate @b@ to @false@, the 'restType' reduces to
-    --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
-  , problemDPI                :: [DotPatternInst]
-  , problemShouldBeEmptyTypes :: [(Range,Type)]
+    --   As we instantiate @b@ to @false@, the 'targetType' reduces to
+    --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemEqs@.
+  , _problemCont     :: LHSState a -> TCM a
   }
   deriving Show
 
+problemEqs :: Lens' [ProblemEq] (Problem a)
+problemEqs f p = f (_problemEqs p) <&> \x -> p {_problemEqs = x}
+
+problemRestPats :: Lens' [NamedArg A.Pattern] (Problem a)
+problemRestPats f p = f (_problemRestPats p) <&> \x -> p {_problemRestPats = x}
+
+problemCont :: Lens' (LHSState a -> TCM a) (Problem a)
+problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
+
+problemInPats :: Problem a -> [A.Pattern]
+problemInPats = map problemInPat . (^. problemEqs)
+
 data Focus
-  = ConFocus
-    { focusCon      :: QName
-    , focusPatOrigin:: ConOrigin -- ^ Do we come from an implicit or record pattern?
-    , focusConArgs  :: [NamedArg A.Pattern]
-    , focusRange    :: Range
-    , focusDatatype :: QName
-    , focusParams   :: [Arg Term]
-    , focusIndices  :: [Arg Term]
-    }
+  = ConFocus (Maybe AmbiguousQName)  -- ^ @Just ambC@ for a (possibly ambiguous) name,
+                                     --   or @Nothing@ for a record pattern
   | LitFocus Literal
-  | AbsurdFocus PatInfo
 
 -- | Result of 'splitProblem':  Determines position for the next split.
-data SplitProblem
+data SplitPosition
+  = -- | Split on argument type.
+    SplitArg Term Type A.Pattern Focus
+  | -- | Split on target type.
+    SplitRest Hiding ProjOrigin AmbiguousQName
 
-  = -- | Split on constructor pattern.
-    SplitArg
-      { splitLPats   :: [NamedArg A.Pattern]
-        -- ^ The typed user patterns left of the split position.
-        --   Invariant: @'problemRest' == empty@.
-      , splitFocus   :: Arg Focus
-        -- ^ How to split the variable at the split position.
-      , splitRPats   :: [NamedArg A.Pattern]
-        -- ^ The typed user patterns right of the split position.
-      }
-
-  | -- | Split on projection pattern.
-    SplitRest
-      { splitProjection :: Arg QName
-        -- ^ The projection could be belonging to an irrelevant record field.
-      , splitProjOrigin :: ProjOrigin
-      , splitProjType   :: Type
-      }
-
--- | Put a pattern on the very left of a @SplitProblem@.
-consSplitProblem
-  :: NamedArg A.Pattern   -- ^ @p@ A pattern.
-  -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
-  -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
-consSplitProblem p s@SplitRest{}                 = s
-consSplitProblem p s@SplitArg{ splitLPats = ps } = s{ splitLPats = (p:ps) }
-
--- | Instantiations of a dot pattern with a term.
---   `Maybe e` if the user wrote a dot pattern .e
---   `Nothing` if this is an instantiation of an implicit argument or a name.
-data DotPatternInst = DPI
-  { dotPatternName     :: Maybe A.Name
-  , dotPatternUserExpr :: Maybe A.Expr
-  , dotPatternInst     :: Term
-  , dotPatternType     :: Dom Type
-  } deriving (Show)
-data AsBinding      = AsB Name Term Type
+data AsBinding = AsB Name Term Type
+data DotPattern = Dot A.Expr Term (Dom Type)
+data AbsurdPattern = Absurd Range Type
 
 -- | State worked on during the main loop of checking a lhs.
 --   [Ulf Norell's PhD, page. 35]
-data LHSState = LHSState
-  { lhsTel     :: Telescope
+data LHSState a = LHSState
+  { _lhsTel     :: Telescope
     -- ^ Type of pattern variables.
-  , lhsOutPat  :: [NamedArg DeBruijnPattern]
+  , _lhsOutPat  :: [NamedArg DeBruijnPattern]
     -- ^ Patterns after splitting.
     --   The de Bruijn indices refer to positions in the list of abstract
     --   patterns in the problem, counted from the back.
-  , lhsProblem :: Problem
+  , _lhsProblem :: Problem a
     -- ^ User patterns of supposed type @delta@.
-  , lhsTarget  :: Arg Type
+  , _lhsTarget  :: Arg Type
     -- ^ Type eliminated by 'problemRestPats' in the problem.
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
     --   be type-checked in irrelevant mode.
   }
 
-instance Subst Term DotPatternInst where
-  applySubst rho (DPI x e v a) = uncurry (DPI x e) $ applySubst rho (v,a)
+lhsTel :: Lens' Telescope (LHSState a)
+lhsTel f p = f (_lhsTel p) <&> \x -> p {_lhsTel = x}
+
+lhsOutPat :: Lens' [NamedArg DeBruijnPattern] (LHSState a)
+lhsOutPat f p = f (_lhsOutPat p) <&> \x -> p {_lhsOutPat = x}
+
+lhsProblem :: Lens' (Problem a) (LHSState a)
+lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
+
+lhsTarget :: Lens' (Arg Type) (LHSState a)
+lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
+
+instance Subst Term (Problem a) where
+  applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
 
 instance Subst Term AsBinding where
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
-instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI mx me v a) = sep
-    [ x <+> text "=" <+> text "." P.<> prettyA e
+instance Subst Term DotPattern where
+  applySubst rho (Dot e v a) = uncurry (Dot e) $ applySubst rho (v, a)
+
+instance Subst Term AbsurdPattern where
+  applySubst rho (Absurd r a) = Absurd r $ applySubst rho a
+
+instance PrettyTCM ProblemEq where
+  prettyTCM (ProblemEq p v a) = sep
+    [ prettyA p <+> text "="
     , nest 2 $ prettyTCM v <+> text ":"
     , nest 2 $ prettyTCM a
     ]
-    where x = maybe (text "_") prettyA mx
-          e = fromMaybe underscore me
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =
     sep [ prettyTCM x P.<> text "@" P.<> parens (prettyTCM v)
         , nest 2 $ text ":" <+> prettyTCM a
         ]
+
+instance PrettyTCM DotPattern where
+  prettyTCM (Dot e v a) = sep
+    [ prettyA e <+> text "="
+    , nest 2 $ prettyTCM v <+> text ":"
+    , nest 2 $ prettyTCM a
+    ]
+
+instance PrettyTCM AbsurdPattern where
+  prettyTCM (Absurd r a) = text "() :" <+> prettyTCM a
 
 instance PP.Pretty AsBinding where
   pretty (AsB x v a) =
@@ -286,10 +284,3 @@ instance PP.Pretty AsBinding where
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
-
-instance Null Problem where
-  null p = null (problemInPat p)
-           && null (problemRestPats p)
-           && null (problemDPI p)
-           && null (problemShouldBeEmptyTypes p)
-  empty  = Problem empty empty empty empty

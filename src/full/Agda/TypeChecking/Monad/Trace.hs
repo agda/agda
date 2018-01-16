@@ -110,24 +110,12 @@ traceCall mkCall m = do
   isNoHighlighting NoHighlighting{} = True
   isNoHighlighting _                = False
 
--- RULE left-hand side too complicated to desugar
--- {-# SPECIALIZE traceCallCPS :: Call -> (r -> TCM a) -> ((r -> TCM a) -> TCM b) -> TCM b #-}
-traceCallCPS :: (MonadTCM tcm, MonadDebug tcm)
-             => Call -> (r -> tcm a) -> ((r -> tcm a) -> tcm b) -> tcm b
-traceCallCPS mkCall ret cc = traceCall mkCall (cc ret)
-
--- RULE left-hand side too complicated to desugar
--- {-# SPECIALIZE traceCallCPS_ :: Call -> TCM a -> (TCM a -> TCM b) -> TCM b #-}
-traceCallCPS_ :: (MonadTCM tcm, MonadDebug tcm)
-              => Call -> tcm a -> (tcm a -> tcm b) -> tcm b
-traceCallCPS_ mkCall ret cc =
-    traceCallCPS mkCall (const ret) (\k -> cc $ k ())
-
-getCurrentRange :: TCM Range
+getCurrentRange :: (MonadTCM tcm, MonadDebug tcm) => tcm Range
 getCurrentRange = asks envRange
 
 -- | Sets the current range (for error messages etc.) to the range
 --   of the given object, if it has a range (i.e., its range is not 'noRange').
-setCurrentRange :: HasRange x => x -> TCM a -> TCM a
+setCurrentRange :: (MonadTCM tcm, MonadDebug tcm, HasRange x)
+                => x -> tcm a -> tcm a
 setCurrentRange x = applyUnless (null r) $ traceCall $ SetRange r
   where r = getRange x

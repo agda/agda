@@ -64,7 +64,6 @@ recordPatternToProjections p =
     VarP{}       -> return [ \ x -> x ]
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
-    AbsurdP{}    -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
       whenNothing (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
@@ -698,7 +697,7 @@ removeTree tree = do
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern p@(ConP c ci ps)
   -- Andreas, 2015-05-28 only translate implicit record patterns
-  | Just ConOSystem <- conPRecord ci = do
+  | Just PatOSystem <- conPRecord ci = do
       r <- recordTree p
       case r of
         Left  r -> r
@@ -708,7 +707,6 @@ translatePattern p@(ConP c ci ps)
       return (ConP c ci ps, s, cs)
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
-translatePattern p@AbsurdP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
 translatePattern p@ProjP{}= return (p, [], [])
 
@@ -735,7 +733,7 @@ recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 -- Andreas, 2015-05-28 only translate implicit record patterns
-recordTree (ConP c ci ps) | Just ConOSystem <- conPRecord ci = do
+recordTree (ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
@@ -753,7 +751,6 @@ recordTree (ConP c ci ps) | Just ConOSystem <- conPRecord ci = do
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
-recordTree p@AbsurdP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p
 recordTree p@ProjP{}= return $ Left $ translatePattern p
 

@@ -27,3 +27,5 @@ poo {b = s c} p | _ = P c
 -- has type {b : A} → P b → Set
 
 -- Ideally: succeed.
+
+-- 2018-01-05, Jesper: We're one step closer to an ideal world.

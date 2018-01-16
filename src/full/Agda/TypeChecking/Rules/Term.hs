@@ -479,7 +479,7 @@ checkAbsurdLambda i h e t = do
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ AbsurdP $ debruijnNamedVar absurdPatternName 0]
+                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP PatOAbsurd (DBPatVar absurdPatternName 0)]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
@@ -615,6 +615,12 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
           problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
           -- over-approximating the set of metas actually blocking unification
           return $ listToMaybe $ allMetas problem
+      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
+    TypeError s cl@Closure{ clValue = SplitError (NotADatatype aClosure) } -> do
+      mx <- localState $ do
+        put s
+        enterClosure aClosure $ \ a ->
+          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ _ -> return Nothing
       caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     _ -> reraise
 
@@ -1030,7 +1036,7 @@ checkExpr e t0 =
       A.QuestionMark{}        -> True
       _                       -> False
 
-    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _ _) = notVisible a
+    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
     hiddenLHS _ = False
 
     -- Things with are definitely introductions,
@@ -1833,7 +1839,7 @@ checkHeadApplication e t hd args = do
             core   = A.LHSProj { A.lhsDestructor = unambiguous flat
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPats       = [] }
-            clause = A.Clause (A.LHS empty core) [] []
+            clause = A.Clause (A.LHS empty core) []
                               (A.RHS arg Nothing)
                               [] False
 
@@ -2215,13 +2221,13 @@ checkLetBindings = foldr (.) id . map checkLetBinding
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
 checkLetBinding b@(A.LetBind i info x t e) ret =
-  traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+  traceCall (CheckLetBinding b) $ do
     t <- isType_ t
     v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t
     addLetBinding info x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
-  traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+  traceCall (CheckLetBinding b) $ do
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
@@ -2230,19 +2236,19 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"
       , nest 2 $ vcat
-        [ text "p (A) =" <+> text (show p) -- prettyTCM p
+        [ text "p (A) =" <+> prettyA p
         , text "t     =" <+> prettyTCM t
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _t _ asb) -> bindAsPatterns asb $ do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _ _t _ asb) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope
           delta = telFromList $ drop fvs $ telToList delta0
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-        [ text "p (I) =" <+> text (show p)
-        , text "delta =" <+> text (show delta)
+        [ text "p (I) =" <+> prettyTCM p
+        , text "delta =" <+> prettyTCM delta
         ]
       -- We translate it into a list of projections.
       fs <- recordPatternToProjections p
@@ -2270,7 +2276,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
                            $ locally eLetBindings (fmap subLetBind) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
-          , text "binds =" <+> text (show binds) -- prettyTCM binds
+          , text "binds =" <+> prettyTCM binds
           ]
 {- WE CANNOT USE THIS BINDING
        -- We add a first let-binding for the value of e.
@@ -2279,7 +2285,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
  -}
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-          [ text "fdelta =" <+> text (show fdelta)
+          [ text "fdelta =" <+> addContext delta (prettyTCM fdelta)
           ]
         let tsl  = applySubst sub fdelta
         -- We get a list of types

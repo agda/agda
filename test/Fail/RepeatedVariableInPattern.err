@@ -1,4 +1,4 @@
-RepeatedVariableInPattern.agda:5,1-10
+RepeatedVariableInPattern.agda:5,5-6
 Cannot eliminate type Set with pattern A (did you supply too many
 arguments?)
 when checking that the clause K A A = A has type Set → Set

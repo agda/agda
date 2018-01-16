@@ -27,5 +27,5 @@
 (agda2-highlight-add-annotations '(1 36 (comment) nil) '(37 77 (comment) nil) '(95 99 (keyword) nil) '(100 106 (keyword) nil) '(648 673 (comment) nil) '(677 734 (comment) nil) '(738 785 (comment) nil) '(826 832 (keyword) nil) '(898 912 (comment) nil) '(965 979 (comment) nil))
 (agda2-highlight-add-annotations '(623 646 (unsolvedconstraint) nil) '(839 840 (unsolvedmeta) nil) '(885 896 (unsolvedconstraint) nil) '(952 963 (unsolvedconstraint) nil))
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "_28 : .Agda.Primitive.Level [ at Issue2751.agda:42,7-8 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _28 =< .Agda.Primitive.lsuc .Agda.Primitive.lzero a =< _28 [53, 54] i =< size t : Size [50, 51] size t =< i : Size " nil)
+(agda2-info-action "*All Goals, Errors*" "_28 : .Agda.Primitive.Level [ at Issue2751.agda:42,7-8 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _28 =< .Agda.Primitive.lsuc .Agda.Primitive.lzero a =< _28 [55, 56] i =< size t : Size [52, 53] size t =< i : Size " nil)
 ((last . 1) . (agda2-goals-action '()))

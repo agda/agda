@@ -23,7 +23,7 @@ new′ : R
 new′ = record { i = 2; p = param 1; s = 1 }
 
 -- Here's a needlessly complex update.
-upd-p-s : _ → _ → _ → R
+upd-p-s : Nat → _ → _ → R
 upd-p-s zero s r = record r { p = param zero; s = s }
 upd-p-s (suc n) s r = record (upd-p-s n 0 r) { p = param n; s = s }
 

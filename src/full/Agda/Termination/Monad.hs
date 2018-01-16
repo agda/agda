@@ -516,12 +516,11 @@ class UsableSizeVars a where
 
 instance UsableSizeVars DeBruijnPattern where
   usableSizeVars = foldrPattern $ \case
-    VarP x    -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
+    VarP _ x   -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
                    {-else-} return mempty
     ConP c _ _ -> conUseSizeLt $ conName c
     LitP{}     -> none
     DotP{}     -> none
-    AbsurdP{}  -> none
     ProjP{}    -> none
     where none _ = return mempty
 
@@ -534,12 +533,11 @@ instance UsableSizeVars [DeBruijnPattern] where
 
 instance UsableSizeVars (Masked DeBruijnPattern) where
   usableSizeVars (Masked m p) = (`foldrPattern` p) $ \case
-    VarP x    -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
+    VarP _ x   -> const $ ifM terGetUseSizeLt (return $ VarSet.singleton $ dbPatVarIndex x) $
                    {-else-} return mempty
     ConP c _ _ -> if m then none else conUseSizeLt $ conName c
     LitP{}     -> none
     DotP{}     -> none
-    AbsurdP{}  -> none
     ProjP{}    -> none
     where none _ = return mempty
 

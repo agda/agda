@@ -406,10 +406,10 @@ errorString err = case err of
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
-  TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
+  SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
@@ -586,10 +586,6 @@ instance PrettyTCM TypeError where
            pwords "with pattern" ++ prettyA p :
            pwords "(did you supply too many arguments?)"
 
-    TooManyArgumentsInLHS a -> fsep $
-      pwords "Left hand side gives too many arguments to a function of type"
-      ++ [prettyTCM a]
-
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
       pwords "expects" ++ [prettyTCM expect] ++
@@ -680,10 +676,13 @@ instance PrettyTCM TypeError where
       pwords "Functions may not return sizes, thus, function type " ++
       [ prettyTCM v ] ++ pwords " is illegal"
 
-    SplitOnIrrelevant p t -> fsep $
-      pwords "Cannot pattern match" ++ [prettyA p] ++
-      pwords "against" ++ [text $ verbalize $ getRelevance t] ++
+    SplitOnIrrelevant t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
       pwords "argument of type" ++ [prettyTCM t]
+
+    SplitOnNonVariable v t -> fsep $
+      pwords "Cannot pattern match because the (refined) argument " ++
+      [ prettyTCM v ] ++ pwords " is not a variable."
 
     DefinitionIsIrrelevant x -> fsep $
       text "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
@@ -1257,9 +1256,8 @@ instance PrettyTCM TypeError where
       NotHidden  -> prettyPat 1 x
 
     prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
-    prettyPat _ (I.VarP _) = text "_"
+    prettyPat _ (I.VarP _ _) = text "_"
     prettyPat _ (I.DotP _ _) = text "._"
-    prettyPat _ (I.AbsurdP _) = text absurdPatternName
     prettyPat n (I.ConP c _ args) =
       mpar n args $
         prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)

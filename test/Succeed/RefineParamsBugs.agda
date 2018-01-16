@@ -152,7 +152,7 @@ module Folds where
       foldl-plus : ∀ z₁ z₂ xs → smashl (z₁ ∙ z₂) xs ≡ (z₁ ∙ smashl z₂ xs)
 
     foldr=foldl : ∀ ∅ → (∀ x → (∅ ∙ x) ≡ (x ∙ ∅)) →
-                  ∀ xs → Set
+                  List _ → Set
     foldr=foldl ∅ id []       = Nat
     foldr=foldl ∅ id (x ∷ xs) rewrite id x
                                      | foldl-plus x ∅ xs
@@ -222,4 +222,3 @@ module LetCase where
     h (x ∷ xs) =
       let ys = xs in
       λ n → λ where m → h ys n m
-

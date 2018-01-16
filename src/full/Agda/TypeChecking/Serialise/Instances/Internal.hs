@@ -372,21 +372,42 @@ instance EmbPrj I.DBPatVar where
 
   value = valueN DBPatVar
 
+instance EmbPrj I.PatOrigin where
+  icod_ PatOSystem  = icodeN' PatOSystem
+  icod_ PatOSplit   = icodeN 1 PatOSplit
+  icod_ (PatOVar a) = icodeN 2 PatOVar a
+  icod_ PatODot     = icodeN 3 PatODot
+  icod_ PatOWild    = icodeN 4 PatOWild
+  icod_ PatOCon     = icodeN 5 PatOCon
+  icod_ PatORec     = icodeN 6 PatORec
+  icod_ PatOLit     = icodeN 7 PatOLit
+  icod_ PatOAbsurd  = icodeN 8 PatOAbsurd
+
+  value = vcase valu where
+    valu []     = valuN PatOSystem
+    valu [1]    = valuN PatOSplit
+    valu [2, a] = valuN PatOVar a
+    valu [3]    = valuN PatODot
+    valu [4]    = valuN PatOWild
+    valu [5]    = valuN PatOCon
+    valu [6]    = valuN PatORec
+    valu [7]    = valuN PatOLit
+    valu [8]    = valuN PatOAbsurd
+    valu _      = malformed
+
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
-  icod_ (VarP a    ) = icodeN' VarP a
+  icod_ (VarP a b  ) = icodeN 0 VarP a b
   icod_ (ConP a b c) = icodeN 1 ConP a b c
   icod_ (LitP a    ) = icodeN 2 LitP a
   icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
-  icod_ (AbsurdP a ) = icodeN 5 AbsurdP a
 
   value = vcase valu where
-    valu [a]       = valuN VarP a
+    valu [0, a, b] = valuN VarP a b
     valu [1, a, b, c] = valuN ConP a b c
     valu [2, a]    = valuN LitP a
     valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
-    valu [5, a]    = valuN AbsurdP a
     valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where
