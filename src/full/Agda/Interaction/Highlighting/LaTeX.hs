@@ -516,7 +516,7 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
   where
   replace :: Char -> String
   replace c = case c of
-    '_'  -> "\\_"
+    '_'  -> "\\AgdaUnderscore{}"
     '{'  -> "\\{"
     '}'  -> "\\}"
     '#'  -> "\\#"
