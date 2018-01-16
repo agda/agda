@@ -299,7 +299,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getPattern' :: A.Pattern' e -> File
     getPattern' (A.VarP x)    = bound x
     getPattern' (A.AsP _ x _) = bound x
-    getPattern' (A.DotP pi _ _) =
+    getPattern' (A.DotP pi _) =
       singleton (rToR $ P.getRange pi)
                 (mempty { otherAspects = [DottedPattern] })
     getPattern' (A.PatternSynP _ q _) = patsyn q

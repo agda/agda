@@ -418,9 +418,9 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                                   else
                                     NoReduction $ applyE v0 <$> es'
           where defaultResult = if hasRewriting then
-                                  runReduce $ rewrite (NotBlocked AbsurdMatch ()) v0 rewr (map ignoreReduced es)
+                                  runReduce $ rewrite (NotBlocked ReallyNotBlocked ()) v0 rewr (map ignoreReduced es)
                                 else
-                                  NoReduction $ NotBlocked AbsurdMatch vfull
+                                  NoReduction $ NotBlocked ReallyNotBlocked vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
         match' :: Int -> QName -> FastStack -> Reduced (Blocked Elims) Term

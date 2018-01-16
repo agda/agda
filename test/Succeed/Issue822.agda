@@ -13,7 +13,7 @@ module M₂ where
 open M₁
 open M₂
 
-Foo : _ → Set
+Foo : D → Set
 Foo [ A ] = A
 
 -- Strange error message:

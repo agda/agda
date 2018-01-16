@@ -8,6 +8,7 @@ import Prelude hiding ((<>))
 #endif
 
 import Control.Monad
+import Control.Monad.Trans.Maybe
 
 import Data.Function
 import qualified Data.List as List
@@ -704,6 +705,78 @@ isSingletonType' regardIrrelevance t = do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
         _ -> return $ Right Nothing
 
+-- | Checks whether the given term (of the given type) is beta-eta-equivalent
+--   to a variable. Returns just the de Bruijn-index of the variable if it is,
+--   or nothing otherwise.
+isEtaVar :: Term -> Type -> TCM (Maybe Int)
+isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
+  where
+    -- Checks whether the term u (of type a) is beta-eta-equivalent to
+    -- `Var i es`, and returns i if it is. If the argument mi is `Just i'`,
+    -- then i and i' are also required to be equal (else Nothing is returned).
+    isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT TCM Int
+    isEtaVarG u a mi es = do
+      (u, a) <- liftTCM $ reduce (u, a)
+      liftTCM $ reportSDoc "tc.lhs" 80 $ text "isEtaVarG" <+> nest 2 (vcat
+        [ text "u  = " <+> text (show u)
+        , text "a  = " <+> prettyTCM a
+        , text "mi = " <+> text (show mi)
+        , text "es = " <+> prettyList (map (text . show) es)
+        ])
+      case (ignoreSharing u, ignoreSharing $ unEl a) of
+        (Var i' es', _) -> do
+          guard $ mi == (i' <$ mi)
+          b <- liftTCM $ typeOfBV i'
+          areEtaVarElims (var i') b es' es
+          return i'
+        (_, Def d pars) -> do
+          guard =<< do liftTCM $ isEtaRecord d
+          fs <- liftTCM $ map unArg . recFields . theDef <$> getConstInfo d
+          is <- forM fs $ \f -> do
+            let o = ProjSystem
+            (_, _, fa) <- MaybeT $ projectTyped u a o f
+            isEtaVarG (u `applyE` [Proj o f]) fa mi (es ++ [Proj o f])
+          case (mi, is) of
+            (Just i, _)     -> return i
+            (Nothing, [])   -> mzero
+            (Nothing, i:is) -> guard (all (==i) is) >> return i
+        (_, Pi dom cod) -> addContext dom $ do
+          let u'  = raise 1 u `apply` [argFromDom dom $> var 0]
+              a'  = absBody cod
+              mi' = fmap (+1) mi
+              es' = (fmap . fmap) (+1) es ++ [Apply $ argFromDom dom $> 0]
+          (-1+) <$> isEtaVarG u' a' mi' es'
+        _ -> mzero
+
+    -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied
+    -- to the term u of type a) are beta-eta-equal to either projections or
+    -- variables with de Bruijn indices given by es'.
+    areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT TCM ()
+    areEtaVarElims u a []    []    = return ()
+    areEtaVarElims u a []    (_:_) = mzero
+    areEtaVarElims u a (_:_) []    = mzero
+    areEtaVarElims u a (Proj o f : es) (Proj _ f' : es') = do
+      guard $ f == f'
+      a       <- liftTCM $ reduce a
+      (_, _, fa) <- MaybeT $ projectTyped u a o f
+      areEtaVarElims (u `applyE` [Proj o f]) fa es es'
+    -- These two cases can occur only when we're looking at two different
+    -- variables (i.e. one of function type and the other of record type) so
+    -- it's definitely not the variable we're looking for (or someone is playing
+    -- Jedi mind tricks on us)
+    areEtaVarElims u a (Proj{}  : _ ) (Apply _ : _  ) = mzero
+    areEtaVarElims u a (Apply _ : _ ) (Proj{}  : _  ) = mzero
+    areEtaVarElims u a (Proj{} : _ ) (IApply{} : _  ) = mzero
+    areEtaVarElims u a (IApply{} : _ ) (Proj{} : _  ) = mzero
+    areEtaVarElims u a (Apply  _ : _ ) (IApply{} : _  ) = mzero
+    areEtaVarElims u a (IApply{} : _ ) (Apply  _ : _  ) = mzero
+    areEtaVarElims u a (IApply{} : _) (IApply{} : _) = __IMPOSSIBLE__ -- TODO Andrea: not actually impossible, should be done like Apply
+    areEtaVarElims u a (Apply v : es) (Apply i : es') = do
+      ifNotPiType a (const mzero) $ \dom cod -> do
+      _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []
+      areEtaVarElims (u `apply` [fmap var i]) (cod `absApp` var (unArg i)) es es'
+
+
 -- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
 emap = mapRight . fmap
@@ -730,7 +803,6 @@ instance NormaliseProjP a => NormaliseProjP (Named_ a) where
 instance NormaliseProjP (Pattern' x) where
   normaliseProjP p@VarP{}        = return p
   normaliseProjP p@DotP{}        = return p
-  normaliseProjP p@AbsurdP{}     = return p
   normaliseProjP (ConP c cpi ps) = ConP c cpi <$> normaliseProjP ps
   normaliseProjP p@LitP{}        = return p
   normaliseProjP (ProjP o d0)    = ProjP o <$> getOriginalProjection d0

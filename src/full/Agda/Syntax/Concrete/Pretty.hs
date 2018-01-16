@@ -597,7 +597,7 @@ instance Pretty Pattern where
             ParenP _ p      -> parens $ pretty p
             WildP _         -> underscore
             AsP _ x p       -> pretty x <> text "@" <> pretty p
-            DotP _ _ p      -> text "." <> pretty p
+            DotP _ p        -> text "." <> pretty p
             AbsurdP _       -> text "()"
             LitP l          -> pretty l
             QuoteP _        -> text "quote"

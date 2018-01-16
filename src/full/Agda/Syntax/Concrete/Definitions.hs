@@ -1164,7 +1164,7 @@ niceDeclarations ds = do
     expandEllipsis [] = return []
     expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
       | hasEllipsis p = (d :) <$> expandEllipsis ds
-      | otherwise     = (d :) <$> expand (wipe p) ds
+      | otherwise     = (d :) <$> expand (killRange p) ds
       where
         expand :: Pattern -> [Declaration] -> Nice [Declaration]
         expand _ [] = return []
@@ -1181,7 +1181,7 @@ niceDeclarations ds = do
                   let d' = FunClause (LHS p1 eqs es) rhs wh ca
                   -- If we have with-expressions (es /= []) then the following
                   -- ellipses also get the additional patterns in p0.
-                  (d' :) <$> expand (if null es then p else wipe p1) ds
+                  (d' :) <$> expand (if null es then p else killRange p1) ds
                 ZeroHoles _ -> do
                   -- We can have ellipses after a fun clause without.
                   -- They refer to the last clause that introduced new with-expressions.
@@ -1189,36 +1189,9 @@ niceDeclarations ds = do
                   -- refer to us.
                   -- Andreas, Jesper, 2017-05-13, issue #2578
                   -- Need to update the range also on the next with-patterns.
-                  (d :) <$> expand (if null es then p else wipe p0) ds
+                  (d :) <$> expand (if null es then p else killRange p0) ds
             _ -> __IMPOSSIBLE__
     expandEllipsis _ = __IMPOSSIBLE__
-
-    -- Before copying a pattern, remove traces to its origin.
-    wipe :: Pattern -> Pattern
-    wipe = killRange . setInserted
-
-    -- Set origin of all patterns inside the given pattern to 'Inserted'.
-    setInserted :: Pattern -> Pattern
-    setInserted = mapCPattern $ \ p -> case p of
-      -- Currently only DotP has an origin:
-      DotP r _ e     -> DotP r Inserted e
-      -- Hence, the other patterns remain unchanged:
-      IdentP _       -> p
-      QuoteP _       -> p
-      AppP _ _       -> p
-      RawAppP _ _    -> p
-      OpAppP _ _ _ _ -> p
-      HiddenP _ _    -> p
-      InstanceP _ _  -> p
-      ParenP _ _     -> p
-      WildP _        -> p
-      AbsurdP _      -> p
-      AsP _ _ _      -> p
-      EqualP _ _     -> p
-      LitP _         -> p
-      RecP _ _       -> p
-      EllipsisP _    -> p
-      WithP _ _      -> p
 
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]

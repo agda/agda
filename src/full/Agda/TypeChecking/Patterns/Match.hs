@@ -179,10 +179,9 @@ matchPattern :: DeBruijnPattern
              -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
-  (VarP x , arg          ) -> return (Yes NoSimplification entry, arg)
+  (VarP _ x , arg          ) -> return (Yes NoSimplification entry, arg)
     where entry = singleton (dbPatVarIndex x, arg)
   (DotP _ _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
-  (AbsurdP _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w

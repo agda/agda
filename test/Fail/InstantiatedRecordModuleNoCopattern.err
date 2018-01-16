@@ -1,3 +1,3 @@
 InstantiatedRecordModuleNoCopattern.agda:24,1-16
-Not a valid projection for a copattern: out
+Cannot eliminate type  R  with projection  out
 when checking that the clause out wrong = Set has type R

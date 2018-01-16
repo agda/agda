@@ -1,4 +1,4 @@
 Issue2594.agda:15,1-16,16
 Incomplete pattern matching for argh. Missing cases:
-  argh true _
+  argh true x
 when checking the definition of argh

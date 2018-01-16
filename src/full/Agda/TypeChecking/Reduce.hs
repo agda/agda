@@ -522,7 +522,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
           debugReduce ev
           return ev
       where
-      defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
+      defaultResult = noReduction $ NotBlocked ReallyNotBlocked vfull
       vfull         = v0 `applyE` map ignoreReduced es
       debugReduce ev = verboseS "tc.reduce" 90 $ do
         case ev of
@@ -999,11 +999,10 @@ instance Normalise DBPatVar where
 
 instance Normalise a => Normalise (Pattern' a) where
   normalise' p = case p of
-    VarP x       -> VarP <$> normalise' x
+    VarP o x     -> VarP o <$> normalise' x
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DotP o v     -> DotP o <$> normalise' v
-    AbsurdP x    -> AbsurdP <$> normalise' x
     ProjP{}      -> return p
 
 instance Normalise DisplayForm where
@@ -1117,9 +1116,8 @@ instance InstantiateFull DBPatVar where
     instantiateFull' = return
 
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
-    instantiateFull' (VarP x)       = VarP <$> instantiateFull' x
+    instantiateFull' (VarP o x)     = VarP o <$> instantiateFull' x
     instantiateFull' (DotP o t)     = DotP o <$> instantiateFull' t
-    instantiateFull' (AbsurdP p)    = AbsurdP <$> instantiateFull' p
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p

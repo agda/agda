@@ -118,7 +118,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.DefP p a b)        = icodeN 2 (A.DefP p) a b
   icod_ t@(A.WildP p)         = icodeN 3 t
   icod_ (A.AsP p a b)         = icodeN 4 (A.AsP p) a b
-  icod_ (A.DotP p a b)        = icodeN 5 (A.DotP p) a b
+  icod_ (A.DotP p a)          = icodeN 5 (A.DotP p) a
   icod_ t@(A.AbsurdP _)       = icodeN 6 t
   icod_ (A.LitP a)            = icodeN 7 A.LitP a
   icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
@@ -133,7 +133,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [2, a, b]    = valuN (A.DefP i) a b
     valu [3]          = valuN (A.WildP i)
     valu [4, a, b]    = valuN (A.AsP i) a b
-    valu [5, a, b]    = valuN (A.DotP i) a b
+    valu [5, a]       = valuN (A.DotP i) a
     valu [6]          = valuN (A.AbsurdP i)
     valu [7, a]       = valuN (A.LitP) a
     valu [8, a, b]    = valuN (A.ProjP i) a b
@@ -178,6 +178,6 @@ instance EmbPrj Precedence where
     valu _         = malformed
 
 instance EmbPrj ScopeInfo where
-  icod_ (ScopeInfo a b c d e f g) = icodeN' (\ a b c d -> ScopeInfo a b c d e f g) a b c d
+  icod_ (ScopeInfo a b c d e f g h) = icodeN' (\ a b c d e -> ScopeInfo a b c d e f g h) a b c d e
 
-  value = valueN (\ a b c d -> ScopeInfo a b c d Map.empty Map.empty Set.empty)
+  value = valueN (\ a b c d e -> ScopeInfo a b c d e Map.empty Map.empty Set.empty)

@@ -1,0 +1,3 @@
+Issue2834.agda:5,12-16
+Cannot split on argument of non-datatype _2 Bool
+when checking that the pattern true has type _2 Bool

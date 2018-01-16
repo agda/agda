@@ -336,14 +336,8 @@ reifyDisplayFormP f ps wps = do
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
-        -- Currently we don't keep track of the origin of a dot pattern in the internal syntax,
-        -- so here we give __IMPOSSIBLE__. This is only used for printing purposes, the origin
-        -- should not be used anyway after this point.
-        -- Andreas, 2017-02-14: This crashes with -v 100.
-        -- termToPat (DDot v)             = A.DotP patNoRange __IMPOSSIBLE__ <$> termToExpr v
-        -- termToPat v                    = A.DotP patNoRange __IMPOSSIBLE__ <$> reify v -- __IMPOSSIBLE__
-        termToPat (DDot v)             = unnamed . A.DotP patNoRange Inserted <$> termToExpr v
-        termToPat v                    = unnamed . A.DotP patNoRange Inserted <$> reify v
+        termToPat (DDot v)             = unnamed . A.DotP patNoRange <$> termToExpr v
+        termToPat v                    = unnamed . A.DotP patNoRange <$> reify v
 
         len = length ps
 
@@ -728,9 +722,6 @@ stripImplicits ps = do
         where
           stripArgs _ [] = []
           stripArgs fixedPos (a : as)
-            -- Andreas, 2017-01-18, issue #819: preserves _ when splitting:
-            -- An Inserted visible variable comes form a WildP and is restored as such.
-            | visible a, getOrigin a == Inserted, varOrDot (namedArg a) = goWild
             -- A hidden non-UserWritten variable is removed if not needed for
             -- correct position of the following hidden arguments.
             | canStrip a =
@@ -761,7 +752,7 @@ stripImplicits ps = do
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
             A.ProjP{}     -> p
             A.DefP _ _ _  -> p
-            A.DotP _ _ e  -> p
+            A.DotP _ e    -> p
             A.WildP _     -> p
             A.AbsurdP _   -> p
             A.LitP _      -> p
@@ -802,20 +793,16 @@ instance (BlankVars a, BlankVars b) => BlankVars (Either a b) where
   blank bound (Left x)  = Left $ blank bound x
   blank bound (Right y) = Right $ blank bound y
 
-instance BlankVars A.NamedDotPattern where
-  blank bound = id
-
-instance BlankVars A.StrippedDotPattern where
+instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause lhs namedDots strippedDots rhs [] ca) =
+  blank bound (A.Clause lhs strippedPats rhs [] ca) =
     let bound' = varsBoundIn lhs `Set.union` bound
     in  A.Clause (blank bound' lhs)
-                 (blank bound' namedDots)
-                 (blank bound' strippedDots)
+                 (blank bound' strippedPats)
                  (blank bound' rhs) [] ca
-  blank bound (A.Clause lhs namedDots strippedDots rhs (_:_) ca) = __IMPOSSIBLE__
+  blank bound (A.Clause lhs strippedPats rhs (_:_) ca) = __IMPOSSIBLE__
 
 instance BlankVars A.LHS where
   blank bound (A.LHS i core) = A.LHS i $ blank bound core
@@ -831,7 +818,7 @@ instance BlankVars A.Pattern where
     A.ConP c i ps -> A.ConP c i $ blank bound ps
     A.ProjP{}     -> p
     A.DefP i f ps -> A.DefP i f $ blank bound ps
-    A.DotP i o e  -> A.DotP i o $ blank bound e
+    A.DotP i e    -> A.DotP i $ blank bound e
     A.WildP _     -> p
     A.AbsurdP _   -> p
     A.LitP _      -> p
@@ -885,7 +872,7 @@ instance BlankVars RHS where
   blank bound (RHS e mc)             = RHS (blank bound e) mc
   blank bound AbsurdRHS              = AbsurdRHS
   blank bound (WithRHS _ es clauses) = __IMPOSSIBLE__ -- NZ
-  blank bound (RewriteRHS xes rhs _) = __IMPOSSIBLE__ -- NZ
+  blank bound (RewriteRHS xes spats rhs _) = __IMPOSSIBLE__ -- NZ
 
 instance BlankVars A.LamBinding where
   blank bound b@A.DomainFree{} = b
@@ -978,33 +965,54 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      case p of
-      I.VarP x -> do
-        n <- liftTCM $ nameOfBV $ dbPatVarIndex x
-        case dbPatVarName x of
-          "_"  -> return $ A.VarP $ BindName n
-          -- Andreas, 2017-09-03: TODO for #2580
-          -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
-          -- case splitter still produces them.
-          y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP $ BindName n else
-            -- Andreas, 2017-09-03, issue #2729
-            -- Restore original pattern name.  AbstractToConcrete picks unique names.
-            return $ A.VarP $ BindName $ n { nameConcrete = C.Name noRange [ C.Id y ] }
-      I.DotP o v -> do
-        t <- liftTCM $ reify v
-        -- This is only used for printing purposes, so the Origin shouldn't be
-        -- used after this point anyway.
-        return $ A.DotP patNoRange o t
-        -- WAS: return $ A.DotP patNoRange __IMPOSSIBLE__ t
-        -- Crashes on -v 100.
-      I.AbsurdP p -> return $ A.AbsurdP patNoRange
+      I.VarP PatODot x -> reifyDotP $ var $ dbPatVarIndex x
+      I.VarP PatOWild _ -> return $ A.WildP patNoRange
+      I.VarP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
+      I.VarP _ x -> reifyVarP x
+      I.DotP PatOWild _ -> return $ A.WildP patNoRange
+      I.DotP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
+      -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
+      I.DotP (PatOVar x) v@(I.Var i []) -> do
+        x' <- nameOfBV i
+        if nameConcrete x == nameConcrete x' then
+          return $ A.VarP $ BindName x'
+        else
+          reifyDotP v
+      I.DotP o v -> reifyDotP v
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
-      I.ConP c cpi ps -> do
-        liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
-        tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
-        where
-          ci = ConPatInfo origin patNoRange
-          origin = fromMaybe ConOCon $ I.conPRecord cpi
+      I.ConP c cpi ps -> case conPRecord cpi of
+        Just PatOWild   -> return $ A.WildP patNoRange
+        Just PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _               -> reifyConP c cpi ps
+
+    reifyVarP :: MonadTCM tcm => DBPatVar -> tcm A.Pattern
+    reifyVarP x = do
+      n <- liftTCM $ nameOfBV $ dbPatVarIndex x
+      case dbPatVarName x of
+        "_"  -> return $ A.VarP $ BindName n
+        -- Andreas, 2017-09-03: TODO for #2580
+        -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
+        -- case splitter still produces them.
+        y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP (BindName n) else
+          -- Andreas, 2017-09-03, issue #2729
+          -- Restore original pattern name.  AbstractToConcrete picks unique names.
+          return $ A.VarP $ BindName n { nameConcrete = C.Name noRange [ C.Id y ] }
+
+    reifyDotP :: MonadTCM tcm => Term -> tcm A.Pattern
+    reifyDotP v = do
+      t <- liftTCM $ reify v
+      return $ A.DotP patNoRange t
+
+    reifyConP :: MonadTCM tcm
+              => ConHead -> ConPatternInfo -> [NamedArg DeBruijnPattern]
+              -> tcm A.Pattern
+    reifyConP c cpi ps = do
+      tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
+      where
+        ci = ConPatInfo origin patNoRange
+        origin = fromConPatternInfo cpi
+
 
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.
@@ -1047,7 +1055,7 @@ instance Reify NamedClause A.Clause where
     rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
        RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) [] [] rhs [] (I.clauseCatchall cl)
+    let result = A.Clause (spineToLhs lhs) [] rhs [] (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where
@@ -1076,7 +1084,7 @@ instance Reify (QNamed System) [A.Clause] where
       ps <- return $ drop (size tel' - size tel) ps
       let
         lhs = SpineLHS (LHSRange noRange) f ps
-        result = A.Clause (spineToLhs lhs) [] [] rhs [] False
+        result = A.Clause (spineToLhs lhs) [] rhs [] False
       return result
 
 instance Reify Type Expr where

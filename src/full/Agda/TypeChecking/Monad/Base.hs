@@ -2633,7 +2633,6 @@ data TypeError
         | IlltypedPattern A.Pattern Type
         | IllformedProjectionPattern A.Pattern
         | CannotEliminateWithPattern (NamedArg A.Pattern) Type
-        | TooManyArgumentsInLHS Type
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
@@ -2653,7 +2652,8 @@ data TypeError
         | FunctionTypeInSizeUniv Term
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
-        | SplitOnIrrelevant A.Pattern (Dom Type)
+        | SplitOnIrrelevant (Dom Type)
+        | SplitOnNonVariable Term Type
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
 --        | UnequalLevel Comparison Term Term  -- UNUSED

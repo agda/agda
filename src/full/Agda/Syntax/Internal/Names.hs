@@ -92,7 +92,6 @@ instance NamesIn (Pattern' a) where
     VarP{}        -> Set.empty
     LitP l        -> namesIn l
     DotP _ v      -> namesIn v
-    AbsurdP p     -> namesIn p
     ConP c _ args -> namesIn (c, args)
     ProjP _ f     -> namesIn f
 

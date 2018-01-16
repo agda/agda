@@ -78,13 +78,19 @@ teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: (DeBruijn a) => Telescope -> [Arg a]
 teleArgs tel =
-  [ Arg info (debruijnNamedVar n i)
+  [ Arg info (deBruijnVar i)
   | (i, Dom {domInfo = info, unDom = (n,_)}) <- zip (downFrom $ size l) l ]
+  where l = telToList tel
+
+withNamedArgsFromTel :: [a] -> Telescope -> [NamedArg a]
+xs `withNamedArgsFromTel` tel =
+  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) x)
+  | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
   where l = telToList tel
 
 teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
 teleNamedArgs tel =
-  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) (debruijnNamedVar name i))
+  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) (deBruijnVar i))
   | (i, Dom {domInfo = info, unDom = (name,_)}) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
@@ -229,7 +235,7 @@ instantiateTelescopeN
             Substitution) -- Γ' ⊢ σ : Γ
 instantiateTelescopeN tel []         = return (tel, IdS)
 instantiateTelescopeN tel ((k,t):xs) = do
-  (tel', sigma, _) <- instantiateTelescope tel k t Inserted
+  (tel', sigma, _) <- instantiateTelescope tel k t
   (tel'', sigma')  <- instantiateTelescopeN tel' (map (subtract 1 -*- applyPatSubst sigma) xs)
   return (tel'', applyPatSubst sigma sigma')
 
@@ -241,11 +247,10 @@ instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
   -> Int       -- ^ Γ ⊢ var k : A
   -> Term      -- ^ Γ ⊢ u : A
-  -> Origin    -- ^ Where does the solution come from?
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
             Permutation)         -- Γ  ⊢ flipP ρ : Γ'
-instantiateTelescope tel k u o = guard ok $> (tel', sigma, rho)
+instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
   where
     names = teleNames tel
     ts0   = flattenTel tel
@@ -267,7 +272,7 @@ instantiateTelescope tel k u o = guard ok $> (tel', sigma, rho)
     rho   = reverseP perm  -- works on de Bruijn levels
 
     u1    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u1 : A'
-    us    = map (\i -> fromMaybe (DotP o u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
+    us    = map (\i -> fromMaybe (dotP u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0
@@ -288,7 +293,7 @@ expandTelescopeVar gamma k delta c = (tel', rho)
                     splitExactlyAt k $ telToList gamma
 
     cpi         = noConPatternInfo
-      { conPRecord = Just ConOSystem
+      { conPRecord = Just PatOSystem
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }

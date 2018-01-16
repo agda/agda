@@ -40,7 +40,7 @@ import Agda.TypeChecking.Rules.Term
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Rules.LHS (isFlexiblePattern)
+import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
 
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -215,47 +215,46 @@ buildWithFunction
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
-    buildWithClause (A.Clause (A.SpineLHS i _ allPs) inheritedDots inhStrippedDots rhs wh catchall) = do
+    buildWithClause (A.Clause (A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
       let (ps, wps)    = splitOffTrailingWithPatterns allPs
           (wps0, wps1) = splitAt n wps
           ps0          = map (updateNamedArg fromWithP) wps0
             where
             fromWithP (A.WithP _ p) = p
             fromWithP _ = __IMPOSSIBLE__
-      reportSDoc "tc.with" 50 $ text "inheritedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
-                                                               | A.NamedDot x v a <- inheritedDots ]
-      rhs <- buildRHS rhs
-      (namedDots, strippedDots, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
-      reportSDoc "tc.with" 50 $ hang (text "strippedDots:") 2 $
-                                  vcat [ prettyTCM e <+> text "==" <+> prettyTCM v <+> (text ":" <+> prettyTCM t)
-                                       | A.StrippedDot e v t <- strippedDots ]
+      reportSDoc "tc.with" 50 $ text "inheritedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
+                                                               | A.ProblemEq p v a <- inheritedPats ]
+      (strippedPats, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
+      reportSDoc "tc.with" 50 $ hang (text "strippedPats:") 2 $
+                                  vcat [ prettyA p <+> text "==" <+> prettyTCM v <+> (text ":" <+> prettyTCM t)
+                                       | A.ProblemEq p v t <- strippedPats ]
+      rhs <- buildRHS strippedPats rhs
       let (ps1, ps2) = splitAt n1 ps'
       let result = A.Clause (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
-                     (inheritedDots ++ namedDots)
-                     (inhStrippedDots ++ strippedDots)
+                     (inheritedPats ++ strippedPats)
                      rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
         ]
       return result
 
-    buildRHS rhs@A.RHS{}                 = return rhs
-    buildRHS rhs@A.AbsurdRHS             = return rhs
-    buildRHS (A.WithRHS q es cs)         = A.WithRHS q es <$>
+    buildRHS _ rhs@A.RHS{}                 = return rhs
+    buildRHS _ rhs@A.AbsurdRHS             = return rhs
+    buildRHS _ (A.WithRHS q es cs)         = A.WithRHS q es <$>
       mapM ((A.spineToLhs . permuteNamedDots) <.> buildWithClause . A.lhsToSpine) cs
-    buildRHS (A.RewriteRHS qes rhs wh) = flip (A.RewriteRHS qes) wh <$> buildRHS rhs
+    buildRHS strippedPats1 (A.RewriteRHS qes strippedPats2 rhs wh) =
+      flip (A.RewriteRHS qes (applySubst withSub $ strippedPats1 ++ strippedPats2)) wh <$> buildRHS [] rhs
 
-    -- The named dot patterns computed by buildWithClause lives in the context
+    -- The stripped patterns computed by buildWithClause lives in the context
     -- of the top with-clause (of the current call to buildWithFunction). When
-    -- we recurse we expect inherited named dot patterns to live in the context
+    -- we recurse we expect inherited patterns to live in the context
     -- of the innermost parent clause. Note that this makes them live in the
     -- context of the with-function arguments before any pattern matching. We
     -- need to update again once the with-clause patterns have been checked.
-    -- This happens in Rules.Def.checkClause before calling checkRHS. The same
-    -- goes for stripped dots.
+    -- This happens in Rules.Def.checkClause before calling checkRHS.
     permuteNamedDots :: A.SpineClause -> A.SpineClause
-    permuteNamedDots (A.Clause lhs dots sdots rhs wh catchall) =
-      A.Clause lhs (applySubst withSub dots) (applySubst withSub sdots) rhs wh catchall
+    permuteNamedDots (A.Clause lhs strippedPats rhs wh catchall) =
+      A.Clause lhs (applySubst withSub strippedPats) rhs wh catchall
 
 
 -- The arguments of @stripWithClausePatterns@ are documented
@@ -332,7 +331,7 @@ stripWithClausePatterns
   -> Nat                      -- ^ __@npars@__ number of module parameters in @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
   -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
-  -> TCM ([A.NamedDotPattern], [A.StrippedDotPattern], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
+  -> TCM ([A.ProblemEq], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
 stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
@@ -354,16 +353,15 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     ]
 
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', out) <- runWriterT $ strip (Def parent []) t psi qs
-  let (strippedDots, namedDots) = partitionEithers out
+  (ps', strippedPats) <- runWriterT $ strip (Def parent []) t psi qs
   reportSDoc "tc.with.strip" 50 $ nest 2 $
-    text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
+    text "strippedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
   let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
     ]
-  return (namedDots, strippedDots, psp)
+  return (strippedPats, psp)
   where
 
     strip
@@ -371,7 +369,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       -> Type                         -- ^ The type to be eliminated.
       -> [NamedArg A.Pattern]       -- ^ With-clause patterns.
       -> [NamedArg DeBruijnPattern] -- ^ Parent-clause patterns with de Bruijn indices relative to Δ.
-      -> WriterT [Either A.StrippedDotPattern A.NamedDotPattern] TCM [NamedArg A.Pattern]
+      -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]
             -- ^ With-clause patterns decomposed by parent-clause patterns.
             --   Also outputs named dot patterns from the parent clause that
             --   we need to add let-bindings for.
@@ -409,10 +407,10 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       | A.AsP _ x p <- namedArg p0 = do
         (a, _) <- mustBePi t
         let v = patternToTerm (namedArg q)
-        tell [Right $ A.NamedDot (A.unBind x) v (unDom a)]
+        tell [ProblemEq (A.VarP x) v a]
         strip self t (fmap (p <$) p0 : ps) qs
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
-      p <- liftTCM $ expandLitPattern p0
+      p <- liftTCM $ (traverse . traverse) expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ text "strip"
         , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
@@ -421,13 +419,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         , nest 2 $ text "self=" <+> prettyTCM self
         , nest 2 $ text "t   =" <+> prettyTCM t
         ]
-      let failDotPat :: Monoid w => WriterT w TCM a
-          failDotPat = do
-            d <- liftTCM $ prettyA p
-            typeError $ GenericError $
-                "Inaccessible (dotted) patterns from the parent clause must " ++
-                "also be inaccessible in the with clause, when checking the " ++
-                "pattern " ++ show d ++ ","
       case namedArg q of
         ProjP o d -> case A.maybePostfixProjP p of
           Just (o', AmbQ ds) -> do
@@ -450,48 +441,20 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        VarP x  -> (p :) <$> recurse (var (dbPatVarIndex x))
+        -- If a variable pattern in the parent clause was written as a dot
+        -- pattern by the user both in the parent clause and the with clause,
+        -- we can strip the dot from the with clause.
+        VarP PatODot x | A.DotP _ u <- namedArg p
+                       , A.Var y <- unScope u ->
+          (setNamedArg p (A.VarP $ A.BindName y) :) <$>
+            recurse (var (dbPatVarIndex x))
 
-        AbsurdP (VarP x) -> case namedArg p of
-          A.AbsurdP _info -> (p :) <$> recurse (var (dbPatVarIndex x))
-          A.WildP _info   -> (p :) <$> recurse (var (dbPatVarIndex x))
-          _ -> mismatch
+        VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
-        AbsurdP q -> do
-          reportSDoc "impossible" 10 $ text "AbsurdP" <+> prettyTCM q
-          __IMPOSSIBLE__
-
-        DotP o v  -> case namedArg p of
-          A.DotP r o e  -> do
-            (a, _) <- mustBePi t
-            tell [Left $ A.StrippedDot e v (unDom a)]
-            ok p
-          A.WildP _     -> ok p
-          -- Ulf, 2016-05-30: dot patterns are no longer mandatory so a parent
-          -- dot pattern can appear as a variable in the child clause. Indeed
-          -- this happens if you use a variable in the parent and '...' in the
-          -- child. In this case we need to remember the the binding, so we can
-          -- insert a let for it.
-          A.VarP x -> do
-            (a, _) <- mustBePi t
-            tell [Right $ A.NamedDot (A.unBind x) v (unDom a)]
-            ok p
-          -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
-          -- we just fold it back.  This fixes issues 665 and 824.
-          A.ConP ci _ _ | patOrigin ci == ConOSystem -> okFlex p
-          -- Andreas, 2015-07-07 issue 1606: Same for flexible record patterns.
-          -- Agda might have replaced a record of dot patterns (A.ConP) by a dot pattern (I.DotP).
-          p'@A.ConP{} -> ifM (liftTCM $ isFlexiblePattern p') (okFlex p) {-else-} failDotPat
-
-          p@(A.PatternSynP pi' c' [ps']) -> do
-             reportSDoc "impossible" 10 $
-               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
-             __IMPOSSIBLE__
-
-          _ -> failDotPat
-          where
-            okFlex = ok . makeImplicitP
-            ok p   = (p :) <$> recurse v
+        DotP o v  -> do
+          (a, _) <- mustBePi t
+          tell [ProblemEq (namedArg p) v a]
+          (makeImplicitP p :) <$> recurse v
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
@@ -508,9 +471,11 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Andreas, 2015-07-07 Issue 1606.
           -- Agda sometimes changes a record of dot patterns into a dot pattern,
           -- so the user should be allowed to do likewise.
-          A.DotP{} -> ifNotM (liftTCM $ isFlexiblePattern q') mismatch $ {-else-} do
-            maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
-              liftTCM $ expandImplicitPattern' (unDom a) $ makeImplicitP p
+          -- Jesper, 2017-11-16. This is now also allowed for data constructors.
+          A.DotP r e -> do
+            tell [ProblemEq (A.DotP r e) (patternToTerm q') a]
+            let ps' = map (unnamed (A.WildP empty) <$) qs'
+            stripConP d us b c ConOCon qs' ps'
 
           -- Andreas, 2016-12-29, issue #2363.
           -- Allow _ to stand for the corresponding parent pattern.
@@ -596,7 +561,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
              -- ^ Argument patterns (parent clause).
           -> [NamedArg A.Pattern]
              -- ^ Argument patterns (with clause).
-          -> WriterT [Either A.StrippedDotPattern A.NamedDotPattern] TCM [NamedArg A.Pattern]
+          -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]
              -- ^ Stripped patterns.
         stripConP d us b c ci qs' ps' = do
 
@@ -761,8 +726,9 @@ patsToElims = map $ toElim . fmap namedThing
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP x      -> DTerm  $ var $ dbPatVarIndex x
+      VarP PatODot x -> DDot  $ var $ dbPatVarIndex x
+      VarP o x      -> DTerm  $ var $ dbPatVarIndex x
+      DotP PatOVar{} t@(Var i []) -> DTerm t
       DotP o t    -> DDot   $ t
-      AbsurdP p   -> toTerm p
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l
