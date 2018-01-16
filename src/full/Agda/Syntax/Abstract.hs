@@ -629,7 +629,7 @@ instance HasRange (Pattern' e) where
     getRange (ProjP i _ _)       = getRange i
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
-    getRange (AsP i _ _)        = getRange i
+    getRange (AsP i _ _)         = getRange i
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
     getRange (LitP l)            = getRange l
@@ -672,7 +672,7 @@ instance SetRange (Pattern' a) where
     setRange r (ProjP _ o ns)       = ProjP (PatRange r) o ns
     setRange r (DefP _ ns as)       = DefP (PatRange r) ns as -- (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
-    setRange r (AsP _ n p)         = AsP (PatRange r) (setRange r n) p
+    setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
     setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
@@ -758,7 +758,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (ProjP i o a)       = killRange3 ProjP i o a
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
-  killRange (AsP i a b)        = killRange3 AsP i a b
+  killRange (AsP i a b)         = killRange3 AsP i a b
   killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
   killRange (LitP l)            = killRange1 LitP l

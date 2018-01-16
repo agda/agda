@@ -9,10 +9,13 @@ module Agda.TypeChecking.Rules.LHS
   , IsFlexiblePattern(..)
   ) where
 
-import Prelude hiding (mapM, sequence, null)
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ( (<>), mapM, null, sequence )
+#else
+import Prelude hiding ( mapM, null, sequence )
+#endif
 
 import Data.Maybe
-
 
 import Control.Applicative hiding (empty)
 import Control.Arrow (first, second, (***), left, right)
@@ -29,9 +32,10 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List (delete, sortBy, stripPrefix, (\\), findIndex)
 import qualified Data.List as List
-import Data.Traversable
-import Data.Semigroup (Semigroup, Monoid, mempty, mappend)
+import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
+import Data.Traversable
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -197,7 +201,8 @@ updateProblemEqs eqs = do
             (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
-            unless (conName c == conName c') __IMPOSSIBLE__
+
+            unless (conName c == conName c') {-'-} __IMPOSSIBLE__
 
             -- Insert implicit patterns
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -1045,7 +1050,7 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = do
       let Def d' es' = ignoreSharing ctarget
           cixs = drop (size pars) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
 
-      unless (d == d') __IMPOSSIBLE__
+      unless (d == d') {-'-} __IMPOSSIBLE__
 
       -- Get names for the constructor arguments from the user patterns
       gamma <- liftTCM $ case focusPat of
