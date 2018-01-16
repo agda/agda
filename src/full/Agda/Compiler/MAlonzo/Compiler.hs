@@ -222,7 +222,10 @@ imports = (hsImps ++) <$> imps where
 -- Main compiling clauses
 --------------------------------------------------
 
--- | Note that the INFINITY, SHARP and FLAT builtins are translated as
+-- | The following comment is outdated, and should be updated when
+-- Issue 2909 is fixed:
+--
+-- Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):
 --
 -- @
