@@ -63,7 +63,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.CompiledClause
@@ -223,7 +222,10 @@ imports = (hsImps ++) <$> imps where
 -- Main compiling clauses
 --------------------------------------------------
 
--- | Note that the INFINITY, SHARP and FLAT builtins are translated as
+-- | The following comment is outdated, and should be updated when
+-- Issue 2909 is fixed:
+--
+-- Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):
 --
 -- @
@@ -271,20 +273,6 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         return $ fbWithType hsty (fakeExp hs)
 
       -- Special treatment of coinductive builtins.
-      Datatype{} | Just q == (nameOfInf <$> kit) -> do
-        let infT = unqhname "T" q
-            infV = unqhname "d" q
-            a    = ihname "a" 0
-            b    = ihname "a" 1
-            vars = [a, b]
-        return [ HS.TypeDecl infT
-                             (List.map HS.UnkindedVar vars)
-                             (HS.TyVar b)
-               , HS.FunBind [HS.Match infV
-                                      (List.map HS.PVar vars)
-                                      (HS.UnGuardedRhs HS.unit_con)
-                                      emptyBinds]
-               ]
       Constructor{} | Just q == (nameOfSharp <$> kit) -> do
         let sharp = unqhname "d" q
             x     = ihname "x" 0
@@ -292,6 +280,17 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
           [ HS.TypeSig [sharp] $ fakeType $
               "forall a. a -> a"
           , HS.FunBind [HS.Match sharp
+                                 [HS.PVar x]
+                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
+                                 emptyBinds]
+          ]
+      Function{} | Just q == (nameOfFlat <$> kit) -> do
+        let flat = unqhname "d" q
+            x    = ihname "x" 0
+        return $
+          [ HS.TypeSig [flat] $ fakeType $
+              "forall a. a -> a"
+          , HS.FunBind [HS.Match flat
                                  [HS.PVar x]
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                  emptyBinds]
@@ -322,18 +321,6 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
                  , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                  cs
-
-      Function{} | Just q == (nameOfFlat <$> kit) -> do
-        let flat = unqhname "d" q
-            x    = ihname "x" 0
-        return $
-          [ HS.TypeSig [flat] $ fakeType $
-              "forall a. a -> a"
-          , HS.FunBind [HS.Match flat
-                                 [HS.PVar x]
-                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 emptyBinds]
-          ]
 
       Axiom{} -> do
         ar <- typeArity ty
