@@ -273,20 +273,6 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         return $ fbWithType hsty (fakeExp hs)
 
       -- Special treatment of coinductive builtins.
-      Datatype{} | Just q == (nameOfInf <$> kit) -> do
-        let infT = unqhname "T" q
-            infV = unqhname "d" q
-            a    = ihname "a" 0
-            b    = ihname "a" 1
-            vars = [a, b]
-        return [ HS.TypeDecl infT
-                             (List.map HS.UnkindedVar vars)
-                             (HS.TyVar b)
-               , HS.FunBind [HS.Match infV
-                                      (List.map HS.PVar vars)
-                                      (HS.UnGuardedRhs HS.unit_con)
-                                      emptyBinds]
-               ]
       Constructor{} | Just q == (nameOfSharp <$> kit) -> do
         let sharp = unqhname "d" q
             x     = ihname "x" 0
