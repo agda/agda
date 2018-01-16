@@ -51,6 +51,12 @@ Syntax and LaTeX backend
   `agda` to not change the input encoding, and to not load the `ucs`
   package.
 
+* Underscores are now typeset using `\AgdaUnderscore{}`.
+
+  The default implementation is `\_` (the command that was previously
+  generated for underscores). Note that it is possible to override
+  this implementation.
+
 Language
 --------
 
