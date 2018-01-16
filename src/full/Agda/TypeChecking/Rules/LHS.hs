@@ -225,6 +225,10 @@ updateProblemEqs eqs = do
 
       Lit l | A.LitP l' <- p , l == l' -> return []
 
+      _ | A.EqualP{} <- p -> do
+        itisone <- liftTCM primItIsOne
+        ifM (tryConversion $ equalTerm (unDom a) v itisone) (return []) (return [eq])
+
       _ | A.WildP{} <- p -> return []
 
       _ -> return [eq]
@@ -370,6 +374,7 @@ data LeftoverPatterns = LeftoverPatterns
   , asPatterns       :: [AsBinding]
   , dotPatterns      :: [DotPattern]
   , absurdPatterns   :: [AbsurdPattern]
+  , otherPatterns    :: [A.Pattern]
   }
 
 instance Semigroup LeftoverPatterns where
@@ -378,10 +383,11 @@ instance Semigroup LeftoverPatterns where
     , asPatterns       = asPatterns x ++ asPatterns y
     , dotPatterns      = dotPatterns x ++ dotPatterns y
     , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
+    , otherPatterns    = otherPatterns x ++ otherPatterns y
     }
 
 instance Monoid LeftoverPatterns where
-  mempty  = LeftoverPatterns empty [] [] []
+  mempty  = LeftoverPatterns empty [] [] [] []
   mappend = (Semigroup.<>)
 
 -- | Classify remaining patterns after splitting is complete into pattern
@@ -392,10 +398,11 @@ getLeftoverPatterns eqs = do
   reportSDoc "tc.lhs.top" 30 $ text "classifying leftover patterns"
   mconcat <$> mapM getLeftoverPattern eqs
   where
-    patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] []
-    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] []
-    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] []
-    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a]
+    patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] [] []
+    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
+    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
+    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
+    otherPattern p       = LeftoverPatterns empty [] [] [] [p]
 
     getLeftoverPattern :: ProblemEq -> TCM LeftoverPatterns
     getLeftoverPattern (ProblemEq p v a) = case p of
@@ -407,15 +414,7 @@ getLeftoverPatterns eqs = do
         getLeftoverPattern $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
-
-      A.ConP{}        -> __IMPOSSIBLE__
-      A.ProjP{}       -> __IMPOSSIBLE__
-      A.DefP{}        -> __IMPOSSIBLE__
-      A.LitP{}        -> __IMPOSSIBLE__
-      A.PatternSynP{} -> __IMPOSSIBLE__
-      A.RecP{}        -> __IMPOSSIBLE__
-      A.EqualP{}      -> __IMPOSSIBLE__
-      A.WithP{}       -> __IMPOSSIBLE__
+      _                 -> return $ otherPattern p
 
 -- | Build a renaming for the internal patterns using variable names from
 --   the user patterns. If there are multiple user names for the same internal
@@ -695,8 +694,10 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
-        LeftoverPatterns patVars asb0 dots absurds
+        LeftoverPatterns patVars asb0 dots absurds otherPats
           <- addContext delta $ getLeftoverPatterns eqs
+
+        unless (null otherPats) __IMPOSSIBLE__
 
         -- Get the user-written names for the pattern variables
         let (vars, asb1) = getUserVariableNames delta patVars
@@ -910,11 +911,13 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = do
 
       unless (domFinite dom) $ softTypeError $ GenericError $ "Not a finite domain: " ++ show dom
 
-      tel <- getContextTelescope
-      reportSDoc "tc.top.tel" 10 $ text "pfocus tel = " <+> prettyTCM tel
       tInterval <- liftTCM $ elInf primInterval
 
-      (gamma,sigma) <- liftTCM $ addContext delta1 $ do
+      names <- liftTCM $ addContext tel $ do
+        LeftoverPatterns{patternVariables = vars} <- getLeftoverPatterns $ problem ^. problemEqs
+        return $ take (size delta1) $ fst $ getUserVariableNames tel vars
+
+      (gamma,sigma) <- liftTCM $ bindLHSVars names delta1 $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
                  t <- checkExpr t tInterval
