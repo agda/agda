@@ -9,10 +9,13 @@ module Agda.TypeChecking.Rules.LHS
   , IsFlexiblePattern(..)
   ) where
 
-import Prelude hiding (mapM, sequence, null)
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ( (<>), mapM, null, sequence )
+#else
+import Prelude hiding ( mapM, null, sequence )
+#endif
 
 import Data.Maybe
-
 
 import Control.Applicative hiding (empty)
 import Control.Arrow (first, second, (***), left, right)
@@ -29,9 +32,10 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List (delete, sortBy, stripPrefix, (\\))
 import qualified Data.List as List
-import Data.Traversable
-import Data.Semigroup (Semigroup, Monoid, mempty, mappend)
+import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
+import Data.Traversable
 import Data.Map (Map)
 import qualified Data.Map as Map
 
