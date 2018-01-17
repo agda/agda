@@ -742,6 +742,7 @@ data Closure a = Closure
   { clSignature        :: Signature
   , clEnv              :: TCEnv
   , clScope            :: ScopeInfo
+  , clModuleCheckpoints :: Map ModuleName CheckpointId
   , clValue            :: a
   }
     deriving (Data, Functor, Foldable)
@@ -757,7 +758,8 @@ buildClosure x = do
     env   <- ask
     sig   <- use stSignature
     scope <- use stScope
-    return $ Closure sig env scope x
+    cps   <- use stModuleCheckpoints
+    return $ Closure sig env scope cps x
 
 ---------------------------------------------------------------------------
 -- ** Constraints
