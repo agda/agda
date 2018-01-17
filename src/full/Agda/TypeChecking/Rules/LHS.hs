@@ -548,21 +548,22 @@ checkPatternLinearity eqs = do
 -- | Construct the context for a left hand side, making up hidden (dotted) names
 --   for unnamed variables.
 computeLHSContext :: [Maybe A.Name] -> Telescope -> TCM Context
-computeLHSContext = go []
+computeLHSContext = go [] []
   where
-    go cxt []        tel@ExtendTel{} = do
+    go cxt _ []        tel@ExtendTel{} = do
       reportSDoc "impossible" 10 $
         text "computeLHSContext: no patterns left, but tel =" <+> prettyTCM tel
       __IMPOSSIBLE__
-    go cxt (_ : _)   EmptyTel = __IMPOSSIBLE__
-    go cxt []        EmptyTel = return cxt
-    go cxt (x : xs) tel0@(ExtendTel a tel) = do
-        name <- maybe (dummyName $ absName tel) return x
+    go cxt _ (_ : _)   EmptyTel = __IMPOSSIBLE__
+    go cxt _ []        EmptyTel = return cxt
+    go cxt taken (x : xs) tel0@(ExtendTel a tel) = do
+        name <- maybe (dummyName taken $ absName tel) return x
         e    <- mkContextEntry ((name,) <$> a)
-        go (e : cxt) xs (absBody tel)
+        go (e : cxt) (name : taken) xs (absBody tel)
 
-    dummyName s = if isUnderscore s then freshNoName_
-                  else unshadowName =<< freshName_ ("." ++ argNameToString s)
+    dummyName taken s =
+      if isUnderscore s then freshNoName_
+      else unshadowedName taken <$> freshName_ ("." ++ argNameToString s)
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a

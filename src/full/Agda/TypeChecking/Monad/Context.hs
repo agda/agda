@@ -155,13 +155,18 @@ addCtx x a ret = do
   updateContext (raiseS 1) (ce :) ret
       -- let-bindings keep track of own their context
 
+-- | Pick a concrete name that doesn't shadow anything in the given list.
+unshadowedName :: [Name] -> Name -> Name
+unshadowedName xs x = head $ filter (notTaken $ map nameConcrete xs)
+                           $ iterate nextName x
+  where
+    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
+
 -- | Pick a concrete name that doesn't shadow anything in the context.
 unshadowName :: MonadTCM tcm => Name -> tcm Name
 unshadowName x = do
-  ctx <- map (nameConcrete . fst . unDom) <$> getContext
-  return $ head $ filter (notTaken ctx) $ iterate nextName x
-  where
-    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
+  ctx <- map (fst . unDom) <$> getContext
+  return $ unshadowedName ctx x
 
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
