@@ -149,18 +149,10 @@ unshadowName x = do
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
 class AddContext b where
-  addContext  :: MonadTCM tcm => b -> tcm a -> tcm a
+  addContext :: (MonadTCM tcm, MonadDebug tcm) => b -> tcm a -> tcm a
   contextSize :: b -> Nat
 
--- | Since the module parameter substitution is relative to
---   the current context, we need to weaken it when we
---   extend the context.  This function takes care of that.
---
-addContext' :: (MonadTCM tcm, MonadDebug tcm, AddContext b)
-            => b -> tcm a -> tcm a
-addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
-
--- | Wrapper to tell 'addContext' not to 'unshadowName's. Used when adding a
+-- | Wrapper to tell 'addContext not to 'unshadowName's. Used when adding a
 --   user-provided, but already type checked, telescope to the context.
 newtype KeepNames a = KeepNames a
 
@@ -224,7 +216,7 @@ instance AddContext (KeepNames Telescope) where
 instance AddContext Telescope where
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
-    loop (ExtendTel t tel) = underAbstraction t tel loop
+    loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
 
 -- | Context entries without a type have this dummy type.
@@ -233,19 +225,19 @@ dummyDom = defaultDom typeDontCare
 
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstraction :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction = underAbstraction' id
 
-underAbstraction' :: (Subst t a, MonadTCM tcm, AddContext (name, Dom Type)) =>
+underAbstraction' :: (Subst t a, MonadTCM tcm, MonadDebug tcm, AddContext (name, Dom Type)) =>
                      (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction' _ _ (NoAbs _ v) k = k v
-underAbstraction' wrap t a        k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
+underAbstraction' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
 {-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: (Subst t a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
+underAbstraction_ :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction dummyDom
 
 -- | Add a let bound variable.

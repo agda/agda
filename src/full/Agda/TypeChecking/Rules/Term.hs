@@ -264,7 +264,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi $ isType_ e
     let info' = mapRelevance (modRel lamOrPi experimental) info
-    addContext' (xs, Dom info' t) $
+    addContext (xs, Dom info' t) $
       ret $ bindsWithHidingToTel xs (Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
@@ -320,13 +320,13 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext' (xs, argsT) $ checkExpr body t1
+        v <- addContext (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         blockTermOnProblem target (teleLam tel v) pid
        else do
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext' (xs, argsT) $ checkExpr body t1
+        v <- addContext (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         coerce (teleLam tel v) (telePi tel t1) target
 
@@ -381,8 +381,8 @@ lambdaIrrelevanceCheck info dom
 
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
-  | isNoName x = addContext' (notInScopeName y, dom)  -- Note: String instance
-  | otherwise  = addContext' (x, dom)                 -- Name instance of addContext'
+  | isNoName x = addContext (notInScopeName y, dom)  -- Note: String instance
+  | otherwise  = addContext (x, dom)                 -- Name instance of addContext
 
 -- | Checking a lambda whose domain type has already been checked.
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
@@ -440,7 +440,7 @@ insertHiddenLambdas h target postpone ret = do
             -- Otherwise, we found a hidden argument that we can insert.
             let x = absName b
             Lam (domInfo dom) . Abs x <$> do
-              addContext' (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
+              addContext (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
 
       _ -> typeError . GenericDocError =<< do
         text "Expected " <+> prettyTCM target <+> text " to be a function type"
@@ -1450,7 +1450,7 @@ checkApplication hd args e t = do
           --  Unify Z a b == A
           --  Run the tactic on H
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext' tel newTypeMeta_      -- Z x y
+          target <- addContext tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (vs, EmptyTel) <- checkArguments_ ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
@@ -1464,7 +1464,7 @@ checkApplication hd args e t = do
         metaTel (arg : args) = do
           a <- newTypeMeta_
           let dom = a <$ domFromArg arg
-          ExtendTel dom . Abs "x" <$> addContext' ("x", dom) (metaTel args)
+          ExtendTel dom . Abs "x" <$> addContext ("x", dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
     _ -> do
@@ -1798,7 +1798,7 @@ checkHeadApplication e t hd args = do
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
         blockTerm t $ f vs <$ workOnTypes (do
-          addContext' eTel $ leqType fType eType
+          addContext eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do

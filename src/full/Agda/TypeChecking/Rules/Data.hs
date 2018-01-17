@@ -305,7 +305,7 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
              -- Andreas, 2016-12-30 Concrete.Definition excludes this case
       where
       continue ts ps x = do
-        addContext' (x, arg) $
+        addContext (x, arg) $
           bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
             ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
     _ -> __IMPOSSIBLE__

@@ -247,7 +247,7 @@ checkRecDef i name ind eta con ps contel fields =
 -}
 
       let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar = addContext' ("", Dom info rect)
+          addRecordVar = addContext ("", Dom info rect)
           -- the record variable has the empty name by intention, see issue 208
 
       let m = qnameToMName name  -- Name of record module.
