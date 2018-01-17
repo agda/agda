@@ -57,6 +57,11 @@ Syntax and LaTeX backend
   generated for underscores). Note that it is possible to override
   this implementation.
 
+* OtherAspects (unsolved meta variables, catchall clauses, etc.) are
+  now correctly highlighted in the LaTeX backend (and the HTML one).
+  [Issue [#2474](https://github.com/agda/agda/issues/2474)]
+
+
 Language
 --------
 

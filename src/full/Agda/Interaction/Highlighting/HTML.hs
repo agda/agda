@@ -45,8 +45,12 @@ import Paths_Agda
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Options
 
+import Agda.Interaction.Highlighting.Generate
+  (computeUnsolvedMetaWarnings, computeUnsolvedConstraints)
+
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
+import Agda.Syntax.Abstract.Name (ModuleName)
 
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
@@ -110,8 +114,8 @@ generateHTMLWithPageGen generatePage = do
         ]
 
       -- Pull highlighting info from the state and generate all the
-      -- web pages.
-      mapM_ (\(m, h) -> generatePage dir m h) =<<
+      -- web pages.-
+      mapM_ (uncurry $ generatePage dir) =<<
         map (mapSnd $ TCM.iHighlighting . TCM.miInterface) .
           Map.toList <$> TCM.getVisitedModules
 
