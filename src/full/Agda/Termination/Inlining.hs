@@ -212,14 +212,14 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
         DDef d es        -> do
           ifM (return (null es) `and2M` do isJust <$> lift (isProjection d))
             {-then-} (return $ ProjP ProjPrefix d)
-            {-else-} (DotP Inserted (dtermToTerm v) <$ skip)
-        DDot v           -> DotP Inserted v <$ skip
+            {-else-} (dotP (dtermToTerm v) <$ skip)
+        DDot v           -> dotP v <$ skip
         DTerm (Var i []) ->
           ifM (bindVar i) (varP . nameToPatVarName <$> lift (nameOfBV i))
-                          (pure $ DotP Inserted (Var i []))
+                          (pure $ dotP (Var i []))
         DTerm (Con c ci vs) -> ConP c (toConPatternInfo ci) . map (fmap unnamed) <$>
                               mapM (traverse (dtermToPat . DTerm)) vs
-        DTerm v          -> DotP Inserted v <$ skip
+        DTerm v          -> dotP v <$ skip
 
 isWithFunction :: MonadTCM tcm => QName -> tcm (Maybe QName)
 isWithFunction x = liftTCM $ do

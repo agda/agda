@@ -235,7 +235,7 @@ makeCase hole rng s = withInteractionId hole $ do
           -- Get trailing hidden pattern variables
           let trailingPatVars :: [NamedArg DBPatVar]
               trailingPatVars = takeWhileJust isVarP $ reverse ps
-              isVarP (Arg ai (Named n (VarP x))) = Just $ Arg ai $ Named n x
+              isVarP (Arg ai (Named n (VarP _ x))) = Just $ Arg ai $ Named n x
               isVarP _ = Nothing
           -- If all are already coming from the user, there is really nothing todo!
           when (all ((UserWritten ==) . getOrigin) trailingPatVars) $ do
@@ -302,21 +302,21 @@ makeCase hole rng s = withInteractionId hole $ do
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 
--- | Mark the variables given by the list of deBruijn indices as 'UserWritten'
---   in the 'SplitClause'.
+-- | Make the given pattern variables visible by marking their origin as
+--   'CaseSplit' and pattern origin as 'PatOSplit' in the 'SplitClause'.
 makePatternVarsVisible :: [Nat] -> SplitClause -> SplitClause
 makePatternVarsVisible [] sc = sc
 makePatternVarsVisible is sc@SClause{ scPats = ps } =
-  sc{ scPats = map (mapNamedArg mkVis) ps }
+  sc{ scPats = mapNamedArgPattern mkVis ps }
   where
-  mkVis :: NamedArg DBPatVar -> NamedArg DBPatVar
-  mkVis nx@(Arg ai (Named n (DBPatVar x i)))
+  mkVis :: NamedArg DeBruijnPattern -> NamedArg DeBruijnPattern
+  mkVis (Arg ai (Named n (VarP o (DBPatVar x i))))
     | i `elem` is =
       -- We could introduce extra consistency checks, like
       -- if visible ai then __IMPOSSIBLE__ else
       -- or passing the parsed name along and comparing it with @x@
-      setOrigin CaseSplit nx
-    | otherwise = nx
+      Arg (setOrigin CaseSplit ai) $ Named n $ VarP PatOSplit $ DBPatVar x i
+  mkVis np = np
 
 -- | Make clause with no rhs (because of absurd match).
 
@@ -349,7 +349,7 @@ makeAbstractClause f rhs cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
-  return $ A.Clause lhs [] [] rhs [] False
+  return $ A.Clause lhs [] rhs [] False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n

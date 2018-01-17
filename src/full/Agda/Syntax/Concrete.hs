@@ -186,10 +186,7 @@ data Pattern
   | WildP Range                            -- ^ @_@
   | AbsurdP Range                          -- ^ @()@
   | AsP Range Name Pattern                 -- ^ @x\@p@ unused
-  | DotP Range Origin Expr                 -- ^ @.e@ (the Origin keeps track
-                                           -- whether this dot pattern was
-                                           -- written by the user or inserted
-                                           -- by the system)
+  | DotP Range Expr                        -- ^ @.e@
   | LitP Literal                           -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
@@ -697,7 +694,7 @@ instance HasRange Pattern where
   getRange (QuoteP r)         = r
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
-  getRange (DotP r _ _)       = r
+  getRange (DotP r _)         = r
   getRange (RecP r _)         = r
   getRange (EllipsisP r)      = r
   getRange (WithP r _)        = r
@@ -721,7 +718,7 @@ instance SetRange Pattern where
   setRange r (QuoteP _)         = QuoteP r
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
-  setRange r (DotP _ o e)       = DotP r o e
+  setRange r (DotP _ e)         = DotP r e
   setRange r (RecP _ fs)        = RecP r fs
   setRange r (EllipsisP _)      = EllipsisP r
   setRange r (WithP _ p)        = WithP r p
@@ -840,7 +837,7 @@ instance KillRange Pattern where
   killRange (WildP _)         = WildP noRange
   killRange (AbsurdP _)       = AbsurdP noRange
   killRange (AsP _ n p)       = killRange2 (AsP noRange) n p
-  killRange (DotP _ o e)      = killRange1 (DotP noRange) o e
+  killRange (DotP _ e)        = killRange1 (DotP noRange) e
   killRange (LitP l)          = killRange1 LitP l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
@@ -948,7 +945,7 @@ instance NFData Pattern where
   rnf (WildP _) = ()
   rnf (AbsurdP _) = ()
   rnf (AsP _ a b) = rnf a `seq` rnf b
-  rnf (DotP _ a b) = rnf a `seq` rnf b
+  rnf (DotP _ a) = rnf a
   rnf (LitP a) = rnf a
   rnf (RecP _ a) = rnf a
   rnf (EllipsisP _) = ()

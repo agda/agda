@@ -89,11 +89,18 @@ prop_monoid_Using' :: Property3 (Using' Int Int)
 prop_monoid_Using' = isMonoid
 
 ------------------------------------------------------------------------
--- Hack to make $quickCheckAll work under ghc-7.8
-return []
+-- * All tests
+------------------------------------------------------------------------
 
--- All tests
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.Syntax.Common"
-  $quickCheckAll
+-- Template Haskell hack to make the following $allProperties work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testProperties "Internal.Syntax.Common" $allProperties

@@ -1,8 +1,6 @@
 -- Andreas, 2016-12-31, re issue #1976
 -- Allow projection pattern disambiguation by parameters
 
-{-# OPTIONS --allow-unsolved-metas #-}
-
 postulate
   A B : Set
 

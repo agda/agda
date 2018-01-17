@@ -122,15 +122,19 @@ prop_old_freeIn_Term conf x = forAll (genC conf) $ \ (t :: Term) ->
 prop_old_freeIn_Type conf x = forAll (genC conf) $ \ (t :: Type) ->
    New.freeIn x t == Old.freeIn x t
 
-------------------------------------------------------------------------------
--- All test
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
 
--- Template Haskell hack to make the following $quickCheckAll work
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
--- | All tests as collected by 'quickCheckAll'.
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.TypeChecking.Free"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testProperties "Internal.TypeChecking.Free" $allProperties

@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | Some functions and generators suitable for writing QuickCheck
 -- properties.
 
@@ -29,6 +31,11 @@ module Internal.Helpers
   , elementsUnlessEmpty
   , two
   , three
+    -- * Tasty framework functions
+  , testGroup
+  , testProperties
+  , testProperty
+  , TestTree
     -- * Test driver.
   , runTests
   )
@@ -39,6 +46,8 @@ import Data.Functor
 import Data.Monoid ( mappend, mempty, Monoid )
 import Data.Semigroup ( (<>), Semigroup )
 import Test.QuickCheck
+import Test.Tasty ( testGroup, TestName, TestTree )
+import Test.Tasty.QuickCheck ( testProperties, testProperty )
 
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid

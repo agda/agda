@@ -20,11 +20,18 @@ prop_monoid_FlexChoice :: Property3 FlexChoice
 prop_monoid_FlexChoice = isMonoid
 
 ------------------------------------------------------------------------
--- Hack to make $quickCheckAll work under ghc-7.8
-return []
+-- * All tests
+------------------------------------------------------------------------
 
--- All tests
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.TypeChecking.Rules.LHS.Problem"
-  $quickCheckAll
+-- Template Haskell hack to make the following $allProperties work
+-- under ghc-7.8.
+return [] -- KEEP!
+
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testProperties "Internal.TypeChecking.Rules.LHS.Problem" $allProperties

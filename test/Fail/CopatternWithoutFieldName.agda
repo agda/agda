@@ -12,4 +12,3 @@ test f = bla where
   bla : R
   f bla = Set
 -- not a copattern, since f not a field name
-

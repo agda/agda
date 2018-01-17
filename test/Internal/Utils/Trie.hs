@@ -10,7 +10,7 @@ import Data.List ( nubBy, sortBy, isPrefixOf, inits )
 import Prelude hiding ( lookup, filter )
 import qualified Prelude
 
-import Test.QuickCheck
+import Internal.Helpers
 
 -- Tests ------------------------------------------------------------------
 
@@ -65,11 +65,19 @@ prop_everyPrefix ks v =
   everyPrefix ks v ==
   foldr union empty [ singleton ks' v | ks' <- inits ks ]
 
-return []
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
 
--- | All tests.
+-- Template Haskell hack to make the following $allProperties work
+-- under ghc-7.8.
+return [] -- KEEP!
 
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.Utils.Trie"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testProperties "Internal.Utils.Trie" $allProperties

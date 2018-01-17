@@ -323,10 +323,9 @@ instance Conversion TOM I.Clause (Maybe ([Pat O], MExp O)) where
 
 instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
   convert p = case Cm.unArg p of
-    I.VarP n    -> return $ PatVar (show n)
+    I.VarP _ n  -> return $ PatVar (show n)
     I.DotP _ _  -> return $ PatVar "_"
       -- because Agda includes these when referring to variables in the body
-    I.AbsurdP{} -> return $ PatVar I.absurdPatternName
     I.ConP con _ pats -> do
       let n = I.conName con
       c     <- getConst True n TMAll
@@ -554,8 +553,8 @@ modifyAbstractExpr = f
   f e = e
 
 modifyAbstractClause :: A.Clause -> A.Clause
-modifyAbstractClause (A.Clause lhs dots sdots (A.RHS e mc) decls catchall) =
-  A.Clause lhs dots sdots (A.RHS (modifyAbstractExpr e) mc) decls catchall
+modifyAbstractClause (A.Clause lhs spats (A.RHS e mc) decls catchall) =
+  A.Clause lhs spats (A.RHS (modifyAbstractExpr e) mc) decls catchall
 modifyAbstractClause cl = cl
 
 -- ---------------------------------
@@ -571,7 +570,7 @@ constructPats cmap mainm clause = do
      cnvp ns p =
       let hid = getHiding $ Cm.argInfo p
       in case Cm.namedArg p of
-       I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
+       I.VarP _ n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP con _ ps -> do
         let c = I.conName con
         (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
@@ -582,7 +581,6 @@ constructPats cmap mainm clause = do
        I.DotP _ t -> do
         (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
-       I.AbsurdP{} -> return ((hid, Id I.absurdPatternName) : ns, HI hid (CSPatVar $ length ns))
        I.ProjP{} -> copatternsNotImplemented
        I.LitP{} -> literalsNotImplemented
  (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)
@@ -641,7 +639,7 @@ frommyClause (ids, pats, mrhs) = do
         return (I.ConP con I.noConPatternInfo ps')
        CSPatExp e -> do
         e' <- convert e {- renm e -} -- renaming before adding to clause below
-        return (I.DotP Cm.Inserted e')
+        return (I.dotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
       return $ Cm.Arg (icnvh hid) $ Cm.unnamed p'   -- TODO: recover names

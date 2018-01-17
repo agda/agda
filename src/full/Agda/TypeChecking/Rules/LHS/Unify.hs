@@ -155,7 +155,7 @@ import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
 
-import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
+import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -364,9 +364,8 @@ addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v
 --   Returns Nothing if there is a cycle.
 solveVar :: Int    -- ^ Index @k@
          -> Term   -- ^ Solution @u@
-         -> Origin -- ^ Does the solution come from something the user has written?
          -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-solveVar k u o s = case instantiateTelescope (varTel s) k u o of
+solveVar k u s = case instantiateTelescope (varTel s) k u of
   Nothing -> Nothing
   Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
       { varTel   = tel'
@@ -408,12 +407,12 @@ solveEq k u s = (,sigma) $ s
   where
     u'    = raise k u
     n     = eqCount s
-    sigma = liftS (n-k-1) $ consS (DotP Inserted u') idS
+    sigma = liftS (n-k-1) $ consS (dotP u') idS
 
 -- | Simplify the k'th equation with the given value (which can depend on other
 --   equation variables). Returns Nothing if there is a cycle.
 simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-simplifyEq k u s = case instantiateTelescope (eqTel s) k u Inserted of
+simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
   Nothing -> Nothing
   Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
     { varTel   = varTel s
@@ -591,72 +590,6 @@ isHom :: (Free a, Subst Term a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (All . (>= n)) IgnoreNot x
   return $ raise (-n) x
-
--- | Checks whether the given term (of the given type) is beta-eta-equivalent
---   to a variable. Returns just the de Bruijn-index of the variable if it is,
---   or nothing otherwise.
-isEtaVar :: Term -> Type -> TCM (Maybe Int)
-isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
-  where
-    -- Checks whether the term u (of type a) is beta-eta-equivalent to
-    -- `Var i es`, and returns i if it is. If the argument mi is `Just i'`,
-    -- then i and i' are also required to be equal (else Nothing is returned).
-    isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT TCM Int
-    isEtaVarG u a mi es = do
-      (u, a) <- liftTCM $ reduce (u, a)
-      liftTCM $ reportSDoc "tc.lhs.unify" 80 $ text "isEtaVarG" <+> nest 2 (sep
-        [ text "u  = " <+> text (show u)
-        , text "a  = " <+> prettyTCM a
-        , text "mi = " <+> text (show mi)
-        , text "es = " <+> prettyList (map (text . show) es)
-        ])
-      case (ignoreSharing u, ignoreSharing $ unEl a) of
-        (Var i' es', _) -> do
-          guard $ mi == (i' <$ mi)
-          b <- liftTCM $ typeOfBV i'
-          areEtaVarElims (var i') b es' es
-          return i'
-        (_, Def d pars) -> do
-          guard =<< do liftTCM $ isEtaRecord d
-          fs <- liftTCM $ map unArg . recFields . theDef <$> getConstInfo d
-          is <- forM fs $ \f -> do
-            let o = ProjSystem
-            (_, _, fa) <- MaybeT $ projectTyped u a o f
-            isEtaVarG (u `applyE` [Proj o f]) fa mi (es ++ [Proj o f])
-          case (mi, is) of
-            (Just i, _)     -> return i
-            (Nothing, [])   -> mzero
-            (Nothing, i:is) -> guard (all (==i) is) >> return i
-        (_, Pi dom cod) -> addContext dom $ do
-          let u'  = raise 1 u `apply` [argFromDom dom $> var 0]
-              a'  = absBody cod
-              mi' = fmap (+1) mi
-              es' = (fmap . fmap) (+1) es ++ [Apply $ argFromDom dom $> 0]
-          (-1+) <$> isEtaVarG u' a' mi' es'
-        _ -> mzero
-
-    -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied
-    -- to the term u of type a) are beta-eta-equal to either projections or
-    -- variables with de Bruijn indices given by es'.
-    areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT TCM ()
-    areEtaVarElims u a []    []    = return ()
-    areEtaVarElims u a []    (_:_) = mzero
-    areEtaVarElims u a (_:_) []    = mzero
-    areEtaVarElims u a (Proj o f : es) (Proj _ f' : es') = do
-      guard $ f == f'
-      a       <- liftTCM $ reduce a
-      (_, _, fa) <- MaybeT $ projectTyped u a o f
-      areEtaVarElims (u `applyE` [Proj o f]) fa es es'
-    -- These two cases can occur only when we're looking at two different
-    -- variables (i.e. one of function type and the other of record type) so
-    -- it's definitely not the variable we're looking for (or someone is playing
-    -- Jedi mind tricks on us)
-    areEtaVarElims u a (Proj{}  : _ ) (Apply _ : _  ) = mzero
-    areEtaVarElims u a (Apply _ : _ ) (Proj{}  : _  ) = mzero
-    areEtaVarElims u a (Apply v : es) (Apply i : es') = do
-      ifNotPiType a (const mzero) $ \dom cod -> do
-      _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []
-      areEtaVarElims (u `apply` [fmap var i]) (cod `absApp` var (unArg i)) es es'
 
 findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
 findFlexible i flex =
@@ -935,7 +868,6 @@ unifyStep s Solution{ solutionAt   = k
   let eqrel  = getRelevance info
       varrel = getRelevance info'
       rel    = if NonStrict `moreRelevant` eqrel then varrel else Relevant
-      o      = flexVarToOrigin fi
   reportSDoc "tc.lhs.unify" 65 $ text $ "Equation relevance: " ++ show eqrel
   reportSDoc "tc.lhs.unify" 65 $ text $ "Variable relevance: " ++ show varrel
   reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show rel ++ " position."
@@ -943,7 +875,7 @@ unifyStep s Solution{ solutionAt   = k
   reportSDoc "tc.lhs.unify" 45 $ text "Relevance ok: " <+> prettyTCM usable
   case equalTypes of
     Just err -> return $ DontKnow []
-    Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u o s)
+    Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u s)
       (return $ DontKnow [UnifyRecursiveEq (varTel s) a i u])
       (\(s',sub) -> do
         tellUnifySubst sub
@@ -952,12 +884,12 @@ unifyStep s Solution{ solutionAt   = k
         Unifies <$> liftTCM (reduce s''))
     Nothing -> return $ DontKnow []
   where
-    trySolveVar i u o s = case solveVar i u o s of
+    trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
       Nothing -> do
         u <- liftTCM $ normalise u
         s <- liftTCM $ normaliseVarTel s
-        return $ solveVar i u o s
+        return $ solveVar i u s
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions

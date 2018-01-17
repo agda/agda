@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans -fno-warn-partial-type-signatures #-}
 
-module Internal.Utils.IntSet (tests) where
+module Internal.Utils.IntSet ( tests ) where
 
 import Agda.Utils.IntSet.Infinite
 import Test.QuickCheck
@@ -11,6 +11,8 @@ import Data.Semigroup hiding (All)
 import Data.List
 import qualified Data.Set as Set
 import Data.Foldable
+
+import Internal.Helpers
 
 instance Arbitrary IntSet where
   arbitrary = mconcat <$> listOf g
@@ -61,18 +63,15 @@ prop_subtract_append r1 r2 =
 -- * All tests
 ------------------------------------------------------------------------
 
--- Template Haskell hack to make the following $quickCheckAll work
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
--- | All tests as collected by 'quickCheckAll'.
+-- | All tests as collected by 'allProperties'.
 --
---   Using 'quickCheckAll' is convenient and superior to the manual
---   enumeration of tests, since the name of the property is
---   added automatically.
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
 
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.Utils.IntSet"
-  $quickCheckAll
-
+tests :: TestTree
+tests = testProperties "Internal.Utils.IntSet" $allProperties

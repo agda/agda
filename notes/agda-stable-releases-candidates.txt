@@ -89,6 +89,13 @@ the following procedure can be followed:
     cd $BASE
     git tag -a v$RC_VERSION -m "Agda $VERSION release candidate n"
 
+* Upload the tarball and the documentation (tested with
+  cabal-install >= 2.0.0.0):
+
+    cd $BASE
+    cabal upload dist/Agda-$VERSION.tar.gz
+    cabal upload -d dist/Agda-$VERSION.tar.gz
+
 * Restore the Cabal tests-suites `agda-tests` and `internal-tests`
   from Agda.cabal.
 

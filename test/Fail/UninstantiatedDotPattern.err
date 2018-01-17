@@ -1,3 +1,4 @@
-UninstantiatedDotPattern.agda:5,3-5
-Failed to infer the value of dotted pattern
-when checking that the pattern .X has type Set
+UninstantiatedDotPattern.agda:5,4-5
+X != .x of type Set
+when checking that the given dot pattern X matches the inferred
+value .x

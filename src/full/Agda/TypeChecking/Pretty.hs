@@ -376,13 +376,12 @@ instance PrettyTCM DBPatVar where
   prettyTCM = prettyTCM . var . dbPatVarIndex
 
 instance PrettyTCM a => PrettyTCM (Pattern' a) where
-  prettyTCM (VarP x)      = prettyTCM x
+  prettyTCM (VarP _ x)    = prettyTCM x
   prettyTCM (DotP _ t)    = text ".(" <> prettyTCM t <> text ")"
-  prettyTCM (AbsurdP _)   = text absurdPatternName
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
-        b = maybe False (/= ConOCon) $ conPRecord i
+        b = maybe False (/= PatOCon) $ conPRecord i
         showRec :: TCM Doc
         showRec = sep
           [ text "record"

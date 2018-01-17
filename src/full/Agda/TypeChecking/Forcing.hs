@@ -225,26 +225,23 @@ unforce :: DeBruijnPattern -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPa
 unforce q [] = __IMPOSSIBLE__   -- unforcing cannot fail
 unforce q (p : ps) =
   case namedArg p of
-    VarP y -> fmap (mkDot q (VarP y) <$) p : unforce q ps
+    VarP o y -> fmap (mkDot q (VarP o y) <$) p : unforce q ps
     DotP _ v | Just q' <- mkPat q v -> (fmap (q' <$) p : (fmap . fmap . fmap) (mkDot q) ps)
     DotP{} -> p : unforce q ps
     ConP c i qs -> fmap (ConP c i qs' <$) p : ps'
       where
         qps        = unforce q (qs ++ ps)
         (qs', ps') = splitAt (length qs) qps
-    AbsurdP p1 -> (fmap . fmap) AbsurdP p1' : ps'
-      where p1' : ps' = unforce q (fmap (p1 <$) p : ps)
     LitP{} -> p : unforce q ps
     ProjP{} -> p : unforce q ps
   where
     -- Turn a match on q into a dot pattern
     mkDot :: DeBruijnPattern -> DeBruijnPattern -> DeBruijnPattern
-    mkDot q p | p =:= q = DotP Inserted $ patternToTerm p
+    mkDot q p | p =:= q = dotP $ patternToTerm p
     mkDot q p = case p of
       VarP{}          -> p
       DotP{}          -> p
       ConP c i ps     -> ConP c i $ (fmap . fmap . fmap) (mkDot q) ps
-      AbsurdP p       -> AbsurdP (mkDot q p)
       LitP{}          -> p
       ProjP{}         -> p
 
@@ -261,7 +258,7 @@ unforce q (p : ps) =
           let vs1 = map fst mvs1
               vs2 = map fst mvs2
               ci = (toConPatternInfo co) { conPLazy = True }
-              dots = (map . fmap) (DotP Inserted)
+              dots = (map . fmap) dotP
           return (ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2)
         _ -> Nothing
       where
@@ -280,7 +277,5 @@ forcedPatterns ps = concat <$> mapM (forced NotForced . namedArg) ps
           | otherwise   -> do
             fs <- defForced <$> getConstInfo (conName c)
             concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
-        AbsurdP{} -> return []
         LitP{}    -> return []
         ProjP{}   -> return []
-

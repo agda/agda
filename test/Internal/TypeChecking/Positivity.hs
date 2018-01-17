@@ -6,9 +6,8 @@ import Agda.TypeChecking.Positivity
 
 import Agda.Utils.SemiRing
 
+import Internal.Helpers
 import Internal.TypeChecking.Positivity.Occurrence ()
-
-import Test.QuickCheck
 
 ------------------------------------------------------------------------
 -- * Generators and tests
@@ -32,13 +31,19 @@ prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
   case oplus e1 e2 of
     Edge o _ -> o == oplus o1 o2
 
--- Template Haskell hack to make the following $quickCheckAll work
--- under GHC 7.8.
-return []
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
 
--- | Tests.
+-- Template Haskell hack to make the following $allProperties work
+-- under ghc-7.8.
+return [] -- KEEP!
 
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.TypeChecking.Positivity"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testProperties "Internal.TypeChecking.Positivity" $allProperties

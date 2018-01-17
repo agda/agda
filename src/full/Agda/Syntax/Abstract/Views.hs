@@ -320,7 +320,7 @@ instance ExprLike LetBinding where
 instance ExprLike a => ExprLike (Pattern' a) where
 
 instance ExprLike a => ExprLike (Clause' a) where
-  recurseExpr f (Clause lhs dots sdots rhs ds ca) = Clause <$> rec lhs <*> pure dots <*> pure sdots <*> rec rhs <*> rec ds <*> pure ca
+  recurseExpr f (Clause lhs spats rhs ds ca) = Clause <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
     where rec = recurseExpr f
 
 instance ExprLike RHS where
@@ -329,7 +329,7 @@ instance ExprLike RHS where
       RHS e c                 -> RHS <$> rec e <*> pure c
       AbsurdRHS{}             -> pure rhs
       WithRHS x es cs         -> WithRHS x <$> rec es <*> rec cs
-      RewriteRHS xes rhs ds   -> RewriteRHS <$> rec xes <*> rec rhs <*> rec ds
+      RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
     where rec e = recurseExpr f e
 
 instance ExprLike ModuleApplication where

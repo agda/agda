@@ -9,11 +9,12 @@ data Nat : Set where
 data X : Set where
   zero : X
 
-easy : _ → Nat
-easy (suc n) = n
-easy zero    = zero
-
 -- TODO: uncomment below once LHS postponing is actually implemented
+-- Jesper, 2017-11-16: is this really what we want?
+
+-- easy : _ → Nat
+-- easy (suc n) = n
+-- easy zero    = zero
 
 -- hard : _ → Nat
 -- hard zero    = zero

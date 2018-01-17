@@ -15,12 +15,12 @@ import Data.List hiding ( null )
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Internal.Helpers
 import Internal.Utils.FileName ()
 import Internal.Utils.Maybe.Strict ()
 
 import Prelude hiding ( null )
 
-import Test.QuickCheck
 
 ------------------------------------------------------------------------
 -- Test suite
@@ -226,12 +226,15 @@ instance Show (Range'    Integer) where show = show . fmap Strict.Just
 -- * All tests
 ------------------------------------------------------------------------
 
--- Template Haskell hack to make the following $quickCheckAll work
+-- Template Haskell hack to make the following $allProperties work
 -- under ghc-7.8.
 return [] -- KEEP!
 
--- | Test suite.
-tests :: IO Bool
-tests = do
-  putStrLn "Internal.Syntax.Position"
-  $quickCheckAll
+-- | All tests as collected by 'allProperties'.
+--
+-- Using 'allProperties' is convenient and superior to the manual
+-- enumeration of tests, since the name of the property is added
+-- automatically.
+
+tests :: TestTree
+tests = testProperties "Internal.Syntax.Position" $allProperties

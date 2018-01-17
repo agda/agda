@@ -1,3 +1,3 @@
 FrozenMVar2.agda:34,9-11
-Type mismatch
+Cannot split on argument of non-datatype _A_28
 when checking that the pattern zℕ has type _A_28

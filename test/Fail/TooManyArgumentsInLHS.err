@@ -1,4 +1,4 @@
-TooManyArgumentsInLHS.agda:5,1-10
+TooManyArgumentsInLHS.agda:5,5-6
 Cannot eliminate type Set with pattern Y (did you supply too many
 arguments?)
 when checking that the clause F X Y = Y has type Set → Set

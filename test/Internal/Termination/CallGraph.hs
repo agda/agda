@@ -44,15 +44,16 @@ callGraph = do
     mkCall s t m <$> arbitrary
 
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
 
--- (ASR 2017-12-25) Since some properties use implicit parameters we
--- could not use 'quickCheckAll' for collecting all the tests (see
+-- (ASR 2018-01-06) Since some properties use implicit parameters we
+-- cannot use 'allProperties' for collecting all the tests (see
 -- https://github.com/nick8325/quickcheck/issues/193 ).
 
-tests :: IO Bool
-tests = runTests "Internal.Termination.CallGraph" []
-  -- [ quickCheck' prop_complete
-  -- , quickCheck' prop_ensureCompletePrecondition
+tests :: TestTree
+tests = testGroup "Internal.Termination.CallGraph" []
+  -- [ testProperty "prop_complete" prop_complete
+  -- , testProperty "prop_ensureCompletePrecondition"
   -- ]
   where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!
