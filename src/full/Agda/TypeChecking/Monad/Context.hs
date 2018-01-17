@@ -77,11 +77,25 @@ escapeContext n = modifyContext $ drop n
 -- * Manipulating checkpoints --
 
 -- | Add a new checkpoint. Do not use directly!
-checkpoint :: MonadTCM tcm => Substitution -> tcm a -> tcm a
+checkpoint :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
+  notWhenPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
   old     <- view eCurrentCheckpoint
   oldMods <- use  stModuleCheckpoints
   chkpt <- fresh
+  notWhenPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
+    cxt <- getContextTelescope
+    cps <- view eCheckpoints
+    let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
+        prCps cps = vcat [ pshow c <+> text ": " <+> pretty s | (c, s) <- Map.toList cps ]
+    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $ vcat
+      [ text "old =" <+> pshow old
+      , text "new =" <+> pshow chkpt
+      , text "sub =" <+> pretty sub
+      , text "cxt =" <+> pretty cxt
+      , text "old substs =" <+> prCps cps
+      , text "new substs =" <?> prCps cps'
+      ]
   x <- flip local k $ \ env -> env
     { envCurrentCheckpoint = chkpt
     , envCheckpoints       = Map.insert chkpt IdS $
@@ -94,11 +108,14 @@ checkpoint sub k = do
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
   stModuleCheckpoints .= Map.union oldMods (old <$ Map.difference newMods oldMods)
+  notWhenPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
+  where
+    notWhenPrinting = unlessM (asks envIsDebugPrinting)
 
 -- | Update the context. Requires a substitution from the old context to the
 --   new.
-updateContext :: MonadTCM tcm => Substitution -> (Context -> Context) -> tcm a -> tcm a
+updateContext :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> (Context -> Context) -> tcm a -> tcm a
 updateContext sub f = modifyContext f . checkpoint sub
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
@@ -132,7 +149,7 @@ getModuleParameterSub m = do
 --
 --   Warning: Does not update module parameter substitution!
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
-addCtx :: MonadTCM tcm => Name -> Dom Type -> tcm a -> tcm a
+addCtx :: (MonadDebug tcm, MonadTCM tcm) => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
   ce <- mkContextEntry $ (x,) <$> a
   updateContext (raiseS 1) (ce :) ret
