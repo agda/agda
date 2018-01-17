@@ -373,6 +373,13 @@ Backwards compatible changes
   just-injective : (Maybe A ∋ just a) ≡ just b → a ≡ b
   ```
 
+* Added new proofs to `Data.Nat.Divisibility`:
+  ```agda
+  m|m*n   : m ∣ m * n
+  ∣m⇒∣m*n : i ∣ m → i ∣ m * n
+  ∣n⇒∣m*n : i ∣ n → i ∣ m * n
+  ```
+
 * Added new proofs to `Data.Nat.Properties`:
   ```agda
   ≤⇒≯                   : _≤_ ⇒ _≯_
