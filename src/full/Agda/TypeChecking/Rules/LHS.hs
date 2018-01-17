@@ -644,20 +644,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
             | d <- cxt ]
       eqs0 = zipWith3 ProblemEq (map namedArg cps) (map var $ downFrom $ size tel) (flattenTel tel)
 
-  -- We need to grab all let-bindings here (while we still have the old
-  -- context). They will be rebound below once we have the new context set up.
-  -- Subtle: if we're checking a with the context will be empty so we can't use
-  -- 'getOpen'. On the other hand, if we're checking a with the let bindings
-  -- lives in the right context already so we can use 'openThing'.
-  let openLet | isNothing withSub' = getOpen
-              | otherwise          = return . openThing
-  oldLets <- asks $ Map.toList . envLetBindings
-  reportSDoc "tc.lhs.top" 70 $ vcat
-    [ text "context =" <+> inTopContext (prettyTCM tel)
-    , text "cIds    =" <+> (text . show =<< getContextId)
-    , text "oldLets =" <+> text (show oldLets) ]
-  oldLets <- sequence [ (x,) <$> openLet b | (x, b) <- oldLets ]
-
   let finalChecks :: LHSState a -> TCM a
       finalChecks (LHSState delta qs0 (Problem eqs rps _) b) = do
 
@@ -704,7 +690,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         let hasAbsurd = not . null $ absurds
 
         let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb
-            newLets = [ AsB x (applySubst paramSub v) (applySubst paramSub $ unDom a) | (x, (v, a)) <- oldLets ]
 
         -- Debug output
         reportSDoc "tc.lhs.top" 10 $
@@ -724,8 +709,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> pretty withSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> pretty paramSub
-        reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
-        reportSDoc "tc.lhs.top" 50 $ text "new let-bindings:" <+> (brackets $ fsep $ punctuate comma $ map prettyTCM newLets)
 
         newCxt <- computeLHSContext vars delta
 
@@ -737,15 +720,14 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
           reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> pretty b
 
-          bindAsPatterns newLets $ do
-            bindAsPatterns asb $ do
+          bindAsPatterns asb $ do
 
-              -- Check dot patterns
-              mapM_ checkDotPattern dots
-              mapM_ checkAbsurdPattern absurds
+            -- Check dot patterns
+            mapM_ checkDotPattern dots
+            mapM_ checkAbsurdPattern absurds
 
-            -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
-            ret lhsResult
+          -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
+          ret lhsResult
 
   st0 <- initLHSState tel eqs0 ps a finalChecks
 

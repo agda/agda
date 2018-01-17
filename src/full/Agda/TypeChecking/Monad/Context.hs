@@ -119,13 +119,9 @@ updateContext :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> (Context -> C
 updateContext sub f = modifyContext f . checkpoint sub
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
-checkpointSubstitution :: (HasOptions tcm, MonadReader TCEnv tcm, MonadDebug tcm) => CheckpointId -> tcm Substitution
+checkpointSubstitution :: MonadReader TCEnv tcm => CheckpointId -> tcm Substitution
 checkpointSubstitution chkpt =
-  caseMaybeM (view (eCheckpoints . key chkpt))
-    (do chkpts <- view eCheckpoints
-        reportSLn "impossible" 10 $ "Bad checkpoint " ++ show chkpt ++ "\n" ++ prettyShow (Map.toList chkpts)
-        __IMPOSSIBLE__) return
-
+  caseMaybeM (view (eCheckpoints . key chkpt)) __IMPOSSIBLE__ return
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
@@ -135,7 +131,7 @@ checkpointSubstitution chkpt =
 --   This is ok for instance if we are outside module @m@
 --   (in which case we have to supply all module parameters to any
 --   symbol defined within @m@ we want to refer).
-getModuleParameterSub :: (HasOptions m, MonadReader TCEnv m, ReadTCState m, MonadDebug m) => ModuleName -> m Substitution
+getModuleParameterSub :: (MonadReader TCEnv m, ReadTCState m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
   mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
   maybe (return IdS) checkpointSubstitution mcp

@@ -168,6 +168,10 @@ instance EmbPrj a => EmbPrj (Local a) where
     valu [a]    = valuN Global a
     valu _      = malformed
 
+instance EmbPrj CheckpointId where
+  icod_ (CheckpointId a) = icode a
+  value n                = CheckpointId `fmap` value n
+
 instance EmbPrj CtxId where
   icod_ (CtxId a) = icode a
   value n         = CtxId `fmap` value n

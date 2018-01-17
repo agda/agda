@@ -8,5 +8,4 @@ import Agda.Syntax.Common (Dom)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
-getContext   :: MonadReader TCEnv m => m [Dom (Name, Type)]
-getContextId :: MonadReader TCEnv m => m [CtxId]
+checkpointSubstitution :: MonadReader TCEnv tcm => CheckpointId -> tcm Substitution

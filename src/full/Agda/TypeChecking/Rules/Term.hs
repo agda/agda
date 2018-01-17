@@ -2267,13 +2267,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- the size of delta, so we append the identity substitution.
           sub    = parallelS (reverse sigma)
 
-          -- Outer let-bindings will have been rebound by checkLeftHandSide, so
-          -- we need to strenghten those as well. Don't use a strengthening
-          -- subsititution since @-patterns in the pattern binding will reference
-          -- the pattern variables.
-          subLetBind (OpenThing cxt va) = OpenThing (drop toDrop cxt) (applySubst sub va)
-      updateContext sub (drop toDrop)
-          $ locally eLetBindings (fmap subLetBind) $ do
+      updateContext sub (drop toDrop) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> prettyTCM binds

@@ -885,11 +885,11 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 ---------------------------------------------------------------------------
 
 -- | A thing tagged with the context it came from.
-data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
+data Open a = OpenThing { openThingCheckpoint :: CheckpointId, openThing :: a }
     deriving (Data, Show, Functor, Foldable, Traversable)
 
 instance Decoration Open where
-  traverseF f (OpenThing cxt x) = OpenThing cxt <$> f x
+  traverseF f (OpenThing cp x) = OpenThing cp <$> f x
 
 data Local a = Local ModuleName a   -- ^ Local to a given module, the value
                                     -- should have module parameters as free variables.
