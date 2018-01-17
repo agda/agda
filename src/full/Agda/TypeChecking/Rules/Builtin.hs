@@ -193,6 +193,43 @@ coreBuiltins =
                                         bB (cl primIZero) --> bB (cl primIOne)
                                      ))
                                                       (const $ const $ return ()))
+  , (builtinPushOut                |-> builtinPostulate (runNamesT [] $ hPi' "l" (el $ cl primLevel) $ \ l ->
+                                                     hPi' "A" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
+                                                     hPi' "B" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bB ->
+                                                     hPi' "C" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bC ->
+                                                     nPi' "f" (el' l bC --> el' l bA) $ \ f ->
+                                                     nPi' "g" (el' l bC --> el' l bB) $ \ g ->
+                                                     (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l))
+                                                    ))
+  , (builtinPOInl                |-> builtinPostulate (runNamesT [] $ hPi' "l" (el $ cl primLevel) $ \ l ->
+                                                     hPi' "A" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
+                                                     hPi' "B" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bB ->
+                                                     hPi' "C" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bC ->
+                                                     hPi' "f" (el' l bC --> el' l bA) $ \ f ->
+                                                     hPi' "g" (el' l bC --> el' l bB) $ \ g ->
+                                                     nPi' "a" (el' l bA) $ \ _a ->
+                                                     (el' l (cl primPushOut <#> l <#> bA <#> bB <#> bC <@> f <@> g))
+                                                    ))
+  , (builtinPOInr                |-> builtinPostulate (runNamesT [] $ hPi' "l" (el $ cl primLevel) $ \ l ->
+                                                     hPi' "A" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
+                                                     hPi' "B" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bB ->
+                                                     hPi' "C" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bC ->
+                                                     hPi' "f" (el' l bC --> el' l bA) $ \ f ->
+                                                     hPi' "g" (el' l bC --> el' l bB) $ \ g ->
+                                                     nPi' "b" (el' l bB) $ \ _b ->
+                                                     (el' l (cl primPushOut <#> l <#> bA <#> bB <#> bC <@> f <@> g))
+                                                    ))
+  , (builtinPOPush                |-> builtinPostulate (runNamesT [] $ hPi' "l" (el $ cl primLevel) $ \ l ->
+                                                     hPi' "A" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
+                                                     hPi' "B" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bB ->
+                                                     hPi' "C" (el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bC ->
+                                                     hPi' "f" (el' l bC --> el' l bA) $ \ f ->
+                                                     hPi' "g" (el' l bC --> el' l bB) $ \ g ->
+                                                     nPi' "c" (el' l bC) $ \ c ->
+                                                     (el' l (cl primPathP <#> l <#> (lam "_" $ \ _ -> cl primPushOut <#> l <#> bA <#> bB <#> bC <@> f <@> g)
+                                                                         <@> (cl primPOInl <#> l <#> bA <#> bB <#> bC <#> f <#> g <@> (f <@> c))
+                                                                         <@> (cl primPOInr <#> l <#> bA <#> bB <#> bC <#> f <#> g <@> (g <@> c))))
+                                                    ))
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaTerm           |-> BuiltinData tset
                                      [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
