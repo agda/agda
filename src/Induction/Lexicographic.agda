@@ -70,7 +70,7 @@ private
 
   ackermann : ℕ → ℕ → ℕ
   ackermann m n =
-    build [ N.rec-builder ⊗ N.rec-builder ]
+    build [ N.recBuilder ⊗ N.recBuilder ]
           (λ _ → ℕ)
           (λ { (zero  , n)     _                   → 1 + n
              ; (suc m , zero)  (_         , ackm•) → ackm• 1

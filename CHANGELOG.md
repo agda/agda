@@ -126,10 +126,10 @@ Non-backwards compatible changes
 Deprecated features
 -------------------
 
-The following renaming has occurred as part of a drive to improve naming consistency across
+The following renaming has occurred as part of a drive to improve consistency across
 the library. The old names still exist and therefore all existing code should still
 work, however they have been deprecated and use of the new names is encouraged. Although not
-anticipated any time soon, eventually they may be removed in some future release of the library.
+anticipated any time soon, they may eventually be removed in some future release of the library.
 
 * In `Data.Bool.Properties`:
   ```agda
@@ -197,6 +197,31 @@ anticipated any time soon, eventually they may be removed in some future release
   proof-irrelevance-[]= ↦ []=-irrelevance
   ```
 
+* In `Induction.Nat`:
+  ```agda
+  rec-builder      ↦ recBuilder
+  cRec-builder     ↦ cRecBuilder
+  <′-rec-builder   ↦ <′-recBuilder
+  <-rec-builder    ↦ <-recBuilder
+  ≺-rec-builder    ↦ ≺-recBuilder
+  <′-well-founded  ↦ <′-wellFounded
+  <′-well-founded′ ↦ <′-wellFounded′
+  <-well-founded   ↦ <-wellFounded
+  ≺-well-founded   ↦ ≺-wellFounded
+  ```
+
+* In `Induction.WellFounded`:
+  ```agda
+  Well-founded                       ↦ WellFounded
+  Some.wfRec-builder                 ↦ Some.wfRecBuilder
+  All.wfRec-builder                  ↦ All.wfRecBuilder
+  Subrelation.well-founded           ↦ Subrelation.wellFounded
+  InverseImage.well-founded          ↦ InverseImage.wellFounded
+  TransitiveClosure.downwards-closed ↦ TransitiveClosure.downwardsClosed
+  TransitiveClosure.well-founded     ↦ TransitiveClosure.wellFounded
+  Lexicographic.well-founded         ↦ Lexicographic.wellFounded
+  ```
+
 * In `Relation.Binary.PropositionalEquality`:
   ```agda
   proof-irrelevance     ↦ ≡-irrelevance
@@ -216,9 +241,7 @@ Backwards compatible changes
 
 * Added support for GHC 8.2.2.
 
-* New module `Data.Word`
-
-  Decidable equality for new builtin type `Agda.Builtin.Word.Word64`.
+* New module `Data.Word` for new builtin type `Agda.Builtin.Word.Word64`.
 
 * The contents of the following modules are now more polymorphic with respect to levels:
   ```agda

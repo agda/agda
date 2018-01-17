@@ -53,6 +53,6 @@ SubsetRecursor Q Rec = ∀ P → Rec P ⊆′ P → Q ⊆′ P
 
 subsetBuild : ∀ {a ℓ₁ ℓ₂ ℓ₃}
                 {A : Set a} {Q : Pred A ℓ₁} {Rec : RecStruct A ℓ₂ ℓ₃} →
-              SubsetRecursorBuilder Q Rec →
-              SubsetRecursor Q Rec
+                SubsetRecursorBuilder Q Rec →
+                SubsetRecursor Q Rec
 subsetBuild builder P f x q = f x (builder P f x q)
