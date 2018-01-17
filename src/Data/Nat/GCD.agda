@@ -68,7 +68,7 @@ module GCD where
   step {n} {k} {d} g | (d₁ , d₂) = is (d₁ , ∣m∣n⇒∣m+n d₁ d₂) greatest′
     where
     greatest′ : ∀ {d′} → d′ ∣ n × d′ ∣ n + k → d′ ∣ d
-    greatest′ (d₁ , d₂) = GCD.greatest g (d₁ , ∣m+n|m⇒|n d₂ d₁)
+    greatest′ (d₁ , d₂) = GCD.greatest g (d₁ , ∣m+n∣m⇒∣n d₂ d₁)
 
 open GCD public using (GCD) hiding (module GCD)
 

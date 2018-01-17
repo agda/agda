@@ -120,6 +120,9 @@ Non-backwards compatible changes
 
 * Moved the proof `monoid` from `Data.List` to `++-monoid` in `Data.List.Properties`.
 
+* Names in Data.Nat.Divisibility now use the divides symbol `|` (typed \|) consistently.
+  Previously a mixture of `|` and `|` was used.
+
 Deprecated features
 -------------------
 

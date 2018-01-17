@@ -106,11 +106,11 @@ n ∣0 = divides 0 refl
 n∣n : ∀ {n} → n ∣ n
 n∣n = ∣-refl
 
-n|m*n : ∀ m {n} → n ∣ m * n
-n|m*n m = divides m refl
+n∣m*n : ∀ m {n} → n ∣ m * n
+n∣m*n m = divides m refl
 
-m|m*n : ∀ {m} n → m ∣ m * n
-m|m*n n = divides n (*-comm _ n)
+m∣m*n : ∀ {m} n → m ∣ m * n
+m∣m*n n = divides n (*-comm _ n)
 
 0∣⇒≡0 : ∀ {n} → 0 ∣ n → n ≡ 0
 0∣⇒≡0 {n} 0∣n = ∣-antisym (n ∣0) 0∣n
@@ -143,8 +143,8 @@ module _ where
   ∣m∣n⇒∣m+n (divides p refl) (divides q refl) =
     divides (p + q) (sym (*-distribʳ-+ _ p q))
 
-  ∣m+n|m⇒|n : ∀ {i m n} → i ∣ m + n → i ∣ m → i ∣ n
-  ∣m+n|m⇒|n {i} {m} {n} (divides p m+n≡p*i) (divides q m≡q*i) =
+  ∣m+n∣m⇒∣n : ∀ {i m n} → i ∣ m + n → i ∣ m → i ∣ n
+  ∣m+n∣m⇒∣n {i} {m} {n} (divides p m+n≡p*i) (divides q m≡q*i) =
     divides (p ∸ q) $ begin
       n             ≡⟨ sym (m+n∸n≡m n m) ⟩
       n + m ∸ m     ≡⟨ cong (_∸ m) (+-comm n m) ⟩
@@ -198,7 +198,7 @@ nonZeroDivisor-lemma m zero r r≢zero (divides (suc q) eq) =
     m                   ∎
   where open ≤-Reasoning
 nonZeroDivisor-lemma m (suc q) r r≢zero d =
-  nonZeroDivisor-lemma m q r r≢zero (∣m+n|m⇒|n d' ∣-refl)
+  nonZeroDivisor-lemma m q r r≢zero (∣m+n∣m⇒∣n d' ∣-refl)
   where
   lem = solve 3 (λ m r q → r :+ (m :+ q)  :=  m :+ (r :+ q))
                 refl (suc m) (toℕ r) (q * suc m)
@@ -222,5 +222,5 @@ suc m ∣? .(1 + toℕ r + q * suc m) | result q (suc r) refl =
 -- names is not guaranteed.
 
 ∣-+ = ∣m∣n⇒∣m+n
-∣-∸ = ∣m+n|m⇒|n
-∣-* = n|m*n
+∣-∸ = ∣m+n∣m⇒∣n
+∣-* = n∣m*n
