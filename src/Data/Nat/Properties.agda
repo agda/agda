@@ -152,6 +152,8 @@ pred-mono (s≤s le) = le
 -- Properties of _<_
 
 -- Relation theoretic properties of _<_
+infix 4 _<?_
+
 _<?_ : Decidable _<_
 x <? y = suc x ≤? y
 
