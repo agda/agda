@@ -46,8 +46,6 @@ import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
 import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Generate
-  (computeUnsolvedMetaWarnings, computeUnsolvedConstraints)
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Interaction.Options as O
@@ -625,11 +623,8 @@ defaultStyFile = "agda.sty"
 -- source code in the interface.
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
-  let mod    = toTopLevelModuleName $ iModuleName i
-      baseHI = iHighlighting i
-  meta    <- computeUnsolvedMetaWarnings
-  constr  <- computeUnsolvedConstraints
-  let hi = mergeC baseHI $ compress $ mconcat [meta, constr]
+  let mod = toTopLevelModuleName $ iModuleName i
+      hi  = iHighlighting i
 
   options <- TCM.commandLineOptions
 
