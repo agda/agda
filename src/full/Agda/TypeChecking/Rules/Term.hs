@@ -2273,7 +2273,6 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- the pattern variables.
           subLetBind (OpenThing cxt va) = OpenThing (drop toDrop cxt) (applySubst sub va)
       updateContext sub (drop toDrop)
-          $ updateModuleParameters sub
           $ locally eLetBindings (fmap subLetBind) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta

@@ -286,7 +286,6 @@ checkRecDef i name ind eta con ps contel fields =
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- getContextTelescope
-          setDefaultModuleParameters m
           setModuleCheckpoint m
           checkRecordProjections m name hasNamedCon con tel' (raise 1 ftel) fields
 

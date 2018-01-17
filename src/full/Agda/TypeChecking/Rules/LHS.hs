@@ -729,7 +729,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         newCxt <- computeLHSContext vars delta
 
         updateContext paramSub (const newCxt)
-          $ updateModuleParameters paramSub
           $ applyRelevanceToContext (getRelevance b) $ do
 
           reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"

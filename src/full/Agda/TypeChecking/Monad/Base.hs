@@ -169,8 +169,6 @@ data PostScopeState = PostScopeState
   , stPostModuleCheckpoints   :: !(Map ModuleName CheckpointId)
     -- ^ For each module remember the checkpoint corresponding to the orignal
     --   context of the module parameters.
-  , stPostModuleParameters    :: !ModuleParamDict
-    -- ^ TODO: can these be moved into the @TCEnv@?
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
   , stPostCurrentModule       :: !(Maybe ModuleName)
@@ -299,7 +297,6 @@ initPostScopeState = PostScopeState
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
   , stPostModuleCheckpoints    = Map.empty
-  , stPostModuleParameters     = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , Set.empty)
@@ -445,11 +442,6 @@ stModuleCheckpoints :: Lens' (Map ModuleName CheckpointId) TCState
 stModuleCheckpoints f s =
   f (stPostModuleCheckpoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleCheckpoints = x}}
-
-stModuleParameters :: Lens' ModuleParamDict TCState
-stModuleParameters f s =
-  f (stPostModuleParameters (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleParameters = x}}
 
 stImportsDisplayForms :: Lens' DisplayForms TCState
 stImportsDisplayForms f s =
@@ -750,11 +742,6 @@ data Closure a = Closure
   { clSignature        :: Signature
   , clEnv              :: TCEnv
   , clScope            :: ScopeInfo
-  , clModuleParameters :: ModuleParamDict
-      -- ^ Since module parameters are currently stored in 'TCState'
-      --   not in 'TCEnv', we save them here.
-      --   The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
-      --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
   , clValue            :: a
   }
     deriving (Data, Functor, Foldable)
@@ -770,8 +757,7 @@ buildClosure x = do
     env   <- ask
     sig   <- use stSignature
     scope <- use stScope
-    pars  <- use stModuleParameters
-    return $ Closure sig env scope pars x
+    return $ Closure sig env scope x
 
 ---------------------------------------------------------------------------
 -- ** Constraints
@@ -2089,18 +2075,6 @@ ifTopLevelAndHighlightingLevelIs l =
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
-newtype ModuleParameters = ModuleParams
-  { mpSubstitution :: Substitution
-      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context @envContext@.
-  } deriving (Data, Show)
-
-defaultModuleParameters :: ModuleParameters
-defaultModuleParameters = ModuleParams IdS
-
-type ModuleParamDict = Map ModuleName ModuleParameters
-  -- ^ The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
-  --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
-
 data TCEnv =
     TCEnv { envContext             :: Context
           , envLetBindings         :: LetBindings
@@ -2966,12 +2940,9 @@ instance MonadError TCErr (TCMT IO) where
     oldState <- liftIO (readIORef r)
     unTCM m r e `E.catch` \err -> do
       -- Reset the state, but do not forget changes to the persistent
-      -- component. Not for pattern violations (except the module parameter substitions).
+      -- component. Not for pattern violations.
       case err of
-        PatternErr -> liftIO $ do
-          newState <- readIORef r
-          writeIORef r $ set stModuleParameters (oldState ^. stModuleParameters) newState
-          return ()
+        PatternErr -> return ()
         _          ->
           liftIO $ do
             newState <- readIORef r

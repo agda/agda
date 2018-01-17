@@ -56,7 +56,7 @@ mkContextEntry x = do
 
 -- | Change to top (=empty) context.
 --
---   TODO: currently, this makes the @ModuleParamDict@ ill-formed!
+--   TODO: this doesn't update checkpoints!
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: MonadTCM tcm => tcm a -> tcm a
 inTopContext cont = do
@@ -68,7 +68,8 @@ inTopContext cont = do
 
 -- | Delete the last @n@ bindings from the context.
 --
---   TODO: currently, this makes the @ModuleParamDict@ ill-formed!
+--   Doesn't update checkpoints!! Use `updateContext rho (drop n)` instead,
+--   for an appropriate substitution `rho`.
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
@@ -108,54 +109,6 @@ checkpointSubstitution chkpt =
         reportSLn "impossible" 10 $ "Bad checkpoint " ++ show chkpt ++ "\n" ++ prettyShow (Map.toList chkpts)
         __IMPOSSIBLE__) return
 
-
--- * Manipulating module parameters --
-
--- | Locally set module parameters for a computation.
-
-withModuleParameters :: ModuleParamDict -> TCM a -> TCM a
-withModuleParameters mp ret = do
-  old <- use stModuleParameters
-  stModuleParameters .= mp
-  x <- ret
-  stModuleParameters .= old
-  return x
-
--- | Apply a substitution to all module parameters.
-
-updateModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
-                       => Substitution -> tcm a -> tcm a
-updateModuleParameters sub ret = do
-  pm <- use stModuleParameters
-  let showMP pref mps = List.intercalate "\n" $
-        [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
-        | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
-                              (Map.toList mps)
-        ]
-  verboseS "tc.cxt.param" 105 $ do
-    cxt <- reverse <$> getContext
-    reportSLn "tc.cxt.param" 105 $ unlines $
-      [ "updatingModuleParameters"
-      , "  sub = " ++ show sub
-      , "  cxt (last added last in list) = " ++ unwords (map (show . fst . unDom) cxt)
-      , showMP "  old = " pm
-      ]
-  let pm' = applySubst sub pm
-  reportSLn "tc.cxt.param" 105 $ showMP "  new = " pm'
-  stModuleParameters .= pm'
-  x <- ret              -- We need to keep introduced modules around
-  pm1 <- use stModuleParameters
-  let pm'' = Map.union pm (defaultModuleParameters <$ Map.difference pm1 pm)
-  stModuleParameters .= pm''
-  reportSLn "tc.cxt.param" 105 $ showMP "  restored = " pm''
-  return x
-
--- | Since the @ModuleParamDict@ is relative to the current context,
---   this function should be called everytime the context is extended.
---
-weakenModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
-                       => Nat -> tcm a -> tcm a
-weakenModuleParameters n = updateModuleParameters (raiseS n)
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.

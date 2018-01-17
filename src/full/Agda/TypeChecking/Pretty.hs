@@ -196,9 +196,6 @@ instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
       (rho1, rho2) = splitS 1 rho
       u            = lookupS rho2 0
 
-instance PrettyTCM ModuleParameters where
-  prettyTCM = prettyTCM . mpSubstitution
-
 instance PrettyTCM Clause where
   prettyTCM cl = do
     x <- qualify_ <$> freshName_ "<unnamedclause>"

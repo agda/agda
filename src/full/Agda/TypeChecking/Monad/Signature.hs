@@ -210,7 +210,6 @@ addSection m = do
       __IMPOSSIBLE__
   -- Add the new section.
   setModuleCheckpoint m
-  setDefaultModuleParameters m
   modifySignature $ over sigSections $ Map.insert m sec
 
 -- | Sets the checkpoint for the given module to the current checkpoint.
@@ -218,10 +217,6 @@ setModuleCheckpoint :: ModuleName -> TCM ()
 setModuleCheckpoint m = do
   chkpt <- view eCurrentCheckpoint
   stModuleCheckpoints %= Map.insert m chkpt
-
-setDefaultModuleParameters :: ModuleName -> TCM ()
-setDefaultModuleParameters m =
-  stModuleParameters %= Map.insert m defaultModuleParameters
 
 -- | Get a section.
 --

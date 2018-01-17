@@ -800,9 +800,6 @@ instance Subst Term Constraint where
     where
       rf x = applySubst rho x
 
-instance Subst Term ModuleParameters where
-  applySubst rho mp = mp { mpSubstitution = applySubst rho $ mpSubstitution mp }
-
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
