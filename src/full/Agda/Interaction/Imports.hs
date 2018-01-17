@@ -59,7 +59,7 @@ import Agda.Interaction.FindFile
 import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo, mergeC, compress)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
 
@@ -755,7 +755,17 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
       toks <- use stTokens
       ifTopLevelAndHighlightingLevelIs NonInteractive $ printHighlightingInfo toks
       stTokens .= mempty
-      stSyntaxInfo %= \inf -> inf `mappend` toks
+
+      -- Grabbing warnings and unsolved metas to highlight them
+      warnings <- getAllWarnings' AllWarnings RespectFlags
+      unless (null warnings) $ reportSDoc "import.iface.create" 20 $
+        P.text "collected warnings: " P.<> prettyTCM warnings
+      unsolved <- getAllUnsolved
+      unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
+        P.text "collected unsolved: " P.<> prettyTCM unsolved
+      let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
+
+      stSyntaxInfo %= \inf -> mergeC (inf `mappend` toks) warningInfo
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
@@ -845,20 +855,32 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 -- in by the user, or not (for instance when deciding if we are
 -- writing an interface file or not)
 
-getAllWarnings' :: WhichWarnings -> IgnoreFlags -> TCM [TCWarning]
-getAllWarnings' ww ifs = do
+getUniqueMetasRanges :: [MetaId] -> TCM [Range]
+getUniqueMetasRanges = fmap List.nub . mapM getMetaRange
+
+getUnsolvedMetas :: TCM [Range]
+getUnsolvedMetas = do
   openMetas            <- getOpenMetas
   interactionMetas     <- getInteractionMetas
-  let getUniqueMetas = fmap List.nub . mapM getMetaRange
-  unsolvedInteractions <- getUniqueMetas interactionMetas
-  unsolvedMetas        <- getUniqueMetas (openMetas List.\\ interactionMetas)
-  unsolvedConstraints  <- getAllConstraints
-  collectedTCWarnings  <- use stTCWarnings
+  getUniqueMetasRanges (openMetas List.\\ interactionMetas)
 
-  unsolved <- mapM warning_
-                   [ UnsolvedInteractionMetas unsolvedInteractions
-                   , UnsolvedMetaVariables    unsolvedMetas
-                   , UnsolvedConstraints      unsolvedConstraints ]
+getAllUnsolved :: TCM [TCWarning]
+getAllUnsolved = do
+  unsolvedInteractions <- getUniqueMetasRanges =<< getInteractionMetas
+  unsolvedConstraints  <- getAllConstraints
+  unsolvedMetas        <- getUnsolvedMetas
+
+  let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
+
+  mapM warning_ $ catMaybes
+                [ checkNonEmpty UnsolvedInteractionMetas unsolvedInteractions
+                , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
+                , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
+
+getAllWarnings' :: WhichWarnings -> IgnoreFlags -> TCM [TCWarning]
+getAllWarnings' ww ifs = do
+  unsolved            <- getAllUnsolved
+  collectedTCWarnings <- use stTCWarnings
 
   fmap (filter ((<= ww) . classifyWarning . tcWarning))
     $ applyFlagsToTCWarnings ifs $ reverse

@@ -11,6 +11,7 @@ module Agda.Interaction.Highlighting.Generate
   , printUnsolvedInfo
   , printHighlightingInfo
   , highlightAsTypeChecked
+  , warningHighlighting
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
   , storeDisambiguatedName
@@ -557,8 +558,8 @@ warningHighlighting w = case tcWarning w of
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
+  UnsolvedMetaVariables rs   -> metasHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
-  UnsolvedMetaVariables{}    -> mempty
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> mempty
@@ -637,8 +638,11 @@ computeUnsolvedMetaWarnings = do
   ms <- filterM notBlocked =<< getOpenMetas
 
   rs <- mapM getMetaRange (ms \\ is)
-  return $ several (map (rToR . P.continuousPerLine) rs)
-                   (mempty { otherAspects = [UnsolvedMeta] })
+  return $ metasHighlighting rs
+
+metasHighlighting :: [P.Range] -> File
+metasHighlighting rs = several (map (rToR . P.continuousPerLine) rs)
+                     $ mempty { otherAspects = [UnsolvedMeta] }
 
 -- | Generates syntax highlighting information for unsolved constraints
 --   (ideally: that are not connected to a meta variable).
