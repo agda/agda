@@ -183,7 +183,6 @@ data PostScopeState = PostScopeState
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
-  , stPostFreshCtxId          :: !CtxId
   , stPostFreshProblemId      :: !ProblemId
   , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
@@ -306,7 +305,6 @@ initPostScopeState = PostScopeState
   , stPostLocalBuiltins        = Map.empty
   , stPostFreshMetaId          = 0
   , stPostFreshMutualId        = 0
-  , stPostFreshCtxId           = 0
   , stPostFreshProblemId       = 1
   , stPostFreshCheckpointId    = 0
   , stPostFreshInt             = 0
@@ -498,11 +496,6 @@ stFreshMutualId f s =
   f (stPostFreshMutualId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMutualId = x}}
 
-stFreshCtxId :: Lens' CtxId TCState
-stFreshCtxId f s =
-  f (stPostFreshCtxId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshCtxId = x}}
-
 stFreshProblemId :: Lens' ProblemId TCState
 stFreshProblemId f s =
   f (stPostFreshProblemId (stPostScopeState s)) <&>
@@ -555,9 +548,6 @@ instance HasFresh NameId where
   -- nextFresh increments the current fresh name by 2 so @NameId@s used
   -- before caching starts do not overlap with the ones used after.
   nextFresh' = succ . succ
-
-instance HasFresh CtxId where
-  freshLens = stFreshCtxId
 
 instance HasFresh Int where
   freshLens = stFreshInt
@@ -2347,13 +2337,7 @@ eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
 
 -- | The @Context@ is a stack of 'ContextEntry's.
 type Context      = [ContextEntry]
-data ContextEntry = Ctx { ctxId    :: CtxId
-                        , ctxEntry :: Dom (Name, Type)
-                        }
-  deriving Data
-
-newtype CtxId     = CtxId Nat
-  deriving (Data, Eq, Ord, Show, Enum, Real, Integral, Num)
+type ContextEntry = Dom (Name, Type)
 
 ---------------------------------------------------------------------------
 -- ** Let bindings
@@ -3198,9 +3182,6 @@ instance KillRange Definition where
   killRange (Defn ai name t pols occs displ mut compiled inst copy ma inj def) =
     killRange12 Defn ai name t pols occs displ mut compiled inst copy ma inj def
     -- TODO clarify: Keep the range in the defName field?
-
-instance KillRange CtxId where
-  killRange (CtxId x) = killRange1 CtxId x
 
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y

@@ -35,24 +35,10 @@ import Agda.Utils.Impossible
 
 -- * Modifying the context
 
--- | Modify the 'ctxEntry' field of a 'ContextEntry'.
-modifyContextEntry :: (Dom (Name, Type) -> Dom (Name, Type)) -> ContextEntry -> ContextEntry
-modifyContextEntry f ce = ce { ctxEntry = f (ctxEntry ce) }
-
--- | Modify all 'ContextEntry's.
-modifyContextEntries :: (Dom (Name, Type) -> Dom (Name, Type)) -> Context -> Context
-modifyContextEntries f = map (modifyContextEntry f)
-
 -- | Modify a 'Context' in a computation.
 {-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
 modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
 modifyContext f = local $ \e -> e { envContext = f $ envContext e }
-
-{-# SPECIALIZE mkContextEntry :: Dom (Name, Type) -> TCM ContextEntry #-}
-mkContextEntry :: MonadTCM tcm => Dom (Name, Type) -> tcm ContextEntry
-mkContextEntry x = do
-  i <- fresh
-  return $ Ctx i x
 
 -- | Change to top (=empty) context.
 --
@@ -147,7 +133,7 @@ getModuleParameterSub m = do
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
 addCtx :: (MonadDebug tcm, MonadTCM tcm) => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
-  ce <- mkContextEntry $ (x,) <$> a
+  let ce = (x,) <$> a
   updateContext (raiseS 1) (ce :) ret
       -- let-bindings keep track of own their context
 
@@ -272,7 +258,7 @@ addLetBinding info x v t0 ret = do
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
 getContext :: MonadReader TCEnv m => m [Dom (Name, Type)]
-getContext = asks $ map ctxEntry . envContext
+getContext = asks envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
@@ -294,11 +280,6 @@ getContextTerms = map var . downFrom <$> getContextSize
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: (Applicative m, MonadReader TCEnv m) => m Telescope
 getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
-
--- | Check if we are in a compatible context, i.e. an extension of the given context.
-{-# SPECIALIZE getContextId :: TCM [CtxId] #-}
-getContextId :: MonadReader TCEnv m => m [CtxId]
-getContextId = asks $ map ctxId . envContext
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}

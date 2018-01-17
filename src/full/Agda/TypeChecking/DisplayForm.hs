@@ -26,7 +26,7 @@ import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -59,10 +59,9 @@ displayForm q es = do
   else do
     -- Display debug info about the @Open@s.
     verboseS "tc.display.top" 100 $ do
-      n <- getContextId
-      reportSLn "tc.display.top" 100 $
-        "displayForm for " ++ prettyShow q ++ ": context = " ++ show n ++
-        ", dfs = " ++ show odfs
+      reportSDoc "tc.display.top" 100 $ return $ vcat
+        [ text "displayForm for" <+> pretty q
+        , nest 2 $ text "dfs =" <+> vcat (map pshow odfs) ]
     -- Use only the display forms that can be opened in the current context.
     dfs   <- catMaybes <$> mapM getLocal odfs
     scope <- getScope

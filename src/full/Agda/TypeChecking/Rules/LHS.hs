@@ -558,7 +558,7 @@ computeLHSContext = go [] []
     go cxt _ []        EmptyTel = return cxt
     go cxt taken (x : xs) tel0@(ExtendTel a tel) = do
         name <- maybe (dummyName taken $ absName tel) return x
-        e    <- mkContextEntry ((name,) <$> a)
+        let e = (name,) <$> a
         go (e : cxt) (name : taken) xs (absBody tel)
 
     dummyName taken s =

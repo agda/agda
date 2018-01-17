@@ -363,13 +363,7 @@ instance PrettyTCM Telescope where
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where
-  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ map ctxEntry $ reverse ctx
-
-instance PrettyTCM Context where
-  prettyTCM = prettyTCM . PrettyContext
-
-instance PrettyTCM CtxId where
-  prettyTCM (CtxId x) = prettyTCM x
+  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ reverse ctx
 
 instance PrettyTCM DBPatVar where
   prettyTCM = prettyTCM . var . dbPatVarIndex

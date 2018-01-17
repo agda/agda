@@ -29,7 +29,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
-  ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
+  ( enterClosure, underAbstraction_, underAbstraction, addCtx,
     isInstantiatedMeta, verboseS, typeOfConst, lookupMeta )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
@@ -93,18 +93,13 @@ withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
 withFreshName_ :: ArgName -> (Name -> ReduceM a) -> ReduceM a
 withFreshName_ = withFreshName noRange
 
-mkContextEntry :: Dom (Name, Type) -> (ContextEntry -> ReduceM a) -> ReduceM a
-mkContextEntry x k = withFreshR $ \i -> k (Ctx i x)
-
 addCtx :: Name -> Dom Type -> ReduceM a -> ReduceM a
 addCtx x a ret = do
-  ctx <- asks $ map (nameConcrete . fst . unDom . ctxEntry) . envContext
-  let x' = head $ filter (notTaken ctx) $ iterate nextName x
-  mkContextEntry ((x',) <$> a) $ \ce ->
-    local (\e -> e { envContext = ce : envContext e }) ret
+  ctx <- asks $ map (fst . unDom) . envContext
+  let x' = unshadowedName ctx x
+      ce = (x',) <$> a
+  local (\e -> e { envContext = ce : envContext e }) ret
       -- let-bindings keep track of own their context
-  where
-    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbstraction _ (NoAbs _ v) f = f v

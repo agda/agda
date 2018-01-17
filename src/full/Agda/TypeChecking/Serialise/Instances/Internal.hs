@@ -172,10 +172,6 @@ instance EmbPrj CheckpointId where
   icod_ (CheckpointId a) = icode a
   value n                = CheckpointId `fmap` value n
 
-instance EmbPrj CtxId where
-  icod_ (CtxId a) = icode a
-  value n         = CtxId `fmap` value n
-
 instance EmbPrj DisplayTerm where
   icod_ (DTerm    a  )   = icodeN' DTerm a
   icod_ (DDot     a  )   = icodeN 1 DDot a
