@@ -60,12 +60,10 @@ uncase t = case t of
     equalTo x t (TALit l b)   = equalTerms (subst x (TLit l) t) (subst x (TLit l) b)
     equalTo x t (TAGuard _ b) = equalTerms t b
 
-    -- There's no sense binding an expression just to seq on it.
     tLet e b =
       case occursIn 0 b of
-        Occurs 0 _ _                   -> strengthen __IMPOSSIBLE__ b
-        Occurs _ _ (SeqArg (All True)) -> subst 0 TErased b -- this will get rid of the seq
-        _                              -> TLet e b
+        Occurs 0 _ _ -> strengthen __IMPOSSIBLE__ b
+        _            -> TLet e b
 
     -- Primitive operations are already strict
     tApp (TPrim PSeq) [_, b@(TApp (TPrim op) _)]
