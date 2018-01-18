@@ -41,14 +41,14 @@ modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
 modifyContext f = local $ \e -> e { envContext = f $ envContext e }
 
 -- | Change to top (=empty) context.
---
---   TODO: this doesn't update checkpoints!
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: MonadTCM tcm => tcm a -> tcm a
 inTopContext cont = do
   locals <- liftTCM $ getLocalVars
   liftTCM $ setLocalVars []
-  a <- modifyContext (const []) cont
+  a <- modifyContext (const [])
+        $ locally eCurrentCheckpoint (const 0)
+        $ locally eCheckpoints (const $ Map.singleton 0 IdS) cont
   liftTCM $ setLocalVars locals
   return a
 
@@ -112,11 +112,11 @@ checkpointSubstitution chkpt =
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
 --
---   In case the current 'ModuleParamDict' does not know @m@,
---   we return the identity substitution.
---   This is ok for instance if we are outside module @m@
---   (in which case we have to supply all module parameters to any
---   symbol defined within @m@ we want to refer).
+--   In case the we don't have a checkpoint for @m@ we return the identity
+--   substitution.
+--   This is ok for instance if we are outside module @m@ (in which case we
+--   have to supply all module parameters to any symbol defined within @m@ we
+--   want to refer).
 getModuleParameterSub :: (MonadReader TCEnv m, ReadTCState m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
   mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
