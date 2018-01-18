@@ -997,17 +997,6 @@ telePi = telePi' reAbs
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
 
-{- OLD
--- | Everything will be a pi.
-telePi_  EmptyTel        t = t
-telePi_ (ExtendTel u tel) t = el $ Pi u b
-  where
-    el = El (dLub s1 s2)
-    b  = fmap (flip telePi_ t) tel
-    s1 = getSort $ unDom u
-    s2 = fmap getSort b
--}
-
 -- | Abstract over a telescope in a term, producing lambdas.
 --   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
 --

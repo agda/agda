@@ -1731,28 +1731,6 @@ checkConstructorApplication org t c args = do
                               | otherwise = dropPar this ps
         dropPar _ [] = Nothing
 
-
-{- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
-
-    -- Split the arguments to a constructor into those corresponding
-    -- to parameters and those that don't. Dummy underscores are inserted
-    -- for parameters that are not given explicitly.
-    splitArgs [] args = ([], args)
-    splitArgs ps []   =
-          (map (const dummyUnderscore) ps, args)
-    splitArgs ps args@(Arg NotHidden _ _ : _) =
-          (map (const dummyUnderscore) ps, args)
-    splitArgs (p:ps) (arg : args)
-      | elem mname [Nothing, Just p] =
-          mapFst (arg :) $ splitArgs ps args
-      | otherwise =
-          mapFst (dummyUnderscore :) $ splitArgs ps (arg:args)
-      where
-        mname = nameOf (unArg arg)
-
-    dummyUnderscore = Arg Hidden Relevant (unnamed $ A.Underscore $ A.MetaInfo noRange emptyScopeInfo Nothing)
--}
-
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
 -- type-checked term is returned.
@@ -2148,27 +2126,6 @@ checkDontExpandLast e t = case e of
       checkApplication hd args e t
   _ -> checkExpr e t -- note that checkExpr always sets ExpandLast
 
-{- Andreas, 2013-03-15 UNUSED, but don't remove
-inferOrCheck :: A.Expr -> Maybe Type -> TCM (Term, Type)
-inferOrCheck e mt = case e of
-  _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
-    (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast
-                                      (getRange hd) args t0 $
-                                      fromMaybe (sort Prop) mt
-    case res of
-      Right (vs, t1) -> maybe (return (f vs, t1))
-                              (\ t -> (,t) <$> coerce (f vs) t1 t)
-                              mt
-      Left t1        -> fallback -- blocked on type t1
-  _ -> fallback
-  where
-    fallback = do
-      t <- maybe (workOnTypes $ newTypeMeta_) return mt
-      v <- checkExpr e t
-      return (v,t)
--}
-
 -- | Check whether a de Bruijn index is bound by a module telescope.
 isModuleFreeVar :: Int -> TCM Bool
 isModuleFreeVar i = do
@@ -2272,11 +2229,6 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> prettyTCM binds
           ]
-{- WE CANNOT USE THIS BINDING
-       -- We add a first let-binding for the value of e.
-       x <- freshNoName (getRange e)
-       addLetBinding Relevant x v t $ do
- -}
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "fdelta =" <+> addContext delta (prettyTCM fdelta)

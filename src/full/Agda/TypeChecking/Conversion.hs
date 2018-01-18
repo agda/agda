@@ -247,7 +247,6 @@ compareTerm' cmp a m n =
           a <- levelView m
           b <- levelView n
           equalLevel a b
--- OLD:        Pi dom _  -> equalFun (dom, a') m n
         a@Pi{}    -> equalFun a m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
@@ -324,16 +323,6 @@ compareTel t1 t2 cmp tel1 tel2 =
     (ExtendTel dom1@(Dom i1 a1) tel1, ExtendTel dom2@(Dom i2 a2) tel2) -> do
       compareDom cmp dom1 dom2 tel1 tel2 bad bad $
         compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
-
-{- OLD, before 2013-05-15
-          let checkDom = escapeContext 1 $ compareType cmp a1 a2
-              c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
-
-          addContext (name, dom1) $
-            if dependent
-            then guardConstraint c checkDom
-            else checkDom >> solveConstraint_ c
--}
   where
     -- Andreas, 2011-05-10 better report message about types
     bad = typeError $ UnequalTypes cmp t2 t1
@@ -465,7 +454,6 @@ compareAtom cmp t m n =
                     PrunedEverything -> return ()
                     PrunedNothing    -> postpone
                     PrunedSomething  -> postpone
-                    -- OLD CODE: if killedAll then return () else checkSyntacticEquality
                 -- not all relevant arguments are variables
                 Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
                                 -- (same as for blocked terms)
@@ -559,18 +547,6 @@ compareAtom cmp t m n =
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
-
-{- OLD, before 2013-05-15
-                let checkDom = escapeContext 1 $ compareType cmp a2 a1
-                    conCoDom = TypeCmp cmp (absBody b1) (absBody b2)
-                -- We only need to require a1 == a2 if t2 is a dependent function type.
-                -- If it's non-dependent it doesn't matter what we add to the context.
-                name <- freshName_ (suggest b1 b2)
-                addContext (name, dom1) $
-                  if isBinderUsed b2 -- dependent function type?
-                  then guardConstraint conCoDom checkDom
-                  else checkDom >> solveConstraint_ conCoDom
--}
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
@@ -764,32 +740,13 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
             compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associatd to the comparison
             stealConstraints pid
+            {- Stealing solves this issue:
 
-{- Stealing solves this issue:
-
-   Does not create enough blocked tc-problems,
-   see test/fail/DontPrune.
-   (There are remaining problems which do not show up as yellow.)
-   Need to find a way to associate pid also to result of compareElims.
--}
-
-{- OLD, before 2013-05-15
-
-            let checkArg = applyRelevanceToContext r $
-                               case r of
-                  Forced     -> return ()
-                  r | isIrrelevant r ->
-                                compareIrrelevant b (unArg arg1) (unArg arg2)
-                  _          -> compareWithPol pol (flip compareTerm b)
-                                  (unArg arg1) (unArg arg2)
-
-                theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
-
-            if dependent
-              then guardConstraint theRest checkArg
-              else checkArg >> solveConstraint_ theRest
--}
-
+               Does not create enough blocked tc-problems,
+               see test/fail/DontPrune.
+               (There are remaining problems which do not show up as yellow.)
+               Need to find a way to associate pid also to result of compareElims.
+            -}
           a -> do
             reportSDoc "impossible" 10 $
               text "unexpected type when comparing apply eliminations " <+> prettyTCM a
