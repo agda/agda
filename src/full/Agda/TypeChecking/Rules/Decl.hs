@@ -701,7 +701,7 @@ checkPragma r p =
             Record{ recInduction = ind, recEtaEquality' = eta } -> do
               unless (ind == Just CoInductive) $ noRecord
               when (eta == Specified False) $ typeError $ GenericError $
-                "ETA pragram conflicts with no-eta-equality declaration"
+                "ETA pragma conflicts with no-eta-equality declaration"
             _ -> __IMPOSSIBLE__
           modifySignature $ updateDefinition r $ updateTheDef $ \case
             def@Record{} -> def { recEtaEquality' = Specified True }
