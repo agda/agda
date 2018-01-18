@@ -47,6 +47,11 @@ data Name
   | NoName Range NameId    -- ^ @_@.
   deriving Data
 
+isMixfix :: Name -> Bool
+isMixfix n = case n of
+  Name _ (_:_:_) -> True
+  _              -> False
+
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
   isUnderscore NoName{}        = True

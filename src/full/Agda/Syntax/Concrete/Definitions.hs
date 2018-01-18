@@ -198,6 +198,7 @@ data DeclarationException
 -- | Non-fatal errors encountered in the Nicifier
 data DeclarationWarning
   = UnknownNamesInFixityDecl [Name]
+  | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
   | PolarityPragmasButNotPostulates [Name]
   | UselessPrivate Range
@@ -252,6 +253,7 @@ instance HasRange DeclarationException where
 
 instance HasRange DeclarationWarning where
   getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
+  getRange (UnknownFixityInMixfixDecl xs)       = getRange . head $ xs
   getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
   getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
   getRange (UselessPrivate r)                   = r
@@ -346,6 +348,8 @@ instance Pretty DeclarationException where
 instance Pretty DeclarationWarning where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
     pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
+  pretty (UnknownFixityInMixfixDecl xs) = fsep $
+    pwords "The following mixfix names do not have an associated fixity declaration:" ++ map pretty xs
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
     pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
@@ -740,6 +744,11 @@ niceDeclarations ds = do
       -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
       -- return $ Map.restrictKeys polarities declared
       return $ Map.filterWithKey (\ k _ -> Set.member k declared) polarities
+
+  -- If we have mixfix identifiers without a corresponding fixity
+  -- declaration, we raise a warning
+  ifNull (Set.filter isMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
+    niceWarning . UnknownFixityInMixfixDecl . Set.toList
 
   -- Run the nicifier in an initial environment of fixity decls
   -- and polarities.  But keep the warnings.

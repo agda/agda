@@ -84,12 +84,17 @@ data IgnoreFlags = IgnoreFlags | RespectFlags
 
 -- Potentially turn harmless warnings into nothing, or errors
 -- (does not apply to non-fatal errors)
-data WarningMode = LeaveAlone | TurnIntoErrors | IgnoreAllWarnings
+data WarningMode =
+    AllTheWarnings
+  | UsualWarnings
+  | TurnIntoErrors
+  | IgnoreAllWarnings
   deriving (Show, Eq)
 
 warningModes :: [ (String, WarningMode) ]
 warningModes =
-  [ (defaultWarningMode, LeaveAlone)
+  [ (defaultWarningMode, UsualWarnings)
+  , ("all"             , AllTheWarnings)
   , ("ignore"          , IgnoreAllWarnings)
   , ("error"           , TurnIntoErrors)
   ]

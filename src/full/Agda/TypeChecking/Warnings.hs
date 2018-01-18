@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Warnings where
 
 import qualified Data.List as List
+import Control.Monad (guard, forM_)
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
@@ -10,6 +11,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
+import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 
 import Agda.Interaction.Options
 
@@ -37,19 +39,38 @@ warning_ w = do
   p <- liftTCM $ sayWhen r' c $ prettyWarning w
   liftTCM $ return $ TCWarning r w p
 
+-- | @applyWarningMode@ filters out the warnings the user has not requested
+
+applyWarningMode :: WarningMode -> Warning -> Maybe Warning
+applyWarningMode AllTheWarnings w = Just w
+
+-- Users are not allowed to ignore non-fatal errors.
+applyWarningMode IgnoreAllWarnings w = case classifyWarning w of
+  ErrorWarnings -> Just w
+  AllWarnings   -> Nothing
+
+-- The default warning level does not display everything. For instance
+-- mixfix definitions which do not come with a fixity declaration are
+-- ignored.
+applyWarningMode _ w = case w of
+  NicifierIssue nis ->
+    let usual ni = case ni of { UnknownFixityInMixfixDecl{} -> False; _ -> True }
+        nis'     = filter usual nis
+    in NicifierIssue nis' <$ guard (not $ null nis')
+  _ -> Just w
+
+
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
 warning :: MonadTCM tcm => Warning -> tcm ()
 warning w = do
-  tcwarn <- warning_ w
+
   wmode <- optWarningMode <$> pragmaOptions
-  case wmode of
-    IgnoreAllWarnings -> case classifyWarning w of
-                           -- not allowed to ignore non-fatal errors
-                           ErrorWarnings -> raiseWarning tcwarn
-                           AllWarnings -> return ()
-    TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
-    LeaveAlone -> raiseWarning tcwarn
-  where raiseWarning tcw = stTCWarnings %= (tcw :)
+
+  forM_ (applyWarningMode wmode w) $ \ w' -> do
+    tcwarn <- warning_ w'
+    case wmode of
+      TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
+      _              -> stTCWarnings %= (tcwarn :)
 
 -- | Classifying warnings: some are benign, others are (non-fatal) errors
 
