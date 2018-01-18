@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Monad.Open
         ( makeOpen
         , getOpen
+        , tryGetOpen
         ) where
 
 import Control.Monad
@@ -16,6 +17,7 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Except ( MonadError(catchError) )
 
 -- | Create an open term in the current context.
@@ -30,4 +32,9 @@ getOpen :: (Subst Term a, MonadReader TCEnv m) => Open a -> m a
 getOpen (OpenThing cp x) = do
   sub <- checkpointSubstitution cp
   return $ applySubst sub x
+
+-- | Extract the value from an open term. Returns `Nothing` if the checkpoint
+--   at which it was created is not in scope.
+tryGetOpen :: (Subst Term a, MonadReader TCEnv m) => Open a -> m (Maybe a)
+tryGetOpen (OpenThing cp x) = fmap (`applySubst` x) <$> view (eCheckpoints . key cp)
 
