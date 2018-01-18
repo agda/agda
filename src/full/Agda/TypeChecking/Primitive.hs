@@ -1100,12 +1100,12 @@ primPOforward' = do
                                                          in
                       nPi' "u" (el' (l <@> r) $ pushout r) $ \ u ->
                       el' (l <@> cl primIOne) (pushout (cl primIOne))
-  [bP,inl,inr,push] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltinName') [builtinPushOut,builtinPOInl,builtinPOInr,builtinPOPush]
-  hcomp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinPOhcomp
   iz <- primIZero
   io <- primIOne
   ineg <- primINeg
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ts -> do
+    [bP,inl,inr,push] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltinName') [builtinPushOut,builtinPOInl,builtinPOInr,builtinPOPush]
+    hcomp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinPOhcomp
     tPOfwd <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOforward
     tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
     tInc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSubIn
@@ -1249,11 +1249,11 @@ primPOElim' = do
                                                                      <@> (il <@> (f <@> c)) <@> (ir <@> (g <@> c)))) $ \ u ->
                       nPi' "x" (el' l (pushout ())) $ \ x ->
                       el' m (bM <@> x)
-  [bP,inl,inr,push] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltinName') [builtinPushOut,builtinPOInl,builtinPOInr,builtinPOPush]
-  hcomp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinPOhcomp
   iz <- primIZero
   ineg <- primINeg
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 12 $ \ts ->
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 12 $ \ts -> do
+    [bP,inl,inr,push] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltinName') [builtinPushOut,builtinPOInl,builtinPOInr,builtinPOPush]
+    hcomp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinPOhcomp
     case ts of
       [l,m,bA,bB,bC,f,g,bM,il,ir,p,x] -> do
         sx <- reduceB' x
