@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.Open
         ( makeOpen
         , getOpen
         , tryGetOpen
+        , isClosed
         ) where
 
 import Control.Monad
@@ -38,3 +39,6 @@ getOpen (OpenThing cp x) = do
 tryGetOpen :: (Subst Term a, MonadReader TCEnv m) => Open a -> m (Maybe a)
 tryGetOpen (OpenThing cp x) = fmap (`applySubst` x) <$> view (eCheckpoints . key cp)
 
+-- | An 'Open' is closed if it has checkpoint 0.
+isClosed :: Open a -> Bool
+isClosed (OpenThing cp _) = cp == 0
