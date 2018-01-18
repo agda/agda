@@ -341,6 +341,8 @@ Compiler backends
   GHC get rid of many of the `unsafeCoerce`s. This leads to performance
   improvements of up to 50% of compiled code.
 
+* `COMPILE GHC` pragmas have been included for the size primitives.
+  [Issue [#2879](https://github.com/agda/agda/issues/2879)]
 
 Release notes for Agda version 2.5.3
 ====================================
