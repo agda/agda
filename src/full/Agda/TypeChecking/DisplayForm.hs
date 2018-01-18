@@ -11,6 +11,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 import Data.Foldable (all)
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -58,9 +59,11 @@ displayForm q es = do
     return Nothing
   else do
     -- Display debug info about the @Open@s.
-    verboseS "tc.display.top" 100 $ do
+    verboseS "tc.display.top" 100 $ unlessDebugPrinting $ do
+      cps <- view eCheckpoints
       reportSDoc "tc.display.top" 100 $ return $ vcat
         [ text "displayForm for" <+> pretty q
+        , nest 2 $ text "cps =" <+> vcat (map pretty (Map.toList cps))
         , nest 2 $ text "dfs =" <+> vcat (map pshow odfs) ]
     -- Use only the display forms that can be opened in the current context.
     dfs   <- catMaybes <$> mapM tryGetOpen odfs
@@ -71,7 +74,7 @@ displayForm q es = do
       return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, es)
-    reportSLn "tc.display.top" 100 $ unlines
+    unlessDebugPrinting $ reportSLn "tc.display.top" 100 $ unlines
       [ "name        : " ++ prettyShow q
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show es

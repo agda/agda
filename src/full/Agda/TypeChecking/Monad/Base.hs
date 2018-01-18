@@ -2312,6 +2312,9 @@ eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
 eInstanceDepth :: Lens' Int TCEnv
 eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
 
+eIsDebugPrinting :: Lens' Bool TCEnv
+eIsDebugPrinting f e = f (envIsDebugPrinting e) <&> \ x -> e { envIsDebugPrinting = x }
+
 eCurrentCheckpoint :: Lens' CheckpointId TCEnv
 eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentCheckpoint = x }
 

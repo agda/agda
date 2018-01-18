@@ -65,11 +65,11 @@ escapeContext n = modifyContext $ drop n
 -- | Add a new checkpoint. Do not use directly!
 checkpoint :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
-  notWhenPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
+  unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
   old     <- view eCurrentCheckpoint
   oldMods <- use  stModuleCheckpoints
   chkpt <- fresh
-  notWhenPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
+  unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     cxt <- getContextTelescope
     cps <- view eCheckpoints
     let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
@@ -94,10 +94,8 @@ checkpoint sub k = do
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
   stModuleCheckpoints .= Map.union oldMods (old <$ Map.difference newMods oldMods)
-  notWhenPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
+  unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
-  where
-    notWhenPrinting = unlessM (asks envIsDebugPrinting)
 
 -- | Update the context. Requires a substitution from the old context to the
 --   new.
