@@ -37,7 +37,6 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
-import Agda.TypeChecking.Monad.Local
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.DropArgs
@@ -219,12 +218,14 @@ addSection m = do
       reportSLn "impossible" 60 $ "with content " ++ prettyShow sec
       __IMPOSSIBLE__
   -- Add the new section.
-  setDefaultModuleParameters m
+  setModuleCheckpoint m
   modifySignature $ over sigSections $ Map.insert m sec
 
-setDefaultModuleParameters :: ModuleName -> TCM ()
-setDefaultModuleParameters m =
-  stModuleParameters %= Map.insert m defaultModuleParameters
+-- | Sets the checkpoint for the given module to the current checkpoint.
+setModuleCheckpoint :: ModuleName -> TCM ()
+setModuleCheckpoint m = do
+  chkpt <- view eCurrentCheckpoint
+  stModuleCheckpoints %= Map.insert m chkpt
 
 -- | Get a section.
 --
@@ -545,7 +546,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
-  d <- makeLocal df
+  d <- makeOpen df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   ifM (isLocal x)
     {-then-} (modifySignature add)

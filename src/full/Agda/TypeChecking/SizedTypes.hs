@@ -192,7 +192,7 @@ boundedSizeMetaHook v tel0 a = do
       n <- getContextSize
       let tel | n > 0     = telFromList $ drop n $ telToList tel0
               | otherwise = tel0
-      addContext' tel $ do
+      addContext tel $ do
         v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
         -- compareSizes CmpLeq v u
         size <- sizeType

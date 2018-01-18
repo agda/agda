@@ -771,11 +771,7 @@ primEqualityName = do
       lamV v          = ([], v)
   return $ case lamV eq of
     (_, Def equality _) -> equality
-  -- OLD:
-  --   ([Hidden, Hidden], Def equality _) -> equality
-  --   ([Hidden],         Def equality _) -> equality
-  --   ([],               Def equality _) -> equality
-    _                                  -> __IMPOSSIBLE__
+    _                   -> __IMPOSSIBLE__
 
 -- | Check whether the type is actually an equality (lhs ≡ rhs)
 --   and extract lhs, rhs, and their type.

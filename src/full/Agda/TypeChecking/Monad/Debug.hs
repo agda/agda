@@ -95,7 +95,10 @@ reportSLn k n s = verboseS k n $
 reportSDoc :: (HasOptions m, MonadDebug m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
-  displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n d
+  displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locally eIsDebugPrinting (const True) d)
+
+unlessDebugPrinting :: MonadTCM m => m () -> m ()
+unlessDebugPrinting = unlessM (asks envIsDebugPrinting)
 
 traceSLn :: (HasOptions m, MonadDebug m)
          => VerboseKey -> Int -> String -> m a -> m a

@@ -1235,9 +1235,6 @@ instance InstantiateFull RewriteRule where
 instance InstantiateFull a => InstantiateFull (Open a) where
   instantiateFull' (OpenThing n a) = OpenThing n <$> instantiateFull' a
 
-instance InstantiateFull a => InstantiateFull (Local a) where
-  instantiateFull' = traverseF instantiateFull'
-
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
 

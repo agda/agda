@@ -56,7 +56,7 @@ workOnTypes cont = do
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' experimental cont = modifyContext (modifyContextEntries $ mapRelevance f) cont
+workOnTypes' experimental cont = modifyContext (map $ mapRelevance f) cont
   where
     f | experimental = irrToNonStrict . nonStrictToRel
       | otherwise    = nonStrictToRel
@@ -70,7 +70,7 @@ applyRelevanceToContext rel =
   case rel of
     Relevant -> id
     _        -> local $ \ e -> e
-      { envContext     = modifyContextEntries      (inverseApplyRelevance rel) (envContext e)
+      { envContext     = map                       (inverseApplyRelevance rel) (envContext e)
       , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance rel) (envLetBindings e)
                                                   -- enable local  irr. defs
       , envRelevance   = composeRelevance rel (envRelevance e)
@@ -87,7 +87,7 @@ applyRelevanceToContext rel =
 --   irrelevant (issue #2568).
 wakeIrrelevantVars :: TCM a -> TCM a
 wakeIrrelevantVars = local $ \ e -> e
-  { envContext     = modifyContextEntries      (inverseApplyRelevance Irrelevant) (envContext e)
+  { envContext     = map                       (inverseApplyRelevance Irrelevant) (envContext e)
   , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance Irrelevant) (envLetBindings e)
   }
 

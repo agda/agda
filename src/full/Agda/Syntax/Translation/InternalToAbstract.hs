@@ -1129,7 +1129,7 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
     s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
 
     x <- freshName_ s
-    e <- addContext' x -- type doesn't matter
+    e <- addContext x -- type doesn't matter
          $ reify v
     return (x,e)
 

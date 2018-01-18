@@ -6,7 +6,7 @@ problems (inferred index ≟ expected index):
 Possible reasons why unification failed:
   Cannot apply injectivity to the equation E.refl = E.refl of type
   _≡_ {A} y y because I cannot generalize over the indices [y].
-  Cannot eliminate reflexive equation E.refl = E.refl of type E._≡_ y
-  because K has been disabled.
+  Cannot eliminate reflexive equation E.refl = E.refl of type
+  _≡_ {A} y y because K has been disabled.
 when checking that the pattern refl has type
 _≡_ {_≡_ {A} y y} E.refl E.refl

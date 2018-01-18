@@ -319,34 +319,33 @@ castConstraintToCurrentContext' cl = do
 
 castConstraintToCurrentContext :: Closure TCM.Constraint -> MaybeT TCM TCM.Constraint
 castConstraintToCurrentContext cl = do
-  -- The target context
-  gamma <- asks envContext
-  -- The context where the constraint lives.
-  let delta = envContext $ clEnv cl
-  -- The constraint
-  let c = clValue cl
-  let findInGamma (Ctx cid (Dom {unDom = (x, t)})) =
-        -- try to find same CtxId (safe)
-        case List.findIndex ((cid ==) . ctxId) gamma of
-          Just i -> Just i
-          Nothing ->
-            -- match by name (hazardous)
-            -- This is one of the seven deadly sins (not respecting alpha).
-            List.findIndex ((x ==) . fst . unDom . ctxEntry) gamma
-  let cand = map findInGamma delta
-  -- The domain of our substitution
-  let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
-  -- Check that all the free variables of the constraint are contained in
-  -- coveredVars.
-  -- We ignore the free variables occurring in sorts.
-  guard $ getAll $ runFree (All . (`VarSet.member` coveredVars)) IgnoreAll c
-  -- Turn cand into a substitution.
-  -- Since we ignored the free variables in sorts, we better patch up
-  -- the substitution with some dummy term (Sort Prop) rather than __IMPOSSIBLE__.
-  let dummy = Sort Prop
-  let sigma = parallelS $ map (maybe dummy var) cand
+  -- The checkpoint of the contraint
+  let cp = envCurrentCheckpoint $ clEnv cl
+  sigma <- caseMaybeM (view $ eCheckpoints . key cp)
+          (do
+            -- We are not in a descendant of the constraint checkpoint.
+            -- Here be dragons!!
+            gamma <- asks envContext -- The target context
+            let findInGamma (Dom {unDom = (x, t)}) =
+                  -- match by name (hazardous)
+                  -- This is one of the seven deadly sins (not respecting alpha).
+                  List.findIndex ((x ==) . fst . unDom) gamma
+            let delta = envContext $ clEnv cl
+                cand  = map findInGamma delta
+            -- The domain of our substitution
+            let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
+            -- Check that all the free variables of the constraint are contained in
+            -- coveredVars.
+            -- We ignore the free variables occurring in sorts.
+            guard $ getAll $ runFree (All . (`VarSet.member` coveredVars)) IgnoreAll (clValue cl)
+            -- Turn cand into a substitution.
+            -- Since we ignored the free variables in sorts, we better patch up
+            -- the substitution with some dummy term (Sort Prop) rather than __IMPOSSIBLE__.
+            let dummy = Sort Prop
+            return $ parallelS $ map (maybe dummy var) cand
+          ) return -- Phew, we've got the checkpoint! All is well.
   -- Apply substitution to constraint and pray that the Gods are merciful on us.
-  return $ applySubst sigma c
+  return $ applySubst sigma (clValue cl)
   -- Note: the resulting constraint may not well-typed.
   -- Even if it is, it may map variables to their wrong counterpart.
 
@@ -572,7 +571,7 @@ solveCluster flag ccs = do
         forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
-getSizeHypotheses :: Context -> TCM [(CtxId, SizeConstraint)]
+getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
 getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
   (_, msizelt) <- getBuiltinSize
   caseMaybe msizelt (return []) $ \ sizelt -> do
@@ -580,13 +579,13 @@ getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
     catMaybes <$> do
       forM (zip [0..] gamma) $ \ (i, ce) -> do
         -- Get name and type of variable i.
-        let xt = unDom $ ctxEntry ce
-            x  = prettyShow $ fst xt
-        t <- reduce . raise (1 + i) . unEl . snd $ xt
+        let (x, t) = unDom ce
+            s      = prettyShow x
+        t <- reduce . raise (1 + i) . unEl $ t
         case ignoreSharing t of
           Def d [Apply u] | d == sizelt -> do
             caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
-              return $ Just $ (ctxId ce, Constraint (Rigid (NamedRigid x i) 0) Lt a)
+              return $ Just $ (i, Constraint (Rigid (NamedRigid s i) 0) Lt a)
           _ -> return Nothing
 
 -- | Convert size constraint into form where each meta is applied
@@ -725,7 +724,7 @@ instance PrettyTCM (SizeConstraint) where
 -- | Size constraint with de Bruijn indices.
 data HypSizeConstraint = HypSizeConstraint
   { sizeContext    :: Context
-  , sizeHypIds     :: [CtxId]
+  , sizeHypIds     :: [Nat] -- ^ DeBruijn indices
   , sizeHypotheses :: [SizeConstraint]  -- ^ Living in @Context@.
   , sizeConstraint :: SizeConstraint    -- ^ Living in @Context@.
   }
@@ -736,7 +735,7 @@ instance Flexs SizeMeta HypSizeConstraint where
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
     inTopContext $ modifyContext (const cxt) $ do
-      let cxtNames = reverse $ map (fst . unDom . ctxEntry) cxt
+      let cxtNames = reverse $ map (fst . unDom) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
       applyUnless (null hs)

@@ -157,6 +157,7 @@ instance PrettyTCM Literal     where prettyTCM = pretty
 instance PrettyTCM Nat         where prettyTCM = pretty
 instance PrettyTCM ProblemId   where prettyTCM = pretty
 instance PrettyTCM Range       where prettyTCM = pretty
+instance PrettyTCM CheckpointId where prettyTCM = pretty
 -- instance PrettyTCM Interval where prettyTCM = pretty
 -- instance PrettyTCM Position where prettyTCM = pretty
 
@@ -185,6 +186,7 @@ instance PrettyTCM Polarity     where prettyTCM = text . show
 instance PrettyTCM IsForced     where prettyTCM = text . show
 instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
+
 instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = text "idS"
   prettyTCM (Wk m IdS) = text "wkS" <+> pretty m
@@ -193,9 +195,6 @@ instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
     where
       (rho1, rho2) = splitS 1 rho
       u            = lookupS rho2 0
-
-instance PrettyTCM ModuleParameters where
-  prettyTCM = prettyTCM . mpSubstitution
 
 instance PrettyTCM Clause where
   prettyTCM cl = do
@@ -369,13 +368,7 @@ instance PrettyTCM Telescope where
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where
-  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ map ctxEntry $ reverse ctx
-
-instance PrettyTCM Context where
-  prettyTCM = prettyTCM . PrettyContext
-
-instance PrettyTCM CtxId where
-  prettyTCM (CtxId x) = prettyTCM x
+  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ reverse ctx
 
 instance PrettyTCM DBPatVar where
   prettyTCM = prettyTCM . var . dbPatVarIndex

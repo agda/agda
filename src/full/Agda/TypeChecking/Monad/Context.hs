@@ -25,33 +25,35 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
+import Agda.Utils.Impossible
+#include "undefined.h"
+
 -- * Modifying the context
-
--- | Modify the 'ctxEntry' field of a 'ContextEntry'.
-modifyContextEntry :: (Dom (Name, Type) -> Dom (Name, Type)) -> ContextEntry -> ContextEntry
-modifyContextEntry f ce = ce { ctxEntry = f (ctxEntry ce) }
-
--- | Modify all 'ContextEntry's.
-modifyContextEntries :: (Dom (Name, Type) -> Dom (Name, Type)) -> Context -> Context
-modifyContextEntries f = map (modifyContextEntry f)
 
 -- | Modify a 'Context' in a computation.
 {-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
 modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
 modifyContext f = local $ \e -> e { envContext = f $ envContext e }
 
-{-# SPECIALIZE mkContextEntry :: Dom (Name, Type) -> TCM ContextEntry #-}
-mkContextEntry :: MonadTCM tcm => Dom (Name, Type) -> tcm ContextEntry
-mkContextEntry x = do
-  i <- fresh
-  return $ Ctx i x
+-- | Change to top (=empty) context. Resets the checkpoints.
+{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
+safeInTopContext :: MonadTCM tcm => tcm a -> tcm a
+safeInTopContext cont = do
+  locals <- liftTCM $ getLocalVars
+  liftTCM $ setLocalVars []
+  a <- modifyContext (const [])
+        $ locally eCurrentCheckpoint (const 0)
+        $ locally eCheckpoints (const $ Map.singleton 0 IdS) cont
+  liftTCM $ setLocalVars locals
+  return a
 
--- | Change to top (=empty) context.
---
---   TODO: currently, this makes the @ModuleParamDict@ ill-formed!
+-- | Change to top (=empty) context, but don't update the checkpoints. Totally
+--   not safe!
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: MonadTCM tcm => tcm a -> tcm a
 inTopContext cont = do
@@ -63,73 +65,71 @@ inTopContext cont = do
 
 -- | Delete the last @n@ bindings from the context.
 --
---   TODO: currently, this makes the @ModuleParamDict@ ill-formed!
+--   Doesn't update checkpoints!! Use `updateContext rho (drop n)` instead,
+--   for an appropriate substitution `rho`.
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
 
--- * Manipulating module parameters --
+-- * Manipulating checkpoints --
 
--- | Locally set module parameters for a computation.
-
-withModuleParameters :: ModuleParamDict -> TCM a -> TCM a
-withModuleParameters mp ret = do
-  old <- use stModuleParameters
-  stModuleParameters .= mp
-  x <- ret
-  stModuleParameters .= old
-  return x
-
--- | Apply a substitution to all module parameters.
-
-updateModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
-                       => Substitution -> tcm a -> tcm a
-updateModuleParameters sub ret = do
-  pm <- use stModuleParameters
-  let showMP pref mps = List.intercalate "\n" $
-        [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
-        | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
-                              (Map.toList mps)
-        ]
-  verboseS "tc.cxt.param" 105 $ do
-    cxt <- reverse <$> getContext
-    reportSLn "tc.cxt.param" 105 $ unlines $
-      [ "updatingModuleParameters"
-      , "  sub = " ++ show sub
-      , "  cxt (last added last in list) = " ++ unwords (map (show . fst . unDom) cxt)
-      , showMP "  old = " pm
+-- | Add a new checkpoint. Do not use directly!
+checkpoint :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> tcm a -> tcm a
+checkpoint sub k = do
+  unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
+  old     <- view eCurrentCheckpoint
+  oldMods <- use  stModuleCheckpoints
+  chkpt <- fresh
+  unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
+    cxt <- getContextTelescope
+    cps <- view eCheckpoints
+    let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
+        prCps cps = vcat [ pshow c <+> text ": " <+> pretty s | (c, s) <- Map.toList cps ]
+    reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $ vcat
+      [ text "old =" <+> pshow old
+      , text "new =" <+> pshow chkpt
+      , text "sub =" <+> pretty sub
+      , text "cxt =" <+> pretty cxt
+      , text "old substs =" <+> prCps cps
+      , text "new substs =" <?> prCps cps'
       ]
-  let pm' = applySubst sub pm
-  reportSLn "tc.cxt.param" 105 $ showMP "  new = " pm'
-  stModuleParameters .= pm'
-  x <- ret              -- We need to keep introduced modules around
-  pm1 <- use stModuleParameters
-  let pm'' = Map.union pm (defaultModuleParameters <$ Map.difference pm1 pm)
-  stModuleParameters .= pm''
-  reportSLn "tc.cxt.param" 105 $ showMP "  restored = " pm''
+  x <- flip local k $ \ env -> env
+    { envCurrentCheckpoint = chkpt
+    , envCheckpoints       = Map.insert chkpt IdS $
+                              fmap (applySubst sub) (envCheckpoints env)
+    }
+  newMods <- use stModuleCheckpoints
+  -- Set the checkpoint for introduced modules to the old checkpoint when the
+  -- new one goes out of scope. #2897: This isn't actually sound for modules
+  -- created under refined parent parameters, but as long as those modules
+  -- aren't named we shouldn't look at the checkpoint. The right thing to do
+  -- would be to not store these modules in the checkpoint map, but todo..
+  stModuleCheckpoints .= Map.union oldMods (old <$ Map.difference newMods oldMods)
+  unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
 
--- | Since the @ModuleParamDict@ is relative to the current context,
---   this function should be called everytime the context is extended.
---
-weakenModuleParameters :: (MonadTCM tcm, MonadDebug tcm)
-                       => Nat -> tcm a -> tcm a
-weakenModuleParameters n = updateModuleParameters (raiseS n)
+-- | Update the context. Requires a substitution from the old context to the
+--   new.
+updateContext :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> (Context -> Context) -> tcm a -> tcm a
+updateContext sub f = modifyContext f . checkpoint sub
+
+-- | Get the substitution from the context at a given checkpoint to the current context.
+checkpointSubstitution :: MonadReader TCEnv tcm => CheckpointId -> tcm Substitution
+checkpointSubstitution chkpt =
+  caseMaybeM (view (eCheckpoints . key chkpt)) __IMPOSSIBLE__ return
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
 --
---   In case the current 'ModuleParamDict' does not know @m@,
---   we return the identity substitution.
---   This is ok for instance if we are outside module @m@
---   (in which case we have to supply all module parameters to any
---   symbol defined within @m@ we want to refer).
-getModuleParameterSub :: (Functor m, ReadTCState m) => ModuleName -> m Substitution
+--   In case the we don't have a checkpoint for @m@ we return the identity
+--   substitution.
+--   This is ok for instance if we are outside module @m@ (in which case we
+--   have to supply all module parameters to any symbol defined within @m@ we
+--   want to refer).
+getModuleParameterSub :: (MonadReader TCEnv m, ReadTCState m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
-  r <- (^. stModuleParameters) <$> getTCState
-  case Map.lookup m r of
-    Nothing -> return IdS
-    Just mp -> return $ mpSubstitution mp
+  mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
+  maybe (return IdS) checkpointSubstitution mcp
 
 
 -- * Adding to the context
@@ -140,35 +140,32 @@ getModuleParameterSub m = do
 --
 --   Warning: Does not update module parameter substitution!
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
-addCtx :: MonadTCM tcm => Name -> Dom Type -> tcm a -> tcm a
+addCtx :: (MonadDebug tcm, MonadTCM tcm) => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
-  ce <- mkContextEntry $ (x,) <$> a
-  modifyContext (ce :) ret
+  let ce = (x,) <$> a
+  updateContext (raiseS 1) (ce :) ret
       -- let-bindings keep track of own their context
+
+-- | Pick a concrete name that doesn't shadow anything in the given list.
+unshadowedName :: [Name] -> Name -> Name
+unshadowedName xs x = head $ filter (notTaken $ map nameConcrete xs)
+                           $ iterate nextName x
+  where
+    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 -- | Pick a concrete name that doesn't shadow anything in the context.
 unshadowName :: MonadTCM tcm => Name -> tcm Name
 unshadowName x = do
-  ctx <- map (nameConcrete . fst . unDom) <$> getContext
-  return $ head $ filter (notTaken ctx) $ iterate nextName x
-  where
-    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
+  ctx <- map (fst . unDom) <$> getContext
+  return $ unshadowedName ctx x
 
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
 class AddContext b where
-  addContext  :: MonadTCM tcm => b -> tcm a -> tcm a
+  addContext :: (MonadTCM tcm, MonadDebug tcm) => b -> tcm a -> tcm a
   contextSize :: b -> Nat
 
--- | Since the module parameter substitution is relative to
---   the current context, we need to weaken it when we
---   extend the context.  This function takes care of that.
---
-addContext' :: (MonadTCM tcm, MonadDebug tcm, AddContext b)
-            => b -> tcm a -> tcm a
-addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
-
--- | Wrapper to tell 'addContext' not to 'unshadowName's. Used when adding a
+-- | Wrapper to tell 'addContext not to 'unshadowName's. Used when adding a
 --   user-provided, but already type checked, telescope to the context.
 newtype KeepNames a = KeepNames a
 
@@ -232,7 +229,7 @@ instance AddContext (KeepNames Telescope) where
 instance AddContext Telescope where
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
-    loop (ExtendTel t tel) = underAbstraction t tel loop
+    loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
 
 -- | Context entries without a type have this dummy type.
@@ -241,19 +238,19 @@ dummyDom = defaultDom typeDontCare
 
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstraction :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction = underAbstraction' id
 
-underAbstraction' :: (Subst t a, MonadTCM tcm, AddContext (name, Dom Type)) =>
+underAbstraction' :: (Subst t a, MonadTCM tcm, MonadDebug tcm, AddContext (name, Dom Type)) =>
                      (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction' _ _ (NoAbs _ v) k = k v
-underAbstraction' wrap t a        k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
+underAbstraction' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
 {-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: (Subst t a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
+underAbstraction_ :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction dummyDom
 
 getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
@@ -279,7 +276,7 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
 getContext :: MonadReader TCEnv m => m [Dom (Name, Type)]
-getContext = asks $ map ctxEntry . envContext
+getContext = asks envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
@@ -301,11 +298,6 @@ getContextTerms = map var . downFrom <$> getContextSize
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: (Applicative m, MonadReader TCEnv m) => m Telescope
 getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
-
--- | Check if we are in a compatible context, i.e. an extension of the given context.
-{-# SPECIALIZE getContextId :: TCM [CtxId] #-}
-getContextId :: MonadReader TCEnv m => m [CtxId]
-getContextId = asks $ map ctxId . envContext
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}

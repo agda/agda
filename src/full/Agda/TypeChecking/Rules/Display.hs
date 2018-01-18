@@ -17,13 +17,14 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.NonemptyList
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
-checkDisplayPragma f ps e = inTopContext $ do
-  pappToTerm f id ps $ \n args -> do
-    let lhs = map I.Apply args
-    v <- exprToTerm e
-    let df = Display n lhs (DTerm v)
-    reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
-    escapeContext n $ addDisplayForm f df
+checkDisplayPragma f ps e = do
+  df <- inTopContext $ do
+          pappToTerm f id ps $ \n args -> do
+            let lhs = map I.Apply args
+            v <- exprToTerm e
+            return $ Display n lhs (DTerm v)
+  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
+  addDisplayForm f df
 
 -- Compute a left-hand side for a display form. Inserts implicits, but no type
 -- checking so does the wrong thing if implicitness is computed. Binds variables.

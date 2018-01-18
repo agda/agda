@@ -552,26 +552,25 @@ checkPatternLinearity eqs = do
 
       where continue = (eq:) <$> check vars eqs
 
--- | Bind the variables in a left hand side, making up hidden (dotted) names
+-- | Construct the context for a left hand side, making up hidden (dotted) names
 --   for unnamed variables.
-bindLHSVars :: [Maybe A.Name] -> Telescope -> TCM a -> TCM a
-bindLHSVars []        tel@ExtendTel{}  _   = do
-  reportSDoc "impossible" 10 $
-    text "bindLHSVars: no patterns left, but tel =" <+> prettyTCM tel
-  __IMPOSSIBLE__
-bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
-bindLHSVars []        EmptyTel         ret = ret
-bindLHSVars (x : xs) tel0@(ExtendTel a tel) ret = do
-  case x of
-    Just x  -> addContext (x, a) $ bindLHSVars xs (absBody tel) ret
-    Nothing -> bindDummy (absName tel)
-               -- @bindDummy underscore@ does not fix issue 819, but
-               -- introduces unwanted underscores in error messages
-               -- (Andreas, 2015-05-28)
+computeLHSContext :: [Maybe A.Name] -> Telescope -> TCM Context
+computeLHSContext = go [] []
   where
-    bindDummy s = do
-      x <- if isUnderscore s then freshNoName_ else unshadowName =<< freshName_ ("." ++ argNameToString s)
-      addContext (x, a) $ bindLHSVars xs (absBody tel) ret
+    go cxt _ []        tel@ExtendTel{} = do
+      reportSDoc "impossible" 10 $
+        text "computeLHSContext: no patterns left, but tel =" <+> prettyTCM tel
+      __IMPOSSIBLE__
+    go cxt _ (_ : _)   EmptyTel = __IMPOSSIBLE__
+    go cxt _ []        EmptyTel = return cxt
+    go cxt taken (x : xs) tel0@(ExtendTel a tel) = do
+        name <- maybe (dummyName taken $ absName tel) return x
+        let e = (name,) <$> a
+        go (e : cxt) (name : taken) xs (absBody tel)
+
+    dummyName taken s =
+      if isUnderscore s then freshNoName_
+      else unshadowedName taken <$> freshName_ ("." ++ argNameToString s)
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
@@ -655,20 +654,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
             | d <- cxt ]
       eqs0 = zipWith3 ProblemEq (map namedArg cps) (map var $ downFrom $ size tel) (flattenTel tel)
 
-  -- We need to grab all let-bindings here (while we still have the old
-  -- context). They will be rebound below once we have the new context set up.
-  -- Subtle: if we're checking a with the context will be empty so we can't use
-  -- 'getOpen'. On the other hand, if we're checking a with the let bindings
-  -- lives in the right context already so we can use 'openThing'.
-  let openLet | isNothing withSub' = getOpen
-              | otherwise          = return . openThing
-  oldLets <- asks $ Map.toList . envLetBindings
-  reportSDoc "tc.lhs.top" 70 $ vcat
-    [ text "context =" <+> inTopContext (prettyTCM tel)
-    , text "cIds    =" <+> (text . show =<< getContextId)
-    , text "oldLets =" <+> text (show oldLets) ]
-  oldLets <- sequence [ (x,) <$> openLet b | (x, b) <- oldLets ]
-
   let finalChecks :: LHSState a -> TCM a
       finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit) = do
 
@@ -717,7 +702,6 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         let hasAbsurd = not . null $ absurds
 
         let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (catMaybes psplit)
-            newLets = [ AsB x (applySubst paramSub v) (applySubst paramSub $ unDom a) | (x, (v, a)) <- oldLets ]
 
         -- Debug output
         reportSDoc "tc.lhs.top" 10 $
@@ -737,29 +721,25 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> pretty withSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> pretty paramSub
-        reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
-        reportSDoc "tc.lhs.top" 50 $ text "new let-bindings:" <+> (brackets $ fsep $ punctuate comma $ map prettyTCM newLets)
 
-        bindLHSVars vars delta $ do
+        newCxt <- computeLHSContext vars delta
+
+        updateContext paramSub (const newCxt)
+          $ applyRelevanceToContext (getRelevance b) $ do
 
           reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> (pretty =<< getContextTelescope)
           reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> pretty b
 
-          bindAsPatterns newLets $
+          bindAsPatterns asb $ do
 
-            -- At this point we need to update the module parameters for all
-            -- parent modules.
-            applyRelevanceToContext (getRelevance b) $ updateModuleParameters paramSub $ do
-            bindAsPatterns asb $ do
+            -- Check dot patterns
+            mapM_ checkDotPattern dots
+            mapM_ checkAbsurdPattern absurds
 
-              -- Check dot patterns
-              mapM_ checkDotPattern dots
-              mapM_ checkAbsurdPattern absurds
-
-            -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
-            ret lhsResult
+          -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
+          ret lhsResult
 
   st0 <- initLHSState tel eqs0 ps a finalChecks
 
@@ -922,7 +902,8 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = do
         LeftoverPatterns{patternVariables = vars} <- getLeftoverPatterns $ problem ^. problemEqs
         return $ take (size delta1) $ fst $ getUserVariableNames tel vars
 
-      (gamma,sigma) <- liftTCM $ bindLHSVars names delta1 $ do
+      newContext <- liftTCM $ computeLHSContext names delta1
+      (gamma,sigma) <- liftTCM $ updateContext (raiseS (length newContext)) (newContext ++) $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 50 $ text (show (t,u))
                  t <- checkExpr t tInterval
@@ -1023,12 +1004,13 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = do
     splitCon delta1 dom@Dom{domInfo = info, unDom = a} adelta2 focusPat ambC = do
       let delta2 = absBody adelta2
 
-      reportSDoc "tc.lhs.split" 10 $ sep
+      reportSDoc "tc.lhs.split" 10 $ vcat
         [ text "checking lhs"
         , nest 2 $ text "tel =" <+> prettyTCM tel
         , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
         ]
-      reportSDoc "tc.lhs.split" 15 $ sep
+
+      reportSDoc "tc.lhs.split" 15 $ vcat
         [ text "split problem"
         , nest 2 $ vcat
           [ text "delta1 = " <+> prettyTCM delta1

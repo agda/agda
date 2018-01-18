@@ -154,7 +154,6 @@ instance NamesIn QName   where namesIn x = Set.singleton x  -- interesting case
 instance NamesIn ConHead where namesIn h = namesIn (conName h)
 
 instance NamesIn a => NamesIn (Open a)  where
-instance NamesIn a => NamesIn (Local a) where
 
 instance NamesIn DisplayForm where
   namesIn (Display _ ps v) = namesIn (ps, v)

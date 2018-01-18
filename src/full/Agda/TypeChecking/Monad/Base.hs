@@ -166,8 +166,9 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
-  , stPostModuleParameters    :: !ModuleParamDict
-    -- ^ TODO: can these be moved into the @TCEnv@?
+  , stPostModuleCheckpoints   :: !(Map ModuleName CheckpointId)
+    -- ^ For each module remember the checkpoint corresponding to the orignal
+    --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
   , stPostCurrentModule       :: !(Maybe ModuleName)
@@ -182,8 +183,8 @@ data PostScopeState = PostScopeState
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
-  , stPostFreshCtxId          :: !CtxId
   , stPostFreshProblemId      :: !ProblemId
+  , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   }
@@ -294,7 +295,7 @@ initPostScopeState = PostScopeState
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
-  , stPostModuleParameters     = Map.empty
+  , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , Set.empty)
@@ -304,8 +305,8 @@ initPostScopeState = PostScopeState
   , stPostLocalBuiltins        = Map.empty
   , stPostFreshMetaId          = 0
   , stPostFreshMutualId        = 0
-  , stPostFreshCtxId           = 0
   , stPostFreshProblemId       = 1
+  , stPostFreshCheckpointId    = 1
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
   }
@@ -435,10 +436,10 @@ stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
 
-stModuleParameters :: Lens' (ModuleParamDict) TCState
-stModuleParameters f s =
-  f (stPostModuleParameters (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleParameters = x}}
+stModuleCheckpoints :: Lens' (Map ModuleName CheckpointId) TCState
+stModuleCheckpoints f s =
+  f (stPostModuleCheckpoints (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleCheckpoints = x}}
 
 stImportsDisplayForms :: Lens' DisplayForms TCState
 stImportsDisplayForms f s =
@@ -495,15 +496,15 @@ stFreshMutualId f s =
   f (stPostFreshMutualId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMutualId = x}}
 
-stFreshCtxId :: Lens' CtxId TCState
-stFreshCtxId f s =
-  f (stPostFreshCtxId (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshCtxId = x}}
-
 stFreshProblemId :: Lens' ProblemId TCState
 stFreshProblemId f s =
   f (stPostFreshProblemId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshProblemId = x}}
+
+stFreshCheckpointId :: Lens' CheckpointId TCState
+stFreshCheckpointId f s =
+  f (stPostFreshCheckpointId (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshCheckpointId = x}}
 
 stFreshInt :: Lens' Int TCState
 stFreshInt f s =
@@ -548,9 +549,6 @@ instance HasFresh NameId where
   -- before caching starts do not overlap with the ones used after.
   nextFresh' = succ . succ
 
-instance HasFresh CtxId where
-  freshLens = stFreshCtxId
-
 instance HasFresh Int where
   freshLens = stFreshInt
 
@@ -573,6 +571,18 @@ instance Pretty ProblemId where
 
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
+
+newtype CheckpointId = CheckpointId Int
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+instance Show CheckpointId where
+  show (CheckpointId n) = show n
+
+instance Pretty CheckpointId where
+  pretty (CheckpointId n) = pretty n
+
+instance HasFresh CheckpointId where
+  freshLens = stFreshCheckpointId
 
 freshName :: MonadState TCState m => Range -> String -> m Name
 freshName r s = do
@@ -722,11 +732,7 @@ data Closure a = Closure
   { clSignature        :: Signature
   , clEnv              :: TCEnv
   , clScope            :: ScopeInfo
-  , clModuleParameters :: ModuleParamDict
-      -- ^ Since module parameters are currently stored in 'TCState'
-      --   not in 'TCEnv', we save them here.
-      --   The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
-      --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
+  , clModuleCheckpoints :: Map ModuleName CheckpointId
   , clValue            :: a
   }
     deriving (Data, Functor, Foldable)
@@ -742,8 +748,8 @@ buildClosure x = do
     env   <- ask
     sig   <- use stSignature
     scope <- use stScope
-    pars  <- use stModuleParameters
-    return $ Closure sig env scope pars x
+    cps   <- use stModuleCheckpoints
+    return $ Closure sig env scope cps x
 
 ---------------------------------------------------------------------------
 -- ** Constraints
@@ -872,24 +878,11 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 ---------------------------------------------------------------------------
 
 -- | A thing tagged with the context it came from.
-data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
+data Open a = OpenThing { openThingCheckpoint :: CheckpointId, openThing :: a }
     deriving (Data, Show, Functor, Foldable, Traversable)
 
 instance Decoration Open where
-  traverseF f (OpenThing cxt x) = OpenThing cxt <$> f x
-
-data Local a = Local ModuleName a   -- ^ Local to a given module, the value
-                                    -- should have module parameters as free variables.
-             | Global a             -- ^ Global value, should be closed.
-    deriving (Data, Show, Functor, Foldable, Traversable)
-
-isGlobal :: Local a -> Bool
-isGlobal Global{} = True
-isGlobal Local{}  = False
-
-instance Decoration Local where
-  traverseF f (Local m x) = Local m <$> f x
-  traverseF f (Global x)  = Global <$> f x
+  traverseF f (OpenThing cp x) = OpenThing cp <$> f x
 
 ---------------------------------------------------------------------------
 -- * Judgements
@@ -1157,7 +1150,7 @@ data DisplayForm = Display
   }
   deriving (Data, Show)
 
-type LocalDisplayForm = Local DisplayForm
+type LocalDisplayForm = Open DisplayForm
 
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
@@ -2091,18 +2084,6 @@ ifTopLevelAndHighlightingLevelIs l =
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
-data ModuleParameters = ModuleParams
-  { mpSubstitution :: Substitution
-      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context @envContext@.
-  } deriving (Data, Show)
-
-defaultModuleParameters :: ModuleParameters
-defaultModuleParameters = ModuleParams IdS
-
-type ModuleParamDict = Map ModuleName ModuleParameters
-  -- ^ The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
-  --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
-
 data TCEnv =
     TCEnv { envContext             :: Context
           , envLetBindings         :: LetBindings
@@ -2191,6 +2172,13 @@ data TCEnv =
           , envInstanceDepth :: !Int
                 -- ^ Until we get a termination checker for instance search (#1743) we
                 --   limit the search depth to ensure termination.
+          , envIsDebugPrinting :: Bool
+          , envCurrentCheckpoint :: CheckpointId
+                -- ^ Checkpoints track the evolution of the context as we go
+                -- under binders or refine it by pattern matching.
+          , envCheckpoints :: Map CheckpointId Substitution
+                -- ^ Keeps the substitution from each previous checkpoint to
+                --   the current context.
           }
     deriving Data
 
@@ -2236,6 +2224,9 @@ initEnv = TCEnv { envContext             = []
                 , envInsideDotPattern       = False
                 , envUnquoteFlags           = defaultUnquoteFlags
                 , envInstanceDepth          = 0
+                , envIsDebugPrinting        = False
+                , envCurrentCheckpoint      = 0
+                , envCheckpoints            = Map.singleton 0 IdS
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2351,19 +2342,22 @@ eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
 eInstanceDepth :: Lens' Int TCEnv
 eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
 
+eIsDebugPrinting :: Lens' Bool TCEnv
+eIsDebugPrinting f e = f (envIsDebugPrinting e) <&> \ x -> e { envIsDebugPrinting = x }
+
+eCurrentCheckpoint :: Lens' CheckpointId TCEnv
+eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentCheckpoint = x }
+
+eCheckpoints :: Lens' (Map CheckpointId Substitution) TCEnv
+eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------
 
 -- | The @Context@ is a stack of 'ContextEntry's.
 type Context      = [ContextEntry]
-data ContextEntry = Ctx { ctxId    :: CtxId
-                        , ctxEntry :: Dom (Name, Type)
-                        }
-  deriving Data
-
-newtype CtxId     = CtxId Nat
-  deriving (Data, Eq, Ord, Show, Enum, Real, Integral, Num)
+type ContextEntry = Dom (Name, Type)
 
 ---------------------------------------------------------------------------
 -- ** Let bindings
@@ -3210,9 +3204,6 @@ instance KillRange Definition where
     killRange12 Defn ai name t pols occs displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
 
-instance KillRange CtxId where
-  killRange (CtxId x) = killRange1 CtxId x
-
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y
   killRange (PWild)    = PWild
@@ -3277,10 +3268,6 @@ instance KillRange ProjLams where
 
 instance KillRange a => KillRange (Open a) where
   killRange = fmap killRange
-
-instance KillRange a => KillRange (Local a) where
-  killRange (Local a b) = killRange2 Local a b
-  killRange (Global a)  = killRange1 Global a
 
 instance KillRange DisplayForm where
   killRange (Display n es dt) = killRange3 Display n es dt

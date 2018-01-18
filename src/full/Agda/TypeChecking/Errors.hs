@@ -447,7 +447,7 @@ instance PrettyTCM TCErr where
     -- Gallais, 2016-05-14
     -- Given where `NonFatalErrors` are created, we know for a
     -- fact that ̀ws` is non-empty.
-    TypeError _ (Closure _ _ _ _ (NonFatalErrors ws)) -> foldr1 ($$) $ fmap prettyTCM ws
+    TypeError _ Closure{ clValue = NonFatalErrors ws } -> foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
     -- This use of localState seems ok since we do not collect
     -- Benchmark info during printing errors.

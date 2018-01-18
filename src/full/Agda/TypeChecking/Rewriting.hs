@@ -303,11 +303,6 @@ addRewriteRules f rews = do
   let matchables = getMatchables rews
   reportSDoc "rewriting" 30 $ text "matchable symbols: " <+> prettyTCM matchables
   modifySignature $ addRewriteRulesFor f rews matchables
-  --rules <- getRewriteRulesFor f
-  --reportSDoc "rewriting" 20 $ vcat
-  --  [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
-  --  , vcat (map prettyTCM rules)
-  --  ]
 
 -- | @rewriteWith t f es rew@
 --   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
@@ -331,32 +326,6 @@ rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
         , text " to " <+> prettyTCM v'
         ]) $ do
       return $ Right v'
-
-    {- OLD CODE:
-    -- Freeze all metas, remember which one where not frozen before.
-    -- This ensures that we do not instantiate metas while matching
-    -- on the rewrite lhs.
-    ms <- freezeMetas
-    res <- tryConversion' $ do
-
-      -- Create new metas for the lhs variables of the rewriting rule.
-      xs <- newTelMeta gamma
-      let sigma        = parallelS $ map unArg xs
-          (lhs', rhs', b') = applySubst sigma (lhs, rhs, b)
-      -- Unify type and term with type and lhs of rewrite rule.
-      whenJust mt $ \ t -> leqType t b'
-      local (\ e -> e {envCompareBlocked = True}) $ equalTerm b' lhs' v
-      -- Check that all variables have been solved for.
-      unlessM (isInstantiatedMeta xs) $ do
-        reportSDoc "rewriting" 20 $ text "lhs variables solved with: " <+> do
-          sep $ map prettyTCM xs
-        -- The following error is caught immediately by tryConversion.
-        typeError $ GenericError $ "free variables not bound by left hand side"
-      return rhs'
-
-    -- Thaw metas that were frozen by a call to this function.
-    unfreezeMetas' (`elem` ms)
-    return res-}
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.

@@ -253,7 +253,6 @@ compareTerm' cmp a m n =
           a <- levelView m
           b <- levelView n
           equalLevel a b
--- OLD:        Pi dom _  -> equalFun (dom, a') m n
         a@Pi{}    -> equalFun s a m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
@@ -318,7 +317,7 @@ compareTerm' cmp a m n =
           _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
     equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
         name <- freshName_ $ suggest (absName b) "x"
-        addContext' (name, dom) $ compareTerm cmp (absBody b) m' n'
+        addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
     equalFun _ _ _ _ = __IMPOSSIBLE__
@@ -365,16 +364,6 @@ compareTel t1 t2 cmp tel1 tel2 =
     (ExtendTel dom1{-@(Dom i1 a1)-} tel1, ExtendTel dom2{-@(Dom i2 a2)-} tel2) -> do
       compareDom cmp dom1 dom2 tel1 tel2 bad bad $
         compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
-
-{- OLD, before 2013-05-15
-          let checkDom = escapeContext 1 $ compareType cmp a1 a2
-              c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
-
-          addContext (name, dom1) $
-            if dependent
-            then guardConstraint c checkDom
-            else checkDom >> solveConstraint_ c
--}
   where
     -- Andreas, 2011-05-10 better report message about types
     bad = typeError $ UnequalTypes cmp t2 t1
@@ -506,7 +495,6 @@ compareAtom cmp t m n =
                     PrunedEverything -> return ()
                     PrunedNothing    -> postpone
                     PrunedSomething  -> postpone
-                    -- OLD CODE: if killedAll then return () else checkSyntacticEquality
                 -- not all relevant arguments are variables
                 Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
                                 -- (same as for blocked terms)
@@ -643,18 +631,6 @@ compareAtom cmp t m n =
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
-
-{- OLD, before 2013-05-15
-                let checkDom = escapeContext 1 $ compareType cmp a2 a1
-                    conCoDom = TypeCmp cmp (absBody b1) (absBody b2)
-                -- We only need to require a1 == a2 if t2 is a dependent function type.
-                -- If it's non-dependent it doesn't matter what we add to the context.
-                name <- freshName_ (suggest b1 b2)
-                addContext (name, dom1) $
-                  if isBinderUsed b2 -- dependent function type?
-                  then guardConstraint conCoDom checkDom
-                  else checkDom >> solveConstraint_ conCoDom
--}
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
@@ -682,7 +658,7 @@ compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDo
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       name <- freshName_ $ suggest b1 b2
-      addContext' (name, dom) $ cont
+      addContext (name, dom) $ cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
@@ -872,32 +848,13 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
             compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associatd to the comparison
             stealConstraints pid
+            {- Stealing solves this issue:
 
-{- Stealing solves this issue:
-
-   Does not create enough blocked tc-problems,
-   see test/fail/DontPrune.
-   (There are remaining problems which do not show up as yellow.)
-   Need to find a way to associate pid also to result of compareElims.
--}
-
-{- OLD, before 2013-05-15
-
-            let checkArg = applyRelevanceToContext r $
-                               case r of
-                  Forced     -> return ()
-                  r | isIrrelevant r ->
-                                compareIrrelevant b (unArg arg1) (unArg arg2)
-                  _          -> compareWithPol pol (flip compareTerm b)
-                                  (unArg arg1) (unArg arg2)
-
-                theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
-
-            if dependent
-              then guardConstraint theRest checkArg
-              else checkArg >> solveConstraint_ theRest
--}
-
+               Does not create enough blocked tc-problems,
+               see test/fail/DontPrune.
+               (There are remaining problems which do not show up as yellow.)
+               Need to find a way to associate pid also to result of compareElims.
+            -}
           a -> do
             reportSDoc "impossible" 10 $
               text "unexpected type when comparing apply eliminations " <+> prettyTCM a
@@ -1582,7 +1539,7 @@ forallFaceMaps t kb k = do
     cxt <- asks envContext
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
-    modifyContext (const cxt') $ updateModuleParameters sigma $
+    updateContext sigma (const cxt') $
       addBindings resolved $ do
         cl <- buildClosure ()
         tel <- getContextTelescope
@@ -1592,7 +1549,6 @@ forallFaceMaps t kb k = do
                                              , show (envCurrentModule $ clEnv cl)
                                              , show (envLetBindings $ clEnv cl)
                                              , show tel -- (toTelescope $ envContext $ clEnv cl)
-                                             , show (clModuleParameters cl)
                                              , show sigma
                                              , show m
                                              , show sub]
@@ -1623,7 +1579,7 @@ forallFaceMaps t kb k = do
     substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
     substContext i t (x:xs) | i > 0 = do
                                   (c,sigma) <- substContext (i-1) t xs
-                                  e <- mkContextEntry (applySubst sigma (ctxEntry x))
+                                  let e = applySubst sigma x
                                   return (e:c, liftS 1 sigma)
     substContext i t (x:xs) = __IMPOSSIBLE__
 

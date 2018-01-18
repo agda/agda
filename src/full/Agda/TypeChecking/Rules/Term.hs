@@ -266,7 +266,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs' e) ret = do
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi $ isType_ e
     let info' = mapRelevance (modRel lamOrPi experimental) info
-    addContext' (xs, setArgInfo info' $ defaultDom t) $
+    addContext (xs, setArgInfo info' $ defaultDom t) $
       ret $ bindsWithHidingToTel xs (setArgInfo info $ defaultDom t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
@@ -291,7 +291,7 @@ checkPath b@(Arg info (A.TBind _ xs' typ)) body ty = do
         [WithHiding h x] = xs
     PathType s path level typ lhs rhs <- pathView ty
     interval <- elInf primInterval
-    v <- addContext' (xs, defaultDom interval) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
+    v <- addContext (xs, defaultDom interval) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
     iOne  <- primIOne
     let lhs' = subst 0 iZero v
@@ -363,13 +363,13 @@ checkLambda b@(Arg info (A.TBind _ xs' typ)) body target = do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext' (xs, argsT) $ checkExpr body t1
+        v <- addContext (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         blockTermOnProblem target (teleLam tel v) pid
        else do
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext' (xs, argsT) $ checkExpr body t1
+        v <- addContext (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         coerce (teleLam tel v) (telePi tel t1) target
 
@@ -424,8 +424,8 @@ lambdaIrrelevanceCheck info dom
 
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
-  | isNoName x = addContext' (notInScopeName y, dom)  -- Note: String instance
-  | otherwise  = addContext' (x, dom)                 -- Name instance of addContext'
+  | isNoName x = addContext (notInScopeName y, dom)  -- Note: String instance
+  | otherwise  = addContext (x, dom)                 -- Name instance of addContext
 
 -- | Checking a lambda whose domain type has already been checked.
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
@@ -483,7 +483,7 @@ insertHiddenLambdas h target postpone ret = do
             -- Otherwise, we found a hidden argument that we can insert.
             let x = absName b
             Lam (domInfo dom) . Abs x <$> do
-              addContext' (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
+              addContext (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
 
       _ -> typeError . GenericDocError =<< do
         text "Expected " <+> prettyTCM target <+> text " to be a function type"
@@ -1494,7 +1494,7 @@ checkApplication hd args e t = do
           --  Unify Z a b == A
           --  Run the tactic on H
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext' tel newTypeMeta_      -- Z x y
+          target <- addContext tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
@@ -1508,7 +1508,7 @@ checkApplication hd args e t = do
         metaTel (arg : args) = do
           a <- newTypeMeta_
           let dom = a <$ domFromArg arg
-          ExtendTel dom . Abs "x" <$> addContext' ("x", dom) (metaTel args)
+          ExtendTel dom . Abs "x" <$> addContext ("x", dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
     _ -> do
@@ -1776,34 +1776,12 @@ checkConstructorApplication org t c args = do
                               | otherwise = dropPar this ps
         dropPar _ [] = Nothing
 
-
 -- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
 --   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
 pathAbs :: PathView -> Abs Term -> TCM Term
 pathAbs (OType _) t = __IMPOSSIBLE__
 pathAbs (PathType s path l a x y) t = do
   return $ Lam defaultArgInfo t
-
-{- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
-
-    -- Split the arguments to a constructor into those corresponding
-    -- to parameters and those that don't. Dummy underscores are inserted
-    -- for parameters that are not given explicitly.
-    splitArgs [] args = ([], args)
-    splitArgs ps []   =
-          (map (const dummyUnderscore) ps, args)
-    splitArgs ps args@(Arg NotHidden _ _ : _) =
-          (map (const dummyUnderscore) ps, args)
-    splitArgs (p:ps) (arg : args)
-      | elem mname [Nothing, Just p] =
-          mapFst (arg :) $ splitArgs ps args
-      | otherwise =
-          mapFst (dummyUnderscore :) $ splitArgs ps (arg:args)
-      where
-        mname = nameOf (unArg arg)
-
-    dummyUnderscore = Arg Hidden Relevant (unnamed $ A.Underscore $ A.MetaInfo noRange emptyScopeInfo Nothing)
--}
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -1854,7 +1832,7 @@ checkHeadApplication e t hd args = do
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
         blockTerm t $ f vs <$ workOnTypes (do
-          addContext' eTel $ leqType fType eType
+          addContext eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
     (A.Def c) | Just c == pComp -> do
         defaultResult' $ Just $ \ vs t1 -> do
@@ -2275,27 +2253,6 @@ checkDontExpandLast e t = case e of
       checkApplication hd args e t
   _ -> checkExpr e t -- note that checkExpr always sets ExpandLast
 
-{- Andreas, 2013-03-15 UNUSED, but don't remove
-inferOrCheck :: A.Expr -> Maybe Type -> TCM (Term, Type)
-inferOrCheck e mt = case e of
-  _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
-    (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast
-                                      (getRange hd) args t0 $
-                                      fromMaybe (sort Prop) mt
-    case res of
-      Right (vs, t1) -> maybe (return (f vs, t1))
-                              (\ t -> (,t) <$> coerce (f vs) t1 t)
-                              mt
-      Left t1        -> fallback -- blocked on type t1
-  _ -> fallback
-  where
-    fallback = do
-      t <- maybe (workOnTypes $ newTypeMeta_) return mt
-      v <- checkExpr e t
-      return (v,t)
--}
-
 -- | Check whether a de Bruijn index is bound by a module telescope.
 isModuleFreeVar :: Int -> TCM Bool
 isModuleFreeVar i = do
@@ -2394,22 +2351,11 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- the size of delta, so we append the identity substitution.
           sub    = parallelS (reverse sigma)
 
-          -- Outer let-bindings will have been rebound by checkLeftHandSide, so
-          -- we need to strenghten those as well. Don't use a strengthening
-          -- subsititution since @-patterns in the pattern binding will reference
-          -- the pattern variables.
-          subLetBind (OpenThing cxt va) = OpenThing (drop toDrop cxt) (applySubst sub va)
-      escapeContext toDrop $ updateModuleParameters sub
-                           $ locally eLetBindings (fmap subLetBind) $ do
+      updateContext sub (drop toDrop) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> prettyTCM binds
           ]
-{- WE CANNOT USE THIS BINDING
-       -- We add a first let-binding for the value of e.
-       x <- freshNoName (getRange e)
-       addLetBinding Relevant x v t $ do
- -}
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "fdelta =" <+> addContext delta (prettyTCM fdelta)

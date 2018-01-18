@@ -61,7 +61,7 @@ initialIFSCandidates t = do
     getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      reportSDoc "tc.instance.cands" 40 $ hang (text "Getting candidates from context") 2 (inTopContext $ prettyTCM ctx)
+      reportSDoc "tc.instance.cands" 40 $ hang (text "Getting candidates from context") 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
           vars = [ Candidate x t ExplicitStayExplicit (isOverlappable info)
@@ -175,7 +175,7 @@ findInScope m Nothing = do
     -- potential candidates, so we add them to the context to make
     -- initialIFSCandidates pick them up.
     TelV tel t <- telView t
-    cands <- addContext' tel $ initialIFSCandidates t
+    cands <- addContext tel $ initialIFSCandidates t
     case cands of
       Nothing -> do
         reportSLn "tc.instance" 20 "Can't figure out target of instance goal. Postponing constraint."
@@ -256,7 +256,7 @@ findInScope' m cands = ifM (isFrozen m) (do
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret =
   case ignoreSharing $ unEl t of
-    Pi a b     -> addContext' (absName b, a) $ insidePi (absBody b) ret
+    Pi a b     -> addContext (absName b, a) $ insidePi (absBody b) ret
     Def{}      -> ret t
     Var{}      -> ret t
     Sort{}     -> __IMPOSSIBLE__

@@ -932,7 +932,11 @@ atTopLevel m = inConcreteMode $ do
         ]
       M.withCurrentModule current $
         withScope_ scope $
-          addContext gamma $
+          addContext gamma $ do
+            -- We're going inside the top-level module, so we have to set the
+            -- checkpoint for it and all its submodules to the new checkpoint.
+            cp <- view eCurrentCheckpoint
+            stModuleCheckpoints %= fmap (const cp)
             m
 
 -- | Parse a name.

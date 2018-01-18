@@ -360,7 +360,6 @@ library
                     Agda.TypeChecking.Monad.Debug
                     Agda.TypeChecking.Monad.Env
                     Agda.TypeChecking.Monad.Imports
-                    Agda.TypeChecking.Monad.Local
                     Agda.TypeChecking.Monad.MetaVars
                     Agda.TypeChecking.Monad.Mutual
                     Agda.TypeChecking.Monad.Open

@@ -86,6 +86,15 @@ l %%= f = do
   put o'
   return r
 
+-- | Modify a part of the state locally.
+locallyState :: MonadState o m => Lens' i o -> (i -> i) -> m r -> m r
+locallyState l f k = do
+  old <- use l
+  l %= f
+  x <- k
+  l .= old
+  return x
+
 -- * Read-only state accessors and modifiers.
 
 -- | Ask for part of read-only state.

@@ -833,9 +833,6 @@ instance Subst Term Constraint where
     where
       rf x = applySubst rho x
 
-instance Subst Term ModuleParameters where
-  applySubst rho mp = mp { mpSubstitution = applySubst rho $ mpSubstitution mp }
-
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
@@ -1035,17 +1032,6 @@ telePi = telePi' reAbs
 -- | Everything will be an 'Abs'.
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
-
-{- OLD
--- | Everything will be a pi.
-telePi_  EmptyTel        t = t
-telePi_ (ExtendTel u tel) t = el $ Pi u b
-  where
-    el = El (dLub s1 s2)
-    b  = fmap (flip telePi_ t) tel
-    s1 = getSort $ unDom u
-    s2 = fmap getSort b
--}
 
 -- | Abstract over a telescope in a term, producing lambdas.
 --   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
