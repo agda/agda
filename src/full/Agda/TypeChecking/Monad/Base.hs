@@ -306,7 +306,7 @@ initPostScopeState = PostScopeState
   , stPostFreshMetaId          = 0
   , stPostFreshMutualId        = 0
   , stPostFreshProblemId       = 1
-  , stPostFreshCheckpointId    = 0
+  , stPostFreshCheckpointId    = 1
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
   }
