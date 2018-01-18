@@ -948,7 +948,7 @@ buildInterface file topLevel syntaxInfo pragmas = do
     -- Ulf, 2016-04-12:
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
-    display <- HMap.filter (not . null) . HMap.map (filter isGlobal) <$> use stImportsDisplayForms
+    display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before

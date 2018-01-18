@@ -755,8 +755,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
       err           -> throwError err
 
   -- With display forms are closed
-
-  df <- makeGlobal =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
+  df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"
 

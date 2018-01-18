@@ -63,7 +63,7 @@ displayForm q es = do
         [ text "displayForm for" <+> pretty q
         , nest 2 $ text "dfs =" <+> vcat (map pshow odfs) ]
     -- Use only the display forms that can be opened in the current context.
-    dfs   <- catMaybes <$> mapM getLocal odfs
+    dfs   <- catMaybes <$> mapM tryGetOpen odfs
     scope <- getScope
     -- Keep the display forms that match the application @q es@.
     ms <- do

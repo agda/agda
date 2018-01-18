@@ -159,15 +159,6 @@ instance EmbPrj a => EmbPrj (Open a) where
 
   value = valueN OpenThing
 
-instance EmbPrj a => EmbPrj (Local a) where
-  icod_ (Local a b) = icodeN' Local a b
-  icod_ (Global a)  = icodeN' Global a
-
-  value = vcase valu where
-    valu [a, b] = valuN Local a b
-    valu [a]    = valuN Global a
-    valu _      = malformed
-
 instance EmbPrj CheckpointId where
   icod_ (CheckpointId a) = icode a
   value n                = CheckpointId `fmap` value n

@@ -35,7 +35,7 @@ import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
 import Agda.TypeChecking.Substitute ( absBody )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
-import Agda.TypeChecking.Monad hiding (Global, Local)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug ( reportSLn )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
