@@ -62,7 +62,7 @@ script:
   # generating index.agda
   - ./index.sh
   # building the docs
-  - agda -i . -i src/ --html src/index.agda
+  - agda -i . -i src/ --html index.agda
   # moving everything at the root
   - mv html/* .
 
