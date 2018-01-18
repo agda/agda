@@ -25,6 +25,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
@@ -61,8 +62,10 @@ displayForm q es = do
     -- Display debug info about the @Open@s.
     verboseS "tc.display.top" 100 $ unlessDebugPrinting $ do
       cps <- view eCheckpoints
+      cxt <- getContextTelescope
       reportSDoc "tc.display.top" 100 $ return $ vcat
         [ text "displayForm for" <+> pretty q
+        , nest 2 $ text "cxt =" <+> pretty cxt
         , nest 2 $ text "cps =" <+> vcat (map pretty (Map.toList cps))
         , nest 2 $ text "dfs =" <+> vcat (map pshow odfs) ]
     -- Use only the display forms that can be opened in the current context.
