@@ -1,6 +1,5 @@
 open import Agda.Builtin.IO
 open import Agda.Builtin.Unit
-open import Agda.Builtin.Strict
 
 record Box (A : Set) : Set where
   field
@@ -19,9 +18,11 @@ r : R
 unbox (force r) = r
 
 postulate
-  returnIO : ∀ {a} {A : Set a} → A → IO A
+  seq    : {A B : Set} → A → B → B
+  return : {A : Set} → A → IO A
 
-{-# COMPILE GHC returnIO = \_ _ -> return #-}
+{-# COMPILE GHC return = \_   -> return #-}
+{-# COMPILE GHC seq    = \_ _ -> seq    #-}
 
 main : IO ⊤
-main = primForce r (λ _ → returnIO tt)
+main = seq r (return tt)

@@ -148,8 +148,9 @@ ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 --- Module compilation ---
 
-data GHCModuleEnv = GHCModuleEnv
-  { coindKit :: Maybe CoinductionKit }
+-- | This environment is no longer used for anything.
+
+type GHCModuleEnv = ()
 
 ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv IsMain)
 ghcPreModule _ m ifile = ifM uptodate noComp yesComp
@@ -165,7 +166,7 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       out <- outFile_
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
-      Recompile <$> (GHCModuleEnv <$> coinductionKit)
+      return (Recompile ())
 
 ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
 ghcPostModule _ _ _ _ defs = do
@@ -222,22 +223,6 @@ imports = (hsImps ++) <$> imps where
 -- Main compiling clauses
 --------------------------------------------------
 
--- | The following comment is outdated, and should be updated when
--- Issue 2909 is fixed:
---
--- Note that the INFINITY, SHARP and FLAT builtins are translated as
--- follows (if a 'CoinductionKit' is given):
---
--- @
---   type Infinity a b = b
---
---   sharp :: a -> a
---   sharp x = x
---
---   flat :: a -> a
---   flat x = x
--- @
-
 definition :: GHCModuleEnv -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
@@ -248,7 +233,6 @@ definition env Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
     text "Not compiling" <+> prettyTCM q <> text "."
   return []
 definition env Defn{defName = q, defType = ty, theDef = d} = do
-  let kit  = coindKit env
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ text "Compiling" <+> prettyTCM q <> text ":"
     , nest 2 $ text (show d)
@@ -256,8 +240,14 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
   pragma <- getHaskellPragma q
   mbool  <- getBuiltinName builtinBool
   mlist  <- getBuiltinName builtinList
+  minf   <- getBuiltinName builtinInf
+  mflat  <- getBuiltinName builtinFlat
   checkTypeOfMain q ty $ do
     infodecl q <$> case d of
+
+      _ | Just HsDefn{} <- pragma, Just q == mflat ->
+        genericError
+          "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
 
       _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
         -- Make sure we have imports for all names mentioned in the type.
@@ -271,30 +261,6 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         when inline $ warning $ UselessInline q
 
         return $ fbWithType hsty (fakeExp hs)
-
-      -- Special treatment of coinductive builtins.
-      Constructor{} | Just q == (nameOfSharp <$> kit) -> do
-        let sharp = unqhname "d" q
-            x     = ihname "x" 0
-        return $
-          [ HS.TypeSig [sharp] $ fakeType $
-              "forall a. a -> a"
-          , HS.FunBind [HS.Match sharp
-                                 [HS.PVar x]
-                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 emptyBinds]
-          ]
-      Function{} | Just q == (nameOfFlat <$> kit) -> do
-        let flat = unqhname "d" q
-            x    = ihname "x" 0
-        return $
-          [ HS.TypeSig [flat] $ fakeType $
-              "forall a. a -> a"
-          , HS.FunBind [HS.Match flat
-                                 [HS.PVar x]
-                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 emptyBinds]
-          ]
 
       -- Compiling Bool
       Datatype{} | Just q == mbool -> do
@@ -322,6 +288,20 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
                  , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                  cs
 
+      -- Compiling Inf
+      _ | Just q == minf -> do
+        _ <- primSharp -- To get a proper error for missing SHARP.
+        Just sharp <- getBuiltinName builtinSharp
+        sharpC     <- compiledcondecl sharp
+        let d   = unqhname "d" q
+            err = "No term-level implementation of the INFINITY builtin."
+        return $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
+                 , HS.FunBind [HS.Match d [HS.PVar (ihname "a" 0)]
+                     (HS.UnGuardedRhs (HS.FakeExp ("error " ++ show err)))
+                     emptyBinds]
+                 , sharpC
+                 ]
+
       Axiom{} -> do
         ar <- typeArity ty
         return $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
@@ -342,26 +322,34 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         cds <- mapM condecl cs
         return $ tvaldecl q (dataInduction d) (np + ni) cds cl
       Constructor{} -> return []
-      Record{ recPars = np, recClause = cl, recConHead = con }
-        | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
-        let cs = [conName con]
-        computeErasedConstructorArgs q
-        ccscov <- constructorCoverageCode q np cs ty hsCons
-        cds <- mapM compiledcondecl cs
-        return $ tvaldecl q Inductive np [] (Just __IMPOSSIBLE__) ++
-                 [compiledTypeSynonym q ty np] ++ cds ++ ccscov
-      Record{ recClause = cl, recConHead = con, recFields = flds } -> do
-        computeErasedConstructorArgs q
-        let c = conName con
-        let ar = I.arity ty
-        cd <- condecl c
-        return $ tvaldecl q Inductive ar [cd] cl
+      Record{ recPars = np, recClause = cl, recConHead = con,
+              recInduction = ind } ->
+        let -- Non-recursive record types are treated as being
+            -- inductive.
+            inductionKind = fromMaybe Inductive ind
+        in case pragma of
+          Just (HsData r ty hsCons) -> setCurrentRange r $ do
+            let cs = [conName con]
+            computeErasedConstructorArgs q
+            ccscov <- constructorCoverageCode q np cs ty hsCons
+            cds <- mapM compiledcondecl cs
+            return $
+              tvaldecl q inductionKind np [] (Just __IMPOSSIBLE__) ++
+              [compiledTypeSynonym q ty np] ++ cds ++ ccscov
+          _ -> do
+            computeErasedConstructorArgs q
+            cd <- condecl (conName con)
+            return $ tvaldecl q inductionKind (I.arity ty) [cd] cl
       AbstractDefn{} -> __IMPOSSIBLE__
   where
   function :: Maybe HaskellPragma -> TCM [HS.Decl] -> TCM [HS.Decl]
   function mhe fun = do
-    ccls <- mkwhere <$> fun
+    ccls  <- mkwhere <$> fun
+    mflat <- getBuiltinName builtinFlat
     case mhe of
+      Just HsExport{} | Just q == mflat ->
+        genericError
+          "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
       Just (HsExport r name) -> do
         t <- setCurrentRange r $ haskellType q
         let tsig :: HS.Decl
@@ -547,21 +535,15 @@ term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
           coerceView (T.TDef f)             = Just (id, f)
           coerceView _                      = Nothing
   T.TApp (T.TCon c) ts -> do  -- Note that constructors are never coerced
-    kit <- lift coinductionKit
-    if Just c == (nameOfSharp <$> kit)
-      then do
-        t' <- HS.Var <$> lift (xhqn "d" c)
-        apps t' ts
-      else do
-        (ar, _) <- lift $ conArityAndPars c
-        erased  <- lift $ getErasedConArgs c
-        let missing = drop (length ts) erased
-            notErased = not
-        case all notErased missing of
-          False -> term $ etaExpand (length missing) tm0
-          True  -> do
-            f <- lift $ HS.Con <$> conhqn c
-            f `apps` [ t | (t, False) <- zip ts erased ]
+    (ar, _) <- lift $ conArityAndPars c
+    erased  <- lift $ getErasedConArgs c
+    let missing = drop (length ts) erased
+        notErased = not
+    case all notErased missing of
+      False -> term $ etaExpand (length missing) tm0
+      True  -> do
+        f <- lift $ HS.Con <$> conhqn c
+        f `apps` [ t | (t, False) <- zip ts erased ]
   T.TApp t ts -> do
     t' <- term t
     t' `apps` ts

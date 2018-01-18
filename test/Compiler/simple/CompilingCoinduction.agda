@@ -21,7 +21,7 @@ postulate
 postulate
   putStrLn : ∞ String → IO Unit
 
-{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
+{-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn . MAlonzo.RTE.flat #-}
 {-# COMPILE UHC putStrLn = UHC.Agda.Builtins.primPutStrLn #-}
 {-# COMPILE JS  putStrLn = function(x) { return function(cb) { process.stdout.write(x.flat() + "\n"); cb(0); }; } #-}
 

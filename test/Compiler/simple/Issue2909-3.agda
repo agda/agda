@@ -3,7 +3,6 @@
 open import Agda.Builtin.Coinduction
 open import Agda.Builtin.IO
 open import Agda.Builtin.Unit
-open import Agda.Builtin.Strict
 
 data Rec (A : ∞ Set) : Set where
   fold : ♭ A → Rec A
@@ -15,9 +14,11 @@ d : D
 d = fold (♯ d)
 
 postulate
-  returnIO : ∀ {a} {A : Set a} → A → IO A
+  seq    : {A B : Set} → A → B → B
+  return : {A : Set} → A → IO A
 
-{-# COMPILE GHC returnIO = \_ _ -> return #-}
+{-# COMPILE GHC return = \_   -> return #-}
+{-# COMPILE GHC seq    = \_ _ -> seq    #-}
 
 main : IO ⊤
-main = primForce d (λ _ → returnIO tt)
+main = seq d (return tt)
