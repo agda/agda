@@ -40,15 +40,26 @@ import Agda.Utils.Impossible
 modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
 modifyContext f = local $ \e -> e { envContext = f $ envContext e }
 
--- | Change to top (=empty) context.
+-- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-inTopContext :: MonadTCM tcm => tcm a -> tcm a
-inTopContext cont = do
+safeInTopContext :: MonadTCM tcm => tcm a -> tcm a
+safeInTopContext cont = do
   locals <- liftTCM $ getLocalVars
   liftTCM $ setLocalVars []
   a <- modifyContext (const [])
         $ locally eCurrentCheckpoint (const 0)
         $ locally eCheckpoints (const $ Map.singleton 0 IdS) cont
+  liftTCM $ setLocalVars locals
+  return a
+
+-- | Change to top (=empty) context, but don't update the checkpoints. Totally
+--   not safe!
+{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
+inTopContext :: MonadTCM tcm => tcm a -> tcm a
+inTopContext cont = do
+  locals <- liftTCM $ getLocalVars
+  liftTCM $ setLocalVars []
+  a <- modifyContext (const []) cont
   liftTCM $ setLocalVars locals
   return a
 
