@@ -747,7 +747,7 @@ niceDeclarations ds = do
 
   -- If we have mixfix identifiers without a corresponding fixity
   -- declaration, we raise a warning
-  ifNull (Set.filter isMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
+  ifNull (Set.filter isOpenMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
     niceWarning . UnknownFixityInMixfixDecl . Set.toList
 
   -- Run the nicifier in an initial environment of fixity decls

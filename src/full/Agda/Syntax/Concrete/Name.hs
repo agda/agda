@@ -47,10 +47,13 @@ data Name
   | NoName Range NameId    -- ^ @_@.
   deriving Data
 
-isMixfix :: Name -> Bool
-isMixfix n = case n of
-  Name _ (_:_:_) -> True
-  _              -> False
+-- | An open mixfix identifier is either prefix, infix, or suffix.
+--   That is to say: at least one of its extremities is a @Hole@
+
+isOpenMixfix :: Name -> Bool
+isOpenMixfix n = case n of
+  Name _ (x : xs@(_:_)) -> x == Hole || last xs == Hole
+  _                     -> False
 
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
