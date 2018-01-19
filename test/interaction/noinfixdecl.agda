@@ -23,3 +23,6 @@ two     ⊓ n = n
 
 -- warning acts on postulates
 postulate _≤_ : #2 → #2 → Set
+
+-- warning does not act on 'closed' mixfix definitions
+postulate [_] : #2 → Set
