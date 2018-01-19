@@ -10,58 +10,6 @@ Installation and infrastructure
 
 * Included user manual in PDF format in `doc/user-manual.pdf`.
 
-Syntax and LaTeX backend
-------------------------
-
-* The `code` environment can now take arguments [Issues
-  [#2744](https://github.com/agda/agda/issues/2744) and
-  [#2453](https://github.com/agda/agda/issues/2453)].
-
-  Everything from \begin{code} to the end of the line is preserved in
-  the generated LaTeX code, and not treated as Agda code.
-
-  The default implementation of the `code` environment recognises one
-  optional argument, `hide`, which can be used for code that should be
-  type-checked, but not typeset:
-  ```latex
-  \begin{code}[hide]
-    open import Module
-  \end{code}
-  ```
-
-  The `AgdaHide` macro has not been removed, but has been deprecated
-  in favour of `[hide]`.
-
-* The `AgdaSuppressSpace` and `AgdaMultiCode` environments no longer
-  take an argument.
-
-  Instead some documents need to be compiled multiple times.
-
-* The `--count-clusters` flag can now be given in `OPTIONS` pragmas.
-
-* The `nofontsetup` option to the LaTeX package `agda` was broken, and
-  has (hopefully) been fixed
-  [Issue [#2773](https://github.com/agda/agda/issues/2773)].
-
-  Fewer packages than before are loaded when `nofontsetup` is used,
-  see `agda.sty` for details. Furthermore, if LuaLaTeX or XeLaTeX are
-  not used, then the font encoding is no longer changed.
-
-* The new option `noinputencodingsetup` instructs the LaTeX package
-  `agda` to not change the input encoding, and to not load the `ucs`
-  package.
-
-* Underscores are now typeset using `\AgdaUnderscore{}`.
-
-  The default implementation is `\_` (the command that was previously
-  generated for underscores). Note that it is possible to override
-  this implementation.
-
-* OtherAspects (unsolved meta variables, catchall clauses, etc.) are
-  now correctly highlighted in the LaTeX backend (and the HTML one).
-  [Issue [#2474](https://github.com/agda/agda/issues/2474)]
-
-
 Language
 --------
 
@@ -343,6 +291,57 @@ Compiler backends
 
 * `COMPILE GHC` pragmas have been included for the size primitives.
   [Issue [#2879](https://github.com/agda/agda/issues/2879)]
+
+LaTeX backend
+-------------
+
+* The `code` environment can now take arguments [Issues
+  [#2744](https://github.com/agda/agda/issues/2744) and
+  [#2453](https://github.com/agda/agda/issues/2453)].
+
+  Everything from \begin{code} to the end of the line is preserved in
+  the generated LaTeX code, and not treated as Agda code.
+
+  The default implementation of the `code` environment recognises one
+  optional argument, `hide`, which can be used for code that should be
+  type-checked, but not typeset:
+  ```latex
+  \begin{code}[hide]
+    open import Module
+  \end{code}
+  ```
+
+  The `AgdaHide` macro has not been removed, but has been deprecated
+  in favour of `[hide]`.
+
+* The `AgdaSuppressSpace` and `AgdaMultiCode` environments no longer
+  take an argument.
+
+  Instead some documents need to be compiled multiple times.
+
+* The `--count-clusters` flag can now be given in `OPTIONS` pragmas.
+
+* The `nofontsetup` option to the LaTeX package `agda` was broken, and
+  has (hopefully) been fixed
+  [Issue [#2773](https://github.com/agda/agda/issues/2773)].
+
+  Fewer packages than before are loaded when `nofontsetup` is used,
+  see `agda.sty` for details. Furthermore, if LuaLaTeX or XeLaTeX are
+  not used, then the font encoding is no longer changed.
+
+* The new option `noinputencodingsetup` instructs the LaTeX package
+  `agda` to not change the input encoding, and to not load the `ucs`
+  package.
+
+* Underscores are now typeset using `\AgdaUnderscore{}`.
+
+  The default implementation is `\_` (the command that was previously
+  generated for underscores). Note that it is possible to override
+  this implementation.
+
+* OtherAspects (unsolved meta variables, catchall clauses, etc.) are
+  now correctly highlighted in the LaTeX backend (and the HTML one).
+  [Issue [#2474](https://github.com/agda/agda/issues/2474)]
 
 Release notes for Agda version 2.5.3
 ====================================
