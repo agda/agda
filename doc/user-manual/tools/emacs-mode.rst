@@ -4,9 +4,8 @@
 Emacs Mode
 **********
 
-.. note::
-   This is a stub.
-
+:ref:`quick-guide-introduction`
+===============================
 
 Configuration
 =============
@@ -43,7 +42,7 @@ If you want to turn off this feature, then you should customise the
 Keybindings
 ===========
 
-.. _notation_for_key_combinations:
+.. _notation-for-key-combinations:
 
 Notation for key combinations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,6 +131,8 @@ Global commands
 
 :kbd:`C-c C-x C-s`
      Switch to a different Agda version
+
+.. _emacs-context-sensitive-commands:
 
 Commands in context of a goal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
