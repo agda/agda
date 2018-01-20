@@ -1,11 +1,8 @@
 .. _quick-guide:
 
-***********
-Quick Guide
-***********
-
-This is a quick guide to editing, type checking and compiling Agda
-code.
+*************************************************************
+Quick Guide to Editing, Type Checking and Compiling Agda Code
+*************************************************************
 
 .. _quick-guide-introduction:
 
