@@ -52,28 +52,68 @@ normalised types.
 Global commands
 ~~~~~~~~~~~~~~~
 
-===================  =========================================================
-``C-c C-l``          **L**\ oad file
-``C-c C-x C-c``      **C**\ ompile file
-``C-c C-x C-q``      **Q**\ uit, kill the Agda process
-``C-c C-x C-r``      Kill and **r**\ estart the Agda process
-``C-c C-x C-a``      **A**\ bort a command
-``C-c C-x C-d``      Remove goals and highlighting (**d**\ eactivate)
-``C-c C-x C-h``      Toggle display of **h**\ idden arguments
-``C-c C-=``          Show constraints
-``C-c C-s``          **S**\ olve constraints
-``C-c C-?``          Show all goals
-``C-c C-f``          Move to next goal (**f**\ orward)
-``C-c C-b``          Move to previous goal (**b**\ ackwards)
-``C-c C-d``          Infer (**d**\ educe) type
-``C-c C-o``          M\ **o**\ dule c\ **o**\ ntents
-``C-c C-z``          Search through definitions in scope
-``C-c C-n``          Compute **n**\ ormal form
-``C-u C-c C-n``      Compute normal form, ignoring ``abstract``
-``C-u C-u C-c C-n``  Compute and print normal form of ``show <expression>``
-``C-c C-x M-;``      Comment/uncomment rest of buffer
-``C-c C-x C-s``      Switch to a different Agda version
-===================  =========================================================
+:kbd:`C-c C-l`
+     **L**\ oad file
+
+:kbd:`C-c C-l`
+      **L**\ oad file
+
+:kbd:`C-c C-x C-c`
+     **C**\ ompile file
+
+:kbd:`C-c C-x C-q`
+     **Q**\ uit, kill the Agda process
+
+:kbd:`C-c C-x C-r`
+     Kill and **r**\ estart the Agda process
+
+:kbd:`C-c C-x C-a`
+     **A**\ bort a command
+
+:kbd:`C-c C-x C-d`
+     Remove goals and highlighting (**d**\ eactivate)
+
+:kbd:`C-c C-x C-h`
+     Toggle display of **h**\ idden arguments
+
+:kbd:`C-c C-=`
+     Show constraints
+
+:kbd:`C-c C-s`
+     **S**\ olve constraints
+
+:kbd:`C-c C-?`
+     Show all goals
+
+:kbd:`C-c C-f`
+     Move to next goal (**f**\ orward)
+
+:kbd:`C-c C-b`
+     Move to previous goal (**b**\ ackwards)
+
+:kbd:`C-c C-d`
+     Infer (**d**\ educe) type
+
+:kbd:`C-c C-o`
+     M\ **o**\ dule c\ **o**\ ntents
+
+:kbd:`C-c C-z`
+     Search through definitions in scope
+
+:kbd:`C-c C-n`
+     Compute **n**\ ormal form
+
+:kbd:`C-u C-c C-n`
+     Compute normal form, ignoring ``abstract``
+
+:kbd:`C-u C-u C-c C-n`
+     Compute and print normal form of ``show <expression>``
+
+:kbd:`C-c C-x M-;`
+     Comment/uncomment rest of buffer
+
+:kbd:`C-c C-x C-s`
+     Switch to a different Agda version
 
 Commands in context of a goal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,37 +121,72 @@ Commands in context of a goal
 Commands expecting input (for example which variable to case split)
 will either use the text inside the goal or ask the user for input.
 
-===================  =========================================================
-``C-c C-SPC``        Give (fill goal)
-``C-c C-r``          **R**\ efine. Partial give: makes new holes for
-                     missing arguments
-``C-c C-a``          :ref:`auto`
-``C-c C-c``          **C**\ ase split
-``C-c C-h``          Compute type of **h**\ elper function and add
-                     type signature to kill ring (clipboard)
-``C-c C-t``          Goal **t**\ ype
-``C-c C-e``          Context (**e**\ nvironment)
-``C-c C-d``          Infer (**d**\ educe) type
-``C-c C-,``          Goal type and context
-``C-c C-.``          Goal type, context and inferred type
-``C-c C-;``          Goal type, context and checked term
-``C-c C-o``          M\ **o**\ dule c\ **o**\ ntents
-``C-c C-n``          Compute **n**\ ormal form
-``C-u C-c C-n``      Compute normal form, ignoring ``abstract``
-``C-u C-u C-c C-n``  Compute and print normal form of ``show <expression>``
-===================  =========================================================
+:kbd:`C-c C-SPC`
+     Give (fill goal)
+
+:kbd:`C-c C-r`
+     **R**\ efine. Partial give: makes new holes for missing arguments
+
+:kbd:`C-c C-a`
+     :ref:`auto`
+
+:kbd:`C-c C-c`
+     **C**\ ase split
+
+:kbd:`C-c C-h`
+     Compute type of **h**\ elper function and add type
+     signature to kill ring (clipboard)
+
+:kbd:`C-c C-t`
+     Goal **t**\ ype
+
+:kbd:`C-c C-e`
+     Context (**e**\ nvironment)
+
+:kbd:`C-c C-d`
+     Infer (**d**\ educe) type
+
+:kbd:`C-c C-,`
+     Goal type and context
+
+:kbd:`C-c C-.`
+     Goal type, context and inferred type
+
+:kbd:`C-c C-;`
+     Goal type, context and checked term
+
+:kbd:`C-c C-o`
+     M\ **o**\ dule c\ **o**\ ntents
+
+:kbd:`C-c C-n`
+     Compute **n**\ ormal form
+
+:kbd:`C-u C-c C-n`
+     Compute normal form, ignoring ``abstract``
+
+:kbd:`C-u C-u C-c C-n`
+     Compute and print normal form of ``show <expression>``
 
 Other commands
 ~~~~~~~~~~~~~~
 
-====================  =================================================
-``TAB``               Indent current line, cycles between points
-``S-TAB``             Indent current line, cycles in opposite direction
- ``M-.``              Go to definition of identifier under point
- Middle mouse button  Go to definition of identifier clicked on
- ``M-*``              Go back (Emacs < 25.1)
- ``M-,``              Go back (Emacs ≥ 25.1)
-====================  =================================================
+:kbd:`TAB`
+     Indent current line, cycles between points
+
+:kbd:`S-TAB`
+     Indent current line, cycles in opposite direction
+
+:kbd:`M-.`
+     Go to definition of identifier under point
+
+:guilabel:`Middle mouse button`
+     Go to definition of identifier clicked on
+
+:kbd:`M-*`
+     Go back (Emacs < 25.1)
+
+:kbd:`M-,`
+     Go back (Emacs ≥ 25.1)
 
 .. _unicode-input:
 
