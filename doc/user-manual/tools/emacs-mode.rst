@@ -74,9 +74,6 @@ Global commands
 ~~~~~~~~~~~~~~~
 
 :kbd:`C-c C-l`
-     **L**\ oad file
-
-:kbd:`C-c C-l`
       **L**\ oad file
 
 :kbd:`C-c C-x C-c`
