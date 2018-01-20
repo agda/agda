@@ -43,6 +43,27 @@ If you want to turn off this feature, then you should customise the
 Keybindings
 ===========
 
+.. _notation_for_key_combinations:
+
+Notation for key combinations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following notation is used when describing key combinations:
+
+:kbd:`C-c`
+    means hitting the ``c`` key while pressing the ``Ctrl`` key.
+
+:kbd:`M-x`
+     means hitting the ``x`` key while pressing the ``Meta``
+     key, which is called ``Alt`` on many systems. Alternatively one
+     can type ``Escape`` followed by ``x`` (in separate key strokes).
+
+:kbd:`RET`
+    is the ``Enter``, ``Return`` or ``⏎`` key.
+
+:kbd:`SPC`
+    is the space bar.
+
 Commands working with types can be prefixed with ``C-u`` to compute
 type without further normalisation and with ``C-u C-u`` to compute
 normalised types.
