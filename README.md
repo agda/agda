@@ -22,7 +22,8 @@ Getting Started
 
 * [Prerequisites](http://agda.readthedocs.io/en/latest/getting-started/prerequisites.html)
 * [Installation](http://agda.readthedocs.io/en/latest/getting-started/installation.html)
-* [The Emacs mode](http://agda.readthedocs.io/en/latest/getting-started/emacs-mode.html)
+* [Quick guide to editing, type checking and compiling Agda
+  code](http://agda.readthedocs.io/en/latest/getting-started/quick-guide.html)
 
 Hacking on Agda
 ---------------
