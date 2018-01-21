@@ -92,7 +92,7 @@ More information:
 
 * `Agda standard library (Debian) <https://tracker.debian.org/pkg/agda-stdlib>`_
 
-* `Agda (Ubuntu) <https://launchpad.net/ubuntu/+source/agda|Agda>`_
+* `Agda (Ubuntu) <https://launchpad.net/ubuntu/+source/agda>`_
 
 * `Agda standard library (Ubuntu) <https://launchpad.net/ubuntu/+source/agda-stdlib>`_
 
@@ -128,7 +128,8 @@ NixOS
 -----
 
 Agda is part of the Nixpkgs collection that is used by
-http://nixos.org/nixos. To install Agda and agda-mode for Emacs, type:
+https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
+type:
 
 .. code-block:: bash
 
@@ -141,7 +142,7 @@ not installed automatically.
 OS X
 ----
 
-`Homebrew <http://brew.sh>`_ provides prebuilt packages for OS X.  To install:
+`Homebrew <https://brew.sh>`_ provides prebuilt packages for OS X.  To install:
 
 .. code-block:: bash
 
@@ -161,7 +162,7 @@ It is also possible to install ``--without-stdlib``,
 building Agda from source.
 
 For more information, refer to the `Homebrew documentation
-<http://git.io/brew-docs>`_.
+<https://docs.brew.sh/>`_.
 
 .. _installation-development-version:
 

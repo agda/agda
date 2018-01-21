@@ -132,6 +132,13 @@ user-manual-pdf :
 	$(MAKE) -C doc/user-manual PDFLATEX='latexmk -xelatex -latexoption=-interaction=nonstopmode -latexoption=-halt-on-error' latexpdf
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
+.PHONY : user-manual-linkcheck
+user-manual-linkcheck :
+	@echo "======================================================================"
+	@echo "================== User Manual (linkcheck) ==========================="
+	@echo "======================================================================"
+	$(MAKE) -C doc/user-manual linkcheck
+
 ## Making the full language ###############################################
 
 $(AGDA_BIN):
