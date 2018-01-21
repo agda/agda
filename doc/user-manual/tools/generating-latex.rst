@@ -705,6 +705,6 @@ but should also work in other distributions. For :program:`xelatex` or
 .. _ucs: https://www.ctan.org/pkg/ucs
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
-.. _XITS: http://www.ctan.org/tex-archive/fonts/xits/
+.. _XITS: https://www.ctan.org/tex-archive/fonts/xits/
 .. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/

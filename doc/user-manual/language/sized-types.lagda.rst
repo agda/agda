@@ -228,7 +228,8 @@ References
 
 .. _`Abel 2017`:
 
-   `Equational Reasoning about Formal Languages in Coalgebraic Style, Andreas Abel <https://www.cse.chalmers.se/~abela/jlamp17.pdf>`_.
+   `Equational Reasoning about Formal Languages in Coalgebraic Style,
+   Andreas Abel <http://www.cse.chalmers.se/~abela/jlamp17.pdf>`_.
 
 .. _`Traytel 2016`:
 

@@ -88,15 +88,15 @@ The menus contain more commands than the ones listed above. See
 Writing mathematical symbols in source code
 ===========================================
 
-Agda uses `Unicode <http://en.wikipedia.org/wiki/Unicode>`_ characters
-in source files (more specifically: the `UTF-8
-<http://en.wikipedia.org/wiki/UTF-8>`_ character encoding). Almost any
-character can be used in an identifier (like ``∀``, ``α``, ``∧``, or
-``♠``, for example). It is therefore necessary to have spaces between
-most lexical units.
+Agda uses `Unicode <https://en.wikipedia.org/wiki/Unicode>`_
+characters in source files (more specifically: the `UTF-8
+<https://en.wikipedia.org/wiki/UTF-8>`_ character encoding). Almost
+any character can be used in an identifier (like ``∀``, ``α``, ``∧``,
+or ``♠``, for example). It is therefore necessary to have spaces
+between most lexical units.
 
 Many mathematical symbols can be typed using the corresponding `LaTeX
-<http://en.wikipedia.org/wiki/LaTeX>`_ command names. For instance,
+<https://en.wikipedia.org/wiki/LaTeX>`_ command names. For instance,
 you type ``\forall`` to input ``∀``. A more detailed description of
 how to write various characters is :ref:`available <unicode-input>`.
 

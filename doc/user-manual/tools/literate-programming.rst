@@ -124,5 +124,5 @@ HTML or LaTeX using PanDoc_.
 .. _Markdown: https://daringfireball.net/projects/markdown/
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
-.. _Sphinx: http://sphinx-doc.org/
+.. _Sphinx: http://www.sphinx-doc.org/en/stable/
 .. _Pandoc: http://pandoc.org/

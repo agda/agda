@@ -6,11 +6,11 @@ Prerequisites
 
 You need recent versions of the following programs:
 
-* GHC:           http://www.haskell.org/ghc/
-* cabal-install: http://www.haskell.org/cabal/
-* Alex:          http://www.haskell.org/alex/
-* Happy:         http://www.haskell.org/happy/
-* cpphs:         http://projects.haskell.org/cpphs/
+* GHC:           https://www.haskell.org/ghc/
+* cabal-install: https://www.haskell.org/cabal/
+* Alex:          https://www.haskell.org/alex/
+* Happy:         https://www.haskell.org/happy/
+* cpphs:         https://hackage.haskell.org/package/cpphs
 * GNU Emacs:     http://www.gnu.org/software/emacs/
 
 You should also make sure that programs installed by *cabal-install*
