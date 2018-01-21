@@ -252,9 +252,10 @@ Emacs mode
 ----------
 
 * Banana brackets have been added to the Agda input method.
-
-   \((   #x2985  LEFT WHITE PARENTHESIS
-   \))   #x2986  RIGHT WHITE PARENTHESIS
+  ```
+    \((   #x2985  LEFT  WHITE PARENTHESIS
+    \))   #x2986  RIGHT WHITE PARENTHESIS
+  ```
 
 * Result splitting will introduce the trailing hidden arguments,
   if there is nothing else todo
