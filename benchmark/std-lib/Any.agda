@@ -15,6 +15,7 @@ open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
+import Data.List.Categorical
 open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
@@ -37,7 +38,8 @@ open import Data.List.Any.Membership.Propositional
 open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
-  open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
+  open module ListMonad {ℓ} =
+    RawMonad (Data.List.Categorical.monad {ℓ = ℓ})
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose

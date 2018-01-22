@@ -1,0 +1,6 @@
+COMPILE_FAILED
+
+ret > ExitFailure 1
+out > /home/nad/research/dtp/agda/test/Compiler/simple/Issue2909-6.agda:8,22-23
+out > "COMPILE GHC" pragmas are not allowed for the FLAT builtin.
+out >

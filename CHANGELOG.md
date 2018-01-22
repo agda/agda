@@ -290,6 +290,53 @@ Compiler backends
   GHC get rid of many of the `unsafeCoerce`s. This leads to performance
   improvements of up to 50% of compiled code.
 
+* The GHC backend now compiles the `INFINITY`, `SHARP` and `FLAT`
+  builtins in a different way. [Issue
+  [#2909](https://github.com/agda/agda/issues/2909)]
+
+  Previously these were compiled to (basically) nothing. Now the
+  `INFINITY` builtin is compiled to `Infinity`, available from
+  `MAlonzo.RTE`:
+
+  ```haskell
+  data Inf a            = Sharp { flat :: a }
+  type Infinity level a = Inf a
+  ```
+
+  The `SHARP` builtin is compiled to `Sharp`, and the `FLAT` builtin
+  is (by default) compiled to a corresponding destructor.
+
+  Note that code that interacts with Haskell libraries may have to be
+  updated. As an example, here is one way to print colists of
+  characters using the Haskell function `putStr`:
+
+  ```agda
+  open import Agda.Builtin.Char
+  open import Agda.Builtin.Coinduction
+  open import Agda.Builtin.IO
+  open import Agda.Builtin.Unit
+
+  data Colist {a} (A : Set a) : Set a where
+    []  : Colist A
+    _∷_ : A → ∞ (Colist A) → Colist A
+
+  {-# FOREIGN GHC
+    data Colist a    = Nil | Cons a (MAlonzo.RTE.Inf (Colist a))
+    type Colist' l a = Colist a
+
+    fromColist :: Colist a -> [a]
+    fromColist Nil         = []
+    fromColist (Cons x xs) = x : fromColist (MAlonzo.RTE.flat xs)
+    #-}
+
+  {-# COMPILE GHC Colist = data Colist' (Nil | Cons) #-}
+
+  postulate
+    putStr : Colist Char → IO ⊤
+
+  {-# COMPILE GHC putStr = putStr . fromColist #-}
+  ```
+
 * `COMPILE GHC` pragmas have been included for the size primitives.
   [Issue [#2879](https://github.com/agda/agda/issues/2879)]
 

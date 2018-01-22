@@ -71,6 +71,7 @@ getHsType :: QName -> TCM HaskellType
 getHsType x = do
   d <- getHaskellPragma x
   list <- getBuiltinName builtinList
+  inf  <- getBuiltinName builtinInf
   let namedType = do
         -- For these builtin types, the type name (xhqn ...) refers to the
         -- generated, but unused, datatype and not the primitive type.
@@ -82,6 +83,7 @@ getHsType x = do
             | otherwise                -> prettyShow <$> xhqn "T" x
   setCurrentRange d $ case d of
     _ | Just x == list -> prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    _ | Just x == inf  -> return "MAlonzo.RTE.Infinity"
     Just HsDefn{}      -> return hsUnit
     Just HsType{}      -> namedType
     Just HsData{}      -> namedType
@@ -89,13 +91,6 @@ getHsType x = do
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
-
--- | Note that @Inf a b@, where @Inf@ is the INFINITY builtin, is
--- translated to @<translation of b>@ (assuming that all coinductive
--- builtins are defined).
---
--- Note that if @haskellType@ supported universe polymorphism then the
--- special treatment of INFINITY might not be needed.
 
 haskellType' :: Type -> TCM HaskellType
 haskellType' t = fromType t
@@ -111,10 +106,6 @@ haskellType' t = fromType t
         Var x es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsVar x <*> fromArgs args
-        Def d es | Just d == (nameOfInf <$> kit) ->
-          case es of
-            [Apply a, Apply b] -> fromTerm (unArg b)
-            _                  -> err
         Def d es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType d <*> fromArgs args

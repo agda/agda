@@ -149,11 +149,13 @@ getHaskellConstructor c = do
   false <- getBuiltinName builtinFalse
   nil   <- getBuiltinName builtinNil
   cons  <- getBuiltinName builtinCons
+  sharp <- getBuiltinName builtinSharp
   case cDef of
     _ | Just c == true  -> return $ Just "True"
       | Just c == false -> return $ Just "False"
       | Just c == nil   -> return $ Just "[]"
       | Just c == cons  -> return $ Just "(:)"
+      | Just c == sharp -> return $ Just "MAlonzo.RTE.Sharp"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of

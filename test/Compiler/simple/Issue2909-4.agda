@@ -9,17 +9,32 @@ data Colist {a} (A : Set a) : Set a where
   []  : Colist A
   _∷_ : A → ∞ (Colist A) → Colist A
 
-{-# FOREIGN GHC type Colist a b = [b] #-}
-{-# COMPILE GHC Colist = data Colist ([] | (:)) #-}
+{-# FOREIGN GHC
+  data Colist a    = Nil | Cons a (MAlonzo.RTE.Inf (Colist a))
+  type Colist' l a = Colist a
 
-toColist : ∀ {a} {A : Set a} → List A → Colist A
-toColist []       = []
-toColist (x ∷ xs) = x ∷ ♯ toColist xs
+  fromColist :: Colist a -> [a]
+  fromColist Nil         = []
+  fromColist (Cons x xs) = x : fromColist (MAlonzo.RTE.flat xs)
+  #-}
+
+{-# COMPILE GHC Colist = data Colist' (Nil | Cons) #-}
+
+to-colist : ∀ {a} {A : Set a} → List A → Colist A
+to-colist []       = []
+to-colist (x ∷ xs) = x ∷ ♯ to-colist xs
+
+a-definition-that-uses-♭ :
+  ∀ {a} {A : Set a} → Colist A → Colist A
+a-definition-that-uses-♭ []       = []
+a-definition-that-uses-♭ (x ∷ xs) =
+  x ∷ ♯ a-definition-that-uses-♭ (♭ xs)
 
 postulate
   putStr : Colist Char → IO ⊤
 
-{-# COMPILE GHC putStr = putStr #-}
+{-# COMPILE GHC putStr = putStr . fromColist #-}
 
 main : IO ⊤
-main = putStr (toColist (primStringToList "apa\n"))
+main = putStr (a-definition-that-uses-♭
+         (to-colist (primStringToList "apa\n")))

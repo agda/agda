@@ -69,15 +69,9 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/Issue2821"    -- GHC backend specific
     -- Fix to 2524 is too unsafe
   , RFInclude "Compiler/.*/simple/Issue2524"
-    -- The following test cases are GHC backend specific (and
-    -- currently some are disabled for the GHC backend as well,
-    -- because the corresponding bugs have not been fixed yet).
-  , RFInclude "Compiler/JS/simple/Issue2879-1"
-  , RFInclude "Compiler/JS/simple/Issue2879-2"
-  , RFInclude "Compiler/.*/simple/Issue2909-1"
-  , RFInclude "Compiler/.*/simple/Issue2909-2"
-  , RFInclude "Compiler/.*/simple/Issue2909-3"
-  , RFInclude "Compiler/JS/simple/Issue2909-4"
+    -- The following test cases are GHC backend specific.
+  , RFInclude "Compiler/JS/simple/Issue2879-.*"
+  , RFInclude "Compiler/JS/simple/Issue2909-.*"
   ]
 
 tests :: IO TestTree

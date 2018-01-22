@@ -22,7 +22,8 @@ open import Level using (zero; Level)
 open import Data.Bool using (if_then_else_)
 open import Data.Nat using (ℕ; _≟_; _+_; suc; _*_)
 open import Relation.Nullary.Decidable using (⌊_⌋)
-open import Data.List using (List; _∷_; []; [_]; null) renaming (monad to listMonad)
+open import Data.List using (List; _∷_; []; [_]; null)
+open import Data.List.Categorical using () renaming (monad to listMonad)
 --open import Data.Product
 
 module RawMonadExt {li f} {I : Set li} {M : IFun I f} (m : RawIMonad M) where

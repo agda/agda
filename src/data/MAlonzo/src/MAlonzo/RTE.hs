@@ -145,3 +145,7 @@ eq64 = (==)
 lt64 :: Word64 -> Word64 -> Bool
 lt64 = (<)
 
+-- Support for musical coinduction.
+
+data Inf a            = Sharp { flat :: a }
+type Infinity level a = Inf a
