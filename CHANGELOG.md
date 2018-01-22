@@ -140,6 +140,13 @@ Non-backwards compatible changes
 
 * Moved the proof `monoid` from `Data.List` to `++-monoid` in `Data.List.Properties`.
 
+* Names in Data.Nat.Divisibility now use the `divides` symbol (typed \\|) consistently.
+  Previously a mixture of \\| and | was used.
+
+* Starting from Agda 2.5.4 the GHC backend compiles `Coinduction.∞` in
+  a different way, and for this reason the GHC backend pragmas for
+  `Data.Colist.Colist` and `Data.Stream.Stream` have been modified.
+
 Deprecated features
 -------------------
 
