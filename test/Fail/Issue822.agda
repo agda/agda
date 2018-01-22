@@ -34,8 +34,8 @@ Foo [ A ] = A
 
 -- Bug.agda:16,1-10
 -- Ambiguous name [_]. It could refer to any one of
---   M₂.[_] bound at /home/nad/research/dtp/pretty/Bug.agda:10,5-8
---   M₁.[_] bound at /home/nad/research/dtp/pretty/Bug.agda:5,13-16
+--   M₂.[_] bound at [...]/Bug.agda:10,5-8
+--   M₁.[_] bound at [...]/Bug.agda:5,13-16
 -- when scope checking the left-hand side Foo [ A ] in the definition
 -- of Foo
 
