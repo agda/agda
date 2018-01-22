@@ -24,6 +24,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Primitive
 
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
@@ -278,12 +279,15 @@ getTypeInfo t0 = do
   where
     typeInfo :: QName -> E TypeInfo
     typeInfo q = memoRec (typeMap . key q) Erasable $ do  -- assume recursive occurrences are erasable
-      def <- lift $ getConstInfo q
-      mcs <- return $ case I.theDef def of
+      msizes <- lift $ mapM getBuiltinName
+                         [builtinSize, builtinSizeLt]
+      def    <- lift $ getConstInfo q
+      mcs    <- return $ case I.theDef def of
         I.Datatype{ dataCons = cs } -> Just cs
         I.Record{ recConHead = c }  -> Just [conName c]
         _                           -> Nothing
       case mcs of
+        _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do
           (ts, _) <- lift $ typeWithoutParams c
           let rs = map getRelevance ts
@@ -297,4 +301,3 @@ getTypeInfo t0 = do
             I.Function{ funClauses = cs } ->
               sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El Prop) . clauseBody) cs
             _ -> return NotErasable
-
