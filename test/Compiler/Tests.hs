@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Monoid
 import Data.List
+import System.Directory
 import System.IO.Temp
 import System.FilePath
 import System.Environment
@@ -206,7 +207,8 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           args <- (++ defArgs) <$> argsForComp comp
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
-          case ret of
+          absDir <- canonicalizePath dir
+          removePaths [absDir, compDir] <$> case ret of
             ExitSuccess -> cont compDir out err
             ExitFailure _ -> return $ CompileFailed res
           )
@@ -214,6 +216,16 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
         argsForComp :: Compiler -> IO [String]
         argsForComp MAlonzo = return ["--compile"]
         argsForComp JS = return ["--js"]
+
+        removePaths ps r = case r of
+          CompileFailed    r -> CompileFailed    (removePaths' r)
+          CompileSucceeded r -> CompileSucceeded (removePaths' r)
+          ExecutedProg     r -> ExecutedProg     (removePaths' r)
+          where
+          removePaths' (c, out, err) = (c, rm out, rm err)
+
+          rm = foldr (.) id $
+               map (\p -> T.concat . T.splitOn (T.pack p)) ps
 
 readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
