@@ -50,7 +50,8 @@ Notation for key combinations
 The following notation is used when describing key combinations:
 
 :kbd:`C-c`
-    means hitting the ``c`` key while pressing the ``Ctrl`` key.
+     means hitting the ``c`` key while pressing the ``Ctrl``
+     key.
 
 :kbd:`M-x`
      means hitting the ``x`` key while pressing the ``Meta``
@@ -58,10 +59,10 @@ The following notation is used when describing key combinations:
      can type ``Escape`` followed by ``x`` (in separate key strokes).
 
 :kbd:`RET`
-    is the ``Enter``, ``Return`` or ``⏎`` key.
+     is the ``Enter``, ``Return`` or ``⏎`` key.
 
 :kbd:`SPC`
-    is the space bar.
+     is the space bar.
 
 Commands working with types can be prefixed with ``C-u`` to compute
 type without further normalisation and with ``C-u C-u`` to compute
@@ -144,7 +145,8 @@ will either use the text inside the goal or ask the user for input.
      Give (fill goal)
 
 :kbd:`C-c C-r`
-     **R**\ efine. Partial give: makes new holes for missing arguments
+     **R**\ efine. Partial give: makes new holes for missing
+     arguments
 
 :kbd:`C-c C-a`
      :ref:`auto`
