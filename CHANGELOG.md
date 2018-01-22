@@ -123,6 +123,10 @@ Non-backwards compatible changes
 * Names in Data.Nat.Divisibility now use the divides symbol `|` (typed \|) consistently.
   Previously a mixture of `|` and `|` was used.
 
+* Starting from Agda 2.5.4 the GHC backend compiles `Coinduction.∞` in
+  a different way, and for this reason the GHC backend pragmas for
+  `Data.Colist.Colist` and `Data.Stream.Stream` have been modified.
+
 Deprecated features
 -------------------
 
