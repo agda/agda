@@ -33,6 +33,24 @@ quote s = "\"" ++ concatMap escape s ++ "\""
 
   escapeChars = "\"\\"
 
+-- | Turns the string into a Haskell string literal, avoiding escape
+-- codes.
+
+haskellStringLiteral :: String -> String
+haskellStringLiteral s = "\"" ++ concatMap escape s ++ "\""
+  where
+  escape c | c == '\n'         = "\\n"
+           | c == '"'          = "\\\""
+           | c == '\\'         = "\\\\"
+           | ok c              = [c]
+           | otherwise         = [c]
+
+  ok c = case generalCategory c of
+    UppercaseLetter -> True
+    LowercaseLetter -> True
+    TitlecaseLetter -> True
+    _               -> isSymbol c || isPunctuation c
+
 -- | Adds hyphens around the given string
 --
 -- >>> putStrLn $ delimiter "Title"

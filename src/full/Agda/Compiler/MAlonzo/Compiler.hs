@@ -79,6 +79,7 @@ import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.String
 import Agda.Utils.Tuple
 
 import Paths_Agda
@@ -748,7 +749,8 @@ tvaldecl q ind npar cds cl =
 
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
-infodecl q ds = fakeD (unqhname "name" q) (show $ prettyShow q) : ds
+infodecl q ds =
+  fakeD (unqhname "name" q) (haskellStringLiteral $ prettyShow q) : ds
 
 --------------------------------------------------
 -- Writing out a haskell module
