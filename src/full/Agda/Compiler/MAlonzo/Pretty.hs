@@ -75,7 +75,13 @@ instance Pretty HS.Decl where
     HS.FakeDecl s -> text s
 
 instance Pretty HS.ConDecl where
-  pretty (HS.ConDecl c ts) = pretty c <+> fsep (map (prettyPrec 10) ts)
+  pretty (HS.ConDecl c sts) =
+    pretty c <+>
+    fsep (map (\(s, t) -> maybe empty pretty s <> prettyPrec 10 t) sts)
+
+instance Pretty HS.Strictness where
+  pretty HS.Strict = text "!"
+  pretty HS.Lazy   = empty
 
 instance Pretty HS.Match where
   pretty (HS.Match f ps rhs wh) =

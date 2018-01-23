@@ -31,7 +31,10 @@ data Decl = TypeDecl Name [TyVarBind] Type
 data DataOrNew = DataType | NewType
   deriving (Eq)
 
-data ConDecl = ConDecl Name [Type]
+data ConDecl = ConDecl Name [(Maybe Strictness, Type)]
+  deriving (Eq)
+
+data Strictness = Lazy | Strict
   deriving (Eq)
 
 type Deriving = (QName, [Type])
