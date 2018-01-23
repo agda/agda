@@ -73,6 +73,7 @@ disabledTests =
     -- The following test cases are GHC backend specific.
   , RFInclude "Compiler/JS/simple/Issue2879-.*"
   , RFInclude "Compiler/JS/simple/Issue2909-.*"
+  , RFInclude "Compiler/JS/simple/Issue2918"
   ]
 
 tests :: IO TestTree
