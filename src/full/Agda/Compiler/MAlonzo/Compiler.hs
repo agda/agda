@@ -318,10 +318,11 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         cds <- mapM compiledcondecl cs
         return $ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__) ++
                  [compiledTypeSynonym q ty np] ++ cds ++ ccscov
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
+                dataCons = cs, dataInduction = ind } -> do
         computeErasedConstructorArgs q
-        cds <- mapM condecl cs
-        return $ tvaldecl q (dataInduction d) (np + ni) cds cl
+        cds <- mapM (flip condecl ind) cs
+        return $ tvaldecl q ind (np + ni) cds cl
       Constructor{} -> return []
       Record{ recPars = np, recClause = cl, recConHead = con,
               recInduction = ind } ->
@@ -339,7 +340,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
               [compiledTypeSynonym q ty np] ++ cds ++ ccscov
           _ -> do
             computeErasedConstructorArgs q
-            cd <- condecl (conName con)
+            cd <- condecl (conName con) inductionKind
             return $ tvaldecl q inductionKind (I.arity ty) [cd] cl
       AbstractDefn{} -> __IMPOSSIBLE__
   where
@@ -707,12 +708,16 @@ erasedArity q = do
   erased  <- length . filter id <$> getErasedConArgs q
   return (ar - erased)
 
-condecl :: QName -> TCM HS.ConDecl
-condecl q = do
+condecl :: QName -> Induction -> TCM HS.ConDecl
+condecl q _ind = do
   def <- getConstInfo q
   let Constructor{ conPars = np, conErased = erased } = theDef def
   (argTypes0, _) <- hsTelApproximation (defType def)
-  let argTypes = [ t | (t, False) <- zip (drop np argTypes0) (erased ++ repeat False) ]
+  let argTypes   = [ (Just HS.Lazy, t)
+                     -- Currently all constructors are lazy.
+                   | (t, False) <- zip (drop np argTypes0)
+                                       (erased ++ repeat False)
+                   ]
   return $ HS.ConDecl (unqhname "C" q) argTypes
 
 compiledcondecl :: QName -> TCM HS.Decl
@@ -735,7 +740,7 @@ tvaldecl :: QName
          -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
 tvaldecl q ind npar cds cl =
   HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
-  maybe [HS.DataDecl kind tn [] cds []]
+  maybe [HS.DataDecl kind tn [] cds' []]
         (const []) cl
   where
   (tn, vn) = (unqhname "T" q, unqhname "d" q)
@@ -743,9 +748,12 @@ tvaldecl q ind npar cds cl =
 
   -- Inductive data types consisting of a single constructor with a
   -- single argument are translated into newtypes.
-  kind = case (ind, cds) of
-    (Inductive, [HS.ConDecl _ [_]]) -> HS.NewType
-    _                               -> HS.DataType
+  (kind, cds') = case (ind, cds) of
+    (Inductive, [HS.ConDecl c [(_, t)]]) ->
+      (HS.NewType, [HS.ConDecl c [(Nothing, t)]])
+      -- The strictness annotations are removed for newtype
+      -- constructors.
+    _ -> (HS.DataType, cds)
 
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
