@@ -545,7 +545,8 @@ checkBodyEndPoints delta t self es body = do
   t <- reduce t
   (cs,t) <- accumBoundary [] es t self
   reportSDoc "endpoints" 20 $ text $ show (cs,t)
-  checkBoundary cs t body
+  locally eRange (const noRange) $
+    checkBoundary cs t body
  where
    checkBoundary [] _ _ = return ()
    checkBoundary cs t body = do

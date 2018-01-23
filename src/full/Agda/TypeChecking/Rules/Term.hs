@@ -298,7 +298,7 @@ checkPath b@(Arg info (A.TBind _ xs' typ)) body ty = do
         rhs' = subst 0 iOne  v
     let t = Lam info $ Abs (nameToArgName x) v
     let btyp i = El s (unArg typ `apply` [argN i])
-    blockTerm ty $ do
+    locally eRange (const noRange) $ blockTerm ty $ do
       equalTerm (btyp iZero) lhs' (unArg lhs)
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
