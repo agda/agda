@@ -530,6 +530,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps mpsub c = do
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
+  dtype <- do
+    -- TODO: use the modality from the variable being split here.
+    -- The correct modality is already used in the splitter, and it
+    -- doesn't seem available here, so we use the most permissive one.
+    let rel = CoShape
+    TelV tel t <- liftTCM $ telView dtype
+    return $ abstract (fmap (mapRelevance (composeRelevance rel)) tel) t
+
   r <- unifyIndices
          delta1Gamma
          flex

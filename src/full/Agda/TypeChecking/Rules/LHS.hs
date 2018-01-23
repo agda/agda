@@ -986,6 +986,17 @@ checkLHS f st@(LHSState problem dpi psplit) = do
         -- from Δ' = Δ₁';Δ₂ρ₃
         --        Δ' ⊢ ρ : Δ₁(x : D vs ws)Δ₂
 
+
+        -- We update the telescope of indexes with the modality of the
+        -- argument we are splitting.
+        -- This relies on the modality commuting with Sigma and Id
+        -- types, given how inductive families could be desugared into
+        -- regular ones and Id.
+        da <- do
+          let rel = getRelevance info
+          TelV tel a <- telView da
+          return $ abstract (fmap (mapRelevance (composeRelevance rel)) tel) a
+
         res <- unifyIndices
                  (delta1 `abstract` gamma)
                  flex

@@ -342,6 +342,9 @@ varCount = size . varTel
 getVarType :: Int -> UnifyState -> Type
 getVarType i s = if i < 0 then __IMPOSSIBLE__ else unDom $ (flattenTel $ varTel s) !! i
 
+getVarRel :: Int -> UnifyState -> Relevance
+getVarRel i s = if i < 0 then __IMPOSSIBLE__ else getRelevance $ (flattenTel $ varTel s) !! i
+
 getVarTypeUnraised :: Int -> UnifyState -> Type
 getVarTypeUnraised i s = if i < 0 then __IMPOSSIBLE__ else snd . unDom $ (telToList $ varTel s) !! i
 
@@ -355,6 +358,10 @@ getEquality :: Int -> UnifyState -> Equality
 getEquality k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
   if k < 0 then __IMPOSSIBLE__ else
     Equal (unDom $ (flattenTel eqs) !! k) (unArg $ lhs !! k) (unArg $ rhs !! k)
+
+getEqualityRel :: Int -> UnifyState -> Relevance
+getEqualityRel k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
+  if k < 0 then __IMPOSSIBLE__ else (getRelevance $ (flattenTel eqs) !! k)
 
 -- | As getEquality, but with the unraised type
 getEqualityUnraised :: Int -> UnifyState -> Equality
@@ -956,6 +963,21 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
   `catchError` \err -> return $ DontKnow err
   where
     withoutKErr = addContext (varTel s) $ typeError_ $ WithoutKError a u u
+
+unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solutionTerm = u }
+  | not (guardInst n) = addContext (varTel s) $
+    (DontKnow <$>) . addContext (varTel s) . typeError_ . GenericDocError =<< do
+      reportSDoc "tc.lhs.unify.mod" 20 $ text "vars: " <+> text (show n) <+> text (show i) <+> text (show $ varCount s)
+      liftTCM $ text "Wrong modality to solve" <+> prettyTCM (Var i []) <+> text "with" <+> prettyTCM u
+  where
+    n = varCount s-1-i
+    guardInst i =
+      let
+        er = getEqualityRel k s
+        vr = getVarRel i s
+      in case vr of
+           CoShape -> er == CoShape
+           _ -> True
 
 unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solutionTerm = u } = do
   let m = varCount s
