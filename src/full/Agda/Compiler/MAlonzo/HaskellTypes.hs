@@ -126,10 +126,16 @@ haskellType' t = fromType t
 haskellType :: QName -> TCM HS.Type
 haskellType q = do
   def <- getConstInfo q
-  let np = case theDef def of
-             Constructor{ conPars = np } -> np
-             _                           -> 0
-      underPars 0 a = haskellType' a
+  let (np, erased) =
+        case theDef def of
+          Constructor{ conPars = np, conErased = erased }
+            -> (np, erased ++ repeat False)
+          _ -> (0, repeat False)
+      stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
+      stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t
+      stripErased es           (HS.TyForall xs t) = HS.TyForall xs $ stripErased es t
+      stripErased _            t                  = t
+      underPars 0 a = stripErased erased <$> haskellType' a
       underPars n a = do
         a <- reduce a
         case unEl a of

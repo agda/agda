@@ -722,7 +722,7 @@ condecl q _ind = do
 
 compiledcondecl :: QName -> TCM HS.Decl
 compiledcondecl q = do
-  (ar, np) <- conArityAndPars q
+  ar <- erasedArity q
   hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
