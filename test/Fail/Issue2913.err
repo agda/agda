@@ -1,0 +1,10 @@
+Issue2913.agda:12,1-35
+The type (f : F Set) → R cannot be translated to a corresponding
+Haskell type, because it contains F which has the wrong kind of
+COMPILE pragma.
+Possible fix:
+replace the value-level pragma at
+  Issue2913.agda:9,1-34
+by
+  {-# COMPILE GHC F = type HsT #-}
+for a suitable Haskell type HsT.

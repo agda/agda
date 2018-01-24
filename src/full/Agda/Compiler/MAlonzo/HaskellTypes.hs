@@ -13,6 +13,7 @@ import Control.Monad (zipWithM)
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
 
+import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
@@ -55,6 +56,7 @@ hsForall :: HS.Name -> HS.Type -> HS.Type
 hsForall x = HS.TyForall [HS.UnkindedVar x]
 
 data WhyNot = NoPragmaFor QName
+            | WrongPragmaFor Range QName
             | BadLambda Term
             | BadMeta Term
             | BadDontCare Term
@@ -67,15 +69,20 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
         pwords "cannot be translated to a corresponding Haskell type, because it contains" ++
         reason offender) $$ possibleFix offender
   where
-    reason (BadLambda   v) = pwords "the lambda term" ++ [prettyTCM v <> text "."]
-    reason (BadMeta     v) = pwords "a meta variable" ++ [prettyTCM v <> text "."]
-    reason (BadDontCare v) = pwords "an erased term" ++ [prettyTCM v <> text "."]
-    reason (NoPragmaFor x) = [prettyTCM x] ++ pwords "which does not have a COMPILE pragma."
+    reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> text "."]
+    reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> text "."]
+    reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> text "."]
+    reason (NoPragmaFor      x) = [prettyTCM x] ++ pwords "which does not have a COMPILE pragma."
+    reason (WrongPragmaFor _ x) = [prettyTCM x] ++ pwords "which has the wrong kind of COMPILE pragma."
 
     possibleFix BadLambda{}     = empty
     possibleFix BadMeta{}       = empty
     possibleFix BadDontCare{}   = empty
-    possibleFix (NoPragmaFor d) = do
+    possibleFix (NoPragmaFor d) = suggestPragma d $ text "add a pragma"
+    possibleFix (WrongPragmaFor r d) = suggestPragma d $
+      sep [ text "replace the value-level pragma at", nest 2 $ pretty r, text "by" ]
+
+    suggestPragma d action = do
       def    <- theDef <$> getConstInfo d
       let dataPragma n = ("data type HsD", "data HsD (" ++ intercalate " | " [ "C" ++ show i | i <- [1..n] ] ++ ")")
           typePragma   = ("type HsT", "type HsT")
@@ -84,7 +91,7 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
               Datatype{ dataCons = cs } -> dataPragma (length cs)
               Record{}                  -> dataPragma 1
               _                         -> typePragma
-      vcat [ text "Possible fix: add a pragma"
+      vcat [ sep [text "Possible fix:", action]
            , nest 2 $ hsep [ text "{-# COMPILE GHC", prettyTCM d, text "=", text pragma, text "#-}" ]
            , text ("for a suitable Haskell " ++ hsThing ++ ".")
            ]
@@ -119,7 +126,7 @@ getHsType x = do
   liftE1 (setCurrentRange d) $ case d of
     _ | Just x == list -> liftTCM $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
     _ | Just x == inf  -> return $ hsQCon "MAlonzo.RTE" "Infinity"
-    Just HsDefn{}      -> return hsUnit
+    Just HsDefn{}      -> throwError $ WrongPragmaFor (getRange d) x
     Just HsType{}      -> namedType
     Just HsData{}      -> namedType
     _                  -> throwError $ NoPragmaFor x
