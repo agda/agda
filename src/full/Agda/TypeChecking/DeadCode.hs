@@ -40,7 +40,10 @@ eliminateDeadCode disp sig = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
   public <- Set.map anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
-  let r     = reachableFrom public patsyn defs
+  -- #2921: Eliminating definitions with attached COMPILE pragmas results in
+  -- the pragmas not being checked. Simple solution: don't eliminate these.
+  let hasCompilePragma = Set.fromList . HMap.keys . HMap.filter (not . Map.null . defCompiledRep) $ defs
+  let r     = reachableFrom (Set.union public hasCompilePragma) patsyn defs
       dead  = Set.fromList (HMap.keys defs) `Set.difference` r
       valid = Set.null . Set.intersection dead . namesIn
       defs' = HMap.map ( \ d -> d { defDisplay = filter valid (defDisplay d) } )

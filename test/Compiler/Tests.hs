@@ -68,6 +68,7 @@ disabledTests =
     RFInclude "Compiler/.*/simple/Sharing"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   , RFInclude "Compiler/JS/simple/Issue2821"    -- GHC backend specific
+  , RFInclude "Compiler/JS/simple/Issue2914"    -- GHC backend specific
     -- Fix to 2524 is too unsafe
   , RFInclude "Compiler/.*/simple/Issue2524"
     -- The following test cases are GHC backend specific.
