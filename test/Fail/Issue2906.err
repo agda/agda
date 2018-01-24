@@ -1,0 +1,6 @@
+Issue2906.agda:9,1-33
+The type D → D cannot be translated to a corresponding Haskell
+type, because it contains D which does not have a COMPILE pragma.
+Possible fix: add a pragma
+  {-# COMPILE GHC D = data HsD (C1 | C2) #-}
+for a suitable Haskell data type HsD.
