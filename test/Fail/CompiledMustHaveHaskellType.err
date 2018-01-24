@@ -1,2 +1,6 @@
 CompiledMustHaveHaskellType.agda:12,1-30
-The type N cannot be translated to a Haskell type.
+The type N cannot be translated to a corresponding Haskell type,
+because it contains N which does not have a COMPILE pragma.
+Possible fix: add a pragma
+  {-# COMPILE GHC N = type HsT #-}
+for a suitable Haskell type HsT.
