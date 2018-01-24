@@ -355,7 +355,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
       Just (HsExport r name) -> do
         t <- setCurrentRange r $ haskellType q
         let tsig :: HS.Decl
-            tsig = HS.TypeSig [HS.Ident name] (fakeType t)
+            tsig = HS.TypeSig [HS.Ident name] t
 
             def :: HS.Decl
             def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCoerce $ hsVarUQ $ dname q)) emptyBinds]
@@ -407,9 +407,9 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
 
   mkwhere fbs = fbs
 
-  fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]
+  fbWithType :: HS.Type -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
-    [ HS.TypeSig [unqhname "d" q] $ fakeType ty ] ++ fb e
+    [ HS.TypeSig [unqhname "d" q] ty ] ++ fb e
 
   fb :: HS.Exp -> [HS.Decl]
   fb e  = [HS.FunBind [HS.Match (unqhname "d" q) []
@@ -469,7 +469,7 @@ intros n cont = freshNames n $ \xs ->
 checkConstructorType :: QName -> HaskellCode -> TCM [HS.Decl]
 checkConstructorType q hs = do
   ty <- haskellType q
-  return [ HS.TypeSig [unqhname "check" q] $ fakeType ty
+  return [ HS.TypeSig [unqhname "check" q] ty
          , HS.FunBind [HS.Match (unqhname "check" q) []
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
@@ -722,7 +722,7 @@ condecl q _ind = do
 
 compiledcondecl :: QName -> TCM HS.Decl
 compiledcondecl q = do
-  (ar, np) <- conArityAndPars q
+  ar <- erasedArity q
   hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)

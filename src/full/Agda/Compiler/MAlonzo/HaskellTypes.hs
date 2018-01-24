@@ -3,7 +3,11 @@
 -- | Translating Agda types to Haskell types. Used to ensure that imported
 --   Haskell functions have the right type.
 
-module Agda.Compiler.MAlonzo.HaskellTypes where
+module Agda.Compiler.MAlonzo.HaskellTypes
+  ( haskellType
+  , checkConstructorCount
+  , hsTelApproximation, hsTelApproximation'
+  ) where
 
 import Control.Monad (zipWithM)
 import Data.Maybe (fromMaybe)
@@ -30,36 +34,23 @@ import Agda.Utils.Pretty (prettyShow)
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type HaskellKind = String
+hsQCon :: String -> String -> HS.Type
+hsQCon m f = HS.TyCon $ HS.Qual (HS.ModuleName m) (HS.Ident f)
 
-hsStar :: HaskellKind
-hsStar = "*"
+hsCon :: String -> HS.Type
+hsCon = HS.TyCon . HS.UnQual . HS.Ident
 
-hsKFun :: HaskellKind -> HaskellKind -> HaskellKind
-hsKFun k l = "(" ++ k ++ " -> " ++ l ++ ")"
+hsUnit :: HS.Type
+hsUnit = hsCon "()"
 
-hsFun :: HaskellKind -> HaskellKind -> HaskellKind
-hsFun a b = "(" ++ a ++ " -> " ++ b ++ ")"
+hsVar :: HS.Name -> HS.Type
+hsVar = HS.TyVar
 
-hsUnit :: HaskellType
-hsUnit = "()"
+hsApp :: HS.Type -> [HS.Type] -> HS.Type
+hsApp d ds = foldl HS.TyApp d ds
 
-hsVar :: Name -> HaskellType
-hsVar x = "x" ++ concatMap encode (prettyShow x)
-  where
-    okChars = ['a'..'z'] ++ ['A'..'Y'] ++ "_'"
-    encode 'Z' = "ZZ"
-    encode c
-      | c `elem` okChars = [c]
-      | otherwise        = "Z" ++ show (fromEnum c)
-
-
-hsApp :: String -> [HaskellType] -> HaskellType
-hsApp d [] = d
-hsApp d as = "(" ++ unwords (d : as) ++ ")"
-
-hsForall :: String -> HaskellType -> HaskellType
-hsForall x a = "(forall " ++ x ++ ". " ++ a ++ ")"
+hsForall :: HS.Name -> HS.Type -> HS.Type
+hsForall x = HS.TyForall [HS.UnkindedVar x]
 
 notAHaskellType :: Type -> TCM a
 notAHaskellType a = typeError . GenericDocError =<< do
@@ -67,7 +58,7 @@ notAHaskellType a = typeError . GenericDocError =<< do
          pwords "cannot be translated to a Haskell type."
 
 
-getHsType :: QName -> TCM HaskellType
+getHsType :: QName -> TCM HS.Type
 getHsType x = do
   d <- getHaskellPragma x
   list <- getBuiltinName builtinList
@@ -78,21 +69,28 @@ getHsType x = do
         nat  <- getBuiltinName builtinNat
         int  <- getBuiltinName builtinInteger
         bool <- getBuiltinName builtinBool
-        if  | Just x `elem` [nat, int] -> return "Integer"
-            | Just x == bool           -> return "Bool"
-            | otherwise                -> prettyShow <$> xhqn "T" x
+        if  | Just x `elem` [nat, int] -> return $ hsCon "Integer"
+            | Just x == bool           -> return $ hsCon "Bool"
+            | otherwise                -> hsCon . prettyShow <$> xhqn "T" x
   setCurrentRange d $ case d of
-    _ | Just x == list -> prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
-    _ | Just x == inf  -> return "MAlonzo.RTE.Infinity"
+    _ | Just x == list -> hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    _ | Just x == inf  -> return $ hsQCon "MAlonzo.RTE" "Infinity"
     Just HsDefn{}      -> return hsUnit
     Just HsType{}      -> namedType
     Just HsData{}      -> namedType
     _                  -> notAHaskellType (El Prop $ Def x [])
 
-getHsVar :: Nat -> TCM HaskellCode
-getHsVar i = hsVar <$> nameOfBV i
+getHsVar :: Nat -> TCM HS.Name
+getHsVar i = HS.Ident . encodeName <$> nameOfBV i
+  where
+    encodeName x = "x" ++ concatMap encode (prettyShow x)
+    okChars = ['a'..'z'] ++ ['A'..'Y'] ++ "_'"
+    encode 'Z' = "ZZ"
+    encode c
+      | c `elem` okChars = [c]
+      | otherwise        = "Z" ++ show (fromEnum c)
 
-haskellType' :: Type -> TCM HaskellType
+haskellType' :: Type -> TCM HS.Type
 haskellType' t = fromType t
   where
     err      = notAHaskellType t
@@ -105,7 +103,7 @@ haskellType' t = fromType t
       case v of
         Var x es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          hsApp <$> getHsVar x <*> fromArgs args
+          hsApp . hsVar <$> getHsVar x <*> fromArgs args
         Def d es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType d <*> fromArgs args
@@ -114,8 +112,8 @@ haskellType' t = fromType t
           then do
             hsA <- fromType (unDom a)
             underAbstraction a b $ \b ->
-              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
-          else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
+              hsForall <$> getHsVar 0 <*> (HS.TyFun hsA <$> fromType b)
+          else HS.TyFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
         Con c ci args -> hsApp <$> getHsType (conName c) <*> fromArgs args
         Lam{}      -> err
         Level{}    -> return hsUnit
@@ -125,13 +123,19 @@ haskellType' t = fromType t
         MetaV{}    -> err
         DontCare{} -> err
 
-haskellType :: QName -> TCM HaskellType
+haskellType :: QName -> TCM HS.Type
 haskellType q = do
   def <- getConstInfo q
-  let np = case theDef def of
-             Constructor{ conPars = np } -> np
-             _                           -> 0
-      underPars 0 a = haskellType' a
+  let (np, erased) =
+        case theDef def of
+          Constructor{ conPars = np, conErased = erased }
+            -> (np, erased ++ repeat False)
+          _ -> (0, repeat False)
+      stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
+      stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t
+      stripErased es           (HS.TyForall xs t) = HS.TyForall xs $ stripErased es t
+      stripErased _            t                  = t
+      underPars 0 a = stripErased erased <$> haskellType' a
       underPars n a = do
         a <- reduce a
         case unEl a of
@@ -139,7 +143,7 @@ haskellType q = do
           Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
-  reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ prettyShow q ++ ": " ++ ty
+  reportSDoc "tc.pragma.compile" 10 $ (text "Haskell type for" <+> prettyTCM q <> text ":") <?> pretty ty
   return ty
 
 checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()
@@ -191,7 +195,7 @@ hsTypeApproximation poly fv t = do
             | q `is` word -> return $ rteCon "Word64"
             | otherwise -> do
                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
-                foldl HS.TyApp <$> (HS.FakeType <$> getHsType q) <*> mapM (go n . unArg) args
+                foldl HS.TyApp <$> getHsType q <*> mapM (go n . unArg) args
               `catchError` \ _ -> do -- Not a Haskell type
                 def <- theDef <$> getConstInfo q
                 let isData | Datatype{} <- def = True
