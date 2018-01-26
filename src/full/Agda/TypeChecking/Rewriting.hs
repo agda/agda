@@ -77,6 +77,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rewriting.NonLinMatch
 import qualified Agda.TypeChecking.Reduce.Monad as Red
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
@@ -221,6 +222,8 @@ addRewriteRule q = do
           return (conName c , hd  , map Apply vs)
         _        -> failureNotDefOrCon
 
+      ifNotAlreadyAdded f $ do
+
       rew <- addContext gamma1 $ do
         -- Normalize lhs args: we do not want to match redexes.
         es <- etaContract =<< normalise es
@@ -271,22 +274,18 @@ addRewriteRule q = do
       unless (v == v') $ do
         reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
         reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
-        -- Andreas, 2016-06-01, issue 1997
-        -- A reason for a reduction of the lhs could be that
-        -- the rewrite rule has already been added.
-        -- In this case, we want a nicer error message.
-        checkNotAlreadyAdded f
         typeError . GenericDocError =<< fsep
           [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
           , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
 
-    checkNotAlreadyAdded :: QName -> TCM ()
-    checkNotAlreadyAdded f = do
+    ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
+    ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
-      when (any ((q ==) . rewName) rews) $
-        typeError . GenericDocError =<< do
+      if any ((q ==) . rewName) rews then
+        genericWarning =<< do
           text "Rewrite rule " <+> prettyTCM q <+> text " has already been added"
+      else cont
 
     usedArgs :: [Pos.Occurrence] -> IntSet
     usedArgs occs = IntSet.fromList $ map snd $ usedIxs
