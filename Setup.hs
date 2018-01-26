@@ -18,7 +18,7 @@ builtins =
   [ "Bool", "Char", "Coinduction", "Equality", "Float"
   , "FromNat", "FromNeg", "FromString", "IO", "Int", "List"
   , "Nat", "Reflection", "Size", "Strict", "String"
-  , "TrustMe", "Unit" ]
+  , "TrustMe", "Unit", "Word" ]
 
 checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> RegisterFlags -> IO ()
 checkAgdaPrimitive pkg info flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
@@ -41,4 +41,3 @@ checkAgdaPrimitiveAndRegister :: PackageDescription -> LocalBuildInfo -> UserHoo
 checkAgdaPrimitiveAndRegister pkg info hooks flags = do
   checkAgdaPrimitive pkg info flags
   regHook simpleUserHooks pkg info hooks flags  -- This actually does something useful
-
