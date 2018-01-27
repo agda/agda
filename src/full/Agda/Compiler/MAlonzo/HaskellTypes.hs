@@ -9,6 +9,10 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   , hsTelApproximation, hsTelApproximation'
   ) where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>))
+#endif
+
 import Control.Monad (zipWithM)
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
