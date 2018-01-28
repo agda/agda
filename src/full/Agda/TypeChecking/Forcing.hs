@@ -103,7 +103,10 @@ computeForcingAnnotations t =
   -- Note that normalization of s0 below does not help.
   t <- instantiateFull t
   let TelV tel (El _ a) = telView' t
-      vs = case ignoreSharing a of
+  -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
+  -- get to the actual data type.
+  a <- reduce a
+  let vs = case ignoreSharing a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
       n  = size tel
