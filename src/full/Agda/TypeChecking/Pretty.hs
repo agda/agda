@@ -7,7 +7,7 @@
 --
 -- but using that gives warnings and doesn't silence -Wsemigroup in
 -- some versions of GHC.
-#if __GLASGOW_HASKELL__ >= 800 & __GLASGOW_HASKELL__ < 804
+#if __GLASGOW_HASKELL__ >= 800 && __GLASGOW_HASKELL__ < 804
 {-# OPTIONS_GHC -Wno-semigroup #-}
 #endif
 
