@@ -1,0 +1,3 @@
+{-# OPTIONS -Werror -WnoEmptyRewritePragma #-}
+
+{-# REWRITE #-}

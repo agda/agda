@@ -2,7 +2,9 @@
 
 module Agda.TypeChecking.Warnings where
 
+import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Maybe ( catMaybes )
 import Control.Monad (guard, forM_)
 
 import Agda.TypeChecking.Monad.Base
@@ -14,6 +16,7 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
@@ -40,41 +43,33 @@ warning_ w = do
   liftTCM $ return $ TCWarning r w p
 
 -- | @applyWarningMode@ filters out the warnings the user has not requested
+-- Users are not allowed to ignore non-fatal errors.
 
 applyWarningMode :: WarningMode -> Warning -> Maybe Warning
-applyWarningMode AllTheWarnings w = Just w
-
--- Users are not allowed to ignore non-fatal errors.
-applyWarningMode IgnoreAllWarnings w = case classifyWarning w of
+applyWarningMode wm w = case classifyWarning w of
   ErrorWarnings -> Just w
-  AllWarnings   -> Nothing
+  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
--- The default warning level does not display everything. For instance
--- mixfix definitions which do not come with a fixity declaration are
--- ignored.
-applyWarningMode _ w = case w of
-  NicifierIssue nis ->
-    let usual ni = case ni of { UnknownFixityInMixfixDecl{} -> False; _ -> True }
-        nis'     = filter usual nis
-    in NicifierIssue nis' <$ guard (not $ null nis')
-  _ -> Just w
-
-
-{-# SPECIALIZE warning :: Warning -> TCM () #-}
-warning :: MonadTCM tcm => Warning -> tcm ()
-warning w = do
+{-# SPECIALIZE warnings :: [Warning] -> TCM () #-}
+warnings :: MonadTCM tcm => [Warning] -> tcm ()
+warnings ws = do
 
   wmode <- optWarningMode <$> pragmaOptions
 
-  let add tcwarn tcwarns
+  let add w tcwarn tcwarns
         | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
         | otherwise                         = tcwarn : tcwarns
 
-  forM_ (applyWarningMode wmode w) $ \ w' -> do
+  forM_ (catMaybes $ applyWarningMode wmode <$> ws) $ \ w' -> do
     tcwarn <- warning_ w'
-    case wmode of
-      TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
-      _              -> stTCWarnings %= add tcwarn
+    if wmode ^. warn2Error
+    then typeError $ NonFatalErrors [tcwarn]
+    else stTCWarnings %= add w' tcwarn
+
+{-# SPECIALIZE warning :: Warning -> TCM () #-}
+warning :: MonadTCM tcm => Warning -> tcm ()
+warning = warnings . pure
+
 
 -- | Classifying warnings: some are benign, others are (non-fatal) errors
 

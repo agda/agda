@@ -40,6 +40,7 @@ module Agda.Syntax.Concrete.Definitions
     , notSoNiceDeclarations
     , niceHasAbstract
     , Measure
+    , declarationWarningName
     ) where
 
 import Prelude hiding (null)
@@ -68,6 +69,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty ()
+
+import Agda.Interaction.Options.Warnings
 
 import Agda.TypeChecking.Positivity.Occurrence
 
@@ -220,6 +223,25 @@ data DeclarationWarning
       -- ^ A {-# CATCHALL #-} pragma
       --   that does not precede a function clause.
   deriving (Data, Show)
+
+declarationWarningName :: DeclarationWarning -> WarningName
+declarationWarningName dw = case dw of
+  UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
+  UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
+  UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
+  PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
+  UselessPrivate{}                  -> UselessPrivate_
+  UselessAbstract{}                 -> UselessAbstract_
+  UselessInstance{}                 -> UselessInstance_
+  EmptyMutual{}                     -> EmptyMutual_
+  EmptyAbstract{}                   -> EmptyAbstract_
+  EmptyPrivate{}                    -> EmptyPrivate_
+  EmptyInstance{}                   -> EmptyInstance_
+  EmptyMacro{}                      -> EmptyMacro_
+  EmptyPostulate{}                  -> EmptyPostulate_
+  InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
+  InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
+  InvalidCatchallPragma{}           -> InvalidCatchallPragma_
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock

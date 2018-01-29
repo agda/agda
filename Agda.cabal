@@ -253,8 +253,10 @@ library
                     Agda.Interaction.Library.Base
                     Agda.Interaction.Library.Parse
                     Agda.Interaction.Options
+                    Agda.Interaction.Options.Help
                     Agda.Interaction.Options.IORefs
                     Agda.Interaction.Options.Lenses
+                    Agda.Interaction.Options.Warnings
                     Agda.Main
                     Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name

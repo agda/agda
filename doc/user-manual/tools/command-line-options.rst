@@ -201,10 +201,8 @@ Errors and warnings
       Do not warn about possibly
       nonterminating code (see :ref:`termination-checking`)
 
-:samp:`--warning={MODE} -W={MODE}`
-      Set warning mode to :samp:`{MODE}`
-      (available: :samp:`warn` display warnings, :samp:`error` turn
-      warnings into errors, and :samp:`ignore` ignore warnings)
+:samp:`--warning={GROUP|FLAG} -W={GROUP|FLAG}`
+      Set warning group or flag (see :ref:`warnings`)
 
 Pattern matching and equality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -278,6 +276,100 @@ Other features
 :samp:`--no-irrelevant-projections`
       Disable projection of irrelevant
       record fields (see :ref:`irrelevance`)
+
+
+.. _warnings:
+
+Warnings
+~~~~~~~~
+
+The -W or --warning option can be used to disable or enable  different warnings. A group of warnings can be enabled by -W group, where group is one of the following:
+
+:samp:`all`
+      All of the existing warnings
+:samp:`warn`
+      Default warning level
+:samp:`ignore`
+      Ignore all warnings
+
+Individual warnings can be turned on and off by -W Name and -W noName respectively. The flags available are:
+
+:samp:`OverlappingTokensWarning`
+      Multi-line comments spanning one or more literate text blocks.
+:samp:`UnknownNamesInFixityDecl`
+      Names not declared in the same scope as their syntax or fixity declaration.
+:samp:`UnknownFixityInMixfixDecl`
+      Mixfix names without an associated fixity declaration.
+:samp:`UnknownNamesInPolarityPragmas`
+Names not declared in the same scope as their polarity pragmas.
+:samp:`PolarityPragmasButNotPostulates`
+      Polarity pragmas for non-postulates.
+:samp:`UselessPrivate`
+      `private' blocks where they have no effect.
+:samp:`UselessAbstract`
+      `abstract' blocks where they have no effect.
+:samp:`UselessInstance`
+      `instance' blocks where they have no effect.
+:samp:`EmptyMutual`
+      Empty `mutual' blocks.
+:samp:`EmptyAbstract`
+      Empty `abstract' blocks.
+:samp:`EmptyPrivate`
+      Empty `private' blocks.
+:samp:`EmptyInstance`
+      Empty `instance' blocks.
+:samp:`EmptyMacro`
+      Empty `macro' blocks.
+:samp:`EmptyPostulate`
+      Empty `postulate' blocks.
+:samp:`InvalidTerminationCheckPragma`
+      Termination checking pragmas before non-function or `mutual' blocks.
+:samp:`InvalidNoPositivityCheckPragma`
+      No positivity checking pragmas before non-`data', `record' or `mutual' blocks.
+:samp:`InvalidCatchallPragma`
+      `CATCHALL' pragmas before a non-function clause.
+:samp:`OldBuiltin`
+      Deprecated `BUILTIN' pragmas.
+:samp:`EmptyRewritePragma`
+      Empty `REWRITE' pragmas.
+:samp:`UselessPublic`
+      `public' blocks where they have no effect.
+:samp:`UnreachableClauses`
+      Unreachable function clauses.
+:samp:`UselessInline`
+      `INLINE' pragmas where they have no effect.
+:samp:`DeprecationWarning`
+      Feature deprecation.
+:samp:`InversionDepthReached`
+      Inversions of pattern-matching failed due to exhausted inversion depth.
+:samp:`TerminationIssue`
+      Failed termination checks.
+:samp:`CoverageIssue`
+      Failed coverage checks.
+:samp:`CoverageNoExactSplit`
+      Failed exact split checks.
+:samp:`NotStrictlyPositive`
+      Failed strict positivity checks.
+:samp:`UnsolvedMetaVariables`
+      Unsolved meta variables.
+:samp:`UnsolvedInteractionMetas`
+      Unsolved interaction meta variables.
+:samp:`UnsolvedConstraints`
+      Unsolved constraints.
+:samp:`SafeFlagPostulate`
+      `postulate' blocks with the safe flag
+:samp:`SafeFlagPragma`
+      Unsafe `OPTIONS' pragmas with the safe flag.
+:samp:`SafeFlagNonTerminating`
+      `NON_TERMINATING' pragmas with the safe flag.
+:samp:`SafeFlagTerminating`
+      `TERMINATING' pragmas with the safe flag.
+:samp:`SafeFlagPrimTrustMe`
+      `primTrustMe' usages with the safe flag.
+:samp:`SafeFlagNoPositivityCheck`
+      `NO_POSITIVITY_CHECK' pragmas with the safe flag.
+:samp:`SafeFlagPolarity`
+      `POLARITY' pragmas with the safe flag.
 
 .. _Vim: http://www.vim.org/
 .. _Dot: http://www.graphviz.org/content/dot-language

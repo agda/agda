@@ -1182,7 +1182,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
 niceDecls ds = do
   let (result, warns) = runNice $ niceDeclarations ds
-  unless (null warns) $ setCurrentRange ds $ warning $ NicifierIssue warns
+  unless (null warns) $ setCurrentRange ds $ warnings $ NicifierIssue <$> warns
   case result of
     Left e   -> throwError $ Exception (getRange e) $ pretty e
     Right ds -> return ds
