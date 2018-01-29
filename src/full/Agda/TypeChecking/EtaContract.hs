@@ -66,39 +66,60 @@ etaOnce v = case v of
   -- performance on the std-lib
   -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
   Shared{} -> updateSharedTerm etaOnce v
-  Lam i (Abs _ b) -> do  -- NoAbs can't be eta'd
-      tyty <- typeInType
-      case binAppView b of
-        App u (Arg info v)
-          | isVar0 tyty v
-          -- Andreas, 2017-02-20 issue #2464
-          -- Contracting with any irrelevant argument breaks subject reduction.
-          -- E.g. \ .x -> f .(subst P eq x)  can in general not be contracted to f.
-          -- -- | (isIrrelevant info || isVar0 tyty v)
-                    && sameHiding i info
-                    && not (freeIn 0 u) ->
-            return $ strengthen __IMPOSSIBLE__ u
-        _ -> return v
-    where
-      isVar0 tyty (Shared p)            = isVar0 tyty (derefPtr p)
-      isVar0 _ (Var 0 [])               = True
-      -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
-      isVar0 True Level{}               = True
-      isVar0 tyty (Level (Max [Plus 0 l])) = case l of
-        NeutralLevel _ v -> isVar0 tyty v
-        UnreducedLevel v -> isVar0 tyty v
-        BlockedLevel{}   -> False
-        MetaLevel{}      -> False
-      isVar0 _ _ = False
+  Lam i (Abs x b) -> etaLam i x b  -- NoAbs can't be eta'd
 
   -- Andreas, 2012-12-18:  Abstract definitions could contain
   -- abstract records whose constructors are not in scope.
   -- To be able to eta-contract them, we ignore abstract.
-  Con c ci es | Just args <- allApplyElims es -> ignoreAbstractMode $ do
-      -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
-      r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
-      ifM (isEtaRecord r)
-          (do -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
-              etaContractRecord r c ci args)
-          (return v)
+  Con c ci es | Just args <- allApplyElims es -> do
+    etaCon c ci args etaContractRecord
   v -> return v
+
+-- | If record constructor, call eta-contraction function.
+etaCon :: (MonadReader TCEnv m, HasConstInfo m, HasOptions m)
+  => ConHead  -- ^ Constructor name @c@.
+  -> ConInfo  -- ^ Constructor info @ci@.
+  -> Args     -- ^ Constructor arguments @args@.
+  -> (QName -> ConHead -> ConInfo -> Args -> m Term)
+              -- ^ Eta-contraction workhorse, gets also name of record type.
+  -> m Term   -- ^ Returns @Con c ci args@ or its eta-contraction.
+etaCon c ci args cont = ignoreAbstractMode $ do
+  let fallback = return $ Con c ci args
+  -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+  r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
+  ifNotM (isEtaRecord r) fallback $ {-else-} do
+    -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+    cont r c ci args
+
+-- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.
+etaLam :: (MonadReader TCEnv m, HasConstInfo m, HasOptions m)
+  => ArgInfo  -- ^ Info @i@ of the 'Lam'.
+  -> ArgName  -- ^ Name @x@ of the abstraction.
+  -> Term     -- ^ Body ('Term') @b@ of the 'Abs'.
+  -> m Term   -- ^ @Lam i (Abs x b)@, eta-contracted if possible.
+etaLam i x b = do
+    let fallback = return $ Lam i $ Abs x b
+    case binAppView b of
+      App u (Arg info v) -> do
+        tyty <- typeInType
+        if isVar0 tyty v
+        -- Andreas, 2017-02-20 issue #2464
+        -- Contracting with any irrelevant argument breaks subject reduction.
+        -- E.g. \ .x -> f .(subst P eq x)  can in general not be contracted to f.
+        -- -- (isIrrelevant info || isVar0 tyty v)
+             && sameHiding i info
+             && not (freeIn 0 u)
+           then return $ strengthen __IMPOSSIBLE__ u
+           else fallback
+      _ -> fallback
+  where
+    isVar0 tyty (Shared p)            = isVar0 tyty (derefPtr p)
+    isVar0 _ (Var 0 [])               = True
+    -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
+    isVar0 True Level{}               = True
+    isVar0 tyty (Level (Max [Plus 0 l])) = case l of
+      NeutralLevel _ v -> isVar0 tyty v
+      UnreducedLevel v -> isVar0 tyty v
+      BlockedLevel{}   -> False
+      MetaLevel{}      -> False
+    isVar0 _ _ = False

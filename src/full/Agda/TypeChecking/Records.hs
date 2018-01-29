@@ -611,9 +611,12 @@ etaExpandAtRecordType t u = do
 --   We can eta contract if all fields @f = ...@ are irrelevant
 --   or all fields @f@ are the projection @f v@ of the same value @v@,
 --   but we need at least one relevant field to find the value @v@.
---
---   TODO: this can be moved out of TCM (but only if ConHead
---   stores also the Arg-decoration of the record fields.
+
+--   TODO: this can be moved out of TCM.
+--   Andreas, 2018-01-28: attempted just that, but Auto does not
+--   put the conFields there (it does not run in TCM).
+--   If we get rid of Auto, we can do this.  (Tests not involving Auto pass.)
+
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> TCM Term #-}
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> ReduceM Term #-}
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
