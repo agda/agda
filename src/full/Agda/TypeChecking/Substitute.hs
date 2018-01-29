@@ -80,20 +80,21 @@ canProject f v =
   case ignoreSharing v of
     (Con (ConHead _ _ fs) _ vs) -> do
       i <- List.elemIndex f fs
-      headMaybe (drop i vs)
+      isApplyElim =<< headMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
-conApp :: ConHead -> ConInfo -> Args -> Elims -> Term
+conApp :: ConHead -> ConInfo -> Elims -> Elims -> Term
 conApp ch                  ci args []             = Con ch ci args
-conApp ch                  ci args (Apply a : es) = conApp ch ci (args ++ [a]) es
+conApp ch                  ci args (a@Apply{} : es) = conApp ch ci (args ++ [a]) es
 conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
+      isApply = isApplyElim' __IMPOSSIBLE__
       i = maybe failure id            $ List.elemIndex f fs
-      v = maybe failure argToDontCare $ headMaybe $ drop i args
+      v = maybe failure (argToDontCare . isApply)  $ headMaybe $ drop i args
   in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin

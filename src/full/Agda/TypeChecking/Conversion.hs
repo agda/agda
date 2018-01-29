@@ -519,7 +519,7 @@ compareAtom cmp t m n =
                     forcedArgs <- getForcedArgs $ conName x
                     -- Constructors are covariant in their arguments
                     -- (see test/succeed/CovariantConstructors).
-                    compareArgs (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
+                    compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
@@ -628,7 +628,7 @@ antiUnify pid a u v = do
     -- thus, we would not see clearly if we used @getFullyAppliedConType@ instead.)
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
       a <- maybe patternViolation (return . snd) =<< getConType x a
-      antiUnifyElims pid a (Con x ci []) (map Apply us) (map Apply vs)
+      antiUnifyElims pid a (Con x ci []) us vs
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs
       antiUnifyElims pid a (Def f []) us vs

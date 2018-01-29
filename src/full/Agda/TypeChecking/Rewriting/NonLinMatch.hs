@@ -149,9 +149,9 @@ instance PatternFrom Term NLPat where
         mr <- isRecordConstructor (conName c)
         case mr of
           Just (_, def) | recEtaEquality def ->
-            PDef (conName c) <$> patternFrom r k (Apply <$> vs)
+            PDef (conName c) <$> patternFrom r k vs
           _ -> done
-      Con c ci vs -> PDef (conName c) <$> patternFrom r k (Apply <$> vs)
+      Con c ci vs -> PDef (conName c) <$> patternFrom r k vs
       Pi a b | isIrrelevant r -> done
       Pi a b   -> PPi <$> patternFrom r k a <*> patternFrom r k b
       Sort s   -> done
@@ -323,14 +323,14 @@ instance Match NLPat Term where
           Def f' es
             | f == f'   -> match r gamma k ps es
           Con c _ vs
-            | f == conName c -> match r gamma k ps (Apply <$> vs)
+            | f == conName c -> match r gamma k ps vs
             | otherwise -> do -- @c@ may be a record constructor
                 mr <- liftRed $ isRecordConstructor (conName c)
                 case mr of
                   Just (_, def) | recEtaEquality def -> do
                     let fs = recFields def
                         qs = map (fmap $ \f -> PDef f (ps ++ [Proj ProjSystem f])) fs
-                    match r gamma k qs vs
+                    match r gamma k (map Apply qs) vs
                   _ -> no (text "")
           Lam i u -> do
             let pbody = PDef f (raise 1 ps ++ [Apply $ Arg i $ PTerm (var 0)])
@@ -362,7 +362,7 @@ instance Match NLPat Term where
             Just (_, def) | recEtaEquality def -> do
               let fs = recFields def
                   qs = map (fmap $ \f -> PBoundVar i (ps ++ [Proj ProjSystem f])) fs
-              match r gamma k qs vs
+              match r gamma k (map Apply qs) vs
             _ -> no (text "")
         Lam info u -> do
           let pbody = PBoundVar i (raise 1 ps ++ [Apply $ Arg info $ PTerm (var 0)])

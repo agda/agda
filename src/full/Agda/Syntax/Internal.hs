@@ -108,7 +108,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
           | Lit Literal
           | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
-          | Con ConHead ConInfo Args      -- ^ @c vs@ or @record { fs = vs }@
+          | Con ConHead ConInfo Elims
+          -- ^ @c vs@ or @record { fs = vs }@
           | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
           | Sort Sort
           | Level Level
@@ -973,6 +974,9 @@ isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
 
+isApplyElim' :: Empty -> Elim' a -> Arg a
+isApplyElim' e = fromMaybe (absurd e) . isApplyElim
+
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
@@ -1233,7 +1237,7 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> pretty q `pApp` els
-      Con c ci vs          -> pretty (conName c) `pApp` map Apply vs
+      Con c ci vs          -> pretty (conName c) `pApp` vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
         sep [ prettyPrec 1 (unDom a) <+> text "->"
             , nest 2 $ pretty b ]

@@ -69,7 +69,7 @@ patternToTerm p ret =
   case p of
     A.VarP x                        -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ cs ps
-      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive []) ConOCon) ps ret
+      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive []) ConOCon . map Apply) ps ret
       | otherwise                   -> ambigErr "constructor" cs
     A.ProjP _ _ ds
       | Just d <- getUnambiguous ds -> ret 0 (Def d [])

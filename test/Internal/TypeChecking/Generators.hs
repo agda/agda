@@ -315,7 +315,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> pure ConOSystem <*> args
+      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
 
       genLeaf :: Gen Term
       genLeaf = frequency
@@ -477,8 +477,8 @@ instance ShrinkC Term Term where
                     (uncurry Var <$> shrinkC conf (VarName i, NoType es))
     Def d es     -> map unArg (argsFromElims es) ++
                     (uncurry Def <$> shrinkC conf (DefName d, NoType es))
-    Con c ci args-> map unArg args ++
-                    ((\(c,vs) -> Con c ci vs) <$> shrinkC conf (ConName c, NoType args))
+    Con c ci es  -> map unArg (argsFromElims es) ++
+                    ((\(c,vs) -> Con c ci vs) <$> shrinkC conf (ConName c, NoType es))
     Lit l        -> Lit <$> shrinkC conf l
     Level l      -> [] -- TODO
     Lam info b   -> killAbs b : ((\(h,x) -> Lam (setHiding h defaultArgInfo) x)

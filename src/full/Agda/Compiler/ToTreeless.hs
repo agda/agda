@@ -401,7 +401,8 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       maybeInlineDef q args
-    I.Con c ci args -> do
+    I.Con c ci es -> do
+        let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Shared _ -> __IMPOSSIBLE__ -- the ignoreSharing fun should already take care of this

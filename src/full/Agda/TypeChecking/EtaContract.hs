@@ -33,7 +33,7 @@ binAppView t = case t of
   -- At least record constructors should be fully applied where possible!
   -- TODO: also for ordinary constructors (\ x -> suc x  vs.  suc)?
   Con c ci xs
-    | null (conFields c) -> app (Con c ci) xs
+    | null (conFields c) -> appE (Con c ci) xs
     | otherwise          -> noApp
   Lit _      -> noApp
   Level _    -> noApp   -- could be an application, but let's not eta contract levels
@@ -94,7 +94,7 @@ etaOnce v = case v of
   -- Andreas, 2012-12-18:  Abstract definitions could contain
   -- abstract records whose constructors are not in scope.
   -- To be able to eta-contract them, we ignore abstract.
-  Con c ci args -> ignoreAbstractMode $ do
+  Con c ci es | Just args <- allApplyElims es -> ignoreAbstractMode $ do
       -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
       r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
       ifM (isEtaRecord r)

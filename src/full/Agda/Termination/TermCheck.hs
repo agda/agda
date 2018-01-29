@@ -527,7 +527,7 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = (liftTCM $ ignoreSharing <$> constructorForm t) >>= \case
     -- Constructors.
-    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern args
+    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
@@ -739,7 +739,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
     -- thus, we need to use traverseTermM.  Sharing is handled by traverseTermM,
     -- so no ignoreSharing needed here.
     let (reduceCon :: Term -> TCM Term) = traverseTermM $ \ t -> case t of
-           Con c ci vs -> (`apply` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
+           Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
            _ -> return t
 
     -- Reduce constructors only when this call is actually a recursive one.
@@ -865,8 +865,8 @@ instance ExtractCalls Term where
     case ignoreSharing t of
 
       -- Constructed value.
-      Con ConHead{conName = c} _ args -> do
-
+      Con ConHead{conName = c} _ es -> do
+        let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         -- A constructor preserves the guardedness of all its arguments.
         let argsg = zip args $ repeat True
 
@@ -1209,14 +1209,16 @@ compareTerm' v mp@(Masked m p) = do
     (Con{}, ConP c _ ps) | any (isSubTerm v . namedArg) ps ->
       decr True <$> offsetFromConstructor (conName c)
 
-    (Con c _ ts, ConP c' _ ps) | conName c == conName c'->
+    (Con c _ es, ConP c' _ ps) | conName c == conName c'->
+      let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
       compareConArgs ts ps
 
     (Con _ _ [], _) -> return Order.le
 
     -- new case for counting constructors / projections
     -- register also increase
-    (Con c _ ts, _) -> do
+    (Con c _ es, _) -> do
+      let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) mp) ts)
 
@@ -1227,7 +1229,8 @@ subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPattern -> Order
 subTerm t p = if equal t p then Order.le else properSubTerm t p
   where
     equal (Shared p) dbp = equal (derefPtr p) dbp
-    equal (Con c _ ts) (ConP c' _ ps) =
+    equal (Con c _ es) (ConP c' _ ps) =
+      let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
       and $ (conName c == conName c')
           : (length ts == length ps)
           : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps

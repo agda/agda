@@ -163,7 +163,7 @@ checkInternal' action v t = do
     Con c ci vs -> do
       -- We need to fully apply the constructor to make getConType work!
       fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
-        Con c ci vs2 <- checkArgs action a (Con c ci []) vs' t
+        Con c ci vs2 <- checkSpine action a (Con c ci []) vs' t
         -- Strip away the extra arguments
         return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
           $ Con c ci $ take (length vs) vs2
@@ -201,9 +201,9 @@ checkInternal' action v t = do
 --   Raises a type error if the constructor does not belong to the given type.
 fullyApplyCon
   :: ConHead -- ^ Constructor.
-  -> Args    -- ^ Constructor arguments.
+  -> Elims    -- ^ Constructor arguments.
   -> Type    -- ^ Type of the constructor application.
-  -> (QName -> Type -> Args -> Type -> Args -> Telescope -> Type -> TCM a)
+  -> (QName -> Type -> Args -> Type -> Elims -> Telescope -> Type -> TCM a)
        -- ^ Name of the data/record type,
        --   type of the data/record type,
        --   reconstructed parameters,
@@ -222,7 +222,7 @@ fullyApplyCon c vs t0 ret = do
       Nothing ->
         typeError $ DoesNotConstructAnElementOf (conName c) t
       Just ((d, dt, pars), a) ->
-        ret d dt pars a (raise (size tel) vs ++ teleArgs tel) tel t
+        ret d dt pars a (raise (size tel) vs ++ map Apply (teleArgs tel)) tel t
 
 checkSpine
   :: Action

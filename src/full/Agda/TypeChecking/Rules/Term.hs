@@ -705,7 +705,7 @@ checkRecordExpression mfs e t = do
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-      return $ Con con ConORec args
+      return $ Con con ConORec (map Apply args)
     _         -> typeError $ ShouldBeRecordType t
 
   where
@@ -1693,7 +1693,7 @@ checkConstructorApplication org t c args = do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "us     =" <+> prettyTCM us
                , text "t'     =" <+> prettyTCM t' ]
-             coerce (Con c ConOCon us) t' t
+             coerce (Con c ConOCon (map Apply us)) t' t
       _ -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback

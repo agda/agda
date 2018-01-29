@@ -255,7 +255,8 @@ unforce q (p : ps) =
     mkPat q v | patternToTerm q == v = Just q
     mkPat q v =
       case v of
-        Con c co vs -> do
+        Con c co es -> do
+          let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           let mps = (map . traverse) (mkPat q) vs
           (mvs1, (_, Just p) : mvs2) <- return $ break (isJust . snd) (zip vs mps)
           let vs1 = map fst mvs1

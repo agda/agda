@@ -545,12 +545,13 @@ hasBadRigid xs t = do
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
-    Con c _ args -> do
+    Con c _ es | Just args <- allApplyElims es -> do
       ifM (liftTCM $ isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
         (and <$> mapM (hasBadRigid xs . unArg) args)  -- not andM, we need to force the exceptions!
         failure
+    Con c _ es | otherwise -> failure
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
     Shared p     -> __IMPOSSIBLE__

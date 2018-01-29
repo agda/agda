@@ -197,7 +197,7 @@ instance Unquote ArgInfo where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c _ [h,r] -> do
+      Con c _ es | Just [h,r] <- allApplyElims es -> do
         choice
           [(c `isCon` primArgArgInfo,
               ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected)]
@@ -209,7 +209,7 @@ instance Unquote a => Unquote (Arg a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c _ [info,x] -> do
+      Con c _ es | Just [info,x] <- allApplyElims es -> do
         choice
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
           __IMPOSSIBLE__
@@ -283,7 +283,7 @@ instance Unquote ErrorPart where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c _ [x] ->
+      Con c _ es | Just [x] <- allApplyElims es ->
         choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
@@ -294,7 +294,7 @@ instance Unquote a => Unquote [a] where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c _ [x,xs] -> do
+      Con c _ es | Just [x,xs] <- allApplyElims es -> do
         choice
           [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
           __IMPOSSIBLE__
@@ -341,7 +341,7 @@ instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c _ [x,y] -> do
+      Con c _ es | Just [x,y] <- allApplyElims es -> do
         choice
           [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
@@ -379,7 +379,7 @@ instance Unquote R.Sort where
         choice
           [(c `isCon` primAgdaSortUnsupported, return R.UnknownS)]
           __IMPOSSIBLE__
-      Con c _ [u] -> do
+      Con c _ es | Just [u] <- allApplyElims es -> do
         choice
           [(c `isCon` primAgdaSortSet, R.SetS <$> unquoteN u)
           ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
@@ -394,7 +394,7 @@ instance Unquote Literal where
           file <- liftU getCurrentPath
           return $ LitMeta r file x
     case ignoreSharing t of
-      Con c _ [x] ->
+      Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaLitNat,    LitNat    noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
@@ -415,13 +415,13 @@ instance Unquote R.Term where
           [ (c `isCon` primAgdaTermUnsupported, return R.Unknown) ]
           __IMPOSSIBLE__
 
-      Con c _ [x] -> do
+      Con c _ es | Just [x] <- allApplyElims es -> do
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
           , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
           __IMPOSSIBLE__
 
-      Con c _ [x, y] ->
+      Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaTermVar,     R.Var     <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermCon,     R.Con     <$> (ensureCon =<< unquoteN x) <*> unquoteN y)
@@ -453,13 +453,13 @@ instance Unquote R.Pattern where
           [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
           , (c `isCon` primAgdaPatDot,    return R.DotP)
           ] __IMPOSSIBLE__
-      Con c _ [x] -> do
+      Con c _ es | Just [x] <- allApplyElims es -> do
         choice
           [ (c `isCon` primAgdaPatVar,  R.VarP  <$> unquoteNString x)
           , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
           , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c _ [x, y] -> do
+      Con c _ es | Just [x, y] <- allApplyElims es -> do
         choice
           [ (c `isCon` primAgdaPatCon, R.ConP <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
@@ -470,11 +470,11 @@ instance Unquote R.Clause where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Con c _ [x] -> do
+      Con c _ es | Just [x] <- allApplyElims es -> do
         choice
           [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c _ [x, y] -> do
+      Con c _ es | Just [x, y] <- allApplyElims es -> do
         choice
           [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__

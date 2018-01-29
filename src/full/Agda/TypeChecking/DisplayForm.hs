@@ -38,7 +38,7 @@ dtermToTerm :: DisplayTerm -> Term
 dtermToTerm dt = case dt of
   DWithApp d ds es ->
     dtermToTerm d `apply` map (defaultArg . dtermToTerm) ds `applyE` es
-  DCon c ci args   -> Con c ci $ map (fmap dtermToTerm) args
+  DCon c ci args   -> Con c ci $ map (Apply . fmap dtermToTerm) args
   DDef f es        -> Def f $ map (fmap dtermToTerm) es
   DDot v           -> v
   DTerm v          -> v

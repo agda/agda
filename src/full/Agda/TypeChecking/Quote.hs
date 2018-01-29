@@ -228,11 +228,12 @@ quotingKit = do
                     extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
             qx (theDef defn) @@ list (drop n $ conOrProjPars ++ map (quoteArg quoteTerm) ts)
-          Con x ci ts -> do
+          Con x ci es | Just ts <- allApplyElims es -> do
             cDef <- getConstInfo (conName x)
             n    <- getDefFreeVars (conName x)
             let args = list $ drop n $ defParameters cDef ++ map (quoteArg quoteTerm) ts
             con !@! quoteConName x @@ args
+          Con x ci es -> pure unsupported
           Pi t u     -> pi !@  quoteDom quoteType t
                             @@ quoteAbs quoteType u
           Level l    -> quoteTerm (unlevelWithKit lkit l)

@@ -339,7 +339,8 @@ slowReduceTerm v = do
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
       MetaV x es -> done
       Def f es   -> unfoldDefinitionE False reduceB' (Def f []) f es
-      Con c ci args -> do
+      Con c ci es -> do
+          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           -- Constructors can reduce' when they come from an
           -- instantiated module.
           v <- unfoldDefinition False reduceB' (Con c ci []) (conName c) args
@@ -362,7 +363,7 @@ slowReduceTerm v = do
         case v of
           _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
           _                 -> return v
-      reduceNat v@(Con c ci [a]) | visible a && isRelevant a = do
+      reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
           _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
@@ -370,7 +371,7 @@ slowReduceTerm v = do
           where
             inc w = case ignoreSharing w of
               Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
-              _                -> Con c ci [defaultArg w]
+              _                -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion

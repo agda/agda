@@ -65,7 +65,7 @@ reconstructParameters a v = do
           case ignoreSharing (unEl a) of
             Def d es -> do
               Just n <- defParameters <$> getConstInfo d
-              let Just ps = applySubst (strengthenS __IMPOSSIBLE__ under) . take n <$> allApplyElims es
+              let ps = applySubst (strengthenS __IMPOSSIBLE__ under) . take n $ es
               reportSLn "tc.with.reconstruct" 50 $ show n ++ " parameters"
               -- TODO: the reconstructed parameters are not reconstructed recursively!
               return $ Con h ci (ps ++ vs)

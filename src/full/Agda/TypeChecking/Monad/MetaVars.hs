@@ -123,7 +123,7 @@ instance IsInstantiatedMeta Term where
       DontCare v -> loop v
       Level l    -> isInstantiatedMeta l
       Lam _ b    -> isInstantiatedMeta b
-      Con _ _ vs -> isInstantiatedMeta vs
+      Con _ _ es | Just vs <- allApplyElims es -> isInstantiatedMeta vs
       _          -> __IMPOSSIBLE__
 
 instance IsInstantiatedMeta Level where
