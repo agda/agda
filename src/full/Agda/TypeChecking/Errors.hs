@@ -432,6 +432,7 @@ errorString err = case err of
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
+  ForcedConstructorNotInstantiated{}       -> "ForcedConstructorNotInstantiated"
   UninstantiatedModule{}                   -> "UninstantiatedModule"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
@@ -576,6 +577,10 @@ instance PrettyTCM TypeError where
 
     UninstantiatedDotPattern e -> fsep $
       pwords "Failed to infer the value of dotted pattern"
+
+    ForcedConstructorNotInstantiated p -> fsep $
+      pwords "Failed to infer that constructor pattern "
+      ++ [prettyA p] ++ pwords " is forced"
 
     IlltypedPattern p a -> do
       let ho _ _ = fsep $ pwords "Cannot pattern match on functions"

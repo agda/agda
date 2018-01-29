@@ -939,6 +939,12 @@ checkLHS mf st@(LHSState tel ip problem target) = do
         Just ambC -> disambiguateConstructor ambC d pars
         Nothing   -> getRecordConstructor d pars a
 
+      -- Don't split on lazy constructor
+      case focusPat of
+        A.ConP cpi _ _ | patLazy cpi -> softTypeError $
+          ForcedConstructorNotInstantiated focusPat
+        _ -> return ()
+
       -- The type of the constructor will end in an application of the datatype
       TelV gamma (El _ ctarget) <- liftTCM $ telView b
       let Def d' es' = ignoreSharing ctarget

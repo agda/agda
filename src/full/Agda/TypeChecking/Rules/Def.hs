@@ -572,7 +572,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb) rhs0 =
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
         -- The REFL constructor might have an argument
-        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange) (unambiguous $ conName reflCon) $
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange False) (unambiguous $ conName reflCon) $
               maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
 
         -- Andreas, 2015-12-25  Issue #1740:

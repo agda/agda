@@ -2114,7 +2114,7 @@ resolvePatternIdentifier r x ns = do
     VarPatName y         -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ show y ++ " with range " ++ show (getRange y)
       return $ VarP y
-    ConPatName ds        -> return $ ConP (ConPatInfo ConOCon $ PatRange r)
+    ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) False)
                                           (AmbQ $ fmap anameName ds) []
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
                                                  (AmbQ $ fmap anameName ds) []
@@ -2144,16 +2144,53 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       genericError "quote must be applied to an identifier"
 
     toAbstract p0@(AppP p q) = do
+        reportSLn "scope.pat" 50 $ "distributeDots before = " ++ show p
+        p <- distributeDots p
+        reportSLn "scope.pat" 50 $ "distributeDots after  = " ++ show p
         (p', q') <- toAbstract (p, q)
         case p' of
             ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
-            ProjP i o x        -> typeError $ InvalidPattern p0
+            ProjP i o x        -> fail
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
-            _                  -> typeError $ InvalidPattern p0
+            A.DotP i e         -> case e of
+              Ident x -> resolveName x >>= \case
+                ConstructorName ds -> do
+                  let cpi = ConPatInfo ConOCon i True
+                      c   = AmbQ (fmap anameName ds)
+                  return $ ConP cpi c [q']
+                _ -> fail
+              _ -> fail
+            _                  -> fail
         where
             r = getRange p0
             info = PatRange r
+            fail = typeError $ InvalidPattern p0
+
+            distributeDots :: C.Pattern -> ScopeM C.Pattern
+            distributeDots p@(C.DotP r e) = distributeDotsExpr r e
+            distributeDots p = return p
+
+            distributeDotsExpr :: Range -> C.Expr -> ScopeM C.Pattern
+            distributeDotsExpr r e = parseRawApp e >>= \case
+              C.App r e a     ->
+                AppP <$> distributeDotsExpr r e
+                     <*> (traverse . traverse) (distributeDotsExpr r) a
+              OpApp r q ns as ->
+                case (traverse . traverse . traverse) fromNoPlaceholder as of
+                  Just as -> OpAppP r q ns <$>
+                    (traverse . traverse . traverse) (distributeDotsExpr r) as
+                  Nothing -> return $ C.DotP r e
+              Paren r e -> ParenP r <$> distributeDotsExpr r e
+              _ -> return $ C.DotP r e
+
+            fromNoPlaceholder :: MaybePlaceholder (OpApp a) -> Maybe a
+            fromNoPlaceholder (NoPlaceholder _ (Ordinary e)) = Just e
+            fromNoPlaceholder _ = Nothing
+
+            parseRawApp :: C.Expr -> ScopeM C.Expr
+            parseRawApp (RawApp r es) = parseApplication es
+            parseRawApp e             = return e
 
     toAbstract p0@(OpAppP r op ns ps) = do
         p  <- resolvePatternIdentifier (getRange op) op (Just ns)
