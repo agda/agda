@@ -149,6 +149,28 @@ Language
     module File where -- inner module with the same name as the file, ok
   ```
 
+### Pattern matching
+
+* Forced constructor patterns.
+
+  Constructor patterns can now be dotted to indicate that Agda should not case
+  split on them but rather their value is forced by the type of the other
+  patterns. The difference between this and a regular dot pattern is that
+  forced constructor patterns can still bind variables in their arguments.
+  For example,
+
+  ```agda
+    open import Agda.Builtin.Nat
+
+    data Vec (A : Set) : Nat → Set where
+      nil  : Vec A zero
+      cons : (n : Nat) → A → Vec A n → Vec A (suc n)
+
+    append : {A : Set} (m n : Nat) → Vec A m → Vec A n → Vec A (m + n)
+    append .zero    n nil            ys = ys
+    append (.suc m) n (cons .m x xs) ys = cons (m + n) x (append m n xs ys)
+  ```
+
 ### Builtins
 
 * Added support for built-in 64-bit machine words.
