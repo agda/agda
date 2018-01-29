@@ -737,6 +737,7 @@ stripImplicits ps = do
           stripName True  = fmap (unnamed . namedThing)
           stripName False = id
 
+          -- TODO: vars appearing in EqualPs shouldn't be stripped.
           canStrip a = and
             [ notVisible a
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
@@ -759,7 +760,7 @@ stripImplicits ps = do
             A.AsP i x p   -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
             A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
-            A.EqualP{}    -> p
+            A.EqualP{}    -> p -- EqualP cannot be blanked.
             A.WithP i p   -> A.WithP i $ stripPat p -- TODO #2822: right?
 
           varOrDot A.VarP{}      = True
@@ -825,7 +826,7 @@ instance BlankVars A.Pattern where
     A.AsP i n p   -> A.AsP i n $ blank bound p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__
     A.RecP i fs   -> A.RecP i $ blank bound fs
-    A.EqualP i es -> A.EqualP i (blank bound es)  -- Andrea TODO: is this correct?
+    A.EqualP{}    -> p
     A.WithP i p   -> A.WithP i (blank bound p)
 
 instance BlankVars A.Expr where
@@ -1074,14 +1075,9 @@ instance Reify (QNamed System) [A.Clause] where
             d True = unview IOne
             d False = unview IZero
         reify (phi, d b)
-      -- Since stripImplicits assumes all visible variables are bound
-      -- in the patterns, we create them for the full context and then
-      -- keep only the ones for "tel"
-      tel' <- getContextTelescope
-      ps <- reifyPatterns $ teleNamedArgs tel'
-      ps <- return $ ps ++ [defaultNamedArg ep]
-      ps <- stripImplicits ps
-      ps <- return $ drop (size tel' - size tel) ps
+
+      ps <- reifyPatterns $ teleNamedArgs tel
+      ps <- stripImplicits $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS (LHSRange noRange) f ps
         result = A.Clause (spineToLhs lhs) [] rhs [] False
