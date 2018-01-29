@@ -334,7 +334,13 @@ newMeta' :: MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
 newMeta' inst mi p perm j = do
   x <- fresh
   let j' = j { jMetaId = x }  -- fill the identifier part of the judgement
-      mv = MetaVar mi p perm j' inst Set.empty Instantiable
+      mv = MetaVar{ mvInfo             = mi
+                  , mvPriority         = p
+                  , mvPermutation      = perm
+                  , mvJudgement        = j'
+                  , mvInstantiation    = inst
+                  , mvListeners        = Set.empty
+                  , mvFrozen           = Instantiable }
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ text "new meta" <+> prettyTCM j'
   stMetaStore %= Map.insert x mv
