@@ -188,7 +188,8 @@ updateProblemEqs eqs = do
 
     update :: ProblemEq -> TCM [ProblemEq]
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
-      Con c ci vs -> do
+      Con c ci es -> do
+        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         -- we should only simplify equations between fully applied constructors
         contype <- getFullyAppliedConType c =<< reduce (unDom a)
         caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do

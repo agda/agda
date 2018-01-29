@@ -360,7 +360,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
       case ignoreSharing v of
         Def _ es  -> areThereNonRigidMetaArgs es
         Var _ es  -> areThereNonRigidMetaArgs es
-        Con _ _ vs-> areThereNonRigidMetaArgs (map Apply vs)
+        Con _ _ vs-> areThereNonRigidMetaArgs vs
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
           -- Ignore unconstrained level and size metas (#1865)
           mlvl <- getBuiltinDefName builtinLevel
@@ -585,7 +585,7 @@ applyDroppingParameters t vs = do
     Con c ci [] -> do
       def <- theDef <$> getConInfo c
       case def of
-        Constructor {conPars = n} -> return $ Con c ci (drop n vs)
+        Constructor {conPars = n} -> return $ Con c ci (map Apply $ drop n vs)
         _ -> __IMPOSSIBLE__
     Def f [] -> do
       mp <- isProjection f

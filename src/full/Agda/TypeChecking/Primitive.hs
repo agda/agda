@@ -259,14 +259,14 @@ instance FromTerm Integer where
       let v'  = ignoreBlocking b
           arg = (<$ v')
       case ignoreSharing $ unArg (ignoreBlocking b) of
-        Con c ci [u]
+        Con c ci [Apply u]
           | c == pos    ->
             redBind (toNat u)
-              (\ u' -> notReduced $ arg $ Con c ci [ignoreReduced u']) $ \ n ->
+              (\ u' -> notReduced $ arg $ Con c ci [Apply $ ignoreReduced u']) $ \ n ->
             redReturn $ fromIntegral n
           | c == negsuc ->
             redBind (toNat u)
-              (\ u' -> notReduced $ arg $ Con c ci [ignoreReduced u']) $ \ n ->
+              (\ u' -> notReduced $ arg $ Con c ci [Apply $ ignoreReduced u']) $ \ n ->
             redReturn $ fromIntegral $ -n - 1
         _ -> return $ NoReduction (reduced b)
 
@@ -347,13 +347,13 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
         case ignoreSharing $ unArg t of
           Con c ci []
             | c == nil  -> return $ YesReduction NoSimplification []
-          Con c ci [x,xs]
-            | c == cons ->
+          Con c ci es
+            | c == cons, Just [x,xs] <- allApplyElims es ->
               redBind (toA x)
-                  (\x' -> notReduced $ arg $ Con c ci [ignoreReduced x',xs]) $ \y ->
+                  (\x' -> notReduced $ arg $ Con c ci (map Apply [ignoreReduced x',xs])) $ \y ->
               redBind
                   (mkList nil cons toA fromA xs)
-                  (fmap $ \xs' -> arg $ Con c ci [defaultArg $ fromA y, xs']) $ \ys ->
+                  (fmap $ \xs' -> arg $ Con c ci (map Apply [defaultArg $ fromA y, xs'])) $ \ys ->
               redReturn (y : ys)
           _ -> return $ NoReduction (reduced b)
 
@@ -1400,7 +1400,7 @@ primTrustMe = do
   con@(Con rf ci []) <- ignoreSharing <$> primRefl
   minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
   let (refl :: Arg Term -> Term) = case minfo of
-        Just ai -> Con rf ci . (:[]) . setArgInfo ai
+        Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
         Nothing -> const con
 
   -- The implementation of primTrustMe:

@@ -580,7 +580,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                  ]
 
           -- Compute the new type
-          let v  = Con c ci [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
+          let v  = Con c ci [ Apply $ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
               t' = tel' `abstract` absApp (raise (size tel') b) v
               self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
 

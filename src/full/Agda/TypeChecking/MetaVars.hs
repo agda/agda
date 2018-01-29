@@ -310,7 +310,7 @@ newRecordMetaCtx r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel perm ctx
   con    <- getRecordConstructor r
-  return $ Con con ConOSystem fields
+  return $ Con con ConOSystem (map Apply fields)
 
 newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
 newQuestionMark = newQuestionMark' $ newValueMeta' RunMetaOccursCheck
@@ -668,7 +668,7 @@ assign dir x args v = do
             let fromIrrVar (Var i [])   = return [i]
                 fromIrrVar (Con c _ vs)   =
                   ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
-                    concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
+                    concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) (fromMaybe __IMPOSSIBLE__ (allApplyElims vs))
                 fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
                 fromIrrVar _ = return []
             irrVL <- concat <$> mapM fromIrrVar
@@ -1041,7 +1041,7 @@ instance NoProjectedVar Term where
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
-      Con (ConHead _ Inductive (_:_)) _ vs -> noProjectedVar vs
+      Con (ConHead _ Inductive (_:_)) _ es | Just vs <- allApplyElims es -> noProjectedVar vs
       _ -> return ()
 
 instance NoProjectedVar a => NoProjectedVar (Arg a) where
@@ -1168,14 +1168,14 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
-        Arg info (Con c ci vs) -> do
+        Arg info (Con c ci es) -> do
           let fallback
                | isIrrelevant info = return vars
                | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
           case isRC of
             Just (_, Record{ recFields = fs })
-              | length fs == length vs -> do
+              | length fs == length es -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding   = min (getHiding info) (getHiding info')
@@ -1185,6 +1185,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                          }
                        , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        }
+                    vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback

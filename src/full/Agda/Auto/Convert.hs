@@ -364,7 +364,8 @@ instance Conversion TOM I.Term (MExp O) where
         c   <- getConst False name TMAll
         as' <- convert as
         return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
-      I.Con con ci as -> do
+      I.Con con ci es -> do
+        let Just as = I.allApplyElims es
         let name = I.conName con
         c   <- getConst True name TMAll
         as' <- convert as
@@ -419,7 +420,7 @@ fmExp m (I.Lam _ b) = fmExp m (I.unAbs b)
 fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
-fmExp m (I.Con _ ci as) = fmExps m as
+fmExp m (I.Con _ ci as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Pi x y)  = fmType m (Cm.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
@@ -488,7 +489,7 @@ instance Conversion MOT (Exp O) I.Term where
 -}
           (ndrop, h) = case iscon of
                          Just n -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive []) Cm.ConOSystem) -- TODO: restore fields
-                         Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
+                         Nothing -> (0, \ f vs -> I.Def f vs)
       frommyExps ndrop as (h name [])
     Lam hid t -> I.Lam (icnvh hid) <$> convert t
     Pi _ hid _ x y -> do
@@ -532,7 +533,7 @@ frommyExps ndrop (NotM as) trm =
   ALConPar _ -> __IMPOSSIBLE__
  where
   addend x (I.Var h xs) = I.Var h (xs ++ [I.Apply x])
-  addend x (I.Con h ci xs) = I.Con h ci (xs ++ [x])
+  addend x (I.Con h ci xs) = I.Con h ci (xs ++ [I.Apply x])
   addend x (I.Def h xs) = I.Def h (xs ++ [I.Apply x])
   addend x (I.Shared p) = addend x (I.derefPtr p)
   addend _ _ = __IMPOSSIBLE__
@@ -760,7 +761,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
-     (Cm.Arg info1 e1 : es1, Cm.Arg info2 e2 : es2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
+     (I.Apply (Cm.Arg info1 e1) : es1, I.Apply (Cm.Arg info2 e2) : es2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
      _ -> Nothing
     fes nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n

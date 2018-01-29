@@ -123,7 +123,7 @@ match' ((c, es, patch) : stack) = do
                   case Map.lookup (conName c) (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
-                               , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
+                               , es0 ++ map (MaybeRed NotReduced) vs ++ es1
                                , patchCon c ci (length vs)
                                ) : stack
                 -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
@@ -140,7 +140,7 @@ match' ((c, es, patch) : stack) = do
                 patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
                   where (es0, rest) = splitAt n es
                         (es1, es2)  = splitAt m rest
-                        vs          = map argFromElim es1
+                        vs          = es1
             zo <- do
                mi <- getBuiltinName' builtinIZero
                mo <- getBuiltinName' builtinIOne

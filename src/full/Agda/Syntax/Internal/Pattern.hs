@@ -159,7 +159,7 @@ clausePerm = dbPatPerm . namedClausePats
 patternToElim :: Arg DeBruijnPattern -> Elim
 patternToElim (Arg ai (VarP o x)) = Apply $ Arg ai $ var $ dbPatVarIndex x
 patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
-      map (argFromElim . patternToElim . fmap namedThing) ps
+      map (patternToElim . fmap namedThing) ps
   where ci = fromConPatternInfo cpi
 patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
 patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l

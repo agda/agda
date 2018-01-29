@@ -46,6 +46,9 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+mkCon :: ConHead -> ConInfo -> Args -> Term
+mkCon h info args = Con h info (map Apply args)
+
 -- | Order the fields of a record construction.
 --   Use the second argument for missing fields.
 orderFields :: QName -> a -> [C.Name] -> [(C.Name, a)] -> TCM [a]
@@ -453,7 +456,7 @@ expandRecordVar i gamma0 = do
           fs  = recFields def
       -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = Con (recConHead def) ConOSystem ys
+          u   = mkCon (recConHead def) ConOSystem ys
       -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
           tau0 = consS u $ raiseS m
       -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
@@ -519,7 +522,7 @@ curryAt t n = do
           m   = size tel
           fs  = recFields def
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-          u   = Con (recConHead def) ConOSystem ys
+          u   = mkCon (recConHead def) ConOSystem ys
           b'  = raise m b `absApp` u
           t'  = gamma `telePi` (tel `telePi` b')
           gammai = map domInfo $ telToList gamma
@@ -575,7 +578,8 @@ etaExpandRecord'_ forceEta r pars def u = do
   case ignoreSharing u of
 
     -- Already expanded.
-    Con con_ ci args -> do
+    Con con_ ci es -> do
+      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       when (con /= con_) $ do
         reportSDoc "impossible" 10 $ vcat
           [ text "etaExpandRecord_: the following two constructors should be identical"
@@ -603,7 +607,7 @@ etaExpandAtRecordType :: Type -> Term -> TCM (Telescope, Term)
 etaExpandAtRecordType t u = do
   (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType t
   (tel, con, ci, args) <- etaExpandRecord_ r pars def u
-  return (tel, Con con ci args)
+  return (tel, mkCon con ci args)
 
 -- | The fields should be eta contracted already.
 --
@@ -630,7 +634,7 @@ etaContractRecord r c ci args = do
           (_, Just (h, es)) | Proj _o f <- last es, unArg ax == f
                             -> Just $ Just $ h $ init es
           _                 -> Nothing
-      fallBack = return (Con c ci args)
+      fallBack = return (mkCon c ci args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
@@ -662,7 +666,7 @@ isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   reportSLn "tc.meta.eta" 30 $ "Is " ++ prettyShow r ++ " a singleton record type?"
   def <- getRecordDef r
-  emap (Con (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
+  emap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where
   check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
   check tel = do

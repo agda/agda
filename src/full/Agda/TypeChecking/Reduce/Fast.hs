@@ -230,7 +230,7 @@ strictSubst strict us
           | x < k     -> Var x $! map' (goE k) es
           | otherwise -> applyE (raise k $ us !! (x - k)) $! map' (goE k) es
         Def f es -> defApp f [] $! map' (goE k) es
-        Con c ci vs -> Con c ci $! map' (mapArg' $ go k) vs
+        Con c ci es -> Con c ci $! map' (goE k) es
         Lam i b  -> Lam i $! goAbs k b
         Lit{}    -> v
         _        -> applySubst (liftS k rho) v
@@ -295,7 +295,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         Con c ci vs ->
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          case unfoldDefinition steps False reduceB' (Con c ci []) (conName c) vs of
+          case unfoldDefinitionE steps False reduceB' (Con c ci []) (conName c) vs of
             NotBlocked r v -> NotBlocked r $ reduceNat v
             b              -> b
         Lit{} -> done
@@ -307,11 +307,11 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
 
         reduceNat v@(Con c ci [])
           | isZero c = Lit $ LitNat (getRange c) 0
-        reduceNat v@(Con c ci [a])
+        reduceNat v@(Con c ci [Apply a])
           | isSuc c  = inc . ignoreBlocking $ reduceB' 0 (unArg a)
           where
             inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
-            inc w                  = Con c ci [defaultArg w]
+            inc w                  = Con c ci [Apply $ defaultArg w]
         reduceNat v = v
 
     originalProjection :: QName -> QName
@@ -477,7 +477,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                         case lookupCon (conName c) bs of
                           Nothing -> stack
                           Just cc -> ( cc
-                                     , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
+                                     , es0 ++ map (MaybeRed NotReduced) vs ++ es1
                                      , patchCon c ci (length vs)
                                      ) : stack
 
@@ -502,7 +502,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                       patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
                         where (es0, rest) = splitAt n es
                               (es1, es2)  = splitAt m rest
-                              vs          = map argFromElim es1
+                              vs          = es1
                       fallThrough = fromMaybe False (ffallThrough bs) && isJust (fcatchAllBranch bs)
                   -- Now do the matching on the @n@ths argument:
                   in case eb of

@@ -318,7 +318,7 @@ defineCompData d con params names fsT t = do
             , clauseFullRange = noRange
             , clauseLHSRange  = noRange
             , clauseCatchall = False
-            , clauseBody = Just $ Con con ConOSystem (map argN bodies) -- abstract gamma $ Body $ Con con (map argN bodies)
+            , clauseBody = Just $ Con con ConOSystem (map Apply $ map argN bodies) -- abstract gamma $ Body $ Con con (map argN bodies)
             , clauseUnreachable = Just False
             }
         cs = [clause]
@@ -354,7 +354,7 @@ defineProjections dataname con params names fsT t = do
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
           { clauseTel = abstract params fsT
-          , clauseType = Just . argN $ ([Con con ConOSystem (teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
+          , clauseType = Just . argN $ ([Con con ConOSystem (map Apply $ teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
           , namedClausePats = raise (size fsT) (teleNamedArgs params) ++ [Named Nothing <$> conp]
           , clauseFullRange = noRange
           , clauseLHSRange  = noRange

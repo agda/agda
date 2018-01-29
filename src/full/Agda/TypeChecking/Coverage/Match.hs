@@ -5,7 +5,7 @@ module Agda.TypeChecking.Coverage.Match where
 import Control.Monad.State
 
 import qualified Data.List as List
-import Data.Maybe (mapMaybe, isJust)
+import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Traversable (traverse)
@@ -65,7 +65,8 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
 
 -- | Convert the root of a term into a pattern constructor, if possible.
 buildPattern :: Term -> Maybe DeBruijnPattern
-buildPattern (Con c ci args) = Just $
+buildPattern (Con c ci es) = Just $
+  let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
   ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . dotP) args
 buildPattern (Var i [])     = Just $ deBruijnVar i
 buildPattern (Shared p)     = buildPattern (derefPtr p)

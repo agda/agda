@@ -218,8 +218,8 @@ addRewriteRule q = do
       (f , hd , es) <- case ignoreSharing lhs of
         Def f es -> return (f , Def f , es)
         Con c ci vs -> do
-          let hd = Con c ci . fromMaybe __IMPOSSIBLE__ . allApplyElims
-          return (conName c , hd  , map Apply vs)
+          let hd = Con c ci
+          return (conName c , hd  , vs)
         _        -> failureNotDefOrCon
 
       ifNotAlreadyAdded f $ do

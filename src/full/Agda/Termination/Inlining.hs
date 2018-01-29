@@ -219,7 +219,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
           ifM (bindVar i) (varP . nameToPatVarName <$> lift (nameOfBV i))
                           (pure $ dotP (Var i []))
         DTerm (Con c ci vs) -> ConP c (toConPatternInfo ci) . map (fmap unnamed) <$>
-                              mapM (traverse (dtermToPat . DTerm)) vs
+                              mapM (traverse (dtermToPat . DTerm)) (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
         DTerm v          -> dotP v <$ skip
 
 isWithFunction :: MonadTCM tcm => QName -> tcm (Maybe QName)

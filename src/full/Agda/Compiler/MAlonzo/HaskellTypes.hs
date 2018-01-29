@@ -168,7 +168,9 @@ haskellType' t = runToHs (unEl t) (fromType t)
             liftE1' (underAbstraction a b) $ \ b ->
               hsForall <$> getHsVar 0 <*> (HS.TyFun hsA <$> fromType b)
           else HS.TyFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
-        Con c ci args -> hsApp <$> getHsType (conName c) <*> fromArgs args
+        Con c ci es -> do
+          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          hsApp <$> getHsType (conName c) <*> fromArgs args
         Lam{}      -> throwError (BadLambda v)
         Level{}    -> return hsUnit
         Lit{}      -> return hsUnit

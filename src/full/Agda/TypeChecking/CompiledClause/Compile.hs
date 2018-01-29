@@ -329,7 +329,7 @@ expandCatchAlls single n cs =
     expand cl (qs, q) =
       case unArg q of
         ConP c mt qs' -> Cl (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
-                            (substBody n' m (Con c ci conArgs) b)
+                            (substBody n' m (Con c ci (map Apply conArgs)) b)
           where
             ci       = fromConPatternInfo mt
             m        = length qs'

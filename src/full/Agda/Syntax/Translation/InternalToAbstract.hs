@@ -290,7 +290,7 @@ reifyDisplayFormP f ps wps = do
 
     okTerm :: I.Term -> Bool
     okTerm (I.Var _ []) = True
-    okTerm (I.Con c ci vs) = all okArg vs
+    okTerm (I.Con c ci vs) = all okElim vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
     okTerm _            = False
 
@@ -331,7 +331,7 @@ reifyDisplayFormP f ps wps = do
            A.ConP (ConPatInfo ci patNoRange False) (unambiguous (conName c)) <$> mapM argToPat vs
 
         termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange False) (unambiguous (conName c)) <$> mapM (argToPat . fmap DTerm) vs
+           A.ConP (ConPatInfo ci patNoRange False) (unambiguous (conName c)) <$> mapM (elimToPat . fmap DTerm) vs
 
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
@@ -350,7 +350,8 @@ reifyDisplayFormP f ps wps = do
           reportSLn "reify.display" 60 $ "termToExpr " ++ show v
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
-            I.Con c ci vs ->
+            I.Con c ci es -> do
+              let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
               apps (A.Con (unambiguous (conName c))) =<< argsToExpr vs
             I.Def f es -> do
               let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
@@ -402,9 +403,9 @@ reifyTerm expandAnonDefs0 v = do
           let keep (a, v) = showImp || visible a
           r  <- getConstructorData x
           xs <- getRecordFieldNames r
-          vs <- map unArg <$> reify vs
+          vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
-        False -> reifyDisplayForm x (map I.Apply vs) $ do
+        False -> reifyDisplayForm x vs $ do
           def <- getConstInfo x
           let Constructor{conPars = np} = theDef def
           -- if we are the the module that defines constructor x
@@ -415,7 +416,7 @@ reifyTerm expandAnonDefs0 v = do
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (unambiguous x)
           if null vs then return h else do
-            es <- reify vs
+            es <- reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
