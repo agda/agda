@@ -1,0 +1,15 @@
+Issue431.agda:16,25-29
+Refusing to invert pattern matching of double because the maximum
+depth (10) has been reached. Most likely this means you have an
+unsatisfiable constraint, but it could also mean that you need to
+increase the maximum depth using the flag --inversion-max-depth=N
+when checking that the expression refl has type
+double (suc (suc (suc (suc (suc _19))))) ≡
+suc (double (suc (suc (suc (suc _18)))))
+Failed to solve the following constraints:
+  _20 := refl [blocked on problem 21]
+  [21, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43] suc (double _19)
+                                                 = double _18
+                                                 : Nat
+Unsolved metas at the following locations:
+  Issue431.agda:16,25-29

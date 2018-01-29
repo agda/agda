@@ -66,11 +66,15 @@ warning w = do
 
   wmode <- optWarningMode <$> pragmaOptions
 
+  let add tcwarn tcwarns
+        | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
+        | otherwise                         = tcwarn : tcwarns
+
   forM_ (applyWarningMode wmode w) $ \ w' -> do
     tcwarn <- warning_ w'
     case wmode of
       TurnIntoErrors -> typeError $ NonFatalErrors [tcwarn]
-      _              -> stTCWarnings %= (tcwarn :)
+      _              -> stTCWarnings %= add tcwarn
 
 -- | Classifying warnings: some are benign, others are (non-fatal) errors
 
@@ -98,6 +102,7 @@ classifyWarning w = case w of
   GenericWarning{}           -> AllWarnings
   DeprecationWarning{}       -> AllWarnings
   NicifierIssue{}            -> AllWarnings
+  InversionDepthReached{}    -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   CoverageNoExactSplit{}     -> ErrorWarnings
@@ -114,6 +119,11 @@ classifyWarning w = case w of
   SafeFlagNoPositivityCheck  -> ErrorWarnings
   SafeFlagPolarity           -> ErrorWarnings
   ParseWarning{}             -> ErrorWarnings
+
+-- | Should we only emit a single warning with this constructor.
+onlyOnce :: Warning -> Bool
+onlyOnce InversionDepthReached{} = True
+onlyOnce _ = False
 
 classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
 classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning

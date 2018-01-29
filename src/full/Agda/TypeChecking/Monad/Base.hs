@@ -2439,6 +2439,8 @@ data Warning
     --   (See issue #2377.)
   | UselessInline            QName
   -- Generic warnings for one-off things
+  | InversionDepthReached    QName
+  -- ^ The --inversion-max-depth was reached.
   | GenericWarning           Doc
     -- ^ Harmless generic warning (not an error)
   | GenericNonFatalError     Doc

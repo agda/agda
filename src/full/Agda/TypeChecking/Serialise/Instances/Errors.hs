@@ -56,6 +56,7 @@ instance EmbPrj Warning where
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
   icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
+  icod_ (InversionDepthReached a)    = icodeN 8 InversionDepthReached a
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -66,6 +67,7 @@ instance EmbPrj Warning where
       valu [5, a]       = valuN GenericWarning a
       valu [6, a, b, c] = valuN DeprecationWarning a b c
       valu [7, a]       = valuN NicifierIssue a
+      valu [8, a]       = valuN InversionDepthReached a
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where

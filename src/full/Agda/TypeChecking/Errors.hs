@@ -175,6 +175,14 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
 
+    InversionDepthReached f -> do
+      maxDepth <- maxInversionDepth
+      fsep $ pwords "Refusing to invert pattern matching of" ++ [prettyTCM f] ++
+             pwords ("because the maximum depth (" ++ show maxDepth ++ ") has been reached.") ++
+             pwords "Most likely this means you have an unsatisfiable constraint, but it could" ++
+             pwords "also mean that you need to increase the maximum depth using the flag" ++
+             pwords "--inversion-max-depth=N"
+
     GenericWarning d -> return d
 
     GenericNonFatalError d -> return d
@@ -261,6 +269,7 @@ applyFlagsToTCWarnings ifs ws = do
           UselessPublic                -> True
           ParseWarning{}               -> True
           UnreachableClauses{}         -> True
+          InversionDepthReached{}      -> True
           CoverageNoExactSplit{}       -> catchallNotOK
           UselessInline{}              -> True
           GenericWarning{}             -> True
