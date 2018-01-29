@@ -245,6 +245,10 @@ Search depth
       Set instance search depth to
       :samp:`{N}` (default: 500; see :ref:`instance-arguments`)
 
+:samp:`--inversion-max-depth={N}`
+      Set maximum depth for pattern match inversion to :samp:`{N}` (default:
+      50). Should only be needed in pathological cases.
+
 Other features
 ~~~~~~~~~~~~~~
 
