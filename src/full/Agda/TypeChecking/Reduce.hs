@@ -393,10 +393,11 @@ slowReduceTerm v = do
       MetaV x es -> iapp es
       Def f es   -> flip reduceIApply es $ unfoldDefinitionE False reduceB' (Def f []) f es
       Con c ci es -> do
-          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          v <- unfoldDefinition False reduceB' (Con c ci []) (conName c) args
+          -- also reduce when they are path constructors
+          v <- flip reduceIApply es
+                 $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> fmap Sort <$> reduceB' s
       Level l  -> ifM (elem LevelReductions <$> asks envAllowedReductions)
@@ -1057,6 +1058,7 @@ instance Normalise a => Normalise (Pattern' a) where
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DotP o v     -> DotP o <$> normalise' v
     ProjP{}      -> return p
+    IApplyP o t u x -> IApplyP o <$> normalise' t <*> normalise' u <*> normalise' x
 
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
@@ -1178,6 +1180,7 @@ instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p
+    instantiateFull' (IApplyP o t u x) = IApplyP o <$> instantiateFull' t <*> instantiateFull' u <*> instantiateFull' x
 
 instance (Subst t a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'

@@ -387,9 +387,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
            ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
            LitP  _      -> gatherEtaSplits (-1) sc ps
            ProjP{}      -> __IMPOSSIBLE__
+           IApplyP{}    -> __IMPOSSIBLE__
        | otherwise ->
            updateNamedArg (\ _ -> p') p : gatherEtaSplits (n-1) sc ps
         where p' = lookupS (scSubst sc) $ splitPatVarIndex x
+      IApplyP{}   ->
+           updateNamedArg (applySubst (scSubst sc)) p : gatherEtaSplits (n-1) sc ps
       DotP  _ _    -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
@@ -403,6 +406,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       ConP c cpi qs -> SplitAt (p $> k) [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
+      IApplyP{}     -> addEtaSplits (k+1) ps t
 
     etaRecordSplits :: Int -> [NamedArg SplitPattern] -> (SplitTag,SplitClause)
                     -> SplitTree -> (SplitTag,SplitTree)
@@ -599,7 +603,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs) <- do
-    TelV gamma0 (El _ d) <- liftTCM $ telView (ctype `piApply` pars)
+    TelV gamma0 (El _ d) <- liftTCM $ telViewPath (ctype `piApply` pars)
     let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs)

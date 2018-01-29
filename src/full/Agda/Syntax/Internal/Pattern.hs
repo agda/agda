@@ -93,6 +93,8 @@ instance LabelPatVars Pattern DeBruijnPattern Int where
       ConP c mt ps -> ConP c mt <$> labelPatVars ps
       LitP l       -> return $ LitP l
       ProjP o q    -> return $ ProjP o q
+      IApplyP o u t x -> do i <- next
+                            return $ IApplyP o u t (DBPatVar x i)
     where next = do (x:xs) <- get; put xs; return x
   unlabelPatVars = fmap dbPatVarName
 
@@ -143,7 +145,7 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
     getIndices (DotP _ _)    = [Nothing | countDots]
     getIndices (LitP _)      = []
     getIndices ProjP{}       = []
-
+    getIndices (IApplyP _ _ _ x) = [Just $ dbPatVarIndex x]
 
 -- | Computes the permutation from the clause telescope
 --   to the pattern variables.
@@ -164,6 +166,7 @@ patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
 patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
 patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest
+patternToElim (Arg ai (IApplyP o t u x)) = IApply t u $ var $ dbPatVarIndex x
 
 patternsToElims :: [NamedArg DeBruijnPattern] -> [Elim]
 patternsToElims ps = map build ps
@@ -175,7 +178,7 @@ patternToTerm :: DeBruijnPattern -> Term
 patternToTerm p = case patternToElim (defaultArg p) of
   Apply x -> unArg x
   Proj{}  -> __IMPOSSIBLE__
-  IApply{} -> __IMPOSSIBLE__
+  IApply _ _ x -> x
 
 
 class MapNamedArgPattern a p where
@@ -200,6 +203,7 @@ instance MapNamedArgPattern a (NamedArg (Pattern' a)) where
       LitP  l     -> f np
       ProjP o q   -> f np
       ConP c i ps -> f $ setNamedArg np $ ConP c i $ mapNamedArgPattern f ps
+      IApplyP o u t x -> f np
 
 instance MapNamedArgPattern a p => MapNamedArgPattern a [p] where
 
@@ -267,6 +271,7 @@ instance PatternLike a (Pattern' a) where
     LitP _      -> mempty
     DotP _ _    -> mempty
     ProjP _ _   -> mempty
+    IApplyP{}   -> mempty
 
   traversePatternM pre post = pre >=> recurse >=> post
     where
@@ -276,6 +281,7 @@ instance PatternLike a (Pattern' a) where
       LitP  _      -> return p
       DotP  _ _    -> return p
       ProjP _ _    -> return p
+      IApplyP{}    -> return p
 
 -- Boilerplate instances:
 
@@ -333,3 +339,4 @@ instance PatternVarModalities (Pattern' x) x where
       DotP{}      -> []
       LitP{}      -> []
       ProjP{}     -> []
+      IApplyP _ _ _ x -> [(x, defaultModality)]

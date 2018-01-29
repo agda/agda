@@ -7,7 +7,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad (unless, guard)
 
-import Data.Foldable (forM_)
+import Data.Foldable (forM_, find)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
@@ -352,52 +352,117 @@ type Boundary = [(Term,(Term,Term))]
 -- | Like @telViewUpToPath@ but also returns the @Boundary@ expected
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
-telViewUpToPathBoundary :: Int -> Type -> TCM (TelView,Boundary)
-telViewUpToPathBoundary 0 t = return $ (TelV EmptyTel t,[])
-telViewUpToPathBoundary n t = do
+-- In @telViewUpToPathBoundary' app n t@ the app function is used to
+-- apply the endpoints of the boundary to the bindings that come later
+-- in the telescope.
+telViewUpToPathBoundary' :: ((Term,Term) -> Args -> (Term,Term)) -> Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary' app 0 t = return $ (TelV EmptyTel t,[])
+telViewUpToPathBoundary' app n t = do
   vt <- pathViewAsPi' $ t
   case vt of
-    Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary (n - 1) (absBody b)
+    Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary' app (n - 1) (absBody b)
     Right (El _ t) | Pi a b <- t
-                   -> absV a (absName b) <$> telViewUpToPathBoundary (n - 1) (absBody b)
-    _              -> return $ (TelV EmptyTel t,[])
+                   -> absV a (absName b) <$> telViewUpToPathBoundary' app (n - 1) (absBody b)
+    Right t        -> return $ (TelV EmptyTel t,[])
   where
     absV a x (TelV tel t, cs) = (TelV (ExtendTel a (Abs x tel)) t, cs)
     addEndPoints xy (telv@(TelV tel _),cs) = (telv, (var $ size tel - 1, xyInTel):cs)
       where
-       xyInTel = raise (size tel) xy `apply` drop 1 (teleArgs tel)
+       xyInTel = raise (size tel) xy `app` drop 1 (teleArgs tel)
+
+-- | @(TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundary n a@
+--  Input:  Δ ⊢ a
+--  Output: ΔΓ ⊢ b
+--          ΔΓ ⊢ i : I
+--          ΔΓ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : b
+telViewUpToPathBoundary :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary = telViewUpToPathBoundary' apply
+
+-- | @(TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundaryP n a@
+--  Input:  Δ ⊢ a
+--  Output: Δ.Γ ⊢ b
+--          Δ.Γ ⊢ T is the codomain of the PathP at variable i
+--          Δ.Γ ⊢ i : I
+--          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
+-- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
+telViewUpToPathBoundaryP :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundaryP = telViewUpToPathBoundary' const
+
+telViewPathBoundaryP :: Type -> TCM (TelView,Boundary)
+telViewPathBoundaryP = telViewUpToPathBoundaryP (-1)
 
 pathViewAsPi :: Type -> TCM (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
 pathViewAsPi' :: Type -> TCM (Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi' t = do
-  pathViewAsPi'whnf =<< reduce t
+  pathViewAsPi'whnf <*> reduce t
 
-pathViewAsPi'whnf :: Type -> TCM (Either ((Dom Type, Abs Type), (Term,Term)) Type)
-pathViewAsPi'whnf t = do
-  t <- pathView t
-  case t of
-    PathType s l p a x y -> do
+pathViewAsPi'whnf :: TCM (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
+pathViewAsPi'whnf = do
+  view <- pathView'
+  minterval  <- getBuiltin' builtinInterval
+  return $ \ t -> case view t of
+    PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-      i <- El Inf <$> primInterval
-      return $ Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
+          i = El Inf interval
+      in
+        Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 
-    OType t    -> return $ Right t
+    _    -> Right t
 
 -- | returns Left (a,b) in case the type is @Pi a b@ or @PathP b _ _@
 --   assumes the type is in whnf.
 piOrPath :: Type -> TCM (Either (Dom Type, Abs Type) Type)
 piOrPath t = do
-  t <- pathViewAsPi'whnf t
+  t <- pathViewAsPi'whnf <*> pure t
   case t of
     Left (p,_) -> return $ Left p
     Right (El _ (Pi a b)) -> return $ Left (a,b)
     Right t -> return $ Right t
 
+telView'UpToPath :: Int -> Type -> TCM TelView
+telView'UpToPath 0 t = return $ TelV EmptyTel t
+telView'UpToPath n t = do
+  vt <- pathViewAsPi'whnf <*> pure t
+  case vt of
+    Left ((a,b),_)     -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
+    Right (El _ t) | Pi a b <- t
+                   -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
+    Right t        -> return $ TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+telView'Path :: Type -> TCM TelView
+telView'Path = telView'UpToPath (-1)
+
 isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
+
+addBoundary :: [NamedArg DeBruijnPattern] -> Boundary -> [NamedArg DeBruijnPattern]
+addBoundary xs [] = xs
+addBoundary xs boundary = recurse xs
+  where
+    recurse :: [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+    recurse = (fmap . fmap . fmap) updatePat
+    matchVar x =
+      snd <$> flip find boundary (\case
+        (Var i [],_) -> i == x
+        _            -> __IMPOSSIBLE__)
+    updatePat :: DeBruijnPattern -> DeBruijnPattern
+    updatePat p =
+      case p of
+        (VarP o x) | Just (t,u) <- matchVar (dbPatVarIndex x)
+                     -> IApplyP o t u x
+                   | otherwise -> p
+        LitP{} -> p
+        ProjP{} -> p
+        IApplyP o t u x
+          | Just _ <- matchVar (dbPatVarIndex x) -> __IMPOSSIBLE__
+          | otherwise -> p
+        DotP{} -> p
+        ConP c cpi ps -> ConP c cpi (recurse ps)
 
 -- | Decomposing a function type.
 
@@ -430,7 +495,7 @@ ifNotPiType = flip . ifPiType
 
 ifNotPiOrPathType :: (MonadReduce tcm, MonadTCM tcm) => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
 ifNotPiOrPathType t no yes = do
-  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< liftTCM (pathViewAsPi'whnf t))
+  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (liftTCM pathViewAsPi'whnf <*> pure t))
 
 
 -- | A safe variant of piApply.

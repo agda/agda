@@ -1606,6 +1606,7 @@ data Defn = Axiom -- ^ Postulate
               --   Empty if not recursive.
               --   @Nothing@ if not yet computed (by positivity checker).
             , dataAbstr          :: IsAbstract
+            , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
             }
           | Record
             { recPars           :: Nat
@@ -3478,7 +3479,7 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
-      Datatype a b c d e f g h       -> killRange8 Datatype a b c d e f g h
+      Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
       Primitive a b c d e            -> killRange5 Primitive a b c d e

@@ -115,6 +115,11 @@ instance Subst SplitPattern SplitPattern where
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
+    IApplyP o _ _ x  ->
+      usePatOrigin o $
+      useName (splitPatVarName x) $
+      useExcludedLits (splitExcludedLits x) $
+      lookupS rho $ splitPatVarIndex x
 
     where
       useName :: PatVarName -> SplitPattern -> SplitPattern
@@ -139,6 +144,7 @@ isTrivialPattern p = case p of
                       : (map (isTrivialPattern . namedArg) ps)
   LitP{}      -> return False
   ProjP{}     -> return False
+  IApplyP{}   -> return True
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
 --   to obtain the split clause pattern vector.
@@ -346,8 +352,10 @@ matchPat p@(LitP l) q = case q of
   DotP{}   -> No
   LitP l'  -> if l == l' then Yes [] else No
   ProjP{}  -> __IMPOSSIBLE__  -- excluded by typing
+  IApplyP{} -> __IMPOSSIBLE__
 matchPat (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
 matchPat ProjP{} _ = __IMPOSSIBLE__
+matchPat IApplyP{} q = Yes [q]
 matchPat p@(ConP c _ ps) q = case q of
   VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
   ConP c' i qs
@@ -356,3 +364,4 @@ matchPat p@(ConP c _ ps) q = case q of
   DotP o t  -> No
   LitP _    -> No
   ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
+  IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c

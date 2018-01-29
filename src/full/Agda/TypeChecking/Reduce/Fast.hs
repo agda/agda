@@ -866,6 +866,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
         -- Case: constructor. Perform beta reduction if projected from, otherwise return a value.
         Con c i [] ->
+          evalIApplyAM spine ctrl $
           case splitAt ar spine of
             (args, Proj _ p : spine') -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
               where
@@ -1069,8 +1070,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     runAM' (Eval cl@(Closure (Value blk) t env spine) ctrl0@(CaseK f i bs spine0 spine1 stack : ctrl)) =
       {-# SCC "runAM.CaseK" #-}
       case blk of
-        Blocked{}    -> stuck -- we might as well check the blocking tag first
-        NotBlocked{} -> case t of
+        Blocked{} | null [()|Con{} <- [t]] -> stuck -- we might as well check the blocking tag first
+        _ -> case t of
           -- Case: suc constructor
           Con c ci [] | isSuc c -> matchSuc $ matchCatchall $ failedMatch f stack ctrl
 

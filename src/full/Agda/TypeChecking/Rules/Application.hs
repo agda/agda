@@ -694,11 +694,10 @@ checkConstructorApplication cmp org t c args = do
            -- check the non-parameter arguments
            expandLast <- asks envExpandLast
            checkArguments expandLast (getRange c) args' ctype' t $ \ es t' targetCheck -> do
-             let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
-               [ text "us     =" <+> prettyTCM us
+               [ text "es     =" <+> prettyTCM es
                , text "t'     =" <+> prettyTCM t' ]
-             coerce' cmp targetCheck (Con c ConOCon (map Apply us)) t' t
+             coerce' cmp targetCheck (Con c ConOCon es) t' t
       _ -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback

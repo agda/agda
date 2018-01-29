@@ -95,6 +95,7 @@ instance NamesIn (Pattern' a) where
     DotP _ v      -> namesIn v
     ConP c _ args -> namesIn (c, args)
     ProjP _ f     -> namesIn f
+    IApplyP _ t u _ -> namesIn (t, u)
 
 instance NamesIn a => NamesIn (Type' a) where
   namesIn (El s t) = namesIn (s, t)

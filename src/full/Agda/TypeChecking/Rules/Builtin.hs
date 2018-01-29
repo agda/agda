@@ -36,6 +36,7 @@ import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -792,6 +793,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                 when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
                 when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
                 when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
+                when (s == builtinPathP)  $ builtinPathPHook q
                 bindBuiltinName s v
               _        -> err
           _ -> err
@@ -802,6 +804,12 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           (,t) <$> checkExpr e t
         f v t
         bindBuiltinName s v
+
+builtinPathPHook :: QName -> TCM ()
+builtinPathPHook q =
+      modifySignature $ updateDefinition q
+      $ updateDefPolarity       id
+      . updateDefArgOccurrences (const [Unused,StrictPos,Mixed,Mixed])
 
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> ResolvedName -> TCM ()
@@ -907,6 +915,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataSort       = Inf
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
+              , dataPathCons   = []
               }
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b

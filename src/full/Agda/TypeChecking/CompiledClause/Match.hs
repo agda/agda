@@ -159,6 +159,12 @@ match' ((c, es, patch) : stack) = do
 
             fallThrough <- return $ fromMaybe False (fallThrough bs) && isJust (catchAllBranch bs)
 
+            let
+              isCon b =
+                case ignoreBlocking b of
+                 Apply a | c@Con{} <- unArg a -> Just c
+                 _                            -> Nothing
+
             -- Now do the matching on the @n@ths argument:
             id $
              case eb of
@@ -171,7 +177,7 @@ match' ((c, es, patch) : stack) = do
                 match' $ litFrame l $ cFrame $ catchAllFrame stack
 
               -- In case of a constructor, push the conFrame
-              NotBlocked _ (Apply (Arg info (Con c ci vs))) -> performedSimplification $
+              b | Just (Con c ci vs) <- isCon b -> performedSimplification $
                 match' $ conFrame c ci vs $ catchAllFrame $ stack
 
               -- In case of a projection, push the projFrame

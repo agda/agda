@@ -445,6 +445,7 @@ data Pattern' x
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
+  | IApplyP PatOrigin Term Term x
   deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' PatVarName
@@ -538,6 +539,7 @@ instance PatternVars a (Arg (Pattern' a)) where
   patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
   patternVars (Arg _ (LitP _)     ) = []
   patternVars (Arg _ ProjP{}      ) = []
+  patternVars (Arg i (IApplyP _ _ _ x)) = [Arg i $ Left x]
 
 instance PatternVars a (NamedArg (Pattern' a)) where
   patternVars = patternVars . fmap namedThing
@@ -553,6 +555,7 @@ patternOrigin (DotP o _) = Just o
 patternOrigin LitP{}     = Nothing
 patternOrigin (ConP _ ci _) = conPRecord ci
 patternOrigin ProjP{}    = Nothing
+patternOrigin (IApplyP o _ _ _) = Just o
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: DeBruijnPattern -> Bool
@@ -564,6 +567,7 @@ properlyMatching LitP{} = True
 properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
+properlyMatching IApplyP{} = False
 
 instance IsProjP (Pattern' a) where
   isProjP (ProjP o d) = Just (o, unambiguous d)
@@ -976,7 +980,7 @@ hasElims v =
 isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
-isApplyElim (IApply _ _ r)    = Just (defaultArg r)  -- losing information
+isApplyElim (IApply _ _ r) = Just (defaultArg r)
 
 isApplyElim' :: Empty -> Elim' a -> Arg a
 isApplyElim' e = fromMaybe (absurd e) . isApplyElim
@@ -1188,6 +1192,7 @@ instance KillRange a => KillRange (Pattern' a) where
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
       ProjP o q        -> killRange1 (ProjP o) q
+      IApplyP o u t x  -> killRange3 (IApplyP o) u t x
 
 instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall unreachable) =
@@ -1348,7 +1353,7 @@ instance Pretty a => Pretty (Pattern' a) where
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
   prettyPrec _ (LitP l)      = pretty l
   prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
-
+  prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
 -----------------------------------------------------------------------------
 -- * NFData instances
 -----------------------------------------------------------------------------

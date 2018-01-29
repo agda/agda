@@ -1364,6 +1364,7 @@ domainFree info x =
       , A.metaNameSuggestion = prettyShow $ A.nameConcrete x
       }
 
+
 -- | Check arguments whose value we already know.
 --
 --   This function can be used to check user-supplied parameters

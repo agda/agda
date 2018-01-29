@@ -6,7 +6,7 @@ module Agda.TypeChecking.Rules.Data where
 import Control.Monad
 
 import Data.List (genericTake)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete.Name as C
@@ -124,6 +124,7 @@ checkDataDef i name ps cs =
                   , dataSort       = s
                   , dataAbstr      = Info.defAbstract i
                   , dataMutual     = Nothing
+                  , dataPathCons   = []     -- Path constructors are added later
                   }
 
             escapeContext npars $ do
@@ -132,10 +133,12 @@ checkDataDef i name ps cs =
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
-            mapM_ (checkConstructor name tel' nofIxs s) cs
+            pathCons <- forM cs $ \ c -> do
+              isPathCons <- checkConstructor name tel' nofIxs s c
+              return $ if isPathCons == PathCons then Just (A.axiomName c) else Nothing
 
             -- Return the data definition
-            return dataDef
+            return dataDef{ dataPathCons = catMaybes pathCons }
 
         let s      = dataSort dataDef
             cons   = map A.axiomName cs  -- get constructor names
@@ -167,7 +170,7 @@ checkConstructor
   -> Nat           -- ^ Number of indices of the data type.
   -> Sort          -- ^ Sort of the data type.
   -> A.Constructor -- ^ Constructor declaration (type signature).
-  -> TCM ()
+  -> TCM IsPathCons
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
@@ -189,7 +192,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- check that the type of the constructor ends in the data type
         n <- getContextSize
         debugEndsIn t d n
-        constructs n t d
+        isPathCons <- constructs n t d
         -- compute which constructor arguments are forced
         forcedArgs <- computeForcingAnnotations t
         -- check that the sort (universe level) of the constructor type
@@ -255,6 +258,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do
           addNamedInstance c d
+
+        return isPathCons
 
   where
     debugEnter c e =
@@ -588,14 +593,22 @@ fitsIn forceds t s = do
   -- to be indexed by the universe level.
   -- s' <- instantiateFull (getSort t)
   -- noConstraints $ s' `leqSort` s
-  t <- reduce t
-  case unEl t of
-    Pi dom b -> do
+
+
+  vt <- do
+    t <- pathViewAsPi t
+    return $ case t of
+                  Left (a,b)     -> Just (True ,a,b)
+                  Right (El _ t) | Pi a b <- t
+                                 -> Just (False,a,b)
+                  _              -> Nothing
+  case vt of
+    Just (isPath, dom, b) -> do
       withoutK <- optWithoutK <$> pragmaOptions
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom
-        unless (sa == SizeUniv) $ sa `leqSort` s
+        unless (isPath || sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ do
         succ <$> fitsIn forceds' (absBody b) (raise 1 s)
     _ -> do
@@ -606,25 +619,33 @@ fitsIn forceds t s = do
 -- nonLinearParameters :: Int -> Type -> TCM [Int]
 -- nonLinearParameters nPars t =
 
+data IsPathCons = PathCons | PointCons
+  deriving (Eq,Show)
+
 -- | Check that a type constructs something of the given datatype. The first
 --   argument is the number of parameters to the datatype.
 --
-constructs :: Int -> Type -> QName -> TCM ()
+constructs :: Int -> Type -> QName -> TCM IsPathCons
 constructs nofPars t q = constrT 0 t
     where
         -- The number n counts the proper (non-parameter) constructor arguments.
-        constrT :: Nat -> Type -> TCM ()
+        constrT :: Nat -> Type -> TCM IsPathCons
         constrT n t = do
             t <- reduce t
+            pathV <- pathViewAsPi'whnf
             case unEl t of
                 Pi _ (NoAbs _ b)  -> constrT n b
                 Pi a b            -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
+                _ | Left ((a,b),_) <- pathV t -> do -- TODO, do the special casing like for Pi
+                      _ <- underAbstraction a b $ constrT (n + 1)
+                      return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                   (pars, ixs) <- normalise $ splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars
+                  return PointCons
                 MetaV{} -> do
                   def <- getConstInfo q
                   -- Analyse the type of q (name of the data type)

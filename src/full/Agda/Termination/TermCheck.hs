@@ -1111,6 +1111,7 @@ subPatterns = foldPattern $ \case
   LitP _      -> mempty
   DotP _ _    -> mempty
   ProjP _ _   -> mempty
+  IApplyP{}   -> mempty
 
 
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
@@ -1300,6 +1301,7 @@ compareVar i (Masked m p) = do
   let no = return Order.unknown
   case p of
     ProjP{}   -> no
+    IApplyP _ _ _ x  -> compareVarVar i (Masked m x)
     LitP{}    -> no
     DotP{}   -> no
     VarP _ x  -> compareVarVar i (Masked m x)

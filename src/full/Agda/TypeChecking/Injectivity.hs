@@ -378,6 +378,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
 
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
+    metaPat (IApplyP{})      = nextMeta
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
     metaPat (LitP l)         = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__

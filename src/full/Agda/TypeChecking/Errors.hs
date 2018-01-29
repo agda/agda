@@ -1303,6 +1303,7 @@ instance PrettyTCM TypeError where
         prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
     prettyPat _ (I.LitP l) = prettyTCM l
     prettyPat _ (I.ProjP _ p) = text "." <> prettyTCM p
+    prettyPat _ (I.IApplyP _ _ _ _) = text "_"
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text "!" <> prettyTCM cmp

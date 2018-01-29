@@ -173,6 +173,7 @@ quotingKit = do
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP l)          = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
+      quotePat (IApplyP o t u x)  = pure unsupported
 
       quoteClause :: Clause -> ReduceM Term
       quoteClause cl@Clause{namedClausePats = ps, clauseBody = body} =

@@ -243,6 +243,7 @@ instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
             LitP{}  -> __IMPOSSIBLE__
             ConP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
+            IApplyP{} -> recurse
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -385,6 +386,8 @@ instance Apply Clause where
             ConP c _ ps' -> mkSub tm n (ps' ++ ps) (projections c v ++ vs)
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
+            IApplyP _ _ _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
+              where v' = raise (n - 1) v
         mkSub _ _ _ _ = __IMPOSSIBLE__
 
         -- The parameter patterns 'ps' are all variables or dot patterns, or eta
@@ -405,6 +408,7 @@ instance Apply Clause where
             ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
             LitP{}              -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
+            IApplyP _ _ _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
         newTel _ tel _ _ = __IMPOSSIBLE__
 
         projections c v = [ relToDontCare ai $ applyE v [Proj ProjSystem f] | Arg ai f <- conFields c ]
@@ -781,6 +785,7 @@ instance Subst Term Pattern where
     VarP o s     -> p
     LitP l       -> p
     ProjP{}      -> p
+    IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
 instance Subst Term A.ProblemEq where
   applySubst rho (A.ProblemEq p v a) =
@@ -965,6 +970,7 @@ usePatOrigin o p = case patternOrigin p of
     ConP{}  -> __IMPOSSIBLE__
     LitP{}  -> __IMPOSSIBLE__
     ProjP{} -> __IMPOSSIBLE__
+    (IApplyP _ t u x) -> IApplyP o t u x
 
 instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
@@ -977,6 +983,10 @@ instance Subst DeBruijnPattern DeBruijnPattern where
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
+    IApplyP o t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
+                        IApplyP _ _ _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
+                        VarP  _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
+                        _ -> __IMPOSSIBLE__
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
       useName n (VarP o x)

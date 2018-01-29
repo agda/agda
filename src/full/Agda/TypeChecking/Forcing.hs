@@ -79,6 +79,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Telescope
 
@@ -109,7 +110,7 @@ computeForcingAnnotations t =
   -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
   -- get to the actual data type.
   -- Also #2947: The type might reduce to a pi type.
-  TelV tel (El _ a) <- telView t
+  TelV tel (El _ a) <- telViewPath t
   let vs = case a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
@@ -234,6 +235,7 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
           return $ fmap (ConP c i qs' <$) p : ps'
         LitP{}  -> (p :) <$> go ps
         ProjP{} -> (p :) <$> go ps
+        IApplyP{} -> (p :) <$> go ps
 
     withForced :: ConHead -> [a] -> TCM [(IsForced, a)]
     withForced c qs = do
@@ -287,10 +289,12 @@ dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced Not
         ConP c i ps     -> do
           fs <- defForced <$> getConstInfo (conName c)
           ConP c i <$> zipWithM forcedArg (fs ++ repeat NotForced) ps
+        IApplyP{}       -> return p
 
     forcedArg f = (traverse . traverse) (forced f)
 
     isProperMatch LitP{}  = return True
+    isProperMatch IApplyP{}  = return False
     isProperMatch VarP{}  = return False
     isProperMatch ProjP{} = return False
     isProperMatch DotP{}  = return False
@@ -298,4 +302,3 @@ dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced Not
       ifM (isEtaCon $ conName c)
           (anyM ps (isProperMatch . namedArg))
           (return True)
-
