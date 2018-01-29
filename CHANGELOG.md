@@ -247,6 +247,12 @@ Pragmas and options
   replaced by their ascii only version. Instead of resorting to subscript
   suffixes, Agda uses ascii digit characters.
 
+* New option `--inversion-max-depth=N`.
+
+  The depth is used to avoid looping due to inverting pattern matching for
+  unsatisfiable constraints [Issue [#431](https://github.com/agda/agda/issues/431)].
+  This option is only expected to be necessary in pathological cases.
+
 
 Emacs mode
 ----------
