@@ -170,6 +170,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
   , optInstanceSearchDepth       :: Int
+  , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
@@ -255,6 +256,7 @@ defaultPragmaOptions = PragmaOptions
   , optRewriting                 = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
+  , optInversionMaxDepth         = 50
   , optSafe                      = False
   , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
   , optCompileNoMain             = False
@@ -494,6 +496,11 @@ instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
   return $ o { optInstanceSearchDepth = d }
 
+inversionMaxDepthFlag :: String -> Flag PragmaOptions
+inversionMaxDepthFlag s o = do
+  d <- integerArgument "--inversion-max-depth" s
+  return $ o { optInversionMaxDepth = d }
+
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -686,6 +693,8 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
+    , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
+                    "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "MODE")

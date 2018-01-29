@@ -332,6 +332,9 @@ etaEnabled = optEta <$> pragmaOptions
 maxInstanceSearchDepth :: TCM Int
 maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 
+maxInversionDepth :: TCM Int
+maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
+
 ------------------------------------------------------------------------
 -- Verbosity
 

@@ -30,6 +30,7 @@ import Agda.TypeChecking.Polarity
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
@@ -139,7 +140,12 @@ useInjectivity cmp a u v = do
     ]
   uinv <- functionInverse u
   vinv <- functionInverse v
+  -- Injectivity might cause non-termination for unsatisfiable constraints
+  -- (#431). Look at the number of active problems to detect this.
+  nProblems <- Set.size <$> view eActiveProblems
+  maxDepth  <- maxInversionDepth
   case (uinv, vinv) of
+    _ | nProblems > maxDepth -> fallBack
     -- Andreas, Francesco, 2014-06-12:
     -- We know that one of u,v is neutral
     -- (see calls to useInjectivity in Conversion.hs).
