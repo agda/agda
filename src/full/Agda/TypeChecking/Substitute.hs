@@ -92,7 +92,7 @@ conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
-      isApply = isApplyElim' __IMPOSSIBLE__
+      isApply e = fromMaybe __IMPOSSIBLE__ $ isApplyElim e
       i = maybe failure id            $ List.elemIndex f fs
       v = maybe failure (argToDontCare . isApply)  $ headMaybe $ drop i args
   in  applyE v es
