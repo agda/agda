@@ -27,6 +27,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
@@ -144,8 +145,8 @@ useInjectivity cmp a u v = do
   -- (#431). Look at the number of active problems to detect this.
   nProblems <- Set.size <$> view eActiveProblems
   maxDepth  <- maxInversionDepth
+  let warn f = warning $ InversionDepthReached f
   case (uinv, vinv) of
-    _ | nProblems > maxDepth -> fallBack
     -- Andreas, Francesco, 2014-06-12:
     -- We know that one of u,v is neutral
     -- (see calls to useInjectivity in Conversion.hs).
@@ -153,6 +154,7 @@ useInjectivity cmp a u v = do
     -- unsound, since it assumes the arguments to be pointwise equal.
     -- It would deliver non-unique solutions for metas.
     (Inv f fArgs _, Inv g gArgs _)
+      | nProblems > maxDepth -> warn f >> fallBack
       | f == g    -> do
         a <- defType <$> getConstInfo f
         reportSDoc "tc.inj.use" 20 $ vcat
@@ -166,7 +168,9 @@ useInjectivity cmp a u v = do
         fs  <- getForcedArgs f
         compareElims pol fs a (Def f []) fArgs gArgs
       | otherwise -> fallBack
-    (Inv f args inv, NoInv) -> do
+    (Inv f args inv, NoInv)
+      | nProblems > maxDepth -> warn f >> fallBack
+      | otherwise -> do
       a <- defType <$> getConstInfo f
       reportSDoc "tc.inj.use" 20 $ fsep $
         pwords "inverting injective function" ++
@@ -174,7 +178,9 @@ useInjectivity cmp a u v = do
         , parens $ text "args =" <+> prettyList (map prettyTCM args)
         ]
       invert u f a inv args =<< headSymbol v
-    (NoInv, Inv g args inv) -> do
+    (NoInv, Inv g args inv)
+      | nProblems > maxDepth -> warn g >> fallBack
+      | otherwise -> do
       a <- defType <$> getConstInfo g
       reportSDoc "tc.inj.use" 20 $ fsep $
         pwords "inverting injective function" ++

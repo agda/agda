@@ -566,6 +566,7 @@ warningHighlighting w = case tcWarning w of
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
   ParseWarning{}             -> mempty
+  InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty
   GenericNonFatalError{}     -> mempty
   SafeFlagPostulate{}        -> mempty

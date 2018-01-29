@@ -102,6 +102,7 @@ classifyWarning w = case w of
   GenericWarning{}           -> AllWarnings
   DeprecationWarning{}       -> AllWarnings
   NicifierIssue{}            -> AllWarnings
+  InversionDepthReached{}    -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   CoverageNoExactSplit{}     -> ErrorWarnings
@@ -121,6 +122,7 @@ classifyWarning w = case w of
 
 -- | Should we only emit a single warning with this constructor.
 onlyOnce :: Warning -> Bool
+onlyOnce InversionDepthReached{} = True
 onlyOnce _ = False
 
 classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
