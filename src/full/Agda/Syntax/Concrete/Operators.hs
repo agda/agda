@@ -37,6 +37,7 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import Agda.Syntax.Concrete.Pattern
@@ -697,6 +698,7 @@ validConPattern cons p = case appView p of
     [_]           -> True
     IdentP x : ps -> elem x cons && all (validConPattern cons) ps
     [QuoteP _, _] -> True
+    DotP _ e : ps -> all (validConPattern cons) ps
     _             -> False
 -- Andreas, 2012-06-04: I do not know why the following line was
 -- the catch-all case.  It seems that the new catch-all works also

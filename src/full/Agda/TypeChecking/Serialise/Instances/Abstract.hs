@@ -108,8 +108,9 @@ instance EmbPrj LocalVar where
   value = valueN LocalVar
 
 instance EmbPrj ConPatInfo where
-  icod_ (ConPatInfo a _) = icod_ a
-  value a                = flip ConPatInfo patNoRange <$> value a
+  icod_ (ConPatInfo a _ b) = icodeN' (\a b -> ConPatInfo a patNoRange b) a b
+
+  value = valueN $ \a b -> ConPatInfo a patNoRange b
 
 -- Only for pattern synonyms (where a is Void)
 instance EmbPrj a => EmbPrj (A.Pattern' a) where

@@ -237,17 +237,20 @@ data ConPatInfo = ConPatInfo
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
     ---  Or from a user written constructor or record pattern?
   , patInfo     :: PatInfo
+  , patLazy     :: Bool
   }
   deriving (Data, Eq)
 
 instance Show ConPatInfo where
-  show (ConPatInfo po i) = applyWhen (po == ConOSystem) ("implicit " ++) $ show i
+  show (ConPatInfo po i l) =
+    applyWhen l ("lazy " ++) $
+    applyWhen (po == ConOSystem) ("implicit " ++) $ show i
 
 instance HasRange ConPatInfo where
   getRange = getRange . patInfo
 
 instance KillRange ConPatInfo where
-  killRange (ConPatInfo b i) = ConPatInfo b $ killRange i
+  killRange (ConPatInfo b i l) = ConPatInfo b (killRange i) l
 
 instance SetRange ConPatInfo where
-  setRange r (ConPatInfo b i) = ConPatInfo b $ PatRange r
+  setRange r (ConPatInfo b i l) = ConPatInfo b (PatRange r) l

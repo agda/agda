@@ -196,19 +196,6 @@ problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
 problemInPats :: Problem a -> [A.Pattern]
 problemInPats = map problemInPat . (^. problemEqs)
 
-data Focus
-  = ConFocus (Maybe AmbiguousQName)  -- ^ @Just ambC@ for a (possibly ambiguous) name,
-                                     --   or @Nothing@ for a record pattern
-  | PartialFocus [(A.Expr,A.Expr)] -- [(φ₁ = b1),..,(φn = bn)]
-  | LitFocus Literal
-
--- | Result of 'splitProblem':  Determines position for the next split.
-data SplitPosition
-  = -- | Split on argument type.
-    SplitArg Term Type A.Pattern Focus
-  | -- | Split on target type.
-    SplitRest Hiding ProjOrigin AmbiguousQName
-
 data AsBinding = AsB Name Term Type
 data DotPattern = Dot A.Expr Term (Dom Type)
 data AbsurdPattern = Absurd Range Type

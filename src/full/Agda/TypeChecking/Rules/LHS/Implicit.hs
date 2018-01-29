@@ -33,38 +33,6 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Eta-expand implicit pattern if of record type.
-expandImplicitPattern :: Type -> NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
-expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a p
-
--- | Try to eta-expand implicit pattern.
---   Returns 'Nothing' unless dealing with a record type that has eta-expansion
---   and a constructor @c@.  In this case, it returns 'Just' @c _ _ ... _@
---   (record constructor applied to as many implicit patterns as there are fields).
-expandImplicitPattern' :: Type -> NamedArg A.Pattern -> TCM (Maybe (NamedArg A.Pattern))
-expandImplicitPattern' a p
-  | A.WildP{} <- namedArg p, not (isInstance p) = do
-     -- Eta expand implicit patterns of record type (issue 473),
-     -- but not instance arguments since then they won't be found
-     -- by the instance search
-     caseMaybeM (isEtaRecordType =<< reduce a) (return Nothing) $ \ (d, _) -> do
-       -- Andreas, 2012-06-10: only expand guarded records,
-       -- otherwise we might run into an infinite loop
-       def <- getRecordDef d
-       -- Andreas, 2015-07-20 Since we have record patterns now, we can expand
-       -- even records that do not have a constructor.
-       -- -- Andreas, 2013-03-21: only expand records that have a constructor:
-       -- if not (recNamedCon def) then return Nothing else do
-       do
-         -- generate one implicit pattern for each field
-         let qs = for (recFields def) $ \ f -> implicitP $ argInfo f
-         -- generate the pattern (c _ _ ... _)
-         let q  = A.ConP (ConPatInfo ConOSystem patNoRange) (unambiguous $ recCon def) qs
-         -- equip it with the name/arginfo of the original implicit pattern
-             p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
-         return $ Just p'
-  | otherwise = return Nothing
-
 implicitP :: ArgInfo -> NamedArg A.Pattern
 implicitP info = Arg (setOrigin Inserted info) $ unnamed $ A.WildP $ PatRange $ noRange
 
@@ -112,7 +80,7 @@ insertImplicitPatternsT exh            ps a = do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.
-      let p' = applyWhen (isJust $ isProjP p) (setHiding NotHidden) p
+      let p' = applyWhen (isJust $ A.maybePostfixProjP p) (setHiding NotHidden) p
       hs <- insImp p' tel
       case hs of
         [] -> do

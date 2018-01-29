@@ -2626,6 +2626,7 @@ data TypeError
         | RelevanceMismatch Relevance Relevance
             -- ^ The given relevance does not correspond to the expected relevane.
         | UninstantiatedDotPattern A.Expr
+        | ForcedConstructorNotInstantiated A.Pattern
         | IlltypedPattern A.Pattern Type
         | IllformedProjectionPattern A.Pattern
         | CannotEliminateWithPattern (NamedArg A.Pattern) Type
