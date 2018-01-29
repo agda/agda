@@ -19,17 +19,24 @@ Empty macro block.
 
 Issue2759.agda:7,1-7
 Empty mutual block.
+
 Issue2759.agda:9,1-9
 Empty abstract block.
+
 Issue2759.agda:11,1-8
 Empty private block.
+
 Issue2759.agda:13,1-9
 Empty instance block.
+
 Issue2759.agda:15,1-6
 Empty macro block.
+
 Issue2759.agda:17,1-10
 Empty postulate block.
+
 Issue2759.agda:23,3-12
 Empty postulate block.
+
 Issue2759.agda:27,27-32
 Empty macro block.

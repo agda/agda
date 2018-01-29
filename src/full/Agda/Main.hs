@@ -18,6 +18,7 @@ import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
 
 import Agda.Interaction.CommandLine
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
@@ -95,12 +96,12 @@ runAgdaWithOptions
   -> CommandLineOptions -- ^ parsed command line options
   -> TCM (Maybe a)
 runAgdaWithOptions backends generateHTML interaction progName opts
-      | optShowHelp opts    = Nothing <$ liftIO (printUsage backends)
-      | optShowVersion opts = Nothing <$ liftIO (printVersion backends)
+      | Just hp <- optShowHelp opts = Nothing <$ liftIO (printUsage backends hp)
+      | optShowVersion opts         = Nothing <$ liftIO (printVersion backends)
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)
-                            = Nothing <$ liftIO (printUsage backends)
+                            = Nothing <$ liftIO (printUsage backends GeneralHelp)
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
@@ -170,11 +171,11 @@ runAgdaWithOptions backends generateHTML interaction progName opts
 
 
 -- | Print usage information.
-printUsage :: [Backend] -> IO ()
-printUsage backends = do
+printUsage :: [Backend] -> Help -> IO ()
+printUsage backends hp = do
   progName <- getProgName
-  putStr $ usage standardOptions_ progName
-  mapM_ (putStr . backendUsage) backends
+  putStr $ usage standardOptions_ progName hp
+  when (hp == GeneralHelp) $ mapM_ (putStr . backendUsage) backends
 
 backendUsage :: Backend -> String
 backendUsage (Backend b) =

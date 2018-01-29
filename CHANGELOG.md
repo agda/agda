@@ -254,6 +254,13 @@ Pragmas and options
   This option is only expected to be necessary in pathological cases.
 
 
+* New fine-grained control over the warning machinery: ability to (en/dis)able
+  warnings on a one-by-one basis.
+
+* The command line option `--help` now takes an optional argument which
+  allows the user to request more specific usage information about particular
+  topics. The only one added so far is `warning`.
+
 Emacs mode
 ----------
 
