@@ -171,6 +171,21 @@ Language
     append (.suc m) n (cons .m x xs) ys = cons (m + n) x (append m n xs ys)
   ```
 
+* Inferring the type of a function based on its patterns
+
+  Agda no longer infers the type of a function based on the patterns used in
+  its definition. [Issue [#2834](https://github.com/agda/agda/issues/2834)]
+
+  This means that the following Agda program is no longer accepted:
+  ```agda
+    open import Agda.Builtin.Nat
+
+    f : _ → _
+    f zero    = zero
+    f (suc n) = n
+  ```
+  Agda now requires the type of the argument of `f` to be given explicitly.
+
 ### Builtins
 
 * Added support for built-in 64-bit machine words.
