@@ -15,8 +15,9 @@ General options
 :samp:`--version -V`
       Show version number
 
-:samp:`--help -?`
-      Show basically this help
+:samp:`--help[={TOPIC}] -?[{TOPIC}]`
+      Show basically this help, or more help about :samp:`{TOPIC}`.
+      Current topics available: ``warning``.
 
 :samp:`--interactive -I`
       Start in interactive mode (no longer
@@ -283,7 +284,9 @@ Other features
 Warnings
 ~~~~~~~~
 
-The -W or --warning option can be used to disable or enable  different warnings. A group of warnings can be enabled by -W group, where group is one of the following:
+The ``-W`` or ``--warning`` option can be used to disable or enable
+different warnings. A group of warnings can be enabled by ``-W {group}``,
+where :samp:`group` is one of the following:
 
 :samp:`all`
       All of the existing warnings
@@ -292,7 +295,8 @@ The -W or --warning option can be used to disable or enable  different warnings.
 :samp:`ignore`
       Ignore all warnings
 
-Individual warnings can be turned on and off by -W Name and -W noName respectively. The flags available are:
+Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
+{noName}`` respectively. The flags available are:
 
 :samp:`OverlappingTokensWarning`
       Multi-line comments spanning one or more literate text blocks.
@@ -301,43 +305,43 @@ Individual warnings can be turned on and off by -W Name and -W noName respective
 :samp:`UnknownFixityInMixfixDecl`
       Mixfix names without an associated fixity declaration.
 :samp:`UnknownNamesInPolarityPragmas`
-Names not declared in the same scope as their polarity pragmas.
+      Names not declared in the same scope as their polarity pragmas.
 :samp:`PolarityPragmasButNotPostulates`
       Polarity pragmas for non-postulates.
 :samp:`UselessPrivate`
-      `private' blocks where they have no effect.
+      ``private`` blocks where they have no effect.
 :samp:`UselessAbstract`
-      `abstract' blocks where they have no effect.
+      ``abstract`` blocks where they have no effect.
 :samp:`UselessInstance`
-      `instance' blocks where they have no effect.
+      ``instance`` blocks where they have no effect.
 :samp:`EmptyMutual`
-      Empty `mutual' blocks.
+      Empty ``mutual`` blocks.
 :samp:`EmptyAbstract`
-      Empty `abstract' blocks.
+      Empty ``abstract`` blocks.
 :samp:`EmptyPrivate`
-      Empty `private' blocks.
+      Empty ``private`` blocks.
 :samp:`EmptyInstance`
-      Empty `instance' blocks.
+      Empty ``instance`` blocks.
 :samp:`EmptyMacro`
-      Empty `macro' blocks.
+      Empty ``macro`` blocks.
 :samp:`EmptyPostulate`
-      Empty `postulate' blocks.
+      Empty ``postulate`` blocks.
 :samp:`InvalidTerminationCheckPragma`
-      Termination checking pragmas before non-function or `mutual' blocks.
+      Termination checking pragmas before non-function or ``mutual`` blocks.
 :samp:`InvalidNoPositivityCheckPragma`
-      No positivity checking pragmas before non-`data', `record' or `mutual' blocks.
+      No positivity checking pragmas before non-`data``, ``record`` or ``mutual`` blocks.
 :samp:`InvalidCatchallPragma`
-      `CATCHALL' pragmas before a non-function clause.
+      ``CATCHALL`` pragmas before a non-function clause.
 :samp:`OldBuiltin`
-      Deprecated `BUILTIN' pragmas.
+      Deprecated ``BUILTIN`` pragmas.
 :samp:`EmptyRewritePragma`
-      Empty `REWRITE' pragmas.
+      Empty ``REWRITE`` pragmas.
 :samp:`UselessPublic`
-      `public' blocks where they have no effect.
+      ``public`` blocks where they have no effect.
 :samp:`UnreachableClauses`
       Unreachable function clauses.
 :samp:`UselessInline`
-      `INLINE' pragmas where they have no effect.
+      ``INLINE`` pragmas where they have no effect.
 :samp:`DeprecationWarning`
       Feature deprecation.
 :samp:`InversionDepthReached`
@@ -357,19 +361,27 @@ Names not declared in the same scope as their polarity pragmas.
 :samp:`UnsolvedConstraints`
       Unsolved constraints.
 :samp:`SafeFlagPostulate`
-      `postulate' blocks with the safe flag
+      ``postulate`` blocks with the safe flag
 :samp:`SafeFlagPragma`
-      Unsafe `OPTIONS' pragmas with the safe flag.
+      Unsafe ``OPTIONS`` pragmas with the safe flag.
 :samp:`SafeFlagNonTerminating`
-      `NON_TERMINATING' pragmas with the safe flag.
+      ``NON_TERMINATING`` pragmas with the safe flag.
 :samp:`SafeFlagTerminating`
-      `TERMINATING' pragmas with the safe flag.
+      ``TERMINATING`` pragmas with the safe flag.
 :samp:`SafeFlagPrimTrustMe`
-      `primTrustMe' usages with the safe flag.
+      ``primTrustMe`` usages with the safe flag.
 :samp:`SafeFlagNoPositivityCheck`
-      `NO_POSITIVITY_CHECK' pragmas with the safe flag.
+      ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
 :samp:`SafeFlagPolarity`
-      `POLARITY' pragmas with the safe flag.
+      ``POLARITY`` pragmas with the safe flag.
+
+For example, the following command runs Agda with all warnings
+enabled, except for warnings about empty ``abstract`` blocks:
+
+.. code-block:: console
+
+   agda -W all --warning noEmptyAbstract file.agda
+
 
 .. _Vim: http://www.vim.org/
 .. _Dot: http://www.graphviz.org/content/dot-language
