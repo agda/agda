@@ -26,6 +26,7 @@ module Agda.Syntax.Parser.Monad
     , topContext, popContext, pushContext
     , pushCurrentContext
       -- ** Errors
+    , parseWarningName
     , parseError, parseErrorAt, parseError'
     , lexError
     )
@@ -41,6 +42,8 @@ import Data.Int
 import Data.Data (Data)
 
 import Control.Monad.State
+
+import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
@@ -137,6 +140,10 @@ data ParseWarning =
   { warnRange    :: !(Range' SrcFile)
                     -- ^ The range of the bigger overlapping token
   } deriving Data
+
+parseWarningName :: ParseWarning -> WarningName
+parseWarningName pw = case pw of
+  OverlappingTokensWarning{} -> OverlappingTokensWarning_
 
 -- | The result of parsing something.
 data ParseResult a

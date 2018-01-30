@@ -164,7 +164,7 @@ prettyWarning wng = liftTCM $ case wng of
       ++ [prettyTCM ocs]
 
     OldBuiltin old new -> fwords $
-      "Builtin " ++ old ++ " does no longer exist. " ++
+      "Builtin " ++ old ++ " no longer exists. " ++
       "It is now bound by BUILTIN " ++ new
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
@@ -193,7 +193,7 @@ prettyWarning wng = liftTCM $ case wng of
     SafeFlagPragma xs ->
       let plural | length xs == 1 = ""
                  | otherwise      = "s"
-      in fsep $ [fwords ("Cannot set OPTION pragma" ++ plural)]
+      in fsep $ [fwords ("Cannot set OPTIONS pragma" ++ plural)]
                 ++ map text xs ++ [fwords "with safe flag."]
 
     SafeFlagNonTerminating -> fsep $
@@ -202,13 +202,13 @@ prettyWarning wng = liftTCM $ case wng of
     SafeFlagTerminating -> fsep $
       pwords "Cannot use TERMINATING pragma with safe flag."
 
-    SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
+    SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag.")
 
     SafeFlagNoPositivityCheck -> fsep $
       pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
 
     SafeFlagPolarity -> fsep $
-      pwords "The POLARITY pragma must not be used in safe mode."
+      pwords "Cannot use POLARITY pragma with safe flag."
 
     ParseWarning pw -> pretty pw
 
@@ -216,9 +216,7 @@ prettyWarning wng = liftTCM $ case wng of
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
       "instead. This will be an error in Agda" ++ [text version <> text "."]
 
-    NicifierIssue ws -> vcat $ do
-      for ws $ \ w -> do
-        sayWhere (getRange w) $ pretty w
+    NicifierIssue w -> sayWhere (getRange w) $ pretty w
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'

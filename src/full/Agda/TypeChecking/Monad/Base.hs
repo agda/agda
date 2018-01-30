@@ -39,7 +39,8 @@ import Agda.Benchmarking (Benchmark, Phase)
 import Agda.Syntax.Concrete (TopLevelModuleName)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Definitions (NiceDeclaration, DeclarationWarning)
+import Agda.Syntax.Concrete.Definitions
+  (NiceDeclaration, DeclarationWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
@@ -47,6 +48,7 @@ import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Literal
 import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
+import Agda.Syntax.Parser.Monad (parseWarningName)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -61,6 +63,7 @@ import {-# SOURCE #-} Agda.Compiler.Backend
 
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response(..))
 import Agda.Interaction.Highlighting.Precise
@@ -2419,7 +2422,7 @@ instance Free Candidate where
 -- checking the document further and interacting with the user.
 
 data Warning
-  = NicifierIssue            [DeclarationWarning]
+  = NicifierIssue            DeclarationWarning
   | TerminationIssue         [TerminationError]
   | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
@@ -2458,6 +2461,35 @@ data Warning
     -- ^ `DeprecationWarning old new version`:
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
   deriving (Show , Data)
+
+
+warningName :: Warning -> WarningName
+warningName w = case w of
+  NicifierIssue dw           -> declarationWarningName dw
+  ParseWarning pw            -> parseWarningName pw
+  OldBuiltin{}               -> OldBuiltin_
+  EmptyRewritePragma         -> EmptyRewritePragma_
+  UselessPublic              -> UselessPublic_
+  UnreachableClauses{}       -> UnreachableClauses_
+  UselessInline{}            -> UselessInline_
+  GenericWarning{}           -> GenericWarning_
+  DeprecationWarning{}       -> DeprecationWarning_
+  InversionDepthReached{}    -> InversionDepthReached_
+  TerminationIssue{}         -> TerminationIssue_
+  CoverageIssue{}            -> CoverageIssue_
+  CoverageNoExactSplit{}     -> CoverageNoExactSplit_
+  NotStrictlyPositive{}      -> NotStrictlyPositive_
+  UnsolvedMetaVariables{}    -> UnsolvedMetaVariables_
+  UnsolvedInteractionMetas{} -> UnsolvedInteractionMetas_
+  UnsolvedConstraints{}      -> UnsolvedConstraints_
+  GenericNonFatalError{}     -> GenericNonFatalError_
+  SafeFlagPostulate{}        -> SafeFlagPostulate_
+  SafeFlagPragma{}           -> SafeFlagPragma_
+  SafeFlagNonTerminating     -> SafeFlagNonTerminating_
+  SafeFlagTerminating        -> SafeFlagTerminating_
+  SafeFlagPrimTrustMe        -> SafeFlagPrimTrustMe_
+  SafeFlagNoPositivityCheck  -> SafeFlagNoPositivityCheck_
+  SafeFlagPolarity           -> SafeFlagPolarity_
 
 data TCWarning
   = TCWarning

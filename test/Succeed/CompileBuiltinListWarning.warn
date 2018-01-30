@@ -1,18 +1,18 @@
 CompileBuiltinListWarning.agda:9,1-26
-Builtin NIL does no longer exist. It is now bound by BUILTIN LIST
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
 CompileBuiltinListWarning.agda:10,1-26
-Builtin CONS does no longer exist. It is now bound by BUILTIN LIST
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 
 ———— All done; warnings encountered ————————————————————————
 
 CompileBuiltinListWarning.agda:9,1-26
-Builtin NIL does no longer exist. It is now bound by BUILTIN LIST
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
 
 CompileBuiltinListWarning.agda:10,1-26
-Builtin CONS does no longer exist. It is now bound by BUILTIN LIST
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 CompileBuiltinListWarning.agda:7,1-44
 Ignoring GHC pragma for builtin lists; they always compile to
