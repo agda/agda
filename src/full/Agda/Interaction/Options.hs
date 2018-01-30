@@ -543,8 +543,7 @@ verboseFlag s o =
 warningModeFlag :: String -> Flag PragmaOptions
 warningModeFlag s o = case warningModeUpdate s of
   Just upd -> return $ o { optWarningMode = upd (optWarningMode o) }
-  Nothing  -> throwError $ "unknown warning mode " ++ s ++ " (available: " ++
-                           intercalate ", " (map fst warningSets) ++ ")"
+  Nothing  -> throwError $ "unknown warning flag " ++ s ++ ". See --help=warning."
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
@@ -564,7 +563,7 @@ standardOptions =
     , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC")
                       ("show help for TOPIC (available: "
                        ++ intercalate ", " (map fst allHelpTopics)
-                       ++ ".)")
+                       ++ ")")
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
@@ -682,10 +681,8 @@ pragmaOptions =
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
-    , Option ['W']  ["warning"] (ReqArg warningModeFlag "MODE")
-                    ("set warning mode to MODE (available: "
-                       ++ intercalate ", " (map fst warningSets)
-                       ++ ". default: " ++ defaultWarningSet ++ ")")
+    , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
+                    ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "do not treat the requested module as the main module of a program when compiling"
     , Option []     ["caching"] (NoArg $ cachingFlag True)
