@@ -172,15 +172,15 @@ Note how the size of the word we test for membership cannot be
 larger than the depth to which the language tree is defined.
 
 If we want to use regular, non-sized lists, we need to ask for the
-language to have size ``ω``.
+language to have size ``∞``.
 
 ::
 
-      _∈_ : ∀ {A} → List A → Lang ω A → Bool
+      _∈_ : ∀ {A} → List A → Lang ∞ A → Bool
       []      ∈ a = ν a
       (x ∷ w) ∈ a = w ∈ δ a x
 
-Intuitively, ``ω`` is a ``Size`` larger than the size of any term
+Intuitively, ``∞`` is a ``Size`` larger than the size of any term
 than one could possibly define in Agda.
 
 Now, let's consider binary strings as words. First, we

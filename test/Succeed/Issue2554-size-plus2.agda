@@ -14,12 +14,12 @@ module ZeroZero where
   mon : ∀{i}{j : Size< i} → Nat j → Nat i
   mon x = x
 
-  minus : ∀{i} → Nat i → Nat ω → Nat i
+  minus : ∀{i} → Nat i → Nat ∞ → Nat i
   minus x       zero    = x
   minus zero    (suc y) = zero
   minus (suc x) (suc y) = minus x y
 
-  div : ∀{i} → Nat i → Nat ω → Nat i
+  div : ∀{i} → Nat i → Nat ∞ → Nat i
   div zero y = zero
   div (suc x) y = suc (div (minus x y) y)
 
@@ -37,7 +37,7 @@ module DSuc where
   mon : ∀{i}{j : Size< i} → Nat j → Nat i
   mon x = x
 
-  minus : ∀{i} → Nat i → Nat ω → Nat i
+  minus : ∀{i} → Nat i → Nat ∞ → Nat i
   minus x        zero     = x
   minus zero     y        = zero
   minus (suc x)  (suc y)  = minus x y
@@ -45,7 +45,7 @@ module DSuc where
   minus (dsuc x) (suc y)  = minus (suc x) y
   minus (dsuc x) (dsuc y) = minus x y
 
-  div : ∀{i} → Nat i → Nat ω → Nat i
+  div : ∀{i} → Nat i → Nat ∞ → Nat i
   div zero     y = zero
   div (suc x)  y = suc (div (minus x y) y)
   div (dsuc x) y = suc (div (minus (suc x) y) y)

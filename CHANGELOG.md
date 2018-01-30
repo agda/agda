@@ -227,6 +227,11 @@ Language
   On the other hand `primFloatLess` provides a total order on `Float`, with
   `-Inf < NaN < -1.0 < -0.0 < 0.0 < 1.0 < Inf`.
 
+* The `SIZEINF` builtin is now given the name `∞` in
+  `Agda.Builtin.Size` [Issue
+  [#2931](https://github.com/agda/agda/issues/2931)].
+
+  Previously it was given the name `ω`.
 
 Pragmas and options
 -------------------
@@ -334,8 +339,8 @@ Compiler backends
   improvements of up to 50% of compiled code.
 
 * The GHC backend now compiles the `INFINITY`, `SHARP` and `FLAT`
-  builtins in a different way. [Issue
-  [#2909](https://github.com/agda/agda/issues/2909)]
+  builtins in a different way [Issue
+  [#2909](https://github.com/agda/agda/issues/2909)].
 
   Previously these were compiled to (basically) nothing. Now the
   `INFINITY` builtin is compiled to `Infinity`, available from
@@ -380,8 +385,8 @@ Compiler backends
   {-# COMPILE GHC putStr = putStr . fromColist #-}
   ```
 
-* `COMPILE GHC` pragmas have been included for the size primitives.
-  [Issue [#2879](https://github.com/agda/agda/issues/2879)]
+* `COMPILE GHC` pragmas have been included for the size primitives
+  [Issue [#2879](https://github.com/agda/agda/issues/2879)].
 
 LaTeX backend
 -------------

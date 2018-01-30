@@ -6,4 +6,4 @@
 
 module Common.Size where
 
-open import Agda.Builtin.Size public renaming (ω to ∞; SizeU to SizeUniv)
+open import Agda.Builtin.Size public renaming (SizeU to SizeUniv)

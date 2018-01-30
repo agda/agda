@@ -27,11 +27,11 @@ mutual
 
 mutual
 
-  ℕ→Nat : ℕ → Nat ω
+  ℕ→Nat : ℕ → Nat ∞
   ℕ→Nat zero    = zero
   ℕ→Nat (suc n) = suc (ℕ→Nat′ n)
 
-  ℕ→Nat′ : ℕ → Nat′ ω
+  ℕ→Nat′ : ℕ → Nat′ ∞
   ℕ→Nat′ n = [ ℕ→Nat n ]
 
 mutual
