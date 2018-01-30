@@ -323,6 +323,20 @@ Emacs mode
     test {A} = ?
   ```
 
+* Highlighting of comments is no longer handled by Font Lock mode
+  [Issue [#2794](https://github.com/agda/agda/issues/2794)].
+
+  This means that highlighting of comments is updated at the same time
+  as other highlighting.
+
+  The Emacs mode's syntax table has also been changed. Previously `{`,
+  `}`, `-`, `\n`, `.`, `;`, `_`, and `!` were treated specially (for
+  instance, some of them were marked as having something to do with
+  comments). Now they are treated in the same way as all other
+  characters: a character inherits its syntax class from the standard
+  syntax table if that table treats it as a matching parenthesis or
+  whitespace, and otherwise it is treated as a word constituent.
+
 Compiler backends
 -----------------
 

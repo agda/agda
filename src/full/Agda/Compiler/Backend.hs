@@ -95,9 +95,19 @@ callBackend name iMain i = do
   backends <- use stBackends
   case [ b | b@(Backend b') <- backends, backendName b' == name ] of
     Backend b : _ -> compilerMain b iMain i
-    []            -> genericError $ "No backend called '" ++ name ++ "' " ++
-                                    "(installed backends: " ++
-                                    List.intercalate ", " [ backendName b | Backend b <- backends ] ++ ")"
+    []            -> genericError $
+      "No backend called '" ++ name ++ "' " ++
+      "(installed backends: " ++
+      List.intercalate ", "
+        (List.sort $ otherBackends ++
+                     [ backendName b | Backend b <- backends ]) ++
+      ")"
+
+-- | Backends that are not included in the state, but still available
+--   to the user.
+
+otherBackends :: [String]
+otherBackends = ["GHCNoMain", "LaTeX", "QuickLaTeX"]
 
 -- Internals --------------------------------------------------------------
 
