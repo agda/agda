@@ -15,7 +15,7 @@ mutual
     field
       force : {j : Size< i} → D j
 
-test : D′ ω
+test : D′ ∞
 D′.force test = test
 
 -- Same without sizes (they are not used)

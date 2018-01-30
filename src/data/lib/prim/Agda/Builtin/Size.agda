@@ -6,7 +6,7 @@ module Agda.Builtin.Size where
 {-# BUILTIN SIZE     Size   #-}
 {-# BUILTIN SIZELT   Size<_ #-}
 {-# BUILTIN SIZESUC  ↑_     #-}
-{-# BUILTIN SIZEINF  ω      #-}
+{-# BUILTIN SIZEINF  ∞      #-}
 {-# BUILTIN SIZEMAX  _⊔ˢ_  #-}
 
 {-# FOREIGN GHC
@@ -16,5 +16,5 @@ module Agda.Builtin.Size where
 {-# COMPILE GHC Size   = type ()     #-}
 {-# COMPILE GHC Size<_ = type SizeLT #-}
 {-# COMPILE GHC ↑_     = \_ -> ()    #-}
-{-# COMPILE GHC ω      = ()          #-}
+{-# COMPILE GHC ∞      = ()          #-}
 {-# COMPILE GHC _⊔ˢ_   = \_ _ -> ()  #-}

@@ -227,6 +227,11 @@ Language
   On the other hand `primFloatLess` provides a total order on `Float`, with
   `-Inf < NaN < -1.0 < -0.0 < 0.0 < 1.0 < Inf`.
 
+* The `SIZEINF` builtin is now given the name `∞` in
+  `Agda.Builtin.Size` [Issue
+  [#2931](https://github.com/agda/agda/issues/2931)].
+
+  Previously it was given the name `ω`.
 
 Pragmas and options
 -------------------

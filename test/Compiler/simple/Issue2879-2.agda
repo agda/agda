@@ -26,7 +26,7 @@ data Maybe (A : Set) : Set where
 
 {-# COMPILE GHC Maybe = data Maybe (Nothing | Just) #-}
 
-run : ∀ {A} → Nat → Delay A ω → Maybe A
+run : ∀ {A} → Nat → Delay A ∞ → Maybe A
 run zero    _         = nothing
 run (suc n) (now x)   = just x
 run (suc n) (later x) = run n (force x)
