@@ -1227,8 +1227,6 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
   --    That's clean and principled, even though DLubs make level solving harder.
   Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
---  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784
-  Free.Unused   -> DLub s1 b
   StronglyRigid -> Inf
   Unguarded     -> Inf
   WeaklyRigid   -> Inf

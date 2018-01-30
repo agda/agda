@@ -71,8 +71,6 @@ data FreeVars = FV
   , irrelevantVars    :: VarSet
     -- ^ Variables in irrelevant arguments and under a @DontCare@, i.e.,
     --   in irrelevant positions.
-  , unusedVars        :: VarSet
-    -- ^ Variables in 'UnusedArg'uments.
   } deriving (Eq, Show)
 
 -- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
@@ -89,7 +87,7 @@ relevantVars fv = Set.unions [rigidVars fv, flexibleVars fv]
 
 -- | @allVars fv@ includes irrelevant variables.
 allVars :: FreeVars -> VarSet
-allVars fv = Set.unions [relevantVars fv, irrelevantVars fv, unusedVars fv]
+allVars fv = Set.unions [relevantVars fv, irrelevantVars fv]
 
 data Occurrence
   = NoOccurrence
@@ -98,7 +96,6 @@ data Occurrence
   | Unguarded     -- ^ In top position, or only under inductive record constructors.
   | WeaklyRigid   -- ^ In arguments to variables and definitions.
   | Flexible      -- ^ In arguments of metas.
-  | Unused
   deriving (Eq,Show)
 
 {- NO LONGER
@@ -111,7 +108,6 @@ occurrence x fv
   | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
   | x `Set.member` flexibleVars      fv = Flexible
   | x `Set.member` irrelevantVars    fv = Irrelevantly
-  | x `Set.member` unusedVars        fv = Unused
   | otherwise                           = NoOccurrence
 
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
@@ -155,23 +151,16 @@ underConstructor (ConHead c i fs) =
 irrelevantly :: FreeVars -> FreeVars
 irrelevantly fv = empty { irrelevantVars = allVars fv }
 
--- | Mark all free variables as unused, except for irrelevant vars.
-unused :: FreeVars -> FreeVars
-unused fv = empty
-  { irrelevantVars = irrelevantVars fv
-  , unusedVars     = Set.unions [ rigidVars fv, flexibleVars fv, unusedVars fv ]
-  }
-
 -- | Pointwise union.
 union :: FreeVars -> FreeVars -> FreeVars
-union (FV sv1 gv1 rv1 fv1 iv1 uv1) (FV sv2 gv2 rv2 fv2 iv2 uv2) =
-  FV (Set.union sv1 sv2) (Set.union gv1 gv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2) (Set.union uv1 uv2)
+union (FV sv1 gv1 rv1 fv1 iv1) (FV sv2 gv2 rv2 fv2 iv2) =
+  FV (Set.union sv1 sv2) (Set.union gv1 gv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2)
 
 unions :: [FreeVars] -> FreeVars
 unions = foldr union empty
 
 empty :: FreeVars
-empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty Set.empty
+empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty
 
 -- | Free variable sets form a monoid under 'union'.
 instance Semigroup FreeVars where
@@ -184,11 +173,11 @@ instance Monoid FreeVars where
 
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
 delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv) (Set.delete n uv)
+delete n (FV sv gv rv fv iv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv)
 
 -- | @subtractFV n fv@ subtracts $n$ from each free variable in @fv@.
 subtractFV :: Nat -> FreeVars -> FreeVars
-subtractFV n (FV sv gv rv fv iv uv) = FV (Set.subtract n sv) (Set.subtract n gv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv) (Set.subtract n uv)
+subtractFV n (FV sv gv rv fv iv) = FV (Set.subtract n sv) (Set.subtract n gv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv)
 
 -- | A single unguarded variable.
 singleton :: Nat -> FreeVars
