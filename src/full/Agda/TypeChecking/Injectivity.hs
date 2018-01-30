@@ -4,8 +4,11 @@ module Agda.TypeChecking.Injectivity where
 
 import Prelude hiding (mapM)
 
+import Control.Applicative
+import Control.Arrow (first, second)
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
+import Control.Monad.Trans.Maybe
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -71,6 +74,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Con c _ _ -> return (Just $ ConsHead $ conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
+    Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
     Lit _   -> return Nothing -- handle literal heads as well? can't think of
                               -- any examples where it would be useful...
     Lam{}   -> return Nothing
@@ -80,38 +84,97 @@ headSymbol v = do -- ignoreAbstractMode $ do
     DontCare{} -> return Nothing
     Shared{}   -> __IMPOSSIBLE__
 
+-- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
+--   an injective functions and to the right-hand side.
+headSymbol' :: Term -> TCM (Maybe TermHead)
+headSymbol' v = do
+  v <- reduceB v
+  case fmap ignoreSharing v of
+    Blocked{} -> return Nothing
+    NotBlocked _ v -> case v of
+      Def g _    -> return $ Just $ ConsHead g
+      Con c _ _  -> return $ Just $ ConsHead $ conName c
+      Var i _    -> return $ Just (VarHead i)
+      Sort _     -> return $ Just SortHead
+      Pi _ _     -> return $ Just PiHead
+      Lit _      -> return Nothing
+      Lam{}      -> return Nothing
+      Level{}    -> return Nothing
+      MetaV{}    -> return Nothing
+      DontCare{} -> return Nothing
+      Shared{}   -> __IMPOSSIBLE__
+
+-- | Does deBruijn variable i correspond to a top-level argument, and if so
+--   which one (index from the left).
+topLevelArg :: Clause -> Int -> Maybe TermHead
+topLevelArg Clause{ namedClausePats = ps } i =
+  case [ n | (n, VarP _ (DBPatVar _ j)) <- zip [0..] $ map namedArg ps, i == j ] of
+    []    -> Nothing
+    [n]   -> Just (VarHead n)
+    _:_:_ -> __IMPOSSIBLE__
+
+-- | Join a list of inversion maps.
+joinHeadMaps :: (Monad m, Alternative m) => [InversionMap c] -> m (InversionMap c)
+joinHeadMaps = foldM j Map.empty
+  where
+    j m1 m2 | null (Map.intersection m1 m2) = return (Map.union m1 m2)
+            | otherwise                     = empty
+
+-- | Update the heads of an inversion map.
+updateHeads :: (Alternative m, Monad m) => (TermHead -> c -> m TermHead) -> InversionMap c -> m (InversionMap c)
+updateHeads f m = joinHeadMaps =<< mapM f' (Map.toList m)
+  where f' (h, c) = (`Map.singleton` c) <$> f h c
+
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
-  | pointLess cs = do
+  | pointless cs = do
       reportSLn "tc.inj.check.pointless" 20 $
         "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
   where
     -- Is it pointless to use injectivity for this function?
-    pointLess []      = True
-    pointLess (_:_:_) = False
-    pointLess [cl] = not $ any (properlyMatching . namedArg) $ namedClausePats cl
+    pointless []      = True
+    pointless (_:_:_) = False
+    pointless [cl] = not $ any (properlyMatching . namedArg) $ namedClausePats cl
         -- Andreas, 2014-06-12
         -- If we only have record patterns, it is also pointless.
         -- We need at least one proper match.
-checkInjectivity f cs = do
+checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ prettyShow f
-  -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
-  es <- catMaybes <$> do
-    forM cs $ \ c -> do             -- produces a list ...
-      mapM ((,c) <.> headSymbol) $ clauseBody c -- ... of maybes
-  let (hs, ps) = unzip es
-  reportSLn "tc.inj.check" 40 $ "  right hand sides: " ++ show hs
-  if all isJust hs && distinct hs
-    then do
-      let inv = Map.fromList (map fromJust hs `zip` ps)
-      reportSLn "tc.inj.check" 20 $ prettyShow f ++ " is injective."
-      reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
-        for (Map.toList inv) $ \ (h, c) ->
-          text (prettyShow h) <+> text "-->" <+>
-          fsep (punctuate comma $ map (prettyTCM . namedArg) $ namedClausePats c)
-      return $ Inverse inv
-    else return NotInjective
+
+  let varToArg :: Clause -> TermHead -> MaybeT TCM TermHead
+      varToArg c (VarHead i) = MaybeT $ return $ topLevelArg c i
+      varToArg _ h           = return h
+
+  -- We don't need to consider absurd clauses
+  let computeHead c@Clause{ clauseBody = Just body } = do
+        h <- varToArg c =<< MaybeT (headSymbol body)
+        return [Map.singleton h c]
+      computeHead _ = return []
+
+  hdMap <- joinHeadMaps =<< concat <$> mapM computeHead cs
+
+  reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is injective."
+  reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
+    for (Map.toList hdMap) $ \ (h, c) ->
+      text (prettyShow h) <+> text "-->" <+>
+      fsep (punctuate comma $ map (prettyTCM . namedArg) $ namedClausePats c)
+
+  return $ Inverse hdMap
+
+-- | Turn variable heads, referring to top-level argument positions, into
+--   proper heads. These might still be `VarHead`, but in that case they refer to
+--   deBruijn variables. Checks that the instantiated heads are still rigid and
+--   distinct.
+instantiateVarHeads :: QName -> Elims -> Map TermHead Clause -> TCM (Maybe (Map TermHead Clause))
+instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
+  where
+    instHead :: TermHead -> MaybeT TCM TermHead
+    instHead h@(VarHead i)
+      | length es > i,
+        Apply arg <- es !! i = MaybeT $ headSymbol' (unArg arg)
+      | otherwise = empty   -- impossible?
+    instHead h = return h
 
 -- | Argument should be in weak head normal form.
 functionInverse :: Term -> TCM InvView
@@ -121,7 +184,7 @@ functionInverse v = case ignoreSharing v of
     case d of
       Function{ funInv = inv } -> case inv of
         NotInjective  -> return NoInv
-        Inverse m     -> return $ Inv f es m
+        Inverse m     -> maybe NoInv (Inv f es) <$> instantiateVarHeads f es m
           -- NB: Invertible functions are never classified as
           --     projection-like, so this is fine, we are not
           --     missing parameters.  (Andreas, 2013-11-01)
@@ -133,127 +196,116 @@ data InvView = Inv QName [Elim] (Map TermHead Clause)
 
 data MaybeAbort = Abort | KeepGoing
 
-useInjectivity :: Comparison -> Type -> Term -> Term -> TCM ()
-useInjectivity cmp a u v = do
-  reportSDoc "tc.inj.use" 30 $ fsep $
-    pwords "useInjectivity on" ++
-    [ prettyTCM u, prettyTCM cmp, prettyTCM v, text ":", prettyTCM a
-    ]
-  uinv <- functionInverse u
-  vinv <- functionInverse v
+-- | Precondition: The first argument must be blocked and the second must be
+--                 neutral.
+useInjectivity :: CompareDirection -> Type -> Term -> Term -> TCM ()
+useInjectivity dir ty blk neu = do
+  inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431). Look at the number of active problems to detect this.
   nProblems <- Set.size <$> view eActiveProblems
   maxDepth  <- maxInversionDepth
-  let warn f = warning $ InversionDepthReached f
-  case (uinv, vinv) of
-    -- Andreas, Francesco, 2014-06-12:
-    -- We know that one of u,v is neutral
-    -- (see calls to useInjectivity in Conversion.hs).
-    -- Otherwise, (e.g. if both were Blocked), the following case would be
-    -- unsound, since it assumes the arguments to be pointwise equal.
-    -- It would deliver non-unique solutions for metas.
-    (Inv f fArgs _, Inv g gArgs _)
-      | nProblems > maxDepth -> warn f >> fallBack
-      | f == g    -> do
-        a <- defType <$> getConstInfo f
-        reportSDoc "tc.inj.use" 20 $ vcat
-          [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
-                pwords "at")
-          , nest 2 $ fsep $ punctuate comma $ map prettyTCM fArgs
-          , nest 2 $ fsep $ punctuate comma $ map prettyTCM gArgs
-          , nest 2 $ text "and type" <+> prettyTCM a
-          ]
-        pol <- getPolarity' cmp f
-        fs  <- getForcedArgs f
-        compareElims pol fs a (Def f []) fArgs gArgs
-      | otherwise -> fallBack
-    (Inv f args inv, NoInv)
-      | nProblems > maxDepth -> warn f >> fallBack
+  case inv of
+    NoInv            -> fallback  -- not invertible
+    Inv f blkArgs hdMap
+      | nProblems > maxDepth -> warning (InversionDepthReached f) >> fallback
       | otherwise -> do
-      a <- defType <$> getConstInfo f
-      reportSDoc "tc.inj.use" 20 $ fsep $
-        pwords "inverting injective function" ++
-        [ prettyTCM f, text ":", prettyTCM a, text "for", prettyTCM v
-        , parens $ text "args =" <+> prettyList (map prettyTCM args)
-        ]
-      invert u f a inv args =<< headSymbol v
-    (NoInv, Inv g args inv)
-      | nProblems > maxDepth -> warn g >> fallBack
-      | otherwise -> do
-      a <- defType <$> getConstInfo g
-      reportSDoc "tc.inj.use" 20 $ fsep $
-        pwords "inverting injective function" ++
-        [ prettyTCM g, text ":", prettyTCM a,  text "for", prettyTCM u
-        , parens $ text "args =" <+> prettyList (map prettyTCM args)
-        ]
-      invert v g a inv args =<< headSymbol u
-    (NoInv, NoInv)          -> fallBack
-  where
-    fallBack = addConstraint $ ValueCmp cmp a u v
-
-    invert :: Term -> QName -> Type -> Map TermHead Clause -> [Elim] -> Maybe TermHead -> TCM ()
-    invert _ _ a inv args Nothing  = fallBack
-    invert org f ftype inv args (Just h) = case Map.lookup h inv of
-      Nothing -> typeError $ UnequalTerms cmp u v a
-      Just cl@Clause{ clauseTel  = tel } -> maybeAbort $ do
-          let ps   = clausePats cl
-              perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
-          -- These are what dot patterns should be instantiated at
-          ms <- map unArg <$> newTelMeta tel
-          reportSDoc "tc.inj.invert" 20 $ vcat
-            [ text "meta patterns" <+> prettyList (map prettyTCM ms)
-            , text "  perm =" <+> text (show perm)
-            , text "  tel  =" <+> prettyTCM tel
-            , text "  ps   =" <+> prettyList (map (text . show) ps)
+      reportSDoc "tc.inj.use" 30 $ fsep $
+        pwords "useInjectivity on" ++
+        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, text ":", prettyTCM ty ]
+      let canReduceToSelf = Map.member (ConsHead f) hdMap
+      fTy <- defType <$> getConstInfo f
+      case neu of
+        -- f us == f vs  <=>  us == vs
+        -- Crucially, this relies on `f vs` being neutral and only works
+        -- if `f` is not a possible head for `f us`.
+        Def f' neuArgs | f == f', not canReduceToSelf -> do
+          reportSDoc "tc.inj.use" 20 $ vcat
+            [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
+                  pwords "at")
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM blkArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM neuArgs
+            , nest 2 $ text "and type" <+> prettyTCM fTy
             ]
-          -- and this is the order the variables occur in the patterns
-          let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
-          let sub   = parallelS (reverse ms)
-          margs <- runReaderT (evalStateT (mapM metaElim ps) msAux) sub
-          reportSDoc "tc.inj.invert" 20 $ vcat
-            [ text "inversion"
-            , nest 2 $ vcat
-              [ text "lhs  =" <+> prettyTCM margs
-              , text "rhs  =" <+> prettyTCM args
-              , text "type =" <+> prettyTCM ftype
-              ]
-            ]
-          -- Since we do not care for the value of non-variant metas here,
-          -- we can treat 'Nonvariant' as 'Invariant'.
-          -- That ensures these metas do not remain unsolved.
-          pol <- purgeNonvariant <$> getPolarity' cmp f
           fs  <- getForcedArgs f
-          -- The clause might not give as many patterns as there
-          -- are arguments (point-free style definitions).
-          let args' = take (length margs) args
-          compareElims pol fs ftype (Def f []) margs args'
-{- Andreas, 2011-05-09 allow unsolved constraints as long as progress
-          unless (null cs) $ do
-            reportSDoc "tc.inj.invert" 30 $
-              text "aborting inversion; remaining constraints" <+> prettyTCM cs
-            patternViolation
--}
-          -- Check that we made progress, i.e. the head symbol
-          -- of the original term should be a constructor.
-          org <- reduce org
-          h <- headSymbol org
-          case h of
-            Just h  -> KeepGoing <$ compareTerm cmp a u v
-            Nothing -> do
-              reportSDoc "tc.inj.invert" 30 $ vcat
-                [ text "aborting inversion;" <+> prettyTCM org
-                , text "plainly," <+> text (show org)
-                , text "has TermHead" <+> text (prettyShow h)
-                , text "which does not expose a constructor"
-                ]
-              return Abort
+          pol <- getPolarity' cmp f
+          app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
+
+        -- f us == c vs
+        --    Find the clause unique clause `f ps` with head `c` and unify
+        --    us == ps  with fresh metas for the pattern variables of ps.
+        --    If there's no such clause we can safely throw an error.
+        _ -> headSymbol' neu >>= \ case
+          Nothing -> fallback
+          Just (ConsHead f') | f == f', canReduceToSelf -> fallback
+                                    -- We can't invert in this case, since we can't
+                                    -- tell the difference between a solution that makes
+                                    -- the blocked term neutral and one that makes progress.
+          Just hd -> do
+            reportSDoc "tc.inj.use" 20 $ vcat
+              [ text "inverting injective function" <?> hsep [prettyTCM f, text ":", prettyTCM fTy]
+              , text "for" <?> prettyTCM neu
+              , nest 2 $ text "hd   =" <+> pretty hd
+              , nest 2 $ text "args =" <+> prettyList (map prettyTCM blkArgs)
+              ]
+            case Map.lookup hd hdMap of
+              Nothing -> typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
+              Just cl@Clause{ clauseTel  = tel } -> maybeAbort $ do
+                  let ps   = clausePats cl
+                      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+                  -- These are what dot patterns should be instantiated at
+                  ms <- map unArg <$> newTelMeta tel
+                  reportSDoc "tc.inj.invert" 20 $ vcat
+                    [ text "meta patterns" <+> prettyList (map prettyTCM ms)
+                    , text "  perm =" <+> text (show perm)
+                    , text "  tel  =" <+> prettyTCM tel
+                    , text "  ps   =" <+> prettyList (map (text . show) ps)
+                    ]
+                  -- and this is the order the variables occur in the patterns
+                  let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
+                  let sub   = parallelS (reverse ms)
+                  margs <- runReaderT (evalStateT (mapM metaElim ps) msAux) sub
+                  reportSDoc "tc.inj.invert" 20 $ vcat
+                    [ text "inversion"
+                    , nest 2 $ vcat
+                      [ text "lhs  =" <+> prettyTCM margs
+                      , text "rhs  =" <+> prettyTCM blkArgs
+                      , text "type =" <+> prettyTCM fTy
+                      ]
+                    ]
+                  -- Since we do not care for the value of non-variant metas here,
+                  -- we can treat 'Nonvariant' as 'Invariant'.
+                  -- That ensures these metas do not remain unsolved.
+                  pol <- purgeNonvariant <$> getPolarity' cmp f
+                  fs  <- getForcedArgs f
+                  -- The clause might not give as many patterns as there
+                  -- are arguments (point-free style definitions).
+                  let blkArgs' = take (length margs) blkArgs
+                  compareElims pol fs fTy (Def f []) margs blkArgs'
+
+                  -- Check that we made progress.
+                  r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
+                  case r of
+                    YesReduction _ blk' -> KeepGoing <$ app (compareTerm cmp ty) blk' neu
+                    NoReduction{}       -> do
+                      reportSDoc "tc.inj.invert" 30 $ vcat
+                        [ text "aborting inversion;" <+> prettyTCM blk
+                        , text "does not reduce"
+                        ]
+                      return Abort
+  where
+    fallback = addConstraint $ app (ValueCmp cmp ty) blk neu
+
+    (cmp, app) = case dir of
+      DirEq -> (CmpEq, id)
+      DirLeq -> (CmpLeq, id)
+      DirGeq -> (CmpLeq, flip)
 
     maybeAbort m = do
       (a, s) <- localTCStateSaving m
       case a of
         KeepGoing -> put s
-        Abort     -> fallBack
+        Abort     -> fallback
 
     nextMeta = do
       m : ms <- get

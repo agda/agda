@@ -341,11 +341,13 @@ instance EmbPrj TermHead where
   icod_ SortHead     = icodeN' SortHead
   icod_ PiHead       = icodeN 1 PiHead
   icod_ (ConsHead a) = icodeN 2 ConsHead a
+  icod_ (VarHead a)  = icodeN 3 VarHead a
 
   value = vcase valu where
     valu []     = valuN SortHead
     valu [1]    = valuN PiHead
     valu [2, a] = valuN ConsHead a
+    valu [3, a] = valuN VarHead a
     valu _      = malformed
 
 instance EmbPrj I.Clause where

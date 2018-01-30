@@ -478,8 +478,8 @@ compareAtom cmp t m n =
         (NotBlocked _ (MetaV x es), _) -> assign dir x es n
         (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
         (Blocked{}, Blocked{})  -> checkSyntacticEquality
-        (Blocked{}, _)    -> useInjectivity cmp t m n
-        (_,Blocked{})     -> useInjectivity cmp t m n
+        (Blocked{}, _)  -> useInjectivity (fromCmp cmp) t m n   -- The blocked term goes first
+        (_, Blocked{})  -> useInjectivity (flipCmp $ fromCmp cmp) t n m
         _ -> do
           -- -- Andreas, 2013-10-20 put projection-like function
           -- -- into the spine, to make compareElims work.
@@ -1205,7 +1205,7 @@ equalLevel' a b = do
         _ | as == bs -> ok
           | any isBlocked (as ++ bs) -> do
               lvl <- levelType
-              liftTCM $ useInjectivity CmpEq lvl (Level a) (Level b)
+              liftTCM $ addConstraint $ ValueCmp CmpEq lvl (Level a) (Level b)
 
         -- closed == closed
         ([ClosedLevel n], [ClosedLevel m])

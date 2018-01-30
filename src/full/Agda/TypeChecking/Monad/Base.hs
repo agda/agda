@@ -1838,22 +1838,25 @@ defForced d = case theDef d of
 ---------------------------------------------------------------------------
 
 type FunctionInverse = FunctionInverse' Clause
+type InversionMap c = Map TermHead c
 
 data FunctionInverse' c
   = NotInjective
-  | Inverse (Map TermHead c)
+  | Inverse (InversionMap c)
   deriving (Data, Show, Functor)
 
 data TermHead = SortHead
               | PiHead
               | ConsHead QName
+              | VarHead Nat
   deriving (Data, Eq, Ord, Show)
 
 instance Pretty TermHead where
-  pretty = \case
-    SortHead  -> text "SortHead"
-    PiHead    -> text "PiHead"
-    ConsHead q-> text "ConsHead" <+> pretty q
+  pretty = \ case
+    SortHead   -> text "SortHead"
+    PiHead     -> text "PiHead"
+    ConsHead q -> text "ConsHead" <+> pretty q
+    VarHead i  -> text ("VarHead " ++ show i)
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks
@@ -3228,6 +3231,7 @@ instance KillRange TermHead where
   killRange SortHead     = SortHead
   killRange PiHead       = PiHead
   killRange (ConsHead q) = ConsHead $ killRange q
+  killRange h@VarHead{}  = h
 
 instance KillRange Projection where
   killRange (Projection a b c d e) = killRange5 Projection a b c d e
