@@ -22,6 +22,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive
@@ -47,7 +48,7 @@ headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = do -- ignoreAbstractMode $ do
   -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
 
-  v <- ignoreBlocking <$> reduceHead v
+  v <- constructorForm =<< ignoreBlocking <$> reduceHead v
   case ignoreSharing v of
     Def f _ -> do
       let yes = return $ Just $ ConsHead f
@@ -75,8 +76,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
-    Lit _   -> return Nothing -- handle literal heads as well? can't think of
-                              -- any examples where it would be useful...
+    Lit _   -> return Nothing -- TODO: LitHead (for literals with no constructorForm)
     Lam{}   -> return Nothing
     Var{}   -> return Nothing
     Level{} -> return Nothing
@@ -88,7 +88,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
 --   an injective functions and to the right-hand side.
 headSymbol' :: Term -> TCM (Maybe TermHead)
 headSymbol' v = do
-  v <- reduceB v
+  v <- traverse constructorForm =<< reduceB v
   case fmap ignoreSharing v of
     Blocked{} -> return Nothing
     NotBlocked _ v -> case v of

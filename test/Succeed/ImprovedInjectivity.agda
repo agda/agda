@@ -47,6 +47,9 @@ foo = λ x y z → x
 plus : Nat → Constraint
 plus n = _ + n == 2 + n
 
+plus-lit : Constraint
+plus-lit = _ + 0 == 3
+
 dont-fail : Nat → Nat → Constraint × Constraint
 dont-fail n m =
   let X = _ in
