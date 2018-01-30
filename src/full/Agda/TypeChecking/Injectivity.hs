@@ -180,15 +180,13 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
 functionInverse :: Term -> TCM InvView
 functionInverse v = case ignoreSharing v of
   Def f es -> do
-    d <- theDef <$> getConstInfo f
-    case d of
-      Function{ funInv = inv } -> case inv of
-        NotInjective  -> return NoInv
-        Inverse m     -> maybe NoInv (Inv f es) <$> instantiateVarHeads f es m
-          -- NB: Invertible functions are never classified as
-          --     projection-like, so this is fine, we are not
-          --     missing parameters.  (Andreas, 2013-11-01)
-      _ -> return NoInv
+    inv <- defInverse <$> getConstInfo f
+    case inv of
+      NotInjective -> return NoInv
+      Inverse m    -> maybe NoInv (Inv f es) <$> instantiateVarHeads f es m
+        -- NB: Invertible functions are never classified as
+        --     projection-like, so this is fine, we are not
+        --     missing parameters.  (Andreas, 2013-11-01)
   _ -> return NoInv
 
 data InvView = Inv QName [Elim] (Map TermHead Clause)

@@ -1549,6 +1549,8 @@ data Defn = Axiom
             , primName  :: String
             , primClauses :: [Clause]
               -- ^ 'null' for primitive functions, @not null@ for builtin functions.
+            , primInv      :: FunctionInverse
+              -- ^ Builtin functions can have inverses. For instance, natural number addition.
             , primCompiled :: Maybe CompiledClauses
               -- ^ 'Nothing' for primitive functions,
               --   @'Just' something@ for builtin functions.
@@ -1792,6 +1794,11 @@ defParameters :: Definition -> Maybe Nat
 defParameters Defn{theDef = Datatype{dataPars = n}} = Just n
 defParameters Defn{theDef = Record  {recPars  = n}} = Just n
 defParameters _                                     = Nothing
+
+defInverse :: Definition -> FunctionInverse
+defInverse Defn{theDef = Function { funInv  = inv }} = inv
+defInverse Defn{theDef = Primitive{ primInv = inv }} = inv
+defInverse _                                         = NotInjective
 
 defCompilerPragmas :: BackendName -> Definition -> [CompilerPragma]
 defCompilerPragmas b = reverse . fromMaybe [] . Map.lookup b . defCompiledRep
@@ -3218,7 +3225,7 @@ instance KillRange Defn where
       Datatype a b c d e f g h       -> killRange8 Datatype a b c d e f g h
       Record a b c d e f g h i j     -> killRange10 Record a b c d e f g h i j
       Constructor a b c d e f g h    -> killRange8 Constructor a b c d e f g h
-      Primitive a b c d              -> killRange4 Primitive a b c d
+      Primitive a b c d e            -> killRange5 Primitive a b c d e
 
 instance KillRange MutualId where
   killRange = id
