@@ -606,7 +606,11 @@ checkPrimitive i x e =
     bindPrimitive s pf
     addConstant x $
       defaultDefn defaultArgInfo x t $
-        Primitive (Info.defAbstract i) s [] Nothing
+        Primitive { primAbstr    = Info.defAbstract i
+                  , primName     = s
+                  , primClauses  = []
+                  , primInv      = NotInjective
+                  , primCompiled = Nothing }
 
 assertCurrentModule :: QName -> String -> TCM ()
 assertCurrentModule x err =

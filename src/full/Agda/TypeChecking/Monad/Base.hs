@@ -1576,6 +1576,8 @@ data Defn = Axiom
             , primName  :: String
             , primClauses :: [Clause]
               -- ^ 'null' for primitive functions, @not null@ for builtin functions.
+            , primInv      :: FunctionInverse
+              -- ^ Builtin functions can have inverses. For instance, natural number addition.
             , primCompiled :: Maybe CompiledClauses
               -- ^ 'Nothing' for primitive functions,
               --   @'Just' something@ for builtin functions.
@@ -1823,6 +1825,11 @@ defParameters Defn{theDef = Datatype{dataPars = n}} = Just n
 defParameters Defn{theDef = Record  {recPars  = n}} = Just n
 defParameters _                                     = Nothing
 
+defInverse :: Definition -> FunctionInverse
+defInverse Defn{theDef = Function { funInv  = inv }} = inv
+defInverse Defn{theDef = Primitive{ primInv = inv }} = inv
+defInverse _                                         = NotInjective
+
 defCompilerPragmas :: BackendName -> Definition -> [CompilerPragma]
 defCompilerPragmas b = reverse . fromMaybe [] . Map.lookup b . defCompiledRep
   -- reversed because we add new pragmas to the front of the list
@@ -1868,22 +1875,25 @@ defForced d = case theDef d of
 ---------------------------------------------------------------------------
 
 type FunctionInverse = FunctionInverse' Clause
+type InversionMap c = Map TermHead c
 
 data FunctionInverse' c
   = NotInjective
-  | Inverse (Map TermHead c)
+  | Inverse (InversionMap c)
   deriving (Data, Show, Functor)
 
 data TermHead = SortHead
               | PiHead
               | ConsHead QName
+              | VarHead Nat
   deriving (Data, Eq, Ord, Show)
 
 instance Pretty TermHead where
-  pretty = \case
-    SortHead  -> text "SortHead"
-    PiHead    -> text "PiHead"
-    ConsHead q-> text "ConsHead" <+> pretty q
+  pretty = \ case
+    SortHead   -> text "SortHead"
+    PiHead     -> text "PiHead"
+    ConsHead q -> text "ConsHead" <+> pretty q
+    VarHead i  -> text ("VarHead " ++ show i)
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks
@@ -3249,7 +3259,7 @@ instance KillRange Defn where
       Datatype a b c d e f g h       -> killRange8 Datatype a b c d e f g h
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
-      Primitive a b c d              -> killRange4 Primitive a b c d
+      Primitive a b c d e            -> killRange5 Primitive a b c d e
 
 instance KillRange MutualId where
   killRange = id
@@ -3262,6 +3272,7 @@ instance KillRange TermHead where
   killRange SortHead     = SortHead
   killRange PiHead       = PiHead
   killRange (ConsHead q) = ConsHead $ killRange q
+  killRange h@VarHead{}  = h
 
 instance KillRange Projection where
   killRange (Projection a b c d e) = killRange5 Projection a b c d e

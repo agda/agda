@@ -290,7 +290,7 @@ instance EmbPrj Defn where
   icod_ (Datatype    a b c d e f g h)           = icodeN 2 Datatype a b c d e f g h
   icod_ (Record      a b c d e f g h i j k)     = icodeN 3 Record a b c d e f g h i j k
   icod_ (Constructor a b c d e f g h i)         = icodeN 4 Constructor a b c d e f g h i
-  icod_ (Primitive   a b c d)                   = icodeN 5 Primitive a b c d
+  icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                          = __IMPOSSIBLE__
 
   value = vcase valu where
@@ -299,7 +299,7 @@ instance EmbPrj Defn where
     valu [2, a, b, c, d, e, f, g, h]             = valuN Datatype a b c d e f g h
     valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valuN Record  a b c d e f g h i j k
     valu [4, a, b, c, d, e, f, g, h, i]          = valuN Constructor a b c d e f g h i
-    valu [5, a, b, c, d]                         = valuN Primitive   a b c d
+    valu [5, a, b, c, d, e]                      = valuN Primitive   a b c d e
     valu _                                       = malformed
 
 instance EmbPrj FunctionFlag where
@@ -347,11 +347,13 @@ instance EmbPrj TermHead where
   icod_ SortHead     = icodeN' SortHead
   icod_ PiHead       = icodeN 1 PiHead
   icod_ (ConsHead a) = icodeN 2 ConsHead a
+  icod_ (VarHead a)  = icodeN 3 VarHead a
 
   value = vcase valu where
     valu []     = valuN SortHead
     valu [1]    = valuN PiHead
     valu [2, a] = valuN ConsHead a
+    valu [3, a] = valuN VarHead a
     valu _      = malformed
 
 instance EmbPrj I.Clause where
