@@ -186,6 +186,21 @@ Language
   ```
   Agda now requires the type of the argument of `f` to be given explicitly.
 
+* Improved constraint solving for pattern matching functions
+
+  Constraint solving for functions where each right-hand side has a distinct
+  rigid head has been extended to also cover the case where some clauses return
+  an argument of the function. A typical example is append on lists:
+
+  ```agda
+    _++_ : {A : Set} → List A → List A → List A
+    []       ++ ys = ys
+    (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+  ```
+
+  Agda can now solve constraints like `?X ++ ys == 1 ∷ ys` when `ys` is a
+  neutral term.
+
 ### Builtins
 
 * Added support for built-in 64-bit machine words.
