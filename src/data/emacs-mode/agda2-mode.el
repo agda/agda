@@ -1518,7 +1518,7 @@ Only if the buffer is unmodified, and only if there is anything to load."
 
 (defun agda2-literate-p ()
   "Is the current buffer a literate Agda buffer?"
-  (equal (file-name-extension (buffer-name)) "lagda"))
+  (not (equal (file-name-extension (buffer-file-name)) "agda")))
 
 (defmacro agda2--case (exp &rest branches) ;FIXME: Use `pcase' instead!
   (declare (debug t) (indent 1))
