@@ -1,11 +1,5 @@
-Failed to solve the following constraints:
-  _36 := refl [blocked on problem 53]
-  [53, 56, 60, 62] wrap zero = true : _35 true
-  [53, 56] _34 := λ _ → Wrap Nat [blocked on problem 57]
-  [53, 56] _32 := Bool [blocked on problem 57]
-  [53, 56, 57, 59] Foo _28 = Wrap Nat : Set
-  [53, 56, 57] _30 := Bool [blocked on problem 58]
-  [53, 56, 57, 58] Foo _28 = Bool : Set
-Unsolved metas at the following locations:
-  Issue1258-2.agda:36,9-10
-  Issue1258-2.agda:38,9-13
+Issue1258-2.agda:38,9-13
+Foo _28 != Bool of type Set
+when checking that the expression refl has type
+f (Bool × Wrap Nat) (true , wrap zero) ==
+f (Stuck × Stuck) (Beta , Beta)
