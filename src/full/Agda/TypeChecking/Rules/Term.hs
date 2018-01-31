@@ -623,6 +623,12 @@ catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
         enterClosure aClosure $ \ a ->
           ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ _ -> return Nothing
       caseMaybe mx reraise $ \ x -> return $ Just (err, x)
+    TypeError s cl@Closure{ clValue = CannotEliminateWithPattern p a } -> do
+      mx <- localState $ do
+        put s
+        enterClosure cl $ \ _ -> do
+          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ _ -> return Nothing
+      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     _ -> reraise
 
 ---------------------------------------------------------------------------
