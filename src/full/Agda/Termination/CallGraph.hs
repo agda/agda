@@ -62,7 +62,7 @@ type Node = Int
 --   It can be labelled with several call matrices if there
 --   are several pathes from one function to another.
 
-type Call cinfo = Edge Node Node (CMSet cinfo)
+type Call cinfo = Edge Node (CMSet cinfo)
 
 callMatrixSet :: Call cinfo -> CMSet cinfo
 callMatrixSet = label
@@ -83,7 +83,7 @@ mkCall' s t m = mkCall s t m mempty
 -- meta information for different calls can be combined when the calls
 -- are combined.
 
-newtype CallGraph cinfo = CallGraph { theCallGraph :: Graph Node Node (CMSet cinfo) }
+newtype CallGraph cinfo = CallGraph { theCallGraph :: Graph Node (CMSet cinfo) }
   deriving (Show)
 
 
@@ -102,7 +102,7 @@ toList = Graph.edges . theCallGraph
 --   call graph.
 
 fromList :: [Call cinfo] -> CallGraph cinfo
-fromList = CallGraph . Graph.fromListWith CMSet.union
+fromList = CallGraph . Graph.fromEdgesWith CMSet.union
 
 -- | 'null' checks whether the call graph is completely disconnected.
 instance Null (CallGraph cinfo) where
@@ -146,7 +146,7 @@ instance PartialOrd a => CombineNewOld (Favorites a) where
 
 deriving instance CombineNewOld (CMSet cinfo)
 
-instance (Monoid a, CombineNewOld a, Ord s, Ord t) => CombineNewOld (Graph s t a) where
+instance (Monoid a, CombineNewOld a, Ord n) => CombineNewOld (Graph n a) where
   combineNewOld new old = Graph.unzip $ Graph.unionWith comb new' old'
     where
       new' = (,mempty) <$> new
@@ -226,4 +226,3 @@ instance Pretty cinfo => Pretty (CallGraph cinfo) where
 -- --    , "Behaviour: " ++ show (diagonal $ mat $ cm c)  -- TODO
 -- --    , "Meta info: " ++ show cinfo
 --     ]
-

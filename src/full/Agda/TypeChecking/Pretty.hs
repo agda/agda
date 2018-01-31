@@ -449,7 +449,7 @@ data WithNode n a = WithNode n a
 instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
   prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
 
-instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n n e) where
+instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
   prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
     where
       pr (n, es) = sep

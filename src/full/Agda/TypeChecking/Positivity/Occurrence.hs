@@ -199,7 +199,7 @@ boundToEverySome = Map.fromList
 
 productOfEdgesInBoundedWalk ::
   (SemiRing e, Ord n) =>
-  (e -> Occurrence) -> Graph n n e -> n -> n -> Occurrence -> Maybe e
+  (e -> Occurrence) -> Graph n e -> n -> n -> Occurrence -> Maybe e
 productOfEdgesInBoundedWalk occ g u v bound =
   case Map.lookup bound boundToEverySome of
     Nothing  -> __IMPOSSIBLE__

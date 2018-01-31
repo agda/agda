@@ -35,29 +35,29 @@ import Agda.Utils.Pretty
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type Graph r f a = Graph.Graph (Node r f) (Node r f) a
-type Edge' r f a = Graph.Edge  (Node r f) (Node r f) a
+type Graph r f a = Graph.Graph (Node r f) a
+type Edge' r f a = Graph.Edge  (Node r f) a
 type Key r f = Edge' r f ()
 type Nodes r f = Graph.Nodes (Node r f)
 type LabelledEdge r f = Edge' r f Label
 
-src :: Edge s t e -> s
+src :: Edge n e -> n
 src = Graph.source
 
-dest :: Edge s t e -> t
+dest :: Edge n e -> n
 dest = Graph.target
 
-lookupEdge :: (Ord s, Ord t) => Graph.Graph s t e -> s -> t -> Maybe e
+lookupEdge :: Ord n => Graph.Graph n e -> n -> n -> Maybe e
 lookupEdge g s t = Graph.lookup s t g
 
-graphToList :: Graph.Graph s t e -> [Edge s t e]
-graphToList = Graph.toList
+graphToList :: Graph.Graph n e -> [Edge n e]
+graphToList = Graph.edges
 
-graphFromList :: (Ord s, Ord t) => [Edge s t e] -> Graph.Graph s t e
-graphFromList = Graph.fromList
+graphFromList :: Ord n => [Edge n e] -> Graph.Graph n e
+graphFromList = Graph.fromEdges
 
-insertEdge :: (Ord s, Ord t, MeetSemiLattice e, Top e) =>
-              Edge s t e -> Graph.Graph s t e -> Graph.Graph s t e
+insertEdge :: (Ord n, MeetSemiLattice e, Top e) =>
+              Edge n e -> Graph.Graph n e -> Graph.Graph n e
 insertEdge e g
   | isTop (label e) = g
   | otherwise       = Graph.insertEdgeWith meet e g
@@ -78,11 +78,11 @@ setFoldl step start = List.foldl' step start . Set.toAscList
 -- setFoldl = Set.foldl'
 
 -- | Floyd-Warshall algorithm.
-transClos :: forall n a . (Ord n, Dioid a) => Graph.Graph n n a -> Graph.Graph n n a
+transClos :: forall n a . (Ord n, Dioid a) => Graph.Graph n a -> Graph.Graph n a
 transClos g = setFoldl step g $ allNodes ns
   where
     ns       = computeNodes g
-    srcs     = Set.toAscList $ srcNodes  ns
+    srcs     = Set.toAscList $ srcNodes ns
     dests    = Set.toAscList $ tgtNodes ns
     -- @step g v@ adds all intermediate edges @u --> w@ via @v@ to @g@
     -- step :: (Ord n, Dioid a) => Graph.Graph n n a -> n -> Graph.Graph n n a
@@ -983,7 +983,7 @@ testSuccs = commonSuccs hg [n1,n2]
     n3 = NodeRigid "k"
     n4 = NodeRigid "l"
     n5 = NodeRigid "m"
-    hg = Graph.fromList
+    hg = Graph.fromEdges
          [ Graph.Edge n1 n3 $ Label Le 1
          , Graph.Edge n1 n4 $ Label Le 2
          , Graph.Edge n1 n5 $ Label Le 3
@@ -1001,7 +1001,7 @@ testLub = lub hg (Rigid "i" 0) (Rigid "j" 2)
     n3 = NodeRigid "k"
     n4 = NodeRigid "l"
     n5 = NodeRigid "m"
-    hg = Graph.fromList
+    hg = Graph.fromEdges
          [ Graph.Edge n1 n3 $ Label Le 0
          , Graph.Edge n1 n4 $ Label Le 2
          , Graph.Edge n1 n5 $ Label Le 4

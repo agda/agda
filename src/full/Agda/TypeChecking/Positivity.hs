@@ -66,7 +66,7 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type Graph n e = Graph.Graph n n e
+type Graph n e = Graph.Graph n e
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -228,7 +228,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     setArgOccs qset qs g = do
       -- Compute a map from each name in q to the maximal argument index
       let maxs = Map.fromListWith max
-           [ (q, i) | ArgNode q i <- Set.toList $ Graph.sourceNodes g, q `Set.member` qset ]
+           [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
       forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> do
         reportSDoc "tc.pos.args" 10 $ text "checking args of" <+> prettyTCM q
         n <- getDefArity def
@@ -684,10 +684,10 @@ instance StarSemiRing Edge where
 -- expensive. (See 'computeEdges' for an example.)
 buildOccurrenceGraph :: Set QName -> TCM (Graph Node Edge)
 buildOccurrenceGraph qs =
-  Graph.fromListWith oplus . concat <$>
+  Graph.fromEdgesWith oplus . concat <$>
     mapM defGraph (Set.toList qs)
   where
-    defGraph :: QName -> TCM [Graph.Edge Node Node Edge]
+    defGraph :: QName -> TCM [Graph.Edge Node Edge]
     defGraph q = inConcreteOrAbstractMode q $ \ _def -> do
       occs <- computeOccurrences' q
 
@@ -754,7 +754,7 @@ computeEdges
   -> QName
      -- ^ The current name.
   -> OccurrencesBuilder
-  -> TCM [Graph.Edge Node Node Edge]
+  -> TCM [Graph.Edge Node Edge]
 computeEdges muts q ob =
   ($ []) <$> mkEdge __IMPOSSIBLE__ StrictPos (preprocess ob)
   where
