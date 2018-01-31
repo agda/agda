@@ -344,3 +344,16 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
     metaPat (LitP l)         = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__
+
+forcePiUsingInjectivity :: Type -> TCM Type
+forcePiUsingInjectivity t = reduceB t >>= \ case
+    Blocked _ blkTy -> do
+      let blk = unEl blkTy
+      inv <- functionInverse blk
+      blkTy <$ invertFunction CmpEq blk inv PiHead fallback err success
+    NotBlocked _ t -> return t
+  where
+    fallback  = return ()
+    err       = typeError (ShouldBePi t)
+    success _ = return ()
+

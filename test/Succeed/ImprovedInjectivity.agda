@@ -45,6 +45,13 @@ N-ary (suc n) A = A → N-ary n A
 foo : N-ary _ Nat
 foo = λ x y z → x
 
+sum : (n : Nat) → Nat → N-ary n Nat
+sum zero    m = m
+sum (suc n) m = λ p → sum n (m + p)
+
+nary-sum : Nat
+nary-sum = sum _ 1 2 3 4
+
 plus : Nat → Constraint
 plus n = _ + n == 2 + n
 
