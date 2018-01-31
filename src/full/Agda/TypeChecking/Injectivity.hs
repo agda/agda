@@ -146,13 +146,17 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body } = do
-        h <- varToArg c =<< MaybeT (headSymbol body)
+        h <- varToArg c =<< lift (fromMaybe UnknownHead <$> headSymbol body)
         return [Map.singleton h $ Unique c]
       computeHead _ = return []
 
   hdMap <- joinHeadMaps =<< concat <$> mapM computeHead cs
 
-  reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is injective."
+  case Map.lookup UnknownHead hdMap of
+    Just NotUnique -> empty -- More than one unknown head: we can't really do anything in that case.
+    _              -> return ()
+
+  reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is potentially injective."
   reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
     for (Map.toList hdMap) $ \ (h, uc) ->
       text (prettyShow h) <+> text "-->" <+>
@@ -249,8 +253,8 @@ useInjectivity dir ty blk neu = do
               , text "for" <?> prettyTCM neu
               , nest 2 $ text "hd   =" <+> pretty hd
               , nest 2 $ text "args =" <+> prettyList (map prettyTCM blkArgs)
-              ]
-            case Map.lookup hd hdMap of
+              ]                         -- Clauses with unknown heads are also possible candidates
+            case Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
               Nothing -> typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
               Just NotUnique -> fallback
               Just (Unique cl@Clause{ clauseTel  = tel }) -> maybeAbort $ do
