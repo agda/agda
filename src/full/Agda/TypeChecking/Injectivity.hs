@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable hiding (for)
+import Data.Semigroup ((<>))
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -28,7 +29,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
@@ -115,15 +116,12 @@ topLevelArg Clause{ namedClausePats = ps } i =
 
 -- | Join a list of inversion maps.
 joinHeadMaps :: (Monad m, Alternative m) => [InversionMap c] -> m (InversionMap c)
-joinHeadMaps = foldM j Map.empty
-  where
-    j m1 m2 | null (Map.intersection m1 m2) = return (Map.union m1 m2)
-            | otherwise                     = empty
+joinHeadMaps = return . Map.unionsWith (<>)
 
 -- | Update the heads of an inversion map.
-updateHeads :: (Alternative m, Monad m) => (TermHead -> c -> m TermHead) -> InversionMap c -> m (InversionMap c)
+updateHeads :: (Alternative m, Monad m) => (TermHead -> m TermHead) -> InversionMap c -> m (InversionMap c)
 updateHeads f m = joinHeadMaps =<< mapM f' (Map.toList m)
-  where f' (h, c) = (`Map.singleton` c) <$> f h c
+  where f' (h, c) = (`Map.singleton` c) <$> f h
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
@@ -149,16 +147,18 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body } = do
         h <- varToArg c =<< MaybeT (headSymbol body)
-        return [Map.singleton h c]
+        return [Map.singleton h $ Unique c]
       computeHead _ = return []
 
   hdMap <- joinHeadMaps =<< concat <$> mapM computeHead cs
 
   reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is injective."
   reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
-    for (Map.toList hdMap) $ \ (h, c) ->
+    for (Map.toList hdMap) $ \ (h, uc) ->
       text (prettyShow h) <+> text "-->" <+>
-      fsep (punctuate comma $ map (prettyTCM . namedArg) $ namedClausePats c)
+      case uc of
+        NotUnique -> text "(multiple clauses)"
+        Unique c  -> prettyTCM $ map namedArg $ namedClausePats c
 
   return $ Inverse hdMap
 
@@ -166,8 +166,8 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
 --   proper heads. These might still be `VarHead`, but in that case they refer to
 --   deBruijn variables. Checks that the instantiated heads are still rigid and
 --   distinct.
-instantiateVarHeads :: QName -> Elims -> Map TermHead Clause -> TCM (Maybe (Map TermHead Clause))
-instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
+instantiateVarHeads :: QName -> Elims -> InversionMap c -> TCM (Maybe (InversionMap c))
+instantiateVarHeads f es m = runMaybeT $ updateHeads instHead m
   where
     instHead :: TermHead -> MaybeT TCM TermHead
     instHead h@(VarHead i)
@@ -189,7 +189,7 @@ functionInverse v = case ignoreSharing v of
         --     missing parameters.  (Andreas, 2013-11-01)
   _ -> return NoInv
 
-data InvView = Inv QName [Elim] (Map TermHead Clause)
+data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
 data MaybeAbort = Abort | KeepGoing
@@ -211,7 +211,10 @@ useInjectivity dir ty blk neu = do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
         [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, text ":", prettyTCM ty ]
-      let canReduceToSelf = Map.member (ConsHead f) hdMap
+      let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
+          allUnique       = all isUnique hdMap
+          isUnique Unique{}  = True
+          isUnique NotUnique = False
       fTy <- defType <$> getConstInfo f
       case neu of
         -- f us == f vs  <=>  us == vs
@@ -227,6 +230,7 @@ useInjectivity dir ty blk neu = do
             ]
           fs  <- getForcedArgs f
           pol <- getPolarity' cmp f
+          reportSDoc "tc.inj.invert.success" 20 $ hsep [text "Successful spine comparison of", prettyTCM f]
           app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
 
         -- f us == c vs
@@ -248,7 +252,8 @@ useInjectivity dir ty blk neu = do
               ]
             case Map.lookup hd hdMap of
               Nothing -> typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
-              Just cl@Clause{ clauseTel  = tel } -> maybeAbort $ do
+              Just NotUnique -> fallback
+              Just (Unique cl@Clause{ clauseTel  = tel }) -> maybeAbort $ do
                   let ps   = clausePats cl
                       perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
                   -- These are what dot patterns should be instantiated at
@@ -284,7 +289,9 @@ useInjectivity dir ty blk neu = do
                   -- Check that we made progress.
                   r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
                   case r of
-                    YesReduction _ blk' -> KeepGoing <$ app (compareTerm cmp ty) blk' neu
+                    YesReduction _ blk' -> do
+                      reportSDoc "tc.inj.invert.success" 20 $ hsep [text "Successful inversion of", prettyTCM f, text "at", pretty hd]
+                      KeepGoing <$ app (compareTerm cmp ty) blk' neu
                     NoReduction{}       -> do
                       reportSDoc "tc.inj.invert" 30 $ vcat
                         [ text "aborting inversion;" <+> prettyTCM blk

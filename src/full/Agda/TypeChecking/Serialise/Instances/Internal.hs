@@ -328,6 +328,15 @@ instance EmbPrj CompiledClauses where
     valu [2, a, b] = valuN Case a b
     valu _         = malformed
 
+instance EmbPrj a => EmbPrj (Unique a) where
+  icod_ NotUnique  = icodeN' NotUnique
+  icod_ (Unique a) = icodeN' Unique a
+
+  value = vcase valu where
+    valu []  = valuN NotUnique
+    valu [a] = valuN Unique a
+    valu _   = malformed
+
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective
   icod_ (Inverse a)  = icodeN' Inverse a
@@ -342,12 +351,14 @@ instance EmbPrj TermHead where
   icod_ PiHead       = icodeN 1 PiHead
   icod_ (ConsHead a) = icodeN 2 ConsHead a
   icod_ (VarHead a)  = icodeN 3 VarHead a
+  icod_ UnknownHead  = icodeN 4 UnknownHead
 
   value = vcase valu where
     valu []     = valuN SortHead
     valu [1]    = valuN PiHead
     valu [2, a] = valuN ConsHead a
     valu [3, a] = valuN VarHead a
+    valu [4]    = valuN UnknownHead
     valu _      = malformed
 
 instance EmbPrj I.Clause where

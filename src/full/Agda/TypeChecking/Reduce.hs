@@ -1222,6 +1222,9 @@ instance InstantiateFull Defn where
         cs <- instantiateFull' cs
         return $ d { primClauses = cs }
 
+instance InstantiateFull a => InstantiateFull (Unique a) where
+  instantiateFull' = traverse instantiateFull'
+
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
   instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
