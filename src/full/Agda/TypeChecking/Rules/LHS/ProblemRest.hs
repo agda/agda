@@ -32,13 +32,15 @@ import Agda.Utils.Impossible
 
 -- | Rename the variables in a telescope using the names from a given pattern.
 --
---   Precondition: we have at least as many patterns as entries in the telescope.
+--   If there are not at least as many patterns as entries as in the telescope,
+--   the names of the remaining entries in the telescope are unchanged.
+--   If there are too many patterns, there should be a type error later.
 --
 useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
-useNamesFromPattern ps tel
-  | size tel > length ps = __IMPOSSIBLE__
-  | otherwise            = telFromList $ zipWith ren ps $ telToList tel
+useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining)
   where
+    telList = telToList tel
+    telRemaining = drop (length ps) telList -- telescope entries beyond patterns
     ren (Arg ai (Named nm p)) dom@(Dom info (y, a)) =
       case p of
         -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
