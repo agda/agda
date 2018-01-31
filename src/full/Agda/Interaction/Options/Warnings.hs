@@ -153,18 +153,18 @@ warningName2String = init . show
 usageWarning :: String
 usageWarning = intercalate "\n"
   -- Looks like CPP doesn't like multiline string literals
-  [ concat [ "The -W or --warning option can be used to disable or enable"
-           , "different warnings. The flag -W error (or --warning=error)"
-           , "can be used to turn all warnings into errors, while -W noerror"
+  [ concat [ "The -W or --warning option can be used to disable or enable "
+           , "different warnings. The flag -W error (or --warning=error) "
+           , "can be used to turn all warnings into errors, while -W noerror "
            , "turns this off again."
            ]
   , ""
-  , concat [ "A group of warnings can be enabled by -W group, where group is"
+  , concat [ "A group of warnings can be enabled by -W group, where group is "
            , "one of the following:"
            ]
   , ""
   , untable (fmap (fst &&& snd . snd) warningSets)
-  , concat [ "Individual warnings can be turned on and off by -W Name and"
+  , concat [ "Individual warnings can be turned on and off by -W Name and "
            , "-W noName respectively. The flags available are:"
            ]
   , ""
