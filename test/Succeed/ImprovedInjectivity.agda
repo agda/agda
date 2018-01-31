@@ -5,6 +5,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Nat hiding (_==_)
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Unit
+open import Agda.Builtin.Bool
 
 infix -1 _,_
 record _×_ {a} (A B : Set a) : Set a where
@@ -54,3 +55,27 @@ dont-fail : Nat → Nat → Constraint × Constraint
 dont-fail n m =
   let X = _ in
   X + (m + 0) == n + (m + 0) , X == n
+
+-- Harder problems --
+
+data Color : Set where
+  red green blue : Color
+
+isRed : Color → Bool
+isRed red   = true
+isRed green = false
+isRed blue  = false
+
+non-unique : Constraint
+non-unique = isRed _ == true
+
+data Maybe (A : Set) : Set where
+  nothing : Maybe A
+  just    : A → Maybe A
+
+sumJust : Maybe Nat → Nat → Nat
+sumJust nothing  _ = 0
+sumJust (just x) n = x + n
+
+unknown-head : Nat → Constraint
+unknown-head n = sumJust _ n == n
