@@ -219,12 +219,12 @@ useInjectivity dir ty blk neu = do
           allUnique       = all isUnique hdMap
           isUnique Unique{}  = True
           isUnique NotUnique = False
-      fTy <- defType <$> getConstInfo f
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works
         -- if `f` is not a possible head for `f us`.
         Def f' neuArgs | f == f', not canReduceToSelf -> do
+          fTy <- defType <$> getConstInfo f
           reportSDoc "tc.inj.use" 20 $ vcat
             [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
                   pwords "at")
@@ -247,69 +247,77 @@ useInjectivity dir ty blk neu = do
                                     -- We can't invert in this case, since we can't
                                     -- tell the difference between a solution that makes
                                     -- the blocked term neutral and one that makes progress.
-          Just hd -> do
-            reportSDoc "tc.inj.use" 20 $ vcat
-              [ text "inverting injective function" <?> hsep [prettyTCM f, text ":", prettyTCM fTy]
-              , text "for" <?> prettyTCM neu
-              , nest 2 $ text "hd   =" <+> pretty hd
-              , nest 2 $ text "args =" <+> prettyList (map prettyTCM blkArgs)
-              ]                         -- Clauses with unknown heads are also possible candidates
-            case Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
-              Nothing -> typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
-              Just NotUnique -> fallback
-              Just (Unique cl@Clause{ clauseTel  = tel }) -> maybeAbort $ do
-                  let ps   = clausePats cl
-                      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
-                  -- These are what dot patterns should be instantiated at
-                  ms <- map unArg <$> newTelMeta tel
-                  reportSDoc "tc.inj.invert" 20 $ vcat
-                    [ text "meta patterns" <+> prettyList (map prettyTCM ms)
-                    , text "  perm =" <+> text (show perm)
-                    , text "  tel  =" <+> prettyTCM tel
-                    , text "  ps   =" <+> prettyList (map (text . show) ps)
-                    ]
-                  -- and this is the order the variables occur in the patterns
-                  let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
-                  let sub   = parallelS (reverse ms)
-                  margs <- runReaderT (evalStateT (mapM metaElim ps) msAux) sub
-                  reportSDoc "tc.inj.invert" 20 $ vcat
-                    [ text "inversion"
-                    , nest 2 $ vcat
-                      [ text "lhs  =" <+> prettyTCM margs
-                      , text "rhs  =" <+> prettyTCM blkArgs
-                      , text "type =" <+> prettyTCM fTy
-                      ]
-                    ]
-                  -- Since we do not care for the value of non-variant metas here,
-                  -- we can treat 'Nonvariant' as 'Invariant'.
-                  -- That ensures these metas do not remain unsolved.
-                  pol <- purgeNonvariant <$> getPolarity' cmp f
-                  fs  <- getForcedArgs f
-                  -- The clause might not give as many patterns as there
-                  -- are arguments (point-free style definitions).
-                  let blkArgs' = take (length margs) blkArgs
-                  compareElims pol fs fTy (Def f []) margs blkArgs'
-
-                  -- Check that we made progress.
-                  r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
-                  case r of
-                    YesReduction _ blk' -> do
-                      reportSDoc "tc.inj.invert.success" 20 $ hsep [text "Successful inversion of", prettyTCM f, text "at", pretty hd]
-                      KeepGoing <$ app (compareTerm cmp ty) blk' neu
-                    NoReduction{}       -> do
-                      reportSDoc "tc.inj.invert" 30 $ vcat
-                        [ text "aborting inversion;" <+> prettyTCM blk
-                        , text "does not reduce"
-                        ]
-                      return Abort
+          Just hd -> invertFunction cmp blk inv hd fallback err success
+            where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
   where
-    fallback = addConstraint $ app (ValueCmp cmp ty) blk neu
+    fallback     = addConstraint $ app (ValueCmp cmp ty) blk neu
+    success blk' = app (compareTerm cmp ty) blk' neu
 
     (cmp, app) = case dir of
       DirEq -> (CmpEq, id)
       DirLeq -> (CmpLeq, id)
       DirGeq -> (CmpLeq, flip)
 
+-- | The second argument should be a blocked application and the third argument
+--   the inverse of the applied function.
+invertFunction :: Comparison -> Term -> InvView -> TermHead -> TCM () -> TCM () -> (Term -> TCM ()) -> TCM ()
+invertFunction _ _ NoInv _ fallback _ _ = fallback
+invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
+    fTy <- defType <$> getConstInfo f
+    reportSDoc "tc.inj.use" 20 $ vcat
+      [ text "inverting injective function" <?> hsep [prettyTCM f, text ":", prettyTCM fTy]
+      , text "for" <?> pretty hd
+      , nest 2 $ text "args =" <+> prettyList (map prettyTCM blkArgs)
+      ]                         -- Clauses with unknown heads are also possible candidates
+    case Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
+      Nothing -> err
+      Just NotUnique -> fallback
+      Just (Unique cl@Clause{ clauseTel  = tel }) -> maybeAbort $ do
+          let ps   = clausePats cl
+              perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+          -- These are what dot patterns should be instantiated at
+          ms <- map unArg <$> newTelMeta tel
+          reportSDoc "tc.inj.invert" 20 $ vcat
+            [ text "meta patterns" <+> prettyList (map prettyTCM ms)
+            , text "  perm =" <+> text (show perm)
+            , text "  tel  =" <+> prettyTCM tel
+            , text "  ps   =" <+> prettyList (map (text . show) ps)
+            ]
+          -- and this is the order the variables occur in the patterns
+          let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
+          let sub   = parallelS (reverse ms)
+          margs <- runReaderT (evalStateT (mapM metaElim ps) msAux) sub
+          reportSDoc "tc.inj.invert" 20 $ vcat
+            [ text "inversion"
+            , nest 2 $ vcat
+              [ text "lhs  =" <+> prettyTCM margs
+              , text "rhs  =" <+> prettyTCM blkArgs
+              , text "type =" <+> prettyTCM fTy
+              ]
+            ]
+          -- Since we do not care for the value of non-variant metas here,
+          -- we can treat 'Nonvariant' as 'Invariant'.
+          -- That ensures these metas do not remain unsolved.
+          pol <- purgeNonvariant <$> getPolarity' cmp f
+          fs  <- getForcedArgs f
+          -- The clause might not give as many patterns as there
+          -- are arguments (point-free style definitions).
+          let blkArgs' = take (length margs) blkArgs
+          compareElims pol fs fTy (Def f []) margs blkArgs'
+
+          -- Check that we made progress.
+          r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
+          case r of
+            YesReduction _ blk' -> do
+              reportSDoc "tc.inj.invert.success" 20 $ hsep [text "Successful inversion of", prettyTCM f, text "at", pretty hd]
+              KeepGoing <$ success blk'
+            NoReduction{}       -> do
+              reportSDoc "tc.inj.invert" 30 $ vcat
+                [ text "aborting inversion;" <+> prettyTCM blk
+                , text "does not reduce"
+                ]
+              return Abort
+  where
     maybeAbort m = do
       (a, s) <- localTCStateSaving m
       case a of
