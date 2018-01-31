@@ -75,6 +75,7 @@ import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS
+import Agda.TypeChecking.Injectivity
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
@@ -2113,6 +2114,12 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
           xs        = catMaybes mxs
+
+      -- We need a function type here, but we don't know which kind
+      -- (implicit/explicit). But it might be possible to use injectivity to
+      -- force a pi.
+      t <- lift $ forcePiUsingInjectivity t
+
       -- We are done inserting implicit args.  Now, try to check @arg@.
       ifBlockedType t (\ m t -> throwError (us, args0, t)) $ \ _ t0' -> do
 

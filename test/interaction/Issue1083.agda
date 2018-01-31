@@ -7,7 +7,7 @@ data Bool : Set where true false : Bool
 
 T : Bool → Set
 T true  = Bool → Bool
-T false = Bool
+T false = Bool → Bool
 
 postulate
   f : {x : Bool} → T x

@@ -1275,6 +1275,9 @@ instance InstantiateFull ExtLamInfo where
 instance InstantiateFull System where
   instantiateFull' (System tel sys) = System <$> instantiateFull' tel <*> instantiateFull' sys
 
+instance InstantiateFull a => InstantiateFull (Unique a) where
+  instantiateFull' = traverse instantiateFull'
+
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
   instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv

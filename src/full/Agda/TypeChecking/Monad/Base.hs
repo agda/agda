@@ -1877,8 +1877,14 @@ defForced d = case theDef d of
 -- ** Injectivity
 ---------------------------------------------------------------------------
 
+data Unique a = NotUnique | Unique a
+  deriving (Data, Eq, Ord, Show, Functor, Foldable, Traversable)
+
+instance Semigroup (Unique a) where
+  _ <> _ = NotUnique
+
 type FunctionInverse = FunctionInverse' Clause
-type InversionMap c = Map TermHead c
+type InversionMap c = Map TermHead (Unique c)
 
 data FunctionInverse' c
   = NotInjective
@@ -1889,14 +1895,16 @@ data TermHead = SortHead
               | PiHead
               | ConsHead QName
               | VarHead Nat
+              | UnknownHead
   deriving (Data, Eq, Ord, Show)
 
 instance Pretty TermHead where
   pretty = \ case
-    SortHead   -> text "SortHead"
-    PiHead     -> text "PiHead"
-    ConsHead q -> text "ConsHead" <+> pretty q
-    VarHead i  -> text ("VarHead " ++ show i)
+    SortHead    -> text "SortHead"
+    PiHead      -> text "PiHead"
+    ConsHead q  -> text "ConsHead" <+> pretty q
+    VarHead i   -> text ("VarHead " ++ show i)
+    UnknownHead -> text "UnknownHead"
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks
@@ -3296,6 +3304,10 @@ instance KillRange Defn where
 instance KillRange MutualId where
   killRange = id
 
+instance KillRange a => KillRange (Unique a) where
+  killRange NotUnique  = NotUnique
+  killRange (Unique a) = killRange1 Unique a
+
 instance KillRange c => KillRange (FunctionInverse' c) where
   killRange NotInjective = NotInjective
   killRange (Inverse m)  = Inverse $ killRangeMap m
@@ -3305,6 +3317,7 @@ instance KillRange TermHead where
   killRange PiHead       = PiHead
   killRange (ConsHead q) = ConsHead $ killRange q
   killRange h@VarHead{}  = h
+  killRange UnknownHead  = UnknownHead
 
 instance KillRange Projection where
   killRange (Projection a b c d e) = killRange5 Projection a b c d e
