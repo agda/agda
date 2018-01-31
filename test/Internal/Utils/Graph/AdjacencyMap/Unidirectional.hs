@@ -259,6 +259,23 @@ prop_reachableFrom g =
   where
   cg = connectivityGraph g
 
+prop_reachableFromSet :: G -> Property
+prop_reachableFromSet g =
+  not (Set.null (nodes g)) ==>
+  forAll (listOf (nodeIn g)) $ \ us' ->
+    let us              = Set.fromList us'
+        reachableFromUs = reachableFromSet g us in
+    -- A path is found from us to v iff v is in us or there is a
+    -- non-empty path from us to v (according to 'connectivityGraph'
+    -- and 'connected').
+    Fold.all (\v -> Set.member v reachableFromUs
+                      ==
+                    (Set.member v us ||
+                     any (\u -> connected cg u v) (Set.toList us)))
+             (nodes g)
+  where
+  cg = connectivityGraph g
+
 prop_walkSatisfying ::
   G -> (Occurrence -> Bool) -> (Occurrence -> Bool) -> Property
 prop_walkSatisfying g every some =

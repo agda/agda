@@ -53,7 +53,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , sccDAG'
   , sccDAG
   , acyclic
-  , reachableFrom
+  , reachableFrom, reachableFromSet
   , walkSatisfying
   , composeWith
   , complete
@@ -546,7 +546,27 @@ acyclic = all isAcyclic . sccs'
 -- a prefix of a list is linear in the length of the prefix.
 
 reachableFrom :: Ord n => Graph n n e -> n -> Map n (Int, [Edge n n e])
-reachableFrom g n = bfs (SQ.singleton (n, BQ.empty)) Map.empty
+reachableFrom g n = reachableFromInternal g (Set.singleton n)
+
+-- | @reachableFromSet g ns@ is a set containing all nodes reachable
+-- from @ns@ in @g@.
+--
+-- Precondition: Every node in @ns@ must be a node in @g@. The number
+-- of nodes in the graph must not be larger than @'maxBound' ::
+-- 'Int'@.
+--
+-- Amortised time complexity (assuming that comparisons take constant
+-- time): /O((|ns| + e) log n)/.
+
+reachableFromSet :: Ord n => Graph n n e -> Set n -> Set n
+reachableFromSet g ns = Map.keysSet (reachableFromInternal g ns)
+
+-- | Used to implement 'reachableFrom' and 'reachableFromSet'.
+
+reachableFromInternal ::
+  Ord n => Graph n n e -> Set n -> Map n (Int, [Edge n n e])
+reachableFromInternal g ns =
+  bfs (SQ.fromList (map (, BQ.empty) (Set.toList ns))) Map.empty
   where
   bfs !q !map = case SQ.lview q of
     Nothing          -> map
