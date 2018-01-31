@@ -36,6 +36,8 @@ import Data.IORef
 import Data.Either
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
+import Data.Set                 ( Set )
+import qualified Data.Set as Set
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
@@ -47,7 +49,9 @@ import Text.EditDistance
 import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
+import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.IORefs
+import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Except
   ( ExceptT
@@ -82,23 +86,6 @@ type Verbosity = Trie String Int
 data IgnoreFlags = IgnoreFlags | RespectFlags
   deriving Eq
 
--- Potentially turn harmless warnings into nothing, or errors
--- (does not apply to non-fatal errors)
-data WarningMode =
-    AllTheWarnings
-  | UsualWarnings
-  | TurnIntoErrors
-  | IgnoreAllWarnings
-  deriving (Show, Eq)
-
-warningModes :: [ (String, WarningMode) ]
-warningModes =
-  [ (defaultWarningMode, UsualWarnings)
-  , ("all"             , AllTheWarnings)
-  , ("ignore"          , IgnoreAllWarnings)
-  , ("error"           , TurnIntoErrors)
-  ]
-
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
 -- if you make changes to the command-line options!
@@ -116,7 +103,7 @@ data CommandLineOptions = Options
   , optUseLibs          :: Bool
   -- ^ look for .agda-lib files
   , optShowVersion      :: Bool
-  , optShowHelp         :: Bool
+  , optShowHelp         :: Maybe Help
   , optInteractive      :: Bool
   , optGHCiInteraction  :: Bool
   , optOptimSmashing    :: Bool
@@ -211,7 +198,7 @@ defaultOptions = Options
   , optDefaultLibs      = True
   , optUseLibs          = True
   , optShowVersion      = False
-  , optShowHelp         = False
+  , optShowHelp         = Nothing
   , optInteractive      = False
   , optGHCiInteraction  = False
   , optOptimSmashing    = True
@@ -260,7 +247,7 @@ defaultPragmaOptions = PragmaOptions
   , optInstanceSearchDepth       = 500
   , optInversionMaxDepth         = 50
   , optSafe                      = False
-  , optWarningMode               = fromJust $ lookup defaultWarningMode warningModes
+  , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = False
   , optCountClusters             = False
@@ -280,12 +267,6 @@ defaultLaTeXDir = "latex"
 
 defaultHTMLDir :: String
 defaultHTMLDir = "html"
-
--- | The default warning mode.
-
-defaultWarningMode :: String
-defaultWarningMode = "warn"
-
 
 type OptM = ExceptT String IO
 
@@ -364,8 +345,12 @@ inputFlag f o =
 versionFlag :: Flag CommandLineOptions
 versionFlag o = return $ o { optShowVersion = True }
 
-helpFlag :: Flag CommandLineOptions
-helpFlag o = return $ o { optShowHelp = True }
+helpFlag :: Maybe String -> Flag CommandLineOptions
+helpFlag Nothing    o = return $ o { optShowHelp = Just GeneralHelp }
+helpFlag (Just str) o = case string2HelpTopic str of
+  Just hpt -> return $ o { optShowHelp = Just (HelpFor hpt) }
+  Nothing -> throwError $ "unknown help topic " ++ str ++ " (available: " ++
+                           intercalate ", " (map fst allHelpTopics) ++ ")"
 
 safeFlag :: Flag PragmaOptions
 safeFlag o = return $ o { optSafe = True }
@@ -562,13 +547,9 @@ verboseFlag s o =
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
 warningModeFlag :: String -> Flag PragmaOptions
-warningModeFlag s o =
-    case lookup s warningModes of
-      Just m -> return $ o { optWarningMode = m }
-      Nothing -> usage
-  where
-    usage = throwError $ "unknown warning mode (available: " ++
-                           intercalate ", " (map fst warningModes) ++ ")"
+warningModeFlag s o = case warningModeUpdate s of
+  Just upd -> return $ o { optWarningMode = upd (optWarningMode o) }
+  Nothing  -> throwError $ "unknown warning flag " ++ s ++ ". See --help=warning."
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
@@ -584,8 +565,11 @@ integerArgument flag s =
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
-    [ Option ['V']  ["version"] (NoArg versionFlag) "show version number"
-    , Option ['?']  ["help"]    (NoArg helpFlag)    "show this help"
+    [ Option ['V']  ["version"] (NoArg versionFlag)       "show version number"
+    , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC")
+                      ("show help for TOPIC (available: "
+                       ++ intercalate ", " (map fst allHelpTopics)
+                       ++ ")")
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
@@ -705,10 +689,8 @@ pragmaOptions =
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
-    , Option ['W']  ["warning"] (ReqArg warningModeFlag "MODE")
-                    ("set warning mode to MODE (available: "
-                       ++ intercalate ", " (map fst warningModes)
-                       ++ ". Default: " ++  defaultWarningMode ++ ")")
+    , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
+                    ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "do not treat the requested module as the main module of a program when compiling"
     , Option []     ["caching"] (NoArg $ cachingFlag True)
@@ -810,11 +792,13 @@ parsePluginOptions argv opts =
 
 -- | The usage info message. The argument is the program name (probably
 --   agda).
-usage :: [OptDescr ()] -> String -> String
-usage options progName = usageInfo (header progName) options
+usage :: [OptDescr ()] -> String -> Help -> String
+usage options progName GeneralHelp = usageInfo (header progName) options
     where
         header progName = unlines [ "Agda version " ++ version, ""
                                   , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]" ]
+
+usage options progName (HelpFor topic) = helpTopicUsage topic
 
 -- Remove +RTS .. -RTS from arguments
 stripRTS :: [String] -> [String]
