@@ -865,9 +865,11 @@ bindBuiltinNoDef b q = inTopContext $ do
       bindPrimitive s (pf {primFunName = q})
       addConstant q $
         defaultDefn defaultArgInfo q t $
-          Primitive ConcreteDef -- TODO fix (Info.defAbstract i)
-              s []
-              (Just (CC.Done [] $ Def q []))
+          Primitive { primAbstr    = ConcreteDef -- TODO fix (Info.defAbstract i)
+                    , primName     = s
+                    , primClauses  = []
+                    , primInv      = NotInjective
+                    , primCompiled = Just (CC.Done [] $ Def q []) }
     Just (BuiltinDataCons mt) -> do
       t <- mt
       d <- return $! getPrimName $ unEl t
