@@ -8,6 +8,12 @@ class SemiRing a where
   oplus  :: a -> a -> a
   otimes :: a -> a -> a
 
+instance SemiRing () where
+  ozero      = ()
+  oone       = ()
+  oplus  _ _ = ()
+  otimes _ _ = ()
+
 instance SemiRing a => SemiRing (Maybe a) where
   ozero = Nothing
   oone  = Just oone
@@ -25,6 +31,9 @@ instance SemiRing a => SemiRing (Maybe a) where
 
 class SemiRing a => StarSemiRing a where
   ostar :: a -> a
+
+instance StarSemiRing () where
+  ostar _ = ()
 
 instance StarSemiRing a => StarSemiRing (Maybe a) where
   ostar Nothing  = oone
