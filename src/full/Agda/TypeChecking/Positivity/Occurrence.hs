@@ -204,7 +204,10 @@ productOfEdgesInBoundedWalk occ g u v bound =
   case Map.lookup bound boundToEverySome of
     Nothing  -> __IMPOSSIBLE__
     Just ess ->
-      case msum [ Graph.walkSatisfying (every . occ) (some . occ) g u v
+      case msum [ Graph.walkSatisfying
+                    (every . occ . Graph.label)
+                    (some . occ . Graph.label)
+                    g u v
                 | (every, some) <- ess
                 ] of
         Just es@(_ : _) -> Just (foldr1 otimes (map Graph.label es))

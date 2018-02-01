@@ -455,8 +455,13 @@ removeEdge s t (Graph g) = Graph $ Map.adjust (Map.delete t) s g
 
 -- | Keep only the edges that satisfy the predicate. /O(n + e)/.
 
-filterEdges :: (e -> Bool) -> Graph n e -> Graph n e
-filterEdges f = Graph . fmap (Map.filter f) . graph
+filterEdges :: (Edge n e -> Bool) -> Graph n e -> Graph n e
+filterEdges f =
+  Graph .
+  Map.mapWithKey (\s ->
+    Map.filterWithKey (\t l ->
+      f (Edge { source = s, target = t, label = l }))) .
+  graph
 
 -- | Unzips the graph. /O(n + e)/.
 
@@ -692,20 +697,20 @@ reachableFromInternal g ns =
 
 walkSatisfying ::
   Ord n =>
-  (e -> Bool) -> (e -> Bool) ->
+  (Edge n e -> Bool) -> (Edge n e -> Bool) ->
   Graph n e -> n -> n -> Maybe [Edge n e]
 walkSatisfying every some g from to =
   case
     [ (l1 + l2, p1 ++ [e] ++ map transposeEdge (reverse p2))
     | e <- everyEdges
-    , some (label e)
+    , some e
     , (l1, p1) <- maybeToList (Map.lookup (source e) fromReaches)
     , (l2, p2) <- maybeToList (Map.lookup (target e) reachesTo)
     ] of
     []  -> Nothing
     ess -> Just $ snd $ List.minimumBy (compare `on` fst) ess
   where
-  everyEdges = [ e | e <- edges g, every (label e) ]
+  everyEdges = [ e | e <- edges g, every e ]
 
   fromReaches = reachableFrom (fromEdges everyEdges) from
 
