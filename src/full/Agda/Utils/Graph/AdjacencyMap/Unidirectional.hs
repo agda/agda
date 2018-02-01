@@ -130,7 +130,13 @@ import Agda.Utils.Impossible
 newtype Graph n e = Graph
   { graph :: Map n (Map n e) -- ^ Forward edges.
   }
-  deriving (Eq, Functor)
+  deriving Eq
+
+-- The Functor instance for strict maps is the one for lazy maps, so a
+-- custom Functor instance using strict map functions is used here.
+
+instance Functor (Graph n) where
+  fmap f = Graph . Map.map (Map.map f) . graph
 
 -- | Internal invariant.
 
@@ -428,7 +434,7 @@ transpose g =
 -- | Removes 'null' edges. /O(n + e)/.
 
 clean :: Null e => Graph n e -> Graph n e
-clean = Graph . fmap (Map.filter (not . null)) . graph
+clean = Graph . Map.map (Map.filter (not . null)) . graph
 
 -- | @removeNodes ns g@ removes the nodes in @ns@ (and all
 -- corresponding edges) from @g@. /O((n + e) log |@ns@|)/.
@@ -483,7 +489,7 @@ composeWith ::
   Ord n =>
   (c -> d -> e) -> (e -> e -> e) ->
   Graph n c -> Graph n d -> Graph n e
-composeWith times plus (Graph g) (Graph g') = Graph (fmap comp g)
+composeWith times plus (Graph g) (Graph g') = Graph (Map.map comp g)
   where
   comp m = Map.fromListWith plus
     [ (u, c `times` d)
@@ -625,7 +631,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
   componentMap = IntMap.fromList (map (mapFst convertInt) components)
 
   secondNodeMap :: Map n Int
-  secondNodeMap = fmap convertInt firstNodeMap
+  secondNodeMap = Map.map convertInt firstNodeMap
 
 -- | Constructs a DAG containing the graph's strongly connected
 -- components.
