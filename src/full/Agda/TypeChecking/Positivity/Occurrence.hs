@@ -185,11 +185,11 @@ boundToEverySome = Map.fromList
     )
   ]
 
--- | @productOfEdgesInBoundedWalk occ g u v bound@ returns @'Just' e@
--- iff there is a walk @c@ (a list of edges) in @g@, from @u@ to @v@,
--- for which the product @'foldr1' 'otimes' ('map' occ c) '<=' bound@.
--- In this case the returned value @e@ is the product @'foldr1'
--- 'otimes' c@ for one such walk.
+-- | @productOfEdgesInBoundedWalk occ g u v bound@ returns a value
+-- distinct from 'Nothing' iff there is a walk @c@ (a list of edges)
+-- in @g@, from @u@ to @v@, for which the product @'foldr1' 'otimes'
+-- ('map' occ c) '<=' bound@. In this case the returned value is
+-- @'Just' ('foldr1' 'otimes' c)@ for one such walk @c@.
 --
 -- Preconditions: @u@ and @v@ must belong to @g@, and @bound@ must
 -- belong to the domain of @boundToEverySome@.

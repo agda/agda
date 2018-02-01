@@ -688,7 +688,7 @@ reachableFromInternal g ns =
 -- nodes in the graph must not be larger than @'maxBound' :: 'Int'@.
 --
 -- Amortised time complexity (assuming that comparisons and the
--- predicates take constant time to compute): /O(e log n)/.
+-- predicates take constant time to compute): /O(n + e log n)/.
 
 walkSatisfying ::
   Ord n =>
