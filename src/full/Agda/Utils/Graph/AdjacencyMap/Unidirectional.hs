@@ -130,7 +130,13 @@ import Agda.Utils.Impossible
 newtype Graph n e = Graph
   { graph :: Map n (Map n e) -- ^ Forward edges.
   }
-  deriving (Eq, Functor)
+  deriving Eq
+
+-- The Functor instance for strict maps is the one for lazy maps, so a
+-- custom Functor instance using strict map functions is used here.
+
+instance Functor (Graph n) where
+  fmap f = Graph . Map.map (Map.map f) . graph
 
 -- | Internal invariant.
 
@@ -428,7 +434,7 @@ transpose g =
 -- | Removes 'null' edges. /O(n + e)/.
 
 clean :: Null e => Graph n e -> Graph n e
-clean = Graph . fmap (Map.filter (not . null)) . graph
+clean = Graph . Map.map (Map.filter (not . null)) . graph
 
 -- | @removeNodes ns g@ removes the nodes in @ns@ (and all
 -- corresponding edges) from @g@. /O((n + e) log |@ns@|)/.
@@ -455,8 +461,13 @@ removeEdge s t (Graph g) = Graph $ Map.adjust (Map.delete t) s g
 
 -- | Keep only the edges that satisfy the predicate. /O(n + e)/.
 
-filterEdges :: (e -> Bool) -> Graph n e -> Graph n e
-filterEdges f = Graph . fmap (Map.filter f) . graph
+filterEdges :: (Edge n e -> Bool) -> Graph n e -> Graph n e
+filterEdges f =
+  Graph .
+  Map.mapWithKey (\s ->
+    Map.filterWithKey (\t l ->
+      f (Edge { source = s, target = t, label = l }))) .
+  graph
 
 -- | Unzips the graph. /O(n + e)/.
 
@@ -478,7 +489,7 @@ composeWith ::
   Ord n =>
   (c -> d -> e) -> (e -> e -> e) ->
   Graph n c -> Graph n d -> Graph n e
-composeWith times plus (Graph g) (Graph g') = Graph (fmap comp g)
+composeWith times plus (Graph g) (Graph g') = Graph (Map.map comp g)
   where
   comp m = Map.fromListWith plus
     [ (u, c `times` d)
@@ -620,7 +631,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
   componentMap = IntMap.fromList (map (mapFst convertInt) components)
 
   secondNodeMap :: Map n Int
-  secondNodeMap = fmap convertInt firstNodeMap
+  secondNodeMap = Map.map convertInt firstNodeMap
 
 -- | Constructs a DAG containing the graph's strongly connected
 -- components.
@@ -688,24 +699,24 @@ reachableFromInternal g ns =
 -- nodes in the graph must not be larger than @'maxBound' :: 'Int'@.
 --
 -- Amortised time complexity (assuming that comparisons and the
--- predicates take constant time to compute): /O(e log n)/.
+-- predicates take constant time to compute): /O(n + e log n)/.
 
 walkSatisfying ::
   Ord n =>
-  (e -> Bool) -> (e -> Bool) ->
+  (Edge n e -> Bool) -> (Edge n e -> Bool) ->
   Graph n e -> n -> n -> Maybe [Edge n e]
 walkSatisfying every some g from to =
   case
     [ (l1 + l2, p1 ++ [e] ++ map transposeEdge (reverse p2))
     | e <- everyEdges
-    , some (label e)
+    , some e
     , (l1, p1) <- maybeToList (Map.lookup (source e) fromReaches)
     , (l2, p2) <- maybeToList (Map.lookup (target e) reachesTo)
     ] of
     []  -> Nothing
     ess -> Just $ snd $ List.minimumBy (compare `on` fst) ess
   where
-  everyEdges = [ e | e <- edges g, every (label e) ]
+  everyEdges = [ e | e <- edges g, every e ]
 
   fromReaches = reachableFrom (fromEdges everyEdges) from
 

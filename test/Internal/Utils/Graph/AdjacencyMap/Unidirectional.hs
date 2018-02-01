@@ -239,7 +239,7 @@ prop_invariant_removeEdge g =
                                 ])) $ \[m, n] ->
     invariant (removeEdge m n g)
 
-prop_invariant_filterEdges :: (E -> Bool) -> G -> Bool
+prop_invariant_filterEdges :: (Edge N E -> Bool) -> G -> Bool
 prop_invariant_filterEdges f = invariant . filterEdges f
 
 prop_invariant_unzip :: G -> Bool
@@ -477,7 +477,7 @@ prop_reachableFromSet g =
   cg = connectivityGraph g
 
 prop_walkSatisfying ::
-  G -> (Occurrence -> Bool) -> (Occurrence -> Bool) -> Property
+  G -> (Edge N E -> Bool) -> (Edge N E -> Bool) -> Property
 prop_walkSatisfying g every some =
   forAll (nodeIn g) $ \from ->
   forAll (nodeIn g) $ \to ->
@@ -486,8 +486,7 @@ prop_walkSatisfying g every some =
       Just es -> QuickCheck.label (show (length es) ++ " steps") $
                    isWalk g from to es
                      &&
-                   all every es' && any some es'
-        where es' = map Graph.label es
+                   all every es && any some es
 
 -- | Computes the transitive closure of the graph.
 --
