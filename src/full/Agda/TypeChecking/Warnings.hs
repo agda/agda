@@ -120,6 +120,10 @@ onlyOnce :: Warning -> Bool
 onlyOnce InversionDepthReached{} = True
 onlyOnce _ = False
 
+onlyShowIfUnsolved :: Warning -> Bool
+onlyShowIfUnsolved InversionDepthReached{} = True
+onlyShowIfUnsolved _ = False
+
 classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
 classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
 

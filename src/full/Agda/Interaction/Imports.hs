@@ -882,7 +882,10 @@ getAllWarnings' ww ifs = do
   unsolved            <- getAllUnsolved
   collectedTCWarnings <- use stTCWarnings
 
-  fmap (filter ((<= ww) . classifyWarning . tcWarning))
+  let showWarn w = classifyWarning w <= ww &&
+                    not (null unsolved && onlyShowIfUnsolved w)
+
+  fmap (filter (showWarn . tcWarning))
     $ applyFlagsToTCWarnings ifs $ reverse
     $ unsolved ++ collectedTCWarnings
 
