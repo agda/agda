@@ -77,6 +77,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Function
 import Agda.Utils.PartialOrd
@@ -102,10 +103,10 @@ computeForcingAnnotations t =
   -- Instantiation also fixes Issue 1454.
   -- Note that normalization of s0 below does not help.
   t <- instantiateFull t
-  let TelV tel (El _ a) = telView' t
   -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
   -- get to the actual data type.
-  a <- reduce a
+  -- Also #2947: The type might reduce to a pi type.
+  TelV tel (El _ a) <- telView t
   let vs = case ignoreSharing a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
