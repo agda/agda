@@ -225,10 +225,16 @@ ifBlocked t blocked unblocked = do
     NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
     NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
 
+isBlocked :: MonadTCM tcm => Term -> tcm (Maybe MetaId)
+isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
+
 -- | Case on whether a type is blocked on a meta (or is a meta).
 ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (NotBlocked -> Type -> tcm a) -> tcm a
 ifBlockedType (El s t) blocked unblocked =
   ifBlocked t (\ m v -> blocked m $ El s v) (\ nb v -> unblocked nb $ El s v)
+
+isBlockedType :: MonadTCM tcm => Type -> tcm (Maybe MetaId)
+isBlockedType t = ifBlockedType t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
     reduce'  :: t -> ReduceM t
