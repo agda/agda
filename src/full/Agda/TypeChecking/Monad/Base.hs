@@ -1903,7 +1903,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
           | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
           | CheckConstructor QName Telescope Sort A.Constructor
-          | CheckFunDef Range Name [A.Clause]
+          | CheckFunDefCall Range Name [A.Clause]
           | CheckPragma Range A.Pragma
           | CheckPrimitive Range Name A.Expr
           | CheckIsEmpty Range Type
@@ -1932,7 +1932,7 @@ instance Pretty Call where
     pretty CheckDataDef{}            = text "CheckDataDef"
     pretty CheckRecDef{}             = text "CheckRecDef"
     pretty CheckConstructor{}        = text "CheckConstructor"
-    pretty CheckFunDef{}             = text "CheckFunDef"
+    pretty CheckFunDefCall{}         = text "CheckFunDefCall"
     pretty CheckPragma{}             = text "CheckPragma"
     pretty CheckPrimitive{}          = text "CheckPrimitive"
     pretty CheckWithFunctionType{}   = text "CheckWithFunctionType"
@@ -1962,7 +1962,7 @@ instance HasRange Call where
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i
     getRange (CheckConstructor _ _ _ c)      = getRange c
-    getRange (CheckFunDef i _ _)             = getRange i
+    getRange (CheckFunDefCall i _ _)         = getRange i
     getRange (CheckPragma r _)               = r
     getRange (CheckPrimitive i _ _)          = getRange i
     getRange CheckWithFunctionType{}         = noRange

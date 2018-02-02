@@ -85,7 +85,7 @@ checkFunDef delayed i name cs = do
         info  <- flip setRelevance defaultArgInfo <$> relOfConst name
         case isAlias cs t of
           Just (e, mc, x) ->
-            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
+            traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
@@ -212,7 +212,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> TCM ()
 checkFunDefS t ai delayed extlam with i name withSub cs = do
 
-    traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
+    traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
           sep [ text "checking body of" <+> prettyTCM name
               , nest 2 $ text ":" <+> prettyTCM t
