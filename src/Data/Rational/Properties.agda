@@ -28,13 +28,13 @@ open import Relation.Binary.PropositionalEquality as P
 
 ≤-trans : Transitive _≤_
 ≤-trans {i = p} {j = q} {k = r} (*≤* le₁) (*≤* le₂)
-  = *≤* (ℤₚ.cancel-*-+-right-≤ _ _ _
+  = *≤* (ℤₚ.*-cancelʳ-≤-pos _ _ _
           (lemma
             (ℚ.numerator p) (ℚ.denominator p)
             (ℚ.numerator q) (ℚ.denominator q)
             (ℚ.numerator r) (ℚ.denominator r)
-            (ℤₚ.*-+-right-mono (ℚ.denominator-1 r) le₁)
-            (ℤₚ.*-+-right-mono (ℚ.denominator-1 p) le₂)))
+            (ℤₚ.*-monoʳ-≤-pos (ℚ.denominator-1 r) le₁)
+            (ℤₚ.*-monoʳ-≤-pos (ℚ.denominator-1 p) le₂)))
   where
   lemma : ∀ n₁ d₁ n₂ d₂ n₃ d₃ →
           n₁ ℤ.* d₂ ℤ.* d₃ ℤ.≤ n₂ ℤ.* d₁ ℤ.* d₃ →

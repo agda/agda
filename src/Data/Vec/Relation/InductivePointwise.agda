@@ -55,7 +55,7 @@ gmap : ∀ {a b c d ℓ} {A : Set a} {B : Set b} {C : Set c} {D : Set d}
        Pointwise _~₂_ (Vec.map f xs) (Vec.map g ys)
 gmap ~₁⇒~₂ []             = []
 gmap ~₁⇒~₂ (x∼y ∷ xs~ys) = ~₁⇒~₂ x∼y ∷ gmap ~₁⇒~₂ xs~ys
-  
+
 -- Appending
 module _ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ} where
 
@@ -146,7 +146,7 @@ module _ {a ℓ} {A : Set a} {_~_ : Rel A ℓ} where
     ; sym   = sym   (IsEquivalence.sym   equiv)
     ; trans = trans (IsEquivalence.trans equiv)
     }
-    
+
   isDecEquivalence : ∀ {n} → IsDecEquivalence _~_ →
                      IsDecEquivalence (Pointwise _~_ {n = n})
   isDecEquivalence decEquiv = record

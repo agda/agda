@@ -31,4 +31,4 @@ Coprime = ℕ.Coprime on ∣_∣
 
 coprime-divisor : ∀ i j k → Coprime i j → i ∣ j * k → i ∣ k
 coprime-divisor i j k c eq =
-  ℕ.coprime-divisor c (subst (ℕ._∣_ ∣ i ∣) (abs-*-commute j k) eq)
+  ℕ.coprime-divisor c (subst (∣ i ∣ ℕ.∣_ ) (abs-*-commute j k) eq)

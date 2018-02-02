@@ -12,7 +12,7 @@ open import Function
 open import Data.Integer as ℤ using (ℤ; ∣_∣; +_; -_)
 open import Data.Integer.Divisibility as ℤDiv using (Coprime)
 import Data.Integer.Properties as ℤ
-open import Data.Nat.Divisibility as ℕDiv using (_∣_)
+open import Data.Nat.Divisibility as ℕDiv using (_∣_; ∣-antisym)
 import Data.Nat.Coprimality as C
 open import Data.Nat as ℕ using (ℕ; zero; suc)
 open import Data.Sum
@@ -51,9 +51,9 @@ infixl 7 _÷_
 
 _÷_ : (numerator : ℤ) (denominator : ℕ)
       {coprime : True (C.coprime? ∣ numerator ∣ denominator)}
-      {≢0 : False (ℕ._≟_ denominator 0)} →
+      {≢0 : False (denominator ℕ.≟ 0)} →
       ℚ
-(n ÷ zero) {≢0 = ()}
+(n ÷ zero)  {≢0 = ()}
 (n ÷ suc d) {c} = record
   { numerator     = n
   ; denominator-1 = d
@@ -98,8 +98,7 @@ p ≃ q = numerator p ℤ.* denominator q ≡
   helper : ∀ n₁ d₁ c₁ n₂ d₂ c₂ →
            n₁ ℤ.* + suc d₂ ≡ n₂ ℤ.* + suc d₁ →
            (n₁ ÷ suc d₁) {c₁} ≡ (n₂ ÷ suc d₂) {c₂}
-  helper n₁ d₁ c₁ n₂ d₂ c₂ eq
-    with Poset.antisym ℕDiv.poset 1+d₁∣1+d₂ 1+d₂∣1+d₁
+  helper n₁ d₁ c₁ n₂ d₂ c₂ eq with ∣-antisym 1+d₁∣1+d₂ 1+d₂∣1+d₁
     where
     1+d₁∣1+d₂ : suc d₁ ∣ suc d₂
     1+d₁∣1+d₂ = ℤDiv.coprime-divisor (+ suc d₁) n₁ (+ suc d₂)
@@ -116,10 +115,9 @@ p ≃ q = numerator p ℤ.* denominator q ≡
                     ∣ n₂ ℤ.* + suc d₁ ∣  ≡⟨ cong ∣_∣ (P.sym eq) ⟩
                     ∣ n₁ ℤ.* + suc d₂ ∣  ≡⟨ ℤ.abs-*-commute n₁ (+ suc d₂) ⟩
                     ∣ n₁ ∣ ℕ.* suc d₂    ∎)
-
-  helper n₁ d c₁ n₂ .d c₂ eq | refl with ℤ.cancel-*-right
+  helper n₁ d c₁ n₂ .d c₂ eq | refl with ℤ.*-cancelʳ-≡
                                            n₁ n₂ (+ suc d) (λ ()) eq
-  helper n  d c₁ .n .d c₂ eq | refl | refl with Bool.proof-irrelevance c₁ c₂
+  helper n  d c₁ .n .d c₂ eq | refl | refl with Bool.T-irrelevance c₁ c₂
   helper n  d c  .n .d .c eq | refl | refl | refl = refl
 
 ------------------------------------------------------------------------
@@ -130,8 +128,8 @@ infix 4 _≟_
 _≟_ : Decidable {A = ℚ} _≡_
 p ≟ q with ℚ.numerator p ℤ.* ℚ.denominator q ℤ.≟
            ℚ.numerator q ℤ.* ℚ.denominator p
-p ≟ q | yes pq≃qp = yes (≃⇒≡ pq≃qp)
-p ≟ q | no ¬pq≃qp = no (¬pq≃qp ∘ ≡⇒≃)
+... | yes pq≃qp = yes (≃⇒≡ pq≃qp)
+... | no ¬pq≃qp = no (¬pq≃qp ∘ ≡⇒≃)
 
 ------------------------------------------------------------------------
 -- Ordering
