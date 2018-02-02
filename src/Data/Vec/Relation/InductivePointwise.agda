@@ -8,6 +8,7 @@ module Data.Vec.Relation.InductivePointwise where
 
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Vec as Vec hiding ([_]; head; tail; map; lookup)
+open import Data.Vec.All using (All; []; _∷_)
 open import Data.Product using (_×_; _,_)
 open import Function using (_∘_)
 open import Function.Equivalence using (_⇔_; equivalence)
@@ -27,36 +28,34 @@ data Pointwise {a b ℓ} {A : Set a} {B : Set b} (_∼_ : REL A B ℓ) :
 ------------------------------------------------------------------------
 -- Operations
 
-head : ∀ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ}
-       {n x y xs} {ys : Vec B n} →
-       Pointwise _~_ (x ∷ xs) (y ∷ ys) → x ~ y
-head (x∼y ∷ xs∼ys) = x∼y
+module _ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ} where
 
-tail : ∀ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ}
-       {n x y xs} {ys : Vec B n} →
-       Pointwise _~_ (x ∷ xs) (y ∷ ys) → Pointwise _~_ xs ys
-tail (x∼y ∷ xs∼ys) = xs∼ys
+  head : ∀ {n x y} {xs : Vec A n} {ys : Vec B n} →
+         Pointwise _~_ (x ∷ xs) (y ∷ ys) → x ~ y
+  head (x∼y ∷ xs∼ys) = x∼y
 
-lookup : ∀ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ}
-         {k xs ys} →  Pointwise _~_ xs ys →
-         ∀ (i : Fin k) → (Vec.lookup i xs) ~ (Vec.lookup i ys)
-lookup (x~y ∷ _)     zero    = x~y
-lookup (_   ∷ xs~ys) (suc i) = lookup xs~ys i
+  tail : ∀ {n x y} {xs : Vec A n} {ys : Vec B n} →
+         Pointwise _~_ (x ∷ xs) (y ∷ ys) → Pointwise _~_ xs ys
+  tail (x∼y ∷ xs∼ys) = xs∼ys
 
--- Maps
-module _ {a b} {A : Set a} {B : Set b} where
+  lookup : ∀ {n xs ys} →  Pointwise _~_ xs ys →
+           ∀ (i : Fin n) → (Vec.lookup i xs) ~ (Vec.lookup i ys)
+  lookup (x~y ∷ _)     zero    = x~y
+  lookup (_   ∷ xs~ys) (suc i) = lookup xs~ys i
 
-  map : ∀ {ℓ} {_~_ _~′_ : REL A B ℓ} {n} →
-        _~_ ⇒ _~′_ → Pointwise _~_ ⇒ Pointwise _~′_ {n}
-  map ~⇒~′ []             = []
-  map ~⇒~′ (x∼y ∷ xs~ys) = ~⇒~′ x∼y ∷ map ~⇒~′ xs~ys
+map : ∀ {a b ℓ} {A : Set a} {B : Set b} {_~₁_ _~₂_ : REL A B ℓ} →
+      _~₁_ ⇒ _~₂_ → ∀ {n} → Pointwise _~₁_ ⇒ Pointwise _~₂_ {n}
+map ~₁⇒~₂ []             = []
+map ~₁⇒~₂ (x∼y ∷ xs~ys) = ~₁⇒~₂ x∼y ∷ map ~₁⇒~₂ xs~ys
 
-  gmap : ∀ {ℓ} {_~_ : Rel A ℓ} {_~′_ : Rel B ℓ} {f : A → B} {n} →
-         _~_ =[ f ]⇒ _~′_ →
-         Pointwise _~_ =[ Vec.map {n = n} f ]⇒ Pointwise _~′_
-  gmap ~⇒~′ []             = []
-  gmap ~⇒~′ (x∼y ∷ xs~ys) = ~⇒~′ x∼y ∷ gmap ~⇒~′ xs~ys
-
+gmap : ∀ {a b c d ℓ} {A : Set a} {B : Set b} {C : Set c} {D : Set d}
+       {_~₁_ : REL A B ℓ} {_~₂_ : REL C D ℓ} {f : A → C} {g : B → D} →
+       (∀ {x y} → x ~₁ y → f x ~₂ g y) →
+       ∀ {n xs ys} → Pointwise _~₁_ {n} xs ys →
+       Pointwise _~₂_ (Vec.map f xs) (Vec.map g ys)
+gmap ~₁⇒~₂ []             = []
+gmap ~₁⇒~₂ (x∼y ∷ xs~ys) = ~₁⇒~₂ x∼y ∷ gmap ~₁⇒~₂ xs~ys
+  
 -- Appending
 module _ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ} where
 
@@ -147,7 +146,7 @@ module _ {a ℓ} {A : Set a} {_~_ : Rel A ℓ} where
     ; sym   = sym   (IsEquivalence.sym   equiv)
     ; trans = trans (IsEquivalence.trans equiv)
     }
-
+    
   isDecEquivalence : ∀ {n} → IsDecEquivalence _~_ →
                      IsDecEquivalence (Pointwise _~_ {n = n})
   isDecEquivalence decEquiv = record
@@ -173,7 +172,6 @@ module _ {a} {A : Set a} where
 
 -- Degenerate cases where one side is ignored
 module _ {a b ℓ} {A : Set a} {B : Set b} where
-  open import Data.Vec.All
 
   Pointwiseˡ⇒All : ∀ {P : A → Set ℓ} {n} {xs : Vec A n} {ys : Vec B n} →
                    Pointwise (λ x y → P x) xs ys → All P xs
