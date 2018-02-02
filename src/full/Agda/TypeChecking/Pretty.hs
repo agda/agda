@@ -313,6 +313,9 @@ instance PrettyTCM Constraint where
             text "Is empty:" <?> prettyTCMCtx TopCtx t
         CheckSizeLtSat t ->
             text "Is not empty type of sizes:" <?> prettyTCMCtx TopCtx t
+        CheckFunDef d i q cs -> do
+            t <- defType <$> getConstInfo q
+            prettyTCM q <+> text ":" <+> prettyTCM t
       where
         prettyCmp :: (PrettyTCM a, PrettyTCM b) => TCM Doc -> a -> b -> TCM Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)

@@ -789,6 +789,7 @@ data Constraint
     --   on which the constraint may be blocked on and the third one is the list
     --   of candidates (or Nothing if we haven’t determined the list of
     --   candidates yet)
+  | CheckFunDef Delayed Info.DefInfo QName [A.Clause]
   deriving (Data, Show)
 
 instance HasRange Constraint where
@@ -820,6 +821,7 @@ instance Free Constraint where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInScope _ _ cs    -> freeVars' cs
+      CheckFunDef _ _ _ _   -> mempty
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -834,6 +836,7 @@ instance TermLike Constraint where
       UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
       Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
       FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
+      CheckFunDef _ _ _ _    -> __IMPOSSIBLE__  -- Not yet implemented
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 

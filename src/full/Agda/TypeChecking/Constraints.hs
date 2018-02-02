@@ -28,6 +28,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings
 
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -233,6 +234,7 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
 solveConstraint_ (FindInScope m b cands)      = findInScope m cands
+solveConstraint_ (CheckFunDef d i q cs)       = checkFunDef d i q cs
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

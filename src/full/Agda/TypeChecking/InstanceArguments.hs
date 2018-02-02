@@ -309,6 +309,7 @@ rigidlyConstrainedMetas = do
         IsEmpty{}     -> return Nothing
         CheckSizeLtSat{} -> return Nothing
         FindInScope{} -> return Nothing
+        CheckFunDef{} -> return Nothing
 
 isRigid :: MetaId -> TCM Bool
 isRigid i = do

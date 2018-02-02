@@ -165,6 +165,7 @@ addConstraintTo bucket c = do
     isBlocking FindInScope{} = False
     isBlocking IsEmpty{}     = True
     isBlocking CheckSizeLtSat{} = True
+    isBlocking CheckFunDef{} = True
 
 -- | Add already awake constraints
 addAwakeConstraints :: Constraints -> TCM ()

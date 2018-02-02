@@ -193,6 +193,7 @@ instance Instantiate Constraint where
   instantiate' (FindInScope m b args) = FindInScope m b <$> mapM instantiate' args
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
+  instantiate' c@CheckFunDef{}      = return c
 
 instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -661,6 +662,7 @@ instance Reduce Constraint where
   reduce' (FindInScope m b cands) = FindInScope m b <$> mapM reduce' cands
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
+  reduce' c@CheckFunDef{}       = return c
 
 instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -805,6 +807,7 @@ instance Simplify Constraint where
   simplify' (FindInScope m b cands) = FindInScope m b <$> mapM simplify' cands
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
+  simplify' c@CheckFunDef{}       = return c
 
 instance Simplify Bool where
   simplify' = return
@@ -948,6 +951,7 @@ instance Normalise Constraint where
   normalise' (FindInScope m b cands) = FindInScope m b <$> mapM normalise' cands
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
+  normalise' c@CheckFunDef{}       = return c
 
 instance Normalise Bool where
   normalise' = return
@@ -1137,6 +1141,7 @@ instance InstantiateFull Constraint where
     FindInScope m b cands -> FindInScope m b <$> mapM instantiateFull' cands
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
+    c@CheckFunDef{}     -> return c
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v

@@ -798,6 +798,7 @@ instance Subst Term Constraint where
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
     FindInScope m b cands    -> FindInScope m b (rf cands)
     UnBlock{}                -> c
+    CheckFunDef{}            -> c
     where
       rf x = applySubst rho x
 
