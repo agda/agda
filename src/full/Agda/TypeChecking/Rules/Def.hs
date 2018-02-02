@@ -16,6 +16,7 @@ import Control.Monad.Reader hiding (forM, mapM)
 import Data.Function
 import Data.Maybe
 import Data.Traversable (Traversable, traverse, forM, mapM)
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -55,7 +56,7 @@ import Agda.TypeChecking.CompiledClause (CompiledClauses'(..))
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope, catchIlltypedPatternBlockedOnMeta )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import Agda.TypeChecking.Rules.LHS.Problem         ( AsBinding(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -96,6 +97,10 @@ checkFunDef delayed i name cs = do
         -- If it's a macro check that it ends in Term → TC ⊤
         ismacro <- isMacro . theDef <$> getConstInfo name
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
+    `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+        reportSDoc "tc.def" 20 $ vcat $
+          [ text "checking function definition got stuck on meta: " <+> text (show x) ]
+        addConstraint $ CheckFunDef delayed i name cs
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
