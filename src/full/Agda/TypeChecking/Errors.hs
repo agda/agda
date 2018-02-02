@@ -1448,7 +1448,7 @@ instance PrettyTCM Call where
 
     CheckConstructor{} -> __IMPOSSIBLE__
 
-    CheckFunDef _ f _ ->
+    CheckFunDefCall _ f _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
 
     CheckPragma _ p ->

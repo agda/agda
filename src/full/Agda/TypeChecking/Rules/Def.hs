@@ -17,6 +17,7 @@ import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable (Traversable, traverse, forM, mapM)
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -57,7 +58,7 @@ import Agda.TypeChecking.CompiledClause (CompiledClauses'(..))
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope, catchIlltypedPatternBlockedOnMeta )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import Agda.TypeChecking.Rules.LHS.Problem         ( AsBinding(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -88,7 +89,7 @@ checkFunDef delayed i name cs = do
         info  <- flip setRelevance defaultArgInfo <$> relOfConst name
         case isAlias cs t of
           Just (e, mc, x) ->
-            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
+            traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
@@ -99,6 +100,10 @@ checkFunDef delayed i name cs = do
         -- If it's a macro check that it ends in Term → TC ⊤
         ismacro <- isMacro . theDef <$> getConstInfo name
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
+    `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+        reportSDoc "tc.def" 20 $ vcat $
+          [ text "checking function definition got stuck on meta: " <+> text (show x) ]
+        addConstraint $ CheckFunDef delayed i name cs
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -215,7 +220,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> TCM ()
 checkFunDefS t ai delayed extlam with i name withSub cs = do
 
-    traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
+    traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
           sep [ text "checking body of" <+> prettyTCM name
               , nest 2 $ text ":" <+> prettyTCM t

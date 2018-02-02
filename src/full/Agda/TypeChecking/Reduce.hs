@@ -197,6 +197,7 @@ instance Instantiate Constraint where
   instantiate' (FindInScope m b args) = FindInScope m b <$> mapM instantiate' args
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
+  instantiate' c@CheckFunDef{}      = return c
 
 instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -229,10 +230,16 @@ ifBlocked t blocked unblocked = do
     NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
     NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
 
+isBlocked :: MonadTCM tcm => Term -> tcm (Maybe MetaId)
+isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
+
 -- | Case on whether a type is blocked on a meta (or is a meta).
 ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (NotBlocked -> Type -> tcm a) -> tcm a
 ifBlockedType (El s t) blocked unblocked =
   ifBlocked t (\ m v -> blocked m $ El s v) (\ nb v -> unblocked nb $ El s v)
+
+isBlockedType :: MonadTCM tcm => Type -> tcm (Maybe MetaId)
+isBlockedType t = ifBlockedType t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
     reduce'  :: t -> ReduceM t
@@ -687,6 +694,7 @@ instance Reduce Constraint where
   reduce' (FindInScope m b cands) = FindInScope m b <$> mapM reduce' cands
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
+  reduce' c@CheckFunDef{}       = return c
 
 instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -835,6 +843,7 @@ instance Simplify Constraint where
   simplify' (FindInScope m b cands) = FindInScope m b <$> mapM simplify' cands
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
+  simplify' c@CheckFunDef{}       = return c
 
 instance Simplify Bool where
   simplify' = return
@@ -982,6 +991,7 @@ instance Normalise Constraint where
   normalise' (FindInScope m b cands) = FindInScope m b <$> mapM normalise' cands
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
+  normalise' c@CheckFunDef{}       = return c
 
 instance Normalise Bool where
   normalise' = return
@@ -1174,6 +1184,7 @@ instance InstantiateFull Constraint where
     FindInScope m b cands -> FindInScope m b <$> mapM instantiateFull' cands
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
+    c@CheckFunDef{}     -> return c
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v

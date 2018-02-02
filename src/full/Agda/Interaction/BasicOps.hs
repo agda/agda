@@ -449,6 +449,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
+    reify (CheckFunDef d i q cs) = __IMPOSSIBLE__
 
 -- ASR TODO (28 December 2014): This function will be unnecessary when
 -- using a Pretty instance for OutputConstraint instead of the Show

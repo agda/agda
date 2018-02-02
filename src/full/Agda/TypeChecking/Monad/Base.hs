@@ -790,6 +790,7 @@ data Constraint
     --   on which the constraint may be blocked on and the third one is the list
     --   of candidates (or Nothing if we haven’t determined the list of
     --   candidates yet)
+  | CheckFunDef Delayed Info.DefInfo QName [A.Clause]
   deriving (Data, Show)
 
 instance HasRange Constraint where
@@ -822,6 +823,7 @@ instance Free Constraint where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInScope _ _ cs    -> freeVars' cs
+      CheckFunDef _ _ _ _   -> mempty
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -837,6 +839,7 @@ instance TermLike Constraint where
       UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
       Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
       FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
+      CheckFunDef _ _ _ _    -> __IMPOSSIBLE__  -- Not yet implemented
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
@@ -1933,7 +1936,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
           | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
           | CheckConstructor QName Telescope Sort A.Constructor
-          | CheckFunDef Range Name [A.Clause]
+          | CheckFunDefCall Range Name [A.Clause]
           | CheckPragma Range A.Pragma
           | CheckPrimitive Range Name A.Expr
           | CheckIsEmpty Range Type
@@ -1962,7 +1965,7 @@ instance Pretty Call where
     pretty CheckDataDef{}            = text "CheckDataDef"
     pretty CheckRecDef{}             = text "CheckRecDef"
     pretty CheckConstructor{}        = text "CheckConstructor"
-    pretty CheckFunDef{}             = text "CheckFunDef"
+    pretty CheckFunDefCall{}         = text "CheckFunDefCall"
     pretty CheckPragma{}             = text "CheckPragma"
     pretty CheckPrimitive{}          = text "CheckPrimitive"
     pretty CheckWithFunctionType{}   = text "CheckWithFunctionType"
@@ -1992,7 +1995,7 @@ instance HasRange Call where
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i
     getRange (CheckConstructor _ _ _ c)      = getRange c
-    getRange (CheckFunDef i _ _)             = getRange i
+    getRange (CheckFunDefCall i _ _)         = getRange i
     getRange (CheckPragma r _)               = r
     getRange (CheckPrimitive i _ _)          = getRange i
     getRange CheckWithFunctionType{}         = noRange

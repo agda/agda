@@ -554,14 +554,7 @@ checkExtendedLambda i di qname cs e t = do
      j   <- currentOrFreshMutualBlock
      rel <- asks envRelevance
      let info = setRelevance rel defaultArgInfo
-     -- Andreas, 2016-07-13, issue 2028.
-     -- Save the state to rollback the changes to the signature.
-     st <- get
-     -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
-     -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
-     addConstant qname =<< do
-       useTerPragma $
-         (defaultDefn info qname t emptyFunction) { defMutual = j }
+
      reportSDoc "tc.term.exlam" 20 $
        text (show $ A.defAbstract di) <+>
        text "extended lambda's implementation \"" <> prettyTCM qname <>
@@ -575,52 +568,26 @@ checkExtendedLambda i di qname cs e t = do
        , text "hidden  args: " <+> prettyTCM hid
        , text "visible args: " <+> prettyTCM notHid
        ]
+
      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
      -- in case the lhs checker failed due to insufficient type info for the patterns.
      -- Issues 480, 1159, 1811.
-     mx <- catchIlltypedPatternBlockedOnMeta $ abstract (A.defAbstract di) $
+     (abstract (A.defAbstract di) $ do
+       -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
+       -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
+       addConstant qname =<< do
+         useTerPragma $
+           (defaultDefn info qname t emptyFunction) { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo (length hid) (length notHid) Nothing) Nothing di qname cs
-     case mx of
-       -- Case: type checking succeeded, so we go ahead.
-       Nothing -> return $ Def qname $ map Apply args
-       -- Case: we could not check the extended lambda because we are blocked on a meta.
-       -- In this case, we want to postpone.
-       Just (err, x) -> do
-         reportSDoc "tc.term.exlam" 50 $ vcat $
-           [ text "checking extended lambda got stuck on meta: " <+> text (show x) ]
-         -- Note that we messed up the state a bit.  We might want to unroll these state changes.
-         -- However, they are mostly harmless:
-         -- 1. We created a new mutual block id.
-         -- 2. We added a constant without definition.
-
-         -- In fact, they are not so harmless, see issue 2028!
-         -- Thus, reset the state!
-         put st
-
-         -- The meta might not be known in the reset state, as it could have been created
-         -- somewhere on the way to the type error.
-         mm <- Map.lookup x <$> getMetaStore
-         x' <- case mvInstantiation <$> mm of
-           -- Case: we do not know the meta
-           -- We mine the type of the extended lambda for a (possibly) blocking meta.
-           Nothing -> do
-             reportSDoc "tc.term.exlam" 50 $ vcat $
-               [ text "meta was not found in reset state"
-               , text "trying to find meta in type of extlam..." ]
-             case allMetas t of
-               []    -> do
-                 reportSDoc "tc.term.exlam" 50 $ text "no meta found, giving up."
-                 throwError err
-               (x:_) -> do
-                 reportSDoc "tc.term.exlam" 50 $ text $ "found meta: " ++ show x
-                 return x
-           -- Case: we know the meta here.
-           Just InstV{} -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-           Just{} -> return x
-         -- It has to be blocked on some meta, so we can postpone,
-         -- being sure it will be retired when a meta is solved
-         -- (which might be the blocking meta in which case we actually make progress).
-         postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x'
+       return $ Def qname $ map Apply args)
+     `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+       -- We could not check the extended lambda because we are blocked on a meta.
+       -- It has to be blocked on some meta, so we can postpone,
+       -- being sure it will be retried when a meta is solved
+       -- (which might be the blocking meta in which case we actually make progress).
+       reportSDoc "tc.term.exlam" 50 $ vcat $
+         [ text "checking extended lambda got stuck on meta: " <+> text (show x) ]
+       postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
@@ -630,8 +597,9 @@ checkExtendedLambda i di qname cs e t = do
 --
 --   * If successful, return Nothing.
 --
---   * If @IlltypedPattern p a@ is thrown and type @a@ is blocked on some meta @x@
---     return @Just x@.
+--   * If @IlltypedPattern p a@, @NotADatatype a@ or @CannotEliminateWithPattern p a@
+--     is thrown and type @a@ is blocked on some meta @x@,
+--     reset any changes to the state and return @Just x@.
 --
 --   * If @SplitError (UnificationStuck c tel us vs _)@ is thrown and the unification
 --     problem @us =?= vs : tel@ is blocked on some meta @x@ return @Just x@.
@@ -641,32 +609,60 @@ checkExtendedLambda i di qname cs e t = do
 --   Note that the returned meta might only exists in the state where the error was
 --   thrown, thus, be an invalid 'MetaId' in the current state.
 --
-catchIlltypedPatternBlockedOnMeta :: TCM () -> TCM (Maybe (TCErr, MetaId))
-catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
-  `catchError` \ err -> do
-  let reraise = throwError err
-  case err of
-    TypeError s cl@Closure{ clValue = IlltypedPattern p a } -> do
-      mx <- localState $ do
-        put s
-        enterClosure cl $ \ _ -> do
-          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ _ -> return Nothing
-      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
-    TypeError s cl@Closure{ clValue = SplitError (UnificationStuck c tel us vs _) } -> do
-      mx <- localState $ do
-        put s
-        enterClosure cl $ \ _ -> do
-          problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
-          -- over-approximating the set of metas actually blocking unification
-          return $ listToMaybe $ allMetas problem
-      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
-    TypeError s cl@Closure{ clValue = SplitError (NotADatatype aClosure) } -> do
-      mx <- localState $ do
-        put s
-        enterClosure aClosure $ \ a ->
-          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ _ -> return Nothing
-      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
-    _ -> reraise
+--   If --sharing is enabled, we will never catch errors since it's not safe to roll
+--   back the state.
+catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, MetaId) -> TCM a) -> TCM a
+catchIlltypedPatternBlockedOnMeta m handle = do
+
+  -- Andreas, 2016-07-13, issue 2028.
+  -- Save the state to rollback the changes to the signature.
+  st <- get
+
+  m `catchError` \ err -> do
+
+    let reraise = throwError err
+
+    x <- maybe reraise return =<< case err of
+      TypeError s cl -> localState $ put s >> do
+        enterClosure cl $ \case
+          IlltypedPattern p a -> isBlockedType a
+          SplitError (UnificationStuck c tel us vs _) -> do
+            problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
+            -- over-approximating the set of metas actually blocking unification
+            return $ listToMaybe $ allMetas problem
+          SplitError (NotADatatype aClosure) ->
+            enterClosure aClosure $ \ a -> isBlockedType a
+          CannotEliminateWithPattern p a -> isBlockedType a
+          _ -> return Nothing
+      _ -> return Nothing
+
+    reportSDoc "tc.postpone" 20 $ vcat $
+      [ text "checking definition blocked on meta: " <+> prettyTCM x ]
+
+    -- Note that we messed up the state a bit.  We might want to unroll these state changes.
+    -- However, they are mostly harmless:
+    -- 1. We created a new mutual block id.
+    -- 2. We added a constant without definition.
+    -- In fact, they are not so harmless, see issue 2028!
+    -- Thus, reset the state!
+    -- 2018-02-02, Jesper: If --sharing is enabled, it is not safe to roll back the state
+    -- so we reraise the error.
+    ifM (optSharing <$> commandLineOptions) reraise $ put st
+
+    -- The meta might not be known in the reset state, as it could have been created
+    -- somewhere on the way to the type error.
+    Map.lookup x <$> getMetaStore >>= \case
+      -- Case: we do not know the meta, so we reraise
+      Nothing -> reraise
+      -- Case: we know the meta here.
+      Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
+      -- Case: the meta is frozen (and not an interaction meta).
+      -- Postponing doesn't make sense, so we reraise.
+      Just m | Frozen  <- mvFrozen m -> isInteractionMeta x >>= \case
+        Nothing -> reraise
+      -- Remaining cases: the meta is known and can still be instantiated.
+        Just{}  -> handle (err, x)
+      Just{} -> handle (err, x)
 
 ---------------------------------------------------------------------------
 -- * Records
