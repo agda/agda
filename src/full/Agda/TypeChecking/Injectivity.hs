@@ -39,6 +39,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 
@@ -115,13 +116,13 @@ topLevelArg Clause{ namedClausePats = ps } i =
     _:_:_ -> __IMPOSSIBLE__
 
 -- | Join a list of inversion maps.
-joinHeadMaps :: (Monad m, Alternative m) => [InversionMap c] -> m (InversionMap c)
-joinHeadMaps = return . Map.unionsWith (<>)
+joinHeadMaps :: [InversionMap c] -> InversionMap c
+joinHeadMaps = Map.unionsWith (<>)
 
 -- | Update the heads of an inversion map.
-updateHeads :: (Alternative m, Monad m) => (TermHead -> m TermHead) -> InversionMap c -> m (InversionMap c)
-updateHeads f m = joinHeadMaps =<< mapM f' (Map.toList m)
-  where f' (h, c) = (`Map.singleton` c) <$> f h
+updateHeads :: Monad m => (TermHead -> [c] -> m TermHead) -> InversionMap c -> m (InversionMap c)
+updateHeads f m = joinHeadMaps <$> mapM f' (Map.toList m)
+  where f' (h, c) = (`Map.singleton` c) <$> f h c
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
@@ -147,31 +148,62 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body } = do
         h <- varToArg c =<< lift (fromMaybe UnknownHead <$> headSymbol body)
-        return [Map.singleton h $ Unique c]
+        return [Map.singleton h [c]]
       computeHead _ = return []
 
-  hdMap <- joinHeadMaps =<< concat <$> mapM computeHead cs
+  hdMap <- joinHeadMaps . concat <$> mapM computeHead cs
 
   case Map.lookup UnknownHead hdMap of
-    Just NotUnique -> empty -- More than one unknown head: we can't really do anything in that case.
-    _              -> return ()
+    Just (_:_:_) -> empty -- More than one unknown head: we can't really do anything in that case.
+    _            -> return ()
 
   reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is potentially injective."
   reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
     for (Map.toList hdMap) $ \ (h, uc) ->
       text (prettyShow h) <+> text "-->" <+>
       case uc of
-        NotUnique -> text "(multiple clauses)"
-        Unique c  -> prettyTCM $ map namedArg $ namedClausePats c
+        [c] -> prettyTCM $ map namedArg $ namedClausePats c
+        _   -> text "(multiple clauses)"
 
   return $ Inverse hdMap
+
+-- | If a clause is over-applied we can't trust the head (Issue 2944). For
+--   instance, the clause might be `f ps = u , v` and the actual call `f vs
+--   .fst`. In this case the head will be the head of `u` rather than `_,_`.
+checkOverapplication :: Elims -> InversionMap Clause -> TCM (InversionMap Clause)
+checkOverapplication es = updateHeads overapplied
+  where
+    overapplied :: TermHead -> [Clause] -> TCM TermHead
+    overapplied h cs | all (not . isOverapplied) cs = return h
+    overapplied h cs = ifM (isSuperRigid h) (return h) (return UnknownHead)
+
+    -- A super-rigid head is one that can't be eliminated. Crucially, this is
+    -- applied after instantiateVars, so VarHeads are really bound variables.
+    isSuperRigid SortHead     = return True
+    isSuperRigid PiHead       = return True
+    isSuperRigid VarHead{}    = return True
+    isSuperRigid UnknownHead  = return True -- or False, doesn't matter
+    isSuperRigid (ConsHead q) = do
+      def <- getConstInfo q
+      return $ case theDef def of
+        Axiom{}        -> True
+        AbstractDefn{} -> True
+        Function{}     -> False
+        Datatype{}     -> True
+        Record{}       -> True
+        Constructor{conSrcCon = ConHead{ conFields = fs }}
+                       -> null fs   -- Record constructors can be eliminated by projections
+        Primitive{}    -> False
+
+
+    isOverapplied Clause{ namedClausePats = ps } = length es > length ps
 
 -- | Turn variable heads, referring to top-level argument positions, into
 --   proper heads. These might still be `VarHead`, but in that case they refer to
 --   deBruijn variables. Checks that the instantiated heads are still rigid and
 --   distinct.
 instantiateVarHeads :: QName -> Elims -> InversionMap c -> TCM (Maybe (InversionMap c))
-instantiateVarHeads f es m = runMaybeT $ updateHeads instHead m
+instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
   where
     instHead :: TermHead -> MaybeT TCM TermHead
     instHead h@(VarHead i)
@@ -187,7 +219,7 @@ functionInverse v = case ignoreSharing v of
     inv <- defInverse <$> getConstInfo f
     case inv of
       NotInjective -> return NoInv
-      Inverse m    -> maybe NoInv (Inv f es) <$> instantiateVarHeads f es m
+      Inverse m    -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
         -- NB: Invertible functions are never classified as
         --     projection-like, so this is fine, we are not
         --     missing parameters.  (Andreas, 2013-11-01)
@@ -217,8 +249,8 @@ useInjectivity dir ty blk neu = do
         [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, text ":", prettyTCM ty ]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
           allUnique       = all isUnique hdMap
-          isUnique Unique{}  = True
-          isUnique NotUnique = False
+          isUnique [_] = True
+          isUnique _   = False
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works
@@ -269,10 +301,10 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
       , text "for" <?> pretty hd
       , nest 2 $ text "args =" <+> prettyList (map prettyTCM blkArgs)
       ]                         -- Clauses with unknown heads are also possible candidates
-    case Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
-      Nothing -> err
-      Just NotUnique -> fallback
-      Just (Unique cl@Clause{ clauseTel  = tel }) -> maybeAbort $ do
+    case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
+      [] -> err
+      _:_:_ -> fallback
+      [cl@Clause{ clauseTel  = tel }] -> maybeAbort $ do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at

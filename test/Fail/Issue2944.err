@@ -1,0 +1,18 @@
+Failed to solve the following constraints:
+  _55 := refl [blocked on problem 111]
+  [111, 115] bla₂ _54 .fst = 0 : Nat
+  _42 := refl [blocked on problem 80]
+  [80, 84] fst (blabla _41) = 1 : Nat
+  _29 := refl [blocked on problem 52]
+  [52, 56] bla pred _28 = 1 : Nat
+  _24 := refl [blocked on problem 42]
+  [42, 46] bla pred _23 = 0 : Nat
+Unsolved metas at the following locations:
+  Issue2944.agda:38,17-18
+  Issue2944.agda:38,8-26
+  Issue2944.agda:42,22-23
+  Issue2944.agda:42,13-28
+  Issue2944.agda:52,20-21
+  Issue2944.agda:52,8-27
+  Issue2944.agda:61,14-15
+  Issue2944.agda:61,9-25

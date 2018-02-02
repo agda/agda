@@ -334,15 +334,6 @@ instance EmbPrj CompiledClauses where
     valu [2, a, b] = valuN Case a b
     valu _         = malformed
 
-instance EmbPrj a => EmbPrj (Unique a) where
-  icod_ NotUnique  = icodeN' NotUnique
-  icod_ (Unique a) = icodeN' Unique a
-
-  value = vcase valu where
-    valu []  = valuN NotUnique
-    valu [a] = valuN Unique a
-    valu _   = malformed
-
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective
   icod_ (Inverse a)  = icodeN' Inverse a

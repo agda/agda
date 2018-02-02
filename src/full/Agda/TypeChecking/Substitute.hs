@@ -425,9 +425,6 @@ instance Apply a => Apply (Case a) where
   applyE (Branches cop cs ls m b lz) es =
     Branches cop (applyE cs es) (applyE ls es) (applyE m es) b lz
 
-instance Apply a => Apply (Unique a) where
-  apply u args = fmap (`apply` args) u
-
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
@@ -631,9 +628,6 @@ namedTelVars m EmptyTel                     = []
 namedTelVars m (ExtendTel !dom tel) =
   Arg (domInfo dom) (namedDBVarP (m-1) $ absName tel) :
   namedTelVars (m-1) (unAbs tel)
-
-instance Abstract a => Abstract (Unique a) where
-  abstract tel = fmap (abstract tel)
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
