@@ -1847,14 +1847,8 @@ defForced d = case theDef d of
 -- ** Injectivity
 ---------------------------------------------------------------------------
 
-data Unique a = NotUnique | Unique a
-  deriving (Data, Eq, Ord, Show, Functor, Foldable, Traversable)
-
-instance Semigroup (Unique a) where
-  _ <> _ = NotUnique
-
 type FunctionInverse = FunctionInverse' Clause
-type InversionMap c = Map TermHead (Unique c)
+type InversionMap c = Map TermHead [c]
 
 data FunctionInverse' c
   = NotInjective
@@ -3269,10 +3263,6 @@ instance KillRange Defn where
 
 instance KillRange MutualId where
   killRange = id
-
-instance KillRange a => KillRange (Unique a) where
-  killRange NotUnique  = NotUnique
-  killRange (Unique a) = killRange1 Unique a
 
 instance KillRange c => KillRange (FunctionInverse' c) where
   killRange NotInjective = NotInjective
