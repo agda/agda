@@ -186,15 +186,18 @@ instance CoArbitrary DefinitionSite where
     coarbitrary c .
     coarbitrary d
 
+smaller :: Int -> Gen a -> Gen a
+smaller k g = sized $ \ n -> resize (div n k) g
+
 instance Arbitrary File where
-  arbitrary = fmap (File . IntMap.fromList) $ listOf arbitrary
+  arbitrary = smaller 5 $ fmap (File . IntMap.fromList) $ listOf arbitrary
   shrink    = map (File . IntMap.fromList) . shrink . IntMap.toList . toMap
 
 instance CoArbitrary File where
   coarbitrary (File rs) = coarbitrary (IntMap.toAscList rs)
 
 instance Arbitrary CompressedFile where
-  arbitrary = do
+  arbitrary = smaller 5 $ do
     rs <- (\ns1 ns2 -> toRanges $ sort $
                          ns1 ++ concatMap (\n -> [n, succ n]) (ns2 :: [Int])) <$>
             arbitrary <*> arbitrary
