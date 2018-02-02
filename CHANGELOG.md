@@ -81,7 +81,7 @@ Non-backwards compatible changes
   The old boolean versions still exist as `boolFilter` and `boolPartition` for
   backwards compatibility reasons, but are deprecated and may be removed in some
   future release. The old versions can be implemented via the new versions
-  with the predicate `λ v → f v ≡ true`.
+  by passing the decidability proof `λ v → f v ≟ true` with `_≟_` from `Data.Bool`.
 
 #### Overhaul of categorical interpretations of List and Vec
 
