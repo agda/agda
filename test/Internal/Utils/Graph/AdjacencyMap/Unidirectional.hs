@@ -260,13 +260,13 @@ prop_invariant_completeIter :: G -> Bool
 prop_invariant_completeIter g =
   all (\(g1, g2) -> invariant g1 && invariant g2) (completeIter g)
 
-prop_invariant_gaussJordanFloydWarshallMcNaughtonYamadaReference ::
+prop_invariant_gaussEtAlReference ::
   G -> Bool
-prop_invariant_gaussJordanFloydWarshallMcNaughtonYamadaReference =
+prop_invariant_gaussEtAlReference =
   invariant . gaussJordanFloydWarshallMcNaughtonYamadaReference
 
-prop_invariant_gaussJordanFloydWarshallMcNaughtonYamada :: G -> Bool
-prop_invariant_gaussJordanFloydWarshallMcNaughtonYamada =
+prop_invariant_gaussEtAl :: G -> Bool
+prop_invariant_gaussEtAl =
   invariant . fst . gaussJordanFloydWarshallMcNaughtonYamada
 
 ------------------------------------------------------------------------
@@ -529,13 +529,13 @@ prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
 
-prop_gaussJordanFloydWarshallMcNaughtonYamadaReference :: G -> Bool
-prop_gaussJordanFloydWarshallMcNaughtonYamadaReference g =
+prop_gaussEtAlReference :: G -> Bool
+prop_gaussEtAlReference g =
   gaussJordanFloydWarshallMcNaughtonYamadaReference g ~~
   transitiveClosure1 g
 
-prop_gaussJordanFloydWarshallMcNaughtonYamada :: G -> Property
-prop_gaussJordanFloydWarshallMcNaughtonYamada g =
+prop_gaussEtAl :: G -> Property
+prop_gaussEtAl g =
   QuickCheck.label sccInfo $
     fst (gaussJordanFloydWarshallMcNaughtonYamada g) ~~
     gaussJordanFloydWarshallMcNaughtonYamadaReference g
