@@ -616,11 +616,13 @@ alt sc a = do
   where
     mkGuarded eq lit b = do
       b  <- term b
-      sc <- term (T.TVar sc)
-      let guard =
+      let varName = HS.Ident "l" -- only used locally in the guard
+          pv = HS.PVar varName
+          v  = hsVarUQ varName
+          guard =
             HS.Var (HS.UnQual (HS.Ident eq)) `HS.App`
-              sc `HS.App` lit
-      return $ HS.Alt HS.PWildCard
+              v `HS.App` lit
+      return $ HS.Alt pv
                       (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier guard] b])
                       emptyBinds
 
