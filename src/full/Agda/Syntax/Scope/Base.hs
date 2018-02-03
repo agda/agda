@@ -865,8 +865,6 @@ inverseScopeLookup = inverseScopeLookup' AmbiguousConProjs
 
 inverseScopeLookup' :: AllowAmbiguousNames -> Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ] $
-  -- trace ("importMap = " ++ show importMap) $
-  -- trace ("moduleMap = " ++ show moduleMap) $
   case name of
     Left  m -> best $ filter unambiguousModule $ findModule m
     Right q -> best $ filter unambiguousName   $ findName q
