@@ -1,6 +1,7 @@
 module Agda.TypeChecking.Monad.Debug where
 
 import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Reader
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
@@ -18,10 +19,10 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
 instance (MonadIO m) => MonadDebug (TCMT m)
 
-reportS :: (HasOptions m, MonadDebug m)
+reportS :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
         => VerboseKey -> Int -> String -> m ()
-reportSLn :: (HasOptions m, MonadDebug m)
+reportSLn :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
           => VerboseKey -> Int -> String -> m ()
-reportSDoc :: (HasOptions m, MonadDebug m)
+reportSDoc :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 

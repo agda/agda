@@ -643,7 +643,7 @@ sigError f a = \case
   SigUnknown s -> f s
   SigAbstract  -> a
 
-class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m) => HasConstInfo m where
+class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadReader TCEnv m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
@@ -687,7 +687,7 @@ instance HasConstInfo (TCMT IO) where
       Left SigAbstract      -> notInScope $ qnameToConcrete q
 
 defaultGetConstInfo
-  :: (HasOptions m, MonadDebug m)
+  :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st^.(stSignature . sigDefinitions)

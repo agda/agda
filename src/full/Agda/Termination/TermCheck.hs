@@ -199,17 +199,17 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
 
   -- NO_TERMINATION_CHECK
   if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
-      reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ prettyShow names
+      reportSLn "term.warn.yes" 10 $ "Skipping termination check for " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
     else if (Info.mutualTermCheck i == NonTerminating) then do
-      reportSLn "term.warn.yes" 2 $ "Considering as non-terminating: " ++ prettyShow names
+      reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
   -- Trivially terminating (non-recursive)
     else ifM skip (do
-      reportSLn "term.warn.yes" 2 $ "Trivially terminating: " ++ prettyShow names
+      reportSLn "term.warn.yes" 10 $ "Trivially terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True
       return mempty)
    $ {- else -} do

@@ -383,5 +383,5 @@ whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
 {-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
 -- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
 {-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
-verboseS :: HasOptions m => VerboseKey -> Int -> m () -> m ()
-verboseS k n action = whenM (hasVerbosity k n) action
+verboseS :: (MonadReader TCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
+verboseS k n action = whenM (hasVerbosity k n) $ locally eIsDebugPrinting (const True) action

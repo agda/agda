@@ -9,10 +9,11 @@ import Agda.TypeChecking.Monad.Context
 import Agda.Utils.Lens
 
 enterClosure :: Closure a -> (a -> TCM b) -> TCM b
-enterClosure (Closure sig env scope cps x) k =
-    withScope_ scope
+enterClosure (Closure sig env scope cps x) k = do
+  isDbg <- view eIsDebugPrinting
+  withScope_ scope
     $ locallyState stModuleCheckpoints (const cps)
-    $ withEnv env
+    $ withEnv env{ envIsDebugPrinting = isDbg }
     $ k x
 
 withClosure :: Closure a -> (a -> TCM b) -> TCM (Closure b)
