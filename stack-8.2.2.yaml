@@ -1,5 +1,8 @@
 resolver: lts-10.0
 
+extra-deps:
+- async-2.2.1
+
 # Local packages, usually specified by relative directory name
 packages:
 - '.'

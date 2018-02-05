@@ -286,8 +286,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
             Right <$>
               (toIO $ handleErr $ Exception noRange $ text $ show e)
 
-          asyncHandler e@E.ThreadKilled = return (Left e)
-          asyncHandler e                = handle e
+          asyncHandler e@AsyncCancelled = return (Left e)
 
           generalHandler (e :: E.SomeException) = handle e
 
