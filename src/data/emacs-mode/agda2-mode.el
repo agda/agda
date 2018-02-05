@@ -1896,9 +1896,9 @@ configuration and the selected window are not changed."
               (if windows
                   (dolist (window windows)
                     (with-selected-window window
-                      (annotation-goto-position (cdr filepos))))
+                      (goto-char (cdr filepos))))
                 (with-current-buffer buffer
-                  (annotation-goto-position (cdr filepos)))))))))))
+                  (goto-char (cdr filepos)))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
