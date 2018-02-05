@@ -136,6 +136,11 @@ tabulate : ∀ {a n} {A : Set a} (f : Fin n → A) → List A
 tabulate {_} {zero}  f = []
 tabulate {_} {suc n} f = f fzero ∷ tabulate (f ∘ fsuc)
 
+lookup : ∀ {a} {A : Set a} (xs : List A) → Fin (length xs) → A
+lookup [] ()
+lookup (x ∷ xs) fzero = x
+lookup (x ∷ xs) (fsuc i) = lookup xs i
+
 -- Numerical
 
 upTo : ℕ → List ℕ

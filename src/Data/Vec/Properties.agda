@@ -458,6 +458,10 @@ tabulate-∘ : ∀ {n a b} {A : Set a} {B : Set b}
 tabulate-∘ {zero}  f g = refl
 tabulate-∘ {suc n} f g = P.cong (f (g zero) ∷_) (tabulate-∘ f (g ∘ suc))
 
+tabulate-cong : ∀ {n a} {A : Set a} {f g : Fin n → A} → f ≗ g → tabulate f ≡ tabulate g
+tabulate-cong {zero} p = refl
+tabulate-cong {suc n} p = P.cong₂ _∷_ (p zero) (tabulate-cong (p ∘ suc))
+
 ------------------------------------------------------------------------
 -- allFin
 
