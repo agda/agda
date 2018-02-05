@@ -120,8 +120,8 @@ that have been set by this function are deleted. Otherwise the
 following happens.
 
 All the symbols in ANNS are looked up in `annotation-bindings',
-and the font-lock-face text property for the given character
-range is set to the resulting list of faces.
+and the face text property for the given character range is set
+to the resulting list of faces.
 
 If the string INFO is non-nil, the mouse-face
 property is set to highlight, and INFO is used as the help-echo
@@ -152,8 +152,8 @@ with)."
                                  anns)))
             (props nil))
         (when faces
-          (annotation-append-text-property start end 'font-lock-face faces)
-          (add-to-list 'props 'font-lock-face))
+          (annotation-append-text-property start end 'face faces)
+          (add-to-list 'props 'face))
         (when (consp goto)
           (add-text-properties start end
                                `(annotation-goto ,goto
