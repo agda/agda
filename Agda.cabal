@@ -118,7 +118,7 @@ library
     build-depends:  Win32 >= 2.3.1.0 && < 2.6
 
   build-depends:  array >= 0.5.1.0 && < 0.6
-                , async >= 2.0.2 && < 2.2
+                , async >= 2.2 && < 2.3
                 , base >= 4.8.0.0 && < 4.12
                 , binary >= 0.7.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
