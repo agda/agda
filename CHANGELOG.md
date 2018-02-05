@@ -13,6 +13,15 @@ Installation and infrastructure
 Language
 --------
 
+* Call-by-need reduction.
+
+  Compile-time weak-head evaluation is now call-by-need, but each weak-head
+  reduction has a local heap, so sharing is not maintained between different
+  reductions.
+
+  The reduction machine has been rewritten from scratch and should be faster
+  than the old one in all cases, even those not exploiting laziness.
+
 ### Syntax
 
 * Do-notation.

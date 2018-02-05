@@ -728,9 +728,9 @@ For example, consider the following function::
   pow’ zero    a = a
   pow’ (suc n) a = pow’ n (a + a)
 
-At compile-time this will be exponential, due to call-by-name evaluation, and
-at run-time there is a space leak caused by unevaluated ``a + a`` thunks. Both
-problems can be fixed with ``primForce``::
+There is a space leak here (both for compile-time and run-time evaluation),
+caused by unevaluated ``a + a`` thunks. This problem can be fixed with
+``primForce``::
 
   infixr 0 _$!_
   _$!_ : ∀ {a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
