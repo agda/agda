@@ -268,15 +268,15 @@ Pragmas and options
     module TopLevel (A : Set) where
     {-# BUILTIN REWRITE _≡_ #-}  -- or here
   ```
-  Note that the following is still illegal:
+  Note that it is still the case that built-ins cannot be bound if
+  they depend on module parameters from an enclosing module. For
+  instance, the following is illegal:
   ```agda
     module _ {a} {A : Set a} where
       data _≡_ (x : A) : A → Set a where
         refl : x ≡ x
       {-# BUILTIN EQUALITY _≡_ #-}
   ```
-  We cannot bind a built-in which depends on module parameters whose
-  scope we are still in.
 
 * Builtin `NIL` and `CONS` have been merged with `LIST`.
 
