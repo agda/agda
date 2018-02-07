@@ -203,12 +203,22 @@ to this variable to take effect."
                                                     (string-to-syntax " ")))))
                         (modify-syntax-entry keys "w" tbl)))
                     (standard-syntax-table))
+    ;; Then override the remaining special cases.
+    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
+                  (?. . ".") (?\; . ".") (?! . ".")))
+      (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
-  "Syntax table used by the Agda mode.
+  "Syntax table used by the Agda mode:
 
-A character inherits its syntax class from the standard syntax
-table if that table treats it as a matching parenthesis or
-whitespace. Otherwise it is treated as a word constituent.")
+{}  | Comment characters, matching parentheses.
+-   | Comment character, word constituent.
+\n  | Comment ender.
+.;! | Punctuation.
+
+Remaining characters inherit their syntax classes from the
+standard syntax table if that table treats them as matching
+parentheses or whitespace.  Otherwise they are treated as word
+constituents.")
 
 (defconst agda2-command-table
   `(
@@ -1811,7 +1821,7 @@ a file is loaded."
 ;; Comments and paragraphs
 
 (defun agda2-comments-and-paragraphs-setup nil
-  "Set up comment and paragraph handling for Agda mode."
+  "Set up comment and paragraph handling for the Agda mode."
 
   ;; Empty lines (all white space according to Emacs) delimit
   ;; paragraphs.
@@ -1820,6 +1830,10 @@ a file is loaded."
 
   ;; Support for adding/removing comments.
   (set (make-local-variable 'comment-start) "-- ")
+
+  ;; Use the syntax table to locate comments (and possibly other
+  ;; things). Syntax table setup for comments is done elsewhere.
+  (set (make-local-variable 'comment-use-syntax) t)
 
   ;; Support for proper filling of text in comments (requires that
   ;; Filladapt is activated).
@@ -1896,9 +1910,9 @@ configuration and the selected window are not changed."
               (if windows
                   (dolist (window windows)
                     (with-selected-window window
-                      (annotation-goto-position (cdr filepos))))
+                      (goto-char (cdr filepos))))
                 (with-current-buffer buffer
-                  (annotation-goto-position (cdr filepos)))))))))))
+                  (goto-char (cdr filepos)))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments

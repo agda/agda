@@ -1,15 +1,9 @@
 ;;; annotation.el --- Functions for annotating text with faces and help bubbles
 
-;;; Commentary:
-;;
+;; Note that this library enumerates buffer positions starting from 1,
+;; just like Emacs.
 
-;;; Code:
 (require 'cl)
-
-(defconst annotations-offset (- (save-restriction (widen) (point-min)) 1)
-  "Offset between buffer positions and annotations's positions.
-Annotations's positions are based on 1, so this adjusts it to the base
-position used by your Emacs.")
 
 (defvar annotation-bindings nil
   "An association list mapping symbols to faces.")
@@ -90,13 +84,9 @@ given position."
             (if other-window
                 (find-file-other-window file)
               (find-file file))
-            (annotation-goto-position (cdr filepos))
+            (goto-char (cdr filepos))
             t)
         (error "File does not exist or is unreadable: %s." file)))))
-
-(defun annotation-goto-position (position)
-  "Move point to POSITION."
-  (goto-char (+ position annotations-offset)))
 
 (defun annotation-append-text-property (start end prop values)
   "Merges VALUES to text property PROP between START and END."
@@ -139,8 +129,6 @@ annotation-annotations is set to a list with all the properties
 that have been set; this ensures that the text properties can
 later be removed (if the annotation-* properties are not tampered
 with)."
-  (incf start annotations-offset)
-  (incf end annotations-offset)
   (when (and (<= (point-min) start)
              (< start end)
              (<= end (point-max)))

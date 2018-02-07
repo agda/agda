@@ -351,13 +351,12 @@ Emacs mode
   This means that highlighting of comments is updated at the same time
   as other highlighting.
 
-  The Emacs mode's syntax table has also been changed. Previously `{`,
-  `}`, `-`, `\n`, `.`, `;`, `_`, and `!` were treated specially (for
-  instance, some of them were marked as having something to do with
-  comments). Now they are treated in the same way as all other
-  characters: a character inherits its syntax class from the standard
-  syntax table if that table treats it as a matching parenthesis or
-  whitespace, and otherwise it is treated as a word constituent.
+  The Emacs mode's syntax table has also been changed. Previously `_`
+  was treated as punctuation. Now it is treated in the same way as
+  most other characters: if the standard syntax table assigns it the
+  syntax class "whitespace", "open parenthesis" or "close
+  parenthesis", then it gets that syntax class, and otherwise it gets
+  the syntax class "word constituent".
 
 Compiler backends
 -----------------
