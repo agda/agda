@@ -18,8 +18,8 @@ setoid S n = record
   { Carrier = Table Carrier n
   ; _≈_ = λ t t′ → ∀ i → lookup t i ≈ lookup t′ i
   ; isEquivalence = record
-    { refl = λ i → refl
-    ; sym = λ p → sym ∘ p
+    { refl  = λ i → refl
+    ; sym   = λ p → sym ∘ p
     ; trans = λ p q i → trans (p i) (q i)
     }
   }

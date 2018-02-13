@@ -8,7 +8,7 @@ module Data.Table.Base where
 
 open import Data.Fin
 open import Data.List as List using (List)
-open import Data.Nat using (ℕ)
+open import Data.Nat
 open import Function using (_∘_)
 
 record Table {a} (A : Set a) n : Set a where
@@ -40,12 +40,12 @@ fromList : ∀ {a} {A : Set a} (xs : List A) → Table A (List.length xs)
 fromList = tabulate ∘ List.lookup
 
 foldr : ∀ {a b} {A : Set a} {B : Set b} {n} → (A → B → B) → B → Table A n → B
-foldr {n = ℕ.zero} f z t = z
-foldr {n = ℕ.suc n} f z t = f (lookup t zero) (foldr f z (tail t))
+foldr {n = zero}  f z t = z
+foldr {n = suc n} f z t = f (lookup t zero) (foldr f z (tail t))
 
 foldl : ∀ {a b} {A : Set a} {B : Set b} {n} → (B → A → B) → B → Table A n → B
-foldl {n = ℕ.zero} f z t = z
-foldl {n = ℕ.suc n} f z t = foldl f (f z (lookup t zero)) (tail t)
+foldl {n = zero}  f z t = z
+foldl {n = suc n} f z t = foldl f (f z (lookup t zero)) (tail t)
 
 replicate : ∀ {n a} {A : Set a} → A → Table A n
 replicate x = tabulate (λ _ → x)

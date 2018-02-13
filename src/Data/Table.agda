@@ -33,6 +33,6 @@ permute π = rearrange (Inverse.to π FE.⟨$⟩_)
 -- and 'z' everywhere else.
 
 select : ∀ {n} {a} {A : Set a} → A → Fin n → Table A n → Table A n
-lookup (select z i t) j with ⌊ j ≟ i ⌋
-lookup (select z i t) j | true = lookup t i
-lookup (select z i t) j | false = z
+lookup (select z i t) j with j ≟ i
+... | yes _ = lookup t i
+... | no  _ = z

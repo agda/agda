@@ -115,13 +115,13 @@ Non-backwards compatible changes
 * Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
 
 * The proofs that were called `+-monoˡ-<` and `+-monoʳ-<` in `Data.Nat.Properties`
-  have been renamed `+-mono-<-≤` and `= +-mono-≤-<` respectively. The original
+  have been renamed `+-mono-<-≤` and `+-mono-≤-<` respectively. The original
   names are now used for proofs of left and right monotonicity of `_+_`.
 
 * Moved the proof `monoid` from `Data.List` to `++-monoid` in `Data.List.Properties`.
 
-* Names in Data.Nat.Divisibility now use the divides symbol `|` (typed \|) consistently.
-  Previously a mixture of `|` and `|` was used.
+* Names in Data.Nat.Divisibility now use the `divides` symbol (typed \\|) consistently.
+  Previously a mixture of `\\|` and `|` was used.
 
 * Starting from Agda 2.5.4 the GHC backend compiles `Coinduction.∞` in
   a different way, and for this reason the GHC backend pragmas for
@@ -262,6 +262,12 @@ Backwards compatible changes
 
 * New module `Data.Word` for new builtin type `Agda.Builtin.Word.Word64`.
 
+* New modules `Data.Table`, `Data.Table.Base`,
+  `Data.Table.Relation.Equality` and `Data.Table.Properties`. A `Table` is a
+  fixed-length collection of objects similar to a `Vec` from `Data.Vec`, but
+  implemented as a function `Fin n → A`. This prioritises ease of lookup as opposed
+  to `Vec` which prioritises the ease of adding and removing elements.
+
 * The contents of the following modules are now more polymorphic with respect to levels:
   ```agda
   Data.Covec
@@ -395,9 +401,8 @@ Backwards compatible changes
   filter-all     : All P xs → dfilter P? xs ≡ xs
   filter-none    : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
 
-  tabulate-cong : ∀ {n a} {A : Set a} {f g : Fin n → A}
-                  → f ≗ g → tabulate f ≡ tabulate g
-  tabulate-lookup : ∀ {a} {A : Set a} {xs : List A} → tabulate (lookup xs) ≡ xs
+  tabulate-cong   : f ≗ g → tabulate f ≡ tabulate g
+  tabulate-lookup : tabulate (lookup xs) ≡ xs
   ```
 
 * Added new proofs to `Data.List.All.Properties`:
@@ -634,7 +639,7 @@ Backwards compatible changes
   ∁? : Decidable P → Decidable (∁ P)
   ```
 
-* Added missing bindings to functions on Char - character class checks and conversion from Nat:
+* Added missing bindings to functions on `Data.Char` - character class checks and conversion from Nat:
   `isLower, isDigit, isAlpha, isSpace, isAscii, isLatin1, isPrint, isHexDigit, fromNat`.
 
 
@@ -1410,12 +1415,6 @@ Backwards compatible changes
   ≅-to-type-≡  : {x : A} {y : B} → x ≅ y → A ≡ B
   ≅-to-subst-≡ : (p : x ≅ y) → subst (λ x → x) (≅-to-type-≡ p) x ≡ y
   ```
-
-* Added new modules `Data.Table`, `Data.Table.Base`,
-  `Data.Table.Relation.Equality` and `Data.Table.Properties`. A `Table` is a
-  fixed-length collection of objects similar to a `Vec` from `Data.Vec`, but
-  implemented as a function `Fin n → A`. This allows ease of lookup as opposed
-  to the ease of adding and removing elements in a `Vec`.
 
 
 Version 0.13
