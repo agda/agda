@@ -55,7 +55,15 @@ over :: Lens' i o -> LensMap i o
 over l f o = runIdentity $ l (Identity . f) o
 
 
--- * State accessors and modifiers.
+-- * State accessors and modifiers using 'StateT'.
+
+-- | Focus on a part of the state for a stateful computation.
+focus :: Monad m => Lens' i o -> StateT i m a -> StateT o m a
+focus l m = StateT $ \ o -> do
+  (a, i) <- runStateT m (o ^. l)
+  return (a, set l i o)
+
+-- * State accessors and modifiers using 'MonadState'.
 
 -- | Read a part of the state.
 use :: MonadState o m => Lens' i o -> m i
