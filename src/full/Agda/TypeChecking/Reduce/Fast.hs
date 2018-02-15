@@ -73,6 +73,8 @@ import Data.Traversable (traverse)
 import System.IO.Unsafe
 import Data.IORef
 
+import Debug.Trace (trace)
+
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -403,18 +405,21 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
         reduceNormalE :: Int -> Term -> QName -> [MaybeReduced Elim] -> Bool -> FastCompiledClauses -> Reduced (Blocked Term) Term
         reduceNormalE steps v0 f es dontUnfold cc
           | dontUnfold = defaultResult  -- non-terminating or delayed
-          | otherwise  =
-            case match' steps f [(cc, es, id)] of
-              YesReduction s u -> YesReduction s u
-              NoReduction es'  -> if hasRewriting then
-                                    runReduce $ rewrite (void es') v0 rewr (ignoreBlocking es')
-                                  else
-                                    NoReduction $ applyE v0 <$> es'
-          where defaultResult = if hasRewriting then
-                                  runReduce $ rewrite (NotBlocked ReallyNotBlocked ()) v0 rewr (map ignoreReduced es)
-                                else
-                                  NoReduction $ NotBlocked ReallyNotBlocked vfull
-                vfull         = v0 `applyE` map ignoreReduced es
+          | otherwise  = debugReduce $
+              case match' steps f [(cc, es, id)] of
+                YesReduction s u -> YesReduction s u
+                NoReduction es'
+                  | hasRewriting -> runReduce $ rewrite (void es') v0 rewr $ ignoreBlocking es'
+                  | otherwise    -> NoReduction $ applyE v0 <$> es'
+          where
+          defaultResult
+            | hasRewriting = runReduce $ rewrite (NotBlocked ReallyNotBlocked ()) v0 rewr $ map ignoreReduced es
+            | otherwise    = NoReduction $ NotBlocked ReallyNotBlocked $ v0 `applyE` map ignoreReduced es
+          debugReduce ev = ev -- trace msg ev
+            where
+            msg = case ev of
+              NoReduction v -> "fastreduce: no reduction on " ++ show v
+              YesReduction _simpl v -> "fastreduce: reduction on " ++ show v
 
         match' :: Int -> QName -> FastStack -> Reduced (Blocked Elims) Term
         match' steps f ((c, es, patch) : stack) =
