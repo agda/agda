@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE GADTs #-}
 
 module Agda.TypeChecking.MetaVars where
 
@@ -12,6 +13,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -986,13 +988,21 @@ subtypingForSizeLt dir   x mvar t args v cont = do
         _ -> fallback
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
-expandProjectedVars :: (Normalise a, TermLike a, Show a, PrettyTCM a, NoProjectedVar a,
-                        Subst Term a, PrettyTCM b, Subst Term b) =>
-  a -> b -> (a -> b -> TCM c) -> TCM c
+expandProjectedVars
+  :: ( Show a, PrettyTCM a, NoProjectedVar a
+     -- , Normalise a, TermLike a, Subst Term a
+     , ReduceAndEtaContract a
+     , PrettyTCM b, Subst Term b
+     )
+  => a  -- ^ Meta variable arguments.
+  -> b  -- ^ Right hand side.
+  -> (a -> b -> TCM c)
+  -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
     reportSDoc "tc.meta.assign.proj" 45 $ text "meta args: " <+> prettyTCM args
-    args <- etaContract =<< normalise args
+    args <- reduceAndEtaContract args
+    -- args <- etaContract =<< normalise args
     reportSDoc "tc.meta.assign.proj" 45 $ text "norm args: " <+> prettyTCM args
     reportSDoc "tc.meta.assign.proj" 85 $ text "norm args: " <+> text (show args)
     let done = ret args v
@@ -1037,6 +1047,29 @@ instance NoProjectedVar a => NoProjectedVar (Arg a) where
 instance NoProjectedVar a => NoProjectedVar [a] where
   noProjectedVar = Fold.mapM_ noProjectedVar
 
+
+-- | Normalize just far enough to be able to eta-contract maximally.
+class (TermLike a, Subst Term a, Reduce a) => ReduceAndEtaContract a where
+  reduceAndEtaContract :: a -> TCM a
+
+  default reduceAndEtaContract
+    :: (Traversable f, TermLike b, Subst Term b, Reduce b, ReduceAndEtaContract b, f b ~ a)
+    => a -> TCM a
+  reduceAndEtaContract = Trav.mapM reduceAndEtaContract
+
+instance ReduceAndEtaContract a => ReduceAndEtaContract [a] where
+instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a) where
+
+instance ReduceAndEtaContract Term where
+  reduceAndEtaContract u = do
+    (ignoreSharing <$> reduce u) >>= \case
+      -- In case of lambda or record constructor, it makes sense to
+      -- reduce further.
+      Lam ai (Abs x b) -> etaLam ai x =<< reduceAndEtaContract b
+      Con c ci args    -> etaCon c ci args $ \ r c ci args -> do
+        args <- reduceAndEtaContract args
+        etaContractRecord r c ci args
+      v -> return v
 
 {- UNUSED, BUT KEEP!
 -- Wrong attempt at expanding bound variables.
