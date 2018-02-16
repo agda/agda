@@ -63,6 +63,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/List.agda
                     lib/prim/Agda/Builtin/Nat.agda
                     lib/prim/Agda/Builtin/Reflection.agda
+                    lib/prim/Agda/Builtin/Sigma.agda
                     lib/prim/Agda/Builtin/Size.agda
                     lib/prim/Agda/Builtin/Strict.agda
                     lib/prim/Agda/Builtin/String.agda
