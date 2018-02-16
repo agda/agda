@@ -11,20 +11,16 @@ open import Level
 open import Relation.Nullary
 open import Agda.Builtin.Equality
 
-infixr 4 _,_ _,′_
+infixr 4 _,′_
 infix  4 ,_
 infixr 2 _×_ _-×-_ _-,-_
 
 ------------------------------------------------------------------------
 -- Definition
 
-record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
-  constructor _,_
-  field
-    proj₁ : A
-    proj₂ : B proj₁
+open import Agda.Builtin.Sigma hiding (module Σ) public renaming (fst to proj₁; snd to proj₂)
 
-open Σ public
+module Σ = Agda.Builtin.Sigma.Σ renaming (fst to proj₁; snd to proj₂)
 
 -- The syntax declaration below is attached to Σ-syntax, to make it
 -- easy to import Σ without the special syntax.
