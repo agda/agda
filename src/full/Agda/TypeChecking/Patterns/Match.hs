@@ -108,7 +108,17 @@ foldMatch match = loop where
       (p : ps, v : vs) -> do
         (r, v') <- match p v
         case r of
-          No         -> return (No        , v' : vs)
+          No         -> do
+            -- Issue 2964: Even when the first pattern doesn't match we should
+            -- continue to the next patterns (and potentially block on them)
+            -- because the splitting order in the case tree may not be
+            -- left-to-right.
+            (r', vs') <- loop ps vs
+            let vs1 = v' : vs'
+            case r' of
+              Yes s' us' -> return (No         , vs1)
+              No         -> return (No         , vs1)
+              DontKnow m -> return (DontKnow m , vs1)
           DontKnow m -> return (DontKnow m, v' : vs)
           Yes s us   -> do
             (r', vs') <- loop ps vs
