@@ -23,8 +23,6 @@ import Data.Traversable (traverse)
 import Data.Monoid (mempty)
 import Data.Word
 
-import Numeric.IEEE ( IEEE(identicalIEEE) )
-
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 
@@ -57,6 +55,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty, prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.String ( Str(Str), unStr )
+import Agda.Utils.Float
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -813,28 +812,6 @@ primitiveFunctions = Map.fromList
   ]
   where
     (|->) = (,)
-
-floatEq :: Double -> Double -> Bool
-floatEq x y = identicalIEEE x y || (isNaN x && isNaN y)
-
-floatLt :: Double -> Double -> Bool
-floatLt x y =
-  case compareFloat x y of
-    LT -> True
-    _  -> False
-  where
-    -- Also implemented in the GHC/UHC backends
-    compareFloat :: Double -> Double -> Ordering
-    compareFloat x y
-      | identicalIEEE x y          = EQ
-      | isNegInf x                 = LT
-      | isNegInf y                 = GT
-      | isNaN x && isNaN y         = EQ
-      | isNaN x                    = LT
-      | isNaN y                    = GT
-      | otherwise                  = compare (x, isNegZero y) (y, isNegZero x)
-    isNegInf  z = z < 0 && isInfinite z
-    isNegZero z = identicalIEEE z (-0.0)
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
