@@ -1066,7 +1066,7 @@ instance ReduceAndEtaContract Term where
       -- In case of lambda or record constructor, it makes sense to
       -- reduce further.
       Lam ai (Abs x b) -> etaLam ai x =<< reduceAndEtaContract b
-      Con c ci args    -> etaCon c ci args $ \ r c ci args -> do
+      Con c ci es | Just args <- allApplyElims es -> etaCon c ci args $ \ r c ci args -> do
         args <- reduceAndEtaContract args
         etaContractRecord r c ci args
       v -> return v
