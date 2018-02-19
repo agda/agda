@@ -200,14 +200,27 @@ code = mconcat . map mkHtml
     -- Do not create anchors for whitespace.
     applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
 
+  -- | Put anchors that enable referencing that token.
+  --   We put a fail safe numeric anchor (file position) for internal references (issue #2756),
+  --   as well as a heuristic name anchor for external references (issue #2604).
   annotate :: Int -> Aspects -> Html -> Html
-  annotate pos mi content = a content !! attributes
+  annotate pos mi = applyWhen hereAnchor (anchorage nameAttributes mempty <>) . anchorage posAttributes
     where
-    attributes = concat
+    -- | Warp an anchor (<A> tag) with the given attributes around some HTML.
+    anchorage :: [Attribute] -> Html -> Html
+    anchorage attrs html = a html !! attrs
+
+    -- | File position anchor (unique, reliable).
+    posAttributes :: [Attribute]
+    posAttributes = concat
       [ [Attr.id $ stringValue $ show pos ]
       , toList $ fmap link $ definitionSite mi
       , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
+
+    -- | Named anchor (not reliable, but useful in the general case for outside refs).
+    nameAttributes :: [Attribute]
+    nameAttributes = [ Attr.id $ stringValue $ fromMaybe __IMPOSSIBLE__ $ mDefSiteAnchor ]
 
     classes = concat
       [ concatMap noteClasses (note mi)
@@ -231,10 +244,27 @@ code = mconcat . map mkHtml
     -- Notes are not included.
     noteClasses s = []
 
-    link (DefinitionSite m pos _ _) = href $ stringValue $
+    -- | Should we output a named anchor?
+    --   Only if we are at the definition site now (@here@)
+    --   and such a pretty named anchor exists (see 'defSiteAnchor').
+    hereAnchor      :: Bool
+    hereAnchor      = here && isJust mDefSiteAnchor
+
+    mDefinitionSite :: Maybe DefinitionSite
+    mDefinitionSite = definitionSite mi
+
+    -- | Are we at the definition site now?
+    here            :: Bool
+    here            = maybe False defSiteHere mDefinitionSite
+
+    mDefSiteAnchor  :: Maybe String
+    mDefSiteAnchor  = maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite
+
+    link (DefinitionSite m pos _here _aName) = href $ stringValue $
       -- If the definition site points to the top of a file,
       -- we drop the anchor part and just link to the file.
       applyUnless (pos <= 1)
         (++ "#" ++
          Network.URI.Encode.encode (show pos))
+         -- Network.URI.Encode.encode (fromMaybe (show pos) aName)) -- Named links disabled
         (Network.URI.Encode.encode $ modToFile m)
