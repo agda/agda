@@ -56,6 +56,8 @@ type MetaSet = Set MetaId
 --   The constructors are listed in increasing order (wrt. information content).
 data FlexRig
   = Flexible MetaSet  -- ^ In arguments of metas.
+                      --   The set of metas is used by ''Agda.TypeChecking.Rewriting.NonLinMatch''
+                      --   to generate the right blocking information.
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
   | Unguarded         -- ^ In top position, or only under inductive record constructors.
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.

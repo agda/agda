@@ -93,10 +93,10 @@ prop_old_freeVars_Pi = same_freeVars ty
 same_freeVars t = new_to_old_FV (New.freeVars t) == Old.freeVars t
 
 old_to_new_FV :: Old.FreeVars -> New.FreeVars
-old_to_new_FV (Old.FV a b c d e f) = New.FV a b c (Map.fromSet (const mempty) d) e f
+old_to_new_FV (Old.FV a b c d e) = New.FV a b c (Map.fromSet (const mempty) d) e
 
 new_to_old_FV :: New.FreeVars -> Old.FreeVars
-new_to_old_FV (New.FV a b c d e f) = Old.FV a b c (Map.keysSet d) e f
+new_to_old_FV (New.FV a b c d e) = Old.FV a b c (Map.keysSet d) e
 
 ty :: Term
 ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
