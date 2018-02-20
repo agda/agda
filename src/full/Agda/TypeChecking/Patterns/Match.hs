@@ -164,8 +164,9 @@ matchCopattern pat@ProjP{} elim@(Proj _ q) = do
   q         <- getOriginalProjection q
   return $ if p == q then (Yes YesSimplification empty, elim)
                      else (No,                          elim)
-matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
-matchCopattern _       Proj{}    = __IMPOSSIBLE__
+-- The following two cases are not impossible, see #2964
+matchCopattern ProjP{} elim@Apply{}   = return (No , elim)
+matchCopattern _       elim@Proj{}    = return (No , elim)
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 matchCopattern p       (IApply x y r) = mapSnd Apply <$> matchPattern p (defaultArg r)
 
