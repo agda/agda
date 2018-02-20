@@ -474,6 +474,9 @@ LaTeX backend
   now correctly highlighted in the LaTeX backend (and the HTML one).
   [Issue [#2474](https://github.com/agda/agda/issues/2474)]
 
+* `postprocess-latex.pl` does not add extra spaces around tagged `\Agda*{}`
+  commands anymore.
+
 Release notes for Agda version 2.5.3
 ====================================
 
