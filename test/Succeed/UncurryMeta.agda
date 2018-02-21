@@ -10,12 +10,10 @@ data Unit : Set where
   unit : Unit
 
 record R : Set where
+  constructor _,_
   field
     x : Unit
     y : Unit
-
-_,_ : Unit -> Unit -> R
-x , y = record {x = x; y = y}
 
 data P : Unit -> Unit -> Set where
   mkP : forall x y -> P x y

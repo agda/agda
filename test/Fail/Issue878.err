@@ -1,5 +1,5 @@
 Issue878.agda:30,7-13
-ext (record { P = λ x → ⊤ → ⊤ ; g = λ x c → tt }) tt !=
-ext (record { P = λ x → ⊤ → ⊤ ; g = λ x c → tt }) tt tt of type
-⊤ → ⊤
+ext (record { P = args.P a ; g = args.g a }) tt !=
+ext (record { P = args.P a ; g = args.g a }) tt tt of type
+args.P a tt
 when checking that the expression β-r tt has type ext a tt tt == tt

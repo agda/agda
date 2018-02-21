@@ -35,6 +35,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Interaction.Options
+
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -129,6 +131,11 @@ translateCompiledClauses cc = do
     [ text "translated compiled clauses (no eta record patterns):"
     , nest 2 $ return $ pretty cc
     ]
+  cc <- recordExpressionsToCopatterns cc
+  reportSDoc "tc.cc.record" 20 $ vcat
+    [ text "translated compiled clauses (record expressions to copatterns):"
+    , nest 2 $ return $ pretty cc
+    ]
   return cc
   where
 
@@ -181,6 +188,31 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
     _                   -> __IMPOSSIBLE__ -- this would mean non-determinism
 -}
 -}
+
+-- | Transform definitions returning record expressions to use copatterns
+--   instead. This prevents terms from blowing up when reduced.
+recordExpressionsToCopatterns :: CompiledClauses -> TCM CompiledClauses
+recordExpressionsToCopatterns cc =
+  case cc of
+    Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
+    Fail      -> return cc
+    Done xs (Con c i es) | i == ConORec -> do  -- don't translate if using the record constructor
+      Constructor{conData = d, conArity = ar} <- theDef <$> getConstInfo (conName c)
+      ddef <- theDef <$> getConstInfo d
+      irrProj <- optIrrelevantProjections <$> pragmaOptions
+      getConstructorInfo (conName c) >>= \ case
+        RecordCon YesEta fs
+          | ar <- length fs, ar > 0,                   -- only for eta-records with at least one field
+            length es == ar,                           -- where the constructor application is saturated
+            irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
+              let body (Apply v) = WithArity 0 $ Done xs (unArg v)
+                  body _ = __IMPOSSIBLE__
+                  bs     = Branches True (Map.fromList $ zip (map unArg fs) (map body es))
+                                    Nothing Map.empty Nothing False
+              -- translate new cases recursively (there might be nested record expressions)
+              Case (defaultArg $ length xs) <$> traverse recordExpressionsToCopatterns bs
+        _ -> return cc
+    Done{} -> return cc
 
 -- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
 --   (counted from left) by projections @projs_1 i .. projs_n i@.

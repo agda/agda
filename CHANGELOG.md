@@ -210,6 +210,31 @@ Language
   Agda can now solve constraints like `?X ++ ys == 1 ∷ ys` when `ys` is a
   neutral term.
 
+* Record expressions translated to copatterns
+
+  Definitions of the form
+
+  ```agda
+    f ps = record { f₁ = e₁; ..; fₙ = eₙ }
+  ```
+
+  are translated internally to use copatterns:
+
+  ```agda
+    f ps .f₁ = e₁
+    ...
+    f ps .fₙ = eₙ
+  ```
+
+  This means that `f ps` does not reduce, but thanks to η-equality the two
+  definitions are equivalent.
+
+  The change should lead to fewer big record expressions showing up in goal
+  types, and potentially significant performance improvement in some cases.
+
+  This may have a minor impact on with-abstraction and code using `--rewriting`
+  since η-equality is not used in these cases.
+
 ### Builtins
 
 * Added support for built-in 64-bit machine words.
