@@ -19,6 +19,7 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
+import Control.Arrow (first, second)
 import Data.Function
 import Data.Functor
 import qualified Data.List as List
@@ -420,10 +421,10 @@ instance Apply a => Apply (WithArity a) where
   applyE (WithArity n a) es   = WithArity n $ applyE a es
 
 instance Apply a => Apply (Case a) where
-  apply (Branches cop cs ls m b lz) args =
-    Branches cop (apply cs args) (apply ls args) (apply m args) b lz
-  applyE (Branches cop cs ls m b lz) es =
-    Branches cop (applyE cs es) (applyE ls es) (applyE m es) b lz
+  apply (Branches cop cs eta ls m b lz) args =
+    Branches cop (apply cs args) (second (`apply` args) <$> eta) (apply ls args) (apply m args) b lz
+  applyE (Branches cop cs eta ls m b lz) es =
+    Branches cop (applyE cs es) (second (`applyE` es) <$> eta)(applyE ls es) (applyE m es) b lz
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
@@ -617,8 +618,9 @@ instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a
 
 instance Abstract a => Abstract (Case a) where
-  abstract tel (Branches cop cs ls m b lz) =
-    Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m) b lz
+  abstract tel (Branches cop cs eta ls m b lz) =
+    Branches cop (abstract tel cs) (second (abstract tel) <$> eta)
+                 (abstract tel ls) (abstract tel m) b lz
 
 telVars :: Int -> Telescope -> [Arg DeBruijnPattern]
 telVars m = map (fmap namedThing) . (namedTelVars m)

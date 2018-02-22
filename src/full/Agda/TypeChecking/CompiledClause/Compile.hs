@@ -138,10 +138,12 @@ compileWithSplitTree shared t cs = case t of
     compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
     compiles ts br@Branches{ projPatterns = cop
                            , conBranches = cons
+                           , etaBranch   = Nothing
                            , litBranches = lits
                            , fallThrough = fT
                            , catchAllBranch = catchAll }
       = br{ conBranches    = updCons cons
+          , etaBranch      = Nothing
           , litBranches    = compile shared <$> lits
           , fallThrough    = fT
           , catchAllBranch = compile shared <$> catchAll
@@ -150,6 +152,7 @@ compileWithSplitTree shared t cs = case t of
         updCons = Map.mapWithKey $ \ c cl ->
          caseMaybe (lookup c ts) (compile shared) (compileWithSplitTree shared) <$> cl
          -- When the split tree is finished, we continue with @compile@.
+    compiles _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
 compile :: (Term -> Term) -> Cls -> CompiledClauses
 compile _      [] = Fail

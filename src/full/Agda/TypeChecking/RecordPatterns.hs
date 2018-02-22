@@ -19,7 +19,7 @@ import Control.Monad.State
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Traversable as Trav
+import qualified Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -124,7 +124,7 @@ translateCompiledClauses cc = do
     [ text "translate record patterns in compiled clauses"
     , nest 2 $ return $ pretty cc
     ]
-  cc <- snd <$> loop cc
+  cc <- loop cc
   reportSDoc "tc.cc.record" 20 $ vcat
     [ text "translated compiled clauses (no eta record patterns):"
     , nest 2 $ return $ pretty cc
@@ -132,86 +132,41 @@ translateCompiledClauses cc = do
   return cc
   where
 
-    loop :: CompiledClauses -> TCM ([Bool], CompiledClauses)
+    loop :: CompiledClauses -> TCM (CompiledClauses)
     loop cc = case cc of
-      Fail      -> return (repeat True, cc)
-      Done xs t -> return (map (const True) xs, cc)
+      Fail      -> return cc
+      Done{}    -> return cc
       Case i cs -> loops i cs
 
     loops :: Arg Int              -- ^ split variable
           -> Case CompiledClauses -- ^ original split tree
-          -> TCM ([Bool], CompiledClauses)
-    loops i cs@Branches{ projPatterns   = cop
+          -> TCM CompiledClauses
+    loops i Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- We're inserting this here
+    loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap
                        , litBranches    = litMap
                        , fallThrough    = fT
                        , catchAllBranch = catchAll
                        , lazyMatch      = lazy } = do
 
-      -- recurse on and compute variable status of catch-all clause
-      (xssa, catchAll) <- unzipMaybe <$> Trav.mapM loop catchAll
-      let xsa = fromMaybe (repeat True) xssa
-
-      -- recurse on compute variable status of literal clauses
-      (xssl, litMap)   <- Map.unzip <$> Trav.mapM loop litMap
-      let xsl = conjColumns (xsa : insertColumn (unArg i) False (Map.elems xssl))
-
-      -- recurse on constructor clauses
-      (ccs, xssc, conMap)    <- Map.unzip3 <$> do
-        Trav.forM (Map.mapWithKey (,) conMap) $ \ (c, WithArity ar cc) -> do
-          (xs, cc)     <- loop cc
-          dataOrRecCon <- do
-            isProj <- isProjection c
-            case isProj of
-              Nothing -> do
-                i <- getConstructorInfo c
-                case i of
-                  DataCon n           -> return $ Left n
-                  RecordCon NoEta fs  -> return $ Left (size fs)
-                  RecordCon YesEta fs -> return $ Right fs
-              Just{}  -> return $ Left 0
-          let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
-              (xs0, rest) = splitAt (unArg i) xs
-              (xs1, xs2 ) = splitAt n rest
-              -- if all dropped variables (xs1) are virgins and we are record cons.
-              -- then new variable x is also virgin
-              -- and we can translate away the split
-              x           = isRC && and xs1
-              -- xs' = updated variables
-              xs'         = xs0 ++ x : xs2
-              -- get the record fields
-              fs          = either __IMPOSSIBLE__ id dataOrRecCon
-              -- if x we can translate
-          mcc <- if x then etaContract [replaceByProjections i (map unArg fs) cc]
-                      else return []
-
-          when (n /= ar) __IMPOSSIBLE__
-          return (mcc, xs', WithArity ar cc)
-
-      -- compute result
-      let xs = conjColumns (xsl : Map.elems xssc)
-      case concat $ Map.elems ccs of
-        -- case: no record pattern was translated
-        []   -> return (xs, Case i $ Branches
-                  { projPatterns = cop
-                  , conBranches = conMap
-                  , litBranches = litMap
-                  , fallThrough = fT
-                  , catchAllBranch = catchAll
-                  , lazyMatch = lazy })
-
-        -- case: translated away one record pattern
-        [cc] -> do
-                -- Andreas, 2013-03-22
-                -- Due to catch-all-expansion this is actually possible:
-                -- -- we cannot have a catch-all if we had a record pattern
-                -- whenJust catchAll __IMPOSSIBLE__
-                -- We just drop the catch-all clause.  This is safe because
-                -- for record patterns we have expanded all the catch-alls.
-                return (xs, cc) -- mergeCatchAll cc catchAll)
-
-        -- case: more than one record patterns (impossible)
-        _    -> __IMPOSSIBLE__
+      catchAll <- traverse loop catchAll
+      litMap   <- traverse loop litMap
+      (conMap, eta) <-
+        let noEtaCase = (, Nothing) <$> (traverse . traverse) loop conMap in
+        case Map.toList conMap of
+          [(c, b)] | not comatch -> -- possible eta-match
+            getConstructorInfo c >>= \ case
+              RecordCon YesEta fs ->
+                let ch = ConHead c Inductive $ map unArg fs in
+                (Map.empty,) . Just . (ch,) <$> traverse loop b
+              _                   -> noEtaCase
+          _        -> noEtaCase
+      return $ Case i cs{ conBranches    = conMap
+                        , etaBranch      = eta
+                        , litBranches    = litMap
+                        , fallThrough    = fT
+                        , catchAllBranch = catchAll
+                        }
 
 {- UNUSED
 instance Monoid CompiledClauses where

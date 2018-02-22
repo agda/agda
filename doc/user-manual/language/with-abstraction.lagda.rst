@@ -27,7 +27,7 @@ With-Abstraction
    :depth: 2
    :local:
 
-With abstraction was first introduced by Conor McBride [McBride2004]_ and lets
+With-abstraction was first introduced by Conor McBride [McBride2004]_ and lets
 you pattern match on the result of an intermediate computation by effectively
 adding an extra argument to the left-hand side of your function.
 
@@ -77,7 +77,7 @@ where you have to spell out the left-hand side:
 - When the pattern matching on the intermediate result refines some of
   the other arguments (see :ref:`dot-patterns`).
 
-- To disambiguate the clauses of nested with abstractions (see
+- To disambiguate the clauses of nested with-abstractions (see
   :ref:`nested-with-abstractions` below).
 
 ..
@@ -125,7 +125,7 @@ following (with the goal types shown in the holes)
     module ellipsis-proof where
 
 In the cons case we have to prove that ``P`` holds for ``filter p xs | p x``.
-This is the syntax for a stuck with-abstraction--\ ``filter`` cannot reduce
+This is the syntax for a stuck with-abstraction---\ ``filter`` cannot reduce
 since we don't know the value of ``p x``. This syntax is used for printing, but
 is not accepted as valid Agda code. Now if we with-abstract over ``p x``, but
 don't pattern match on the result we get::
@@ -231,7 +231,7 @@ have to spell out the left-hand side and write
 Simultaneous abstraction
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can abstract over multiple terms in a single with abstraction. To do this
+You can abstract over multiple terms in a single with-abstraction. To do this
 you separate the terms with vertical bars (``|``).
 
 ::
@@ -330,7 +330,7 @@ lemma to the with-abstraction::
       proof n q    | suc fn | lem = lem q
 
 In this case the type of ``lemma n`` (``P (f n) → R``) is generalised over ``f
-n`` so in the right hand side of the last clause we have ``q : P (suc fn)`` and
+n`` so in the right-hand side of the last clause we have ``q : P (suc fn)`` and
 ``lem : P (suc fn) → R``.
 
 See :ref:`the-inspect-idiom` below for an alternative approach.
@@ -483,7 +483,7 @@ instance,
       ...                  | false with≡ eq = {! eq : p x ≡ false !}
 
 Here we get proofs that ``p x ≡ true`` and ``p x ≡ false`` in the respective
-branches that we can on use the right.  Note that since the with-abstraction is
+branches that we can use on the right.  Note that since the with-abstraction is
 over ``inspect (p x)`` rather than ``p x``, the goal and argument types are no
 longer generalised over ``p x``. To fix that we can replace the singleton type
 by a function graph type as follows (see :ref:`anonymous-modules` to learn
@@ -604,7 +604,7 @@ from above.
 Technical details
 -----------------
 
-Internally with-abstractions are translated to auxiliary functions--there are
+Internally with-abstractions are translated to auxiliary functions---there are
 no with-abstractions in the :ref:`core-language`. This translation proceeds as
 follows. Given a with-abstraction
 
