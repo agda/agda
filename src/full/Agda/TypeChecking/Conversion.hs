@@ -500,19 +500,22 @@ compareAtom cmp t m n =
                                 -- (same as for blocked terms)
             | otherwise -> do
                 [p1, p2] <- mapM getMetaPriority [x,y]
-                -- instantiate later meta variables first
+                -- First try the one with the highest priority. If that doesn't
+                -- work, try the low priority one.
                 let (solve1, solve2)
-                      | (p1,x) > (p2,y) = (l,r)
-                      | otherwise       = (r,l)
-                      where l = assign dir x xArgs n
-                            r = assign rid y yArgs m
+                      | (p1, x) > (p2, y) = (l1, r2)
+                      | otherwise         = (r1, l2)
+                      where l1 = assign dir x xArgs n
+                            r1 = assign rid y yArgs m
+                            -- Careful: the first attempt might prune the low
+                            -- priority meta! (Issue #2978)
+                            l2 = ifM (isInstantiatedMeta x) (compareTermDir dir t m n) l1
+                            r2 = ifM (isInstantiatedMeta y) (compareTermDir rid t n m) r1
 
                     try m h = m `catchError_` \err -> case err of
                       PatternErr{} -> h
                       _            -> throwError err
 
-                -- First try the one with the highest priority. If that doesn't
-                -- work, try the low priority one.
                 try solve1 solve2
 
         -- one side a meta, the other an unblocked term
