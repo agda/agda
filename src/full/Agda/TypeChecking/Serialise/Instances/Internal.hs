@@ -313,7 +313,7 @@ instance EmbPrj a => EmbPrj (WithArity a) where
   value = valueN WithArity
 
 instance EmbPrj a => EmbPrj (Case a) where
-  icod_ (Branches a b c d e) = icodeN' Branches a b c d e
+  icod_ (Branches a b c d e f) = icodeN' Branches a b c d e f
 
   value = valueN Branches
 

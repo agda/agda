@@ -93,6 +93,21 @@ match' ((c, es, patch) : stack) = do
           (es0, es1)     = splitAt n $ map (fmap $ fmap shared) es
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
+      -- splitting on an eta-record constructor
+      Case (Arg _ n) Branches{etaBranch = Just (c, cc), catchAllBranch = ca} ->
+        case splitAt n es of
+          (_, []) -> no (NotBlocked Underapplied) es
+          (es0, MaybeRed _ e@(Apply (Arg _ v0)) : es1) ->
+              let projs = [ MaybeRed NotReduced $ Apply $ defaultArg $ v0 `applyE` [Proj ProjSystem f] | f <- fs ]
+                  catchAllFrame stack = maybe stack (\c -> (c, es, patch) : stack) ca in
+              match' $ (content cc, es0 ++ projs ++ es1, patchEta) : catchAllFrame stack
+            where
+              fs = conFields c
+              patchEta es = patch (es0 ++ [e] ++ es1)
+                where (es0, es') = splitAt n es
+                      (_, es1)   = splitAt (length fs) es'
+          _ -> __IMPOSSIBLE__
+
       -- splitting on the @n@th elimination
       Case (Arg _ n) bs -> do
         case splitAt n es of

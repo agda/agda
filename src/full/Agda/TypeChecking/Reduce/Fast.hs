@@ -162,6 +162,9 @@ data FastCompiledClauses
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
+  | FEta Int [QName] FastCompiledClauses (Maybe FastCompiledClauses)
+    -- ^ Match on record constructor. Can still have a catch-all though. Just
+    --   contains the fields, not the actual constructor.
   | FDone [Arg ArgName] Term
     -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
@@ -177,10 +180,12 @@ fastCompiledClauses z s cc =
   case cc of
     Fail              -> FFail
     Done xs b         -> FDone xs b
+    Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchAllBranch = ca } ->
+      FEta n (conFields c) (fastCompiledClauses z s $ content cc) (fastCompiledClauses z s <$> ca)
     Case (Arg _ n) bs -> FCase n (fastCase z s bs)
 
 fastCase :: Maybe ConHead -> Maybe ConHead -> Case CompiledClauses -> FastCase FastCompiledClauses
-fastCase z s (Branches proj con lit wild _) =
+fastCase z s (Branches proj con _ lit wild _) =
   FBranches
     { fprojPatterns   = proj
     , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses z s . content) con
@@ -447,6 +452,20 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
                 doSubst es t = strictSubst useStrictSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
+
+            -- matching on an eta-record constructor
+            FEta n fs cc ca ->
+              case splitAt n es of
+                (_, []) -> no (NotBlocked Underapplied) es
+                (es0, MaybeRed _ e@(Apply (Arg _ v0)) : es1) ->
+                    let projs = [ MaybeRed NotReduced $ Apply $ defaultArg $ v0 `applyE` [Proj ProjSystem f] | f <- fs ]
+                        catchAllFrame stack = maybe stack (\c -> (c, es, patch) : stack) ca in
+                    match' steps f $ (cc, es0 ++ projs ++ es1, patchEta) : catchAllFrame stack
+                  where
+                    patchEta es = patch (es0 ++ [e] ++ es1)
+                      where (es0, es') = splitAt n es
+                            (_, es1)   = splitAt (length fs) es'
+                _ -> __IMPOSSIBLE__
 
             -- splitting on the @n@th elimination
             FCase n bs -> {-# SCC "match'Case" #-}

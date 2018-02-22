@@ -1241,9 +1241,10 @@ instance InstantiateFull a => InstantiateFull (WithArity a) where
   instantiateFull' (WithArity n a) = WithArity n <$> instantiateFull' a
 
 instance InstantiateFull a => InstantiateFull (Case a) where
-  instantiateFull' (Branches cop cs ls m lz) =
+  instantiateFull' (Branches cop cs eta ls m lz) =
     Branches cop
       <$> instantiateFull' cs
+      <*> instantiateFull' eta
       <*> instantiateFull' ls
       <*> instantiateFull' m
       <*> pure lz
@@ -1281,6 +1282,9 @@ instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
 
 instance InstantiateFull QName where
+  instantiateFull' = return
+
+instance InstantiateFull ConHead where
   instantiateFull' = return
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where

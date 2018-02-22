@@ -44,6 +44,9 @@ data Case c = Branches
   , conBranches    :: Map QName (WithArity c)
     -- ^ Map from constructor (or projection) names to their arity
     --   and the case subtree.  (Projections have arity 0.)
+  , etaBranch      :: Maybe (ConHead, WithArity c)
+    -- ^ Eta-expand with the given (eta record) constructor. If this is
+    --   present, there should not be any conBranches or litBranches.
   , litBranches    :: Map Literal c
     -- ^ Map from literal to case subtree.
   , catchAllBranch :: Maybe c
@@ -74,16 +77,19 @@ data CompiledClauses' a
 type CompiledClauses = CompiledClauses' Term
 
 litCase :: Literal -> c -> Case c
-litCase l x = Branches False Map.empty (Map.singleton l x) Nothing False
+litCase l x = Branches False Map.empty Nothing (Map.singleton l x) Nothing False
 
 conCase :: QName -> WithArity c -> Case c
-conCase c x = Branches False (Map.singleton c x) Map.empty Nothing False
+conCase c x = Branches False (Map.singleton c x) Nothing Map.empty Nothing False
+
+etaCase :: ConHead -> WithArity c -> Case c
+etaCase c x = Branches False Map.empty (Just (c, x)) Map.empty Nothing True
 
 projCase :: QName -> c -> Case c
-projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing False
+projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Nothing Map.empty Nothing False
 
 catchAll :: c -> Case c
-catchAll x = Branches False Map.empty Map.empty (Just x) False
+catchAll x = Branches False Map.empty Nothing Map.empty (Just x) False
 
 -- | Check that the requirements on lazy matching (single inductive case) are
 --   met, and set lazy to False otherwise.
@@ -115,20 +121,24 @@ instance (Semigroup c, Monoid c) => Monoid (WithArity c) where
   mappend = (<>)
 
 instance Semigroup m => Semigroup (Case m) where
-  Branches cop  cs  ls  m lazy <> Branches cop' cs' ls' m' lazy' = checkLazyMatch $
+  Branches cop cs eta ls m lazy <> Branches cop' cs' eta' ls' m' lazy' = checkLazyMatch $
     Branches (cop || cop') -- for @projCase <> mempty@
              (Map.unionWith (<>) cs cs')
+             (unionEta eta eta')
              (Map.unionWith (<>) ls ls')
              (m <> m')
              (lazy && lazy')
+    where unionEta Nothing b = b
+          unionEta b Nothing = b
+          unionEta Just{} Just{} = __IMPOSSIBLE__
 
 instance (Semigroup m, Monoid m) => Monoid (Case m) where
   mempty  = empty
   mappend = (<>)
 
 instance Null (Case m) where
-  empty = Branches False Map.empty Map.empty Nothing True
-  null (Branches _cop cs ls mcatch _lazy) = null cs && null ls && null mcatch
+  empty = Branches False Map.empty Nothing Map.empty Nothing True
+  null (Branches _cop cs eta ls mcatch _lazy) = null cs && null eta && null ls && null mcatch
 
 -- * Pretty instances.
 
@@ -136,13 +146,15 @@ instance Pretty a => Pretty (WithArity a) where
   pretty = pretty . content
 
 instance Pretty a => Pretty (Case a) where
-  prettyPrec p (Branches _cop cs ls m lazy) =
-    mparens (p > 0) $ prLazy lazy <+> vcat (prettyMap cs ++ prettyMap ls ++ prC m)
+  prettyPrec p (Branches _cop cs eta ls m lazy) =
+    mparens (p > 0) $ prLazy lazy <+> vcat (prettyMap cs ++ prEta eta ++ prettyMap ls ++ prC m)
     where
       prLazy True  = text "~"
       prLazy False = empty
       prC Nothing = []
       prC (Just x) = [text "_ ->" <+> pretty x]
+      prEta Nothing = []
+      prEta (Just (c, cc)) = [(text "eta" <+> pretty c <+> text "->") <?> pretty cc]
 
 prettyMap :: (Pretty k, Pretty v) => Map k v -> [Doc]
 prettyMap m = [ sep [ pretty k <+> text "->"
@@ -165,8 +177,9 @@ instance KillRange c => KillRange (WithArity c) where
   killRange = fmap killRange
 
 instance KillRange c => KillRange (Case c) where
-  killRange (Branches cop con lit all lazy) = Branches cop
+  killRange (Branches cop con eta lit all lazy) = Branches cop
     (killRangeMap con)
+    (killRange eta)
     (killRangeMap lit)
     (killRange all)
     lazy

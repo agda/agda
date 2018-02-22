@@ -5,6 +5,7 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
+import Control.Arrow (first, second)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
@@ -226,19 +227,21 @@ casetree cc = do
       -- if some arguments are not used in the body.
       v <- lift (putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v)
       substTerm v
-    CC.Case _ (CC.Branches True _ _ Just{} _) -> __IMPOSSIBLE__
+    CC.Case _ (CC.Branches True _ _ _ Just{} _) -> __IMPOSSIBLE__
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
       -- lift $ do
       --   typeError . GenericDocError =<< do
       --     text "Not yet implemented: compilation of copattern matching with catch-all clause"
-    CC.Case (Arg _ n) (CC.Branches True conBrs _ Nothing _) -> lambdasUpTo n $ do
+    CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
-    CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll lazy) -> lambdasUpTo (n + 1) $ do
-      if Map.null conBrs && Map.null litBrs then do
+    CC.Case (Arg _ n) (CC.Branches False conBrs etaBr litBrs catchAll lazy) -> lambdasUpTo (n + 1) $ do
+                    -- We can treat eta-matches as regular matches here.
+      let conBrs' = Map.union conBrs $ Map.fromList $ map (first conName) $ maybeToList etaBr
+      if Map.null conBrs' && Map.null litBrs then do
         -- there are no branches, just return default
         updateCatchAll catchAll fromCatchAll
       else do
-        caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
+        caseTy <- case (Map.keys conBrs', Map.keys litBrs) of
               ((c:_), []) -> do
                 c' <- lift (canonicalName c)
                 dtNm <- conData . theDef <$> lift (getConstInfo c')
@@ -253,7 +256,7 @@ casetree cc = do
           def <- fromCatchAll
           let caseInfo = C.CaseInfo { caseType = caseTy, caseLazy = lazy }
           C.TCase x caseInfo def <$> do
-            br1 <- conAlts n conBrs
+            br1 <- conAlts n conBrs'
             br2 <- litAlts n litBrs
             return (br1 ++ br2)
   where
@@ -268,8 +271,9 @@ commonArity cc =
     [] -> 0
     as -> minimum as
   where
-    arities cxt (Case (Arg _ x) (Branches False cons lits def _)) =
+    arities cxt (Case (Arg _ x) (Branches False cons eta lits def _)) =
       concatMap (wArities cxt') (Map.elems cons) ++
+      concatMap (wArities cxt') (map snd $ maybeToList eta) ++
       concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
       concat [ arities cxt' c | Just c <- [def] ] -- ??
       where cxt' = max (x + 1) cxt
