@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : ⊤ → Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-give-action 0 "(λ _ → zero)")
+(agda2-give-action 0 "(λ { unit → zero })")
 (agda2-status-action "")
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
