@@ -120,7 +120,3 @@ putStrLn∞ s =
 
 putStrLn : String → IO ⊤
 putStrLn s = putStrLn∞ (toCostring s)
-
--- Note that the commands writeFile, appendFile, putStr and putStrLn
--- perform two conversions (string → costring → Haskell list). It may
--- be preferable to only perform one conversion.

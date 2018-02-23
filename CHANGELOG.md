@@ -101,8 +101,6 @@ Non-backwards compatible changes
 
 #### Other
 
-* Removed support for GHC 7.8.4.
-
 * Renamed `Data.Container.FreeMonad.do` and `Data.Container.Indexed.FreeMonad.do`
   to `inn` as Agda 2.5.4 now supports proper 'do' notation.
 
@@ -121,11 +119,7 @@ Non-backwards compatible changes
 * Moved the proof `monoid` from `Data.List` to `++-monoid` in `Data.List.Properties`.
 
 * Names in Data.Nat.Divisibility now use the `divides` symbol (typed \\|) consistently.
-  Previously a mixture of `\\|` and `|` was used.
-
-* Starting from Agda 2.5.4 the GHC backend compiles `Coinduction.∞` in
-  a different way, and for this reason the GHC backend pragmas for
-  `Data.Colist.Colist` and `Data.Stream.Stream` have been modified.
+  Previously a mixture of \\| and | was used.
 
 Deprecated features
 -------------------
@@ -259,8 +253,6 @@ Backwards compatible changes
 ----------------------------
 
 * Added support for GHC 8.2.2.
-
-* New module `Data.Word` for new builtin type `Agda.Builtin.Word.Word64`.
 
 * New modules `Data.Table`, `Data.Table.Base`,
   `Data.Table.Relation.Equality` and `Data.Table.Properties`. A `Table` is a
@@ -1619,8 +1611,8 @@ Important changes since 0.9:
   different way than they used to.
 
 * The fixity of all `_∎` and `finally` operators, as well as
-  `Category.Monad.Partiality.All._⟨_⟩P`, was changed from `infix 2` to
-  `infix 3`.
+  `Category.Monad.Partiality.All._⟨_⟩P`, was changed from `infix 2` to
+  `infix 3`.
 
 * The fixity of `Category.Monad.Partiality._≟-Kind_`, `Data.AVL._∈?_`,
   `Data.AVL.IndexedMap._∈?_`, `Data.AVL.Sets._∈?_`, `Data.Bool._≟_`,
@@ -1628,28 +1620,28 @@ Important changes since 0.9:
   `Data.Nat.Divisibility._∣?_`, `Data.Sign._≟_`, `Data.String._≟_`,
   `Data.Unit._≟_`, `Data.Unit._≤?_` and
   `Data.Vec.Equality.DecidableEquality._≟_` was changed from the
-  default to `infix 4`.
+  default to `infix 4`.
 
 * The fixity of all `_≟<something>_` operators in `Reflection` is now
-  `infix 4` (some of them already had this fixity).
+  `infix 4` (some of them already had this fixity).
 
 * The fixity of `Algebra.Operations._×′_` was changed from the default
-  to `infixr 7`.
+  to `infixr 7`.
 
 * The fixity of `Data.Fin.#_` was changed from the default to
-  `infix 10`.
+  `infix 10`.
 
 * The fixity of `Data.Nat.Divisibility.1∣_` and `_∣0` was changed from
-  the default to `infix 10`.
+  the default to `infix 10`.
 
 * The fixity of `Data.Nat.DivMod._divMod_`, `_div_` and `_mod_` was
-  changed from the default to `infixl 7`.
+  changed from the default to `infixl 7`.
 
 * The fixity of `Data.Product.Σ-syntax` was changed from the default
-  to `infix 2`.
+  to `infix 2`.
 
 * The fixity of `Relation.Unary._~` was changed from the default to
-  `infix 10`.
+  `infix 10`.
 
 Version 0.9
 ===========
@@ -1667,12 +1659,12 @@ Important changes since 0.8.1:
 * Reflection API
 
   + Quoting levels was fixed. This fix could break some code (see Agda
-    Issue [#1207](https://github.com/agda/agda/issues/1269)).
+    Issue [#1207](https://github.com/agda/agda/issues/1269)).
 
   + The `Reflection.type` function returns a normalised
     `Reflection.Type` and `quoteTerm` returns an η-contracted
     `Reflection.Term` now. These changes could break some code (see
-    Agda Issue [#1269](https://github.com/agda/agda/issues/1269)).
+    Agda Issue [#1269](https://github.com/agda/agda/issues/1269)).
 
   + The primitive function for showing names, `primShowQName`, is now
     exposed as `Reflection.showName`.

@@ -43,11 +43,8 @@ data Colist {a} (A : Set a) : Set a where
   []  : Colist A
   _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
 
-{-# FOREIGN GHC
-  data AgdaColist a    = Nil | Cons a (MAlonzo.RTE.Inf (AgdaColist a))
-  type AgdaColist' l a = AgdaColist a
-  #-}
-{-# COMPILE GHC Colist = data AgdaColist' (Nil | Cons) #-}
+{-# FOREIGN GHC type AgdaColist a b = [b] #-}
+{-# COMPILE GHC Colist = data MAlonzo.Code.Data.Colist.AgdaColist ([] | (:)) #-}
 {-# COMPILE UHC Colist = data __LIST__ (__NIL__ | __CONS__) #-}
 
 module Colist-injective {a} {A : Set a} where

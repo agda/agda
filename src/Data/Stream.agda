@@ -21,10 +21,8 @@ infixr 5 _∷_
 data Stream {a} (A : Set a) : Set a where
   _∷_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 
-{-# FOREIGN GHC
-  data AgdaStream a = Cons a (MAlonzo.RTE.Inf (AgdaStream a))
-  #-}
-{-# COMPILE GHC Stream = data AgdaStream (Cons) #-}
+{-# FOREIGN GHC data AgdaStream a = Cons a (AgdaStream a) #-}
+{-# COMPILE GHC Stream = data MAlonzo.Code.Data.Stream.AgdaStream (MAlonzo.Code.Data.Stream.Cons) #-}
 
 ------------------------------------------------------------------------
 -- Some operations
