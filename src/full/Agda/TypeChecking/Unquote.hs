@@ -672,11 +672,11 @@ evalTCM v = do
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
       c <- unquote c
-      liftU1 inTopContext $ go c m
+      liftU1 inTopContext $ go c (evalTCM m)
       where
-        go :: [Arg R.Type] -> Term -> UnquoteM Term
-        go []       m = evalTCM m
-        go (a : as) m = extendCxt a $ go as m
+        go :: [Arg R.Type] -> UnquoteM Term -> UnquoteM Term
+        go []       m = m
+        go (a : as) m = go as (extendCxt a m)
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x
