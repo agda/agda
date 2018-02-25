@@ -440,6 +440,7 @@ library
                     Agda.Utils.Either
                     Agda.Utils.Favorites
                     Agda.Utils.FileName
+                    Agda.Utils.Float
                     Agda.Utils.Functor
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
