@@ -54,7 +54,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.CompiledClause (CompiledClauses'(..))
+import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 
@@ -367,7 +367,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funAbstr          = Info.defAbstract i
              , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
-             , funCopatternLHS   = isCopatternLHS cs
+             , funCopatternLHS   = hasProjectionPatterns cc
              }
 
         reportSDoc "tc.def.fun" 10 $ do

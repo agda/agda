@@ -1,0 +1,5 @@
+top_command (cmd_load currentFile [])
+top_command (cmd_compute_toplevel DefaultCompute "dup")
+top_command (cmd_compute_toplevel DefaultCompute "λ x → dup x")
+top_command (cmd_compute_toplevel DefaultCompute "dup'")
+top_command (cmd_compute_toplevel DefaultCompute "λ x → dup' x")

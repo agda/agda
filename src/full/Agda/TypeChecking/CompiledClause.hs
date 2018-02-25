@@ -113,6 +113,15 @@ hasCatchAll = getAny . loop
     Done{}    -> mempty
     Case _ br -> maybe (foldMap loop br) (const $ Any True) $ catchAllBranch br
 
+-- | Check whether a case tree has any projection patterns
+hasProjectionPatterns :: CompiledClauses -> Bool
+hasProjectionPatterns = getAny . loop
+  where
+  loop cc = case cc of
+    Fail{}    -> mempty
+    Done{}    -> mempty
+    Case _ br -> Any (projPatterns br) <> foldMap loop br
+
 instance Semigroup c => Semigroup (WithArity c) where
   WithArity n1 c1 <> WithArity n2 c2
     | n1 == n2  = WithArity n1 (c1 <> c2)

@@ -158,7 +158,7 @@ bindBuiltinFlat x =
                    , funProjection   = Just projection
                    , funMutual       = Just []
                    , funTerminates   = Just True
-                   , funCopatternLHS = isCopatternLHS [clause]
+                   , funCopatternLHS = hasProjectionPatterns cc
                    }
                 }
 

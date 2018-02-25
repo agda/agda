@@ -31,6 +31,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, forceSort, defineCompData, defineCompForFields )
@@ -594,7 +595,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 , funProjection     = Just projection
                 , funMutual         = Just []  -- Projections are not mutually recursive with anything
                 , funTerminates     = Just True
-                , funCopatternLHS   = isCopatternLHS [clause]
+                , funCopatternLHS   = hasProjectionPatterns cc
                 })
               { defArgOccurrences = [StrictPos] }
           computePolarity [projname]
