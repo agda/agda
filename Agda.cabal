@@ -173,7 +173,6 @@ library
                 , transformers >= 0.4.2.0 && < 0.6
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
-                , vector >= 0.12 && < 0.13
 
   -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
   if impl(ghc < 7.10.3)
