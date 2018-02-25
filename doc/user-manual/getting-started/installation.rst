@@ -16,6 +16,8 @@ There are several ways to install Agda:
   <installation-development-version>` from the Git `repository
   <https://github.com/agda/agda>`_
 
+Agda can be installed using different flags (see :ref:`installation-flags`).
+
 .. _installation-from-hackage:
 
 Installation from Hackage
@@ -185,3 +187,23 @@ the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
     .. code-block:: bash
 
       make install
+
+.. _installation-flags:
+
+Installation Flags
+==================
+
+When installing Agda the following flags can be used:
+
+:samp:`cpphs`
+   Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
+   cpp. Default: on.
+
+:samp:`debug`
+   Enable debugging features that may slow Agda down. Default: off.
+
+:samp:`flag enable-cluster-counting`
+   Enable the ``--count-clusters`` flag (see
+   :ref:`grapheme-clusters`). Note that if ``enable-cluster-counting``
+   is ``False``, then the ``--count-clusters`` flag triggers an error
+   message. Default: off.
