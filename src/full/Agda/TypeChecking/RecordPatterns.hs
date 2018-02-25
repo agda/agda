@@ -148,9 +148,9 @@ translateCompiledClauses cc = do
     loops :: Arg Int              -- ^ split variable
           -> Case CompiledClauses -- ^ original split tree
           -> TCM CompiledClauses
-    loops i Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- We're inserting this here
     loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap
+                       , etaBranch      = eta
                        , litBranches    = litMap
                        , fallThrough    = fT
                        , catchAllBranch = catchAll
@@ -158,16 +158,22 @@ translateCompiledClauses cc = do
 
       catchAll <- traverse loop catchAll
       litMap   <- traverse loop litMap
-      (conMap, eta) <-
-        let noEtaCase = (, Nothing) <$> (traverse . traverse) loop conMap in
+      (conMap, eta) <- do
+        let noEtaCase = (, Nothing) <$> (traverse . traverse) loop conMap
+            yesEtaCase ch b = (Map.empty,) . Just . (ch,) <$> traverse loop b
         case Map.toList conMap of
+              -- This is already an eta match. Still need to recurse though.
+              -- This can happen (#2981) when we
+              -- 'revisitRecordPatternTranslation' in Rules.Decl, due to
+              -- inferred eta.
+          _ | Just (ch, b) <- eta -> yesEtaCase ch b
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo c >>= \ case
               RecordCon YesEta fs ->
                 let ch = ConHead c Inductive $ map unArg fs in
-                (Map.empty,) . Just . (ch,) <$> traverse loop b
-              _                   -> noEtaCase
-          _        -> noEtaCase
+                yesEtaCase ch b
+              _ -> noEtaCase
+          _ -> noEtaCase
       return $ Case i cs{ conBranches    = conMap
                         , etaBranch      = eta
                         , litBranches    = litMap
