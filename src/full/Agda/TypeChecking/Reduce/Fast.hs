@@ -766,12 +766,15 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
           case spine of
-            Apply v : spine' ->
-              case b of
-                Abs   _ b -> runAM (evalClosure b (unArg v `extendEnv` env) spine' ctrl)
-                NoAbs _ b -> runAM (evalClosure b env spine' ctrl)
             [] -> runAM done
-            _ -> __IMPOSSIBLE__
+            elim : spine' ->
+              case b of
+                Abs   _ b -> runAM (evalClosure b (getArg elim `extendEnv` env) spine' ctrl)
+                NoAbs _ b -> runAM (evalClosure b env spine' ctrl)
+          where
+            getArg (Apply v)      = unArg v
+            getArg (IApply _ _ v) = v
+            getArg Proj{}         = __IMPOSSIBLE__
 
         -- Case: values. Literals and function types are already in weak-head normal form.
         Lit{} -> runAM done
@@ -913,7 +916,12 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
           -- Case: not constructor or literal. In this case we are stuck.
           _ -> stuck
       where
-        stuck = do
+        -- If ffallThrough is set we take the catch-all (if any) rather than being stuck. I think
+        -- this happens for partial functions with --cubical (@saizan: is this true?).
+        stuck | ffallThrough bs = matchCatchall reallyStuck
+              | otherwise       = reallyStuck
+
+        reallyStuck = do
             -- Compute new reason for being stuck. See Agda.Syntax.Internal.stuckOn for the logic.
             blk' <- case blk of
                       Blocked{}      -> return blk
