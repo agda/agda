@@ -609,21 +609,21 @@ decodeClosure (Closure isV t env spine) = do
 --   thunks for all the 'Apply' elims.
 elimsToSpine :: Env s -> Elims -> ST s (Spine s)
 elimsToSpine env es = do
-    spine <- (traverse . traverse) createThunk closures
+    spine <- (traverse . traverse) thunk es
     forceSpine spine `seq` return spine
   where
-    closures = (map . fmap) (mkClosure env) es
-
     -- Need to be strict in mkClosure to avoid memory leak
     forceSpine = foldl (\ () -> forceEl) ()
     forceEl (Apply (Arg _ (Pure Closure{}))) = ()
     forceEl (Apply (Arg _ (Pointer{})))      = ()
     forceEl _                                = ()
 
-    -- Dropping the environment for naked defs and cons is mostly to make debug traces less verbose.
-    mkClosure _   t@(Def f [])   = Closure Unevaled t emptyEnv []
-    mkClosure _   t@(Con c i []) = Closure Unevaled t emptyEnv []
-    mkClosure env t              = Closure Unevaled t env []
+    -- Dropping the environment for naked defs/cons and going straight for a value for literals is
+    -- mostly to make debug traces less verbose and doesn't really buy anything performance-wise.
+    thunk t@(Def _ [])   = createThunk (Closure Unevaled t emptyEnv [])
+    thunk t@(Con _ _ []) = createThunk (Closure Unevaled t emptyEnv [])
+    thunk t@Lit{}        = return $ Pure (Closure (Value $ notBlocked ()) t emptyEnv [])
+    thunk t              = createThunk (Closure Unevaled t env [])
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.
 --   Returns a triple containing
@@ -771,7 +771,9 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             _ -> __IMPOSSIBLE__
 
         -- Case: values. Literals and function types are already in weak-head normal form.
-        Lit{} -> runAM done
+        -- We throw away the environment for literals mostly to make debug printing less verbose.
+        -- And we know the spine is empty since literals cannot be applied or projected.
+        Lit{} -> runAM (evalTrueValue t emptyEnv [] ctrl)
         Pi{}  -> runAM done
 
         -- Case: non-empty spine. If the focused term has a non-empty spine, we shift the
@@ -975,8 +977,6 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
         FDone xs body -> do
             -- Don't ask me why, but not being strict in the spine causes a memory leak.
             let (zs, env, !spine') = buildEnv xs spine
-            -- case body of  -- Shortcut for when the right-hand side is a naked variable.
-            --   Var x [] | null zs -> evalPointerAM (lookupEnv_ x env) spine' ctrl
             runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
 
         -- A record pattern match. This does not block evaluation (since that would violate eta
