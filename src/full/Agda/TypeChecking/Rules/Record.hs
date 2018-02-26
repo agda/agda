@@ -320,6 +320,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
 
+    -- Case: projection.
     checkProjs ftel1 (ExtendTel (Dom ai t) ftel2) (A.Field info x _ : fs) =
       traceCall (CheckProjection (getRange info) x t) $ do
       -- Andreas, 2012-06-07:
@@ -471,6 +472,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
         recurse
 
+    -- Case: definition.
     checkProjs ftel1 ftel2 (d : fs) = do
       checkDecl d
       checkProjs ftel1 ftel2 fs
