@@ -212,17 +212,17 @@ module _ {a b ℓ} {A : Set a} {B : Set b} {P : A → Set ℓ} where
 module _ {a} {A : Set a} where
 
   ≡⇒Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
-                    Pointwise _≡_ xs ys → xs ≡ ys
-  ≡⇒Pointwise-≡ []                = P.refl
+                  Pointwise _≡_ xs ys → xs ≡ ys
+  ≡⇒Pointwise-≡ []               = P.refl
   ≡⇒Pointwise-≡ (P.refl ∷ xs~ys) = P.cong (_ ∷_) (≡⇒Pointwise-≡ xs~ys)
 
   Pointwise-≡⇒≡ : ∀ {n} {xs ys : Vec A n} →
-                     xs ≡ ys → Pointwise _≡_ xs ys
+                  xs ≡ ys → Pointwise _≡_ xs ys
   Pointwise-≡⇒≡ P.refl = refl P.refl
 
-  ≡⇔Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
-                Pointwise _≡_ xs ys ⇔ xs ≡ ys
-  ≡⇔Pointwise-≡ = equivalence ≡⇒Pointwise-≡ Pointwise-≡⇒≡
+  Pointwise-≡↔≡ : ∀ {n} {xs ys : Vec A n} →
+                  Pointwise _≡_ xs ys ⇔ xs ≡ ys
+  Pointwise-≡↔≡ = equivalence ≡⇒Pointwise-≡ Pointwise-≡⇒≡
 
 ------------------------------------------------------------------------
 -- DEPRECATED NAMES
@@ -230,4 +230,4 @@ module _ {a} {A : Set a} where
 -- Please use the new names as continuing support for the old names is
 -- not guaranteed.
 
-Pointwise-≡ = ≡⇔Pointwise-≡
+Pointwise-≡ = Pointwise-≡↔≡

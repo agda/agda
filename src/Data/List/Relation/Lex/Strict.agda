@@ -7,16 +7,16 @@
 -- The definitions of lexicographic ordering used here are suitable if
 -- the argument order is a strict partial order.
 
-module Data.List.Relation.StrictLex where
+module Data.List.Relation.Lex.Strict where
 
-open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Empty using (⊥)
 open import Data.Unit.Base using (⊤; tt)
-open import Function using (_∘_; flip; id)
+open import Function using (_∘_; id)
 open import Data.Product using (_,_)
 open import Data.Sum using (inj₁; inj₂)
 open import Data.List.Base using (List; []; _∷_)
 open import Level using (_⊔_)
-open import Relation.Nullary using (Dec; yes; no; ¬_)
+open import Relation.Nullary using (yes; no; ¬_)
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Data.List.Relation.Pointwise as Pointwise

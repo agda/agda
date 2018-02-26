@@ -134,9 +134,9 @@ module _ {a} {A : Set a} where
                      xs ≡ ys → Pointwise _≡_ xs ys
   ≡⇒Pointwise-≡ P.refl = refl P.refl
 
-  ≡⇔Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
+  Pointwise-≡↔≡ : ∀ {n} {xs ys : Vec A n} →
                 Pointwise _≡_ xs ys ⇔ xs ≡ ys
-  ≡⇔Pointwise-≡ {ℓ} {A} =
+  Pointwise-≡↔≡ {ℓ} {A} =
     Equiv.equivalence Pointwise-≡⇒≡ ≡⇒Pointwise-≡
 
 ------------------------------------------------------------------------
@@ -215,4 +215,4 @@ private
 -- Please use the new names as continuing support for the old names is
 -- not guaranteed.
 
-Pointwise-≡ = ≡⇔Pointwise-≡
+Pointwise-≡ = Pointwise-≡↔≡

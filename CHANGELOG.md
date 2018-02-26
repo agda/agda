@@ -43,7 +43,7 @@ Non-backwards compatible changes
   vectors with different lengths (although in practice the lengths must turn out to be equal). This
   allows a much wider range of proofs such as the fact that `[]` is a right identity for `_++_`
   which was previously not possible to prove using the old definition.
-  
+
 * `Data.Vec.Equality` has been almost entirely reworked into four separate modules
   inside `Data.Vec.Relation.Equality` (namely `Setoid`, `DecSetoid`, `Propositional`
   and `DecPropositional`). All four of them now use `Data.Vec.Relation.Pointwise.Inductive`
@@ -205,7 +205,7 @@ anticipated any time soon, they may eventually be removed in some future release
   Rel    ↦ Pointwise
   Rel≡⇒≡ ↦ Pointwise-≡⇒≡
   ≡⇒Rel≡ ↦ ≡⇒Pointwise-≡
-  Rel↔≡  ↦ Pointwise-≡⇔≡
+  Rel↔≡  ↦ Pointwise-≡↔≡
   ```
 
 * In `Data.Nat.Properties`:
@@ -230,12 +230,12 @@ anticipated any time soon, they may eventually be removed in some future release
 
 * In `Data.Vec.Relation.Pointwise.Inductive`:
   ```agda
-  Pointwise-≡ ↦ ≡⇔Pointwise-≡
+  Pointwise-≡ ↦ Pointwise-≡↔≡
   ```
 
 * In `Data.Vec.Relation.Pointwise.Extensional`:
   ```agda
-  Pointwise-≡ ↦ ≡⇔Pointwise-≡
+  Pointwise-≡ ↦ Pointwise-≡↔≡
   ```
 
 * In `Induction.Nat`:

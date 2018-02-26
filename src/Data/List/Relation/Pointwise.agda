@@ -218,8 +218,8 @@ module _ {a} {A : Set a} where
   ≡⇒Pointwise-≡ :  _≡_ ⇒ Pointwise {A = A} _≡_
   ≡⇒Pointwise-≡ P.refl = refl P.refl
 
-  Pointwise-≡⇔≡ : Inverse (setoid (P.setoid A)) (P.setoid (List A))
-  Pointwise-≡⇔≡ = record
+  Pointwise-≡↔≡ : Inverse (setoid (P.setoid A)) (P.setoid (List A))
+  Pointwise-≡↔≡ = record
     { to         = record { _⟨$⟩_ = id; cong = Pointwise-≡⇒≡ }
     ; from       = record { _⟨$⟩_ = id; cong = ≡⇒Pointwise-≡ }
     ; inverse-of = record
@@ -242,4 +242,4 @@ module _ {a} {A : Set a} where
 Rel    = Pointwise
 Rel≡⇒≡ = Pointwise-≡⇒≡
 ≡⇒Rel≡ = ≡⇒Pointwise-≡
-Rel↔≡  = Pointwise-≡⇔≡
+Rel↔≡  = Pointwise-≡↔≡

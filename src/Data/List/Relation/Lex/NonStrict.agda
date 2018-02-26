@@ -7,15 +7,15 @@
 -- The definitions of lexicographic orderings used here is suitable if
 -- the argument order is a (non-strict) partial order.
 
-module Data.List.Relation.NonStrictLex where
+module Data.List.Relation.Lex.NonStrict where
 
-open import Data.Empty
+open import Data.Empty using (⊥)
 open import Function
 open import Data.Unit.Base using (⊤; tt)
 open import Data.Product
 open import Data.List.Base
 open import Data.List.Relation.Pointwise using (Pointwise; [])
-import Data.List.Relation.StrictLex as Strict
+import Data.List.Relation.Lex.Strict as Strict
 open import Level
 open import Relation.Nullary
 open import Relation.Binary

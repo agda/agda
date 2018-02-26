@@ -25,6 +25,7 @@ open import Data.Nat using (zero; suc; _<_; z≤n; s≤s)
 open import Data.Product as Prod
   using (_×_; _,_; ∃; ∃₂; proj₁; proj₂; uncurry′)
 open import Data.Product.Relation.Pointwise
+  using (_×-cong_)
 import Data.Product.Relation.SigmaPointwise as Σ
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Data.Sum.Relation.General
