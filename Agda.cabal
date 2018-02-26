@@ -166,9 +166,9 @@ library
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
 
--- In hTags the mtl library must be compiled with the version of
--- transformers shipped with GHC, so we use that version in Agda (see,
--- for example, Issue 2983).
+  -- In hTags the mtl library must be compiled with the version of
+  -- transformers shipped with GHC, so we use that version in Agda (see,
+  -- for example, Issue 2983).
   if impl(ghc >= 8.4)
     build-depends: transformers == 0.5.5.0
 
