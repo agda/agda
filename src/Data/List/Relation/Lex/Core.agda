@@ -14,8 +14,8 @@ open import Data.List.Base using (List; []; _∷_)
 open import Level using (_⊔_)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Relation.Binary
-open import Data.List.Relation.Pointwise as Pointwise
-   using ([]; _∷_; head; tail)
+open import Data.List.Relation.Pointwise
+   using (Pointwise; []; _∷_; head; tail)
 
 -- The lexicographic ordering itself can be either strict or non-strict,
 -- depending on whether type P is inhabited.
@@ -34,7 +34,7 @@ module _ {a ℓ₁ ℓ₂} {A : Set a} {P : Set}
          {_≈_ : Rel A ℓ₁} {_≺_ : Rel A ℓ₂} where
 
   private
-    _≋_ = Pointwise.Rel _≈_
+    _≋_ = Pointwise _≈_
     _<_ = Lex P _≈_ _≺_
 
   ¬≤-this : ∀ {x y xs ys} → ¬ (x ≈ y) → ¬ (x ≺ y) →

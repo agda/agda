@@ -14,14 +14,15 @@ open import Function
 open import Data.Unit.Base using (⊤; tt)
 open import Data.Product
 open import Data.List.Base
+open import Data.List.Relation.Pointwise using (Pointwise; [])
+import Data.List.Relation.StrictLex as Strict
 open import Level
 open import Relation.Nullary
 open import Relation.Binary
-
 import Relation.Binary.NonStrictToStrict as Conv
-import Data.List.Relation.StrictLex as Strict
 
-open import Data.List.Relation.Pointwise as Pointwise using ([])
+------------------------------------------------------------------------
+-- Publically re-export definitions from Core
 
 open import Data.List.Relation.Lex.Core as Core public
   using (base; halt; this; next; ¬≤-this; ¬≤-next)
@@ -39,7 +40,7 @@ module _ {a ℓ₁ ℓ₂} {A : Set a} where
   module _ {_≈_ : Rel A ℓ₁} {_≼_ : Rel A ℓ₂} where
 
     private
-      _≋_ = Pointwise.Rel _≈_
+      _≋_ = Pointwise _≈_
       _<_ = Lex-< _≈_ _≼_
 
     <-irreflexive : Irreflexive _≋_ _<_
@@ -110,14 +111,14 @@ module _ {a ℓ₁ ℓ₂} {A : Set a} where
   Lex-≤ : (_≈_ : Rel A ℓ₁) (_≼_ : Rel A ℓ₂) → Rel (List A) (ℓ₁ ⊔ ℓ₂)
   Lex-≤ _≈_ _≼_ = Core.Lex ⊤ _≈_ (Conv._<_ _≈_ _≼_)
 
-  ≤-reflexive : ∀ _≈_ _≼_ → Pointwise.Rel _≈_ ⇒ Lex-≤ _≈_ _≼_
+  ≤-reflexive : ∀ _≈_ _≼_ → Pointwise _≈_ ⇒ Lex-≤ _≈_ _≼_
   ≤-reflexive _≈_ _≼_ = Strict.≤-reflexive _≈_ (Conv._<_ _≈_ _≼_)
 
   -- Properties
   module _ {_≈_ : Rel A ℓ₁} {_≼_ : Rel A ℓ₂} where
 
     private
-      _≋_ = Pointwise.Rel _≈_
+      _≋_ = Pointwise _≈_
       _≤_ = Lex-≤ _≈_ _≼_
 
     ≤-antisymmetric : Symmetric _≈_ → Antisymmetric _≈_ _≼_ →

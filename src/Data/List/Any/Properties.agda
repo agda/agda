@@ -20,7 +20,7 @@ open import Data.List.Categorical using (monad)
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Membership.Propositional
 open import Data.List.Relation.Pointwise
-  using ([]; _∷_) renaming (Rel to ListRel)
+  using (Pointwise; []; _∷_)
 open import Data.Nat using (zero; suc; _<_; z≤n; s≤s)
 open import Data.Product as Prod
   using (_×_; _,_; ∃; ∃₂; proj₁; proj₂; uncurry′)
@@ -48,7 +48,7 @@ private
 -- respects the list equality.
 
 lift-resp : ∀ {a p ℓ} {A : Set a} {P : A → Set p} {_≈_ : Rel A ℓ} →
-            P Respects _≈_ → Any P Respects (ListRel _≈_)
+            P Respects _≈_ → (Any P) Respects (Pointwise _≈_)
 lift-resp resp []            ()
 lift-resp resp (x≈y ∷ xs≈ys) (here px)   = here (resp x≈y px)
 lift-resp resp (x≈y ∷ xs≈ys) (there pxs) =

@@ -11,13 +11,14 @@ module Algebra.Monoid-solver {m₁ m₂} (M : Monoid m₁ m₂) where
 open import Data.Fin
 import Data.Fin.Properties as Fin
 open import Data.List.Base hiding (lookup)
-import Data.List.Relation.Pointwise as Pointwise
+import Data.List.Relation.Equality.DecPropositional as ListEq
 open import Data.Maybe as Maybe
   using (Maybe; decToMaybe; From-just; from-just)
 open import Data.Nat.Base using (ℕ)
 open import Data.Product
 open import Data.Vec using (Vec; lookup)
 open import Function using (_∘_; _$_)
+open import Relation.Binary using (Decidable)
 import Relation.Binary.EqReasoning
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 import Relation.Binary.Reflection
@@ -111,9 +112,9 @@ open module R = Relation.Binary.Reflection
 
 infix 5 _≟_
 
-_≟_ : ∀ {n} (nf₁ nf₂ : Normal n) → Dec (nf₁ ≡ nf₂)
-nf₁ ≟ nf₂ = Dec.map′ Rel≡⇒≡ ≡⇒Rel≡ (decidable Fin._≟_ nf₁ nf₂)
-  where open Pointwise
+_≟_ : ∀ {n} → Decidable {A = Normal n} _≡_
+nf₁ ≟ nf₂ = Dec.map′ ≋⇒≡ ≡⇒≋ (nf₁ ≋? nf₂)
+  where open ListEq Fin._≟_
 
 -- We can also give a sound, but not necessarily complete, procedure
 -- for determining if two expressions have the same semantics.
