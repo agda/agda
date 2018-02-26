@@ -4,13 +4,13 @@
 -- Extensional pointwise lifting of relations to vectors
 ------------------------------------------------------------------------
 
-module Data.Vec.Relation.ExtensionalPointwise where
+module Data.Vec.Relation.Pointwise.Extensional where
 
 open import Data.Fin using (zero; suc)
 open import Data.Nat using (zero; suc)
 open import Data.Plus as Plus hiding (equivalent; map)
 open import Data.Vec as Vec hiding ([_]; head; tail; map)
-open import Data.Vec.Relation.InductivePointwise as InductivePointwise
+open import Data.Vec.Relation.Pointwise.Inductive as Inductive
   using ([]; _∷_)
   renaming (Pointwise to IPointwise)
 open import Function using (_∘_)
@@ -56,9 +56,8 @@ gmap {_~′_ = _~′_} ~⇒~′ {x ∷ xs} {y ∷ ys} xs~ys = ext λ
   }
 
 ------------------------------------------------------------------------
--- Properties
-
 -- The inductive and extensional definitions are equivalent.
+
 module _ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ} where
 
   extensional⇒inductive : ∀ {n} {xs : Vec A n} {ys : Vec B n} →
@@ -79,7 +78,13 @@ module _ {a b ℓ} {A : Set a} {B : Set b} {_~_ : REL A B ℓ} where
                Pointwise _~_ xs ys ⇔ IPointwise _~_ xs ys
   equivalent = equivalence extensional⇒inductive inductive⇒extensional
 
--- "REL" properties preserved by "Pointwise"
+------------------------------------------------------------------------
+-- Relational properties
+
+refl : ∀ {a ℓ} {A : Set a} {_~_ : Rel A ℓ} →
+       ∀ {n} → Reflexive _~_ → Reflexive (Pointwise _~_ {n = n})
+refl ~-rfl = ext (λ _ → ~-rfl)
+
 sym : ∀ {a b ℓ} {A : Set a} {B : Set b} {P : REL A B ℓ} {Q : REL B A ℓ}
       {n} → Sym P Q → Sym (Pointwise P) (Pointwise Q {n = n})
 sym sm xs∼ys = ext λ i → sm (Pointwise.app xs∼ys i)
@@ -95,39 +100,28 @@ decidable : ∀ {a b ℓ} {A : Set a} {B : Set b} {_∼_ : REL A B ℓ} →
             Decidable _∼_ → ∀ {n} → Decidable (Pointwise _∼_ {n = n})
 decidable dec xs ys = Dec.map
   (Setoid.sym (⇔-setoid _) equivalent)
-  (InductivePointwise.decidable dec xs ys)
+  (Inductive.decidable dec xs ys)
 
--- "Rel" properties preserved by "Pointwise"
-module _ {a ℓ} {A : Set a} {_~_ : Rel A ℓ} where
+isEquivalence : ∀ {a ℓ} {A : Set a} {_~_ : Rel A ℓ} →
+                ∀ {n} → IsEquivalence _~_ →
+                IsEquivalence (Pointwise _~_ {n = n})
+isEquivalence equiv = record
+  { refl  = refl  (IsEquivalence.refl  equiv)
+  ; sym   = sym   (IsEquivalence.sym   equiv)
+  ; trans = trans (IsEquivalence.trans equiv)
+  }
 
-  refl : ∀ {n} → Reflexive _~_ →
-         Reflexive (Pointwise _~_ {n = n})
-  refl ~-rfl = ext (λ _ → ~-rfl)
+isDecEquivalence : ∀ {a ℓ} {A : Set a} {_~_ : Rel A ℓ} →
+                   ∀ {n} → IsDecEquivalence _~_ →
+                   IsDecEquivalence (Pointwise _~_ {n = n})
+isDecEquivalence decEquiv = record
+  { isEquivalence = isEquivalence (IsDecEquivalence.isEquivalence decEquiv)
+  ; _≟_           = decidable (IsDecEquivalence._≟_ decEquiv)
+  }
 
-  symmetric : ∀ {n} → Symmetric _~_ →
-              Symmetric (Pointwise _~_ {n = n})
-  symmetric = sym
-
-  transitive : ∀ {n} → Transitive _~_ →
-               Transitive (Pointwise _~_ {n = n})
-  transitive = trans
-
-  isEquivalence : ∀ {n} → IsEquivalence _~_ →
-                  IsEquivalence (Pointwise _~_ {n = n})
-  isEquivalence equiv = record
-    { refl  = refl  (IsEquivalence.refl  equiv)
-    ; sym   = sym   (IsEquivalence.sym   equiv)
-    ; trans = trans (IsEquivalence.trans equiv)
-    }
-
-  isDecEquivalence : ∀ {n} → IsDecEquivalence _~_ →
-                     IsDecEquivalence (Pointwise _~_ {n = n})
-  isDecEquivalence decEquiv = record
-    { isEquivalence = isEquivalence (IsDecEquivalence.isEquivalence decEquiv)
-    ; _≟_           = decidable (IsDecEquivalence._≟_ decEquiv)
-    }
-
+------------------------------------------------------------------------
 -- Pointwise _≡_ is equivalent to _≡_.
+
 module _ {a} {A : Set a} where
 
   Pointwise-≡⇒≡ : ∀ {n} {xs ys : Vec A n} →
@@ -140,11 +134,12 @@ module _ {a} {A : Set a} where
                      xs ≡ ys → Pointwise _≡_ xs ys
   ≡⇒Pointwise-≡ P.refl = refl P.refl
 
-  Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
+  ≡⇔Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
                 Pointwise _≡_ xs ys ⇔ xs ≡ ys
-  Pointwise-≡ {ℓ} {A} =
+  ≡⇔Pointwise-≡ {ℓ} {A} =
     Equiv.equivalence Pointwise-≡⇒≡ ≡⇒Pointwise-≡
 
+------------------------------------------------------------------------
 -- Pointwise and Plus commute when the underlying relation is
 -- reflexive.
 module _ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} where
@@ -167,7 +162,7 @@ module _ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} where
              IPointwise (Plus _∼_) xs ys → Plus (IPointwise _∼_) xs ys
     helper []                                                  = [ [] ]
     helper (_∷_ {x = x} {y = y} {xs = xs} {ys = ys} x∼y xs∼ys) =
-      x ∷ xs  ∼⁺⟨ Plus.map (_∷ InductivePointwise.refl rfl) x∼y ⟩
+      x ∷ xs  ∼⁺⟨ Plus.map (_∷ Inductive.refl rfl) x∼y ⟩
       y ∷ xs  ∼⁺⟨ Plus.map (rfl ∷_) (helper xs∼ys) ⟩∎
       y ∷ ys  ∎
 
@@ -214,3 +209,10 @@ private
                Plus.map (_⟨$⟩_ (Equivalence.to equivalent))
                  (∙⁺⇒⁺∙ (Equivalence.from equivalent ⟨$⟩ ix∙⁺jz)))
 
+------------------------------------------------------------------------
+-- DEPRECATED NAMES
+------------------------------------------------------------------------
+-- Please use the new names as continuing support for the old names is
+-- not guaranteed.
+
+Pointwise-≡ = ≡⇔Pointwise-≡

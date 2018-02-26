@@ -10,8 +10,7 @@ open import Function
 import Data.Bool as Bool
 open import Data.Nat.Base hiding (_<_)
 open import Data.Vec hiding (_∈_)
-open import Data.Vec.Relation.Equality as VecEq
-  using () renaming (module PropositionalEquality to PropVecEq)
+open import Data.Vec.Relation.Equality.DecPropositional Bool._≟_
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Fin.Subset.Properties
@@ -20,7 +19,6 @@ open import Data.Empty
 open import Function
 import Function.Equivalence as Eq
 open import Relation.Binary as B
-import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary as U using (Pred)
@@ -31,8 +29,8 @@ _∈?_ : ∀ {n} x (p : Subset n) → Dec (x ∈ p)
 zero  ∈? inside  ∷ p = yes here
 zero  ∈? outside ∷ p = no  λ()
 suc n ∈? s ∷ p       with n ∈? p
-...                  | yes n∈p = yes (there n∈p)
-...                  | no  n∉p = no  (n∉p ∘ drop-there)
+... | yes n∈p = yes (there n∈p)
+... | no  n∉p = no  (n∉p ∘ drop-there)
 
 private
 
@@ -169,7 +167,5 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 infix 4 _⊆?_
 
 _⊆?_ : ∀ {n} → B.Decidable (_⊆_ {n = n})
-p₁ ⊆? p₂ =
-  Dec.map (Eq.sym NaturalPoset.orders-equivalent) $
-  Dec.map′ PropVecEq.to-≡ PropVecEq.from-≡ $
-  VecEq.DecidableEquality._≟_ Bool.decSetoid p₁ (p₁ ∩ p₂)
+p₁ ⊆? p₂ = Dec.map (Eq.sym NaturalPoset.orders-equivalent) $
+  Dec.map′ ≋⇒≡ ≡⇒≋ (p₁ ≋? (p₁ ∩ p₂))

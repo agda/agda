@@ -18,30 +18,6 @@ open import Data.Vec
 open import Function
 open import Function.Inverse using (_↔_)
 open import Relation.Binary
-
-module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where
-
-  private module SS = Setoid S
-  open SS using () renaming (Carrier to A)
-  import Data.Vec.Relation.Equality as VecEq
-  open VecEq.Equality S
-
-  replicate-lemma : ∀ {m} n x (xs : Vec A m) →
-                    replicate {n = n}     x ++ (x ∷ xs) ≈
-                    replicate {n = 1 + n} x ++      xs
-  replicate-lemma zero    x xs = refl (x ∷ xs)
-  replicate-lemma (suc n) x xs = SS.refl ∷-cong replicate-lemma n x xs
-
-  xs++[]=xs : ∀ {n} (xs : Vec A n) → xs ++ [] ≈ xs
-  xs++[]=xs []       = []-cong
-  xs++[]=xs (x ∷ xs) = SS.refl ∷-cong xs++[]=xs xs
-
-  map-++-commute : ∀ {b m n} {B : Set b}
-                   (f : B → A) (xs : Vec B m) {ys : Vec B n} →
-                   map f (xs ++ ys) ≈ map f xs ++ map f ys
-  map-++-commute f []       = refl _
-  map-++-commute f (x ∷ xs) = SS.refl ∷-cong map-++-commute f xs
-
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; refl; _≗_)
 open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)

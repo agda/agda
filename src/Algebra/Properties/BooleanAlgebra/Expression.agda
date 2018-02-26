@@ -22,7 +22,7 @@ open import Data.Product using (_,_; proj₁; proj₂)
 open import Data.Vec as Vec using (Vec)
 import Data.Vec.Categorical as VecCat
 open import Data.Vec.Properties using (lookup-map)
-open import Data.Vec.Relation.ExtensionalPointwise as PW
+open import Data.Vec.Relation.Pointwise.Extensional as PW
   using (Pointwise; module Pointwise; ext)
 open import Function
 open import Relation.Binary.PropositionalEquality as P using (_≗_)

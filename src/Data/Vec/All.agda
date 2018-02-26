@@ -7,7 +7,6 @@
 module Data.Vec.All where
 
 open import Data.Vec as Vec using (Vec; []; _∷_; zip)
-open import Data.Vec.Properties using (lookup-zip)
 open import Data.Fin using (Fin; zero; suc)
 open import Function using (_∘_)
 open import Level using (_⊔_)
