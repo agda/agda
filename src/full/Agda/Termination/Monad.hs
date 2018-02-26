@@ -459,7 +459,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
             reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive; record type is " ++ prettyShow r
             if not mustBeRecursive then return True else do
               reportSLn "term.guardedness" 40 $ prettyShow q ++ " must be recursive"
-              if not (recRecursive rdef) then return False else do
+              if not (safeRecRecursive rdef) then return False else do
                 reportSLn "term.guardedness" 40 $ prettyShow q ++ " has been declared recursive, doing actual check now..."
                 -- TODO: the following test for recursiveness of a projection should be cached.
                 -- E.g., it could be stored in the @Projection@ component.
@@ -488,6 +488,25 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
       _ -> do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
         return False
+  where
+  -- Andreas, 2018-02-24, issue #2975, example:
+  -- @
+  -- record R : Set where
+  --   coinductive
+  --   field force : R
+
+  --   r : R
+  --   force r = r
+  -- @
+  -- The termination checker expects the positivity checker to have run on the
+  -- record declaration R to know whether R is recursive.
+  -- However, here, because the awkward processing of record declarations (see #434),
+  -- that has not happened.  To avoid crashing (as in Agda 2.5.3),
+  -- we rather give the possibly wrong answer here,
+  -- restoring the behavior of Agda 2.5.2.  TODO: fix record declaration checking.
+  safeRecRecursive :: Defn -> Bool
+  safeRecRecursive (Record { recMutual = Just qs }) = not $ null qs
+  safeRecRecursive _ = False
 
 -- * De Bruijn pattern stuff
 
