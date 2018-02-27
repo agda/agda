@@ -36,7 +36,7 @@ Some other tricks that improves performance:
 
 -}
 module Agda.TypeChecking.Reduce.Fast
-  ( fastReduce ) where
+  ( fastReduce, fastNormalise ) where
 
 import Control.Arrow (first, second)
 import Control.Applicative hiding (empty)
@@ -364,10 +364,19 @@ memoQName f = unsafePerformIO $ do
 
 -- * Fast reduction
 
+data Normalisation = WHNF | NF
+  deriving (Eq)
+
 -- | The entry point to the reduction machine. First argument: allow
 --   unfolding of non-terminating functions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
-fastReduce allowNonTerminating v = do
+fastReduce = fastReduce' WHNF
+
+fastNormalise :: Bool -> Term -> ReduceM Term
+fastNormalise nt v = ignoreBlocking <$> fastReduce' NF nt v
+
+fastReduce' :: Normalisation -> Bool -> Term -> ReduceM (Blocked Term)
+fastReduce' norm allowNonTerminating v = do
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
   zero    <- fmap name <$> getBuiltin' builtinZero
@@ -385,7 +394,7 @@ fastReduce allowNonTerminating v = do
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) allowNonTerminating rwr v
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm allowNonTerminating rwr v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -416,8 +425,14 @@ setIsValue isV (Closure _ t env spine) = Closure isV t env spine
 -- | Apply a closure to a spine of eliminations. Note that this does not preserve the 'IsValue'
 --   field.
 clApply :: Closure s -> Spine s -> Closure s
-clApply c es' | null es' = c
+clApply c [] = c
 clApply (Closure _ t env es) es' = Closure Unevaled t env (es <> es')
+
+-- | Apply a closure to a spine, preserving the 'IsValue' field. Use with care, since usually
+--   eliminations do not preserve the value status.
+clApply_ :: Closure s -> Spine s -> Closure s
+clApply_ c [] = c
+clApply_ (Closure b t env es) es' = Closure b t env (es <> es')
 
 -- * Pointers and thunks
 
@@ -544,6 +559,13 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
                         --   the pattern variables to the left and right (respectively) of the
                         --   focus. The match stack contains catch-all cases we need to consider if
                         --   this match fails.
+                    | ArgK ArgInfo (Closure s) (Spine s) (Spine s)
+                        -- ^ @ArgK cl spine0 spine1@. Used when computing full normal forms. The
+                        --   first spine contains already evaluated value closures (in reverse
+                        --   order), and the second spine contains closures to be evaluated. The
+                        --   'ArgInfo' is for the focus.
+                    | NormaliseK
+                        -- ^ Indicates that the focus should be evaluated to full normal form.
                     | ForceK QName (Spine s) (Spine s)
                         -- ^ @ForceK f spine0 spine1@. Evaluating @primForce@ of the focus. @f@ is
                         --   the name of @primForce@ and is used to build the result if evaluation
@@ -579,9 +601,10 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
 -- * Compilation and decoding
 
 -- | The initial abstract machine state. Wrap the term to be evaluated in an empty closure. Note
---   that free variables of the term are treated as constants by the abstract machine.
-compile :: Term -> AM s
-compile t = Eval (Closure Unevaled t emptyEnv []) []
+--   that free variables of the term are treated as constants by the abstract machine. If computing
+--   full normal form we start off the control stack with a 'NormaliseK' continuation.
+compile :: Normalisation -> Term -> AM s
+compile nf t = Eval (Closure Unevaled t emptyEnv []) [NormaliseK | nf == NF]
 
 -- | The abstract machine treats uninstantiated meta-variables as blocked, but the rest of Agda does
 --   not.
@@ -663,8 +686,9 @@ buildEnv xs spine = go xs spine emptyEnv
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Bool -> Bool -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun . traceDoc (text "-- fast reduce --")
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Bool -> Bool -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
+    compileAndRun . traceDoc (text "-- fast reduce --")
   where
     -- Helpers to get information from the ReduceEnv.
     metaStore      = redSt rEnv ^. stMetaStore
@@ -698,7 +722,7 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
 
     -- The entry point of the machine.
     compileAndRun :: Term -> Blocked Term
-    compileAndRun t = runST (runAM (compile t))
+    compileAndRun t = runST (runAM (compile normalisation t))
 
     -- Run the machine in a given state. Prints the state if the right verbosity level is active.
     runAM :: AM s -> ST s (Blocked Term)
@@ -820,6 +844,39 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
               runAM (evalClosure t env0 (spine' <> spine) ctrl)
 
     -- If the current focus is a value closure, we look at the control stack.
+
+    -- Case NormaliseK: The focus is a weak-head value that should be fully normalised.
+    runAM' s@(Eval cl@(Closure b t env spine) (NormaliseK : ctrl)) =
+      case t of
+        Def _   [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+        Con _ _ [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+        Var _   [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+        MetaV _ [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+
+        Lit{} -> runAM done
+
+        -- We might get these from fallbackAM
+        Def f   es -> shiftElims (Def f   []) emptyEnv env es
+        Con c i es -> shiftElims (Con c i []) emptyEnv env es
+        Var x   es -> shiftElims (Var x   []) env      env es
+        MetaV m es -> shiftElims (MetaV m []) emptyEnv env es
+
+        _ -> fallbackAM s -- fallbackAM knows about NormaliseK
+
+      where done = Eval (mkValue (notBlocked ()) cl) ctrl
+            shiftElims t env0 env es = do
+              spine' <- elimsToSpine env es
+              runAM (Eval (Closure b t env0 (spine' <> spine)) (NormaliseK : ctrl))
+
+    -- Case: ArgK: We successfully normalised an argument. Start on the next argument, or if there
+    -- isn't one we're done.
+    runAM' (Eval cl (ArgK i cl0 spine0 spine1 : ctrl)) = go (elim : spine0) spine1
+      where
+        elim = Apply $ Arg i $ pureThunk cl
+        go spine0 [] = runAM (Eval (clApply_ cl0 (reverse spine0)) ctrl)
+        go spine0 (Apply v : spine1) =
+          evalPointerAM (unArg v) [] (NormaliseK : ArgK (argInfo v) cl0 spine0 spine1 : ctrl)
+        go spine0 (e@Proj{} : spine1) = go (e : spine0) spine1
 
     -- Case: NatSucK m
 
@@ -1070,15 +1127,32 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
         runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++ ctrl)
       Thunk cl -> runAM (Eval (clApply cl spine) ctrl)
 
+    -- Normalise the spine and apply the closure to the result. The closure must be a value closure.
+    normaliseArgsAM :: Closure s -> Spine s -> ControlStack s -> ST s (Blocked Term)
+    normaliseArgsAM cl []    ctrl = runAM (Eval cl ctrl)  -- nothing to do
+    normaliseArgsAM cl spine ctrl = go [] spine
+      where     -- v Only projections, nothing to do. Note clApply_ and not clApply (or we'd loop)
+        go _ [] = runAM (Eval (clApply_ cl spine) ctrl)
+        go spine0 (Apply v : spine1) =
+          evalPointerAM (unArg v) [] (NormaliseK : ArgK (argInfo v) cl spine0 spine1 : ctrl)
+        go spine0 (e@Proj{} : spine1) = go (e : spine0) spine1
+
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
     -- not supported (Level, Sort, Shared, and DontCare at the moment). In this case we decode the
-    -- current focus to a 'Term', call 'slowReduceTerm' and pack up the result in a value closure.
+    -- current focus to a 'Term', call slow reduction and pack up the result in a value closure. If
+    -- the top of the control stack is a 'NormaliseK' and the focus is a value closure (i.e. already
+    -- in weak-head normal form) we call 'slowNormaliseArgs' and pop the 'NormaliseK' frame.
+    -- Otherwise we use 'slowReduceTerm' to compute a weak-head normal form.
     fallbackAM :: AM s -> ST s (Blocked Term)
     fallbackAM (Eval c ctrl) = do
         v <- decodeClosure_ c
-        runAM (mkValue $ runReduce $ slowReduceTerm v)
-      where mkValue b = evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl
+        runAM (mkValue $ runReduce $ slow v)
+      where mkValue b = evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl'
+            (slow, ctrl') = case ctrl of
+              NormaliseK : ctrl'
+                | Value{} <- isValue c -> (notBlocked <.> slowNormaliseArgs, ctrl')
+              _                        -> (slowReduceTerm, ctrl)
     fallbackAM _ = __IMPOSSIBLE__
 
     -- If rewriting is enabled, try to apply rewrite rules to the current focus before considering
@@ -1122,6 +1196,8 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
     unfoldDelayed (CaseK{}       : _)    = True
     unfoldDelayed (PrimOpK{}     : _)    = False
     unfoldDelayed (NatSucK{}     : _)    = False
+    unfoldDelayed (NormaliseK{}  : _)    = False
+    unfoldDelayed (ArgK{}        : _)    = False
     unfoldDelayed (UpdateThunk{} : ctrl) = unfoldDelayed ctrl
     unfoldDelayed (ApplyK{}      : ctrl) = unfoldDelayed ctrl
     unfoldDelayed (ForceK{}      : ctrl) = unfoldDelayed ctrl
@@ -1231,4 +1307,9 @@ instance Pretty (ControlFrame s) where
                                                                 , nest 2 $ prettyList cls ]
   prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ text "UpdateThunk" <+> text (show (length ps))
   prettyPrec p (ApplyK spine)           = mparens (p > 9) $ text "ApplyK" <?> prettyList spine
+  prettyPrec p NormaliseK               = text "NormaliseK"
+  prettyPrec p (ArgK _ cl sp0 sp1)      = mparens (p > 9) $ sep [ text "ArgK" <+> prettyPrec 10 cl
+                                                                , nest 2 $ prettyList sp0
+                                                                , nest 2 $ prettyList sp1 ]
+
 
