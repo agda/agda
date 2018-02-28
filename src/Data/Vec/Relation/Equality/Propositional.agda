@@ -10,6 +10,8 @@ module Data.Vec.Relation.Equality.Propositional {a} {A : Set a} where
 
 open import Data.Nat.Base using (ℕ; zero; suc; _+_)
 open import Data.Vec
+open import Data.Vec.Relation.Pointwise.Inductive
+  using (Pointwise-≡⇒≡; ≡⇒Pointwise-≡)
 import Data.Vec.Relation.Equality.Setoid as SEq
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.HeterogeneousEquality as H using (_≅_)
@@ -23,11 +25,10 @@ open SEq (setoid A) public
 -- ≋ is propositional
 
 ≋⇒≡ : ∀ {n} {xs ys : Vec A n} → xs ≋ ys → xs ≡ ys
-≋⇒≡ []               = refl
-≋⇒≡ (refl ∷ xs≈ys) = cong (_∷_ _) (≋⇒≡ xs≈ys)
+≋⇒≡ = Pointwise-≡⇒≡
 
 ≡⇒≋ : ∀ {n} {xs ys : Vec A n} → xs ≡ ys → xs ≋ ys
-≡⇒≋ refl = ≋-refl
+≡⇒≋ = ≡⇒Pointwise-≡
 
 ≋⇒≅ : ∀ {m n} {xs : Vec A m} {ys : Vec A n} →
           xs ≋ ys → xs ≅ ys
