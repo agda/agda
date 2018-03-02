@@ -660,6 +660,7 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
     runReduce m    = unReduceM m redEnv
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
+    iview          = runReduce intervalView'
 
     -- Debug output. Taking care that we only look at the verbosity level once.
     hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) redEnv
@@ -705,6 +706,7 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
         -- argument and pushing the appropriate control frame for primitive functions. Fall back to
         -- slow reduce for unsupported definitions.
         Def f [] ->
+          evalIApplyAM spine ctrl $
           let CompactDef{ cdefDelayed        = delayed
                         , cdefNonterminating = nonterm
                         , cdefDef            = def } = constInfo f
@@ -750,6 +752,7 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
         -- pointer. If the variable is not in the environment it's a free variable and we adjust the
         -- deBruijn index appropriately.
         Var x []   ->
+          evalIApplyAM spine ctrl $
           case lookupEnv x env of
             Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
             Just p  -> evalPointerAM p spine ctrl
@@ -758,6 +761,7 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
         -- terms with a specified list of free variables. buildEnv constructs the appropriate
         -- environment for the closure.
         MetaV m [] ->
+          evalIApplyAM spine ctrl $
           case getMeta m of
             InstV xs t -> runAM (evalClosure (lams zs t) env spine' ctrl)
               where (zs, env, !spine') = buildEnv xs spine
@@ -1040,6 +1044,23 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
         runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++ ctrl)
       Thunk cl -> runAM (Eval (clApply cl spine) ctrl)
 
+    -- 'evalIApplyAM spine ctrl fallback' checks if any 'IApply x y r' has a canonical 'r' (i.e. 0 or 1),
+    -- in that case continues evaluating 'x' or 'y' with the rest of 'spine' and same 'ctrl'.
+    -- If no such 'IApply' is found we continue with 'fallback'.
+    evalIApplyAM :: Spine s -> ControlStack s -> ST s (Blocked Term) -> ST s (Blocked Term)
+    evalIApplyAM es ctrl fallback = go es
+      where
+        -- written as a worker/wrapper to possibly trigger some
+        -- specialization wrt fallback
+        go []                  = fallback
+        go (IApply x y r : es) = do
+          br <- evalPointerAM r [] []
+          case iview $ ignoreBlocking br of
+            IZero -> evalPointerAM x es ctrl
+            IOne  -> evalPointerAM y es ctrl
+            _     -> go es
+        go (e : es) = go es
+
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
     -- not supported (Level, Sort, Shared, and DontCare at the moment). In this case we decode the
@@ -1196,4 +1217,3 @@ instance Pretty (ControlFrame s) where
                                                                 , nest 2 $ prettyList cls ]
   prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ text "UpdateThunk" <+> text (show (length ps))
   prettyPrec p (ApplyK spine)           = mparens (p > 9) $ text "ApplyK" <?> prettyList spine
-
