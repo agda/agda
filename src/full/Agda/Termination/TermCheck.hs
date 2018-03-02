@@ -1151,13 +1151,20 @@ instance StripAllProjections Term where
 -- | @compareTerm' t dbpat@
 --
 --   Precondition: top meta variable resolved
+--
+--   (The code seems to be based on the assumption that all
+--   meta-variables have been instantiated, and some caller seems to
+--   break the precondition.)
 
 compareTerm' :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm' v mp@(Masked m p) = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  v <- return $ ignoreSharing v
+  -- The call to instantiate here is a workaround that seems to fix
+  -- #2985. It would perhaps be better to find out why the
+  -- precondition is broken.
+  v <- ignoreSharing <$> liftTCM (instantiate v)
   case (v, p) of
 
     -- Andreas, 2013-11-20 do not drop projections,
