@@ -304,8 +304,9 @@ instance Reduce t => Reduce [t] where
 
 instance Reduce t => Reduce (Arg t) where
     reduce' a = case getRelevance a of
-                 Irrelevant -> return a             -- Don't reduce' irr. args!?
-                 _          -> traverse reduce' a
+      Irrelevant -> return a             -- Don't reduce' irr. args!?
+                                         -- Andreas, 2018-03-03, caused #2989.
+      _          -> traverse reduce' a
 
     reduceB' t = traverse id <$> traverse reduceB' t
 
