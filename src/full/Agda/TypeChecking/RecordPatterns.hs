@@ -70,6 +70,11 @@ recordPatternToProjections p =
       whenNothing (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
       t <- reduce $ fromMaybe __IMPOSSIBLE__ $ conPType ci
+      reportSDoc "tc.rec" 45 $ vcat
+        [ text "recordPatternToProjections: "
+        , nest 2 $ text "constructor pattern " <+> prettyTCM p <+> text " has type " <+> prettyTCM t
+        ]
+      reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
       fields <- getRecordTypeFields (unArg t)
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
@@ -728,7 +733,7 @@ recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 -- Andreas, 2015-05-28 only translate implicit record patterns
-recordTree (ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
+recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
@@ -739,6 +744,10 @@ recordTree (ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
                 concat ss, concat cs)
     Just ts -> liftTCM $ do
       t <- reduce t
+      reportSDoc "tc.rec" 45 $ vcat
+        [ text "recordTree: "
+        , nest 2 $ text "constructor pattern " <+> prettyTCM p <+> text " has type " <+> prettyTCM t
+        ]
       fields <- getRecordTypeFields (unArg t)
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
       let proj p = (`applyE` [Proj ProjSystem $ unArg p])

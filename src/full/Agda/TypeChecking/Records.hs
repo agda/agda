@@ -155,7 +155,8 @@ getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the field names belonging to a record type.
 getRecordTypeFields :: Type -> TCM [Arg QName]
-getRecordTypeFields t =
+getRecordTypeFields t = do
+  t <- reduce t
   case ignoreSharing $ unEl t of
     Def r _ -> do
       rDef <- theDef <$> getConstInfo r
