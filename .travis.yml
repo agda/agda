@@ -95,6 +95,7 @@ matrix:
           sources:
             - hvr-ghc
 
+  allow_failures:
     - env: TEST=USER_MANUAL BUILD=NOTHING
       language: python
       python: "3.4"
