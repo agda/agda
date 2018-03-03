@@ -58,6 +58,15 @@ import Agda.Version
 -- Types and Monads
 ------------------------------------------------------------------------
 
+
+data LibrariesFile = LibrariesFile
+  { lfPath   :: FilePath
+      -- ^ E.g. @~/.agda/libraries@.
+  , lfExists :: Bool
+       -- ^ The libraries file might not exist,
+       --   but we may print its assumed location in error messages.
+  } deriving (Show)
+
 -- | Library names are structured into the base name and a suffix of version
 --   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
 data VersionView = VersionView
@@ -71,9 +80,10 @@ data VersionView = VersionView
 -- | Collected errors while processing library files.
 --
 data LibError
-  = LibNotFound FilePath LibName
+  = LibNotFound LibrariesFile LibName
       -- ^ Raised when a library name could no successfully be resolved
       --   to an @.agda-lib@ file.
+      --
   | AmbiguousLib LibName [AgdaLibFile]
       -- ^ Raised when a library name is defined in several @.agda-lib files@.
   | OtherError String
@@ -195,15 +205,16 @@ readDefaultsFile = do
 --
 getLibrariesFile
   :: Maybe FilePath -- ^ Override the default @libraries@ file?
-  -> IO FilePath
-getLibrariesFile (Just overrideLibFile) = return overrideLibFile
+  -> IO LibrariesFile
+getLibrariesFile (Just overrideLibFile) =
+  return $ LibrariesFile overrideLibFile True  -- Existence checked in cmdline option parser.
 getLibrariesFile Nothing = do
   agdaDir <- getAgdaAppDir
   let defaults = map (agdaDir </>) defaultLibraryFiles  -- NB: non-empty list
   files <- filterM doesFileExist defaults
   case files of
-    file : _ -> return file
-    []       -> return (last defaults) -- doesn't exist, but that's ok
+    file : _ -> return $ LibrariesFile file True
+    []       -> return $ LibrariesFile (last defaults) False -- doesn't exist, but that's ok
 
 -- | Parse the descriptions of the libraries Agda knows about.
 --
@@ -214,8 +225,8 @@ getInstalledLibraries
   -> LibM [AgdaLibFile] -- ^ Content of library files.  (Might have empty @LibName@s.)
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     file <- lift $ getLibrariesFile overrideLibFile
-    ifNotM (lift $ doesFileExist file) (return []) $ {-else-} do
-      ls    <- lift $ stripCommentLines <$> readFile file
+    if not (lfExists file) then return [] else do
+      ls    <- lift $ stripCommentLines <$> readFile (lfPath file)
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
       parseLibFiles (Just file) files
   `catchIO` \ e -> do
@@ -225,13 +236,13 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
 -- | Parse the given library files.
 --
 parseLibFiles
-  :: Maybe FilePath            -- ^ Name of @libraries@ file for error reporting.
+  :: Maybe LibrariesFile       -- ^ Name of @libraries@ file for error reporting.
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
 parseLibFiles libFile files = do
   rs <- lift $ mapM (parseLibFile . snd) files
   -- Format and raise the errors.
-  let loc line | Just f <- libFile = f ++ ":" ++ show line ++ ": "
+  let loc line | Just f <- libFile = lfPath f ++ ":" ++ show line ++ ": "
                | otherwise         = ""
   tell [ OtherError $ pos ++ err
        | ((line, path), Left err) <- zip files rs
@@ -256,7 +267,7 @@ formatLibError installed = \case
   LibNotFound file lib -> return $ vcat $
     [ text $ "Library '" ++ lib ++ "' not found."
     , sep [ text "Add the path to its .agda-lib file to"
-          , nest 2 $ text $ "'" ++ file ++ "'"
+          , nest 2 $ text $ "'" ++ lfPath file ++ "'"
           , text "to install."
           ]
     , text "Installed libraries:"
@@ -291,7 +302,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
 
     -- | Due to library dependencies, the work list may grow temporarily.
     find
-      :: FilePath   -- ^ Only for error reporting.
+      :: LibrariesFile  -- ^ Only for error reporting.
       -> [LibName]  -- ^ Already resolved libraries.
       -> [LibName]  -- ^ Work list: libraries left to be resolved.
       -> Writer [LibError] [AgdaLibFile]

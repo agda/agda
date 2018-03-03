@@ -69,13 +69,13 @@ recordPatternToProjections p =
     ConP c ci ps -> do
       whenNothing (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
-      t <- reduce $ fromMaybe __IMPOSSIBLE__ $ conPType ci
+      let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
         [ text "recordPatternToProjections: "
         , nest 2 $ text "constructor pattern " <+> prettyTCM p <+> text " has type " <+> prettyTCM t
         ]
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
-      fields <- getRecordTypeFields (unArg t)
+      fields <- getRecordTypeFields t
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
@@ -748,7 +748,9 @@ recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
         [ text "recordTree: "
         , nest 2 $ text "constructor pattern " <+> prettyTCM p <+> text " has type " <+> prettyTCM t
         ]
-      fields <- getRecordTypeFields (unArg t)
+      -- Andreas, 2018-03-03, see #2989:
+      -- The content of an @Arg@ might not be reduced (if @Arg@ is @Irrelevant@).
+      fields <- getRecordTypeFields =<< reduce (unArg t)
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
       let proj p = (`applyE` [Proj ProjSystem $ unArg p])
       return $ Right $ RecCon t $ zip (map proj fields) ts

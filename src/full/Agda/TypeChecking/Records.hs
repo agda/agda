@@ -154,9 +154,11 @@ getRecordFieldTypes :: QName -> TCM Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the field names belonging to a record type.
-getRecordTypeFields :: Type -> TCM [Arg QName]
+getRecordTypeFields
+  :: Type  -- ^ Record type.  Need not be reduced.
+  -> TCM [Arg QName]
 getRecordTypeFields t = do
-  t <- reduce t
+  t <- reduce t  -- Andreas, 2018-03-03, fix for #2989.
   case ignoreSharing $ unEl t of
     Def r _ -> do
       rDef <- theDef <$> getConstInfo r
