@@ -642,6 +642,7 @@ buildEnv xs spine = go xs spine emptyEnv
       case sp of
         []           -> (xs0, env, sp)
         Apply c : sp -> go xs sp (unArg c `extendEnv` env)
+        IApply x y r : sp -> go xs sp (r `extendEnv` env)
         _            -> __IMPOSSIBLE__
 
 -- * Running the abstract machine
