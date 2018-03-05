@@ -25,7 +25,7 @@ open Setoid S renaming (Carrier to A)
 
 infix 4 _≋_
 
-_≋_ : ∀ {m n} → REL (Vec A m) (Vec A n) ℓ
+_≋_ : ∀ {m n} → REL (Vec A m) (Vec A n) (a ⊔ ℓ)
 _≋_ = Pointwise _≈_
 
 open Pointwise public using ([]; _∷_)
@@ -46,7 +46,7 @@ open PW public using (length-equal)
 ≋-isEquivalence : ∀ n → IsEquivalence (_≋_ {n})
 ≋-isEquivalence = PW.isEquivalence isEquivalence
 
-≋-setoid : ℕ → Setoid a ℓ
+≋-setoid : ℕ → Setoid a (a ⊔ ℓ)
 ≋-setoid = PW.setoid S
 
 ------------------------------------------------------------------------

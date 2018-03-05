@@ -12,6 +12,7 @@ module Data.Vec.Relation.Equality.DecSetoid
 open import Data.Nat using (ℕ)
 import Data.Vec.Relation.Equality.Setoid as Equality
 import Data.Vec.Relation.Pointwise.Inductive as PW
+open import Level using (_⊔_)
 open import Relation.Binary using (Decidable)
 
 open DecSetoid DS
@@ -32,5 +33,5 @@ _≋?_ = PW.decidable _≟_
 ≋-isDecEquivalence : ∀ n → IsDecEquivalence (_≋_ {n})
 ≋-isDecEquivalence = PW.isDecEquivalence isDecEquivalence
 
-≋-decSetoid : ℕ → DecSetoid a ℓ
+≋-decSetoid : ℕ → DecSetoid a (a ⊔ ℓ)
 ≋-decSetoid = PW.decSetoid DS

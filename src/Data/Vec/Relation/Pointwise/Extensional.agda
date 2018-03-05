@@ -13,6 +13,7 @@ open import Data.Vec as Vec hiding ([_]; head; tail; map)
 open import Data.Vec.Relation.Pointwise.Inductive as Inductive
   using ([]; _∷_)
   renaming (Pointwise to IPointwise)
+open import Level using (_⊔_)
 open import Function using (_∘_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv
@@ -24,7 +25,8 @@ open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 
 record Pointwise {a b ℓ} {A : Set a} {B : Set b} (_∼_ : REL A B ℓ)
-                 {n} (xs : Vec A n) (ys : Vec B n) : Set ℓ where
+                 {n} (xs : Vec A n) (ys : Vec B n) : Set (a ⊔ b ⊔ ℓ)
+                 where
   constructor ext
   field app : ∀ i → lookup i xs ∼ lookup i ys
 
@@ -154,9 +156,9 @@ module _ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} where
   ∙⁺⇒⁺∙ : ∀ {n} {xs ys : Vec A n} → Reflexive _∼_ →
           Pointwise (Plus _∼_) xs ys → Plus (Pointwise _∼_) xs ys
   ∙⁺⇒⁺∙ rfl =
-    Plus.map (_⟨$⟩_ {f₂ = ℓ} (Equivalence.from equivalent)) ∘
+    Plus.map (_⟨$⟩_ (Equivalence.from equivalent)) ∘
     helper ∘
-    _⟨$⟩_ {f₂ = a ⊔ ℓ} {t₂ = a ⊔ ℓ} (Equivalence.to equivalent)
+    _⟨$⟩_ (Equivalence.to equivalent)
     where
     helper : ∀ {n} {xs ys : Vec A n} →
              IPointwise (Plus _∼_) xs ys → Plus (IPointwise _∼_) xs ys
