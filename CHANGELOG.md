@@ -24,15 +24,15 @@ Non-backwards compatible changes
   `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.Lex.Strict`
   `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.Lex.NonStrict`
   `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise.Inductive`
-                                                     | `Data.Vec.Relation.Pointwise.Extensional`
+                                         | `Data.Vec.Relation.Pointwise.Extensional`
   ```
 
-  This move aims to increase the ease of use of the library as:
+  This aims to increase usability of the library because:
     1. it keeps all the definitions about particular data types in the same directory
-    2. it provides a location to reason about how operations on the data types affects the
+    2. it provides a location to reason about how operations on the data types affect the
        relations over them (e.g. how `Pointwise` is affected by `map`)
     3. there is anecdotal evidence that many people were not aware of the existence
-       of the modules in their old location. The new location should be more discoverable.
+       of the relations in the old location. The new location should be discovered naturally.
 
   The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
   re-export the contents of files' new location in `Data.X.Relation` but may be removed in some
@@ -47,7 +47,9 @@ Non-backwards compatible changes
   The inductive form of `Pointwise` has been generalised so that technically it can apply to two
   vectors with different lengths (although in practice the lengths must turn out to be equal). This
   allows a much wider range of proofs such as the fact that `[]` is a right identity for `_++_`
-  which was previously not possible to prove using the old definition.
+  which was previously not possible to prove using the old definition. In order to ensure
+  compatability with the `--without-K` option, the universe level of `Inductive.Pointwise`
+  has been increased from `ℓ` to `a ⊔ b ⊔ ℓ`.
 
 * `Data.Vec.Equality` has been almost entirely reworked into four separate modules
   inside `Data.Vec.Relation.Equality` (namely `Setoid`, `DecSetoid`, `Propositional`
@@ -68,12 +70,12 @@ Non-backwards compatible changes
 #### Upgrade of `Data.AVL`
 
 * `Data.AVL.Key` and `Data.AVL.Height` have been split out of `Data.AVL`
-  therefore ensuring they are independent on the type of `Value` the tree will contain.
+  therefore ensuring they are independent on the type of `Value` the tree contains.
 
-* `Indexed` has been put into its own core module `Data.AVL.Indexed` following the
+* `Indexed` has been put into its own core module `Data.AVL.Indexed`, following the
   example of `Category.Monad.Indexed` and `Data.Container.Indexed`.
 
-* The changes above allow `map` to have a polymorphic type and so it is now possible
+* These changes allow `map` to have a polymorphic type and so it is now possible
   to change the type of values contained in a tree when mapping over it.
 
 #### Upgrade of `Algebra.Morphism`
@@ -89,9 +91,9 @@ Non-backwards compatible changes
 #### Upgrade of `filter` and `partition` in `Data.List`
 
 * The functions `filter` and `partition` in `Data.List.Base` now use decidable
-  predicates instead of boolean-valued functions. The boolean versions encouraged
-  the throwing away of type information, and hence were difficult to use and prove
-  properties about. Proofs have been updated and renamed accordingly.
+  predicates instead of boolean-valued functions. The boolean versions discarded
+  type information, and hence were difficult to use and prove
+  properties about. The proofs have been updated and renamed accordingly.
 
   The old boolean versions still exist as `boolFilter` and `boolPartition` for
   backwards compatibility reasons, but are deprecated and may be removed in some
@@ -121,9 +123,12 @@ Non-backwards compatible changes
 
 * Changed the fixity of `⋃` and `⋂` in `Relation.Unary` to make space for `_⊢_`.
 
-* Changed Data.Nat.Divisibility's `_|_` from data to a record. As a consequence,
-  the two parameters are not implicit arguments of the constructor anymore (but
+* Changed `_|_` from `Data.Nat.Divisibility` from data to a record. Consequently,
+  the two parameters are no longer implicit arguments of the constructor (but
   such values can be destructed using a let-binding rather than a with-clause).
+
+* Names in `Data.Nat.Divisibility` now use the `divides` symbol (typed \\|) consistently.
+  Previously a mixture of \\| and | was used.
 
 * Moved the proof `eq?` from `Data.Nat` to `Data.Nat.Properties`
 
@@ -132,9 +137,6 @@ Non-backwards compatible changes
   names are now used for proofs of left and right monotonicity of `_+_`.
 
 * Moved the proof `monoid` from `Data.List` to `++-monoid` in `Data.List.Properties`.
-
-* Names in Data.Nat.Divisibility now use the `divides` symbol (typed \\|) consistently.
-  Previously a mixture of \\| and | was used.
 
 Deprecated features
 -------------------
@@ -219,9 +221,9 @@ anticipated any time soon, they may eventually be removed in some future release
   ≤-steps  ↦ ≤-stepsˡ
   ```
 
-* In all modules in the `Data.Product.Relation` folder all proofs with
+* In all modules in the `Data.(Product/Sum).Relation` folders, all proofs with
   names using infix notation have been deprecated in favour of identical
-  non-infix names: e.g.
+  non-infix names, e.g.
   ```
   _×-isPreorder_ ↦ ×-isPreorder
   ```
@@ -312,7 +314,7 @@ Backwards compatible changes
 
 * Added support for GHC 8.2.2.
 
-* New module `Data.Table`. A `Table` is a fixed-length collection of objects
+* Added new module `Data.Table`. A `Table` is a fixed-length collection of objects
   similar to a `Vec` from `Data.Vec`, but implemented as a function `Fin n → A`.
   This prioritises ease of lookup as opposed to `Vec` which prioritises the ease
   of adding and removing elements.
@@ -320,8 +322,8 @@ Backwards compatible changes
 * The contents of the following modules are now more polymorphic with respect to levels:
   ```agda
   Data.Covec
-  Data.List.Relation.StrictLex
-  Data.List.Relation.NonStrictLex
+  Data.List.Relation.Lex.Strict
+  Data.List.Relation.Lex.NonStrict
   Data.Vec.Properties
   Data.Vec.Relation.Pointwise.Inductive
   Data.Vec.Relation.Pointwise.Extensional
@@ -369,6 +371,20 @@ Backwards compatible changes
 
   ∨-∧-isLattice             : IsLattice _≡_ _∨_ _∧_
   ∨-∧-isDistributiveLattice : IsDistributiveLattice _≡_ _∨_ _∧_
+  ```
+
+* Added missing bindings to functions on `Data.Char.Base`:
+  ```agda
+  isLower    : Char → Bool
+  isDigit    : Char → Bool
+  isAlpha    : Char → Bool
+  isSpace    : Char → Bool
+  isAscii    : Char → Bool
+  isLatin1   : Char → Bool
+  isPrint    : Char → Bool
+  isHexDigit : Char → Bool
+  toNat      : Char → ℕ
+  fromNat    : ℕ → Char
   ```
 
 * Added new proofs to `Data.Cofin`:
@@ -481,7 +497,7 @@ Backwards compatible changes
   mapMaybe⁺ : Any (Maybe.Any P) (map f xs) → Any P (mapMaybe f xs)
   ```
 
-* Added new proofs to `Data.List.Relation.NonStrictLex`:
+* Added new proofs to `Data.List.Relation.Lex.NonStrict`:
   ```agda
   <-antisymmetric : Symmetric _≈_ → Antisymmetric _≈_ _≼_ → Antisymmetric _≋_ _<_
   <-transitive    : IsPartialOrder _≈_ _≼_ → Transitive _<_
@@ -500,7 +516,7 @@ Backwards compatible changes
   concat⁺   : Pointwise (Pointwise _∼_) xss yss → Pointwise _∼_ (concat xss) (concat yss)
   ```
 
-* Added new proofs to `Data.List.Relation.StrictLex`:
+* Added new proofs to `Data.List.Relation.Lex.Strict`:
   ```agda
   <-antisymmetric : Symmetric _≈_ → Irreflexive _≈_ _≺_ →  Asymmetric _≺_ → Antisymmetric _≋_ _<_
   <-transitive    : IsEquivalence _≈_ → _≺_ Respects₂ _≈_ → Transitive _≺_ → Transitive _<_
@@ -619,6 +635,11 @@ Backwards compatible changes
   inj₂-injective : (A ⊎ B ∋ inj₂ x) ≡ inj₂ y → x ≡ y
   ```
 
+* Added new operator in `Data.Sum.Relation.Pointwise`:
+  ```agda
+  _⊎ₛ_ : Setoid ℓ₁ ℓ₂ → Setoid ℓ₃ ℓ₄ → Setoid _ _
+  ```
+
 * Added new proofs to `Data.Vec.Properties`:
   ```agda
   ∷-injectiveˡ     : x ∷ xs ≡ y ∷ ys → x ≡ y
@@ -721,10 +742,6 @@ Backwards compatible changes
 
   ∁? : Decidable P → Decidable (∁ P)
   ```
-
-* Added missing bindings to functions on `Data.Char` - character class checks and conversion from Nat:
-  `isLower, isDigit, isAlpha, isSpace, isAscii, isLatin1, isPrint, isHexDigit, fromNat`.
-
 
 Version 0.14
 ============
