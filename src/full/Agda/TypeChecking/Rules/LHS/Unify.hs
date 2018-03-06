@@ -533,7 +533,7 @@ instance PrettyTCM UnifyStep where
       , text "record type:" <+> prettyTCM r
       , text "parameters: " <+> prettyTCM pars
       ])
-    EtaExpandEquation k r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
+    EtaExpandEquation k r pars -> text "EtaExpandEquation" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       , text "record type:" <+> prettyTCM r
       , text "parameters: " <+> prettyTCM pars
@@ -688,10 +688,9 @@ etaExpandVarStrategy k s = do
       fi       <- mfromMaybe $ findFlexible i (flexVars s)
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         text "Found flexible variable " <+> text (show i)
-      ps       <- mfromMaybe $ allProjElims es
-      guard $ not $ null ps
-      liftTCM $ reportSDoc "tc.lhs.unify" 50 $
-        text "with projections " <+> prettyTCM (map snd ps)
+      -- Issue 2888: Do this even if there aren't any projections. Otherwise we
+      -- end up eta expanding the equation instead, which the forcing
+      -- translation doesn't like.
       let Dom _ b = getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- mcatMaybes $ liftTCM $ isEtaRecordType b
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
