@@ -39,7 +39,9 @@ addCoercions = coerceTop
         TLet e b       -> TLet <$> softCoerce e <*> coerce b
         TCase x t d bs -> TCase x t <$> coerce d <*> mapM coerceAlt bs
 
-    coerceAlt a = coerce (aBody a) <&> \ b -> a { aBody = b }
+    coerceAlt (TACon c a b) = TACon c a <$> coerce b
+    coerceAlt (TAGuard g b) = TAGuard   <$> coerce g <*> coerce b
+    coerceAlt (TALit l b)   = TALit l   <$> coerce b
 
     -- Insert TCoerce in subterms. When translated to Haskell, the resulting
     -- term is well-typed with some type arbitrary type.
