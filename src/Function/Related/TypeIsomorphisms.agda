@@ -17,7 +17,7 @@ open import Data.Nat as Nat using (zero; suc)
 open import Data.Product as Prod hiding (swap)
 open import Data.Product.Relation.Pointwise.NonDependent
 open import Data.Sum as Sum
-open import Data.Sum.Relation.General
+open import Data.Sum.Relation.Pointwise
 open import Data.Unit
 open import Level hiding (zero; suc)
 open import Function

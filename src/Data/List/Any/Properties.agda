@@ -29,7 +29,7 @@ open import Data.Product.Relation.Pointwise.NonDependent
   using (_×-cong_)
 import Data.Product.Relation.Pointwise.Dependent as Σ
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Data.Sum.Relation.General
+open import Data.Sum.Relation.Pointwise using (_⊎-cong_)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)

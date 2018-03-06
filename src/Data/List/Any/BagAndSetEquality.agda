@@ -19,7 +19,7 @@ open import Data.List.Any.Properties
 open import Data.List.Any.Membership.Propositional
 open import Data.Product
 open import Data.Sum
-open import Data.Sum.Relation.General
+open import Data.Sum.Relation.Pointwise
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 import Function.Equivalence as FE

@@ -8,7 +8,7 @@ Important changes since 0.14:
 Non-backwards compatible changes
 --------------------------------
 
-#### Overhaul of organisation of relations over data
+#### Upgrade and overhaul of organisation of relations over data
 
 * Relations over data have been moved from the `Relation` subtree to the `Data`
   subtree. In general the files have been moved from `Relation.Binary.X` to
@@ -17,12 +17,14 @@ Non-backwards compatible changes
   `Relation.Binary.List.Pointwise`       ↦ `Data.List.Relation.Pointwise`
   `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.Lex.Strict`
   `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.Lex.NonStrict`
-  `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.General`
+  `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.Pointwise`
+                                         | `Data.Sum.Relation.LeftOrder`
   `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.Pointwise.Dependent'
   `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise.NonDependent`
   `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.Lex.Strict`
   `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.Lex.NonStrict`
-  `Relation.Binary.Vec.Pointwise`        ↦ SPECIAL: See notes below
+  `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise.Inductive`
+		                                     | `Data.Vec.Relation.Pointwise.Extensional`
   ```
 
   This move aims to increase the ease of use of the library as:
@@ -36,6 +38,9 @@ Non-backwards compatible changes
   re-export the contents of files' new location in `Data.X.Relation` but may be removed in some
   future release.
 
+* The contents of `Relation.Binary.Sum` has been split into two modules 
+  `Data.Sum.Relation.Pointwise` and `Data.Sum.Relation.LeftOrder`
+
 * The contents of `Relation.Binary.Vec.Pointwise` has been split into two modules
   `Data.Vec.Relation.Pointwise.Inductive` and `Data.Vec.Relation.Pointwise.Extensional`.
 
@@ -47,7 +52,7 @@ Non-backwards compatible changes
 * `Data.Vec.Equality` has been almost entirely reworked into four separate modules
   inside `Data.Vec.Relation.Equality` (namely `Setoid`, `DecSetoid`, `Propositional`
   and `DecPropositional`). All four of them now use `Data.Vec.Relation.Pointwise.Inductive`
-  as a base. This should significantly improve the ease of use.
+  as a base.
 
   The proofs from the submodule `UsingVecEquality` in `Data.Vec.Properties` have been moved
   to these four new modules.
@@ -58,7 +63,7 @@ Non-backwards compatible changes
   cycles.
 
 * Added new modules
-  `Data.List.Relation.Equality.Setoid/DecSetoid/Propositional/DecPropositional`.
+  `Data.List.Relation.Equality.(Setoid/DecSetoid/Propositional/DecPropositional)`.
 
 #### Upgrade of `Data.AVL`
 
