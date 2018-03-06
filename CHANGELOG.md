@@ -24,7 +24,7 @@ Non-backwards compatible changes
   `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.Lex.Strict`
   `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.Lex.NonStrict`
   `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise.Inductive`
-		                                     | `Data.Vec.Relation.Pointwise.Extensional`
+                                                     | `Data.Vec.Relation.Pointwise.Extensional`
   ```
 
   This move aims to increase the ease of use of the library as:
@@ -38,7 +38,7 @@ Non-backwards compatible changes
   re-export the contents of files' new location in `Data.X.Relation` but may be removed in some
   future release.
 
-* The contents of `Relation.Binary.Sum` has been split into two modules 
+* The contents of `Relation.Binary.Sum` has been split into two modules
   `Data.Sum.Relation.Pointwise` and `Data.Sum.Relation.LeftOrder`
 
 * The contents of `Relation.Binary.Vec.Pointwise` has been split into two modules
@@ -459,6 +459,8 @@ Backwards compatible changes
   zipWith-identityʳ : ∀ xs → zipWith f xs [] ≡ []
   zipWith-comm      : (∀ x y → f x y ≡ f y x) → zipWith f xs ys ≡ zipWith f ys xs
   zipWith-unzipWith : uncurry′ g ∘ f ≗ id → uncurry′ (zipWith g) ∘ (unzipWith f)  ≗ id
+  zipWith-map       : zipWith f (map g xs) (map h ys) ≡ zipWith (λ x y → f (g x) (h y)) xs ys
+  map-zipWith       : map g (zipWith f xs ys) ≡ zipWith (λ x y → g (f x y)) xs ys
   length-zipWith    : length (zipWith f xs ys) ≡ length xs ⊓ length ys
 
   length-unzipWith₁ : length (proj₁ (unzipWith f xys)) ≡ length xys

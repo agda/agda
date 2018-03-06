@@ -183,6 +183,16 @@ module _ {a} {A : Set a} where
 ------------------------------------------------------------------------
 -- zipWith
 
+module _ {a b} {A : Set a} {B : Set b} (f : A → A → B) where
+
+  zipWith-comm : (∀ x y → f x y ≡ f y x) →
+                 ∀ xs ys → zipWith f xs ys ≡ zipWith f ys xs
+  zipWith-comm f-comm []       []       = refl
+  zipWith-comm f-comm []       (x ∷ ys) = refl
+  zipWith-comm f-comm (x ∷ xs) []       = refl
+  zipWith-comm f-comm (x ∷ xs) (y ∷ ys) =
+    P.cong₂ _∷_ (f-comm x y) (zipWith-comm f-comm xs ys)
+
 module _ {a b c} {A : Set a} {B : Set b} {C : Set c}
          (f : A → B → C) where
 
@@ -201,15 +211,23 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c}
   length-zipWith (x ∷ xs) []       = refl
   length-zipWith (x ∷ xs) (y ∷ ys) = P.cong suc (length-zipWith xs ys)
 
-module _ {a b} {A : Set a} {B : Set b} (f : A → A → B) where
+  zipWith-map : ∀ {d e} {D : Set d} {E : Set e} (g : D → A) (h : E → B) →
+                ∀ xs ys → zipWith f (map g xs) (map h ys) ≡
+                          zipWith (λ x y → f (g x) (h y)) xs ys
+  zipWith-map g h []       []       = refl
+  zipWith-map g h []       (y ∷ ys) = refl
+  zipWith-map g h (x ∷ xs) []       = refl
+  zipWith-map g h (x ∷ xs) (y ∷ ys) =
+    P.cong₂ _∷_ refl (zipWith-map g h xs ys)
 
-  zipWith-comm : (∀ x y → f x y ≡ f y x) →
-                 ∀ xs ys → zipWith f xs ys ≡ zipWith f ys xs
-  zipWith-comm f-comm []       []       = refl
-  zipWith-comm f-comm []       (x ∷ ys) = refl
-  zipWith-comm f-comm (x ∷ xs) []       = refl
-  zipWith-comm f-comm (x ∷ xs) (y ∷ ys) =
-    P.cong₂ _∷_ (f-comm x y) (zipWith-comm f-comm xs ys)
+  map-zipWith : ∀ {d} {D : Set d} (g : C → D) → ∀ xs ys →
+                map g (zipWith f xs ys) ≡
+                zipWith (λ x y → g (f x y)) xs ys
+  map-zipWith g []       []       = refl
+  map-zipWith g []       (y ∷ ys) = refl
+  map-zipWith g (x ∷ xs) []       = refl
+  map-zipWith g (x ∷ xs) (y ∷ ys) =
+    P.cong₂ _∷_ refl (map-zipWith g xs ys)
 
 ------------------------------------------------------------------------
 -- unzipWith
