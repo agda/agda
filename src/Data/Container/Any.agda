@@ -11,8 +11,8 @@ open import Data.Container as C
 open import Data.Container.Combinator
   using (module Composition) renaming (_∘_ to _⟨∘⟩_)
 open import Data.Product as Prod hiding (swap)
-open import Data.Product.Relation.Pointwise
-import Data.Product.Relation.SigmaPointwise as Σ
+open import Data.Product.Relation.Pointwise.NonDependent
+import Data.Product.Relation.Pointwise.Dependent as Σ
 open import Data.Sum
 open import Function
 open import Function.Equality using (_⟨$⟩_)

@@ -15,7 +15,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
 open import Data.Sum     as Sum  hiding (map)
 open import Data.Sum.Relation.General
 open import Data.Product as Prod hiding (map)
-open import Data.Product.Relation.Pointwise
+open import Data.Product.Relation.Pointwise.NonDependent
 open import Function
 import Function.Equality as FunS
 open import Data.Empty
@@ -47,7 +47,7 @@ mutual
   setoid Id        P = PropEq.setoid P
   setoid (K P)     _ = PropEq.setoid P
   setoid (F₁ ∨ F₂) P = (setoid F₁ P) ⊎-setoid (setoid F₂ P)
-  setoid (F₁ ∧ F₂) P = (setoid F₁ P) ×-setoid (setoid F₂ P)
+  setoid (F₁ ∧ F₂) P = (setoid F₁ P) ×ₛ (setoid F₂ P)
   setoid (P₁ ⇒ F₂) P = FunS.≡-setoid P₁
                          (Setoid.indexedSetoid (setoid F₂ P))
   setoid (¬¬ F)    P = Always-setoid (¬ ¬ ⟦ F ⟧ P)

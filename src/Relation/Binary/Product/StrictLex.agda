@@ -3,8 +3,8 @@
 --
 -- Lexicographic products of binary relations
 --
--- This module is DEPRECATED. Please use Data.Product.Relation.StrictLex
--- directly.
+-- This module is DEPRECATED. Please use
+-- Data.Product.Relation.Lex.Strict directly.
 ------------------------------------------------------------------------
 
 -- The definition of lexicographic product used here is suitable if
@@ -12,4 +12,4 @@
 
 module Relation.Binary.Product.StrictLex where
 
-open import Data.Product.Relation.StrictLex public
+open import Data.Product.Relation.Lex.Strict public

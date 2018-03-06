@@ -15,13 +15,13 @@ Non-backwards compatible changes
   `Data.X.Relation`. The full list of moves is as follows:
   ```
   `Relation.Binary.List.Pointwise`       ↦ `Data.List.Relation.Pointwise`
-  `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.StrictLex`
-  `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.NonStrictLex`
-  `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.SigmaPointwise`
+  `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.Lex.Strict`
+  `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.Lex.NonStrict`
   `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.General`
-  `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise`
-  `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.StrictLex`
-  `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.NonStrictLex`
+  `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.Pointwise.Dependent'
+  `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise.NonDependent`
+  `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.Lex.Strict`
+  `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.Lex.NonStrict`
   `Relation.Binary.Vec.Pointwise`        ↦ SPECIAL: See notes below
   ```
 
@@ -212,6 +212,31 @@ anticipated any time soon, they may eventually be removed in some future release
   ```agda
   ¬i+1+j≤i ↦ i+1+j≰i
   ≤-steps  ↦ ≤-stepsˡ
+  ```
+
+* In all modules in the `Data.Product.Relation` folder all proofs with
+  names using infix notation have been deprecated in favour of identical
+  non-infix names: e.g.
+  ```
+  _×-isPreorder_ ↦ ×-isPreorder
+  ```
+
+* In `Data.Product.Relation.Lex.(Non)Strict`:
+  ```agda
+  ×-≈-respects₂ ↦ ×-respects₂
+  ```
+
+* In `Data.Product.Relation.Pointwise.Dependent`:
+  ```agda
+  Rel    ↦ Pointwise
+  Rel↔≡  ↦ Pointwise-≡↔≡
+  ```
+
+* In `Data.Product.Relation.Pointwise.NonDependent`:
+  ```agda
+  _×-Rel_         ↦ Pointwise
+  Rel↔≡           ↦ Pointwise-≡↔≡
+  _×-≈-respects₂_ ↦ ×-respects₂
   ```
 
 * In `Data.Sign.Properties`:
@@ -550,6 +575,11 @@ Backwards compatible changes
   ```agda
   ,-injectiveˡ : (a , b) ≡ (c , d) → a ≡ c
   ,-injectiveʳ : (Σ A B ∋ (a , b)) ≡ (a , c) → b ≡ c
+  ```
+
+* Added new operator in `Data.Product.Relation.Pointwise.NonDependent`:
+  ```agda
+  _×ₛ_ : Setoid ℓ₁ ℓ₂ → Setoid ℓ₃ ℓ₄ → Setoid _ _
   ```
 
 * Added new proofs to `Data.Rational.Properties`:
