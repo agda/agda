@@ -114,6 +114,10 @@ curry : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Σ A B → Set c} →
         ((x : A) → (y : B x) → C (x , y))
 curry f x y = f (x , y)
 
+curry′ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
+         (A × B → C) → (A → B → C)
+curry′ = curry
+
 uncurry : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Σ A B → Set c} →
           ((x : A) → (y : B x) → C (x , y)) →
           ((p : Σ A B) → C p)

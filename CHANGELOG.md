@@ -398,30 +398,41 @@ Backwards compatible changes
 
 * Added new combinators to `Data.List.Base`:
   ```agda
-  lookup : ∀ {a} {A : Set a} (xs : List A) → Fin (length xs) → A
+  lookup    : (xs : List A) → Fin (length xs) → A
+  unzipWith : (A → B × C) → List A → List B × List C
+  unzip     : List (A × B) → List A × List B
   ```
 
 * Added new proofs to `Data.List.Properties`:
   ```agda
-  ∷-injectiveˡ  : x ∷ xs ≡ y List.∷ ys → x ≡ y
-  ∷-injectiveʳ  : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
-  ∷ʳ-injectiveˡ : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
-  ∷ʳ-injectiveʳ : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
+  ∷-injectiveˡ      : x ∷ xs ≡ y List.∷ ys → x ≡ y
+  ∷-injectiveʳ      : x ∷ xs ≡ y List.∷ ys → xs ≡ ys
+  ∷ʳ-injectiveˡ     : xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys
+  ∷ʳ-injectiveʳ     : xs ∷ʳ x ≡ ys ∷ʳ y → x ≡ y
 
-  ++-assoc       : Associative {A = List A} _≡_ _++_
-  ++-identityˡ   : LeftIdentity _≡_ [] _++_
-  ++-identityʳ   : RightIdentity _≡_ [] _++_
-  ++-identity    : Identity _≡_ [] _++_
-  ++-isSemigroup : IsSemigroup {A = List A} _≡_ _++_
-  ++-isMonoid    : IsMonoid {A = List A} _≡_ _++_ []
-  ++-semigroup   : ∀ {a} (A : Set a) → Semigroup _ _
-  ++-monoid      : ∀ {a} (A : Set a) → Monoid _ _
+  ++-assoc          : Associative {A = List A} _≡_ _++_
+  ++-identityˡ      : LeftIdentity _≡_ [] _++_
+  ++-identityʳ      : RightIdentity _≡_ [] _++_
+  ++-identity       : Identity _≡_ [] _++_
+  ++-isSemigroup    : IsSemigroup {A = List A} _≡_ _++_
+  ++-isMonoid       : IsMonoid {A = List A} _≡_ _++_ []
+  ++-semigroup      : ∀ {a} (A : Set a) → Semigroup _ _
+  ++-monoid         : ∀ {a} (A : Set a) → Monoid _ _
 
-  filter-all     : All P xs → dfilter P? xs ≡ xs
-  filter-none    : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
+  filter-all        : All P xs → dfilter P? xs ≡ xs
+  filter-none       : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
 
-  tabulate-cong   : f ≗ g → tabulate f ≡ tabulate g
-  tabulate-lookup : tabulate (lookup xs) ≡ xs
+  tabulate-cong     : f ≗ g → tabulate f ≡ tabulate g
+  tabulate-lookup   : tabulate (lookup xs) ≡ xs
+
+  zipWith-identityˡ : ∀ xs → zipWith f [] xs ≡ []
+  zipWith-identityʳ : ∀ xs → zipWith f xs [] ≡ []
+  zipWith-comm      : (∀ x y → f x y ≡ f y x) → zipWith f xs ys ≡ zipWith f ys xs
+  zipWith-unzipWith : uncurry′ g ∘ f ≗ id → uncurry′ (zipWith g) ∘ (unzipWith f)  ≗ id
+  length-zipWith    : length (zipWith f xs ys) ≡ length xs ⊓ length ys
+
+  length-unzipWith₁ : length (proj₁ (unzipWith f xys)) ≡ length xys
+  length-unzipWith₂ : length (proj₂ (unzipWith f xys)) ≡ length xys
   ```
 
 * Added new proofs to `Data.List.All.Properties`:
@@ -429,6 +440,13 @@ Backwards compatible changes
   All-irrelevance : IrrelevantPred P → IrrelevantPred (All P)
   filter⁺₁        : All P (filter P? xs)
   filter⁺₂        : All Q xs → All Q (filter P? xs)
+  mapMaybe⁺       : All (Maybe.All P) (map f xs) → All P (mapMaybe f xs)
+  zipWith⁺        : Pointwise (λ x y → P (f x y)) xs ys → All P (zipWith f xs ys)
+  ```
+
+* Added new proofs to `Data.List.Any.Properties`:
+  ```agda
+  mapMaybe⁺ : Any (Maybe.Any P) (map f xs) → Any P (mapMaybe f xs)
   ```
 
 * Added new proofs to `Data.List.Relation.NonStrictLex`:
@@ -521,6 +539,11 @@ Backwards compatible changes
   []-injective    : (x [ _∼_ ]⁺ y ∋ [ p ]) ≡ [ q ] → p ≡ q
   ∼⁺⟨⟩-injectiveˡ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → p ≡ r
   ∼⁺⟨⟩-injectiveʳ : (x [ _∼_ ]⁺ z ∋ x ∼⁺⟨ p ⟩ q) ≡ (x ∼⁺⟨ r ⟩ s) → q ≡ s
+  ```
+
+* Added new combinator to `Data.Product`:
+  ```agda
+  curry′ : (A × B → C) → (A → B → C)
   ```
 
 * Added new proofs to `Data.Product.Properties`:

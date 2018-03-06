@@ -19,7 +19,7 @@ open import Data.List.All using (All; []; _∷_)
 open import Data.Maybe.Base using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
-open import Data.Product as Prod hiding (map)
+open import Data.Product as Prod hiding (map; zip)
 open import Function
 import Relation.Binary.EqReasoning as EqR
 open import Relation.Binary.PropositionalEquality as P
@@ -179,6 +179,59 @@ module _ {a} {A : Set a} where
   ; ε        = []
   ; isMonoid = ++-isMonoid
   }
+
+------------------------------------------------------------------------
+-- zipWith
+
+module _ {a b c} {A : Set a} {B : Set b} {C : Set c}
+         (f : A → B → C) where
+
+  zipWith-identityˡ : ∀ xs → zipWith f [] xs ≡ []
+  zipWith-identityˡ []       = refl
+  zipWith-identityˡ (x ∷ xs) = refl
+
+  zipWith-identityʳ : ∀ xs → zipWith f xs [] ≡ []
+  zipWith-identityʳ []       = refl
+  zipWith-identityʳ (x ∷ xs) = refl
+
+  length-zipWith : ∀ xs ys →
+                   length (zipWith f xs ys) ≡ length xs ⊓ length ys
+  length-zipWith []       []       = refl
+  length-zipWith []       (y ∷ ys) = refl
+  length-zipWith (x ∷ xs) []       = refl
+  length-zipWith (x ∷ xs) (y ∷ ys) = P.cong suc (length-zipWith xs ys)
+
+module _ {a b} {A : Set a} {B : Set b} (f : A → A → B) where
+
+  zipWith-comm : (∀ x y → f x y ≡ f y x) →
+                 ∀ xs ys → zipWith f xs ys ≡ zipWith f ys xs
+  zipWith-comm f-comm []       []       = refl
+  zipWith-comm f-comm []       (x ∷ ys) = refl
+  zipWith-comm f-comm (x ∷ xs) []       = refl
+  zipWith-comm f-comm (x ∷ xs) (y ∷ ys) =
+    P.cong₂ _∷_ (f-comm x y) (zipWith-comm f-comm xs ys)
+
+------------------------------------------------------------------------
+-- unzipWith
+
+module _ {a b c} {A : Set a} {B : Set b} {C : Set c}
+         (f : A → B × C) where
+
+  length-unzipWith₁ : ∀ xys →
+                     length (proj₁ (unzipWith f xys)) ≡ length xys
+  length-unzipWith₁ []        = refl
+  length-unzipWith₁ (x ∷ xys) = P.cong suc (length-unzipWith₁ xys)
+
+  length-unzipWith₂ : ∀ xys →
+                     length (proj₂ (unzipWith f xys)) ≡ length xys
+  length-unzipWith₂ []        = refl
+  length-unzipWith₂ (x ∷ xys) = P.cong suc (length-unzipWith₂ xys)
+
+  zipWith-unzipWith : (g : B → C → A) → uncurry′ g ∘ f ≗ id →
+                      uncurry′ (zipWith g) ∘ (unzipWith f)  ≗ id
+  zipWith-unzipWith g f∘g≗id []       = refl
+  zipWith-unzipWith g f∘g≗id (x ∷ xs) =
+    P.cong₂ _∷_ (f∘g≗id x) (zipWith-unzipWith g f∘g≗id xs)
 
 ------------------------------------------------------------------------
 -- foldr

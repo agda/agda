@@ -42,13 +42,21 @@ _++_ : ∀ {a} {A : Set a} → List A → List A → List A
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
-zipWith : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
-          → (A → B → C) → List A → List B → List C
+zipWith : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
+          (A → B → C) → List A → List B → List C
 zipWith f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
 zipWith f _        _        = []
 
 zip : ∀ {a b} {A : Set a} {B : Set b} → List A → List B → List (A × B)
 zip = zipWith (_,_)
+
+unzipWith : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
+            (A → B × C) → List A → List B × List C
+unzipWith f []         = [] , []
+unzipWith f (xy ∷ xys) = Prod.zip _∷_ _∷_ (f xy) (unzipWith f xys)
+
+unzip : ∀ {a b} {A : Set a} {B : Set b} → List (A × B) → List A × List B
+unzip = unzipWith id
 
 intersperse : ∀ {a} {A : Set a} → A → List A → List A
 intersperse x []           = []
