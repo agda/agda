@@ -1001,7 +1001,7 @@ expandProjectedVars
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
     reportSDoc "tc.meta.assign.proj" 45 $ text "meta args: " <+> prettyTCM args
-    args <- reduceAndEtaContract args
+    args <- callByName $ reduceAndEtaContract args
     -- args <- etaContract =<< normalise args
     reportSDoc "tc.meta.assign.proj" 45 $ text "norm args: " <+> prettyTCM args
     reportSDoc "tc.meta.assign.proj" 85 $ text "norm args: " <+> text (show args)
