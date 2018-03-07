@@ -60,6 +60,8 @@ module Agda.TypeChecking.Forcing where
 
 import Control.Arrow (first, second)
 import Control.Monad
+import Control.Monad.Trans.Maybe
+import Control.Monad.Writer (WriterT(..), tell)
 import Data.Foldable hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
@@ -74,6 +76,7 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty hiding ((<>))
@@ -168,23 +171,17 @@ nextIsForced (f:fs) = (f, fs)
 -- * Forcing translation
 -----------------------------------------------------------------------------
 
--- | Move bindings for forced variables to non-forced positions.
+-- | Move bindings for forced variables to unforced positions.
 forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
-forcingTranslation = go 1000
-  where
-    go 0 _ = __IMPOSSIBLE__
-    go n ps = do
-      qs <- forcedPatterns ps
-      reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
-        [ text "patterns:" <?> pretty ps
-        , text "forced:" <?> pretty qs ]
-      case qs of
-        []    -> return ps
-        q : _ -> go (n - 1) $ unforce q ps
-          -- This should terminate, but it's not obvious that you couldn't have
-          -- a situation where you move a forced argument between two different
-          -- forced positions indefinitely. Cap it to 1000 iterations to guard
-          -- against this case.
+forcingTranslation ps = do
+  (qs, rebind) <- dotForcedPatterns ps
+  reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
+    [ text "patterns:" <?> pretty ps
+    , text "dotted:  " <?> pretty qs
+    , text "rebind:  " <?> pretty rebind ]
+  rs <- foldM rebindForcedPattern qs rebind
+  when (not $ null rebind) $ reportSDoc "tc.force" 50 $ nest 2 $ text "result:  " <?> pretty rs
+  return rs
 
 -- | Applies the forcing translation in order to update modalities of forced
 --   arguments in the telescope. This is used before checking a right-hand side
@@ -208,80 +205,97 @@ forceTranslateTelescope delta qs = do
       reportSDoc "tc.force" 60 $ nest 2 $ text "delta' =" <?> prettyTCM delta'
       return delta'
 
--- | Move the bindings in a forced pattern to non-forced positions.
---   Takes a list of top-level patterns `ps` (second argument) and a pattern to
---   "unforce" `q` (first argument). The first argument should appear somewhere
---   (possibly deep) inside the second argument. The result is a new list of
---   top-level patterns where `q` has been turned into a dot pattern, and the
---   binding sites of variables previously bound in `q` have been moved by
---   turning dot patterns into proper patterns.
---
---   Preconditions:
---    - `q` must appear in a forced position in `ps`. This ensures that we can
---      find alternative binding sites for its variables.
---    - `q` must bind at least one variable. This ensures that there is a
---      unique occurrence of `q` in `ps`.
+-- | Rebind a forced pattern in a non-forced position. The forced pattern has
+--   already been dotted by 'dotForcedPatterns', so the remaining task is to
+--   find a dot pattern in an unforced position that can be turned into a
+--   proper match of the forced pattern.
 --
 --   For instance (with patterns prettified to ease readability):
 --
---    unforce n [.(suc n), cons n x xs] = [suc n, cons .n x xs]
+--    rebindForcedPattern [.(suc n), cons .n x xs] n = [suc n, cons .n x xs]
 --
-unforce :: DeBruijnPattern -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
-unforce q [] = __IMPOSSIBLE__   -- unforcing cannot fail
-unforce q (p : ps) =
-  case namedArg p of
-    VarP o y -> fmap (mkDot q (VarP o y) <$) p : unforce q ps
-    DotP _ v | Just q' <- mkPat q v -> (fmap (q' <$) p : (fmap . fmap . fmap) (mkDot q) ps)
-    DotP{} -> p : unforce q ps
-    ConP c i qs -> fmap (ConP c i qs' <$) p : ps'
-      where
-        qps        = unforce q (qs ++ ps)
-        (qs', ps') = splitAt (length qs) qps
-    LitP{} -> p : unforce q ps
-    ProjP{} -> p : unforce q ps
+rebindForcedPattern :: [NamedArg DeBruijnPattern] -> DeBruijnPattern -> TCM [NamedArg DeBruijnPattern]
+rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
   where
-    -- Turn a match on q into a dot pattern
-    mkDot :: DeBruijnPattern -> DeBruijnPattern -> DeBruijnPattern
-    mkDot q p | p =:= q = dotP $ patternToTerm p
-    mkDot q p = case p of
-      VarP{}          -> p
-      DotP{}          -> p
-      ConP c i ps     -> ConP c i $ (fmap . fmap . fmap) (mkDot q) ps
-      LitP{}          -> p
-      ProjP{}         -> p
+    targetDotP = patternToTerm toRebind
 
-    p =:= q = patternToElim (defaultArg p) == patternToElim (defaultArg q)
+    go [] = __IMPOSSIBLE__ -- unforcing cannot fail
+    go ((Forced,    p) : ps) = (p :) <$> go ps
+    go ((NotForced, p) : ps) =
+      case namedArg p of
+        VarP{}   -> (p :) <$> go ps
+        DotP _ v -> mkPat v >>= \ case
+          Nothing -> (p :) <$> go ps
+          Just q' -> return $ fmap (q' <$) p : map snd ps
+        ConP c i qs -> do
+          fqs <- withForced c qs
+          qps <- go (fqs ++ ps)
+          let (qs', ps') = splitAt (length qs) qps
+          return $ fmap (ConP c i qs' <$) p : ps'
+        LitP{}  -> (p :) <$> go ps
+        ProjP{} -> (p :) <$> go ps
+
+    withForced :: ConHead -> [a] -> TCM [(IsForced, a)]
+    withForced c qs = do
+      fs <- defForced <$> getConstInfo (conName c)
+      return $ zip (fs ++ repeat NotForced) qs
 
     -- Try to turn a term in a dot pattern into a pattern matching q
-    mkPat :: DeBruijnPattern -> Term -> Maybe DeBruijnPattern
-    mkPat q v | patternToTerm q == v = Just q
-    mkPat q v =
+    mkPat :: Term -> TCM (Maybe DeBruijnPattern)
+    mkPat v = mkPat' (NotForced, v)
+
+    mkPat' :: (IsForced, Term) -> TCM (Maybe DeBruijnPattern)
+    mkPat' (Forced, _) = return Nothing
+    mkPat' (NotForced, v) | targetDotP == v = return (Just toRebind)
+    mkPat' (NotForced, v) =
       case v of
         Con c co es -> do
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          let mps = (map . traverse) (mkPat q) vs
-          (mvs1, (_, Just p) : mvs2) <- return $ break (isJust . snd) (zip vs mps)
-          let vs1 = map fst mvs1
-              vs2 = map fst mvs2
-              ci = (toConPatternInfo co) { conPLazy = True }
-              dots = (map . fmap) dotP
-          return (ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2)
-        _ -> Nothing
+          fvs <- withForced c vs
+          let fvs' = [ (f,) <$> a | (f, a) <- fvs ] :: [Arg (IsForced, Term)]
+          -- It takes a bit of juggling to apply mkPat' under the the 'Arg's, but since it
+          -- type checks, it's pretty much guaranteed to be the right thing.
+          mps :: [Maybe (Arg DeBruijnPattern)] <- mapM (runMaybeT . traverse (MaybeT . mkPat')) fvs'
+          case break (isJust . snd) (zip vs mps) of
+            (mvs1, (_, Just p) : mvs2) -> do
+              let vs1 = map fst mvs1
+                  vs2 = map fst mvs2
+                  ci = (toConPatternInfo co) { conPLazy = True }
+                  dots = (map . fmap) dotP
+              return $ Just $ ConP c ci $ doname $ dots vs1 ++ [p] ++ dots vs2
+            _ -> return Nothing
+        _ -> return Nothing
       where
         doname = (map . fmap) unnamed
 
-forcedPatterns :: [NamedArg (Pattern' x)] -> TCM [Pattern' x]
-forcedPatterns ps = concat <$> mapM (forced NotForced . namedArg) ps
+-- | Dot all forced patterns and return a list of patterns that need to be
+--   undotted elsewhere. Patterns that need to be undotted are those that bind
+--   variables or does some actual (non-eta) matching.
+dotForcedPatterns :: [NamedArg DeBruijnPattern] -> TCM ([NamedArg DeBruijnPattern], [DeBruijnPattern])
+dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced NotForced) ps
   where
-    forced :: IsForced -> Pattern' x -> TCM [Pattern' x]
+    forced :: IsForced -> DeBruijnPattern -> WriterT [DeBruijnPattern] TCM DeBruijnPattern
     forced f p =
       case p of
-        VarP{}  -> return [p | f == Forced]
-        DotP{}  -> return []
-        ConP c _ args
-          | f == Forced -> return [p]
-          | otherwise   -> do
-            fs <- defForced <$> getConstInfo (conName c)
-            concat <$> zipWithM forced (fs ++ repeat NotForced) (map namedArg args)
-        LitP{}    -> return []
-        ProjP{}   -> return []
+        DotP{}          -> return p
+        ProjP{}         -> return p
+        _ | f == Forced -> do
+          properMatch <- isProperMatch p
+          dotP (patternToTerm p) <$ tell [p | properMatch || length p > 0]
+        VarP{}          -> return p
+        LitP{}          -> return p
+        ConP c i ps     -> do
+          fs <- defForced <$> getConstInfo (conName c)
+          ConP c i <$> zipWithM forcedArg (fs ++ repeat NotForced) ps
+
+    forcedArg f = (traverse . traverse) (forced f)
+
+    isProperMatch LitP{}  = return True
+    isProperMatch VarP{}  = return False
+    isProperMatch ProjP{} = return False
+    isProperMatch DotP{}  = return False
+    isProperMatch (ConP c i ps) =
+      ifM (isEtaCon $ conName c)
+          (anyM ps (isProperMatch . namedArg))
+          (return True)
+

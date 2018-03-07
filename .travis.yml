@@ -99,6 +99,11 @@ matrix:
       language: python
       python: "3.4"
 
+  allow_failures:
+    - env: TEST=USER_MANUAL BUILD=NOTHING
+      language: python
+      python: "3.4"
+
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
   # allow_failures:
