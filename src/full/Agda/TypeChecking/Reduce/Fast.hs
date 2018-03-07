@@ -447,8 +447,8 @@ storePointer :: STPointer s -> Closure s -> ST s ()
 storePointer ptr !cl = writeSTRef ptr (Thunk cl)
     -- Note the strict match. To prevent leaking memory in case of unnecessary updates.
 
-blackHole :: STPointer s -> ST s ()
-blackHole ptr = writeSTRef ptr BlackHole
+blackHolePointer :: STPointer s -> ST s ()
+blackHolePointer ptr = writeSTRef ptr BlackHole
 
 -- | Create a thunk. If the closure is a naked variable we can reuse the pointer from the
 --   environment to avoid creating long pointer chains.
@@ -648,17 +648,18 @@ buildEnv xs spine = go xs spine emptyEnv
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
 reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Bool -> Bool -> Term -> Blocked Term
-reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun . traceDoc (text "-- fast reduce --")
+reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun . traceDoc (text "-- fast reduce --")
   where
     -- Helpers to get information from the ReduceEnv.
-    metaStore      = redSt redEnv ^. stMetaStore
+    metaStore      = redSt rEnv ^. stMetaStore
     getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (Map.lookup m metaStore)
-    runReduce m    = unReduceM m redEnv
+    runReduce m    = unReduceM m rEnv
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
+    callByNeed     = envCallByNeed (redEnv rEnv)
 
     -- Debug output. Taking care that we only look at the verbosity level once.
-    hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) redEnv
+    hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) rEnv
     doDebug = hasVerb "tc.reduce.fast" 110
     traceDoc
       | doDebug   = trace . show
@@ -1069,9 +1070,15 @@ reduceTm redEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun
     sucCtrl               ctrl  = NatSucK 1 : ctrl
 
     -- Add a UpdateThunk frame to the control stack. Pack consecutive updates into a single frame.
-    updateThunkCtrl :: STPointer s -> ControlStack s -> ControlStack s
-    updateThunkCtrl p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
-    updateThunkCtrl p                   ctrl  = UpdateThunk [p] : ctrl
+    -- Only if callByNeed is enabled.
+    updateThunkCtrl = if callByNeed then updateThunkCtrl' else const id
+
+    updateThunkCtrl' :: STPointer s -> ControlStack s -> ControlStack s
+    updateThunkCtrl' p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
+    updateThunkCtrl' p                   ctrl  = UpdateThunk [p] : ctrl
+
+    -- Write a BlackHole to a pointer. Only if callByNeed is enabled.
+    blackHole = if callByNeed then blackHolePointer else \ _ -> return ()
 
     -- Only unfold delayed (corecursive) definitions if the result is being cased on.
     unfoldDelayed :: ControlStack s -> Bool
