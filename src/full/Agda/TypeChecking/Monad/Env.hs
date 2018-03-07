@@ -109,3 +109,8 @@ insideDotPattern = local $ \e -> e { envInsideDotPattern = True }
 
 isInsideDotPattern :: TCM Bool
 isInsideDotPattern = asks envInsideDotPattern
+
+-- | Don't use call-by-need evaluation for the given computation.
+callByName :: TCM a -> TCM a
+callByName = local $ \ e -> e { envCallByNeed = False }
+

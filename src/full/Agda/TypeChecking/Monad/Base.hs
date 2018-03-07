@@ -2191,6 +2191,8 @@ data TCEnv =
                 -- ^ Until we get a termination checker for instance search (#1743) we
                 --   limit the search depth to ensure termination.
           , envIsDebugPrinting :: Bool
+          , envCallByNeed :: Bool
+                -- ^ Use call-by-need evaluation for reductions.
           , envCurrentCheckpoint :: CheckpointId
                 -- ^ Checkpoints track the evolution of the context as we go
                 -- under binders or refine it by pattern matching.
@@ -2243,6 +2245,7 @@ initEnv = TCEnv { envContext             = []
                 , envUnquoteFlags           = defaultUnquoteFlags
                 , envInstanceDepth          = 0
                 , envIsDebugPrinting        = False
+                , envCallByNeed             = True
                 , envCurrentCheckpoint      = 0
                 , envCheckpoints            = Map.singleton 0 IdS
                 }
@@ -2362,6 +2365,9 @@ eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x 
 
 eIsDebugPrinting :: Lens' Bool TCEnv
 eIsDebugPrinting f e = f (envIsDebugPrinting e) <&> \ x -> e { envIsDebugPrinting = x }
+
+eCallByNeed :: Lens' Bool TCEnv
+eCallByNeed f e = f (envCallByNeed e) <&> \ x -> e { envCallByNeed = x }
 
 eCurrentCheckpoint :: Lens' CheckpointId TCEnv
 eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentCheckpoint = x }
