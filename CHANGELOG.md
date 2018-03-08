@@ -743,6 +743,11 @@ Backwards compatible changes
   ∁? : Decidable P → Decidable (∁ P)
   ```
 
+* Added `recompute` to `Relation.Nullary`:
+  ```agda
+  recompute : ∀ {a} {A : Set a} → Dec A → .A → A
+  ```
+
 Version 0.14
 ============
 
