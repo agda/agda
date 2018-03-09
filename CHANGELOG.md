@@ -465,8 +465,11 @@ Backwards compatible changes
   ++-semigroup      : ∀ {a} (A : Set a) → Semigroup _ _
   ++-monoid         : ∀ {a} (A : Set a) → Monoid _ _
 
-  filter-all        : All P xs → dfilter P? xs ≡ xs
-  filter-none       : All (¬_ ∘ P) xs → dfilter P? xs ≡ []
+  filter-none       : All P xs     → dfilter P? xs ≡ xs
+  filter-some       : Any (∁ P) xs → length (filter P? xs) < length xs
+  filter-notAll     : Any P xs     → 0 < length (filter P? xs)
+  filter-all        : All (∁ P) xs → dfilter P? xs ≡ []
+  filter-complete   : length (filter P? xs) ≡ length xs → filter P? xs ≡ xs
 
   tabulate-cong     : f ≗ g → tabulate f ≡ tabulate g
   tabulate-lookup   : tabulate (lookup xs) ≡ xs

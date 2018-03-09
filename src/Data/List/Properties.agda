@@ -16,6 +16,7 @@ import Algebra.Monoid-solver
 open import Data.Bool.Base using (Bool; false; true; not; if_then_else_)
 open import Data.List as List
 open import Data.List.All using (All; []; _∷_)
+open import Data.List.Any using (Any; here; there)
 open import Data.Maybe.Base using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
@@ -447,23 +448,47 @@ module _ {a} {A : Set a} (p : A → Bool) where
 
 module _ {a p} {A : Set a} {P : A → Set p} (P? : Decidable P) where
 
-  filter-all : ∀ {xs} → All P xs → filter P? xs ≡ xs
-  filter-all {[]}     []         = refl
-  filter-all {x ∷ xs} (px ∷ pxs) with P? x
-  ... | no  ¬px = contradiction px ¬px
-  ... | yes _   = P.cong (x ∷_) (filter-all pxs)
-
-  filter-none : ∀ {xs} → All (∁ P) xs → filter P? xs ≡ []
-  filter-none {[]}     []           = refl
-  filter-none {x ∷ xs} (¬px ∷ ¬pxs) with P? x
-  ... | no  _  = filter-none ¬pxs
-  ... | yes px = contradiction px ¬px
-
   length-filter : ∀ xs → length (filter P? xs) ≤ length xs
   length-filter []       = z≤n
   length-filter (x ∷ xs) with P? x
   ... | no  _ = ≤-step (length-filter xs)
   ... | yes _ = s≤s (length-filter xs)
+
+  filter-none : ∀ {xs} → All P xs → filter P? xs ≡ xs
+  filter-none {[]}     []         = refl
+  filter-none {x ∷ xs} (px ∷ pxs) with P? x
+  ... | no  ¬px = contradiction px ¬px
+  ... | yes _   = P.cong (x ∷_) (filter-none pxs)
+
+  filter-some : ∀ xs → Any (∁ P) xs → length (filter P? xs) < length xs
+  filter-some [] ()
+  filter-some (x ∷ xs) (here ¬px) with P? x
+  ... | no  _  = s≤s (length-filter xs)
+  ... | yes px = contradiction px ¬px
+  filter-some (x ∷ xs) (there any) with P? x
+  ... | no  _ = ≤-step (filter-some xs any)
+  ... | yes _ = s≤s (filter-some xs any)
+
+  filter-notAll : ∀ {xs} → Any P xs → 0 < length (filter P? xs)
+  filter-notAll {x ∷ xs} (here px)   with P? x
+  ... | yes _  = s≤s z≤n
+  ... | no ¬px = contradiction px ¬px
+  filter-notAll {x ∷ xs} (there pxs) with P? x
+  ... | yes _ = ≤-step (filter-notAll pxs)
+  ... | no  _ = filter-notAll pxs
+
+  filter-all : ∀ {xs} → All (∁ P) xs → filter P? xs ≡ []
+  filter-all {[]}     []           = refl
+  filter-all {x ∷ xs} (¬px ∷ ¬pxs) with P? x
+  ... | no  _  = filter-all ¬pxs
+  ... | yes px = contradiction px ¬px
+
+  filter-complete : ∀ {xs} → length (filter P? xs) ≡ length xs →
+                    filter P? xs ≡ xs
+  filter-complete {[]}     eq = refl
+  filter-complete {x ∷ xs} eq with P? x
+  ... | no ¬px = contradiction eq (<⇒≢ (s≤s (length-filter xs)))
+  ... | yes px = P.cong (x ∷_) (filter-complete (suc-injective eq))
 
 ------------------------------------------------------------------------
 -- partition
