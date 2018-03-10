@@ -447,8 +447,8 @@ storePointer :: STPointer s -> Closure s -> ST s ()
 storePointer ptr !cl = writeSTRef ptr (Thunk cl)
     -- Note the strict match. To prevent leaking memory in case of unnecessary updates.
 
-blackHolePointer :: STPointer s -> ST s ()
-blackHolePointer ptr = writeSTRef ptr BlackHole
+blackHole :: STPointer s -> ST s ()
+blackHole ptr = writeSTRef ptr BlackHole
 
 -- | Create a thunk. If the closure is a naked variable we can reuse the pointer from the
 --   environment to avoid creating long pointer chains.
@@ -1023,7 +1023,7 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
     evalPointerAM (Pure cl)   spine ctrl = runAM (Eval (clApply cl spine) ctrl)
     evalPointerAM (Pointer p) spine ctrl = readPointer p >>= \ case
       BlackHole -> __IMPOSSIBLE__
-      Thunk cl@(Closure Unevaled _ _ _) -> do
+      Thunk cl@(Closure Unevaled _ _ _) | callByNeed -> do
         blackHole p
         runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++ ctrl)
       Thunk cl -> runAM (Eval (clApply cl spine) ctrl)
@@ -1070,15 +1070,9 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
     sucCtrl               ctrl  = NatSucK 1 : ctrl
 
     -- Add a UpdateThunk frame to the control stack. Pack consecutive updates into a single frame.
-    -- Only if callByNeed is enabled.
-    updateThunkCtrl = if callByNeed then updateThunkCtrl' else const id
-
-    updateThunkCtrl' :: STPointer s -> ControlStack s -> ControlStack s
-    updateThunkCtrl' p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
-    updateThunkCtrl' p                   ctrl  = UpdateThunk [p] : ctrl
-
-    -- Write a BlackHole to a pointer. Only if callByNeed is enabled.
-    blackHole = if callByNeed then blackHolePointer else \ _ -> return ()
+    updateThunkCtrl :: STPointer s -> ControlStack s -> ControlStack s
+    updateThunkCtrl p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
+    updateThunkCtrl p                   ctrl  = UpdateThunk [p] : ctrl
 
     -- Only unfold delayed (corecursive) definitions if the result is being cased on.
     unfoldDelayed :: ControlStack s -> Bool
