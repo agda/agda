@@ -434,6 +434,8 @@ agda2-include-dirs is not bound." :warning))
  ;; If Agda is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
    (agda2-restart))
+ ;; Make sure that Font Lock mode is not used.
+ (font-lock-mode 0)
  (agda2-highlight-setup)
  (condition-case err
      (agda2-highlight-reload)
