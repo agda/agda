@@ -135,7 +135,7 @@ all-anti-mono p xs⊆ys = All-all p ∘ anti-mono xs⊆ys ∘ all-All p _
 ------------------------------------------------------------------------
 -- map
 
-module _{a b} {A : Set a} {B : Set b} where
+module _ {a b} {A : Set a} {B : Set b} where
 
   All-map : ∀ {p} {P : B → Set p} {f : A → B} {xs} →
             All (P ∘ f) xs → All P (map f xs)
