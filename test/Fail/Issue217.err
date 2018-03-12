@@ -1,6 +1,5 @@
-Issue217.agda:5,3-6,8
+Issue217.agda:4,1-6,8
 Termination checking failed for the following functions:
   A.⊥
 Problematic calls:
   ⊥ (at Issue217.agda:6,7-8)
-when checking the definition of A

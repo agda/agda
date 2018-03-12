@@ -1,6 +1,8 @@
 -- {-# OPTIONS -v term:10 -v tc.pos:10 -v tc.decl:10 #-}
 
 -- Andreas, 2018-02-26, issue #2975
+-- Problem history:
+--
 -- The example below crashed with an internal error.
 -- The problem is that the termination checker needs to know
 -- whether force is the projection of a recursive coinductive
@@ -15,4 +17,4 @@ record R : Set where
   r : R
   force r = r
 
--- Unfortunately, does not succeed currently.
+-- Should succeed.
