@@ -44,7 +44,8 @@ procedure can be followed:
 
     cd agda
     make fast-forward-std-lib
-    record-the-changes-and-push
+
+  Record the changes and push
 
 * Update the Agda wiki:
 
