@@ -12,7 +12,6 @@ module Relation.Binary.Sum where
 open import Data.Sum.Relation.Core public
 
 open import Data.Sum.Relation.Pointwise public
-  using ()
   renaming
   ( Pointwise          to _⊎-Rel_
   ; ⊎-symmetric        to _⊎-symmetric_
@@ -22,6 +21,9 @@ open import Data.Sum.Relation.Pointwise public
   ; ⊎-setoid           to _⊎-setoid_
   ; ⊎-decSetoid        to _⊎-decSetoid_
   ; Pointwise-≡↔≡      to ⊎-Rel↔≡
+  )
+  hiding
+  ( ⊎-decidable
   )
 
 open import Data.Sum.Relation.LeftOrder public
