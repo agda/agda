@@ -848,8 +848,9 @@ niceDeclarations ds = do
             case ds of
               []     -> __IMPOSSIBLE__ <$ (checkLoneSigs . Map.toList =<< use loneSigs)
               d : ds -> case declKind d of
-                LoneSig k x ->
-                  addLoneSig x k >> cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
+                LoneSig k x -> do
+                  addLoneSig x k
+                  cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
                 LoneDefs k xs -> do
                   mapM_ removeLoneSig xs
                   cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
