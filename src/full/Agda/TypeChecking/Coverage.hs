@@ -125,7 +125,7 @@ clauseToSplitClause cl = SClause
   { scTel    = clauseTel  cl
   , scPats   = namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
-  , scCheckpoints = __IMPOSSIBLE__ -- We shouldn't look at checkpoints when case splitting!
+  , scCheckpoints = Map.empty -- #2996: not __IMPOSSIBLE__ for debug printing
   , scTarget = clauseType cl
   }
 
