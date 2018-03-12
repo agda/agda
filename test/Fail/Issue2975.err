@@ -1,6 +1,0 @@
-Issue2975.agda:15,3-16,14
-Termination checking failed for the following functions:
-  R.r
-Problematic calls:
-  r (at Issue2975.agda:16,13-14)
-when checking the projection force : R

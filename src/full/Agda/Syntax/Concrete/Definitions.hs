@@ -837,20 +837,7 @@ niceDeclarations ds = do
           addLoneSig x k
           ((tcs, pcs), (ds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
           tc <- combineTermChecks (getRange d) tcs
-
-          -- Record modules are, for performance reasons, not always
-          -- placed in mutual blocks.
-
-          -- ASR (01 January 2016): If the record module has a
-          -- NO_POSITIVITY_CHECK pragma, it is placed in a mutual
-          -- block. See Issue 1760.
-          let prefix :: [NiceDeclaration] -> [NiceDeclaration]
-              prefix = case (d, ds0) of
-                (NiceRecSig{}, [r@(RecDef _ _ _ True _ _ _ _ _ _)]) -> ([d, r] ++)
-                _                                                   ->
-                  (NiceMutual (getRange (d : ds0)) tc (and pcs) (d : ds0) :)
-
-          prefix <$> inferMutualBlocks ds1
+          (NiceMutual (getRange (d : ds0)) tc (and pcs) (d : ds0) :) <$> inferMutualBlocks ds1
       where
         untilAllDefined :: ([TerminationCheck], [PositivityCheck])
                         -> [NiceDeclaration]
