@@ -31,8 +31,8 @@ open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect) renaming ([_] to P[_])
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
-import Relation.Binary.Sigma.Pointwise as Σ
-open import Relation.Binary.Sum
+import Data.Product.Relation.Pointwise.Dependent as Σ
+open import Data.Sum.Relation.Pointwise
 
 open import Data.List.Any.Membership.Propositional
 open Related.EquationalReasoning

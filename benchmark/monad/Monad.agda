@@ -56,8 +56,8 @@ import Data.List as List; open List using (List)
 open import Data.Unit hiding (poset; _≤_)
 open import Function
 open import Data.Maybe hiding (Eq)
-open import Relation.Binary.Product.StrictLex
-open import Relation.Binary.Product.Pointwise
+open import Data.Product.Relation.Lex.Strict
+open import Data.Product.Relation.Pointwise.NonDependent
 import Relation.Binary.On as On
 
 ------------------------------------------------------------------------
@@ -96,14 +96,14 @@ shuffle ((pos , f , r) , key k .pos) = (pos , f , r , k)
 -- Equality and order.
 
 Eq : Rel (∃ MemoTableKey) _
-Eq = _≡_ ×-Rel _≋_  on  shuffle
+Eq = Pointwise _≡_ _≋_  on  shuffle
 
 Lt : Rel (∃ MemoTableKey) _
 Lt = ×-Lex _≡_ _<P_ _<_  on  shuffle
 
 isOrdered : IsStrictTotalOrder Eq Lt
 isOrdered = On.isStrictTotalOrder shuffle
-              (posOrdered ×-isStrictTotalOrder keyOrdered)
+              (×-isStrictTotalOrder posOrdered keyOrdered)
 
 indicesEqual′ : Eq =[ proj₁ ]⇒ _≡_
 indicesEqual′ {((_ , _ , _) , key _ ._)}
