@@ -1,0 +1,13 @@
+The `experimental` branch contains changes that are required for
+yet unreleased versions of Agda. These are kept separate from
+`master` so that the standard library releases can occur independently
+from Agda releases.
+
+To update `experimental` to the current version of `master` run the
+following:
+  ```
+  git checkout experimental
+  git pull --rebase . master
+  git pull
+  git push
+  ```
