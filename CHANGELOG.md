@@ -1,9 +1,7 @@
-Version TODO
+Version 0.15
 ============
 
-The library has been tested using Agda version TODO.
-
-Important changes since 0.14:
+The library has been tested using Agda version 2.5.3.
 
 Non-backwards compatible changes
 --------------------------------
@@ -11,28 +9,28 @@ Non-backwards compatible changes
 #### Upgrade and overhaul of organisation of relations over data
 
 * Relations over data have been moved from the `Relation` subtree to the `Data`
-  subtree. In general the files have been moved from `Relation.Binary.X` to
+  subtree. This increases the usability of the library by:
+    1. keeping all the definitions concerning a given datatype in the same directory
+    2. providing a location to reason about how operations on the data affect the
+       relations (e.g. how `Pointwise` is affected by `map`)
+    3. increasing the discoverability of the relations. There is anecdotal evidence that many
+           users were not aware of the existence of the relations in the old location.
+
+  In general the files have been moved from `Relation.Binary.X` to
   `Data.X.Relation`. The full list of moves is as follows:
   ```
   `Relation.Binary.List.Pointwise`       ↦ `Data.List.Relation.Pointwise`
   `Relation.Binary.List.StrictLex`       ↦ `Data.List.Relation.Lex.Strict`
   `Relation.Binary.List.NonStrictLex`    ↦ `Data.List.Relation.Lex.NonStrict`
   `Relation.Binary.Sum`                  ↦ `Data.Sum.Relation.Pointwise`
-                                         | `Data.Sum.Relation.LeftOrder`
+                                         ↘ `Data.Sum.Relation.LeftOrder`
   `Relation.Binary.Sigma.Pointwise`      ↦ `Data.Product.Relation.Pointwise.Dependent'
   `Relation.Binary.Product.Pointwise`    ↦ `Data.Product.Relation.Pointwise.NonDependent`
   `Relation.Binary.Product.StrictLex`    ↦ `Data.Product.Relation.Lex.Strict`
   `Relation.Binary.Product.NonStrictLex` ↦ `Data.Product.Relation.Lex.NonStrict`
   `Relation.Binary.Vec.Pointwise`        ↦ `Data.Vec.Relation.Pointwise.Inductive`
-                                         | `Data.Vec.Relation.Pointwise.Extensional`
+                                         ↘ `Data.Vec.Relation.Pointwise.Extensional`
   ```
-
-  This aims to increase usability of the library because:
-    1. it keeps all the definitions about particular data types in the same directory
-    2. it provides a location to reason about how operations on the data types affect the
-       relations over them (e.g. how `Pointwise` is affected by `map`)
-    3. there is anecdotal evidence that many people were not aware of the existence
-       of the relations in the old location. The new location should be discovered naturally.
 
   The old files in `Relation.Binary.X` still exist for backwards compatability reasons and
   re-export the contents of files' new location in `Data.X.Relation` but may be removed in some
@@ -47,7 +45,7 @@ Non-backwards compatible changes
   The inductive form of `Pointwise` has been generalised so that technically it can apply to two
   vectors with different lengths (although in practice the lengths must turn out to be equal). This
   allows a much wider range of proofs such as the fact that `[]` is a right identity for `_++_`
-  which was previously not possible to prove using the old definition. In order to ensure
+  which previously did not type check using the old definition. In order to ensure
   compatability with the `--without-K` option, the universe level of `Inductive.Pointwise`
   has been increased from `ℓ` to `a ⊔ b ⊔ ℓ`.
 

@@ -1,18 +1,19 @@
 module README where
 
 ------------------------------------------------------------------------
--- The Agda standard library, development version
+-- The Agda standard library, version 0.15
 --
--- Author: Nils Anders Danielsson, with contributions from Andreas
+-- Authors: Nils Anders Danielsson, with contributions from Andreas
 -- Abel, Stevan Andjelkovic, Jean-Philippe Bernardy, Peter Berry,
--- Joachim Breitner, Samuel Bronson, Daniel Brown, James Chapman,
--- Liang-Ting Chen, Matthew Daggitt, Dominique Devriese, Dan Doel,
--- Érdi Gergő, Helmut Grohne, Simon Foster, Liyang Hu, Patrik Jansson,
--- Alan Jeffrey, Wen Kokke, Evgeny Kotelnikov, Sergei Meshveliani
--- Eric Mertens, Darin Morrison, Guilhem Moulin, Shin-Cheng Mu,
--- Ulf Norell, Noriyuki OHKAWA, Nicolas Pouillard, Andrés Sicard-Ramírez,
--- Noam Zeilberger and some anonymous contributors.
--- ----------------------------------------------------------------------
+-- Bradley Hardy Joachim Breitner, Samuel Bronson, Daniel Brown,
+-- James Chapman, Liang-Ting Chen, Matthew Daggitt, Dominique Devriese,
+-- Dan Doel, Érdi Gergő, Helmut Grohne, Simon Foster, Liyang Hu,
+-- Patrik Jansson, Alan Jeffrey, Wen Kokke, Evgeny Kotelnikov,
+-- Sergei Meshveliani, Eric Mertens, Darin Morrison, Guilhem Moulin,
+-- Shin-Cheng Mu, Ulf Norell, Noriyuki Ohkawa, Nicolas Pouillard,
+-- Andrés Sicard-Ramírez, Noam Zeilberger and some anonymous
+-- contributors.
+------------------------------------------------------------------------
 
 -- This version of the library has been tested using Agda 2.5.3.
 
