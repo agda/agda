@@ -192,7 +192,7 @@ effect. See the :ref:`instance-arguments-examples` below.
 Declaring instances
 ~~~~~~~~~~~~~~~~~~~
 
-A seen above, instance arguments in the context are available when solving
+As seen above, instance arguments in the context are available when solving
 instance arguments, but you also need to be able to
 define top-level instances for concrete types. This is done using the
 ``instance`` keyword, which starts a :ref:`block <lexical-structure-layout>` in
