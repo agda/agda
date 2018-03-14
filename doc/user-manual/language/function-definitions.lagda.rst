@@ -47,7 +47,7 @@ where ``f`` is a new identifier, ``pᵢ`` and ``qᵢ`` are patterns of type ``A�
 and ``d`` and ``e`` are expressions.
 
 The declaration above gives the identifier ``f`` the type
-``(x₁ : A₁) → … → (x₁ : A₁) → B`` and ``f`` is defined by the defining
+``(x₁ : A₁) → … → (xₙ : Aₙ) → B`` and ``f`` is defined by the defining
 equations. Patterns are matched from top to bottom, i.e., the first pattern
 that matches the actual parameters is the one that is used.
 
