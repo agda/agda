@@ -126,7 +126,7 @@ Agda Built-in  Haskell Type
 ``INTEGER``    ``Integer``
 ``STRING``     ``Data.Text.Text``
 ``CHAR``       ``Char``
-``BOOL``       ``Boolean``
+``BOOL``       ``Bool``
 ``FLOAT``      ``Double``
 =============  ==================
 
