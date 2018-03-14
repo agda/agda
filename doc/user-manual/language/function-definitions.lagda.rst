@@ -204,7 +204,7 @@ equation holds, you would not be able to write ``refl``:
     refl : x ≡ x
 
   -- Does not work!
-  lemma : (m : Nat) → max m zero ≡ zero
+  lemma : (m : Nat) → max m zero ≡ m
   lemma = refl
 
 Clauses which do not hold definitionally are usually (but not always)
