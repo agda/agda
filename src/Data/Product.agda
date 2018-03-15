@@ -18,9 +18,7 @@ infixr 2 _×_ _-×-_ _-,-_
 ------------------------------------------------------------------------
 -- Definition
 
-open import Agda.Builtin.Sigma hiding (module Σ) public renaming (fst to proj₁; snd to proj₂)
-
-module Σ = Agda.Builtin.Sigma.Σ renaming (fst to proj₁; snd to proj₂)
+open import Agda.Builtin.Sigma public renaming (fst to proj₁; snd to proj₂)
 
 -- The syntax declaration below is attached to Σ-syntax, to make it
 -- easy to import Σ without the special syntax.
