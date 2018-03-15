@@ -111,7 +111,6 @@ import Prelude hiding (null)
 import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Plus
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
@@ -600,7 +599,7 @@ findFlexible i flex =
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
   Equal (Dom info a) u v <- liftTCM $ eqUnLevel (getEquality k s)
-  ha <- mfromMaybe $ isHom n a
+  ha <- fromMaybeMP $ isHom n a
   (mi, mj) <- liftTCM $ addContext (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
   liftTCM $ reportSDoc "tc.lhs.unify" 30 $ text "isEtaVar results: " <+> text (show [mi,mj])
   case (mi, mj) of
@@ -636,9 +635,9 @@ dataStrategy k s = do
   Equal (Dom _ a) u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
   case ignoreSharing $ unEl a of
     Def d es -> do
-      npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
+      npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      hpars <- mfromMaybe $ isHom k pars
+      hpars <- fromMaybeMP $ isHom k pars
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
@@ -663,14 +662,14 @@ checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
   let Equal (Dom _ a) u v = getEquality k s
       n = eqCount s
-  ha <- mfromMaybe $ isHom n a
+  ha <- fromMaybeMP $ isHom n a
   return $ Deletion k ha u v
 
 literalStrategy :: Int -> UnifyStrategy
 literalStrategy k s = do
   let n = eqCount s
   Equal (Dom _ a) u v <- liftTCM $ eqUnLevel $ getEquality k s
-  ha <- mfromMaybe $ isHom n a
+  ha <- fromMaybeMP $ isHom n a
   case (u , v) of
     (Lit l1 , Lit l2)
      | l1 == l2  -> return $ Deletion k ha u v
@@ -685,14 +684,14 @@ etaExpandVarStrategy k s = do
     -- TODO: use IsEtaVar to check if the term is a variable
     shouldEtaExpand :: Term -> Type -> UnifyStrategy
     shouldEtaExpand (Var i es) a s = do
-      fi       <- mfromMaybe $ findFlexible i (flexVars s)
+      fi       <- fromMaybeMP $ findFlexible i (flexVars s)
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         text "Found flexible variable " <+> text (show i)
       -- Issue 2888: Do this even if there aren't any projections. Otherwise we
       -- end up eta expanding the equation instead, which the forcing
       -- translation doesn't like.
       let Dom _ b = getVarTypeUnraised (varCount s - 1 - i) s
-      (d, pars) <- mcatMaybes $ liftTCM $ isEtaRecordType b
+      (d, pars) <- catMaybesMP $ liftTCM $ isEtaRecordType b
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         text "at record type " <+> prettyTCM d
       return $ EtaExpandVar fi d pars
@@ -701,7 +700,7 @@ etaExpandVarStrategy k s = do
 etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
   let Equal (Dom _ a) u v = getEqualityUnraised k s
-  (d, pars) <- mcatMaybes $ liftTCM $ addContext tel $ isEtaRecordType a
+  (d, pars) <- catMaybesMP $ liftTCM $ addContext tel $ isEtaRecordType a
   sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
   projLeft <- liftTCM $ shouldProject u
   projRight <- liftTCM $ shouldProject v
