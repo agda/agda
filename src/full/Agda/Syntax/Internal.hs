@@ -109,7 +109,9 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lit Literal
           | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
           | Con ConHead ConInfo Elims
-          -- ^ @c vs@ or @record { fs = vs }@
+          -- ^ @c es@ or @record { fs = es }@
+          --   @es@ allows only Apply and IApply eliminations,
+          --   and IApply only for data constructors.
           | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
           | Sort Sort
           | Level Level
