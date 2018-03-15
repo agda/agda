@@ -127,7 +127,7 @@ Floats
 Characters
   Character literals are enclosed in single quotes (``'``). They can be a
   single (unicode) character, other than ``'`` or ``\``, or an escaped
-  character. Escaped characters starts with a backslash ``\`` followed by an
+  character. Escaped characters start with a backslash ``\`` followed by an
   escape code. Escape codes are natural numbers in decimal or hexadecimal
   (prefixed by ``x``) between ``0`` and ``0x10ffff`` (``1114111``), or one of
   the following special escape codes:
@@ -254,7 +254,7 @@ literate Agda is to generate LaTeX documents from Agda code. See
 .. code-block:: latex
 
   \documentclass{article}
-  % some preable stuff
+  % some preamble stuff
   \begin{document}
   Introduction usually goes here
   \begin{code}

@@ -301,7 +301,7 @@ fields into scope. For instance
   swap p = snd , fst
     where open Pair p
 
-It possible to add arbitrary definitions to the record module, by defining them
+It's possible to add arbitrary definitions to the record module, by defining them
 inside the record declaration
 
 ::
@@ -382,7 +382,7 @@ together, since this can easily make Agda loop. This can be overridden
 at your own risk by using the pragma ``ETA`` instead.
 
 It is possible to pattern match on inductive records, but not on
-copinductive ones.
+coinductive ones.
 
 .. _instance-fields:
 
