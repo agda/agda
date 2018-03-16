@@ -46,6 +46,7 @@ import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Traversable (traverse)
 import Data.Coerce
@@ -71,6 +72,7 @@ import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 import Agda.TypeChecking.CompiledClause.Match ()
+import Agda.TypeChecking.Free.Precompute
 
 import Agda.Interaction.Options
 
@@ -648,7 +650,7 @@ decodeClosure (Closure isV t env spine) = do
 --   thunks for all the 'Apply' elims.
 elimsToSpine :: Env s -> Elims -> ST s (Spine s)
 elimsToSpine env es = do
-    spine <- (traverse . traverse) thunk es
+    spine <- mapM thunk es
     forceSpine spine `seq` return spine
   where
     -- Need to be strict in mkClosure to avoid memory leak
@@ -657,12 +659,31 @@ elimsToSpine env es = do
     forceEl (Apply (Arg _ (Pointer{})))      = ()
     forceEl _                                = ()
 
-    -- Dropping the environment for naked defs/cons and going straight for a value for literals is
-    -- mostly to make debug traces less verbose and doesn't really buy anything performance-wise.
-    thunk t@(Def _ [])   = createThunk (Closure Unevaled t emptyEnv [])
-    thunk t@(Con _ _ []) = createThunk (Closure Unevaled t emptyEnv [])
-    thunk t@Lit{}        = return $ Pure (Closure (Value $ notBlocked ()) t emptyEnv [])
-    thunk t              = createThunk (Closure Unevaled t env [])
+    -- We don't preserve free variables of closures (in the sense of their
+    -- decoding), since we freely add things to the spines.
+    unknownFVs = setFreeVariables unknownFreeVariables
+
+    thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure (getFreeVariables i) t)
+    thunk (Proj o f)        = return (Proj o f)
+
+    -- Going straight for a value for literals is mostly to make debug traces
+    -- less verbose and doesn't really buy anything performance-wise.
+    closure _ t@Lit{} = Closure (Value $ notBlocked ()) t emptyEnv []
+    closure fv t      = env' `seq` Closure Unevaled t env' []
+      where env' = trimEnvironment fv env
+
+-- | Trim unused entries from an environment.
+trimEnvironment :: FreeVariables -> Env s -> Env s
+trimEnvironment UnknownFVs env = env
+trimEnvironment (KnownFVs fvs) env
+  | IntSet.null fvs = emptyEnv
+  | otherwise       = Env $ trim 0 $ envToList env
+  where
+    -- Important: strict enough that the trimming actually happens
+    trim _ [] = []
+    trim i (p : ps)
+      | IntSet.member i fvs = (p :)             $! trim (i + 1) ps
+      | otherwise           = (unusedPointer :) $! trim (i + 1) ps
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.
 --   Returns a triple containing
@@ -678,6 +699,13 @@ buildEnv xs spine = go xs spine emptyEnv
         []           -> (xs0, env, sp)
         Apply c : sp -> go xs sp (unArg c `extendEnv` env)
         _            -> __IMPOSSIBLE__
+
+unusedPointerString :: String
+unusedPointerString = show (Impossible __FILE__ __LINE__)
+
+unusedPointer :: Pointer s
+unusedPointer = Pure (Closure (Value $ notBlocked ())
+                     (Lit (LitString noRange unusedPointerString)) emptyEnv [])
 
 -- * Running the abstract machine
 
@@ -1270,6 +1298,8 @@ instance Pretty (Pointer s) where
   prettyPrec p = prettyPrec p . unsafeDerefPointer
 
 instance Pretty (Closure s) where
+  prettyPrec _ (Closure Value{} (Lit (LitString _ unused)) _ _)
+    | unused == unusedPointerString = text "_"
   prettyPrec p (Closure isV t env spine) =
     mparens (p > 9) $ fsep [ text tag
                            , nest 2 $ prettyPrec 10 t
