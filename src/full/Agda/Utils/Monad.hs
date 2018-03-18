@@ -142,6 +142,17 @@ partitionM f [] =
 partitionM f (x:xs) =
   (\ b (l, r) -> if b then (x:l, r) else (l, x:r)) <$> f x <*> partitionM f xs
 
+-- MonadPlus -----------------------------------------------------------------
+
+-- | Translates 'Maybe' to 'MonadPlus'.
+fromMaybeMP :: MonadPlus m => Maybe a -> m a
+fromMaybeMP = maybe mzero return
+
+-- | Generalises the 'catMaybes' function from lists to an arbitrary
+-- 'MonadPlus'.
+catMaybesMP :: MonadPlus m => m (Maybe a) -> m a
+catMaybesMP = (>>= fromMaybeMP)
+
 -- Error monad ------------------------------------------------------------
 
 -- | Finally for the 'Error' class. Errors in the finally part take
