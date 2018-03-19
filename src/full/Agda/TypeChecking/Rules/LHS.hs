@@ -20,7 +20,6 @@ import Data.Maybe
 import Control.Applicative hiding (empty)
 import Control.Arrow (first, second, (***), left, right)
 import Control.Monad
-import Control.Monad.Plus (mfold)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
