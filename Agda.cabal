@@ -32,10 +32,10 @@ description:
   Note that the Agda package does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
+
 tested-with:        GHC == 7.10.3
                     GHC == 8.0.2
                     GHC == 8.2.2
-
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
@@ -95,6 +95,12 @@ flag enable-cluster-counting
   description:
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
+
+custom-setup
+  setup-depends:  base >= 4.8.0.0 && < 4.12
+                , Cabal >= 1.22.5.0 && < 2.3
+                , filepath >= 1.4.0.0 && < 1.5
+                , process >= 1.2.3.0 && < 1.7
 
 library
   hs-source-dirs:   src/full
