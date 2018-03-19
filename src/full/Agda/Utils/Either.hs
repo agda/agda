@@ -61,12 +61,12 @@ fromRight :: (a -> b) -> Either a b -> b
 fromRight f = either f id
 
 -- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.
-fromLeftM :: Monad m => (b -> m a) -> Either a b -> m a
-fromLeftM = either return
+fromLeftM :: Monad m => (b -> m a) -> m (Either a b) -> m a
+fromLeftM f m = either return f =<< m
 
 -- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.
-fromRightM :: Monad m => (a -> m b) -> Either a b -> m b
-fromRightM f = either f return
+fromRightM :: Monad m => (a -> m b) -> m (Either a b) -> m b
+fromRightM f m = either f return =<< m
 
 -- | Safe projection from 'Left'.
 --
