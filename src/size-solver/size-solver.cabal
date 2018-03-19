@@ -15,6 +15,7 @@ description:
 tested-with: GHC == 7.10.3
              GHC == 8.0.2
              GHC == 8.2.1
+             GHC == 8.4.1
 
 -- extra-source-files: src/full/undefined.h
 --                     README.md
@@ -38,3 +39,5 @@ executable size-solver
     , containers >= 0.5.6.2 && < 0.6
     , mtl >= 2.2.1 && < 2.3
     , parsec >= 3.1 && < 3.2
+  other-modules:
+    Parser

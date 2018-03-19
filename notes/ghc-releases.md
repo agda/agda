@@ -17,6 +17,10 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make install-bin`
 
+* Test the fix-agda-whitespace program:
+
+  `make build-fix-agda-whitespace`
+
 * Run the test-suite:
 
   `make test`
@@ -26,10 +30,6 @@ Let's suppose the new version of GHC is X.Y.Z.
 * Ensure that cabal haddock works:
 
   `make haddock`
-
-* Test the fix-agda-whitespace program:
-
-  `make build-fix-agda-whitespace`
 
 * Test the hTags program:
 
