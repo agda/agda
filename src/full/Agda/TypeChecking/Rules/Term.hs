@@ -1372,7 +1372,7 @@ checkApplication hd args e t = do
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
-      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
         getOrigConHead c
       checkConstructorApplication e t con args
 
@@ -1630,7 +1630,7 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) =<<
+      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
         getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 

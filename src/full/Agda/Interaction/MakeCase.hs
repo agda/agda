@@ -228,7 +228,7 @@ makeCase hole rng s = withInteractionId hole $ do
       res <- splitResult f sc
       case res of
 
-        Nothing  -> do
+        Left err  -> do
           -- Andreas, 2017-12-16, issue #2871
           -- If there is nothing to split, introduce trailing hidden arguments.
 
@@ -239,12 +239,13 @@ makeCase hole rng s = withInteractionId hole $ do
               isVarP _ = Nothing
           -- If all are already coming from the user, there is really nothing todo!
           when (all ((UserWritten ==) . getOrigin) trailingPatVars) $ do
-            typeError $ GenericError $ "Cannot split on result here"
+            typeError . GenericDocError =<< do
+              text "Cannot split on result here, because" <+> prettyTCM err
           -- Otherwise, we make these user-written
           let xs = map (dbPatVarIndex . namedArg) trailingPatVars
           return [makePatternVarsVisible xs sc]
 
-        Just cov -> ifNotM (optCopatterns <$> pragmaOptions) failNoCop $ {-else-} do
+        Right cov -> ifNotM (optCopatterns <$> pragmaOptions) failNoCop $ {-else-} do
           -- Andreas, 2016-05-03: do not introduce function arguments after projection.
           -- This is sometimes annoying and can anyway be done by another C-c C-c.
           -- mapM (snd <.> fixTarget) $ splitClauses cov
