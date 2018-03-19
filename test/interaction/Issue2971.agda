@@ -23,3 +23,15 @@ best-number = {!!} -- C-c C-c (on result)
 -- when checking that the expression ? has type Five
 
 -- Should give proper error message.
+
+-- Cannot split on result here, because record has irrelevant fields,
+-- but no corresponding projections
+-- when checking that the expression ? has type Five
+
+-- Testing similar errors:
+
+not-record : Set
+not-record = {!!}
+
+-- Cannot split on result here, because target type  Set  is not a record type
+-- when checking that the expression ? has type Set
