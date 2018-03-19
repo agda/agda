@@ -894,6 +894,9 @@ splitResult f sc@(SClause tel ps _ _ target) = do
           , text   "applied to parameters vs = " <+> (addContext tel $ prettyTCM vs)
           , text $ "and have fields       fs = " ++ prettyShow fs
           ]
+        -- Andreas, 2018-03-19, issue #2971, check that we have a "strong" record type,
+        -- i.e., with all the projections.  Otherwise, we may not split.
+        ifNotM (strongRecord fs) done $ {-else-} do
         let es = patternsToElims ps
         -- Note: module parameters are part of ps
         let self  = defaultArg $ Def f [] `applyE` es
@@ -921,6 +924,14 @@ splitResult f sc@(SClause tel ps _ _ target) = do
                          }
             return (unArg proj, sc')
       _ -> done
+  where
+  -- A record type is strong if it has all the projections.
+  -- This is the case if --irrelevant-projections or no field is irrelevant.
+  -- TODO: what about shape irrelevance?
+  strongRecord :: [Arg QName] -> TCM Bool
+  strongRecord fs = (optIrrelevantProjections <$> pragmaOptions) `or2M`
+    (return $ not $ any isIrrelevant fs)
+
 
 -- * Boring instances
 
