@@ -1176,7 +1176,10 @@ isDataOrRecordType dom@(Dom info a) = liftTCM (reduceB a) >>= \case
       -- the type could be an axiom
       Axiom{} -> hardTypeError =<< notData
 
-      Function{}    -> __IMPOSSIBLE__
+      -- Issue #2997: the type could be a Def that does not reduce for some reason
+      -- (abstract, failed termination checking, NON_TERMINATING, ...)
+      Function{}    -> hardTypeError =<< notData
+
       Constructor{} -> __IMPOSSIBLE__
       Primitive{}   -> __IMPOSSIBLE__
 
