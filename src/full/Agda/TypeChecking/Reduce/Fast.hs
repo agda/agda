@@ -1312,4 +1312,3 @@ instance Pretty (ControlFrame s) where
                                                                 , nest 2 $ prettyList sp0
                                                                 , nest 2 $ prettyList sp1 ]
 
-
