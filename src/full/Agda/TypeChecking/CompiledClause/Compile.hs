@@ -30,6 +30,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -82,7 +83,7 @@ compileClauses mt cs = do
       -- The coverage checker might have added some clauses (#2288)!
       -- Throw away the unreachable clauses (#2723).
       let notUnreachable = (Just True /=) . clauseUnreachable
-      cs <- normaliseProjP =<< filter notUnreachable . defClauses <$> getConstInfo q
+      cs <- normaliseProjP =<< instantiateFull =<< filter notUnreachable . defClauses <$> getConstInfo q
 
       let cls = map unBruijn cs
 
