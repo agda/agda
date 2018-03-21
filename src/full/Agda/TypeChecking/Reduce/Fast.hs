@@ -440,7 +440,7 @@ clApply_ (Closure b t env es) es' = Closure b t env (es <> es')
 data Pointer s = Pure (Closure s)
                  -- ^ Not a pointer. Used for closures that do not need to be shared to avoid
                  --   unnecessary updates.
-               | Pointer (STPointer s)
+               | Pointer {-# UNPACK #-} !(STPointer s)
                  -- ^ An actual pointer is an 'STRef' to a 'Thunk'. The thunk is set to 'BlackHole'
                  --   during the evaluation of its contents to make debugging loops easier.
 
