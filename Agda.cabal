@@ -350,6 +350,7 @@ library
                     Agda.TypeChecking.Free
                     Agda.TypeChecking.Free.Lazy
                     Agda.TypeChecking.Free.Old
+                    Agda.TypeChecking.Free.Precompute
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Functions
                     Agda.TypeChecking.Implicit

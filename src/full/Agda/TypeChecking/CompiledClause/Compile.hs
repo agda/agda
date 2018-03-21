@@ -30,6 +30,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Precompute
 import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Functor
@@ -98,7 +99,7 @@ compileClauses mt cs = do
         , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
-      return cc
+      return (fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.
@@ -361,3 +362,5 @@ ensureNPatterns n ais0 cl@(Cl ps b)
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
+
+instance PrecomputeFreeVars a => PrecomputeFreeVars (CompiledClauses' a) where
