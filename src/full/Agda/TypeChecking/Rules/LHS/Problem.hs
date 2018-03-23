@@ -204,11 +204,11 @@ data AbsurdPattern = Absurd Range Type
 --   [Ulf Norell's PhD, page. 35]
 data LHSState a = LHSState
   { _lhsTel     :: Telescope
-    -- ^ Type of pattern variables.
+    -- ^ The types of the pattern variables.
   , _lhsOutPat  :: [NamedArg DeBruijnPattern]
     -- ^ Patterns after splitting.
-    --   The de Bruijn indices refer to positions in the list of abstract
-    --   patterns in the problem, counted from the back.
+    --   The de Bruijn indices refer to positions in the list of abstract syntax
+    --   patterns in the problem, counted from the back (right-to-left).
   , _lhsProblem :: Problem a
     -- ^ User patterns of supposed type @delta@.
   , _lhsTarget  :: Arg Type
