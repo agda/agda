@@ -827,15 +827,6 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
             Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
             Just p  -> evalPointerAM p spine ctrl
 
-        -- Case: metavariable. If it's instantiated evaluate the value. Meta instantiations are open
-        -- terms with a specified list of free variables. buildEnv constructs the appropriate
-        -- environment for the closure.
-        MetaV m [] ->
-          case getMeta m of
-            InstV xs t -> runAM (evalClosure (lams zs t) env spine' ctrl)
-              where (zs, env, !spine') = buildEnv xs spine
-            _ -> runAM (Eval (mkValue (blocked m ()) cl) ctrl)
-
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
           case spine of
@@ -857,7 +848,18 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
         Def f   es -> shiftElims (Def f   []) emptyEnv env es
         Con c i es -> shiftElims (Con c i []) emptyEnv env es
         Var x   es -> shiftElims (Var x   []) env      env es
-        MetaV m es -> shiftElims (MetaV m []) emptyEnv env es
+
+        -- Case: metavariable. If it's instantiated evaluate the value. Meta instantiations are open
+        -- terms with a specified list of free variables. buildEnv constructs the appropriate
+        -- environment for the closure. Avoiding shifting spines for open metas
+        -- save a bit of performance.
+        MetaV m es ->
+          case getMeta m of
+            InstV xs t -> do
+              spine' <- elimsToSpine env es
+              let (zs, env, !spine'') = buildEnv xs (spine' <> spine)
+              runAM (evalClosure (lams zs t) env spine'' ctrl)
+            _ -> runAM (Eval (mkValue (blocked m ()) cl) ctrl)
 
         -- Case: unsupported. These terms are not handled by the abstract machine, so we fall back
         -- to slowReduceTerm for these.

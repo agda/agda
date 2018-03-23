@@ -341,9 +341,15 @@ maybeFastReduceTerm v = do
                   MetaV{} -> True
                   _       -> False
   if not tryFast then slowReduceTerm v
-                 else shouldTryFastReduce >>= \ case
-                        Nothing -> slowReduceTerm v
-                        Just nt -> fastReduce nt v
+                 else
+    case v of
+      MetaV x _ -> ifM (isOpen x) (return $ notBlocked v) (maybeFast v)
+      _         -> maybeFast v
+  where
+    isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
+    maybeFast v = shouldTryFastReduce >>= \ case
+      Nothing -> slowReduceTerm v
+      Just nt -> fastReduce nt v
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm v = do
