@@ -1810,8 +1810,9 @@ mkName (i, s) = do
           let x = rawNameToString y
               err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
           case parse defaultParseFlags [0] (lexer return) x of
-            ParseOk _ (TokId _) -> return ()
-            ParseFailed{} -> fail err
+            ParseOk _ TokId{}  -> return ()
+            ParseFailed{}      -> fail err
+            ParseOk _ TokEOF{} -> fail err
             ParseOk _ t   -> fail . ((err ++ " because it is ") ++) $ case t of
               TokId{}       -> __IMPOSSIBLE__
               TokQId{}      -> __IMPOSSIBLE__ -- "qualified"
