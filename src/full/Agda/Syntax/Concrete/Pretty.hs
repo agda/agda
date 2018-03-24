@@ -446,7 +446,9 @@ instance Pretty Declaration where
                     pType Nothing  =
                               text "where"
                     pInd = maybeToList $ text . show . rangedThing <$> ind
-                    pEta = maybeToList $ (\x -> if x then text "eta-equality" else text "no-eta-equality") <$> eta
+                    pEta = maybeToList $ eta <&> \case
+                      YesEta -> text "eta-equality"
+                      NoEta  -> text "no-eta-equality"
                     pCon = maybeToList $ (text "constructor" <+>) . pretty <$> fst <$> con
             Infix f xs  ->
                 pretty f <+> (fsep $ punctuate comma $ map pretty xs)

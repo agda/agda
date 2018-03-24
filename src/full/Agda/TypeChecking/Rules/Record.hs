@@ -68,7 +68,7 @@ checkRecDef
   :: Info.DefInfo              -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
-  -> Maybe Bool                -- ^ Optional: user specified eta/no-eta
+  -> Maybe HasEta              -- ^ Optional: user specified eta/no-eta
   -> Maybe QName               -- ^ Optional: constructor name.
   -> [A.LamBinding]            -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
@@ -146,7 +146,7 @@ checkRecDef i name ind eta con ps contel fields =
           -- Andreas, 2016-09-20, issue #2197.
           -- Eta is inferred by the positivity checker.
           -- We should turn it off until it is proven to be safe.
-          haveEta      = maybe (Inferred False) Specified eta
+          haveEta      = maybe (Inferred NoEta) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
 
@@ -155,13 +155,13 @@ checkRecDef i name ind eta con ps contel fields =
           -- See issue 392.
           -- Unless it's been declared coinductive or no-eta-equality (#2607).
           recordRelevance
-            | eta          == Just False  = Relevant
+            | eta          == Just NoEta  = Relevant
             | conInduction == CoInductive = Relevant
             | otherwise                   = minimum $ Irrelevant : (map getRelevance $ telToList ftel)
 
       -- Andreas, 2017-01-26, issue #2436
       -- Disallow coinductive records with eta-equality
-      when (conInduction == CoInductive && etaEqualityToBool haveEta == True) $ do
+      when (conInduction == CoInductive && theEtaEquality haveEta == YesEta) $ do
         typeError . GenericDocError =<< do
           sep [ text "Agda doesn't like coinductive records with eta-equality."
               , text "If you must, use pragma"

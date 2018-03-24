@@ -352,7 +352,7 @@ data Declaration
   | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
+  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
     -- ^ The optional name is a name for the record constructor.
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name

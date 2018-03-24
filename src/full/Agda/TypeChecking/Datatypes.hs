@@ -137,9 +137,6 @@ getFullyAppliedConType c t = do
         _ ->  return Nothing
     _ -> return Nothing
 
-data HasEta = NoEta | YesEta
-  deriving (Eq)
-
 data ConstructorInfo
   = DataCon Nat                  -- ^ Arity.
   | RecordCon HasEta [Arg QName] -- ^ List of field names.
@@ -155,7 +152,7 @@ getConstructorInfo c = do
     Constructor{ conData = d, conArity = n } -> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
-           return $ RecordCon (if recEtaEquality r then YesEta else NoEta) fs
+           return $ RecordCon (recEtaEquality r) fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
