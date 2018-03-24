@@ -1094,6 +1094,7 @@ niceDeclarations ds = do
       (Pragma p) | isAttachedPragma p -> canHaveNoPositivityCheckPragma ds
       _                           -> False
 
+    -- Pragma that attaches to the following declaration.
     isAttachedPragma :: Pragma -> Bool
     isAttachedPragma p = case p of
       TerminationCheckPragma{}  -> True
