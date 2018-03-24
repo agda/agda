@@ -148,7 +148,7 @@ instance PatternFrom Term NLPat where
       Con c ci vs | isIrrelevant r -> do
         mr <- isRecordConstructor (conName c)
         case mr of
-          Just (_, def) | recEtaEquality def ->
+          Just (_, def) | YesEta <- recEtaEquality def ->
             PDef (conName c) <$> patternFrom r k vs
           _ -> done
       Con c ci vs -> PDef (conName c) <$> patternFrom r k vs
@@ -327,7 +327,7 @@ instance Match NLPat Term where
             | otherwise -> do -- @c@ may be a record constructor
                 mr <- liftRed $ isRecordConstructor (conName c)
                 case mr of
-                  Just (_, def) | recEtaEquality def -> do
+                  Just (_, def) | YesEta <- recEtaEquality def -> do
                     let fs = recFields def
                         qs = map (fmap $ \f -> PDef f (ps ++ [Proj ProjSystem f])) fs
                     match r gamma k (map Apply qs) vs
@@ -341,7 +341,7 @@ instance Match NLPat Term where
           v' -> do -- @f@ may be a record constructor as well
             mr <- liftRed $ isRecordConstructor f
             case mr of
-              Just (_, def) | recEtaEquality def -> do
+              Just (_, def) | YesEta <- recEtaEquality def -> do
                 let fs  = recFields def
                     ws  = map (fmap $ \f -> v `applyE` [Proj ProjSystem f]) fs
                     qs = fromMaybe __IMPOSSIBLE__ $ allApplyElims ps
@@ -359,7 +359,7 @@ instance Match NLPat Term where
         Con c _ vs -> do -- @c@ may be a record constructor
           mr <- liftRed $ isRecordConstructor (conName c)
           case mr of
-            Just (_, def) | recEtaEquality def -> do
+            Just (_, def) | YesEta <- recEtaEquality def -> do
               let fs = recFields def
                   qs = map (fmap $ \f -> PBoundVar i (ps ++ [Proj ProjSystem f])) fs
               match r gamma k (map Apply qs) vs

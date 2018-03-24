@@ -1436,16 +1436,12 @@ projArgInfo (Projection _ _ _ _ lams) =
 
 -- | Should a record type admit eta-equality?
 data EtaEquality
-  = Specified !Bool  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
-  | Inferred !Bool   -- ^ Positivity checker inferred whether eta is safe.
+  = Specified { theEtaEquality :: !HasEta }  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
+  | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
   deriving (Data, Show, Eq)
 
-etaEqualityToBool :: EtaEquality -> Bool
-etaEqualityToBool (Specified b) = b
-etaEqualityToBool (Inferred b) = b
-
 -- | Make sure we do not overwrite a user specification.
-setEtaEquality :: EtaEquality -> Bool -> EtaEquality
+setEtaEquality :: EtaEquality -> HasEta -> EtaEquality
 setEtaEquality e@Specified{} _ = e
 setEtaEquality _ b = Inferred b
 
@@ -1642,8 +1638,8 @@ recRecursive :: Defn -> Bool
 recRecursive (Record { recMutual = Just qs }) = not $ null qs
 recRecursive _ = __IMPOSSIBLE__
 
-recEtaEquality :: Defn -> Bool
-recEtaEquality = etaEqualityToBool . recEtaEquality'
+recEtaEquality :: Defn -> HasEta
+recEtaEquality = theEtaEquality . recEtaEquality'
 
 -- | A template for creating 'Function' definitions, with sensible defaults.
 emptyFunction :: Defn

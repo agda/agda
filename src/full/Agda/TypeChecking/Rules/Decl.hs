@@ -301,7 +301,7 @@ revisitRecordPatternTranslation qs = do
   -- and the set of function definitions in the mutual block
   classify q = inConcreteOrAbstractMode q $ \ def -> do
     case theDef def of
-      Record{ recEtaEquality' = Inferred True } -> return $ Just $ Left q
+      Record{ recEtaEquality' = Inferred YesEta } -> return $ Just $ Left q
       Function
         { funProjection = Nothing
             -- Andreas, 2017-08-10, issue #2664:
@@ -704,11 +704,11 @@ checkPragma r p =
           caseMaybeM (isRecord r) noRecord $ \case
             Record{ recInduction = ind, recEtaEquality' = eta } -> do
               unless (ind == Just CoInductive) $ noRecord
-              when (eta == Specified False) $ typeError $ GenericError $
+              when (eta == Specified NoEta) $ typeError $ GenericError $
                 "ETA pragma conflicts with no-eta-equality declaration"
             _ -> __IMPOSSIBLE__
           modifySignature $ updateDefinition r $ updateTheDef $ \case
-            def@Record{} -> def { recEtaEquality' = Specified True }
+            def@Record{} -> def { recEtaEquality' = Specified YesEta }
             _ -> __IMPOSSIBLE__
 
 -- | Type check a bunch of mutual inductive recursive definitions.

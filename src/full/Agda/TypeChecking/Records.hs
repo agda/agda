@@ -330,7 +330,7 @@ typeElims a self (e : es) = do
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
 {-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
 isEtaRecord :: HasConstInfo m => QName -> m Bool
-isEtaRecord r = maybe False recEtaEquality <$> isRecord r
+isEtaRecord r = maybe False ((YesEta ==) . recEtaEquality) <$> isRecord r
 
 isEtaCon :: HasConstInfo m => QName -> m Bool
 isEtaCon c = getConstInfo' c >>= \case
@@ -377,7 +377,7 @@ isGeneratedRecordConstructor c = ignoreAbstractMode $ do
 --   Projections do not preserve guardedness.
 unguardedRecord :: QName -> TCM ()
 unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ \case
-  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False }
+  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) NoEta }
   _ -> __IMPOSSIBLE__
 
 -- | Turn on eta for inductive guarded recursive records.
@@ -389,7 +389,7 @@ recursiveRecord q = do
     r@Record{ recInduction = ind, recEtaEquality' = eta } ->
       r { recEtaEquality' = eta' }
       where
-      eta' | ok, eta == Inferred False, ind /= Just CoInductive = Inferred True
+      eta' | ok, eta == Inferred NoEta, ind /= Just CoInductive = Inferred YesEta
            | otherwise = eta
     _ -> __IMPOSSIBLE__
 
@@ -398,9 +398,9 @@ nonRecursiveRecord :: QName -> TCM ()
 nonRecursiveRecord q = whenM etaEnabled $ do
   -- Do nothing if eta is disabled by option.
   modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = Inferred False }
+    r@Record{ recInduction = ind, recEtaEquality' = Inferred NoEta }
       | ind /= Just CoInductive ->
-      r { recEtaEquality' = Inferred True }
+      r { recEtaEquality' = Inferred YesEta }
     r@Record{} -> r
     _          -> __IMPOSSIBLE__
 
@@ -448,7 +448,7 @@ expandRecordVar i gamma0 = do
           text " is not a record type"
         return Nothing
   caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> do
-    if not (recEtaEquality def) then return Nothing else Just <$> do
+    if recEtaEquality def == NoEta then return Nothing else Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
       let tel = recTel def `apply` pars
@@ -516,7 +516,7 @@ curryAt t n = do
       -- This might trigger another call to @etaExpandProjectedVar@ later.
       -- A more efficient version does all the eta-expansions at once here.
       (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
-      unless (recEtaEquality def) __IMPOSSIBLE__
+      when (recEtaEquality def == NoEta) __IMPOSSIBLE__
       -- TODO: compose argInfo ai with tel.
       let tel = recTel def `apply` pars
           m   = size tel
@@ -572,9 +572,9 @@ etaExpandRecord'_ forceEta r pars def u = do
             , recFields      = xs
             , recTel         = tel
             } = def
-      eta = recEtaEquality def
       tel' = apply tel pars
-  unless (eta || forceEta) __IMPOSSIBLE__ -- make sure we do not expand non-eta records (unless forced to)
+  -- Make sure we do not expand non-eta records (unless forced to):
+  unless (recEtaEquality def == YesEta || forceEta) __IMPOSSIBLE__
   case ignoreSharing u of
 
     -- Already expanded.
@@ -708,7 +708,7 @@ isSingletonType' regardIrrelevance t = do
     ifBlockedType t (\ m _ -> return $ Left m) $ \ _ t -> do
       res <- isRecordType t
       case res of
-        Just (r, ps, def) | recEtaEquality def -> do
+        Just (r, ps, def) | YesEta <- recEtaEquality def -> do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
         _ -> return $ Right Nothing
 

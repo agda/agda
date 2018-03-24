@@ -80,7 +80,7 @@ isEmptyType r t = caseEitherM (loop t) failure return
 
       -- If t is a record type, see if any of the field types is empty
       Right (r, pars, def) -> do
-        if not $ recEtaEquality def then return $ Left Fail else do
+        if recEtaEquality def == NoEta then return $ Left Fail else do
           checkTel $ recTel def `apply` pars
 
   checkTel :: Telescope -> TCM (Either ErrorNonEmpty ())

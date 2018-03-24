@@ -44,6 +44,23 @@ instance KillRange Delayed where
   killRange = id
 
 ---------------------------------------------------------------------------
+-- * Eta-equality
+---------------------------------------------------------------------------
+
+data HasEta = NoEta | YesEta
+  deriving (Data, Show, Eq, Ord)
+
+instance HasRange HasEta where
+  getRange _ = noRange
+
+instance KillRange HasEta where
+  killRange = id
+
+instance NFData HasEta where
+  rnf NoEta  = ()
+  rnf YesEta = ()
+
+---------------------------------------------------------------------------
 -- * Induction
 ---------------------------------------------------------------------------
 

@@ -1670,7 +1670,7 @@ ArgTypeSignatures1
     | ArgTypeSigs                         { reverse $1 }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe Bool, Maybe (Name, IsInstance)), [Declaration]) }
+RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance)), [Declaration]) }
 RecordDeclarations
                                   : vopen RecordDirectives close {% ((,) `fmap` verifyRecordDirectives $2 <*> pure []) }
                                   | vopen RecordDirectives semi Declarations1 close {% ((,) `fmap` verifyRecordDirectives $2 <*> pure $4) }
@@ -1689,10 +1689,10 @@ RecordDirective
                                   | RecordInduction       { Induction $1 }
                                   | RecordEta             { Eta $1 }
 
-RecordEta :: { Ranged Bool }
+RecordEta :: { Ranged HasEta }
 RecordEta
-                                  : 'eta-equality' { Ranged (getRange $1) True }
-                                  | 'no-eta-equality' { Ranged (getRange $1) False }
+                                  : 'eta-equality' { Ranged (getRange $1) YesEta }
+                                  | 'no-eta-equality' { Ranged (getRange $1) NoEta }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
 RecordInduction :: { Ranged Induction }
@@ -1980,10 +1980,10 @@ verifyImportDirective i =
 data RecordDirective
    = Induction (Ranged Induction)
    | Constructor (Name, IsInstance)
-   | Eta         (Ranged Bool)
+   | Eta         (Ranged HasEta)
    deriving (Eq,Show)
 
-verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe Bool, Maybe (Name, IsInstance))
+verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance))
 verifyRecordDirectives xs | null rs = return (ltm is, ltm es, ltm cs)
                           | otherwise = let Just pos = rStart' $ (head rs) in
                                           parseErrorAt pos $ "Repeated record directives at: \n" ++ intercalate "\n" (map show rs)

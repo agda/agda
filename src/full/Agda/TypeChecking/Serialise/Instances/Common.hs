@@ -391,6 +391,15 @@ instance EmbPrj a => EmbPrj (Dom a) where
 
   value = valueN Dom
 
+instance EmbPrj HasEta where
+  icod_ YesEta = icodeN' YesEta
+  icod_ NoEta  = icodeN 1 NoEta
+
+  value = vcase valu where
+    valu []  = valuN YesEta
+    valu [1] = valuN NoEta
+    valu _   = malformed
+
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive
   icod_ CoInductive = icodeN 1 CoInductive
