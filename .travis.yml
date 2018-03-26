@@ -1,4 +1,4 @@
-# Adapted from https://github.com/hvr/multi-ghc-travis
+# Adapted from https://github.com/haskell-CI/haskell-ci
 
 # NB: don't set `language: haskell` here.
 language: c
@@ -30,6 +30,16 @@ cache:
 
 matrix:
   include:
+    - env: TEST=MAIN GHC_VER=8.4.1 BUILD=CABAL CABAL_VER=2.0
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.0
+            - ghc-8.4.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
       addons:
         apt:
@@ -362,7 +372,8 @@ script:
        make BUILD_DIR=$BUILD_DIR lib-interaction;
     fi
 
-  - if [[ $TEST = "MAIN" ]]; then
+# ASR (2018-03-26). hTags is not supporting GHC 8.4.1. See #3013.
+  - if [[ $TEST = "MAIN" && $GHC_VER != "8.4.1" ]]; then
        make BUILD_DIR=$BUILD_DIR TAGS;
     fi
 
