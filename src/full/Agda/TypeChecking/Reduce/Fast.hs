@@ -1024,10 +1024,14 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             -- Projection elim: in this case we must be in a copattern split and find the projection
             -- in the case tree and keep going. If it's not there it might be because it's not the
             -- original projection (issue #2265). If so look up the original projection instead.
-            -- That _really_ should be there since copattern splits cannot be partial.
+            -- That _really_ should be there since copattern splits cannot be partial. Except of
+            -- course, the user might still have written a partial function so we should check
+            -- partialDefs before throwing an impossible (#3012).
             (spine0, Proj o p : spine1) ->
               case lookupCon p bs <|> ((`lookupCon` bs) =<< op) of
-                Nothing -> __IMPOSSIBLE__
+                Nothing
+                  | elem f partialDefs -> stuckMatch (NotBlocked MissingClauses ()) stack ctrl
+                  | otherwise          -> __IMPOSSIBLE__
                 Just cc -> runAM (Match f cc (spine0 <> spine1) stack ctrl)
               where CFun{ cfunProjection = op } = cdefDef (constInfo p)
             (_, IApply{} : _) -> __IMPOSSIBLE__ -- Paths cannot be defined by pattern matching
