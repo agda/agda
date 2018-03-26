@@ -222,7 +222,7 @@ instance TagName name => HasTags (HsBind name) where
     PatBind  { pat_lhs   = lhs }      -> tags lhs
     VarBind  { var_id    = x   }      -> tagsN x
     AbsBinds { abs_binds = bs  }      -> tags bs
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,0,0) && !MIN_VERSION_ghc(8,4,1)
     AbsBindsSig { abs_sig_bind = bs } -> tags bs
 #endif
     PatSynBind (PSB { psb_id = x })   -> tagsLN x
