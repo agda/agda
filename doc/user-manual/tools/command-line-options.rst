@@ -164,10 +164,6 @@ Copatterns and projections
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--proof-irrelevance`
-      Enable proof irrelevance (experimental
-      feature)
-
 :samp:`--injective-type-constructors`
       Enable injective type
       constructors (makes Agda anti-classical and possibly
