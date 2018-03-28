@@ -499,7 +499,7 @@ primIdJ = do
     case ts of
      [la,lc,a,x,c,d,y,eq] -> do
        seq    <- reduceB' eq
-       case ignoreSharing $ unArg $ ignoreBlocking $ seq of
+       case unArg $ ignoreBlocking $ seq of
          (Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p])
            | Just q == conidn, Just comp <- mcomp -> do
           redReturn $ runNames [] $ do
@@ -548,7 +548,7 @@ primIdElim' = do
     case ts of
       [a,c,bA,x,bC,f,y,p] -> do
         sp <- reduceB' p
-        case ignoreSharing $ unArg $ ignoreBlocking sp of
+        case unArg $ ignoreBlocking sp of
           Def q [Apply _a, Apply _bA, Apply _x, Apply _y, Apply phi , Apply w] -> do
             y' <- return $ sin `apply` [a,bA                            ,phi,argN $ unArg y]
             w' <- return $ sin `apply` [a,argN $ path `apply` [a,bA,x,y],phi,argN $ unArg w]
@@ -663,7 +663,7 @@ primSubOut' = do
           _ -> do
             sx <- reduceB' x
             mSubIn <- getBuiltinName' builtinSubIn
-            case ignoreSharing $ unArg $ ignoreBlocking $ sx of
+            case unArg $ ignoreBlocking $ sx of
               Def q [_,_,_, Apply t] | Just q == mSubIn -> redReturn (unArg t)
               _ -> return $ NoReduction $ map notReduced [a,bA] ++ [reduced sphi, notReduced u, reduced sx]
       _ -> __IMPOSSIBLE__
@@ -682,7 +682,7 @@ primIdFace' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case ignoreSharing $ unArg (ignoreBlocking st) of
+        case unArg (ignoreBlocking st) of
           Def q [_,_,_,_, Apply phi,_] | Just q == mConId -> redReturn (unArg phi)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
@@ -701,7 +701,7 @@ primIdPath' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case ignoreSharing $ unArg (ignoreBlocking st) of
+        case unArg (ignoreBlocking st) of
           Def q [_,_,_,_,_,Apply w] | Just q == mConId -> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
@@ -743,14 +743,14 @@ primComp = do
                                                                    <#> (ilam "o" $ \ _ -> c <@> i)
                           _     -> notReduced u
 
-           case ignoreSharing $ unArg $ ignoreBlocking sc of
+           case unArg $ ignoreBlocking sc of
              Lam _info t -> do
                t <- reduce' t
                mGlue <- getPrimitiveName' builtinGlue
                mId   <- getBuiltinName' builtinId
                mPath <- getBuiltinName' builtinPath
                mPO   <- getBuiltinName' builtinPushOut
-               case ignoreSharing $ absBody t of
+               case absBody t of
                  Pi a b | nelims > 0  -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
                         | otherwise -> fallback
 
@@ -820,10 +820,10 @@ primComp = do
     where
       reduce2Lam t = do
         t <- reduce' t
-        case lam2Abs $ ignoreSharing t of
+        case lam2Abs t of
           t -> Reduce.underAbstraction_ t $ \ t -> do
              t <- reduce' t
-             case lam2Abs $ ignoreSharing t of
+             case lam2Abs t of
                t -> Reduce.underAbstraction_ t reduce'
        where
          lam2Abs (Lam _ t) = t
@@ -852,11 +852,11 @@ primComp = do
                                                             <#> (ilam "o" $ \ _ -> c <@> i)
                    _     -> su
         sameConHead h u = allComponents unview phi u $ \ t ->
-          case ignoreSharing $ constrForm t of
+          case constrForm t of
             Con h' _ _ -> h == h'
             _        -> False
 
-    case ignoreSharing $ constrForm a0 of
+    case constrForm a0 of
       Con h _ args -> do
         ifM (not <$> sameConHead h u) noRed $ do
           Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
@@ -1078,7 +1078,7 @@ prim_unglue' = do
          IOne -> redReturn $ unArg f `apply` [argN one,b]
          _    -> do
             sb <- reduceB' b
-            case ignoreSharing $ unArg $ ignoreBlocking $ sb of
+            case unArg $ ignoreBlocking $ sb of
                Def q [Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply a]
                      | Just q == mglue -> redReturn $ unArg a
                _ -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf] ++ [reduced sb])
@@ -1121,7 +1121,7 @@ primPOforward' = do
     case ts of
       [l,bA,bB,bC,f,g,r,u] -> do
         su <- reduceB' u
-        case ignoreSharing $ unArg $ ignoreBlocking $ su of
+        case unArg $ ignoreBlocking $ su of
           Def q es | q == inl
                    , [Apply a] <- drop (length ["l","A","B","C","f","g"]) es -> do
                        (redReturn =<<) . runNamesT [] $ do
@@ -1219,7 +1219,7 @@ primPOhcomp' = do
       [l,bA,bB,bC,f,g,phi,u,u0] -> do
         sphi <- reduceB' phi
         view <- intervalView'
-        case view $ ignoreSharing $ unArg $ ignoreBlocking $ sphi of
+        case view $ unArg $ ignoreBlocking $ sphi of
           IOne -> redReturn (unArg u `apply` [argN io, setRelevance Irrelevant $ argN $ isone])
           _    -> return (NoReduction $ map notReduced [l,bA,bB,bC,f,g] ++ [reduced sphi] ++ map notReduced [u,u0])
       _ -> __IMPOSSIBLE__
@@ -1255,7 +1255,7 @@ primPOElim' = do
     case ts of
       [l,m,bA,bB,bC,f,g,bM,il,ir,p,x] -> do
         sx <- reduceB' x
-        case ignoreSharing $ unArg $ ignoreBlocking $ sx of
+        case unArg $ ignoreBlocking $ sx of
           Def q es | q == inl
                    , [Apply a] <- drop (length ["l","A","B","C","f","g"]) es -> do
                        redReturn $ unArg il `apply` [a]
@@ -1315,7 +1315,7 @@ primFaceForall' = do
     case ts of
       [phi] -> do
         sphi <- reduceB' phi
-        case ignoreSharing $ unArg $ ignoreBlocking $ sphi of
+        case unArg $ ignoreBlocking $ sphi of
           Lam _ t -> do
             t <- reduce' t
             case t of

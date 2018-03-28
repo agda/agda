@@ -332,7 +332,7 @@ checkLambda b@(Arg info (A.TBind _ xs' typ)) body target = do
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlockedType target postpone' $ \ _ tgt -> do
-          let t = ignoreSharing <$> tgt
+          let t = tgt
           ifPath t dontUseTargetType $
             if cubical then checkPath b body t
                        else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
@@ -2172,7 +2172,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                 wrongPi
           _
             | visible info
-            , PathType s _ _ bA x y <- viewPath $ ignoreSharingType t0' -> do
+            , PathType s _ _ bA x y <- viewPath t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
                 addCheckedArgs us (IApply (unArg x) (unArg y) u) $

@@ -333,7 +333,7 @@ reduceIApply' reduceB' d (IApply x y r : es) = do
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
   -- we postpone "someNeutralPath ?0 = a" rather than fail.
-  let blockedInfo = case ignoreSharing <$> r of
+  let blockedInfo = case r of
         Blocked m _              -> Blocked m ()
         NotBlocked _ (MetaV m _) -> Blocked m ()
         NotBlocked i _           -> NotBlocked i ()

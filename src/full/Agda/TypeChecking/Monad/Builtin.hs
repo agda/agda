@@ -658,7 +658,7 @@ intervalView' = do
   imin <- getPrimitiveName' "primIMin"
   ineg <- getPrimitiveName' "primINeg"
   return $ \ t ->
-    case ignoreSharing t of
+    case t of
       Def q es ->
         case es of
           [Apply x,Apply y] | Just q == imin -> IMin x y
@@ -713,7 +713,7 @@ pathView' = do
  mpath  <- getBuiltinName' builtinPath
  mpathp <- getBuiltinName' builtinPathP
  return $ \ t0@(El s t) ->
-  case ignoreSharing t of
+  case t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
       | Just path' == mpath, Just path <- mpathp -> PathType s path level (lam_i <$> typ) lhs rhs
       where lam_i = Lam defaultArgInfo . NoAbs "_"
@@ -727,7 +727,7 @@ idViewAsPath t0@(El s t) = do
   mid <- fmap getPrimName <$> getBuiltin' builtinId
   mpath <- fmap getPrimName <$> getBuiltin' builtinPath
   case mid of
-   Just path | isJust mpath -> case ignoreSharing t of
+   Just path | isJust mpath -> case t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
       | path' == path -> return $ PathType s (fromJust mpath) level typ lhs rhs
     _ -> return $ OType t0
@@ -735,7 +735,7 @@ idViewAsPath t0@(El s t) = do
 
 boldPathView :: Type -> PathView
 boldPathView t0@(El s t) = do
-  case ignoreSharing t of
+  case t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
       -> PathType s path' level typ lhs rhs
     _ -> OType t0

@@ -915,7 +915,7 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = do
                    _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
          phi <- case ts of
                    [] -> do
-                     a <- ignoreSharing <$> reduce (unEl $ unDom dom)
+                     a <- reduce (unEl $ unDom dom)
                      misone <- getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | Just q == misone -> return (unArg phi)

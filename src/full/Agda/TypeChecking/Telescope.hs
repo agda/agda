@@ -340,7 +340,7 @@ telViewUpToPath n t = do
   vt <- pathViewAsPi $ t
   case vt of
     Left (a,b)     -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
-    Right (El _ t) | Pi a b <- ignoreSharing t
+    Right (El _ t) | Pi a b <- t
                    -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
     Right t        -> return $ TelV EmptyTel t
   where
@@ -358,7 +358,7 @@ telViewUpToPathBoundary n t = do
   vt <- pathViewAsPi' $ t
   case vt of
     Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary (n - 1) (absBody b)
-    Right (El _ t) | Pi a b <- ignoreSharing t
+    Right (El _ t) | Pi a b <- t
                    -> absV a (absName b) <$> telViewUpToPathBoundary (n - 1) (absBody b)
     _              -> return $ (TelV EmptyTel t,[])
   where
