@@ -636,7 +636,6 @@ getPrimName :: Term -> QName
 getPrimName ty = do
   let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
       lamV (Pi _ b)   = lamV (unEl $ unAbs b)
-      lamV (Shared p) = lamV (derefPtr p)
       lamV v          = ([], v)
   case lamV ty of
             (_, Def path _) -> path
