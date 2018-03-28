@@ -672,12 +672,16 @@ elimsToSpine env es = do
     closure fv t      = env' `seq` Closure Unevaled t env' []
       where env' = trimEnvironment fv env
 
--- | Trim unused entries from an environment.
+-- | Trim unused entries from an environment. Currently only trims closed terms for performance
+--   reasons.
 trimEnvironment :: FreeVariables -> Env s -> Env s
 trimEnvironment UnknownFVs env = env
 trimEnvironment (KnownFVs fvs) env
   | IntSet.null fvs = emptyEnv
-  | otherwise       = Env $ trim 0 $ envToList env
+    -- Environment trimming is too expensive (costs 50% on some benchmarks), and while it does make
+    -- some cases run in constant instead of linear space you need quite contrived examples to
+    -- notice the effect.
+  | otherwise       = env -- Env $ trim 0 $ envToList env
   where
     -- Important: strict enough that the trimming actually happens
     trim _ [] = []
