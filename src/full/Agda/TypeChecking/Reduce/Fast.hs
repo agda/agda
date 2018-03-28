@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies  #-}
 
 {-|
 
@@ -86,6 +87,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Size
+import Agda.Utils.Zipper
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -553,6 +555,22 @@ data CatchAllFrame s = CatchAll FastCompiledClauses (Spine s)
                         --   @CatchAll@. @cc@ is the case tree in the catch-all case and @spine@ is
                         --   the value of the pattern variables at the point of the catch-all.
 
+-- An Elim' with a hole.
+data ElimZipper a = ApplyCxt ArgInfo
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+instance Zipper (ElimZipper a) where
+  type Carrier (ElimZipper a) = Elim' a
+  type Element (ElimZipper a) = a
+  firstHole (Apply arg)   = Just (unArg arg, ApplyCxt (argInfo arg))
+  firstHole Proj{}        = Nothing
+  plugHole x (ApplyCxt i) = Apply (Arg i x)
+  nextHole x c            = Left (plugHole x c)
+
+-- | A spine with a single hole for a pointer.
+type SpineContext s = ComposeZipper (ListZipper (Elim' (Pointer s)))
+                                    (ElimZipper (Pointer s))
+
 -- | Control frames are continuations that act on value closures.
 data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine s) (Spine s) (MatchStack s)
                         -- ^ @CaseK f i bs spine0 spine1 stack@. Pattern match on the focus (with
@@ -561,11 +579,9 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
                         --   the pattern variables to the left and right (respectively) of the
                         --   focus. The match stack contains catch-all cases we need to consider if
                         --   this match fails.
-                    | ArgK ArgInfo (Closure s) (Spine s) (Spine s)
-                        -- ^ @ArgK cl spine0 spine1@. Used when computing full normal forms. The
-                        --   first spine contains already evaluated value closures (in reverse
-                        --   order), and the second spine contains closures to be evaluated. The
-                        --   'ArgInfo' is for the focus.
+                    | ArgK (Closure s) (SpineContext s)
+                        -- ^ @ArgK cl cxt@. Used when computing full normal forms. The closure is
+                        --   the head and the context is the spine with the current focus removed.
                     | NormaliseK
                         -- ^ Indicates that the focus should be evaluated to full normal form.
                     | ForceK QName (Spine s) (Spine s)
@@ -725,14 +741,17 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
     -- Helpers to get information from the ReduceEnv.
     metaStore      = redSt rEnv ^. stMetaStore
     getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (Map.lookup m metaStore)
-    runReduce m    = unReduceM m rEnv
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv)
 
+    runReduce :: ReduceM a -> a
+    runReduce m = unReduceM m rEnv
+
     -- Debug output. Taking care that we only look at the verbosity level once.
     hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) rEnv
     doDebug = hasVerb "tc.reduce.fast" 110
+    traceDoc :: Doc -> a -> a
     traceDoc
       | doDebug   = trace . show
       | otherwise = const id
@@ -904,13 +923,10 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
 
     -- Case: ArgK: We successfully normalised an argument. Start on the next argument, or if there
     -- isn't one we're done.
-    runAM' (Eval cl (ArgK i cl0 spine0 spine1 : ctrl)) = go (elim : spine0) spine1
-      where
-        elim = Apply $ Arg i $ pureThunk cl
-        go spine0 [] = runAM (Eval (clApply_ cl0 (reverse spine0)) ctrl)
-        go spine0 (Apply v : spine1) =
-          evalPointerAM (unArg v) [] (NormaliseK : ArgK (argInfo v) cl0 spine0 spine1 : ctrl)
-        go spine0 (e@Proj{} : spine1) = go (e : spine0) spine1
+    runAM' (Eval cl (ArgK cl0 cxt : ctrl)) =
+      case nextHole (pureThunk cl) cxt of
+        Left spine      -> runAM (Eval (clApply_ cl0 spine) ctrl)
+        Right (p, cxt') -> evalPointerAM p [] (NormaliseK : ArgK cl0 cxt' : ctrl)
 
     -- Case: NatSucK m
 
@@ -1164,12 +1180,10 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
     -- Normalise the spine and apply the closure to the result. The closure must be a value closure.
     normaliseArgsAM :: Closure s -> Spine s -> ControlStack s -> ST s (Blocked Term)
     normaliseArgsAM cl []    ctrl = runAM (Eval cl ctrl)  -- nothing to do
-    normaliseArgsAM cl spine ctrl = go [] spine
-      where     -- v Only projections, nothing to do. Note clApply_ and not clApply (or we'd loop)
-        go _ [] = runAM (Eval (clApply_ cl spine) ctrl)
-        go spine0 (Apply v : spine1) =
-          evalPointerAM (unArg v) [] (NormaliseK : ArgK (argInfo v) cl spine0 spine1 : ctrl)
-        go spine0 (e@Proj{} : spine1) = go (e : spine0) spine1
+    normaliseArgsAM cl spine ctrl =
+      case firstHole spine of -- v Only projections, nothing to do. Note clApply_ and not clApply (or we'd loop)
+        Nothing       -> runAM (Eval (clApply_ cl spine) ctrl)
+        Just (p, cxt) -> evalPointerAM p [] (NormaliseK : ArgK cl cxt : ctrl)
 
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
@@ -1344,7 +1358,5 @@ instance Pretty (ControlFrame s) where
   prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ text "UpdateThunk" <+> text (show (length ps))
   prettyPrec p (ApplyK spine)           = mparens (p > 9) $ text "ApplyK" <?> prettyList spine
   prettyPrec p NormaliseK               = text "NormaliseK"
-  prettyPrec p (ArgK _ cl sp0 sp1)      = mparens (p > 9) $ sep [ text "ArgK" <+> prettyPrec 10 cl
-                                                                , nest 2 $ prettyList sp0
-                                                                , nest 2 $ prettyList sp1 ]
+  prettyPrec p (ArgK cl _)              = mparens (p > 9) $ sep [ text "ArgK" <+> prettyPrec 10 cl ]
 
