@@ -107,8 +107,9 @@ instance PrecomputeFreeVars Type where
 instance PrecomputeFreeVars a => PrecomputeFreeVars (Elim' a) where
   precomputeFreeVars e =
     case e of
-      Apply x -> Apply <$> precomputeFreeVars x
-      Proj{}  -> pure e
+      Apply x      -> Apply <$> precomputeFreeVars x
+      IApply a x y -> IApply <$> precomputeFreeVars a <*> precomputeFreeVars x <*> precomputeFreeVars y
+      Proj{}       -> pure e
 
 -- The very boilerplate instances
 

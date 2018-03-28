@@ -561,15 +561,26 @@ data CatchAllFrame s = CatchAll FastCompiledClauses (Spine s)
 
 -- An Elim' with a hole.
 data ElimZipper a = ApplyCxt ArgInfo
+                  | IApplyType a a | IApplyFst a a | IApplySnd a a
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Zipper (ElimZipper a) where
   type Carrier (ElimZipper a) = Elim' a
   type Element (ElimZipper a) = a
-  firstHole (Apply arg)   = Just (unArg arg, ApplyCxt (argInfo arg))
-  firstHole Proj{}        = Nothing
-  plugHole x (ApplyCxt i) = Apply (Arg i x)
-  nextHole x c            = Left (plugHole x c)
+
+  firstHole (Apply arg)    = Just (unArg arg, ApplyCxt (argInfo arg))
+  firstHole (IApply a x y) = Just (a, IApplyType x y)
+  firstHole Proj{}         = Nothing
+
+  plugHole x (ApplyCxt i)     = Apply (Arg i x)
+  plugHole a (IApplyType x y) = IApply a x y
+  plugHole x (IApplyFst a y)  = IApply a x y
+  plugHole y (IApplySnd a x)  = IApply a x y
+
+  nextHole a (IApplyType x y) = Right (x, IApplyFst a y)
+  nextHole x (IApplyFst a y)  = Right (y, IApplySnd a x)
+  nextHole y (IApplySnd a x)  = Left (IApply a x y)
+  nextHole x c@ApplyCxt{}     = Left (plugHole x c)
 
 -- | A spine with a single hole for a pointer.
 type SpineContext s = ComposeZipper (ListZipper (Elim' (Pointer s)))
@@ -685,6 +696,8 @@ elimsToSpine env es = do
 
     thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure (getFreeVariables i) t)
     thunk (Proj o f)        = return (Proj o f)
+    thunk (IApply a x y)    = IApply <$> mkThunk a <*> mkThunk x <*> mkThunk y
+      where mkThunk = createThunk . closure UnknownFVs
 
     -- Going straight for a value for literals is mostly to make debug traces
     -- less verbose and doesn't really buy anything performance-wise.
