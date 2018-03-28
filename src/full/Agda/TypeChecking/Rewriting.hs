@@ -113,13 +113,12 @@ verifyBuiltinRewrite v t = do
     (failure $ text "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
     unless (visible a && visible b) $ failure $ text "because its two final arguments are not both visible."
-    case ignoreSharing (unEl core) of
+    case unEl core of
       Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      Shared{} -> __IMPOSSIBLE__
       _ -> failure $ text "because its type does not end in a sort, but in "
              <+> do inTopContext $ addContext tel $ prettyTCM core
 
@@ -191,7 +190,7 @@ addRewriteRule q = do
         [ prettyTCM q , text " is not a legal rewrite rule" ]
 
   -- Check that type of q targets rel.
-  case ignoreSharing $ unEl core of
+  case unEl core of
     Def rel' es@(_:_:_) | rel == rel' -> do
       -- Because of the type of rel (Γ → sort), all es are applications.
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -215,7 +214,7 @@ addRewriteRule q = do
       lhs <- modifyAllowedReductions (const [InlineReductions]) $ normalise lhs
 
       -- Find head symbol f of the lhs and its arguments.
-      (f , hd , es) <- case ignoreSharing lhs of
+      (f , hd , es) <- case lhs of
         Def f es -> return (f , Def f , es)
         Con c ci vs -> do
           let hd = Con c ci

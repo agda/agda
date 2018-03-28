@@ -96,7 +96,7 @@ class UsableRelevance a where
   usableRel :: Relevance -> a -> TCM Bool
 
 instance UsableRelevance Term where
-  usableRel rel u = case ignoreSharing u of
+  usableRel rel u = case u of
     Var i vs -> do
       irel <- getRelevance <$> typeOfBV' i
       let ok = irel `moreRelevant` rel
@@ -118,7 +118,6 @@ instance UsableRelevance Term where
       mrel <- getMetaRelevance <$> lookupMeta m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare _ -> return $ isIrrelevant rel
-    Shared _ -> __IMPOSSIBLE__
 
 instance UsableRelevance a => UsableRelevance (Type' a) where
   usableRel rel (El _ t) = usableRel rel t

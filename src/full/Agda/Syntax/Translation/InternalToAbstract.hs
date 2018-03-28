@@ -274,7 +274,7 @@ reifyDisplayFormP f ps wps = do
     okToDropE (I.IApply x y r) = False
 
     okToDrop :: Arg I.Term -> Bool
-    okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
+    okToDrop arg = notVisible arg && case unArg arg of
       I.Var _ []   -> True
       I.DontCare{} -> True  -- no matching on irrelevant things.  __IMPOSSIBLE__ anyway?
       I.Level{}    -> True  -- no matching on levels. __IMPOSSIBLE__ anyway?
@@ -386,7 +386,7 @@ reifyTerm expandAnonDefs0 v = do
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
   let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
-  v <- ignoreSharing <$> instantiate v
+  v <- instantiate v
   case applyUnless metasBare (unSpine' pred) v of
     I.Var n es   -> do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
@@ -481,7 +481,6 @@ reifyTerm expandAnonDefs0 v = do
       ifM (asks envPrintMetasBare) {-then-} (return x') {-else-} $
         elims x' =<< reify es
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
-    I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
     -- Andreas, 2012-10-20  expand a copy if not in scope
     -- to improve error messages.

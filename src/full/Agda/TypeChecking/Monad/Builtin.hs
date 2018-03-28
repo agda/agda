@@ -72,8 +72,8 @@ getBuiltin x =
 getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThing x
-    case builtin of         -- ignore sharing to make sure zero isn't reduced to Lit 0
-        Just (Builtin t) -> return $ Just $ ignoreSharing $ killRange t
+    case builtin of
+        Just (Builtin t) -> return $ Just $ killRange t
         _                -> return Nothing
 
 getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
@@ -105,7 +105,7 @@ constructorForm v = constructorForm' primZero primSuc v
 
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
-  case ignoreSharing v of
+  case v of
     Lit (LitNat r n)
       | n == 0    -> pZero
       | n > 0     -> (`apply1` Lit (LitNat r $ n - 1)) <$> pSuc
@@ -615,9 +615,9 @@ data CoinductionKit = CoinductionKit
 
 coinductionKit' :: TCM CoinductionKit
 coinductionKit' = do
-  Def inf   _ <- ignoreSharing <$> primInf
-  Def sharp _ <- ignoreSharing <$> primSharp
-  Def flat  _ <- ignoreSharing <$> primFlat
+  Def inf   _ <- primInf
+  Def sharp _ <- primSharp
+  Def flat  _ <- primFlat
   return $ CoinductionKit
     { nameOfInf   = inf
     , nameOfSharp = sharp
@@ -767,7 +767,6 @@ primEqualityName = do
   -- 2. type polymorphic only
   -- 3. monomorphic.
   let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
-      lamV (Shared p) = lamV (derefPtr p)
       lamV v          = ([], v)
   return $ case lamV eq of
     (_, Def equality _) -> equality
@@ -781,7 +780,7 @@ primEqualityName = do
 equalityView :: Type -> TCM EqualityView
 equalityView t0@(El s t) = do
   equality <- primEqualityName
-  case ignoreSharing t of
+  case t of
     Def equality' es | equality' == equality -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       let n = length vs

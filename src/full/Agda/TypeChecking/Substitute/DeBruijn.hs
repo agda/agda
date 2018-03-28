@@ -24,7 +24,7 @@ class DeBruijn a where
 instance DeBruijn Term where
   deBruijnVar = var
   deBruijnView u =
-    case ignoreSharing u of
+    case u of
       Var i [] -> Just i
       Level l -> deBruijnView l
       _ -> Nothing

@@ -68,7 +68,6 @@ instance Apply Term where
           IApply _ _ a : es0 -> lazyAbsApp b a `applyE` es0
           _             -> __IMPOSSIBLE__
       MetaV x es' -> MetaV x (es' ++ es)
-      Shared p    -> Shared $ applyE p es
       Lit{}       -> __IMPOSSIBLE__
       Level{}     -> __IMPOSSIBLE__
       Pi _ _      -> __IMPOSSIBLE__
@@ -80,7 +79,7 @@ instance Apply Term where
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
-  case ignoreSharing v of
+  case v of
     (Con (ConHead _ _ fs) _ vs) -> do
       i <- List.elemIndex f fs
       isApplyElim =<< headMaybe (drop i vs)
@@ -173,9 +172,6 @@ instance Apply Sort where
   applyE s [] = s
   applyE s _  = __IMPOSSIBLE__
 
-instance Apply a => Apply (Ptr a) where
-  applyE p xs = fmap (`applyE` xs) p
-
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
 
 instance Subst Term a => Apply (Tele a) where
@@ -264,7 +260,7 @@ instance Apply Defn where
               where
                 larg  = last args -- the record value
                 args' = [larg]
-                isVar0 = case ignoreSharing $ unArg larg of Var 0 [] -> True; _ -> False
+                isVar0 = case unArg larg of Var 0 [] -> True; _ -> False
 {-
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just p@Projection{ projIndex = n } }
@@ -499,7 +495,6 @@ instance Abstract Permutation where
 piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
-piApply (El s (Shared p)) args    = piApply (El s $ derefPtr p) args
 piApply t args                    =
   trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
 
@@ -690,11 +685,7 @@ instance Subst Term Term where
     Level l     -> levelTm $ applySubst rho l
     Pi a b      -> uncurry Pi $ applySubst rho (a,b)
     Sort s      -> sortTm $ applySubst rho s
-    Shared p    -> Shared $ applySubst rho p
     DontCare mv -> dontCare $ applySubst rho mv
-
-instance Subst t a => Subst t (Ptr a) where
-  applySubst rho = fmap (applySubst rho)
 
 instance Subst Term a => Subst Term (Type' a) where
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
@@ -981,7 +972,7 @@ telView' = telView'UpTo (-1)
 -- Takes off all (exposed ones) if @n < 0@.
 telView'UpTo :: Int -> Type -> TelView
 telView'UpTo 0 t = TelV EmptyTel t
-telView'UpTo n t = case ignoreSharing $ unEl t of
+telView'UpTo n t = case unEl t of
   Pi a b  -> absV a (absName b) $ telView'UpTo (n - 1) (absBody b)
   _       -> TelV EmptyTel t
   where
@@ -1134,15 +1125,9 @@ instance Eq Term where
   Level l    == Level l'     = l == l'
   MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
   DontCare _ == DontCare _   = True
-  Shared p   == Shared q     = p == q || derefPtr p == derefPtr q
-  Shared p   == b            = derefPtr p == b
-  a          == Shared q     = a == derefPtr q
   _          == _            = False
 
 instance Ord Term where
-  Shared a   `compare` Shared x | a == x = EQ
-  Shared a   `compare` x          = compare (derefPtr a) x
-  a          `compare` Shared x   = compare a (derefPtr x)
   Var a b    `compare` Var x y    = compare x a `thenCmp` compare b y -- sort de Bruijn indices down (#2765)
   Var{}      `compare` _          = LT
   _          `compare` Var{}      = GT
@@ -1278,7 +1263,7 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
   WeaklyRigid   -> Inf
 
 lvlView :: Term -> Level
-lvlView v = case ignoreSharing v of
+lvlView v = case v of
   Level l       -> l
   Sort (Type l) -> l
   _             -> Max [Plus 0 $ UnreducedLevel v]
@@ -1307,7 +1292,7 @@ levelMax as0 = Max $ ns ++ List.sort bs
       UnreducedLevel v -> expandTm v
       MetaLevel{}      -> [Plus 0 l]
       where
-        expandTm v = case ignoreSharing v of
+        expandTm v = case v of
           Level (Max as)       -> as
           Sort (Type (Max as)) -> as
           _                    -> [Plus 0 l]
@@ -1339,10 +1324,9 @@ levelSort (Max as)
     atomIs s MetaLevel{}        = False
     atomIs s BlockedLevel{}     = False
     tmIs s (Sort s')            = s == s'
-    tmIs s (Shared p)           = tmIs s $ derefPtr p
     tmIs s _                    = False
 levelSort l =
-  case ignoreSharing $ levelTm l of
+  case levelTm l of
     Sort s -> s
     _      -> Type l
 

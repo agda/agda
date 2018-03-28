@@ -42,7 +42,6 @@ binAppView t = case t of
   Sort _     -> noApp
   MetaV _ _  -> noApp
   DontCare _ -> noApp
-  Shared p   -> binAppView (derefPtr p)  -- destroys sharing
   where
     noApp = NoApp t
     app f [] = noApp
@@ -65,7 +64,6 @@ etaOnce v = case v of
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
   -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
-  Shared{} -> updateSharedTerm etaOnce v
   Lam i (Abs x b) -> etaLam i x b  -- NoAbs can't be eta'd
 
   -- Andreas, 2012-12-18:  Abstract definitions could contain
@@ -113,7 +111,6 @@ etaLam i x b = do
            else fallback
       _ -> fallback
   where
-    isVar0 tyty (Shared p)            = isVar0 tyty (derefPtr p)
     isVar0 _ (Var 0 [])               = True
     -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
     isVar0 True Level{}               = True

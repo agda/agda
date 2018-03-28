@@ -265,7 +265,7 @@ typeWithoutParams q = do
 getTypeInfo :: Type -> E TypeInfo
 getTypeInfo t0 = do
   (tel, t) <- lift $ telListView t0
-  et <- case ignoreSharing $ I.unEl t of
+  et <- case I.unEl t of
     I.Def d _ -> do
       -- #2916: Only update the memo table for d. Results for other types are
       -- under the assumption that d is erasable!

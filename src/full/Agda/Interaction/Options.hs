@@ -119,7 +119,6 @@ data CommandLineOptions = Options
   , optIgnoreInterfaces :: Bool
   , optForcing          :: Bool
   , optPragmaOptions    :: PragmaOptions
-  , optSharing          :: Bool
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
@@ -213,7 +212,6 @@ defaultOptions = Options
   , optIgnoreInterfaces = False
   , optForcing          = True
   , optPragmaOptions    = defaultPragmaOptions
-  , optSharing          = False
   , optOnlyScopeChecking = False
   }
 
@@ -356,7 +354,7 @@ safeFlag :: Flag PragmaOptions
 safeFlag o = return $ o { optSafe = True }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
-sharingFlag b o = return $ o { optSharing = b }
+sharingFlag _ o = return o
 
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
@@ -609,9 +607,9 @@ standardOptions =
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
     , Option []     ["sharing"] (NoArg $ sharingFlag True)
-                    "enable sharing and call-by-need evaluation (experimental) (default: OFF)"
+                    "DEPRECATED: does nothing"
     , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
-                    "disable sharing and call-by-need evaluation"
+                    "DEPRECATED: does nothing"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
     ] ++ map (fmap lift) pragmaOptions

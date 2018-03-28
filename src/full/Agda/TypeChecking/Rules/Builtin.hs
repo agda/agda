@@ -548,7 +548,7 @@ coreBuiltins =
 inductiveCheck :: String -> Int -> Term -> TCM (QName, Definition)
 inductiveCheck b n t = do
   t <- etaContract =<< normalise t
-  case ignoreSharing t of
+  case t of
     Def q _ -> do
       def <- getConstInfo q
       let yes = return (q, def)
@@ -695,7 +695,7 @@ bindBuiltinEquality x = do
       unless (all ((Just 0 ==) . deBruijnView) ts) wrongRefl
 
       -- Check the target
-      case ignoreSharing $ unEl conCore of
+      case unEl conCore of
         Def _ es -> do
           let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
@@ -726,7 +726,6 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let name (Lam h b)  = name (absBody b)
             name (Con c ci _) = Con c ci []
-            name (Shared p) = name $ ignoreSharing (derefPtr p)
             name _          = __IMPOSSIBLE__
 
         v0 <- checkExpr e =<< t

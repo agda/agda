@@ -105,8 +105,6 @@ instance Instantiate Term where
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = sortTm <$> instantiate' s
-  instantiate' v@Shared{} =
-    updateSharedTerm instantiate' v
   instantiate' t = return t
 
 instance Instantiate Level where
@@ -120,7 +118,7 @@ instance Instantiate LevelAtom where
   instantiate' l = case l of
     MetaLevel m vs -> do
       v <- instantiate' (MetaV m vs)
-      case ignoreSharing v of
+      case v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     UnreducedLevel l -> UnreducedLevel <$> instantiate' l
@@ -225,7 +223,7 @@ instance Instantiate EqualityView where
 ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (NotBlocked -> Term -> tcm a) -> tcm a
 ifBlocked t blocked unblocked = do
   t <- liftTCM $ reduceB t
-  case ignoreSharing <$> t of
+  case t of
     Blocked m _              -> blocked m (ignoreBlocking t)
     NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
     NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
@@ -293,7 +291,7 @@ instance Reduce LevelAtom where
       fromTm v = do
         bv <- reduceB' v
         let v = ignoreBlocking bv
-        case ignoreSharing <$> bv of
+        case bv of
           NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
           Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
           NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
@@ -352,11 +350,10 @@ instance Reduce Term where
 -- | @Just nt@ means run fast reduce with @allowNonterminatingReductions = nt@.
 shouldTryFastReduce :: ReduceM (Maybe Bool)
 shouldTryFastReduce = do
-  s <- optSharing <$> commandLineOptions
   allowed <- asks envAllowedReductions
   let notAll = List.delete NonTerminatingReductions allowed /= allReductions
-  return $ if s || notAll then Nothing
-                          else Just (elem NonTerminatingReductions allowed)
+  return $ if notAll then Nothing
+                     else Just (elem NonTerminatingReductions allowed)
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
@@ -402,22 +399,20 @@ slowReduceTerm v = do
       Var _ es  -> iapp es
       Lam _ _  -> done
       DontCare _ -> done
-      Shared{}   -> updateSharedTermF reduceB' v
     where
       -- NOTE: reduceNat can traverse the entire term.
-      reduceNat v@Shared{} = updateSharedTerm reduceNat v
       reduceNat v@(Con c ci []) = do
         mz  <- getBuiltin' builtinZero
         case v of
           _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
           _                 -> return v
       reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
-        ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
+        ms  <- getBuiltin' builtinSuc
         case v of
           _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
           _                         -> return v
           where
-            inc w = case ignoreSharing w of
+            inc w = case w of
               Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
               _                -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
@@ -435,12 +430,8 @@ unfoldCorecursionE (IApply x y r) = do -- TODO check if this makes sense
 unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion v = do
   v <- instantiate' v
-  case compressPointerChain v of
+  case v of
     Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
-    v@(Shared p) ->
-      case derefPtr p of
-        Def{} -> updateSharedFM unfoldCorecursion v
-        _     -> slowReduceTerm v
     _ -> slowReduceTerm v
 
 -- | If the first argument is 'True', then a single delayed clause may
@@ -593,7 +584,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
   traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
-  case ignoreSharing v of
+  case v of
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> ask
@@ -759,7 +750,6 @@ instance Simplify Term where
       Var i vs   -> Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
-      Shared{}   -> updateSharedTerm simplify' v
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t) = return t
@@ -929,7 +919,6 @@ slowNormaliseArgs v = case v of
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> sortTm     <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
-  Shared{}    -> updateSharedTerm normalise' v
   DontCare _  -> return v
 
 instance Normalise Elim where
@@ -1096,7 +1085,6 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> sortTm <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
-          Shared{}    -> updateSharedTerm instantiateFull' v
           DontCare v  -> dontCare <$> instantiateFull' v
 
 instance InstantiateFull Level where
@@ -1110,7 +1098,7 @@ instance InstantiateFull LevelAtom where
   instantiateFull' l = case l of
     MetaLevel m vs -> do
       v <- instantiateFull' (MetaV m vs)
-      case ignoreSharing v of
+      case v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     NeutralLevel r v -> NeutralLevel r <$> instantiateFull' v

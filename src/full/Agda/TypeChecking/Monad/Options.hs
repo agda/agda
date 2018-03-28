@@ -268,20 +268,6 @@ proofIrrelevance = optProofIrrelevance <$> pragmaOptions
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
-{-# SPECIALIZE sharedFun :: TCM (Term -> Term) #-}
-sharedFun :: HasOptions m => m (Term -> Term)
-sharedFun = do
-  sharing <- optSharing <$> commandLineOptions
-  return $ if sharing then shared_ else id
-
-{-# SPECIALIZE shared :: Term -> TCM Term #-}
-shared :: HasOptions m => Term -> m Term
-shared v = ($ v) <$> sharedFun
-
-{-# SPECIALIZE sharedType :: Type -> TCM Type #-}
-sharedType :: HasOptions m => Type -> m Type
-sharedType (El s v) = El s <$> shared v
-
 enableCaching :: TCM Bool
 enableCaching = optCaching <$> pragmaOptions
 

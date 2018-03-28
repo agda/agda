@@ -8,7 +8,6 @@
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
     , module Agda.Syntax.Abstract.Name
-    , module Agda.Utils.Pointer
     , MetaId(..)
     ) where
 
@@ -44,7 +43,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pointer
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty hiding ((<>))
@@ -120,8 +118,6 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
-          | Shared !(Ptr Term)
-            -- ^ Explicit sharing
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -707,69 +703,6 @@ isAbsurdPatternName :: PatVarName -> Bool
 isAbsurdPatternName x = x == absurdPatternName
 
 ---------------------------------------------------------------------------
--- * Pointers and Sharing
----------------------------------------------------------------------------
-
--- | Remove top-level @Shared@ data constructors.
-ignoreSharing :: Term -> Term
-ignoreSharing (Shared p) = ignoreSharing $ derefPtr p
-ignoreSharing v          = v
-
-ignoreSharingType :: Type -> Type
-ignoreSharingType (El s v) = El s (ignoreSharing v)
--- ignoreSharingType v = v
-
--- | Introduce sharing.
-shared_ :: Term -> Term
-shared_ v@Shared{}   = v
-shared_ v@(Var _ []) = v
-shared_ v@(Con _ _ []) = v -- Issue 1691: sharing (zero : Nat) destroys constructorForm
-shared_ v            = Shared (newPtr v)
-
--- | Typically m would be TCM and f would be Blocked.
-updateSharedFM  :: (Monad m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
-updateSharedFM f v0@(Shared p) = do
-  fv <- f (derefPtr p)
-  flip traverse fv $ \v ->
-    case derefPtr (setPtr v p) of
-      Var _ [] -> return v
-      _        -> return $! compressPointerChain v0
-updateSharedFM f v = f v
-
-updateSharedM :: Monad m => (Term -> m Term) -> Term -> m Term
-updateSharedM f v0@(Shared p) = do
-  v <- f (derefPtr p)
-  case derefPtr (setPtr v p) of
-    Var _ [] -> return v
-    _        -> return $! compressPointerChain v0
-updateSharedM f v = f v
-
-updateShared :: (Term -> Term) -> Term -> Term
-updateShared f v0@(Shared p) =
-  case derefPtr (setPtr (f $ derefPtr p) p) of
-    v@(Var _ []) -> v
-    _            -> compressPointerChain v0
-updateShared f v = f v
-
-pointerChain :: Term -> [Ptr Term]
-pointerChain (Shared p) = p : pointerChain (derefPtr p)
-pointerChain _          = []
-
--- Redirect all top-level pointers to point to the last pointer. So, after
--- compression there are at most two top-level indirections. Then return the
--- inner-most pointer so we have only one pointer for the result.
-compressPointerChain :: Term -> Term
-compressPointerChain v =
-  case reverse $ pointerChain v of
-    p:_:ps@(_:_) -> setPointers (Shared p) ps
-    p:_:_        -> (Shared p)
-    _            -> v
-  where
-    setPointers u [] = u
-    setPointers u (p : ps) =
-      setPtr u p `seq` setPointers u ps
-
----------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
@@ -781,7 +714,7 @@ var i | i >= 0    = Var i []
 -- | Add 'DontCare' is it is not already a @DontCare@.
 dontCare :: Term -> Term
 dontCare v =
-  case ignoreSharing v of
+  case v of
     DontCare{} -> v
     _          -> DontCare v
 
@@ -820,7 +753,7 @@ mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
 isSort :: Term -> Maybe Sort
-isSort v = case ignoreSharing v of
+isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
 
@@ -925,13 +858,13 @@ notBlocked = NotBlocked ReallyNotBlocked
 
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
-stripDontCare v = case ignoreSharing v of
+stripDontCare v = case v of
   DontCare v -> v
   _          -> v
 
 -- | Doesn't do any reduction.
 arity :: Type -> Nat
-arity t = case ignoreSharing $ unEl t of
+arity t = case unEl t of
   Pi  _ b -> 1 + arity (unAbs b)
   _       -> 0
 
@@ -985,14 +918,14 @@ unSpine' p v =
 --   can be projected.
 hasElims :: Term -> Maybe (Elims -> Term, Elims)
 hasElims v =
-  case ignoreSharing v of
+  case v of
     Var   i es -> Just (Var   i, es)
     Def   f es -> Just (Def   f, es)
     MetaV x es -> Just (MetaV x, es)
     Con{}      -> Nothing
     Lit{}      -> Nothing
     -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
-    Lam _ (Abs _ v)  -> case ignoreSharing v of
+    Lam _ (Abs _ v)  -> case v of
       Var 0 [Proj _o f] -> Just (Def f, [])
       _ -> Nothing
     Lam{}      -> Nothing
@@ -1000,7 +933,6 @@ hasElims v =
     Sort{}     -> Nothing
     Level{}    -> Nothing
     DontCare{} -> Nothing
-    Shared{}   -> __IMPOSSIBLE__
 
 -- | Drop 'Apply' constructor. (Unsafe!)
 argFromElim :: Elim' a -> Arg a
@@ -1123,7 +1055,6 @@ instance TermSize Term where
     Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
     DontCare mv -> tsize mv
-    Shared p    -> tsize (derefPtr p)
 
 instance TermSize Sort where
   tsize s = case s of
@@ -1173,7 +1104,6 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
-    Shared p    -> Shared $ updatePtr killRange p
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as
@@ -1270,7 +1200,7 @@ instance Pretty a => Pretty (Substitution' a) where
 
 instance Pretty Term where
   prettyPrec p v =
-    case ignoreSharing v of
+    case v of
       Var x els -> text ("@" ++ show x) `pApp` els
       Lam ai b   ->
         mparens (p > 0) $
@@ -1289,7 +1219,6 @@ instance Pretty Term where
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
-      Shared{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
@@ -1399,7 +1328,6 @@ instance NFData Term where
     Level l    -> rnf l
     MetaV _ es -> rnf es
     DontCare v -> rnf v
-    Shared{}   -> ()
 
 instance NFData Type where
   rnf (El s v) = rnf (s, v)

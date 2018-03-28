@@ -86,7 +86,7 @@ conhqn q = xhqn "C" =<< canonicalName q
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName
 bltQual b s = do
-  Def q _ <- ignoreSharing <$> getBuiltin b
+  Def q _ <- getBuiltin b
   xqual q (HS.Ident s)
 
 dname :: QName -> HS.Name

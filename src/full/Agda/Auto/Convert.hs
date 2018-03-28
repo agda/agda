@@ -126,7 +126,6 @@ tomy imi icns typs = do
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
        let pars n (I.El _ (I.Pi it typ)) = Cm.Arg (Cm.domInfo it) (I.var n) :
                                            pars (n - 1) (I.unAbs typ)
-           pars n (I.El s (I.Shared p))  = pars n (I.El s (I.derefPtr p))
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) $
                                       I.Def cn $ map I.Apply $ pars (npar - 1) typ
@@ -396,7 +395,6 @@ instance Conversion TOM I.Term (MExp O) where
             return $ Meta m
           _ -> convert t
       I.DontCare _ -> return $ NotM dontCare
-      I.Shared p -> convert $ I.derefPtr p
 
 instance Conversion TOM a b => Conversion TOM (Cm.Arg a) (Hiding, b) where
   convert (Cm.Arg info a) = (getHiding info,) <$> convert a
@@ -425,7 +423,6 @@ fmExp m (I.Pi x y)  = fmType m (Cm.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
-fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
 
 fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m [] = False
@@ -535,7 +532,6 @@ frommyExps ndrop (NotM as) trm =
   addend x (I.Var h xs) = I.Var h (xs ++ [I.Apply x])
   addend x (I.Con h ci xs) = I.Con h ci (xs ++ [I.Apply x])
   addend x (I.Def h xs) = I.Def h (xs ++ [I.Apply x])
-  addend x (I.Shared p) = addend x (I.derefPtr p)
   addend _ _ = __IMPOSSIBLE__
 
 -- --------------------------------
@@ -719,7 +715,7 @@ findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
       return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
     toplevel e =
-     case I.ignoreSharing e of
+     case e of
       I.MetaV{} -> True
       _ -> False
 
@@ -729,19 +725,19 @@ matchType :: Int -> Int -> I.Type -> I.Type -> Maybe (Nat, Nat) -- Nat is deffre
 matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
  where
   trmodps 0 ctyp = tr 0 0 ctyp
-  trmodps n ctyp = case I.ignoreSharing $ I.unEl ctyp of
+  trmodps n ctyp = case I.unEl ctyp of
    I.Pi _ ot -> trmodps (n - 1) (I.absBody ot)
    _ -> __IMPOSSIBLE__
   tr narg na ctyp =
    case ft 0 0 Just ctyp ttyp of
     Just n -> Just (n, narg)
-    Nothing -> case I.ignoreSharing $ I.unEl ctyp of
+    Nothing -> case I.unEl ctyp of
      I.Pi _ (I.Abs _ ot) -> tr (narg + 1) (na + 1) ot
      I.Pi _ (I.NoAbs _ ot) -> tr (narg + 1) na ot
      _ -> Nothing
    where
     ft nl n c (I.El _ e1) (I.El _ e2) = f nl n c e1 e2
-    f nl n c e1 e2 = case I.ignoreSharing e1 of
+    f nl n c e1 e2 = case e1 of
      I.Var v1 as1 | v1 < nl -> case e2 of
       I.Var v2 as2 | v1 == v2 -> fes nl (n + 1) c as1 as2
       _ -> Nothing
@@ -749,7 +745,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
      I.Var v1 as1 -> case e2 of
       I.Var v2 as2 | cdfv + na + nl - v1 == tctx + nl - v2 -> fes nl (n + 1) c as1 as2
       _ -> Nothing
-     _ -> case (I.ignoreSharing e1, I.ignoreSharing e2) of
+     _ -> case (e1, e2) of
       (I.MetaV{}, _) -> c n
       (_, I.MetaV{}) -> c n
       (I.Lam hid1 b1, I.Lam hid2 b2) | hid1 == hid2 -> f (nl + 1) n c (I.absBody b1) (I.absBody b2)

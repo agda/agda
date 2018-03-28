@@ -288,7 +288,6 @@ instance Occurs Term where
           Con c ci vs -> Con c ci <$> occ ctx vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ ctx (a,b)
           Sort s      -> Sort <$> occurs red ctx m (goNonStrict xs) s
-          v@Shared{}  -> updateSharedTerm (occ ctx) v
           MetaV m' es -> do
               -- Check for loop
               --   don't fail hard on this, since we might still be on the top-level
@@ -349,7 +348,6 @@ instance Occurs Term where
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
-      Shared p   -> metaOccurs m $ derefPtr p
       MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> metaOccurs m vs
 
@@ -398,7 +396,7 @@ instance Occurs LevelAtom where
            NoUnfold  -> instantiate l
     case l of
       MetaLevel m' args -> do
-        MetaV m' args <- ignoreSharing <$> occurs red ctx m xs (MetaV m' args)
+        MetaV m' args <- occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
       NeutralLevel r v  -> NeutralLevel r  <$> occurs red ctx m xs v
       BlockedLevel m' v -> BlockedLevel m' <$> occurs red Flex m xs v
@@ -531,7 +529,7 @@ hasBadRigid xs t = do
   let failure = throwError ()
   tb <- liftTCM $ reduceB t
   let t = ignoreBlocking tb
-  case ignoreSharing t of
+  case t of
     Var x _      -> return $ notElem x xs
     -- Issue 1153: A lambda has to be considered matchable.
     -- Lam _ v    -> hasBadRigid (0 : map (+1) xs) (absBody v)
@@ -560,7 +558,6 @@ hasBadRigid xs t = do
     Con c _ es | otherwise -> failure
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
-    Shared p     -> __IMPOSSIBLE__
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
@@ -614,7 +611,7 @@ class FoldRigid a where
 instance FoldRigid Term where
   foldRigid f t = do
     b <- liftTCM $ reduceB t
-    case ignoreSharing $ ignoreBlocking b of
+    case ignoreBlocking b of
       -- Upon entry, we are in rigid position, thus,
       -- bound variables are rigid ones.
       Var i es   -> f i `mappend` fold es
@@ -636,7 +633,6 @@ instance FoldRigid Term where
       Level l    -> fold l
       MetaV{}    -> mempty
       DontCare{} -> mempty
-      Shared{}   -> __IMPOSSIBLE__
     where fold = foldRigid f
 
 instance FoldRigid Type where

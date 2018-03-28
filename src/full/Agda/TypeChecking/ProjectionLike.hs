@@ -116,7 +116,7 @@ unProjView pv =
 projView :: HasConstInfo m => Term -> m ProjectionView
 projView v = do
   let fallback = return $ NoProjection v
-  case ignoreSharing v of
+  case v of
     Def f es -> caseMaybeM (isProjection f) fallback $ \ isP -> do
       if projIndex isP <= 0 then fallback else do
         case es of
@@ -370,9 +370,9 @@ makeProjection x = -- if True then return () else do
     --
     candidateArgs :: [Term] -> Type -> [(Arg QName, Int)]
     candidateArgs vs t =
-      case ignoreSharing $ unEl t of
+      case unEl t of
         Pi a b
-          | Def d es <- ignoreSharing $ unEl $ unDom a,
+          | Def d es <- unEl $ unDom a,
             Just us  <- allApplyElims es,
             vs == map unArg us -> (d <$ argFromDom a, length vs) : candidateRec b
           | otherwise          -> candidateRec b

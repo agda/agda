@@ -71,7 +71,7 @@ checkType' t = do
     , prettyTCM t
     ]
   v <- elimView True $ unEl t -- bring projection-like funs in post-fix form
-  case ignoreSharing v of
+  case v of
     Pi a b -> do
       s1 <- checkType' $ unDom a
       s2 <- (b $>) <$> do
@@ -96,7 +96,6 @@ checkType' t = do
     v@Lit{}    -> typeError $ InvalidType v
     v@Level{}  -> typeError $ InvalidType v
     DontCare v -> checkType' $ t $> v
-    Shared{}   -> __IMPOSSIBLE__
 
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
@@ -127,7 +126,7 @@ eraseUnusedAction :: Action
 eraseUnusedAction = defaultAction { postAction = eraseUnused }
   where
     eraseUnused :: Type -> Term -> TCM Term
-    eraseUnused t v = case ignoreSharing v of
+    eraseUnused t v = case v of
       Def f es -> do
         pols <- getPolarity f
         return $ Def f $ eraseIfNonvariant pols es
@@ -152,7 +151,7 @@ checkInternal' action v t = do
   -- Bring projection-like funs in post-fix form,
   -- even lone ones (True).
   v <- elimView True =<< preAction action t v
-  postAction action t =<< case ignoreSharing v of
+  postAction action t =<< case v of
     Var i es   -> do
       a <- typeOfBV i
       checkSpine action a (Var i []) es t
@@ -196,7 +195,6 @@ checkInternal' action v t = do
       l <- checkLevel action l
       Level l <$ ((`subtype` t) =<< levelType)
     DontCare v -> DontCare <$> checkInternal' action v t
-    Shared{}   -> __IMPOSSIBLE__
 
 -- | Make sure a constructor is fully applied
 --   and infer the type of the constructor.
@@ -278,7 +276,7 @@ checkRelevance action r r' = do
 -- | Infer type of a neutral term.
 infer :: Term -> TCM Type
 infer v = do
-  case ignoreSharing v of
+  case v of
     Var i es   -> do
       a <- typeOfBV i
       snd <$> inferSpine a (Var i   []) es
@@ -287,7 +285,6 @@ infer v = do
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       snd <$> inferSpine a (MetaV x []) es
-    Shared{} -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
 -- | Infer ordinary function application.
@@ -373,7 +370,7 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 ifIsSort :: Type -> (Sort -> TCM a) -> TCM a -> TCM a
 ifIsSort t yes no = do
   t <- reduce t
-  case ignoreSharing $ unEl t of
+  case unEl t of
     Sort s -> yes s
     _      -> no
 
@@ -423,7 +420,7 @@ subtype t1 t2 = do
 -- | Compute the sort of a type.
 
 inferSort :: Term -> TCM Sort
-inferSort t = case ignoreSharing t of
+inferSort t = case t of
     Var i es   -> do
       a <- typeOfBV i
       (_, s) <- eliminate (Var i []) a es
@@ -443,7 +440,6 @@ inferSort t = case ignoreSharing t of
     Lam{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    Shared{}   -> __IMPOSSIBLE__
 
 -- | @eliminate t self es@ eliminates value @self@ of type @t@ by spine @es@
 --   and returns the remaining value and its type.

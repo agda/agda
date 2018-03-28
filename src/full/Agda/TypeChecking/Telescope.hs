@@ -323,7 +323,7 @@ telViewUpTo' :: Int -> (Dom Type -> Bool) -> Type -> TCM TelView
 telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
-  case ignoreSharing $ unEl t of
+  case unEl t of
     Pi a b | p a -> absV a (absName b) <$> telViewUpTo' (n - 1) p (absBody b)
     _            -> return $ TelV EmptyTel t
   where
@@ -399,7 +399,7 @@ mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ \ a b -> return (a,b)
 ifPi :: MonadTCM tcm => Term -> (Dom Type -> Abs Type -> tcm a) -> (Term -> tcm a) -> tcm a
 ifPi t yes no = do
   t <- liftTCM $ reduce t
-  case ignoreSharing t of
+  case t of
     Pi a b -> yes a b
     _      -> no t
 
@@ -457,7 +457,7 @@ getOutputTypeName :: Type -> TCM OutputTypeName
 getOutputTypeName t = do
   TelV tel t' <- telView t
   ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ _ v ->
-    case ignoreSharing v of
+    case v of
       -- Possible base types:
       Def n _  -> return $ OutputTypeName n
       Sort{}   -> return NoOutputTypeName
@@ -469,7 +469,6 @@ getOutputTypeName t = do
       Level{}  -> __IMPOSSIBLE__
       MetaV{}  -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
 
 addTypedInstance :: QName -> Type -> TCM ()

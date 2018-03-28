@@ -196,7 +196,7 @@ matchPattern p u = case (p, u) of
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
-    case ignoreSharing <$> w of
+    case w of
       NotBlocked _ (Lit l')
           | l == l'            -> return (Yes YesSimplification empty , arg')
           | otherwise          -> return (No                          , arg')
@@ -237,7 +237,7 @@ matchPattern p u = case (p, u) of
         --    an axiom at this stage (if we are checking the
         --    projection functions for a record type).
 {-
-        w <- case ignoreSharing <$> w of
+        w <- case w of
                NotBlocked r (Def f es) ->   -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                  unfoldDefinitionE True reduceB' (Def f []) f es
                    -- reduceB is used here because some constructors
@@ -252,7 +252,7 @@ matchPattern p u = case (p, u) of
                _ -> return w
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument
-        case ignoreSharing <$> w of
+        case w of
           NotBlocked _ (Con c' ci vs)
             | c == c'               -> do
                 (m, vs) <- yesSimplification <$> matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)

@@ -59,7 +59,7 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Abs a) where
 
 instance PrecomputeFreeVars Term where
   precomputeFreeVars t =
-    case ignoreSharing t of
+    case t of
       Var x es -> do
         tell (IntSet.singleton x)
         Var x <$> precomputeFreeVars es
@@ -72,7 +72,6 @@ instance PrecomputeFreeVars Term where
       Level l    -> Level      <$> precomputeFreeVars l
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
-      Shared p   -> __IMPOSSIBLE__
 
 -- The other instances are boilerplate.
 

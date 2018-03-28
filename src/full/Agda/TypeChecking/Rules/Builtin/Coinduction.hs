@@ -72,7 +72,7 @@ bindBuiltinSharp x =
     sharpType <- typeOfSharp
     TelV fieldTel _ <- telView sharpType
     sharpE    <- instantiateFull =<< checkExpr (A.Def sharp) sharpType
-    Def inf _ <- ignoreSharing <$> primInf
+    Def inf _ <- primInf
     infDefn   <- getConstInfo inf
     addConstant (defName infDefn) $
       infDefn { defPolarity       = [] -- not monotone
@@ -117,9 +117,9 @@ bindBuiltinFlat :: ResolvedName -> TCM ()
 bindBuiltinFlat x =
   bindPostulatedName builtinFlat x $ \ flat flatDefn -> do
     flatE       <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
-    Def sharp _ <- ignoreSharing <$> primSharp
+    Def sharp _ <- primSharp
     kit         <- requireLevels
-    Def inf _   <- ignoreSharing <$> primInf
+    Def inf _   <- primInf
     let sharpCon = ConHead sharp CoInductive [flat]
         level    = El (mkType 0) $ Def (typeName kit) []
         tel     :: Telescope

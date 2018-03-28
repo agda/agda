@@ -8,7 +8,7 @@ class Zipper z where
   type Carrier z
   type Element z
   firstHole :: Carrier z -> Maybe (Element z, z)
-  plugHole      :: Element z -> z -> Carrier z
+  plugHole  :: Element z -> z -> Carrier z
   nextHole  :: Element z -> z -> Either (Carrier z) (Element z, z)
 
 data ListZipper a = ListZip [a] [a]
@@ -19,7 +19,7 @@ instance Zipper (ListZipper a) where
   type Element (ListZipper a) = a
   firstHole (x : xs)               = Just (x, ListZip [] xs)
   firstHole []                     = Nothing
-  plugHole x (ListZip ys zs)           = reverse ys ++ x : zs
+  plugHole x (ListZip ys zs)       = reverse ys ++ x : zs
   nextHole x (ListZip ys [])       = Left (reverse (x : ys))
   nextHole x (ListZip ys (z : zs)) = Right (z, ListZip (x : ys) zs)
 

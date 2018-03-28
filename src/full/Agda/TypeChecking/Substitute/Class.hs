@@ -271,6 +271,6 @@ underAbs cont a b = case b of
 underLambdas :: Subst Term a => Int -> (a -> Term -> Term) -> a -> Term -> Term
 underLambdas n cont a v = loop n a v where
   loop 0 a v = cont a v
-  loop n a v = case ignoreSharing v of
+  loop n a v = case v of
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__

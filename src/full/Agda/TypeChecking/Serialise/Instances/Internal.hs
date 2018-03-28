@@ -93,10 +93,8 @@ instance EmbPrj I.Term where
   icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Shared p)     = icodeMemo termD termC p $ icode (derefPtr p)
 
-  value r = vcase valu' r where
-    valu' xs       = gets mkShared <*> valu xs
+  value = vcase valu where
     valu [a]       = valuN var   a
     valu [0, a, b] = valuN Var   a b
     valu [1, a, b] = valuN Lam   a b

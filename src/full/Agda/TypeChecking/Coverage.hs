@@ -439,7 +439,7 @@ isDatatype ind at = do
       throw f = throwError . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
   mInterval <- liftTCM $ getBuiltinName' builtinInterval
-  case ignoreSharing $ unEl t' of
+  case unEl t' of
     Def d [] | Just d == mInterval -> throw NotADatatype
     Def d es -> do
       let ~(Just args) = allApplyElims es
@@ -578,7 +578,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs) <- do
     TelV gamma0 (El _ d) <- liftTCM $ telView (ctype `piApply` pars)
-    let Def _ es = ignoreSharing d
+    let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs)
 
@@ -586,7 +586,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- of constructor
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
-      preserve (x, (El s (Shared p))) = preserve (x, El s $ derefPtr p)
       preserve (x, t) = (x, t)
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal

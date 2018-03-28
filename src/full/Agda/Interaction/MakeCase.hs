@@ -128,7 +128,7 @@ parseVariables f tel ii rng ss = do
         -- via the type checker.
         VarName x _ -> do
           (v, _) <- getVarInfo x
-          case ignoreSharing v of
+          case v of
             Var i [] -> done $ i - nlocals
             _        -> typeError . GenericDocError =<< sep
               [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
@@ -291,7 +291,7 @@ makeCase hole rng s = withInteractionId hole $ do
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
-  newVar c x = case ignoreSharing $ applyPatSubst (scSubst c) (var x) of
+  newVar c x = case applyPatSubst (scSubst c) (var x) of
     Var y [] -> Just y
     _        -> Nothing
 

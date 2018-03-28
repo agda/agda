@@ -164,7 +164,7 @@ checkDataDef i name ps cs =
 -- | Ensure that the type is a sort.
 --   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.
 forceSort :: Type -> TCM Sort
-forceSort t = case ignoreSharing $ unEl t of
+forceSort t = case unEl t of
   Sort s -> return s
   _      -> do
     -- Universes depend non-strictly on their argument
@@ -539,7 +539,7 @@ bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ = 
   __IMPOSSIBLE__
 
 bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
-  case ignoreSharing $ unEl t of
+  case unEl t of
     -- Andreas, 2011-04-07 ignore relevance information in binding?!
     Pi arg@(Dom{domInfo = info', unDom = a}) b -> do
       if | info == info'                  -> do
@@ -580,7 +580,7 @@ fitsIn forceds t s = do
   -- s' <- instantiateFull (getSort t)
   -- noConstraints $ s' `leqSort` s
   t <- reduce t
-  case ignoreSharing $ unEl t of
+  case unEl t of
     Pi dom b -> do
       withoutK <- optWithoutK <$> pragmaOptions
       let (forced,forceds') = nextIsForced forceds
@@ -605,7 +605,7 @@ constructs nofPars t q = constrT 0 t
         constrT :: Nat -> Type -> TCM ()
         constrT n t = do
             t <- reduce t
-            case ignoreSharing $ unEl t of
+            case unEl t of
                 Pi _ (NoAbs _ b)  -> constrT n b
                 Pi a b            -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
@@ -651,7 +651,7 @@ forceData :: QName -> Type -> TCM Type
 forceData d (El s0 t) = liftTCM $ do
     t' <- reduce t
     d  <- canonicalName d
-    case ignoreSharing t' of
+    case t' of
         Def d' _
             | d == d'   -> return $ El s0 t'
             | otherwise -> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
@@ -669,7 +669,7 @@ forceData d (El s0 t) = liftTCM $ do
 isCoinductive :: Type -> TCM (Maybe Bool)
 isCoinductive t = do
   El s t <- reduce t
-  case ignoreSharing t of
+  case t of
     Def q _ -> do
       def <- getConstInfo q
       case theDef def of
@@ -690,5 +690,4 @@ isCoinductive t = do
     Pi    {} -> return (Just False)
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
-    Shared{} -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__

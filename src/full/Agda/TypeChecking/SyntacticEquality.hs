@@ -68,22 +68,6 @@ pure2 a = pure (a,a)
 (<**>) :: Applicative f => f (a -> b, a -> b) -> f (a,a) -> f (b,b)
 ff <**> xx = pure (uncurry (***)) <*> ff <*> xx
 
-{-
-updateSharedM2 :: Monad m =>  (Term -> Term -> m (Term, Term)) -> Term -> Term -> m (Term, Term)
-updateSharedM2 f v0@(Shared p) = do
-  v <- f (derefPtr p)
-  case derefPtr (setPtr v p) of
-    Var _ [] -> return v
-    _        -> compressPointerChain v0 `pseq` return v0
-updateSharedM2 f v = f v
-
-updateSharedTerm2 :: MonadTCM tcm => (Term -> Term -> tcm (Term, Term)) -> Term -> Term -> tcm (Term, Term)
-updateSharedTerm f v v' =
-  ifM (liftTCM $ asks envAllowDestructiveUpdate)
-      (updateSharedM2 f v v')
-      (f (ignoreSharing v) (ignoreSharing v'))
--}
-
 -- | Instantiate full as long as things are equal
 class SynEq a where
   synEq  :: a -> a -> SynEqM (a,a)
@@ -98,9 +82,7 @@ instance SynEq Bool where
 instance SynEq Term where
   synEq v v' = do
     (v, v') <- lift $ instantiate' (v, v')
-    -- currently destroys sharing
-    -- TODO: preserve sharing!
-    case (ignoreSharing v, ignoreSharing v') of
+    case (v, v') of
       (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
       (Con c ci vs,Con c' ci' vs') | c == c' -> Con c (bestConInfo ci ci') <$$> synEq vs vs'
       (Def   f vs, Def   f' vs') | f == f' -> Def f   <$$> synEq vs vs'
@@ -113,8 +95,6 @@ instance SynEq Term where
       (DontCare _, DontCare _  )           -> pure (v, v')
          -- Irrelevant things are syntactically equal. ALT:
          -- DontCare <$$> synEq v v'
-      (Shared{}  , _           )           -> __IMPOSSIBLE__
-      (_         , Shared{}    )           -> __IMPOSSIBLE__
       _                                    -> inequal (v, v')
 
 instance SynEq Level where

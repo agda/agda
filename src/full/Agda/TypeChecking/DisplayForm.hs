@@ -142,7 +142,7 @@ instance Match a => Match (Elim' a) where
       _                           -> mzero
 
 instance Match Term where
-  match p v = lift (instantiate v) >>= \ v -> case (ignoreSharing p, ignoreSharing v) of
+  match p v = lift (instantiate v) >>= \ v -> case (p, v) of
     (Var 0 [], v) -> return [ WithOrigin Inserted $ strengthen __IMPOSSIBLE__ v ]
     (Var i ps, Var j vs) | i == j  -> match ps vs
     (Def c ps, Def d vs) | c == d  -> match ps vs
@@ -192,7 +192,7 @@ instance (SubstWithOrigin a, SubstWithOrigin (Arg a)) => SubstWithOrigin (Elim' 
 
 instance SubstWithOrigin (Arg Term) where
   substWithOrigin rho ots (Arg ai v) =
-    case ignoreSharing v of
+    case v of
       -- pattern variable: replace origin if better
       Var x [] -> case ots !!! x of
         Just (WithOrigin o u) -> Arg (mapOrigin (replaceOrigin o) ai) u
@@ -209,7 +209,7 @@ instance SubstWithOrigin (Arg Term) where
 
 instance SubstWithOrigin Term where
   substWithOrigin rho ots v =
-    case ignoreSharing v of
+    case v of
       -- constructor: recurse
       Con c ci args -> Con c ci $ substWithOrigin rho ots args
       -- def: recurse

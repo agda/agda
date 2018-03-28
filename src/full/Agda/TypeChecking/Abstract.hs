@@ -89,7 +89,7 @@ instance IsPrefixOf Args where
 
 instance IsPrefixOf Term where
   isPrefixOf u v =
-    case (ignoreSharing u, ignoreSharing v) of
+    case (u, v) of
       (Var   i us, Var   j vs) | i == j  -> us `isPrefixOf` vs
       (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
       (Con c _ us, Con d _ vs) | c == d  -> us `isPrefixOf` vs
@@ -167,12 +167,8 @@ instance AbsTerm Term where
       Sort s      -> Sort $ absT s
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
-      Shared p    -> Shared $ absT p
       where
         absT x = absTerm u x
-
-instance AbsTerm a => AbsTerm (Ptr a) where
-  absTerm u = fmap (absTerm u)
 
 instance AbsTerm Type where
   absTerm u (El s v) = El (absTerm u s) (absTerm u v)

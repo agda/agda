@@ -52,7 +52,7 @@
 --   let noElim = return $ NoElim v
 --   reportSDoc "tc.conv.elim" 30 $ text "elimView of " <+> prettyTCM v
 --   reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
---   case ignoreSharing v of
+--   case v of
 --     Def f [] -> return $ DefElim f [] -- Andreas, 2013-03-05 it is not impossible that f is an unapplied projection
 --     Def f vs@(rv : vs') -> do
 --       let defElim = DefElim f `app` vs
@@ -78,7 +78,6 @@
 --     Sort{}     -> noElim
 --     Pi{}       -> noElim
 --     DontCare{} -> noElim
---     Shared p   -> __IMPOSSIBLE__
 --     where
 --       app f vs = return $ f $ map Apply vs
 --       elim :: [Elim] -> ElimView -> ElimView

@@ -69,7 +69,6 @@ buildPattern (Con c ci es) = Just $
   let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
   ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . dotP) args
 buildPattern (Var i [])     = Just $ deBruijnVar i
-buildPattern (Shared p)     = buildPattern (derefPtr p)
 buildPattern _              = Nothing
 
 -- | A pattern that matches anything (modulo eta).

@@ -1777,7 +1777,7 @@ notReduced :: a -> MaybeReduced a
 notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
-reduced b = case fmap ignoreSharing <$> b of
+reduced b = case b of
   NotBlocked _ (Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
   _                                -> MaybeRed (Reduced $ () <$ b)      v
   where

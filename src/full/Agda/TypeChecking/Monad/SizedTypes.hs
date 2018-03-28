@@ -61,10 +61,10 @@ isSizeTypeTest =
     let testType (Def d [])        | Just d == size   = Just BoundedNo
         testType (Def d [Apply v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
         testType _                                    = Nothing
-    return $ testType . ignoreSharing
+    return testType
 
 getBuiltinDefName :: String -> TCM (Maybe QName)
-getBuiltinDefName s = fromDef . fmap ignoreSharing <$> getBuiltin' s
+getBuiltinDefName s = fromDef <$> getBuiltin' s
   where
     fromDef (Just (Def d [])) = Just d
     fromDef _                 = Nothing
@@ -89,9 +89,9 @@ isSizeNameTestRaw = do
 --   the size built-ins are defined.
 haveSizedTypes :: TCM Bool
 haveSizedTypes = do
-    Def _ [] <- ignoreSharing <$> primSize
-    Def _ [] <- ignoreSharing <$> primSizeInf
-    Def _ [] <- ignoreSharing <$> primSizeSuc
+    Def _ [] <- primSize
+    Def _ [] <- primSizeInf
+    Def _ [] <- primSizeSuc
     optSizedTypes <$> pragmaOptions
   `catchError` \_ -> return False
 
@@ -141,14 +141,14 @@ sizeType = El sizeSort <$> primSize
 sizeSucName :: TCM (Maybe QName)
 sizeSucName = do
   ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ tryMaybe $ do
-    Def x [] <- ignoreSharing <$> primSizeSuc
+    Def x [] <- primSizeSuc
     return x
 
 sizeSuc :: Nat -> Term -> TCM Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
-  Def suc [] <- ignoreSharing <$> primSizeSuc
+  Def suc [] <- primSizeSuc
   return $ case iterate (sizeSuc_ suc) v !!! n of
              Nothing -> __IMPOSSIBLE__
              Just t  -> t
@@ -176,9 +176,9 @@ data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 -- | Expects argument to be 'reduce'd.
 sizeView :: Term -> TCM SizeView
 sizeView v = do
-  Def inf [] <- ignoreSharing <$> primSizeInf
-  Def suc [] <- ignoreSharing <$> primSizeSuc
-  case ignoreSharing v of
+  Def inf [] <- primSizeInf
+  Def suc [] <- primSizeSuc
+  case v of
     Def x []        | x == inf -> return SizeInf
     Def x [Apply u] | x == suc -> return $ SizeSuc (unArg u)
     _                          -> return $ OtherSize v

@@ -473,7 +473,7 @@ instance ShrinkC Type Type where
 instance ShrinkC Term Term where
   shrinkC conf (DontCare _)  = []
   shrinkC conf (Sort Prop) = []
-  shrinkC conf t           = filter validType $ case ignoreSharing t of
+  shrinkC conf t           = filter validType $ case t of
     Var i es     -> map unArg (argsFromElims es) ++
                     (uncurry Var <$> shrinkC conf (VarName i, NoType es))
     Def d es     -> map unArg (argsFromElims es) ++
@@ -490,7 +490,6 @@ instance ShrinkC Term Term where
     MetaV m es   -> map unArg (argsFromElims es) ++
                     (MetaV m <$> shrinkC conf (NoType es))
     DontCare _   -> []
-    Shared{}     -> __IMPOSSIBLE__
     where
       validType t
         | not (tcIsType conf) = True
@@ -509,7 +508,7 @@ class KillVar a where
   killVar :: Nat -> a -> a
 
 instance KillVar Term where
-  killVar i t = case ignoreSharing t of
+  killVar i t = case t of
     Var j args | j == i    -> DontCare (Var j [])
                | j >  i    -> Var (j - 1) $ killVar i args
                | otherwise -> Var j       $ killVar i args
@@ -522,7 +521,6 @@ instance KillVar Term where
     Pi a b                 -> uncurry Pi  $ killVar i (a, b)
     MetaV m args           -> MetaV m     $ killVar i args
     DontCare mv            -> DontCare    $ killVar i mv
-    Shared{}               -> __IMPOSSIBLE__
 
 instance KillVar Type where
   killVar i (El s t) = El s $ killVar i t

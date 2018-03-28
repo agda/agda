@@ -54,7 +54,7 @@ reconstructParameters a v = do
   return v
   where
     reconstruct a v = do
-      case ignoreSharing v of
+      case v of
         Con h ci vs -> do
           TelV tel a <- telView a
           let under = size tel  -- under-applied when under > 0
@@ -62,7 +62,7 @@ reconstructParameters a v = do
             sep [ text "reconstructing"
                 , nest 2 $ sep [ prettyTCM v <+> text ":"
                                , nest 2 $ prettyTCM a ] ]
-          case ignoreSharing (unEl a) of
+          case (unEl a) of
             Def d es -> do
               Just n <- defParameters <$> getConstInfo d
               let ps = applySubst (strengthenS __IMPOSSIBLE__ under) . take n $ es
@@ -76,7 +76,7 @@ dropParameters :: TermLike a => a -> TCM a
 dropParameters = traverseTermM dropPars
   where
     dropPars v =
-      case ignoreSharing v of
+      case v of
         Con c ci vs -> do
           Constructor{ conData = d } <- theDef <$> getConstInfo (conName c)
           Just n <- defParameters <$> getConstInfo d

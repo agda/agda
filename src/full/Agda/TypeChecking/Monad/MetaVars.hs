@@ -118,7 +118,7 @@ instance IsInstantiatedMeta MetaId where
 instance IsInstantiatedMeta Term where
   isInstantiatedMeta = loop where
    loop v =
-    case ignoreSharing v of
+    case v of
       MetaV x _  -> isInstantiatedMeta x
       DontCare v -> loop v
       Level l    -> isInstantiatedMeta l
@@ -191,7 +191,7 @@ createMetaInfo' b = do
 
 setValueMetaName :: Term -> MetaNameSuggestion -> TCM ()
 setValueMetaName v s = do
-  case ignoreSharing v of
+  case v of
     MetaV mi _ -> setMetaNameSuggestion mi s
     u          -> do
       reportSLn "tc.meta.name" 70 $
@@ -464,7 +464,6 @@ instance UnFreezeMeta Type where
   unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t
 
 instance UnFreezeMeta Term where
-  unfreezeMeta (Shared p)    = unfreezeMeta $ derefPtr p
   unfreezeMeta (MetaV x _)   = unfreezeMeta x
   unfreezeMeta (Sort s)      = unfreezeMeta s
   unfreezeMeta (Level l)     = unfreezeMeta l

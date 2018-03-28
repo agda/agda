@@ -151,7 +151,6 @@ data St = St
     -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: [AbsolutePath]
     -- ^ The include directories.
-  , mkShared  :: Term -> Term
   }
 
 -- | Monad used by the encoder.

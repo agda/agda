@@ -55,7 +55,7 @@ instance DropArgs FunctionInverse where
 --   NOTE: does not reduce term, need lambdas to be present.
 instance DropArgs Term where
   dropArgs 0 v = v
-  dropArgs n v = case ignoreSharing v of
+  dropArgs n v = case v of
     Lam h b -> dropArgs (n - 1) (absBody b)
     _       -> __IMPOSSIBLE__
 

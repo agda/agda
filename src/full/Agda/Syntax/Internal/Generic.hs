@@ -64,7 +64,6 @@ instance TermLike a => TermLike (Dom a)     where
 instance TermLike a => TermLike [a]         where
 instance TermLike a => TermLike (Maybe a)   where
 instance TermLike a => TermLike (Abs a)     where
-instance TermLike a => TermLike (Ptr a)     where
 instance TermLike a => TermLike (Blocked a) where
 
 -- Tuples
@@ -96,7 +95,6 @@ instance TermLike Term where
     Lit _       -> f t
     Sort _      -> f t
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
-    Shared p    -> f =<< Shared <$> traverseTermM f p
 
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
@@ -109,7 +107,6 @@ instance TermLike Term where
     Lit _       -> mempty
     Sort _      -> mempty
     DontCare mv -> foldTerm f mv
-    Shared p    -> foldTerm f p
 
 instance TermLike Level where
   traverseTermM f (Max as) = Max <$> traverseTermM f as

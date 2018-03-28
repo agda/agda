@@ -250,14 +250,14 @@ class FromTerm a where
 
 instance FromTerm Integer where
   fromTerm = do
-    Con pos _    [] <- ignoreSharing <$> primIntegerPos
-    Con negsuc _ [] <- ignoreSharing <$> primIntegerNegSuc
+    Con pos _    [] <- primIntegerPos
+    Con negsuc _ [] <- primIntegerNegSuc
     toNat         <- fromTerm :: TCM (FromTermFunction Nat)
     return $ \ v -> do
       b <- reduceB' v
       let v'  = ignoreBlocking b
           arg = (<$ v')
-      case ignoreSharing $ unArg (ignoreBlocking b) of
+      case unArg (ignoreBlocking b) of
         Con c ci [Apply u]
           | c == pos    ->
             redBind (toNat u)
@@ -318,7 +318,7 @@ instance FromTerm Bool where
                 | t =?= false -> Just False
                 | otherwise   -> Nothing
         where
-            a =?= b = ignoreSharing a === ignoreSharing b
+            a =?= b = a === b
             Def x [] === Def y []   = x == y
             Con x _ [] === Con y _ [] = x == y
             Var n [] === Var m []   = n == m
@@ -336,14 +336,13 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     where
       isCon (Lam _ b)  = isCon $ absBody b
       isCon (Con c _ _)= return c
-      isCon (Shared p) = isCon (derefPtr p)
       isCon v          = __IMPOSSIBLE__
 
       mkList nil cons toA fromA t = do
         b <- reduceB' t
         let t = ignoreBlocking b
         let arg = (<$ t)
-        case ignoreSharing $ unArg t of
+        case unArg t of
           Con c ci []
             | c == nil  -> return $ YesReduction NoSimplification []
           Con c ci es
@@ -371,7 +370,7 @@ redReturn = return . YesReduction YesSimplification
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
     b <- reduceB' t
-    case f $ ignoreSharing $ unArg (ignoreBlocking b) of
+    case f $ unArg (ignoreBlocking b) of
         Just x  -> return $ YesReduction NoSimplification x
         Nothing -> return $ NoReduction (reduced b)
 
@@ -1386,7 +1385,7 @@ primTrustMe = do
   eqTy <- defType <$> getConstInfo eq
   -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
   TelV eqTel eqCore <- telView eqTy
-  let eqSort = case ignoreSharing $ unEl eqCore of
+  let eqSort = case unEl eqCore of
         Sort s -> s
         _      -> __IMPOSSIBLE__
 
@@ -1396,7 +1395,7 @@ primTrustMe = do
 
   -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
   -- Get the ArgInfo of the principal argument of refl.
-  con@(Con rf ci []) <- ignoreSharing <$> primRefl
+  con@(Con rf ci []) <- primRefl
   minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
   let (refl :: Arg Term -> Term) = case minfo of
         Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
@@ -1453,7 +1452,7 @@ genPrimForce b ret = do
         u <- reduceB' u
         let isWHNF Blocked{} = return False
             isWHNF (NotBlocked _ u) =
-              case ignoreSharing $ unArg u of
+              case unArg u of
                 Lit{}      -> return True
                 Con{}      -> return True
                 Lam{}      -> return True
@@ -1469,7 +1468,6 @@ genPrimForce b ret = do
                     _          -> False
                 MetaV{}    -> return False
                 Var{}      -> return False
-                Shared{}   -> __IMPOSSIBLE__
 
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))
@@ -1898,7 +1896,7 @@ getBuiltinName b = do
   where
   getName v = do
     v <- reduce v
-    case unSpine $ ignoreSharing v of
+    case unSpine $ v of
       Def x _   -> return x
       Con x _ _ -> return $ conName x
       Lam _ b   -> getName $ unAbs b

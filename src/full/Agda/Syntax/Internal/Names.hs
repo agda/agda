@@ -107,7 +107,7 @@ instance NamesIn Sort where
     DLub a b -> namesIn (a, b)
 
 instance NamesIn Term where
-  namesIn v = case ignoreSharing v of
+  namesIn v = case v of
     Var _ args   -> namesIn args
     Lam _ b      -> namesIn b
     Lit l        -> namesIn l
@@ -118,7 +118,6 @@ instance NamesIn Term where
     Level l      -> namesIn l
     MetaV _ args -> namesIn args
     DontCare v   -> namesIn v
-    Shared{}     -> __IMPOSSIBLE__
 
 instance NamesIn Level where
   namesIn (Max ls) = namesIn ls

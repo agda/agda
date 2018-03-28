@@ -391,7 +391,7 @@ recConFromProj q = do
 --   indices in the environment as well.
 substTerm :: I.Term -> CC C.TTerm
 substTerm term = normaliseStatic term >>= \ term ->
-  case I.ignoreSharing $ I.unSpine term of
+  case I.unSpine term of
     I.Var ind es -> do
       ind' <- lookupIndex ind <$> asks ccCxt
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
@@ -409,7 +409,6 @@ substTerm term = normaliseStatic term >>= \ term ->
         let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
-    I.Shared _ -> __IMPOSSIBLE__ -- the ignoreSharing fun should already take care of this
     I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
     I.MetaV _ _ -> __IMPOSSIBLE__   -- we don't compiled if unsolved metas
