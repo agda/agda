@@ -292,7 +292,7 @@ instance PrettyTCM OccursWhere where
                           [prettyTCM q]
         UnderInf     -> pwords "under" ++
                         [do -- this cannot fail if an 'UnderInf' has been generated
-                            Def inf _ <- ignoreSharing <$> primInf
+                            Def inf _ <- primInf
                             prettyTCM inf]
         VarArg       -> pwords "in an argument to a bound variable"
         MetaArg      -> pwords "in an argument to a metavariable"

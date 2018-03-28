@@ -110,7 +110,7 @@ computeForcingAnnotations t =
   -- get to the actual data type.
   -- Also #2947: The type might reduce to a pi type.
   TelV tel (El _ a) <- telView t
-  let vs = case ignoreSharing a of
+  let vs = case a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
       n  = size tel
@@ -153,7 +153,7 @@ instance ForcedVariables a => ForcedVariables (Arg a) where
 
 -- | Assumes that the term is in normal form.
 instance ForcedVariables Term where
-  forcedVariables t = case ignoreSharing t of
+  forcedVariables t = case t of
     Var i [] -> [(mempty, i)]
     Con _ _ vs -> forcedVariables vs
     _ -> []

@@ -95,8 +95,8 @@ quotingKit = do
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
   lkit            <- requireLevels
-  Con z _ _       <- ignoreSharing <$> primZero
-  Con s _ _       <- ignoreSharing <$> primSuc
+  Con z _ _       <- primZero
+  Con s _ _       <- primSuc
   unsupported     <- primAgdaTermUnsupported
 
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef

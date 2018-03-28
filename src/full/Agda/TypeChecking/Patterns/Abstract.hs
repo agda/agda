@@ -36,8 +36,8 @@ expandLitPattern p = case asView p of
     | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
     | n > 20    -> tooBig
     | otherwise -> do
-      Con z _ _ <- ignoreSharing <$> primZero
-      Con s _ _ <- ignoreSharing <$> primSuc
+      Con z _ _ <- primZero
+      Con s _ _ <- primSuc
       let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
           suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
           info  = A.PatRange r

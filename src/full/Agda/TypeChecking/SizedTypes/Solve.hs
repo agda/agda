@@ -582,7 +582,7 @@ getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
         let (x, t) = unDom ce
             s      = prettyShow x
         t <- reduce . raise (1 + i) . unEl $ t
-        case ignoreSharing t of
+        case t of
           Def d [Apply u] | d == sizelt -> do
             caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
               return $ Just $ (i, Constraint (Rigid (NamedRigid s i) 0) Lt a)
@@ -775,7 +775,7 @@ sizeExpr u = do
   case s of
     SizeInf     -> return $ Just Infty
     SizeSuc u   -> fmap (`plus` (1 :: Offset)) <$> sizeExpr u
-    OtherSize u -> case ignoreSharing u of
+    OtherSize u -> case u of
       Var i []    -> (\ x -> Just $ Rigid (NamedRigid x i) 0) . prettyShow <$> nameOfBV i
 --      MetaV m es  -> return $ Just $ Flex (SizeMeta m es) 0
       MetaV m es | Just xs <- mapM isVar es, List.fastDistinct xs
@@ -783,7 +783,7 @@ sizeExpr u = do
       _           -> return Nothing
   where
     isVar (Proj{})  = Nothing
-    isVar (Apply v) = case ignoreSharing $ unArg v of
+    isVar (Apply v) = case unArg v of
       Var i [] -> Just i
       _        -> Nothing
 

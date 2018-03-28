@@ -304,7 +304,7 @@ noShadowingOfConstructors mkCall eqs =
       ]
     reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ text "a =" <+> pretty a
     a <- reduce a
-    case ignoreSharing a of
+    case a of
       Def t _ -> do
         d <- theDef <$> getConstInfo t
         case d of
@@ -946,7 +946,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
 
       -- The type of the constructor will end in an application of the datatype
       TelV gamma (El _ ctarget) <- liftTCM $ telView b
-      let Def d' es' = ignoreSharing ctarget
+      let Def d' es' = ctarget
           cixs = drop (size pars) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
 
       unless (d == d') {-'-} __IMPOSSIBLE__
@@ -1148,7 +1148,7 @@ hardTypeError = liftTCM . typeError
 isDataOrRecordType :: (MonadTCM m, MonadDebug m)
                    => Dom Type -> ExceptT TCErr m (QName, Args, Args)
 isDataOrRecordType dom@(Dom info a) = liftTCM (reduceB a) >>= \case
-  NotBlocked ReallyNotBlocked a -> case ignoreSharing $ unEl a of
+  NotBlocked ReallyNotBlocked a -> case unEl a of
 
     -- Subcase: split type is a Def.
     Def d es -> (liftTCM $ theDef <$> getConstInfo d) >>= \case
@@ -1444,7 +1444,7 @@ checkParameters
   -> tcm ()
 checkParameters dc d pars = liftTCM $ do
   a  <- reduce (Def dc [])
-  case ignoreSharing a of
+  case a of
     Def d0 es -> do -- compare parameters
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reportSDoc "tc.lhs.split" 40 $

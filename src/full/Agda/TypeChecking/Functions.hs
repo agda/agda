@@ -70,7 +70,7 @@ etaExpandClause clause = liftTCM $ do
     -- Get all initial lambdas of the body.
     peekLambdas :: Term -> [Arg ArgName]
     peekLambdas v =
-      case ignoreSharing v of
+      case v of
         Lam info b -> Arg info (absName b) : peekLambdas (unAbs b)
         _ -> []
 
@@ -93,7 +93,7 @@ etaExpandClause clause = liftTCM $ do
 --   Returns 'Nothing' if no such head exists.
 
 getDef :: Term -> TCM (Maybe QName)
-getDef t = (ignoreSharing <$> reduce t) >>= \case
+getDef t = reduce t >>= \case
   Def d _    -> return $ Just d
   Lam _ v    -> underAbstraction_ v getDef
   Level v    -> getDef =<< reallyUnLevelView v

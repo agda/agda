@@ -255,7 +255,7 @@ findInScope' m cands = ifM (isFrozen m) (do
 -- | Precondition: type is spine reduced and ends in a Def or a Var.
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret =
-  case ignoreSharing $ unEl t of
+  case unEl t of
     Pi a b     -> addContext (absName b, a) $ insidePi (absBody b) ret
     Def{}      -> ret t
     Var{}      -> ret t
@@ -277,7 +277,7 @@ rigidlyConstrainedMetas = do
   where
     isRigid v = do
       bv <- reduceB v
-      case ignoreSharing <$> bv of
+      case bv of
         Blocked{}    -> return False
         NotBlocked _ v -> case v of
           MetaV{}    -> return False
@@ -293,7 +293,7 @@ rigidlyConstrainedMetas = do
     rigidMetas c =
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
-          case (ignoreSharing u, ignoreSharing v) of
+          case (u, v) of
             (MetaV m us, _) | isJust (allApplyElims us) -> ifM (isRigid v) (return $ Just m) (return Nothing)
             (_, MetaV m vs) | isJust (allApplyElims vs) -> ifM (isRigid u) (return $ Just m) (return Nothing)
             _              -> return Nothing
@@ -318,7 +318,7 @@ isRigid i = do
 --   constrained. Note that level metas are never considered rigidly constrained
 --   (#1865).
 areThereNonRigidMetaArguments :: Term -> TCM (Maybe MetaId)
-areThereNonRigidMetaArguments t = case ignoreSharing t of
+areThereNonRigidMetaArguments t = case t of
     Def n args -> do
       TelV tel _ <- telView . defType =<< getConstInfo n
       let varOccs EmptyTel           = []
@@ -352,7 +352,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 
     isNonRigidMeta :: Term -> TCM (Maybe MetaId)
     isNonRigidMeta v =
-      case ignoreSharing v of
+      case v of
         Def _ es  -> areThereNonRigidMetaArgs es
         Var _ es  -> areThereNonRigidMetaArgs es
         Con _ _ vs-> areThereNonRigidMetaArgs vs
@@ -470,7 +470,7 @@ checkCandidates m t cands = disableDestructiveUpdate $
     anyMetaTypes [] = return False
     anyMetaTypes (Candidate _ a _ _ : cands) = do
       a <- instantiate a
-      case ignoreSharing $ unEl a of
+      case unEl a of
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
@@ -576,7 +576,7 @@ isIFSConstraint _             = False
 applyDroppingParameters :: Term -> Args -> TCM Term
 applyDroppingParameters t vs = do
   let fallback = return $ t `apply` vs
-  case ignoreSharing t of
+  case t of
     Con c ci [] -> do
       def <- theDef <$> getConInfo c
       case def of

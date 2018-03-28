@@ -47,9 +47,9 @@ checkTypeOfMain :: QName -> Type -> TCM [HS.Decl] -> TCM [HS.Decl]
 checkTypeOfMain q ty ret
   | not (isMainFunction q) = ret
   | otherwise = do
-    Def io _ <- ignoreSharing <$> primIO
+    Def io _ <- primIO
     ty <- normalise ty
-    case ignoreSharing $ unEl ty of
+    case unEl ty of
       Def d _ | d == io -> (mainAlias :) <$> ret
       _                 -> do
         err <- fsep $
@@ -259,7 +259,7 @@ noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 
 pconName :: String -> TCM String
-pconName s = toS . ignoreSharing =<< getBuiltin s where
+pconName s = toS =<< getBuiltin s where
   toS (Con q _ _) = prettyPrint <$> conhqn (conName q)
   toS (Lam _ t) = toS (unAbs t)
   toS _ = mazerror $ "pconName" ++ s

@@ -121,7 +121,7 @@ isAlias cs t =
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just (e, mc) | Just x <- isMeta (ignoreSharing $ unEl t) -> Just (e, mc, x)
+          Just (e, mc) | Just x <- isMeta (unEl t) -> Just (e, mc, x)
           _ -> Nothing
   where
     isMeta (MetaV x _) = Just x
@@ -557,7 +557,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb) rhs0 =
 
         -- Get the name of builtin REFL.
 
-        Con reflCon _ [] <- ignoreSharing <$> primRefl
+        Con reflCon _ [] <- primRefl
         reflInfo <- fmap (setOrigin Inserted) <$> getReflArgInfo reflCon
 
         -- Andreas, 2017-01-11:
@@ -569,7 +569,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb) rhs0 =
         -- -- rewriting with @refl@ is attempted.
         -- let isReflProof = do
         --      v <- reduce proof
-        --      case ignoreSharing v of
+        --      case v of
         --        Con c _ [] | c == reflCon -> return True
         --        _ -> return False
         -- ifM isReflProof recurse $ {- else -} do

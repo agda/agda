@@ -198,7 +198,7 @@ dependentPolarity t (q:qs) pols@(p:ps) = do
   t <- reduce $ unEl t
   reportSDoc "tc.polarity.dep" 20 $ text "dependentPolarity t = " <+> prettyTCM t
   reportSDoc "tc.polarity.dep" 70 $ text "dependentPolarity t = " <+> (text . show) t
-  case ignoreSharing t of
+  case t of
     Pi dom b -> do
       ps <- underAbstraction dom b $ \ c -> dependentPolarity c qs ps
       let fallback = ifM (isJust <$> isSizeType (unDom dom)) (return p) (return q)
@@ -220,7 +220,7 @@ relevantInIgnoringNonvariant :: Nat -> Type -> [Polarity] -> TCM Bool
 relevantInIgnoringNonvariant i t []     = return $ i `relevantInIgnoringSortAnn` t
 relevantInIgnoringNonvariant i t (p:ps) = do
   t <- reduce $ unEl t
-  case ignoreSharing t of
+  case t of
     Pi a b -> if p /= Nonvariant && i `relevantInIgnoringSortAnn` a then return True
               else relevantInIgnoringNonvariant (i + 1) (absBody b) ps
     _ -> return $ i `relevantInIgnoringSortAnn` t
@@ -301,7 +301,7 @@ checkSizeIndex d np i a = do
     , text "  is data type " <+> prettyTCM d
     , text "  and has size index (successor(s) of) " <+> prettyTCM (var i)
     ]
-  case ignoreSharing $ unEl a of
+  case unEl a of
     Def d0 es -> do
       whenNothingM (sameDef d d0) __IMPOSSIBLE__
       s <- deepSizeView $ unArg ix

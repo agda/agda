@@ -34,7 +34,7 @@ getConHead c = mapRight (conSrcCon . theDef) <$> getConstInfo' c
 --   if possible.
 getConForm :: QName -> TCM (Either SigError ConHead)
 getConForm c = caseEitherM (getConHead c) (return . Left) $ \ ch -> do
-  Con con _ [] <- ignoreSharing <$> constructorForm (Con ch ConOCon [])
+  Con con _ [] <- constructorForm (Con ch ConOCon [])
   return $ Right con
 
 -- | Augment constructor with record fields (preserve constructor name).
@@ -118,7 +118,7 @@ getFullyAppliedConType c t = do
   reportSLn "tc.getConType" 35 $ List.intercalate " " $
     [ "getFullyAppliedConType", prettyShow c, prettyShow t ]
   c <- fromRight __IMPOSSIBLE__ <$> do getConHead $ conName c
-  case ignoreSharing $ unEl t of
+  case unEl t of
     -- Note that if we come e.g. from getConType,
     -- then the non-parameter arguments of @es@ might contain __IMPOSSIBLE__
     -- coming from strengthening.  (Thus, printing them is not safe.)
@@ -183,7 +183,7 @@ isDataOrRecordType d = do
 -- | Precodition: 'Term' is 'reduce'd.
 isDataOrRecord :: Term -> TCM (Maybe QName)
 isDataOrRecord v = do
-  case ignoreSharing v of
+  case v of
     Def d _ -> fmap (const d) <$> isDataOrRecordType d
     _       -> return Nothing
 

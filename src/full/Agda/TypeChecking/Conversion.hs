@@ -144,7 +144,7 @@ compareTerm cmp a u v = do
 
           dir = fromCmp cmp
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
-      case (ignoreSharing u, ignoreSharing v) of
+      case (u, v) of
         (MetaV x us, MetaV y vs)
           | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
           | otherwise -> fallback
@@ -231,12 +231,12 @@ compareTerm' cmp a m n =
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ text "a'   =" <+> pretty a'
       , text "mlvl =" <+> pretty mlvl
-      , text $ "(Just (ignoreSharing $ unEl a') == mlvl) = " ++ show (Just (ignoreSharing $ unEl a') == mlvl)
+      , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
     case s of
       Prop | proofIrr -> return ()
       _    | isSize   -> compareSizes cmp m n
-      _               -> case ignoreSharing $ unEl a' of
+      _               -> case unEl a' of
         a | Just a == mlvl -> do
           a <- levelView m
           b <- levelView n
@@ -252,17 +252,15 @@ compareTerm' cmp a m n =
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
               -- to change Agda's behavior
               --    isNeutral Blocked{}          = False
-                  isNeutral = isNeutral' . fmap ignoreSharing
-                  isMeta    = isMeta'    . fmap ignoreSharing
-                  isNeutral' (NotBlocked _ Con{}) = return False
+                  isNeutral (NotBlocked _ Con{}) = return False
               -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
               -- not neutral if it is blocked (there can be missing projections
               -- to trigger a reduction.
-                  isNeutral' (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
+                  isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     not <$> usesCopatterns q -- a def by copattern can reduce if projected
-                  isNeutral' _                   = return True
-                  isMeta' (NotBlocked _ MetaV{}) = True
-                  isMeta' _                      = False
+                  isNeutral _                   = return True
+                  isMeta (NotBlocked _ MetaV{}) = True
+                  isMeta _                      = False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> text "is eta record type"
               m <- reduceB m
@@ -401,7 +399,7 @@ compareAtom cmp t m n =
 
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
-    (mb'', nb'') <- case (ignoreSharing $ ignoreBlocking mb', ignoreSharing $ ignoreBlocking nb') of
+    (mb'', nb'') <- case (ignoreBlocking mb', ignoreBlocking nb') of
       (Lit _, Lit _) -> return (mb', nb')
       _ -> (,) <$> traverse constructorForm mb'
                <*> traverse constructorForm nb'
@@ -432,7 +430,7 @@ compareAtom cmp t m n =
         text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                                     , prettyTCM nb
                                     , text ":" <+> prettyTCM t ]
-      case (ignoreSharing <$> mb, ignoreSharing <$> nb) of
+      case (mb, nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
         (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
@@ -486,7 +484,7 @@ compareAtom cmp t m n =
           -- Andreas, 2015-07-01, actually, don't put them into the spine.
           -- Polarity cannot be communicated properly if projection-like
           -- functions are post-fix.
-          case (ignoreSharing m, ignoreSharing n) of
+          case (m, n) of
             (Pi{}, Pi{}) -> equalFun m n
 
             (Sort s1, Sort Inf) -> return ()
@@ -532,7 +530,7 @@ compareAtom cmp t m n =
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation
           maybe impossible (return . snd) =<< getFullyAppliedConType c t
-        equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
+        equalFun t1 t2 = case (t1, t2) of
           (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
@@ -603,14 +601,14 @@ antiUnify pid a u v = do
   ((u, v), eq) <- runReduceM (SynEq.checkSyntacticEquality u v)
   if eq then return u else do
   (u, v) <- reduce (u, v)
-  case (ignoreSharing u, ignoreSharing v) of
+  case (u, v) of
     (Pi ua ub, Pi va vb) -> do
       wa0 <- antiUnifyType pid (unDom ua) (unDom va)
       let wa = wa0 <$ ua
       wb <- addContext wa $ antiUnifyType pid (unAbs ub) (unAbs vb)
       return $ Pi wa (wb <$ ub)
     (Lam i u, Lam _ v) ->
-      case ignoreSharing $ unEl a of
+      case unEl a of
         Pi a b -> Lam i . (<$ u) <$> addContext a (antiUnify pid (unAbs b) (unAbs u) (unAbs v))
         _      -> fallback
     (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
@@ -647,7 +645,7 @@ antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
     Just (_, self, a) -> antiUnifyElims pid a self es1 es2
     Nothing -> patternViolation -- can fail for projection like
 antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
-  case ignoreSharing $ unEl a of
+  case unEl a of
     Pi a b -> do
       w <- antiUnify pid (unDom a) (unArg u) (unArg v)
       antiUnifyElims pid (b `lazyAbsApp` w) (apply self [w <$ u]) es1 es2
@@ -698,7 +696,7 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
       ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
-        case ignoreSharing . unEl $ a of
+        case unEl a of
           (Pi (Dom info b) codom) -> do
             mlvl <- tryMaybe primLevel
             let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
@@ -1331,7 +1329,7 @@ equalSort s1 s2 = do
                 -- Andreas, 2015-02-14
                 -- This seems to be a hack, as a level meta is instantiated
                 -- by a sort.
-              NeutralLevel _ v -> case ignoreSharing v of
+              NeutralLevel _ v -> case v of
                 Sort Inf -> yes
                 _        -> no
               _ -> no
@@ -1340,7 +1338,7 @@ equalSort s1 s2 = do
             eqSizeUniv l0 = case l0 of
               Plus 0 l -> case l of
                 MetaLevel x es -> assignE DirEq x es (Sort SizeUniv) $ equalAtom topSort
-                NeutralLevel _ v -> case ignoreSharing v of
+                NeutralLevel _ v -> case v of
                   Sort SizeUniv -> yes
                   _ -> no
                 _ -> no

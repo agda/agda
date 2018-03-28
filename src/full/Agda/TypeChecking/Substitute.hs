@@ -77,7 +77,7 @@ instance Apply Term where
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
-  case ignoreSharing v of
+  case v of
     (Con (ConHead _ _ fs) _ vs) -> do
       i <- List.elemIndex f fs
       isApplyElim =<< headMaybe (drop i vs)
@@ -253,7 +253,7 @@ instance Apply Defn where
               where
                 larg  = last args -- the record value
                 args' = [larg]
-                isVar0 = case ignoreSharing $ unArg larg of Var 0 [] -> True; _ -> False
+                isVar0 = case unArg larg of Var 0 [] -> True; _ -> False
 {-
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just p@Projection{ projIndex = n } }
@@ -938,7 +938,7 @@ telView' = telView'UpTo (-1)
 -- Takes off all (exposed ones) if @n < 0@.
 telView'UpTo :: Int -> Type -> TelView
 telView'UpTo 0 t = TelV EmptyTel t
-telView'UpTo n t = case ignoreSharing $ unEl t of
+telView'UpTo n t = case unEl t of
   Pi a b  -> absV a (absName b) $ telView'UpTo (n - 1) (absBody b)
   _       -> TelV EmptyTel t
   where
@@ -1221,7 +1221,7 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
   WeaklyRigid   -> Inf
 
 lvlView :: Term -> Level
-lvlView v = case ignoreSharing v of
+lvlView v = case v of
   Level l       -> l
   Sort (Type l) -> l
   _             -> Max [Plus 0 $ UnreducedLevel v]
@@ -1250,7 +1250,7 @@ levelMax as0 = Max $ ns ++ List.sort bs
       UnreducedLevel v -> expandTm v
       MetaLevel{}      -> [Plus 0 l]
       where
-        expandTm v = case ignoreSharing v of
+        expandTm v = case v of
           Level (Max as)       -> as
           Sort (Type (Max as)) -> as
           _                    -> [Plus 0 l]
@@ -1284,7 +1284,7 @@ levelSort (Max as)
     tmIs s (Sort s')            = s == s'
     tmIs s _                    = False
 levelSort l =
-  case ignoreSharing $ levelTm l of
+  case levelTm l of
     Sort s -> s
     _      -> Type l
 

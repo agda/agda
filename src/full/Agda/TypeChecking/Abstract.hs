@@ -89,7 +89,7 @@ instance IsPrefixOf Args where
 
 instance IsPrefixOf Term where
   isPrefixOf u v =
-    case (ignoreSharing u, ignoreSharing v) of
+    case (u, v) of
       (Var   i us, Var   j vs) | i == j  -> us `isPrefixOf` vs
       (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
       (Con c _ us, Con d _ vs) | c == d  -> us `isPrefixOf` vs

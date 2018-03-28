@@ -412,7 +412,7 @@ termFunction name = do
 typeEndsInDef :: MonadTCM tcm => Type -> tcm (Maybe QName)
 typeEndsInDef t = liftTCM $ do
   TelV _ core <- telView t
-  case ignoreSharing $ unEl core of
+  case unEl core of
     Def d vs -> return $ Just d
     _        -> return Nothing
 
@@ -525,7 +525,7 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 --   termToPattern t = unnamed <$> termToPattern t
 
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = (liftTCM $ ignoreSharing <$> constructorForm t) >>= \case
+  termToPattern t = (liftTCM $ constructorForm t) >>= \case
     -- Constructors.
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
@@ -736,8 +736,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
 
     -- We have to reduce constructors in case they're reexported.
     -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
-    -- thus, we need to use traverseTermM.  Sharing is handled by traverseTermM,
-    -- so no ignoreSharing needed here.
+    -- thus, we need to use traverseTermM.
     let (reduceCon :: Term -> TCM Term) = traverseTermM $ \ t -> case t of
            Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
            _ -> return t
@@ -862,7 +861,7 @@ instance ExtractCalls Term where
 
     -- Instantiate top-level MetaVar.
     t <- liftTCM $ instantiate t
-    case ignoreSharing t of
+    case t of
 
       -- Constructed value.
       Con ConHead{conName = c} _ es -> do
@@ -942,7 +941,7 @@ maskSizeLt dom@(Dom info a) = liftTCM $ do
     (Nothing, _)  -> __IMPOSSIBLE__
     (Just size, Just sizelt) -> do
       TelV tel c <- telView a
-      case ignoreSharingType a of
+      case a of
         El s (Def d [v]) | d == sizelt -> return $ Dom info $
           abstract tel $ El s $ Def size []
         _ -> return dom
@@ -1139,7 +1138,7 @@ instance StripAllProjections Args where
 
 instance StripAllProjections Term where
   stripAllProjections t = do
-    case ignoreSharing t of
+    case t of
       Var i es   -> Var i <$> stripAllProjections es
       Con c ci ts -> Con c ci <$> stripAllProjections ts
       Def d es   -> Def d <$> stripAllProjections es
@@ -1153,7 +1152,7 @@ compareTerm' v mp@(Masked m p) = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  v <- ignoreSharing <$> liftTCM (instantiate v)
+  v <- liftTCM (instantiate v)
   case (v, p) of
 
     -- Andreas, 2013-11-20 do not drop projections,
@@ -1196,7 +1195,7 @@ compareTerm' v mp@(Masked m p) = do
 
     (Lit l, _) -> do
       v <- liftTCM $ constructorForm v
-      case ignoreSharing v of
+      case v of
         Lit{}       -> return Order.unknown
         v           -> compareTerm' v mp
 

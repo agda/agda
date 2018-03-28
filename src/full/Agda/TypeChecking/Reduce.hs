@@ -118,7 +118,7 @@ instance Instantiate LevelAtom where
   instantiate' l = case l of
     MetaLevel m vs -> do
       v <- instantiate' (MetaV m vs)
-      case ignoreSharing v of
+      case v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     UnreducedLevel l -> UnreducedLevel <$> instantiate' l
@@ -219,7 +219,7 @@ instance Instantiate EqualityView where
 ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (NotBlocked -> Term -> tcm a) -> tcm a
 ifBlocked t blocked unblocked = do
   t <- liftTCM $ reduceB t
-  case ignoreSharing <$> t of
+  case t of
     Blocked m _              -> blocked m (ignoreBlocking t)
     NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
     NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
@@ -286,7 +286,7 @@ instance Reduce LevelAtom where
       fromTm v = do
         bv <- reduceB' v
         let v = ignoreBlocking bv
-        case ignoreSharing <$> bv of
+        case bv of
           NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
           Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
           NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
@@ -381,12 +381,12 @@ slowReduceTerm v = do
           _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
           _                 -> return v
       reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
-        ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
+        ms  <- getBuiltin' builtinSuc
         case v of
           _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
           _                         -> return v
           where
-            inc w = case ignoreSharing w of
+            inc w = case w of
               Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
               _                -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
@@ -555,7 +555,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
   traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
-  case ignoreSharing v of
+  case v of
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> ask
@@ -1058,7 +1058,7 @@ instance InstantiateFull LevelAtom where
   instantiateFull' l = case l of
     MetaLevel m vs -> do
       v <- instantiateFull' (MetaV m vs)
-      case ignoreSharing v of
+      case v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     NeutralLevel r v -> NeutralLevel r <$> instantiateFull' v

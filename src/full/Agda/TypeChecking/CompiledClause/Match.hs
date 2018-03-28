@@ -153,14 +153,14 @@ match' ((c, es, patch) : stack) = do
 
             -- Now do the matching on the @n@ths argument:
             id $
-             case fmap ignoreSharing <$> eb of
+             case eb of
               Blocked x _            -> no (Blocked x) es'
               NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v
-                let cFrame stack = case ignoreSharing cv of
+                let cFrame stack = case cv of
                       Con c ci vs -> conFrame c ci vs stack
                       _        -> stack
                 match' $ litFrame l $ cFrame $ catchAllFrame stack

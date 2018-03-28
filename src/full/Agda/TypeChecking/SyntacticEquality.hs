@@ -78,9 +78,7 @@ class SynEq a where
 instance SynEq Term where
   synEq v v' = do
     (v, v') <- lift $ instantiate' (v, v')
-    -- currently destroys sharing
-    -- TODO: preserve sharing!
-    case (ignoreSharing v, ignoreSharing v') of
+    case (v, v') of
       (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
       (Con c ci vs,Con c' ci' vs') | c == c' -> Con c (bestConInfo ci ci') <$$> synEq vs vs'
       (Def   f vs, Def   f' vs') | f == f' -> Def f   <$$> synEq vs vs'

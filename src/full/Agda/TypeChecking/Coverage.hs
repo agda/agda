@@ -437,7 +437,7 @@ isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
-  case ignoreSharing $ unEl t' of
+  case unEl t' of
     Def d es -> do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d
@@ -575,7 +575,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs) <- do
     TelV gamma0 (El _ d) <- liftTCM $ telView (ctype `piApply` pars)
-    let Def _ es = ignoreSharing d
+    let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs)
 

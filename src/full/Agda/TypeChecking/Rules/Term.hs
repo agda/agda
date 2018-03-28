@@ -172,7 +172,7 @@ isType_ e = traceCall (IsType_ e) $ do
       -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
       if (length vs /= n) then fallback else do
       s1  <- piApplyM s0 vs
-      case ignoreSharing $ unEl s1 of
+      case unEl s1 of
         Sort s -> return $ El s $ MetaV x $ map Apply vs
         _ -> __IMPOSSIBLE__
 
@@ -189,7 +189,7 @@ ptsRule a b = pts <$> reduce (getSort a) <*> reduce (getSort b)
 noFunctionsIntoSize :: Type -> Type -> TCM ()
 noFunctionsIntoSize t tBlame = do
   reportSDoc "tc.fun" 20 $ do
-    let El s (Pi dom b) = ignoreSharing <$> tBlame
+    let El s (Pi dom b) = tBlame
     sep [ text "created function type " <+> prettyTCM tBlame
         , text "with pts rule" <+> prettyTCM (getSort dom, getSort b, s)
         ]
@@ -426,8 +426,7 @@ insertHiddenLambdas
 insertHiddenLambdas h target postpone ret = do
   -- If the target type is blocked, we postpone,
   -- because we do not know if a hidden lambda needs to be inserted.
-  ifBlockedType target postpone $ \ _ t0 -> do
-    let t = ignoreSharing <$> t0
+  ifBlockedType target postpone $ \ _ t -> do
     case unEl t of
 
       Pi dom b -> do
@@ -451,7 +450,7 @@ checkAbsurdLambda :: A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
 checkAbsurdLambda i h e t = do
   t <- instantiateFull t
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ _ t' -> do
-    case ignoreSharing $ unEl t' of
+    case unEl t' of
       Pi dom@(Dom info' a) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
         | not (null $ allMetas a) ->
@@ -655,7 +654,7 @@ checkRecordExpression mfs e t = do
     , prettyA e
     ]
   ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
-  case ignoreSharing $ unEl t of
+  case unEl t of
     -- Case: We know the type of the record already.
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
@@ -718,7 +717,7 @@ checkRecordExpression mfs e t = do
           let rt = defType def
           vs  <- newArgsMeta rt
           target <- reduce $ piApply rt vs
-          s  <- case ignoreSharing $ unEl target of
+          s  <- case unEl target of
                   Level l -> return $ Type l
                   Sort s  -> return s
                   v       -> do
@@ -749,7 +748,7 @@ checkRecordExpression mfs e t = do
 -- Precondition @e = RecUpdate ei recexpr fs@.
 checkRecordUpdate :: A.ExprInfo -> A.Expr -> A.Assigns -> A.Expr -> Type -> TCM Term
 checkRecordUpdate ei recexpr fs e t = do
-  case ignoreSharing $ unEl t of
+  case unEl t of
     Def r vs  -> do
       v <- checkExpr recexpr t
       name <- freshNoName (getRange recexpr)
@@ -763,7 +762,7 @@ checkRecordUpdate ei recexpr fs e t = do
         checkExpr (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
     MetaV _ _ -> do
       inferred <- inferExpr recexpr >>= reduce . snd
-      case ignoreSharing $ unEl inferred of
+      case unEl inferred of
         MetaV _ _ -> postponeTypeCheckingProblem_ $ CheckExpr e t
         _         -> do
           v <- checkExpr e inferred
@@ -994,7 +993,7 @@ checkExpr e t0 =
   tryInsertHiddenLambda e t fallback
     -- Insert hidden lambda if all of the following conditions are met:
         -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
-    | Pi (Dom info a) b <- ignoreSharing $ unEl t
+    | Pi (Dom info a) b <- unEl t
         , let h = getHiding info
         , notVisible h
         -- expression is not a matching hidden lambda or question mark
@@ -1651,7 +1650,7 @@ checkConstructorApplication org t c args = do
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
     -- as well and then check wether we deal with the same datatype
     t0 <- reduce (Def d [])
-    case (ignoreSharing t0, ignoreSharing $ unEl t) of -- Only fully applied constructors get special treatment
+    case (t0, unEl t) of -- Only fully applied constructors get special treatment
       (Def d0 _, Def d' es) -> do
         let ~(Just vs) = allApplyElims es
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
@@ -2020,7 +2019,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
               | otherwise = lift $ typeError $ WrongNamedArgument arg
 
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
-        case ignoreSharing $ unEl t0' of
+        case unEl t0' of
           Pi (Dom info' a) b
             | sameHiding info info'
               && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
@@ -2145,7 +2144,7 @@ inferExprForWith e = do
     v0 <- reduce v
     -- Andreas 2014-11-06, issue 1342.
     -- Check that we do not `with` on a module parameter!
-    case ignoreSharing v0 of
+    case v0 of
       Var i [] -> whenM (isModuleFreeVar i) $ do
         reportSDoc "tc.with.infer" 80 $ vcat
           [ text $ "with expression is variable " ++ show i
@@ -2158,7 +2157,7 @@ inferExprForWith e = do
       _        -> return ()
     -- Possibly insert hidden arguments.
     TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
-    case ignoreSharing $ unEl t0 of
+    case unEl t0 of
       Def d vs -> do
         res <- isDataOrRecordType d
         case res of

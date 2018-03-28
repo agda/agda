@@ -395,7 +395,7 @@ instance Occurs LevelAtom where
            NoUnfold  -> instantiate l
     case l of
       MetaLevel m' args -> do
-        MetaV m' args <- ignoreSharing <$> occurs red ctx m xs (MetaV m' args)
+        MetaV m' args <- occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
       NeutralLevel r v  -> NeutralLevel r  <$> occurs red ctx m xs v
       BlockedLevel m' v -> BlockedLevel m' <$> occurs red Flex m xs v
@@ -523,7 +523,7 @@ hasBadRigid xs t = do
   let failure = throwError ()
   tb <- liftTCM $ reduceB t
   let t = ignoreBlocking tb
-  case ignoreSharing t of
+  case t of
     Var x _      -> return $ notElem x xs
     -- Issue 1153: A lambda has to be considered matchable.
     -- Lam _ v    -> hasBadRigid (0 : map (+1) xs) (absBody v)
@@ -605,7 +605,7 @@ class FoldRigid a where
 instance FoldRigid Term where
   foldRigid f t = do
     b <- liftTCM $ reduceB t
-    case ignoreSharing $ ignoreBlocking b of
+    case ignoreBlocking b of
       -- Upon entry, we are in rigid position, thus,
       -- bound variables are rigid ones.
       Var i es   -> f i `mappend` fold es

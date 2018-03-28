@@ -82,7 +82,7 @@ checkSizeNeverZero u = do
     SizeInf     -> return True  -- OK, infty is never 0.
     SizeSuc{}   -> return True  -- OK, a + 1 is never 0.
     OtherSize u ->
-      case ignoreSharing u of
+      case u of
         Var i [] -> checkSizeVarNeverZero i
         -- neutral sizes cannot be guaranteed > 0
         _ -> return False
@@ -115,7 +115,7 @@ checkSizeNeverZero u = do
 --         case b of
 --           BoundedNo -> no
 --           BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ u -> do
---             case ignoreSharing u of
+--             case u of
 --                Var i' [] | i == i' -> yes
 --                _ -> no
 
@@ -175,7 +175,7 @@ checkSizeVarNeverZero i = do
 isBounded :: MonadTCM tcm => Nat -> tcm BoundedSize
 isBounded i = liftTCM $ do
   t <- reduce =<< typeOfBV i
-  case ignoreSharing $ unEl t of
+  case unEl t of
     Def x [Apply u] -> do
       sizelt <- getBuiltin' builtinSizeLt
       return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
@@ -215,8 +215,8 @@ trySizeUniv cmp t m n x els1 y els2 = do
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
   (size, sizelt) <- flip catchError (const failure) $ do
-     Def size   _ <- ignoreSharing <$> primSize
-     Def sizelt _ <- ignoreSharing <$> primSizeLt
+     Def size   _ <- primSize
+     Def sizelt _ <- primSizeLt
      return (size, sizelt)
   case (cmp, els1, els2) of
      -- Case @Size< _ <= Size@: true.
@@ -236,11 +236,11 @@ trySizeUniv cmp t m n x els1 y els2 = do
 --   Precondition: sized types are enabled.
 deepSizeView :: Term -> TCM DeepSizeView
 deepSizeView v = do
-  Def inf [] <- ignoreSharing <$> primSizeInf
-  Def suc [] <- ignoreSharing <$> primSizeSuc
+  Def inf [] <- primSizeInf
+  Def suc [] <- primSizeSuc
   let loop v = do
         v <- reduce v
-        case ignoreSharing v of
+        case v of
           Def x []        | x == inf -> return $ DSizeInf
           Def x [Apply u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
           Var i []                   -> return $ DSizeVar i 0
@@ -255,7 +255,7 @@ sizeMaxView v = do
   max <- getBuiltinDefName builtinSizeMax
   let loop v = do
         v <- reduce v
-        case ignoreSharing v of
+        case v of
           Def x []                   | Just x == inf -> return $ [DSizeInf]
           Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
           Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
@@ -530,14 +530,14 @@ oldSizeExpr u = do
   case s of
     SizeInf     -> patternViolation
     SizeSuc u   -> mapSnd (+1) <$> oldSizeExpr u
-    OtherSize u -> case ignoreSharing u of
+    OtherSize u -> case u of
       Var i []  -> return (Rigid i, 0)
       MetaV m es | Just xs <- mapM isVar es, fastDistinct xs
                 -> return (SizeMeta m xs, 0)
       _ -> patternViolation
   where
     isVar (Proj{})  = Nothing
-    isVar (Apply v) = case ignoreSharing $ unArg v of
+    isVar (Apply v) = case unArg v of
       Var i [] -> Just i
       _        -> Nothing
 

@@ -285,7 +285,7 @@ newArgsMetaCtx = newArgsMetaCtx' trueCondition
 newArgsMetaCtx' :: Condition -> Type -> Telescope -> Permutation -> Args -> TCM Args
 newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
-  case ignoreSharing tm of
+  case tm of
     Pi dom@(Dom info a) codom | condition dom codom -> do
       (_, u) <- applyRelevanceToContext (getRelevance info) $
                {-
@@ -485,7 +485,7 @@ etaExpandMeta kinds m = whenM (asks envAssignMetas `and2M` isEtaExpandable kinds
     -- eta expand now, we have to postpone this.  Once @x@ is
     -- instantiated, we can continue eta-expanding m.  This is realized
     -- by adding @m@ to the listeners of @x@.
-    ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ _ t -> case ignoreSharing t of
+    ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ _ t -> case t of
       lvl@(Def r es) ->
         ifM (isEtaRecord r) {- then -} (do
           let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -596,7 +596,7 @@ assign dir x args v = do
   reportSLn "tc.meta.assign" 75 $
     "MetaVars.assign: assigning to " ++ show v
 
-  case (ignoreSharing v, mvJudgement mvar) of
+  case (v, mvJudgement mvar) of
       (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
       _                     -> return ()
 
@@ -813,7 +813,7 @@ attemptInertRHSImprovement m args v = do
                 reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "can't do projections from inert"
                 patternViolation
               Just args -> return args
-      case ignoreSharing v of
+      case v of
         Var x elims -> (, Var x . map Apply) <$> typeOfBV x
         Con c ci args  -> notInert -- (, Con c ci) <$> defType <$> getConstInfo (conName c)
         Def f elims -> do
@@ -846,7 +846,7 @@ attemptInertRHSImprovement m args v = do
               reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "argument shares head with RHS:" <+> prettyTCM arg
               patternViolation
             | otherwise  = return ()
-      case fmap ignoreSharing b of
+      case b of
         Blocked{}      -> notNeutral v
         NotBlocked r v ->                      -- Andrea(s) 2014-12-06 can r be useful?
           case v of
@@ -962,7 +962,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
     caseMaybe mSizeLt fallback $ \ qSizeLt -> do
       -- Check whether v is a SIZELT
       v <- reduce v
-      case ignoreSharing v of
+      case v of
         Def q [Apply (Arg ai u)] | q == qSizeLt -> do
           -- Clone the meta into a new size meta @y@.
           -- To this end, we swap the target of t for Size.
@@ -1030,7 +1030,7 @@ data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
 
 instance NoProjectedVar Term where
   noProjectedVar t =
-    case ignoreSharing t of
+    case t of
       Var i es
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
       -- Andreas, 2015-09-12 Issue #1316:
@@ -1059,7 +1059,7 @@ instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a) where
 
 instance ReduceAndEtaContract Term where
   reduceAndEtaContract u = do
-    (ignoreSharing <$> reduce u) >>= \case
+    reduce u >>= \case
       -- In case of lambda or record constructor, it makes sense to
       -- reduce further.
       Lam ai (Abs x b) -> etaLam ai x =<< reduceAndEtaContract b
@@ -1093,7 +1093,7 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
 {-
   -- first, strip the leading n domains (which remain unchanged)
   TelV gamma core <- telViewUpTo n t
-  case ignoreSharing $ unEl core of
+  case unEl core of
     -- There should be at least one domain left
     Pi (Dom ai a) b -> do
       -- Eta-expand @dom@ along @qs@ into a telescope @tel@, computing a substitution.
@@ -1175,7 +1175,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
     isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
     isVarOrIrrelevant vars (arg, t) =
-      case ignoreSharing <$> arg of
+      case arg of
         -- i := x
         Arg info (Var i []) -> return $ (Arg info i, t) `cons` vars
 

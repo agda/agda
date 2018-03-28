@@ -430,7 +430,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             -- Even if we apply the record argument (must be @var 0@), we stay a projection.
             -- This is because we may abstract the record argument later again.
             -- See succeed/ProjectionNotNormalized.agda
-            isVar0 t = case ignoreSharing $ unArg t of Var 0 [] -> True; _ -> False
+            isVar0 t = case unArg t of Var 0 [] -> True; _ -> False
             proj   = case oldDef of
               Function{funProjection = Just p@Projection{projIndex = n}}
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))

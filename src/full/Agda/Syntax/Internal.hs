@@ -670,17 +670,6 @@ isAbsurdPatternName :: PatVarName -> Bool
 isAbsurdPatternName x = x == absurdPatternName
 
 ---------------------------------------------------------------------------
--- * Pointers and Sharing
----------------------------------------------------------------------------
-
--- | Explicit sharing has been removed.
-ignoreSharing :: Term -> Term
-ignoreSharing v = v
-
-ignoreSharingType :: Type -> Type
-ignoreSharingType v = v
-
----------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
@@ -692,7 +681,7 @@ var i | i >= 0    = Var i []
 -- | Add 'DontCare' is it is not already a @DontCare@.
 dontCare :: Term -> Term
 dontCare v =
-  case ignoreSharing v of
+  case v of
     DontCare{} -> v
     _          -> DontCare v
 
@@ -728,7 +717,7 @@ mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
 isSort :: Term -> Maybe Sort
-isSort v = case ignoreSharing v of
+isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
 
@@ -833,13 +822,13 @@ notBlocked = NotBlocked ReallyNotBlocked
 
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
-stripDontCare v = case ignoreSharing v of
+stripDontCare v = case v of
   DontCare v -> v
   _          -> v
 
 -- | Doesn't do any reduction.
 arity :: Type -> Nat
-arity t = case ignoreSharing $ unEl t of
+arity t = case unEl t of
   Pi  _ b -> 1 + arity (unAbs b)
   _       -> 0
 
@@ -893,14 +882,14 @@ unSpine' p v =
 --   can be projected.
 hasElims :: Term -> Maybe (Elims -> Term, Elims)
 hasElims v =
-  case ignoreSharing v of
+  case v of
     Var   i es -> Just (Var   i, es)
     Def   f es -> Just (Def   f, es)
     MetaV x es -> Just (MetaV x, es)
     Con{}      -> Nothing
     Lit{}      -> Nothing
     -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
-    Lam _ (Abs _ v)  -> case ignoreSharing v of
+    Lam _ (Abs _ v)  -> case v of
       Var 0 [Proj _o f] -> Just (Def f, [])
       _ -> Nothing
     Lam{}      -> Nothing
@@ -1172,7 +1161,7 @@ instance Pretty a => Pretty (Substitution' a) where
 
 instance Pretty Term where
   prettyPrec p v =
-    case ignoreSharing v of
+    case v of
       Var x els -> text ("@" ++ show x) `pApp` els
       Lam ai b   ->
         mparens (p > 0) $

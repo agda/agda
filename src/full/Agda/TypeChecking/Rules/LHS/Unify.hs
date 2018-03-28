@@ -3,7 +3,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 -- | Unification algorithm for specializing datatype indices, as described in
 --     \"Unifiers as Equivalences: Proof-Relevant Unification of Dependently
@@ -633,7 +632,7 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal (Dom _ a) u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
-  case ignoreSharing $ unEl a of
+  case unEl a of
     Def d es -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -641,7 +640,7 @@ dataStrategy k s = do
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
-      case (ignoreSharing u, ignoreSharing v) of
+      case (u, v) of
         (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
         (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars u v
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
@@ -708,7 +707,7 @@ etaExpandEquationStrategy k s = do
   return $ EtaExpandEquation k d pars
   where
     shouldProject :: Term -> TCM Bool
-    shouldProject u = case ignoreSharing u of
+    shouldProject u = case u of
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
@@ -727,7 +726,7 @@ simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
   isSizeName <- liftTCM isSizeNameTest
   let Equal (Dom _ a) u v = getEquality k s
-  case ignoreSharing $ unEl a of
+  case unEl a of
     Def d _ -> do
       guard $ isSizeName d
       su <- liftTCM $ sizeView u
@@ -745,7 +744,7 @@ injectiveTypeConStrategy k s = do
   guard injTyCon
   eq <- liftTCM $ eqUnLevel $ getEquality k s
   case eq of
-    Equal a u@(ignoreSharing -> Def d es) v@(ignoreSharing -> Def d' es') | d == d' -> do
+    Equal a u@(Def d es) v@(Def d' es') | d == d' -> do
       -- d must be a data, record or axiom
       def <- liftTCM $ getConstInfo d
       guard $ case theDef def of
@@ -765,7 +764,7 @@ injectivePragmaStrategy :: Int -> UnifyStrategy
 injectivePragmaStrategy k s = do
   eq <- liftTCM $ eqUnLevel $ getEquality k s
   case eq of
-    Equal a u@(ignoreSharing -> Def d es) v@(ignoreSharing -> Def d' es') | d == d' -> do
+    Equal a u@(Def d es) v@(Def d' es') | d == d' -> do
       -- d must have an injective pragma
       def <- liftTCM $ getConstInfo d
       guard $ defInjective def
@@ -897,7 +896,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
     text "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
-  let cixs = case ignoreSharing $ unEl ctarget of
+  let cixs = case unEl ctarget of
                Def d' es | d == d' ->
                  let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                  in  drop (length pars) args

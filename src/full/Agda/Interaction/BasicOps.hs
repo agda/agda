@@ -549,7 +549,7 @@ getSolvedInteractionPoints all norm = concat <$> do
         scope <- getScope
         let sol v = do
               -- Andreas, 2014-02-17 exclude metas solved by metas
-              v <- ignoreSharing <$> instantiate v
+              v <- instantiate v
               let isMeta = case v of MetaV{} -> True; _ -> False
               if isMeta && not all then return [] else do
                 e <- reify =<< normalForm norm v
@@ -811,7 +811,7 @@ introTactic pmLambda ii = do
                 (EmptyTel, EmptyTel) -> return []
                 _ -> introFun (telToList tel' ++ telToList tel)
 
-        case ignoreSharing $ unEl t of
+        case unEl t of
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of

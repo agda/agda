@@ -96,7 +96,7 @@ class UsableRelevance a where
   usableRel :: Relevance -> a -> TCM Bool
 
 instance UsableRelevance Term where
-  usableRel rel u = case ignoreSharing u of
+  usableRel rel u = case u of
     Var i vs -> do
       irel <- getRelevance <$> typeOfBV' i
       let ok = irel `moreRelevant` rel

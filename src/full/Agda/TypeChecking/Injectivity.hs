@@ -51,7 +51,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
   -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
 
   v <- constructorForm =<< ignoreBlocking <$> reduceHead v
-  case ignoreSharing v of
+  case v of
     Def f _ -> do
       let yes = return $ Just $ ConsHead f
           no  = return $ Nothing
@@ -90,7 +90,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
 headSymbol' :: Term -> TCM (Maybe TermHead)
 headSymbol' v = do
   v <- traverse constructorForm =<< reduceB v
-  case fmap ignoreSharing v of
+  case v of
     Blocked{} -> return Nothing
     NotBlocked _ v -> case v of
       Def g _    -> return $ Just $ ConsHead g
@@ -212,7 +212,7 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
 
 -- | Argument should be in weak head normal form.
 functionInverse :: Term -> TCM InvView
-functionInverse v = case ignoreSharing v of
+functionInverse v = case v of
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
     case inv of

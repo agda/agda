@@ -118,7 +118,7 @@ instance IsInstantiatedMeta MetaId where
 instance IsInstantiatedMeta Term where
   isInstantiatedMeta = loop where
    loop v =
-    case ignoreSharing v of
+    case v of
       MetaV x _  -> isInstantiatedMeta x
       DontCare v -> loop v
       Level l    -> isInstantiatedMeta l
@@ -191,7 +191,7 @@ createMetaInfo' b = do
 
 setValueMetaName :: Term -> MetaNameSuggestion -> TCM ()
 setValueMetaName v s = do
-  case ignoreSharing v of
+  case v of
     MetaV mi _ -> setMetaNameSuggestion mi s
     u          -> do
       reportSLn "tc.meta.name" 70 $

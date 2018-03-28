@@ -85,7 +85,7 @@ insertImplicitPatternsT exh            ps a = do
       case hs of
         [] -> do
           a <- reduce a
-          case ignoreSharing $ unEl a of
+          case unEl a of
             Pi arg b -> do
               (p :) <$> insertImplicitPatternsT exh ps (absBody b)
             _ -> return (p : ps)
