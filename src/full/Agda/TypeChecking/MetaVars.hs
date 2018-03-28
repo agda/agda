@@ -1217,6 +1217,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                          , modQuantity   = max (getQuantity  info) (getQuantity  info')
                          }
                        , argInfoOrigin   = min (getOrigin info) (getOrigin info')
+                       , argInfoFreeVariables = unknownFreeVariables
                        }
                     vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                 res <- loop $ zipWith aux vs fs

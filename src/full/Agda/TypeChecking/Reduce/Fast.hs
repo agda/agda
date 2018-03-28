@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies  #-}
 
 {-|
 
@@ -36,7 +37,7 @@ Some other tricks that improves performance:
 
 -}
 module Agda.TypeChecking.Reduce.Fast
-  ( fastReduce ) where
+  ( fastReduce, fastNormalise ) where
 
 import Control.Arrow (first, second)
 import Control.Applicative hiding (empty)
@@ -46,6 +47,7 @@ import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Traversable (traverse)
 import Data.Coerce
@@ -71,6 +73,7 @@ import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 import Agda.TypeChecking.CompiledClause.Match ()
+import Agda.TypeChecking.Free.Precompute
 
 import Agda.Interaction.Options
 
@@ -83,6 +86,8 @@ import Agda.Utils.Null (empty)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Size
+import Agda.Utils.Zipper
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -104,23 +109,29 @@ data CompactDef =
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses, cfunProjection :: Maybe QName }
   | CCon  { cconSrcCon :: ConHead, cconArity :: Int }
-  | CForce  -- ^ primForce
-  | CTyCon  -- ^ Datatype or record type. Need to know this for primForce.
-  | CAxiom  -- ^ Axiom or abstract defn
+  | CForce   -- ^ primForce
+  | CTrustMe -- ^ primTrustMe
+  | CTyCon   -- ^ Datatype or record type. Need to know this for primForce.
+  | CAxiom   -- ^ Axiom or abstract defn
   | CPrimOp Int ([Literal] -> Term) (Maybe FastCompiledClauses)
-      -- ^ Literals in reverse argument order
+            -- ^ Literals in reverse argument order
   | COther  -- ^ In this case we fall back to slow reduction
 
 data BuiltinEnv = BuiltinEnv
-  { bZero, bSuc, bTrue, bFalse :: Maybe ConHead
-  , bPrimForce :: Maybe QName }
+  { bZero, bSuc, bTrue, bFalse, bRefl :: Maybe ConHead
+  , bPrimForce, bPrimTrustMe  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
 compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
 compactDef bEnv def rewr = do
   cdefn <-
     case theDef def of
-      _ | Just (defName def) == bPrimForce bEnv -> pure CForce
+      _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
+      _ | Just (defName def) == bPrimTrustMe bEnv ->
+          case telView' (defType def) of
+            TelV tel _ | size tel == 4 -> pure CTrustMe
+                       | otherwise     -> pure COther
+                          -- Non-standard equality. Fall back to slow reduce.
       Constructor{conSrcCon = c, conArity = n} -> pure CCon{cconSrcCon = c, cconArity = n}
       Function{funCompiled = Just cc, funClauses = _:_, funProjection = proj} ->
         pure CFun{ cfunCompiled   = fastCompiledClauses bEnv cc
@@ -361,25 +372,37 @@ memoQName f = unsafePerformIO $ do
 
 -- * Fast reduction
 
+data Normalisation = WHNF | NF
+  deriving (Eq)
+
 -- | The entry point to the reduction machine. First argument: allow
 --   unfolding of non-terminating functions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
-fastReduce allowNonTerminating v = do
+fastReduce = fastReduce' WHNF
+
+fastNormalise :: Bool -> Term -> ReduceM Term
+fastNormalise nt v = ignoreBlocking <$> fastReduce' NF nt v
+
+fastReduce' :: Normalisation -> Bool -> Term -> ReduceM (Blocked Term)
+fastReduce' norm allowNonTerminating v = do
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
-  zero  <- fmap name <$> getBuiltin' builtinZero
-  suc   <- fmap name <$> getBuiltin' builtinSuc
-  force <- fmap primFunName <$> getPrimitive' "primForce"
-  true  <- fmap name <$> getBuiltin' builtinTrue
-  false <- fmap name <$> getBuiltin' builtinFalse
-  let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bPrimForce = force }
+  zero    <- fmap name <$> getBuiltin' builtinZero
+  suc     <- fmap name <$> getBuiltin' builtinSuc
+  true    <- fmap name <$> getBuiltin' builtinTrue
+  false   <- fmap name <$> getBuiltin' builtinFalse
+  refl    <- fmap name <$> getBuiltin' builtinRefl
+  force   <- fmap primFunName <$> getPrimitive' "primForce"
+  trustme <- fmap primFunName <$> getPrimitive' "primTrustMe"
+  let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
+                          bPrimForce = force, bPrimTrustMe = trustme }
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) allowNonTerminating rwr v
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm allowNonTerminating rwr v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -410,8 +433,14 @@ setIsValue isV (Closure _ t env spine) = Closure isV t env spine
 -- | Apply a closure to a spine of eliminations. Note that this does not preserve the 'IsValue'
 --   field.
 clApply :: Closure s -> Spine s -> Closure s
-clApply c es' | null es' = c
+clApply c [] = c
 clApply (Closure _ t env es) es' = Closure Unevaled t env (es <> es')
+
+-- | Apply a closure to a spine, preserving the 'IsValue' field. Use with care, since usually
+--   eliminations do not preserve the value status.
+clApply_ :: Closure s -> Spine s -> Closure s
+clApply_ c [] = c
+clApply_ (Closure b t env es) es' = Closure b t env (es <> es')
 
 -- * Pointers and thunks
 
@@ -419,7 +448,7 @@ clApply (Closure _ t env es) es' = Closure Unevaled t env (es <> es')
 data Pointer s = Pure (Closure s)
                  -- ^ Not a pointer. Used for closures that do not need to be shared to avoid
                  --   unnecessary updates.
-               | Pointer (STPointer s)
+               | Pointer {-# UNPACK #-} !(STPointer s)
                  -- ^ An actual pointer is an 'STRef' to a 'Thunk'. The thunk is set to 'BlackHole'
                  --   during the evaluation of its contents to make debugging loops easier.
 
@@ -530,6 +559,22 @@ data CatchAllFrame s = CatchAll FastCompiledClauses (Spine s)
                         --   @CatchAll@. @cc@ is the case tree in the catch-all case and @spine@ is
                         --   the value of the pattern variables at the point of the catch-all.
 
+-- An Elim' with a hole.
+data ElimZipper a = ApplyCxt ArgInfo
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+instance Zipper (ElimZipper a) where
+  type Carrier (ElimZipper a) = Elim' a
+  type Element (ElimZipper a) = a
+  firstHole (Apply arg)   = Just (unArg arg, ApplyCxt (argInfo arg))
+  firstHole Proj{}        = Nothing
+  plugHole x (ApplyCxt i) = Apply (Arg i x)
+  nextHole x c            = Left (plugHole x c)
+
+-- | A spine with a single hole for a pointer.
+type SpineContext s = ComposeZipper (ListZipper (Elim' (Pointer s)))
+                                    (ElimZipper (Pointer s))
+
 -- | Control frames are continuations that act on value closures.
 data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine s) (Spine s) (MatchStack s)
                         -- ^ @CaseK f i bs spine0 spine1 stack@. Pattern match on the focus (with
@@ -538,12 +583,23 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
                         --   the pattern variables to the left and right (respectively) of the
                         --   focus. The match stack contains catch-all cases we need to consider if
                         --   this match fails.
+                    | ArgK (Closure s) (SpineContext s)
+                        -- ^ @ArgK cl cxt@. Used when computing full normal forms. The closure is
+                        --   the head and the context is the spine with the current focus removed.
+                    | NormaliseK
+                        -- ^ Indicates that the focus should be evaluated to full normal form.
                     | ForceK QName (Spine s) (Spine s)
                         -- ^ @ForceK f spine0 spine1@. Evaluating @primForce@ of the focus. @f@ is
                         --   the name of @primForce@ and is used to build the result if evaluation
                         --   gets stuck. @spine0@ are the level and type arguments and @spine1@
                         --   contains (if not empty) the continuation and any additional
                         --   eliminations.
+                    | TrustMeK QName (Spine s) (Spine s) (Spine s)
+                        -- ^ @TrustMeK f spine0 spine1 spine2 @. Evaluating @primTrustMe@. The first
+                        --   spine contain the level and type arguments. @spine1@ and @spine2@
+                        --   contain at most one argument between them. If in @spine1@ it's the
+                        --   value closure of the first argument to be compared and if in @spine2@
+                        --   it's the unevaluated closure of the second argument.
                     | NatSucK Integer
                         -- ^ @NatSucK n@. Add @n@ to the focus. If the focus computes to a natural
                         --   number literal this returns a new literal, otherwise it constructs @n@
@@ -567,9 +623,10 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
 -- * Compilation and decoding
 
 -- | The initial abstract machine state. Wrap the term to be evaluated in an empty closure. Note
---   that free variables of the term are treated as constants by the abstract machine.
-compile :: Term -> AM s
-compile t = Eval (Closure Unevaled t emptyEnv []) []
+--   that free variables of the term are treated as constants by the abstract machine. If computing
+--   full normal form we start off the control stack with a 'NormaliseK' continuation.
+compile :: Normalisation -> Term -> AM s
+compile nf t = Eval (Closure Unevaled t emptyEnv []) [NormaliseK | nf == NF]
 
 -- | The abstract machine treats uninstantiated meta-variables as blocked, but the rest of Agda does
 --   not.
@@ -613,21 +670,44 @@ decodeClosure (Closure isV t env spine) = do
 --   thunks for all the 'Apply' elims.
 elimsToSpine :: Env s -> Elims -> ST s (Spine s)
 elimsToSpine env es = do
-    spine <- (traverse . traverse) createThunk closures
+    spine <- mapM thunk es
     forceSpine spine `seq` return spine
   where
-    closures = (map . fmap) (mkClosure env) es
-
     -- Need to be strict in mkClosure to avoid memory leak
     forceSpine = foldl (\ () -> forceEl) ()
     forceEl (Apply (Arg _ (Pure Closure{}))) = ()
     forceEl (Apply (Arg _ (Pointer{})))      = ()
     forceEl _                                = ()
 
-    -- Dropping the environment for naked defs and cons is mostly to make debug traces less verbose.
-    mkClosure _   t@(Def f [])   = Closure Unevaled t emptyEnv []
-    mkClosure _   t@(Con c i []) = Closure Unevaled t emptyEnv []
-    mkClosure env t              = Closure Unevaled t env []
+    -- We don't preserve free variables of closures (in the sense of their
+    -- decoding), since we freely add things to the spines.
+    unknownFVs = setFreeVariables unknownFreeVariables
+
+    thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure (getFreeVariables i) t)
+    thunk (Proj o f)        = return (Proj o f)
+
+    -- Going straight for a value for literals is mostly to make debug traces
+    -- less verbose and doesn't really buy anything performance-wise.
+    closure _ t@Lit{} = Closure (Value $ notBlocked ()) t emptyEnv []
+    closure fv t      = env' `seq` Closure Unevaled t env' []
+      where env' = trimEnvironment fv env
+
+-- | Trim unused entries from an environment. Currently only trims closed terms for performance
+--   reasons.
+trimEnvironment :: FreeVariables -> Env s -> Env s
+trimEnvironment UnknownFVs env = env
+trimEnvironment (KnownFVs fvs) env
+  | IntSet.null fvs = emptyEnv
+    -- Environment trimming is too expensive (costs 50% on some benchmarks), and while it does make
+    -- some cases run in constant instead of linear space you need quite contrived examples to
+    -- notice the effect.
+  | otherwise       = env -- Env $ trim 0 $ envToList env
+  where
+    -- Important: strict enough that the trimming actually happens
+    trim _ [] = []
+    trim i (p : ps)
+      | IntSet.member i fvs = (p :)             $! trim (i + 1) ps
+      | otherwise           = (unusedPointer :) $! trim (i + 1) ps
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.
 --   Returns a triple containing
@@ -645,6 +725,13 @@ buildEnv xs spine = go xs spine emptyEnv
         IApply x y r : sp -> go xs sp (r `extendEnv` env)
         _            -> __IMPOSSIBLE__
 
+unusedPointerString :: String
+unusedPointerString = show (Impossible __FILE__ __LINE__)
+
+unusedPointer :: Pointer s
+unusedPointer = Pure (Closure (Value $ notBlocked ())
+                     (Lit (LitString noRange unusedPointerString)) emptyEnv [])
+
 -- * Running the abstract machine
 
 -- | Evaluating a term in the abstract machine. It gets the type checking state and environment in
@@ -652,27 +739,31 @@ buildEnv xs spine = go xs spine emptyEnv
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Bool -> Bool -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun . traceDoc (text "-- fast reduce --")
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Bool -> Bool -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
+    compileAndRun . traceDoc (text "-- fast reduce --")
   where
     -- Helpers to get information from the ReduceEnv.
     metaStore      = redSt rEnv ^. stMetaStore
     getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (Map.lookup m metaStore)
-    runReduce m    = unReduceM m rEnv
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv)
     iview          = runReduce intervalView'
 
+    runReduce :: ReduceM a -> a
+    runReduce m = unReduceM m rEnv
+
     -- Debug output. Taking care that we only look at the verbosity level once.
     hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) rEnv
     doDebug = hasVerb "tc.reduce.fast" 110
+    traceDoc :: Doc -> a -> a
     traceDoc
       | doDebug   = trace . show
       | otherwise = const id
 
     -- Checking for built-in zero and suc
-    BuiltinEnv{ bZero = zero, bSuc = suc } = bEnv
+    BuiltinEnv{ bZero = zero, bSuc = suc, bRefl = refl0 } = bEnv
     conNameId = nameId . qnameName . conName
     isZero = case zero of
                Nothing -> const False
@@ -681,9 +772,14 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
                Nothing -> const False
                Just s  -> (conNameId s ==) . conNameId
 
+    -- If there's a non-standard equality (for instance doubly-indexed) we fall back to slow reduce
+    -- for primTrustMe and "unbind" refl.
+    refl = refl0 >>= \ c -> if cconArity (cdefDef $ constInfo $ conName c) == 0
+                            then Just c else Nothing
+
     -- The entry point of the machine.
     compileAndRun :: Term -> Blocked Term
-    compileAndRun t = runST (runAM (compile t))
+    compileAndRun t = runST (runAM (compile normalisation t))
 
     -- Run the machine in a given state. Prints the state if the right verbosity level is active.
     runAM :: AM s -> ST s (Blocked Term)
@@ -723,7 +819,10 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             CCon{}         -> runAM done   -- Only happens for builtinSharp (which is a Def when you bind it)
             CForce | (spine0, Apply v : spine1) <- splitAt 4 spine ->
               evalPointerAM (unArg v) [] (ForceK f spine0 spine1 : ctrl)
-            CForce -> runAM done
+            CForce -> runAM done -- partially applied
+            CTrustMe | (spine0, Apply v : spine1) <- splitAt 2 spine ->
+              evalPointerAM (unArg v) [] (TrustMeK f spine0 [] spine1 : ctrl)
+            CTrustMe -> runAM done -- partially applied
             CPrimOp n op cc | length spine == n,                      -- PrimOps can't be over-applied. They don't
                               Just (v : vs) <- allApplyElims spine -> -- return functions or records.
               evalPointerAM (unArg v) [] (PrimOpK f op [] (map unArg vs) cc : ctrl)
@@ -759,16 +858,6 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
             Just p  -> evalPointerAM p spine ctrl
 
-        -- Case: metavariable. If it's instantiated evaluate the value. Meta instantiations are open
-        -- terms with a specified list of free variables. buildEnv constructs the appropriate
-        -- environment for the closure.
-        MetaV m [] ->
-          evalIApplyAM spine ctrl $
-          case getMeta m of
-            InstV xs t -> runAM (evalClosure (lams zs t) env spine' ctrl)
-              where (zs, env, !spine') = buildEnv xs spine
-            _ -> runAM (Eval (mkValue (blocked m ()) cl) ctrl)
-
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
           case spine of
@@ -783,7 +872,9 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             getArg Proj{}         = __IMPOSSIBLE__
 
         -- Case: values. Literals and function types are already in weak-head normal form.
-        Lit{} -> runAM done
+        -- We throw away the environment for literals mostly to make debug printing less verbose.
+        -- And we know the spine is empty since literals cannot be applied or projected.
+        Lit{} -> runAM (evalTrueValue t emptyEnv [] ctrl)
         Pi{}  -> runAM done
 
         -- Case: non-empty spine. If the focused term has a non-empty spine, we shift the
@@ -791,7 +882,18 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
         Def f   es -> shiftElims (Def f   []) emptyEnv env es
         Con c i es -> shiftElims (Con c i []) emptyEnv env es
         Var x   es -> shiftElims (Var x   []) env      env es
-        MetaV m es -> shiftElims (MetaV m []) emptyEnv env es
+
+        -- Case: metavariable. If it's instantiated evaluate the value. Meta instantiations are open
+        -- terms with a specified list of free variables. buildEnv constructs the appropriate
+        -- environment for the closure. Avoiding shifting spines for open metas
+        -- save a bit of performance.
+        MetaV m es -> evalIApplyAM spine ctrl $
+          case getMeta m of
+            InstV xs t -> do
+              spine' <- elimsToSpine env es
+              let (zs, env, !spine'') = buildEnv xs (spine' <> spine)
+              runAM (evalClosure (lams zs t) env spine'' ctrl)
+            _ -> runAM (Eval (mkValue (blocked m ()) cl) ctrl)
 
         -- Case: unsupported. These terms are not handled by the abstract machine, so we fall back
         -- to slowReduceTerm for these.
@@ -806,6 +908,36 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
               runAM (evalClosure t env0 (spine' <> spine) ctrl)
 
     -- If the current focus is a value closure, we look at the control stack.
+
+    -- Case NormaliseK: The focus is a weak-head value that should be fully normalised.
+    runAM' s@(Eval cl@(Closure b t env spine) (NormaliseK : ctrl)) =
+      case t of
+        Def _   [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+        Con _ _ [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+        Var _   [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+        MetaV _ [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
+
+        Lit{} -> runAM done
+
+        -- We might get these from fallbackAM
+        Def f   es -> shiftElims (Def f   []) emptyEnv env es
+        Con c i es -> shiftElims (Con c i []) emptyEnv env es
+        Var x   es -> shiftElims (Var x   []) env      env es
+        MetaV m es -> shiftElims (MetaV m []) emptyEnv env es
+
+        _ -> fallbackAM s -- fallbackAM knows about NormaliseK
+
+      where done = Eval (mkValue (notBlocked ()) cl) ctrl
+            shiftElims t env0 env es = do
+              spine' <- elimsToSpine env es
+              runAM (Eval (Closure b t env0 (spine' <> spine)) (NormaliseK : ctrl))
+
+    -- Case: ArgK: We successfully normalised an argument. Start on the next argument, or if there
+    -- isn't one we're done.
+    runAM' (Eval cl (ArgK cl0 cxt : ctrl)) =
+      case nextHole (pureThunk cl) cxt of
+        Left spine      -> runAM (Eval (clApply_ cl0 spine) ctrl)
+        Right (p, cxt') -> evalPointerAM p [] (NormaliseK : ArgK cl0 cxt' : ctrl)
 
     -- Case: NatSucK m
 
@@ -878,6 +1010,20 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             | CTyCon <- cdefDef (constInfo q) -> True
             | otherwise                       -> False
           Shared{}   -> __IMPOSSIBLE__
+
+    -- Case: TrustMeK. We evaluate both arguments to values, then do a simple check for the easy
+    -- cases and otherwise fall back to slow reduce.
+    runAM' (Eval cl2@(Closure Value{} arg2 _ _) (TrustMeK f spine0 [Apply p1] _ : ctrl)) = do
+      cl1@(Closure _ arg1 _ sp1) <- derefPointer_ (unArg p1)
+      case (arg1, arg2) of
+        (Lit l1, Lit l2) | l1 == l2, isJust refl ->
+          runAM (evalTrueValue (Con (fromJust refl) ConOSystem []) emptyEnv [] ctrl)
+        _ ->
+          fallbackAM (evalClosure (Def f []) emptyEnv (spine0 ++ map (Apply . hide . defaultArg . pureThunk) [cl1, cl2]) ctrl)
+    runAM' (Eval cl1@(Closure Value{} _ _ _) (TrustMeK f spine0 [] [Apply p2] : ctrl)) =
+      evalPointerAM (unArg p2) [] (TrustMeK f spine0 [Apply $ hide $ defaultArg $ pureThunk cl1] [] : ctrl)
+    runAM' (Eval _ (TrustMeK{} : _)) =
+      __IMPOSSIBLE__
 
     -- Case: UpdateThunk. Write the value to the pointers in the UpdateThunk frame.
     runAM' (Eval cl@(Closure Value{} _ _ _) (UpdateThunk ps : ctrl)) =
@@ -992,8 +1138,6 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
         FDone xs body -> do
             -- Don't ask me why, but not being strict in the spine causes a memory leak.
             let (zs, env, !spine') = buildEnv xs spine
-            -- case body of  -- Shortcut for when the right-hand side is a naked variable.
-            --   Var x [] | null zs -> evalPointerAM (lookupEnv_ x env) spine' ctrl
             runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
 
         -- A record pattern match. This does not block evaluation (since that would violate eta
@@ -1067,15 +1211,30 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
             _     -> go es
         go (e : es) = go es
 
+    -- Normalise the spine and apply the closure to the result. The closure must be a value closure.
+    normaliseArgsAM :: Closure s -> Spine s -> ControlStack s -> ST s (Blocked Term)
+    normaliseArgsAM cl []    ctrl = runAM (Eval cl ctrl)  -- nothing to do
+    normaliseArgsAM cl spine ctrl =
+      case firstHole spine of -- v Only projections, nothing to do. Note clApply_ and not clApply (or we'd loop)
+        Nothing       -> runAM (Eval (clApply_ cl spine) ctrl)
+        Just (p, cxt) -> evalPointerAM p [] (NormaliseK : ArgK cl cxt : ctrl)
+
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
     -- not supported (Level, Sort, Shared, and DontCare at the moment). In this case we decode the
-    -- current focus to a 'Term', call 'slowReduceTerm' and pack up the result in a value closure.
+    -- current focus to a 'Term', call slow reduction and pack up the result in a value closure. If
+    -- the top of the control stack is a 'NormaliseK' and the focus is a value closure (i.e. already
+    -- in weak-head normal form) we call 'slowNormaliseArgs' and pop the 'NormaliseK' frame.
+    -- Otherwise we use 'slowReduceTerm' to compute a weak-head normal form.
     fallbackAM :: AM s -> ST s (Blocked Term)
     fallbackAM (Eval c ctrl) = do
         v <- decodeClosure_ c
-        runAM (mkValue $ runReduce $ slowReduceTerm v)
-      where mkValue b = evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl
+        runAM (mkValue $ runReduce $ slow v)
+      where mkValue b = evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl'
+            (slow, ctrl') = case ctrl of
+              NormaliseK : ctrl'
+                | Value{} <- isValue c -> (notBlocked <.> slowNormaliseArgs, ctrl')
+              _                        -> (slowReduceTerm, ctrl)
     fallbackAM _ = __IMPOSSIBLE__
 
     -- If rewriting is enabled, try to apply rewrite rules to the current focus before considering
@@ -1119,9 +1278,12 @@ reduceTm rEnv bEnv !constInfo allowNonTerminating hasRewriting = compileAndRun .
     unfoldDelayed (CaseK{}       : _)    = True
     unfoldDelayed (PrimOpK{}     : _)    = False
     unfoldDelayed (NatSucK{}     : _)    = False
+    unfoldDelayed (NormaliseK{}  : _)    = False
+    unfoldDelayed (ArgK{}        : _)    = False
     unfoldDelayed (UpdateThunk{} : ctrl) = unfoldDelayed ctrl
     unfoldDelayed (ApplyK{}      : ctrl) = unfoldDelayed ctrl
     unfoldDelayed (ForceK{}      : ctrl) = unfoldDelayed ctrl
+    unfoldDelayed (TrustMeK{}    : ctrl) = unfoldDelayed ctrl
 
     -- When matching is stuck we return the closure from the 'MatchStack' with the appropriate
     -- 'IsValue' set.
@@ -1190,6 +1352,8 @@ instance Pretty (Pointer s) where
   prettyPrec p = prettyPrec p . unsafeDerefPointer
 
 instance Pretty (Closure s) where
+  prettyPrec _ (Closure Value{} (Lit (LitString _ unused)) _ _)
+    | unused == unusedPointerString = text "_"
   prettyPrec p (Closure isV t env spine) =
     mparens (p > 9) $ fsep [ text tag
                            , nest 2 $ prettyPrec 10 t
@@ -1217,9 +1381,16 @@ instance Pretty (MatchStack s) where
 instance Pretty (ControlFrame s) where
   prettyPrec p (CaseK f _ _ _ _ mc)     = mparens (p > 9) $ (text "CaseK" <+> pretty (qnameName f)) <?> pretty mc
   prettyPrec p (ForceK _ spine0 spine1) = mparens (p > 9) $ text "ForceK" <?> prettyList (spine0 <> spine1)
+  prettyPrec p (TrustMeK _ sp0 sp1 sp2) = mparens (p > 9) $ sep [ text "TrustMeK"
+                                                                , nest 2 $ prettyList sp0
+                                                                , nest 2 $ prettyList sp1
+                                                                , nest 2 $ prettyList sp2 ]
   prettyPrec _ (NatSucK n)              = text ("+" ++ show n)
   prettyPrec p (PrimOpK f _ vs cls _)   = mparens (p > 9) $ sep [ text "PrimOpK" <+> pretty f
                                                                 , nest 2 $ prettyList vs
                                                                 , nest 2 $ prettyList cls ]
   prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ text "UpdateThunk" <+> text (show (length ps))
   prettyPrec p (ApplyK spine)           = mparens (p > 9) $ text "ApplyK" <?> prettyList spine
+  prettyPrec p NormaliseK               = text "NormaliseK"
+  prettyPrec p (ArgK cl _)              = mparens (p > 9) $ sep [ text "ArgK" <+> prettyPrec 10 cl ]
+

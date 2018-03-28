@@ -848,13 +848,15 @@ instance Subst t a => Subst t (Abs a) where
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
 instance Subst t a => Subst t (Arg a) where
-  applySubst rho = fmap (applySubst rho)
+  applySubst IdS arg = arg
+  applySubst rho arg = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) arg
 
 instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
 instance Subst t a => Subst t (Dom a) where
-  applySubst rho = fmap (applySubst rho)
+  applySubst IdS dom = dom
+  applySubst rho dom = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) dom
 
 instance Subst t a => Subst t (Maybe a) where
   applySubst rho = fmap (applySubst rho)

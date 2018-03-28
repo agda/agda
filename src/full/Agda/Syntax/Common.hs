@@ -18,6 +18,8 @@ import Data.Semigroup hiding (Arg)
 import Data.Traversable
 import Data.Data (Data)
 import Data.Word
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import GHC.Generics (Generic)
 
@@ -587,6 +589,55 @@ instance LensOrigin (WithOrigin a) where
   setOrigin h (WithOrigin _ a) = WithOrigin h a
   mapOrigin f (WithOrigin h a) = WithOrigin (f h) a
 
+-----------------------------------------------------------------------------
+-- * Free variable annotations
+-----------------------------------------------------------------------------
+
+data FreeVariables = UnknownFVs | KnownFVs IntSet
+  deriving (Data, Eq, Ord, Show)
+
+instance Semigroup FreeVariables where
+  UnknownFVs   <> _            = UnknownFVs
+  _            <> UnknownFVs   = UnknownFVs
+  KnownFVs vs1 <> KnownFVs vs2 = KnownFVs (IntSet.union vs1 vs2)
+
+instance Monoid FreeVariables where
+  mempty  = KnownFVs IntSet.empty
+  mappend = (<>)
+
+instance NFData FreeVariables where
+  rnf UnknownFVs    = ()
+  rnf (KnownFVs fv) = rnf fv
+
+unknownFreeVariables :: FreeVariables
+unknownFreeVariables = UnknownFVs
+
+noFreeVariables :: FreeVariables
+noFreeVariables = mempty
+
+oneFreeVariable :: Int -> FreeVariables
+oneFreeVariable = KnownFVs . IntSet.singleton
+
+freeVariablesFromList :: [Int] -> FreeVariables
+freeVariablesFromList = mconcat . map oneFreeVariable
+
+-- | A lens to access the 'FreeVariables' attribute in data structures.
+--   Minimal implementation: @getFreeVariables@ and one of @setFreeVariables@ or @mapFreeVariables@.
+class LensFreeVariables a where
+
+  getFreeVariables :: a -> FreeVariables
+
+  setFreeVariables :: FreeVariables -> a -> a
+  setFreeVariables o = mapFreeVariables (const o)
+
+  mapFreeVariables :: (FreeVariables -> FreeVariables) -> a -> a
+  mapFreeVariables f a = setFreeVariables (f $ getFreeVariables a) a
+
+instance LensFreeVariables FreeVariables where
+  getFreeVariables = id
+  setFreeVariables = const
+  mapFreeVariables = id
+
 ---------------------------------------------------------------------------
 -- * Argument decoration
 ---------------------------------------------------------------------------
@@ -594,13 +645,14 @@ instance LensOrigin (WithOrigin a) where
 -- | A function argument can be hidden and/or irrelevant.
 
 data ArgInfo = ArgInfo
-  { argInfoHiding       :: Hiding
-  , argInfoModality     :: Modality
-  , argInfoOrigin       :: Origin
+  { argInfoHiding        :: Hiding
+  , argInfoModality      :: Modality
+  , argInfoOrigin        :: Origin
+  , argInfoFreeVariables :: FreeVariables
   } deriving (Data, Eq, Ord, Show)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h r o) = killRange3 ArgInfo h r o
+  killRange i = i -- There are no ranges in ArgInfo's
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -615,7 +667,7 @@ instance LensArgInfo ArgInfo where
   mapArgInfo = id
 
 instance NFData ArgInfo where
-  rnf (ArgInfo a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (ArgInfo a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance LensHiding ArgInfo where
   getHiding = argInfoHiding
@@ -632,6 +684,11 @@ instance LensOrigin ArgInfo where
   setOrigin o ai = ai { argInfoOrigin = o }
   mapOrigin f ai = ai { argInfoOrigin = f (argInfoOrigin ai) }
 
+instance LensFreeVariables ArgInfo where
+  getFreeVariables = argInfoFreeVariables
+  setFreeVariables o ai = ai { argInfoFreeVariables = o }
+  mapFreeVariables f ai = ai { argInfoFreeVariables = f (argInfoFreeVariables ai) }
+
 -- inherited instances
 
 instance LensRelevance ArgInfo where
@@ -646,9 +703,10 @@ instance LensQuantity ArgInfo where
 
 defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo
-  { argInfoHiding       = NotHidden
-  , argInfoModality     = defaultModality
-  , argInfoOrigin       = UserWritten
+  { argInfoHiding        = NotHidden
+  , argInfoModality      = defaultModality
+  , argInfoOrigin        = UserWritten
+  , argInfoFreeVariables = UnknownFVs
   }
 
 -- Accessing through ArgInfo
@@ -686,6 +744,17 @@ setOriginArgInfo = mapArgInfo . setOrigin
 mapOriginArgInfo :: LensArgInfo a => LensMap Origin a
 mapOriginArgInfo = mapArgInfo . mapOrigin
 
+-- default accessors for FreeVariables
+
+getFreeVariablesArgInfo :: LensArgInfo a => LensGet FreeVariables a
+getFreeVariablesArgInfo = getFreeVariables . getArgInfo
+
+setFreeVariablesArgInfo :: LensArgInfo a => LensSet FreeVariables a
+setFreeVariablesArgInfo = mapArgInfo . setFreeVariables
+
+mapFreeVariablesArgInfo :: LensArgInfo a => LensMap FreeVariables a
+mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
+
 
 ---------------------------------------------------------------------------
 -- * Arguments
@@ -708,11 +777,11 @@ instance SetRange a => SetRange (Arg a) where
 instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
--- | Ignores 'Quantity', 'Relevance', and 'Origin'.
+-- | Ignores 'Quantity', 'Relevance', 'Origin', and 'FreeVariables'.
 --   Ignores content of argument if 'Irrelevant'.
 --
 instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 m1 _) x1 == Arg (ArgInfo h2 m2 _) x2 =
+  Arg (ArgInfo h1 m1 _ _) x1 == Arg (ArgInfo h2 m2 _ _) x2 =
     h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
     -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
     -- This is a hack, we should not use '(==)' in with-abstraction
@@ -720,7 +789,7 @@ instance Eq a => Eq (Arg a) where
     -- Andrea: except for caching.
 
 instance Show a => Show (Arg a) where
-    show (Arg (ArgInfo h (Modality r q) o) a) = showQ q $ showR r $ showO o $ showH h $ show a
+    show (Arg (ArgInfo h (Modality r q) o fv) a) = showFVs fv $ showQ q $ showR r $ showO o $ showH h $ show a
       where
         showH Hidden       s = "{" ++ s ++ "}"
         showH NotHidden    s = "(" ++ s ++ ")"
@@ -739,6 +808,8 @@ instance Show a => Show (Arg a) where
           Inserted    -> "i" ++ s
           Reflected   -> "g" ++ s -- generated by reflection
           CaseSplit   -> "c" ++ s -- generated by case split
+        showFVs UnknownFVs    s = s
+        showFVs (KnownFVs fv) s = "fv" ++ show (IntSet.toList fv) ++ s
 
 instance NFData e => NFData (Arg e) where
   rnf (Arg a b) = rnf a `seq` rnf b
@@ -764,6 +835,11 @@ instance LensOrigin (Arg e) where
   getOrigin = getOriginArgInfo
   setOrigin = setOriginArgInfo
   mapOrigin = mapOriginArgInfo
+
+instance LensFreeVariables (Arg e) where
+  getFreeVariables = getFreeVariablesArgInfo
+  setFreeVariables = setFreeVariablesArgInfo
+  mapFreeVariables = mapFreeVariablesArgInfo
 
 -- Since we have LensModality, we get relevance and quantity by default
 
@@ -843,9 +919,9 @@ instance HasRange a => HasRange (Dom a) where
 instance KillRange a => KillRange (Dom a) where
   killRange (Dom info b a) = killRange3 Dom info b a
 
--- | Ignores 'Origin'.
+-- | Ignores 'Origin' and 'FreeVariables'.
 instance Eq a => Eq (Dom a) where
-  Dom (ArgInfo h1 m1 _) b1 x1 == Dom (ArgInfo h2 m2 _) b2 x2 =
+  Dom (ArgInfo h1 m1 _ _) b1 x1 == Dom (ArgInfo h2 m2 _ _) b2 x2 =
     (h1, m1, b1, x1) == (h2, m2, b2, x2)
 
 instance Show a => Show (Dom a) where
@@ -872,6 +948,11 @@ instance LensOrigin (Dom e) where
   getOrigin = getOriginArgInfo
   setOrigin = setOriginArgInfo
   mapOrigin = mapOriginArgInfo
+
+instance LensFreeVariables (Dom e) where
+  getFreeVariables = getFreeVariablesArgInfo
+  setFreeVariables = setFreeVariablesArgInfo
+  mapFreeVariables = mapFreeVariablesArgInfo
 
 -- Since we have LensModality, we get relevance and quantity by default
 

@@ -22,6 +22,8 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -221,6 +223,10 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toList s)
   value s = Set.fromList `fmap` value s
 
+instance EmbPrj IntSet where
+  icod_ s = icode (IntSet.toList s)
+  value s = IntSet.fromList <$> value s
+
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b
 
@@ -363,7 +369,7 @@ instance EmbPrj a => EmbPrj (Ranged a) where
   value = valueN Ranged
 
 instance EmbPrj ArgInfo where
-  icod_ (ArgInfo h r o) = icodeN' ArgInfo h r o
+  icod_ (ArgInfo h r o fv) = icodeN' ArgInfo h r o fv
 
   value = valueN ArgInfo
 
@@ -457,6 +463,15 @@ instance EmbPrj Origin where
   value 2 = return Reflected
   value 3 = return CaseSplit
   value _ = malformed
+
+instance EmbPrj FreeVariables where
+  icod_ UnknownFVs   = icodeN' UnknownFVs
+  icod_ (KnownFVs a) = icodeN' KnownFVs a
+
+  value = vcase valu where
+    valu []  = valuN UnknownFVs
+    valu [a] = valuN KnownFVs a
+    valu _   = malformed
 
 instance EmbPrj ConOrigin where
   icod_ ConOSystem = return 0

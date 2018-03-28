@@ -349,18 +349,32 @@ reduceIApply' reduceB' d [] = d
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
 
+-- | @Just nt@ means run fast reduce with @allowNonterminatingReductions = nt@.
+shouldTryFastReduce :: ReduceM (Maybe Bool)
+shouldTryFastReduce = do
+  s <- optSharing <$> commandLineOptions
+  allowed <- asks envAllowedReductions
+  let notAll = List.delete NonTerminatingReductions allowed /= allReductions
+  return $ if s || notAll then Nothing
+                          else Just (elem NonTerminatingReductions allowed)
+
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
   let tryFast = case v of
-                  Def{} -> True
-                  Con{} -> True
-                  _     -> False
+                  Def{}   -> True
+                  Con{}   -> True
+                  MetaV{} -> True
+                  _       -> False
   if not tryFast then slowReduceTerm v
-                 else do
-    s <- optSharing   <$> commandLineOptions
-    allowed <- asks envAllowedReductions
-    let notAll = List.delete NonTerminatingReductions allowed /= allReductions
-    if s || notAll then slowReduceTerm v else fastReduce (elem NonTerminatingReductions allowed) v
+                 else
+    case v of
+      MetaV x _ -> ifM (isOpen x) (return $ notBlocked v) (maybeFast v)
+      _         -> maybeFast v
+  where
+    isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
+    maybeFast v = shouldTryFastReduce >>= \ case
+      Nothing -> slowReduceTerm v
+      Just nt -> fastReduce nt v
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm v = do
@@ -900,21 +914,23 @@ instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
 
 instance Normalise Term where
-    normalise' = ignoreBlocking <.> (reduceB' >=> traverse normaliseArgs)
-      where
-        normaliseArgs :: Term -> ReduceM Term
-        normaliseArgs v = case v of
-                Var n vs    -> Var n <$> normalise' vs
-                Con c ci vs -> Con c ci <$> normalise' vs
-                Def f vs    -> Def f <$> normalise' vs
-                MetaV x vs  -> MetaV x <$> normalise' vs
-                Lit _       -> return v
-                Level l     -> levelTm <$> normalise' l
-                Lam h b     -> Lam h <$> normalise' b
-                Sort s      -> sortTm <$> normalise' s
-                Pi a b      -> uncurry Pi <$> normalise' (a,b)
-                Shared{}    -> updateSharedTerm normalise' v
-                DontCare _  -> return v
+    normalise' v = shouldTryFastReduce >>= \ case
+      Nothing -> slowNormaliseArgs =<< reduce' v
+      Just nt -> fastNormalise nt v
+
+slowNormaliseArgs :: Term -> ReduceM Term
+slowNormaliseArgs v = case v of
+  Var n vs    -> Var n      <$> normalise' vs
+  Con c ci vs -> Con c ci   <$> normalise' vs
+  Def f vs    -> Def f      <$> normalise' vs
+  MetaV x vs  -> MetaV x    <$> normalise' vs
+  Lit _       -> return v
+  Level l     -> levelTm    <$> normalise' l
+  Lam h b     -> Lam h      <$> normalise' b
+  Sort s      -> sortTm     <$> normalise' s
+  Pi a b      -> uncurry Pi <$> normalise' (a, b)
+  Shared{}    -> updateSharedTerm normalise' v
+  DontCare _  -> return v
 
 instance Normalise Elim where
   normalise' (Apply v) = Apply <$> normalise' v

@@ -127,7 +127,7 @@ quotingKit = do
 
       -- TODO: quote Quanity
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h m _) =
+      quoteArgInfo (ArgInfo h m _ _) =
         arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
 
       quoteLit :: Literal -> ReduceM Term
