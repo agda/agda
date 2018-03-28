@@ -239,7 +239,6 @@ quotingKit = do
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
-          Shared p   -> quoteTerm $ derefPtr p
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care

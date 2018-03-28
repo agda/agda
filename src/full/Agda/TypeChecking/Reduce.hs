@@ -105,8 +105,6 @@ instance Instantiate Term where
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = sortTm <$> instantiate' s
-  instantiate' v@Shared{} =
-    updateSharedTerm instantiate' v
   instantiate' t = return t
 
 instance Instantiate Level where
@@ -327,11 +325,10 @@ instance Reduce Term where
 -- | @Just nt@ means run fast reduce with @allowNonterminatingReductions = nt@.
 shouldTryFastReduce :: ReduceM (Maybe Bool)
 shouldTryFastReduce = do
-  s <- optSharing <$> commandLineOptions
   allowed <- asks envAllowedReductions
   let notAll = List.delete NonTerminatingReductions allowed /= allReductions
-  return $ if s || notAll then Nothing
-                          else Just (elem NonTerminatingReductions allowed)
+  return $ if notAll then Nothing
+                     else Just (elem NonTerminatingReductions allowed)
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
@@ -376,10 +373,8 @@ slowReduceTerm v = do
       Var _ _  -> done
       Lam _ _  -> done
       DontCare _ -> done
-      Shared{}   -> updateSharedTermF reduceB' v
     where
       -- NOTE: reduceNat can traverse the entire term.
-      reduceNat v@Shared{} = updateSharedTerm reduceNat v
       reduceNat v@(Con c ci []) = do
         mz  <- getBuiltin' builtinZero
         case v of
@@ -406,12 +401,8 @@ unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
 unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion v = do
   v <- instantiate' v
-  case compressPointerChain v of
+  case v of
     Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
-    v@(Shared p) ->
-      case derefPtr p of
-        Def{} -> updateSharedFM unfoldCorecursion v
-        _     -> slowReduceTerm v
     _ -> slowReduceTerm v
 
 -- | If the first argument is 'True', then a single delayed clause may
@@ -727,7 +718,6 @@ instance Simplify Term where
       Var i vs   -> Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
-      Shared{}   -> updateSharedTerm simplify' v
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t) = return t
@@ -893,7 +883,6 @@ slowNormaliseArgs v = case v of
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> sortTm     <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
-  Shared{}    -> updateSharedTerm normalise' v
   DontCare _  -> return v
 
 instance Normalise Elim where
@@ -1056,7 +1045,6 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> sortTm <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
-          Shared{}    -> updateSharedTerm instantiateFull' v
           DontCare v  -> dontCare <$> instantiateFull' v
 
 instance InstantiateFull Level where

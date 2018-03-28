@@ -68,8 +68,6 @@ match' ((c, es, patch) : stack) = do
 
   do
 
-    shared <- sharedFun
-
     case c of
 
       -- impossible case
@@ -88,9 +86,7 @@ match' ((c, es, patch) : stack) = do
           -- at least the first @n@ elims must be @Apply@s, so we can
           -- turn them into a subsitution
           toSubst        = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
-          -- Andreas, 2013-05-21 why introduce sharing only here,
-          -- and not in underapplied case also?
-          (es0, es1)     = splitAt n $ map (fmap $ fmap shared) es
+          (es0, es1)     = splitAt n es
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
       -- splitting on an eta-record constructor

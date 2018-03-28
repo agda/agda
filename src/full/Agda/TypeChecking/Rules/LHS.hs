@@ -338,7 +338,6 @@ noShadowingOfConstructors mkCall eqs =
       Lit   {} -> __IMPOSSIBLE__
       Level {} -> __IMPOSSIBLE__
       Con   {} -> __IMPOSSIBLE__
-      Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
 
 -- | Check that a dot pattern matches it's instantiation.
@@ -1196,7 +1195,6 @@ isDataOrRecordType dom@(Dom info a) = liftTCM (reduceB a) >>= \case
     Con{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    Shared{}   -> __IMPOSSIBLE__
 
   -- Type is blocked on a meta or something else: fail softly
   _ -> softTypeError =<< notData

@@ -888,7 +888,6 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
         -- to slowReduceTerm for these.
         Level{}    -> fallbackAM s
         Sort{}     -> fallbackAM s
-        Shared{}   -> fallbackAM s
         DontCare{} -> fallbackAM s
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
@@ -998,7 +997,6 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
           Def q _  -- Type constructors (data/record) are considered canonical for 'primForce'.
             | CTyCon <- cdefDef (constInfo q) -> True
             | otherwise                       -> False
-          Shared{}   -> __IMPOSSIBLE__
 
     -- Case: TrustMeK. We evaluate both arguments to values, then do a simple check for the easy
     -- cases and otherwise fall back to slow reduce.
@@ -1187,11 +1185,11 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
 
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
-    -- not supported (Level, Sort, Shared, and DontCare at the moment). In this case we decode the
-    -- current focus to a 'Term', call slow reduction and pack up the result in a value closure. If
-    -- the top of the control stack is a 'NormaliseK' and the focus is a value closure (i.e. already
-    -- in weak-head normal form) we call 'slowNormaliseArgs' and pop the 'NormaliseK' frame.
-    -- Otherwise we use 'slowReduceTerm' to compute a weak-head normal form.
+    -- not supported (Level, Sort, and DontCare at the moment). In this case we decode the current
+    -- focus to a 'Term', call slow reduction and pack up the result in a value closure. If the top
+    -- of the control stack is a 'NormaliseK' and the focus is a value closure (i.e. already in
+    -- weak-head normal form) we call 'slowNormaliseArgs' and pop the 'NormaliseK' frame. Otherwise
+    -- we use 'slowReduceTerm' to compute a weak-head normal form.
     fallbackAM :: AM s -> ST s (Blocked Term)
     fallbackAM (Eval c ctrl) = do
         v <- decodeClosure_ c

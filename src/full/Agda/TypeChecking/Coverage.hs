@@ -583,7 +583,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- of constructor
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
-      preserve (x, (El s (Shared p))) = preserve (x, El s $ derefPtr p)
       preserve (x, t) = (x, t)
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal

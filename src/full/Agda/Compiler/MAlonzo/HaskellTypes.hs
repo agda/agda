@@ -175,7 +175,6 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Level{}    -> return hsUnit
         Lit{}      -> return hsUnit
         Sort{}     -> return hsUnit
-        Shared p   -> fromTerm $ derefPtr p
         MetaV{}    -> throwError (BadMeta v)
         DontCare{} -> throwError (BadDontCare v)
 

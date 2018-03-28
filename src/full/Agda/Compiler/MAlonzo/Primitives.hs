@@ -118,7 +118,6 @@ xForPrim table = do
   bs <- toList <$> gets stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
-      getName (Builtin (Shared p))   = getName (Builtin $ derefPtr p)
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q

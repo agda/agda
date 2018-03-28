@@ -78,7 +78,6 @@
 --     Sort{}     -> noElim
 --     Pi{}       -> noElim
 --     DontCare{} -> noElim
---     Shared p   -> __IMPOSSIBLE__
 --     where
 --       app f vs = return $ f $ map Apply vs
 --       elim :: [Elim] -> ElimView -> ElimView

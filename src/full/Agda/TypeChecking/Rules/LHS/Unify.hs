@@ -720,7 +720,6 @@ etaExpandEquationStrategy k s = do
       Level _    -> __IMPOSSIBLE__
       MetaV _ _  -> return False
       DontCare _ -> return False
-      Shared _   -> __IMPOSSIBLE__
 
     tel = varTel s `abstract` telFromList (take k $ telToList $ eqTel s)
 

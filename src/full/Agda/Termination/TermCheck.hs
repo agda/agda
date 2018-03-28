@@ -919,8 +919,6 @@ instance ExtractCalls Term where
         -- Andreas, 2014-03-26 Benchmark discontinued, < 0.3% spent on levels.
         extract l
 
-      Shared{} -> __IMPOSSIBLE__
-
 -- | Extract recursive calls from level expressions.
 
 deriving instance ExtractCalls Level
@@ -1226,7 +1224,6 @@ compareTerm' v mp@(Masked m p) = do
 subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPattern -> Order
 subTerm t p = if equal t p then Order.le else properSubTerm t p
   where
-    equal (Shared p) dbp = equal (derefPtr p) dbp
     equal (Con c _ es) (ConP c' _ ps) =
       let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
       and $ (conName c == conName c')

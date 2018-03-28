@@ -262,7 +262,6 @@ instance Free Term where
     Level l    -> freeVars' l
     MetaV _ ts -> flexible <$> freeVars' ts
     DontCare mt -> irrelevantly <$> freeVars' mt
-    Shared p    -> freeVars' (derefPtr p)
 
 instance Free Type where
   freeVars' (El s t) =

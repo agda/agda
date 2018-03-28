@@ -151,8 +151,6 @@ decode s = do
   -- input is malformed. The decoder is (intended to be) strict enough
   -- to ensure that all such errors can be caught by the handler here.
 
-  shared <- sharedFun
-
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
     (ver, s, _) <- return $ runGetState B.get s 0
@@ -171,7 +169,6 @@ decode s = do
         st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
-                <*> return shared
         (r, st) <- runStateT (runExceptT (value r)) st
         return (Just (modFile st), r)
 

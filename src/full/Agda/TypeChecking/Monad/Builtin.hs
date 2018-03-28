@@ -537,7 +537,6 @@ primEqualityName = do
   -- 2. type polymorphic only
   -- 3. monomorphic.
   let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
-      lamV (Shared p) = lamV (derefPtr p)
       lamV v          = ([], v)
   return $ case lamV eq of
     (_, Def equality _) -> equality

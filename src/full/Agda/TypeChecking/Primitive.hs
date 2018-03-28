@@ -329,7 +329,6 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     where
       isCon (Lam _ b)  = isCon $ absBody b
       isCon (Con c _ _)= return c
-      isCon (Shared p) = isCon (derefPtr p)
       isCon v          = __IMPOSSIBLE__
 
       mkList nil cons toA fromA t = do
@@ -467,7 +466,6 @@ genPrimForce b ret = do
                     _          -> False
                 MetaV{}    -> return False
                 Var{}      -> return False
-                Shared{}   -> __IMPOSSIBLE__
 
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))

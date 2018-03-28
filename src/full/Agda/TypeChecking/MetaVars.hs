@@ -258,7 +258,7 @@ newValueMetaCtx' b a tel perm vs = do
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
-  u <- shared $ MetaV x $ map Apply vs
+  let u = MetaV x $ map Apply vs
   boundedSizeMetaHook u tel a
   return (x, u)
 
@@ -670,7 +670,6 @@ assign dir x args v = do
                 fromIrrVar (Con c _ vs)   =
                   ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
                     concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) (fromMaybe __IMPOSSIBLE__ (allApplyElims vs))
-                fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
                 fromIrrVar _ = return []
             irrVL <- concat <$> mapM fromIrrVar
                        [ v | Arg info v <- args, isIrrelevant info ]
@@ -835,7 +834,6 @@ attemptInertRHSImprovement m args v = do
         Level{}    -> notInert
         MetaV{}    -> notInert
         DontCare{} -> notInert
-        Shared{}   -> __IMPOSSIBLE__
 
     ensureNeutral :: Term -> Term -> TCM ()
     ensureNeutral rhs v = do
@@ -862,7 +860,6 @@ attemptInertRHSImprovement m args v = do
             MetaV{}    -> notNeutral v
             Con{}      -> notNeutral v
             Lam{}      -> notNeutral v
-            Shared{}   -> __IMPOSSIBLE__
 -- END UNUSED -}
 
 -- | @assignMeta m x t ids u@ solves @x ids = u@ for meta @x@ of type @t@,
@@ -1230,8 +1227,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg _ Pi{}       -> neutralArg
         Arg _ Sort{}     -> neutralArg
         Arg _ Level{}    -> neutralArg
-
-        Arg info (Shared p) -> isVarOrIrrelevant vars (Arg info $ derefPtr p, t)
 
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
     append :: Res -> Res -> Res

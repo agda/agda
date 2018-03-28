@@ -392,7 +392,6 @@ getOutputTypeName t = do
       Level{}  -> __IMPOSSIBLE__
       MetaV{}  -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
 
 addTypedInstance :: QName -> Type -> TCM ()

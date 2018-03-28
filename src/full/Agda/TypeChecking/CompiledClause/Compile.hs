@@ -59,8 +59,7 @@ compileClauses' recpat cs = do
   let translate | recpat == RunRecordPatternTranslation = translateCompiledClauses
                 | otherwise                             = return
 
-  sh <- sharedFun
-  translate $ compile sh cs
+  translate $ compile cs
 
 -- | Process function clauses into case tree.
 --   This involves:
@@ -75,9 +74,8 @@ compileClauses ::
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
-  shared <- sharedFun
   case mt of
-    Nothing -> compile shared . map unBruijn <$> normaliseProjP cs
+    Nothing -> compile . map unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -93,7 +91,7 @@ compileClauses mt cs = do
           map (prettyTCM . map unArg . clPats) cls
       reportSDoc "tc.cc" 50 $
         text "clauses before compilation" <?> pretty cs
-      let cc = compileWithSplitTree shared splitTree cls
+      let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
@@ -122,13 +120,13 @@ unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) 
   where
     sub = renamingR $ fromMaybe __IMPOSSIBLE__ (clausePerm c)
 
-compileWithSplitTree :: (Term -> Term) -> SplitTree -> Cls -> CompiledClauses
-compileWithSplitTree shared t cs = case t of
+compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
+compileWithSplitTree t cs = case t of
   SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) (unArg i) cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
-  SplittingDone n -> compile shared cs
+  SplittingDone n -> compile cs
     -- after end of split tree, continue with left-to-right strategy
 
   where
@@ -140,23 +138,23 @@ compileWithSplitTree shared t cs = case t of
                            , catchAllBranch = catchAll }
       = br{ conBranches    = updCons cons
           , etaBranch      = Nothing
-          , litBranches    = compile shared <$> lits
-          , catchAllBranch = compile shared <$> catchAll
+          , litBranches    = compile <$> lits
+          , catchAllBranch = compile <$> catchAll
           }
       where
         updCons = Map.mapWithKey $ \ c cl ->
-         caseMaybe (lookup c ts) (compile shared) (compileWithSplitTree shared) <$> cl
+         caseMaybe (lookup c ts) compile compileWithSplitTree <$> cl
          -- When the split tree is finished, we continue with @compile@.
     compiles _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
-compile :: (Term -> Term) -> Cls -> CompiledClauses
-compile _      [] = Fail
-compile shared cs = case nextSplit cs of
-  Just (isRecP, n)-> Case n $ fmap (compile shared) $ splitOn isRecP (unArg n) cs
+compile :: Cls -> CompiledClauses
+compile [] = Fail
+compile cs = case nextSplit cs of
+  Just (isRecP, n) -> Case n $ fmap compile $ splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just t  -> Done (map (fmap name) $ clPats c) (shared t)
+    Just t  -> Done (map (fmap name) $ clPats c) t
     Nothing -> Fail
   where
     -- If there are more than one clauses, take the first one.

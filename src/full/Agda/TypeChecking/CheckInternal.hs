@@ -94,7 +94,6 @@ checkType' t = do
     v@Lit{}    -> typeError $ InvalidType v
     v@Level{}  -> typeError $ InvalidType v
     DontCare v -> checkType' $ t $> v
-    Shared{}   -> __IMPOSSIBLE__
 
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
@@ -194,7 +193,6 @@ checkInternal' action v t = do
       l <- checkLevel action l
       Level l <$ ((`subtype` t) =<< levelType)
     DontCare v -> DontCare <$> checkInternal' action v t
-    Shared{}   -> __IMPOSSIBLE__
 
 -- | Make sure a constructor is fully applied
 --   and infer the type of the constructor.
@@ -285,7 +283,6 @@ infer v = do
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       snd <$> inferSpine a (MetaV x []) es
-    Shared{} -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
 -- | Infer ordinary function application.
@@ -426,7 +423,6 @@ inferSort t = case ignoreSharing t of
     Lam{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    Shared{}   -> __IMPOSSIBLE__
 
 -- | @eliminate t self es@ eliminates value @self@ of type @t@ by spine @es@
 --   and returns the remaining value and its type.

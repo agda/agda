@@ -79,7 +79,6 @@ haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
 {-# SPECIALIZE unLevel :: Term -> ReduceM Term #-}
 unLevel :: (HasBuiltins m) => Term -> m Term
 unLevel (Level l)  = reallyUnLevelView l
-unLevel (Shared p) = unLevel (derefPtr p)
 unLevel v = return v
 
 {-# SPECIALIZE reallyUnLevelView :: Level -> TCM Term #-}

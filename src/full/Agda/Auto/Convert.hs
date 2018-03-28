@@ -125,7 +125,6 @@ tomy imi icns typs = do
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
        let pars n (I.El _ (I.Pi it typ)) = Cm.Arg (Cm.domInfo it) (I.var n) :
                                            pars (n - 1) (I.unAbs typ)
-           pars n (I.El s (I.Shared p))  = pars n (I.El s (I.derefPtr p))
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) $
                                       I.Def cn $ map I.Apply $ pars (npar - 1) typ
@@ -395,7 +394,6 @@ instance Conversion TOM I.Term (MExp O) where
             return $ Meta m
           _ -> convert t
       I.DontCare _ -> return $ NotM dontCare
-      I.Shared p -> convert $ I.derefPtr p
 
 instance Conversion TOM a b => Conversion TOM (Cm.Arg a) (Hiding, b) where
   convert (Cm.Arg info a) = (getHiding info,) <$> convert a
@@ -424,7 +422,6 @@ fmExp m (I.Pi x y)  = fmType m (Cm.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
-fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
 
 fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m [] = False
@@ -531,7 +528,6 @@ frommyExps ndrop (NotM as) trm =
   addend x (I.Var h xs) = I.Var h (xs ++ [I.Apply x])
   addend x (I.Con h ci xs) = I.Con h ci (xs ++ [I.Apply x])
   addend x (I.Def h xs) = I.Def h (xs ++ [I.Apply x])
-  addend x (I.Shared p) = addend x (I.derefPtr p)
   addend _ _ = __IMPOSSIBLE__
 
 -- --------------------------------

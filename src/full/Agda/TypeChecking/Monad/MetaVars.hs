@@ -464,7 +464,6 @@ instance UnFreezeMeta Type where
   unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t
 
 instance UnFreezeMeta Term where
-  unfreezeMeta (Shared p)    = unfreezeMeta $ derefPtr p
   unfreezeMeta (MetaV x _)   = unfreezeMeta x
   unfreezeMeta (Sort s)      = unfreezeMeta s
   unfreezeMeta (Level l)     = unfreezeMeta l

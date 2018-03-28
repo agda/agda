@@ -167,12 +167,8 @@ instance AbsTerm Term where
       Sort s      -> Sort $ absT s
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
-      Shared p    -> Shared $ absT p
       where
         absT x = absTerm u x
-
-instance AbsTerm a => AbsTerm (Ptr a) where
-  absTerm u = fmap (absTerm u)
 
 instance AbsTerm Type where
   absTerm u (El s v) = El (absTerm u s) (absTerm u v)

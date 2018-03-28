@@ -589,7 +589,6 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let name (Lam h b)  = name (absBody b)
             name (Con c ci _) = Con c ci []
-            name (Shared p) = name $ ignoreSharing (derefPtr p)
             name _          = __IMPOSSIBLE__
 
         v0 <- checkExpr e =<< t

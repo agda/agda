@@ -580,7 +580,6 @@ canonicalName x = do
   where
     can body = canonicalName $ extract $ fromMaybe __IMPOSSIBLE__ body
     extract (Def x _)  = x
-    extract (Shared p) = extract $ derefPtr p
     extract _          = __IMPOSSIBLE__
 
 sameDef :: QName -> QName -> TCM (Maybe QName)

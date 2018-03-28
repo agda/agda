@@ -475,7 +475,6 @@ reifyTerm expandAnonDefs0 v = do
       ifM (asks envPrintMetasBare) {-then-} (return x') {-else-} $
         elims x' =<< reify es
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
-    I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
     -- Andreas, 2012-10-20  expand a copy if not in scope
     -- to improve error messages.

@@ -509,7 +509,6 @@ instance ComputeOccurrences Term where
     Lit{}        -> return emptyOB
     Sort{}       -> return emptyOB
     DontCare _   -> return emptyOB -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
-    Shared p     -> occurrences $ derefPtr p
 
 instance ComputeOccurrences Level where
   occurrences (Max as) = occurrences as

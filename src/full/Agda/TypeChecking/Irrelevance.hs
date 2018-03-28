@@ -118,7 +118,6 @@ instance UsableRelevance Term where
       mrel <- getMetaRelevance <$> lookupMeta m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare _ -> return $ isIrrelevant rel
-    Shared _ -> __IMPOSSIBLE__
 
 instance UsableRelevance a => UsableRelevance (Type' a) where
   usableRel rel (El _ t) = usableRel rel t

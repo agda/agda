@@ -292,6 +292,11 @@ Pragmas and options
     {-# OPTIONS --caching #-}
   ```
 
+* The `--sharing` and `--no-sharing` options have been deprecated and do
+  nothing.
+
+  Compile-time evaluation is now always call-by-need.
+
 * BUILTIN pragmas can now appear before the top-level module header
   and in parametrized modules.
   [Issue [#2824](https://github.com/agda/agda/issues/2824)]

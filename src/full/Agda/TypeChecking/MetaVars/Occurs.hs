@@ -287,7 +287,6 @@ instance Occurs Term where
           Con c ci vs -> Con c ci <$> occ ctx vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ ctx (a,b)
           Sort s      -> Sort <$> occurs red ctx m (goNonStrict xs) s
-          v@Shared{}  -> updateSharedTerm (occ ctx) v
           MetaV m' es -> do
               -- Check for loop
               --   don't fail hard on this, since we might still be on the top-level
@@ -348,7 +347,6 @@ instance Occurs Term where
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
-      Shared p   -> metaOccurs m $ derefPtr p
       MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> metaOccurs m vs
 
@@ -554,7 +552,6 @@ hasBadRigid xs t = do
     Con c _ es | otherwise -> failure
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
-    Shared p     -> __IMPOSSIBLE__
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
@@ -630,7 +627,6 @@ instance FoldRigid Term where
       Level l    -> fold l
       MetaV{}    -> mempty
       DontCare{} -> mempty
-      Shared{}   -> __IMPOSSIBLE__
     where fold = foldRigid f
 
 instance FoldRigid Type where

@@ -119,7 +119,6 @@ verifyBuiltinRewrite v t = do
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      Shared{} -> __IMPOSSIBLE__
       _ -> failure $ text "because its type does not end in a sort, but in "
              <+> do inTopContext $ addContext tel $ prettyTCM core
 

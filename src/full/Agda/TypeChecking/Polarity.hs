@@ -369,7 +369,6 @@ instance HasPolarity Term where
     Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
     Sort s     -> return [] -- polarities i s -- return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
-    Shared p   -> polarities i $ derefPtr p
     DontCare t -> polarities i t -- return []
 
 instance HasPolarity Level where

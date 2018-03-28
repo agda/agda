@@ -115,8 +115,7 @@ isType e s =
 
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
-isType_ e =
-  traceCall (IsType_ e) $ sharedType =<< do
+isType_ e = traceCall (IsType_ e) $ do
   let fallback = isType e =<< do workOnTypes $ newSortMeta
   case unScope e of
     A.Fun i (Arg info t) b -> do
@@ -602,9 +601,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- 2. We added a constant without definition.
     -- In fact, they are not so harmless, see issue 2028!
     -- Thus, reset the state!
-    -- 2018-02-02, Jesper: If --sharing is enabled, it is not safe to roll back the state
-    -- so we reraise the error.
-    ifM (optSharing <$> commandLineOptions) reraise $ put st
+    put st
 
     -- The meta might not be known in the reset state, as it could have been created
     -- somewhere on the way to the type error.
@@ -832,7 +829,7 @@ scopedExpr e                      = return e
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared =<< do
+  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
           [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
@@ -2125,7 +2122,7 @@ defOrVar _     = False
 checkDontExpandLast :: A.Expr -> Type -> TCM Term
 checkDontExpandLast e t = case e of
   _ | Application hd args <- appView e,  defOrVar hd ->
-    traceCall (CheckExprCall e t) $ localScope $ dontExpandLast $ shared =<< do
+    traceCall (CheckExprCall e t) $ localScope $ dontExpandLast $ do
       checkApplication hd args e t
   _ -> checkExpr e t -- note that checkExpr always sets ExpandLast
 

@@ -116,19 +116,13 @@ compareTerm cmp a u v = do
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ text ":" <+> prettyTCM a
     ]
-  -- Check pointer equality first.
-  let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
-        verboseS "profile.sharing" 10 $ tick "pointer equality"
-        return ()
-      checkPointerEquality def = def
-  checkPointerEquality $ do
-    -- Check syntactic equality. This actually saves us quite a bit of work.
-    ((u, v), equal) <- runReduceM $ SynEq.checkSyntacticEquality u v
+  -- Check syntactic equality. This actually saves us quite a bit of work.
+  ((u, v), equal) <- runReduceM $ SynEq.checkSyntacticEquality u v
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
   -- let equal = u == v
-    unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
+  unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
       verboseS "profile.sharing" 20 $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep
         [ text "compareTerm (not syntactically equal)"
@@ -301,7 +295,6 @@ compareTerm' cmp a m n =
   where
     -- equality at function type (accounts for eta)
     equalFun :: Term -> Term -> Term -> TCM ()
-    equalFun (Shared p) m n = equalFun (derefPtr p) m n
     equalFun (Pi dom@(Dom info _) b) m n = do
         name <- freshName_ $ suggest (absName b) "x"
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
@@ -802,7 +795,6 @@ compareIrrelevant t v w = do
     ]
   try v w $ try w v $ return ()
   where
-    try (Shared p) w fallback = try (derefPtr p) w fallback
     try (MetaV x es) w fallback = do
       mv <- lookupMeta x
       let rel  = getMetaRelevance mv

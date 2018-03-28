@@ -72,7 +72,6 @@ instance PrecomputeFreeVars Term where
       Level l    -> Level      <$> precomputeFreeVars l
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
-      Shared p   -> __IMPOSSIBLE__
 
 -- The other instances are boilerplate.
 

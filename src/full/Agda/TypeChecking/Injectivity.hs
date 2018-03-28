@@ -84,7 +84,6 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Level{} -> return Nothing
     MetaV{} -> return Nothing
     DontCare{} -> return Nothing
-    Shared{}   -> __IMPOSSIBLE__
 
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
 --   an injective functions and to the right-hand side.
@@ -104,7 +103,6 @@ headSymbol' v = do
       Level{}    -> return Nothing
       MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
-      Shared{}   -> __IMPOSSIBLE__
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
 --   which one (index from the left).

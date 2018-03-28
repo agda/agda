@@ -268,7 +268,6 @@ instance Free Term where
     Level l      -> freeVars' l
     MetaV m ts   -> go (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> goRel Irrelevant $ freeVars' mt
-    Shared p     -> freeVars' (derefPtr p)
 
 instance Free a => Free (Type' a) where
   freeVars' (El s t) =

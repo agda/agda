@@ -265,7 +265,6 @@ insidePi t ret =
     Lit{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
-    Shared{}   -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
@@ -291,7 +290,6 @@ rigidlyConstrainedMetas = do
           Level{}    -> return False
           DontCare{} -> return False
           Lam{}      -> __IMPOSSIBLE__
-          Shared{}   -> __IMPOSSIBLE__
     rigidMetas c =
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
@@ -344,7 +342,6 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     Level{}  -> __IMPOSSIBLE__
     MetaV{}  -> __IMPOSSIBLE__
     Pi{}     -> __IMPOSSIBLE__
-    Shared{} -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
   where
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
