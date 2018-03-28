@@ -496,6 +496,7 @@ library
                     Agda.Utils.Update
                     Agda.Utils.VarSet
                     Agda.Utils.Warshall
+                    Agda.Utils.Zipper
                     Agda.Version
                     Agda.VersionCommit
 
