@@ -36,6 +36,7 @@ description:
 tested-with:        GHC == 7.10.3
                     GHC == 8.0.2
                     GHC == 8.2.2
+                    GHC == 8.4.1
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
