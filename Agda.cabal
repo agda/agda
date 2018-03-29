@@ -123,7 +123,7 @@ library
     build-depends:  text-icu == 0.7.*
 
   if os(windows)
-    build-depends:  Win32 >= 2.3.1.0 && < 2.6
+    build-depends:  Win32 >= 2.3.1.0 && < 2.7
 
   build-depends:  array >= 0.5.1.0 && < 0.6
                 , async >= 2.2 && < 2.3
