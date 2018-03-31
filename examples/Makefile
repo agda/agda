@@ -16,45 +16,45 @@ default : ac \
           malformed-interfaces \
           malonzo \
           minmax \
+          other-examples \
           path \
           polydep \
           regexp-talk \
           relocatable-interfaces \
           simplelib \
           view \
-          test
 
 agda = $(AGDA_BIN)
 
 run_agda = $(agda) -v0 --vim --ignore-interfaces --no-default-libraries
 
-test_files = AIM5/Hedberg/SET.agda \
-             AIM5/yoshiki/SET.agda \
-             Binary.agda \
-	     DoNotation.agda \
-             DTP08/conor/Talk.agda \
-             DTP08/ulf/Talk.agda \
-             ISWIM.agda \
-             Lookup.agda \
-             Miller/Pat.agda \
-             Monad.agda  \
-             ParenDepTac.agda \
-             Setoid.agda \
-             SimpleTypes.agda \
-             syntax/Literate.lagda \
-             Termination/Acc.agda \
-             Termination/Mutual.agda \
-             Termination/Nat.agda \
-             Termination/Ord.agda \
-             Termination/simplified-comb.agda \
-             Termination/StreamEating.agda \
-             Termination/StructuralOrder.agda \
-             Termination/TerminationTwoConstructors.agda \
-             Termination/Tuple.agda \
-             TT.agda \
-             Vec.agda
+other_files = AIM5/Hedberg/SET.agda \
+              AIM5/yoshiki/SET.agda \
+              Binary.agda \
+              DoNotation.agda \
+              DTP08/conor/Talk.agda \
+              DTP08/ulf/Talk.agda \
+              ISWIM.agda \
+              Lookup.agda \
+              Miller/Pat.agda \
+              Monad.agda  \
+              ParenDepTac.agda \
+              Setoid.agda \
+              SimpleTypes.agda \
+              syntax/Literate.lagda \
+              Termination/Acc.agda \
+              Termination/Mutual.agda \
+              Termination/Nat.agda \
+              Termination/Ord.agda \
+              Termination/simplified-comb.agda \
+              Termination/StreamEating.agda \
+              Termination/StructuralOrder.agda \
+              Termination/TerminationTwoConstructors.agda \
+              Termination/Tuple.agda \
+              TT.agda \
+              Vec.agda
 
-tests = $(patsubst %,%.test,$(test_files))
+other_examples = $(patsubst %,%.other,$(other_files))
 
 echo = $(shell which echo)
 ifeq ("$(echo)","")
@@ -198,9 +198,10 @@ html2 : AIM6/RegExp/talk/Everything.agda
 	@rm -rf HTML
 	@$(echo) "ok"
 
-test : $(tests)
+.PHONY : other-examples
+other-examples : $(other_examples)
 
-$(tests) : %.test : %
+$(other_examples) : %.other : %
 	@$(echo) -n "Testing $<... "
 	@$(echo) :q | $(run_agda) -i$(dir $<) $<
 	@$(echo) "ok"
