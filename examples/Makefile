@@ -31,6 +31,7 @@ run_agda = $(agda) -v0 --vim --ignore-interfaces --no-default-libraries
 test_files = AIM5/Hedberg/SET.agda \
              AIM5/yoshiki/SET.agda \
              Binary.agda \
+	     DoNotation.agda \
              DTP08/conor/Talk.agda \
              DTP08/ulf/Talk.agda \
              ISWIM.agda \

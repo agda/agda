@@ -201,8 +201,13 @@ updateProblemEqs eqs = do
             (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
-
-            unless (conName c == conName c') {-'-} __IMPOSSIBLE__
+            unless (conName c == conName c') $ do
+              reportSLn "impossible" 10 $ unlines
+                [ "updateProblemEqs: conName mismatch"
+                , "  conName c  = " ++ show (conName c)
+                , "  conName c' = " ++ show (conName c')
+                ]
+              __IMPOSSIBLE__
 
             -- Insert implicit patterns
             ps <- insertImplicitPatterns ExpandLast ps ctel
