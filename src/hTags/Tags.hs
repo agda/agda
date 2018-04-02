@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Tags where
 
@@ -124,7 +126,11 @@ instance TagName Name.Name where
   tagName = tagName . Name.nameOccName
 
 #if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => TagName (FieldOcc pass) where
+#else
 instance TagName a => TagName (FieldOcc a) where
+#endif
   tagName (FieldOcc (L _ rdrName) _) = tagName rdrName
 #endif
 
@@ -150,6 +156,7 @@ instance HasTags a => HasTags (Located a) where
   tags (L l x) = map (srcLocTag $ srcSpanStart l) $ tags x
 
 newtype Name a = Name a
+
 instance TagName name => HasTags (Name name) where
   tags (Name x) = [NoLoc $ tagName x]
 
@@ -159,12 +166,20 @@ tagsLN = tags . fmap Name
 tagsN :: TagName name => name -> [Tag]
 tagsN = tags . Name
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (HsModule pass) where
+#else
 instance TagName name => HasTags (HsModule name) where
+#endif
   tags HsModule{ hsmodExports = export
                , hsmodDecls   = decls
                } = tags decls -- TODO: filter exports
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (HsDecl pass) where
+#else
 instance TagName name => HasTags (HsDecl name) where
+#endif
   tags d = case d of
     TyClD d       -> tags d
     ValD d        -> tags d
@@ -184,13 +199,21 @@ instance TagName name => HasTags (HsDecl name) where
     VectD{}       -> []
     RoleAnnotD{}  -> []
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (FamilyDecl pass) where
+#else
 instance TagName name => HasTags (FamilyDecl name) where
+#endif
   tags d = tagsLN (fdLName d)
 
 instance HasTags (BasicTypes.Origin) where
   tags _ = []
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (TyClDecl pass) where
+#else
 instance TagName name => HasTags (TyClDecl name) where
+#endif
   tags (FamDecl d) = tags d
   tags d = tagsLN (tcdLName d) ++
     case d of
@@ -201,7 +224,11 @@ instance TagName name => HasTags (TyClDecl name) where
                 } -> tags (meths, ats)
       _ -> []
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (ConDecl pass) where
+#else
 instance TagName name => HasTags (ConDecl name) where
+#endif
 #if MIN_VERSION_ghc(8,0,0)
   tags (ConDeclGADT cns _ _)    = concatMap tagsLN cns
   tags (ConDeclH98 cn _ _ cd _) = tagsLN cn ++ tags cd
@@ -209,14 +236,22 @@ instance TagName name => HasTags (ConDecl name) where
   tags d = concatMap tagsLN (con_names d) ++ tags (con_details d)
 #endif
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (ConDeclField pass) where
+#else
 instance TagName name => HasTags (ConDeclField name) where
+#endif
   tags (ConDeclField x _ _) = concatMap tagsLN x
 
 -- Dummy instance.
 instance HasTags (HsType name) where
   tags _ = []
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (HsBind pass) where
+#else
 instance TagName name => HasTags (HsBind name) where
+#endif
   tags d = case d of
     FunBind  { fun_id    = x   }      -> tagsLN x
     PatBind  { pat_lhs   = lhs }      -> tags lhs
@@ -227,7 +262,11 @@ instance TagName name => HasTags (HsBind name) where
 #endif
     PatSynBind (PSB { psb_id = x })   -> tagsLN x
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (Pat pass) where
+#else
 instance TagName name => HasTags (Pat name) where
+#endif
   tags p = case p of
 #if MIN_VERSION_ghc(8,0,0)
     VarPat x                   -> tagsLN x
@@ -275,7 +314,11 @@ instance HasTags arg => HasTags (HsRecFields name arg) where
 instance HasTags arg => HasTags (HsRecField name arg) where
   tags (HsRecField _ a _) = tags a
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (Sig pass) where
+#else
 instance TagName name => HasTags (Sig name) where
+#endif
   tags d = case d of
 #if MIN_VERSION_ghc(8,0,0)
     TypeSig x _         -> concatMap tagsLN x
@@ -305,7 +348,11 @@ instance TagName name => HasTags (Sig name) where
     CompleteMatchSig{}  -> []
 #endif
 
+#if MIN_VERSION_ghc(8,4,0)
+instance (IdP pass ~ name, TagName name) => HasTags (ForeignDecl pass) where
+#else
 instance TagName name => HasTags (ForeignDecl name) where
+#endif
   tags d = case d of
     ForeignImport x _ _ _ -> tagsLN x
     ForeignExport{}       -> []
