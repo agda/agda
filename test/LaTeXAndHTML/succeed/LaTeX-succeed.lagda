@@ -64,4 +64,33 @@ module M where
     }
 \end{code}
 
+Andreas, 2018-04-03: The following two modules test the highlighting of projection patterns.
+
+\begin{code}
+module QualifiedProjectionPatterns where
+
+  r : R
+  r .R.f = Bool
+  r .R.g = ⊥
+
+  r′ : R′ Bool ⊥
+  R′.h r′ = ⊥
+  R′.j r′ = Bool → Bool
+  R′.r r′ = r
+\end{code}
+
+\begin{code}
+module UnqualifiedProjectionPatterns where
+  open R; open R′
+
+  r₀ : R
+  r₀ .f = Bool
+  r₀ .g = ⊥
+
+  r′ : R′ Bool ⊥
+  h r′ = ⊥
+  j r′ = Bool → Bool
+  r r′ = r₀
+\end{code}
+
 \end{document}

@@ -45,6 +45,7 @@ import qualified Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings (runPM)
 
+import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Common as Common
@@ -297,11 +298,13 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . A.BindName . Common.unArg) xs
     getPatSynArgs _                        = mempty
 
-    getPattern' :: A.Pattern' e -> File
+    getPattern' :: IsProjP e => A.Pattern' e -> File
     getPattern' (A.VarP x)    = bound x
     getPattern' (A.AsP _ x _) = bound x
-    getPattern' (A.DotP pi _) =
-      singleton (rToR $ P.getRange pi)
+    getPattern' (A.DotP pi e)
+      | Just _ <- isProjP e = mempty
+      | otherwise =
+          singleton (rToR $ P.getRange pi)
                 (mempty { otherAspects = [DottedPattern] })
     getPattern' (A.PatternSynP _ q _) = patsyn q
     getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
