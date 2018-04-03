@@ -21,6 +21,7 @@ import Data.Data (Data)
 import Data.List
 import Data.Function
 import Data.Hashable (Hashable(..))
+import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -107,6 +108,9 @@ instance IsProjP a => IsProjP (Arg a) where
 
 instance IsProjP a => IsProjP (Named n a) where
   isProjP = isProjP . namedThing
+
+instance IsProjP Void where
+  isProjP _ = __IMPOSSIBLE__
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
