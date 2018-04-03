@@ -372,8 +372,7 @@ script:
        make BUILD_DIR=$BUILD_DIR lib-interaction;
     fi
 
-# ASR (2018-03-26). hTags is not supporting GHC 8.4.1. See #3013.
-  - if [[ $TEST = "MAIN" && $GHC_VER != "8.4.1" ]]; then
+  - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR TAGS;
     fi
 

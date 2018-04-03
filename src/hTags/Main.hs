@@ -42,8 +42,13 @@ import GhcMonad (GhcT(..), Ghc(..))
 import Language.Haskell.Extension as LHE
 import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 import Distribution.PackageDescription hiding (options)
+#if MIN_VERSION_Cabal(2,2,0)
+import qualified Distribution.PackageDescription.Parsec as PkgDescParse
+import Distribution.PackageDescription.Parsec hiding (ParseResult)
+#else
 import qualified Distribution.PackageDescription.Parse as PkgDescParse
 import Distribution.PackageDescription.Parse hiding (ParseResult)
+#endif
 
 import Tags
 
@@ -59,7 +64,11 @@ filePState dflags file = do
   return $
     mkPState dflags buf (fileLoc file)
 
+#if MIN_VERSION_ghc(8,4,0)
+pMod :: P (Located (HsModule GhcPs))
+#else
 pMod :: P (Located (HsModule RdrName))
+#endif
 pMod = P.parseModule
 
 parse :: PState -> P a -> ParseResult a
@@ -74,7 +83,11 @@ goFile file = do
   st <- liftIO $ filePState dflags srcFile
   case parse st pMod of
     POk _ m         -> return $ removeDuplicates $ tags $ unLoc m
+#if MIN_VERSION_ghc(8,4,0)
+    PFailed _ loc err -> liftIO $ do
+#else
     PFailed loc err -> liftIO $ do
+#endif
       print (mkPlainErrMsg dflags loc err)
       exitWith $ ExitFailure 1
 
