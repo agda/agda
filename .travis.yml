@@ -94,6 +94,14 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=STACKAGE GHC_VER=8.4.1 BUILD=STACK ARGS="--stack-yaml stack-8.4.1.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.4.1
+          sources:
+            - hvr-ghc
+
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - env: TEST=HADDOCK GHC_VER=8.4.1 BUILD=CABAL CABAL_VER=2.2
