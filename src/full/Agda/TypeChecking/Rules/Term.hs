@@ -828,7 +828,7 @@ scopedExpr e                      = return e
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ do
+  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
           [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
@@ -1768,7 +1768,7 @@ checkHeadApplication e t hd args = do
           [ text "checking" <+>
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
-        blockTerm t $ f vs <$ workOnTypes (do
+        blockTerm t $ unfoldInlined =<< f vs <$ workOnTypes (do
           addContext eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
 
@@ -1857,7 +1857,8 @@ checkHeadApplication e t hd args = do
     (f, t0) <- inferHead hd
     expandLast <- asks envExpandLast
     checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
-      coerce (f vs) t1 t
+      v <- unfoldInlined (f vs)
+      coerce v t1 t
 
 traceCallE :: Call -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
@@ -2101,7 +2102,7 @@ inferExpr' exh e = do
         (f, t0) <- inferHead hd
         res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)
         case res of
-          Right (vs, t1) -> return (f vs, t1)
+          Right (vs, t1) -> (,t1) <$> unfoldInlined (f vs)
           Left t1 -> fallback -- blocked on type t1
   where
     fallback = do
