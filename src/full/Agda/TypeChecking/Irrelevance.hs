@@ -56,7 +56,9 @@ workOnTypes cont = do
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' experimental cont = modifyContext (map $ mapRelevance f) cont
+workOnTypes' experimental =
+  modifyContext (map $ mapRelevance f) .
+  local (\ e -> e { envWorkingOnTypes = True })
   where
     f | experimental = irrToNonStrict . nonStrictToRel
       | otherwise    = nonStrictToRel

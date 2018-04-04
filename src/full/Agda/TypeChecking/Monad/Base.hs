@@ -2085,6 +2085,8 @@ data TCEnv =
           , envCheckingWhere       :: Bool
                 -- ^ Have we stepped into the where-declarations of a clause?
                 --   Everything under a @where@ will be checked with this flag on.
+          , envWorkingOnTypes      :: Bool
+                -- ^ Are we working on types? Turned on by 'workOnTypes'.
           , envAssignMetas         :: Bool
             -- ^ Are we allowed to assign metas?
           , envActiveProblems      :: Set ProblemId
@@ -2180,6 +2182,7 @@ initEnv = TCEnv { envContext             = []
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
+                , envWorkingOnTypes      = False
                 , envAssignMetas         = True
                 , envAbstractMode        = ConcreteMode
   -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
@@ -2265,6 +2268,9 @@ eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingC
 
 eCheckingWhere :: Lens' Bool TCEnv
 eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }
+
+eWorkingOnTypes :: Lens' Bool TCEnv
+eWorkingOnTypes f e = f (envWorkingOnTypes e) <&> \ x -> e { envWorkingOnTypes = x }
 
 eAssignMetas :: Lens' Bool TCEnv
 eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
