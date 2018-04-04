@@ -58,7 +58,7 @@ instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
 -- If someone adds a field containing names, this would go unnoticed.
 
 instance NamesIn Definition where
-  namesIn def = namesIn (defType def, theDef def)
+  namesIn def = namesIn (defType def, theDef def, defDisplay def)
 
 instance NamesIn Defn where
   namesIn def = case def of
