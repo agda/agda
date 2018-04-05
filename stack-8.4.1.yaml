@@ -40,6 +40,7 @@ extra-deps:
 - polyparse-1.12
 - alex-3.2.4
 - happy-1.19.9
+- text-icu-0.7.0.1
 
 
 # Local packages, usually specified by relative directory name
