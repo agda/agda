@@ -325,12 +325,9 @@ simplify FunctionKit{..} = simpl
 
     maybeMinusToPrim f@(TDef minus) es@[a, b]
       | Just minus == natMinus = do
-      b_a  <- rewrite' (tOp PLt b a)
-      b_sa <- rewrite' (tOp PLt b (tOp PAdd (tInt 1) a))
-      a_b  <- rewrite' (tOp PLt a b)
-      if isTrue b_a || isTrue b_sa || isFalse a_b
-        then pure $ tOp PSub a b
-        else tApp f es
+      leq  <- checkLeq b a
+      if leq then pure $ tOp PSub a b
+             else tApp f es
 
     maybeMinusToPrim f es = tApp f es
 
@@ -417,6 +414,46 @@ simplify FunctionKit{..} = simpl
       TErased{} -> True
       TError{}  -> True
       _         -> False
+
+    checkLeq a b = do
+      rho  <- asks envSubst
+      rwr  <- asks envRewrite
+      let nf = toArith . applySubst rho
+          less = [ (nf a, nf b) | (TPOp PLt a b, rhs) <- rwr, isTrue  rhs ]
+          leq  = [ (nf b, nf a) | (TPOp PLt a b, rhs) <- rwr, isFalse rhs ]
+
+          match (j, as) (k, bs)
+            | as == bs  = Just (j - k)
+            | otherwise = Nothing
+
+          -- Do we have x ≤ y given x' < y' + d ?
+          matchEqn d x y (x', y') = isJust $ do
+            k <- match x x'     -- x = x' + k
+            j <- match y y'     -- y = y' + j
+            guard (k <= j + d)  -- x ≤ y if k ≤ j + d
+
+          matchLess = matchEqn 1
+          matchLeq  = matchEqn 0
+
+          literal (j, []) (k, []) = j <= k
+          literal _ _ = False
+
+          -- k + fromWord x ≤ y  if  k + 2^64 - 1 ≤ y
+          wordUpperBound (k, [Pos (TApp (TPrim P64ToI) _)]) y = go (k + 2^64 - 1, []) y
+          wordUpperBound _ _ = False
+
+          -- x ≤ k + fromWord y  if  x ≤ k
+          wordLowerBound a (k, [Pos (TApp (TPrim P64ToI) _)]) = go a (k, [])
+          wordLowerBound _ _ = False
+
+          go x y = or
+            [ literal x y
+            , wordUpperBound x y
+            , wordLowerBound x y
+            , any (matchLess x y) less
+            , any (matchLeq x y) leq ]
+
+      return $ go (nf a) (nf b)
 
 type Arith = (Integer, [Atom])
 
