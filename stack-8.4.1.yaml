@@ -38,6 +38,9 @@ extra-deps:
 - old-locale-1.0.0.7
 - old-time-1.1.0.3
 - polyparse-1.12
+- alex-3.2.4
+- happy-1.19.9
+- text-icu-0.7.0.1
 
 
 # Local packages, usually specified by relative directory name
