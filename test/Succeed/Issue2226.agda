@@ -66,12 +66,8 @@ foo₁-def = refl
 bar-def : getDef bar ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
 bar-def = refl
 
--- Andreas, 2018-03-12: Behavior before fix of #2963:
--- bar₁ = foo₁ {_} {{FooA}}
--- bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo₁) (`? ∷ vArg (def (quote FooA) []) ∷ []))
--- NOW:
--- bar₁ = Foo.foo₁ {A} FooA
-bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo₁) (hArg (def (quote A) []) ∷ vArg (def (quote FooA) []) ∷ []))
+-- bar₁ = foo {_} FooA
+bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
 bar₁-def =  refl
 
 -- bar₂ = foo₂ {_} {FooA}
